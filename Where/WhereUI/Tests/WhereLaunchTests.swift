@@ -320,17 +320,6 @@ struct WhereLaunchTests {
         #expect(launcher.phase.isReady)
     }
 
-    @Test func attachingLogStoreExposesItOnTheModel() async throws {
-        // The launch bootstrap opens the process-global store off the critical
-        // path and hands it to the model so the developer surface can browse it.
-        // A fresh model has none until then.
-        let model = try makeModel(preferences: makePreferences())
-        #expect(model.logStore == nil)
-        let store = try await PeriscopeStore.inMemory(session: .current(attributes: [:]))
-        model.attach(logStore: store)
-        #expect(model.logStore === store)
-    }
-
     @Test func startSessionHandsTheSessionsServicesToTheOnServicesReadyHook() async throws {
         // A model with services attached but no session yet — the app's shape
         // when the resolve-scope step runs (the preview/test init pre-builds

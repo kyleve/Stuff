@@ -95,7 +95,11 @@
                     .init(
                         id: .init(rawValue: "periscope"),
                         title: "Periscope SwiftData",
-                        storageRootURL: applicationSupport,
+                        // SwiftData may resolve its default store into the
+                        // app-group container. Derive containment from the
+                        // adapter's exact live URL rather than assuming the
+                        // app-private Application Support directory.
+                        storageRootURL: periscopeStoreURL.deletingLastPathComponent(),
                         storeURL: periscopeStoreURL,
                         recoveryStorageURLs: periscopeRecoveryStorageURLs,
                         modelTypes: PeriscopeStore.inspectorModelTypes,

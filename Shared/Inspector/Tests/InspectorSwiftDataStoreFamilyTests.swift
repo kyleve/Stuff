@@ -221,6 +221,10 @@ private struct StoreFamilyFixture {
         let shm = storage.appending(path: "Periscope.store-shm")
         let journal = storage.appending(path: "Periscope.store-journal")
         let support = storage.appending(
+            path: ".Periscope_SUPPORT",
+            directoryHint: .isDirectory,
+        )
+        let legacySupport = storage.appending(
             path: "Periscope.store_SUPPORT",
             directoryHint: .isDirectory,
         )
@@ -238,6 +242,7 @@ private struct StoreFamilyFixture {
             shm,
             journal,
             support,
+            legacySupport,
             cloudKitAssets,
             cloudKitAssetFiles,
         ]
@@ -246,14 +251,12 @@ private struct StoreFamilyFixture {
         for file in [storeURL, wal, shm, journal, similarlyNamedFile] {
             try Data(file.lastPathComponent.utf8).write(to: file)
         }
-        try FileManager.default.createDirectory(at: support, withIntermediateDirectories: true)
-        try Data("external".utf8).write(to: support.appending(path: "blob"))
-        for directory in [cloudKitAssets, cloudKitAssetFiles] {
+        for directory in [support, legacySupport, cloudKitAssets, cloudKitAssetFiles] {
             try FileManager.default.createDirectory(
                 at: directory,
                 withIntermediateDirectories: true,
             )
-            try Data("asset".utf8).write(to: directory.appending(path: "blob"))
+            try Data("external".utf8).write(to: directory.appending(path: "blob"))
         }
     }
 

@@ -27,13 +27,17 @@
             }
         }
 
-        static func available(hasLogStore: Bool) -> [Self] {
+        /// Process-independent destinations plus the always-visible logging
+        /// diagnostic surface. Logs must remain reachable while their store
+        /// is opening or failed; hiding the row turns those states into an
+        /// undiagnosable absence.
+        static var available: [Self] {
             [
-                hasLogStore ? .tool(.logs) : nil,
+                .tool(.logs),
                 .tool(.openSpans),
                 .flyover,
                 .tool(.regionMap),
-            ].compactMap(\.self)
+            ]
         }
     }
 #endif

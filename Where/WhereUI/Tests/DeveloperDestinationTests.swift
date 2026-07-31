@@ -3,16 +3,9 @@
     @testable import WhereUI
 
     struct DeveloperDestinationTests {
-        @Test func preSessionMenuContainsOnlyProcessIndependentTools() {
+        @Test func loggingDiagnosticsRemainAvailableBeforeTheStore() {
             #expect(
-                DeveloperDestination.available(hasLogStore: false)
-                    == [.tool(.openSpans), .flyover, .tool(.regionMap)],
-            )
-        }
-
-        @Test func attachedLogStoreAddsOnlyTheLogsTool() {
-            #expect(
-                DeveloperDestination.available(hasLogStore: true)
+                DeveloperDestination.available
                     == [
                         .tool(.logs),
                         .tool(.openSpans),

@@ -498,6 +498,42 @@
         }
       }
     },
+    "developer.loggingFailedTitle" : {
+      "comment" : "Title shown when the durable developer log store could not be opened.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Log Store Failed to Open"
+          }
+        }
+      }
+    },
+    "developer.loggingOpeningDescription" : {
+      "comment" : "Explanation shown while the durable developer log store is opening.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The durable logging store is still opening. If this state persists, relaunch Where and check again."
+          }
+        }
+      }
+    },
+    "developer.loggingOpeningTitle" : {
+      "comment" : "Title shown while the durable developer log store is opening.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opening Log Store"
+          }
+        }
+      }
+    },
     "developer.logsLink" : {
       "comment" : "Label for the button that opens the logs screen.",
       "extractionState" : "manual",

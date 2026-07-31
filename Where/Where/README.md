@@ -50,12 +50,14 @@ steps immediately and builds no view tree; when a scene actually activates,
 The Inspector runtime returns its standalone `InspectorView` and starts none of
 the model, launch, CoreLocation, notification, Periscope pipeline, App Intents,
 or Spotlight systems. It opens Where and Periscope containers only through
-their schema adapters for inspection; a container that cannot open remains
-listed with its error and a confirmed action that deletes only its configured
-store family and Periscope crash-journal directory before removing the source
-from the current Inspector session and scheduling one pre-runtime cleanup pass
-for the next process. Its exit control selects the regular runtime for the next
-manual relaunch; neither runtime swaps live.
+their schema adapters for inspection. Each source's containment root is derived
+from the adapter's exact store URL, since SwiftData may place the Periscope
+database in the app-group container. A container that cannot open remains listed
+with its error and a confirmed action that deletes only its configured store
+family and Periscope crash-journal directory before removing the source from the
+current Inspector session and scheduling one pre-runtime cleanup pass for the
+next process. Its exit control selects the regular runtime for the next manual
+relaunch; neither runtime swaps live.
 
 ## Build & run
 

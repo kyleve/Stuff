@@ -139,6 +139,10 @@ slow.
   trunk.
 - **Ambient log sources start at process launch; the durable sink is a
   scope's.** Records emitted before a scope exists reach OSLog only.
+- **Publish durable-log bring-up through `WhereModel.logStoreState`.** The
+  active scope owns the store, while the process model mirrors opening, ready,
+  unavailable, and failed states for the DEBUG developer surface. Guards:
+  `WhereModelTests`.
 
 ### Demo mode
 

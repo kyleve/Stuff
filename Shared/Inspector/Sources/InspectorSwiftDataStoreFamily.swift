@@ -47,14 +47,23 @@ struct InspectorSwiftDataStoreFamily {
             return
         }
 
+        let storeName = storeURL.lastPathComponent
+        let configurationName = storeURL.deletingPathExtension().lastPathComponent
         let memberNames = [
-            storeURL.lastPathComponent,
-            "\(storeURL.lastPathComponent)-wal",
-            "\(storeURL.lastPathComponent)-shm",
-            "\(storeURL.lastPathComponent)-journal",
-            "\(storeURL.lastPathComponent)_SUPPORT",
-            "\(storeURL.lastPathComponent)_ckAssets",
-            "\(storeURL.lastPathComponent)_ckAssetFiles",
+            storeName,
+            "\(storeName)-wal",
+            "\(storeName)-shm",
+            "\(storeName)-journal",
+            // SwiftData's external-storage directory is named from the
+            // configuration (`.Periscope_SUPPORT` for `Periscope.store`),
+            // not from the complete SQLite filename. Keep the older explicit
+            // filename variants too for stores produced by other OS releases.
+            ".\(configurationName)_SUPPORT",
+            ".\(configurationName)_ckAssets",
+            ".\(configurationName)_ckAssetFiles",
+            "\(storeName)_SUPPORT",
+            "\(storeName)_ckAssets",
+            "\(storeName)_ckAssetFiles",
         ]
         let memberNameSet = Set(memberNames)
         let storeMembers = try fileManager.contentsOfDirectory(

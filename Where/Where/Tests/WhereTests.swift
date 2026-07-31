@@ -193,7 +193,9 @@ struct WhereAppTests {
             let groupURL = FileManager.default.temporaryDirectory
                 .appending(path: "where-inspector-group", directoryHint: .isDirectory)
             let whereStoreURL = groupURL.appending(path: "default.store")
-            let periscopeStoreURL = FileManager.default.temporaryDirectory
+            let periscopeStorageRootURL = groupURL
+                .appending(path: "Library/Application Support", directoryHint: .isDirectory)
+            let periscopeStoreURL = periscopeStorageRootURL
                 .appending(path: "Periscope.store")
             let periscopeRecoveryStorageURL = periscopeStoreURL
                 .deletingLastPathComponent()
@@ -224,6 +226,10 @@ struct WhereAppTests {
             #expect(
                 configuration.swiftDataSources.compactMap(\.storeURL)
                     == [whereStoreURL, periscopeStoreURL],
+            )
+            #expect(
+                configuration.swiftDataSources.map(\.storageRootURL)
+                    == [groupURL, periscopeStorageRootURL],
             )
             #expect(
                 configuration.swiftDataSources.map(\.id.rawValue)

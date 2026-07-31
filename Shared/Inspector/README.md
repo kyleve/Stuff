@@ -124,7 +124,9 @@ Every configured SwiftData source remains in the sidebar when its container
 cannot open. Inspector shows the opening error instead of entity tables. When
 the source declares an exact `storeURL`, a confirmed recovery action deletes
 only that database, its WAL/SHM/journal files, and its external-data support
-and CloudKit asset directories. It also deletes each exact
+and CloudKit asset directories, including SwiftData's hidden
+configuration-named family (for example `.Periscope_SUPPORT` beside
+`Periscope.store`). It also deletes each exact
 `recoveryStorageURLs` path after verifying that it is a strict, canonical
 descendant of the declared storage root. It then removes the source and its
 selected detail from the current Inspector session. The configured source may

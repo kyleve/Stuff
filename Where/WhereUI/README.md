@@ -37,7 +37,9 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
 - **Developer tools** — DEBUG-only logging, span, region-map, Flyover, and
   next-launch Inspector controls. The global launcher's accordion only updates
   `InspectorModeController`; the current regular runtime continues until the
-  developer relaunches.
+  developer relaunches. The Logs destination is always present: before its
+  durable store is ready it reports whether the open is still running,
+  unavailable, or failed with the actual error.
 - **`WhereLaunch`** — the launch, reset, and exit-demo plans themselves. Every
   step declares how long it should take (`BudgetedLaunchStep`) and joins the
   plan through `.measured()`, so each run is one Periscope span named after
@@ -54,11 +56,13 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   on-disk store, and `makeDemoScope()` builds a seeded in-memory world that
   leaves nothing behind. Its log sink is registered on an **injected**
   `Periscope` — and only while `WhereModel` says the scope is active — with
-  routing modelled as one state (`pending` / `routing` / `idle`), so a store that
-  finishes opening while the scope is shadowed is remembered rather than routed
-  into. When the durable store opens, its bring-up is spanned (`openLogStore`)
-  and history is trimmed with `LogHistoryPruner` (a 100-day window *and* a
-  50k-event ceiling, so the store is bounded however heavily the device logs).
+  routing modelled as one state (`pending` / `routing` / `idle` / `failed`), so
+  a store that finishes opening while the scope is shadowed is remembered rather
+  than routed into. `WhereModel.logStoreState` mirrors the active scope's
+  asynchronous bring-up for direct SwiftUI observation. When the durable store
+  opens, its bring-up is spanned (`openLogStore`) and history is trimmed with
+  `LogHistoryPruner` (a 100-day window *and* a 50k-event ceiling, so the store is
+  bounded however heavily the device logs).
 - **`WhereModel`** — app-level state that outlives any one scope: the
   onboarding flag, the active `WhereScope`, the owned `WhereSession`, and the
   lifecycle intents (`activate(scope:)`, `startSession(scope:)` — which

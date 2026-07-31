@@ -23,6 +23,24 @@ import WhereCore
 @MainActor
 @Observable
 public final class WhereModel {
+    /// Observable bring-up state for the active scope's durable log store.
+    ///
+    /// The developer surface must not infer a failed asynchronous open from a
+    /// missing optional: opening and failure are real states with different
+    /// diagnostics. This mirror lives on the process model because SwiftUI
+    /// observes it directly; the scope remains the store's lifetime owner.
+    public enum LogStoreState {
+        /// No scope is active, so durable logging has not been requested.
+        case unavailable
+        /// A real scope is active and its durable store is opening.
+        case opening
+        /// The active scope owns a usable store.
+        case ready(PeriscopeStore)
+        /// Opening failed. OSLog remains active, and the developer surface
+        /// presents this exact diagnostic.
+        case failed(description: String)
+    }
+
     /// Which `WhereScope` the app is logged in to.
     ///
     /// An enum rather than an optional scope beside a set of flags: what the
@@ -69,16 +87,21 @@ public final class WhereModel {
     /// `endSession()` on reset and rebuilt when the launch re-drives.
     public private(set) var session: WhereSession?
 
+    /// Observable bring-up state for the active scope's durable log store.
+    public private(set) var logStoreState = LogStoreState.unavailable
+
     /// The durable log store the active scope records into, once it has
-    /// opened — the DEBUG developer surface browses it. `nil` while logged out
-    /// (those records reach OSLog only), and in previews/tests, which log
-    /// through the in-memory pipeline.
+    /// opened — the DEBUG developer surface browses it. `nil` while logged
+    /// out, opening, or failed.
     ///
     /// A scope's rather than the model's, because what is persisted depends on
     /// which world is active: the real scope writes to disk, an in-memory one
     /// keeps its records in memory.
     public var logStore: PeriscopeStore? {
-        activeScope?.logStore
+        if case let .ready(store) = logStoreState {
+            return store
+        }
+        return nil
     }
 
     /// The persisted user intent (onboarding, tracking, reminder/summary
@@ -222,6 +245,7 @@ public final class WhereModel {
             return
         }
         activeScope.adopt(logStore: logStore)
+        logStoreState = .ready(logStore)
     }
 
     /// Log in to `scope`. Idempotent: a no-op once a scope is active, so an
@@ -230,6 +254,7 @@ public final class WhereModel {
     public func activate(scope: WhereScope) {
         guard activeScope == nil else { return }
         scopeState = .real(scope)
+        logStoreState = scope.logStoreState
     }
 
     /// The scope the app is logged in to, building the user's real one if
@@ -257,11 +282,16 @@ public final class WhereModel {
                     bootstrap: bootstrap,
                     preferences: preferences,
                     logSystem: logSystem,
+                    onLogStoreStateChange: { [weak self] scope, state in
+                        guard self?.activeScope === scope else { return }
+                        self?.logStoreState = state
+                    },
                 )
                 // Replacing the state releases the bootstrap: it has handed
                 // over its location source and opened its store, and the next
                 // login gets a fresh one.
                 scopeState = .real(scope)
+                logStoreState = scope.logStoreState
                 Self.logger { .openedRealScope }
                 return scope
         }
@@ -305,6 +335,7 @@ public final class WhereModel {
         await logOut()
         scopeState = .demo(scope)
         scope.startLogRouting()
+        logStoreState = scope.logStoreState
         Self.logger { .enteredDemoMode }
     }
 
@@ -357,6 +388,7 @@ public final class WhereModel {
         await activeScope?.stopLogRouting()
         session = nil
         scopeState = .loggedOut(bootstrap: makeBootstrap())
+        logStoreState = .unavailable
         await onLoggedOut()
     }
 

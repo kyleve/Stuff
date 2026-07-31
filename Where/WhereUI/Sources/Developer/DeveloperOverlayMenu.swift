@@ -2,7 +2,6 @@
     import Inspector
     import PeriscopeTools
     import SwiftUI
-    import WhereCore
 
     /// The lightweight Path-style developer menu layered over the app.
     ///
@@ -15,7 +14,6 @@
         let maxHeight: CGFloat
         let onOpenDestination: (DeveloperDestination) -> Void
 
-        @Environment(WhereModel.self) private var model: WhereModel?
         @Environment(InspectorModeController.self) private var modeController:
             InspectorModeController?
         @Environment(\.periscopeInspector) private var inspector
@@ -23,9 +21,7 @@
 
         var body: some View {
             let menu = stylesheet.developerOverlay.menu
-            let destinations = DeveloperDestination.available(
-                hasLogStore: model?.logStore != nil,
-            )
+            let destinations = DeveloperDestination.available
             let inspectorModeRowCount = modeController == nil ? 0 : 1
             let logModeRowCount = inspector == nil ? 0 : 1
             let itemCount = destinations.count + inspectorModeRowCount + logModeRowCount
