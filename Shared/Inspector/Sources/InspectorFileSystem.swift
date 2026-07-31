@@ -158,34 +158,3 @@ actor InspectorFileSystem {
         return nil
     }
 }
-
-extension URL {
-    fileprivate func isDescendant(of root: URL) -> Bool {
-        let rootComponents = root.standardizedFileURL.pathComponents
-        let components = standardizedFileURL.pathComponents
-        return components.count > rootComponents.count
-            && Array(components.prefix(rootComponents.count)) == rootComponents
-    }
-
-    fileprivate func isAncestor(of other: URL) -> Bool {
-        other.isDescendant(of: self)
-    }
-
-    fileprivate func belongsToSwiftDataStoreFamily(of storeURL: URL) -> Bool {
-        if self == storeURL || isAncestor(of: storeURL) {
-            return true
-        }
-
-        let storeParent = storeURL.deletingLastPathComponent()
-        guard self == storeParent || isDescendant(of: storeParent) else {
-            return false
-        }
-        let relativeComponents = Array(
-            standardizedFileURL.pathComponents.dropFirst(storeParent.pathComponents.count),
-        )
-        guard let familyMember = relativeComponents.first else {
-            return false
-        }
-        return familyMember.hasPrefix(storeURL.lastPathComponent)
-    }
-}

@@ -28,12 +28,15 @@
             ) else {
                 preconditionFailure("Where's App Group container is unavailable")
             }
+            let whereStoreURL = SwiftDataStore.inspectorStoreURL(groupContainerURL: groupURL)
 
             configuration = Self.makeConfiguration(
                 fileManager: fileManager,
                 userDefaults: userDefaults,
                 bundleIdentifier: bundleIdentifier,
                 groupURL: groupURL,
+                whereStoreURL: whereStoreURL,
+                periscopeStoreURL: PeriscopeStore.inspectorStoreURL,
             )
             self.modeController = modeController
         }
@@ -43,6 +46,8 @@
             userDefaults: UserDefaults,
             bundleIdentifier: String,
             groupURL: URL,
+            whereStoreURL: URL,
+            periscopeStoreURL: URL,
         ) -> InspectorConfiguration {
             let documents = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
             let applicationSupport =
@@ -79,15 +84,17 @@
                         id: .init(rawValue: "where"),
                         title: "Where SwiftData",
                         storageRootURL: groupURL,
+                        storeURL: whereStoreURL,
                         modelTypes: SwiftDataStore.inspectorModelTypes,
                         makeContainer: {
-                            try SwiftDataStore.makeContainer(storage: .default)
+                            try SwiftDataStore.makeContainer(storage: .localOnly)
                         },
                     ),
                     .init(
                         id: .init(rawValue: "periscope"),
                         title: "Periscope SwiftData",
                         storageRootURL: applicationSupport,
+                        storeURL: periscopeStoreURL,
                         modelTypes: PeriscopeStore.inspectorModelTypes,
                         makeContainer: {
                             try PeriscopeStore.makeContainer(storage: .onDisk)

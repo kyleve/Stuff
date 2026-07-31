@@ -186,7 +186,8 @@ store so the retry queue can't repopulate it mid-erase.
 
 - **Values, not records.** Nothing crossing `WhereStore` is a SwiftData object;
   the DEBUG Inspector runtime opens its own container directly from the same
-  schema factory without constructing `WhereServices`.
+  schema factory and uses the factory's exact store URL for recovery, without
+  constructing `WhereServices`.
 - **Always-location.** Background day tracking needs Always; `requestPermission()`
   throws `LocationPermissionDeniedError` on denial / restriction.
 - **Failures surface.** Store methods are `async throws`; errors are logged via

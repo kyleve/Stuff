@@ -34,6 +34,10 @@ struct PeriscopeStoreTests {
         )
     }
 
+    @Test func inspectorStoreURLNamesTheOnDiskConfiguration() {
+        #expect(PeriscopeStore.inspectorStoreURL.lastPathComponent == "Periscope.store")
+    }
+
     @Test func eventsComeBackNewestFirst() async throws {
         let (store, root, _, _) = try await makeStore()
         await store.write([

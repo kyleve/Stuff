@@ -38,8 +38,10 @@ InspectorConfiguration(
 ```
 
 Each source has a dedicated `Hashable` identifier type. A SwiftData source
-provides its storage root, optional explicit model list, pagination and
-formatting options, and a factory that opens a `ModelContainer`:
+provides its storage root, optional exact store URL and explicit model list,
+pagination and formatting options, and a factory that opens a `ModelContainer`.
+Supplying `storeURL` enables confirmed recovery erasure when the container
+cannot open:
 
 ```swift
 let configuration = InspectorConfiguration(
@@ -64,6 +66,7 @@ let configuration = InspectorConfiguration(
             id: .init(rawValue: "primary"),
             title: "SwiftData",
             storageRootURL: applicationSupportURL,
+            storeURL: AppStore.inspectorStoreURL,
             modelTypes: AppStore.inspectorModelTypes,
             makeContainer: { try AppStore.makeContainer() }
         ),
@@ -88,10 +91,10 @@ as the focused SwiftData component for previews or other developer surfaces.
 Inspector never deletes a configured file root. Before file deletion becomes
 available, it opens every SwiftData source and obtains the live store URLs. It
 then protects each SQLite store, its WAL/SHM/support family, and any ancestor
-whose recursive deletion would contain them. If a source cannot open, deletion
-is disabled in its declared storage tree while unrelated containers remain
-usable. Canonical-path checks prevent browsing through symlinks outside a
-configured root.
+whose recursive deletion would contain them. If a source cannot open, generic
+file deletion is disabled in its declared storage tree while unrelated
+containers remain usable. Canonical-path checks prevent browsing or recovery
+through symlinks outside a configured root.
 
 There is intentionally no file creation, content editing, rename, or move in
 v1.
@@ -104,12 +107,16 @@ SwiftData mutations run on the same actor as reads. That actor owns the
 `ModelContainer`, creates every `ModelContext`, explicitly saves deletions, and
 returns only `Sendable` value snapshots and `PersistentIdentifier`s. A complete
 erase calls `ModelContainer.erase()` and reopens through the source factory;
-raw SQLite deletion remains unavailable.
+raw SQLite deletion remains unavailable for an open store and throughout the
+generic file browser.
 
 Every configured SwiftData source remains in the sidebar when its container
-cannot open. Inspector shows the opening error instead of entity tables and
-disables filesystem deletion throughout that source's declared storage root,
-leaving unrelated sources and file containers usable.
+cannot open. Inspector shows the opening error instead of entity tables. When
+the source declares an exact `storeURL`, a confirmed recovery action deletes
+only that database, its WAL/SHM/journal files, and its external-data support
+and CloudKit asset directories, then immediately reopens an empty container
+through the configured factory. Similarly named files remain untouched.
+Without an exact URL the source stays read-only and protected.
 
 Inspector deliberately does not reflectively edit SwiftData attributes.
 

@@ -26,6 +26,10 @@ formatting, and repository-wide conventions.
 - Resolve every configured SwiftData source before enabling filesystem
   deletion; protect its store family and containing ancestors, or disable
   deletion in the unresolved storage tree.
+- Keep raw store files protected in the generic filesystem browser. An
+  unreadable source may erase only its explicitly configured store URL's known
+  SQLite/support family through the confirmed recovery action, then must reopen
+  through its container factory.
 - Keep file operations inside canonical configured roots; never follow a
   symlink outside one.
 - Enumerate only configured persistent defaults domains. Existing scalar values
@@ -34,9 +38,8 @@ formatting, and repository-wide conventions.
 - Keep every SwiftData context and model instance on
   `InspectorSwiftDataStore`; only value snapshots and persistent identifiers
   cross to the main actor.
-- Erase a whole store only through `ModelContainer.erase()`, then replace the
-  actor's container with one reopened by the configured factory. Raw store
-  files always remain protected.
+- Erase an open store through `ModelContainer.erase()`, then replace the
+  actor's container with one reopened by the configured factory.
 - Keep private SwiftData reflection in
   [`SwiftDataReflection.swift`](Sources/SwiftDataReflection.swift). Tables must
   not fault blobs or relationships merely to render.

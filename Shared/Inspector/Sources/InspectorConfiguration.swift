@@ -86,6 +86,9 @@ extension InspectorConfiguration {
         public let id: ID
         public let title: String
         public let storageRootURL: URL
+        /// The exact on-disk store URL. When present, Inspector may offer a
+        /// confirmed store-family erase if the container cannot open.
+        public let storeURL: URL?
         public let modelTypes: [any PersistentModel.Type]?
         public let rowLimit: Int?
         public let valueFormatter: (@Sendable (Any) -> String?)?
@@ -95,6 +98,7 @@ extension InspectorConfiguration {
             id: ID,
             title: String,
             storageRootURL: URL,
+            storeURL: URL? = nil,
             modelTypes: [any PersistentModel.Type]? = nil,
             rowLimit: Int? = 500,
             valueFormatter: (@Sendable (Any) -> String?)? = nil,
@@ -103,6 +107,7 @@ extension InspectorConfiguration {
             self.id = id
             self.title = title
             self.storageRootURL = storageRootURL.standardizedFileURL
+            self.storeURL = storeURL?.standardizedFileURL
             self.modelTypes = modelTypes
             self.rowLimit = rowLimit
             self.valueFormatter = valueFormatter

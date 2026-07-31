@@ -77,12 +77,17 @@ struct WhereAppTests {
             defer { defaults.removePersistentDomain(forName: suiteName) }
             let groupURL = FileManager.default.temporaryDirectory
                 .appending(path: "where-inspector-group", directoryHint: .isDirectory)
+            let whereStoreURL = groupURL.appending(path: "default.store")
+            let periscopeStoreURL = FileManager.default.temporaryDirectory
+                .appending(path: "Periscope.store")
 
             let configuration = WhereInspectorApplicationRuntime.makeConfiguration(
                 fileManager: .default,
                 userDefaults: defaults,
                 bundleIdentifier: suiteName,
                 groupURL: groupURL,
+                whereStoreURL: whereStoreURL,
+                periscopeStoreURL: periscopeStoreURL,
             )
 
             #expect(
@@ -97,6 +102,10 @@ struct WhereAppTests {
             )
             #expect(configuration.fileContainers.last?.rootURL == groupURL)
             #expect(configuration.defaultsDomains.map(\.persistentDomainName) == [suiteName])
+            #expect(
+                configuration.swiftDataSources.compactMap(\.storeURL)
+                    == [whereStoreURL, periscopeStoreURL],
+            )
             #expect(
                 configuration.swiftDataSources.map(\.id.rawValue)
                     == ["where", "periscope"],

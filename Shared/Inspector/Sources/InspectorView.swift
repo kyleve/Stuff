@@ -111,11 +111,14 @@ public struct InspectorView: View {
             case let .swiftData(id):
                 if let loaded = model.loadedSwiftDataSources[id] {
                     InspectorSwiftDataView(model: loaded.model)
-                } else if let error = model.swiftDataFailures[id] {
-                    ContentUnavailableView(
-                        "SwiftData Unavailable",
-                        systemImage: "exclamationmark.triangle",
-                        description: Text(error),
+                } else if model.swiftDataFailures[id] != nil,
+                          let source = model.configuration.swiftDataSources.first(where: {
+                              $0.id == id
+                          })
+                {
+                    InspectorUnavailableSwiftDataView(
+                        source: source,
+                        model: model,
                     )
                 }
             case nil:
