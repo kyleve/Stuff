@@ -114,6 +114,7 @@
                 TodayWidgetView.flyoverData,
                 TodayInlineAccessoryView.flyoverData,
                 TodayCircularAccessoryView.flyoverData,
+                MacSummaryWidgetView.flyoverData,
                 YearTotalsWidgetView.flyoverData,
                 YearTotalsRectangularAccessoryView.flyoverData,
             ]

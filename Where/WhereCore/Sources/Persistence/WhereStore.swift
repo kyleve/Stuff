@@ -40,6 +40,15 @@ public protocol WhereStore: Sendable {
     /// import, so a consumer that re-derives on each ping can't go stale.
     func changes() -> AsyncStream<Void>
 
+    /// A fresh stream containing only changes imported from outside this
+    /// process (CloudKit or another App Group process).
+    ///
+    /// This is a narrow side-effect trigger, not a second read path:
+    /// `changes()` remains the signal for readers, while expensive publishers
+    /// use this stream when local writes already invoke them directly and
+    /// putting every hot GPS commit through a full rebuild would duplicate work.
+    func remoteChanges() -> AsyncStream<Void>
+
     func add(sample: LocationSample) async throws
     func samples(in interval: DateInterval) async throws -> [LocationSample]
     func allSamples() async throws -> [LocationSample]
@@ -142,6 +151,11 @@ public protocol WhereStore: Sendable {
 }
 
 extension WhereStore {
+    /// Stores without an external writer return an already-finished stream.
+    public func remoteChanges() -> AsyncStream<Void> {
+        AsyncStream { $0.finish() }
+    }
+
     /// Regions tracked out of the box, until the user chooses their own. The
     /// "no rows yet" fallback for ``trackedRegions()`` and the historical
     /// California / New York / Canada / European Union set.

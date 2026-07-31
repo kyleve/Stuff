@@ -14,8 +14,9 @@ WidgetKit configuration, the timeline provider, and family-specific layout.
 
 | Widget | Kind | Families |
 |--------|------|----------|
-| **Today** | `com.stuff.where.widgets.today` | small, inline, circular |
-| **Day Counts** | `com.stuff.where.widgets.yearTotals` | small, medium, rectangular |
+| **Today** (iPhone/iPad) | `com.stuff.where.widgets.today` | small, inline, circular |
+| **Day Counts** (iPhone/iPad) | `com.stuff.where.widgets.yearTotals` | small, medium, rectangular |
+| **Where Summary** (Mac) | `com.stuff.where.widgets.macSummary` | small, medium |
 
 ## Data flow
 
@@ -41,11 +42,13 @@ app never wakes.
 
 ## Installation
 
-`WhereWidgets` is a Tuist app-extension target in
+`WhereWidgets` is a multi-destination Tuist app-extension target in
 [`Project.swift`](../../Project.swift) (bundle ID `com.stuff.where.widgets`).
 It depends on **WhereCore**, **WhereUI**, **RegionKit** (for the `Region` model
 its snapshot fixtures use), and **PeriscopeCore**. The main **Where** app embeds the
 extension and shares the App Group entitlement.
+The bundle declaration exposes only the combined Today + year-to-date summary
+when compiled for Mac Catalyst.
 
 ## Previews
 

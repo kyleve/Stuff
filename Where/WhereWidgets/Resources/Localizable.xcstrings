@@ -1,6 +1,30 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "widget.gallery.macSummary.description" : {
+      "comment" : "Widget gallery description for the Mac summary widget.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Today’s observed regions and year-to-date day counts."
+          }
+        }
+      }
+    },
+    "widget.gallery.macSummary.name" : {
+      "comment" : "Widget gallery name for the Mac summary widget.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where Summary"
+          }
+        }
+      }
+    },
     "widget.gallery.today.description" : {
       "comment" : "Widget gallery description for the Today widget.",
       "extractionState" : "manual",

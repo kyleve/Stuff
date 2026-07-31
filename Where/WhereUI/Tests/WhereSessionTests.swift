@@ -158,7 +158,7 @@ private actor SpyWidgetRefresher: WidgetTimelineRefreshing {
         publishedSnapshots.last
     }
 
-    func publish(_ snapshot: WidgetSnapshot) async {
+    func publish(_ snapshot: WidgetSnapshot) async throws {
         publishedSnapshots.append(snapshot)
     }
 }

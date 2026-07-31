@@ -2,24 +2,28 @@ import BumperBowlingCore
 
 enum WhereComponent: String, ComponentKey {
     case regionKit
+    case whereSurface
     case whereCore
     case whereUI
     case whereIntents
     case app
     case widgets
     case shareExtension
+    case menuBar
     case regionViewer
 }
 
 let bumper = BumperProject {
     Included {
         "Where/RegionKit/Sources"
+        "Where/WhereSurface/Sources"
         "Where/WhereCore/Sources"
         "Where/WhereUI/Sources"
         "Where/WhereIntents/Sources"
         "Where/Where/Sources"
         "Where/WhereWidgets/Sources"
         "Where/WhereShareExtension/Sources"
+        "Where/WhereMenuBar/Sources"
         "Where/RegionViewer/Sources"
     }
 
@@ -37,10 +41,16 @@ let bumper = BumperProject {
             DoesNotUse("CoreLocation")
         }
 
+        Component(.whereSurface) {
+            Owns("Where/WhereSurface/Sources")
+            Modules("WhereSurface")
+            Applies(.whereFoundationLayer)
+        }
+
         Component(.whereCore) {
             Owns("Where/WhereCore/Sources")
             Modules("WhereCore")
-            MayDependOn(.regionKit)
+            MayDependOn(.regionKit, .whereSurface)
             Applies(.whereDomainLayer)
         }
 
@@ -80,6 +90,14 @@ let bumper = BumperProject {
             Modules("WhereShareExtension")
             MayDependOn(.whereCore, .whereUI)
             Applies(.whereAdapterLayer)
+        }
+
+        Component(.menuBar) {
+            Owns("Where/WhereMenuBar/Sources")
+            Modules("WhereMenuBar")
+            MayDependOn(.whereSurface)
+            Applies(.whereMacHostLayer)
+            DoesNotUse("CoreLocation", "SwiftData")
         }
 
         Component(.regionViewer) {

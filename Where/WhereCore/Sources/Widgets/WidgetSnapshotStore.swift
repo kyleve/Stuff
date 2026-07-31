@@ -1,5 +1,6 @@
 import Foundation
 import PeriscopeCore
+import WhereSurface
 
 /// Reads and writes the widgets' published `WidgetSnapshot` as a small JSON
 /// file in the App Group container shared by the app and the widget
@@ -20,12 +21,6 @@ public struct WidgetSnapshotStore: Sendable {
         public init() {}
     }
 
-    /// The single App Group identifier every Where process shares (app, widget
-    /// extension, share extension). Sourced from `SwiftDataStore` so there's one
-    /// canonical value rather than a per-store literal that could drift.
-    private static let appGroupIdentifier = SwiftDataStore.appGroupIdentifier
-    private static let fileName = "widget-snapshot.json"
-
     /// Directory the snapshot file lives in. Exposed via `init` so tests can
     /// point at a temp directory; production resolves the App Group via
     /// `shared()`.
@@ -39,7 +34,7 @@ public struct WidgetSnapshotStore: Sendable {
     /// `AppGroupUnavailableError` when the container can't be resolved.
     public static func shared() throws -> WidgetSnapshotStore {
         guard let container = FileManager.default.containerURL(
-            forSecurityApplicationGroupIdentifier: appGroupIdentifier,
+            forSecurityApplicationGroupIdentifier: WhereSurfaceStore.appGroupIdentifier,
         ) else {
             throw AppGroupUnavailableError()
         }
@@ -47,7 +42,7 @@ public struct WidgetSnapshotStore: Sendable {
     }
 
     private var fileURL: URL {
-        directory.appending(path: Self.fileName)
+        directory.appending(path: WhereSurfaceStore.snapshotFileName)
     }
 
     /// Atomically replace the published snapshot. Atomic so the widget never

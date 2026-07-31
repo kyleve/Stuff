@@ -29,7 +29,10 @@ public actor LocationIngestor {
 
     private let store: any WhereStore
     private let locationSource: any LocationSource
-    private let recordingDeviceID: RecordingDeviceID
+    /// Nil for a management-only process. Such a process can use the service
+    /// layer for reads and manual writes, but every automatic-location entry
+    /// point remains inert because there is no installation to attribute it to.
+    private let recordingDeviceID: RecordingDeviceID?
     private let calendar: Calendar
     private let onPersisted: PostPersistHook
     /// Durable mirror of `retryQueue`, so a backlog survives the process dying
@@ -90,7 +93,7 @@ public actor LocationIngestor {
     init(
         store: any WhereStore,
         locationSource: any LocationSource,
-        recordingDeviceID: RecordingDeviceID,
+        recordingDeviceID: RecordingDeviceID?,
         calendar: Calendar,
         outbox: any LocationOutbox = NoOpLocationOutbox(),
         retryQueueCapacity: Int = 1000,
@@ -122,6 +125,7 @@ public actor LocationIngestor {
     /// single-consumer `AsyncStream`, so a later `start()` would iterate an
     /// already-finished stream and silently drop every subsequent sample.
     public func start() async {
+        guard let recordingDeviceID else { return }
         // Re-open the sample gate a prior `quiesce()` may have shut (e.g. the
         // relaunch after a reset resumes ingestion here).
         acceptsSamples = true
@@ -245,6 +249,7 @@ public actor LocationIngestor {
     /// this stays safe regardless because `requestCurrentLocation()` returns
     /// `nil` when no fix is available.
     public func captureTodayIfNeeded(now: Date) {
+        guard recordingDeviceID != nil else { return }
         guard captureTask == nil else { return }
         captureTask = Task { [weak self] in
             await self?.performTodayCapture(now: now)
@@ -331,6 +336,7 @@ public actor LocationIngestor {
     /// failure. Drains any backlog first so a single transient outage doesn't
     /// permanently reorder samples on disk.
     private func processIngestedSample(_ sample: LocationSample) async {
+        guard let recordingDeviceID else { return }
         let sample = sample.recorded(by: recordingDeviceID)
         let drainedDays = await drainRetryQueue()
         do {

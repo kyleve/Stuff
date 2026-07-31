@@ -10,6 +10,9 @@ struct DevicesSettingsView: View {
     @Environment(WhereSession.self) private var session
     @Environment(\.openURL) private var openURL
     @State private var model: DevicesSettingsModel
+    #if targetEnvironment(macCatalyst)
+        @State private var menuBar = MenuBarSettingsModel()
+    #endif
     private let loadsLiveData: Bool
 
     init(session: WhereSession, focus: SettingsFocus? = nil) {
@@ -38,8 +41,14 @@ struct DevicesSettingsView: View {
     var body: some View {
         @Bindable var session = session
         @Bindable var model = model
+        #if targetEnvironment(macCatalyst)
+            @Bindable var menuBar = menuBar
+        #endif
         SettingsFocusScope(focus: focus) {
             Form {
+                #if targetEnvironment(macCatalyst)
+                    MenuBarSettingsSection(model: menuBar)
+                #endif
                 switch model.state {
                     case .idle, .loading:
                         Section {
@@ -61,8 +70,20 @@ struct DevicesSettingsView: View {
                             }
                         }
                     case .loaded:
-                        ForEach(model.rows) { row in
-                            DeviceSettingsSection(model: model, row: row)
+                        if model.rows.isEmpty {
+                            Section {
+                                ContentUnavailableView(
+                                    String(localized: .settingsDevicesEmptyTitle),
+                                    systemImage: "iphone",
+                                    description: Text(
+                                        String(localized: .settingsDevicesEmptyDescription),
+                                    ),
+                                )
+                            }
+                        } else {
+                            ForEach(model.rows) { row in
+                                DeviceSettingsSection(model: model, row: row)
+                            }
                         }
                 }
             }

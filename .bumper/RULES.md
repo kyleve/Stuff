@@ -9,12 +9,14 @@ tests and generated files are outside the architecture graph.
 | Component | Allowed Where dependencies | Framework capabilities |
 | --- | --- | --- |
 | `RegionKit` | none | Foundation |
-| `WhereCore` | `RegionKit` | Foundation, persistence |
+| `WhereSurface` | none | Foundation |
+| `WhereCore` | `RegionKit`, `WhereSurface` | Foundation, persistence |
 | `WhereUI` | `RegionKit`, `WhereCore` | Foundation, SwiftUI, UIKit |
 | `WhereIntents` | `RegionKit`, `WhereCore`, `WhereUI` | Foundation, SwiftUI, UIKit |
 | `Where` app | `RegionKit`, `WhereCore`, `WhereUI`, `WhereIntents` | Foundation, SwiftUI, UIKit |
 | `WhereWidgets` | `RegionKit`, `WhereCore`, `WhereUI` | Foundation, SwiftUI, UIKit |
 | `WhereShareExtension` | `WhereCore`, `WhereUI` | Foundation, SwiftUI, UIKit |
+| `WhereMenuBar` | `WhereSurface` | Foundation, SwiftUI, AppKit |
 | `RegionViewer` | `RegionKit`, `WhereCore`, `WhereUI` | Foundation, SwiftUI, UIKit |
 
 An import of a declared Where module outside these edges is a

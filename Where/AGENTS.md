@@ -1,7 +1,8 @@
 # Where – Feature Shape
 
-Where is an iOS/iPadOS app for answering "what region was I in on which
-day?" It ingests passive GPS (Visits + significant-change), accepts
+Where is an iOS/iPadOS and Mac Catalyst app for answering "what region was I
+in on which day?" Participating iPhones and iPads ingest passive GPS (Visits +
+significant-change); every host accepts
 user-asserted history (manual coordinates, whole-day overlays, evidence like
 boarding passes), and rolls everything up into per-day region presence and
 per-year reports. A day "counts" for a region if **any** sample in that
@@ -13,13 +14,14 @@ system, formatting, and global conventions. Read that first.
 
 ## Modules
 
-The layering stack, bottom-up: **RegionKit** (geometry + region lookup) →
+The layering stack, bottom-up: **WhereSurface** (presentation-ready glance
+document, Foundation only) and **RegionKit** (geometry + region lookup) →
 **WhereCore** (domain; never imports SwiftUI/UIKit) → **WhereUI** (SwiftUI
 views + view models) → the thin hosts (**Where** app, **WhereIntents**,
-**WhereWidgets**, **WhereShareExtension**, **RegionViewer**). Each layer
-reaches only *down*; each module's own `AGENTS.md` / `README.md` is the
-authority on what it is. Add domain behavior to WhereCore and presentation to
-WhereUI — the app target stays tiny.
+**WhereWidgets**, **WhereShareExtension**, **WhereMenuBar**, **RegionViewer**).
+Each layer reaches only *down*; each module's own `AGENTS.md` / `README.md` is
+the authority on what it is. Add domain behavior to WhereCore and presentation
+to WhereUI — the app target stays tiny.
 
 ## Layering
 
@@ -68,6 +70,9 @@ Rules the code enforces and agents must preserve:
   through `LocationHistoryReader`. A synced cutoff hides later raw samples
   immediately while the target device is still pending, and raw/legacy/manual
   history is never deleted or hidden without an attributable device policy.
+  Mac Catalyst is management-only and never creates a local recording identity
+  or `CLLocationManager`; a new iPad defaults recording off while an upgraded
+  iPad without a stored preference preserves the historical enabled behavior.
 - **Manual entries carry a `ManualEntryAudit`**; `DayJournal`'s write methods
   take an explicit `audit:` (no default). An additive backfill can't downgrade
   an authoritative row's regions, but the newer audit always wins.
@@ -175,21 +180,35 @@ slow.
 
 ## Navigation
 
-The logged-in shell is `MainTabs` — **three fixed tabs**: Locations, Your
-Year, Settings; everything else hangs off one of them. A new screen is a
+The logged-in shell is `MainTabs`, with three fixed sections: Locations, Your
+Year, Settings. `PhoneMainTabs` presents them as tabs on iPhone;
+`MainSplitView` presents the same sections in a stable two-column
+`NavigationSplitView` on iPad and Mac Catalyst, letting the system collapse
+columns rather than swapping roots at a width threshold. A new screen is a
 pushed destination, a sheet, or a Settings row inside that shape — a fourth
-tab is a product decision to raise before building. `MainTabs` passes the
+section is a product decision to raise before building. `MainTabs` passes the
 scene-scoped `YearReportModel` by explicit init injection; the always-on
 `WhereSession` coordinator travels in the environment. Settings is a
 typed-route list (`SettingsSearch.swift`; every switch is exhaustive), so a
-new drill-in is a set of compile errors to fill in; About stays the last
-block and the demo-mode exit the first.
+new drill-in is a set of compile errors to fill in; About stays the last block
+and the demo-mode exit the first.
 
 The About screen renders three live sources — the generated attribution
 report (`WhereCore.AppAttribution`), `RegionDataSource`, and `BuildInfo` —
 never a list hard-coded in the view. A missing report or unstamped build
 renders an honest empty state, and shipped libraries stay a separate section
 from development tools. Design and rationale: PR #140.
+
+## Glance surfaces
+
+`WhereCore.WidgetSnapshotPublisher` is the only writer of the version-tolerant
+App Group JSON used by widgets and the native `WhereMenuBar` login item. The
+document carries both the widget's domain snapshot and a presentation-ready
+`WhereSurfaceSnapshot`; lightweight hosts import only `WhereSurface`, retain
+the last good document when a read fails, and never open SwiftData, CloudKit,
+or CoreLocation. A successful atomic publish posts the advisory Darwin
+notification before WidgetKit reloads so the helper can refresh without
+polling.
 
 ## Localization
 

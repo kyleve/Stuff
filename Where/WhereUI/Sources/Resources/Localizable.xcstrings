@@ -1575,6 +1575,42 @@
         }
       }
     },
+    "onboarding.joinExistingData" : {
+      "comment" : "Button on the onboarding intro that opens the user's existing iCloud-backed Where data without creating starter data or enabling location.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Join Existing iCloud Data"
+          }
+        }
+      }
+    },
+    "onboarding.joinExistingError.title" : {
+      "comment" : "Alert title shown when the app can't open the user's existing iCloud-backed data during onboarding.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Couldn't Join iCloud Data"
+          }
+        }
+      }
+    },
+    "onboarding.joiningExistingData" : {
+      "comment" : "Loading caption shown while onboarding opens the user's existing iCloud-backed data.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Joining your iCloud data…"
+          }
+        }
+      }
+    },
     "onboarding.location.description" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1664,7 +1700,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Restore from a backup"
+            "value" : "Restore Backup"
           }
         }
       }
@@ -3745,6 +3781,28 @@
         }
       }
     },
+    "settings.devices.empty.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Where on an iPhone or iPad using the same iCloud account to add a recording device."
+          }
+        }
+      }
+    },
+    "settings.devices.empty.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Recording Devices"
+          }
+        }
+      }
+    },
     "settings.devices.error.title" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4250,6 +4308,90 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Logged Days"
+          }
+        }
+      }
+    },
+    "settings.menuBar.approval.footer" : {
+      "comment" : "Shown below the Mac menu bar login-item controls when macOS still requires approval.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Allow Where in Login Items in System Settings to finish enabling it."
+          }
+        }
+      }
+    },
+    "settings.menuBar.enabled" : {
+      "comment" : "Toggle label for the native Mac menu bar companion.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Where in the menu bar"
+          }
+        }
+      }
+    },
+    "settings.menuBar.error.title" : {
+      "comment" : "Alert title when registering or unregistering the Mac menu bar login item fails.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t Update Menu Bar Item"
+          }
+        }
+      }
+    },
+    "settings.menuBar.footer" : {
+      "comment" : "Description of the glance data shown by the Mac menu bar companion.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shows today’s observed regions and year-to-date day counts without opening Where."
+          }
+        }
+      }
+    },
+    "settings.menuBar.header" : {
+      "comment" : "Header for Mac-specific menu bar settings.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Menu Bar"
+          }
+        }
+      }
+    },
+    "settings.menuBar.openLoginItems" : {
+      "comment" : "Button that opens the macOS Login Items settings pane.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Login Items Settings"
+          }
+        }
+      }
+    },
+    "settings.menuBar.unavailable.footer" : {
+      "comment" : "Shown when the embedded Mac menu bar helper cannot be found.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The menu bar companion isn’t available in this build."
           }
         }
       }

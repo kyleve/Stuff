@@ -25,8 +25,10 @@ one it belongs to rather than to a god-object:
   crossing it is a SwiftData record). Mutations run inside `perform { … }` (one
   atomic transaction) and `changes()` emits once per commit and on a CloudKit
   remote import. `SwiftDataStore.make()` is the production, CloudKit-backed
-  implementation; `SwiftDataStore.inMemory()` backs tests and previews. Each
-  process opens its on-disk store **once** and injects it where it's needed —
+  implementation; `SwiftDataStore.inMemory()` backs tests and previews. An
+  on-disk store stamps writer contexts and filters SwiftData history so
+  `remoteChanges()` never echoes local GPS commits. Each process opens its
+  on-disk store **once** and injects it where it's needed —
   in the app, the launch's `resolve-scope` step opens it and the App Intents
   stack shares it via `WhereServices.forIntents(sharingStoreOf:)` — so two
   subsystems never race to create/open the same store file. It also
@@ -90,7 +92,11 @@ one it belongs to rather than to a god-object:
 - **`DeviceRecordingController`** — serializes per-device enable/disable
   policy with the current installation's physical `LocationIngestor`. A remote
   disable is effective at its timestamp as soon as it syncs; the target device
-  later acknowledges that event after it has stopped.
+  later acknowledges that event after it has stopped. `RecordingParticipation`
+  makes local recording explicit: iPhone starts new installations on, iPad
+  starts them opt-in while retaining a migrated preference, and a
+  management-only process has no local identity or GPS lifecycle but can still
+  edit synced remote devices.
 - **`LocationHistoryReader`** — the shared policy-aware read boundary used by
   reports, widgets, recent activity, and foreground capture checks. It filters
   GPS samples during disabled intervals while keeping raw storage, backups,
@@ -111,8 +117,13 @@ one it belongs to rather than to a god-object:
 - **Reconcilers** — `ReminderReconciler` (daily logging reminder + app-icon
   badge), `DailySummaryReconciler` (year-to-date recap),
   `DataIssueAlertReconciler` ("issues to resolve").
-- **`WidgetSnapshotPublisher`** — republishes the App Group snapshot the widgets
-  read, with a freshness policy.
+- **`WidgetSnapshotPublisher`** — republishes the App Group artifact read by
+  widgets and the native menu bar helper. It carries the widget's domain data
+  plus a presentation-ready `WhereSurfaceSnapshot`, coalesces concurrent
+  requests into one final rebuild, republishes immediately for CloudKit/share
+  extension imports, and only caches a successful atomic write as fresh. The
+  base app and its derived App Intents stack share this publisher so their
+  local write paths cannot leave competing hot-path caches.
 - **`BackupCoordinator`** — whole-database export / import (a ZIP archive, via
   `ZIPFoundation`).
 - **`RecentActivitySummarizer`** — an on-device Foundation Models narrative over
@@ -121,7 +132,9 @@ one it belongs to rather than to a god-object:
   reminder / summary schedules) behind a `KeyValueStore`. The store has no
   default: production names `UserDefaults.standard` and everything else names
   `InMemoryKeyValueStore()`, so no test or preview can reach the host's real
-  defaults by saying nothing.
+  defaults by saying nothing. Its recording-intent resolver distinguishes a
+  new installation's platform default from the historical on-by-default value
+  retained by an already-onboarded installation.
 - **`BuildInfo`** + **`AppAttribution`** — what Settings > About says about the
   bundle it is running in. `BuildInfo.current(bundle:)` reads the marketing
   version, build number, the commit the app was built from, and how the Swift

@@ -18,6 +18,9 @@ enum WidgetSnapshotFixtures {
             year: calendar.component(.year, from: day),
             dayRegions: dayRegions,
             totals: totals,
+            appearances: [:],
+            generatedAt: referenceDate,
+            surface: nil,
         )
     }
 

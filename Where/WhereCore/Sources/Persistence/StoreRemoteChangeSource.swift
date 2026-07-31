@@ -1,11 +1,22 @@
 import CoreData
 import Foundation
 
-/// Abstraction over "the persistent store imported changes from elsewhere" —
-/// for a CloudKit-backed store, a sync landing from another device. A
-/// `SwiftDataStore` observes one of these and re-pings its `changes()` fan-out,
-/// so a remote import refreshes the UI exactly like a local commit (one read
-/// path, regardless of who wrote).
+/// A persistent-store write signal awaiting origin classification.
+///
+/// Core Data's `.NSPersistentStoreRemoteChange` name is misleading: Apple
+/// documents that it posts for every persistent-store write, including writes
+/// from the current process. `SwiftDataStore` therefore classifies production
+/// events through SwiftData history before deciding whether to emit its
+/// external-only side-effect signal. The scripted case is explicitly external
+/// so tests can drive the post-classification path without a persistent store.
+enum StoreRemoteChangeEvent {
+    case persistentStoreWrite
+    case external
+}
+
+/// Abstraction over persistent-store write notifications. A `SwiftDataStore`
+/// observes one and uses transaction history to separate its own commits from
+/// CloudKit or sibling-process writes.
 ///
 /// The seam exists so the whole remote-change path is exercisable off-device:
 /// production wires `PersistentStoreRemoteChangeSource` (a real Core Data
@@ -14,66 +25,59 @@ import Foundation
 /// the notification on import — stays untested here.
 ///
 /// Class-only (`AnyObject`) because every implementation owns long-lived state
-/// (a notification token, an `AsyncStream.Continuation`) that can't be
+/// (an observer registration, an `AsyncStream.Continuation`) that can't be
 /// value-copied. Mirrors `LocationSource`.
 protocol StoreRemoteChangeSource: AnyObject, Sendable {
-    /// Emits once per imported remote change. A bare `Void`: the store re-pings
-    /// its fan-out and consumers re-read, so they only need to know *that*
-    /// something changed. Exactly one consumer (the store) subscribes, so this
-    /// is a single stream rather than a broadcaster.
-    var remoteChanges: AsyncStream<Void> { get }
+    /// Emits once per persistent-store notification (production) or explicitly
+    /// external test event. Exactly one store consumes this stream.
+    var remoteChanges: AsyncStream<StoreRemoteChangeEvent> { get }
 }
 
 /// Production `StoreRemoteChangeSource`: bridges Core Data's
-/// `.NSPersistentStoreRemoteChange` notification into an `AsyncStream`. That
-/// notification fires both when the CloudKit mirror
-/// (`NSPersistentCloudKitContainer`) imports records synced from another device
-/// and when a sibling process writes to a shared App Group store (the Where
-/// share extension saving evidence) — persistent-history tracking is on for
-/// on-disk stores. Observing it and re-reading is Apple's documented way to
-/// react to remote SwiftData/CloudKit and cross-process changes.
+/// `.NSPersistentStoreRemoteChange` notification into an `AsyncStream`.
+/// Despite its name, the notification fires for every write, including a
+/// `ModelContext.save()` in this process. The source deliberately preserves
+/// that raw meaning; `SwiftDataStore` checks transaction authors before it
+/// calls a write external.
 ///
-/// One store per app, so it forwards every remote-change notification rather
+/// One store per app, so it forwards every store-write notification rather
 /// than filtering by coordinator (SwiftData doesn't expose the underlying
 /// `NSPersistentStoreCoordinator` to filter on anyway).
-final class PersistentStoreRemoteChangeSource: StoreRemoteChangeSource, @unchecked Sendable {
-    let remoteChanges: AsyncStream<Void>
+final class PersistentStoreRemoteChangeSource: NSObject, StoreRemoteChangeSource,
+    @unchecked Sendable
+{
+    let remoteChanges: AsyncStream<StoreRemoteChangeEvent>
     private let center: NotificationCenter
-    private let continuation: AsyncStream<Void>.Continuation
-    private let observer: NSObjectProtocol
+    private let continuation: AsyncStream<StoreRemoteChangeEvent>.Continuation
 
     init(center: NotificationCenter = .default) {
         self.center = center
-        var cont: AsyncStream<Void>.Continuation!
+        var cont: AsyncStream<StoreRemoteChangeEvent>.Continuation!
         remoteChanges = AsyncStream { cont = $0 }
         continuation = cont
-        // Capture the continuation in a local — deliberately *not*
-        // `self.continuation` — so the long-lived observer block (which
-        // `NotificationCenter` retains until `removeObserver`) doesn't capture
-        // `self`. Capturing `self` would keep this source alive for as long as
-        // the observer is registered, so `deinit` (which removes it) could
-        // never run. The stored `continuation` property exists only for
-        // `deinit` to `finish()`.
-        let captured = cont!
-        observer = center.addObserver(
-            forName: .NSPersistentStoreRemoteChange,
+        super.init()
+        center.addObserver(
+            self,
+            selector: #selector(persistentStoreDidWrite),
+            name: .NSPersistentStoreRemoteChange,
             object: nil,
-            queue: nil,
-        ) { _ in
-            captured.yield()
-        }
+        )
+    }
+
+    @objc private func persistentStoreDidWrite(_: Notification) {
+        continuation.yield(.persistentStoreWrite)
     }
 
     deinit {
-        center.removeObserver(observer)
+        center.removeObserver(self)
         continuation.finish()
     }
 }
 
 #if DEBUG
-    /// Hand-driven `StoreRemoteChangeSource` for tests: `yield()` simulates a
-    /// remote import landing, so the store-observes-remote-change path can be
-    /// driven deterministically without CloudKit or a device.
+    /// Hand-driven `StoreRemoteChangeSource` for tests: `yield()` sends an
+    /// explicitly external event, so the post-classification path can be driven
+    /// deterministically without CloudKit or a device.
     ///
     /// `@_spi(Testing)` + `#if DEBUG` per the agents.md testing-hook convention:
     /// it's test-only scaffolding that mustn't ship in release. Import it with
@@ -83,19 +87,19 @@ final class PersistentStoreRemoteChangeSource: StoreRemoteChangeSource, @uncheck
     public final class ScriptedStoreRemoteChangeSource: StoreRemoteChangeSource,
         @unchecked Sendable
     {
-        let remoteChanges: AsyncStream<Void>
-        private let continuation: AsyncStream<Void>.Continuation
+        let remoteChanges: AsyncStream<StoreRemoteChangeEvent>
+        private let continuation: AsyncStream<StoreRemoteChangeEvent>.Continuation
 
         init() {
-            var cont: AsyncStream<Void>.Continuation!
+            var cont: AsyncStream<StoreRemoteChangeEvent>.Continuation!
             remoteChanges = AsyncStream { cont = $0 }
             continuation = cont
         }
 
-        /// Simulate a remote import: a store observing this source re-pings its
-        /// `changes()` fan-out. Named for the `continuation.yield()` it makes.
+        /// Simulate a change already known to be external. Named for the
+        /// continuation operation it performs.
         func yield() {
-            continuation.yield()
+            continuation.yield(.external)
         }
 
         func finish() {

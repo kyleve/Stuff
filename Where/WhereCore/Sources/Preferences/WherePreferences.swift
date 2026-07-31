@@ -36,6 +36,17 @@ public final class WherePreferences {
         set { store.set(newValue, forKey: Keys.wantsTracking.rawValue) }
     }
 
+    /// Resolve the local recording intent before this installation has written
+    /// one. Existing onboarded installations retain the historical `true`
+    /// default, while a genuinely new installation can adopt a platform policy
+    /// such as iPad's opt-in default.
+    public func wantsTracking(defaultForNewInstallation defaultValue: Bool) -> Bool {
+        if let stored = store.object(forKey: Keys.wantsTracking.rawValue) as? Bool {
+            return stored
+        }
+        return hasOnboarded ? true : defaultValue
+    }
+
     /// Whether the daily "log before the day ends" reminder is enabled. Defaults
     /// to `true` so the safety net is active out of the box.
     public var remindersEnabled: Bool {

@@ -71,6 +71,61 @@ struct WhereSessionTrackingTests {
         #expect(!session.permissionDenied)
     }
 
+    @Test func newTabletInstallationDefaultsLocalRecordingOff() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let services = WhereServices(
+            store: store,
+            locationSource: ScriptedLocationSource(authorizationStatus: .always),
+            recordingParticipation: .recording(
+                device: .preview,
+                defaultEnabledForNewInstallation: false,
+            ),
+        )
+        let session = WhereSession(services: services, preferences: makePreferences())
+
+        await session.start()
+
+        #expect(session.isTracking == false)
+        #expect(try await session.recordingDevices().first?.isEnabled == false)
+    }
+
+    @Test func migratedTabletInstallationKeepsLegacyRecordingIntent() async throws {
+        let preferences = makePreferences()
+        preferences.hasOnboarded = true
+        let services = try WhereServices(
+            store: SwiftDataStore.inMemory(),
+            locationSource: ScriptedLocationSource(authorizationStatus: .always),
+            recordingParticipation: .recording(
+                device: .preview,
+                defaultEnabledForNewInstallation: false,
+            ),
+        )
+        let session = WhereSession(services: services, preferences: preferences)
+
+        await session.start()
+
+        #expect(session.isTracking)
+        #expect(try await session.recordingDevices().first?.isEnabled == true)
+    }
+
+    @Test func managementOnlySessionNeverCreatesALocalRecordingDevice() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let services = WhereServices(
+            store: store,
+            locationSource: ScriptedLocationSource(authorizationStatus: .always),
+            recordingParticipation: .managementOnly,
+        )
+        let session = WhereSession(services: services, preferences: makePreferences())
+
+        await session.start()
+
+        #expect(session.supportsLocalRecording == false)
+        #expect(session.currentRecordingDeviceID == nil)
+        #expect(session.isTracking == false)
+        #expect(try await store.recordingDevices().isEmpty)
+        #expect(try await store.recordingPolicyChanges().isEmpty)
+    }
+
     @Test func stoppingTrackingPersistsAcrossLaunches() async throws {
         let preferences = makePreferences()
         let (session, _) = try makeSession(status: .always, preferences: preferences)
@@ -96,25 +151,26 @@ struct WhereSessionTrackingTests {
         let preferences = makePreferences()
         preferences.wantsTracking = false
         let session = WhereSession(services: services, preferences: preferences)
+        let currentDeviceID = try #require(session.currentRecordingDeviceID)
 
         let enabling = Task {
             try await session.setRecordingEnabled(
                 true,
-                for: session.currentRecordingDeviceID,
+                for: currentDeviceID,
             )
         }
         await waitUntil { source.isAwaitingPermission }
 
         _ = try await session.setRecordingEnabled(
             false,
-            for: session.currentRecordingDeviceID,
+            for: currentDeviceID,
         )
         source.resolvePermission(as: .always)
         _ = try await enabling.value
 
         let current = try #require(
             try await session.recordingDevices()
-                .first(where: { $0.id == session.currentRecordingDeviceID }),
+                .first(where: { $0.id == currentDeviceID }),
         )
         #expect(current.isEnabled == false)
         #expect(current.device.status == .off)

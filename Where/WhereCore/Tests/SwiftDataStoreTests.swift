@@ -132,21 +132,22 @@ struct SwiftDataStoreTests {
         #expect(try await store.recordingPolicyChanges() == [policy])
     }
 
-    /// A remote import (simulated via a scripted source) re-pings the same
-    /// `changes()` fan-out a local commit does, so observers can't tell a sync
-    /// from another device apart from a local write — one read path.
-    @Test func remoteChangeForwardsToChanges() async throws {
+    /// A remote import (simulated via a scripted source) pings both the general
+    /// read-refresh stream and the remote-only side-effect stream.
+    @Test func remoteChangeForwardsToBothChangeStreams() async throws {
         let source = ScriptedStoreRemoteChangeSource()
         // The remote-change wiring is folded into the factory (there's no
         // public `startObservingRemoteChanges` to call), so the store observes
         // `source` from construction.
         let store = try SwiftDataStore.inMemory(remoteChangeSource: source)
         // Subscribe before emitting so the forwarded ping isn't missed.
-        let stream = store.changes()
+        let changes = store.changes()
+        let remoteChanges = store.remoteChanges()
 
         source.yield()
 
-        #expect(await firstPing(stream, within: .seconds(2)))
+        #expect(await firstPing(changes, within: .seconds(2)))
+        #expect(await firstPing(remoteChanges, within: .seconds(2)))
     }
 
     /// Once `perform`'s `peer.save()` returns, the committed write must be

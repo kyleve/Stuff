@@ -1,8 +1,9 @@
 # WhereWidgets – Module Shape
 
-The **Where** widget extension: WidgetKit configurations that read a published
-`WidgetSnapshot` from the App Group and render via shared views in **WhereUI**.
-See [`README.md`](README.md) for the data path and widget list.
+The **Where** iOS/iPadOS and Mac Catalyst widget extension: WidgetKit
+configurations that read a published `WidgetSnapshot` from the App Group and
+render via shared views in **WhereUI**. See [`README.md`](README.md) for the
+data path and widget list.
 
 This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
 [`Where/AGENTS.md`](../AGENTS.md). Read those first.
@@ -21,13 +22,17 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
 ## Refresh contract
 
 1. App commits a store change → `WidgetSnapshotPublisher` rebuilds the
-   snapshot → writes JSON + `WidgetCenter.reloadAllTimelines()`.
+   snapshot → atomically writes JSON → posts the advisory WhereSurface Darwin
+   notification → calls `WidgetCenter.reloadAllTimelines()`.
 2. The provider reads the JSON on each timeline request and schedules
    `.after(nextMidnight)` so WidgetKit re-queries even without an app reload.
 
 ## Invariants
 
 - **Read-only App Group access** — only the app writes `widget-snapshot.json`.
+- **The bundle is platform-curated.** iPhone/iPad expose the existing Today and
+  Day Counts configurations; Mac Catalyst exposes one combined summary
+  configuration in small and medium families.
 - **No stale-day invalidation in the provider.** A snapshot whose `day` rolled
   past today is still shown until the app republishes — intentional.
 - In-widget strings come from WhereUI (shared views + `WhereFormat`); the

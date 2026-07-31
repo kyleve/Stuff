@@ -1,7 +1,9 @@
 import ProjectDescription
 
 let destinations: Destinations = [.iPhone, .iPad]
+let whereDestinations: Destinations = [.iPhone, .iPad, .macCatalyst]
 let deployment: DeploymentTargets = .iOS("26.0")
+let macDeployment: DeploymentTargets = .macOS("26.0")
 
 /// Local Swift package (see root `Package.swift`) for the library products
 /// (StuffCore, WhereCore, WhereUI, TestHostSupport, the Broadway modules, …).
@@ -55,6 +57,13 @@ let whereAppEntitlements: Entitlements = .dictionary([
     "com.apple.developer.ubiquity-kvstore-identifier": .string(
         "$(TeamIdentifierPrefix)com.stuff.where",
     ),
+])
+
+/// The native menu-bar login item reads only the app's published glance JSON.
+/// It has no CloudKit, network, location, or store capability of its own.
+let whereMenuBarEntitlements: Entitlements = .dictionary([
+    "com.apple.security.app-sandbox": .boolean(true),
+    "com.apple.security.application-groups": .array([.string("group.com.stuff.where")]),
 ])
 
 /// The environment the LFS reference images were recorded on, and the single
@@ -174,7 +183,7 @@ let project = Project(
     targets: [
         .target(
             name: "Where",
-            destinations: destinations,
+            destinations: whereDestinations,
             product: .app,
             bundleId: "com.stuff.where",
             deploymentTargets: deployment,
@@ -182,6 +191,12 @@ let project = Project(
                 "UILaunchScreen": .dictionary([:]),
                 "UIApplicationSupportsIndirectInputEvents": .boolean(true),
                 "UIBackgroundModes": .array([.string("remote-notification")]),
+                "CFBundleURLTypes": .array([
+                    .dictionary([
+                        "CFBundleURLName": .string("com.stuff.where"),
+                        "CFBundleURLSchemes": .array([.string("where")]),
+                    ]),
+                ]),
                 // Stated explicitly rather than left to Tuist's `1.0` / `1`
                 // defaults, because Settings > About shows them: the version a
                 // user reads off the screen should be one this manifest chose.
@@ -196,6 +211,19 @@ let project = Project(
             ]),
             sources: ["Where/Where/Sources/**"],
             resources: ["Where/Where/Resources/**"],
+            copyFiles: [
+                .wrapper(
+                    name: "Embed Menu Bar Login Item",
+                    subpath: "Contents/Library/LoginItems",
+                    files: [
+                        .buildProduct(
+                            name: "WhereMenuBar",
+                            condition: .when([.catalyst]),
+                            codeSignOnCopy: true,
+                        ),
+                    ],
+                ),
+            ],
             entitlements: whereAppEntitlements,
             // Writes `WhereGitSHA` / `WhereGitStatus` into the built Info.plist
             // for Settings > About. A *post* script so it lands after "Process
@@ -227,11 +255,15 @@ let project = Project(
             settings: .settings(base: [
                 "ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS": "YES",
                 "ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME": "",
+                "CODE_SIGN_ENTITLEMENTS[sdk=macosx*]":
+                    "$(SRCROOT)/Where/Where/Where-MacCatalyst.entitlements",
+                "DERIVE_MACCATALYST_PRODUCT_BUNDLE_IDENTIFIER": "NO",
+                "ENABLE_HARDENED_RUNTIME[sdk=macosx*]": "YES",
             ]),
         ),
         .target(
             name: "WhereWidgets",
-            destinations: destinations,
+            destinations: whereDestinations,
             product: .appExtension,
             bundleId: "com.stuff.where.widgets",
             deploymentTargets: deployment,
@@ -250,10 +282,16 @@ let project = Project(
                 .package(product: "WhereCore"),
                 .package(product: "WhereUI"),
             ],
+            settings: .settings(base: [
+                "CODE_SIGN_ENTITLEMENTS[sdk=macosx*]":
+                    "$(SRCROOT)/Where/WhereWidgets/WhereWidgets-MacCatalyst.entitlements",
+                "DERIVE_MACCATALYST_PRODUCT_BUNDLE_IDENTIFIER": "NO",
+                "ENABLE_HARDENED_RUNTIME[sdk=macosx*]": "YES",
+            ]),
         ),
         .target(
             name: "WhereShareExtension",
-            destinations: destinations,
+            destinations: whereDestinations,
             product: .appExtension,
             bundleId: "com.stuff.where.share",
             deploymentTargets: deployment,
@@ -285,6 +323,46 @@ let project = Project(
                 .package(product: "WhereCore"),
                 .package(product: "WhereUI"),
             ],
+            settings: .settings(base: [
+                "CODE_SIGN_ENTITLEMENTS[sdk=macosx*]":
+                    "$(SRCROOT)/Where/WhereShareExtension/WhereShareExtension-MacCatalyst.entitlements",
+                "DERIVE_MACCATALYST_PRODUCT_BUNDLE_IDENTIFIER": "NO",
+                "ENABLE_HARDENED_RUNTIME[sdk=macosx*]": "YES",
+            ]),
+        ),
+        .target(
+            name: "WhereMenuBar",
+            destinations: [.mac],
+            product: .app,
+            bundleId: "com.stuff.where.menubar",
+            deploymentTargets: macDeployment,
+            // Use an exact plist rather than Tuist's macOS app default: that
+            // default declares `NSMainStoryboardFile = Main`, but this helper
+            // is a storyboard-free SwiftUI `@main` app.
+            infoPlist: .dictionary([
+                "CFBundleDevelopmentRegion": .string("$(DEVELOPMENT_LANGUAGE)"),
+                "CFBundleDisplayName": .string("Where"),
+                "CFBundleExecutable": .string("$(EXECUTABLE_NAME)"),
+                "CFBundleIdentifier": .string("$(PRODUCT_BUNDLE_IDENTIFIER)"),
+                "CFBundleInfoDictionaryVersion": .string("6.0"),
+                "CFBundleName": .string("$(PRODUCT_NAME)"),
+                "CFBundlePackageType": .string("$(PRODUCT_BUNDLE_PACKAGE_TYPE)"),
+                "CFBundleShortVersionString": .string("1.0"),
+                "CFBundleVersion": .string("1"),
+                // A background-only login item: the menu-bar extra is its sole UI.
+                "LSUIElement": .boolean(true),
+                "NSPrincipalClass": .string("NSApplication"),
+            ]),
+            sources: ["Where/WhereMenuBar/Sources/**"],
+            resources: ["Where/WhereMenuBar/Resources/**"],
+            entitlements: whereMenuBarEntitlements,
+            dependencies: [
+                .package(product: "WhereSurface"),
+            ],
+            settings: .settings(base: [
+                "ASSETCATALOG_COMPILER_APPICON_NAME": "",
+                "ENABLE_HARDENED_RUNTIME": "YES",
+            ]),
         ),
         .target(
             name: "RegionViewer",
@@ -472,6 +550,12 @@ let project = Project(
             sources: ["Where/RegionKit/Tests/**"],
         ),
         unitTests(
+            name: "WhereSurfaceTests",
+            bundleIdSuffix: "wheresurface",
+            productDependency: "WhereSurface",
+            sources: ["Where/WhereSurface/Tests/**"],
+        ),
+        unitTests(
             name: "WhereCoreTests",
             bundleIdSuffix: "wherecore",
             productDependency: "WhereCore",
@@ -622,9 +706,27 @@ let project = Project(
     // WhereCoreTests` / `tuist test WhereTests` / `tuist test WhereUITests`
     // target a single bundle without building the whole workspace.
     schemes: [
-        // App target schemes are normally autogenerated, but declare the
-        // RegionViewer one explicitly so `tuist build RegionViewer` (and a
-        // Run that launches the Catalyst app) is always available.
+        // App target schemes are normally autogenerated, but declare the two
+        // Catalyst-capable hosts explicitly so CLI builds and Runs are stable.
+        .scheme(
+            name: "Where",
+            shared: true,
+            buildAction: .buildAction(targets: ["Where"]),
+            runAction: .runAction(executable: "Where"),
+        ),
+        // Tuist rejects a target-dependency edge from a Catalyst app to a
+        // native macOS login-item app even when that edge is Catalyst-filtered.
+        // Build the helper first in a manual-order scheme; Where's conditional
+        // copy phase then embeds that product only for Catalyst.
+        .scheme(
+            name: "Where-Catalyst",
+            shared: true,
+            buildAction: .buildAction(
+                targets: ["WhereMenuBar", "Where"],
+                buildOrder: .manual,
+            ),
+            runAction: .runAction(executable: "Where"),
+        ),
         .scheme(
             name: "RegionViewer",
             shared: true,
@@ -654,6 +756,7 @@ let project = Project(
                 "SnapshotKitTests",
                 "SnapshotKitTestingTests",
                 "RegionKitTests",
+                "WhereSurfaceTests",
                 "WhereCoreTests",
                 "WhereTests",
                 "WhereUITests",
@@ -678,6 +781,7 @@ let project = Project(
                     "SnapshotKitTests",
                     "SnapshotKitTestingTests",
                     "RegionKitTests",
+                    "WhereSurfaceTests",
                     "WhereCoreTests",
                     "WhereTests",
                     "WhereUITests",
@@ -702,6 +806,7 @@ let project = Project(
         testScheme(name: "SnapshotKitTests"),
         testScheme(name: "SnapshotKitTestingTests"),
         testScheme(name: "RegionKitTests"),
+        testScheme(name: "WhereSurfaceTests"),
         testScheme(name: "WhereCoreTests"),
         testScheme(name: "WhereTests"),
         testScheme(name: "WhereUITests"),

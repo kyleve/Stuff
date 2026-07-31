@@ -69,9 +69,10 @@ public struct WhereServices: Sendable {
     /// The clock the stack was built with, retained so a derived stack can't
     /// diverge from an injected test/preview clock.
     let now: @Sendable () -> Date
-    /// Installation identity used to stamp automatic samples. Retained so a
-    /// derived App Intents stack preserves the same composition value.
-    let currentDevice: CurrentRecordingDevice
+    /// Whether this process contributes automatic locations locally. Retained
+    /// so derived stacks preserve the same capability and new-install policy
+    /// without re-detecting the host platform.
+    let recordingParticipation: RecordingParticipation
     /// The live SwiftData container when the backing store is the production
     /// `SwiftDataStore`; `nil` for non-SwiftData stores (e.g. test fakes).
     /// Surfaced only for read-only debug tooling (the SwiftData inspector) so
@@ -94,13 +95,17 @@ public struct WhereServices: Sendable {
     public init(
         store: any WhereStore,
         locationSource: any LocationSource,
-        currentDevice: CurrentRecordingDevice = .preview,
+        recordingParticipation: RecordingParticipation = .recording(
+            device: .preview,
+            defaultEnabledForNewInstallation: true,
+        ),
         attributor: any RegionAttributing = RegionAttributor.shared,
         aggregator: DayAggregator = DayAggregator(),
         reminderScheduler: any LoggingReminderScheduling = NoopLoggingReminderScheduler(),
         summaryScheduler: any DailySummaryScheduling = NoopDailySummaryScheduler(),
         issueAlertScheduler: any DataIssueAlertScheduling = NoopDataIssueAlertScheduler(),
         widgetRefresher: any WidgetTimelineRefreshing = NoopWidgetTimelineRefresher(),
+        sharedWidgetPublisher: WidgetSnapshotPublisher? = nil,
         locationOutbox: any LocationOutbox = NoOpLocationOutbox(),
         activitySummaryGenerator: any ActivitySummaryGenerating = FoundationModelSummaryGenerator(),
         now: @escaping @Sendable () -> Date = { Date() },
@@ -139,16 +144,16 @@ public struct WhereServices: Sendable {
             calendar: aggregator.calendar,
             now: now,
         )
-        // The reader runs in *this* (app) process and shares the store, calendar,
-        // and attributor so the published snapshot's day/year line up with
-        // everything else reported.
-        let widgetReader = WidgetDataReader(
-            store: store,
-            aggregator: aggregator,
-            attributor: attributor,
-        )
-        let widgets = WidgetSnapshotPublisher(
-            widgetReader: widgetReader,
+        // A derived App Intents stack shares the base publisher as well as its
+        // store. That keeps the publisher's hot-path cache coherent when an
+        // intent writes immediately before the base ingestor handles a sample.
+        // Independent test/preview stacks build their own publisher.
+        let widgets = sharedWidgetPublisher ?? WidgetSnapshotPublisher(
+            widgetReader: WidgetDataReader(
+                store: store,
+                aggregator: aggregator,
+                attributor: attributor,
+            ),
             widgetRefresher: widgetRefresher,
             attributor: attributor,
             calendar: aggregator.calendar,
@@ -162,7 +167,7 @@ public struct WhereServices: Sendable {
         let ingestor = LocationIngestor(
             store: store,
             locationSource: locationSource,
-            recordingDeviceID: currentDevice.id,
+            recordingDeviceID: recordingParticipation.currentDevice?.id,
             calendar: aggregator.calendar,
             outbox: locationOutbox,
             onPersisted: { outcome in
@@ -190,7 +195,7 @@ public struct WhereServices: Sendable {
         let recording = DeviceRecordingController(
             store: store,
             ingestor: ingestor,
-            currentDevice: currentDevice,
+            participation: recordingParticipation,
             now: now,
         )
         let journal = DayJournal(
@@ -237,7 +242,7 @@ public struct WhereServices: Sendable {
         self.issueAlertScheduler = issueAlertScheduler
         self.widgetRefresher = widgetRefresher
         self.now = now
-        self.currentDevice = currentDevice
+        self.recordingParticipation = recordingParticipation
         modelContainer = (store as? SwiftDataStore)?.inspectorContainer
     }
 
@@ -254,7 +259,7 @@ public struct WhereServices: Sendable {
     public static func make(
         store: any WhereStore,
         locationSource: any LocationSource,
-        currentDevice: CurrentRecordingDevice,
+        recordingParticipation: RecordingParticipation,
         aggregator: DayAggregator = DayAggregator(),
         reminderScheduler: any LoggingReminderScheduling,
         summaryScheduler: any DailySummaryScheduling,
@@ -272,10 +277,10 @@ public struct WhereServices: Sendable {
             initial: RegionAttributor(for: Region.inCanonicalOrder(tracked)),
             trackedIDs: Set(tracked.map(\.rawValue)),
         )
-        return WhereServices(
+        let services = WhereServices(
             store: store,
             locationSource: locationSource,
-            currentDevice: currentDevice,
+            recordingParticipation: recordingParticipation,
             attributor: attribution,
             aggregator: aggregator,
             reminderScheduler: reminderScheduler,
@@ -286,6 +291,12 @@ public struct WhereServices: Sendable {
             activitySummaryGenerator: activitySummaryGenerator,
             now: now,
         )
+        // The base app service owns the one external-change observer. Local
+        // commits already publish through the journal/ingestor paths; this
+        // remote-only stream covers CloudKit and share-extension imports
+        // without putting every GPS commit on a second full-rebuild path.
+        await services.widgets.startObservingExternalChanges(store.remoteChanges())
+        return services
     }
 
     /// A fresh stream that fires whenever persisted data changes — local commits

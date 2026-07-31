@@ -21,6 +21,9 @@ struct WidgetSnapshotStoreTests {
             year: 2026,
             dayRegions: dayRegions,
             totals: totals,
+            appearances: [:],
+            generatedAt: Date(timeIntervalSince1970: 1_700_000_100),
+            surface: nil,
         )
     }
 

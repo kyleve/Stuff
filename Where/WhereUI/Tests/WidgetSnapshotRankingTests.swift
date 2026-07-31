@@ -8,7 +8,15 @@ struct WidgetSnapshotRankingTests {
         dayRegions: Set<Region>,
         totals: [Region: Int],
     ) -> WidgetSnapshot {
-        WidgetSnapshot(day: .now, year: 2026, dayRegions: dayRegions, totals: totals)
+        WidgetSnapshot(
+            day: .now,
+            year: 2026,
+            dayRegions: dayRegions,
+            totals: totals,
+            appearances: [:],
+            generatedAt: nil,
+            surface: nil,
+        )
     }
 
     @Test func rankedTotalsOrderAndCapMatchTheApp() {

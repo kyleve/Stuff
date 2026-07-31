@@ -20,6 +20,13 @@ extension ComponentShape {
     static let whereHostLayer = ComponentShape {
         MayUse(.foundation, .swiftUI, .uiKit)
     }
+
+    static let whereMacHostLayer = ComponentShape {
+        // Bumper Bowling has no AppKit capability yet; AppKit is the native
+        // host framework and the component's explicit dependency rules still
+        // forbid CoreLocation and SwiftData.
+        MayUse(.foundation, .swiftUI)
+    }
 }
 
 extension AssertionShape {

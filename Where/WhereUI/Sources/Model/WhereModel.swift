@@ -142,6 +142,27 @@ public final class WhereModel {
         Self.logger { .onboardingCompleted }
     }
 
+    /// Join the user's existing iCloud-backed world without seeding regions or
+    /// enrolling this installation in automatic recording.
+    ///
+    /// Opening the scope starts SwiftData's normal CloudKit synchronization;
+    /// before onboarding completes, the current installation gets an explicit
+    /// synced off policy so an older enabled row cannot start local recording.
+    /// The user can then enter the app while remote imports continue to arrive
+    /// through the ordinary store-change stream.
+    func joinExistingData() async throws {
+        let scope = try await resolveScope()
+        scope.preferences.wantsTracking = false
+        if let currentDeviceID = scope.services.recording.currentDevice?.id {
+            _ = try await scope.services.recording.setEnabled(
+                false,
+                for: currentDeviceID,
+                initialEnabled: false,
+            )
+        }
+        completeOnboarding()
+    }
+
     public static var currentYear: Int {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = .current

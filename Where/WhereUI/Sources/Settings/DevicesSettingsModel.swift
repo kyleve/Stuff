@@ -130,7 +130,7 @@ final class DevicesSettingsModel {
             }
             return DeviceSettingsRowModel(
                 configuration: configuration,
-                isCurrent: configuration.id == session.currentRecordingDeviceID,
+                isCurrent: session.currentRecordingDeviceID == configuration.id,
             )
         }
     }

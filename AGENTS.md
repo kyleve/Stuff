@@ -206,6 +206,13 @@ app onto a connected iPhone without the Xcode UI, use
 configured once via `./ide --team-id` (see
 [`Where/AGENTS.md`](Where/AGENTS.md#installing-to-a-device)).
 
+Where's Mac app is the same target built for Mac Catalyst. Use the explicit
+`Where-Catalyst` scheme: it builds the native `WhereMenuBar` login item first,
+then the Catalyst app conditionally embeds it at
+`Contents/Library/LoginItems`. Keep that manual build order and copy phase
+together; Tuist rejects a direct dependency edge between the Catalyst and
+native-macOS targets.
+
 ## Per-module docs
 
 Shared modules live under `Shared/`, feature modules under a top-level folder

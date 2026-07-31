@@ -184,10 +184,12 @@ struct SettingsView: View {
     private func subtitle(for destination: SettingsDestination) -> String? {
         switch destination {
             case .devices:
-                LocationStatusRow.statusTitle(
-                    status: session.authorizationStatus,
-                    isTracking: session.isTracking,
-                )
+                session.supportsLocalRecording
+                    ? LocationStatusRow.statusTitle(
+                        status: session.authorizationStatus,
+                        isTracking: session.isTracking,
+                    )
+                    : nil
             case .year:
                 report.selectedYear.formatted(.number.grouping(.never))
             case .attachments, .loggedDays, .regions, .alerts, .appearance, .data, .about:

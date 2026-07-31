@@ -3,9 +3,10 @@ import Foundation
 extension WhereServices {
     /// Assemble the App Intents stack (Siri, Spotlight, Shortcuts — executing
     /// in the app's own process) over the **same store, live attribution,
-    /// aggregation calendar, and clock `base` already holds** — only the
-    /// location source differs (``IdleLocationSource``, so resolving an
-    /// intent never starts GPS).
+    /// aggregation calendar, and clock `base` already holds**. Its location
+    /// source is ``IdleLocationSource`` and its recording participation is
+    /// management-only, so resolving an intent never starts GPS or registers a
+    /// second local device.
     ///
     /// This is the *only* way an intents stack is built, and it is
     /// deliberately synchronous and non-throwing: deriving from an assembled
@@ -21,18 +22,21 @@ extension WhereServices {
     /// The notification and widget seams come from `base` for the same reason
     /// the attributor does: a stack derived from the demo world is built out of
     /// no-ops, and minting real ones here would let a demo intent post a real
-    /// notification or reload the user's widgets.
+    /// notification or reload the user's widgets. The derived stack does not
+    /// start another external-change observer; `base` owns the single observer
+    /// that republishes for their shared store and refresher.
     public static func forIntents(sharingStoreOf base: WhereServices) -> WhereServices {
         WhereServices(
             store: base.store,
             locationSource: IdleLocationSource(),
-            currentDevice: base.currentDevice,
+            recordingParticipation: .managementOnly,
             attributor: base.attributor,
             aggregator: base.aggregator,
             reminderScheduler: base.reminderScheduler,
             summaryScheduler: base.summaryScheduler,
             issueAlertScheduler: base.issueAlertScheduler,
             widgetRefresher: base.widgetRefresher,
+            sharedWidgetPublisher: base.widgets,
             now: base.now,
         )
     }
@@ -50,7 +54,7 @@ extension WhereServices {
         try await make(
             store: store,
             locationSource: IdleLocationSource(),
-            currentDevice: .preview,
+            recordingParticipation: .managementOnly,
             reminderScheduler: NoopLoggingReminderScheduler(),
             summaryScheduler: NoopDailySummaryScheduler(),
             issueAlertScheduler: NoopDataIssueAlertScheduler(),

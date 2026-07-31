@@ -29,14 +29,17 @@ struct WidgetDataReaderTests {
 
     @Test func emptyStoreYieldsEmptySnapshot() async throws {
         let (reader, _) = try Self.makeReader()
+        let asOf = WhereCoreTestSupport.iso("2026-03-15T12:00:00-07:00")
 
-        let snapshot = try await reader
-            .snapshot(asOf: WhereCoreTestSupport.iso("2026-03-15T12:00:00-07:00"))
+        let snapshot = try await reader.snapshot(asOf: asOf)
 
         #expect(snapshot.year == 2026)
         #expect(snapshot.dayRegions.isEmpty)
         #expect(snapshot.totals.isEmpty)
         #expect(snapshot.appearances.isEmpty)
+        #expect(snapshot.generatedAt == asOf)
+        #expect(snapshot.surface?.todayRegions.isEmpty == true)
+        #expect(snapshot.surface?.yearToDate.isEmpty == true)
     }
 
     @Test func snapshotCarriesPickedRegionAppearances() async throws {
@@ -48,12 +51,19 @@ struct WidgetDataReaderTests {
                 // A tracked region with no picked look contributes no appearance.
                 PrimaryRegion(region: .newYork, appearance: nil, order: 1),
             ])
+            try await store.setManualDay(DayPresence(
+                date: WhereCoreTestSupport.iso("2026-03-15T00:00:00-07:00"),
+                in: WhereCoreTestSupport.calendar(),
+                regions: [.california],
+            ))
         }
 
         let snapshot = try await reader
             .snapshot(asOf: WhereCoreTestSupport.iso("2026-03-15T12:00:00-07:00"))
 
         #expect(snapshot.appearances == [.california: caLook])
+        #expect(snapshot.surface?.todayRegions.first?.emoji == "🌴")
+        #expect(snapshot.surface?.todayRegions.first?.symbolName == "sun.max.fill")
     }
 
     @Test func snapshotAppearancesSurviveCodableRoundTrip() throws {
@@ -64,6 +74,8 @@ struct WidgetDataReaderTests {
             dayRegions: [.newYork],
             totals: [.newYork: 3],
             appearances: [.newYork: look],
+            generatedAt: WhereCoreTestSupport.iso("2026-03-15T12:00:00-07:00"),
+            surface: nil,
         )
         let data = try JSONEncoder().encode(snapshot)
         let decoded = try JSONDecoder().decode(WidgetSnapshot.self, from: data)
@@ -71,7 +83,26 @@ struct WidgetDataReaderTests {
         #expect(decoded.appearances == [.newYork: look])
     }
 
-    @Test func samplesAndManualDaysRollUpLikeTheYearReport() async throws {
+    @Test func oldSnapshotDecodesWithoutSurfaceFields() throws {
+        let data = Data(
+            """
+            {
+              "day": 0,
+              "year": 2026,
+              "dayRegions": ["us-CA"],
+              "totals": ["us-CA", 1]
+            }
+            """.utf8,
+        )
+
+        let snapshot = try JSONDecoder().decode(WidgetSnapshot.self, from: data)
+
+        #expect(snapshot.generatedAt == nil)
+        #expect(snapshot.surface == nil)
+        #expect(snapshot.appearances.isEmpty)
+    }
+
+    @Test func totalsIncludeTheSnapshotDayButExcludeFutureDays() async throws {
         let (reader, store) = try Self.makeReader()
         try await store.perform {
             // Two same-day samples in CA, one in NY the next day.
@@ -90,7 +121,7 @@ struct WidgetDataReaderTests {
                 latitude: 40.7128,
                 longitude: -74.0060,
             ))
-            // A manual backfill for a third day.
+            // A future manual entry must not leak into a year-to-date count.
             try await store.setManualDay(DayPresence(
                 date: WhereCoreTestSupport.iso("2026-05-01T00:00:00-07:00"),
                 in: WhereCoreTestSupport.calendar(),
@@ -103,7 +134,11 @@ struct WidgetDataReaderTests {
 
         #expect(snapshot.year == 2026)
         #expect(snapshot.dayRegions == [.california])
-        #expect(snapshot.totals == [.california: 1, .newYork: 1, .canada: 1])
+        #expect(snapshot.totals == [.california: 1])
+        let surface = try #require(snapshot.surface)
+        #expect(surface.todayRegions.map(\.id) == ["us-CA"])
+        #expect(surface.yearToDate.map(\.region.id) == ["us-CA"])
+        #expect(surface.yearToDate.map(\.days) == [1])
     }
 
     @Test func dayRegionsAreEmptyWhenTodayHasNoData() async throws {

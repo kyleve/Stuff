@@ -3,14 +3,9 @@ import Foundation
 /// Fans "the persisted data changed" pings out to any number of independent
 /// `AsyncStream` subscribers.
 ///
-/// The persistence boundary (`SwiftDataStore`) owns one of these and pings it
-/// once per committed change — after every outermost `perform` transaction
-/// commits, and on a CloudKit remote import synced from another device. That
-/// gives every reader a single signal regardless of *who* wrote: a manual edit,
-/// live GPS ingestion, or a remote sync. Consumers re-derive what they mirror
-/// (the `DataIssueScanner` drops its cache; `WhereSession` re-pulls its report +
-/// data-issue scan), so the payload is a bare `Void` — N pending pings and one
-/// are equivalent.
+/// `SwiftDataStore` owns one for every committed change and another for the
+/// remote-import subset. Consumers re-derive what they mirror, so the payload
+/// is a bare `Void` — N pending pings and one are equivalent.
 ///
 /// Like `AuthorizationStatusBroadcaster`, each `subscribe()` gets an isolated
 /// stream — an `AsyncStream` is single-pass, and the session is dropped + rebuilt

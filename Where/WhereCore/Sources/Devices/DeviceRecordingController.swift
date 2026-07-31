@@ -1,6 +1,6 @@
 import Foundation
 
-/// Serializes the synced recording policy with this device's physical GPS
+/// Serializes synced recording policy with this process's optional physical GPS
 /// lifecycle.
 ///
 /// Policy writes take effect historically at their timestamp immediately on
@@ -9,7 +9,11 @@ import Foundation
 public actor DeviceRecordingController {
     private let store: any WhereStore
     private let ingestor: LocationIngestor
-    public nonisolated let currentDevice: CurrentRecordingDevice
+    public nonisolated let participation: RecordingParticipation
+    public nonisolated var currentDevice: CurrentRecordingDevice? {
+        participation.currentDevice
+    }
+
     private let now: @Sendable () -> Date
 
     /// Reentrancy-safe gate: each public mutation/reconcile holds it across
@@ -22,34 +26,39 @@ public actor DeviceRecordingController {
     init(
         store: any WhereStore,
         ingestor: LocationIngestor,
-        currentDevice: CurrentRecordingDevice,
+        participation: RecordingParticipation,
         now: @escaping @Sendable () -> Date,
     ) {
         self.store = store
         self.ingestor = ingestor
-        self.currentDevice = currentDevice
+        self.participation = participation
         self.now = now
     }
 
-    /// Register this installation if needed, migrate its initial desired state
-    /// from local preferences, then make physical monitoring match the latest
-    /// synced policy and authorization.
+    /// For a participating installation, register it if needed, migrate its
+    /// initial desired state from local preferences, then make physical
+    /// monitoring match the latest synced policy and authorization. A
+    /// management-only process stops its inert ingestor and returns `nil`.
     @discardableResult
     public func reconcile(
         initialEnabled: Bool,
         authorization: LocationAuthorizationStatus,
-    ) async throws -> RecordingDeviceConfiguration {
+    ) async throws -> RecordingDeviceConfiguration? {
         await beginExclusive()
         defer { endExclusive() }
         try requireActive()
+        guard currentDevice != nil else {
+            await ingestor.stop()
+            return nil
+        }
         return try await reconcileLocked(
             initialEnabled: initialEnabled,
             authorization: authorization,
         )
     }
 
-    /// Active device configurations, current device first and then by most
-    /// recent check-in.
+    /// Active device configurations, with the current device first when this
+    /// process participates and the rest ordered by most recent check-in.
     public func devices(initialEnabled: Bool) async throws -> [RecordingDeviceConfiguration] {
         await beginExclusive()
         defer { endExclusive() }
@@ -90,7 +99,7 @@ public actor DeviceRecordingController {
             }
         }
 
-        if deviceID == currentDevice.id {
+        if deviceID == currentDevice?.id {
             let authorization = await ingestor.authorizationStatus()
             _ = try await reconcileLocked(
                 initialEnabled: initialEnabled,
@@ -131,7 +140,7 @@ public actor DeviceRecordingController {
         _ deviceID: RecordingDeviceID,
         initialEnabled: Bool,
     ) async throws -> [RecordingDeviceConfiguration] {
-        precondition(deviceID != currentDevice.id, "The current device cannot archive itself.")
+        precondition(deviceID != currentDevice?.id, "The current device cannot archive itself.")
         await beginExclusive()
         defer { endExclusive() }
         try requireActive()
@@ -180,6 +189,9 @@ public actor DeviceRecordingController {
         initialEnabled: Bool,
         authorization: LocationAuthorizationStatus,
     ) async throws -> RecordingDeviceConfiguration {
+        guard let currentDevice else {
+            preconditionFailure("A management-only controller cannot reconcile local recording.")
+        }
         try await ensureCurrentDeviceLocked(initialEnabled: initialEnabled)
         let policies = try await store.recordingPolicyChanges()
         guard let latest = Self.latestPolicy(for: currentDevice.id, in: policies) else {
@@ -228,6 +240,7 @@ public actor DeviceRecordingController {
     }
 
     private func ensureCurrentDeviceLocked(initialEnabled: Bool) async throws {
+        guard let currentDevice else { return }
         let devices = try await store.recordingDevices()
         let policies = try await store.recordingPolicyChanges()
         let existing = devices.first(where: { $0.id == currentDevice.id })
@@ -270,7 +283,7 @@ public actor DeviceRecordingController {
         let (resolvedDevices, resolvedPolicies) = try await (devices, policies)
         return resolvedDevices
             .filter {
-                includeArchived || $0.archivedAt == nil || $0.id == currentDevice.id
+                includeArchived || $0.archivedAt == nil || $0.id == currentDevice?.id
             }
             .map { device in
                 let latest = Self.latestPolicy(for: device.id, in: resolvedPolicies)
@@ -281,8 +294,8 @@ public actor DeviceRecordingController {
                 )
             }
             .sorted { lhs, rhs in
-                if lhs.id == currentDevice.id { return true }
-                if rhs.id == currentDevice.id { return false }
+                if lhs.id == currentDevice?.id { return true }
+                if rhs.id == currentDevice?.id { return false }
                 if lhs.device.lastSeenAt != rhs.device.lastSeenAt {
                     return lhs.device.lastSeenAt > rhs.device.lastSeenAt
                 }

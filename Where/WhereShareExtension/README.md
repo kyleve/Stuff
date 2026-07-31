@@ -1,8 +1,9 @@
 # WhereShareExtension
 
-The **Where** share extension: a Share-sheet action that saves shared content —
-a boarding pass, a PDF receipt, a screenshot, a forwarded reservation email, a
-Wallet ticket — into Where as a new piece of [`Evidence`](../WhereCore/Sources/Evidence/Evidence.swift).
+The **Where** iOS/iPadOS and Mac Catalyst share extension: a Share-sheet action
+that saves shared content — a boarding pass, a PDF receipt, a screenshot, a
+forwarded reservation email, a Wallet ticket — into Where as a new piece of
+[`Evidence`](../WhereCore/Sources/Evidence/Evidence.swift).
 
 Pick "Where" from any app's Share sheet, confirm the kind / date / note in the
 compose sheet, and tap **Save**. The attachment bytes and metadata are written

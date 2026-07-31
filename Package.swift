@@ -6,6 +6,7 @@ let package = Package(
     defaultLocalization: "en",
     platforms: [
         .iOS(.v26),
+        .macOS(.v26),
     ],
     products: [
         .library(name: "StuffCore", targets: ["StuffCore"]),
@@ -22,6 +23,7 @@ let package = Package(
         .library(name: "SnapshotKitTesting", targets: ["SnapshotKitTesting"]),
         .library(name: "TestHostSupport", targets: ["TestHostSupport"]),
         .library(name: "RegionKit", targets: ["RegionKit"]),
+        .library(name: "WhereSurface", targets: ["WhereSurface"]),
         .library(name: "WhereCore", targets: ["WhereCore"]),
         .library(name: "WhereUI", targets: ["WhereUI"]),
         .library(name: "WhereIntents", targets: ["WhereIntents"]),
@@ -137,11 +139,16 @@ let package = Package(
             ],
         ),
         .target(
+            name: "WhereSurface",
+            path: "Where/WhereSurface/Sources",
+        ),
+        .target(
             name: "WhereCore",
             dependencies: [
                 .target(name: "CreditKit"),
                 .target(name: "PeriscopeCore"),
                 .target(name: "RegionKit"),
+                .target(name: "WhereSurface"),
                 .product(name: "ZIPFoundation", package: "ZIPFoundation"),
             ],
             path: "Where/WhereCore/Sources",

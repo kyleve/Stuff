@@ -9,19 +9,45 @@ func `Where architecture accepts downward dependencies`() throws {
             files: [
                 SourceInput(
                     path: "Where/WhereCore/Sources/Service.swift",
-                    component: try ComponentID(WhereComponent.whereCore.rawValue),
-                    source: "import RegionKit\nstruct Service {}"
+                    component: ComponentID(WhereComponent.whereCore.rawValue),
+                    source: "import RegionKit\nimport WhereSurface\nstruct Service {}",
                 ),
                 SourceInput(
                     path: "Where/WhereUI/Sources/Screen.swift",
-                    component: try ComponentID(WhereComponent.whereUI.rawValue),
-                    source: "import WhereCore\nimport SwiftUI\nstruct Screen {}"
+                    component: ComponentID(WhereComponent.whereUI.rawValue),
+                    source: "import WhereCore\nimport SwiftUI\nstruct Screen {}",
                 ),
-            ]
-        )
+                SourceInput(
+                    path: "Where/WhereMenuBar/Sources/MenuBar.swift",
+                    component: ComponentID(WhereComponent.menuBar.rawValue),
+                    source: "import SwiftUI\nimport WhereSurface\nstruct MenuBar {}",
+                ),
+            ],
+        ),
     )
 
     #expect(report.violations.isEmpty)
+}
+
+@Test
+func `WhereSurface cannot depend upward on WhereCore`() throws {
+    let report = try bumper.evaluate(
+        RepositoryInput(
+            architecture: bumper.architecture,
+            files: [
+                SourceInput(
+                    path: "Where/WhereSurface/Sources/Snapshot.swift",
+                    component: ComponentID(WhereComponent.whereSurface.rawValue),
+                    source: "import WhereCore\nstruct Snapshot {}",
+                ),
+            ],
+        ),
+    )
+
+    let violation = try #require(report.violations.first)
+    #expect(report.violations.count == 1)
+    #expect(violation.rule.id == .componentBoundary)
+    #expect(violation.path.rawValue == "Where/WhereSurface/Sources/Snapshot.swift")
 }
 
 @Test
@@ -32,11 +58,11 @@ func `RegionKit cannot depend upward on WhereCore`() throws {
             files: [
                 SourceInput(
                     path: "Where/RegionKit/Sources/Region.swift",
-                    component: try ComponentID(WhereComponent.regionKit.rawValue),
-                    source: "import WhereCore\nstruct Region {}"
+                    component: ComponentID(WhereComponent.regionKit.rawValue),
+                    source: "import WhereCore\nstruct Region {}",
                 ),
-            ]
-        )
+            ],
+        ),
     )
 
     let violation = try #require(report.violations.first)
@@ -53,11 +79,11 @@ func `WhereUI cannot import persistence`() throws {
             files: [
                 SourceInput(
                     path: "Where/WhereUI/Sources/Screen.swift",
-                    component: try ComponentID(WhereComponent.whereUI.rawValue),
-                    source: "import SwiftData\nstruct Screen {}"
+                    component: ComponentID(WhereComponent.whereUI.rawValue),
+                    source: "import SwiftData\nstruct Screen {}",
                 ),
-            ]
-        )
+            ],
+        ),
     )
 
     let violation = try #require(report.violations.first)
@@ -74,16 +100,16 @@ func `Where adapters cannot link Broadway directly`() throws {
             files: [
                 SourceInput(
                     path: "Where/WhereWidgets/Sources/Widget.swift",
-                    component: try ComponentID(WhereComponent.widgets.rawValue),
-                    source: "import BroadwayUI\nstruct Widget {}"
+                    component: ComponentID(WhereComponent.widgets.rawValue),
+                    source: "import BroadwayUI\nstruct Widget {}",
                 ),
                 SourceInput(
                     path: "Where/WhereIntents/Sources/Intent.swift",
-                    component: try ComponentID(WhereComponent.whereIntents.rawValue),
-                    source: "import BroadwayCore\nstruct Intent {}"
+                    component: ComponentID(WhereComponent.whereIntents.rawValue),
+                    source: "import BroadwayCore\nstruct Intent {}",
                 ),
-            ]
-        )
+            ],
+        ),
     )
 
     #expect(report.violations.count == 2)

@@ -1,4 +1,5 @@
 import PeriscopeCore
+import WhereSurface
 import WidgetKit
 
 /// Publishes a freshly-computed `WidgetSnapshot` for the widget extension
@@ -9,7 +10,7 @@ import WidgetKit
 public protocol WidgetTimelineRefreshing: Sendable {
     /// Persist `snapshot` where the widget process can read it, then ask
     /// WidgetKit to rebuild every timeline.
-    func publish(_ snapshot: WidgetSnapshot) async
+    func publish(_ snapshot: WidgetSnapshot) async throws
 }
 
 /// A `WidgetTimelineRefreshing` that does nothing. For SwiftUI previews and
@@ -18,7 +19,7 @@ public protocol WidgetTimelineRefreshing: Sendable {
 public struct NoopWidgetTimelineRefresher: WidgetTimelineRefreshing {
     public init() {}
 
-    public func publish(_: WidgetSnapshot) async {}
+    public func publish(_: WidgetSnapshot) async throws {}
 }
 
 /// Production `WidgetTimelineRefreshing`: writes the snapshot to the shared
@@ -30,13 +31,15 @@ public struct WidgetCenterTimelineRefresher: WidgetTimelineRefreshing {
 
     public init() {}
 
-    public func publish(_ snapshot: WidgetSnapshot) async {
+    public func publish(_ snapshot: WidgetSnapshot) async throws {
         do {
             try WidgetSnapshotStore.shared().write(snapshot)
             Self.logger { .wroteSnapshot }
         } catch {
             Self.logger { .publishFailed(description: error.localizedDescription) }
+            throw error
         }
+        WhereSurfaceChangeNotification.post()
         WidgetCenter.shared.reloadAllTimelines()
     }
 }

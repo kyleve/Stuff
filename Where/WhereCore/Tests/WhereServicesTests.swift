@@ -1,7 +1,7 @@
 import Foundation
 import RegionKit
 import Testing
-@_spi(Testing) import WhereCore
+@_spi(Testing) @testable import WhereCore
 
 /// Integration coverage for the assembled `WhereServices`: the cross-collaborator
 /// wiring that no single focused suite owns — the ingestor's post-persist hook
@@ -57,7 +57,10 @@ struct WhereServicesTests {
         let services = try await WhereServices.make(
             store: store,
             locationSource: ScriptedLocationSource(),
-            currentDevice: .preview,
+            recordingParticipation: .recording(
+                device: .preview,
+                defaultEnabledForNewInstallation: true,
+            ),
             aggregator: Self.makeAggregator(),
             reminderScheduler: NoopLoggingReminderScheduler(),
             summaryScheduler: NoopDailySummaryScheduler(),
@@ -1131,6 +1134,77 @@ struct WhereServicesTests {
         #expect(snapshot?.totals == [.california: 1])
     }
 
+    @Test func remoteImportPublishesOnceFromTheBaseService() async throws {
+        let remoteSource = ScriptedStoreRemoteChangeSource()
+        let store = try SwiftDataStore.inMemory(remoteChangeSource: remoteSource)
+        let now = WhereCoreTestSupport.iso("2026-03-15T20:00:00-07:00")
+        try await store.perform {
+            try await store.setManualDay(DayPresence(
+                date: now,
+                in: Self.makeAggregator().calendar,
+                regions: [.california],
+            ))
+        }
+        let refresher = SpyWidgetRefresher()
+        let services = try await WhereServices.make(
+            store: store,
+            locationSource: ScriptedLocationSource(),
+            recordingParticipation: .recording(
+                device: .preview,
+                defaultEnabledForNewInstallation: true,
+            ),
+            aggregator: Self.makeAggregator(),
+            reminderScheduler: NoopLoggingReminderScheduler(),
+            summaryScheduler: NoopDailySummaryScheduler(),
+            issueAlertScheduler: NoopDataIssueAlertScheduler(),
+            widgetRefresher: refresher,
+            now: { now },
+        )
+        let intents = WhereServices.forIntents(sharingStoreOf: services)
+
+        remoteSource.yield()
+
+        try await waitUntil { await refresher.publishCount == 1 }
+        #expect(await refresher.lastSnapshot?.dayRegions == [.california])
+        // Keep the derived stack alive through the assertion: if it had started
+        // a duplicate remote observer, the shared refresher would see two
+        // publishes for the one import.
+        withExtendedLifetime(intents) {}
+        #expect(await refresher.publishCount == 1)
+    }
+
+    @Test func intentWriteKeepsBaseWidgetIngestCacheCoherent() async throws {
+        let now = WhereCoreTestSupport.iso("2026-03-15T20:00:00-07:00")
+        let refresher = SpyWidgetRefresher()
+        let (services, _) = try Self.makeWidgetServices(
+            refresher: refresher,
+            now: now,
+        )
+        let intents = WhereServices.forIntents(sharingStoreOf: services)
+
+        // Seed the base publisher's fast-path cache with a manual California
+        // day, then replace that overlay through the intent-derived stack.
+        try await services.journal.addManualDay(
+            date: now,
+            regions: [.california],
+            audit: nil,
+        )
+        try await intents.journal.addManualDay(
+            date: now,
+            regions: [.newYork],
+            audit: nil,
+        )
+        #expect(await refresher.lastSnapshot?.dayRegions == [.newYork])
+
+        // A subsequent live California sample must rebuild to include both
+        // sources. With separate publisher caches, the base still remembered
+        // California from before the intent write and incorrectly skipped.
+        try await services.journal.ingest(sample(at: "2026-03-15T21:00:00-07:00"))
+
+        #expect(await refresher.publishCount == 3)
+        #expect(await refresher.lastSnapshot?.dayRegions == [.california, .newYork])
+    }
+
     @Test func gpsIngestPublishesWidgetSnapshot() async throws {
         let refresher = SpyWidgetRefresher()
         let (services, source) = try Self.makeWidgetServices(refresher: refresher)
@@ -1337,7 +1411,7 @@ private actor SpyWidgetRefresher: WidgetTimelineRefreshing {
         publishedSnapshots.last
     }
 
-    func publish(_ snapshot: WidgetSnapshot) async {
+    func publish(_ snapshot: WidgetSnapshot) async throws {
         publishedSnapshots.append(snapshot)
     }
 }

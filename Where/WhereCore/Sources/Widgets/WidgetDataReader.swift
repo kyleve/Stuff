@@ -1,9 +1,10 @@
 import Foundation
 import RegionKit
+import WhereSurface
 
 /// Everything the Where widgets render, captured as one `Sendable` value:
 /// which regions the snapshot's day already counts for, plus the per-region
-/// day totals for the calendar year containing that day.
+/// day totals from January 1 through that day.
 ///
 /// `Codable` because the app process publishes this (after each committed
 /// store write) to a small JSON file in the shared App Group container,
@@ -12,12 +13,12 @@ import RegionKit
 public struct WidgetSnapshot: Hashable, Sendable, Codable {
     /// Start-of-day (in the reader's calendar) this snapshot describes.
     public let day: Date
-    /// The calendar year containing `day`; the year `totals` covers.
+    /// The calendar year containing `day`; the year `totals` belongs to.
     public let year: Int
     /// Regions `day` counts for so far. Empty when nothing is logged yet.
     public let dayRegions: Set<Region>
-    /// Day counts per region for `year` (a `YearReport.totals`). A day in
-    /// two regions counts once for each.
+    /// Day counts per region from January 1 of `year` through `day`, inclusive.
+    /// A day in two regions counts once for each.
     public let totals: [Region: Int]
     /// The user's picked appearances for their primary regions, carried across
     /// the App Group so the widget process can render each region's chosen
@@ -26,23 +27,33 @@ public struct WidgetSnapshot: Hashable, Sendable, Codable {
     /// hasn't customized (and for snapshots written before this field existed) —
     /// those fall back to the default look.
     public let appearances: [Region: RegionAppearance]
+    /// When the app generated this artifact. Optional only so an artifact
+    /// published by an older app version still decodes.
+    public let generatedAt: Date?
+    /// Presentation-ready data for store-free glance processes. Optional only
+    /// for compatibility with artifacts published before WhereSurface existed.
+    public let surface: WhereSurfaceSnapshot?
 
     public init(
         day: Date,
         year: Int,
         dayRegions: Set<Region>,
         totals: [Region: Int],
-        appearances: [Region: RegionAppearance] = [:],
+        appearances: [Region: RegionAppearance],
+        generatedAt: Date?,
+        surface: WhereSurfaceSnapshot?,
     ) {
         self.day = day
         self.year = year
         self.dayRegions = dayRegions
         self.totals = totals
         self.appearances = appearances
+        self.generatedAt = generatedAt
+        self.surface = surface
     }
 
     private enum CodingKeys: String, CodingKey {
-        case day, year, dayRegions, totals, appearances
+        case day, year, dayRegions, totals, appearances, generatedAt, surface
     }
 
     public init(from decoder: any Decoder) throws {
@@ -55,6 +66,8 @@ public struct WidgetSnapshot: Hashable, Sendable, Codable {
         // empty map rather than failing (the widget then uses default looks).
         appearances = try container
             .decodeIfPresent([Region: RegionAppearance].self, forKey: .appearances) ?? [:]
+        generatedAt = try container.decodeIfPresent(Date.self, forKey: .generatedAt)
+        surface = try container.decodeIfPresent(WhereSurfaceSnapshot.self, forKey: .surface)
     }
 }
 
@@ -103,16 +116,51 @@ public struct WidgetDataReader: Sendable {
         let dayRegions = report.days
             .first { $0.day == calendarDay }?
             .regions ?? []
+        var totalsToDate: [Region: Int] = [:]
+        for day in report.days where day.day <= calendarDay {
+            for region in day.regions {
+                totalsToDate[region, default: 0] += 1
+            }
+        }
         var appearances: [Region: RegionAppearance] = [:]
         for primary in try await store.primaryRegions() {
             if let appearance = primary.appearance { appearances[primary.region] = appearance }
         }
+        let surfaceRegion: (Region) -> WhereSurfaceSnapshot.Region = { region in
+            WhereSurfaceSnapshot.Region(
+                id: region.rawValue,
+                name: region.localizedName,
+                emoji: appearances[region]?.emoji,
+                symbolName: appearances[region]?.symbolName,
+            )
+        }
+        let todayRegions = Region.inCanonicalOrder(dayRegions).map(surfaceRegion)
+        let yearToDate = Region.rankedByDayCount(
+            totalsToDate,
+            days: { $0.value },
+            region: { $0.key },
+        )
+        .prefix(3)
+        .map { total in
+            WhereSurfaceSnapshot.DayCount(
+                region: surfaceRegion(total.key),
+                days: total.value,
+            )
+        }
+        let surface = WhereSurfaceSnapshot(
+            day: startOfDay,
+            todayRegions: todayRegions,
+            year: year,
+            yearToDate: Array(yearToDate),
+        )
         return WidgetSnapshot(
             day: startOfDay,
             year: year,
             dayRegions: dayRegions,
-            totals: report.totals,
+            totals: totalsToDate,
             appearances: appearances,
+            generatedAt: date,
+            surface: surface,
         )
     }
 }

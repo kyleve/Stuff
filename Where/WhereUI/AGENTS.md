@@ -16,6 +16,9 @@ and testing conventions live in the feature [`Where/AGENTS.md`](../AGENTS.md)
 - Composition is the one exception: `WhereScope` and `WhereModel` decide which
   world the app is logged in to and assemble it. That's launch wiring, not
   domain logic — see [Scopes and the launch](../AGENTS.md#scopes-and-the-launch).
+- Keep onboarding's existing-iCloud path write-free beyond its completion and
+  local-recording intent: it opens the real scope, seeds no regions, and
+  resolves the gate while CloudKit imports continue.
 - Flyover infrastructure stays under `#if DEBUG` in
   [`Sources/Developer/Flyover`](Sources/Developer/Flyover), while each
   represented screen declares a DEBUG-only `WhereFlyoverProviding` extension
@@ -53,6 +56,20 @@ and testing conventions live in the feature [`Where/AGENTS.md`](../AGENTS.md)
   renders relative to *today*, so no reference containing one is stable across
   days. Views don't read `\.isCapturingSnapshot` to branch themselves; capture
   handling stays inside the shared component.
+
+## Navigation shell
+
+`MainTabs` owns the scene-scoped report lifecycle, while `MainView` selects
+`PhoneMainTabs` on iPhone and `MainSplitView` on iPad and Mac Catalyst. Both
+surfaces route the same `MainSection` identities to the existing Locations,
+Your Year, and Settings screens.
+
+- Select the shell by device family through `MainInterfaceStyle`, never the
+  current size class.
+- Keep `MainSplitView` as the stable `NavigationSplitView` root and let the
+  system collapse its columns.
+- Preserve every section's stack and local presentation state when sidebar
+  selection changes.
 
 ## Design system — `WhereStylesheet`
 

@@ -17,8 +17,10 @@ import WhereCore
 /// to the real scope (`WhereModel.resolveScope()`, which performs the app's one
 /// store open), commits the picked regions + appearances to it, persists
 /// `hasOnboarded`, and resolves the `LifecycleGateHandle` so the launch
-/// continues. The steps after the gate then build the session, seed region
-/// styling, and pick up whatever permission was granted.
+/// continues. The explicit existing-iCloud path opens that same scope without
+/// seeding regions or enabling local recording. The steps after the gate then
+/// build the session, seed region styling, and pick up whatever permission was
+/// granted.
 public struct OnboardingView: View {
     // The model is onboarding's whole world: it persists the app-level
     // `hasOnboarded` flag and vends the scope this flow creates. There is no
@@ -62,7 +64,7 @@ public struct OnboardingView: View {
         self.gate = gate
     }
 
-    private let pages = OnboardingPage.all
+    private let pages = OnboardingPage.currentPlatform
 
     public var body: some View {
         Group {
@@ -109,6 +111,8 @@ public struct OnboardingView: View {
             // shared app-icon loading treatment (as first-load / scan / summary
             // do) rather than an inline spinner.
             AppIconLoadingView(caption: String(localized: .onboardingRestoring))
+        } else if intro.isJoiningExistingData {
+            AppIconLoadingView(caption: String(localized: .onboardingJoiningExistingData))
         } else {
             introPages
         }
@@ -138,8 +142,13 @@ public struct OnboardingView: View {
             failureTitle,
             isPresented: $intro.isShowingFailure,
             presenting: intro.failure,
-        ) { _ in
-            Button(String(localized: .commonOk), role: .cancel) {}
+        ) { failure in
+            if failure.flow == .joinExistingData {
+                Button(String(localized: .commonRetry)) { joinExistingData() }
+                Button(String(localized: .commonCancel), role: .cancel) {}
+            } else {
+                Button(String(localized: .commonOk), role: .cancel) {}
+            }
         } message: { failure in
             // Formatted here rather than stored: the state keeps the error
             // itself, so nothing has to decide how to say it before it's shown.
@@ -152,6 +161,7 @@ public struct OnboardingView: View {
     private var failureTitle: String {
         switch intro.failure?.flow {
             case .restoreBackup: String(localized: .onboardingRestoreErrorTitle)
+            case .joinExistingData: String(localized: .onboardingJoinExistingErrorTitle)
             case .demo: String(localized: .onboardingDemoErrorTitle)
             case nil: ""
         }
@@ -196,11 +206,19 @@ public struct OnboardingView: View {
             // the restore's progress replaces the intro with the loading view.
             Button(String(localized: .onboardingRestoreBackup)) { showImporter = true }
                 .controlSize(.large)
+                .tint(.primary)
+
+            Button(String(localized: .onboardingJoinExistingData)) {
+                joinExistingData()
+            }
+            .controlSize(.large)
+            .tint(.primary)
 
             // And anyone can look around first, without handing over a
             // location permission or leaving anything on their device.
             Button(String(localized: .onboardingTryDemo)) { enterDemoMode() }
                 .controlSize(.large)
+                .tint(.primary)
         }
         .disabled(intro.isBuildingDemo)
     }
@@ -227,7 +245,13 @@ public struct OnboardingView: View {
             RegionCustomizeView(
                 model: selection,
                 onBack: { phase = .pickRegions },
-                onFinish: { phase = .location },
+                onFinish: {
+                    #if targetEnvironment(macCatalyst)
+                        finish(enableLocation: false)
+                    #else
+                        phase = .location
+                    #endif
+                },
             )
         }
     }
@@ -380,6 +404,28 @@ public struct OnboardingView: View {
         }
     }
 
+    /// Open the real iCloud-backed scope without writing onboarding region
+    /// defaults or requesting location. A failed open stays on the intro and
+    /// offers an explicit retry; success resolves the launch gate immediately
+    /// while CloudKit imports continue through the live store.
+    private func joinExistingData() {
+        guard !intro.isJoiningExistingData else { return }
+        intro.activity = .joiningExistingData
+        Task {
+            do {
+                try await model.joinExistingData()
+                gate.complete()
+            } catch is CancellationError {
+                intro.activity = .browsing
+            } catch {
+                intro.activity = .failed(.init(flow: .joinExistingData, error: error))
+                Self.logger(attachments: [.error(error, name: "join-existing-error")]) {
+                    .joinExistingDataFailed(description: error.localizedDescription)
+                }
+            }
+        }
+    }
+
     // MARK: - Restore from backup
 
     private func handleRestoreSelection(_ result: Result<URL, Error>) {
@@ -393,8 +439,9 @@ public struct OnboardingView: View {
 
     /// Import the chosen backup (a fresh install, so `.replace` mirrors the file
     /// exactly), then skip the manual pick/customize steps straight to the
-    /// location ask. Restoring is the user committing to their real data, so
-    /// this is one of the two places the store gets opened. On failure —
+    /// location ask on a participating iPhone/iPad or finish immediately on
+    /// management-only Catalyst. Restoring is the user committing to their real
+    /// data, so this is one of the two places the store gets opened. On failure —
     /// including a store that won't open — surface an alert and stay in the
     /// intro, where they can retry or continue manually.
     private func restore(from url: URL) {
@@ -405,7 +452,11 @@ public struct OnboardingView: View {
                 let scope = try await model.resolveScope()
                 _ = try await scope.services.backup.importBackup(from: url, strategy: .replace)
                 intro.activity = .browsing
-                phase = .location
+                #if targetEnvironment(macCatalyst)
+                    finish(enableLocation: false)
+                #else
+                    phase = .location
+                #endif
             } catch {
                 intro.activity = .failed(.init(flow: .restoreBackup, error: error))
                 Self.logger(attachments: [.error(error, name: "restore-error")]) {
@@ -419,10 +470,10 @@ public struct OnboardingView: View {
 /// What the onboarding intro is doing, and how it went.
 ///
 /// One value rather than a pair of "is running" flags beside a loose error:
-/// restoring a backup and building a demo each take over the whole screen, so
-/// only one can be underway, and a failure always belongs to whichever one
-/// produced it. As separate properties, "restoring *and* building" and "failed
-/// with no error" were both spellable.
+/// restoring, joining iCloud data, and building a demo each take over the whole
+/// screen, so only one can be underway, and a failure always belongs to
+/// whichever one produced it. As separate properties, "restoring *and*
+/// building" and "failed with no error" were both spellable.
 ///
 /// `@Observable` for the same reason `SaveErrorAlertState` is: the activity
 /// stays the single source of truth while `isShowingFailure` gives
@@ -434,6 +485,7 @@ final class OnboardingIntroState {
     enum Activity {
         case browsing
         case restoringBackup
+        case joiningExistingData
         case buildingDemo
         case failed(Failure)
     }
@@ -442,10 +494,11 @@ final class OnboardingIntroState {
     /// message, so the view formats it where it presents it — and anything
     /// else that wants to inspect it still can.
     struct Failure {
-        /// Which of the intro's two ways forward failed, since they say
+        /// Which of the intro's long-running ways forward failed, since they say
         /// different things about it.
-        enum Flow {
+        enum Flow: Equatable {
             case restoreBackup
+            case joinExistingData
             case demo
         }
 
@@ -462,6 +515,11 @@ final class OnboardingIntroState {
 
     var isBuildingDemo: Bool {
         if case .buildingDemo = activity { return true }
+        return false
+    }
+
+    var isJoiningExistingData: Bool {
+        if case .joiningExistingData = activity { return true }
         return false
     }
 
@@ -486,26 +544,43 @@ struct OnboardingPage: Identifiable {
     let title: String
     let description: String
 
-    static let all: [OnboardingPage] = [
-        OnboardingPage(
-            id: "welcome",
-            symbol: "globe.americas.fill",
-            title: String(localized: .onboardingWelcomeTitle),
-            description: String(localized: .onboardingWelcomeDescription),
-        ),
-        OnboardingPage(
-            id: "automatic",
-            symbol: "location.fill.viewfinder",
-            title: String(localized: .onboardingAutomaticTitle),
-            description: String(localized: .onboardingAutomaticDescription),
-        ),
-        OnboardingPage(
-            id: "privacy",
-            symbol: "lock.shield.fill",
-            title: String(localized: .onboardingPrivacyTitle),
-            description: String(localized: .onboardingPrivacyDescription),
-        ),
-    ]
+    static func pages(supportsRecording: Bool) -> [OnboardingPage] {
+        var pages = [
+            OnboardingPage(
+                id: "welcome",
+                symbol: "globe.americas.fill",
+                title: String(localized: .onboardingWelcomeTitle),
+                description: String(localized: .onboardingWelcomeDescription),
+            ),
+        ]
+        if supportsRecording {
+            pages.append(
+                OnboardingPage(
+                    id: "automatic",
+                    symbol: "location.fill.viewfinder",
+                    title: String(localized: .onboardingAutomaticTitle),
+                    description: String(localized: .onboardingAutomaticDescription),
+                ),
+            )
+        }
+        pages.append(
+            OnboardingPage(
+                id: "privacy",
+                symbol: "lock.shield.fill",
+                title: String(localized: .onboardingPrivacyTitle),
+                description: String(localized: .onboardingPrivacyDescription),
+            ),
+        )
+        return pages
+    }
+
+    static var currentPlatform: [OnboardingPage] {
+        #if targetEnvironment(macCatalyst)
+            pages(supportsRecording: false)
+        #else
+            pages(supportsRecording: true)
+        #endif
+    }
 }
 
 #if DEBUG

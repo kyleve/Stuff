@@ -1,8 +1,9 @@
 # WhereShareExtension – Module Shape
 
-The **Where** share extension: a Share-sheet action that writes shared content
-(PDFs, images, Wallet passes, emails, links) into the app's store as a new
-`Evidence`. See [`README.md`](README.md) for the data path and design.
+The **Where** iOS/iPadOS and Mac Catalyst share extension: a Share-sheet action
+that writes shared content (PDFs, images, Wallet passes, emails, links) into the
+app's store as a new `Evidence`. See [`README.md`](README.md) for the data path
+and design.
 
 This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
 [`Where/AGENTS.md`](../AGENTS.md). Read those first.

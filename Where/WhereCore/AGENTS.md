@@ -4,8 +4,9 @@ WhereCore is the domain layer of the Where feature: the persistence boundary,
 GPS ingestion, per-day / per-year aggregation, data-quality detection, and
 the side effects that hang off a committed write. It is assembled behind one
 `Sendable` value — `WhereServices` — that the UI and the App Intents stack
-talk to (widgets never do; they read the published `WidgetSnapshot` from the
-App Group). See [`README.md`](README.md) for the public API and collaborators.
+talk to (widgets and the native helper never do; they read the published App
+Group artifact). See [`README.md`](README.md) for the public API and
+collaborators.
 
 The domain/presentation split and the rules WhereCore must uphold live in the
 feature [`Where/AGENTS.md`](../AGENTS.md#layering) — read that and the root
@@ -72,6 +73,16 @@ internal shape.
 - **Writes await their side effects.** `DayJournal` commits, then awaits the
   reminder reconcile + widget publish in sequence, so a reader on the next
   `changes()` ping never observes a half-applied write.
+- **A failed glance write is not fresh.** `WidgetSnapshotPublisher` coalesces
+  concurrent requests behind one final rebuild and updates its freshness cache
+  only after the throwing publisher sink succeeds.
+- **External writes get one glance observer.** `WhereStore.remoteChanges()`
+  carries only CloudKit/share-extension imports; `WhereServices.make` connects
+  it to the base `WidgetSnapshotPublisher`, while local writes use their
+  journal/ingestor paths and `forIntents(sharingStoreOf:)` shares that publisher
+  rather than starting another observer or cache.
+  Treat `.NSPersistentStoreRemoteChange` as a raw write notification: stamp
+  local contexts and filter SwiftData history by author before emitting it.
 - **Post-write reconciliation is defined once.** Every write and import
   routes through `DayJournal.reconcileAfterDayChange()` (or its widget-less
   subset `reconcileIssueState()`) — never copy the fan-out into a new write
@@ -90,6 +101,9 @@ internal shape.
   awaits, stamp every ingested GPS sample with the current installation id,
   and apply `LocationHistoryReader` to every user-facing projection. Backups
   alone read the lossless raw samples and full policy/device tables.
+- **Management-only participation has no local recording identity.** Keep its
+  ingestor inert and never register a current-device row; synced remote-device
+  policy and profile edits remain available.
 - **Tracked regions live in the store, not preferences** — one
   `SDTrackedRegion` row per region so cross-device edits merge; read as a
   `Set` defaulting to the four. `RegionAttribution` derives the attributor

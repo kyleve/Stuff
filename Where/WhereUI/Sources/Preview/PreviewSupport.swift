@@ -636,6 +636,9 @@
                     .europeanUnion: 4,
                     .other: 2,
                 ],
+                appearances: [:],
+                generatedAt: day,
+                surface: nil,
             )
         }
     }

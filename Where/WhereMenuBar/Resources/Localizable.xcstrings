@@ -1,0 +1,186 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "menuBar.accessibilityLabel" : {
+      "comment" : "Accessibility label for the icon-only Where menu bar item.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where"
+          }
+        }
+      }
+    },
+    "menuBar.day" : {
+      "comment" : "Singular unit shown after a year-to-date day count.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "day"
+          }
+        }
+      }
+    },
+    "menuBar.days" : {
+      "comment" : "Plural unit shown after a year-to-date day count.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "days"
+          }
+        }
+      }
+    },
+    "menuBar.openWhere" : {
+      "comment" : "Button that explicitly opens the main Where app.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Where"
+          }
+        }
+      }
+    },
+    "menuBar.refreshFailed" : {
+      "comment" : "Shown while retaining stale data after a refresh fails.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t refresh. Showing the last update."
+          }
+        }
+      }
+    },
+    "menuBar.today.empty" : {
+      "comment" : "Empty state for today's observed-region list.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No regions observed today."
+          }
+        }
+      }
+    },
+    "menuBar.today.title" : {
+      "comment" : "Heading above today's observed regions.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Today"
+          }
+        }
+      }
+    },
+    "menuBar.unavailable.appGroup" : {
+      "comment" : "Explains that the helper cannot access Where's shared App Group.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where’s shared summary isn’t available. Open Where and try again."
+          }
+        }
+      }
+    },
+    "menuBar.unavailable.description" : {
+      "comment" : "Explains how to create the first menu bar summary.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Where to publish today’s summary."
+          }
+        }
+      }
+    },
+    "menuBar.unavailable.failureTitle" : {
+      "comment" : "Heading when the shared menu bar summary cannot be read.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Summary unavailable"
+          }
+        }
+      }
+    },
+    "menuBar.unavailable.title" : {
+      "comment" : "Heading when the app has not published a menu bar summary.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No summary yet"
+          }
+        }
+      }
+    },
+    "menuBar.unavailable.unreadable" : {
+      "comment" : "Explains that the existing shared summary could not be decoded.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The shared summary couldn’t be read. Open Where to publish it again."
+          }
+        }
+      }
+    },
+    "menuBar.updated" : {
+      "comment" : "Label before the relative age of the published summary.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Updated"
+          }
+        }
+      }
+    },
+    "menuBar.yearToDate.empty" : {
+      "comment" : "Empty state for the year-to-date day-count list.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No days recorded this year."
+          }
+        }
+      }
+    },
+    "menuBar.yearToDate.title" : {
+      "comment" : "Heading above the top year-to-date region day counts.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Year to Date"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.1"
+}

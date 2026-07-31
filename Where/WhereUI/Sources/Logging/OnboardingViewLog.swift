@@ -6,6 +6,9 @@ import PeriscopeCore
 enum OnboardingViewLog: LogEvent {
     case regionCommitFailed(description: String)
     case backupRestoreFailed(description: String)
+    /// Opening the real scope for the explicit iCloud join path failed. The
+    /// intro remains available with a retry action.
+    case joinExistingDataFailed(description: String)
     /// The user declined (or is restricted from) location access at the
     /// onboarding ask. Expected, not a failure: tracking stays
     /// intended-but-inactive and Settings offers the route to grant it.
@@ -21,7 +24,9 @@ enum OnboardingViewLog: LogEvent {
 
     var level: LogLevel {
         switch self {
-            case .regionCommitFailed, .backupRestoreFailed, .demoBuildFailed: .warning
+            case .regionCommitFailed, .backupRestoreFailed, .joinExistingDataFailed,
+                 .demoBuildFailed:
+                .warning
             case .locationPermissionDenied: .info
             case .scopeCreationFailed: .error
         }
@@ -33,6 +38,8 @@ enum OnboardingViewLog: LogEvent {
                 "Failed to commit onboarding region picks: \(description)"
             case let .backupRestoreFailed(description):
                 "Onboarding backup restore failed: \(description)"
+            case let .joinExistingDataFailed(description):
+                "Joining existing iCloud data failed: \(description)"
             case .locationPermissionDenied:
                 "Location access declined during onboarding"
             case let .scopeCreationFailed(description):

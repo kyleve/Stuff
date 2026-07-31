@@ -1,8 +1,9 @@
 # Where (app target) – Module Shape
 
-The **Where** iOS app target: the process's composition root and nothing else.
-Three files — `WhereApp` (`@main`), `AppDelegate` (the wiring), and
-`WhereShortcuts` (the App Shortcuts phrases). See [`README.md`](README.md).
+The **Where** iOS, iPadOS, and Mac Catalyst app target: the process's
+composition root and nothing else. Three files — `WhereApp` (`@main`),
+`AppDelegate` (the wiring), and `WhereShortcuts` (the App Shortcuts phrases).
+See [`README.md`](README.md).
 
 This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
 [`Where/AGENTS.md`](../AGENTS.md) — read those first; they own build/format,
@@ -36,10 +37,12 @@ layering, and the domain rules this target merely starts up.
 
 - **Launch is wired in `didFinishLaunching`, not a SwiftUI `.task`.** When
   CoreLocation relaunches the app after termination there is no UI, so a view's
-  `.task` is not a reliable hook; `didFinishLaunching` always runs. It builds
-  the `LifecycleRunner` (whose synchronous `initializePrerequisites` installs
-  the `CLLocationManager` in time to receive the queued event) and hands it to
-  `RootView` through `WhereApp`. Don't move this wiring into a view.
+  `.task` is not a reliable hook; `didFinishLaunching` always runs. On an
+  iPhone or iPad it builds the `LifecycleRunner` whose synchronous
+  `initializePrerequisites` installs the `CLLocationManager` in time to receive
+  the queued event; Mac Catalyst deliberately skips that prerequisite and
+  launches management-only. It hands the runner to `RootView` through
+  `WhereApp`. Don't move this wiring into a view.
 - **This target owns exactly one of each shared thing** — one `WhereModel`, one
   `IntentServices`, one launcher — created here and injected down, per
   [Composition](../../AGENTS.md#composition-create-once-inject-down). The
@@ -51,6 +54,11 @@ layering, and the domain rules this target merely starts up.
   container (`iCloud.com.stuff.where`), and remote-notification background mode
   together in `Project.swift`; widgets and the share extension stay App
   Group-only and never open a CloudKit container.
+- **Catalyst embeds, but never launches, the native `WhereMenuBar` helper.**
+  `Project.swift` builds it first in the `Where-Catalyst` scheme and conditionally
+  copies it to `Contents/Library/LoginItems`; Settings registers or unregisters
+  that exact bundle with `SMAppService`. The helper opens this app through the
+  `where://open` URL and must not gain a direct target dependency back to it.
 - **Nothing here may assume the user has a store.** `didFinishLaunching` starts
   the ambient log sources and drives the launch; anything wanting the user's
   data waits for `.ready` and checks what it got — the Spotlight indexing after

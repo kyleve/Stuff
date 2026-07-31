@@ -47,9 +47,17 @@ public final class WhereSession {
     public private(set) var isTracking = false
 
     /// Stable installation identity used by the Devices settings screen to mark
-    /// the current row and prevent archiving it.
-    public var currentRecordingDeviceID: RecordingDeviceID {
-        services.recording.currentDevice.id
+    /// the current row and prevent archiving it. Nil for a management-only
+    /// session.
+    public var currentRecordingDeviceID: RecordingDeviceID? {
+        services.recording.currentDevice?.id
+    }
+
+    /// Whether this installation can contribute automatic locations. Catalyst
+    /// sessions are management-only: they still edit synced device policies,
+    /// but expose no current row and never touch local location services.
+    public var supportsLocalRecording: Bool {
+        services.recording.participation.supportsLocalRecording
     }
 
     /// The latest known location authorization status, kept live via
@@ -112,10 +120,16 @@ public final class WhereSession {
     private var warnedIssueAlertsUnauthorized = false
 
     /// Persisted user intent to track in the background. Effective tracking is
-    /// this AND `.always` authorization; we default to `true` so that, once the
-    /// user grants Always, tracking resumes automatically on every launch.
+    /// this AND `.always` authorization. A missing value resolves against the
+    /// composition policy for a new installation, except an already-onboarded
+    /// installation retains the historical on-by-default behavior.
     private var wantsTracking: Bool {
-        get { preferences.wantsTracking }
+        get {
+            preferences.wantsTracking(
+                defaultForNewInstallation:
+                services.recording.participation.defaultEnabledForNewInstallation,
+            )
+        }
         set { preferences.wantsTracking = newValue }
     }
 
@@ -316,10 +330,13 @@ public final class WhereSession {
     func reconcileTracking() async {
         let wasTracking = isTracking
         do {
-            let configuration = try await services.recording.reconcile(
+            guard let configuration = try await services.recording.reconcile(
                 initialEnabled: wantsTracking,
                 authorization: authorizationStatus,
-            )
+            ) else {
+                isTracking = false
+                return
+            }
             // Keep the legacy local preference as the migration seed/fallback,
             // but synced policy is authoritative once the device exists.
             wantsTracking = configuration.isEnabled
@@ -345,6 +362,7 @@ public final class WhereSession {
     /// on persist. A launch step (see `WhereLaunch.plan(for:)`); also runs on
     /// every foreground.
     func captureTodayIfNeeded() async {
+        guard supportsLocalRecording else { return }
         guard wantsTracking, authorizationStatus.allowsForegroundFix else { return }
         await services.ingestor.captureTodayIfNeeded(now: now())
     }
@@ -353,6 +371,7 @@ public final class WhereSession {
     /// access" button. Drives the system prompt when possible, then syncs the
     /// status and reconciles tracking so the UI reflects the outcome.
     public func requestPermission() async {
+        guard supportsLocalRecording else { return }
         do {
             try await services.ingestor.requestPermission()
             permissionDenied = false
@@ -374,6 +393,7 @@ public final class WhereSession {
     /// When-In-Use is granted the indicator guides the user to Settings; on a
     /// hard denial the Settings alert is surfaced.
     public func startTracking() async {
+        guard let currentRecordingDeviceID else { return }
         do {
             _ = try await setRecordingEnabled(true, for: currentRecordingDeviceID)
         } catch {
@@ -384,6 +404,7 @@ public final class WhereSession {
     }
 
     public func stopTracking() async {
+        guard let currentRecordingDeviceID else { return }
         do {
             _ = try await setRecordingEnabled(false, for: currentRecordingDeviceID)
         } catch {

@@ -10,13 +10,14 @@ import WhereUI
 /// launch, wiring both up at process launch rather than from a SwiftUI view's
 /// `.task`.
 ///
-/// This matters for background relaunch: when CoreLocation relaunches the app
-/// after termination (a significant location change or visit), there's no UI,
-/// so a view's `.task` is not a reliable hook. `didFinishLaunching` always
-/// runs, so building the runner here (whose synchronous
-/// `initializePrerequisites` installs the `CLLocationManager`) lets CoreLocation
-/// deliver the pending event, while the async launch steps continue background
-/// tracking off the main thread.
+/// This matters for background relaunch on a participating iPhone or iPad:
+/// when CoreLocation relaunches the app after termination (a significant
+/// location change or visit), there's no UI, so a view's `.task` is not a
+/// reliable hook. `didFinishLaunching` always runs, so building the runner here
+/// (whose synchronous `initializePrerequisites` installs the
+/// `CLLocationManager` on those hosts) lets CoreLocation deliver the pending
+/// event, while the async launch steps continue background tracking off the
+/// main thread. Mac Catalyst skips the location prerequisite entirely.
 @MainActor
 final class AppDelegate: NSObject, UIApplicationDelegate {
     /// The app's model, logging into the process-wide Periscope system. This is
@@ -67,18 +68,20 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         // possible location wake we can't yet rule out) and builds no view tree;
         // `RootView`'s `enterForeground()` promotes it to `.userForeground` once
         // a scene genuinely activates. A genuine headless wake simply stays
-        // `.undetermined` — the queued location event is delivered through the
-        // `CLLocationManager` installed below, so no launch-state guess is
-        // needed to service it.
+        // `.undetermined` — on a participating iPhone or iPad the queued
+        // location event is delivered through the `CLLocationManager` installed
+        // below, so no launch-state guess is needed to service it. Catalyst has
+        // no local recorder to service.
         //
         // Start the process-wide ambient log sources. The durable sink belongs
         // to whichever scope the user ends up in (`WhereScope` opens it), and
         // no scope exists this early, so these — and everything else logged
         // before the launch resolves one — reach OSLog only.
         WhereLaunch.startAmbientLogging(on: .shared)
-        // `initializePrerequisites` installs the CLLocationManager synchronously
-        // (so a queued location event isn't lost) and registers the
-        // foreground-notification presenter; the rest (store open, etc.) runs as
+        // `initializePrerequisites` installs the CLLocationManager
+        // synchronously on participating iPhone/iPad hosts (so a queued location
+        // event isn't lost) and registers the foreground-notification presenter;
+        // Catalyst skips the location half. The rest (store open, etc.) runs as
         // async steps off this synchronous launch path.
         // `onServicesReady` fires from the `start-session` step on every session
         // (re)start: derive the App Intents stack from the launch's services —

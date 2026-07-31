@@ -12,7 +12,10 @@ struct DeviceRecordingControllerTests {
         let services = WhereServices(
             store: store,
             locationSource: ScriptedLocationSource(authorizationStatus: authorization),
-            currentDevice: .preview,
+            recordingParticipation: .recording(
+                device: .preview,
+                defaultEnabledForNewInstallation: true,
+            ),
             now: { now },
         )
         return (services, store)
@@ -21,10 +24,10 @@ struct DeviceRecordingControllerTests {
     @Test func firstReconcileRegistersMigratedIntentAndAcknowledgesRecording() async throws {
         let (services, store) = try Self.makeServices(authorization: .always)
 
-        let configuration = try await services.recording.reconcile(
+        let configuration = try #require(try await services.recording.reconcile(
             initialEnabled: true,
             authorization: .always,
-        )
+        ))
 
         #expect(configuration.id == CurrentRecordingDevice.preview.id)
         #expect(configuration.isEnabled)
@@ -38,10 +41,10 @@ struct DeviceRecordingControllerTests {
     @Test func enabledWithoutAlwaysPermissionIsAcknowledgedAsPermissionRequired() async throws {
         let (services, _) = try Self.makeServices(authorization: .whenInUse)
 
-        let configuration = try await services.recording.reconcile(
+        let configuration = try #require(try await services.recording.reconcile(
             initialEnabled: true,
             authorization: .whenInUse,
-        )
+        ))
 
         #expect(configuration.isEnabled)
         #expect(configuration.isPending == false)
@@ -204,5 +207,67 @@ struct DeviceRecordingControllerTests {
         }
         #expect(try await store.recordingDevices().isEmpty)
         #expect(try await store.recordingPolicyChanges().isEmpty)
+    }
+
+    @Test func managementOnlyReconcileNeverRegistersOrStartsLocalRecording() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let source = ScriptedLocationSource(authorizationStatus: .always)
+        let services = WhereServices(
+            store: store,
+            locationSource: source,
+            recordingParticipation: .managementOnly,
+            now: { Self.now },
+        )
+
+        let configuration = try await services.recording.reconcile(
+            initialEnabled: true,
+            authorization: .always,
+        )
+        await services.ingestor.start()
+        await services.ingestor.captureTodayIfNeeded(now: Self.now)
+
+        #expect(configuration == nil)
+        #expect(await services.ingestor.isActive == false)
+        #expect(try await store.recordingDevices().isEmpty)
+        #expect(try await store.recordingPolicyChanges().isEmpty)
+        #expect(try await store.allSamples().isEmpty)
+    }
+
+    @Test func managementOnlyControllerCanManageASyncedRemoteDevice() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let services = WhereServices(
+            store: store,
+            locationSource: IdleLocationSource(),
+            recordingParticipation: .managementOnly,
+            now: { Self.now },
+        )
+        let remoteID = try RecordingDeviceID(
+            rawValue: #require(UUID(uuidString: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB")),
+        )
+        try await store.perform {
+            try await store.setRecordingDevice(RecordingDevice(
+                id: remoteID,
+                systemName: "iPad",
+                nickname: nil,
+                kind: .tablet,
+                registeredAt: Self.now,
+                lastSeenAt: Self.now,
+                archivedAt: nil,
+                lastAppliedPolicyChangeID: nil,
+                status: .off,
+            ))
+        }
+
+        let before = try await services.recording.devices(initialEnabled: false)
+        let after = try await services.recording.setEnabled(
+            true,
+            for: remoteID,
+            initialEnabled: false,
+        )
+
+        #expect(before.map(\.id) == [remoteID])
+        #expect(after.map(\.id) == [remoteID])
+        #expect(after.first?.isEnabled == true)
+        #expect(try await store.recordingDevices().count == 1)
     }
 }

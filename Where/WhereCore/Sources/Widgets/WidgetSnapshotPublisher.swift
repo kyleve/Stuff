@@ -24,6 +24,13 @@ public actor WidgetSnapshotPublisher {
     private let maxAge: TimeInterval
 
     private var lastPublished: PublishedWidgetSnapshot?
+    private var pendingPublishTask: Task<Void, Never>?
+    private var publishRequested = false
+    private var retryFailedPublish = false
+    private var externalChangesTask: Task<Void, Never>?
+    #if DEBUG
+        private var receivedPublishRequestCount = 0
+    #endif
 
     private struct PublishedWidgetSnapshot {
         let snapshot: WidgetSnapshot
@@ -61,7 +68,7 @@ public actor WidgetSnapshotPublisher {
     /// than `maxAge`, or nothing published yet (cold launch) all fall through to
     /// a full rebuild.
     public func refreshIfStale() async {
-        if let last = lastPublished {
+        if retryFailedPublish == false, let last = lastPublished {
             let today = calendar.startOfDay(for: now())
             let isFresh = now().timeIntervalSince(last.publishedAt) < maxAge
             if last.snapshot.day == today, isFresh {
@@ -72,15 +79,86 @@ public actor WidgetSnapshotPublisher {
     }
 
     /// Recompute today's `WidgetSnapshot` from the store and hand it to the
-    /// refresher to publish + reload. Called after every committed mutation that
-    /// can change what a widget shows. A failure here is non-fatal: the widget
-    /// keeps showing its last published snapshot.
+    /// refresher to publish + reload. Concurrent callers join one task; a call
+    /// arriving while that task is publishing coalesces into one final rebuild
+    /// so the artifact includes the latest committed store state.
+    ///
+    /// A failure here is non-fatal: the widget keeps showing its last published
+    /// snapshot, and the failed result is never cached as fresh.
     func publish() async {
+        #if DEBUG
+            receivedPublishRequestCount += 1
+        #endif
+        if let pendingPublishTask {
+            publishRequested = true
+            await pendingPublishTask.value
+            return
+        }
+
+        publishRequested = true
+        let task = Task {
+            await self.drainPublishRequests()
+        }
+        pendingPublishTask = task
+        await task.value
+    }
+
+    /// Rebuild after every store change imported from another process or
+    /// device. Local writes do not enter this stream: their journal/ingestor
+    /// paths already invoke the exact publish operation they need.
+    func startObservingExternalChanges(_ changes: AsyncStream<Void>) {
+        precondition(
+            externalChangesTask == nil,
+            "WidgetSnapshotPublisher external observation started twice",
+        )
+        externalChangesTask = Task { [weak self] in
+            for await _ in changes {
+                guard Task.isCancelled == false else { return }
+                await self?.publish()
+            }
+        }
+    }
+
+    /// Stop the remote-import observer. Scope teardown normally reaches this
+    /// through `deinit`; the explicit pair also makes lifecycle tests and a
+    /// deliberate restart unambiguous.
+    func stopObservingExternalChanges() {
+        externalChangesTask?.cancel()
+        externalChangesTask = nil
+    }
+
+    deinit {
+        externalChangesTask?.cancel()
+    }
+
+    #if DEBUG
+        /// Number of calls received by this instance. Test-only visibility lets
+        /// a concurrency test establish that every caller joined the in-flight
+        /// task before releasing its controlled sink.
+        @_spi(Testing) public var testingReceivedPublishRequestCount: Int {
+            receivedPublishRequestCount
+        }
+    #endif
+
+    private func drainPublishRequests() async {
+        repeat {
+            publishRequested = false
+            await performPublish()
+        } while publishRequested
+        pendingPublishTask = nil
+    }
+
+    private func performPublish() async {
         await Self.logger.measure(.publish, budget: .seconds(2)) {
             do {
-                let snapshot = try await widgetReader.snapshot(asOf: now())
-                await widgetRefresher.publish(snapshot)
-                lastPublished = PublishedWidgetSnapshot(snapshot: snapshot, publishedAt: now())
+                let generatedAt = now()
+                let snapshot = try await widgetReader.snapshot(asOf: generatedAt)
+                try await widgetRefresher.publish(snapshot)
+                lastPublished = PublishedWidgetSnapshot(
+                    snapshot: snapshot,
+                    publishedAt: generatedAt,
+                )
+                retryFailedPublish = false
                 Self.logger {
                     .published(
                         day: dayLogLabel(snapshot.day),
@@ -88,6 +166,7 @@ public actor WidgetSnapshotPublisher {
                     )
                 }
             } catch {
+                retryFailedPublish = true
                 Self.logger { .buildFailed(description: error.localizedDescription) }
             }
         }
@@ -102,7 +181,7 @@ public actor WidgetSnapshotPublisher {
     /// add to its own day; a region already present means the day's regions and
     /// the year totals are both unchanged.)
     func publishAfterIngest(of sample: LocationSample) async {
-        if let last = lastPublished {
+        if retryFailedPublish == false, let last = lastPublished {
             let day = calendar.startOfDay(for: sample.timestamp)
             let region = attributor.region(at: sample.coordinate)
             if day == last.snapshot.day, last.snapshot.dayRegions.contains(region) {

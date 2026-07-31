@@ -73,6 +73,9 @@ struct WhereIntentReaderTests {
                 year: 2026,
                 dayRegions: [.canada],
                 totals: [:],
+                appearances: [:],
+                generatedAt: today,
+                surface: nil,
             )
         }
         #expect(try await reader.todayRegions() == [.canada])
@@ -104,6 +107,9 @@ struct WhereIntentReaderTests {
                 year: 2026,
                 dayRegions: [.canada],
                 totals: [:],
+                appearances: [:],
+                generatedAt: today,
+                surface: nil,
             )
         }
         #expect(try await reader.todayRegions() == [.newYork])

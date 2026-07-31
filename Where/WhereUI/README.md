@@ -21,11 +21,17 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
 - **`RootView`** — the app root: the typed launch plan (via
   [`LifecycleKit`](../../Shared/LifecycleKit), rendered by
   [`LifecycleKitUI`](../../Shared/LifecycleKitUI)'s container) gated in front of
-  `MainTabs`, the Liquid Glass tab bar over three tabs — Locations, Your Year,
-  Settings. Elsewhere is an entry card on Locations, Resolve a Locations toolbar
-  button, and the data screens (attachments, logged days, regions) sit in the
-  Settings "Data" group. Backup and destructive data management share one Data
-  drill-in. `AboutSettingsView` is the last Settings block — build
+  `MainTabs`, the scene-scoped owner of the adaptive logged-in shell.
+  `MainView` presents a Liquid Glass `PhoneMainTabs` on iPhone and a two-column
+  `MainSplitView` on iPad and Mac Catalyst. Both expose the same three sections
+  — Locations, Your Year, Settings — while the split shell keeps its
+  `NavigationSplitView` root as the window resizes and lets the system collapse
+  its columns. Its page-backed detail host retains each section's navigation
+  and presentation state while sidebar selection changes. Elsewhere is an
+  entry card on Locations, Resolve a Locations toolbar button, and the data
+  screens (attachments, logged days, regions) sit in the Settings "Data" group.
+  Backup and destructive data management share one Data drill-in.
+  `AboutSettingsView` is the last Settings block — build
   identity, the app's generated attribution report (linked libraries and
   development tools as separate sections), and bundled-data provenance, each
   vended by whoever owns it rather than listed in the view; it renders an
@@ -63,7 +69,10 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
 - **`WhereSession`** — the always-on coordinator: tracking + location
   authorization state and the intents that drive them (`requestPermission()`,
   per-device recording changes, `startTracking()` / `stopTracking()`,
-  `refreshWidgetSnapshot()`). It holds no presentation state of its own.
+  `refreshWidgetSnapshot()`). A management-only session exposes no current
+  recording device and never requests or starts local location services, while
+  retaining remote-device management. It holds no presentation state of its
+  own.
 - **Scope-tiered models** — scene-scoped **`YearReportModel`** (the selected
   year's `YearReport`, its `LoadState`, and the manual-day edit intents), plus
   view-scoped **`ResolveModel`** (data-issue triage), **`BackupModel`**
@@ -82,7 +91,9 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   tracked-region set + appearances before resolving the gate. The intro also
   offers **Restore from a backup**, which opens the store, imports a backup
   (`.replace`), and skips the manual pick/customize steps straight to the
-  location ask; and **Explore a demo**, which builds a throwaway in-memory
+  location ask; **Join Existing iCloud Data**, which opens the real scope
+  without seeding regions or enabling local recording and enters while remote
+  imports continue; and **Explore a demo**, which builds a throwaway in-memory
   world behind a captioned launch splash and enters it.
 - **`RegionPickerView` / `RegionCustomizeView`** — the shared primary-region
   picker (segmented map/list) and per-region color/emoji/icon customization,
@@ -124,8 +135,8 @@ target's dependencies in [`Package.swift`](../../Package.swift):
 ## Quick start
 
 The app target is deliberately tiny — it builds the model + launch runner at
-startup (so CoreLocation is wired for background relaunch) and hands them to
-`RootView`:
+startup (wiring CoreLocation for background relaunch on participating
+iPhone/iPad hosts and skipping it on Catalyst) and hands them to `RootView`:
 
 ```swift
 import SwiftUI

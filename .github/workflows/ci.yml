@@ -118,6 +118,37 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
+  catalyst:
+    name: Build (Mac Catalyst)
+    needs: format
+    runs-on: xcode-27
+    timeout-minutes: 30
+    env:
+      CATALYST_DERIVED_DATA: ${{ github.workspace }}/catalyst-derived
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v3
+      - name: Generate project
+        run: ./ide --no-open
+      - name: Build Where for Mac Catalyst
+        run: |
+          xcodebuild build \
+            -workspace Stuff.xcworkspace \
+            -scheme Where-Catalyst \
+            -destination 'generic/platform=macOS,variant=Mac Catalyst' \
+            -derivedDataPath "$CATALYST_DERIVED_DATA" \
+            CODE_SIGNING_ALLOWED=NO
+      - name: Verify embedded Mac surfaces
+        run: |
+          APP="$CATALYST_DERIVED_DATA/Build/Products/Debug-maccatalyst/Where.app"
+          HELPER="$APP/Contents/Library/LoginItems/WhereMenuBar.app"
+          test -x "$HELPER/Contents/MacOS/WhereMenuBar"
+          test "$(plutil -extract CFBundleIdentifier raw -o - "$HELPER/Contents/Info.plist")" = "com.stuff.where.menubar"
+          test "$(plutil -extract CFBundlePackageType raw -o - "$HELPER/Contents/Info.plist")" = "APPL"
+          ! plutil -extract NSMainStoryboardFile raw -o - "$HELPER/Contents/Info.plist"
+          test -d "$APP/Contents/PlugIns/WhereWidgets.appex"
+          test -d "$APP/Contents/PlugIns/WhereShareExtension.appex"
+
   snapshot:
     name: Snapshot Tests (iOS)
     needs: format

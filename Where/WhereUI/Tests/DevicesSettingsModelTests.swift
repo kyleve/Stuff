@@ -16,7 +16,10 @@ struct DevicesSettingsModelTests {
         let services = WhereServices(
             store: store,
             locationSource: ScriptedLocationSource(authorizationStatus: .always),
-            currentDevice: .preview,
+            recordingParticipation: .recording(
+                device: .preview,
+                defaultEnabledForNewInstallation: true,
+            ),
             now: { Self.now },
         )
         let preferences = makePreferences()

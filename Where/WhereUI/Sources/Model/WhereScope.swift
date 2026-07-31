@@ -173,9 +173,10 @@ public final class WhereScope {
     /// Every collaborator that would touch the device outside the store is a
     /// no-op: the schedulers never ask for notification permission, the widget
     /// refresher never writes the shared snapshot file, and the location
-    /// source is scripted, so demo mode prompts for nothing. The scripted
-    /// source reports `.always` and answers a one-shot fix from New York, so
-    /// the app behaves as it would for a user who has granted everything.
+    /// source is scripted, so demo mode prompts for nothing. On a participating
+    /// iPhone or iPad, that source reports `.always` and answers a one-shot fix
+    /// from New York; Catalyst keeps the same management-only participation as
+    /// its real scope and relies on the already-seeded demo history.
     ///
     /// Building this is the slow part of entering demo mode (seeding a year),
     /// which is why the entry point shows an interstitial while it runs.
@@ -203,10 +204,12 @@ public final class WhereScope {
         let store = try await Task.detached(priority: .userInitiated) {
             try SwiftDataStore.inMemory()
         }.value
+        let recordingParticipation =
+            CurrentRecordingDeviceProvider.demoParticipationForCurrentHost
         let services = try await WhereServices.make(
             store: store,
             locationSource: locationSource,
-            currentDevice: .preview,
+            recordingParticipation: recordingParticipation,
             aggregator: aggregator,
             // Authorized, like the location source is: the demo presents a user
             // who has granted everything, so the alerts screen shows its real
@@ -224,10 +227,11 @@ public final class WhereScope {
             .seed(into: services)
 
         let preferences = WherePreferences(store: InMemoryKeyValueStore())
-        // Onboarded and tracking, so the demo opens on the logged-in app with
-        // live tracking shown rather than on a first-run prompt. These are the
-        // demo's own preferences: the user's real ones are untouched, which is
-        // what makes quitting mid-demo return to onboarding.
+        // Onboarded with tracking intent, so a participating host's demo opens
+        // with live tracking shown rather than on a first-run prompt. A
+        // management-only host ignores that local intent. These are the demo's
+        // own preferences: the user's real ones are untouched, which is what
+        // makes quitting mid-demo return to onboarding.
         preferences.hasOnboarded = true
         preferences.wantsTracking = true
 

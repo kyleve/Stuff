@@ -1,6 +1,7 @@
 import LifecycleKit
 import PeriscopeCore
 import SwiftUI
+import UIKit
 import UserNotifications
 import WhereCore
 
@@ -237,12 +238,18 @@ public final class WhereBootstrap: WhereScopeAssembling {
     private static let logger = WhereLog.root(WhereLaunchLog.self)
 
     private var locationSource: CoreLocationSource?
+    private let userInterfaceIdiom: UIUserInterfaceIdiom
 
-    public init() {}
+    public init() {
+        userInterfaceIdiom = UIDevice.current.userInterfaceIdiom
+    }
 
     /// Install the `CLLocationManager` + delegate right away, without touching
     /// the store. Idempotent.
     public func prepareLocation() {
+        guard CurrentRecordingDeviceProvider.supportsLocalRecording(
+            idiom: userInterfaceIdiom,
+        ) else { return }
         guard locationSource == nil else { return }
         locationSource = CoreLocationSource()
     }
@@ -264,9 +271,16 @@ public final class WhereBootstrap: WhereScopeAssembling {
     /// `.failed`, so without this line the failure would leave no trace
     /// anywhere.
     public func makeServices() async throws -> WhereServices {
-        let source = locationSource ?? CoreLocationSource()
+        let participation = CurrentRecordingDeviceProvider.participation(
+            defaults: .standard,
+            idiom: userInterfaceIdiom,
+        )
+        let source: any LocationSource = if participation.supportsLocalRecording {
+            locationSource ?? CoreLocationSource()
+        } else {
+            IdleLocationSource()
+        }
         locationSource = nil
-        let currentDevice = CurrentRecordingDeviceProvider.current(defaults: .standard)
         do {
             let store = try await Task.detached(priority: .userInitiated) {
                 try SwiftDataStore.make()
@@ -274,7 +288,7 @@ public final class WhereBootstrap: WhereScopeAssembling {
             let services = try await WhereServices.make(
                 store: store,
                 locationSource: source,
-                currentDevice: currentDevice,
+                recordingParticipation: participation,
                 // The real world's seams, named here because this is the only
                 // place that wants them: the demo scope builds the same stack
                 // out of no-ops, and every test and preview gets no-ops by

@@ -7,15 +7,27 @@ import WidgetKit
 @main
 struct WhereWidgetsBundle: WidgetBundle {
     var body: some Widget {
-        TodayWidget()
-        YearTotalsWidget()
+        #if targetEnvironment(macCatalyst)
+            MacSummaryWidget()
+        #else
+            TodayWidget()
+            YearTotalsWidget()
+        #endif
     }
 }
 
 #if DEBUG
-    #Preview("Where widgets", as: .systemSmall) {
-        TodayWidget()
-    } timeline: {
-        WhereWidgetEntry.sample
-    }
+    #if targetEnvironment(macCatalyst)
+        #Preview("Where widgets", as: .systemMedium) {
+            MacSummaryWidget()
+        } timeline: {
+            WhereWidgetEntry.sample
+        }
+    #else
+        #Preview("Where widgets", as: .systemSmall) {
+            TodayWidget()
+        } timeline: {
+            WhereWidgetEntry.sample
+        }
+    #endif
 #endif

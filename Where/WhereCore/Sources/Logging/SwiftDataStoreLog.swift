@@ -41,13 +41,17 @@ enum SwiftDataStoreLog: LogEvent {
     case ignoredUnknownPrimaryRegions(ids: [String])
     /// Dropped a record that failed to materialize into a domain value.
     case droppedCorruptRecord(type: String)
+    /// Persistent history could not be read to classify a store write.
+    case historyReadFailed(description: String)
 
     static let eventName = "SwiftDataStore"
 
     var level: LogLevel {
         switch self {
             case .openedInMemory, .openedOnDisk: .info
-            case .ignoredUnknownTrackedRegions, .ignoredUnknownPrimaryRegions: .warning
+            case .ignoredUnknownTrackedRegions, .ignoredUnknownPrimaryRegions,
+                 .historyReadFailed:
+                .warning
             case .droppedCorruptRecord: .fault
         }
     }
@@ -64,6 +68,8 @@ enum SwiftDataStoreLog: LogEvent {
                 "Ignored \(ids.count) unknown primary-region id(s): \(ids.joined(separator: ", "))"
             case let .droppedCorruptRecord(type):
                 "Dropped corrupt SwiftData record of type \(type)"
+            case let .historyReadFailed(description):
+                "Failed to read SwiftData history: \(description)"
         }
     }
 }

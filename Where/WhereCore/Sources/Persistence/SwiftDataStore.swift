@@ -102,9 +102,11 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
 
         /// Whether a store of this mode can receive writes from outside this
         /// process — a sibling App Group process (the share extension) for any
-        /// on-disk store, or a CloudKit sync from another device — surfaced as
-        /// `.NSPersistentStoreRemoteChange`. In-memory stores have no shared
-        /// container and no other writers, so there's nothing to observe.
+        /// on-disk store, or a CloudKit sync from another device. Core Data's
+        /// `.NSPersistentStoreRemoteChange` notifies about those and local
+        /// writes; history classification separates them. In-memory stores have
+        /// no shared container and no other writers, so there's nothing to
+        /// observe.
         var observesRemoteChanges: Bool {
             switch self {
                 case .inMemory: false
@@ -142,10 +144,9 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             case .localOnly, .cloudKit: .identifier(appGroupIdentifier)
         }
         // CloudKit mode backs the container with `NSPersistentCloudKitContainer`,
-        // which enables persistent-history tracking and posts
-        // `.NSPersistentStoreRemoteChange` on remote import — no extra knobs
-        // needed (and SwiftData exposes none). `make` observes that notification
-        // via `PersistentStoreRemoteChangeSource`.
+        // which enables persistent-history tracking. SwiftData's Core Data store
+        // posts `.NSPersistentStoreRemoteChange` for every write; `make` observes
+        // it and uses the history author to identify imports.
         let config = ModelConfiguration(
             schema: schema,
             isStoredInMemoryOnly: storage == .inMemory,
@@ -204,14 +205,20 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         let store = SwiftDataStore(modelContainer: container)
         // On-disk stores live in a shared App Group container, so another process
         // (the share extension) — or, for CloudKit, a sync from another device —
-        // can commit behind our back. Both surface as
-        // `.NSPersistentStoreRemoteChange` (persistent-history tracking is on for
-        // on-disk stores); forward those into `changes()` so an external write
-        // refreshes the UI like a local commit. This is what makes a
-        // share-extension add show up live in the running app (debug included),
-        // not just on next launch.
+        // can commit behind our back. Core Data posts
+        // `.NSPersistentStoreRemoteChange` for those *and* this process's own
+        // writes, so checkpoint history before installing the observer and
+        // classify later transactions by their author. This is what makes a
+        // share-extension add show up live without making every local GPS save
+        // look external.
         if storage.observesRemoteChanges {
-            store.startObservingRemoteChanges(PersistentStoreRemoteChangeSource())
+            let classifier = store.historyClassifier
+            let checkpoint = Self.historyCheckpoint(for: classifier)
+            store.startObservingRemoteChanges(
+                PersistentStoreRemoteChangeSource(),
+                classifier: classifier,
+                checkpoint: checkpoint,
+            )
         }
         return store
     }
@@ -230,7 +237,12 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         ) throws -> SwiftDataStore {
             let container = try makeContainer(storage: .inMemory)
             let store = SwiftDataStore(modelContainer: container)
-            store.startObservingRemoteChanges(remoteChangeSource)
+            let classifier = store.historyClassifier
+            store.startObservingRemoteChanges(
+                remoteChangeSource,
+                classifier: classifier,
+                checkpoint: Self.historyCheckpoint(for: classifier),
+            )
             return store
         }
 
@@ -261,10 +273,24 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     private static let logger = WhereLog.root(SwiftDataStoreLog.self)
+    /// Unique to this store instance. Every context created by `perform` stamps
+    /// it into SwiftData history, so a system write notification can be proven
+    /// local instead of inferred from the notification's misleading name.
+    private nonisolated let localTransactionAuthor = "where-\(UUID().uuidString)"
+
+    private nonisolated var historyClassifier: StoreHistoryClassifier {
+        StoreHistoryClassifier(
+            container: modelContainer,
+            localAuthor: localTransactionAuthor,
+        )
+    }
 
     /// Fans "committed data changed" pings to `changes()` subscribers. Fired
     /// once per outermost `perform` commit (see `perform`).
     private let changeBroadcaster = StoreChangeBroadcaster()
+    /// The remote-import subset of `changeBroadcaster`, used by expensive
+    /// side-effect publishers whose local-write paths already invoke them.
+    private let remoteChangeBroadcaster = StoreChangeBroadcaster()
 
     /// A fresh stream that pings whenever committed data changes (see the
     /// `WhereStore` contract). `nonisolated` so a subscriber needn't hop onto
@@ -274,18 +300,21 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         changeBroadcaster.subscribe()
     }
 
-    /// Forwards a `StoreRemoteChangeSource`'s remote-import events into the same
-    /// `changes()` fan-out a local commit pings. `nonisolated(unsafe)` for the
-    /// same reason as the scanner's: assigned once during setup, cancelled in
-    /// `deinit`, never accessed concurrently. The task captures only the
-    /// `Sendable` broadcaster + source (no `self`), so there's no retain cycle.
+    public nonisolated func remoteChanges() -> AsyncStream<Void> {
+        remoteChangeBroadcaster.subscribe()
+    }
+
+    /// Classifies persistent-store write notifications and forwards only
+    /// external transactions to the external side-effect fan-out.
+    /// `nonisolated(unsafe)` because it is assigned once during factory setup,
+    /// cancelled in `deinit`, and never otherwise accessed concurrently.
     private nonisolated(unsafe) var remoteChangeTask: Task<Void, Never>?
 
-    /// Begin re-pinging `changes()` on every remote import from `source`, so a
-    /// CloudKit sync from another device refreshes observers identically to a
-    /// local write — one read path for every write origin. `nonisolated` so the
-    /// factories can wire it without hopping onto the actor. The forwarding task
-    /// retains `source`, so the caller needn't.
+    /// Begin classifying store-write events. The initial classification closes
+    /// the checkpoint-to-observer race: the checkpoint is taken first, the
+    /// source begins observing second, and this catch-up fetch sees any write
+    /// that landed in between. A queued notification for that same write then
+    /// finds no newer transaction and is harmless.
     ///
     /// `private` and wired exactly once per store from a factory — `make`
     /// (any on-disk store) or `inMemory(remoteChangeSource:)` (tests) — so
@@ -293,16 +322,80 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     /// unsynchronized, `nonisolated(unsafe)` `remoteChangeTask` sound without a
     /// re-arm/cancel dance: it's assigned once before the store is shared and
     /// only read again in `deinit`.
-    private nonisolated func startObservingRemoteChanges(_ source: any StoreRemoteChangeSource) {
-        remoteChangeTask = Task { [changeBroadcaster] in
-            for await _ in source.remoteChanges {
-                changeBroadcaster.send()
+    private nonisolated func startObservingRemoteChanges(
+        _ source: any StoreRemoteChangeSource,
+        classifier: StoreHistoryClassifier,
+        checkpoint: DefaultHistoryToken?,
+    ) {
+        remoteChangeTask = Task { [changeBroadcaster, remoteChangeBroadcaster] in
+            var token = Self.forwardStoreChange(
+                .persistentStoreWrite,
+                classifier: classifier,
+                after: checkpoint,
+                changeBroadcaster: changeBroadcaster,
+                remoteChangeBroadcaster: remoteChangeBroadcaster,
+            )
+            for await event in source.remoteChanges {
+                guard Task.isCancelled == false else { return }
+                token = Self.forwardStoreChange(
+                    event,
+                    classifier: classifier,
+                    after: token,
+                    changeBroadcaster: changeBroadcaster,
+                    remoteChangeBroadcaster: remoteChangeBroadcaster,
+                )
             }
+        }
+    }
+
+    private static func historyCheckpoint(
+        for classifier: StoreHistoryClassifier,
+    ) -> DefaultHistoryToken? {
+        do {
+            return try classifier.checkpoint()
+        } catch {
+            logger { .historyReadFailed(description: String(describing: error)) }
+            return nil
+        }
+    }
+
+    /// Returns the checkpoint to use for the next notification.
+    private static func forwardStoreChange(
+        _ event: StoreRemoteChangeEvent,
+        classifier: StoreHistoryClassifier,
+        after token: DefaultHistoryToken?,
+        changeBroadcaster: StoreChangeBroadcaster,
+        remoteChangeBroadcaster: StoreChangeBroadcaster,
+    ) -> DefaultHistoryToken? {
+        switch event {
+            case .external:
+                changeBroadcaster.send()
+                remoteChangeBroadcaster.send()
+                return token
+            case .persistentStoreWrite:
+                do {
+                    let classification = try classifier.classify(after: token)
+                    if classification.containsExternalTransaction {
+                        changeBroadcaster.send()
+                        remoteChangeBroadcaster.send()
+                    }
+                    return classification.latestToken
+                } catch {
+                    // A failed history read can't prove the event local. Refresh
+                    // conservatively so UI/surfaces remain honest, then try to
+                    // recover at the newest token for the next notification.
+                    logger { .historyReadFailed(description: String(describing: error)) }
+                    changeBroadcaster.send()
+                    remoteChangeBroadcaster.send()
+                    return (try? classifier.checkpoint()) ?? token
+                }
         }
     }
 
     deinit {
         remoteChangeTask?.cancel()
+        changeBroadcaster.finishAll()
+        remoteChangeBroadcaster.finishAll()
     }
 
     /// Peer `ModelContext` active for the duration of an outermost
@@ -368,6 +461,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         // actor reentrancy.
         await beginExclusive()
         let peer = ModelContext(modelContainer)
+        peer.author = localTransactionAuthor
         writerContext = peer
         defer {
             writerContext = nil
