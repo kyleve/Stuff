@@ -89,10 +89,10 @@ the build system, formatting, and global conventions. Read that first.
   unstamped bundle yields an empty dictionary; nothing here invents a
   placeholder, because a session claiming it was built from a commit named
   `unknown` is worse than one that admits it can't say.
-- **Keep `PeriscopeStore.inspectorModelTypes` and `inspectorStoreURL` identical
-  to the container configuration.** They are the adapters that let a standalone
-  Inspector enumerate or recover internal storage without starting the logging
-  pipeline.
+- **Keep `PeriscopeStore.inspectorModelTypes`, `inspectorStoreURL`, and
+  `inspectorRecoveryStorageURLs` identical to the live store and journal
+  locations.** They are the adapters that let a standalone Inspector enumerate
+  or recover internal storage without starting the logging pipeline.
 - **Every span eventually ends, and its began is delivered first.** `measure`
   closes on every path; bounded spans expire via the watchdog; re-begins
   supersede; relaunch orphan-closes `endsWithProcess` spans (the

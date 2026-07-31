@@ -1,5 +1,6 @@
 import Foundation
 @testable import Inspector
+import SwiftData
 import Testing
 
 @MainActor
@@ -41,9 +42,18 @@ struct InspectorModelTests {
         defer { try? FileManager.default.removeItem(at: rootURL) }
         let storeURL = rootURL.appending(path: "broken.store")
         let walURL = rootURL.appending(path: "broken.store-wal")
+        let recoveryURL = rootURL.appending(
+            path: "Broken-Journals",
+            directoryHint: .isDirectory,
+        )
         let similarlyNamedURL = rootURL.appending(path: "broken.store-backup")
         try Data("broken".utf8).write(to: storeURL)
         try Data("wal".utf8).write(to: walURL)
+        try FileManager.default.createDirectory(
+            at: recoveryURL,
+            withIntermediateDirectories: true,
+        )
+        try Data("journal".utf8).write(to: recoveryURL.appending(path: "segment"))
         try Data("keep".utf8).write(to: similarlyNamedURL)
         let container = InspectorConfiguration.FileContainer(
             id: .init(rawValue: "storage"),
@@ -55,6 +65,7 @@ struct InspectorModelTests {
             title: "Broken Store",
             storageRootURL: rootURL,
             storeURL: storeURL,
+            recoveryStorageURLs: [recoveryURL],
             makeContainer: { throw IncompatibleStoreError() },
         )
         let model = InspectorModel(configuration: InspectorConfiguration(
@@ -92,12 +103,22 @@ struct InspectorModelTests {
         )
         #expect(
             FileManager.default.fileExists(
+                atPath: recoveryURL.path(percentEncoded: false),
+            ) == false,
+        )
+        #expect(
+            FileManager.default.fileExists(
                 atPath: similarlyNamedURL.path(percentEncoded: false),
             ),
         )
 
         let lateSidecarURL = rootURL.appending(path: "broken.store-shm")
         try Data("late checkpoint".utf8).write(to: lateSidecarURL)
+        try FileManager.default.createDirectory(
+            at: recoveryURL,
+            withIntermediateDirectories: true,
+        )
+        try Data("late journal".utf8).write(to: recoveryURL.appending(path: "segment"))
         let nextProcessController = InspectorModeController(
             userDefaults: modeFixture.defaults,
         )
@@ -105,6 +126,11 @@ struct InspectorModelTests {
         #expect(
             FileManager.default.fileExists(
                 atPath: lateSidecarURL.path(percentEncoded: false),
+            ) == false,
+        )
+        #expect(
+            FileManager.default.fileExists(
+                atPath: recoveryURL.path(percentEncoded: false),
             ) == false,
         )
     }
@@ -129,6 +155,59 @@ struct InspectorModelTests {
         #expect(model.canEraseUnreadableStore(id: source.id) == false)
         #expect(await model.eraseUnreadableStore(id: source.id) == false)
         #expect(model.swiftDataFailures[source.id] != nil)
+    }
+
+    @Test func loadedSourceProtectsItsConfiguredRecoveryStorage() async throws {
+        let modeFixture = try InspectorModeControllerFixture()
+        defer { modeFixture.cleanup() }
+        let rootURL = FileManager.default.temporaryDirectory.appending(
+            path: "inspector-model-protection-\(UUID().uuidString)",
+            directoryHint: .isDirectory,
+        )
+        let recoveryURL = rootURL.appending(
+            path: "Periscope-Journals",
+            directoryHint: .isDirectory,
+        )
+        try FileManager.default.createDirectory(
+            at: recoveryURL,
+            withIntermediateDirectories: true,
+        )
+        defer { try? FileManager.default.removeItem(at: rootURL) }
+        let container = InspectorConfiguration.FileContainer(
+            id: .init(rawValue: "storage"),
+            title: "Storage",
+            rootURL: rootURL,
+        )
+        let source = InspectorConfiguration.SwiftDataSource(
+            id: .init(rawValue: "loaded"),
+            title: "Loaded Store",
+            storageRootURL: rootURL,
+            storeURL: rootURL.appending(path: "Periscope.store"),
+            recoveryStorageURLs: [recoveryURL],
+            modelTypes: [TestWidget.self],
+            makeContainer: {
+                let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
+                return try ModelContainer(
+                    for: TestWidget.self,
+                    configurations: configuration,
+                )
+            },
+        )
+        let model = InspectorModel(configuration: InspectorConfiguration(
+            title: "Inspector",
+            fileContainers: [container],
+            defaultsDomains: [],
+            swiftDataSources: [source],
+        ), modeController: modeFixture.controller)
+
+        await model.prepare()
+
+        let fileSystem = try #require(model.fileSystem)
+        let items = try await fileSystem.contents(of: rootURL, in: container)
+        #expect(
+            items.first(where: { $0.url == recoveryURL })?
+                .deletionProhibition != nil,
+        )
     }
 
     @Test func invalidEraseConfigurationKeepsTheSourceVisible() async throws {

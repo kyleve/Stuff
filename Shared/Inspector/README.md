@@ -42,7 +42,9 @@ Each source has a dedicated `Hashable` identifier type. A SwiftData source
 provides its storage root, optional exact store URL and explicit model list,
 pagination and formatting options, and a factory that opens a `ModelContainer`.
 Supplying `storeURL` enables confirmed recovery erasure when the container
-cannot open:
+cannot open. `recoveryStorageURLs` names exact app-owned files or directories
+that must also be discarded to make the source fresh, such as a logging
+store's crash-replay journals:
 
 ```swift
 let configuration = InspectorConfiguration(
@@ -68,6 +70,7 @@ let configuration = InspectorConfiguration(
             title: "SwiftData",
             storageRootURL: applicationSupportURL,
             storeURL: AppStore.inspectorStoreURL,
+            recoveryStorageURLs: AppStore.inspectorRecoveryStorageURLs,
             modelTypes: AppStore.inspectorModelTypes,
             makeContainer: { try AppStore.makeContainer() }
         ),
@@ -96,11 +99,12 @@ as the focused SwiftData component for previews or other developer surfaces.
 
 Inspector never deletes a configured file root. Before file deletion becomes
 available, it opens every SwiftData source and obtains the live store URLs. It
-then protects each SQLite store, its WAL/SHM/support family, and any ancestor
-whose recursive deletion would contain them. If a source cannot open, generic
-file deletion is disabled in its declared storage tree while unrelated
-containers remain usable. Canonical-path checks prevent browsing or recovery
-through symlinks outside a configured root.
+then protects each SQLite store, its WAL/SHM/support family, its exact
+`recoveryStorageURLs`, and any ancestor whose recursive deletion would contain
+them. If a source cannot open, generic file deletion is disabled in its
+declared storage tree while unrelated containers remain usable. Canonical-path
+checks prevent browsing or recovery through symlinks outside a configured
+root.
 
 There is intentionally no file creation, content editing, rename, or move in
 v1.
@@ -120,17 +124,19 @@ Every configured SwiftData source remains in the sidebar when its container
 cannot open. Inspector shows the opening error instead of entity tables. When
 the source declares an exact `storeURL`, a confirmed recovery action deletes
 only that database, its WAL/SHM/journal files, and its external-data support
-and CloudKit asset directories, then removes the source and its selected detail
-from the current Inspector session. The configured source may appear again
-after relaunch if its factory recreates the store. Similarly named files remain
-untouched. Inspector verifies that every known family member is absent before
-it dismisses the source and latches the same narrow erasure for the next
+and CloudKit asset directories. It also deletes each exact
+`recoveryStorageURLs` path after verifying that it is a strict, canonical
+descendant of the declared storage root. It then removes the source and its
+selected detail from the current Inspector session. The configured source may
+appear again after relaunch if its factory recreates the store. Similarly named
+files remain untouched. Inspector verifies that every declared member is absent
+before it dismisses the source and latches the same narrow erasure for the next
 process. The host completes that second pass before constructing either
 application runtime, preventing a failed store coordinator from recreating a
-late SQLite sidecar after the in-session check. A failed boot cleanup stays
-latched, selects Inspector, and surfaces its error instead of starting the
-regular runtime against the store. Without an exact URL the source stays
-read-only and protected.
+late SQLite sidecar or auxiliary recovery file after the in-session check. A
+failed boot cleanup stays latched, selects Inspector, and surfaces its error
+instead of starting the regular runtime against the store. Without an exact URL
+the source stays read-only and protected.
 
 Inspector deliberately does not reflectively edit SwiftData attributes.
 

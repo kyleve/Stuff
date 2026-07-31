@@ -24,13 +24,14 @@ formatting, and repository-wide conventions.
 
 - Never permit deletion of a configured filesystem root.
 - Resolve every configured SwiftData source before enabling filesystem
-  deletion; protect its store family and containing ancestors, or disable
-  deletion in the unresolved storage tree.
+  deletion; protect its store family, exact `recoveryStorageURLs`, and
+  containing ancestors, or disable deletion in the unresolved storage tree.
 - Keep raw store files protected in the generic filesystem browser. An
   unreadable source may erase only its explicitly configured store URL's known
-  SQLite/support family through the confirmed recovery action, then remove that
-  source from the current Inspector session only after verifying the family is
-  absent and latching a second-pass cleanup for the next process.
+  SQLite/support family and exact in-root `recoveryStorageURLs` through the
+  confirmed recovery action, then remove that source from the current Inspector
+  session only after verifying every member is absent and latching a
+  second-pass cleanup for the next process.
 - Complete pending recovery erasures before constructing either application
   runtime; retain failed requests and select Inspector rather than opening the
   regular stack against a possibly unreadable store.

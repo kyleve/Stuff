@@ -1,5 +1,5 @@
 import Inspector
-import PeriscopeCore
+@_spi(Testing) import PeriscopeCore
 import SwiftUI
 import Testing
 import UIKit
@@ -73,7 +73,7 @@ struct WhereAppTests {
             #expect(inspectorCount == 0)
         }
 
-        @Test func pendingStoreRecoveryCompletesBeforeRuntimeConstruction() throws {
+        @Test func pendingStoreRecoveryCompletesBeforeRuntimeConstruction() async throws {
             let fixture = try ModeFixture()
             defer { fixture.cleanup() }
             let rootURL = FileManager.default.temporaryDirectory.appending(
@@ -86,20 +86,37 @@ struct WhereAppTests {
             )
             defer { try? FileManager.default.removeItem(at: rootURL) }
             let storeURL = rootURL.appending(path: "Periscope.store")
+            let recoveryStorageURL = rootURL.appending(
+                path: "Periscope-Journals",
+                directoryHint: .isDirectory,
+            )
             try Data("late store write".utf8).write(to: storeURL)
+            try FileManager.default.createDirectory(
+                at: recoveryStorageURL,
+                withIntermediateDirectories: true,
+            )
+            try Data("stale journal".utf8).write(
+                to: recoveryStorageURL.appending(path: "segment"),
+            )
             try fixture.controller.scheduleStoreFamilyErasure(
                 storeURL: storeURL,
                 storageRootURL: rootURL,
+                recoveryStorageURLs: [recoveryStorageURL],
             )
-            var regularFactorySawStore = true
+            var regularFactorySawRecoveryArtifacts = true
 
             _ = AppDelegate.selectRuntime(
                 modeController: fixture.controller,
                 fileManager: .default,
                 regular: {
-                    regularFactorySawStore = FileManager.default.fileExists(
-                        atPath: storeURL.path(percentEncoded: false),
-                    )
+                    regularFactorySawRecoveryArtifacts = [
+                        storeURL,
+                        recoveryStorageURL,
+                    ].contains {
+                        FileManager.default.fileExists(
+                            atPath: $0.path(percentEncoded: false),
+                        )
+                    }
                     return RuntimeSpy()
                 },
                 inspector: {
@@ -107,7 +124,16 @@ struct WhereAppTests {
                 },
             )
 
-            #expect(regularFactorySawStore == false)
+            #expect(regularFactorySawRecoveryArtifacts == false)
+
+            // The exact Periscope schema and session bootstrap can create a
+            // fresh store after boot recovery; this is the path whose failure
+            // hides logging tools in the regular developer menu.
+            let store = try await PeriscopeStore.onDisk(
+                databaseURL: storeURL,
+                session: .current(attributes: [:]),
+            )
+            #expect(try await store.sessions().count == 1)
         }
 
         @Test func failedPendingRecoveryConstructsOnlyInspectorRuntime() throws {
@@ -136,6 +162,7 @@ struct WhereAppTests {
             try fixture.controller.scheduleStoreFamilyErasure(
                 storeURL: storeURL,
                 storageRootURL: storageRootURL,
+                recoveryStorageURLs: [],
             )
             var regularCount = 0
             var inspectorCount = 0
@@ -168,6 +195,9 @@ struct WhereAppTests {
             let whereStoreURL = groupURL.appending(path: "default.store")
             let periscopeStoreURL = FileManager.default.temporaryDirectory
                 .appending(path: "Periscope.store")
+            let periscopeRecoveryStorageURL = periscopeStoreURL
+                .deletingLastPathComponent()
+                .appending(path: "Periscope-Journals", directoryHint: .isDirectory)
 
             let configuration = WhereInspectorApplicationRuntime.makeConfiguration(
                 fileManager: .default,
@@ -176,6 +206,7 @@ struct WhereAppTests {
                 groupURL: groupURL,
                 whereStoreURL: whereStoreURL,
                 periscopeStoreURL: periscopeStoreURL,
+                periscopeRecoveryStorageURLs: [periscopeRecoveryStorageURL],
             )
 
             #expect(
@@ -205,6 +236,10 @@ struct WhereAppTests {
             #expect(
                 configuration.swiftDataSources[1].modelTypes?.count
                     == PeriscopeStore.inspectorModelTypes.count,
+            )
+            #expect(
+                configuration.swiftDataSources[1].recoveryStorageURLs
+                    == [periscopeRecoveryStorageURL],
             )
         }
     #endif

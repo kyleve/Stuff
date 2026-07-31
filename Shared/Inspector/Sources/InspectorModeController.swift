@@ -26,10 +26,15 @@ public final class InspectorModeController {
     private struct PendingStoreErasure: Codable, Hashable {
         let storeURL: URL
         let storageRootURL: URL
+        /// Optional for backwards-compatible decoding of recovery requests
+        /// latched by Inspector builds that predate app-declared auxiliary
+        /// storage.
+        let recoveryStorageURLs: [URL]?
 
         private enum CodingKeys: String, CodingKey {
             case storeURL = "store_url"
             case storageRootURL = "storage_root_url"
+            case recoveryStorageURLs = "recovery_storage_urls"
         }
     }
 
@@ -64,11 +69,13 @@ public final class InspectorModeController {
     public func scheduleStoreFamilyErasure(
         storeURL: URL,
         storageRootURL: URL,
+        recoveryStorageURLs: [URL],
     ) throws {
         var pendingErasures = try pendingStoreErasures()
         pendingErasures.insert(PendingStoreErasure(
             storeURL: storeURL.standardizedFileURL,
             storageRootURL: storageRootURL.standardizedFileURL,
+            recoveryStorageURLs: recoveryStorageURLs.map(\.standardizedFileURL),
         ))
         try persist(pendingErasures)
         pendingStoreErasureError = nil
@@ -96,6 +103,7 @@ public final class InspectorModeController {
                 let family = InspectorSwiftDataStoreFamily(
                     storeURL: pendingErasure.storeURL,
                     storageRootURL: pendingErasure.storageRootURL,
+                    recoveryStorageURLs: pendingErasure.recoveryStorageURLs ?? [],
                 )
                 try family.erase(using: fileManager)
             } catch {

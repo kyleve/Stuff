@@ -37,6 +37,7 @@
                 groupURL: groupURL,
                 whereStoreURL: whereStoreURL,
                 periscopeStoreURL: PeriscopeStore.inspectorStoreURL,
+                periscopeRecoveryStorageURLs: PeriscopeStore.inspectorRecoveryStorageURLs,
             )
             self.modeController = modeController
         }
@@ -48,6 +49,7 @@
             groupURL: URL,
             whereStoreURL: URL,
             periscopeStoreURL: URL,
+            periscopeRecoveryStorageURLs: [URL],
         ) -> InspectorConfiguration {
             let documents = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
             let applicationSupport =
@@ -95,6 +97,7 @@
                         title: "Periscope SwiftData",
                         storageRootURL: applicationSupport,
                         storeURL: periscopeStoreURL,
+                        recoveryStorageURLs: periscopeRecoveryStorageURLs,
                         modelTypes: PeriscopeStore.inspectorModelTypes,
                         makeContainer: {
                             try PeriscopeStore.makeContainer(storage: .onDisk)

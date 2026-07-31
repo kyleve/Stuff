@@ -45,6 +45,7 @@ actor InspectorSwiftDataSourceWorker {
         let family = InspectorSwiftDataStoreFamily(
             storeURL: storeURL,
             storageRootURL: source.storageRootURL,
+            recoveryStorageURLs: source.recoveryStorageURLs,
         )
         try family.erase(using: fileManager)
     }
@@ -137,6 +138,7 @@ final class InspectorModel {
             try modeController.scheduleStoreFamilyErasure(
                 storeURL: storeURL,
                 storageRootURL: source.storageRootURL,
+                recoveryStorageURLs: source.recoveryStorageURLs,
             )
             loadedSwiftDataSources[id] = nil
             swiftDataFailures[id] = nil
@@ -156,6 +158,7 @@ final class InspectorModel {
         for loaded in loadedSwiftDataSources.values {
             let storeURLs = await loaded.model.storeURLs()
             protectedStoreURLs.append(contentsOf: storeURLs)
+            protectedStoreURLs.append(contentsOf: loaded.source.recoveryStorageURLs)
         }
         let unresolvedProtectionRoots: [URL] = configuration.swiftDataSources.compactMap {
             source -> URL? in

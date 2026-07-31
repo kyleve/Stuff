@@ -4,7 +4,8 @@ import Foundation
 ///
 /// Generic file browsing protects the wider prefix family conservatively. Raw
 /// recovery erasure is intentionally narrower: only the known SQLite files and
-/// SwiftData external-storage support directory are eligible.
+/// SwiftData external-storage support directory, plus exact app-declared
+/// recovery storage, are eligible.
 struct InspectorSwiftDataStoreFamily {
     enum Failure: LocalizedError, Equatable {
         case invalidConfiguration
@@ -25,10 +26,16 @@ struct InspectorSwiftDataStoreFamily {
 
     let storeURL: URL
     let storageRootURL: URL
+    let recoveryStorageURLs: [URL]
 
-    init(storeURL: URL, storageRootURL: URL) {
+    init(
+        storeURL: URL,
+        storageRootURL: URL,
+        recoveryStorageURLs: [URL],
+    ) {
         self.storeURL = storeURL.standardizedFileURL
         self.storageRootURL = storageRootURL.standardizedFileURL
+        self.recoveryStorageURLs = recoveryStorageURLs.map(\.standardizedFileURL)
     }
 
     func erase(using fileManager: FileManager) throws {
@@ -50,22 +57,26 @@ struct InspectorSwiftDataStoreFamily {
             "\(storeURL.lastPathComponent)_ckAssetFiles",
         ]
         let memberNameSet = Set(memberNames)
-        let members = try fileManager.contentsOfDirectory(
+        let storeMembers = try fileManager.contentsOfDirectory(
             at: parent,
             includingPropertiesForKeys: nil,
         )
         .filter { memberNameSet.contains($0.lastPathComponent) }
-        .sorted { left, right in
-            // Keep the primary database until every sidecar/support item has
-            // been removed successfully.
-            if left.standardizedFileURL == storeURL {
-                return false
-            }
-            if right.standardizedFileURL == storeURL {
-                return true
-            }
-            return left.lastPathComponent < right.lastPathComponent
+        let recoveryMembers = recoveryStorageURLs.filter {
+            fileManager.fileExists(atPath: $0.path(percentEncoded: false))
         }
+        let members = Array(Set(storeMembers + recoveryMembers))
+            .sorted { left, right in
+                // Keep the primary database until every sidecar/support item has
+                // been removed successfully.
+                if left.standardizedFileURL == storeURL {
+                    return false
+                }
+                if right.standardizedFileURL == storeURL {
+                    return true
+                }
+                return left.lastPathComponent < right.lastPathComponent
+            }
 
         // Once erasure starts it runs to completion even if the calling view
         // disappears; cancellation is checked before the first destructive
@@ -74,10 +85,13 @@ struct InspectorSwiftDataStoreFamily {
             try fileManager.removeItem(at: member)
         }
 
-        let remainingMemberNames = memberNames.filter { memberName in
-            fileManager.fileExists(
-                atPath: parent.appending(path: memberName).path(percentEncoded: false),
-            )
+        let knownMembers = memberNames.map { parent.appending(path: $0) }
+            + recoveryStorageURLs
+        let remainingMemberNames = knownMembers.compactMap { member -> String? in
+            guard fileManager.fileExists(atPath: member.path(percentEncoded: false)) else {
+                return nil
+            }
+            return member.lastPathComponent
         }
         guard remainingMemberNames.isEmpty else {
             throw Failure.incompleteErasure(remainingMemberNames)
@@ -95,6 +109,19 @@ struct InspectorSwiftDataStoreFamily {
               resolvedParent == resolvedRoot || resolvedParent.isDescendant(of: resolvedRoot)
         else {
             throw Failure.invalidConfiguration
+        }
+        for recoveryURL in recoveryStorageURLs {
+            let resolvedURL = recoveryURL.resolvingSymlinksInPath()
+            let resolvedParent = recoveryURL.deletingLastPathComponent()
+                .resolvingSymlinksInPath()
+            guard recoveryURL.isFileURL,
+                  recoveryURL != storageRootURL,
+                  recoveryURL.isDescendant(of: storageRootURL),
+                  resolvedURL.isDescendant(of: resolvedRoot),
+                  resolvedParent == resolvedRoot || resolvedParent.isDescendant(of: resolvedRoot)
+            else {
+                throw Failure.invalidConfiguration
+            }
         }
     }
 }

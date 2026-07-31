@@ -89,6 +89,11 @@ extension InspectorConfiguration {
         /// The exact on-disk store URL. When present, Inspector may offer a
         /// confirmed store-family erase if the container cannot open.
         public let storeURL: URL?
+        /// Additional durable files or directories that must be erased with
+        /// an unreadable store for recovery to produce a genuinely fresh
+        /// source. Every URL must be a strict descendant of
+        /// ``storageRootURL``; Inspector deletes only these exact paths.
+        public let recoveryStorageURLs: [URL]
         public let modelTypes: [any PersistentModel.Type]?
         public let rowLimit: Int?
         public let valueFormatter: (@Sendable (Any) -> String?)?
@@ -99,6 +104,7 @@ extension InspectorConfiguration {
             title: String,
             storageRootURL: URL,
             storeURL: URL? = nil,
+            recoveryStorageURLs: [URL] = [],
             modelTypes: [any PersistentModel.Type]? = nil,
             rowLimit: Int? = 500,
             valueFormatter: (@Sendable (Any) -> String?)? = nil,
@@ -108,6 +114,7 @@ extension InspectorConfiguration {
             self.title = title
             self.storageRootURL = storageRootURL.standardizedFileURL
             self.storeURL = storeURL?.standardizedFileURL
+            self.recoveryStorageURLs = recoveryStorageURLs.map(\.standardizedFileURL)
             self.modelTypes = modelTypes
             self.rowLimit = rowLimit
             self.valueFormatter = valueFormatter

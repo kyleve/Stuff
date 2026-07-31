@@ -10,6 +10,7 @@ struct InspectorSwiftDataStoreFamilyTests {
         let family = InspectorSwiftDataStoreFamily(
             storeURL: fixture.storeURL,
             storageRootURL: fixture.rootURL,
+            recoveryStorageURLs: [],
         )
 
         try family.erase(using: .default)
@@ -36,6 +37,7 @@ struct InspectorSwiftDataStoreFamilyTests {
         let family = InspectorSwiftDataStoreFamily(
             storeURL: outside.storeURL,
             storageRootURL: fixture.rootURL,
+            recoveryStorageURLs: [],
         )
 
         #expect(throws: InspectorSwiftDataStoreFamily.Failure.invalidConfiguration) {
@@ -64,6 +66,7 @@ struct InspectorSwiftDataStoreFamilyTests {
         let family = InspectorSwiftDataStoreFamily(
             storeURL: linkedStore,
             storageRootURL: fixture.rootURL,
+            recoveryStorageURLs: [],
         )
 
         #expect(throws: InspectorSwiftDataStoreFamily.Failure.invalidConfiguration) {
@@ -76,12 +79,74 @@ struct InspectorSwiftDataStoreFamilyTests {
         )
     }
 
+    @Test func erasesOnlyExplicitlyConfiguredRecoveryStorage() throws {
+        let fixture = try StoreFamilyFixture()
+        defer { fixture.cleanup() }
+        let recoveryURL = fixture.rootURL.appending(
+            path: "Periscope-Journals",
+            directoryHint: .isDirectory,
+        )
+        let unrelatedURL = fixture.rootURL.appending(
+            path: "Other-Journals",
+            directoryHint: .isDirectory,
+        )
+        for directory in [recoveryURL, unrelatedURL] {
+            try FileManager.default.createDirectory(
+                at: directory,
+                withIntermediateDirectories: true,
+            )
+            try Data("segment".utf8).write(to: directory.appending(path: "segment"))
+        }
+        let family = InspectorSwiftDataStoreFamily(
+            storeURL: fixture.storeURL,
+            storageRootURL: fixture.rootURL,
+            recoveryStorageURLs: [recoveryURL],
+        )
+
+        try family.erase(using: .default)
+
+        #expect(
+            FileManager.default.fileExists(
+                atPath: recoveryURL.path(percentEncoded: false),
+            ) == false,
+        )
+        #expect(
+            FileManager.default.fileExists(
+                atPath: unrelatedURL.path(percentEncoded: false),
+            ),
+        )
+    }
+
+    @Test func refusesRecoveryStorageOutsideItsDeclaredRoot() throws {
+        let fixture = try StoreFamilyFixture()
+        let outside = try StoreFamilyFixture()
+        defer {
+            fixture.cleanup()
+            outside.cleanup()
+        }
+        let family = InspectorSwiftDataStoreFamily(
+            storeURL: fixture.storeURL,
+            storageRootURL: fixture.rootURL,
+            recoveryStorageURLs: [outside.rootURL],
+        )
+
+        #expect(throws: InspectorSwiftDataStoreFamily.Failure.invalidConfiguration) {
+            try family.erase(using: .default)
+        }
+        #expect(
+            FileManager.default.fileExists(
+                atPath: fixture.storeURL.path(percentEncoded: false),
+            ),
+        )
+    }
+
     @Test func cancellationBeforeErasureLeavesEveryMemberUntouched() async throws {
         let fixture = try StoreFamilyFixture()
         defer { fixture.cleanup() }
         let family = InspectorSwiftDataStoreFamily(
             storeURL: fixture.storeURL,
             storageRootURL: fixture.rootURL,
+            recoveryStorageURLs: [],
         )
 
         let task = Task {
@@ -119,6 +184,7 @@ struct InspectorSwiftDataStoreFamilyTests {
         let family = InspectorSwiftDataStoreFamily(
             storeURL: storeURL,
             storageRootURL: rootURL,
+            recoveryStorageURLs: [],
         )
         try family.erase(using: .default)
 

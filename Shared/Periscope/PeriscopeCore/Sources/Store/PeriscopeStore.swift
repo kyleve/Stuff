@@ -87,6 +87,17 @@ public actor PeriscopeStore: LogSink {
         return modelConfiguration(storage: .onDisk, schema: schema).url
     }
 
+    /// Durable recovery data that must be discarded with an unreadable
+    /// Inspector store. Retaining these journals would replay the deleted
+    /// store's records into its replacement before the replacement is
+    /// published to the app.
+    public static var inspectorRecoveryStorageURLs: [URL] {
+        [
+            inspectorStoreURL.deletingLastPathComponent()
+                .appendingPathComponent("Periscope-Journals", isDirectory: true),
+        ]
+    }
+
     private static func modelConfiguration(
         storage: Storage,
         schema: Schema,

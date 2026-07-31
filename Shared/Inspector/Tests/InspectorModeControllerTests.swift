@@ -55,25 +55,45 @@ struct InspectorModeControllerTests {
         defer { try? FileManager.default.removeItem(at: rootURL) }
         let storeURL = rootURL.appending(path: "Periscope.store")
         let shmURL = rootURL.appending(path: "Periscope.store-shm")
+        let recoveryURL = rootURL.appending(
+            path: "Periscope-Journals",
+            directoryHint: .isDirectory,
+        )
         try Data("store".utf8).write(to: storeURL)
+        try FileManager.default.createDirectory(
+            at: recoveryURL,
+            withIntermediateDirectories: true,
+        )
         let controller = InspectorModeController(userDefaults: fixture.defaults)
         try controller.scheduleStoreFamilyErasure(
             storeURL: storeURL,
             storageRootURL: rootURL,
+            recoveryStorageURLs: [recoveryURL],
         )
 
         try InspectorSwiftDataStoreFamily(
             storeURL: storeURL,
             storageRootURL: rootURL,
+            recoveryStorageURLs: [recoveryURL],
         ).erase(using: .default)
         // Simulate a failed store coordinator recreating a sidecar after the
         // in-session verification completed.
         try Data("late checkpoint".utf8).write(to: shmURL)
+        try FileManager.default.createDirectory(
+            at: recoveryURL,
+            withIntermediateDirectories: true,
+        )
+        try Data("late journal".utf8).write(to: recoveryURL.appending(path: "segment"))
 
         let nextProcessController = InspectorModeController(userDefaults: fixture.defaults)
         #expect(nextProcessController.completePendingStoreErasures(fileManager: .default))
         #expect(
             FileManager.default.fileExists(atPath: shmURL.path(percentEncoded: false)) == false,
+        )
+        #expect(
+            FileManager.default.fileExists(
+                atPath: recoveryURL.path(percentEncoded: false),
+            ) == false,
         )
         #expect(nextProcessController.pendingStoreErasureError == nil)
     }
@@ -105,6 +125,7 @@ struct InspectorModeControllerTests {
         try controller.scheduleStoreFamilyErasure(
             storeURL: storeURL,
             storageRootURL: storageRootURL,
+            recoveryStorageURLs: [],
         )
 
         #expect(controller.completePendingStoreErasures(fileManager: .default) == false)
@@ -115,6 +136,46 @@ struct InspectorModeControllerTests {
 
         let nextProcessController = InspectorModeController(userDefaults: fixture.defaults)
         #expect(nextProcessController.completePendingStoreErasures(fileManager: .default) == false)
+    }
+
+    @Test func pendingCleanupFromAnOlderInspectorBuildStillDecodes() throws {
+        struct LegacyPendingStoreErasure: Codable {
+            let storeURL: URL
+            let storageRootURL: URL
+
+            private enum CodingKeys: String, CodingKey {
+                case storeURL = "store_url"
+                case storageRootURL = "storage_root_url"
+            }
+        }
+
+        let fixture = try DefaultsFixture()
+        defer { fixture.cleanup() }
+        let rootURL = FileManager.default.temporaryDirectory.appending(
+            path: "inspector-legacy-pending-\(UUID().uuidString)",
+            directoryHint: .isDirectory,
+        )
+        try FileManager.default.createDirectory(at: rootURL, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: rootURL) }
+        let storeURL = rootURL.appending(path: "Periscope.store")
+        try Data("store".utf8).write(to: storeURL)
+        try fixture.defaults.set(
+            JSONEncoder().encode([
+                LegacyPendingStoreErasure(
+                    storeURL: storeURL,
+                    storageRootURL: rootURL,
+                ),
+            ]),
+            forKey: "inspector.pendingStoreErasures",
+        )
+
+        let controller = InspectorModeController(userDefaults: fixture.defaults)
+        #expect(controller.completePendingStoreErasures(fileManager: .default))
+        #expect(
+            FileManager.default.fileExists(
+                atPath: storeURL.path(percentEncoded: false),
+            ) == false,
+        )
     }
 }
 
