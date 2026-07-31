@@ -37,8 +37,12 @@ struct DeviceSettingsSection: View {
                 }
 
             LabeledContent(String(localized: .settingsDevicesStatus)) {
-                Label(statusTitle, systemImage: statusSymbol)
-                    .foregroundStyle(statusStyle)
+                HStack {
+                    Image(systemName: statusSymbol)
+                        .accessibilityHidden(true)
+                    Text(statusTitle)
+                }
+                .foregroundStyle(statusStyle)
             }
 
             LabeledContent(String(localized: .settingsDevicesLastActive)) {
