@@ -599,18 +599,21 @@ machine's last successful run".
   tests](#running-tests) for which tier a change calls for.
 - **Multi-step work lands one commit per step**, so history stays bisectable and
   can land piecewise — including pure-groundwork steps, which say so in the body.
-- **Commit when asked, or when working through a plan.** If it's unclear whether
-  a commit is wanted, make the change and ask rather than committing silently.
+- **Commit completed work eagerly.** Once a coherent change is verified, commit
+  it without waiting for a separate request; never hand back a finished task
+  with task-related changes left local and uncommitted. Honor an explicit
+  request to keep work uncommitted.
 
 ### GitHub
 
 - Use the `gh` CLI for all GitHub interaction — PRs, issues, checks, releases,
   review comments.
 - **Open PRs ready-for-review, not draft.**
-- **Keep an open PR current:** push each commit as it lands, and refresh the
-  title/body once the branch outgrows them — describing the end state rather
-  than a changelog of the conversation, and folding into any human edits rather
-  than overwriting them. A branch with no PR waits for the user before pushing.
+- **Push each commit as it lands.** Keep an open PR current immediately; when a
+  branch has no PR, push it too unless the user explicitly asks to keep it
+  local. Refresh an open PR's title/body once the branch outgrows them —
+  describing the end state rather than a changelog of the conversation, and
+  folding into any human edits rather than overwriting them.
 - **Don't act on review comments the user hasn't pointed you at.** Summarize
   what's there and ask which to take on; reading them to write that summary is
   expected. When a commit resolves one, reply to it naming the commit. Anything
