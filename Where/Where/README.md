@@ -33,7 +33,10 @@ target, see [`AGENTS.md`](AGENTS.md).
 `RegularApplicationRuntime`; in DEBUG a dedicated UserDefaults suite can select
 `WhereInspectorApplicationRuntime` for the next process. Every later callback
 and root-view request uses protocol dispatch, so no feature or lifecycle code
-switches on a mode.
+switches on a mode. Before that selection, DEBUG boot completes any store-family
+recovery Inspector scheduled in the prior process. A failed cleanup forces the
+Inspector runtime and keeps the request visible instead of starting regular
+systems against the store.
 
 In the regular runtime, `didFinishLaunching` does the wiring — not a SwiftUI `.task` — because
 CoreLocation can relaunch the app with no UI at all, and only the delegate
@@ -49,9 +52,10 @@ the model, launch, CoreLocation, notification, Periscope pipeline, App Intents,
 or Spotlight systems. It opens Where and Periscope containers only through
 their schema adapters for inspection; a container that cannot open remains
 listed with its error and a confirmed action that deletes only its configured
-store family before removing the source from the current Inspector session. Its
-exit control selects the regular runtime for the next manual relaunch; neither
-runtime swaps live.
+store family before removing the source from the current Inspector session and
+scheduling one pre-runtime cleanup pass for the next process. Its exit control
+selects the regular runtime for the next manual relaunch; neither runtime swaps
+live.
 
 ## Build & run
 

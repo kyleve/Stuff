@@ -34,6 +34,7 @@ struct WhereAppTests {
 
             let selected = AppDelegate.selectRuntime(
                 modeController: fixture.controller,
+                fileManager: .default,
                 regular: {
                     regularCount += 1
                     return RuntimeSpy()
@@ -57,6 +58,7 @@ struct WhereAppTests {
 
             _ = AppDelegate.selectRuntime(
                 modeController: fixture.controller,
+                fileManager: .default,
                 regular: {
                     regularCount += 1
                     return RuntimeSpy()
@@ -69,6 +71,92 @@ struct WhereAppTests {
 
             #expect(regularCount == 1)
             #expect(inspectorCount == 0)
+        }
+
+        @Test func pendingStoreRecoveryCompletesBeforeRuntimeConstruction() throws {
+            let fixture = try ModeFixture()
+            defer { fixture.cleanup() }
+            let rootURL = FileManager.default.temporaryDirectory.appending(
+                path: "where-boot-recovery-\(UUID().uuidString)",
+                directoryHint: .isDirectory,
+            )
+            try FileManager.default.createDirectory(
+                at: rootURL,
+                withIntermediateDirectories: true,
+            )
+            defer { try? FileManager.default.removeItem(at: rootURL) }
+            let storeURL = rootURL.appending(path: "Periscope.store")
+            try Data("late store write".utf8).write(to: storeURL)
+            try fixture.controller.scheduleStoreFamilyErasure(
+                storeURL: storeURL,
+                storageRootURL: rootURL,
+            )
+            var regularFactorySawStore = true
+
+            _ = AppDelegate.selectRuntime(
+                modeController: fixture.controller,
+                fileManager: .default,
+                regular: {
+                    regularFactorySawStore = FileManager.default.fileExists(
+                        atPath: storeURL.path(percentEncoded: false),
+                    )
+                    return RuntimeSpy()
+                },
+                inspector: {
+                    RuntimeSpy()
+                },
+            )
+
+            #expect(regularFactorySawStore == false)
+        }
+
+        @Test func failedPendingRecoveryConstructsOnlyInspectorRuntime() throws {
+            let fixture = try ModeFixture()
+            defer { fixture.cleanup() }
+            let storageRootURL = FileManager.default.temporaryDirectory.appending(
+                path: "where-boot-root-\(UUID().uuidString)",
+                directoryHint: .isDirectory,
+            )
+            let outsideRootURL = FileManager.default.temporaryDirectory.appending(
+                path: "where-boot-outside-\(UUID().uuidString)",
+                directoryHint: .isDirectory,
+            )
+            try FileManager.default.createDirectory(
+                at: storageRootURL,
+                withIntermediateDirectories: true,
+            )
+            try FileManager.default.createDirectory(
+                at: outsideRootURL,
+                withIntermediateDirectories: true,
+            )
+            defer { try? FileManager.default.removeItem(at: storageRootURL) }
+            defer { try? FileManager.default.removeItem(at: outsideRootURL) }
+            let storeURL = outsideRootURL.appending(path: "Periscope.store")
+            try Data("store".utf8).write(to: storeURL)
+            try fixture.controller.scheduleStoreFamilyErasure(
+                storeURL: storeURL,
+                storageRootURL: storageRootURL,
+            )
+            var regularCount = 0
+            var inspectorCount = 0
+
+            _ = AppDelegate.selectRuntime(
+                modeController: fixture.controller,
+                fileManager: .default,
+                regular: {
+                    regularCount += 1
+                    return RuntimeSpy()
+                },
+                inspector: {
+                    inspectorCount += 1
+                    return RuntimeSpy()
+                },
+            )
+
+            #expect(regularCount == 0)
+            #expect(inspectorCount == 1)
+            #expect(fixture.controller.nextLaunch == .inspector)
+            #expect(fixture.controller.pendingStoreErasureError != nil)
         }
 
         @Test func inspectorConfigurationNamesAppInspectionResources() throws {

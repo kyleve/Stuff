@@ -38,7 +38,8 @@ layering, and the domain rules this target merely starts up.
 
 - **Select exactly one runtime in `AppDelegate.init`.** The delegate and
   `WhereApp` forward through `WhereApplicationRuntime`; never add mode switches
-  to lifecycle callbacks, `RootView`, or feature code.
+  to lifecycle callbacks, `RootView`, or feature code. In DEBUG, finish
+  Inspector's latched store-family recovery before constructing that runtime.
 - **Release always builds `RegularApplicationRuntime`.** Boot preference reads,
   Inspector configuration, and menu integration stay under `#if DEBUG`.
 - **Regular launch is wired in `didFinishLaunching`, not a SwiftUI `.task`.** When

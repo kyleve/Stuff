@@ -4,7 +4,9 @@ import Testing
 
 @MainActor
 struct InspectorModelTests {
-    @Test func failedSwiftDataSourceRemainsConfiguredWithDegradedState() async {
+    @Test func failedSwiftDataSourceRemainsConfiguredWithDegradedState() async throws {
+        let modeFixture = try InspectorModeControllerFixture()
+        defer { modeFixture.cleanup() }
         let source = InspectorConfiguration.SwiftDataSource(
             id: .init(rawValue: "incompatible"),
             title: "Incompatible Store",
@@ -16,7 +18,7 @@ struct InspectorModelTests {
             fileContainers: [],
             defaultsDomains: [],
             swiftDataSources: [source],
-        ))
+        ), modeController: modeFixture.controller)
 
         await model.prepare()
 
@@ -29,6 +31,8 @@ struct InspectorModelTests {
     }
 
     @Test func erasesAnUnreadableStoreFamilyAndRemovesTheSource() async throws {
+        let modeFixture = try InspectorModeControllerFixture()
+        defer { modeFixture.cleanup() }
         let rootURL = FileManager.default.temporaryDirectory.appending(
             path: "inspector-model-erase-\(UUID().uuidString)",
             directoryHint: .isDirectory,
@@ -58,7 +62,7 @@ struct InspectorModelTests {
             fileContainers: [container],
             defaultsDomains: [],
             swiftDataSources: [source],
-        ))
+        ), modeController: modeFixture.controller)
         await model.prepare()
 
         #expect(model.canEraseUnreadableStore(id: source.id))
@@ -91,9 +95,23 @@ struct InspectorModelTests {
                 atPath: similarlyNamedURL.path(percentEncoded: false),
             ),
         )
+
+        let lateSidecarURL = rootURL.appending(path: "broken.store-shm")
+        try Data("late checkpoint".utf8).write(to: lateSidecarURL)
+        let nextProcessController = InspectorModeController(
+            userDefaults: modeFixture.defaults,
+        )
+        #expect(nextProcessController.completePendingStoreErasures(fileManager: .default))
+        #expect(
+            FileManager.default.fileExists(
+                atPath: lateSidecarURL.path(percentEncoded: false),
+            ) == false,
+        )
     }
 
-    @Test func unreadableSourceWithoutAnExactStoreURLCannotBeErased() async {
+    @Test func unreadableSourceWithoutAnExactStoreURLCannotBeErased() async throws {
+        let modeFixture = try InspectorModeControllerFixture()
+        defer { modeFixture.cleanup() }
         let source = InspectorConfiguration.SwiftDataSource(
             id: .init(rawValue: "unconfigured"),
             title: "Unconfigured Store",
@@ -105,7 +123,7 @@ struct InspectorModelTests {
             fileContainers: [],
             defaultsDomains: [],
             swiftDataSources: [source],
-        ))
+        ), modeController: modeFixture.controller)
         await model.prepare()
 
         #expect(model.canEraseUnreadableStore(id: source.id) == false)
@@ -114,6 +132,8 @@ struct InspectorModelTests {
     }
 
     @Test func invalidEraseConfigurationKeepsTheSourceVisible() async throws {
+        let modeFixture = try InspectorModeControllerFixture()
+        defer { modeFixture.cleanup() }
         let storageRootURL = FileManager.default.temporaryDirectory.appending(
             path: "inspector-model-root-\(UUID().uuidString)",
             directoryHint: .isDirectory,
@@ -146,7 +166,7 @@ struct InspectorModelTests {
             fileContainers: [],
             defaultsDomains: [],
             swiftDataSources: [source],
-        ))
+        ), modeController: modeFixture.controller)
         await model.prepare()
 
         #expect(await model.eraseUnreadableStore(id: source.id) == false)

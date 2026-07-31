@@ -17,7 +17,10 @@ public struct InspectorView: View {
         configuration: InspectorConfiguration,
         modeController: InspectorModeController,
     ) {
-        _model = State(initialValue: InspectorModel(configuration: configuration))
+        _model = State(initialValue: InspectorModel(
+            configuration: configuration,
+            modeController: modeController,
+        ))
         _modeController = State(initialValue: modeController)
     }
 
@@ -60,6 +63,12 @@ public struct InspectorView: View {
                 }
 
                 Section {
+                    if let error = modeController.pendingStoreErasureError {
+                        Label(error, systemImage: "exclamationmark.triangle.fill")
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                    }
+
                     if modeController.nextLaunch == .inspector {
                         Button(
                             "Use Regular App on Next Launch",

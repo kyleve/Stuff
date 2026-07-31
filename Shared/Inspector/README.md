@@ -19,7 +19,8 @@ sections:
 It is intended for DEBUG-only boot modes. The host app selects its runtime
 before launch and gives Inspector a dedicated `InspectorModeController`, so the
 tool can request the regular app for the next process without switching stacks
-live.
+live. The same dedicated suite carries pending recovery erasures so a fresh
+process can finish them before any runtime opens SwiftData.
 
 ## Public API
 
@@ -83,6 +84,11 @@ InspectorView(
 )
 ```
 
+At DEBUG process boot, call
+`completePendingStoreErasures(fileManager:)` before constructing either runtime.
+If it returns `false`, construct Inspector so the retained request and error are
+available for recovery instead of opening regular application stores.
+
 `InspectorSwiftDataView` and `InspectorSwiftDataConfiguration` remain available
 as the focused SwiftData component for previews or other developer surfaces.
 
@@ -118,8 +124,13 @@ and CloudKit asset directories, then removes the source and its selected detail
 from the current Inspector session. The configured source may appear again
 after relaunch if its factory recreates the store. Similarly named files remain
 untouched. Inspector verifies that every known family member is absent before
-it dismisses the source. Without an exact URL the source stays read-only and
-protected.
+it dismisses the source and latches the same narrow erasure for the next
+process. The host completes that second pass before constructing either
+application runtime, preventing a failed store coordinator from recreating a
+late SQLite sidecar after the in-session check. A failed boot cleanup stays
+latched, selects Inspector, and surfaces its error instead of starting the
+regular runtime against the store. Without an exact URL the source stays
+read-only and protected.
 
 Inspector deliberately does not reflectively edit SwiftData attributes.
 

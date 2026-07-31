@@ -19,6 +19,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
             )
             runtime = Self.selectRuntime(
                 modeController: modeController,
+                fileManager: .default,
                 regular: {
                     RegularApplicationRuntime(inspectorModeController: modeController)
                 },
@@ -40,13 +41,17 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     #if DEBUG
         static func selectRuntime(
             modeController: InspectorModeController,
+            fileManager: FileManager,
             regular: () -> any WhereApplicationRuntime,
             inspector: () -> any WhereApplicationRuntime,
         ) -> any WhereApplicationRuntime {
+            if !modeController.completePendingStoreErasures(fileManager: fileManager) {
+                modeController.enterInspectorOnNextLaunch()
+            }
             if modeController.nextLaunch == .inspector {
-                inspector()
+                return inspector()
             } else {
-                regular()
+                return regular()
             }
         }
     #endif

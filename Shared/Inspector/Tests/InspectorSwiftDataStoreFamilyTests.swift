@@ -1,5 +1,6 @@
 import Foundation
 @testable import Inspector
+import SwiftData
 import Testing
 
 struct InspectorSwiftDataStoreFamilyTests {
@@ -96,6 +97,43 @@ struct InspectorSwiftDataStoreFamilyTests {
                 FileManager.default.fileExists(atPath: member.path(percentEncoded: false)),
             )
         }
+    }
+
+    @Test func corruptStoreCanBeDestroyedAndRecreatedWithSwiftData() throws {
+        let rootURL = FileManager.default.temporaryDirectory.appending(
+            path: "inspector-store-reopen-\(UUID().uuidString)",
+            directoryHint: .isDirectory,
+        )
+        try FileManager.default.createDirectory(at: rootURL, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: rootURL) }
+        let storeURL = rootURL.appending(path: "Periscope.store")
+        try Data(repeating: 0xA5, count: 4_000_000).write(to: storeURL)
+
+        do {
+            _ = try makeContainer(at: storeURL)
+            Issue.record("Expected the corrupt store to fail opening.")
+        } catch {
+            #expect(error.localizedDescription.isEmpty == false)
+        }
+
+        let family = InspectorSwiftDataStoreFamily(
+            storeURL: storeURL,
+            storageRootURL: rootURL,
+        )
+        try family.erase(using: .default)
+
+        let reopened = try makeContainer(at: storeURL)
+        #expect(reopened.configurations.map(\.url) == [storeURL])
+    }
+
+    private func makeContainer(at storeURL: URL) throws -> ModelContainer {
+        let schema = Schema([TestWidget.self])
+        let configuration = ModelConfiguration(
+            schema: schema,
+            url: storeURL,
+            cloudKitDatabase: .none,
+        )
+        return try ModelContainer(for: schema, configurations: [configuration])
     }
 }
 

@@ -72,9 +72,14 @@ final class InspectorModel {
     private(set) var fileSystem: InspectorFileSystem?
 
     private let worker = InspectorSwiftDataSourceWorker()
+    private let modeController: InspectorModeController
 
-    init(configuration: InspectorConfiguration) {
+    init(
+        configuration: InspectorConfiguration,
+        modeController: InspectorModeController,
+    ) {
         self.configuration = configuration
+        self.modeController = modeController
     }
 
     var visibleSwiftDataSources: [InspectorConfiguration.SwiftDataSource] {
@@ -120,6 +125,7 @@ final class InspectorModel {
     func eraseUnreadableStore(id: InspectorConfiguration.SwiftDataSource.ID) async -> Bool {
         guard canEraseUnreadableStore(id: id),
               let source = configuration.swiftDataSources.first(where: { $0.id == id }),
+              let storeURL = source.storeURL,
               erasingSwiftDataSources.insert(id).inserted
         else {
             return false
@@ -128,6 +134,10 @@ final class InspectorModel {
 
         do {
             try await worker.erase(source)
+            try modeController.scheduleStoreFamilyErasure(
+                storeURL: storeURL,
+                storageRootURL: source.storageRootURL,
+            )
             loadedSwiftDataSources[id] = nil
             swiftDataFailures[id] = nil
             removedSwiftDataSourceIDs.insert(id)

@@ -12,8 +12,8 @@ formatting, and repository-wide conventions.
 - Depend only on SwiftUI, SwiftData, Foundation, Observation, QuickLook, and
   UIKit. Never import Where or another app module; applications provide every
   source through `InspectorConfiguration`.
-- Keep boot selection outside this module. `InspectorModeController` only
-  persists the next-launch choice in a dedicated suite.
+- Keep boot selection outside this module. `InspectorModeController` persists
+  next-launch choice and pending recovery erasures in one dedicated suite.
 - Treat the entire module as developer tooling. Consumers compile entry points
   behind `#if DEBUG`; strings remain unlocalized literals.
 - Keep `InspectorView`, `InspectorConfiguration`,
@@ -30,7 +30,10 @@ formatting, and repository-wide conventions.
   unreadable source may erase only its explicitly configured store URL's known
   SQLite/support family through the confirmed recovery action, then remove that
   source from the current Inspector session only after verifying the family is
-  absent.
+  absent and latching a second-pass cleanup for the next process.
+- Complete pending recovery erasures before constructing either application
+  runtime; retain failed requests and select Inspector rather than opening the
+  regular stack against a possibly unreadable store.
 - Keep file operations inside canonical configured roots; never follow a
   symlink outside one.
 - Enumerate only configured persistent defaults domains. Existing scalar values
