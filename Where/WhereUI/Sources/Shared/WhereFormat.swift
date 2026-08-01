@@ -138,6 +138,24 @@ enum WhereFormat {
         String(localized: .yearOverviewRecorded(recorded, total))
     }
 
+    static func yearHeatmapMonthSymbol(
+        month: Int,
+        year: Int,
+        calendar: Calendar,
+        locale: Locale,
+    ) -> String {
+        CalendarDay(year: year, month: month, day: 1)
+            .startOfDay(in: calendar)
+            .formatted(
+                Date.FormatStyle(
+                    locale: locale,
+                    calendar: calendar,
+                    timeZone: calendar.timeZone,
+                )
+                .month(.abbreviated),
+            )
+    }
+
     static func yearOverviewSliceName(_ id: YearOverview.Slice.ID) -> String {
         switch id {
             case let .region(region): region.localizedName

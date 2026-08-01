@@ -96,6 +96,27 @@ struct WhereFormatTests {
         #expect(WhereFormat.loggedDaysTitle(year: 2026) == "Logged Days · 2026")
     }
 
+    @Test func heatmapMonthUsesDisplayLocaleAndInjectedTimeZone() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 14 * 60 * 60))
+
+        let english = WhereFormat.yearHeatmapMonthSymbol(
+            month: 1,
+            year: 2026,
+            calendar: calendar,
+            locale: Locale(identifier: "en_US"),
+        )
+        let french = WhereFormat.yearHeatmapMonthSymbol(
+            month: 1,
+            year: 2026,
+            calendar: calendar,
+            locale: Locale(identifier: "fr_FR"),
+        )
+
+        #expect(english == "Jan")
+        #expect(french.lowercased().hasPrefix("janv"))
+    }
+
     /// The widget entry views render from the app's catalog, so a missing key
     /// there ships a raw identifier to the Home Screen.
     @Test func widgetStringsResolve() {

@@ -9,6 +9,7 @@ struct YearHeatmapChart: View {
     let calendar: Calendar
     @Binding var selectedDayID: CalendarDay?
 
+    @Environment(\.locale) private var locale
     @Environment(\.stylesheet) private var stylesheet
     @Environment(\.regionStyles) private var regionStyles
 
@@ -107,9 +108,12 @@ struct YearHeatmapChart: View {
     }
 
     private func monthSymbol(forRow row: Int) -> String {
-        let month = 13 - row
-        guard calendar.shortMonthSymbols.indices.contains(month - 1) else { return "" }
-        return calendar.shortMonthSymbols[month - 1]
+        WhereFormat.yearHeatmapMonthSymbol(
+            month: 13 - row,
+            year: overview.year,
+            calendar: calendar,
+            locale: locale,
+        )
     }
 
     private func select(at location: CGPoint, proxy: ChartProxy) {
