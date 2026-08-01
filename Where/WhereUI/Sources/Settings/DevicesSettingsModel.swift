@@ -72,11 +72,15 @@ final class DevicesSettingsModel {
     }
 
     func rename(_ row: DeviceSettingsRowModel) async {
+        let nickname = row.nickname.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard nickname != row.confirmedNickname else {
+            row.nickname = nickname
+            return
+        }
         guard !row.isBusy else { return }
         row.isBusy = true
         defer { row.isBusy = false }
         do {
-            let nickname = row.nickname.trimmingCharacters(in: .whitespacesAndNewlines)
             let configurations = try await session.renameRecordingDevice(
                 row.id,
                 to: nickname,

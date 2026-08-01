@@ -24,11 +24,13 @@ one it belongs to rather than to a god-object:
 - **`WhereStore`** — the value-type persistence boundary (a protocol; nothing
   crossing it is a SwiftData record). Mutations run inside `perform { … }` (one
   atomic transaction) and `changes()` emits once per commit and on a CloudKit
-  remote import. `SwiftDataStore.make()` is the production, CloudKit-backed
-  implementation; `SwiftDataStore.inMemory()` backs tests and previews. An
-  on-disk store stamps writer contexts and filters SwiftData history so
-  `remoteChanges()` never echoes local GPS commits. Each process opens its
-  on-disk store **once** and injects it where it's needed —
+  remote import. Device-profile field edits transform the latest stored value
+  inside that transaction, so a CloudKit update cannot be overwritten by a
+  stale whole-profile read. `SwiftDataStore.make()` is the production,
+  CloudKit-backed implementation; `SwiftDataStore.inMemory()` backs tests and
+  previews. An on-disk store stamps writer contexts and filters SwiftData
+  history so `remoteChanges()` never echoes local GPS commits. Each process
+  opens its on-disk store **once** and injects it where it's needed —
   in the app, the launch's `resolve-scope` step opens it and the App Intents
   stack shares it via `WhereServices.forIntents(sharingStoreOf:)` — so two
   subsystems never race to create/open the same store file. It also

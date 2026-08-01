@@ -58,6 +58,30 @@ struct WidgetSnapshotPublisherTests {
         }
     }
 
+    private actor GatedExternalPreparation {
+        private var continuation: CheckedContinuation<Void, Never>?
+
+        var isWaiting: Bool {
+            continuation != nil
+        }
+
+        func prepare() async {
+            await withTaskCancellationHandler {
+                guard Task.isCancelled == false else { return }
+                await withCheckedContinuation { continuation in
+                    self.continuation = continuation
+                }
+            } onCancel: {
+                Task { await self.resume() }
+            }
+        }
+
+        func resume() {
+            continuation?.resume()
+            continuation = nil
+        }
+    }
+
     private struct WaitTimeout: Error {}
 
     private static func makePublisher(
@@ -275,12 +299,37 @@ struct WidgetSnapshotPublisherTests {
         let now = WhereCoreTestSupport.iso("2026-03-15T12:00:00-07:00")
         let (publisher, _, refresher) = try Self.makePublisher(now: { now })
         let changes = StoreChangeBroadcaster()
+        let preparation = GatedExternalPreparation()
 
-        await publisher.startObservingExternalChanges(changes.subscribe())
+        await publisher.startObservingExternalChanges(
+            changes.subscribe(),
+            beforePublishing: { await preparation.prepare() },
+        )
         changes.send()
 
+        try await Self.waitUntil { await preparation.isWaiting }
+        #expect(await refresher.publishCount == 0)
+        await preparation.resume()
         try await Self.waitUntil { await refresher.publishCount == 1 }
         await publisher.stopObservingExternalChanges()
+    }
+
+    @Test func stoppingExternalObservationDuringPreparationSkipsThePublish() async throws {
+        let now = WhereCoreTestSupport.iso("2026-03-15T12:00:00-07:00")
+        let (publisher, _, refresher) = try Self.makePublisher(now: { now })
+        let changes = StoreChangeBroadcaster()
+        let preparation = GatedExternalPreparation()
+
+        await publisher.startObservingExternalChanges(
+            changes.subscribe(),
+            beforePublishing: { await preparation.prepare() },
+        )
+        changes.send()
+        try await Self.waitUntil { await preparation.isWaiting }
+
+        await publisher.stopObservingExternalChanges()
+        #expect(await publisher.testingReceivedPublishRequestCount == 0)
+        #expect(await refresher.publishCount == 0)
     }
 
     @Test func concurrentRequestsCoalesceIntoOneFinalRebuild() async throws {

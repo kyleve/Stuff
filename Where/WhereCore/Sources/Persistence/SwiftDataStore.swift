@@ -608,6 +608,35 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         }
     }
 
+    public func updateRecordingDevice(
+        _ id: RecordingDeviceID,
+        transform: @Sendable (RecordingDevice) -> RecordingDevice,
+    ) async throws -> RecordingDevice? {
+        let context = mutationContext()
+        let rawID = id.rawValue
+        let records = try context.fetch(
+            FetchDescriptor<SDRecordingDevice>(predicate: #Predicate { $0.id == rawID }),
+        )
+        let candidates = records.compactMap { record -> (SDRecordingDevice, RecordingDevice)? in
+            guard let value = record.toValue() else {
+                Self.logFault(forCorrupt: record)
+                return nil
+            }
+            return (record, value)
+        }
+        guard let selected = candidates.max(by: {
+            $0.1.lastSeenAt < $1.1.lastSeenAt
+        }) else { return nil }
+
+        let updated = transform(selected.1)
+        precondition(updated.id == id, "A recording-device update cannot change its identity.")
+        selected.0.update(from: updated)
+        for duplicate in records where duplicate !== selected.0 {
+            context.delete(duplicate)
+        }
+        return updated
+    }
+
     public func recordingPolicyChanges() async throws -> [RecordingPolicyChange] {
         let context = readContext()
         var descriptor = FetchDescriptor<SDRecordingPolicyChange>(

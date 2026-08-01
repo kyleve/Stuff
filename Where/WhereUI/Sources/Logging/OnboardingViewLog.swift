@@ -13,6 +13,9 @@ enum OnboardingViewLog: LogEvent {
     /// onboarding ask. Expected, not a failure: tracking stays
     /// intended-but-inactive and Settings offers the route to grant it.
     case locationPermissionDenied
+    /// Persisting the user's explicit current-device recording choice failed,
+    /// so the gate cannot safely continue under an older synced policy.
+    case recordingChoiceFailed(description: String)
     /// Opening the user's store failed, so onboarding can't hand the launch a
     /// world to run in. Fails the gate, landing on the failure surface.
     case scopeCreationFailed(description: String)
@@ -28,7 +31,7 @@ enum OnboardingViewLog: LogEvent {
                  .demoBuildFailed:
                 .warning
             case .locationPermissionDenied: .info
-            case .scopeCreationFailed: .error
+            case .recordingChoiceFailed, .scopeCreationFailed: .error
         }
     }
 
@@ -42,6 +45,8 @@ enum OnboardingViewLog: LogEvent {
                 "Joining existing iCloud data failed: \(description)"
             case .locationPermissionDenied:
                 "Location access declined during onboarding"
+            case let .recordingChoiceFailed(description):
+                "Failed to persist the onboarding recording choice: \(description)"
             case let .scopeCreationFailed(description):
                 "Failed to open the store during onboarding: \(description)"
             case let .demoBuildFailed(description):

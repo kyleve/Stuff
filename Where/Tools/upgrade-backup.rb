@@ -24,10 +24,11 @@
 #   - Top level: ensures `dismissedIssues` / `trackedRegions` exist, synthesizes
 #     `primaryRegions` from the tracked ids (null appearance, listed order) when
 #     absent, adds empty device/policy tables, stamps legacy samples with null
-#     device provenance, and sets `formatVersion` to 3 (the current version).
+#     device provenance, normalizes ISO-8601 dates to lossless Unix epoch
+#     seconds, and sets `formatVersion` to 3 (the current version).
 #
-# Idempotent: re-running on an already-upgraded archive is a no-op (it only
-# touches legacy `date` / `key` fields and unmapped region ids).
+# Idempotent: re-running on an already-upgraded archive produces the same
+# manifest, including the numeric date representation.
 #
 # Usage (from the repo root):
 #   ruby Where/Tools/upgrade-backup.rb INPUT.zip [OUTPUT.zip]
@@ -60,6 +61,20 @@ ISSUE_PARAM_NAMES = {
   "borderDrift" => %w[day],
   "abruptChange" => %w[earlier later],
 }.freeze
+
+# Every `Date` property reachable from `BackupArchive`. The v3 wire format uses
+# Unix epoch seconds so subsecond policy/sample ordering survives a round trip.
+DATE_FIELDS = Set.new(%w[
+  exportedAt
+  timestamp
+  capturedAt
+  recordedAt
+  dismissedAt
+  registeredAt
+  lastSeenAt
+  archivedAt
+  effectiveAt
+]).freeze
 
 def die(message)
   warn "error: #{message}"
@@ -163,6 +178,30 @@ def upgrade_dismissals!(manifest)
   end
 end
 
+def date_to_epoch_seconds(value)
+  return value if value.is_a?(Numeric)
+
+  Time.iso8601(value).to_f
+rescue ArgumentError, TypeError
+  die "could not parse date value: #{value.inspect}"
+end
+
+def normalize_dates!(value)
+  case value
+  when Hash
+    value.each do |key, child|
+      value[key] = if DATE_FIELDS.include?(key) && !child.nil?
+                     date_to_epoch_seconds(child)
+                   else
+                     normalize_dates!(child)
+                   end
+    end
+  when Array
+    value.each { |element| normalize_dates!(element) }
+  end
+  value
+end
+
 def upgrade_manifest(manifest)
   warnings = []
   upgrade_evidence!(manifest, warnings)
@@ -184,6 +223,7 @@ def upgrade_manifest(manifest)
   end
   manifest["recordingDevices"] ||= []
   manifest["recordingPolicyChanges"] ||= []
+  normalize_dates!(manifest)
   manifest["formatVersion"] = CURRENT_FORMAT_VERSION
   warnings.uniq.each { |message| warn "warning: #{message}" }
   manifest

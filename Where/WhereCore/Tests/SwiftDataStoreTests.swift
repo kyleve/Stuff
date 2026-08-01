@@ -132,6 +132,66 @@ struct SwiftDataStoreTests {
         #expect(try await store.recordingPolicyChanges() == [policy])
     }
 
+    @Test func recordingDeviceTransformStartsFromTheLatestStoredProfile() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let deviceID = try RecordingDeviceID(
+            rawValue: #require(UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")),
+        )
+        let oldPolicyID = try #require(
+            UUID(uuidString: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB"),
+        )
+        let appliedPolicyID = try #require(
+            UUID(uuidString: "CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC"),
+        )
+        let registeredAt = Date(timeIntervalSinceReferenceDate: 100)
+        let original = RecordingDevice(
+            id: deviceID,
+            systemName: "iPhone",
+            nickname: nil,
+            kind: .phone,
+            registeredAt: registeredAt,
+            lastSeenAt: registeredAt,
+            archivedAt: nil,
+            lastAppliedPolicyChangeID: oldPolicyID,
+            status: .off,
+        )
+        try await store.perform { try await store.setRecordingDevice(original) }
+
+        // Model a CloudKit import that landed after a controller read `original`
+        // but before its acknowledgement transaction began.
+        let archivedAt = registeredAt.addingTimeInterval(30)
+        let imported = RecordingDevice(
+            id: deviceID,
+            systemName: original.systemName,
+            nickname: "Synced nickname",
+            kind: original.kind,
+            registeredAt: original.registeredAt,
+            lastSeenAt: archivedAt,
+            archivedAt: archivedAt,
+            lastAppliedPolicyChangeID: oldPolicyID,
+            status: .off,
+        )
+        let checkedInAt = registeredAt.addingTimeInterval(20)
+        let maybeUpdated = try await store.perform {
+            try await store.setRecordingDevice(imported)
+            return try await store.updateRecordingDevice(deviceID) {
+                $0.acknowledging(
+                    policyChangeID: appliedPolicyID,
+                    status: .recording,
+                    at: max($0.lastSeenAt, checkedInAt),
+                )
+            }
+        }
+        let updated = try #require(maybeUpdated)
+
+        #expect(updated.nickname == imported.nickname)
+        #expect(updated.archivedAt == imported.archivedAt)
+        #expect(updated.lastSeenAt == imported.lastSeenAt)
+        #expect(updated.lastAppliedPolicyChangeID == appliedPolicyID)
+        #expect(updated.status == .recording)
+        #expect(try await store.recordingDevices() == [updated])
+    }
+
     /// A remote import (simulated via a scripted source) pings both the general
     /// read-refresh stream and the remote-only side-effect stream.
     @Test func remoteChangeForwardsToBothChangeStreams() async throws {

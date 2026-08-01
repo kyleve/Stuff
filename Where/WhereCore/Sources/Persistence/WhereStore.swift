@@ -9,6 +9,7 @@ import RegionKit
 /// implementation has somewhere to surface I/O errors.
 ///
 /// All mutating methods (`add(sample:)`, `setRecordingDevice`,
+/// `updateRecordingDevice`,
 /// `addRecordingPolicyChange`, `write(evidence:blob:)`, `setManualDay`,
 /// `clearManualDay`, `clear(in:)`, and the `EvidenceBlobStore` writers)
 /// MUST be called from inside a `perform { ... }` block — the block
@@ -60,6 +61,17 @@ public protocol WhereStore: Sendable {
     /// Upsert one synced device profile by ``RecordingDevice/id``. Must run
     /// inside `perform { ... }`.
     func setRecordingDevice(_ device: RecordingDevice) async throws
+
+    /// Transform the latest stored value for one device inside the current
+    /// transaction, returning the value that was written. Unlike a read followed
+    /// by ``setRecordingDevice(_:)``, this preserves fields another process or
+    /// CloudKit import changed before the transaction began. A missing device is
+    /// a no-op and returns `nil`.
+    @discardableResult
+    func updateRecordingDevice(
+        _ id: RecordingDeviceID,
+        transform: @Sendable (RecordingDevice) -> RecordingDevice,
+    ) async throws -> RecordingDevice?
 
     /// Every append-only recording-policy event, oldest first.
     func recordingPolicyChanges() async throws -> [RecordingPolicyChange]

@@ -51,9 +51,9 @@ layering, and the domain rules this target merely starts up.
   intents stack derives from whatever scope the launch resolves, in the
   `onServicesReady` hook.
 - **Only the app owns the CloudKit capability.** Keep its App Group, CloudKit
-  container (`iCloud.com.stuff.where`), and remote-notification background mode
-  together in `Project.swift`; widgets and the share extension stay App
-  Group-only and never open a CloudKit container.
+  container (`iCloud.com.stuff.where`), platform APNs entitlement, and
+  remote-notification background mode together in `Project.swift`; widgets and
+  the share extension stay App Group-only and never open a CloudKit container.
 - **Catalyst embeds, but never launches, the native `WhereMenuBar` helper.**
   `Project.swift` builds it first in the `Where-Catalyst` scheme and conditionally
   copies it to `Contents/Library/LoginItems`; Settings registers or unregisters

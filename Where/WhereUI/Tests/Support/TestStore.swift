@@ -97,6 +97,13 @@ actor TestStore: WhereStore {
         try await backing.setRecordingDevice(device)
     }
 
+    func updateRecordingDevice(
+        _ id: RecordingDeviceID,
+        transform: @Sendable (RecordingDevice) -> RecordingDevice,
+    ) async throws -> RecordingDevice? {
+        try await backing.updateRecordingDevice(id, transform: transform)
+    }
+
     func recordingPolicyChanges() async throws -> [RecordingPolicyChange] {
         try await backing.recordingPolicyChanges()
     }

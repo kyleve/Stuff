@@ -10,6 +10,7 @@ struct DeviceSettingsSection: View {
     @Environment(WhereSession.self) private var session
     @Environment(\.openURL) private var openURL
     @State private var isConfirmingArchive = false
+    @FocusState private var isEditingNickname: Bool
 
     var body: some View {
         Section {
@@ -32,8 +33,16 @@ struct DeviceSettingsSection: View {
             TextField(String(localized: .settingsDevicesName), text: $row.nickname)
                 .settingsRow(DevicesSettingsView.Item.deviceName)
                 .disabled(row.isBusy)
+                .focused($isEditingNickname)
                 .onSubmit {
-                    Task { await model.rename(row) }
+                    isEditingNickname = false
+                }
+                .onChange(of: isEditingNickname) { wasEditing, isEditing in
+                    guard wasEditing, !isEditing else { return }
+                    commitNickname()
+                }
+                .onDisappear {
+                    commitNickname()
                 }
 
             LabeledContent(String(localized: .settingsDevicesStatus)) {
@@ -133,6 +142,10 @@ struct DeviceSettingsSection: View {
             case .permissionRequired:
                 return String(localized: .settingsDevicesStatusPermissionRequired)
         }
+    }
+
+    private func commitNickname() {
+        Task { await model.rename(row) }
     }
 
     private var statusSymbol: String {

@@ -118,6 +118,48 @@ struct OnboardingModelTests {
         #expect(model.hasOnboarded)
     }
 
+    @Test func notNowOverridesAnEnabledRestoredCurrentDevicePolicy() async throws {
+        let subject = try await makeRestoredPolicySubject(isEnabled: true)
+        let scope = try await subject.model.resolveScope()
+
+        try await subject.model.applyOnboardingRecordingChoice(false, in: scope)
+
+        let policies = try await subject.store.recordingPolicyChanges()
+        let latest = try #require(policies.max { lhs, rhs in
+            lhs.effectiveAt < rhs.effectiveAt
+        })
+        #expect(policies.count == 2)
+        #expect(latest.isEnabled == false)
+        #expect(subject.preferences.wantsTracking == false)
+        let current = try #require(
+            try await subject.services.recording.devices(initialEnabled: false).first,
+        )
+        #expect(current.isEnabled == false)
+        #expect(current.device.status == .off)
+        #expect(await subject.services.ingestor.isActive == false)
+    }
+
+    @Test func enablingOverridesADisabledRestoredCurrentDevicePolicy() async throws {
+        let subject = try await makeRestoredPolicySubject(isEnabled: false)
+        let scope = try await subject.model.resolveScope()
+
+        try await subject.model.applyOnboardingRecordingChoice(true, in: scope)
+
+        let policies = try await subject.store.recordingPolicyChanges()
+        let latest = try #require(policies.max { lhs, rhs in
+            lhs.effectiveAt < rhs.effectiveAt
+        })
+        #expect(policies.count == 2)
+        #expect(latest.isEnabled)
+        #expect(subject.preferences.wantsTracking)
+        let current = try #require(
+            try await subject.services.recording.devices(initialEnabled: true).first,
+        )
+        #expect(current.isEnabled)
+        #expect(current.device.status == .recording)
+        #expect(await subject.services.ingestor.isActive)
+    }
+
     @Test func failedExistingDataJoinRemainsLoggedOutAndRetryable() async {
         let preferences = makePreferences()
         let model = WhereModel(
@@ -156,5 +198,57 @@ struct OnboardingModelTests {
         #expect(state.isJoiningExistingData == false)
         #expect(state.failure?.flow == .joinExistingData)
         #expect(state.isShowingFailure)
+    }
+
+    private struct RestoredPolicySubject {
+        let model: WhereModel
+        let services: WhereServices
+        let store: SwiftDataStore
+        let preferences: WherePreferences
+    }
+
+    private func makeRestoredPolicySubject(
+        isEnabled: Bool,
+    ) async throws -> RestoredPolicySubject {
+        let now = Date(timeIntervalSince1970: 2_000_000_000)
+        let store = try SwiftDataStore.inMemory()
+        let policyID = UUID()
+        try await store.perform {
+            try await store.setRecordingDevice(RecordingDevice(
+                id: CurrentRecordingDevice.preview.id,
+                systemName: CurrentRecordingDevice.preview.systemName,
+                nickname: nil,
+                kind: CurrentRecordingDevice.preview.kind,
+                registeredAt: now.addingTimeInterval(-120),
+                lastSeenAt: now.addingTimeInterval(-60),
+                archivedAt: nil,
+                lastAppliedPolicyChangeID: policyID,
+                status: isEnabled ? .recording : .off,
+            ))
+            try await store.addRecordingPolicyChange(RecordingPolicyChange(
+                id: policyID,
+                deviceID: CurrentRecordingDevice.preview.id,
+                effectiveAt: now.addingTimeInterval(-60),
+                isEnabled: isEnabled,
+            ))
+        }
+        let services = WhereServices(
+            store: store,
+            locationSource: ScriptedLocationSource(authorizationStatus: .always),
+            now: { now },
+        )
+        let preferences = makePreferences()
+        preferences.wantsTracking = isEnabled
+        let model = WhereModel(
+            preferences: preferences,
+            makeBootstrap: { ScriptedBootstrap(services: services) },
+            logSystem: .isolated(),
+        )
+        return RestoredPolicySubject(
+            model: model,
+            services: services,
+            store: store,
+            preferences: preferences,
+        )
     }
 }

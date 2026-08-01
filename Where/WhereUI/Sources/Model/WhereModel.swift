@@ -142,6 +142,26 @@ public final class WhereModel {
         Self.logger { .onboardingCompleted }
     }
 
+    /// Persist the local recording choice made during onboarding as both the
+    /// launch seed and an explicit synced policy for this installation.
+    ///
+    /// The policy write comes first so a restored policy cannot win after the
+    /// onboarding gate resolves. A management-only process has no local
+    /// recording identity, so it retains only the preference seed.
+    func applyOnboardingRecordingChoice(
+        _ enabled: Bool,
+        in scope: WhereScope,
+    ) async throws {
+        if let currentDeviceID = scope.services.recording.currentDevice?.id {
+            _ = try await scope.services.recording.setEnabled(
+                enabled,
+                for: currentDeviceID,
+                initialEnabled: enabled,
+            )
+        }
+        scope.preferences.wantsTracking = enabled
+    }
+
     /// Join the user's existing iCloud-backed world without seeding regions or
     /// enrolling this installation in automatic recording.
     ///
@@ -152,14 +172,7 @@ public final class WhereModel {
     /// through the ordinary store-change stream.
     func joinExistingData() async throws {
         let scope = try await resolveScope()
-        scope.preferences.wantsTracking = false
-        if let currentDeviceID = scope.services.recording.currentDevice?.id {
-            _ = try await scope.services.recording.setEnabled(
-                false,
-                for: currentDeviceID,
-                initialEnabled: false,
-            )
-        }
+        try await applyOnboardingRecordingChoice(false, in: scope)
         completeOnboarding()
     }
 

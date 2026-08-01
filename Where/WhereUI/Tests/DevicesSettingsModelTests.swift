@@ -80,4 +80,21 @@ struct DevicesSettingsModelTests {
         #expect(try await subject.store.recordingDevices()
             .first(where: { $0.id == remoteID })?.archivedAt == Self.now)
     }
+
+    @Test func repeatedNicknameCommitNormalizesWithoutChangingTheConfirmedName() async throws {
+        let subject = try makeSubject()
+        await subject.session.start()
+        await subject.model.retry()
+        let row = try #require(subject.model.rows.first)
+
+        row.nickname = "Pocket"
+        await subject.model.rename(row)
+        row.nickname = "  Pocket  "
+        await subject.model.rename(row)
+
+        #expect(row.nickname == "Pocket")
+        #expect(row.confirmedNickname == "Pocket")
+        #expect(try await subject.store.recordingDevices()
+            .first(where: { $0.id == row.id })?.nickname == "Pocket")
+    }
 }

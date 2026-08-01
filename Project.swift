@@ -49,6 +49,7 @@ let whereAppGroupEntitlements: Entitlements = .dictionary([
 /// entitlement above: they write the shared local store and let the app's
 /// CloudKit-backed container publish those changes when it next opens.
 let whereAppEntitlements: Entitlements = .dictionary([
+    "aps-environment": .string("development"),
     "com.apple.security.application-groups": .array([.string("group.com.stuff.where")]),
     "com.apple.developer.icloud-container-identifiers": .array([
         .string("iCloud.com.stuff.where"),
@@ -362,6 +363,7 @@ let project = Project(
             settings: .settings(base: [
                 "ASSETCATALOG_COMPILER_APPICON_NAME": "",
                 "ENABLE_HARDENED_RUNTIME": "YES",
+                "REGISTER_APP_GROUPS": "YES",
             ]),
         ),
         .target(

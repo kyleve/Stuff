@@ -56,14 +56,17 @@ public struct BackupService: Sendable {
 
     private static func makeEncoder() -> JSONEncoder {
         let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
+        // Foundation's ISO-8601 strategy drops fractional seconds. Recording
+        // policy ordering and its sample cutoffs are subsecond-sensitive, so
+        // encode the `Date` value losslessly as Unix epoch seconds instead.
+        encoder.dateEncodingStrategy = .secondsSince1970
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         return encoder
     }
 
     private static func makeDecoder() -> JSONDecoder {
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        decoder.dateDecodingStrategy = .secondsSince1970
         return decoder
     }
 

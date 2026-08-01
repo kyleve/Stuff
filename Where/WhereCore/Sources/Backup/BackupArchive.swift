@@ -18,9 +18,10 @@ public struct BackupArchive: Codable, Sendable, Hashable {
     /// `BackupService.readArchive`, which rejects any other version).
     ///
     /// v3 adds sample device provenance plus the synced recording-device and
-    /// append-only policy tables. There's no in-app decode fallback for an older
-    /// archive — it is reshaped out of band by `Tools/upgrade-backup.rb`,
-    /// matching the module's no-migration-on-read rule (see `AGENTS.md`).
+    /// append-only policy tables, and stores dates as lossless Unix epoch
+    /// seconds. There's no in-app decode fallback for an older archive — it is
+    /// reshaped out of band by `Tools/upgrade-backup.rb`, matching the module's
+    /// no-migration-on-read rule (see `AGENTS.md`).
     public static let currentFormatVersion = 3
 
     public let formatVersion: Int

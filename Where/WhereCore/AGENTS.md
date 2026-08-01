@@ -78,9 +78,10 @@ internal shape.
   only after the throwing publisher sink succeeds.
 - **External writes get one glance observer.** `WhereStore.remoteChanges()`
   carries only CloudKit/share-extension imports; `WhereServices.make` connects
-  it to the base `WidgetSnapshotPublisher`, while local writes use their
-  journal/ingestor paths and `forIntents(sharingStoreOf:)` shares that publisher
-  rather than starting another observer or cache.
+  it to the base `WidgetSnapshotPublisher` after reconciling live region
+  attribution, while local writes use their journal/ingestor paths and
+  `forIntents(sharingStoreOf:)` shares that publisher rather than starting
+  another observer or cache.
   Treat `.NSPersistentStoreRemoteChange` as a raw write notification: stamp
   local contexts and filter SwiftData history by author before emitting it.
 - **Post-write reconciliation is defined once.** Every write and import
@@ -98,9 +99,10 @@ internal shape.
   `LocationIngestor.captureTodayIfNeeded(now:)`.
 - **`DeviceRecordingController` owns automatic-recording policy and physical
   GPS state.** Keep policy events append-only, serialize mutations across
-  awaits, stamp every ingested GPS sample with the current installation id,
-  and apply `LocationHistoryReader` to every user-facing projection. Backups
-  alone read the lossless raw samples and full policy/device tables.
+  awaits, transform profile fields from the transaction's latest stored value,
+  stamp every ingested GPS sample with the current installation id, and apply
+  `LocationHistoryReader` to every user-facing projection. Backups alone read
+  the lossless raw samples and full policy/device tables.
 - **Management-only participation has no local recording identity.** Keep its
   ingestor inert and never register a current-device row; synced remote-device
   policy and profile edits remain available.

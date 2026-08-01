@@ -6,9 +6,7 @@ import WhereCore
 struct BackupServiceTests {
     private static let calendar = WhereCoreTestSupport.calendar()
 
-    // Whole-second timestamps so the `.iso8601` date strategy (no
-    // fractional seconds) round-trips exactly.
-    private static let exportDate = Date(timeIntervalSince1970: 1_700_000_000)
+    private static let exportDate = Date(timeIntervalSince1970: 1_700_000_000.123_456)
     private static let evidenceWithBlobId =
         UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")!
     private static let evidenceNoBlobId = UUID(uuidString: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB")!
@@ -149,6 +147,63 @@ struct BackupServiceTests {
         // Only the evidence with bytes gets an asset; the other is metadata-only.
         #expect(result.archive.assets.map(\.evidenceId) == [Self.evidenceWithBlobId])
         #expect(result.blobs == blobs)
+    }
+
+    @Test func rapidPolicyCutoffPreservesSubsecondOrderingAcrossArchiveRoundTrip() throws {
+        let service = BackupService()
+        let enabledAt = Date(timeIntervalSince1970: 1_700_000_000.125)
+        let disabledAt = enabledAt.addingTimeInterval(0.000_001)
+        let visibleSample = try LocationSample(
+            id: #require(UUID(uuidString: "11111111-1111-1111-1111-111111111111")),
+            timestamp: enabledAt.addingTimeInterval(0.000_000_5),
+            coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
+            horizontalAccuracy: 5,
+            source: .gpsVisit,
+            recordingDeviceID: Self.recordingDeviceID,
+        )
+        let hiddenSample = try LocationSample(
+            id: #require(UUID(uuidString: "22222222-2222-2222-2222-222222222222")),
+            timestamp: disabledAt,
+            coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
+            horizontalAccuracy: 5,
+            source: .gpsVisit,
+            recordingDeviceID: Self.recordingDeviceID,
+        )
+        // If these timestamps collapse, UUID tie-breaking selects the earlier
+        // enabled policy and exposes the sample at the disabled cutoff.
+        let policies = try [
+            RecordingPolicyChange(
+                id: #require(UUID(uuidString: "FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF")),
+                deviceID: Self.recordingDeviceID,
+                effectiveAt: enabledAt,
+                isEnabled: true,
+            ),
+            RecordingPolicyChange(
+                id: #require(UUID(uuidString: "00000000-0000-0000-0000-000000000000")),
+                deviceID: Self.recordingDeviceID,
+                effectiveAt: disabledAt,
+                isEnabled: false,
+            ),
+        ]
+        let samples = [visibleSample, hiddenSample]
+        let url = try service.makeArchiveFile(
+            samples: samples,
+            evidence: [],
+            manualDays: [],
+            recordingPolicyChanges: policies,
+            blobs: [:],
+            exportedAt: disabledAt,
+        )
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        let archive = try service.readArchive(at: url).archive
+
+        #expect(archive.recordingPolicyChanges == policies)
+        #expect(archive.samples == samples)
+        #expect(RecordingPolicyFilter.visibleSamples(
+            archive.samples,
+            policyChanges: archive.recordingPolicyChanges,
+        ).map(\.id) == [visibleSample.id])
     }
 
     @Test func archiveNameIsDateAndTimeStamped() throws {
@@ -306,11 +361,11 @@ struct BackupServiceTests {
         )
 
         let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
+        encoder.dateEncodingStrategy = .secondsSince1970
         let data = try encoder.encode(archive)
 
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        decoder.dateDecodingStrategy = .secondsSince1970
         let decoded = try decoder.decode(BackupArchive.self, from: data)
 
         #expect(decoded == archive)

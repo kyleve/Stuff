@@ -81,7 +81,6 @@ public actor DeviceRecordingController {
         try requireActive()
         try await ensureCurrentDeviceLocked(initialEnabled: initialEnabled)
 
-        let device = try await store.recordingDevices().first(where: { $0.id == deviceID })
         let changes = try await store.recordingPolicyChanges()
         let change = RecordingPolicyChange(
             id: UUID(),
@@ -94,8 +93,8 @@ public actor DeviceRecordingController {
         )
         try await store.perform {
             try await store.addRecordingPolicyChange(change)
-            if enabled, let device, device.archivedAt != nil {
-                try await store.setRecordingDevice(device.unarchived())
+            if enabled {
+                try await store.updateRecordingDevice(deviceID) { $0.unarchived() }
             }
         }
 
@@ -120,16 +119,12 @@ public actor DeviceRecordingController {
         defer { endExclusive() }
         try requireActive()
         try await ensureCurrentDeviceLocked(initialEnabled: initialEnabled)
-        guard let device = try await store.recordingDevices().first(where: { $0.id == deviceID })
-        else { return try await configurationsLocked(includeArchived: false) }
 
         let trimmed = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
-        let renamed = device.renamed(trimmed.isEmpty ? nil : trimmed)
-        guard renamed != device else {
-            return try await configurationsLocked(includeArchived: false)
-        }
         try await store.perform {
-            try await store.setRecordingDevice(renamed)
+            try await store.updateRecordingDevice(deviceID) {
+                $0.renamed(trimmed.isEmpty ? nil : trimmed)
+            }
         }
         return try await configurationsLocked(includeArchived: false)
     }
@@ -145,7 +140,7 @@ public actor DeviceRecordingController {
         defer { endExclusive() }
         try requireActive()
         try await ensureCurrentDeviceLocked(initialEnabled: initialEnabled)
-        guard let device = try await store.recordingDevices().first(where: { $0.id == deviceID })
+        guard try await store.recordingDevices().contains(where: { $0.id == deviceID })
         else { return try await configurationsLocked(includeArchived: false) }
 
         let date = now()
@@ -161,7 +156,7 @@ public actor DeviceRecordingController {
         )
         try await store.perform {
             try await store.addRecordingPolicyChange(change)
-            try await store.setRecordingDevice(device.archived(at: date))
+            try await store.updateRecordingDevice(deviceID) { $0.archived(at: date) }
         }
         return try await configurationsLocked(includeArchived: false)
     }
@@ -218,19 +213,21 @@ public actor DeviceRecordingController {
         let needsAcknowledgement = device.lastAppliedPolicyChangeID != latest.id
             || device.status != status
         let needsPeriodicCheckIn = checkIn.timeIntervalSince(device.lastSeenAt) >= 15 * 60
-        let acknowledged = if needsAcknowledgement || needsPeriodicCheckIn {
-            device.acknowledging(
-                policyChangeID: latest.id,
-                status: status,
-                at: checkIn,
-            )
-        } else {
-            device
-        }
-        if acknowledged != device {
-            try await store.perform {
-                try await store.setRecordingDevice(acknowledged)
+        var acknowledged = device
+        if needsAcknowledgement || needsPeriodicCheckIn {
+            let updated = try await store.perform {
+                try await store.updateRecordingDevice(currentDevice.id) {
+                    $0.acknowledging(
+                        policyChangeID: latest.id,
+                        status: status,
+                        at: max($0.lastSeenAt, checkIn),
+                    )
+                }
             }
+            guard let updated else {
+                preconditionFailure("Current recording device disappeared during reconciliation.")
+            }
+            acknowledged = updated
         }
         return RecordingDeviceConfiguration(
             device: acknowledged,

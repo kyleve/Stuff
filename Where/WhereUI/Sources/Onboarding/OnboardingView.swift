@@ -322,13 +322,24 @@ public struct OnboardingView: View {
                 gate.fail(error)
                 return
             }
-            // This is also the initial synced policy for a newly registered
-            // installation. “Not Now” must therefore record false explicitly;
-            // leaving the old default true would make the next launch start
-            // recording despite the user's choice.
-            scope.preferences.wantsTracking = enableLocation
+            do {
+                // This is the explicit synced policy for this installation,
+                // not just the preference seed. A restored policy may already
+                // exist for the preserved installation id, and the user's new
+                // choice must supersede it before the gate resolves.
+                try await model.applyOnboardingRecordingChoice(
+                    enableLocation,
+                    in: scope,
+                )
+            } catch {
+                Self.logger(attachments: [.error(error, name: "recording-choice-error")]) {
+                    .recordingChoiceFailed(description: error.localizedDescription)
+                }
+                gate.fail(error)
+                return
+            }
             if enableLocation {
-                await enableTracking(in: scope)
+                await requestTrackingPermission(in: scope)
             }
             // Only commit when the user actually picked regions in the manual
             // flow. The restore path reaches here with an empty selection (it
@@ -353,13 +364,11 @@ public struct OnboardingView: View {
         }
     }
 
-    /// Record the tracking intent and drive the system prompt, so it maps 1:1
-    /// to the tap that asked for it. Only these two halves happen here: the
-    /// `sync-auth` and `reconcile-tracking` steps run as soon as the gate
-    /// resolves, and they are what read the granted authorization back and
-    /// actually start GPS.
-    private func enableTracking(in scope: WhereScope) async {
-        scope.preferences.wantsTracking = true
+    /// Drive the system prompt so it maps 1:1 to the tap that asked for it.
+    /// The synced choice is already committed; `sync-auth` and
+    /// `reconcile-tracking` run as soon as the gate resolves, read the granted
+    /// authorization back, and actually start GPS.
+    private func requestTrackingPermission(in scope: WhereScope) async {
         do {
             try await scope.services.ingestor.requestPermission()
         } catch {

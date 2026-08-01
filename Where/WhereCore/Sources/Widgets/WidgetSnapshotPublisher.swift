@@ -104,15 +104,22 @@ public actor WidgetSnapshotPublisher {
     }
 
     /// Rebuild after every store change imported from another process or
-    /// device. Local writes do not enter this stream: their journal/ingestor
-    /// paths already invoke the exact publish operation they need.
-    func startObservingExternalChanges(_ changes: AsyncStream<Void>) {
+    /// device. `beforePublishing` refreshes any live derived dependencies from
+    /// that same store state before the snapshot reads them. Local writes do not
+    /// enter this stream: their journal/ingestor paths already invoke the exact
+    /// publish operation they need.
+    func startObservingExternalChanges(
+        _ changes: AsyncStream<Void>,
+        beforePublishing: @escaping @Sendable () async -> Void,
+    ) {
         precondition(
             externalChangesTask == nil,
             "WidgetSnapshotPublisher external observation started twice",
         )
         externalChangesTask = Task { [weak self] in
             for await _ in changes {
+                guard Task.isCancelled == false else { return }
+                await beforePublishing()
                 guard Task.isCancelled == false else { return }
                 await self?.publish()
             }
@@ -122,8 +129,10 @@ public actor WidgetSnapshotPublisher {
     /// Stop the remote-import observer. Scope teardown normally reaches this
     /// through `deinit`; the explicit pair also makes lifecycle tests and a
     /// deliberate restart unambiguous.
-    func stopObservingExternalChanges() {
-        externalChangesTask?.cancel()
+    func stopObservingExternalChanges() async {
+        let task = externalChangesTask
+        task?.cancel()
+        await task?.value
         externalChangesTask = nil
     }
 

@@ -295,7 +295,10 @@ public struct WhereServices: Sendable {
         // commits already publish through the journal/ingestor paths; this
         // remote-only stream covers CloudKit and share-extension imports
         // without putting every GPS commit on a second full-rebuild path.
-        await services.widgets.startObservingExternalChanges(store.remoteChanges())
+        await services.widgets.startObservingExternalChanges(
+            store.remoteChanges(),
+            beforePublishing: { await attribution.reconcile() },
+        )
         return services
     }
 

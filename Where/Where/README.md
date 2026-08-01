@@ -51,11 +51,11 @@ with [`./Where/install`](../install) (macOS only, needs a signing team — see
 
 ## CloudKit rollout and device validation
 
-The app target owns `iCloud.com.stuff.where` plus the remote-notification
-background mode. Widgets and the share extension intentionally have only the
-App Group entitlement: they write/read local shared artifacts, while the app's
-single SwiftData container owns CloudKit mirroring. Debug uses `.localOnly`;
-exercise sync with a Release-signed build.
+The app target owns `iCloud.com.stuff.where` plus the platform APNs entitlement
+and remote-notification background mode. Widgets and the share extension
+intentionally have only the App Group entitlement: they write/read local shared
+artifacts, while the app's single SwiftData container owns CloudKit mirroring.
+Debug uses `.localOnly`; exercise sync with a Release-signed build.
 
 Before shipping a schema change:
 
