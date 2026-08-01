@@ -71,7 +71,6 @@ struct YearView: View {
                             systemImage: "square.and.arrow.up",
                         )
                     }
-                    .tint(.primary)
                     .accessibilityIdentifier("where_export_report_button")
                 }
             }
