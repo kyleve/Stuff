@@ -46,6 +46,8 @@ formatting, and repository-wide conventions.
 - Erase an open store through `ModelContainer.erase()`, remove its exact
   `recoveryStorageURLs`, then replace the actor's container with one reopened by
   the configured factory; honor cancellation only before destructive work.
+- Expose whole-store erase from `InspectorSwiftDataConfiguration` only when its
+  caller supplies a fresh-container factory.
 - Keep private SwiftData reflection in
   [`SwiftDataReflection.swift`](Sources/SwiftDataReflection.swift). Tables must
   not fault blobs or relationships merely to render.

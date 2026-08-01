@@ -54,9 +54,28 @@ struct InspectorSwiftDataMutationTests {
         let model = InspectorSwiftDataModel(configuration: configuration)
         await model.loadEntities()
 
+        #expect(model.canEraseStore)
         #expect(await model.eraseStore())
         #expect(model.entities.allSatisfy { $0.count == 0 })
         #expect(model.operationError == nil)
+    }
+
+    @Test func eraseIsUnavailableWithoutAFreshContainerFactory() async throws {
+        let container = try Self.makeContainer()
+        let context = container.mainContext
+        context.insert(MutationRecord(name: "kept"))
+        try context.save()
+        let model = InspectorSwiftDataModel(
+            configuration: InspectorSwiftDataConfiguration(container: container),
+        )
+        await model.loadEntities()
+        let countBeforeErase = try context.fetchCount(FetchDescriptor<MutationRecord>())
+
+        #expect(model.canEraseStore == false)
+        #expect(await model.eraseStore() == false)
+        #expect(model.mutationGeneration == 0)
+        #expect(model.operationError != nil)
+        #expect(try context.fetchCount(FetchDescriptor<MutationRecord>()) == countBeforeErase)
     }
 
     @Test func eraseRemovesConfiguredRecoveryStorage() async throws {

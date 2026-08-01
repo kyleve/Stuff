@@ -94,6 +94,8 @@ available for recovery instead of opening regular application stores.
 
 `InspectorSwiftDataView` and `InspectorSwiftDataConfiguration` remain available
 as the focused SwiftData component for previews or other developer surfaces.
+Its whole-store erase action is available only when the configuration supplies
+a factory that creates a fresh container.
 
 ## Destructive-operation rules
 

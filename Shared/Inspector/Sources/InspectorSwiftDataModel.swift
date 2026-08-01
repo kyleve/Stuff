@@ -13,12 +13,14 @@ final class InspectorSwiftDataModel {
     private(set) var entities: [InspectorEntity] = []
     private(set) var operationError: String?
     private(set) var mutationGeneration = 0
+    let canEraseStore: Bool
 
     private let displayTitle: String
     private let reader: InspectorSwiftDataStore
 
     init(configuration: InspectorSwiftDataConfiguration) {
         displayTitle = configuration.title
+        canEraseStore = configuration.makeContainer != nil
         reader = InspectorSwiftDataStore(
             container: configuration.container,
             modelTypes: configuration.modelTypes,
@@ -34,6 +36,7 @@ final class InspectorSwiftDataModel {
         store: InspectorSwiftDataStore,
     ) {
         displayTitle = source.title
+        canEraseStore = true
         reader = store
     }
 

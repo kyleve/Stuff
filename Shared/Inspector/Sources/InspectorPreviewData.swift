@@ -74,7 +74,11 @@
                 context.insert(book)
             }
             try? context.save()
-            return InspectorSwiftDataConfiguration(container: container, title: "Library")
+            return InspectorSwiftDataConfiguration(
+                container: container,
+                title: "Library",
+                makeContainer: { Self.makeContainer() },
+            )
         }
 
         /// A store the inspector sees as having no model types, so the preview
@@ -86,6 +90,7 @@
                 container: makeContainer(),
                 modelTypes: [],
                 title: "Library",
+                makeContainer: { makeContainer() },
             )
         }
 
@@ -112,8 +117,7 @@
             )
         }
 
-        @MainActor
-        private static func makeContainer() -> ModelContainer {
+        private nonisolated static func makeContainer() -> ModelContainer {
             let schema = Schema([InspectorPreviewBook.self, InspectorPreviewAuthor.self])
             let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
             // Previews can't recover from a broken in-memory store, so trap loudly.

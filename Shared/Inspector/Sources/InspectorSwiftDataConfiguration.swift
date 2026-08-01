@@ -35,7 +35,10 @@ public struct InspectorSwiftDataConfiguration {
     /// `@Sendable` because formatting runs on the background reader actor; keep
     /// it pure (don't capture main-actor state).
     public let valueFormatter: (@Sendable (Any) -> String?)?
-    let makeContainer: @Sendable () throws -> ModelContainer
+    /// A fresh-container factory enables the destructive whole-store action.
+    /// Without one, browsing and row deletion remain available but the store
+    /// cannot be discarded and reopened safely.
+    let makeContainer: (@Sendable () throws -> ModelContainer)?
 
     public init(
         container: ModelContainer,
@@ -50,7 +53,7 @@ public struct InspectorSwiftDataConfiguration {
         self.title = title
         self.rowLimit = rowLimit
         self.valueFormatter = valueFormatter
-        self.makeContainer = makeContainer ?? { container }
+        self.makeContainer = makeContainer
     }
 }
 

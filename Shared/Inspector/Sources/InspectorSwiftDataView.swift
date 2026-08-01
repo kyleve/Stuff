@@ -46,24 +46,26 @@ public struct InspectorSwiftDataView: View {
         .task { await model.loadEntities() }
         .refreshable { await model.loadEntities() }
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button(
-                    "Erase Store",
-                    systemImage: "externaldrive.badge.xmark",
-                    role: .destructive,
-                ) {
-                    isConfirmingStoreErase = true
-                }
-                .confirmationDialog(
-                    "Erase the complete SwiftData store?",
-                    isPresented: $isConfirmingStoreErase,
-                    titleVisibility: .visible,
-                ) {
-                    Button("Erase Store", role: .destructive) {
-                        Task { _ = await model.eraseStore() }
+            if model.canEraseStore {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(
+                        "Erase Store",
+                        systemImage: "externaldrive.badge.xmark",
+                        role: .destructive,
+                    ) {
+                        isConfirmingStoreErase = true
                     }
-                } message: {
-                    Text("Every entity and row will be removed. This cannot be undone.")
+                    .confirmationDialog(
+                        "Erase the complete SwiftData store?",
+                        isPresented: $isConfirmingStoreErase,
+                        titleVisibility: .visible,
+                    ) {
+                        Button("Erase Store", role: .destructive) {
+                            Task { _ = await model.eraseStore() }
+                        }
+                    } message: {
+                        Text("Every entity and row will be removed. This cannot be undone.")
+                    }
                 }
             }
         }

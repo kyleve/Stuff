@@ -25,6 +25,7 @@ struct InspectorSnapshotTests {
                     title: "SwiftData",
                     rowLimit: 500,
                     valueFormatter: nil,
+                    makeContainer: { try Self.emptyContainer() },
                 ),
             )
         }

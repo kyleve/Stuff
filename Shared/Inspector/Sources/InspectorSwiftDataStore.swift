@@ -15,7 +15,7 @@ actor InspectorSwiftDataStore {
     private let modelTypes: [any PersistentModel.Type]?
     private let rowLimit: Int?
     private let valueFormatter: (@Sendable (Any) -> String?)?
-    private let makeContainer: @Sendable () throws -> ModelContainer
+    private let makeContainer: (@Sendable () throws -> ModelContainer)?
     private let recoveryStorage: InspectorSwiftDataStoreFamily.RecoveryStorage?
     private let fileManager = FileManager()
 
@@ -24,7 +24,7 @@ actor InspectorSwiftDataStore {
         modelTypes: [any PersistentModel.Type]?,
         rowLimit: Int?,
         valueFormatter: (@Sendable (Any) -> String?)?,
-        makeContainer: @escaping @Sendable () throws -> ModelContainer,
+        makeContainer: (@Sendable () throws -> ModelContainer)?,
         recoveryStorage: InspectorSwiftDataStoreFamily.RecoveryStorage?,
     ) {
         self.container = container
@@ -204,6 +204,9 @@ actor InspectorSwiftDataStore {
     /// Erase the complete store using SwiftData's supported API, then replace
     /// this actor's only container reference with a newly opened empty one.
     func eraseAndReopen() throws -> [URL] {
+        guard let makeContainer else {
+            throw InspectorSwiftDataStoreError.erasureUnavailable
+        }
         var erasedContainer: ModelContainer? = try openContainer()
         let reopened = try Self.performEraseAndReopen(
             erase: {
@@ -376,8 +379,14 @@ actor InspectorSwiftDataStore {
 
 private enum InspectorSwiftDataStoreError: LocalizedError {
     case containerUnavailable
+    case erasureUnavailable
 
     var errorDescription: String? {
-        "The SwiftData store is unavailable. Reopen Inspector to try again."
+        switch self {
+            case .containerUnavailable:
+                "The SwiftData store is unavailable. Reopen Inspector to try again."
+            case .erasureUnavailable:
+                "This store cannot be erased because no fresh-container factory was configured."
+        }
     }
 }
