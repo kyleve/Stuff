@@ -266,8 +266,8 @@ public final class WhereBootstrap: WhereScopeAssembling {
     public func makeServices() async throws -> WhereServices {
         let source = locationSource ?? CoreLocationSource()
         locationSource = nil
-        let currentDevice = CurrentRecordingDeviceProvider.current(defaults: .standard)
         do {
+            let currentDevice = try CurrentRecordingDeviceProvider.current()
             let store = try await Task.detached(priority: .userInitiated) {
                 try SwiftDataStore.make()
             }.value
