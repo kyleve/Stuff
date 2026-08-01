@@ -22,7 +22,8 @@ formatting, and repository-wide conventions.
 
 ## Invariants
 
-- Never permit deletion of a configured filesystem root.
+- Never permit deletion of a configured filesystem root or an ancestor that
+  contains one.
 - Resolve every configured SwiftData source before enabling filesystem
   deletion; protect its store family, exact `recoveryStorageURLs`, and
   containing ancestors, or disable deletion in the unresolved storage tree.

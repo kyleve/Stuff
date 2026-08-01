@@ -41,15 +41,18 @@ enum InspectorFileSystemError: LocalizedError, Equatable {
 /// Performs all directory enumeration and deletion away from the main actor and
 /// owns the path-containment rules for destructive operations.
 actor InspectorFileSystem {
+    private let configuredContainerRoots: [URL]
     private let protectedStoreURLs: [URL]
     private let unresolvedProtectionRoots: [URL]
     private let fileManager: FileManager
 
     init(
+        configuredContainerRoots: [URL],
         protectedStoreURLs: [URL],
         unresolvedProtectionRoots: [URL],
         fileManager: FileManager = .default,
     ) {
+        self.configuredContainerRoots = configuredContainerRoots.map(\.standardizedFileURL)
         self.protectedStoreURLs = protectedStoreURLs.map(\.standardizedFileURL)
         self.unresolvedProtectionRoots = unresolvedProtectionRoots.map(\.standardizedFileURL)
         self.fileManager = fileManager
@@ -133,7 +136,11 @@ actor InspectorFileSystem {
         if let error = containmentError(for: target, containerRoot: root) {
             return error
         }
-        if target.standardizedFileURL == root.standardizedFileURL {
+        if target.standardizedFileURL == root.standardizedFileURL
+            || configuredContainerRoots.contains(where: { configuredRoot in
+                target == configuredRoot || target.isAncestor(of: configuredRoot)
+            })
+        {
             return .containerRoot
         }
         if unresolvedProtectionRoots.contains(where: { unresolvedRoot in

@@ -170,6 +170,7 @@ final class InspectorModel {
             return source.storageRootURL
         }
         fileSystem = InspectorFileSystem(
+            configuredContainerRoots: configuration.fileContainers.map(\.rootURL),
             protectedStoreURLs: protectedStoreURLs,
             unresolvedProtectionRoots: unresolvedProtectionRoots,
         )

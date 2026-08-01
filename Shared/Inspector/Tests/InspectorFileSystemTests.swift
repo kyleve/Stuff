@@ -13,6 +13,7 @@ struct InspectorFileSystemTests {
         )
         try Data("payload".utf8).write(to: nested.appending(path: ".hidden"))
         let fileSystem = InspectorFileSystem(
+            configuredContainerRoots: [fixture.root],
             protectedStoreURLs: [],
             unresolvedProtectionRoots: [],
         )
@@ -37,6 +38,7 @@ struct InspectorFileSystemTests {
         let fixture = try DirectoryFixture()
         defer { fixture.cleanup() }
         let fileSystem = InspectorFileSystem(
+            configuredContainerRoots: [fixture.root],
             protectedStoreURLs: [],
             unresolvedProtectionRoots: [],
         )
@@ -90,6 +92,7 @@ struct InspectorFileSystemTests {
             try Data().write(to: directory.appending(path: "external"))
         }
         let fileSystem = InspectorFileSystem(
+            configuredContainerRoots: [fixture.root],
             protectedStoreURLs: [store],
             unresolvedProtectionRoots: [],
         )
@@ -133,6 +136,7 @@ struct InspectorFileSystemTests {
         try FileManager.default.createDirectory(at: storage, withIntermediateDirectories: true)
         try Data().write(to: unrelated)
         let fileSystem = InspectorFileSystem(
+            configuredContainerRoots: [fixture.root],
             protectedStoreURLs: [],
             unresolvedProtectionRoots: [storage],
         )
@@ -162,6 +166,7 @@ struct InspectorFileSystemTests {
             withDestinationURL: outside.root,
         )
         let fileSystem = InspectorFileSystem(
+            configuredContainerRoots: [fixture.root],
             protectedStoreURLs: [],
             unresolvedProtectionRoots: [],
         )
@@ -177,6 +182,46 @@ struct InspectorFileSystemTests {
         await #expect(throws: InspectorFileSystemError.outsideContainer) {
             try await fileSystem.previewURL(for: linkItem, in: fixture.container)
         }
+    }
+
+    @Test func protectsNestedConfiguredRootsAndTheirAncestors() async throws {
+        let fixture = try DirectoryFixture()
+        defer { fixture.cleanup() }
+        let parent = fixture.root.appending(path: "Parent", directoryHint: .isDirectory)
+        let nestedRoot = parent.appending(path: "Nested", directoryHint: .isDirectory)
+        let sibling = fixture.root.appending(path: "sibling")
+        try FileManager.default.createDirectory(
+            at: nestedRoot,
+            withIntermediateDirectories: true,
+        )
+        try Data("keep".utf8).write(to: nestedRoot.appending(path: "value"))
+        try Data("delete".utf8).write(to: sibling)
+        let nestedContainer = InspectorConfiguration.FileContainer(
+            id: .init(rawValue: "nested"),
+            title: "Nested",
+            rootURL: nestedRoot,
+        )
+        let fileSystem = InspectorFileSystem(
+            configuredContainerRoots: [fixture.root, nestedContainer.rootURL],
+            protectedStoreURLs: [],
+            unresolvedProtectionRoots: [],
+        )
+        let rootItems = try await fileSystem.contents(of: fixture.root, in: fixture.container)
+        let parentItem = try #require(rootItems.first { $0.name == "Parent" })
+        let siblingItem = try #require(rootItems.first { $0.name == "sibling" })
+        let parentItems = try await fileSystem.contents(of: parent, in: fixture.container)
+        let nestedItem = try #require(parentItems.first { $0.name == "Nested" })
+
+        #expect(parentItem.deletionProhibition != nil)
+        #expect(nestedItem.deletionProhibition != nil)
+        await #expect(throws: InspectorFileSystemError.containerRoot) {
+            try await fileSystem.delete(parentItem, in: fixture.container)
+        }
+        await #expect(throws: InspectorFileSystemError.containerRoot) {
+            try await fileSystem.delete(nestedItem, in: fixture.container)
+        }
+        try await fileSystem.delete(siblingItem, in: fixture.container)
+        #expect(FileManager.default.fileExists(atPath: sibling.path()) == false)
     }
 }
 

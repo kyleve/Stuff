@@ -99,9 +99,10 @@ a factory that creates a fresh container.
 
 ## Destructive-operation rules
 
-Inspector never deletes a configured file root. Before file deletion becomes
-available, it opens every SwiftData source and obtains the live store URLs. It
-then protects each SQLite store, its WAL/SHM/support family, its exact
+Inspector never deletes a configured file root or an ancestor containing one.
+Before file deletion becomes available, it opens every SwiftData source and
+obtains the live store URLs. It then protects each SQLite store, its
+WAL/SHM/support family, its exact
 `recoveryStorageURLs`, and any ancestor whose recursive deletion would contain
 them. If a source cannot open, generic file deletion is disabled in its
 declared storage tree while unrelated containers remain usable. Canonical-path
