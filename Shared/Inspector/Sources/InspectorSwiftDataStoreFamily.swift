@@ -101,24 +101,7 @@ struct InspectorSwiftDataStoreFamily {
             return
         }
 
-        let storeName = storeURL.lastPathComponent
-        let configurationName = storeURL.deletingPathExtension().lastPathComponent
-        let memberNames = [
-            storeName,
-            "\(storeName)-wal",
-            "\(storeName)-shm",
-            "\(storeName)-journal",
-            // SwiftData's external-storage directory is named from the
-            // configuration (`.Periscope_SUPPORT` for `Periscope.store`),
-            // not from the complete SQLite filename. Keep the older explicit
-            // filename variants too for stores produced by other OS releases.
-            ".\(configurationName)_SUPPORT",
-            ".\(configurationName)_ckAssets",
-            ".\(configurationName)_ckAssetFiles",
-            "\(storeName)_SUPPORT",
-            "\(storeName)_ckAssets",
-            "\(storeName)_ckAssetFiles",
-        ]
+        let memberNames = Self.knownMemberNames(for: storeURL)
         let memberNameSet = Set(memberNames)
         let storeMembers = try fileManager.contentsOfDirectory(
             at: parent,
@@ -168,6 +151,30 @@ struct InspectorSwiftDataStoreFamily {
         try recoveryStorage.erase(using: fileManager)
     }
 
+    /// Exact family names SwiftData has used beside a configured SQLite store.
+    /// Shared by recovery deletion and generic-file protection so support paths
+    /// cannot be deletable merely because their OS-specific name changed shape.
+    static func knownMemberNames(for storeURL: URL) -> [String] {
+        let storeName = storeURL.lastPathComponent
+        let configurationName = storeURL.deletingPathExtension().lastPathComponent
+        return [
+            storeName,
+            "\(storeName)-wal",
+            "\(storeName)-shm",
+            "\(storeName)-journal",
+            // SwiftData's external-storage directory is named from the
+            // configuration (`.Periscope_SUPPORT` for `Periscope.store`),
+            // not from the complete SQLite filename. Keep the older explicit
+            // filename variants too for stores produced by other OS releases.
+            ".\(configurationName)_SUPPORT",
+            ".\(configurationName)_ckAssets",
+            ".\(configurationName)_ckAssetFiles",
+            "\(storeName)_SUPPORT",
+            "\(storeName)_ckAssets",
+            "\(storeName)_ckAssetFiles",
+        ]
+    }
+
     private func validate() throws {
         let parent = storeURL.deletingLastPathComponent()
         let resolvedRoot = storageRootURL.resolvingSymlinksInPath()
@@ -211,6 +218,8 @@ extension URL {
         guard let familyMember = relativeComponents.first else {
             return false
         }
+        let knownMemberNames = Set(InspectorSwiftDataStoreFamily.knownMemberNames(for: storeURL))
         return familyMember.hasPrefix(storeURL.lastPathComponent)
+            || knownMemberNames.contains(familyMember)
     }
 }

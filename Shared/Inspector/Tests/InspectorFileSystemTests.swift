@@ -68,11 +68,27 @@ struct InspectorFileSystemTests {
         try FileManager.default.createDirectory(at: storage, withIntermediateDirectories: true)
         let store = storage.appending(path: "default.store")
         let wal = storage.appending(path: "default.store-wal")
-        let support = storage.appending(path: "default.store_SUPPORT", directoryHint: .isDirectory)
+        let hiddenSupport = storage.appending(
+            path: ".default_SUPPORT",
+            directoryHint: .isDirectory,
+        )
+        let hiddenCloudKitAssets = storage.appending(
+            path: ".default_ckAssets",
+            directoryHint: .isDirectory,
+        )
+        let hiddenCloudKitAssetFiles = storage.appending(
+            path: ".default_ckAssetFiles",
+            directoryHint: .isDirectory,
+        )
         try Data().write(to: store)
         try Data().write(to: wal)
-        try FileManager.default.createDirectory(at: support, withIntermediateDirectories: true)
-        try Data().write(to: support.appending(path: "external"))
+        for directory in [hiddenSupport, hiddenCloudKitAssets, hiddenCloudKitAssetFiles] {
+            try FileManager.default.createDirectory(
+                at: directory,
+                withIntermediateDirectories: true,
+            )
+            try Data().write(to: directory.appending(path: "external"))
+        }
         let fileSystem = InspectorFileSystem(
             protectedStoreURLs: [store],
             unresolvedProtectionRoots: [],
@@ -89,7 +105,17 @@ struct InspectorFileSystemTests {
 
         #expect(storageItem.deletionProhibition != nil)
         #expect(storageItems.allSatisfy { $0.deletionProhibition != nil })
+        let supportItems = try await fileSystem.contents(
+            of: hiddenSupport,
+            in: fixture.container,
+        )
+        #expect(supportItems.allSatisfy { $0.deletionProhibition != nil })
         for item in storageItems {
+            await #expect(throws: InspectorFileSystemError.protectedSwiftDataStore) {
+                try await fileSystem.delete(item, in: fixture.container)
+            }
+        }
+        for item in supportItems {
             await #expect(throws: InspectorFileSystemError.protectedSwiftDataStore) {
                 try await fileSystem.delete(item, in: fixture.container)
             }
