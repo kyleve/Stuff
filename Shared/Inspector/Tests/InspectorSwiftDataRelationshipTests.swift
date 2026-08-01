@@ -74,6 +74,42 @@ struct InspectorSwiftDataRelationshipTests {
         #expect(related.rows.allSatisfy { ($0.cells["name"]?.hasPrefix("C")) == true })
     }
 
+    @Test func relatedRowsRefreshAfterDeletingARelatedRow() async throws {
+        let container = try makeFamilyContainer()
+        let context = container.mainContext
+        let parent = TestParent(label: "P")
+        let children = [TestChild(name: "A"), TestChild(name: "B")]
+        context.insert(parent)
+        for child in children {
+            context.insert(child)
+        }
+        parent.children = children
+        try context.save()
+        let model = InspectorSwiftDataModel(
+            configuration: InspectorSwiftDataConfiguration(container: container),
+        )
+        await model.loadEntities()
+        let parentEntity = try #require(model.entities.first { $0.name == "TestParent" })
+        let parentRow = try #require(try await model.rows(for: parentEntity).rows.first)
+        let initialRelated = try await model.relatedRows(
+            of: parentRow.persistentID,
+            relationship: "children",
+            sourceType: parentEntity.type,
+        )
+        let childEntity = try #require(initialRelated.entity)
+        let deletedRow = try #require(initialRelated.rows.first)
+
+        #expect(await model.delete(rowID: deletedRow.persistentID, from: childEntity))
+        let refreshed = try await model.relatedRows(
+            of: parentRow.persistentID,
+            relationship: "children",
+            sourceType: parentEntity.type,
+        )
+
+        #expect(refreshed.rows.count == 1)
+        #expect(refreshed.rows.contains { $0.persistentID == deletedRow.persistentID } == false)
+    }
+
     @Test func resolvesToOneRelationshipIntoSingleRow() async throws {
         let container = try makeFamilyContainer()
         let context = container.mainContext

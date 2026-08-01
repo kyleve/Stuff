@@ -6,8 +6,9 @@ import SwiftUI
 ///
 /// A to-one relationship drills straight into the single related row's detail; a
 /// to-many lists the related rows, each of which drills into its own detail —
-/// so a graph can be browsed to any depth. An empty or unreadable relationship
-/// shows an empty state.
+/// so a graph can be browsed to any depth. Successful mutations re-resolve the
+/// relationship before presenting its rows again. An empty or unreadable
+/// relationship shows an empty state.
 struct RelationshipView: View {
     let model: InspectorSwiftDataModel
     let sourceEntity: InspectorEntity
@@ -27,7 +28,7 @@ struct RelationshipView: View {
         }
         .navigationTitle(relationshipName)
         .navigationBarTitleDisplayMode(.inline)
-        .task { await load() }
+        .task(id: model.mutationGeneration) { await load() }
     }
 
     private func load() async {
