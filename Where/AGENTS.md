@@ -206,9 +206,9 @@ App Group JSON used by widgets and the native `WhereMenuBar` login item. The
 document carries both the widget's domain snapshot and a presentation-ready
 `WhereSurfaceSnapshot`; lightweight hosts import only `WhereSurface`, retain
 the last good document when a read fails, and never open SwiftData, CloudKit,
-or CoreLocation. A successful atomic publish posts the advisory Darwin
-notification before WidgetKit reloads so the helper can refresh without
-polling.
+or CoreLocation. Every read and atomic publish uses `NSFileCoordinator`; a
+successful publish posts the advisory Darwin notification before WidgetKit
+reloads so the helper can refresh without polling.
 
 ## Localization
 

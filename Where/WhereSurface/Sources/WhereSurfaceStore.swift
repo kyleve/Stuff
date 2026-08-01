@@ -37,10 +37,7 @@ public struct WhereSurfaceStore: Sendable, WhereSurfaceReading {
 
     public func read() throws -> WhereSurfaceDocument? {
         let fileURL = directory.appending(path: Self.snapshotFileName)
-        guard FileManager.default.fileExists(atPath: fileURL.path) else {
-            return nil
-        }
-        let data = try Data(contentsOf: fileURL)
+        guard let data = try WhereSurfaceFileCoordinator().read(from: fileURL) else { return nil }
         return try JSONDecoder().decode(WhereSurfaceDocument.self, from: data)
     }
 }

@@ -121,9 +121,9 @@ one it belongs to rather than to a god-object:
   widgets and the native menu bar helper. It carries the widget's domain data
   plus a presentation-ready `WhereSurfaceSnapshot`, coalesces concurrent
   requests into one final rebuild, republishes immediately for CloudKit/share
-  extension imports, and only caches a successful atomic write as fresh. The
-  base app and its derived App Intents stack share this publisher so their
-  local write paths cannot leave competing hot-path caches.
+  extension imports, and only caches a successful coordinated atomic write as
+  fresh. The base app and its derived App Intents stack share this publisher so
+  their local write paths cannot leave competing hot-path caches.
 - **`BackupCoordinator`** — whole-database export / import (a ZIP archive, via
   `ZIPFoundation`).
 - **`RecentActivitySummarizer`** — an on-device Foundation Models narrative over

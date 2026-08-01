@@ -18,8 +18,10 @@ file complements the root [`AGENTS.md`](../../AGENTS.md) and feature
 
 - Keep `generatedAt` and `surface` optional in `WhereSurfaceDocument` so
   snapshots from older app versions decode.
-- Treat `WhereSurfaceChangeNotification` as advisory and the atomically
-  replaced JSON file as authoritative.
+- Coordinate every artifact read and atomic replacement through
+  `WhereSurfaceFileCoordinator`.
+- Treat `WhereSurfaceChangeNotification` as advisory and the JSON file as
+  authoritative.
 - Preserve the last successfully decoded payload when a later refresh fails.
 
 ## Testing

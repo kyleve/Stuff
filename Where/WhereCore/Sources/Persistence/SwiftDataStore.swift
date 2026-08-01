@@ -115,10 +115,10 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         }
     }
 
-    /// App Group the on-disk store lives in, shared by the Where app, its
-    /// widget extension, and the share extension so every process opens the
-    /// *same* SwiftData store. Must match the `com.apple.security.application-groups`
-    /// entitlement each of those targets declares (see `Project.swift`).
+    /// App Group the on-disk store lives in, shared by the Where app and share
+    /// extension so both processes open the *same* SwiftData store. Widgets and
+    /// the menu-bar helper hold the same App Group entitlement only to read the
+    /// published glance artifact. See `Project.swift`.
     public static let appGroupIdentifier = "group.com.stuff.where"
 
     public static func makeContainer(storage: Storage) throws -> ModelContainer {

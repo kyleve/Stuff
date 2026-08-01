@@ -18,6 +18,8 @@ links `WhereCore`, `RegionKit`, SwiftData, CloudKit, or location services.
   app versions.
 - `WhereSurfaceStore` resolves `group.com.stuff.where` and provides read-only
   access to `widget-snapshot.json`.
+- `WhereSurfaceFileCoordinator` coordinates every artifact read and atomic
+  replacement across the app, widget, and helper processes.
 - `WhereSurfaceChangeNotification` is an advisory Darwin notification. The
   JSON file is always authoritative.
 
@@ -27,6 +29,6 @@ for an explicit user action.
 
 ## Testing
 
-`WhereSurfaceTests` covers wire compatibility, Foundation-only decoding, and
-file reads. The app's WhereCore tests cover construction, ranking, and
-publication of the payload from real domain data.
+`WhereSurfaceTests` covers wire compatibility, Foundation-only decoding,
+coordinated file access, and reads. The app's WhereCore tests cover
+construction, ranking, and publication of the payload from real domain data.

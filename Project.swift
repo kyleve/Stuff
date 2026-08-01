@@ -36,10 +36,10 @@ private let projectSettings: Settings = .settings(
         ],
 )
 
-/// App Group shared by the Where app, its widget extension, and its share
-/// extension so every process sees the same on-disk SwiftData store (see
-/// `SwiftDataStore.appGroupIdentifier`, which must match) and the widget
-/// snapshot JSON.
+/// App Group shared by the Where app and its supporting processes. The app and
+/// share extension open the on-disk SwiftData store (see
+/// `SwiftDataStore.appGroupIdentifier`); widgets and the menu-bar helper read
+/// only the coordinated snapshot JSON.
 let whereAppGroupEntitlements: Entitlements = .dictionary([
     "com.apple.security.application-groups": .array([.string("group.com.stuff.where")]),
 ])

@@ -22,8 +22,8 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
 ## Refresh contract
 
 1. App commits a store change → `WidgetSnapshotPublisher` rebuilds the
-   snapshot → atomically writes JSON → posts the advisory WhereSurface Darwin
-   notification → calls `WidgetCenter.reloadAllTimelines()`.
+   snapshot → coordinates an atomic JSON write → posts the advisory
+   WhereSurface Darwin notification → calls `WidgetCenter.reloadAllTimelines()`.
 2. The provider reads the JSON on each timeline request and schedules
    `.after(nextMidnight)` so WidgetKit re-queries even without an app reload.
 
