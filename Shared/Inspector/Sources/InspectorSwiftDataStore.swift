@@ -16,6 +16,8 @@ actor InspectorSwiftDataStore {
     private let rowLimit: Int?
     private let valueFormatter: (@Sendable (Any) -> String?)?
     private let makeContainer: @Sendable () throws -> ModelContainer
+    private let recoveryStorage: InspectorSwiftDataStoreFamily.RecoveryStorage?
+    private let fileManager = FileManager()
 
     init(
         container: ModelContainer,
@@ -23,12 +25,14 @@ actor InspectorSwiftDataStore {
         rowLimit: Int?,
         valueFormatter: (@Sendable (Any) -> String?)?,
         makeContainer: @escaping @Sendable () throws -> ModelContainer,
+        recoveryStorage: InspectorSwiftDataStoreFamily.RecoveryStorage?,
     ) {
         self.container = container
         self.modelTypes = modelTypes
         self.rowLimit = rowLimit
         self.valueFormatter = valueFormatter
         self.makeContainer = makeContainer
+        self.recoveryStorage = recoveryStorage
     }
 
     init(source: InspectorConfiguration.SwiftDataSource) throws {
@@ -37,6 +41,10 @@ actor InspectorSwiftDataStore {
         rowLimit = source.rowLimit
         valueFormatter = source.valueFormatter
         makeContainer = source.makeContainer
+        recoveryStorage = InspectorSwiftDataStoreFamily.RecoveryStorage(
+            storageRootURL: source.storageRootURL,
+            urls: source.recoveryStorageURLs,
+        )
     }
 
     var storeURLs: [URL] {
@@ -199,6 +207,7 @@ actor InspectorSwiftDataStore {
         try Task.checkCancellation()
         var erasedContainer: ModelContainer? = try openContainer()
         try erasedContainer?.erase()
+        try recoveryStorage?.erase(using: fileManager)
         container = nil
         erasedContainer = nil
         try Task.checkCancellation()

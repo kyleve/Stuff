@@ -90,9 +90,10 @@ extension InspectorConfiguration {
         /// confirmed store-family erase if the container cannot open.
         public let storeURL: URL?
         /// Additional durable files or directories that must be erased with
-        /// an unreadable store for recovery to produce a genuinely fresh
-        /// source. Every URL must be a strict descendant of
-        /// ``storageRootURL``; Inspector deletes only these exact paths.
+        /// the store for a complete erase or unreadable-store recovery to
+        /// produce a genuinely fresh source. Every URL must be a strict
+        /// descendant of ``storageRootURL``; Inspector deletes only these exact
+        /// paths.
         public let recoveryStorageURLs: [URL]
         public let modelTypes: [any PersistentModel.Type]?
         public let rowLimit: Int?

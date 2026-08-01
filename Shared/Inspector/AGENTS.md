@@ -43,8 +43,9 @@ formatting, and repository-wide conventions.
 - Keep every SwiftData context and model instance on
   `InspectorSwiftDataStore`; only value snapshots and persistent identifiers
   cross to the main actor.
-- Erase an open store through `ModelContainer.erase()`, then replace the
-  actor's container with one reopened by the configured factory.
+- Erase an open store through `ModelContainer.erase()`, remove its exact
+  `recoveryStorageURLs`, then replace the actor's container with one reopened by
+  the configured factory.
 - Keep private SwiftData reflection in
   [`SwiftDataReflection.swift`](Sources/SwiftDataReflection.swift). Tables must
   not fault blobs or relationships merely to render.

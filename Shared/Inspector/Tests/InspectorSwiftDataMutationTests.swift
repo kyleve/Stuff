@@ -59,6 +59,38 @@ struct InspectorSwiftDataMutationTests {
         #expect(model.operationError == nil)
     }
 
+    @Test func eraseRemovesConfiguredRecoveryStorage() async throws {
+        let rootURL = FileManager.default.temporaryDirectory.appending(
+            path: "inspector-open-store-erase-\(UUID().uuidString)",
+            directoryHint: .isDirectory,
+        )
+        try FileManager.default.createDirectory(at: rootURL, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: rootURL) }
+        let storeURL = rootURL.appending(path: "database.store")
+        let recoveryURL = rootURL.appending(path: "Recovery", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(
+            at: recoveryURL,
+            withIntermediateDirectories: true,
+        )
+        try Data("pending".utf8).write(to: recoveryURL.appending(path: "journal"))
+        let source = InspectorConfiguration.SwiftDataSource(
+            id: .init(rawValue: "test"),
+            title: "Test",
+            storageRootURL: rootURL,
+            recoveryStorageURLs: [recoveryURL],
+            modelTypes: [MutationRecord.self, MutationOther.self],
+            makeContainer: { try Self.makeContainer(at: storeURL) },
+        )
+        let store = try InspectorSwiftDataStore(source: source)
+
+        _ = try await store.eraseAndReopen()
+
+        #expect(
+            FileManager.default.fileExists(atPath: recoveryURL.path(percentEncoded: false))
+                == false,
+        )
+    }
+
     @Test func cancelledDeletionLeavesTheStoreAndPublishedStateUnchanged() async throws {
         let container = try Self.makeContainer()
         let context = container.mainContext
@@ -84,6 +116,16 @@ struct InspectorSwiftDataMutationTests {
     private nonisolated static func makeContainer() throws -> ModelContainer {
         let schema = Schema([MutationRecord.self, MutationOther.self])
         let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+        return try ModelContainer(for: schema, configurations: [configuration])
+    }
+
+    private nonisolated static func makeContainer(at storeURL: URL) throws -> ModelContainer {
+        let schema = Schema([MutationRecord.self, MutationOther.self])
+        let configuration = ModelConfiguration(
+            schema: schema,
+            url: storeURL,
+            cloudKitDatabase: .none,
+        )
         return try ModelContainer(for: schema, configurations: [configuration])
     }
 }

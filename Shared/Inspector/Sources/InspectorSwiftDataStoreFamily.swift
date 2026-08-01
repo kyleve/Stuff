@@ -24,9 +24,60 @@ struct InspectorSwiftDataStoreFamily {
         }
     }
 
+    /// Exact app-owned auxiliary storage that must be removed with a complete
+    /// store erase, independently of whether raw recovery has a store URL.
+    struct RecoveryStorage {
+        let storageRootURL: URL
+        let urls: [URL]
+
+        init(storageRootURL: URL, urls: [URL]) {
+            self.storageRootURL = storageRootURL.standardizedFileURL
+            self.urls = urls.map(\.standardizedFileURL)
+        }
+
+        func erase(using fileManager: FileManager) throws {
+            try validate()
+
+            for url in urls where fileManager.fileExists(
+                atPath: url.path(percentEncoded: false),
+            ) {
+                try fileManager.removeItem(at: url)
+            }
+
+            let remainingMemberNames = urls.compactMap { member -> String? in
+                guard fileManager.fileExists(atPath: member.path(percentEncoded: false)) else {
+                    return nil
+                }
+                return member.lastPathComponent
+            }
+            guard remainingMemberNames.isEmpty else {
+                throw Failure.incompleteErasure(remainingMemberNames)
+            }
+        }
+
+        func validate() throws {
+            let resolvedRoot = storageRootURL.resolvingSymlinksInPath()
+            for url in urls {
+                let resolvedURL = url.resolvingSymlinksInPath()
+                let resolvedParent = url.deletingLastPathComponent()
+                    .resolvingSymlinksInPath()
+                let resolvedParentIsInsideRoot = resolvedParent == resolvedRoot
+                    || resolvedParent.isDescendant(of: resolvedRoot)
+                guard url.isFileURL,
+                      url != storageRootURL,
+                      url.isDescendant(of: storageRootURL),
+                      resolvedURL.isDescendant(of: resolvedRoot),
+                      resolvedParentIsInsideRoot
+                else {
+                    throw Failure.invalidConfiguration
+                }
+            }
+        }
+    }
+
     let storeURL: URL
     let storageRootURL: URL
-    let recoveryStorageURLs: [URL]
+    let recoveryStorage: RecoveryStorage
 
     init(
         storeURL: URL,
@@ -35,7 +86,10 @@ struct InspectorSwiftDataStoreFamily {
     ) {
         self.storeURL = storeURL.standardizedFileURL
         self.storageRootURL = storageRootURL.standardizedFileURL
-        self.recoveryStorageURLs = recoveryStorageURLs.map(\.standardizedFileURL)
+        recoveryStorage = RecoveryStorage(
+            storageRootURL: storageRootURL,
+            urls: recoveryStorageURLs,
+        )
     }
 
     func erase(using fileManager: FileManager) throws {
@@ -71,7 +125,7 @@ struct InspectorSwiftDataStoreFamily {
             includingPropertiesForKeys: nil,
         )
         .filter { memberNameSet.contains($0.lastPathComponent) }
-        let recoveryMembers = recoveryStorageURLs.filter {
+        let recoveryMembers = recoveryStorage.urls.filter {
             fileManager.fileExists(atPath: $0.path(percentEncoded: false))
         }
         let members = Array(Set(storeMembers + recoveryMembers))
@@ -95,7 +149,7 @@ struct InspectorSwiftDataStoreFamily {
         }
 
         let knownMembers = memberNames.map { parent.appending(path: $0) }
-            + recoveryStorageURLs
+            + recoveryStorage.urls
         let remainingMemberNames = knownMembers.compactMap { member -> String? in
             guard fileManager.fileExists(atPath: member.path(percentEncoded: false)) else {
                 return nil
@@ -105,6 +159,13 @@ struct InspectorSwiftDataStoreFamily {
         guard remainingMemberNames.isEmpty else {
             throw Failure.incompleteErasure(remainingMemberNames)
         }
+    }
+
+    /// Delete only the app-declared auxiliary recovery storage, leaving the
+    /// SQLite family for `ModelContainer.erase()` to manage while a store is
+    /// open.
+    func eraseRecoveryStorage(using fileManager: FileManager) throws {
+        try recoveryStorage.erase(using: fileManager)
     }
 
     private func validate() throws {
@@ -119,19 +180,7 @@ struct InspectorSwiftDataStoreFamily {
         else {
             throw Failure.invalidConfiguration
         }
-        for recoveryURL in recoveryStorageURLs {
-            let resolvedURL = recoveryURL.resolvingSymlinksInPath()
-            let resolvedParent = recoveryURL.deletingLastPathComponent()
-                .resolvingSymlinksInPath()
-            guard recoveryURL.isFileURL,
-                  recoveryURL != storageRootURL,
-                  recoveryURL.isDescendant(of: storageRootURL),
-                  resolvedURL.isDescendant(of: resolvedRoot),
-                  resolvedParent == resolvedRoot || resolvedParent.isDescendant(of: resolvedRoot)
-            else {
-                throw Failure.invalidConfiguration
-            }
-        }
+        try recoveryStorage.validate()
     }
 }
 

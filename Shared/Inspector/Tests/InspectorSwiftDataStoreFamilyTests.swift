@@ -117,6 +117,35 @@ struct InspectorSwiftDataStoreFamilyTests {
         )
     }
 
+    @Test func erasesRecoveryStorageWithoutDeletingTheStoreFamily() throws {
+        let fixture = try StoreFamilyFixture()
+        defer { fixture.cleanup() }
+        let recoveryURL = fixture.rootURL.appending(
+            path: "Periscope-Journals",
+            directoryHint: .isDirectory,
+        )
+        try FileManager.default.createDirectory(
+            at: recoveryURL,
+            withIntermediateDirectories: true,
+        )
+        try Data("segment".utf8).write(to: recoveryURL.appending(path: "segment"))
+        let family = InspectorSwiftDataStoreFamily(
+            storeURL: fixture.storeURL,
+            storageRootURL: fixture.rootURL,
+            recoveryStorageURLs: [recoveryURL],
+        )
+
+        try family.eraseRecoveryStorage(using: .default)
+
+        #expect(
+            FileManager.default.fileExists(atPath: recoveryURL.path(percentEncoded: false))
+                == false,
+        )
+        for member in fixture.familyMembers {
+            #expect(FileManager.default.fileExists(atPath: member.path(percentEncoded: false)))
+        }
+    }
+
     @Test func refusesRecoveryStorageOutsideItsDeclaredRoot() throws {
         let fixture = try StoreFamilyFixture()
         let outside = try StoreFamilyFixture()

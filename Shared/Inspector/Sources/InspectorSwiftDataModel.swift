@@ -25,6 +25,7 @@ final class InspectorSwiftDataModel {
             rowLimit: configuration.rowLimit,
             valueFormatter: configuration.valueFormatter,
             makeContainer: configuration.makeContainer,
+            recoveryStorage: nil,
         )
     }
 
