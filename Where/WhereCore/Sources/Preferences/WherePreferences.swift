@@ -1,8 +1,9 @@
 import Foundation
 
 /// The app's persisted user intent — onboarding completion, background-tracking
-/// intent, and the reminder / daily-summary schedules — behind a `KeyValueStore`
-/// so production uses `UserDefaults` and tests use an in-memory double.
+/// intent, reminder / daily-summary schedules, and lightweight UI choices —
+/// behind a `KeyValueStore` so production uses `UserDefaults` and tests use an
+/// in-memory double.
 ///
 /// `store` is deliberately not defaulted: defaulting it to
 /// `UserDefaults.standard` made the real, process-wide defaults the thing you
@@ -99,9 +100,25 @@ public final class WherePreferences {
         set { store.set(newValue, forKey: Keys.driftThresholdMeters.rawValue) }
     }
 
+    /// The last lens selected on the Your Year screen. An absent or unknown
+    /// value falls back to Calendar, matching the screen's first-install state.
+    public var yearViewMode: YearViewMode {
+        get {
+            guard
+                let rawValue = store.object(forKey: Keys.yearViewMode.rawValue) as? String,
+                let mode = YearViewMode(rawValue: rawValue)
+            else {
+                return .calendar
+            }
+            return mode
+        }
+        set { store.set(newValue.rawValue, forKey: Keys.yearViewMode.rawValue) }
+    }
+
     /// Clear every persisted preference so the next launch behaves like a fresh
     /// install: onboarding shows again, background tracking returns to its
-    /// default intent, and the reminder/summary schedules revert to defaults.
+    /// default intent, reminder/summary schedules revert to defaults, and Your
+    /// Year returns to Calendar.
     /// Removing the keys (rather than writing `false`/`0`) lets the
     /// default-valued getters report first-install state again.
     public func reset() {
@@ -124,5 +141,6 @@ public final class WherePreferences {
         case summaryMinute = "where.summaryMinute"
         case issueAlertsEnabled = "where.issueAlertsEnabled"
         case driftThresholdMeters = "where.driftThresholdMeters"
+        case yearViewMode = "where.yearViewMode"
     }
 }

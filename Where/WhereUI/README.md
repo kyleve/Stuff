@@ -34,6 +34,11 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   injects the launch-built model + runner
   (`init(model:launcher:)`); a no-arg `init()` builds its own for previews and
   the hosted UI test.
+- **`YearView`** — four persisted lenses over the selected report: the detailed
+  Calendar, chronological Timeline, whole-year Breakdown donut, and a 12×31
+  Heatmap with day inspection. The two visualizations share `YearOverview`,
+  whose mutually exclusive day states always sum to 365/366 without double-
+  counting travel days.
 - **`WhereLaunch`** — the launch, reset, and exit-demo plans themselves. Every
   step declares how long it should take (`BudgetedLaunchStep`) and joins the
   plan through `.measured()`, so each run is one Periscope span named after

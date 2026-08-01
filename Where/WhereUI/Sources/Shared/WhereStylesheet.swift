@@ -16,6 +16,7 @@ struct WhereStylesheet: BStylesheet {
     var size = Size()
     var card = CardStyles.standard
     var calendar = CalendarStyle.standard
+    var yearOverview = YearOverviewStyle.standard
     var appIcon = AppIconStyle.standard
     var timeline = TimelineStyle.standard
     var regionMap = RegionMapStyle.standard
@@ -54,6 +55,8 @@ struct WhereStylesheet: BStylesheet {
         if traits.accessibility.isReduceMotionEnabled {
             card.dayCount = .reducedMotion
             developerOverlay.menu.motion = .reduced
+            yearOverview.picker.selectionAnimation = .easeInOut(duration: 0.18)
+            yearOverview.picker.contentAnimation = .easeInOut(duration: 0.18)
         }
     }
 
@@ -642,6 +645,87 @@ extension WhereStylesheet {
                     padding: 2,
                     offset: CGSize(width: 3, height: -2),
                 ),
+            ),
+        )
+    }
+}
+
+// MARK: - Year overview
+
+extension WhereStylesheet {
+    /// Appearance for the Your Year Breakdown, Heatmap, and their shared mode
+    /// picker. Region colors remain in `RegionStyle`; this group owns only the
+    /// special day categories and visualization geometry.
+    struct YearOverviewStyle: Equatable {
+        var multipleLocationsColor: Color
+        var unrecordedColor: Color
+        var remainingColor: Color
+        var breakdown: Breakdown
+        var heatmap: Heatmap
+        var picker: Picker
+
+        struct Breakdown: Equatable {
+            var maxChartSize: CGFloat
+            var innerRadiusRatio: CGFloat
+            var centerContentWidthRatio: CGFloat
+            var angularInset: CGFloat
+            var chartLegendSpacing: CGFloat
+            var legendRowSpacing: CGFloat
+            var legendSwatchSize: CGFloat
+        }
+
+        struct Heatmap: Equatable {
+            var plotAspectRatio: CGFloat
+            var cellCornerRadius: CGFloat
+            var cellWidthRatio: CGFloat
+            var cellHeightRatio: CGFloat
+            var selectionWidthRatio: CGFloat
+            var selectionHeightRatio: CGFloat
+            var calloutCornerRadius: CGFloat
+            var calloutPadding: CGFloat
+            var legendMinItemWidth: CGFloat
+            var legendSpacing: CGFloat
+        }
+
+        struct Picker: Equatable {
+            var segmentMinSize: CGFloat
+            var horizontalPadding: CGFloat
+            var verticalPadding: CGFloat
+            var selectionAnimation: Animation
+            var contentAnimation: Animation
+        }
+
+        static let standard = YearOverviewStyle(
+            multipleLocationsColor: .primary,
+            unrecordedColor: .red,
+            remainingColor: Color.secondary.opacity(0.22),
+            breakdown: Breakdown(
+                maxChartSize: 360,
+                innerRadiusRatio: 0.62,
+                centerContentWidthRatio: 0.8,
+                angularInset: 1.5,
+                chartLegendSpacing: 24,
+                legendRowSpacing: 10,
+                legendSwatchSize: 12,
+            ),
+            heatmap: Heatmap(
+                plotAspectRatio: 31 / 12,
+                cellCornerRadius: 2,
+                cellWidthRatio: 0.84,
+                cellHeightRatio: 0.78,
+                selectionWidthRatio: 0.98,
+                selectionHeightRatio: 0.92,
+                calloutCornerRadius: 14,
+                calloutPadding: 12,
+                legendMinItemWidth: 132,
+                legendSpacing: 10,
+            ),
+            picker: Picker(
+                segmentMinSize: 44,
+                horizontalPadding: 12,
+                verticalPadding: 8,
+                selectionAnimation: .snappy(duration: 0.28),
+                contentAnimation: .default,
             ),
         )
     }

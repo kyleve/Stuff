@@ -76,6 +76,8 @@
                 YearView.flyoverData,
                 CalendarContentView.yearFlyoverData,
                 PresenceTimelineList.flyoverData,
+                YearBreakdownView.flyoverData,
+                YearHeatmapView.flyoverData,
                 RecentActivitySummaryView.flyoverData,
             ]
         }

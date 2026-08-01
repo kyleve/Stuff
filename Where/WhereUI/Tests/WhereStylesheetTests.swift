@@ -163,6 +163,41 @@ struct WhereStylesheetTests {
         #expect(month.unfocusedRowOpacity == 0.55)
     }
 
+    @Test func yearOverviewStyle() {
+        let overview = style.yearOverview
+        #expect(overview.multipleLocationsColor == .primary)
+        #expect(overview.unrecordedColor == .red)
+        #expect(overview.remainingColor == Color.secondary.opacity(0.22))
+
+        let breakdown = overview.breakdown
+        #expect(breakdown.maxChartSize == 360)
+        #expect(breakdown.innerRadiusRatio == 0.62)
+        #expect(breakdown.centerContentWidthRatio == 0.8)
+        #expect(breakdown.angularInset == 1.5)
+        #expect(breakdown.chartLegendSpacing == 24)
+        #expect(breakdown.legendRowSpacing == 10)
+        #expect(breakdown.legendSwatchSize == 12)
+
+        let heatmap = overview.heatmap
+        #expect(abs(heatmap.plotAspectRatio - 31.0 / 12.0) < 0.000_001)
+        #expect(heatmap.cellCornerRadius == 2)
+        #expect(heatmap.cellWidthRatio == 0.84)
+        #expect(heatmap.cellHeightRatio == 0.78)
+        #expect(heatmap.selectionWidthRatio == 0.98)
+        #expect(heatmap.selectionHeightRatio == 0.92)
+        #expect(heatmap.calloutCornerRadius == 14)
+        #expect(heatmap.calloutPadding == 12)
+        #expect(heatmap.legendMinItemWidth == 132)
+        #expect(heatmap.legendSpacing == 10)
+
+        let picker = overview.picker
+        #expect(picker.segmentMinSize == 44)
+        #expect(picker.horizontalPadding == 12)
+        #expect(picker.verticalPadding == 8)
+        #expect(picker.selectionAnimation == .snappy(duration: 0.28))
+        #expect(picker.contentAnimation == .default)
+    }
+
     @Test func appIconStyle() {
         let appIcon = style.appIcon
         #expect(appIcon.gridMax == 180)
@@ -368,6 +403,12 @@ struct WhereStylesheetTests {
         #expect(resolved.card.dayCount == .reducedMotion)
         #expect(resolved.developerOverlay.menu.motion == .reduced)
         #expect(resolved.developerOverlay.menu.motion.usesSpatialMotion == false)
+        #expect(
+            resolved.yearOverview.picker.selectionAnimation == .easeInOut(duration: 0.18),
+        )
+        #expect(
+            resolved.yearOverview.picker.contentAnimation == .easeInOut(duration: 0.18),
+        )
     }
 }
 

@@ -132,6 +132,43 @@ enum WhereFormat {
         String(localized: .widgetYearTitle(yearText(year)))
     }
 
+    // MARK: Year overview
+
+    static func yearOverviewRecorded(recorded: Int, total: Int) -> String {
+        String(localized: .yearOverviewRecorded(recorded, total))
+    }
+
+    static func yearOverviewSliceName(_ id: YearOverview.Slice.ID) -> String {
+        switch id {
+            case let .region(region): region.localizedName
+            case .multipleLocations: String(localized: .yearOverviewMultipleLocations)
+            case .unrecorded: String(localized: .yearOverviewUnrecorded)
+            case .remaining: String(localized: .yearOverviewRemaining)
+        }
+    }
+
+    static func yearOverviewKindName(_ kind: YearOverview.Day.Kind) -> String {
+        switch kind {
+            case let .region(region): return region.localizedName
+            case let .multipleLocations(regions):
+                let names = regions.map(\.localizedName).formatted(.list(type: .and))
+                return String(localized: .yearOverviewMultipleLocationsDetail(names))
+            case .unrecorded: return String(localized: .yearOverviewUnrecorded)
+            case .remaining: return String(localized: .yearOverviewRemaining)
+        }
+    }
+
+    static func yearOverviewDayAccessibility(
+        date: Date,
+        kind: YearOverview.Day.Kind,
+    ) -> String {
+        let day = date.formatted(.dateTime.weekday(.wide).month(.wide).day().year())
+        return String(localized: .yearOverviewDayAccessibility(
+            day,
+            yearOverviewKindName(kind),
+        ))
+    }
+
     // MARK: Regions
 
     static func secondaryRegionCurrent(regions: String) -> String {

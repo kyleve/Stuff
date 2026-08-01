@@ -310,6 +310,62 @@
             )
         }
 
+        /// The shared loaded year classification rendered by the Breakdown and
+        /// Heatmap previews/snapshots.
+        @MainActor
+        static func loadedYearOverview() -> YearOverview {
+            yearOverview(from: loadedYearReportModel())
+        }
+
+        /// A sparse current-year classification with real Unrecorded and
+        /// Remaining cells for visualization edge-state coverage.
+        @MainActor
+        static func missingDaysYearOverview() -> YearOverview {
+            yearOverview(from: missingDaysYearReportModel())
+        }
+
+        /// A sparse current-year classification containing a two-region travel
+        /// day, used to guard the donut bucket and abrupt heatmap split fill.
+        @MainActor
+        static func multiRegionYearOverview() -> YearOverview {
+            let model = missingDaysYearReportModel()
+            let report = YearReport(
+                year: year,
+                days: [
+                    DayPresence(
+                        day: CalendarDay(year: year, month: 1, day: 1),
+                        regions: [.california],
+                    ),
+                    DayPresence(
+                        day: CalendarDay(year: year, month: 1, day: 2),
+                        regions: [.newYork, .california],
+                    ),
+                    DayPresence(
+                        day: CalendarDay(year: year, month: 1, day: 3),
+                        regions: [.newYork],
+                    ),
+                ],
+                totals: [:],
+            )
+            return YearOverview(
+                report: report,
+                referenceDate: model.referenceDate,
+                calendar: model.calendar,
+            )
+        }
+
+        @MainActor
+        private static func yearOverview(from model: YearReportModel) -> YearOverview {
+            guard let report = model.report else {
+                preconditionFailure("A year-overview preview fixture must carry a report")
+            }
+            return YearOverview(
+                report: report,
+                referenceDate: model.referenceDate,
+                calendar: model.calendar,
+            )
+        }
+
         // MARK: - Resolve model (Resolve tab)
 
         /// One data-resolution issue per category, for Resolve tab previews/tests.
