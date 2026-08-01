@@ -44,6 +44,29 @@ struct YearExportModelTests {
         #expect(await renderer.createdFiles.isEmpty)
     }
 
+    @Test func cancellationWhileProgressDrainsPurgesTheCompletedFile() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let canceller = GenerationCanceller()
+        let renderer = PostRenderCancellationRenderer(
+            directory: directory,
+            scheduleCancellation: {
+                Task { @MainActor in
+                    await Task.yield()
+                    canceller.cancel()
+                }
+            },
+        )
+        let model = try makeModel(renderer: renderer)
+        let task = Task { await model.generate(isDemo: false) }
+        canceller.action = { task.cancel() }
+
+        #expect(await task.value == nil)
+        #expect(model.state == .idle)
+        #expect(FileManager.default.fileExists(atPath: directory.path) == false)
+    }
+
     @Test func failureCanBeAcknowledgedAndRetried() async throws {
         let renderer = ScriptedYearPDFRenderer([.failure, .success])
         let model = try makeModel(renderer: renderer)
@@ -86,7 +109,7 @@ struct YearExportModelTests {
     }
 
     private func makeModel(
-        renderer: ScriptedYearPDFRenderer,
+        renderer: any YearPDFRendering,
         retention: Duration = .seconds(600),
     ) throws -> YearExportModel {
         let store = try SwiftDataStore.inMemory()
@@ -177,3 +200,37 @@ private actor ScriptedYearPDFRenderer: YearPDFRendering {
 }
 
 private struct ScriptedFailure: Error {}
+
+@MainActor
+private final class GenerationCanceller {
+    var action: @MainActor @Sendable () -> Void = {}
+
+    func cancel() {
+        action()
+    }
+}
+
+/// Runs on `generate`'s caller actor, queues cancellation behind the final
+/// progress update, and returns a completed file before either queued task can
+/// run. This deterministically exercises cancellation during progress drain.
+private struct PostRenderCancellationRenderer: YearPDFRendering {
+    let directory: URL
+    let scheduleCancellation: @Sendable () -> Void
+
+    func render(
+        document _: YearPDFDocument,
+        progress: @escaping @Sendable (YearPDFProgress) -> Void,
+    ) async throws -> YearPDFFile {
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let url = directory.appendingPathComponent("fixture.pdf")
+        try Data("fixture".utf8).write(to: url)
+        progress(YearPDFProgress(completedPages: 1, totalPages: 1))
+        scheduleCancellation()
+        return YearPDFFile(
+            url: url,
+            storageDirectory: directory,
+            suggestedFilename: "Where Presence Report fixture.pdf",
+            pageCount: 1,
+        )
+    }
+}

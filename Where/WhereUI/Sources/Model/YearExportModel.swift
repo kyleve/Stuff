@@ -156,18 +156,10 @@ final class YearExportModel {
                     continuation.yield($0)
                 }
             }
-            if Task.isCancelled {
-                do {
-                    try cleanup(file.storageDirectory)
-                } catch {
-                    Self.logger {
-                        .cleanupFailed(failureType: String(reflecting: type(of: error)))
-                    }
-                }
-                throw CancellationError()
-            }
+            try discardIfCancelled(file)
             continuation.finish()
             await observer.value
+            try discardIfCancelled(file)
             state = .ready(file)
 
             let gpsCount = audit.samples.count { $0.sample.source.isGPS }
@@ -240,6 +232,20 @@ final class YearExportModel {
         guard case let .ready(file) = state else { return }
         cleanupTask?.cancel()
         cleanupTask = nil
+        removeImmediately(file)
+        state = .idle
+    }
+
+    /// Cancellation is cooperative, including while waiting for the progress
+    /// observer to drain. A completed but no-longer-wanted file is removed
+    /// before cancellation returns the state machine to `idle`.
+    private func discardIfCancelled(_ file: YearPDFFile) throws {
+        guard Task.isCancelled else { return }
+        removeImmediately(file)
+        throw CancellationError()
+    }
+
+    private func removeImmediately(_ file: YearPDFFile) {
         do {
             try cleanup(file.storageDirectory)
         } catch {
@@ -247,7 +253,6 @@ final class YearExportModel {
                 .cleanupFailed(failureType: String(reflecting: type(of: error)))
             }
         }
-        state = .idle
     }
 
     private static func nonempty(_ value: String) -> String? {
