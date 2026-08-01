@@ -97,17 +97,19 @@ struct InspectorSwiftDataStoreFamily {
         try validate()
 
         let parent = storeURL.deletingLastPathComponent()
-        guard fileManager.fileExists(atPath: parent.path(percentEncoded: false)) else {
-            return
-        }
-
         let memberNames = Self.knownMemberNames(for: storeURL)
         let memberNameSet = Set(memberNames)
-        let storeMembers = try fileManager.contentsOfDirectory(
-            at: parent,
-            includingPropertiesForKeys: nil,
-        )
-        .filter { memberNameSet.contains($0.lastPathComponent) }
+        let storeMembers: [URL] = if fileManager
+            .fileExists(atPath: parent.path(percentEncoded: false))
+        {
+            try fileManager.contentsOfDirectory(
+                at: parent,
+                includingPropertiesForKeys: nil,
+            )
+            .filter { memberNameSet.contains($0.lastPathComponent) }
+        } else {
+            []
+        }
         let recoveryMembers = recoveryStorage.urls.filter {
             fileManager.fileExists(atPath: $0.path(percentEncoded: false))
         }

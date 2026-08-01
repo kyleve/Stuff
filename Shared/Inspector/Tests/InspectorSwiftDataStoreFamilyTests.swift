@@ -169,6 +169,33 @@ struct InspectorSwiftDataStoreFamilyTests {
         )
     }
 
+    @Test func erasesRecoveryStorageWhenTheStoreParentIsMissing() throws {
+        let fixture = try StoreFamilyFixture()
+        defer { fixture.cleanup() }
+        let recoveryURL = fixture.rootURL.appending(
+            path: "Periscope-Journals",
+            directoryHint: .isDirectory,
+        )
+        try FileManager.default.createDirectory(
+            at: recoveryURL,
+            withIntermediateDirectories: true,
+        )
+        try Data("segment".utf8).write(to: recoveryURL.appending(path: "segment"))
+        try FileManager.default.removeItem(at: fixture.storeURL.deletingLastPathComponent())
+        let family = InspectorSwiftDataStoreFamily(
+            storeURL: fixture.storeURL,
+            storageRootURL: fixture.rootURL,
+            recoveryStorageURLs: [recoveryURL],
+        )
+
+        try family.erase(using: .default)
+
+        #expect(
+            FileManager.default.fileExists(atPath: recoveryURL.path(percentEncoded: false))
+                == false,
+        )
+    }
+
     @Test func cancellationBeforeErasureLeavesEveryMemberUntouched() async throws {
         let fixture = try StoreFamilyFixture()
         defer { fixture.cleanup() }
