@@ -42,12 +42,13 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
 
         WhereLaunch.startAmbientLogging(on: .shared)
         model.onLoggedOut = { [intentServices] in await intentServices.clear() }
-        launcher = WhereLaunch
+        let launcher = WhereLaunch
             .makeLauncher(model: model, reason: .undetermined) { [intentServices] in
                 await intentServices.install(.forIntents(sharingStoreOf: $0))
             }
+        self.launcher = launcher
         Task { [launcher, model, intentServices] in
-            await launcher?.run()
+            await launcher.run()
             guard !model.isInDemoMode else { return }
             await RegionSpotlightIndexer.indexRegions(resolving: intentServices)
         }
