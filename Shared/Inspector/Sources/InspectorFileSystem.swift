@@ -110,6 +110,16 @@ actor InspectorFileSystem {
         try fileManager.removeItem(at: target)
     }
 
+    /// Resolve a Quick Look target only after applying the same canonical-root
+    /// containment rule used by browsing and deletion.
+    func previewURL(
+        for item: InspectorFileItem,
+        in container: InspectorConfiguration.FileContainer,
+    ) throws -> URL {
+        try validate(item.url, isInside: container.rootURL)
+        return item.url.resolvingSymlinksInPath()
+    }
+
     private func validate(_ url: URL, isInside root: URL) throws {
         if let error = containmentError(for: url, containerRoot: root) {
             throw error

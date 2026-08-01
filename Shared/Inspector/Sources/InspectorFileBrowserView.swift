@@ -86,7 +86,7 @@ struct InspectorFileBrowserView: View {
                             ))
                         } else {
                             AnyView(InspectorFileDetailView(item: item) {
-                                previewURL = item.url
+                                await preview(item)
                             })
                         }
                     },
@@ -151,6 +151,17 @@ struct InspectorFileBrowserView: View {
         do {
             try await fileSystem.delete(item, in: container)
             await load()
+        } catch is CancellationError {
+            return
+        } catch {
+            errorMessage = error.localizedDescription
+            isPresentingError = true
+        }
+    }
+
+    private func preview(_ item: InspectorFileItem) async {
+        do {
+            previewURL = try await fileSystem.previewURL(for: item, in: container)
         } catch is CancellationError {
             return
         } catch {
@@ -228,7 +239,7 @@ private struct FileItemView: View {
 
 private struct InspectorFileDetailView: View {
     let item: InspectorFileItem
-    let preview: () -> Void
+    let preview: () async -> Void
 
     var body: some View {
         Form {
@@ -248,7 +259,9 @@ private struct InspectorFileDetailView: View {
                     )
                 }
             }
-            Button("Preview File", systemImage: "eye", action: preview)
+            Button("Preview File", systemImage: "eye") {
+                Task { await preview() }
+            }
         }
         .navigationTitle(item.name)
         .navigationBarTitleDisplayMode(.inline)

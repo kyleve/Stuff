@@ -105,8 +105,8 @@ then protects each SQLite store, its WAL/SHM/support family, its exact
 `recoveryStorageURLs`, and any ancestor whose recursive deletion would contain
 them. If a source cannot open, generic file deletion is disabled in its
 declared storage tree while unrelated containers remain usable. Canonical-path
-checks prevent browsing or recovery through symlinks outside a configured
-root.
+checks prevent browsing, Quick Look previews, or recovery through symlinks
+outside a configured root.
 
 There is intentionally no file creation, content editing, rename, or move in
 v1.

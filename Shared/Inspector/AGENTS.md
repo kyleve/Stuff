@@ -35,8 +35,8 @@ formatting, and repository-wide conventions.
 - Complete pending recovery erasures before constructing either application
   runtime; retain failed requests and select Inspector rather than opening the
   regular stack against a possibly unreadable store.
-- Keep file operations inside canonical configured roots; never follow a
-  symlink outside one.
+- Keep file browsing, previews, and mutations inside canonical configured
+  roots; never follow a symlink outside one.
 - Enumerate only configured persistent defaults domains. Existing scalar values
   may retain their type or be deleted; complex values stay read-only and keys
   cannot be created.

@@ -165,9 +165,17 @@ struct InspectorFileSystemTests {
             protectedStoreURLs: [],
             unresolvedProtectionRoots: [],
         )
+        let rootItems = try await fileSystem.contents(
+            of: fixture.root,
+            in: fixture.container,
+        )
+        let linkItem = try #require(rootItems.first { $0.name == link.lastPathComponent })
 
         await #expect(throws: InspectorFileSystemError.outsideContainer) {
             try await fileSystem.contents(of: link, in: fixture.container)
+        }
+        await #expect(throws: InspectorFileSystemError.outsideContainer) {
+            try await fileSystem.previewURL(for: linkItem, in: fixture.container)
         }
     }
 }
