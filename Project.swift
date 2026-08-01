@@ -47,6 +47,10 @@ let whereAppGroupEntitlements: Entitlements = .dictionary([
 /// entitlement above: they write the shared local store and let the app's
 /// CloudKit-backed container publish those changes when it next opens.
 let whereAppEntitlements: Entitlements = .dictionary([
+    // Xcode replaces this development placeholder with the environment from
+    // the selected provisioning profile. Keeping the entitlement in the
+    // target is what makes automatic signing request Push Notifications.
+    "aps-environment": .string("development"),
     "com.apple.security.application-groups": .array([.string("group.com.stuff.where")]),
     "com.apple.developer.icloud-container-identifiers": .array([
         .string("iCloud.com.stuff.where"),

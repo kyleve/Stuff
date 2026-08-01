@@ -44,11 +44,12 @@ team — see [`Where/AGENTS.md`](../AGENTS.md#installing-to-a-device)).
 
 ## CloudKit rollout and device validation
 
-The app target owns `iCloud.com.stuff.where` plus the remote-notification
-background mode. Widgets and the share extension intentionally have only the
-App Group entitlement: they write/read local shared artifacts, while the app's
-single SwiftData container owns CloudKit mirroring. Debug uses `.localOnly`;
-exercise sync with a Release-signed build.
+The app target owns `iCloud.com.stuff.where`, the Push Notifications
+entitlement, and the remote-notification background mode. Widgets and the share
+extension intentionally have only the App Group entitlement: they write/read
+local shared artifacts, while the app's single SwiftData container owns
+CloudKit mirroring. Debug uses `.localOnly`; exercise sync with a Release-signed
+build.
 
 Before shipping a schema change:
 
