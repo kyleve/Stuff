@@ -15,6 +15,9 @@ struct FlyoverSnapshotTests {
                 devices: [.iPad],
                 colorSchemes: [.light, .dark],
             ),
+            // Canvas previews load serially, so a cold CI host can still be resolving
+            // the visible screen trees after the default settling budget.
+            settle: .settledAtLeast(minDuration: 1.5),
         )
 
         await assertSnapshots(
