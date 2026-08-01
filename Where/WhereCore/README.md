@@ -168,11 +168,20 @@ let report = try await services.reports.yearReport(for: 2026)
 
 // Read a transparent audit snapshot whose source rows and totals share one
 // captured attribution policy.
-let audit = try await services.reports.auditReport(for: 2026)
+let annualAuditReport = try await services.reports.auditReport(for: 2026)
 
 // Write a manual day (the caller supplies the ManualEntryAudit); the journal
 // commits, then reconciles reminders + widgets.
-try await services.journal.addManualDay(date: day, regions: [.california], audit: audit)
+let manualEntryAudit = ManualEntryAudit(
+    recordedAt: Date(),
+    note: "Backfilled from travel records.",
+    location: nil,
+)
+try await services.journal.addManualDay(
+    date: day,
+    regions: [.california],
+    audit: manualEntryAudit,
+)
 
 // Refresh whenever anything changes — local edits, live GPS, or a synced import.
 for await _ in services.dataChangeUpdates() {
