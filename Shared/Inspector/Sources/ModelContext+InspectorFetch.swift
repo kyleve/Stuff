@@ -14,19 +14,21 @@ extension ModelContext {
     /// The persisted row of `type` with `id`, or `nil` if it is no longer in the
     /// store. Uses a `persistentModelID` predicate (not `model(for:)`, which
     /// traps on a missing id) so a row deleted between loading the table and
-    /// drilling into it degrades gracefully. Opens the existential so the generic
-    /// `fetch` can infer its `PersistentModel`.
+    /// drilling into it degrades gracefully. Fetch failures still throw so a
+    /// destructive caller cannot confuse an unavailable row with an unavailable
+    /// store. Opens the existential so the generic `fetch` can infer its
+    /// `PersistentModel`.
     func inspectorModel(
         _ type: any PersistentModel.Type,
         id: PersistentIdentifier,
-    ) -> (any PersistentModel)? {
-        func open<T: PersistentModel>(_: T.Type) -> (any PersistentModel)? {
+    ) throws -> (any PersistentModel)? {
+        func open<T: PersistentModel>(_: T.Type) throws -> (any PersistentModel)? {
             var descriptor =
                 FetchDescriptor<T>(predicate: #Predicate { $0.persistentModelID == id })
             descriptor.fetchLimit = 1
-            return (try? fetch(descriptor))?.first
+            return try fetch(descriptor).first
         }
-        return open(type)
+        return try open(type)
     }
 
     /// The first `limit` persisted rows of `type` (a `nil` limit fetches every
@@ -86,7 +88,7 @@ extension ModelContext {
         _ type: any PersistentModel.Type,
         id: PersistentIdentifier,
     ) throws {
-        guard let model = inspectorModel(type, id: id) else { return }
+        guard let model = try inspectorModel(type, id: id) else { return }
         delete(model)
         try save()
     }

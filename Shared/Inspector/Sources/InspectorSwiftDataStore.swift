@@ -124,8 +124,8 @@ actor InspectorSwiftDataStore {
     /// explicitly drilled into it.
     ///
     /// Returns an empty result (no entity, no rows) if the source row is gone or
-    /// the relationship is empty/unreadable, so the detail view degrades to an
-    /// empty state rather than trapping.
+    /// the relationship contains no resolvable rows. Store fetch failures throw
+    /// so the detail view can surface them honestly.
     func relatedRows(
         of rowID: PersistentIdentifier,
         relationship name: String,
@@ -134,7 +134,7 @@ actor InspectorSwiftDataStore {
         try Task.checkCancellation()
         let container = try openContainer()
         let context = ModelContext(container)
-        guard let source = context.inspectorModel(sourceType, id: rowID) else {
+        guard let source = try context.inspectorModel(sourceType, id: rowID) else {
             return InspectorRelatedRows(entity: nil, rows: [], isToMany: false, totalCount: 0)
         }
 
