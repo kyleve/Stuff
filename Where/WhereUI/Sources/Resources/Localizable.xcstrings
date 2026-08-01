@@ -7,9 +7,6 @@
     "%lld" : {
 
     },
-    "Log today here" : {
-
-    },
     "appIcon.appearance.dark" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4532,6 +4529,18 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Year"
+          }
+        }
+      }
+    },
+    "snippet.logTodayHere" : {
+      "comment" : "Button in the day-count snippet that logs today for the shown region.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Log today here"
           }
         }
       }
