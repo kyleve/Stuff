@@ -9,11 +9,13 @@ struct ManualSaveFailure: Error, Equatable {}
 struct SampleReadFailure: Error, Equatable {}
 
 /// Test `WhereStore` that forwards to an in-memory `SwiftDataStore` but adds
-/// two hooks the view-model tests need:
+/// hooks the view-model tests need:
 ///
 /// - `enableFirstSamplesGate()` suspends the first `samples(in:)` call until
 ///   the test releases it, so two `refresh()`es can be forced to complete out
 ///   of order (the stale-year race).
+/// - `gateRecordingDevices(afterCalls:)` suspends a selected device read after
+///   capturing its result, so a committed change can race an initial load.
 /// - `failManualDays()` makes `setManualDay` throw, so manual-entry error
 ///   handling is exercisable without a real persistence fault.
 ///
@@ -25,6 +27,11 @@ actor TestStore: WhereStore {
     private var firstSamplesSeen = false
     private var gate: CheckedContinuation<Void, Never>?
     private var arrival: CheckedContinuation<Void, Never>?
+
+    private var recordingDeviceCallsBeforeGate: Int?
+    private var recordingDevicesGateReached = false
+    private var recordingDevicesGate: CheckedContinuation<Void, Never>?
+    private var recordingDevicesArrival: CheckedContinuation<Void, Never>?
 
     private var shouldFailManualDay = false
     private var shouldFailSamples = false
@@ -48,6 +55,23 @@ actor TestStore: WhereStore {
     func releaseFirstSamplesCall() {
         gate?.resume()
         gate = nil
+    }
+
+    /// Gates the device read after `calls` earlier reads have completed.
+    func gateRecordingDevices(afterCalls calls: Int) {
+        precondition(calls >= 0)
+        recordingDeviceCallsBeforeGate = calls
+        recordingDevicesGateReached = false
+    }
+
+    func awaitRecordingDevicesGate() async {
+        guard !recordingDevicesGateReached else { return }
+        await withCheckedContinuation { recordingDevicesArrival = $0 }
+    }
+
+    func releaseRecordingDevicesGate() {
+        recordingDevicesGate?.resume()
+        recordingDevicesGate = nil
     }
 
     func failManualDays() {
@@ -90,7 +114,19 @@ actor TestStore: WhereStore {
     }
 
     func recordingDevices() async throws -> [RecordingDevice] {
-        try await backing.recordingDevices()
+        let devices = try await backing.recordingDevices()
+        guard let calls = recordingDeviceCallsBeforeGate else { return devices }
+        guard calls == 0 else {
+            recordingDeviceCallsBeforeGate = calls - 1
+            return devices
+        }
+
+        recordingDeviceCallsBeforeGate = nil
+        recordingDevicesGateReached = true
+        recordingDevicesArrival?.resume()
+        recordingDevicesArrival = nil
+        await withCheckedContinuation { recordingDevicesGate = $0 }
+        return devices
     }
 
     func setRecordingDevice(_ device: RecordingDevice) async throws {

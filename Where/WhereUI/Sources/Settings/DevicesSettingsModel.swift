@@ -44,9 +44,9 @@ final class DevicesSettingsModel {
     /// Load once, then stay current with local commits and CloudKit imports
     /// until the owning view disappears and SwiftUI cancels the task.
     func run() async {
+        let updates = session.services.dataChangeUpdates()
         await load(showLoading: true)
-        for await _ in session.services.dataChangeUpdates() {
-            if Task.isCancelled { return }
+        for await _ in updates {
             await load(showLoading: false)
         }
     }
