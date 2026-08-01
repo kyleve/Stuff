@@ -1,3 +1,4 @@
+import CoreFoundation
 import Foundation
 @testable import Inspector
 import Testing
@@ -68,6 +69,23 @@ struct InspectorDefaultsModelTests {
             fixture.defaults.persistentDomain(forName: fixture.suiteName)?["string"]
                 is String,
         )
+    }
+
+    @Test(arguments: [0, 1])
+    func preservesIntegerZeroAndOne(value: Int) throws {
+        let fixture = try DefaultsDomainFixture()
+        defer { fixture.cleanup() }
+        fixture.defaults.set(value, forKey: "integer")
+        let model = InspectorDefaultsModel(domain: fixture.domain)
+        let entry = try #require(model.entries.first { $0.key == "integer" })
+
+        #expect(entry.value == .integer(value))
+        #expect(model.save(entry.value, forKey: entry.key))
+        let persistedValue = try #require(
+            fixture.defaults.persistentDomain(forName: fixture.suiteName)?[entry.key]
+                as? NSNumber,
+        )
+        #expect(CFGetTypeID(persistedValue) != CFBooleanGetTypeID())
     }
 
     @Test func refusesComplexEditsAndDeletesIndividualValues() throws {

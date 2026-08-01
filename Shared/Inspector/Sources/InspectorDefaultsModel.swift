@@ -26,18 +26,18 @@ enum InspectorDefaultValue: Hashable {
         key: String,
     ) {
         switch value {
-            case let value as Bool:
-                self = .boolean(value)
             case let value as NSNumber
             where CFGetTypeID(value) == CFBooleanGetTypeID():
                 self = .boolean(value.boolValue)
-            case let value as Int:
-                self = .integer(value)
             case let value as NSNumber:
                 let type = String(cString: value.objCType)
                 self = type.contains(".") || type == "f" || type == "d"
                     ? .floatingPoint(value.doubleValue)
                     : .integer(value.intValue)
+            case let value as Bool:
+                self = .boolean(value)
+            case let value as Int:
+                self = .integer(value)
             case let value as Double:
                 self = .floatingPoint(value)
             case let value as Date:
