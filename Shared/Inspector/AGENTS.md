@@ -45,7 +45,7 @@ formatting, and repository-wide conventions.
   cross to the main actor.
 - Erase an open store through `ModelContainer.erase()`, remove its exact
   `recoveryStorageURLs`, then replace the actor's container with one reopened by
-  the configured factory.
+  the configured factory; honor cancellation only before destructive work.
 - Keep private SwiftData reflection in
   [`SwiftDataReflection.swift`](Sources/SwiftDataReflection.swift). Tables must
   not fault blobs or relationships merely to render.

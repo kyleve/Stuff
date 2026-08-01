@@ -119,7 +119,8 @@ returns only `Sendable` value snapshots and `PersistentIdentifier`s. A complete
 erase calls `ModelContainer.erase()`, removes the source's exact
 `recoveryStorageURLs`, and reopens through the source factory; raw SQLite
 deletion remains unavailable for an open store and throughout the generic file
-browser.
+browser. Cancellation is honored before an erase starts; once destructive work
+begins, cleanup and reopening run to completion.
 
 Every configured SwiftData source remains in the sidebar when its container
 cannot open. Inspector shows the opening error instead of entity tables. When

@@ -113,6 +113,28 @@ struct InspectorSwiftDataMutationTests {
         #expect(model.mutationGeneration == 0)
     }
 
+    @Test func cancellationAfterEraseStillDiscardsAndReopens() async throws {
+        let completedSequence = try await Task {
+            var didDiscard = false
+            var didReopen = false
+            let reopenedValue = try InspectorSwiftDataStore.performEraseAndReopen(
+                erase: {
+                    withUnsafeCurrentTask { $0?.cancel() }
+                },
+                discard: {
+                    didDiscard = true
+                },
+                reopen: {
+                    didReopen = true
+                    return 42
+                },
+            )
+            return reopenedValue == 42 && didDiscard && didReopen
+        }.value
+
+        #expect(completedSequence)
+    }
+
     private nonisolated static func makeContainer() throws -> ModelContainer {
         let schema = Schema([MutationRecord.self, MutationOther.self])
         let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)

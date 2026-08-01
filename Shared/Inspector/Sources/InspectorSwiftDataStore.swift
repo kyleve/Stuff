@@ -204,16 +204,33 @@ actor InspectorSwiftDataStore {
     /// Erase the complete store using SwiftData's supported API, then replace
     /// this actor's only container reference with a newly opened empty one.
     func eraseAndReopen() throws -> [URL] {
-        try Task.checkCancellation()
         var erasedContainer: ModelContainer? = try openContainer()
-        try erasedContainer?.erase()
-        try recoveryStorage?.erase(using: fileManager)
-        container = nil
-        erasedContainer = nil
-        try Task.checkCancellation()
-        let reopened = try makeContainer()
+        let reopened = try Self.performEraseAndReopen(
+            erase: {
+                try erasedContainer?.erase()
+                try recoveryStorage?.erase(using: fileManager)
+            },
+            discard: {
+                container = nil
+                erasedContainer = nil
+            },
+            reopen: makeContainer,
+        )
         container = reopened
         return reopened.configurations.map(\.url)
+    }
+
+    /// Honor cancellation before destructive work, then always finish
+    /// discarding and reopening once erasure has begun.
+    static func performEraseAndReopen<Reopened>(
+        erase: () throws -> Void,
+        discard: () -> Void,
+        reopen: () throws -> Reopened,
+    ) throws -> Reopened {
+        try Task.checkCancellation()
+        try erase()
+        discard()
+        return try reopen()
     }
 
     private func openContainer() throws -> ModelContainer {
