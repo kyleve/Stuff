@@ -30,6 +30,10 @@ internal shape.
   `perform { … }` (the production store traps otherwise), and each committed
   transaction pings `changes()`. The live `ModelContainer` is surfaced only
   for the read-only debug inspector.
+- **Annual audits are one captured policy snapshot.** Read through
+  `WhereStore.auditRecords(in:manualDays:)`, then attribute every row and total
+  against that value's tracked-region set; never compose an export from
+  separately timed UI reads.
 - **Each process opens its on-disk store once and injects it** — the app's
   launch opens it; the App Intents stack shares it via
   `WhereServices.forIntents(sharingStoreOf:)`. A second container over the

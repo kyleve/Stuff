@@ -45,6 +45,45 @@ public struct ReportReader: Sendable {
         }
     }
 
+    /// Capture every record needed for an audit in one store read, then freeze
+    /// the tracked-region set into an immutable attributor so rows, daily
+    /// presence, and totals cannot disagree if settings change concurrently.
+    public func auditReport(for year: Int) async throws -> YearAuditReport {
+        try await Self.logger.measure(.auditReport, budget: .seconds(2)) {
+            let records = try await store.auditRecords(
+                in: aggregator.yearInterval(year: year),
+                manualDays: dayRange(for: year),
+            )
+            let trackedRegions = Region.inCanonicalOrder(records.trackedRegions)
+            let capturedAttributor = RegionAttributor(for: trackedRegions)
+            let attributedSamples = records.samples.map {
+                YearAuditAttributedSample(
+                    sample: $0,
+                    region: capturedAttributor.region(at: $0.coordinate),
+                )
+            }
+            let report = aggregator.report(
+                for: year,
+                samples: records.samples,
+                manualDays: records.manualDays,
+                attributor: capturedAttributor,
+            )
+            let trackedSet = records.trackedRegions
+            let sources = RegionDataSource.all.filter { source in
+                !trackedSet.isDisjoint(with: source.regions)
+            }
+            return YearAuditReport(
+                report: report,
+                samples: attributedSamples,
+                manualDays: records.manualDays,
+                evidence: records.evidence,
+                trackedRegions: trackedRegions,
+                timeZone: aggregator.timeZone,
+                regionDataSources: sources,
+            )
+        }
+    }
+
     /// Everything a data-issue scan needs from a **single** year-samples read:
     /// the aggregated `report`, the `.other` day coordinates border-drift checks
     /// use, and the raw GPS fixes (lazily grouped in `DaySamples`) the
