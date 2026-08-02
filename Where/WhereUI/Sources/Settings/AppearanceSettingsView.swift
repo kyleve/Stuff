@@ -41,13 +41,9 @@ struct AppearanceSettingsView: View {
                             }
                             .settingsRow(Item.cardDesigner)
                         } header: {
-                            Text(String(localized: "Developer"))
+                            Text(String(localized: .cardDesignerSettingsHeader))
                         } footer: {
-                            Text(
-                                String(
-                                    localized: "Tune card presentation live and export the result for implementation.",
-                                ),
-                            )
+                            Text(String(localized: .cardDesignerSettingsFooter))
                         }
                     }
                 #endif
@@ -86,11 +82,7 @@ extension AppearanceSettingsView: SettingsSection {
                 case .appIcon: splitKeywords(String(localized: .settingsKeywordsAppIcon))
                 #if DEBUG
                     case .cardDesigner:
-                        splitKeywords(
-                            String(
-                                localized: "card cards design appearance rosette sheen stamp microprint",
-                            ),
-                        )
+                        splitKeywords(String(localized: .cardDesignerSettingsKeywords))
                 #endif
             }
         }

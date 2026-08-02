@@ -15,7 +15,7 @@
                         configuration: configuration,
                         diffOnly: diffOnly,
                     ),
-                    preview: SharePreview(String(localized: .cardDesignerJSONExport)),
+                    preview: SharePreview(String(localized: .cardDesignerJsonExport)),
                 ) {
                     Label(
                         String(localized: .cardDesignerShareJSON),

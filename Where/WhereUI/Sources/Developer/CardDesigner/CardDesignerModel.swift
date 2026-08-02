@@ -163,7 +163,7 @@
         var errorDescription: String? {
             switch self {
                 case let .unsupportedSchema(version):
-                    "Card designer schema \(version) is not supported by this build."
+                    String(localized: .cardDesignerPersistenceUnsupportedSchema(version))
             }
         }
     }
