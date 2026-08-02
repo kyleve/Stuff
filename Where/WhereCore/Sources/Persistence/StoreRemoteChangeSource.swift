@@ -33,20 +33,25 @@ protocol StoreRemoteChangeSource: AnyObject, Sendable {
 /// on-disk stores. Observing it and re-reading is Apple's documented way to
 /// react to remote SwiftData/CloudKit and cross-process changes.
 ///
-/// One store per app, so it forwards every remote-change notification rather
-/// than filtering by coordinator (SwiftData doesn't expose the underlying
-/// `NSPersistentStoreCoordinator` to filter on anyway).
+/// SwiftData doesn't expose its underlying `NSPersistentStoreCoordinator`, so
+/// notifications are scoped by Apple's `NSPersistentStoreURLKey` instead. The
+/// app also owns a separate Periscope store; its commits must not masquerade as
+/// changes to Where's domain data and trigger a refresh/logging feedback loop.
 final class PersistentStoreRemoteChangeSource: StoreRemoteChangeSource, @unchecked Sendable {
     let remoteChanges: AsyncStream<Void>
     private let center: NotificationCenter
     private let continuation: AsyncStream<Void>.Continuation
     private let observer: NSObjectProtocol
 
-    init(center: NotificationCenter = .default) {
+    init(storeURL: URL, center: NotificationCenter = .default) {
         self.center = center
-        var cont: AsyncStream<Void>.Continuation!
-        remoteChanges = AsyncStream { cont = $0 }
-        continuation = cont
+        let observedStoreURL = storeURL.standardizedFileURL
+        let (stream, continuation) = AsyncStream.makeStream(
+            of: Void.self,
+            bufferingPolicy: .bufferingNewest(1),
+        )
+        remoteChanges = stream
+        self.continuation = continuation
         // Capture the continuation in a local — deliberately *not*
         // `self.continuation` — so the long-lived observer block (which
         // `NotificationCenter` retains until `removeObserver`) doesn't capture
@@ -54,12 +59,15 @@ final class PersistentStoreRemoteChangeSource: StoreRemoteChangeSource, @uncheck
         // the observer is registered, so `deinit` (which removes it) could
         // never run. The stored `continuation` property exists only for
         // `deinit` to `finish()`.
-        let captured = cont!
+        let captured = continuation
         observer = center.addObserver(
             forName: .NSPersistentStoreRemoteChange,
             object: nil,
             queue: nil,
-        ) { _ in
+        ) { notification in
+            guard let changedStoreURL = notification.userInfo?[NSPersistentStoreURLKey] as? URL,
+                  changedStoreURL.standardizedFileURL == observedStoreURL
+            else { return }
             captured.yield()
         }
     }
@@ -87,9 +95,12 @@ final class PersistentStoreRemoteChangeSource: StoreRemoteChangeSource, @uncheck
         private let continuation: AsyncStream<Void>.Continuation
 
         public init() {
-            var cont: AsyncStream<Void>.Continuation!
-            remoteChanges = AsyncStream { cont = $0 }
-            continuation = cont
+            let (stream, continuation) = AsyncStream.makeStream(
+                of: Void.self,
+                bufferingPolicy: .bufferingNewest(1),
+            )
+            remoteChanges = stream
+            self.continuation = continuation
         }
 
         /// Simulate a remote import: a store observing this source re-pings its

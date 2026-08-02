@@ -220,7 +220,13 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         // share-extension add show up live in the running app (debug included),
         // not just on next launch.
         if storage.observesRemoteChanges {
-            store.startObservingRemoteChanges(PersistentStoreRemoteChangeSource())
+            if let storeURL = container.configurations.first?.url {
+                store.startObservingRemoteChanges(PersistentStoreRemoteChangeSource(
+                    storeURL: storeURL,
+                ))
+            } else {
+                assertionFailure("An on-disk Where store must have a resolved URL")
+            }
         }
         return store
     }
