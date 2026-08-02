@@ -183,6 +183,7 @@ struct RegionSummaryCard: View {
                     .offset(x: card.watermarkOffset.width, y: card.watermarkOffset.height)
             }
         }
+        .blendMode(stylesheet.card.securityPrint.backgroundBlendMode)
         .clipShape(cardShape)
         .allowsHitTesting(false)
         .accessibilityHidden(true)

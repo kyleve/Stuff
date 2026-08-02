@@ -56,8 +56,8 @@ struct WhereStylesheet: BStylesheet {
             developerOverlay.menu.motion = .reduced
         }
 
-        // Pale ink lifts the security print off dark glass without a Screen
-        // blend amplifying Liquid Glass's interactive tint illumination.
+        // Pale, luminosity-only ink lifts the background security print off
+        // dark glass without changing its hue or saturation on touch.
         if traits.mode == .dark {
             card.securityPrint = .dark
         }
@@ -443,6 +443,9 @@ extension WhereStylesheet {
         /// while the system energizes the glass on touch.
         struct SecurityPrint: Equatable {
             var whiteMix: Double
+            /// Applies to the rosettes, watermark, and microprint only; the
+            /// prominent entry stamp always uses normal compositing.
+            var backgroundBlendMode: BlendMode
 
             func tint(_ regionTint: Color) -> Color {
                 guard whiteMix > 0 else { return regionTint }
@@ -453,8 +456,14 @@ extension WhereStylesheet {
                 )
             }
 
-            static let standard = SecurityPrint(whiteMix: 0)
-            static let dark = SecurityPrint(whiteMix: 0.65)
+            static let standard = SecurityPrint(
+                whiteMix: 0,
+                backgroundBlendMode: .normal,
+            )
+            static let dark = SecurityPrint(
+                whiteMix: 0.65,
+                backgroundBlendMode: .luminosity,
+            )
         }
 
         /// How a card's day count changes when it updates with the card on screen

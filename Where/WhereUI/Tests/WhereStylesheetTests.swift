@@ -142,6 +142,7 @@ struct WhereStylesheetTests {
         #expect(card.nameOpacity == 0.8)
         #expect(card.rosetteFill == .init(primary: 0.12, secondary: 0.08))
         #expect(card.securityPrint == .standard)
+        #expect(card.securityPrint.backgroundBlendMode == .normal)
         #expect(card.securityPrint.tint(.red) == .red)
         #expect(card.dayCount == .standard)
         #expect(card.dayCount.animation == .easeOut(duration: 0.3))
@@ -427,6 +428,7 @@ struct WhereStylesheetTests {
         context.traitOverrides.mode = .dark
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
         #expect(resolved.card.securityPrint == .dark)
+        #expect(resolved.card.securityPrint.backgroundBlendMode == .luminosity)
         #expect(resolved.card.securityPrint.tint(.red) == Color.red.mix(
             with: .white,
             by: 0.65,
