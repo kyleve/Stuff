@@ -122,27 +122,10 @@ public enum RegionAppearanceCatalog {
             RegionAppearance(color: .teal, emoji: "🧭", symbolName: "location.magnifyingglass"),
     ]
 
-    /// Keep id-derived defaults stable as the user-selectable palette grows.
-    /// These are the eleven colors used by the original hash mapping.
-    private static let defaultColors: [RegionColorToken] = [
-        .orange,
-        .indigo,
-        .red,
-        .blue,
-        .teal,
-        .green,
-        .mint,
-        .cyan,
-        .purple,
-        .pink,
-        .brown,
-    ]
-
-    /// A stable accent token derived from the region id, matching the order of
-    /// the original palette so adding picker choices doesn't recolor a region.
+    /// An accent token derived from the region id across every selectable color.
     private static func defaultColor(for id: String) -> RegionColorToken {
         let sum = id.unicodeScalars.reduce(0) { $0 &+ Int($1.value) }
-        return defaultColors[sum % defaultColors.count]
+        return colors[sum % colors.count]
     }
 }
 

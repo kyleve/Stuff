@@ -3,16 +3,15 @@ import Testing
 @testable import WhereCore
 @testable import WhereUI
 
-/// The picker exposes every stored color while id-derived fallback appearances
-/// remain stable as new choices are added.
+/// The picker and id-derived fallback appearances share one complete palette.
 struct RegionAppearanceCatalogTests {
     @Test func selectorIncludesEveryColorToken() {
         #expect(RegionAppearanceCatalog.colors == RegionColorToken.allCases)
     }
 
-    @Test func expandedSelectorDoesNotRecolorExistingDefaults() throws {
+    @Test func idDerivedDefaultsUseExpandedColors() throws {
         let texas = try #require(Region(rawValue: "us-TX"))
-        #expect(RegionAppearanceCatalog.defaultAppearance(for: texas).color == .pink)
+        #expect(RegionAppearanceCatalog.defaultAppearance(for: texas).color == .charcoal)
     }
 
     @Test func lightSwatchesUseDarkSelectionGlyphs() {
