@@ -78,6 +78,9 @@ the build system, formatting, and global conventions. Read that first.
   sessions but skip ingest (ingest deletes journals; an extension launch must
   not eat the live app's). Concurrently live processes sharing one on-disk
   store is unsupported; see [`TODOs.md`](../TODOs.md).
+- **Periscope storage is local-only.** Every on-disk `ModelConfiguration`
+  explicitly sets `cloudKitDatabase: .none`; a host app's iCloud entitlement
+  must never opt the logging schema into CloudKit implicitly.
 - **Payloads persist as versioned JSON** (`eventName` + `eventVersion`) — an
   event shape change must not require a SwiftData migration. While the app is
   pre-release, shape changes need no decode tolerance either: the store is
@@ -89,6 +92,10 @@ the build system, formatting, and global conventions. Read that first.
   unstamped bundle yields an empty dictionary; nothing here invents a
   placeholder, because a session claiming it was built from a commit named
   `unknown` is worse than one that admits it can't say.
+- **Keep `PeriscopeStore.inspectorModelTypes`, `inspectorStoreURL`, and
+  `inspectorRecoveryStorageURLs` identical to the live store and journal
+  locations.** They are the adapters that let a standalone Inspector enumerate
+  or recover internal storage without starting the logging pipeline.
 - **Every span eventually ends, and its began is delivered first.** `measure`
   closes on every path; bounded spans expire via the watchdog; re-begins
   supersede; relaunch orphan-closes `endsWithProcess` spans (the

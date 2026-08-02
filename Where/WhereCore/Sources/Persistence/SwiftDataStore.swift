@@ -125,15 +125,25 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         // change (new optional fields, new models); the launch flow shows
         // migration UI purely off slowness, not a predicted version, so no
         // `VersionedSchema`/`SchemaMigrationPlan` scaffolding is needed.
-        let schema = Schema([
-            SDLocationSample.self,
-            SDEvidence.self,
-            SDManualDay.self,
-            SDDismissedIssue.self,
-            SDTrackedRegion.self,
-            SDRecordingDevice.self,
-            SDRecordingPolicyChange.self,
-        ])
+        let schema = Schema(inspectorModelTypes)
+        let configuration = modelConfiguration(storage: storage, schema: schema)
+        return try ModelContainer(for: schema, configurations: [configuration])
+    }
+
+    /// The exact store URL used inside the resolved App Group container.
+    /// Inspector passes the entitlement-resolved root so this lookup never asks
+    /// SwiftData to resolve an unavailable App Group in a test host.
+    public static func inspectorStoreURL(groupContainerURL: URL) -> URL {
+        groupContainerURL.appending(
+            path: "Library/Application Support/default.store",
+            directoryHint: .notDirectory,
+        )
+    }
+
+    private static func modelConfiguration(
+        storage: Storage,
+        schema: Schema,
+    ) -> ModelConfiguration {
         // On-disk storage lives in the App Group container so the share
         // extension (and any other sibling process) writes into the same store
         // the app reads. An in-memory store has no container — leave it default.
@@ -146,13 +156,12 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         // `.NSPersistentStoreRemoteChange` on remote import — no extra knobs
         // needed (and SwiftData exposes none). `make` observes that notification
         // via `PersistentStoreRemoteChangeSource`.
-        let config = ModelConfiguration(
+        return ModelConfiguration(
             schema: schema,
             isStoredInMemoryOnly: storage == .inMemory,
             groupContainer: groupContainer,
             cloudKitDatabase: storage == .cloudKit ? .automatic : .none,
         )
-        return try ModelContainer(for: schema, configurations: [config])
     }
 
     /// Convenience for tests and SwiftUI previews: builds an
@@ -236,17 +245,8 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
 
     #endif
 
-    /// The live model container, re-exposed for read-only debug tooling (the
-    /// SwiftData inspector). The `@ModelActor`-synthesized `modelContainer` is
-    /// otherwise module-internal; this narrow accessor surfaces it without
-    /// widening the value-type `WhereStore` boundary — anything that isn't the
-    /// inspector should keep talking to `WhereStore`, never the container.
-    public nonisolated var inspectorContainer: ModelContainer {
-        modelContainer
-    }
-
     /// The live `@Model` record types, erased to existentials so a generic
-    /// SwiftData inspector can enumerate them without naming the (intentionally
+    /// Inspector runtime can enumerate them without naming the (intentionally
     /// internal) record types. Mirrors the `Schema` in `makeContainer`.
     public static var inspectorModelTypes: [any PersistentModel.Type] {
         [

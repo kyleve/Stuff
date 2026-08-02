@@ -1,6 +1,5 @@
 import Foundation
 import RegionKit
-import SwiftData
 
 /// The Where feature's service layer: a small `Sendable` container of the
 /// focused collaborators that, together, do everything the old `WhereController`
@@ -72,12 +71,6 @@ public struct WhereServices: Sendable {
     /// Installation identity used to stamp automatic samples. Retained so a
     /// derived App Intents stack preserves the same composition value.
     let currentDevice: CurrentRecordingDevice
-    /// The live SwiftData container when the backing store is the production
-    /// `SwiftDataStore`; `nil` for non-SwiftData stores (e.g. test fakes).
-    /// Surfaced only for read-only debug tooling (the SwiftData inspector) so
-    /// SwiftData never has to route through the value-type `WhereStore` boundary.
-    public let modelContainer: ModelContainer?
-
     /// Synchronous assembly with an explicitly-provided `attributor` (default:
     /// the historical four via `RegionAttributor.shared`). For **tests and
     /// previews** — hence `@_spi(Testing)` — which build in-memory stacks without
@@ -238,7 +231,6 @@ public struct WhereServices: Sendable {
         self.widgetRefresher = widgetRefresher
         self.now = now
         self.currentDevice = currentDevice
-        modelContainer = (store as? SwiftDataStore)?.inspectorContainer
     }
 
     /// Assemble services whose attributor is derived from the store's **tracked

@@ -9,7 +9,6 @@
     enum DeveloperTool: Hashable, Identifiable {
         case logs
         case openSpans
-        case swiftDataInspector
         case regionMap
 
         var id: Self {
@@ -22,8 +21,6 @@
                     String(localized: .developerLogsLink)
                 case .openSpans:
                     String(localized: .developerOpenSpansLink)
-                case .swiftDataInspector:
-                    String(localized: .developerInspectorLink)
                 case .regionMap:
                     String(localized: .developerRegionMapLink)
             }
@@ -33,7 +30,6 @@
             switch self {
                 case .logs: "ladybug"
                 case .openSpans: "timer"
-                case .swiftDataInspector: "cylinder.split.1x2"
                 case .regionMap: "map"
             }
         }

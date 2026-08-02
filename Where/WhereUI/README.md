@@ -34,6 +34,12 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   injects the launch-built model + runner
   (`init(model:launcher:)`); a no-arg `init()` builds its own for previews and
   the hosted UI test.
+- **Developer tools** — DEBUG-only logging, span, region-map, Flyover, and
+  next-launch Inspector controls. The global launcher's accordion only updates
+  `InspectorModeController`; the current regular runtime continues until the
+  developer relaunches. The Logs destination is always present: before its
+  durable store is ready it reports whether the open is still running,
+  unavailable, or failed with the actual error.
 - **`WhereLaunch`** — the launch, reset, and exit-demo plans themselves. Every
   step declares how long it should take (`BudgetedLaunchStep`) and joins the
   plan through `.measured()`, so each run is one Periscope span named after
@@ -50,11 +56,13 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   on-disk store, and `makeDemoScope()` builds a seeded in-memory world that
   leaves nothing behind. Its log sink is registered on an **injected**
   `Periscope` — and only while `WhereModel` says the scope is active — with
-  routing modelled as one state (`pending` / `routing` / `idle`), so a store that
-  finishes opening while the scope is shadowed is remembered rather than routed
-  into. When the durable store opens, its bring-up is spanned (`openLogStore`)
-  and history is trimmed with `LogHistoryPruner` (a 100-day window *and* a
-  50k-event ceiling, so the store is bounded however heavily the device logs).
+  routing modelled as one state (`pending` / `routing` / `idle` / `failed`), so
+  a store that finishes opening while the scope is shadowed is remembered rather
+  than routed into. `WhereModel.logStoreState` mirrors the active scope's
+  asynchronous bring-up for direct SwiftUI observation. When the durable store
+  opens, its bring-up is spanned (`openLogStore`) and history is trimmed with
+  `LogHistoryPruner` (a 100-day window *and* a 50k-event ceiling, so the store is
+  bounded however heavily the device logs).
 - **`WhereModel`** — app-level state that outlives any one scope: the
   onboarding flag, the active `WhereScope`, the owned `WhereSession`, and the
   lifecycle intents (`activate(scope:)`, `startSession(scope:)` — which
@@ -123,9 +131,8 @@ target's dependencies in [`Package.swift`](../../Package.swift):
 
 ## Quick start
 
-The app target is deliberately tiny — it builds the model + launch runner at
-startup (so CoreLocation is wired for background relaunch) and hands them to
-`RootView`:
+The app target is deliberately tiny. It selects one application runtime, then
+forwards the process launch and root view:
 
 ```swift
 import SwiftUI
@@ -137,13 +144,15 @@ struct WhereApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootView(model: appDelegate.model, launcher: appDelegate.launcher)
+            appDelegate.runtime.makeRootView()
         }
     }
 }
 ```
 
-`RootView` applies `whereBroadwayRoot()` itself, so a host doesn't wrap it. For
+The regular runtime owns the model and launch runner; the DEBUG Inspector
+runtime supplies an entirely separate root. `RootView` applies
+`whereBroadwayRoot()` itself, so a host doesn't wrap it. For
 a self-contained preview or UI test, the no-arg `RootView()` builds its own
 model and a foreground launch runner.
 

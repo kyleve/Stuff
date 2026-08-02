@@ -7,9 +7,6 @@
     "%lld" : {
 
     },
-    "Log today here" : {
-
-    },
     "appIcon.appearance.dark" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -391,6 +388,18 @@
         }
       }
     },
+    "developer.cancelInspectorNextLaunch" : {
+      "comment" : "Button that cancels a pending Inspector boot.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel Inspector on Next Launch"
+          }
+        }
+      }
+    },
     "developer.close" : {
       "comment" : "Accessibility label for closing the developer panel.",
       "extractionState" : "manual",
@@ -427,6 +436,18 @@
         }
       }
     },
+    "developer.enterInspectorNextLaunch" : {
+      "comment" : "Button that schedules the standalone Inspector runtime for the next app launch.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter Inspector Mode on Next Launch"
+          }
+        }
+      }
+    },
     "developer.expand" : {
       "comment" : "Accessibility label for growing the developer panel to full screen.",
       "extractionState" : "manual",
@@ -451,26 +472,14 @@
         }
       }
     },
-    "developer.inspectorLink" : {
-      "comment" : "Label for the navigation link that opens the SwiftData inspector.",
+    "developer.inspectorNextLaunchSelected" : {
+      "comment" : "Status shown after Inspector has been selected for the next launch.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "SwiftData Inspector"
-          }
-        }
-      }
-    },
-    "developer.inspectorTitle" : {
-      "comment" : "Navigation title for the SwiftData inspector screen.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "SwiftData"
+            "value" : "Inspector will replace the app UI after you close and reopen Where."
           }
         }
       }
@@ -493,6 +502,42 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Reveal an inspect badge on tagged views to open their recent logs."
+          }
+        }
+      }
+    },
+    "developer.loggingFailedTitle" : {
+      "comment" : "Title shown when the durable developer log store could not be opened.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Log Store Failed to Open"
+          }
+        }
+      }
+    },
+    "developer.loggingOpeningDescription" : {
+      "comment" : "Explanation shown while the durable developer log store is opening.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The durable logging store is still opening. If this state persists, relaunch Where and check again."
+          }
+        }
+      }
+    },
+    "developer.loggingOpeningTitle" : {
+      "comment" : "Title shown while the durable developer log store is opening.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opening Log Store"
           }
         }
       }
@@ -4660,6 +4705,18 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Year"
+          }
+        }
+      }
+    },
+    "snippet.logTodayHere" : {
+      "comment" : "Button in the day-count snippet that logs today for the shown region.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Log today here"
           }
         }
       }

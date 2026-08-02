@@ -420,7 +420,6 @@
             routes: [
                 .push(to: WhereFlyoverLogView.flyoverID),
                 .push(to: OpenSpansView.flyoverID),
-                .push(to: WhereFlyoverSwiftDataView.flyoverID),
                 .push(to: RegionMapView.flyoverID),
             ],
         )

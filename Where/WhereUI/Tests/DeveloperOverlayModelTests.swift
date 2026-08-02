@@ -313,11 +313,11 @@
             model.setFloating(layout)
 
             model.openMenu()
-            model.open(.swiftDataInspector)
+            model.open(.regionMap)
             model.toggleFullScreen()
             model.toggleFullScreen()
 
-            #expect(model.presentation == .floating(.swiftDataInspector))
+            #expect(model.presentation == .floating(.regionMap))
             #expect(model.floating == layout)
         }
     }

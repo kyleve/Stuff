@@ -196,7 +196,9 @@ store so the retry queue can't repopulate it mid-erase.
 ## Contracts & limitations
 
 - **Values, not records.** Nothing crossing `WhereStore` is a SwiftData object;
-  the live `ModelContainer` is surfaced only for the read-only debug inspector.
+  the DEBUG Inspector runtime opens its own container directly from the same
+  schema factory and uses the factory's exact store URL for recovery, without
+  constructing `WhereServices`.
 - **Always-location.** Background day tracking needs Always; `requestPermission()`
   throws `LocationPermissionDeniedError` on denial / restriction.
 - **Strong remote cutoff.** Turning a device off does not depend on that device

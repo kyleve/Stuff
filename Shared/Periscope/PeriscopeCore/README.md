@@ -134,6 +134,13 @@ Periscope.shared.startDefaultAmbientSources()
   `attachments(forEvent:)`, `ambientSnapshot(for:)` /
   `ambientSnapshots()`, retention
   (`pruneEvents(olderThan:/keepingNewest:)`), and a `changes()` signal.
+  `makeContainer(storage:)`, `inspectorModelTypes`, `inspectorStoreURL`, and
+  `inspectorRecoveryStorageURLs` expose the narrow schema adapter a standalone
+  Inspector runtime needs without starting a logging session or exposing the
+  internal SwiftData model classes. The recovery URLs include the crash
+  journals that would otherwise replay deleted history into a fresh store.
+  Periscope storage is always local-only; its model configurations disable
+  CloudKit explicitly even when the host application has iCloud entitlements.
 
 ## How it works
 

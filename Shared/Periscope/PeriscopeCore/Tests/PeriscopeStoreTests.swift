@@ -20,6 +20,24 @@ struct PeriscopeStoreTests {
         return (store, root, photos, album)
     }
 
+    @Test func inspectorModelTypesMirrorTheStoreSchema() {
+        #expect(
+            PeriscopeStore.inspectorModelTypes.map { String(describing: $0) }
+                == [
+                    "SDLogEvent",
+                    "SDLogScope",
+                    "SDLogSession",
+                    "SDLogTag",
+                    "SDLogAttachment",
+                    "SDAmbientSnapshot",
+                ],
+        )
+    }
+
+    @Test func inspectorStoreURLNamesTheOnDiskConfiguration() {
+        #expect(PeriscopeStore.inspectorStoreURL.lastPathComponent == "Periscope.store")
+    }
+
     @Test func eventsComeBackNewestFirst() async throws {
         let (store, root, _, _) = try await makeStore()
         await store.write([
