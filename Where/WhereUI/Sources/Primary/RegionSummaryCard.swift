@@ -62,6 +62,12 @@ struct RegionSummaryCard: View {
         styleOverride ?? regionStyles.style(for: regionDays.region)
     }
 
+    /// Region ink on light cards; a pale derivative on dark cards that remains
+    /// distinct while interactive Liquid Glass illuminates nearby surfaces.
+    private var securityPrintTint: Color {
+        stylesheet.card.securityPrint.tint(style.tint)
+    }
+
     private var cardShape: RoundedRectangle {
         RoundedRectangle(cornerRadius: card.cornerRadius, style: .continuous)
     }
@@ -89,12 +95,11 @@ struct RegionSummaryCard: View {
             title: regionDays.region.localizedName.uppercased(),
             year: year,
             symbolName: style.symbolName,
-            tint: style.tint,
+            tint: securityPrintTint,
             style: card.entryStamp,
             regionPath: regionPaths?.stamp ?? Path(),
             regionShape: card.regionShape,
         )
-        .blendMode(stylesheet.card.securityPrintBlendMode)
     }
 
     /// A faint, region-tinted "security print" behind the content: a guilloché
@@ -105,7 +110,7 @@ struct RegionSummaryCard: View {
         // Read the main-actor `style.tint` and the value-type `rosette` spec once
         // here so the nonisolated `Canvas` renderer closure captures `Sendable`
         // values rather than reaching back into main-actor state.
-        let tint = style.tint
+        let tint = securityPrintTint
         let rosette = card.rosette
         let rosetteFill = stylesheet.card.rosetteFill
         return ZStack {
@@ -153,7 +158,7 @@ struct RegionSummaryCard: View {
             {
                 RegionOutlineSecurityBorder(
                     path: regionPath,
-                    tint: style.tint,
+                    tint: tint,
                     cornerRadius: card.cornerRadius,
                     style: regionShape.securityBorder,
                 )
@@ -166,19 +171,18 @@ struct RegionSummaryCard: View {
             {
                 RegionOutlineArtwork(
                     path: regionPath,
-                    tint: style.tint,
+                    tint: tint,
                     style: regionShape.watermark,
                 )
             } else {
                 Image(systemName: style.symbolName)
                     .font(.system(size: card.watermarkFontSize))
-                    .foregroundStyle(style.tint.opacity(stylesheet.card.watermarkOpacity))
+                    .foregroundStyle(tint.opacity(stylesheet.card.watermarkOpacity))
                     .rotationEffect(.degrees(-14))
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
                     .offset(x: card.watermarkOffset.width, y: card.watermarkOffset.height)
             }
         }
-        .blendMode(stylesheet.card.securityPrintBlendMode)
         .clipShape(cardShape)
         .allowsHitTesting(false)
         .accessibilityHidden(true)

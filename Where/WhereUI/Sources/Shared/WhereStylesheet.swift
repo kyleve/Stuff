@@ -56,10 +56,10 @@ struct WhereStylesheet: BStylesheet {
             developerOverlay.menu.motion = .reduced
         }
 
-        // Security print behaves like ink on pale cards and reflected ink on
-        // dark ones: dark-mode artwork can only lighten the glass beneath it.
+        // Pale ink lifts the security print off dark glass without a Screen
+        // blend amplifying Liquid Glass's interactive tint illumination.
         if traits.mode == .dark {
-            card.securityPrintBlendMode = .screen
+            card.securityPrint = .dark
         }
     }
 
@@ -426,9 +426,8 @@ extension WhereStylesheet {
         var nameOpacity: Double
         /// Fill opacities of the two security-print rosettes.
         var rosetteFill: RosetteFill
-        /// How decorative card ink combines with its Liquid Glass surface.
-        /// Dark mode uses Screen so every detail lifts the darker card beneath.
-        var securityPrintBlendMode: BlendMode
+        /// How the region tint is prepared for decorative security printing.
+        var securityPrint: SecurityPrint
         /// How the day count changes while the card is on screen; resolves to
         /// ``DayCountStyle/reducedMotion`` under Reduce Motion.
         var dayCount: DayCountStyle
@@ -437,6 +436,25 @@ extension WhereStylesheet {
         struct RosetteFill: Equatable {
             var primary: Double
             var secondary: Double
+        }
+
+        /// Keeps security artwork region-tinted on pale glass and mixes it
+        /// toward white on dark glass so normal compositing remains legible
+        /// while the system energizes the glass on touch.
+        struct SecurityPrint: Equatable {
+            var whiteMix: Double
+
+            func tint(_ regionTint: Color) -> Color {
+                guard whiteMix > 0 else { return regionTint }
+                return regionTint.mix(
+                    with: .white,
+                    by: whiteMix,
+                    in: .perceptual,
+                )
+            }
+
+            static let standard = SecurityPrint(whiteMix: 0)
+            static let dark = SecurityPrint(whiteMix: 0.65)
         }
 
         /// How a card's day count changes when it updates with the card on screen
@@ -583,7 +601,7 @@ extension WhereStylesheet {
             glassTintOpacity: 0.18,
             nameOpacity: 0.8,
             rosetteFill: RosetteFill(primary: 0.12, secondary: 0.08),
-            securityPrintBlendMode: .normal,
+            securityPrint: .standard,
             dayCount: .standard,
         )
     }
