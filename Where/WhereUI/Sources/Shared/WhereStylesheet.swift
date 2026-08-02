@@ -289,7 +289,6 @@ extension WhereStylesheet {
             var stampExtent: CGSize
             var stampScale: CGFloat
             var stampFillOpacity: Double
-            var stampStrokeWidth: CGFloat
             var securityBorder: SecurityBorder
 
             /// The inset ring of tiny tangent-aligned region silhouettes.
@@ -432,7 +431,6 @@ extension WhereStylesheet {
                     stampExtent: CGSize(width: 0.78, height: 0.78),
                     stampScale: 0.88,
                     stampFillOpacity: 0.78,
-                    stampStrokeWidth: 1,
                     securityBorder: .init(
                         inset: 9,
                         glyphSize: 8,

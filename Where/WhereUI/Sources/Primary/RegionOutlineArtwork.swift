@@ -44,11 +44,6 @@ struct RegionOutlineArtwork: View {
                         path,
                         with: .color(tint.opacity(style.stampFillOpacity)),
                     )
-                    projectedContext.stroke(
-                        path,
-                        with: .color(tint),
-                        lineWidth: style.stampStrokeWidth / scale,
-                    )
             }
         }
         .allowsHitTesting(false)
