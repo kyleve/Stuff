@@ -10,6 +10,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     let runtime: any WhereApplicationRuntime
 
     override init() {
+        let buildEnvironment = WhereBuildEnvironment.current()
         #if DEBUG
             guard let applicationIdentifier = Bundle.main.bundleIdentifier else {
                 preconditionFailure("Where has no bundle identifier")
@@ -21,14 +22,20 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
                 modeController: modeController,
                 fileManager: .default,
                 regular: {
-                    RegularApplicationRuntime(inspectorModeController: modeController)
+                    RegularApplicationRuntime(
+                        buildEnvironment: buildEnvironment,
+                        inspectorModeController: modeController,
+                    )
                 },
                 inspector: {
-                    WhereInspectorApplicationRuntime(modeController: modeController)
+                    WhereInspectorApplicationRuntime(
+                        buildEnvironment: buildEnvironment,
+                        modeController: modeController,
+                    )
                 },
             )
         #else
-            runtime = RegularApplicationRuntime()
+            runtime = RegularApplicationRuntime(buildEnvironment: buildEnvironment)
         #endif
         super.init()
     }

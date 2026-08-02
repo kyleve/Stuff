@@ -9,10 +9,9 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
 
 ## Scope & dependencies
 
-- **Tuist app-extension target** ([`Project.swift`](../../Project.swift),
-  bundle ID `com.stuff.where.share`), depending on **WhereCore**, **WhereUI**,
-  and **PeriscopeCore**. Embedded by the **Where** app; shares the
-  `group.com.stuff.where` App Group entitlement. Logs via the `WhereLog` facade
+- **Tuist app-extension target** ([`Project.swift`](../../Project.swift), with
+  an audience-specific bundle ID and App Group), depending on **WhereCore**,
+  **WhereUI**, and **PeriscopeCore**. Embedded by the **Where** app. Logs via the `WhereLog` facade
   (typed `ShareExtensionLog` events); as a separate process its
   `Periscope.shared` is OSLog-only (no store).
 - Presentation reuses WhereUI's public `EvidenceKind.symbolName`/`displayName`;
@@ -30,7 +29,8 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
   persistent-history ping is what the app reconciles from later.
 - **Opens `.localOnly` storage, never CloudKit.** The extension holds only the
   App Group entitlement (no iCloud), so it must not initialize the CloudKit
-  mirror; the app's container syncs the shared store's history.
+  mirror; the app's container syncs the shared store's history. Resolve that
+  group through `WhereShareBuildEnvironment` and inject it into the store.
 - **`NSExtensionPrincipalClass` is `$(PRODUCT_MODULE_NAME).ShareViewController`**
   — keep the class name and Info.plist in sync. Save/cancel bridge to
   `extensionContext` completion; the root view has no `@Environment(\.dismiss)`.

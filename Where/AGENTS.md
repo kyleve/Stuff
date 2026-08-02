@@ -277,8 +277,11 @@ loaded, and distinct edge states, not just the happy path.
 
 `./Where/install` builds, signs, and installs the app onto a connected iPhone
 from the CLI — macOS-only, one-time `./ide --team-id <id>` setup. It defaults
-to Debug with compiler optimizations forced on, so DEBUG-only developer
-surfaces survive at near-Release speed. Options: `./Where/install --help`.
+to the **Where Development** scheme with compiler optimizations forced on, so
+DEBUG-only developer surfaces survive at near-Release speed. Pass
+`--configuration Beta` for the TestFlight-style production identity or
+`--configuration Release` for the App Store audience. Options:
+`./Where/install --help`.
 
 ## Testing
 

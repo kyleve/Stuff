@@ -18,8 +18,10 @@ struct AppIconView: View {
     @Environment(\.stylesheet) private var stylesheet
 
     @MainActor
-    init(model: AppIconModel = AppIconModel()) {
-        _model = State(initialValue: model)
+    init(primaryAppIconName: String, model: AppIconModel? = nil) {
+        _model = State(initialValue: model ?? AppIconModel(
+            primaryAppIconName: primaryAppIconName,
+        ))
     }
 
     private var appIcon: WhereStylesheet.AppIconStyle {
@@ -310,7 +312,9 @@ struct AppIconImage: View {
     extension AppIconView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
             whereSnapshot(name: "Default", configurations: .screenDefaults, settle: .immediate) {
-                NavigationStack { AppIconView(model: .preview()) }
+                NavigationStack {
+                    AppIconView(primaryAppIconName: "AppIcon", model: .preview())
+                }
             }
         }
     }

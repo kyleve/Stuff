@@ -23,16 +23,7 @@ struct YearReportTests {
     }
 }
 
-struct StorageDefaultTests {
-    @Test func storageDefault_isInMemoryUnderTestRunner() {
-        // We're running under either XCTest or Swift Testing via
-        // `tuist test` / `xcodebuild test` / `swift test`, all of
-        // which set `XCTestConfigurationFilePath`. If this assertion
-        // ever fails, `Storage.default` would let a real test build
-        // write to the user's local SwiftData store — bad.
-        #expect(SwiftDataStore.Storage.default == .inMemory)
-    }
-
+struct StorageConfigurationTests {
     @Test func make_inMemory_roundTripsASample() async throws {
         let store = try SwiftDataStore.make(storage: .inMemory)
         let sample = LocationSample(
@@ -45,6 +36,17 @@ struct StorageDefaultTests {
 
         let stored = try await store.allSamples()
         #expect(stored.map(\.id) == [sample.id])
+    }
+
+    @Test func onDiskStorageCarriesItsAudienceAppGroup() {
+        let development = SwiftDataStore.Storage.localOnly(
+            appGroupIdentifier: "group.com.stuff.where.development",
+        )
+        let production = SwiftDataStore.Storage.localOnly(
+            appGroupIdentifier: "group.com.stuff.where",
+        )
+
+        #expect(development != production)
     }
 }
 

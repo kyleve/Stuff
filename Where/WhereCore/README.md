@@ -25,8 +25,10 @@ one it belongs to rather than to a god-object:
   crossing it is a SwiftData record). Mutations run inside `perform { … }` (one
   atomic transaction) and `changes()` emits once per commit and on a CloudKit
   remote import for the Where store URL, excluding other process stores such as
-  Periscope. `SwiftDataStore.make()` is the production, CloudKit-backed
-  implementation; `SwiftDataStore.inMemory()` backs tests and previews. Each
+  Periscope. `SwiftDataStore.make(storage:)` opens either an explicitly named
+  local-only or CloudKit-backed App Group; `.inMemory` backs tests and previews.
+  The host chooses that policy and group, so WhereCore contains no audience
+  default. Each
   process opens its on-disk store **once** and injects it where it's needed —
   in the app, the launch's `resolve-scope` step opens it and the App Intents
   stack shares it via `WhereServices.forIntents(sharingStoreOf:)` — so two
@@ -154,7 +156,7 @@ import WhereCore
 // previews use the synchronous `@_spi(Testing)` `init` instead (an explicit
 // attributor, default four) via `@_spi(Testing) import WhereCore`.
 let services = try await WhereServices.make(
-    store: try SwiftDataStore.make(),   // production; use .inMemory() in tests
+    store: try SwiftDataStore.make(storage: storage),
     locationSource: CoreLocationSource(),
 )
 

@@ -8,9 +8,21 @@ import WidgetKit
 /// budget.
 struct YearTotalsWidget: Widget {
     static let kind = "com.stuff.where.widgets.yearTotals"
+    let appGroupIdentifier: String
+
+    init() {
+        appGroupIdentifier = WhereWidgetBuildEnvironment.current().appGroupIdentifier
+    }
+
+    init(appGroupIdentifier: String) {
+        self.appGroupIdentifier = appGroupIdentifier
+    }
 
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: Self.kind, provider: WhereWidgetProvider()) { entry in
+        StaticConfiguration(
+            kind: Self.kind,
+            provider: WhereWidgetProvider(appGroupIdentifier: appGroupIdentifier),
+        ) { entry in
             YearTotalsWidgetContent(entry: entry)
                 // Seed the Broadway context so the shared WhereUI content views
                 // resolve trait-aware `@Environment(\.stylesheet)` tokens instead
@@ -68,21 +80,21 @@ private struct YearTotalsWidgetContent: View {
 
 #if DEBUG
     #Preview("Small", as: .systemSmall) {
-        YearTotalsWidget()
+        YearTotalsWidget(appGroupIdentifier: "group.com.stuff.where.preview")
     } timeline: {
         WhereWidgetEntry.sample
         WhereWidgetEntry.previewEmpty
     }
 
     #Preview("Medium", as: .systemMedium) {
-        YearTotalsWidget()
+        YearTotalsWidget(appGroupIdentifier: "group.com.stuff.where.preview")
     } timeline: {
         WhereWidgetEntry.sample
         WhereWidgetEntry.previewEmpty
     }
 
     #Preview("Rectangular", as: .accessoryRectangular) {
-        YearTotalsWidget()
+        YearTotalsWidget(appGroupIdentifier: "group.com.stuff.where.preview")
     } timeline: {
         WhereWidgetEntry.sample
         WhereWidgetEntry.previewEmpty

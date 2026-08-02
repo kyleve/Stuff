@@ -5,7 +5,7 @@ today's region presence and year-to-date day counts per region.
 
 Widgets never open the SwiftData store. The app publishes a single aggregated
 [`WidgetSnapshot`](../WhereCore/Sources/Widgets/WidgetDataReader.swift) JSON file
-into the shared App Group (`group.com.stuff.where`); this extension reads it via
+into its audience's shared App Group; this extension reads it via
 [`WidgetSnapshotStore`](../WhereCore/Sources/Widgets/WidgetSnapshotStore.swift).
 All rendering lives in [`WhereUI`](../WhereUI/) — this target only wires
 WidgetKit configuration, the timeline provider, and family-specific layout.
@@ -42,7 +42,9 @@ app never wakes.
 ## Installation
 
 `WhereWidgets` is a Tuist app-extension target in
-[`Project.swift`](../../Project.swift) (bundle ID `com.stuff.where.widgets`).
+[`Project.swift`](../../Project.swift). Its bundle ID and App Group follow the
+selected Where audience (Development is isolated; Beta and App Store share the
+production family).
 It depends on **WhereCore**, **WhereUI**, **RegionKit** (for the `Region` model
 its snapshot fixtures use), and **PeriscopeCore**. The main **Where** app embeds the
 extension and shares the App Group entitlement.

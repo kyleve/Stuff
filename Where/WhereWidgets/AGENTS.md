@@ -9,8 +9,8 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
 
 ## Scope & dependencies
 
-- **Tuist app-extension target** ([`Project.swift`](../../Project.swift),
-  bundle ID `com.stuff.where.widgets`), depending on **WhereCore**,
+- **Tuist app-extension target** ([`Project.swift`](../../Project.swift), with
+  an audience-specific bundle ID and App Group), depending on **WhereCore**,
   **WhereUI**, **RegionKit**, and **PeriscopeCore**.
 - Must **not** import SwiftData, open the user's store, or duplicate
   aggregation logic — the app publishes; the extension only reads and renders.
@@ -28,6 +28,9 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
 ## Invariants
 
 - **Read-only App Group access** — only the app writes `widget-snapshot.json`.
+- **Resolve the host App Group from `WhereWidgetBuildEnvironment`.** Inject it
+  into providers and `WidgetSnapshotStore`; never put an audience default in a
+  package target.
 - **No stale-day invalidation in the provider.** A snapshot whose `day` rolled
   past today is still shown until the app republishes — intentional.
 - In-widget strings come from WhereUI (shared views + `WhereFormat`); the

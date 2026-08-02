@@ -62,7 +62,23 @@ easy to corrupt by hand — `./simulator` owns a per-checkout device (see the
 `./icons` is the single command for the Where app's alternate icons (see
 `./icons --help`). It keeps both asset catalogs and the picker's
 `AppIcons.json` manifest in sync — never hand-edit those or add icon Swift.
-Run `./ide --no-open` after adding one.
+Run `./ide --no-open` after adding one. Icon-set names are independent of
+primary/alternate status: each Where audience selects its primary icon in
+[`Project.swift`](Project.swift), and every other set remains selectable as an
+alternate. Change an audience's primary before asking `./icons` to remove that
+asset; the command refuses to delete any configured primary.
+
+### Where build audiences
+
+The Where host targets have three explicit schemes — **Where Development**
+(`Debug`), **Where Beta** (`Beta`), and **Where App Store** (`Release`) — whose
+audience descriptors live in [`Project.swift`](Project.swift). Keep bundle IDs,
+App Group, display name, primary icon, configuration, and the matching
+`WHERE_DEVELOPMENT` / `WHERE_BETA` / `WHERE_APP_STORE` compiler condition in
+that one descriptor. These custom conditions belong only to the app, widget,
+and share-extension targets; package targets receive audience-dependent values
+by injection. Development uses its own bundle family and local-only store;
+Beta and App Store share the production bundle family and CloudKit store.
 
 ### Version and build metadata
 

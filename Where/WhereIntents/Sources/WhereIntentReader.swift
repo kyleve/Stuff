@@ -12,11 +12,9 @@ struct WhereIntentReader {
     var calendar = Calendar.whereIntents
     var now: @Sendable () -> Date = { Date() }
     /// The published widget snapshot to use for the `todayRegions()` fast path.
-    /// Defaults to reading the shared App Group file; tests inject a value (or
-    /// `nil`) so the store fallback is exercised deterministically.
-    var todaySnapshot: @Sendable () -> WidgetSnapshot? = {
-        (try? WidgetSnapshotStore.shared())?.read()
-    }
+    /// The host injects the audience-specific App Group read; other callers
+    /// fall back to the report unless they provide one explicitly.
+    var todaySnapshot: @Sendable () -> WidgetSnapshot? = { nil }
 
     /// Day count for `region` in `year` — the `YearReport.totals` entry, or 0
     /// when the region logged nothing.

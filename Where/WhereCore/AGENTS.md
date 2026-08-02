@@ -37,6 +37,9 @@ internal shape.
   `WhereServices.forIntents(sharingStoreOf:)`. A second container over the
   same file is how a fresh install once raced the launch into failure (root
   [Composition](../../AGENTS.md#composition-create-once-inject-down)).
+- **On-disk storage always carries an explicit App Group identifier.** Audience
+  selection belongs to host targets; WhereCore must not own a production or
+  development default.
 - **Primary regions *are* the tracked-region set.** `primaryRegions()` /
   `setPrimaryRegions(_:)` read/write the same `SDTrackedRegion` rows as
   `trackedRegions()` — picking scopes GPS attribution *and* carries each

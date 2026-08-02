@@ -16,6 +16,7 @@ struct WhereWidgetEntry: TimelineEntry {
 struct WhereWidgetProvider: TimelineProvider {
     private static let logger = WhereLog.root(WhereWidgetsLog.self)
     private static let calendar = WidgetSnapshotFixtures.calendar
+    let appGroupIdentifier: String
 
     func placeholder(in _: Context) -> WhereWidgetEntry {
         .sample
@@ -48,7 +49,9 @@ struct WhereWidgetProvider: TimelineProvider {
     private func loadEntry() -> WhereWidgetEntry {
         let now = Date()
         do {
-            let store = try WidgetSnapshotStore.shared()
+            let store = try WidgetSnapshotStore.shared(
+                appGroupIdentifier: appGroupIdentifier,
+            )
             if let snapshot = store.read() {
                 return WhereWidgetEntry(date: now, snapshot: snapshot)
             }

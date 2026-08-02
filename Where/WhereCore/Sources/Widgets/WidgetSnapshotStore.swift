@@ -20,10 +20,6 @@ public struct WidgetSnapshotStore: Sendable {
         public init() {}
     }
 
-    /// The single App Group identifier every Where process shares (app, widget
-    /// extension, share extension). Sourced from `SwiftDataStore` so there's one
-    /// canonical value rather than a per-store literal that could drift.
-    private static let appGroupIdentifier = SwiftDataStore.appGroupIdentifier
     private static let fileName = "widget-snapshot.json"
 
     /// Directory the snapshot file lives in. Exposed via `init` so tests can
@@ -37,7 +33,7 @@ public struct WidgetSnapshotStore: Sendable {
 
     /// App Group-backed store shared by the app and widget. Throws
     /// `AppGroupUnavailableError` when the container can't be resolved.
-    public static func shared() throws -> WidgetSnapshotStore {
+    public static func shared(appGroupIdentifier: String) throws -> WidgetSnapshotStore {
         guard let container = FileManager.default.containerURL(
             forSecurityApplicationGroupIdentifier: appGroupIdentifier,
         ) else {

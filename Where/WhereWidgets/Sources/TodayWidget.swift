@@ -8,9 +8,21 @@ import WidgetKit
 /// maps the widget family to a view.
 struct TodayWidget: Widget {
     static let kind = "com.stuff.where.widgets.today"
+    let appGroupIdentifier: String
+
+    init() {
+        appGroupIdentifier = WhereWidgetBuildEnvironment.current().appGroupIdentifier
+    }
+
+    init(appGroupIdentifier: String) {
+        self.appGroupIdentifier = appGroupIdentifier
+    }
 
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: Self.kind, provider: WhereWidgetProvider()) { entry in
+        StaticConfiguration(
+            kind: Self.kind,
+            provider: WhereWidgetProvider(appGroupIdentifier: appGroupIdentifier),
+        ) { entry in
             TodayWidgetContent(entry: entry)
                 // Seed the Broadway context so the shared WhereUI content views
                 // resolve trait-aware `@Environment(\.stylesheet)` tokens instead
@@ -60,7 +72,7 @@ private struct TodayWidgetContent: View {
 
 #if DEBUG
     #Preview("Small", as: .systemSmall) {
-        TodayWidget()
+        TodayWidget(appGroupIdentifier: "group.com.stuff.where.preview")
     } timeline: {
         WhereWidgetEntry.sample
         WhereWidgetEntry.previewMultiRegion
@@ -68,14 +80,14 @@ private struct TodayWidgetContent: View {
     }
 
     #Preview("Inline", as: .accessoryInline) {
-        TodayWidget()
+        TodayWidget(appGroupIdentifier: "group.com.stuff.where.preview")
     } timeline: {
         WhereWidgetEntry.previewMultiRegion
         WhereWidgetEntry.previewEmpty
     }
 
     #Preview("Circular", as: .accessoryCircular) {
-        TodayWidget()
+        TodayWidget(appGroupIdentifier: "group.com.stuff.where.preview")
     } timeline: {
         WhereWidgetEntry.previewMultiRegion
         WhereWidgetEntry.sample

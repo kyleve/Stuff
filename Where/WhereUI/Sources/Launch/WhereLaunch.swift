@@ -236,9 +236,17 @@ public protocol WhereScopeAssembling {
 public final class WhereBootstrap: WhereScopeAssembling {
     private static let logger = WhereLog.root(WhereLaunchLog.self)
 
+    private let storage: SwiftDataStore.Storage
+    private let widgetRefresher: any WidgetTimelineRefreshing
     private var locationSource: CoreLocationSource?
 
-    public init() {}
+    public init(
+        storage: SwiftDataStore.Storage,
+        widgetRefresher: any WidgetTimelineRefreshing,
+    ) {
+        self.storage = storage
+        self.widgetRefresher = widgetRefresher
+    }
 
     /// Install the `CLLocationManager` + delegate right away, without touching
     /// the store. Idempotent.
@@ -267,8 +275,8 @@ public final class WhereBootstrap: WhereScopeAssembling {
         let source = locationSource ?? CoreLocationSource()
         locationSource = nil
         do {
-            let store = try await Task.detached(priority: .userInitiated) {
-                try SwiftDataStore.make()
+            let store = try await Task.detached(priority: .userInitiated) { [storage] in
+                try SwiftDataStore.make(storage: storage)
             }.value
             let services = try await WhereServices.make(
                 store: store,
@@ -280,7 +288,7 @@ public final class WhereBootstrap: WhereScopeAssembling {
                 reminderScheduler: UserNotificationReminderScheduler(),
                 summaryScheduler: UserNotificationDailySummaryScheduler(),
                 issueAlertScheduler: UserNotificationDataIssueAlertScheduler(),
-                widgetRefresher: WidgetCenterTimelineRefresher(),
+                widgetRefresher: widgetRefresher,
                 locationOutbox: FileLocationOutbox.applicationSupport(),
             )
             Self.logger { .servicesAssembled }
@@ -306,9 +314,8 @@ public final class WhereBootstrap: WhereScopeAssembling {
         )
     }
 
-    /// Where a real scope's log store belongs, mirroring
-    /// `SwiftDataStore.Storage.default`'s test-runner guard: under a test host
-    /// it must stay in memory. A suite that logs in would otherwise write its
+    /// Where a real scope's log store belongs. Under a test host it must stay
+    /// in memory. A suite that logs in would otherwise write its
     /// records into the user's `Periscope.store`, and opening that from a test
     /// host's sandbox neither succeeds nor fails promptly — it stalls the
     /// bundle instead of failing it.

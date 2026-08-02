@@ -4,6 +4,7 @@ import WhereCore
 /// Settings drill-in for presentation choices: which alternate app icon is used
 /// (the icon picker pushes on from here).
 struct AppearanceSettingsView: View {
+    @Environment(\.primaryAppIconName) private var primaryAppIconName
     var focus: SettingsFocus?
 
     @State private var showAppIcon = false
@@ -52,7 +53,7 @@ struct AppearanceSettingsView: View {
         .navigationTitle(String(localized: .settingsAppearanceGroup))
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showAppIcon) {
-            AppIconView()
+            AppIconView(primaryAppIconName: primaryAppIconName)
         }
     }
 }

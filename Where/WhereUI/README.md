@@ -40,6 +40,10 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   developer relaunches. The Logs destination is always present: before its
   durable store is ready it reports whether the open is still running,
   unavailable, or failed with the actual error.
+- **App icons** — `AppIcons.json` catalogs asset names, while the host injects
+  the current audience's primary asset at `RootView`. The picker maps that one
+  asset to UIKit's `nil` primary-icon value and treats every other catalogued
+  asset as an alternate, so primary status may differ by build audience.
 - **`WhereLaunch`** — the launch, reset, and exit-demo plans themselves. Every
   step declares how long it should take (`BudgetedLaunchStep`) and joins the
   plan through `.measured()`, so each run is one Periscope span named after

@@ -14,23 +14,51 @@ import WhereUI
 /// runner that make up the shipping application.
 @MainActor
 final class RegularApplicationRuntime: WhereApplicationRuntime {
-    let model = WhereModel(
-        preferences: WherePreferences(store: UserDefaults.standard),
-        makeBootstrap: { WhereBootstrap() },
-        logSystem: .shared,
-    )
-
-    let intentServices = IntentServices()
+    let model: WhereModel
+    let intentServices: IntentServices
+    private let buildEnvironment: WhereBuildEnvironment
     private(set) var launcher: LifecycleRunner<WhereSession>!
 
     #if DEBUG
         private let inspectorModeController: InspectorModeController?
 
-        init(inspectorModeController: InspectorModeController? = nil) {
+        init(
+            buildEnvironment: WhereBuildEnvironment,
+            inspectorModeController: InspectorModeController? = nil,
+        ) {
+            self.buildEnvironment = buildEnvironment
             self.inspectorModeController = inspectorModeController
+            intentServices = IntentServices(
+                appGroupIdentifier: buildEnvironment.appGroupIdentifier,
+            )
+            model = WhereModel(
+                preferences: WherePreferences(store: UserDefaults.standard),
+                makeBootstrap: {
+                    WhereBootstrap(
+                        storage: buildEnvironment.storage,
+                        widgetRefresher: buildEnvironment.makeWidgetRefresher(),
+                    )
+                },
+                logSystem: .shared,
+            )
         }
     #else
-        init() {}
+        init(buildEnvironment: WhereBuildEnvironment) {
+            self.buildEnvironment = buildEnvironment
+            intentServices = IntentServices(
+                appGroupIdentifier: buildEnvironment.appGroupIdentifier,
+            )
+            model = WhereModel(
+                preferences: WherePreferences(store: UserDefaults.standard),
+                makeBootstrap: {
+                    WhereBootstrap(
+                        storage: buildEnvironment.storage,
+                        widgetRefresher: buildEnvironment.makeWidgetRefresher(),
+                    )
+                },
+                logSystem: .shared,
+            )
+        }
     #endif
 
     func didFinishLaunching(
@@ -60,10 +88,15 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
             AnyView(RootView(
                 model: model,
                 launcher: launcher,
+                primaryAppIconName: buildEnvironment.primaryAppIconName,
                 inspectorModeController: inspectorModeController,
             ))
         #else
-            AnyView(RootView(model: model, launcher: launcher))
+            AnyView(RootView(
+                model: model,
+                launcher: launcher,
+                primaryAppIconName: buildEnvironment.primaryAppIconName,
+            ))
         #endif
     }
 }

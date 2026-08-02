@@ -20,6 +20,7 @@ target, see [`AGENTS.md`](AGENTS.md).
 |------|------|
 | `Sources/WhereApp.swift` | `@main` `App`. One `WindowGroup` rendering the selected runtime's type-erased root. |
 | `Sources/AppDelegate.swift` | The boot router. Selects one `WhereApplicationRuntime` in its initializer and forwards lifecycle callbacks. |
+| `Sources/WhereBuildEnvironment.swift` | Validates the host-only audience condition and maps the generated Info.plist values to storage, App Group, widget refresh, and primary-icon dependencies. |
 | `Sources/RegularApplicationRuntime.swift` | Owns the app's single `WhereModel`, `IntentServices`, and `LifecycleRunner`; starts logging, installs the App Intents handoff, and indexes Spotlight. |
 | `Sources/WhereInspectorApplicationRuntime.swift` | DEBUG-only alternate runtime. Configures the standalone Inspector without constructing regular app systems. |
 | `Sources/WhereApplicationRuntime.swift` | The class-bound launch/root-view protocol shared by both runtimes. |
@@ -61,7 +62,12 @@ relaunch; neither runtime swaps live.
 
 ## Build & run
 
-The target is declared in [`Project.swift`](../../Project.swift). Generate and
-open the workspace with `./ide`, or install to a connected iPhone from the
-command line with [`./Where/install`](../install) (macOS only, needs a signing
-team — see [`Where/AGENTS.md`](../AGENTS.md#installing-to-a-device)).
+The target is declared once in [`Project.swift`](../../Project.swift), with
+three audience schemes: **Where Development** (`Debug`, isolated bundle/App
+Group, local-only data), **Where Beta** (`Beta`, production identity and
+CloudKit), and **Where App Store** (`Release`, production identity and
+CloudKit). The manifest injects audience values into the app and extensions;
+only those host targets receive the matching `WHERE_*` compiler condition.
+Generate the workspace with `./ide --no-open`, or install to a connected iPhone
+from the command line with [`./Where/install`](../install) (macOS only, needs a
+signing team — see [`Where/AGENTS.md`](../AGENTS.md#installing-to-a-device)).

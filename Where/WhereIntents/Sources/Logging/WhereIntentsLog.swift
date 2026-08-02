@@ -68,6 +68,9 @@ enum WhereIntentsLog: LogEvent {
     /// The recent-activity summary couldn't be produced (e.g. Apple
     /// Intelligence is off or the model is warming).
     case recentActivityUnavailable(reason: String)
+    /// Reading the optional widget-snapshot fast path failed; the intent falls
+    /// back to its authoritative store report.
+    case widgetSnapshotReadFailed(description: String)
 
     static let eventName = "WhereIntents"
 
@@ -75,7 +78,7 @@ enum WhereIntentsLog: LogEvent {
         switch self {
             case .spotlightIndexed:
                 .info
-            case .spotlightIndexFailed, .recentActivityUnavailable:
+            case .spotlightIndexFailed, .recentActivityUnavailable, .widgetSnapshotReadFailed:
                 .warning
         }
     }
@@ -88,6 +91,8 @@ enum WhereIntentsLog: LogEvent {
                 "Failed to index regions for Spotlight: \(description)"
             case let .recentActivityUnavailable(reason):
                 "Recent-activity summary unavailable: \(reason)"
+            case let .widgetSnapshotReadFailed(description):
+                "Failed to read the widget snapshot: \(description)"
         }
     }
 }

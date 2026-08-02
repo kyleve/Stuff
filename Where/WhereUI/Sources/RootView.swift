@@ -51,6 +51,7 @@ public struct RootView: View {
         )
     #endif
     private let launcher: LifecycleRunner<WhereSession>
+    private let primaryAppIconName: String
     #if DEBUG
         private let inspectorModeController: InspectorModeController?
     #endif
@@ -60,19 +61,23 @@ public struct RootView: View {
         public init(
             model: WhereModel,
             launcher: LifecycleRunner<WhereSession>,
+            primaryAppIconName: String,
             inspectorModeController: InspectorModeController? = nil,
         ) {
             _model = State(initialValue: model)
             self.launcher = launcher
+            self.primaryAppIconName = primaryAppIconName
             self.inspectorModeController = inspectorModeController
         }
     #else
         public init(
             model: WhereModel,
             launcher: LifecycleRunner<WhereSession>,
+            primaryAppIconName: String,
         ) {
             _model = State(initialValue: model)
             self.launcher = launcher
+            self.primaryAppIconName = primaryAppIconName
         }
     #endif
 
@@ -85,11 +90,17 @@ public struct RootView: View {
         // or the hosted UI test never gets to.
         let model = WhereModel(
             preferences: WherePreferences(store: UserDefaults.standard),
-            makeBootstrap: { WhereBootstrap() },
+            makeBootstrap: {
+                WhereBootstrap(
+                    storage: .inMemory,
+                    widgetRefresher: NoopWidgetTimelineRefresher(),
+                )
+            },
             logSystem: .shared,
         )
         _model = State(initialValue: model)
         launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
+        primaryAppIconName = "AppIcon"
         #if DEBUG
             inspectorModeController = nil
         #endif
@@ -166,6 +177,7 @@ public struct RootView: View {
             // re-inject when a reset rebuilds it. The DEBUG developer overlay
             // reads it optionally — it can appear before login.
             .environment(model.session)
+            .environment(\.primaryAppIconName, primaryAppIconName)
         #if DEBUG
             .environment(inspectorModeController)
             .environment(\.cardDesignerModel, cardDesigner)
@@ -287,7 +299,11 @@ public struct RootView: View {
                 settle: .settledAtLeast(minDuration: 1.5),
                 onReadyToSnapshot: { await launcher.run() },
             ) {
-                RootView(model: model, launcher: launcher)
+                RootView(
+                    model: model,
+                    launcher: launcher,
+                    primaryAppIconName: "AppIcon",
+                )
             }
         }
     }

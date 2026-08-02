@@ -205,6 +205,7 @@ struct WhereAppTests {
                 fileManager: .default,
                 userDefaults: defaults,
                 bundleIdentifier: suiteName,
+                appGroupIdentifier: "group.com.stuff.where.tests",
                 groupURL: groupURL,
                 whereStoreURL: whereStoreURL,
                 periscopeStoreURL: periscopeStoreURL,
