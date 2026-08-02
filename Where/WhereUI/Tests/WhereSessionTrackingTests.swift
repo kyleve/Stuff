@@ -138,6 +138,61 @@ struct WhereSessionTrackingTests {
         #expect(session.isTracking)
     }
 
+    @Test func remoteOffPolicyStopsThisDeviceAndAcknowledgesIt() async throws {
+        let remoteChanges = ScriptedStoreRemoteChangeSource()
+        let store = try SwiftDataStore.inMemory(remoteChangeSource: remoteChanges)
+        let source = TrackingLocationSource()
+        let now = Date(timeIntervalSinceReferenceDate: 1000)
+        let services = WhereServices(
+            store: store,
+            locationSource: source,
+            currentDevice: .preview,
+            now: { now },
+        )
+        let preferences = makePreferences()
+        preferences.wantsTracking = true
+        let session = WhereSession(services: services, preferences: preferences)
+        await session.start()
+
+        #expect(session.isTracking)
+        #expect(source.isMonitoring)
+
+        let policyID = try #require(
+            UUID(uuidString: "EEEEEEEE-EEEE-EEEE-EEEE-EEEEEEEEEEEE"),
+        )
+        try await store.simulateRemoteRecordingImport(
+            devices: [],
+            policyChanges: [
+                RecordingPolicyChange(
+                    id: policyID,
+                    deviceID: session.currentRecordingDeviceID,
+                    effectiveAt: now.addingTimeInterval(1),
+                    isEnabled: false,
+                ),
+            ],
+        )
+
+        // Saving the imported row is not enough; the session must be responding
+        // to the store's remote-import notification path.
+        #expect(session.isTracking)
+        #expect(source.isMonitoring)
+
+        remoteChanges.yield()
+
+        await waitUntil {
+            session.isTracking == false && source.isMonitoring == false
+        }
+        let current = try #require(
+            try await store.recordingDevices()
+                .first(where: { $0.id == session.currentRecordingDeviceID }),
+        )
+        #expect(source.startCount == 1)
+        #expect(source.stopCount == 1)
+        #expect(preferences.wantsTracking == false)
+        #expect(current.status == .off)
+        #expect(current.lastAppliedPolicyChangeID == policyID)
+    }
+
     @Test func foregroundLogsTodayWhenWantedAndAuthorized() async throws {
         // When-In-Use is enough for a foreground fix — and the only way such a
         // user gets any data, since passive background tracking needs Always.
@@ -220,6 +275,69 @@ struct WhereSessionTrackingTests {
         }
         #expect(await predicate(), "condition was not met before timeout")
     }
+}
+
+/// Location source whose counters prove reconciliation reached the physical
+/// monitoring seam rather than only changing `WhereSession.isTracking`.
+private final class TrackingLocationSource: LocationSource, @unchecked Sendable {
+    let sampleStream: AsyncStream<LocationSample>
+
+    var authorizationUpdates: AsyncStream<LocationAuthorizationStatus> {
+        AsyncStream { $0.finish() }
+    }
+
+    private let sampleContinuation: AsyncStream<LocationSample>.Continuation
+    private let lock = NSLock()
+    private var _isMonitoring = false
+    private var _startCount = 0
+    private var _stopCount = 0
+
+    init() {
+        (sampleStream, sampleContinuation) = AsyncStream.makeStream(
+            of: LocationSample.self,
+            bufferingPolicy: .bufferingNewest(1),
+        )
+    }
+
+    deinit {
+        sampleContinuation.finish()
+    }
+
+    var isMonitoring: Bool {
+        lock.withLock { _isMonitoring }
+    }
+
+    var startCount: Int {
+        lock.withLock { _startCount }
+    }
+
+    var stopCount: Int {
+        lock.withLock { _stopCount }
+    }
+
+    func start() async {
+        lock.withLock {
+            _isMonitoring = true
+            _startCount += 1
+        }
+    }
+
+    func stop() async {
+        lock.withLock {
+            _isMonitoring = false
+            _stopCount += 1
+        }
+    }
+
+    func requestCurrentLocation() async -> LocationSample? {
+        nil
+    }
+
+    func currentAuthorization() async -> LocationAuthorizationStatus {
+        .always
+    }
+
+    func requestPermission() async throws {}
 }
 
 /// Permission seam that parks until the test resolves it, matching the

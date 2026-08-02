@@ -86,7 +86,7 @@ final class PersistentStoreRemoteChangeSource: StoreRemoteChangeSource, @uncheck
         let remoteChanges: AsyncStream<Void>
         private let continuation: AsyncStream<Void>.Continuation
 
-        init() {
+        public init() {
             var cont: AsyncStream<Void>.Continuation!
             remoteChanges = AsyncStream { cont = $0 }
             continuation = cont
@@ -94,11 +94,11 @@ final class PersistentStoreRemoteChangeSource: StoreRemoteChangeSource, @uncheck
 
         /// Simulate a remote import: a store observing this source re-pings its
         /// `changes()` fan-out. Named for the `continuation.yield()` it makes.
-        func yield() {
+        public func yield() {
             continuation.yield()
         }
 
-        func finish() {
+        public func finish() {
             continuation.finish()
         }
     }

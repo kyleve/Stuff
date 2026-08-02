@@ -355,6 +355,34 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     public func perform<T: Sendable>(
         _ block: @Sendable () async throws -> T,
     ) async throws -> T {
+        try await perform(sendsChange: true, block)
+    }
+
+    #if DEBUG
+        /// Test seam for the data half of a remote import: commit recording
+        /// values without emitting the local-write `changes()` ping. Tests pair
+        /// this with `ScriptedStoreRemoteChangeSource.yield()` so observers can
+        /// only refresh through the production remote-import path.
+        @_spi(Testing)
+        public func simulateRemoteRecordingImport(
+            devices: [RecordingDevice],
+            policyChanges: [RecordingPolicyChange],
+        ) async throws {
+            try await perform(sendsChange: false) {
+                for device in devices {
+                    try await self.setRecordingDevice(device)
+                }
+                for policyChange in policyChanges {
+                    try await self.addRecordingPolicyChange(policyChange)
+                }
+            }
+        }
+    #endif
+
+    private func perform<T: Sendable>(
+        sendsChange: Bool,
+        _ block: @Sendable () async throws -> T,
+    ) async throws -> T {
         // Genuine nested call on this task: a write transaction is already in
         // flight for this store. Reuse its peer so nested writes coalesce into
         // the same save / discard decision; only the outermost perform decides
@@ -395,8 +423,12 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             try peer.save()
             // Committed: ping `changes()` subscribers so they re-read. Only the
             // outermost `perform` reaches here (nested calls returned above
-            // without saving), so a transaction pings exactly once.
-            changeBroadcaster.send()
+            // without saving), so a transaction pings exactly once. The DEBUG
+            // remote-import seam suppresses this local ping; its scripted
+            // source emits the corresponding remote one separately.
+            if sendsChange {
+                changeBroadcaster.send()
+            }
             return result
         }
     }

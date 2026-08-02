@@ -293,9 +293,9 @@ public final class WhereSession {
     /// another device reloads ``regionStyles``. Idempotent.
     func observeRegionStyleChanges() {
         guard regionStyleTask == nil else { return }
-        let services = services
+        let updates = services.dataChangeUpdates()
         regionStyleTask = Task { @MainActor [weak self] in
-            for await _ in services.dataChangeUpdates() {
+            for await _ in updates {
                 guard let self else { break }
                 await seedRegionStyles()
                 // A CloudKit policy change for this installation arrives through
