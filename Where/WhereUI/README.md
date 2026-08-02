@@ -215,13 +215,14 @@ option lists the picker shows.
 
 Regular `RegionSummaryCard`s ask the root-owned `RegionOutlinePathCache` for a
 medium SwiftUI path for the large security-print watermark and a small path for
-the seal inside the circular entry stamp. The UI cache derives both from
-RegionKit's one cached source outline using its stateless simplifier; compact
-cards retain the simpler symbol treatment. Live tilt is observed only by the
-sheen overlay, so its 60 Hz updates do not invalidate the card's text or Canvas
-artwork. The card adds no ornamental edge strokes; its containing Liquid Glass
-surface owns the subtle border so direct and production rendering do not
-diverge.
+the seal inside the circular entry stamp. That small path is also repeated as a
+tangent-aligned microprint border around the card's inner perimeter. The UI
+cache derives both resolutions from RegionKit's one cached source outline using
+its stateless simplifier; compact cards retain the simpler symbol treatment.
+Live tilt is observed only by the sheen overlay, so its 60 Hz updates do not
+invalidate the card's text or Canvas artwork. The card adds no standalone edge
+stroke; its containing Liquid Glass surface owns the subtle outer border so
+direct and production rendering do not diverge.
 
 ## Previews
 

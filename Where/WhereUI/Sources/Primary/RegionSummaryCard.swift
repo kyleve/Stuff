@@ -98,8 +98,8 @@ struct RegionSummaryCard: View {
 
     /// A faint, region-tinted "security print" behind the content: a guilloché
     /// rosette of subtly wobbling concentric rings plus an oversized region
-    /// glyph watermarked into the corner, the way a passport page is printed
-    /// beneath its stamps.
+    /// glyph and microprinted silhouette border, the way a passport page is
+    /// printed beneath its stamps.
     private var stampPaper: some View {
         // Read the main-actor `style.tint` and the value-type `rosette` spec once
         // here so the nonisolated `Canvas` renderer closure captures `Sendable`
@@ -142,6 +142,19 @@ struct RegionSummaryCard: View {
                     center: CGPoint(x: size.width * 0.12, y: size.height * 0.22),
                     spacing: rosette.secondaryRingSpacing,
                     opacity: rosetteFill.secondary,
+                )
+            }
+
+            if
+                let regionShape = card.regionShape,
+                let regionPath = regionPaths?.stamp,
+                !regionPath.isEmpty
+            {
+                RegionOutlineSecurityBorder(
+                    path: regionPath,
+                    tint: style.tint,
+                    cornerRadius: card.cornerRadius,
+                    style: regionShape.securityBorder,
                 )
             }
 

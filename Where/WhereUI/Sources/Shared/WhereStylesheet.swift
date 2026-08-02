@@ -277,7 +277,8 @@ extension WhereStylesheet {
         }
 
         /// Relative projection geometry and ink strength for the repeated
-        /// region silhouette: one large security watermark and one stamp seal.
+        /// region silhouette: one large security watermark, one stamp seal, and
+        /// a microprinted inset border.
         struct RegionShape: Equatable {
             var watermarkCenter: CGPoint
             var watermarkExtent: CGSize
@@ -289,6 +290,15 @@ extension WhereStylesheet {
             var stampScale: CGFloat
             var stampFillOpacity: Double
             var stampStrokeWidth: CGFloat
+            var securityBorder: SecurityBorder
+
+            /// The inset ring of tiny tangent-aligned region silhouettes.
+            struct SecurityBorder: Equatable {
+                var inset: CGFloat
+                var glyphSize: CGFloat
+                var spacing: CGFloat
+                var opacity: Double
+            }
         }
 
         struct Sheen: Equatable {
@@ -423,6 +433,12 @@ extension WhereStylesheet {
                     stampScale: 0.88,
                     stampFillOpacity: 0.78,
                     stampStrokeWidth: 1,
+                    securityBorder: .init(
+                        inset: 9,
+                        glyphSize: 8,
+                        spacing: 11,
+                        opacity: 0.22,
+                    ),
                 ),
                 sheen: CardStyle.Sheen(
                     intensity: 1,

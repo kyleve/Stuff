@@ -48,6 +48,12 @@ struct WhereStylesheetTests {
             stampScale: 0.88,
             stampFillOpacity: 0.78,
             stampStrokeWidth: 1,
+            securityBorder: .init(
+                inset: 9,
+                glyphSize: 8,
+                spacing: 11,
+                opacity: 0.22,
+            ),
         ))
         #expect(card.sheen == .init(
             intensity: 1,
