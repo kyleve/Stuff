@@ -630,7 +630,7 @@ extension WhereStylesheet {
                 sectionSpacing: 8,
                 gridSpacing: 6,
                 padding: 16,
-                cornerRadius: 21,
+                cornerRadius: 28,
                 plain: MonthStyle.Card(
                     fill: Color.primary.opacity(0.03),
                     border: Color.primary.opacity(0.12),
