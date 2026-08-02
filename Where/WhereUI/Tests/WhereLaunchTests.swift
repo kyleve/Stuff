@@ -2,7 +2,6 @@ import Foundation
 import LifecycleKit
 @_spi(Testing) import PeriscopeCore
 import RegionKit
-import SwiftData
 import TestHostSupport
 import Testing
 @_spi(Testing) import WhereCore
@@ -321,17 +320,6 @@ struct WhereLaunchTests {
         #expect(launcher.phase.isReady)
     }
 
-    @Test func attachingLogStoreExposesItOnTheModel() async throws {
-        // The launch bootstrap opens the process-global store off the critical
-        // path and hands it to the model so the developer surface can browse it.
-        // A fresh model has none until then.
-        let model = try makeModel(preferences: makePreferences())
-        #expect(model.logStore == nil)
-        let store = try await PeriscopeStore.inMemory(session: .current(attributes: [:]))
-        model.attach(logStore: store)
-        #expect(model.logStore === store)
-    }
-
     @Test func startSessionHandsTheSessionsServicesToTheOnServicesReadyHook() async throws {
         // A model with services attached but no session yet — the app's shape
         // when the resolve-scope step runs (the preview/test init pre-builds
@@ -359,9 +347,9 @@ struct WhereLaunchTests {
         ))
         model.completeOnboarding()
 
-        var receivedContainers: [ModelContainer?] = []
+        var receivedJournals: [DayJournal] = []
         let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground) {
-            receivedContainers.append($0.modelContainer)
+            receivedJournals.append($0.journal)
         }
         await launcher.run()
 
@@ -369,9 +357,8 @@ struct WhereLaunchTests {
         // The hook fired exactly once, with the session's service layer (same
         // backing store) — the seam the app uses to install the App Intents
         // stack over the launch's one store open.
-        #expect(receivedContainers.count == 1)
-        let receivedContainer = receivedContainers.first ?? nil
-        #expect(receivedContainer === store.inspectorContainer)
+        #expect(receivedJournals.count == 1)
+        #expect(receivedJournals.first === services.journal)
     }
 
     @Test func resetRelaunchHandsTheFreshSessionsServicesToTheHookAgain() async throws {

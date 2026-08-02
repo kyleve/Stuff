@@ -13,7 +13,7 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
   comparison engine + XCTest/Testing, so it is **only** consumed by test
   bundles via `extraPackageProducts` — the per-module image bundles
   (`WhereUISnapshotTests`, `PeriscopeToolsSnapshotTests`,
-  `SwiftDataInspectorSnapshotTests`, gathered into the `StuffSnapshotTests`
+  `InspectorSnapshotTests`, gathered into the `StuffSnapshotTests`
   *scheme*) and `SnapshotKitTestingTests` — **never** a shipping app or
   `StuffTestHost`.
 - **"Process-global" state here is module-global — one copy per consuming
@@ -57,7 +57,7 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
   near-black glyph pixels, true CIE76 maximum **0.99** — invisible, yet 17,007
   pixels (0.157%) cleared ΔE 2 and blew the 0.1% budget. At ΔE 10 that capture
   contributes **zero** pixels, while the genuine glyph-shift regression in
-  `swiftDataInspector.SwiftDataInspector_iPhone_dark` (differing pixels massed
+  `inspectorSurfaces.SwiftData_iPhone_dark` (differing pixels massed
   at ΔE 62) still fails at 0.178%. 0.95 (ΔE 5) was rejected: it passes, but
   leaves 7,120 noise pixels at 66% of the budget, i.e. one bad CI day from red.
 - **Only the pipeline prints a report channel; a test asks for the payload.**

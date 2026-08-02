@@ -104,7 +104,6 @@
                 DeveloperOverlay.flyoverData,
                 WhereFlyoverLogView.flyoverData,
                 OpenSpansView.flyoverData,
-                WhereFlyoverSwiftDataView.flyoverData,
                 RegionMapView.flyoverData,
             ]
         }

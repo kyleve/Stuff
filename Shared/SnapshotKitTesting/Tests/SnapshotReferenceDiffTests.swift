@@ -34,12 +34,12 @@ struct SnapshotReferenceDiffTests {
     }
 
     /// The derivation above is only useful if it lands on a real file. This
-    /// repo's own SwiftDataInspector reference is the fixture.
+    /// repo's own Inspector reference is the fixture.
     @Test func derivedPathFindsAnActualReferenceInThisRepo() {
         let url = snapshotReferenceURL(
-            testFilePath: swiftDataInspectorTestFilePath,
-            testName: "swiftDataInspector()",
-            identifier: "SwiftDataInspector_iPhone",
+            testFilePath: inspectorTestFilePath,
+            testName: "inspectorSurfaces()",
+            identifier: "SwiftData_iPhone",
         )
         #expect(
             FileManager.default.fileExists(atPath: url.path),
@@ -160,16 +160,16 @@ struct SnapshotReferenceDiffTests {
 
     // MARK: - Support
 
-    /// This file's sibling path to the SwiftDataInspector suite, derived from
+    /// This file's sibling path to the Inspector suite, derived from
     /// `#filePath` so it survives the repo moving.
-    private var swiftDataInspectorTestFilePath: String {
+    private var inspectorTestFilePath: String {
         URL(fileURLWithPath: #filePath)
             // .../Shared/SnapshotKitTesting/Tests/ -> .../Shared/
             .deletingLastPathComponent()
             .deletingLastPathComponent()
             .deletingLastPathComponent()
-            .appendingPathComponent("SwiftDataInspector/SnapshotTests")
-            .appendingPathComponent("SwiftDataInspectorSnapshotTests.swift")
+            .appendingPathComponent("Inspector/SnapshotTests")
+            .appendingPathComponent("InspectorSnapshotTests.swift")
             .path
     }
 

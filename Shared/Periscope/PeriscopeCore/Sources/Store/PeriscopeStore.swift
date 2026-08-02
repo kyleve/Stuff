@@ -68,13 +68,45 @@ public actor PeriscopeStore: LogSink {
     }
 
     public static func makeContainer(storage: Storage) throws -> ModelContainer {
-        let schema = Schema(PeriscopeSchema.models)
-        let configuration = ModelConfiguration(
+        let schema = Schema(inspectorModelTypes)
+        let configuration = modelConfiguration(storage: storage, schema: schema)
+        return try ModelContainer(for: schema, configurations: [configuration])
+    }
+
+    /// The live record types, erased so a generic Inspector runtime can
+    /// enumerate them without exposing Periscope's internal model classes.
+    /// Mirrors the schema used by ``makeContainer(storage:)``.
+    public static var inspectorModelTypes: [any PersistentModel.Type] {
+        PeriscopeSchema.models
+    }
+
+    /// The exact store URL used by the on-disk container. Inspector uses this
+    /// to offer narrowly scoped recovery when an incompatible store cannot open.
+    public static var inspectorStoreURL: URL {
+        let schema = Schema(inspectorModelTypes)
+        return modelConfiguration(storage: .onDisk, schema: schema).url
+    }
+
+    /// Durable recovery data that must be discarded with an unreadable
+    /// Inspector store. Retaining these journals would replay the deleted
+    /// store's records into its replacement before the replacement is
+    /// published to the app.
+    public static var inspectorRecoveryStorageURLs: [URL] {
+        [
+            inspectorStoreURL.deletingLastPathComponent()
+                .appendingPathComponent("Periscope-Journals", isDirectory: true),
+        ]
+    }
+
+    private static func modelConfiguration(
+        storage: Storage,
+        schema: Schema,
+    ) -> ModelConfiguration {
+        ModelConfiguration(
             "Periscope",
             schema: schema,
             isStoredInMemoryOnly: storage == .inMemory,
         )
-        return try ModelContainer(for: schema, configurations: [configuration])
     }
 
     /// App-wiring factory: opens the store and starts `session` so every
