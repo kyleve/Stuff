@@ -1,82 +1,54 @@
 import RegionKit
 import SwiftUI
 
-/// Projects RegionKit coordinates into the repeated silhouette artwork on a
-/// regular region card, preserving geographic aspect and antimeridian-spanning
-/// multipart regions.
+/// Places a cached, pre-projected region path into the repeated silhouette
+/// artwork on a regular card while preserving its geographic aspect.
 struct RegionOutlineArtwork: View {
     enum Placement {
         case watermark
         case stamp
     }
 
-    let outlines: [RegionOutline]
+    let path: Path
     let tint: Color
     let style: WhereStylesheet.CardStyle.RegionShape
     let placement: Placement
 
     var body: some View {
         Canvas { context, size in
-            guard
-                let box = BoundingBox.enclosing(outlines),
-                let longitudeSpan = LongitudeSpan.enclosing(
-                    outlines.lazy.flatMap { outline in
-                        outline.coordinates.lazy.map(\.longitude)
-                    },
-                )
-            else { return }
-
-            let latitudeSpan = max(box.maxLatitude - box.minLatitude, 0.0001)
-            let midLatitude = (box.minLatitude + box.maxLatitude) / 2
-            let longitudeCorrection = max(cos(midLatitude * .pi / 180), 0.1)
-            let projectedLongitudeSpan = max(
-                longitudeSpan.degrees * longitudeCorrection,
-                0.0001,
-            )
+            let bounds = path.boundingRect
+            guard !path.isEmpty, bounds.width > 0, bounds.height > 0 else { return }
             let layout = layout(in: size)
             let scale = min(
-                layout.extent.width / projectedLongitudeSpan,
-                layout.extent.height / latitudeSpan,
-            )
+                layout.extent.width / bounds.width,
+                layout.extent.height / bounds.height,
+            ) * layout.scale
+            var projectedContext = context
+            projectedContext.translateBy(x: layout.center.x, y: layout.center.y)
+            projectedContext.scaleBy(x: scale, y: scale)
+            projectedContext.translateBy(x: -bounds.midX, y: -bounds.midY)
 
-            func point(for coordinate: Coordinate) -> CGPoint {
-                let longitudeDelta = (coordinate.longitude - longitudeSpan.center + 540)
-                    .truncatingRemainder(dividingBy: 360) - 180
-                return CGPoint(
-                    x: layout.center.x
-                        + longitudeDelta * longitudeCorrection * scale * layout.scale,
-                    y: layout.center.y
-                        + (midLatitude - coordinate.latitude) * scale * layout.scale,
-                )
-            }
-
-            for outline in outlines {
-                guard let first = outline.coordinates.first else { continue }
-                var path = Path()
-                path.move(to: point(for: first))
-                for coordinate in outline.coordinates.dropFirst() {
-                    path.addLine(to: point(for: coordinate))
-                }
-                path.closeSubpath()
-
-                switch placement {
-                    case .watermark:
-                        context.fill(
-                            path,
-                            with: .color(tint.opacity(style.watermarkFillOpacity)),
-                        )
-                        context.stroke(
-                            path,
-                            with: .color(tint.opacity(style.watermarkStrokeOpacity)),
-                            lineWidth: style.watermarkStrokeWidth,
-                        )
-                    case .stamp:
-                        context.fill(
-                            path,
-                            with: .color(tint.opacity(style.stampFillOpacity)),
-                        )
-                        context.stroke(path, with: .color(tint), lineWidth: style.stampStrokeWidth)
-                }
+            switch placement {
+                case .watermark:
+                    projectedContext.fill(
+                        path,
+                        with: .color(tint.opacity(style.watermarkFillOpacity)),
+                    )
+                    projectedContext.stroke(
+                        path,
+                        with: .color(tint.opacity(style.watermarkStrokeOpacity)),
+                        lineWidth: style.watermarkStrokeWidth / scale,
+                    )
+                case .stamp:
+                    projectedContext.fill(
+                        path,
+                        with: .color(tint.opacity(style.stampFillOpacity)),
+                    )
+                    projectedContext.stroke(
+                        path,
+                        with: .color(tint),
+                        lineWidth: style.stampStrokeWidth / scale,
+                    )
             }
         }
         .allowsHitTesting(false)
@@ -117,12 +89,13 @@ struct RegionOutlineArtwork: View {
     }
 
     private struct RegionOutlineArtworkPreview: View {
-        @State private var outlines: [RegionOutline] = []
+        @State private var path = Path()
+        private let cache = RegionOutlinePathCache()
 
         var body: some View {
             if let style = WhereStylesheet.default.card.regular.regionShape {
                 RegionOutlineArtwork(
-                    outlines: outlines,
+                    path: path,
                     tint: .orange,
                     style: style,
                     placement: .watermark,
@@ -130,7 +103,7 @@ struct RegionOutlineArtwork: View {
                 .frame(width: 320, height: 180)
                 .background(.orange.opacity(0.1), in: RoundedRectangle(cornerRadius: 28))
                 .task {
-                    outlines = await RegionGeometryCatalog.outlines(for: .california)
+                    path = await cache.path(for: .california, resolution: .medium)
                 }
             }
         }

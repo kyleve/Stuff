@@ -104,14 +104,10 @@ public enum RegionGeometryCatalog {
     /// - `.source` decodes every available region from the catalog and ignores
     ///   `attributor`.
     ///
-    /// The file read + JSON decode runs **off the main thread**:
-    /// `RegionGeometryCatalog` is a plain (non-`@MainActor`) type and
-    /// this method is `nonisolated`, so `await`-ing it from a
-    /// `@MainActor` view hops to the cooperative pool (and, for
-    /// `.source`, the cache actor) to decode, then returns the
-    /// `Sendable` result back to the main actor. Throws
-    /// `RegionGeometryError` / a `DecodingError` rather than absorbing a
-    /// missing or malformed bundle into an empty list.
+    /// `.source` decoding runs on its cache actor. `.attribution` maps the
+    /// caller-provided attributor on the caller's actor because it is already
+    /// resolved in memory. Throws `RegionGeometryError` / a `DecodingError`
+    /// rather than absorbing a missing or malformed bundle into an empty list.
     public static func outlines(
         for kind: RegionGeometryKind,
         attributor: RegionAttributor,

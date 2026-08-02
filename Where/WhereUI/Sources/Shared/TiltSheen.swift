@@ -5,15 +5,15 @@ import SwiftUI
 /// coated card. Soft-light compositing preserves the card's underlying region
 /// hue, then the result is clipped to the card's shape and made non-interactive.
 ///
-/// Driven by normalized `roll`/`pitch` (see `TiltProvider`). A caller also
-/// supplies the deterministic pose used when motion must stay static, so Reduce
-/// Motion and snapshot capture never depend on a live sensor reading.
+/// This modifier is deliberately the observation boundary for `TiltProvider`:
+/// only the lightweight overlay invalidates at the sensor's 60 Hz cadence, not
+/// the card and its Canvas artwork beneath it. A caller also supplies the
+/// deterministic pose used when motion must stay static, so Reduce Motion and
+/// snapshot capture never depend on a live sensor reading.
 struct TiltSheen<ClipShape: Shape>: ViewModifier {
-    var roll: Double
-    var pitch: Double
+    var tilt: TiltProvider?
     var staticRoll: Double
     var staticPitch: Double
-    var isStatic: Bool
     var shape: ClipShape
     /// Grayscale-wash and live-glint strength, `0...1`.
     var intensity: Double = 1
@@ -34,15 +34,15 @@ struct TiltSheen<ClipShape: Shape>: ViewModifier {
     /// Tilt actually used to place the highlight. Static-motion contexts use
     /// the caller's deterministic pose so the sheen stays put.
     private var activeRoll: Double {
-        usesStaticPose ? staticRoll.clamped : roll.clamped
+        usesStaticPose ? staticRoll.clamped : (tilt?.roll ?? staticRoll).clamped
     }
 
     private var activePitch: Double {
-        usesStaticPose ? staticPitch.clamped : pitch.clamped
+        usesStaticPose ? staticPitch.clamped : (tilt?.pitch ?? staticPitch).clamped
     }
 
     private var usesStaticPose: Bool {
-        isStatic || motionIsStatic
+        motionIsStatic || tilt?.hasLiveSample != true
     }
 
     private var glintIntensity: Double {
@@ -92,23 +92,21 @@ struct TiltSheen<ClipShape: Shape>: ViewModifier {
 
 extension View {
     /// Overlay a tilt-reactive grayscale sheen clipped to `shape`. Pass the same
-    /// shape used for the card's `glassEffect` so the sheen lines up.
+    /// shape used for the card's `glassEffect` so the sheen lines up. The
+    /// provider is observed inside the modifier to keep its frequent updates
+    /// from invalidating the view that owns the card.
     func tiltSheen(
-        roll: Double,
-        pitch: Double,
+        tilt: TiltProvider?,
         staticRoll: Double,
         staticPitch: Double,
-        isStatic: Bool,
         in shape: some Shape,
         intensity: Double = 1,
         staticGlintIntensity: Double = 1,
     ) -> some View {
         modifier(TiltSheen(
-            roll: roll,
-            pitch: pitch,
+            tilt: tilt,
             staticRoll: staticRoll,
             staticPitch: staticPitch,
-            isStatic: isStatic,
             shape: shape,
             intensity: intensity,
             staticGlintIntensity: staticGlintIntensity,
@@ -130,11 +128,9 @@ extension Double {
             .fill(.indigo.gradient)
             .frame(width: 320, height: 180)
             .tiltSheen(
-                roll: 0.4,
-                pitch: -0.2,
+                tilt: nil,
                 staticRoll: 0.4,
                 staticPitch: -0.2,
-                isStatic: false,
                 in: RoundedRectangle(cornerRadius: 28, style: .continuous),
                 staticGlintIntensity: 1,
             )

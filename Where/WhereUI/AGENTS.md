@@ -43,6 +43,11 @@ and testing conventions live in the feature [`Where/AGENTS.md`](../AGENTS.md)
   [double-link rule](../../AGENTS.md#never-double-link-a-product-whereui-already-carries));
   that's why `whereBroadwayRoot()` lives here rather than being called as
   `broadwayRoot` at each site.
+- Keep render-ready region geometry in the root-injected
+  `RegionOutlinePathCache`: RegionKit owns the cached source outlines and its
+  stateless simplifier, while WhereUI chooses full/medium/small tolerances and
+  caches the resulting SwiftUI `Path`s; never project or simplify a boundary in
+  a card's `body`.
 - Continuous/looping motion (repeat-forever pulses, `TimelineView(.animation)`,
   typewriter reveals) must consult the shared `@MotionIsStatic` helper
   ([`Sources/Shared/MotionIsStatic.swift`](Sources/Shared/MotionIsStatic.swift))

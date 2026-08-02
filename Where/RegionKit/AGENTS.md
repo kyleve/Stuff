@@ -37,10 +37,12 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
   the passed regions' `regions/<id>.geojson` files, so the app parses only the
   tracked set, while `RegionGeometryCatalog.outlines(for: Region)` caches only
   the drawable region requested by UI artwork — never load the whole US for one
-  card. `.all` loads the whole catalog (dev viewer/tests); `.shared` the default
-  four. It's UI-free: `BoundingBox` / `LongitudeSpan` expose the min/max math,
-  but drawing and MapKit conversion live in the UI layer. `RegionAttributing`
-  lets `WhereCore` supply a live, swappable attributor.
+  card. `RegionGeometrySimplifier` vends stateless, projection-aware geometry
+  reduction; rendering fidelity and render-artifact caches belong to consumers.
+  `.all` loads the whole catalog (dev viewer/tests); `.shared` the default four.
+  It's UI-free: `BoundingBox` / `LongitudeSpan` expose the min/max math, but
+  drawing and MapKit conversion live in the UI layer. `RegionAttributing` lets
+  `WhereCore` supply a live, swappable attributor.
 - **Bundled geometry is credited in code, not only in prose.** `RegionDataSource`
   states each boundary set's origin, license, and fidelity, and derives its
   coverage from the catalog — the US sources by the `us-` id prefix the generator

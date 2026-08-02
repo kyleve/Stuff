@@ -14,8 +14,8 @@ struct RegionSummaryCardTests {
             RegionSummaryCard(regionDays: RegionDays(region: .california, days: days), year: 2026)
         }
 
-        try show(UIHostingController(rootView: card(days: 148))) { hosted in
-            hosted.rootView = card(days: 149)
+        try show(UIHostingController(rootView: card(days: 148).whereBroadwayRoot())) { hosted in
+            hosted.rootView = card(days: 149).whereBroadwayRoot()
             hosted.view.layoutIfNeeded()
             #expect(hosted.view != nil)
         }

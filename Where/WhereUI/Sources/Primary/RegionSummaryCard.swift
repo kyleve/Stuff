@@ -43,12 +43,13 @@ struct RegionSummaryCard: View {
     /// other caller leaves it `nil` and gets the resolved look.
     var styleOverride: RegionStyle?
 
-    /// Loaded once per regular card and shared by both the large security
-    /// watermark and the smaller entry-stamp seal.
-    @State private var regionOutlines: [RegionOutline] = []
+    /// Loaded once per regular card from the root-owned UI path cache. The large
+    /// watermark uses medium fidelity; the much smaller stamp uses small.
+    @State private var regionPaths: RegionArtworkPaths?
 
     @Environment(\.stylesheet) private var stylesheet
     @Environment(\.regionStyles) private var regionStyles
+    @Environment(\.regionOutlinePathCache) private var regionOutlinePathCache
 
     /// The resolved spec for this card's variant, read once so the rest of the
     /// view is a straight-line render with no `compact` branching.
@@ -79,18 +80,6 @@ struct RegionSummaryCard: View {
         stylesheet.card.dayCount
     }
 
-    /// Use live gravity only after Core Motion has delivered a real sample. The
-    /// pre-sample/unavailable state and callers without a provider render the
-    /// variant's deterministic pose instead of treating zero as live tilt.
-    private var sheenPose: WhereStylesheet.CardStyle.Sheen.Pose {
-        guard let tilt, tilt.hasLiveSample else { return card.sheen.staticPose }
-        return .init(roll: tilt.roll, pitch: tilt.pitch)
-    }
-
-    private var isSheenStatic: Bool {
-        tilt?.hasLiveSample != true
-    }
-
     /// A circular rubber-stamp "entry" impression: the region glyph and year
     /// ringed by the region name, tilted as if pressed onto the page. The arc
     /// lettering is dropped on the small compact cards where it can't be read.
@@ -102,7 +91,7 @@ struct RegionSummaryCard: View {
             tint: style.tint,
             size: card.entryStampSize,
             showsArcText: card.showsArcText,
-            regionOutlines: regionOutlines,
+            regionPath: regionPaths?.stamp ?? Path(),
             regionShape: card.regionShape,
         )
     }
@@ -156,9 +145,13 @@ struct RegionSummaryCard: View {
                 )
             }
 
-            if let regionShape = card.regionShape, !regionOutlines.isEmpty {
+            if
+                let regionShape = card.regionShape,
+                let regionPath = regionPaths?.watermark,
+                !regionPath.isEmpty
+            {
                 RegionOutlineArtwork(
-                    outlines: regionOutlines,
+                    path: regionPath,
                     tint: style.tint,
                     style: regionShape,
                     placement: .watermark,
@@ -178,9 +171,20 @@ struct RegionSummaryCard: View {
     }
 
     private func loadRegionOutlines() async {
-        regionOutlines = []
-        guard card.regionShape != nil else { return }
-        regionOutlines = await RegionGeometryCatalog.outlines(for: regionDays.region)
+        regionPaths = nil
+        guard card.regionShape != nil, let regionOutlinePathCache else { return }
+        async let watermark = regionOutlinePathCache.path(
+            for: regionDays.region,
+            resolution: .medium,
+        )
+        async let stamp = regionOutlinePathCache.path(
+            for: regionDays.region,
+            resolution: .small,
+        )
+        let (watermarkPath, stampPath) = await (watermark, stamp)
+        let loaded = RegionArtworkPaths(watermark: watermarkPath, stamp: stampPath)
+        guard !Task.isCancelled else { return }
+        regionPaths = loaded
     }
 
     var body: some View {
@@ -251,11 +255,9 @@ struct RegionSummaryCard: View {
             in: cardShape,
         )
         .tiltSheen(
-            roll: sheenPose.roll,
-            pitch: sheenPose.pitch,
+            tilt: tilt,
             staticRoll: card.sheen.staticPose.roll,
             staticPitch: card.sheen.staticPose.pitch,
-            isStatic: isSheenStatic,
             in: cardShape,
             intensity: card.sheen.intensity,
             staticGlintIntensity: card.sheen.staticGlintIntensity,
@@ -296,7 +298,7 @@ private struct EntryStamp: View {
     let tint: Color
     let size: CGFloat
     var showsArcText = true
-    let regionOutlines: [RegionOutline]
+    let regionPath: Path
     let regionShape: WhereStylesheet.CardStyle.RegionShape?
 
     var body: some View {
@@ -314,9 +316,9 @@ private struct EntryStamp: View {
                 .padding(size * 0.13)
 
             VStack(spacing: size * 0.02) {
-                if let regionShape, !regionOutlines.isEmpty {
+                if let regionShape, !regionPath.isEmpty {
                     RegionOutlineArtwork(
-                        outlines: regionOutlines,
+                        path: regionPath,
                         tint: tint,
                         style: regionShape,
                         placement: .stamp,
@@ -345,6 +347,12 @@ private struct EntryStamp: View {
         .rotationEffect(.degrees(-8))
         .accessibilityHidden(true)
     }
+}
+
+/// The two cached render artifacts a regular card consumes together.
+private struct RegionArtworkPaths {
+    let watermark: Path
+    let stamp: Path
 }
 
 /// Lays out `text` along the upper arc of a circle of the given `radius`,
@@ -393,10 +401,12 @@ private struct ArcText: View {
             )
         }
         .padding()
+        .whereBroadwayRoot()
     }
 
     #Preview("Changing count") {
         ChangingCountPreview()
+            .whereBroadwayRoot()
     }
 
     /// Stands in for the count changing under the user, which is otherwise only
