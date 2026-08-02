@@ -19,10 +19,9 @@ system, formatting, and global conventions. Read that first.
   `TestHostSupport.hostKeyWindow()` finds the host window *only* by that marker
   (not "the first key window"), so the stamp is load-bearing — keep it in
   `scene(_:willConnectTo:)`.
-- **Scene name matches plist.** `"Default Configuration"` is spelled in two
-  places — `AppDelegate`'s `configurationForConnecting` and the
-  `UIApplicationSceneManifest` in `Project.swift` — and they must stay aligned
-  or the scene never connects and every hosted test loses its window.
+- **The plist owns the scene name.** `AppDelegate` must modify and return the
+  session's plist-derived configuration; don't construct a separately named
+  configuration that can drift from `Project.swift`.
 
 ## Don't add products here for `Bundle.module`
 
