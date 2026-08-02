@@ -1,3 +1,4 @@
+import RegionKit
 import SwiftUI
 
 /// Repeats one cached micro-fidelity region silhouette around an inset rounded
@@ -177,3 +178,35 @@ struct RegionOutlineSecurityBorder: View {
         let rotation: Double
     }
 }
+
+#if DEBUG
+    #Preview {
+        RegionOutlineSecurityBorderPreview()
+            .padding()
+    }
+
+    private struct RegionOutlineSecurityBorderPreview: View {
+        @State private var path = Path()
+        private let cache = RegionOutlinePathCache()
+
+        var body: some View {
+            let card = WhereStylesheet.default.card.regular
+            if let style = card.regionShape?.securityBorder {
+                RegionOutlineSecurityBorder(
+                    path: path,
+                    tint: .orange,
+                    cornerRadius: card.cornerRadius,
+                    style: style,
+                )
+                .frame(width: 320, height: 180)
+                .background(
+                    .orange.opacity(0.1),
+                    in: RoundedRectangle(cornerRadius: card.cornerRadius),
+                )
+                .task {
+                    path = await cache.path(for: .newYork, resolution: .micro)
+                }
+            }
+        }
+    }
+#endif
