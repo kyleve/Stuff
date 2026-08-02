@@ -30,6 +30,14 @@
         var appliesToApp = false
         var persistenceError: String?
 
+        var isShowingPersistenceError: Bool {
+            get { persistenceError != nil }
+            set {
+                guard newValue == false else { return }
+                persistenceError = nil
+            }
+        }
+
         private let store: UserDefaults
         private let key: String
 
@@ -42,6 +50,13 @@
                 configuration = .standard
                 persistenceError = error.localizedDescription
             }
+        }
+
+        init(configuration: CardDesignerConfiguration) {
+            store = .standard
+            key = "where.debug.card-designer.preview"
+            self.configuration = configuration
+            appliesToApp = false
         }
 
         func resetAll() {
@@ -76,11 +91,10 @@
                 case .entryStamp:
                     card.entryStamp = standardCard.entryStamp
                 case .regionArtwork:
+                    card.usesRegionShape = standardCard.usesRegionShape
                     card.regionShape = standardCard.regionShape
                 case .microprint:
-                    guard let standardBorder = standardCard.regionShape?.securityBorder
-                    else { return }
-                    card.regionShape?.securityBorder = standardBorder
+                    card.regionShape.securityBorder = standardCard.regionShape.securityBorder
                 case .rosettes:
                     card.rosette = standardCard.rosette
                     configuration.shared.primaryRosetteOpacity = standard.shared

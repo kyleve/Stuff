@@ -26,7 +26,8 @@
         @Test func configurationRoundTripsThroughVersionedJSON() throws {
             var configuration = CardDesignerConfiguration.standard
             configuration.regular.cornerRadius = 33
-            configuration.compact.regionNameTypography.size = .fixed(19)
+            configuration.compact.regionNameTypography.sizeMode = .fixed
+            configuration.compact.regionNameTypography.fixedSize = 19
             configuration.shared.darkSecurityPrint.blendMode = .softLight
 
             let data = try JSONEncoder().encode(configuration)

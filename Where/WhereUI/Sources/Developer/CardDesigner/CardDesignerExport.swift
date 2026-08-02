@@ -4,11 +4,15 @@
     import UniformTypeIdentifiers
 
     struct CardDesignerJSONExport: Transferable {
-        let data: Data
+        let configuration: CardDesignerConfiguration
 
         static var transferRepresentation: some TransferRepresentation {
-            DataRepresentation(exportedContentType: .json) { $0.data }
-                .suggestedFileName("Where Card Design.json")
+            DataRepresentation(exportedContentType: .json) {
+                let encoder = JSONEncoder()
+                encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+                return try encoder.encode($0.configuration)
+            }
+            .suggestedFileName("Where Card Design.json")
         }
     }
 
@@ -61,7 +65,10 @@
                 watermarkFontSize: \(number(card.watermarkFontSize)),
                 watermarkOffset: CGSize(width: \(number(card.watermarkOffset
                         .x)), height: \(number(card.watermarkOffset.y))),
-                regionShape: \(regionShape(card.regionShape, indent: 1)),
+                regionShape: \(regionShape(
+                    card.usesRegionShape ? card.regionShape : nil,
+                    indent: 1,
+                )),
                 sheen: .init(
                     intensity: \(number(card.sheen.intensity)),
                     staticGlintIntensity: \(number(card.sheen.staticGlintIntensity)),
@@ -110,9 +117,9 @@
         private static func typography(_ typography: CardDesignerConfiguration
             .Typography) -> String
         {
-            let size = switch typography.size {
-                case let .fixed(points): ".fixed(\(number(points)))"
-                case let .semantic(style): ".semantic(.\(style.rawValue))"
+            let size = switch typography.sizeMode {
+                case .fixed: ".fixed(\(number(typography.fixedSize)))"
+                case .semantic: ".semantic(.\(typography.textStyle.rawValue))"
             }
             return ".init(size: \(size), weight: .\(typography.weight.rawValue), design: .\(typography.design.rawValue))"
         }
@@ -121,7 +128,7 @@
             _ stamp: CardDesignerConfiguration.EntryStamp,
             indent: Int,
         ) -> String {
-            let arc = stamp.arc.map { arc($0, indent: indent + 1) } ?? "nil"
+            let arc = stamp.showsArc ? arc(stamp.arc, indent: indent + 1) : "nil"
             return """
             .init(
             \(spaces(indent + 1))size: \(number(stamp.size)),
@@ -193,9 +200,9 @@
             _ artwork: CardDesignerConfiguration.Artwork,
             indent: Int,
         ) -> String {
-            let stroke = artwork.stroke.map {
-                ".init(opacity: \(number($0.opacity)), width: \(number($0.width)))"
-            } ?? "nil"
+            let stroke = artwork.showsStroke
+                ? ".init(opacity: \(number(artwork.stroke.opacity)), width: \(number(artwork.stroke.width)))"
+                : "nil"
             return """
             .init(
             \(spaces(indent + 1))center: CGPoint(x: \(number(artwork.center.x)), y: \(number(artwork

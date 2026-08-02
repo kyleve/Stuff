@@ -227,6 +227,13 @@ invalidate the card's text or Canvas artwork. The card adds no standalone edge
 stroke; its containing Liquid Glass surface owns the subtle outer border so
 direct and production rendering do not diverge.
 
+DEBUG builds include Card Designer Studio under Settings → Appearance. It
+edits a versioned, persisted draft of the regular, compact, and shared card
+presentation, previews both appearances with live tilt, and exports the full
+result as JSON or a Swift stylesheet snippet. The draft affects the rest of the
+app only while “Apply to App” is enabled; that switch intentionally resets on
+every launch.
+
 ## Previews
 
 Every previewable component ships a `#Preview` (wrapped in `#if DEBUG`) built

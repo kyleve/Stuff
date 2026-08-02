@@ -42,8 +42,22 @@
         }
 
         init(styles: WhereStylesheet.CardStyles) {
-            regular = Card(styles.regular)
-            compact = Card(styles.compact)
+            guard
+                let fallbackRegionShape = styles.regular.regionShape,
+                let fallbackArc = styles.regular.entryStamp.arc
+            else {
+                preconditionFailure("The regular card must provide designer fallback artwork.")
+            }
+            regular = Card(
+                styles.regular,
+                fallbackRegionShape: fallbackRegionShape,
+                fallbackArc: fallbackArc,
+            )
+            compact = Card(
+                styles.compact,
+                fallbackRegionShape: fallbackRegionShape,
+                fallbackArc: fallbackArc,
+            )
             shared = Shared(styles)
         }
 
@@ -77,25 +91,31 @@
             var dayUnitTypography: Typography
             var watermarkFontSize: CGFloat
             var watermarkOffset: Offset
-            var regionShape: RegionShape?
+            var usesRegionShape: Bool
+            var regionShape: RegionShape
             var sheen: Sheen
             var rosette: Rosette
             var glow: Shadow
             var lift: Shadow
 
-            init(_ style: WhereStylesheet.CardStyle) {
+            init(
+                _ style: WhereStylesheet.CardStyle,
+                fallbackRegionShape: WhereStylesheet.CardStyle.RegionShape,
+                fallbackArc: WhereStylesheet.CardStyle.EntryStamp.Arc,
+            ) {
                 cornerRadius = style.cornerRadius
                 padding = style.padding
                 contentSpacing = style.contentSpacing
                 progressBarHeight = style.progressBarHeight
-                entryStamp = EntryStamp(style.entryStamp)
+                entryStamp = EntryStamp(style.entryStamp, fallbackArc: fallbackArc)
                 regionNameTypography = Typography(style.regionNameTypography)
                 regionNameTracking = style.regionNameTracking
                 heroNumberTypography = Typography(style.heroNumberTypography)
                 dayUnitTypography = Typography(style.dayUnitTypography)
                 watermarkFontSize = style.watermarkFontSize
                 watermarkOffset = Offset(style.watermarkOffset)
-                regionShape = style.regionShape.map(RegionShape.init)
+                usesRegionShape = style.regionShape != nil
+                regionShape = RegionShape(style.regionShape ?? fallbackRegionShape)
                 sheen = Sheen(style.sheen)
                 rosette = Rosette(style.rosette)
                 glow = Shadow(style.glow)
@@ -115,7 +135,7 @@
                     dayUnitTypography: dayUnitTypography.style,
                     watermarkFontSize: watermarkFontSize,
                     watermarkOffset: watermarkOffset.size,
-                    regionShape: regionShape?.style,
+                    regionShape: usesRegionShape ? regionShape.style : nil,
                     sheen: sheen.style,
                     rosette: rosette.style,
                     glow: glow.style,
@@ -153,14 +173,22 @@
         }
 
         struct Typography: Codable, Equatable {
-            var size: Size
+            var sizeMode: SizeMode
+            var fixedSize: CGFloat
+            var textStyle: TextStyle
             var weight: FontWeight
             var design: FontDesign
 
             init(_ typography: WhereStylesheet.CardStyle.Typography) {
                 switch typography.size {
-                    case let .fixed(points): size = .fixed(points)
-                    case let .semantic(textStyle): size = .semantic(TextStyle(textStyle))
+                    case let .fixed(points):
+                        sizeMode = .fixed
+                        fixedSize = points
+                        textStyle = .body
+                    case let .semantic(textStyle):
+                        sizeMode = .semantic
+                        fixedSize = 17
+                        self.textStyle = TextStyle(textStyle)
                 }
                 weight = FontWeight(typography.weight)
                 design = FontDesign(typography.design)
@@ -168,23 +196,23 @@
 
             var style: WhereStylesheet.CardStyle.Typography {
                 .init(
-                    size: size.style,
+                    size: size,
                     weight: weight.style,
                     design: design.style,
                 )
             }
 
-            enum Size: Codable, Equatable {
-                case fixed(CGFloat)
-                case semantic(TextStyle)
-
-                var style: WhereStylesheet.CardStyle.Typography.Size {
-                    switch self {
-                        case let .fixed(points): .fixed(points)
-                        case let .semantic(textStyle): .semantic(textStyle.style)
-                    }
+            private var size: WhereStylesheet.CardStyle.Typography.Size {
+                switch sizeMode {
+                    case .fixed: .fixed(fixedSize)
+                    case .semantic: .semantic(textStyle.style)
                 }
             }
+        }
+
+        enum SizeMode: String, CaseIterable, Codable {
+            case fixed
+            case semantic
         }
 
         enum TextStyle: String, CaseIterable, Codable {
@@ -257,15 +285,20 @@
             var outerRing: Ring
             var innerRing: DashedRing
             var content: StampContent
-            var arc: Arc?
+            var showsArc: Bool
+            var arc: Arc
             var rotationDegrees: Double
 
-            init(_ style: WhereStylesheet.CardStyle.EntryStamp) {
+            init(
+                _ style: WhereStylesheet.CardStyle.EntryStamp,
+                fallbackArc: WhereStylesheet.CardStyle.EntryStamp.Arc,
+            ) {
                 size = style.size
                 outerRing = Ring(style.outerRing)
                 innerRing = DashedRing(style.innerRing)
                 content = StampContent(style.content)
-                arc = style.arc.map(Arc.init)
+                showsArc = style.arc != nil
+                arc = Arc(style.arc ?? fallbackArc)
                 rotationDegrees = style.rotationDegrees
             }
 
@@ -275,7 +308,7 @@
                     outerRing: outerRing.style,
                     innerRing: innerRing.style,
                     content: content.style,
-                    arc: arc?.style,
+                    arc: showsArc ? arc.style : nil,
                     rotationDegrees: rotationDegrees,
                 )
             }
@@ -401,8 +434,10 @@
             var securityBorder: SecurityBorder
 
             init(_ style: WhereStylesheet.CardStyle.RegionShape) {
-                watermark = Artwork(style.watermark)
-                stamp = Artwork(style.stamp)
+                let fallbackStroke = style.watermark.stroke
+                    ?? .init(opacity: 0.25, width: 1)
+                watermark = Artwork(style.watermark, fallbackStroke: fallbackStroke)
+                stamp = Artwork(style.stamp, fallbackStroke: fallbackStroke)
                 securityBorder = SecurityBorder(style.securityBorder)
             }
 
@@ -420,14 +455,19 @@
             var extent: Dimensions
             var scale: CGFloat
             var fillOpacity: Double
-            var stroke: Stroke?
+            var showsStroke: Bool
+            var stroke: Stroke
 
-            init(_ style: WhereStylesheet.CardStyle.RegionShape.Artwork) {
+            init(
+                _ style: WhereStylesheet.CardStyle.RegionShape.Artwork,
+                fallbackStroke: WhereStylesheet.CardStyle.RegionShape.Artwork.Stroke,
+            ) {
                 center = Point(style.center)
                 extent = Dimensions(style.extent)
                 scale = style.scale
                 fillOpacity = style.fillOpacity
-                stroke = style.stroke.map(Stroke.init)
+                showsStroke = style.stroke != nil
+                stroke = Stroke(style.stroke ?? fallbackStroke)
             }
 
             var style: WhereStylesheet.CardStyle.RegionShape.Artwork {
@@ -436,7 +476,7 @@
                     extent: extent.size,
                     scale: scale,
                     fillOpacity: fillOpacity,
-                    stroke: stroke?.style,
+                    stroke: showsStroke ? stroke.style : nil,
                 )
             }
         }

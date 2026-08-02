@@ -22,6 +22,8 @@ and testing conventions live in the feature [`Where/AGENTS.md`](../AGENTS.md)
 - Keep the DEBUG Logs destination visible for every
   `WhereModel.logStoreState`; opening, unavailable, and failed stores are
   diagnostics to render, not reasons to hide the tool.
+- Keep the DEBUG card designer's draft in one root-owned `CardDesignerModel`;
+  persist the draft, but leave its app-wide override disabled at every launch.
 - Flyover infrastructure stays under `#if DEBUG` in
   [`Sources/Developer/Flyover`](Sources/Developer/Flyover), while each
   represented screen declares a DEBUG-only `WhereFlyoverProviding` extension
@@ -103,6 +105,9 @@ rules:
   `.accentColor` stay inline.
 - `WhereThemes` is deliberately empty — the seam a future app-wide theme
   plugs into.
+- The DEBUG card designer may override only presentation values already owned
+  by `CardStyles`; it must not add a second production styling system or alter
+  count animation and outline-cache behavior.
 
 ## Testing
 
