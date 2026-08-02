@@ -51,7 +51,7 @@ generating; plain `./ide` fails fast pointing at it.
 
 The executables in the repo root are the dev scripts — `ide`, `test`,
 `swiftformat`, `sync-agents`, `profile`, `icons`, `flaky`, `simulator`,
-`xcstrings`, `attribution` — and each takes `--help`. Reach for one rather than
+`worktree`, `xcstrings`, `attribution` — and each takes `--help`. Reach for one rather than
 hand-rolling its job: `test` is the only way tests should be run (see [Running
 tests](#running-tests)), and `icons`, `attribution`, and `simulator` in particular own state that is
 easy to corrupt by hand — `./simulator` owns a per-checkout device (see the
@@ -527,8 +527,13 @@ flag is needed there.
 ## Running tests
 
 **Use [`./test`](test)** — the only way to run tests. Never hand-roll `tuist
-test` or `xcodebuild`. **`./swiftformat --lint` and `./test` are part of
-"done".**
+test` or `xcodebuild`. **Validate in proportion to risk:** run
+`./swiftformat --lint` when the changed files are in its scope, and run the
+narrowest applicable `./test` tier for code, build, tooling, or behavior
+changes. Pure documentation or comment-only changes may skip checks that
+cannot exercise them; record skipped checks in the commit or PR validation.
+Semantic changes to configuration, scripts, generator inputs, executable
+examples, or app-rendered copy are not documentation-only.
 
 Load the [`running-tests`](.agents/skills/running-tests/SKILL.md) skill for
 test tiers, snapshot opt-in, why not `tuist test`, and per-checkout simulator
@@ -539,9 +544,10 @@ management (`./simulator` resolves a UDID — never pass a device name to
 
 - **Never commit on `main`.** Branch first (`git checkout -b <name>`) and keep
   every commit for one piece of work on that one branch.
-- **`./swiftformat --lint` and `./test` are part of "done".** Never commit a red
-  tree. Load the [`running-tests`](.agents/skills/running-tests/SKILL.md)
-  skill for which tier to run.
+- **Validate in proportion to risk.** Follow [Running tests](#running-tests),
+  never commit a known-red tree, and load the
+  [`running-tests`](.agents/skills/running-tests/SKILL.md) skill to choose
+  the applicable checks.
 - **Multi-step work lands one commit per step**, so history stays bisectable and
   can land piecewise — including pure-groundwork steps, which say so in the body.
 - **Commit completed work eagerly.** Once a coherent change is verified, commit
@@ -554,6 +560,30 @@ management (`./simulator` resolves a UDID — never pass a device name to
 Load the [`github-workflow`](.agents/skills/github-workflow/SKILL.md) skill
 for PRs, pushes, review feedback, CI, and posting as the user. Always-on: use
 `gh`; open PRs ready-for-review; mark AI-posted comments.
+
+## Codex worktree specific instructions
+
+[`.codex/environments/environment.toml`](.codex/environments/environment.toml)
+owns setup, cleanup, and toolbar actions for Codex-managed worktrees. Keep it
+idempotent and regenerate it through the ChatGPT desktop app's local environment
+editor when changing its schema.
+
+- macOS setup runs `./ide --bootstrap --no-open`; bootstrap trusts the new
+  checkout's `.mise.toml`, installs pinned tools, syncs agent files, and
+  generates without opening Xcode.
+- Linux setup delegates to [`.cursor/install.sh`](.cursor/install.sh), with the
+  same platform limits documented below.
+- Setup first runs `./worktree --check-main`, which refreshes `origin/main` and
+  warns without moving `HEAD` when the selected checkout does not contain it;
+  an unavailable remote warns without blocking setup.
+- The **Update to latest main** action runs `./worktree --update-main`; it only
+  fast-forwards a checkout directly behind `origin/main` and refuses divergent
+  history.
+- [`.worktreeinclude`](.worktreeinclude) copies only ignored machine-local files
+  required by a new managed worktree. `AGENTS.override.md` is copied by Codex
+  automatically and must not be listed there.
+- Cleanup uses `./simulator --delete`, which deletes only that checkout's
+  device and is safe when no device was created.
 
 ## Cursor Cloud specific instructions
 

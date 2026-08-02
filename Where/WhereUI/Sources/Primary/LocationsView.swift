@@ -13,7 +13,7 @@ struct LocationsView: View {
 
     @State private var showingResolution = false
 
-    /// Drives the region cards' tilt-reactive holographic sheen. Started/stopped
+    /// Drives the region cards' tilt-reactive light sheen. Started/stopped
     /// with the view's lifecycle; a no-op on hardware without device motion.
     @State private var tilt = TiltProvider()
 

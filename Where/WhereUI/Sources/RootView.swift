@@ -43,6 +43,12 @@ public struct RootView: View {
         /// the store is available.
         @State private var alerter: PeriscopeAlerter?
         @State private var toastCenter = DeveloperToastCenter()
+        /// One process-scoped designer draft. Its configuration persists, but
+        /// applying it to real cards remains session-only.
+        @State private var cardDesigner = CardDesignerModel(
+            store: .standard,
+            key: "where.debug.card-designer.configuration",
+        )
     #endif
     private let launcher: LifecycleRunner<WhereSession>
     #if DEBUG
@@ -166,6 +172,11 @@ public struct RootView: View {
             .environment(model.session)
         #if DEBUG
             .environment(inspectorModeController)
+            .environment(\.cardDesignerModel, cardDesigner)
+            .environment(
+                \.cardDesignerConfiguration,
+                cardDesigner.appliesToApp ? cardDesigner.configuration : nil,
+            )
         #endif
             // Which world the app is in, seeded once here so no view has to
             // ask the model. Reading the model's mode tracks its scope state,
