@@ -43,7 +43,7 @@ struct WhereStylesheetTests {
         #expect(card.innerFrameInset == 16)
         #expect(card.rosette == .init(
             wobble: 3,
-            lineWidth: 3,
+            lineWidth: 2,
             primaryRingSpacing: 18,
             secondaryRingSpacing: 15,
         ))
@@ -152,9 +152,15 @@ struct WhereStylesheetTests {
         #expect(month.plain.fill == Color.primary.opacity(0.03))
         #expect(month.plain.border == Color.primary.opacity(0.12))
         #expect(month.plain.borderWidth == 2)
+        #expect(month.plain.foreground == .primary)
         #expect(month.current.fill == Color.accentColor.opacity(0.08))
         #expect(month.current.border == Color.accentColor.opacity(0.7))
-        #expect(month.current.borderWidth == 4)
+        #expect(month.current.borderWidth == 3)
+        #expect(month.current.foreground == Color.primary.mix(
+            with: .accentColor,
+            by: 0.25,
+            in: .perceptual,
+        ))
         #expect(month.futureOpacity == 0.55)
         #expect(month.futurePeekFraction == 0.5)
         #expect(month.footerDividerSpacing == 8)

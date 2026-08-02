@@ -409,7 +409,7 @@ extension WhereStylesheet {
                 innerFrameInset: 16,
                 rosette: CardStyle.Rosette(
                     wobble: 3,
-                    lineWidth: 3,
+                    lineWidth: 2,
                     primaryRingSpacing: 18,
                     secondaryRingSpacing: 15,
                 ),
@@ -525,6 +525,10 @@ extension WhereStylesheet {
                 /// Border around the card (a touch darker than `fill`).
                 var border: Color
                 var borderWidth: CGFloat
+                /// Base foreground inherited by the month's neutral primary and
+                /// secondary text. Explicit semantic colors (today, unresolved,
+                /// and region tints) still override it.
+                var foreground: Color
             }
         }
 
@@ -605,11 +609,17 @@ extension WhereStylesheet {
                     fill: Color.primary.opacity(0.03),
                     border: Color.primary.opacity(0.12),
                     borderWidth: 2,
+                    foreground: .primary,
                 ),
                 current: MonthStyle.Card(
                     fill: Color.accentColor.opacity(0.08),
                     border: Color.accentColor.opacity(0.7),
-                    borderWidth: 4,
+                    borderWidth: 3,
+                    foreground: Color.primary.mix(
+                        with: .accentColor,
+                        by: 0.25,
+                        in: .perceptual,
+                    ),
                 ),
                 futureOpacity: 0.55,
                 futurePeekFraction: 0.5,
