@@ -213,6 +213,11 @@ default empty resolver yields the fallback looks
 region-map viewer. The catalog also owns the selectable color/emoji/symbol
 option lists the picker shows.
 
+Regular `RegionSummaryCard`s also request their cached `RegionOutline`s from
+RegionKit and reuse the silhouette as both a large security-print watermark and
+the seal inside the circular entry stamp. Compact cards retain the simpler
+symbol treatment.
+
 ## Previews
 
 Every previewable component ships a `#Preview` (wrapped in `#if DEBUG`) built

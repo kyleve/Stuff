@@ -37,6 +37,18 @@ struct WhereStylesheetTests {
         #expect(card.regionNameTracking == -0.5)
         #expect(card.watermarkFontSize == 150)
         #expect(card.watermarkOffset == CGSize(width: 20, height: 12))
+        #expect(card.regionShape == .init(
+            watermarkCenter: CGPoint(x: 0.7, y: 0.57),
+            watermarkExtent: CGSize(width: 0.72, height: 0.78),
+            watermarkScale: 0.88,
+            watermarkFillOpacity: 0.13,
+            watermarkStrokeOpacity: 0.28,
+            watermarkStrokeWidth: 1.5,
+            stampExtent: CGSize(width: 0.78, height: 0.78),
+            stampScale: 0.88,
+            stampFillOpacity: 0.78,
+            stampStrokeWidth: 1,
+        ))
         #expect(card.sheen == .init(
             intensity: 1,
             staticGlintIntensity: 0.25,
@@ -66,6 +78,7 @@ struct WhereStylesheetTests {
         #expect(card.regionNameTracking == 0)
         #expect(card.watermarkFontSize == 96)
         #expect(card.watermarkOffset == CGSize(width: 12, height: 10))
+        #expect(card.regionShape == nil)
         #expect(card.sheen == .init(
             intensity: 0.5,
             staticGlintIntensity: 0.5,

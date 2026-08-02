@@ -256,7 +256,10 @@ extension WhereStylesheet {
         var watermarkFontSize: CGFloat
         /// Offset of that watermark toward the bottom-trailing corner.
         var watermarkOffset: CGSize
-        /// Holographic sheen strength plus the deterministic pose used until a
+        /// RegionKit silhouette artwork for the regular card. `nil` keeps the
+        /// compact card on its simpler SF Symbol watermark and stamp glyph.
+        var regionShape: RegionShape?
+        /// Light-sheen strength plus the deterministic pose used until a
         /// live motion sample arrives (and whenever motion must stay static).
         var sheen: Sheen
         /// Line width of the heavy outer frame stroke.
@@ -277,6 +280,21 @@ extension WhereStylesheet {
             var lineWidth: CGFloat
             var primaryRingSpacing: CGFloat
             var secondaryRingSpacing: CGFloat
+        }
+
+        /// Relative projection geometry and ink strength for the repeated
+        /// region silhouette: one large security watermark and one stamp seal.
+        struct RegionShape: Equatable {
+            var watermarkCenter: CGPoint
+            var watermarkExtent: CGSize
+            var watermarkScale: CGFloat
+            var watermarkFillOpacity: Double
+            var watermarkStrokeOpacity: Double
+            var watermarkStrokeWidth: CGFloat
+            var stampExtent: CGSize
+            var stampScale: CGFloat
+            var stampFillOpacity: Double
+            var stampStrokeWidth: CGFloat
         }
 
         struct Sheen: Equatable {
@@ -418,6 +436,18 @@ extension WhereStylesheet {
                 dayUnitFont: .title3.weight(.medium),
                 watermarkFontSize: 150,
                 watermarkOffset: CGSize(width: 20, height: 12),
+                regionShape: CardStyle.RegionShape(
+                    watermarkCenter: CGPoint(x: 0.7, y: 0.57),
+                    watermarkExtent: CGSize(width: 0.72, height: 0.78),
+                    watermarkScale: 0.88,
+                    watermarkFillOpacity: 0.13,
+                    watermarkStrokeOpacity: 0.28,
+                    watermarkStrokeWidth: 1.5,
+                    stampExtent: CGSize(width: 0.78, height: 0.78),
+                    stampScale: 0.88,
+                    stampFillOpacity: 0.78,
+                    stampStrokeWidth: 1,
+                ),
                 sheen: CardStyle.Sheen(
                     intensity: 1,
                     staticGlintIntensity: 0.25,
@@ -450,6 +480,7 @@ extension WhereStylesheet {
                 dayUnitFont: .subheadline.weight(.medium),
                 watermarkFontSize: 96,
                 watermarkOffset: CGSize(width: 12, height: 10),
+                regionShape: nil,
                 sheen: CardStyle.Sheen(
                     intensity: 0.5,
                     staticGlintIntensity: 0.5,

@@ -1,4 +1,5 @@
 import Foundation
+import RegionKit
 import SwiftUI
 import WhereCore
 
@@ -41,6 +42,10 @@ struct RegionSummaryCard: View {
     /// draft appearance so the card previews a pick before it's saved; every
     /// other caller leaves it `nil` and gets the resolved look.
     var styleOverride: RegionStyle?
+
+    /// Loaded once per regular card and shared by both the large security
+    /// watermark and the smaller entry-stamp seal.
+    @State private var regionOutlines: [RegionOutline] = []
 
     @Environment(\.stylesheet) private var stylesheet
     @Environment(\.regionStyles) private var regionStyles
@@ -97,6 +102,8 @@ struct RegionSummaryCard: View {
             tint: style.tint,
             size: card.entryStampSize,
             showsArcText: card.showsArcText,
+            regionOutlines: regionOutlines,
+            regionShape: card.regionShape,
         )
     }
 
@@ -149,12 +156,21 @@ struct RegionSummaryCard: View {
                 )
             }
 
-            Image(systemName: style.symbolName)
-                .font(.system(size: card.watermarkFontSize))
-                .foregroundStyle(style.tint.opacity(stylesheet.card.watermarkOpacity))
-                .rotationEffect(.degrees(-14))
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-                .offset(x: card.watermarkOffset.width, y: card.watermarkOffset.height)
+            if let regionShape = card.regionShape, !regionOutlines.isEmpty {
+                RegionOutlineArtwork(
+                    outlines: regionOutlines,
+                    tint: style.tint,
+                    style: regionShape,
+                    placement: .watermark,
+                )
+            } else {
+                Image(systemName: style.symbolName)
+                    .font(.system(size: card.watermarkFontSize))
+                    .foregroundStyle(style.tint.opacity(stylesheet.card.watermarkOpacity))
+                    .rotationEffect(.degrees(-14))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                    .offset(x: card.watermarkOffset.width, y: card.watermarkOffset.height)
+            }
         }
         .clipShape(cardShape)
         .allowsHitTesting(false)
@@ -195,6 +211,12 @@ struct RegionSummaryCard: View {
                 )
         }
         .allowsHitTesting(false)
+    }
+
+    private func loadRegionOutlines() async {
+        regionOutlines = []
+        guard card.regionShape != nil else { return }
+        regionOutlines = await RegionGeometryCatalog.outlines(for: regionDays.region)
     }
 
     var body: some View {
@@ -296,6 +318,7 @@ struct RegionSummaryCard: View {
                 days: regionDays.days,
             ),
         )
+        .task(id: regionDays.region, loadRegionOutlines)
     }
 }
 
@@ -310,6 +333,8 @@ private struct EntryStamp: View {
     let tint: Color
     let size: CGFloat
     var showsArcText = true
+    let regionOutlines: [RegionOutline]
+    let regionShape: WhereStylesheet.CardStyle.RegionShape?
 
     var body: some View {
         ZStack {
@@ -326,8 +351,18 @@ private struct EntryStamp: View {
                 .padding(size * 0.13)
 
             VStack(spacing: size * 0.02) {
-                Image(systemName: symbolName)
-                    .font(.system(size: size * 0.26))
+                if let regionShape, !regionOutlines.isEmpty {
+                    RegionOutlineArtwork(
+                        outlines: regionOutlines,
+                        tint: tint,
+                        style: regionShape,
+                        placement: .stamp,
+                    )
+                    .frame(width: size * 0.42, height: size * 0.28)
+                } else {
+                    Image(systemName: symbolName)
+                        .font(.system(size: size * 0.26))
+                }
                 Text(verbatim: String(year))
                     .font(.system(size: size * 0.15, weight: .bold, design: .serif))
                     .monospacedDigit()
