@@ -9,16 +9,21 @@ exit 1
 '''
 
 [setup.darwin]
-script = "./ide --bootstrap --no-open"
+script = "./worktree --check-main && ./ide --bootstrap --no-open"
 
 [setup.linux]
-script = "./.cursor/install.sh"
+script = "./worktree --check-main && ./.cursor/install.sh"
 
 [cleanup]
 script = ""
 
 [cleanup.darwin]
 script = "./simulator --delete"
+
+[[actions]]
+name = "Update to latest main"
+icon = "run"
+command = "./worktree --update-main"
 
 [[actions]]
 name = "Regenerate project"

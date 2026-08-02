@@ -51,7 +51,7 @@ generating; plain `./ide` fails fast pointing at it.
 
 The executables in the repo root are the dev scripts — `ide`, `test`,
 `swiftformat`, `sync-agents`, `profile`, `icons`, `flaky`, `simulator`,
-`xcstrings`, `attribution` — and each takes `--help`. Reach for one rather than
+`worktree`, `xcstrings`, `attribution` — and each takes `--help`. Reach for one rather than
 hand-rolling its job: `test` is the only way tests should be run (see [Running
 tests](#running-tests)), and `icons`, `attribution`, and `simulator` in particular own state that is
 easy to corrupt by hand — `./simulator` owns a per-checkout device (see the
@@ -565,6 +565,12 @@ editor when changing its schema.
   generates without opening Xcode.
 - Linux setup delegates to [`.cursor/install.sh`](.cursor/install.sh), with the
   same platform limits documented below.
+- Setup first runs `./worktree --check-main`, which refreshes `origin/main` and
+  warns without moving `HEAD` when the selected checkout does not contain it;
+  an unavailable remote warns without blocking setup.
+- The **Update to latest main** action runs `./worktree --update-main`; it only
+  fast-forwards a checkout directly behind `origin/main` and refuses divergent
+  history.
 - [`.worktreeinclude`](.worktreeinclude) copies only ignored machine-local files
   required by a new managed worktree. `AGENTS.override.md` is copied by Codex
   automatically and must not be listed there.

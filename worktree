@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+    cat <<'EOF'
+Usage: ./worktree --check-main | --update-main
+
+Checks whether this checkout contains the latest origin/main, or safely
+fast-forwards a checkout that is directly behind it.
+
+Options:
+  --check-main   Fetch origin/main and warn when HEAD does not contain it.
+                 Never changes HEAD or the working tree; a fetch failure warns
+                 without blocking worktree setup.
+  --update-main  Fetch origin/main and fast-forward only when HEAD is its
+                 ancestor. Refuses divergent history.
+  -h, --help     Show this help.
+EOF
+}
+
+if [ "$#" -ne 1 ]; then
+    usage >&2
+    exit 1
+fi
+
+mode="$1"
+main_ref="refs/remotes/origin/main"
+
+fetch_main() {
+    git fetch --quiet origin '+refs/heads/main:refs/remotes/origin/main'
+}
+
+short_commit() {
+    git rev-parse --short=8 "$1"
+}
+
+case "$mode" in
+    --check-main)
+        if ! fetch_main; then
+            echo "warning: could not fetch origin/main; main freshness is unknown" >&2
+            exit 0
+        fi
+
+        if git merge-base --is-ancestor "$main_ref" HEAD; then
+            echo "==> Checkout contains latest origin/main ($(short_commit "$main_ref"))"
+        else
+            echo "warning: checkout $(short_commit HEAD) does not contain latest origin/main ($(short_commit "$main_ref"))" >&2
+            echo "warning: run the 'Update to latest main' action if this checkout should be a current main checkout" >&2
+        fi
+        ;;
+    --update-main)
+        echo "==> Fetching origin/main"
+        fetch_main
+
+        if git merge-base --is-ancestor "$main_ref" HEAD; then
+            echo "==> Checkout already contains latest origin/main ($(short_commit "$main_ref"))"
+            exit 0
+        fi
+
+        if ! git merge-base --is-ancestor HEAD "$main_ref"; then
+            echo "error: checkout $(short_commit HEAD) has diverged from origin/main ($(short_commit "$main_ref")); refusing to rewrite or merge feature history" >&2
+            echo "error: merge or rebase origin/main explicitly instead" >&2
+            exit 1
+        fi
+
+        git merge --ff-only "$main_ref"
+        echo "==> Fast-forwarded checkout to latest origin/main ($(short_commit HEAD))"
+        ;;
+    -h|--help)
+        usage
+        ;;
+    *)
+        echo "error: unknown option '$mode'" >&2
+        usage >&2
+        exit 1
+        ;;
+esac
