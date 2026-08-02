@@ -8,13 +8,14 @@
         let model: CardDesignerModel
 
         @State private var variant = CardDesignerConfiguration.Variant.regular
-        @State private var previewColorScheme = ColorScheme.light
+        @State private var previewColorScheme: ColorScheme?
         @State private var previewRegion = Region.newYork
         @State private var previewColor = RegionColorToken.indigo
         @State private var previewDays = 128
         @State private var previewYear = 2026
         @State private var isConfirmingResetAll = false
         @State private var tilt = TiltProvider()
+        @Environment(\.colorScheme) private var systemColorScheme
 
         var body: some View {
             @Bindable var model = model
@@ -22,7 +23,7 @@
                 CardDesignerPreview(
                     configuration: model.configuration,
                     variant: variant,
-                    colorScheme: previewColorScheme,
+                    colorScheme: previewColorScheme ?? systemColorScheme,
                     region: previewRegion,
                     color: previewColor,
                     days: previewDays,
@@ -50,8 +51,10 @@
                             String(localized: .cardDesignerAppearance),
                             selection: $previewColorScheme,
                         ) {
-                            Text(String(localized: .cardDesignerLight)).tag(ColorScheme.light)
-                            Text(String(localized: .cardDesignerDark)).tag(ColorScheme.dark)
+                            Text(String(localized: .cardDesignerLight))
+                                .tag(ColorScheme.light as ColorScheme?)
+                            Text(String(localized: .cardDesignerDark))
+                                .tag(ColorScheme.dark as ColorScheme?)
                         }
                         .pickerStyle(.segmented)
 
@@ -154,7 +157,11 @@
             } message: { message in
                 Text(message)
             }
-            .onAppear { tilt.start() }
+            .preferredColorScheme(previewColorScheme)
+            .onAppear {
+                previewColorScheme = previewColorScheme ?? systemColorScheme
+                tilt.start()
+            }
             .onDisappear { tilt.stop() }
         }
     }
