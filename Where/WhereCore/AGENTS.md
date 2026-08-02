@@ -74,6 +74,9 @@ internal shape.
 - **Writes await their side effects.** `DayJournal` commits, then awaits the
   reminder reconcile + widget publish in sequence, so a reader on the next
   `changes()` ping never observes a half-applied write.
+- **Filter persistent-store remote-change notifications by the Where store
+  URL.** Never let another store in the process (notably Periscope) ping
+  `WhereStore.changes()`; guard: `StoreRemoteChangeSourceTests`.
 - **Post-write reconciliation is defined once.** Every write and import
   routes through `DayJournal.reconcileAfterDayChange()` (or its widget-less
   subset `reconcileIssueState()`) — never copy the fan-out into a new write

@@ -24,7 +24,8 @@ one it belongs to rather than to a god-object:
 - **`WhereStore`** — the value-type persistence boundary (a protocol; nothing
   crossing it is a SwiftData record). Mutations run inside `perform { … }` (one
   atomic transaction) and `changes()` emits once per commit and on a CloudKit
-  remote import. `SwiftDataStore.make()` is the production, CloudKit-backed
+  remote import for the Where store URL, excluding other process stores such as
+  Periscope. `SwiftDataStore.make()` is the production, CloudKit-backed
   implementation; `SwiftDataStore.inMemory()` backs tests and previews. Each
   process opens its on-disk store **once** and injects it where it's needed —
   in the app, the launch's `resolve-scope` step opens it and the App Intents
