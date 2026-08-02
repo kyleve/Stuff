@@ -1,0 +1,86 @@
+---
+name: github-workflow
+description: Opens and maintains pull requests, handles review feedback, checks CI, and posts as the user via gh. Use when committing for push, opening or updating a PR, responding to review comments, or diagnosing CI failures.
+---
+
+GitHub workflow for this repo. Read root [`AGENTS.md`](../../../AGENTS.md) first for
+always-on commit and test invariants — this skill assumes those.
+
+## Prerequisites
+
+- Use the `gh` CLI for all GitHub interaction — PRs, issues, checks, releases,
+  review comments.
+- **`./swiftformat --lint` and `./test` are part of "done".** Never push a red
+  tree.
+- **Never commit on `main`.** Branch first and keep every commit for one piece
+  of work on that one branch.
+
+## Branch and push
+
+- **Multi-step work lands one commit per step**, so history stays bisectable and
+  can land piecewise — including pure-groundwork steps, which say so in the body.
+- **Commit completed work eagerly.** Once a coherent change is verified, commit
+  it unless the user explicitly asks to keep it uncommitted.
+- Push each commit as it lands once a PR is open.
+- **When working through a plan, open a PR once the plan is complete** — push
+  the branch and open it ready-for-review rather than leaving finished work
+  local-only.
+
+## Opening a PR
+
+- **Open PRs ready-for-review, not draft.**
+- Check for a PR template (`.github/PULL_REQUEST_TEMPLATE.md` or similar) and
+  use it for the body.
+- Describe the **end state**, not a changelog of the conversation.
+- **Explain what the diff doesn't show** — motivation, trade-offs, or follow-ups
+  that aren't obvious from the code alone.
+- **Flag lines that warrant extra scrutiny** — leave a PR review comment on
+  anything a reviewer should look at closely (subtle behavior changes,
+  incomplete migrations, assumptions about `main`).
+
+## Keeping a PR current
+
+- Push each commit as it lands.
+- Refresh the title/body once the branch outgrows them — fold into any human
+  edits rather than overwriting them.
+
+## Merging main and other branches
+
+When bringing `main` or another branch into yours — because CI failed, before
+a long review, or to pick up a dependency:
+
+- **Resolve git-reported conflicts** — the `<<<<` / `>>>>` markers; don't leave
+  conflict markers or half-resolved hunks.
+- **Check for logical conflicts too** — changes on both sides can compose cleanly
+  in git but still clash in behavior: a renamed symbol your branch still
+  references, a relocated test helper, an updated signature your call sites don't
+  match, a new invariant your code violates, duplicate registrations. Re-read
+  the merged result and run `./test` (at least the affected tier) after merging
+  — a clean merge is not proof the branch still makes sense.
+- **CI merges `main` into the branch before it runs**, so green-locally /
+  red-on-CI usually means `main` moved rather than that you broke something.
+  Merge the latest `main` in locally and rebuild before digging further.
+
+## Review comments
+
+- **Don't act on review comments the user hasn't pointed you at.** Summarize
+  what's there and ask which to take on; reading them to write that summary is
+  expected.
+- **One commit per review issue** — each distinct piece of feedback gets its
+  own commit, unless several items fit together logically or address similar
+  issues (then one commit for the group is fine). Either way, fixes stay
+  bisectable and the reply can name the commit that resolved it.
+- When a commit resolves one, reply to it naming the commit.
+- Anything deliberately not addressed gets filed in the area's
+  [`TODOs.md`](../../../TODOs.md) — never dropped.
+
+## CI
+
+- **Don't block the conversation polling CI.** Report what's running and hand
+  the turn back; delegate a genuine watch to a background subagent.
+
+## Posting under the user's identity
+
+Anything posted as the user — PR replies, issue comments, review responses —
+opens with a line marking it AI-generated, e.g. `> _Posted by an AI agent on
+$USER's behalf._`. No exception for short or purely factual comments.
