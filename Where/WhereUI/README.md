@@ -64,8 +64,9 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   `LogHistoryPruner` (a 100-day window *and* a 50k-event ceiling, so the store is
   bounded however heavily the device logs).
 - **`WhereModel`** — app-level state that outlives any one scope: the
-  onboarding flag, the active `WhereScope`, the owned `WhereSession`, and the
-  lifecycle intents (`activate(scope:)`, `startSession(scope:)` — which
+  onboarding and per-device recording-confirmation flags, the active
+  `WhereScope`, the owned `WhereSession`, and the lifecycle intents
+  (`activate(scope:)`, `startSession(scope:)` — which
   *returns* the session the launch's `start-session` step threads onward —
   `endSession()`, `resetPreferences()`).
 - **`WhereSession`** — the always-on coordinator: tracking + location
@@ -85,9 +86,13 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   `OnboardingGate` and handed its `LifecycleGateHandle`. The gate roots the
   trunk, so there is no session (and no open store) behind it: a paged intro,
   then picking up to five primary US regions (map or searchable list) and
-  giving each a look, then the location-permission ask. Finishing logs in to
-  the real scope — the app's one store open — and commits the picks as the
-  tracked-region set + appearances before resolving the gate. The intro also
+  giving each a look, then verifying this installation's automatic-recording
+  choice. Phones recommend On; tablets/other devices recommend Off, and only
+  an enabled confirmation requests location permission. An existing
+  installation without the new confirmation skips straight to that final
+  page. Finishing logs in to the real scope — the app's one store open — and
+  commits the picks as the tracked-region set + appearances before resolving
+  the gate. The intro also
   offers **Restore from a backup**, which opens the store, imports a backup
   (`.replace`), and skips the manual pick/customize steps straight to the
   location ask; and **Explore a demo**, which builds a throwaway in-memory

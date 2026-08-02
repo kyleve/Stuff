@@ -286,12 +286,33 @@ struct WhereLaunchTests {
         #expect(bootstrap.makeServicesCount == 1)
     }
 
+    @Test func existingInstallationParksForItsRecordingChoiceBeforeOpening() async throws {
+        let preferences = makePreferences()
+        preferences.hasOnboarded = true
+        let (model, bootstrap) = try makeLoggedOutModel(preferences: preferences)
+        let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
+        let task = Task { @MainActor in await launcher.run() }
+
+        try await waitUntil { launcher.phase.isAwaitingGate(LaunchStepID.onboarding) }
+        #expect(model.hasOnboarded)
+        #expect(model.hasConfirmedRecordingChoice == false)
+        #expect(bootstrap.makeServicesCount == 0)
+
+        model.confirmRecordingChoice()
+        launcher.phase.gateHandle?.complete()
+        await task.value
+
+        #expect(launcher.phase.isReady)
+        #expect(bootstrap.makeServicesCount == 1)
+    }
+
     @Test func aStoreThatCannotOpenFailsTheLaunch() async {
         // Lazy creation moved the store open behind the gate, but an
         // unopenable store must still park the runner in `.failed` rather than
         // reading as a launch that simply never finished.
         let preferences = makePreferences()
         preferences.hasOnboarded = true
+        preferences.hasConfirmedRecordingChoice = true
         let model = WhereModel(
             preferences: preferences,
             makeBootstrap: { FailingBootstrap() },

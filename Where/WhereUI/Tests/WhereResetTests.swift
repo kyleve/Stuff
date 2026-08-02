@@ -90,12 +90,14 @@ struct WhereResetTests {
         preferences.remindersEnabled = false
         preferences.summaryEnabled = false
         #expect(model.hasOnboarded)
+        #expect(model.hasConfirmedRecordingChoice)
 
         model.resetPreferences()
 
         // Removing the keys lets the default-valued getters report first-install
         // state again: onboarding returns and reminders/summary default back on.
-        #expect(!model.hasOnboarded)
+        #expect(model.hasOnboarded == false)
+        #expect(model.hasConfirmedRecordingChoice == false)
         #expect(preferences.remindersEnabled)
         #expect(preferences.summaryEnabled)
     }
@@ -266,7 +268,8 @@ struct WhereResetTests {
         // preferences cleared, and the app logged out — parked at the gate with
         // no session, since the relaunch rebuilds one only once the user has
         // chosen a world again.
-        #expect(!model.hasOnboarded)
+        #expect(model.hasOnboarded == false)
+        #expect(model.hasConfirmedRecordingChoice == false)
         #expect(model.session == nil)
         #expect(launcher.phase.gateHandle != nil)
         // The erase quiesced GPS before wiping, so the torn-down session is no
@@ -314,7 +317,8 @@ struct WhereResetTests {
         // reopened, reminder/summary schedules defaulted back on rather than
         // the off state above.
         #expect(model.session == nil)
-        #expect(!model.hasOnboarded)
+        #expect(model.hasOnboarded == false)
+        #expect(model.hasConfirmedRecordingChoice == false)
         #expect(preferences.remindersEnabled)
         #expect(preferences.summaryEnabled)
 
@@ -346,6 +350,7 @@ struct WhereResetTests {
         await launcher.teardown(failing, input: session)
         #expect(launcher.phase.failed(at: LaunchStepID.eraseData))
         #expect(model.hasOnboarded) // reset-preferences never ran
+        #expect(model.hasConfirmedRecordingChoice)
     }
 }
 

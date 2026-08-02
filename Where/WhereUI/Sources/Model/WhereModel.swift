@@ -158,11 +158,26 @@ public final class WhereModel {
         set { preferences.hasOnboarded = newValue }
     }
 
-    /// Mark first-run onboarding complete. Called by `OnboardingView` once the
-    /// user finishes the intro (after the permission prompt resolves).
+    /// Whether this installation has confirmed the recording recommendation.
+    /// Existing installations that predate the choice keep onboarding complete
+    /// but revisit its final page once to make this device-specific decision.
+    public private(set) var hasConfirmedRecordingChoice: Bool {
+        get { preferences.hasConfirmedRecordingChoice }
+        set { preferences.hasConfirmedRecordingChoice = newValue }
+    }
+
+    /// Mark first-run onboarding and this installation's recording choice
+    /// complete. Called after the optional permission prompt resolves.
     public func completeOnboarding() {
         hasOnboarded = true
+        hasConfirmedRecordingChoice = true
         Self.logger { .onboardingCompleted }
+    }
+
+    /// Persist the one-time recording confirmation for an installation that
+    /// completed the rest of onboarding before per-device controls existed.
+    public func confirmRecordingChoice() {
+        hasConfirmedRecordingChoice = true
     }
 
     public static var currentYear: Int {

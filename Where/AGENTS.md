@@ -73,6 +73,8 @@ Rules the code enforces and agents must preserve:
   through `LocationHistoryReader`. A synced cutoff hides later raw samples
   immediately while the target device is still pending, and raw/legacy/manual
   history is never deleted or hidden without an attributable device policy.
+  Seed the first policy only from that installation's confirmed onboarding
+  choice: phone recommends On; tablet/other recommend Off.
 - **Manual entries carry a `ManualEntryAudit`**; `DayJournal`'s write methods
   take an explicit `audit:` (no default). An additive backfill can't downgrade
   an authoritative row's regions, but the newer audit always wins.
@@ -138,8 +140,9 @@ slow.
   `WhereResetTests.loggingOutReleasesTheScopeBeforeTheNextLoginOpensOne`.
   `WhereFlyoverWorldTests.buildsASeededSiblingWithoutActivatingIt`.
 - **The onboarding gate declares `modes: .all`,** not the `.foreground`
-  default: parking a headless launch is the point. A background wake needs the
-  permission this flow asks for, so `isNeeded` is false by then.
+  default: parking a headless launch is the point. It also parks an already
+  onboarded installation once when its device-local recording choice is
+  unconfirmed; that surface skips straight to the final choice page.
 - **A gate carries no value,** so a choice made *at* it reaches `resolve-scope`
   through `WhereModel` — the one step that reads model state rather than the
   trunk.

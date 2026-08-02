@@ -93,8 +93,10 @@ internal shape.
 - **`DeviceRecordingController` owns automatic-recording policy and physical
   GPS state.** Keep policy events append-only, serialize mutations across
   awaits, stamp every ingested GPS sample with the current installation id,
-  and apply `LocationHistoryReader` to every user-facing projection. Backups
-  alone read the lossless raw samples and full policy/device tables.
+  seed the first policy from the installation's explicitly confirmed
+  preference, and apply `LocationHistoryReader` to every user-facing
+  projection. Backups alone read the lossless raw samples and full
+  policy/device tables.
 - **Tracked regions live in the store, not preferences** — one
   `SDTrackedRegion` row per region so cross-device edits merge; read as a
   `Set` defaulting to the four. `RegionAttribution` derives the attributor

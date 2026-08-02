@@ -7,9 +7,9 @@ import WhereCore
 
 /// First-run onboarding, run as the launch's opening gate. A short paged
 /// intro to the passport concept, then picking the primary regions you spend
-/// time in and giving each a look, then the background-location permission
-/// request — the natural place to ask for Always, rather than burying it in
-/// Settings.
+/// time in and giving each a look, then confirming whether this device should
+/// record automatically. Enabling it requests background-location permission
+/// here, rather than burying that decision in Settings.
 ///
 /// Nothing exists behind this screen yet: the gate roots the trunk, so the
 /// store is unopened and there is no session. Onboarding is what brings the
@@ -26,6 +26,7 @@ public struct OnboardingView: View {
     @Environment(WhereModel.self) private var model
     @Environment(\.stylesheet) private var stylesheet
     private let gate: LifecycleGateHandle
+    private let deviceKind: RecordingDeviceKind
 
     /// The ordered onboarding phases. An explicit state machine (rather than
     /// loose flags) so only one screen is ever showing and the transitions are
@@ -40,6 +41,7 @@ public struct OnboardingView: View {
     @State private var phase: Phase = .intro
     @State private var page = 0
     @State private var selection = PrimaryRegionSelectionModel()
+    @State private var recordingEnabled: Bool
     @State private var isFinishing = false
 
     /// What the intro is doing, and how it went — see ``OnboardingIntroState``.
@@ -59,7 +61,27 @@ public struct OnboardingView: View {
     private static let logger = WhereLog.session(OnboardingViewLog.self)
 
     public init(gate: LifecycleGateHandle) {
+        self.init(
+            gate: gate,
+            deviceKind: CurrentRecordingDeviceProvider.currentKind,
+            startsAtRecordingChoice: false,
+        )
+    }
+
+    /// Internal composition/test initializer. A returning installation that
+    /// predates the per-device choice skips the first-run pages and verifies the
+    /// recommendation directly; snapshots inject the device kind explicitly.
+    init(
+        gate: LifecycleGateHandle,
+        deviceKind: RecordingDeviceKind,
+        startsAtRecordingChoice: Bool,
+    ) {
         self.gate = gate
+        self.deviceKind = deviceKind
+        _phase = State(initialValue: startsAtRecordingChoice ? .location : .intro)
+        _recordingEnabled = State(
+            initialValue: deviceKind.recommendsAutomaticRecording,
+        )
     }
 
     private let pages = OnboardingPage.all
@@ -237,15 +259,15 @@ public struct OnboardingView: View {
     private var location: some View {
         VStack(spacing: stylesheet.spacing.xxxLarge) {
             Spacer(minLength: 0)
-            Image(systemName: "location.fill.viewfinder")
+            Image(systemName: deviceKind.systemImage)
                 .font(stylesheet.typography.onboardingIcon)
                 .foregroundStyle(Color.accentColor)
                 .accessibilityHidden(true)
             VStack(spacing: stylesheet.spacing.large) {
-                Text(String(localized: .onboardingLocationTitle))
+                Text(recordingTitle)
                     .font(.largeTitle.bold())
                     .multilineTextAlignment(.center)
-                Text(String(localized: .onboardingLocationDescription))
+                Text(String(localized: .onboardingRecordingDescription))
                     .font(.body)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -253,21 +275,27 @@ public struct OnboardingView: View {
             Spacer(minLength: 0)
 
             VStack(spacing: stylesheet.spacing.large) {
+                VStack(alignment: .leading, spacing: stylesheet.spacing.small) {
+                    Toggle(
+                        String(localized: .settingsDevicesAutomaticRecording),
+                        isOn: $recordingEnabled,
+                    )
+                    Text(recordingRecommendation)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
                 Button {
-                    // Request Always-location right here so the system prompt
-                    // maps 1:1 to the tap; the launch's tracking-reconcile step
-                    // picks up whatever was granted.
-                    finish(enableLocation: true)
+                    // Request Always-location only after the user confirms an
+                    // enabled choice; the launch's reconcile step picks up
+                    // whatever the system grants.
+                    finish(enableLocation: recordingEnabled)
                 } label: {
-                    Text(String(localized: .onboardingEnableLocation))
+                    Text(String(localized: .onboardingContinue))
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-
-                Button(String(localized: .onboardingNotNow)) {
-                    finish(enableLocation: false)
-                }
                 .controlSize(.large)
             }
             .disabled(isFinishing)
@@ -276,10 +304,26 @@ public struct OnboardingView: View {
         .padding(.bottom, stylesheet.spacing.xxxLarge)
     }
 
+    private var recordingTitle: LocalizedStringResource {
+        switch deviceKind {
+            case .phone: .onboardingRecordingPhoneTitle
+            case .tablet: .onboardingRecordingTabletTitle
+            case .other: .onboardingRecordingOtherTitle
+        }
+    }
+
+    private var recordingRecommendation: LocalizedStringResource {
+        if deviceKind.recommendsAutomaticRecording {
+            .onboardingRecordingRecommendationOn
+        } else {
+            .onboardingRecordingRecommendationOff
+        }
+    }
+
     /// Log in to the user's real world (opening the store, if the restore path
     /// hasn't already), commit the picked regions + appearances, optionally
-    /// request location, then persist `hasOnboarded` and resolve the gate so
-    /// the launch continues.
+    /// request location when enabled, then persist onboarding + the confirmed
+    /// per-device choice and resolve the gate so the launch continues.
     ///
     /// A store that won't open fails the gate rather than stranding the user
     /// on a dead intro: the runner lands on the failure surface, which is
@@ -299,9 +343,9 @@ public struct OnboardingView: View {
                 return
             }
             // This is also the initial synced policy for a newly registered
-            // installation. “Not Now” must therefore record false explicitly;
-            // leaving the old default true would make the next launch start
-            // recording despite the user's choice.
+            // installation. Persist the confirmed toggle explicitly so an Off
+            // recommendation cannot fall back to the old default-true intent
+            // on the next launch.
             scope.preferences.wantsTracking = enableLocation
             if enableLocation {
                 await enableTracking(in: scope)
@@ -324,7 +368,11 @@ public struct OnboardingView: View {
                     }
                 }
             }
-            model.completeOnboarding()
+            if model.hasOnboarded {
+                model.confirmRecordingChoice()
+            } else {
+                model.completeOnboarding()
+            }
             gate.complete()
         }
     }
@@ -335,7 +383,6 @@ public struct OnboardingView: View {
     /// resolves, and they are what read the granted authorization back and
     /// actually start GPS.
     private func enableTracking(in scope: WhereScope) async {
-        scope.preferences.wantsTracking = true
         do {
             try await scope.services.ingestor.requestPermission()
         } catch {
@@ -511,14 +558,47 @@ struct OnboardingPage: Identifiable {
 #if DEBUG
     extension OnboardingView: SnapshotProviding {
         public static var snapshots: [SnapshotCase] {
-            whereSnapshot(name: "Default", configurations: .screenDefaults) {
-                // `onboardingModel()` (not `loadedModel()`) so `hasOnboarded` is
-                // false and the capture lands on the intro phase.
-                OnboardingView(
-                    gate: LifecycleGateHandle(id: LaunchStepID.onboarding, reason: .userForeground),
-                )
-                .environment(PreviewSupport.onboardingModel())
-            }
+            [
+                whereSnapshot(name: "Default", configurations: .screenDefaults) {
+                    // `onboardingModel()` (not `loadedModel()`) so `hasOnboarded`
+                    // is false and the capture lands on the intro phase.
+                    OnboardingView(
+                        gate: LifecycleGateHandle(
+                            id: LaunchStepID.onboarding,
+                            reason: .userForeground,
+                        ),
+                    )
+                    .environment(PreviewSupport.onboardingModel())
+                },
+                whereSnapshot(
+                    name: "PhoneRecordingChoice",
+                    configurations: SnapshotConfiguration.combinations(devices: [.iPhone]),
+                ) {
+                    OnboardingView(
+                        gate: LifecycleGateHandle(
+                            id: LaunchStepID.onboarding,
+                            reason: .userForeground,
+                        ),
+                        deviceKind: .phone,
+                        startsAtRecordingChoice: true,
+                    )
+                    .environment(PreviewSupport.onboardingModel())
+                },
+                whereSnapshot(
+                    name: "TabletRecordingChoice",
+                    configurations: SnapshotConfiguration.combinations(devices: [.iPad]),
+                ) {
+                    OnboardingView(
+                        gate: LifecycleGateHandle(
+                            id: LaunchStepID.onboarding,
+                            reason: .userForeground,
+                        ),
+                        deviceKind: .tablet,
+                        startsAtRecordingChoice: true,
+                    )
+                    .environment(PreviewSupport.onboardingModel())
+                },
+            ]
         }
     }
 

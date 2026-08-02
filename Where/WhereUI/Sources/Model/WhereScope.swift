@@ -255,6 +255,7 @@ public final class WhereScope {
         // demo's own preferences: the user's real ones are untouched, which is
         // what makes quitting mid-demo return to onboarding.
         preferences.hasOnboarded = true
+        preferences.hasConfirmedRecordingChoice = true
         preferences.wantsTracking = true
 
         let scope = WhereScope(

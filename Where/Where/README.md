@@ -93,3 +93,8 @@ Before shipping a schema change:
 6. Archive the non-current device and verify it is hidden without losing older
    report history. Export and replace-import a backup and verify device names,
    raw samples, policy history, and archived state round-trip.
+
+On a fresh install, onboarding recommends automatic recording On for an iPhone
+and Off for an iPad/other device, then requires the user to confirm. Existing
+installations created before that choice was introduced revisit only the final
+recording page once; enabling is the only path that asks for location access.

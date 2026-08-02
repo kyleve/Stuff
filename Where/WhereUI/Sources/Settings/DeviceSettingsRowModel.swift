@@ -41,11 +41,7 @@ final class DeviceSettingsRowModel: Identifiable {
     }
 
     var systemImage: String {
-        switch kind {
-            case .phone: "iphone"
-            case .tablet: "ipad"
-            case .other: "apple.logo"
-        }
+        kind.systemImage
     }
 
     func update(from configuration: RecordingDeviceConfiguration) {
@@ -59,5 +55,15 @@ final class DeviceSettingsRowModel: Identifiable {
         status = configuration.device.status
         lastSeenAt = configuration.device.lastSeenAt
         isPending = configuration.isPending
+    }
+}
+
+extension RecordingDeviceKind {
+    var systemImage: String {
+        switch self {
+            case .phone: "iphone"
+            case .tablet: "ipad"
+            case .other: "apple.logo"
+        }
     }
 }

@@ -22,16 +22,17 @@ import WhereCore
 // Each step also declares a span `budget` (see `BudgetedLaunchStep`), and
 // the plans compose them `.measured()` so every run is one Periscope span.
 
-/// First-run onboarding. Rooted at the trunk's head so that an install whose
-/// user hasn't chosen yet builds nothing: no store is opened, no CloudKit is
-/// contacted, and no session exists behind this.
+/// First-run onboarding and the one-time per-installation recording choice.
+/// Rooted at the trunk's head so that an install whose user hasn't chosen yet
+/// builds nothing: no store is opened, no CloudKit is contacted, and no session
+/// exists behind this.
 ///
 /// Unlike most gates it applies to **all** launch reasons rather than the
 /// foreground-only default. Parking a headless launch is the point here — the
 /// alternative is opening the user's store for a launch they can't see and may
-/// never have consented to — and it costs nothing: a genuine background wake
-/// can only happen once location monitoring is running, which requires the
-/// permission this flow asks for, by which point `isNeeded` is false.
+/// never have consented to. An existing installation upgrading from before the
+/// per-device choice may still receive a background wake; parking it safely
+/// defers opening the store until the user verifies the choice in foreground.
 struct OnboardingGate: LifecycleGate {
     let model: WhereModel
 
@@ -42,7 +43,8 @@ struct OnboardingGate: LifecycleGate {
         // An active scope means the choice has already been made — by
         // onboarding just now, or by a preview/test injecting one — so don't
         // ask again even though `hasOnboarded` may not be written yet.
-        model.activeScope == nil && !model.hasOnboarded
+        model.activeScope == nil
+            && (!model.hasOnboarded || !model.hasConfirmedRecordingChoice)
     }
 }
 

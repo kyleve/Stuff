@@ -103,7 +103,11 @@ public struct RootView: View {
                     // open store) behind it yet — onboarding builds the scope
                     // it commits regions with, through the model.
                     GateView(for: OnboardingGate.self) { handle, _ in
-                        OnboardingView(gate: handle)
+                        OnboardingView(
+                            gate: handle,
+                            deviceKind: CurrentRecordingDeviceProvider.currentKind,
+                            startsAtRecordingChoice: model.hasOnboarded,
+                        )
                     }
                 },
             ) { session in

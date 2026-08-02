@@ -21,14 +21,16 @@ enum CurrentRecordingDeviceProvider {
 
     private static let identityFileName = "recording-device-id"
 
+    /// Hardware family available before the scope/store is opened, so
+    /// onboarding can recommend a safe initial recording choice without
+    /// creating this installation's durable identity yet.
+    static var currentKind: RecordingDeviceKind {
+        kind(for: UIDevice.current.userInterfaceIdiom)
+    }
+
     static func current() throws -> CurrentRecordingDevice {
         let device = UIDevice.current
-        let kind: RecordingDeviceKind = switch device.userInterfaceIdiom {
-            case .phone: .phone
-            case .pad: .tablet
-            case .unspecified, .tv, .carPlay, .mac, .vision: .other
-            @unknown default: .other
-        }
+        let kind = kind(for: device.userInterfaceIdiom)
         let directory = try FileManager.default.url(
             for: .applicationSupportDirectory,
             in: .userDomainMask,
@@ -42,6 +44,15 @@ enum CurrentRecordingDeviceProvider {
             systemName: device.model,
             kind: kind,
         )
+    }
+
+    static func kind(for idiom: UIUserInterfaceIdiom) -> RecordingDeviceKind {
+        switch idiom {
+            case .phone: .phone
+            case .pad: .tablet
+            case .unspecified, .tv, .carPlay, .mac, .vision: .other
+            @unknown default: .other
+        }
     }
 
     /// Explicit-dependency factory used by the production composition method

@@ -6,6 +6,16 @@ public enum RecordingDeviceKind: String, Codable, Sendable, Hashable {
     case phone
     case tablet
     case other
+
+    /// Safe first-run recommendation for automatic recording. A phone usually
+    /// travels with its owner; tablets and other devices are commonly left
+    /// behind and must be opted in explicitly.
+    public var recommendsAutomaticRecording: Bool {
+        switch self {
+            case .phone: true
+            case .tablet, .other: false
+        }
+    }
 }
 
 /// The last effective recording state acknowledged by a device.

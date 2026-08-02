@@ -67,6 +67,7 @@ struct DemoModeTests {
 
         // Onboarded and tracking, so the demo opens on the logged-in app.
         #expect(scope.preferences.hasOnboarded)
+        #expect(scope.preferences.hasConfirmedRecordingChoice)
         #expect(scope.preferences.wantsTracking)
 
         // Its log store is in memory, like everything else it owns — held but

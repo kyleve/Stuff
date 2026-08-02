@@ -567,6 +567,7 @@
         public static func loadedModel() -> WhereModel {
             let preferences = previewPreferences()
             preferences.hasOnboarded = true
+            preferences.hasConfirmedRecordingChoice = true
             return WhereModel(
                 services: previewServices(),
                 report: sampleReport(),

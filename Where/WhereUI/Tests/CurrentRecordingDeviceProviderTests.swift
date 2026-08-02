@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import UIKit
 import WhereCore
 @testable import WhereUI
 
@@ -7,6 +8,12 @@ import WhereCore
 struct CurrentRecordingDeviceProviderTests {
     private static let vendorID = UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")!
     private static let restoredID = UUID(uuidString: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB")!
+
+    @Test func mapsInterfaceIdiomsToRecordingKinds() {
+        #expect(CurrentRecordingDeviceProvider.kind(for: .phone) == .phone)
+        #expect(CurrentRecordingDeviceProvider.kind(for: .pad) == .tablet)
+        #expect(CurrentRecordingDeviceProvider.kind(for: .mac) == .other)
+    }
 
     @Test func persistsOneDeviceLocalInstallationIdentity() throws {
         let fixture = try makeFixture()

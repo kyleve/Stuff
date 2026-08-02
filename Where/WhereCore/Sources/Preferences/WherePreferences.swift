@@ -29,6 +29,15 @@ public final class WherePreferences {
         set { store.set(newValue, forKey: Keys.hasOnboarded.rawValue) }
     }
 
+    /// Whether this installation has explicitly confirmed its initial
+    /// automatic-recording choice. Device-local rather than CloudKit-synced:
+    /// every installation must make its own decision before it registers a
+    /// synced recording policy.
+    public var hasConfirmedRecordingChoice: Bool {
+        get { store.bool(forKey: Keys.hasConfirmedRecordingChoice.rawValue) }
+        set { store.set(newValue, forKey: Keys.hasConfirmedRecordingChoice.rawValue) }
+    }
+
     /// Persisted intent to track in the background. Defaults to `true` so that,
     /// once the user grants Always, tracking resumes automatically every launch.
     public var wantsTracking: Bool {
@@ -115,6 +124,7 @@ public final class WherePreferences {
     /// sync — adding a case is all it takes to have it reset.
     private enum Keys: String, CaseIterable {
         case hasOnboarded = "where.hasOnboarded"
+        case hasConfirmedRecordingChoice = "where.hasConfirmedRecordingChoice"
         case wantsTracking = "where.wantsBackgroundTracking"
         case remindersEnabled = "where.remindersEnabled"
         case reminderHour = "where.reminderHour"
