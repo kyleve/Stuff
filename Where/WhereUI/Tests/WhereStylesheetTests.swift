@@ -31,8 +31,7 @@ struct WhereStylesheetTests {
         #expect(card.padding == 22)
         #expect(card.contentSpacing == 16)
         #expect(card.progressBarHeight == 10)
-        #expect(card.entryStampSize == 88)
-        #expect(card.showsArcText)
+        #expect(card.entryStamp == expectedEntryStamp(size: 88, showsArcText: true))
         #expect(card.regionNameFont == .system(size: 38, weight: .semibold, design: .serif))
         #expect(card.regionNameTracking == -0.5)
         #expect(card.watermarkFontSize == 150)
@@ -80,8 +79,7 @@ struct WhereStylesheetTests {
         #expect(card.padding == 16)
         #expect(card.contentSpacing == 10)
         #expect(card.progressBarHeight == 6)
-        #expect(card.entryStampSize == 52)
-        #expect(!card.showsArcText)
+        #expect(card.entryStamp == expectedEntryStamp(size: 52, showsArcText: false))
         #expect(card.regionNameTracking == 0)
         #expect(card.watermarkFontSize == 96)
         #expect(card.watermarkOffset == CGSize(width: 12, height: 10))
@@ -104,6 +102,37 @@ struct WhereStylesheetTests {
     @Test func cardVariantSubscriptSelectsTheMatchingSpec() {
         #expect(style.card[.regular] == style.card.regular)
         #expect(style.card[.compact] == style.card.compact)
+    }
+
+    private func expectedEntryStamp(
+        size: CGFloat,
+        showsArcText: Bool,
+    ) -> WhereStylesheet.CardStyle.EntryStamp {
+        .init(
+            size: size,
+            outerRing: .init(opacity: 0.7, lineWidthFraction: 0.035),
+            innerRing: .init(
+                opacity: 0.45,
+                lineWidthFraction: 0.012,
+                dash: .init(lengthFraction: 0.05, spacingFraction: 0.035),
+                insetFraction: 0.13,
+            ),
+            content: .init(
+                spacingFraction: 0.02,
+                artworkExtent: CGSize(width: 0.42, height: 0.28),
+                symbolFont: .init(sizeFraction: 0.26, weight: .regular, design: .default),
+                yearFont: .init(sizeFraction: 0.15, weight: .bold, design: .serif),
+                opacity: 0.85,
+            ),
+            arc: showsArcText ? .init(
+                radiusFraction: 0.37,
+                font: .init(sizeFraction: 0.1, weight: .semibold, design: .serif),
+                opacity: 0.7,
+                maximumSweepDegrees: 250,
+                sweepDegreesPerCharacter: 17,
+            ) : nil,
+            rotationDegrees: -8,
+        )
     }
 
     @Test func sharedCardStyle() {

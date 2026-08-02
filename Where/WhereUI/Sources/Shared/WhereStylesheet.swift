@@ -249,11 +249,7 @@ extension WhereStylesheet {
         /// Spacing between the card's stacked rows (header, hero number, bar).
         var contentSpacing: CGFloat
         var progressBarHeight: CGFloat
-        /// Diameter of the circular "entry stamp" impression.
-        var entryStampSize: CGFloat
-        /// Whether the entry stamp draws its curved region-name arc — dropped on
-        /// the small compact stamp where it can't be read.
-        var showsArcText: Bool
+        var entryStamp: EntryStamp
         var regionNameFont: Font
         var regionNameTracking: CGFloat
         var heroNumberFont: Font
@@ -280,6 +276,88 @@ extension WhereStylesheet {
             var lineWidth: CGFloat
             var primaryRingSpacing: CGFloat
             var secondaryRingSpacing: CGFloat
+        }
+
+        /// Geometry, ink strength, and typography for the circular passport
+        /// impression. The compact style omits `arc` where its text cannot read.
+        struct EntryStamp: Equatable {
+            var size: CGFloat
+            var outerRing: Ring
+            var innerRing: DashedRing
+            var content: Content
+            var arc: Arc?
+            var rotationDegrees: Double
+
+            struct Ring: Equatable {
+                var opacity: Double
+                var lineWidthFraction: CGFloat
+            }
+
+            struct DashedRing: Equatable {
+                var opacity: Double
+                var lineWidthFraction: CGFloat
+                var dash: Dash
+                var insetFraction: CGFloat
+
+                struct Dash: Equatable {
+                    var lengthFraction: CGFloat
+                    var spacingFraction: CGFloat
+                }
+            }
+
+            struct Content: Equatable {
+                var spacingFraction: CGFloat
+                var artworkExtent: CGSize
+                var symbolFont: Typography
+                var yearFont: Typography
+                var opacity: Double
+            }
+
+            struct Arc: Equatable {
+                var radiusFraction: CGFloat
+                var font: Typography
+                var opacity: Double
+                var maximumSweepDegrees: Double
+                var sweepDegreesPerCharacter: Double
+            }
+
+            struct Typography: Equatable {
+                var sizeFraction: CGFloat
+                var weight: Font.Weight
+                var design: Font.Design
+
+                func font(for size: CGFloat) -> Font {
+                    .system(size: size * sizeFraction, weight: weight, design: design)
+                }
+            }
+
+            static func standard(size: CGFloat, showsArcText: Bool) -> EntryStamp {
+                EntryStamp(
+                    size: size,
+                    outerRing: .init(opacity: 0.7, lineWidthFraction: 0.035),
+                    innerRing: .init(
+                        opacity: 0.45,
+                        lineWidthFraction: 0.012,
+                        dash: .init(lengthFraction: 0.05, spacingFraction: 0.035),
+                        insetFraction: 0.13,
+                    ),
+                    content: .init(
+                        spacingFraction: 0.02,
+                        artworkExtent: CGSize(width: 0.42, height: 0.28),
+                        symbolFont: .init(sizeFraction: 0.26, weight: .regular, design: .default),
+                        yearFont: .init(sizeFraction: 0.15, weight: .bold, design: .serif),
+                        opacity: 0.85,
+                    ),
+                    arc: showsArcText ? .init(
+                        radiusFraction: 0.37,
+                        font: .init(sizeFraction: 0.1, weight: .semibold, design: .serif),
+                        opacity: 0.7,
+                        maximumSweepDegrees: 250,
+                        sweepDegreesPerCharacter: 17,
+                    ) : nil,
+                    rotationDegrees: -8,
+                )
+            }
         }
 
         /// Styles for the repeated region silhouette: one large security
@@ -424,8 +502,7 @@ extension WhereStylesheet {
                 padding: 22,
                 contentSpacing: 16,
                 progressBarHeight: 10,
-                entryStampSize: 88,
-                showsArcText: true,
+                entryStamp: .standard(size: 88, showsArcText: true),
                 // Fixed point size (not a Dynamic Type text style) for precise
                 // control against the entry stamp: the longest common headline
                 // names ("California" / "New York") fit, and any over-long one
@@ -479,8 +556,7 @@ extension WhereStylesheet {
                 padding: 16,
                 contentSpacing: 10,
                 progressBarHeight: 6,
-                entryStampSize: 52,
-                showsArcText: false,
+                entryStamp: .standard(size: 52, showsArcText: false),
                 regionNameFont: .system(.title3, design: .serif).weight(.semibold),
                 regionNameTracking: 0,
                 heroNumberFont: .system(.title, design: .rounded, weight: .bold),

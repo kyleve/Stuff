@@ -90,8 +90,7 @@ struct RegionSummaryCard: View {
             year: year,
             symbolName: style.symbolName,
             tint: style.tint,
-            size: card.entryStampSize,
-            showsArcText: card.showsArcText,
+            style: card.entryStamp,
             regionPath: regionPaths?.stamp ?? Path(),
             regionShape: card.regionShape,
         )
@@ -312,61 +311,70 @@ struct RegionSummaryCard: View {
 
 /// A circular rubber-stamp impression — double ring, centered region glyph and
 /// year, with the region name curved along the top arc — tilted as if an
-/// official pressed it onto a passport page. Sizes scale off `size` so it reads
-/// the same on the big Primary cards and the compact Elsewhere ones.
+/// official pressed it onto a passport page. The card stylesheet owns its
+/// complete drawing treatment for both regular and compact cards.
 private struct EntryStamp: View {
     let title: String
     let year: Int
     let symbolName: String
     let tint: Color
-    let size: CGFloat
-    var showsArcText = true
+    let style: WhereStylesheet.CardStyle.EntryStamp
     let regionPath: Path
     let regionShape: WhereStylesheet.CardStyle.RegionShape?
 
     var body: some View {
+        let size = style.size
         ZStack {
             Circle()
-                .strokeBorder(tint.opacity(0.7), lineWidth: size * 0.035)
+                .strokeBorder(
+                    tint.opacity(style.outerRing.opacity),
+                    lineWidth: size * style.outerRing.lineWidthFraction,
+                )
             Circle()
                 .strokeBorder(
-                    tint.opacity(0.45),
+                    tint.opacity(style.innerRing.opacity),
                     style: StrokeStyle(
-                        lineWidth: size * 0.012,
-                        dash: [size * 0.05, size * 0.035],
+                        lineWidth: size * style.innerRing.lineWidthFraction,
+                        dash: [
+                            size * style.innerRing.dash.lengthFraction,
+                            size * style.innerRing.dash.spacingFraction,
+                        ],
                     ),
                 )
-                .padding(size * 0.13)
+                .padding(size * style.innerRing.insetFraction)
 
-            VStack(spacing: size * 0.02) {
+            VStack(spacing: size * style.content.spacingFraction) {
                 if let regionShape, !regionPath.isEmpty {
                     RegionOutlineArtwork(
                         path: regionPath,
                         tint: tint,
                         style: regionShape.stamp,
                     )
-                    .frame(width: size * 0.42, height: size * 0.28)
+                    .frame(
+                        width: size * style.content.artworkExtent.width,
+                        height: size * style.content.artworkExtent.height,
+                    )
                 } else {
                     Image(systemName: symbolName)
-                        .font(.system(size: size * 0.26))
+                        .font(style.content.symbolFont.font(for: size))
                 }
                 Text(verbatim: String(year))
-                    .font(.system(size: size * 0.15, weight: .bold, design: .serif))
+                    .font(style.content.yearFont.font(for: size))
                     .monospacedDigit()
             }
-            .foregroundStyle(tint.opacity(0.85))
+            .foregroundStyle(tint.opacity(style.content.opacity))
 
-            if showsArcText {
+            if let arc = style.arc {
                 ArcText(
                     text: title,
-                    radius: size * 0.37,
-                    font: .system(size: size * 0.1, weight: .semibold, design: .serif),
-                    color: tint.opacity(0.7),
+                    size: size,
+                    tint: tint,
+                    style: arc,
                 )
             }
         }
         .frame(width: size, height: size)
-        .rotationEffect(.degrees(-8))
+        .rotationEffect(.degrees(style.rotationDegrees))
         .accessibilityHidden(true)
     }
 }
@@ -384,19 +392,22 @@ private struct RegionArtworkPaths {
 /// region names both stay legible.
 private struct ArcText: View {
     let text: String
-    let radius: CGFloat
-    let font: Font
-    let color: Color
+    let size: CGFloat
+    let tint: Color
+    let style: WhereStylesheet.CardStyle.EntryStamp.Arc
 
     var body: some View {
         let characters = Array(text)
-        let sweep = min(250, Double(characters.count) * 17)
+        let sweep = min(
+            style.maximumSweepDegrees,
+            Double(characters.count) * style.sweepDegreesPerCharacter,
+        )
         ZStack {
             ForEach(Array(characters.enumerated()), id: \.offset) { index, character in
                 Text(String(character))
-                    .font(font)
-                    .foregroundStyle(color)
-                    .offset(y: -radius)
+                    .font(style.font.font(for: size))
+                    .foregroundStyle(tint.opacity(style.opacity))
+                    .offset(y: -size * style.radiusFraction)
                     .rotationEffect(angle(at: index, count: characters.count, sweep: sweep))
             }
         }
