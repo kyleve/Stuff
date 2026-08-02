@@ -168,8 +168,7 @@ struct RegionSummaryCard: View {
                 RegionOutlineArtwork(
                     path: regionPath,
                     tint: style.tint,
-                    style: regionShape,
-                    placement: .watermark,
+                    style: regionShape.watermark,
                 )
             } else {
                 Image(systemName: style.symbolName)
@@ -344,8 +343,7 @@ private struct EntryStamp: View {
                     RegionOutlineArtwork(
                         path: regionPath,
                         tint: tint,
-                        style: regionShape,
-                        placement: .stamp,
+                        style: regionShape.stamp,
                     )
                     .frame(width: size * 0.42, height: size * 0.28)
                 } else {

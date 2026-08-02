@@ -38,15 +38,20 @@ struct WhereStylesheetTests {
         #expect(card.watermarkFontSize == 150)
         #expect(card.watermarkOffset == CGSize(width: 20, height: 12))
         #expect(card.regionShape == .init(
-            watermarkCenter: CGPoint(x: 0.7, y: 0.57),
-            watermarkExtent: CGSize(width: 0.72, height: 0.78),
-            watermarkScale: 0.88,
-            watermarkFillOpacity: 0.13,
-            watermarkStrokeOpacity: 0.28,
-            watermarkStrokeWidth: 1.5,
-            stampExtent: CGSize(width: 0.78, height: 0.78),
-            stampScale: 0.88,
-            stampFillOpacity: 0.78,
+            watermark: .init(
+                center: CGPoint(x: 0.7, y: 0.57),
+                extent: CGSize(width: 0.72, height: 0.78),
+                scale: 0.88,
+                fillOpacity: 0.13,
+                stroke: .init(opacity: 0.28, width: 1.5),
+            ),
+            stamp: .init(
+                center: CGPoint(x: 0.5, y: 0.5),
+                extent: CGSize(width: 0.78, height: 0.78),
+                scale: 0.88,
+                fillOpacity: 0.78,
+                stroke: nil,
+            ),
             securityBorder: .init(
                 inset: 9,
                 glyphSize: 8,

@@ -15,8 +15,7 @@ struct RegionOutlineArtworkTests {
         let artwork = RegionOutlineArtwork(
             path: path,
             tint: .orange,
-            style: style,
-            placement: .watermark,
+            style: style.watermark,
         )
 
         #expect(!path.isEmpty)

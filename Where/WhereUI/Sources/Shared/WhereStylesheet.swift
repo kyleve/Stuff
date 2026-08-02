@@ -282,20 +282,26 @@ extension WhereStylesheet {
             var secondaryRingSpacing: CGFloat
         }
 
-        /// Relative projection geometry and ink strength for the repeated
-        /// region silhouette: one large security watermark, one stamp seal, and
-        /// a microprinted inset border.
+        /// Styles for the repeated region silhouette: one large security
+        /// watermark, one stamp seal, and a microprinted inset border.
         struct RegionShape: Equatable {
-            var watermarkCenter: CGPoint
-            var watermarkExtent: CGSize
-            var watermarkScale: CGFloat
-            var watermarkFillOpacity: Double
-            var watermarkStrokeOpacity: Double
-            var watermarkStrokeWidth: CGFloat
-            var stampExtent: CGSize
-            var stampScale: CGFloat
-            var stampFillOpacity: Double
+            var watermark: Artwork
+            var stamp: Artwork
             var securityBorder: SecurityBorder
+
+            /// Projection geometry and ink treatment for one silhouette.
+            struct Artwork: Equatable {
+                var center: CGPoint
+                var extent: CGSize
+                var scale: CGFloat
+                var fillOpacity: Double
+                var stroke: Stroke?
+
+                struct Stroke: Equatable {
+                    var opacity: Double
+                    var width: CGFloat
+                }
+            }
 
             /// The inset ring of tiny tangent-aligned region silhouettes.
             struct SecurityBorder: Equatable {
@@ -431,15 +437,20 @@ extension WhereStylesheet {
                 watermarkFontSize: 150,
                 watermarkOffset: CGSize(width: 20, height: 12),
                 regionShape: CardStyle.RegionShape(
-                    watermarkCenter: CGPoint(x: 0.7, y: 0.57),
-                    watermarkExtent: CGSize(width: 0.72, height: 0.78),
-                    watermarkScale: 0.88,
-                    watermarkFillOpacity: 0.13,
-                    watermarkStrokeOpacity: 0.28,
-                    watermarkStrokeWidth: 1.5,
-                    stampExtent: CGSize(width: 0.78, height: 0.78),
-                    stampScale: 0.88,
-                    stampFillOpacity: 0.78,
+                    watermark: .init(
+                        center: CGPoint(x: 0.7, y: 0.57),
+                        extent: CGSize(width: 0.72, height: 0.78),
+                        scale: 0.88,
+                        fillOpacity: 0.13,
+                        stroke: .init(opacity: 0.28, width: 1.5),
+                    ),
+                    stamp: .init(
+                        center: CGPoint(x: 0.5, y: 0.5),
+                        extent: CGSize(width: 0.78, height: 0.78),
+                        scale: 0.88,
+                        fillOpacity: 0.78,
+                        stroke: nil,
+                    ),
                     securityBorder: .init(
                         inset: 9,
                         glyphSize: 8,
