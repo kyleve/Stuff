@@ -11,12 +11,14 @@ actor RegionOutlinePathCache {
         case medium
         case small
 
-        /// Roughly half a point of permitted deviation at each target width.
+        /// Maximum normalized deviation chosen for each target size. The small
+        /// path stays below one display pixel so thin geography such as Long
+        /// Island does not collapse into a coarse wedge inside the stamp.
         var tolerance: Double? {
             switch self {
                 case .full: nil
                 case .medium: 1 / 600
-                case .small: 1 / 60
+                case .small: 1 / 240
             }
         }
     }

@@ -26,6 +26,16 @@ struct RegionOutlinePathCacheTests {
         #expect(path.isEmpty)
     }
 
+    @Test func smallResolutionRetainsThinNewYorkGeography() async {
+        let cache = RegionOutlinePathCache()
+        let small = await cache.path(for: .newYork, resolution: .small)
+
+        #expect(
+            elementCount(small) >= 110,
+            "The stamp path should retain Long Island instead of reducing it to a coarse wedge.",
+        )
+    }
+
     private func elementCount(_ path: Path) -> Int {
         var count = 0
         path.forEach { _ in count += 1 }
