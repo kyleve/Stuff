@@ -18,6 +18,10 @@
         static let cardDesignerCenterY = LocalizedStringResource("Vertical Center")
         static let cardDesignerColor = LocalizedStringResource("Color")
         static let cardDesignerContentSpacing = LocalizedStringResource("Content Spacing")
+        static let cardDesignerCopiedJSON = LocalizedStringResource("Copied JSON")
+        static let cardDesignerCopiedSwift = LocalizedStringResource("Copied Swift")
+        static let cardDesignerCopyJSON = LocalizedStringResource("Copy JSON")
+        static let cardDesignerCopySwift = LocalizedStringResource("Copy Swift")
         static let cardDesignerCornerRadius = LocalizedStringResource("Corner Radius")
         static let cardDesignerDark = LocalizedStringResource("Dark")
         static let cardDesignerDarkInk = LocalizedStringResource("Dark Appearance Ink")
@@ -25,11 +29,12 @@
         static let cardDesignerDashSpacing = LocalizedStringResource("Dash Spacing")
         static let cardDesignerDayUnit = LocalizedStringResource("Day Unit")
         static let cardDesignerDesign = LocalizedStringResource("Design")
+        static let cardDesignerDiffOnly = LocalizedStringResource("Diff Only")
         static let cardDesignerEntryStamp = LocalizedStringResource("Entry Stamp")
         static let cardDesignerExport = LocalizedStringResource("Export")
         static let cardDesignerExportFooter =
             LocalizedStringResource(
-                "Share the complete configuration as JSON, or a Swift snippet ready to bring back into the stylesheet.",
+                "Share or copy JSON and Swift output. Diff Only includes just values that differ from the app defaults.",
             )
         static let cardDesignerExtentHeight = LocalizedStringResource("Extent Height")
         static let cardDesignerExtentWidth = LocalizedStringResource("Extent Width")
@@ -88,6 +93,8 @@
             LocalizedStringResource("Secondary Ring Spacing")
         static let cardDesignerSecondaryRosetteOpacity =
             LocalizedStringResource("Secondary Rosette Opacity")
+        static let cardDesignerShareJSON = LocalizedStringResource("Share JSON")
+        static let cardDesignerShareSwift = LocalizedStringResource("Share Swift")
         static let cardDesignerShadows = LocalizedStringResource("Shadows")
         static let cardDesignerSheen = LocalizedStringResource("Motion Sheen")
         static let cardDesignerShowArc = LocalizedStringResource("Show Curved Label")

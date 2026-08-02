@@ -27,5 +27,34 @@
             #expect(source.contains("cornerRadius: 31.25"))
             #expect(source.contains("whiteMix: 0.4"))
         }
+
+        @Test func swiftDiffContainsOnlyEditedLeafValues() {
+            var configuration = CardDesignerConfiguration.standard
+            configuration.regular.cornerRadius = 31.25
+            configuration.shared.darkSecurityPrint.blendMode = .softLight
+
+            let source = CardDesignerSwiftExporter.source(
+                for: configuration,
+                diffOnly: true,
+            )
+
+            #expect(source.contains("var configuration = CardDesignerConfiguration.standard"))
+            #expect(source.contains("configuration.regular.cornerRadius = 31.25"))
+            #expect(
+                source.contains("configuration.shared.darkSecurityPrint.blendMode = .softLight"),
+            )
+            #expect(source.contains("configuration.regular.padding") == false)
+            #expect(source.contains("configuration.compact") == false)
+        }
+
+        @Test func unchangedSwiftDiffExplainsThatThereAreNoChanges() {
+            let source = CardDesignerSwiftExporter.source(
+                for: .standard,
+                diffOnly: true,
+            )
+
+            #expect(source.contains("No card appearance values differ from standard."))
+            #expect(source.contains("configuration.regular") == false)
+        }
     }
 #endif

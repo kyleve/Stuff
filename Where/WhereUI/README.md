@@ -230,9 +230,9 @@ direct and production rendering do not diverge.
 DEBUG builds include Card Designer Studio under Settings → Appearance. It
 edits a versioned, persisted draft of the regular, compact, and shared card
 presentation, previews both appearances with live tilt, and exports the full
-result as JSON or a Swift stylesheet snippet. The draft affects the rest of the
-app only while “Apply to App” is enabled; that switch intentionally resets on
-every launch.
+result—or only its changes from the app defaults—as shareable or clipboard JSON
+and Swift. The draft affects the rest of the app only while “Apply to App” is
+enabled; that switch intentionally resets on every launch.
 
 ## Previews
 
