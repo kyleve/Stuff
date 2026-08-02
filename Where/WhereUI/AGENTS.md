@@ -45,10 +45,10 @@ and testing conventions live in the feature [`Where/AGENTS.md`](../AGENTS.md)
   `broadwayRoot` at each site.
 - Keep render-ready region geometry in the root-injected
   `RegionOutlinePathCache`: RegionKit owns the cached source outlines and its
-  stateless simplifier, while WhereUI chooses full/medium/small tolerances and
-  caches the resulting SwiftUI `Path`s; reuse the small path for the stamp and
-  microprint border, and never project or simplify a boundary in a card's
-  `body`.
+  stateless simplifier, while WhereUI chooses full/medium/small/micro
+  tolerances and caches the resulting SwiftUI `Path`s; use the small path for
+  the stamp and the micro path for the repeated border, and never project or
+  simplify a boundary in a card's `body`.
 - Continuous/looping motion (repeat-forever pulses, `TimelineView(.animation)`,
   typewriter reveals) must consult the shared `@MotionIsStatic` helper
   ([`Sources/Shared/MotionIsStatic.swift`](Sources/Shared/MotionIsStatic.swift))

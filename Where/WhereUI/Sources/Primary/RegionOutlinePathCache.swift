@@ -2,7 +2,7 @@ import Foundation
 import RegionKit
 import SwiftUI
 
-/// UI-owned cache of projected region paths at the three rendering fidelities
+/// UI-owned cache of projected region paths at the four rendering fidelities
 /// Where needs. RegionKit owns/caches source geometry and provides the stateless
 /// simplifier; this actor owns display policy and SwiftUI render artifacts.
 actor RegionOutlinePathCache {
@@ -10,15 +10,18 @@ actor RegionOutlinePathCache {
         case full
         case medium
         case small
+        case micro
 
         /// Maximum normalized deviation chosen for each target size. The small
-        /// path stays below one display pixel so thin geography such as Long
-        /// Island does not collapse into a coarse wedge inside the stamp.
+        /// path preserves thin geography such as Long Island inside the stamp;
+        /// the coarser micro path remains subpixel at the repeated border's
+        /// eight-point glyph size.
         var tolerance: Double? {
             switch self {
                 case .full: nil
                 case .medium: 1 / 600
                 case .small: 1 / 240
+                case .micro: 1 / 60
             }
         }
     }

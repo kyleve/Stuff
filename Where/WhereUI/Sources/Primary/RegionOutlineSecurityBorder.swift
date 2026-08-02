@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Repeats one cached small region silhouette around an inset rounded perimeter,
-/// like the microprinted security border on a passport page.
+/// Repeats one cached micro-fidelity region silhouette around an inset rounded
+/// perimeter, like the microprinted security border on a passport page.
 struct RegionOutlineSecurityBorder: View {
     let path: Path
     let tint: Color

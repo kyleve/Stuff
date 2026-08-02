@@ -10,14 +10,17 @@ struct RegionOutlinePathCacheTests {
         let full = await cache.path(for: alaska, resolution: .full)
         let medium = await cache.path(for: alaska, resolution: .medium)
         let small = await cache.path(for: alaska, resolution: .small)
-        let repeatedSmall = await cache.path(for: alaska, resolution: .small)
+        let micro = await cache.path(for: alaska, resolution: .micro)
+        let repeatedMicro = await cache.path(for: alaska, resolution: .micro)
 
         #expect(!full.isEmpty)
         #expect(elementCount(full) > elementCount(medium))
         #expect(elementCount(medium) > elementCount(small))
+        #expect(elementCount(small) > elementCount(micro))
         #expect(full.boundingRect == medium.boundingRect)
         #expect(medium.boundingRect == small.boundingRect)
-        #expect(repeatedSmall == small)
+        #expect(small.boundingRect == micro.boundingRect)
+        #expect(repeatedMicro == micro)
     }
 
     @Test func otherRegionHasNoPath() async {
@@ -33,6 +36,17 @@ struct RegionOutlinePathCacheTests {
         #expect(
             elementCount(small) >= 110,
             "The stamp path should retain Long Island instead of reducing it to a coarse wedge.",
+        )
+    }
+
+    @Test func microResolutionBoundsRepeatedBorderDetail() async {
+        let cache = RegionOutlinePathCache()
+        let micro = await cache.path(for: .newYork, resolution: .micro)
+
+        #expect(!micro.isEmpty)
+        #expect(
+            elementCount(micro) <= 60,
+            "The repeated eight-point border path should stay within its rendering budget.",
         )
     }
 

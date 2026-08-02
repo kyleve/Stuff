@@ -44,7 +44,8 @@ struct RegionSummaryCard: View {
     var styleOverride: RegionStyle?
 
     /// Loaded once per regular card from the root-owned UI path cache. The large
-    /// watermark uses medium fidelity; the much smaller stamp uses small.
+    /// watermark uses medium fidelity, the stamp uses small, and the repeated
+    /// border uses micro.
     @State private var regionPaths: RegionArtworkPaths?
 
     @Environment(\.stylesheet) private var stylesheet
@@ -147,7 +148,7 @@ struct RegionSummaryCard: View {
 
             if
                 let regionShape = card.regionShape,
-                let regionPath = regionPaths?.stamp,
+                let regionPath = regionPaths?.microprint,
                 !regionPath.isEmpty
             {
                 RegionOutlineSecurityBorder(
@@ -194,8 +195,16 @@ struct RegionSummaryCard: View {
             for: regionDays.region,
             resolution: .small,
         )
-        let (watermarkPath, stampPath) = await (watermark, stamp)
-        let loaded = RegionArtworkPaths(watermark: watermarkPath, stamp: stampPath)
+        async let microprint = regionOutlinePathCache.path(
+            for: regionDays.region,
+            resolution: .micro,
+        )
+        let (watermarkPath, stampPath, microprintPath) = await (watermark, stamp, microprint)
+        let loaded = RegionArtworkPaths(
+            watermark: watermarkPath,
+            stamp: stampPath,
+            microprint: microprintPath,
+        )
         guard !Task.isCancelled else { return }
         regionPaths = loaded
     }
@@ -362,10 +371,11 @@ private struct EntryStamp: View {
     }
 }
 
-/// The two cached render artifacts a regular card consumes together.
+/// The three cached render artifacts a regular card consumes together.
 private struct RegionArtworkPaths {
     let watermark: Path
     let stamp: Path
+    let microprint: Path
 }
 
 /// Lays out `text` along the upper arc of a circle of the given `radius`,
