@@ -51,7 +51,8 @@ generating; plain `./ide` fails fast pointing at it.
 
 The executables in the repo root are the dev scripts — `ide`, `test`,
 `swiftformat`, `sync-agents`, `profile`, `icons`, `flaky`, `simulator`,
-`worktree`, `xcstrings`, `attribution` — and each takes `--help`. Reach for one rather than
+`worktree`, `xcstrings`, `attribution`, `codex-watchdog` — and each takes
+`--help`. Reach for one rather than
 hand-rolling its job: `test` is the only way tests should be run (see [Running
 tests](#running-tests)), and `icons`, `attribution`, and `simulator` in particular own state that is
 easy to corrupt by hand — `./simulator` owns a per-checkout device (see the
