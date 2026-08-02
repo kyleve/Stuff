@@ -10,7 +10,8 @@ import Observation
 /// `Info.plist` usage string and no authorization (unlike motion *activity*),
 /// so this is safe to start without prompting. On hardware that can't provide
 /// motion (Simulator, the unit-test host, Mac), `start()` is a no-op and the
-/// values stay at the neutral zero, so the sheen simply renders statically.
+/// values stay at zero with `hasLiveSample == false`, so a consumer can render
+/// its deterministic static pose instead.
 ///
 /// `@MainActor` so the observable state is mutated on the main actor (where
 /// SwiftUI reads it); CoreMotion delivers updates on the `.main` queue, so the
@@ -23,6 +24,10 @@ public final class TiltProvider {
     public private(set) var roll: Double = 0
     /// Forward/back tilt, roughly `-1...1`. Zero when flat or unavailable.
     public private(set) var pitch: Double = 0
+    /// Whether device motion has delivered a value since the latest `start()`.
+    /// Internal because only WhereUI's sheen renderer needs to distinguish a
+    /// real flat-device zero from the pre-sample/unavailable state.
+    private(set) var hasLiveSample = false
 
     @ObservationIgnored private let motionManager = CMMotionManager()
     @ObservationIgnored private var isRunning = false
@@ -48,6 +53,7 @@ public final class TiltProvider {
             MainActor.assumeIsolated {
                 self.roll = x
                 self.pitch = y
+                self.hasLiveSample = true
             }
         }
     }
@@ -62,5 +68,6 @@ public final class TiltProvider {
         motionManager.stopDeviceMotionUpdates()
         roll = 0
         pitch = 0
+        hasLiveSample = false
     }
 }

@@ -37,7 +37,11 @@ struct WhereStylesheetTests {
         #expect(card.regionNameTracking == -0.5)
         #expect(card.watermarkFontSize == 150)
         #expect(card.watermarkOffset == CGSize(width: 20, height: 12))
-        #expect(card.holographicIntensity == 1)
+        #expect(card.sheen == .init(
+            intensity: 1,
+            staticGlintIntensity: 0.25,
+            staticPose: .init(roll: 0, pitch: -1),
+        ))
         #expect(card.frameOuterLineWidth == 3.5)
         #expect(card.showsPerforationRing)
         #expect(card.innerFrameInset == 16)
@@ -62,7 +66,11 @@ struct WhereStylesheetTests {
         #expect(card.regionNameTracking == 0)
         #expect(card.watermarkFontSize == 96)
         #expect(card.watermarkOffset == CGSize(width: 12, height: 10))
-        #expect(card.holographicIntensity == 0.5)
+        #expect(card.sheen == .init(
+            intensity: 0.5,
+            staticGlintIntensity: 0.5,
+            staticPose: .init(roll: 0, pitch: 0),
+        ))
         #expect(card.frameOuterLineWidth == 2.5)
         #expect(!card.showsPerforationRing)
         #expect(card.innerFrameInset == 12)

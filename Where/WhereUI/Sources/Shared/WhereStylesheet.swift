@@ -256,8 +256,9 @@ extension WhereStylesheet {
         var watermarkFontSize: CGFloat
         /// Offset of that watermark toward the bottom-trailing corner.
         var watermarkOffset: CGSize
-        /// Holographic sheen strength (the Primary cards catch more light).
-        var holographicIntensity: Double
+        /// Holographic sheen strength plus the deterministic pose used until a
+        /// live motion sample arrives (and whenever motion must stay static).
+        var sheen: Sheen
         /// Line width of the heavy outer frame stroke.
         var frameOuterLineWidth: CGFloat
         /// Whether the dashed perforation ring is drawn (Primary cards only).
@@ -276,6 +277,20 @@ extension WhereStylesheet {
             var lineWidth: CGFloat
             var primaryRingSpacing: CGFloat
             var secondaryRingSpacing: CGFloat
+        }
+
+        struct Sheen: Equatable {
+            var intensity: Double
+            /// Strength of only the additive white glint while the pose is
+            /// static; the rainbow foil keeps `intensity` so the card retains
+            /// its color instead of fading toward white.
+            var staticGlintIntensity: Double
+            var staticPose: Pose
+
+            struct Pose: Equatable {
+                var roll: Double
+                var pitch: Double
+            }
         }
 
         /// A region-tinted drop shadow: the view supplies the region tint, this
@@ -403,7 +418,13 @@ extension WhereStylesheet {
                 dayUnitFont: .title3.weight(.medium),
                 watermarkFontSize: 150,
                 watermarkOffset: CGSize(width: 20, height: 12),
-                holographicIntensity: 1,
+                sheen: CardStyle.Sheen(
+                    intensity: 1,
+                    staticGlintIntensity: 0.25,
+                    // A phone held upright: the glint sits near the lower edge
+                    // instead of washing out the card's central content.
+                    staticPose: .init(roll: 0, pitch: -1),
+                ),
                 frameOuterLineWidth: 3.5,
                 showsPerforationRing: true,
                 innerFrameInset: 16,
@@ -429,7 +450,12 @@ extension WhereStylesheet {
                 dayUnitFont: .subheadline.weight(.medium),
                 watermarkFontSize: 96,
                 watermarkOffset: CGSize(width: 12, height: 10),
-                holographicIntensity: 0.5,
+                sheen: CardStyle.Sheen(
+                    intensity: 0.5,
+                    staticGlintIntensity: 0.5,
+                    // Preserve the compact card's existing neutral treatment.
+                    staticPose: .init(roll: 0, pitch: 0),
+                ),
                 frameOuterLineWidth: 2.5,
                 showsPerforationRing: false,
                 innerFrameInset: 12,

@@ -6,19 +6,23 @@ import SwiftUI
 /// over whatever it modifies (typically a Liquid Glass card), clipped to the
 /// card's shape, and non-interactive.
 ///
-/// Driven by normalized `roll`/`pitch` (see `TiltProvider`); at the neutral
-/// zero it renders a gentle static sheen, so it degrades cleanly on hardware
-/// without motion. Honors Reduce Motion by pinning the glint to a fixed offset
-/// instead of tracking the device.
+/// Driven by normalized `roll`/`pitch` (see `TiltProvider`). A caller also
+/// supplies the deterministic pose used when motion must stay static, so Reduce
+/// Motion and snapshot capture never depend on a live sensor reading.
 struct HolographicSheen<ClipShape: Shape>: ViewModifier {
     var roll: Double
     var pitch: Double
+    var staticRoll: Double
+    var staticPitch: Double
+    var isStatic: Bool
     var shape: ClipShape
     var tint: Color = .white
-    /// Overall strength of the effect, `0...1`.
+    /// Rainbow-foil and live-glint strength, `0...1`.
     var intensity: Double = 1
+    /// Additive white-glint strength when `usesStaticPose`, `0...1`.
+    var staticGlintIntensity: Double = 1
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @MotionIsStatic private var motionIsStatic
 
     func body(content: Content) -> some View {
         content.overlay {
@@ -29,14 +33,22 @@ struct HolographicSheen<ClipShape: Shape>: ViewModifier {
         }
     }
 
-    /// Tilt actually used to place the highlight. Reduce Motion replaces the
-    /// live values with a fixed, gentle diagonal so the sheen stays put.
+    /// Tilt actually used to place the highlight. Static-motion contexts use
+    /// the caller's deterministic pose so the sheen stays put.
     private var activeRoll: Double {
-        reduceMotion ? 0.18 : roll.clamped
+        usesStaticPose ? staticRoll.clamped : roll.clamped
     }
 
     private var activePitch: Double {
-        reduceMotion ? -0.12 : pitch.clamped
+        usesStaticPose ? staticPitch.clamped : pitch.clamped
+    }
+
+    private var usesStaticPose: Bool {
+        isStatic || motionIsStatic
+    }
+
+    private var glintIntensity: Double {
+        usesStaticPose ? staticGlintIntensity : intensity
     }
 
     private var sheen: some View {
@@ -59,7 +71,7 @@ struct HolographicSheen<ClipShape: Shape>: ViewModifier {
 
                 // Specular glint that tracks the tilt like a moving light.
                 RadialGradient(
-                    colors: [tint.opacity(0.85 * intensity), tint.opacity(0)],
+                    colors: [tint.opacity(0.85 * glintIntensity), tint.opacity(0)],
                     center: glint,
                     startRadius: 0,
                     endRadius: diagonal * 0.75,
@@ -81,16 +93,24 @@ extension View {
     func holographicSheen(
         roll: Double,
         pitch: Double,
+        staticRoll: Double,
+        staticPitch: Double,
+        isStatic: Bool,
         in shape: some Shape,
         tint: Color = .white,
         intensity: Double = 1,
+        staticGlintIntensity: Double = 1,
     ) -> some View {
         modifier(HolographicSheen(
             roll: roll,
             pitch: pitch,
+            staticRoll: staticRoll,
+            staticPitch: staticPitch,
+            isStatic: isStatic,
             shape: shape,
             tint: tint,
             intensity: intensity,
+            staticGlintIntensity: staticGlintIntensity,
         ))
     }
 }
@@ -111,7 +131,11 @@ extension Double {
             .holographicSheen(
                 roll: 0.4,
                 pitch: -0.2,
+                staticRoll: 0.4,
+                staticPitch: -0.2,
+                isStatic: false,
                 in: RoundedRectangle(cornerRadius: 28, style: .continuous),
+                staticGlintIntensity: 1,
             )
             .padding()
     }

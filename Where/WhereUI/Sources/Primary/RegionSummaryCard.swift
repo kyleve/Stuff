@@ -32,9 +32,8 @@ struct RegionSummaryCard: View {
     /// pass `WhereSession.selectedYear`; the default is only for previews.
     var year = WhereModel.currentYear
 
-    /// Drives the holographic stamp sheen. The Primary tab passes its live
-    /// `TiltProvider`; Elsewhere (and previews) pass `nil`, leaving a gentle
-    /// static sheen.
+    /// Drives the holographic stamp sheen. Locations and the region editor pass
+    /// a live `TiltProvider`; callers without one use the card's static pose.
     var tilt: TiltProvider?
 
     /// An explicit style to render instead of resolving the region's look from
@@ -73,6 +72,18 @@ struct RegionSummaryCard: View {
     /// already resolved into it by the stylesheet.
     private var dayCount: WhereStylesheet.CardStyles.DayCountStyle {
         stylesheet.card.dayCount
+    }
+
+    /// Use live gravity only after Core Motion has delivered a real sample. The
+    /// pre-sample/unavailable state and callers without a provider render the
+    /// variant's deterministic pose instead of treating zero as live tilt.
+    private var sheenPose: WhereStylesheet.CardStyle.Sheen.Pose {
+        guard let tilt, tilt.hasLiveSample else { return card.sheen.staticPose }
+        return .init(roll: tilt.roll, pitch: tilt.pitch)
+    }
+
+    private var isSheenStatic: Bool {
+        tilt?.hasLiveSample != true
     }
 
     /// A circular rubber-stamp "entry" impression: the region glyph and year
@@ -254,11 +265,15 @@ struct RegionSummaryCard: View {
             in: cardShape,
         )
         .holographicSheen(
-            roll: tilt?.roll ?? 0,
-            pitch: tilt?.pitch ?? 0,
+            roll: sheenPose.roll,
+            pitch: sheenPose.pitch,
+            staticRoll: card.sheen.staticPose.roll,
+            staticPitch: card.sheen.staticPose.pitch,
+            isStatic: isSheenStatic,
             in: cardShape,
             tint: .white,
-            intensity: card.holographicIntensity,
+            intensity: card.sheen.intensity,
+            staticGlintIntensity: card.sheen.staticGlintIntensity,
         )
         .overlay { stampFrame }
         .clipShape(cardShape)
