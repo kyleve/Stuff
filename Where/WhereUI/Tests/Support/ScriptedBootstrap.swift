@@ -82,6 +82,34 @@ final class FailingBootstrap: WhereScopeAssembling {
     }
 }
 
+/// Opens a usable service layer but fails only the asynchronous durable log
+/// store, so tests can assert the regular app remains ready while developer
+/// logging presents an honest diagnostic.
+@MainActor
+final class FailingLogStoreBootstrap: WhereScopeAssembling {
+    struct StoreFailure: Error, CustomStringConvertible {
+        var description: String {
+            "scripted log store failure"
+        }
+    }
+
+    private let services: WhereServices
+
+    init(services: WhereServices) {
+        self.services = services
+    }
+
+    func prepareLocation() {}
+
+    func makeServices() async throws -> WhereServices {
+        services
+    }
+
+    func makeLogStore() async throws -> PeriscopeStore? {
+        throw StoreFailure()
+    }
+}
+
 /// For suites that never log in, so the model can be built without implying a
 /// world it will never assemble. Trips if a login is attempted anyway.
 @MainActor

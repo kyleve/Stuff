@@ -1,7 +1,6 @@
 #if DEBUG
     import Foundation
     import PeriscopeCore
-    import SwiftDataInspector
     import WhereCore
 
     /// One unactivated, memory-only demo scope shared by every live Flyover frame.

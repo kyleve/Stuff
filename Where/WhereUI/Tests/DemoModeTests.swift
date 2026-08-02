@@ -313,6 +313,7 @@ struct DemoModeTests {
         #expect(realScope.logStore == nil)
 
         try await model.activateDemo(model.makeDemoScope())
+        let demoStore = try #require(model.logStore)
         bootstrap.releaseLogStore()
         try await waitUntil { realScope.logStore != nil }
 
@@ -321,6 +322,7 @@ struct DemoModeTests {
         // The store arrived and is remembered, but nothing routed into it —
         // the scope it belongs to was shadowed before it landed.
         #expect(realScope.logStore != nil)
+        #expect(model.logStore === demoStore)
         #expect(try await !messages(in: realLogStore).contains("during the demo"))
     }
 

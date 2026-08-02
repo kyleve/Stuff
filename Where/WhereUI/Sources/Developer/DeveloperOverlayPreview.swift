@@ -1,9 +1,11 @@
 #if DEBUG
+    import Foundation
+    import Inspector
     import PeriscopeTools
     import SwiftUI
     import WhereCore
 
-    /// Async preview host that supplies the same attached log/session dependencies
+    /// Async preview host that supplies the same app-level developer dependencies
     /// as the running app without touching disk.
     struct DeveloperOverlayPreview: View {
         let presentation: DeveloperOverlayModel.Presentation
@@ -16,7 +18,7 @@
                 if let context {
                     DeveloperOverlay(model: context.overlayModel)
                         .environment(context.model)
-                        .environment(context.session)
+                        .environment(context.modeController as InspectorModeController?)
                         .environment(\.periscopeInspector, context.inspector)
                 } else {
                     ProgressView()
@@ -32,7 +34,7 @@
                 let model = PreviewSupport.loadedModel(withLogStore: store)
                 context = DeveloperOverlayPreviewContext(
                     model: model,
-                    session: PreviewSupport.loadedSession(),
+                    modeController: makeModeController(),
                     inspector: PeriscopeInspector(system: .shared, store: store),
                     overlayModel: DeveloperOverlayModel(
                         store: InMemoryKeyValueStore(),
@@ -43,6 +45,15 @@
             } catch {
                 preconditionFailure("Could not build developer overlay preview: \(error)")
             }
+        }
+
+        private func makeModeController() -> InspectorModeController {
+            let suiteName = "where.developer-overlay.preview.inspector"
+            guard let defaults = UserDefaults(suiteName: suiteName) else {
+                preconditionFailure("Unable to open Inspector preview defaults")
+            }
+            defaults.removePersistentDomain(forName: suiteName)
+            return InspectorModeController(userDefaults: defaults)
         }
     }
 

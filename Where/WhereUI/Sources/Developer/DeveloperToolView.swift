@@ -1,6 +1,5 @@
 #if DEBUG
     import PeriscopeTools
-    import SwiftDataInspector
     import SwiftUI
     import WhereCore
 
@@ -18,30 +17,44 @@
         let tool: DeveloperTool
 
         @Environment(WhereModel.self) private var model: WhereModel?
-        @Environment(WhereSession.self) private var session: WhereSession?
 
         var body: some View {
             NavigationStack {
                 switch tool {
                     case .logs:
-                        if let store = model?.logStore {
-                            PeriscopeViewer(
-                                store: store,
-                                title: String(localized: .developerLogsTitle),
-                            )
-                        } else {
-                            DeveloperToolUnavailableView(tool: tool)
+                        switch model?.logStoreState {
+                            case let .ready(store):
+                                PeriscopeViewer(
+                                    store: store,
+                                    title: String(localized: .developerLogsTitle),
+                                )
+
+                            case .opening:
+                                ContentUnavailableView(
+                                    String(localized: .developerLoggingOpeningTitle),
+                                    systemImage: tool.systemImage,
+                                    description: Text(String(
+                                        localized: .developerLoggingOpeningDescription,
+                                    )),
+                                )
+                                .navigationTitle(tool.title)
+                                .navigationBarTitleDisplayMode(.inline)
+
+                            case let .failed(description):
+                                ContentUnavailableView(
+                                    String(localized: .developerLoggingFailedTitle),
+                                    systemImage: "exclamationmark.triangle",
+                                    description: Text(description),
+                                )
+                                .navigationTitle(tool.title)
+                                .navigationBarTitleDisplayMode(.inline)
+
+                            case .unavailable, nil:
+                                DeveloperToolUnavailableView(tool: tool)
                         }
 
                     case .openSpans:
                         OpenSpansView(system: .shared)
-
-                    case .swiftDataInspector:
-                        if let configuration = session?.swiftDataInspectorConfiguration {
-                            SwiftDataInspectorView(configuration: configuration)
-                        } else {
-                            DeveloperToolUnavailableView(tool: tool)
-                        }
 
                     case .regionMap:
                         RegionMapView()
