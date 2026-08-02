@@ -97,6 +97,14 @@ struct RegionSummaryCard: View {
         card.progressBarHeight
     }
 
+    private var regionArtworkLoadID: RegionArtworkLoadID {
+        RegionArtworkLoadID(
+            region: regionDays.region,
+            variant: variant,
+            isEnabled: card.regionShape != nil,
+        )
+    }
+
     /// How a count change plays out while the card is on screen. Reduce Motion is
     /// already resolved into it by the stylesheet.
     private var dayCount: WhereStylesheet.CardStyles.DayCountStyle {
@@ -326,8 +334,16 @@ struct RegionSummaryCard: View {
                 days: regionDays.days,
             ),
         )
-        .task(id: regionDays.region, loadRegionOutlines)
+        .task(id: regionArtworkLoadID, loadRegionOutlines)
     }
+}
+
+/// Restarts cached artwork loading when a designer switches either card variant
+/// or the outline layer without first changing the previewed region.
+struct RegionArtworkLoadID: Equatable {
+    let region: Region
+    let variant: WhereStylesheet.CardStyle.Variant
+    let isEnabled: Bool
 }
 
 /// A circular rubber-stamp impression — double ring, centered region glyph and
