@@ -66,6 +66,9 @@ a long review, or to pick up a dependency:
 - **Don't act on review comments the user hasn't pointed you at.** Summarize
   what's there and ask which to take on; reading them to write that summary is
   expected.
+- **One commit per review issue** — each distinct piece of feedback gets its
+  own commit, so fixes stay bisectable and the reply can name the commit that
+  resolved it.
 - When a commit resolves one, reply to it naming the commit.
 - Anything deliberately not addressed gets filed in the area's
   [`TODOs.md`](../../../TODOs.md) — never dropped.
