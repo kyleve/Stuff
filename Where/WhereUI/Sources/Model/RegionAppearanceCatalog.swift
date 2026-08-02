@@ -8,9 +8,9 @@ import WhereCore
 /// lives in `WhereUI` next to the pickers and `RegionStyle` (which shares the
 /// color mapping and default look).
 public enum RegionAppearanceCatalog {
-    /// Selectable accent colors, in the order the picker lays them out. The full
-    /// token set — matching `RegionStyle`'s historical default palette so a
-    /// picked color reads the same as an auto-assigned one.
+    /// Selectable accent colors, in the order the picker lays them out. Every
+    /// persisted token is pickable; additions append so familiar choices keep
+    /// their positions.
     public static let colors: [RegionColorToken] = RegionColorToken.allCases
 
     /// Selectable emoji, grouped loosely by theme (places, nature, transit,
@@ -122,11 +122,27 @@ public enum RegionAppearanceCatalog {
             RegionAppearance(color: .teal, emoji: "🧭", symbolName: "location.magnifyingglass"),
     ]
 
+    /// Keep id-derived defaults stable as the user-selectable palette grows.
+    /// These are the eleven colors used by the original hash mapping.
+    private static let defaultColors: [RegionColorToken] = [
+        .orange,
+        .indigo,
+        .red,
+        .blue,
+        .teal,
+        .green,
+        .mint,
+        .cyan,
+        .purple,
+        .pink,
+        .brown,
+    ]
+
     /// A stable accent token derived from the region id, matching the order of
-    /// ``colors`` so an auto-assigned color is one the picker can also show.
+    /// the original palette so adding picker choices doesn't recolor a region.
     private static func defaultColor(for id: String) -> RegionColorToken {
         let sum = id.unicodeScalars.reduce(0) { $0 &+ Int($1.value) }
-        return colors[sum % colors.count]
+        return defaultColors[sum % defaultColors.count]
     }
 }
 
@@ -146,6 +162,22 @@ extension RegionColorToken {
             case .purple: .purple
             case .pink: .pink
             case .brown: .brown
+            case .gold: Color(red: 0.65, green: 0.43, blue: 0)
+            case .lime: Color(red: 0.40, green: 0.62, blue: 0.08)
+            case .coral: Color(red: 0.88, green: 0.26, blue: 0.22)
+            case .magenta: Color(red: 0.72, green: 0.12, blue: 0.52)
+            case .silver: Color(red: 0.55, green: 0.55, blue: 0.55)
+            case .slate: Color(red: 0.45, green: 0.45, blue: 0.45)
+            case .charcoal: Color(red: 0.35, green: 0.35, blue: 0.35)
+        }
+    }
+
+    /// Selection glyph color chosen for contrast against each swatch.
+    var selectionForeground: Color {
+        switch self {
+            case .gold, .lime, .silver: .black
+            case .orange, .indigo, .red, .blue, .teal, .green, .mint, .cyan,
+                 .purple, .pink, .brown, .coral, .magenta, .slate, .charcoal: .white
         }
     }
 }

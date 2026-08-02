@@ -96,7 +96,7 @@ struct RegionAppearanceEditor: View {
                             if isSelected {
                                 Image(systemName: "checkmark")
                                     .font(.caption.weight(.bold))
-                                    .foregroundStyle(.white)
+                                    .foregroundStyle(token.selectionForeground)
                             }
                         }
                 }
