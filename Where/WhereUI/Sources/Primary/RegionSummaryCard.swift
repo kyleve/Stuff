@@ -95,6 +95,7 @@ struct RegionSummaryCard: View {
             regionPath: regionPaths?.stamp ?? Path(),
             regionShape: card.regionShape,
         )
+        .blendMode(stylesheet.card.securityPrintBlendMode)
     }
 
     /// A faint, region-tinted "security print" behind the content: a guilloché
@@ -179,6 +180,7 @@ struct RegionSummaryCard: View {
                     .offset(x: card.watermarkOffset.width, y: card.watermarkOffset.height)
             }
         }
+        .blendMode(stylesheet.card.securityPrintBlendMode)
         .clipShape(cardShape)
         .allowsHitTesting(false)
         .accessibilityHidden(true)

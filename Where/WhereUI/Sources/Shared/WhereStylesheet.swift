@@ -55,6 +55,12 @@ struct WhereStylesheet: BStylesheet {
             card.dayCount = .reducedMotion
             developerOverlay.menu.motion = .reduced
         }
+
+        // Security print behaves like ink on pale cards and reflected ink on
+        // dark ones: dark-mode artwork can only lighten the glass beneath it.
+        if traits.mode == .dark {
+            card.securityPrintBlendMode = .screen
+        }
     }
 
     /// The fixed token set: the fallback used off the `View` tree (layout
@@ -336,6 +342,9 @@ extension WhereStylesheet {
         var nameOpacity: Double
         /// Fill opacities of the two security-print rosettes.
         var rosetteFill: RosetteFill
+        /// How decorative card ink combines with its Liquid Glass surface.
+        /// Dark mode uses Screen so every detail lifts the darker card beneath.
+        var securityPrintBlendMode: BlendMode
         /// How the day count changes while the card is on screen; resolves to
         /// ``DayCountStyle/reducedMotion`` under Reduce Motion.
         var dayCount: DayCountStyle
@@ -487,6 +496,7 @@ extension WhereStylesheet {
             glassTintOpacity: 0.18,
             nameOpacity: 0.8,
             rosetteFill: RosetteFill(primary: 0.12, secondary: 0.08),
+            securityPrintBlendMode: .normal,
             dayCount: .standard,
         )
     }

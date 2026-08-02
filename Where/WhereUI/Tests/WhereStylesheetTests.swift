@@ -107,6 +107,7 @@ struct WhereStylesheetTests {
         #expect(card.glassTintOpacity == 0.18)
         #expect(card.nameOpacity == 0.8)
         #expect(card.rosetteFill == .init(primary: 0.12, secondary: 0.08))
+        #expect(card.securityPrintBlendMode == .normal)
         #expect(card.dayCount == .standard)
         #expect(card.dayCount.animation == .easeOut(duration: 0.3))
     }
@@ -383,6 +384,14 @@ struct WhereStylesheetTests {
         #expect(resolved.card.dayCount == .reducedMotion)
         #expect(resolved.developerOverlay.menu.motion == .reduced)
         #expect(resolved.developerOverlay.menu.motion.usesSpatialMotion == false)
+    }
+
+    @MainActor
+    @Test func lightensCardSecurityPrintInDarkMode() throws {
+        var context = BContext(traits: .system)
+        context.traitOverrides.mode = .dark
+        let resolved = try context.stylesheets.get(WhereStylesheet.self)
+        #expect(resolved.card.securityPrintBlendMode == .screen)
     }
 }
 
