@@ -266,6 +266,18 @@ private struct MonthGridView: View {
         stylesheet.calendar
     }
 
+    /// Resolve the month variant once so its background and inherited text
+    /// treatment cannot drift apart.
+    private var card: WhereStylesheet.CalendarStyle.MonthStyle.Card {
+        month.isCurrentMonth ? calendar.month.current : calendar.month.plain
+    }
+
+    /// Shared by the fill and border so every month uses the same continuous
+    /// corner geometry.
+    private var cardShape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: calendar.month.cornerRadius, style: .continuous)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: calendar.month.sectionSpacing) {
             Text(month.startOfMonth.formatted(.dateTime.month(.wide)))
@@ -301,15 +313,14 @@ private struct MonthGridView: View {
             }
         }
         .padding(calendar.month.padding)
+        .foregroundStyle(card.foreground)
         .background {
             // Past and future months share the plain card; the current one
-            // gets the accent card (bluer wash, heavier border).
-            let card = month.isCurrentMonth ? calendar.month.current : calendar.month.plain
-            RoundedRectangle(cornerRadius: calendar.month.cornerRadius)
+            // gets the accent card (bluer wash, text, and heavier border).
+            cardShape
                 .fill(card.fill)
                 .overlay {
-                    RoundedRectangle(cornerRadius: calendar.month.cornerRadius)
-                        .strokeBorder(card.border, lineWidth: card.borderWidth)
+                    cardShape.strokeBorder(card.border, lineWidth: card.borderWidth)
                 }
         }
     }

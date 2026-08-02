@@ -8,6 +8,17 @@ struct RegionGeometryCatalogTests {
 
     // MARK: - Attribution
 
+    @Test func region_coversOnlyTheRequestedRegion() async {
+        let outlines = await RegionGeometryCatalog.outlines(for: .california)
+        #expect(!outlines.isEmpty)
+        #expect(outlines.allSatisfy { $0.region == .california })
+        #expect(outlines.allSatisfy { $0.title == Region.california.localizedName })
+    }
+
+    @Test func otherRegion_hasNoDrawableOutlines() async {
+        #expect(await RegionGeometryCatalog.outlines(for: .other).isEmpty)
+    }
+
     @Test func attribution_coversExactlyTheAttributorsRegions() async throws {
         let outlines = try await RegionGeometryCatalog.outlines(
             for: .attribution,
@@ -135,5 +146,11 @@ struct RegionGeometryCatalogTests {
         // it must name the file, not fall back to the generic message.
         #expect(error.errorDescription?.contains("us-states.geojson") == true)
         #expect(error.localizedDescription.contains("us-states.geojson"))
+    }
+
+    @Test func emptyResourceErrorNamesTheFile() {
+        let error = RegionGeometryError.emptyResource("us-CA")
+        #expect(error.errorDescription?.contains("us-CA.geojson") == true)
+        #expect(error.localizedDescription.contains("us-CA.geojson"))
     }
 }

@@ -31,7 +31,7 @@ public enum RegionLog {
     /// `RegionCatalog` — the bundled `regions.json` manifest load.
     static let catalog = root(RegionCatalogLog.self)
 
-    /// `RegionGeometryCatalog` — the developer region-map viewer's geometry
-    /// load. Public because the viewer lives in WhereUI, above RegionKit.
+    /// `RegionGeometryCatalog` — drawable geometry for region artwork and the
+    /// developer map viewer. Public because both consumers live above RegionKit.
     public static let geometryCatalog = root(RegionGeometryCatalogLog.self)
 }

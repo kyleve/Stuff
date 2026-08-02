@@ -18,6 +18,13 @@ struct RegionAppearanceTests {
             "purple",
             "pink",
             "brown",
+            "gold",
+            "lime",
+            "coral",
+            "magenta",
+            "silver",
+            "slate",
+            "charcoal",
         ])
     }
 
