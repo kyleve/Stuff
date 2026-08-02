@@ -250,10 +250,10 @@ extension WhereStylesheet {
         var contentSpacing: CGFloat
         var progressBarHeight: CGFloat
         var entryStamp: EntryStamp
-        var regionNameFont: Font
+        var regionNameTypography: Typography
         var regionNameTracking: CGFloat
-        var heroNumberFont: Font
-        var dayUnitFont: Font
+        var heroNumberTypography: Typography
+        var dayUnitTypography: Typography
         /// Point size of the oversized region glyph watermarked behind the card.
         var watermarkFontSize: CGFloat
         /// Offset of that watermark toward the bottom-trailing corner.
@@ -276,6 +276,102 @@ extension WhereStylesheet {
             var lineWidth: CGFloat
             var primaryRingSpacing: CGFloat
             var secondaryRingSpacing: CGFloat
+        }
+
+        /// A card text treatment kept as structured data so the DEBUG card
+        /// designer can round-trip it without trying to inspect an opaque
+        /// SwiftUI `Font` value.
+        struct Typography: Equatable {
+            var size: Size
+            var weight: Weight
+            var design: Design
+
+            var font: Font {
+                switch size {
+                    case let .fixed(points):
+                        .system(size: points, weight: weight.fontWeight, design: design.fontDesign)
+                    case let .semantic(textStyle):
+                        .system(textStyle.fontTextStyle, design: design.fontDesign)
+                            .weight(weight.fontWeight)
+                }
+            }
+
+            enum Size: Equatable {
+                case fixed(CGFloat)
+                case semantic(TextStyle)
+            }
+
+            enum TextStyle: String, CaseIterable, Codable {
+                case caption2
+                case caption
+                case footnote
+                case subheadline
+                case callout
+                case body
+                case headline
+                case title3
+                case title2
+                case title
+                case largeTitle
+
+                var fontTextStyle: Font.TextStyle {
+                    switch self {
+                        case .caption2: .caption2
+                        case .caption: .caption
+                        case .footnote: .footnote
+                        case .subheadline: .subheadline
+                        case .callout: .callout
+                        case .body: .body
+                        case .headline: .headline
+                        case .title3: .title3
+                        case .title2: .title2
+                        case .title: .title
+                        case .largeTitle: .largeTitle
+                    }
+                }
+            }
+
+            enum Weight: String, CaseIterable, Codable {
+                case ultraLight
+                case thin
+                case light
+                case regular
+                case medium
+                case semibold
+                case bold
+                case heavy
+                case black
+
+                var fontWeight: Font.Weight {
+                    switch self {
+                        case .ultraLight: .ultraLight
+                        case .thin: .thin
+                        case .light: .light
+                        case .regular: .regular
+                        case .medium: .medium
+                        case .semibold: .semibold
+                        case .bold: .bold
+                        case .heavy: .heavy
+                        case .black: .black
+                    }
+                }
+            }
+
+            enum Design: String, CaseIterable, Codable {
+                case `default`
+                case serif
+                case rounded
+                case monospaced
+
+                var fontDesign: Font.Design {
+                    switch self {
+                        case .default: .default
+                        case .serif: .serif
+                        case .rounded: .rounded
+                        case .monospaced: .monospaced
+                    }
+                }
+            }
         }
 
         /// Geometry, ink strength, and typography for the circular passport
@@ -534,10 +630,22 @@ extension WhereStylesheet {
                 // control against the entry stamp: the longest common headline
                 // names ("California" / "New York") fit, and any over-long one
                 // tightens then scales via `minimumScaleFactor`.
-                regionNameFont: .system(size: 38, weight: .semibold, design: .serif),
+                regionNameTypography: .init(
+                    size: .fixed(38),
+                    weight: .semibold,
+                    design: .serif,
+                ),
                 regionNameTracking: -0.5,
-                heroNumberFont: .system(size: 40, weight: .bold, design: .rounded),
-                dayUnitFont: .title3.weight(.medium),
+                heroNumberTypography: .init(
+                    size: .fixed(40),
+                    weight: .bold,
+                    design: .rounded,
+                ),
+                dayUnitTypography: .init(
+                    size: .semantic(.title3),
+                    weight: .medium,
+                    design: .default,
+                ),
                 watermarkFontSize: 150,
                 watermarkOffset: CGSize(width: 20, height: 12),
                 regionShape: CardStyle.RegionShape(
@@ -584,10 +692,22 @@ extension WhereStylesheet {
                 contentSpacing: 10,
                 progressBarHeight: 6,
                 entryStamp: .standard(size: 52, showsArcText: false),
-                regionNameFont: .system(.title3, design: .serif).weight(.semibold),
+                regionNameTypography: .init(
+                    size: .semantic(.title3),
+                    weight: .semibold,
+                    design: .serif,
+                ),
                 regionNameTracking: 0,
-                heroNumberFont: .system(.title, design: .rounded, weight: .bold),
-                dayUnitFont: .subheadline.weight(.medium),
+                heroNumberTypography: .init(
+                    size: .semantic(.title),
+                    weight: .bold,
+                    design: .rounded,
+                ),
+                dayUnitTypography: .init(
+                    size: .semantic(.subheadline),
+                    weight: .medium,
+                    design: .default,
+                ),
                 watermarkFontSize: 96,
                 watermarkOffset: CGSize(width: 12, height: 10),
                 regionShape: nil,

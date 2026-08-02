@@ -51,11 +51,27 @@ struct RegionSummaryCard: View {
     @Environment(\.stylesheet) private var stylesheet
     @Environment(\.regionStyles) private var regionStyles
     @Environment(\.regionOutlinePathCache) private var regionOutlinePathCache
+    #if DEBUG
+        @Environment(\.colorScheme) private var colorScheme
+        @Environment(\.cardDesignerConfiguration) private var cardDesignerConfiguration
+    #endif
+
+    private var cardStyles: WhereStylesheet.CardStyles {
+        #if DEBUG
+            if let cardDesignerConfiguration {
+                return cardDesignerConfiguration.resolve(
+                    over: stylesheet.card,
+                    colorScheme: colorScheme,
+                )
+            }
+        #endif
+        return stylesheet.card
+    }
 
     /// The resolved spec for this card's variant, read once so the rest of the
     /// view is a straight-line render with no `compact` branching.
     private var card: WhereStylesheet.CardStyle {
-        stylesheet.card[variant]
+        cardStyles[variant]
     }
 
     private var style: RegionStyle {
@@ -65,7 +81,7 @@ struct RegionSummaryCard: View {
     /// Region ink on light cards; a pale derivative on dark cards that remains
     /// distinct while interactive Liquid Glass illuminates nearby surfaces.
     private var securityPrintTint: Color {
-        stylesheet.card.securityPrint.tint(style.tint)
+        cardStyles.securityPrint.tint(style.tint)
     }
 
     private var cardShape: RoundedRectangle {
@@ -84,7 +100,7 @@ struct RegionSummaryCard: View {
     /// How a count change plays out while the card is on screen. Reduce Motion is
     /// already resolved into it by the stylesheet.
     private var dayCount: WhereStylesheet.CardStyles.DayCountStyle {
-        stylesheet.card.dayCount
+        cardStyles.dayCount
     }
 
     /// A circular rubber-stamp "entry" impression: the region glyph and year
@@ -112,7 +128,7 @@ struct RegionSummaryCard: View {
         // values rather than reaching back into main-actor state.
         let tint = securityPrintTint
         let rosette = card.rosette
-        let rosetteFill = stylesheet.card.rosetteFill
+        let rosetteFill = cardStyles.rosetteFill
         return ZStack {
             Canvas { context, size in
                 func drawRosette(center: CGPoint, spacing: CGFloat, opacity: Double) {
@@ -177,13 +193,13 @@ struct RegionSummaryCard: View {
             } else {
                 Image(systemName: style.symbolName)
                     .font(.system(size: card.watermarkFontSize))
-                    .foregroundStyle(tint.opacity(stylesheet.card.watermarkOpacity))
+                    .foregroundStyle(tint.opacity(cardStyles.watermarkOpacity))
                     .rotationEffect(.degrees(-14))
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
                     .offset(x: card.watermarkOffset.width, y: card.watermarkOffset.height)
             }
         }
-        .blendMode(stylesheet.card.securityPrint.backgroundBlendMode)
+        .blendMode(cardStyles.securityPrint.backgroundBlendMode)
         .clipShape(cardShape)
         .allowsHitTesting(false)
         .accessibilityHidden(true)
@@ -219,13 +235,13 @@ struct RegionSummaryCard: View {
             HStack(alignment: .top, spacing: stylesheet.spacing.large) {
                 VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
                     Text(regionDays.region.localizedName)
-                        .font(card.regionNameFont)
+                        .font(card.regionNameTypography.font)
                         .tracking(card.regionNameTracking)
                         .lineLimit(1)
                         .allowsTightening(true)
                         .minimumScaleFactor(0.7)
                         .foregroundStyle(style.tint)
-                        .opacity(stylesheet.card.nameOpacity)
+                        .opacity(cardStyles.nameOpacity)
                     if let caption {
                         Text(caption)
                             .font(.caption2.weight(.semibold))
@@ -248,11 +264,11 @@ struct RegionSummaryCard: View {
 
             HStack(alignment: .firstTextBaseline, spacing: stylesheet.spacing.small) {
                 Text(regionDays.days, format: .number)
-                    .font(card.heroNumberFont)
+                    .font(card.heroNumberTypography.font)
                     .contentTransition(dayCount.transition(days: regionDays.days))
                     .foregroundStyle(style.tint)
                 Text(WhereFormat.dayUnit(regionDays.days))
-                    .font(card.dayUnitFont)
+                    .font(card.dayUnitTypography.font)
                     .foregroundStyle(.secondary)
             }
 
@@ -277,7 +293,7 @@ struct RegionSummaryCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background { stampPaper }
         .glassEffect(
-            .regular.tint(style.tint.opacity(stylesheet.card.glassTintOpacity))
+            .regular.tint(style.tint.opacity(cardStyles.glassTintOpacity))
                 .interactive(interactive),
             in: cardShape,
         )

@@ -32,7 +32,26 @@ struct WhereStylesheetTests {
         #expect(card.contentSpacing == 16)
         #expect(card.progressBarHeight == 10)
         #expect(card.entryStamp == expectedEntryStamp(size: 88, showsArcText: true))
-        #expect(card.regionNameFont == .system(size: 38, weight: .semibold, design: .serif))
+        #expect(card.regionNameTypography == .init(
+            size: .fixed(38),
+            weight: .semibold,
+            design: .serif,
+        ))
+        #expect(card.regionNameTypography.font == .system(
+            size: 38,
+            weight: .semibold,
+            design: .serif,
+        ))
+        #expect(card.heroNumberTypography == .init(
+            size: .fixed(40),
+            weight: .bold,
+            design: .rounded,
+        ))
+        #expect(card.dayUnitTypography == .init(
+            size: .semantic(.title3),
+            weight: .medium,
+            design: .default,
+        ))
         #expect(card.regionNameTracking == -0.5)
         #expect(card.watermarkFontSize == 150)
         #expect(card.watermarkOffset == CGSize(width: 20, height: 12))
@@ -80,6 +99,21 @@ struct WhereStylesheetTests {
         #expect(card.contentSpacing == 10)
         #expect(card.progressBarHeight == 6)
         #expect(card.entryStamp == expectedEntryStamp(size: 52, showsArcText: false))
+        #expect(card.regionNameTypography == .init(
+            size: .semantic(.title3),
+            weight: .semibold,
+            design: .serif,
+        ))
+        #expect(card.heroNumberTypography == .init(
+            size: .semantic(.title),
+            weight: .bold,
+            design: .rounded,
+        ))
+        #expect(card.dayUnitTypography == .init(
+            size: .semantic(.subheadline),
+            weight: .medium,
+            design: .default,
+        ))
         #expect(card.regionNameTracking == 0)
         #expect(card.watermarkFontSize == 96)
         #expect(card.watermarkOffset == CGSize(width: 12, height: 10))
