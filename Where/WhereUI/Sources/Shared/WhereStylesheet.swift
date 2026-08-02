@@ -262,12 +262,6 @@ extension WhereStylesheet {
         /// Light-sheen strength plus the deterministic pose used until a
         /// live motion sample arrives (and whenever motion must stay static).
         var sheen: Sheen
-        /// Line width of the heavy outer frame stroke.
-        var frameOuterLineWidth: CGFloat
-        /// Whether the dashed perforation ring is drawn (Primary cards only).
-        var showsPerforationRing: Bool
-        /// Inset of the innermost dashed frame line.
-        var innerFrameInset: CGFloat
         var rosette: Rosette
         /// The tight rim glow; its `radius` drops to 0 under Reduce Transparency.
         var glow: Shadow
@@ -331,29 +325,11 @@ extension WhereStylesheet {
         var glassTintOpacity: Double
         /// Opacity of the region-name header.
         var nameOpacity: Double
-        /// The layered stamp frame's strokes (shared across both variants).
-        var frame: Frame
         /// Fill opacities of the two security-print rosettes.
         var rosetteFill: RosetteFill
         /// How the day count changes while the card is on screen; resolves to
         /// ``DayCountStyle/reducedMotion`` under Reduce Motion.
         var dayCount: DayCountStyle
-
-        /// The passport-style frame drawn over the card: a heavy outer line, a
-        /// thin line, an optional perforation ring (see
-        /// ``CardStyle/showsPerforationRing``), and a dashed inner line. Each
-        /// opacity applies over the region tint.
-        struct Frame: Equatable {
-            var outerOpacity: Double
-            var thinOpacity: Double
-            var thinWidth: CGFloat
-            var perforationOpacity: Double
-            var perforationWidth: CGFloat
-            var perforationDash: [CGFloat]
-            var innerOpacity: Double
-            var innerWidth: CGFloat
-            var innerDash: [CGFloat]
-        }
 
         /// Fill opacity of the bold and faint security-print rosettes.
         struct RosetteFill: Equatable {
@@ -455,9 +431,6 @@ extension WhereStylesheet {
                     // instead of washing out the card's central content.
                     staticPose: .init(roll: 0, pitch: -1),
                 ),
-                frameOuterLineWidth: 3.5,
-                showsPerforationRing: true,
-                innerFrameInset: 16,
                 rosette: CardStyle.Rosette(
                     wobble: 3,
                     lineWidth: 2,
@@ -487,9 +460,6 @@ extension WhereStylesheet {
                     // Preserve the compact card's existing neutral treatment.
                     staticPose: .init(roll: 0, pitch: 0),
                 ),
-                frameOuterLineWidth: 2.5,
-                showsPerforationRing: false,
-                innerFrameInset: 12,
                 rosette: CardStyle.Rosette(
                     wobble: 2,
                     lineWidth: 2,
@@ -502,17 +472,6 @@ extension WhereStylesheet {
             watermarkOpacity: 0.08,
             glassTintOpacity: 0.18,
             nameOpacity: 0.8,
-            frame: Frame(
-                outerOpacity: 0.6,
-                thinOpacity: 0.35,
-                thinWidth: 1,
-                perforationOpacity: 0.45,
-                perforationWidth: 2.5,
-                perforationDash: [0.01, 6],
-                innerOpacity: 0.4,
-                innerWidth: 1,
-                innerDash: [5, 4],
-            ),
             rosetteFill: RosetteFill(primary: 0.12, secondary: 0.08),
             dayCount: .standard,
         )

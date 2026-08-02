@@ -216,7 +216,9 @@ option lists the picker shows.
 Regular `RegionSummaryCard`s also request their cached `RegionOutline`s from
 RegionKit and reuse the silhouette as both a large security-print watermark and
 the seal inside the circular entry stamp. Compact cards retain the simpler
-symbol treatment.
+symbol treatment. The card adds no ornamental edge strokes; its containing
+Liquid Glass surface owns the subtle border so direct and production rendering
+do not diverge.
 
 ## Previews
 

@@ -54,9 +54,6 @@ struct WhereStylesheetTests {
             staticGlintIntensity: 0.25,
             staticPose: .init(roll: 0, pitch: -1),
         ))
-        #expect(card.frameOuterLineWidth == 3.5)
-        #expect(card.showsPerforationRing)
-        #expect(card.innerFrameInset == 16)
         #expect(card.rosette == .init(
             wobble: 3,
             lineWidth: 2,
@@ -84,9 +81,6 @@ struct WhereStylesheetTests {
             staticGlintIntensity: 0.5,
             staticPose: .init(roll: 0, pitch: 0),
         ))
-        #expect(card.frameOuterLineWidth == 2.5)
-        #expect(!card.showsPerforationRing)
-        #expect(card.innerFrameInset == 12)
         #expect(card.rosette == .init(
             wobble: 2,
             lineWidth: 2,
@@ -108,17 +102,6 @@ struct WhereStylesheetTests {
         #expect(card.glassTintOpacity == 0.18)
         #expect(card.nameOpacity == 0.8)
         #expect(card.rosetteFill == .init(primary: 0.12, secondary: 0.08))
-        #expect(card.frame == .init(
-            outerOpacity: 0.6,
-            thinOpacity: 0.35,
-            thinWidth: 1,
-            perforationOpacity: 0.45,
-            perforationWidth: 2.5,
-            perforationDash: [0.01, 6],
-            innerOpacity: 0.4,
-            innerWidth: 1,
-            innerDash: [5, 4],
-        ))
         #expect(card.dayCount == .standard)
         #expect(card.dayCount.animation == .easeOut(duration: 0.3))
     }

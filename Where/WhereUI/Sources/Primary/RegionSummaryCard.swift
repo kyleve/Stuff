@@ -177,42 +177,6 @@ struct RegionSummaryCard: View {
         .accessibilityHidden(true)
     }
 
-    /// A layered, official-looking frame: a heavy solid outer line, a thin solid
-    /// line, a ring of perforation dots (Primary cards only), and a dashed inner
-    /// line — like the engraved, perforated edge of a passport page.
-    private var stampFrame: some View {
-        let frame = stylesheet.card.frame
-        return ZStack {
-            cardShape
-                .strokeBorder(
-                    style.tint.opacity(frame.outerOpacity),
-                    lineWidth: card.frameOuterLineWidth,
-                )
-            cardShape
-                .inset(by: stylesheet.spacing.small)
-                .strokeBorder(style.tint.opacity(frame.thinOpacity), lineWidth: frame.thinWidth)
-            if card.showsPerforationRing {
-                cardShape
-                    .inset(by: stylesheet.spacing.large)
-                    .strokeBorder(
-                        style.tint.opacity(frame.perforationOpacity),
-                        style: StrokeStyle(
-                            lineWidth: frame.perforationWidth,
-                            lineCap: .round,
-                            dash: frame.perforationDash,
-                        ),
-                    )
-            }
-            cardShape
-                .inset(by: card.innerFrameInset)
-                .strokeBorder(
-                    style.tint.opacity(frame.innerOpacity),
-                    style: StrokeStyle(lineWidth: frame.innerWidth, dash: frame.innerDash),
-                )
-        }
-        .allowsHitTesting(false)
-    }
-
     private func loadRegionOutlines() async {
         regionOutlines = []
         guard card.regionShape != nil else { return }
@@ -296,7 +260,6 @@ struct RegionSummaryCard: View {
             intensity: card.sheen.intensity,
             staticGlintIntensity: card.sheen.staticGlintIntensity,
         )
-        .overlay { stampFrame }
         .clipShape(cardShape)
         // Make the whole card a single hit target — without this only the
         // opaque sub-views (text, stamp, bar) take taps, leaving dead gaps
