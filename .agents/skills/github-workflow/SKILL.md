@@ -22,7 +22,9 @@ always-on commit and test invariants — this skill assumes those.
 - **Commit when asked, or when working through a plan.** If it's unclear whether
   a commit is wanted, make the change and ask rather than committing silently.
 - Push each commit as it lands once a PR is open.
-- **A branch with no PR waits for the user before pushing.**
+- **When working through a plan, open a PR once the plan is complete** — push
+  the branch and open it ready-for-review rather than leaving finished work
+  local-only.
 
 ## Opening a PR
 
@@ -30,12 +32,34 @@ always-on commit and test invariants — this skill assumes those.
 - Check for a PR template (`.github/PULL_REQUEST_TEMPLATE.md` or similar) and
   use it for the body.
 - Describe the **end state**, not a changelog of the conversation.
+- **Explain what the diff doesn't show** — motivation, trade-offs, or follow-ups
+  that aren't obvious from the code alone.
+- **Flag lines that warrant extra scrutiny** — leave a PR review comment on
+  anything a reviewer should look at closely (subtle behavior changes,
+  incomplete migrations, assumptions about `main`).
 
 ## Keeping a PR current
 
 - Push each commit as it lands.
 - Refresh the title/body once the branch outgrows them — fold into any human
   edits rather than overwriting them.
+
+## Merging main and other branches
+
+When bringing `main` or another branch into yours — because CI failed, before
+a long review, or to pick up a dependency:
+
+- **Resolve git-reported conflicts** — the `<<<<` / `>>>>` markers; don't leave
+  conflict markers or half-resolved hunks.
+- **Check for logical conflicts too** — changes on both sides can compose cleanly
+  in git but still clash in behavior: a renamed symbol your branch still
+  references, a relocated test helper, an updated signature your call sites don't
+  match, a new invariant your code violates, duplicate registrations. Re-read
+  the merged result and run `./test` (at least the affected tier) after merging
+  — a clean merge is not proof the branch still makes sense.
+- **CI merges `main` into the branch before it runs**, so green-locally /
+  red-on-CI usually means `main` moved rather than that you broke something.
+  Merge the latest `main` in locally and rebuild before digging further.
 
 ## Review comments
 
@@ -56,11 +80,3 @@ always-on commit and test invariants — this skill assumes those.
 Anything posted as the user — PR replies, issue comments, review responses —
 opens with a line marking it AI-generated, e.g. `> _Posted by an AI agent on
 $USER's behalf._`. No exception for short or purely factual comments.
-
-## When a failure isn't yours
-
-**CI merges `main` into the branch before it runs**, so green-locally /
-red-on-CI usually means `main` moved rather than that you broke something. Merge
-the latest `main` in locally and rebuild before digging further — a renamed
-module, a relocated test helper, or a changed shared signature shows up
-immediately, and no amount of clearing DerivedData will surface it.
