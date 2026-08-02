@@ -1,27 +1,28 @@
 #!/bin/bash
 set -euo pipefail
 
-# codex-watchdog — keep the Codex macOS app running.
+# codex-watchdog — keep the ChatGPT macOS app running for Codex.
 #
-# This intentionally checks the app's main executable rather than one of its
-# helper processes: helpers can briefly outlive the app after a crash. Launches
-# use `open -g` so restarting Codex does not steal focus from the active app.
+# Codex runs as a child process inside ChatGPT. This intentionally checks the
+# parent app's main executable rather than a Codex helper process: helpers can
+# briefly outlive the app after a crash. Launches use `open -g` so restarting
+# ChatGPT does not steal focus from the active app.
 
-APP_NAME="Codex"
-PROCESS_NAME="Codex"
+APP_NAME="ChatGPT"
+PROCESS_NAME="ChatGPT"
 INTERVAL=10
 
 usage() {
     cat <<'USAGE'
 Usage: ./codex-watchdog [options]
 
-Polls for the Codex macOS app and launches it whenever it is not running. The
-watchdog continues until interrupted with Ctrl-C.
+Polls for the ChatGPT macOS app that hosts Codex and launches it whenever it is
+not running. The watchdog continues until interrupted with Ctrl-C.
 
 Options:
   --interval SECONDS  Poll interval (default: 10)
-  --app NAME          Application name passed to `open -a` (default: Codex)
-  --process NAME      Main executable name checked with pgrep (default: Codex)
+  --app NAME          Application name passed to `open -a` (default: ChatGPT)
+  --process NAME      Main executable name checked with pgrep (default: ChatGPT)
   -h, --help          Show this help
 
 Examples:
