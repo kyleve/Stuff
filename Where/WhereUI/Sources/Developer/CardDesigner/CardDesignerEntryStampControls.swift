@@ -132,4 +132,13 @@
             }
         }
     }
+
+    #Preview {
+        @Previewable @State var configuration = CardDesignerConfiguration.standard
+        Form {
+            Section {
+                CardDesignerEntryStampControls(stamp: $configuration.regular.entryStamp)
+            }
+        }
+    }
 #endif

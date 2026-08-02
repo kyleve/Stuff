@@ -223,4 +223,11 @@
             }
         }
     }
+
+    #Preview {
+        @Previewable @State var configuration = CardDesignerConfiguration.standard
+        Form {
+            CardDesignerVariantControls(card: $configuration.regular, reset: { _ in })
+        }
+    }
 #endif

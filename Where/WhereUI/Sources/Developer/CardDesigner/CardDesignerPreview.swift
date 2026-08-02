@@ -41,4 +41,20 @@
             )
         }
     }
+
+    #Preview {
+        @Previewable @State var tilt = TiltProvider()
+        CardDesignerPreview(
+            configuration: .standard,
+            variant: .regular,
+            colorScheme: .light,
+            region: .newYork,
+            color: .indigo,
+            days: 128,
+            year: 2026,
+            tilt: tilt,
+        )
+        .padding()
+        .whereBroadwayRoot()
+    }
 #endif

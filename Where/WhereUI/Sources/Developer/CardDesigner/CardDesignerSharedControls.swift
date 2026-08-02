@@ -50,4 +50,11 @@
             }
         }
     }
+
+    #Preview {
+        @Previewable @State var configuration = CardDesignerConfiguration.standard
+        Form {
+            CardDesignerSharedControls(shared: $configuration.shared, reset: {})
+        }
+    }
 #endif

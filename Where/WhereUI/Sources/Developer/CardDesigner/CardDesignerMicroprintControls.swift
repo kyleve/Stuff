@@ -31,4 +31,15 @@
             )
         }
     }
+
+    #Preview {
+        @Previewable @State var configuration = CardDesignerConfiguration.standard
+        Form {
+            Section {
+                CardDesignerMicroprintControls(
+                    border: $configuration.regular.regionShape.securityBorder,
+                )
+            }
+        }
+    }
 #endif

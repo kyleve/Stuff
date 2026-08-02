@@ -63,4 +63,16 @@
             }
         }
     }
+
+    #Preview {
+        @Previewable @State var configuration = CardDesignerConfiguration.standard
+        Form {
+            Section {
+                CardDesignerArtworkLayerControls(
+                    title: .cardDesignerWatermark,
+                    artwork: $configuration.regular.regionShape.watermark,
+                )
+            }
+        }
+    }
 #endif

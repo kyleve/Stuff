@@ -26,4 +26,16 @@
             }
         }
     }
+
+    #Preview {
+        @Previewable @State var configuration = CardDesignerConfiguration.standard
+        Form {
+            Section {
+                CardDesignerSecurityPrintControls(
+                    title: .cardDesignerDarkInk,
+                    securityPrint: $configuration.shared.darkSecurityPrint,
+                )
+            }
+        }
+    }
 #endif

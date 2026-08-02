@@ -19,4 +19,16 @@
             }
         }
     }
+
+    #Preview {
+        @Previewable @State var configuration = CardDesignerConfiguration.standard
+        Form {
+            Section {
+                CardDesignerArtworkControls(
+                    usesRegionShape: $configuration.regular.usesRegionShape,
+                    regionShape: $configuration.regular.regionShape,
+                )
+            }
+        }
+    }
 #endif

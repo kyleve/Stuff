@@ -28,4 +28,16 @@
             }
         }
     }
+
+    #Preview {
+        @Previewable @State var configuration = CardDesignerConfiguration.standard
+        Form {
+            Section {
+                CardDesignerFractionalTypographyControls(
+                    title: .cardDesignerSymbolTypography,
+                    typography: $configuration.regular.entryStamp.content.symbolFont,
+                )
+            }
+        }
+    }
 #endif

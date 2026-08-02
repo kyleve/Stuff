@@ -44,4 +44,16 @@
             }
         }
     }
+
+    #Preview {
+        @Previewable @State var configuration = CardDesignerConfiguration.standard
+        Form {
+            Section {
+                CardDesignerTypographyControls(
+                    title: .cardDesignerRegionName,
+                    typography: $configuration.regular.regionNameTypography,
+                )
+            }
+        }
+    }
 #endif

@@ -15,4 +15,12 @@
             }
         }
     }
+
+    #Preview {
+        Form {
+            Section {} header: {
+                CardDesignerSectionHeader(title: .cardDesignerTypography, reset: {})
+            }
+        }
+    }
 #endif

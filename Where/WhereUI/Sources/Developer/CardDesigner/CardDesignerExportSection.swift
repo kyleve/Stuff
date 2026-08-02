@@ -87,4 +87,10 @@
             case swift
         }
     }
+
+    #Preview {
+        Form {
+            CardDesignerExportSection(configuration: .standard)
+        }
+    }
 #endif

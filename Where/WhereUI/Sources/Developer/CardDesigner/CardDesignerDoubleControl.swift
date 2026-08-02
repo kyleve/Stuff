@@ -22,4 +22,16 @@
             }
         }
     }
+
+    #Preview {
+        @Previewable @State var value = 0.65
+        Form {
+            CardDesignerDoubleControl(
+                title: .cardDesignerOpacity,
+                value: $value,
+                range: 0 ... 1,
+                step: 0.01,
+            )
+        }
+    }
 #endif

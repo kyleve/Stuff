@@ -22,4 +22,16 @@
             }
         }
     }
+
+    #Preview {
+        @Previewable @State var value: CGFloat = 28
+        Form {
+            CardDesignerCGFloatControl(
+                title: .cardDesignerCornerRadius,
+                value: $value,
+                range: 0 ... 60,
+                step: 1,
+            )
+        }
+    }
 #endif
