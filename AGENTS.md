@@ -527,8 +527,13 @@ flag is needed there.
 ## Running tests
 
 **Use [`./test`](test)** — the only way to run tests. Never hand-roll `tuist
-test` or `xcodebuild`. **`./swiftformat --lint` and `./test` are part of
-"done".**
+test` or `xcodebuild`. **Validate in proportion to risk:** run
+`./swiftformat --lint` when the changed files are in its scope, and run the
+narrowest applicable `./test` tier for code, build, tooling, or behavior
+changes. Pure documentation or comment-only changes may skip checks that
+cannot exercise them; record skipped checks in the commit or PR validation.
+Semantic changes to configuration, scripts, generator inputs, executable
+examples, or app-rendered copy are not documentation-only.
 
 Load the [`running-tests`](../.agents/skills/running-tests/SKILL.md) skill for
 test tiers, snapshot opt-in, why not `tuist test`, and per-checkout simulator
@@ -539,9 +544,10 @@ management (`./simulator` resolves a UDID — never pass a device name to
 
 - **Never commit on `main`.** Branch first (`git checkout -b <name>`) and keep
   every commit for one piece of work on that one branch.
-- **`./swiftformat --lint` and `./test` are part of "done".** Never commit a red
-  tree. Load the [`running-tests`](../.agents/skills/running-tests/SKILL.md)
-  skill for which tier to run.
+- **Validate in proportion to risk.** Follow [Running tests](#running-tests),
+  never commit a known-red tree, and load the
+  [`running-tests`](../.agents/skills/running-tests/SKILL.md) skill to choose
+  the applicable checks.
 - **Multi-step work lands one commit per step**, so history stays bisectable and
   can land piecewise — including pure-groundwork steps, which say so in the body.
 - **Commit when asked, or when working through a plan.** If it's unclear whether
