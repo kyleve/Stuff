@@ -21,10 +21,18 @@ reaches only *down*; each module's own `AGENTS.md` / `README.md` is the
 authority on what it is. Add domain behavior to WhereCore and presentation to
 WhereUI — the app target stays tiny.
 
-The DEBUG app has a second boot runtime from
-[`Shared/Inspector`](../Shared/Inspector). `AppDelegate` selects either the
-regular composition root or the standalone Inspector before launch; Inspector
-is not a `WhereScope` and must never construct regular app services.
+WhereUI additionally builds on two app-agnostic developer modules, both DEBUG-only
+surfaces rather than layers of the stack above:
+
+- [`Shared/Inspector`](../Shared/Inspector) is a second **boot runtime**.
+  `AppDelegate` selects either the regular composition root or the standalone
+  Inspector before launch; Inspector is not a `WhereScope` and must never
+  construct regular app services.
+- [`Shared/Flyover`](../Shared/Flyover) is the screen **browser**, fed by
+  `WhereFlyoverWorld` (`WhereUI/Sources/Developer/Flyover/`). Flyover knows
+  nothing about Where — it renders a catalog — so the seeded demo world, and
+  the rule that it is built but never activated, belong to WhereUI (see
+  [Demo mode](#demo-mode)).
 
 ## Layering
 

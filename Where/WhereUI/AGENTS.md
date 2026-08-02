@@ -57,8 +57,14 @@ and testing conventions live in the feature [`Where/AGENTS.md`](../AGENTS.md)
   ([`Sources/Shared/WhereDatePicker.swift`](Sources/Shared/WhereDatePicker.swift)),
   which substitutes a deterministic stand-in under capture — the live control
   renders relative to *today*, so no reference containing one is stable across
-  days. Views don't read `\.isCapturingSnapshot` to branch themselves; capture
-  handling stays inside the shared component.
+  days. Prefer that shape: put capture handling inside a shared component
+  rather than branching a screen on `\.isCapturingSnapshot`. Where a view does
+  read the flag, it may only freeze motion at a deterministic phase or
+  substitute an identically-laid-out stand-in, per SnapshotKit's carve-out —
+  `LaunchSplashView` does both (`:141` skips the wall-clock caption timer,
+  `:229` pins the radar phase). `CalendarContentView:198` is the one read that
+  goes further, changing *where the view is scrolled*; it is a known smell
+  filed in [`TODOs.md`](../TODOs.md), not a pattern to copy.
 
 ## Design system — `WhereStylesheet`
 

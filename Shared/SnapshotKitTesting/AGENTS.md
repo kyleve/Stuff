@@ -111,14 +111,17 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
   image for views past ~2000pt on iOS 27.0; don't remove the tiling without
   re-running the probe. Guard:
   `SnapshotKitTestingTests.LargeViewCaptureTests`.
-- **A settle phase costs its floor, not its passes.** Measured over all 260
-  references with `SNAPSHOT_TIMING=1`: 192 captures sit at 0.25-0.35s, the
-  `minDuration` floor plus a pass or two, and the floor accounts for ~70s of
-  the ~84s of settle time. The render passes themselves are ~14s across the
-  whole suite. So making passes cheaper is worth ~11% and removing floors is
-  worth ~54% — but a floor can only come off with a **deterministic completion
-  seam** for that case (as `root.LoggedIn` does by awaiting `launcher.run()`
-  from `onReadyToSnapshot`), never by introspection.
+- **A settle phase costs its floor, not its passes.** Measured 2026-07-28 over
+  the 260 references of the time with `SNAPSHOT_TIMING=1`: 192 captures sit at
+  0.25-0.35s, the `minDuration` floor plus a pass or two, and the floor accounts
+  for ~70s of the ~84s of settle time. The render passes themselves are ~14s
+  across the whole suite. So making passes cheaper is worth ~11% and removing
+  floors is worth ~54% — but a floor can only come off with a **deterministic
+  completion seam** for that case (as `root.LoggedIn` does by awaiting
+  `launcher.run()` from `onReadyToSnapshot`), never by introspection. Tripwire:
+  the suite is 273 references now (Flyover and Inspector added their own
+  bundles), so re-measure before quoting the percentages — the ranking of floors
+  over passes is what's durable.
 
 ## Three things measured and rejected — don't re-derive them
 
@@ -139,8 +142,8 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
 - **Quiescence can't replace the pixel digest.** `SNAPSHOT_SETTLE` selects
   `pixel` (default), `quiescence` (a `beforeWaiting` run-loop observer plus a
   recursive `needsLayout`/`needsDisplay`/`animationKeys` walk), or `both`, which
-  runs them together and reports disagreements. Run in `both` mode over all 260
-  references: 226 settle phases, 134 with some disagreement, and **8 where
+  runs them together and reports disagreements. Run in `both` mode over the 260
+  references of 2026-07-28: 226 settle phases, 134 with some disagreement, and **8 where
   quiescence declared settled *earlier* than the digest** — every one a
   `Loaded_*` case whose content arrives late. That is the one dangerous
   direction (it would capture a frame no reference recorded), and it is what
