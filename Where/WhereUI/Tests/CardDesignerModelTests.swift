@@ -31,6 +31,21 @@
             #expect(model.persistenceError != nil)
         }
 
+        @Test func resetAllReplacesCorruptPersistenceWithDefaults() throws {
+            let (store, suite) = try isolatedStore()
+            defer { store.removePersistentDomain(forName: suite) }
+            let key = "card-designer"
+            store.set(Data("not json".utf8), forKey: key)
+            let model = CardDesignerModel(store: store, key: key)
+
+            model.resetAll()
+            let reloaded = CardDesignerModel(store: store, key: key)
+
+            #expect(model.persistenceError == nil)
+            #expect(reloaded.configuration == .standard)
+            #expect(reloaded.persistenceError == nil)
+        }
+
         @Test func resetVariantLeavesTheOtherVariantUntouched() throws {
             let (store, suite) = try isolatedStore()
             defer { store.removePersistentDomain(forName: suite) }

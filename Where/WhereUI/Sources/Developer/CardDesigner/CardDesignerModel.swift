@@ -60,6 +60,13 @@
         }
 
         func resetAll() {
+            guard configuration != .standard else {
+                // A failed load already falls back to `.standard`, so assigning
+                // it again would skip the `didSet` persistence path and leave
+                // the corrupt or unsupported draft in storage.
+                persist()
+                return
+            }
             configuration = .standard
         }
 
