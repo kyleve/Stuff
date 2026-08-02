@@ -1,25 +1,23 @@
 import SwiftUI
 
-/// A holographic "foil" sheen overlay — a translucent rainbow wash plus a
-/// bright specular glint — that slides with the device's tilt, the way light
-/// catches the hologram on a passport page or a foil trading card. Composited
-/// over whatever it modifies (typically a Liquid Glass card), clipped to the
-/// card's shape, and non-interactive.
+/// A color-neutral sheen overlay — a grayscale luminance wash plus a soft
+/// specular glint — that slides with the device's tilt, the way light catches a
+/// coated card. Soft-light compositing preserves the card's underlying region
+/// hue, then the result is clipped to the card's shape and made non-interactive.
 ///
 /// Driven by normalized `roll`/`pitch` (see `TiltProvider`). A caller also
 /// supplies the deterministic pose used when motion must stay static, so Reduce
 /// Motion and snapshot capture never depend on a live sensor reading.
-struct HolographicSheen<ClipShape: Shape>: ViewModifier {
+struct TiltSheen<ClipShape: Shape>: ViewModifier {
     var roll: Double
     var pitch: Double
     var staticRoll: Double
     var staticPitch: Double
     var isStatic: Bool
     var shape: ClipShape
-    var tint: Color = .white
-    /// Rainbow-foil and live-glint strength, `0...1`.
+    /// Grayscale-wash and live-glint strength, `0...1`.
     var intensity: Double = 1
-    /// Additive white-glint strength when `usesStaticPose`, `0...1`.
+    /// White-glint strength when `usesStaticPose`, `0...1`.
     var staticGlintIntensity: Double = 1
 
     @MotionIsStatic private var motionIsStatic
@@ -60,55 +58,58 @@ struct HolographicSheen<ClipShape: Shape>: ViewModifier {
             )
 
             ZStack {
-                // Rainbow foil that slides laterally as the device rolls.
+                // A color-neutral luminance wash that slides as the device
+                // rolls, preserving the region tint beneath it.
                 LinearGradient(
-                    colors: Self.foilHues,
+                    colors: Self.luminanceStops,
                     startPoint: UnitPoint(x: activeRoll * 0.3, y: 0),
                     endPoint: UnitPoint(x: 1 + activeRoll * 0.3, y: 1),
                 )
                 .opacity(0.28 * intensity)
-                .blendMode(.plusLighter)
+                .blendMode(.softLight)
 
                 // Specular glint that tracks the tilt like a moving light.
                 RadialGradient(
-                    colors: [tint.opacity(0.85 * glintIntensity), tint.opacity(0)],
+                    colors: [
+                        Color.white.opacity(0.85 * glintIntensity),
+                        Color.white.opacity(0),
+                    ],
                     center: glint,
                     startRadius: 0,
                     endRadius: diagonal * 0.75,
                 )
-                .blendMode(.plusLighter)
+                .blendMode(.softLight)
             }
         }
     }
 
-    /// Translucent rainbow used for the foil wash.
-    private static var foilHues: [Color] {
-        [.pink, .purple, .blue, .cyan, .green, .yellow, .orange]
+    /// Alternating grayscale tones create changing light without introducing a
+    /// second hue into the region's palette.
+    private static var luminanceStops: [Color] {
+        [.white, .gray, .black, .gray, .white]
     }
 }
 
 extension View {
-    /// Overlay a tilt-reactive holographic sheen clipped to `shape`. Pass the
-    /// same shape used for the card's `glassEffect` so the sheen lines up.
-    func holographicSheen(
+    /// Overlay a tilt-reactive grayscale sheen clipped to `shape`. Pass the same
+    /// shape used for the card's `glassEffect` so the sheen lines up.
+    func tiltSheen(
         roll: Double,
         pitch: Double,
         staticRoll: Double,
         staticPitch: Double,
         isStatic: Bool,
         in shape: some Shape,
-        tint: Color = .white,
         intensity: Double = 1,
         staticGlintIntensity: Double = 1,
     ) -> some View {
-        modifier(HolographicSheen(
+        modifier(TiltSheen(
             roll: roll,
             pitch: pitch,
             staticRoll: staticRoll,
             staticPitch: staticPitch,
             isStatic: isStatic,
             shape: shape,
-            tint: tint,
             intensity: intensity,
             staticGlintIntensity: staticGlintIntensity,
         ))
@@ -128,7 +129,7 @@ extension Double {
         RoundedRectangle(cornerRadius: 28, style: .continuous)
             .fill(.indigo.gradient)
             .frame(width: 320, height: 180)
-            .holographicSheen(
+            .tiltSheen(
                 roll: 0.4,
                 pitch: -0.2,
                 staticRoll: 0.4,

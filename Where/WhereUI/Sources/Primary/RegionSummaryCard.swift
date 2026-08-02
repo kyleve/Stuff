@@ -32,8 +32,8 @@ struct RegionSummaryCard: View {
     /// pass `WhereSession.selectedYear`; the default is only for previews.
     var year = WhereModel.currentYear
 
-    /// Drives the holographic stamp sheen. Locations and the region editor pass
-    /// a live `TiltProvider`; callers without one use the card's static pose.
+    /// Drives the card's light sheen. Locations and the region editor pass a
+    /// live `TiltProvider`; callers without one use the card's static pose.
     var tilt: TiltProvider?
 
     /// An explicit style to render instead of resolving the region's look from
@@ -264,14 +264,13 @@ struct RegionSummaryCard: View {
                 .interactive(interactive),
             in: cardShape,
         )
-        .holographicSheen(
+        .tiltSheen(
             roll: sheenPose.roll,
             pitch: sheenPose.pitch,
             staticRoll: card.sheen.staticPose.roll,
             staticPitch: card.sheen.staticPose.pitch,
             isStatic: isSheenStatic,
             in: cardShape,
-            tint: .white,
             intensity: card.sheen.intensity,
             staticGlintIntensity: card.sheen.staticGlintIntensity,
         )

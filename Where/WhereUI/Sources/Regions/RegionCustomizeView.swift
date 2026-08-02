@@ -12,8 +12,8 @@ struct RegionAppearanceEditor: View {
     @Bindable var model: PrimaryRegionSelectionModel
     let region: Region
 
-    /// Matches the Locations card's live holographic response while this editor
-    /// is visible; the card uses its static pose until the first sample arrives.
+    /// Matches the Locations card's live sheen response while this editor is
+    /// visible; the card uses its static pose until the first sample arrives.
     @State private var tilt = TiltProvider()
 
     @Environment(\.stylesheet) private var stylesheet
@@ -271,6 +271,18 @@ struct RegionCustomizeView: View {
                     RegionCustomizeView(model: PreviewSupport.primaryRegionSelectionModel())
                 }
             }
+
+            whereSnapshot(name: "NeutralEditor", configurations: .phoneLightDark) {
+                NavigationStack {
+                    RegionCustomizeView(model: neutralPreviewModel())
+                }
+            }
+        }
+
+        private static func neutralPreviewModel() -> PrimaryRegionSelectionModel {
+            let model = PreviewSupport.primaryRegionSelectionModel()
+            model.setColor(.slate, for: .california)
+            return model
         }
     }
 

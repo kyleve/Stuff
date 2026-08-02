@@ -2,8 +2,8 @@ import CoreMotion
 import Observation
 
 /// Publishes the device's tilt as a normalized `roll`/`pitch` pair so the
-/// passport's holographic sheen can react to how the phone is held — the same
-/// trick a foil trading card or a real passport's hologram uses.
+/// card's light sheen can react to how the phone is held, like a coated card
+/// shifting beneath a light source.
 ///
 /// Backed by `CMMotionManager`'s device-motion gravity vector, whose `x`/`y`
 /// components already land in roughly `-1...1`. Device motion needs no

@@ -281,9 +281,9 @@ extension WhereStylesheet {
 
         struct Sheen: Equatable {
             var intensity: Double
-            /// Strength of only the additive white glint while the pose is
-            /// static; the rainbow foil keeps `intensity` so the card retains
-            /// its color instead of fading toward white.
+            /// Strength of only the white glint while the pose is
+            /// static; the grayscale wash keeps `intensity` so the card retains
+            /// dimensional light without fading toward white.
             var staticGlintIntensity: Double
             var staticPose: Pose
 
