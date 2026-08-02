@@ -65,6 +65,13 @@ same simulator. `./simulator --list` shows them with their owning checkouts and
 `./simulator --prune` (`--dry-run` to preview) cleans up after a checkout you
 deleted; see `./simulator --help`.
 
+Codex-managed worktrees use the checked-in local environment at
+`.codex/environments/environment.toml`. On macOS it runs
+`./ide --bootstrap --no-open`, offers project generation, affected tests, and
+format lint as toolbar actions, and removes only that checkout's simulator on
+cleanup. `.worktreeinclude` copies the gitignored `.mise.local.toml` signing
+override from the source checkout into each new managed worktree.
+
 Where's production architecture is checked with Bumper Bowling through the
 root Swift package:
 
@@ -126,6 +133,8 @@ Tuist.swift         Tuist configuration
 .mise.toml          Pins the Tuist, SwiftFormat, and Ruby versions
 .mise.local.toml    Local mise overrides, gitignored (e.g. TUIST_DEVELOPMENT_TEAM)
 .swiftformat        SwiftFormat rules
+.codex/             Codex managed-worktree setup, cleanup, and actions
+.worktreeinclude    Ignored local files copied into Codex-managed worktrees
 ide                 Dev script – bootstrap (mise + tools), hooks, sync-agents, tuist generate
 swiftformat         Run SwiftFormat via mise (default: format `.`)
 sync-agents         Sync AGENTS.md → CLAUDE.md and .claude/skills/

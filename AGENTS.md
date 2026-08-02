@@ -553,6 +553,24 @@ Load the [`github-workflow`](../.agents/skills/github-workflow/SKILL.md) skill
 for PRs, pushes, review feedback, CI, and posting as the user. Always-on: use
 `gh`; open PRs ready-for-review; mark AI-posted comments.
 
+## Codex worktree specific instructions
+
+[`.codex/environments/environment.toml`](.codex/environments/environment.toml)
+owns setup, cleanup, and toolbar actions for Codex-managed worktrees. Keep it
+idempotent and regenerate it through the ChatGPT desktop app's local environment
+editor when changing its schema.
+
+- macOS setup runs `./ide --bootstrap --no-open`; bootstrap trusts the new
+  checkout's `.mise.toml`, installs pinned tools, syncs agent files, and
+  generates without opening Xcode.
+- Linux setup delegates to [`.cursor/install.sh`](.cursor/install.sh), with the
+  same platform limits documented below.
+- [`.worktreeinclude`](.worktreeinclude) copies only ignored machine-local files
+  required by a new managed worktree. `AGENTS.override.md` is copied by Codex
+  automatically and must not be listed there.
+- Cleanup uses `./simulator --delete`, which deletes only that checkout's
+  device and is safe when no device was created.
+
 ## Cursor Cloud specific instructions
 
 Cloud agent VMs run **Linux**, not macOS. This repo targets **iOS 26** with

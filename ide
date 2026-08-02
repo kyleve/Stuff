@@ -141,6 +141,12 @@ EOF
         exit 1
     fi
 
+    # Every clone and worktree has a distinct config path, and mise refuses to
+    # read an untrusted .mise.toml. Running this explicit bootstrap is the trust
+    # boundary, so make fresh checkouts usable without a separate manual step.
+    echo "==> mise trust"
+    "$MISE" trust
+
     # Install the pinned tools (Tuist, SwiftFormat, Ruby) from .mise.toml.
     echo "==> mise install"
     "$MISE" install
