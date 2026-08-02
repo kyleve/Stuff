@@ -8,6 +8,21 @@ import Testing
 /// covered by `StoreChangeBroadcasterTests`; here we assert the *store* fires it
 /// on a committed `perform` and stays silent on a rolled-back one.
 struct SwiftDataStoreTests {
+    @Test func inspectorStoreURLUsesTheResolvedAppGroupRoot() {
+        let groupURL = FileManager.default.temporaryDirectory.appending(
+            path: "where-group-\(UUID().uuidString)",
+            directoryHint: .isDirectory,
+        )
+
+        #expect(
+            SwiftDataStore.inspectorStoreURL(groupContainerURL: groupURL)
+                == groupURL.appending(
+                    path: "Library/Application Support/default.store",
+                    directoryHint: .notDirectory,
+                ),
+        )
+    }
+
     private static let calendar = WhereCoreTestSupport.calendar()
 
     private let day = DayPresence(

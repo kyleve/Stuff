@@ -1,7 +1,7 @@
 #if DEBUG
+    import Inspector
     import PeriscopeTools
     import SwiftUI
-    import WhereCore
 
     /// The lightweight Path-style developer menu layered over the app.
     ///
@@ -14,18 +14,17 @@
         let maxHeight: CGFloat
         let onOpenDestination: (DeveloperDestination) -> Void
 
-        @Environment(WhereModel.self) private var model: WhereModel?
-        @Environment(WhereSession.self) private var session: WhereSession?
+        @Environment(InspectorModeController.self) private var modeController:
+            InspectorModeController?
         @Environment(\.periscopeInspector) private var inspector
         @Environment(\.stylesheet) private var stylesheet
 
         var body: some View {
             let menu = stylesheet.developerOverlay.menu
-            let destinations = DeveloperDestination.available(
-                hasLogStore: model?.logStore != nil,
-                hasInspector: session?.swiftDataInspectorConfiguration != nil,
-            )
-            let itemCount = destinations.count + (inspector == nil ? 0 : 1)
+            let destinations = DeveloperDestination.available
+            let inspectorModeRowCount = modeController == nil ? 0 : 1
+            let logModeRowCount = inspector == nil ? 0 : 1
+            let itemCount = destinations.count + inspectorModeRowCount + logModeRowCount
             let origin: Edge = corner.isTop ? .top : .bottom
 
             ScrollView {
@@ -48,12 +47,23 @@
                         }
                     }
 
+                    if let modeController, isPresented {
+                        DeveloperInspectorModeRow(controller: modeController)
+                            .transition(
+                                menu.motion.transition(
+                                    from: origin,
+                                    index: destinations.count,
+                                    itemCount: itemCount,
+                                ),
+                            )
+                    }
+
                     if let inspector, isPresented {
                         DeveloperLogViewModeRow(inspector: inspector)
                             .transition(
                                 menu.motion.transition(
                                     from: origin,
-                                    index: destinations.count,
+                                    index: destinations.count + inspectorModeRowCount,
                                     itemCount: itemCount,
                                 ),
                             )

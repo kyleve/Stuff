@@ -16,8 +16,8 @@ let package = Package(
         .library(name: "PeriscopeCore", targets: ["PeriscopeCore"]),
         .library(name: "PeriscopeUI", targets: ["PeriscopeUI"]),
         .library(name: "PeriscopeTools", targets: ["PeriscopeTools"]),
+        .library(name: "Inspector", targets: ["Inspector"]),
         .library(name: "Flyover", targets: ["Flyover"]),
-        .library(name: "SwiftDataInspector", targets: ["SwiftDataInspector"]),
         .library(name: "SnapshotKit", targets: ["SnapshotKit"]),
         .library(name: "SnapshotKitTesting", targets: ["SnapshotKitTesting"]),
         .library(name: "TestHostSupport", targets: ["TestHostSupport"]),
@@ -92,6 +92,10 @@ let package = Package(
             path: "Shared/Periscope/PeriscopeTools/Sources",
         ),
         .target(
+            name: "Inspector",
+            path: "Shared/Inspector/Sources",
+        ),
+        .target(
             name: "Flyover",
             dependencies: [
                 .target(name: "BroadwayCore"),
@@ -99,10 +103,6 @@ let package = Package(
                 .target(name: "SnapshotKit"),
             ],
             path: "Shared/Flyover/Sources",
-        ),
-        .target(
-            name: "SwiftDataInspector",
-            path: "Shared/SwiftDataInspector/Sources",
         ),
         .target(
             name: "SnapshotKit",
@@ -164,7 +164,7 @@ let package = Package(
                 .target(name: "PeriscopeUI"),
                 .target(name: "RegionKit"),
                 .target(name: "SnapshotKit"),
-                .target(name: "SwiftDataInspector"),
+                .target(name: "Inspector"),
             ],
             path: "Where/WhereUI/Sources",
             resources: [

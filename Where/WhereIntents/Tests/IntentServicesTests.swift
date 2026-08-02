@@ -21,8 +21,7 @@ struct IntentServicesTests {
 
         let resolved = try await handoff.current()
 
-        #expect(resolved.modelContainer != nil)
-        #expect(resolved.modelContainer === stack.modelContainer)
+        #expect(resolved.journal === stack.journal)
     }
 
     @Test func currentParksUntilAStackIsInstalled() async throws {
@@ -36,8 +35,7 @@ struct IntentServicesTests {
         await handoff.install(stack)
 
         let resolved = try await parked.value
-        #expect(resolved.modelContainer != nil)
-        #expect(resolved.modelContainer === stack.modelContainer)
+        #expect(resolved.journal === stack.journal)
         #expect(await handoff.waiterCount == 0)
     }
 
@@ -62,7 +60,7 @@ struct IntentServicesTests {
         await handoff.install(second)
 
         let resolved = try await handoff.current()
-        #expect(resolved.modelContainer === second.modelContainer)
-        #expect(resolved.modelContainer !== first.modelContainer)
+        #expect(resolved.journal === second.journal)
+        #expect(resolved.journal !== first.journal)
     }
 }

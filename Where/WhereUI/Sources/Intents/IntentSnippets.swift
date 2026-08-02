@@ -187,7 +187,7 @@ extension RegionsSnippetView {
         DaysInRegionSnippetCard(
             snapshot: DaysInRegionSnapshot(region: .california, year: 2026, dayCount: 132),
         ) {
-            Button("Log today here") {}
+            Button(String(localized: .snippetLogTodayHere)) {}
                 .buttonStyle(.borderedProminent)
                 .tint(RegionStyle.fallbackStyle(for: .california).tint)
                 .frame(maxWidth: .infinity)

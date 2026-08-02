@@ -28,8 +28,10 @@ internal shape.
 - **`WhereStore` is a value-type boundary.** Everything crossing it is a
   value, never a SwiftData record; every mutation runs inside
   `perform { … }` (the production store traps otherwise), and each committed
-  transaction pings `changes()`. The live `ModelContainer` is surfaced only
-  for the read-only debug inspector.
+  transaction pings `changes()`. Never expose its `ModelContainer` through
+  `WhereServices`; the separate DEBUG Inspector runtime uses
+  `SwiftDataStore.makeContainer`, `inspectorModelTypes`, and
+  `inspectorStoreURL` as its schema/storage adapter.
 - **Annual audits are one captured policy snapshot.** Read through
   `WhereStore.auditRecords(in:manualDays:)`, then attribute every row and total
   against that value's tracked-region set; never compose an export from
