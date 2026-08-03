@@ -678,10 +678,10 @@ extension WhereStylesheet {
                     staticPose: .init(roll: 0, pitch: -1),
                 ),
                 rosette: CardStyle.Rosette(
-                    wobble: 3,
-                    lineWidth: 2,
-                    primaryRingSpacing: 18,
-                    secondaryRingSpacing: 15,
+                    wobble: 2,
+                    lineWidth: 1,
+                    primaryRingSpacing: 13.5,
+                    secondaryRingSpacing: 9.5,
                 ),
                 glow: CardStyle.Shadow(opacity: 0.75, radius: 12),
                 lift: CardStyle.Shadow(opacity: 0.6, radius: 34, offsetY: 18),
@@ -719,7 +719,7 @@ extension WhereStylesheet {
                 ),
                 rosette: CardStyle.Rosette(
                     wobble: 2,
-                    lineWidth: 2,
+                    lineWidth: 1,
                     primaryRingSpacing: 13,
                     secondaryRingSpacing: 11,
                 ),

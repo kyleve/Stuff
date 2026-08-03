@@ -83,10 +83,10 @@ struct WhereStylesheetTests {
             staticPose: .init(roll: 0, pitch: -1),
         ))
         #expect(card.rosette == .init(
-            wobble: 3,
-            lineWidth: 2,
-            primaryRingSpacing: 18,
-            secondaryRingSpacing: 15,
+            wobble: 2,
+            lineWidth: 1,
+            primaryRingSpacing: 13.5,
+            secondaryRingSpacing: 9.5,
         ))
         #expect(card.glow == .init(opacity: 0.75, radius: 12))
         #expect(card.lift == .init(opacity: 0.6, radius: 34, offsetY: 18))
@@ -125,7 +125,7 @@ struct WhereStylesheetTests {
         ))
         #expect(card.rosette == .init(
             wobble: 2,
-            lineWidth: 2,
+            lineWidth: 1,
             primaryRingSpacing: 13,
             secondaryRingSpacing: 11,
         ))
