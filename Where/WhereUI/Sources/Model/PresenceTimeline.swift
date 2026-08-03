@@ -2,6 +2,14 @@ import Foundation
 import RegionKit
 import WhereCore
 
+private enum CalendarDefaults {
+    static let gregorian: Calendar = {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .current
+        return calendar
+    }()
+}
+
 /// A maximal run of consecutive calendar days the user was present in one
 /// region — e.g. "California, Jan 1 – Feb 3". A transition day that belongs to
 /// two regions ends one stint and starts the next, so adjacent stints can
@@ -34,7 +42,7 @@ public enum PresenceTimeline {
     /// has one entry per calendar day, so each region's dates are unique.
     public static func stints(
         from report: YearReport,
-        calendar: Calendar = .current,
+        calendar: Calendar = CalendarDefaults.gregorian,
     ) -> [RegionStint] {
         var datesByRegion: [Region: [Date]] = [:]
         for day in report.days {
