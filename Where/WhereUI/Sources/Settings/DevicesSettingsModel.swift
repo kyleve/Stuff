@@ -10,6 +10,9 @@ protocol DevicesSettingsSession: AnyObject {
 
     func recordingDeviceUpdates() -> AsyncStream<Void>
     func recordingDevices() async throws -> [RecordingDeviceConfiguration]
+    func recordingAuthoritySnapshot() async throws -> RecordingAuthoritySnapshot
+    func assignAutomaticRecording(to deviceID: RecordingDeviceID) async throws
+    func turnOffAutomaticRecording() async throws
     func setRecordingEnabled(_ enabled: Bool, for deviceID: RecordingDeviceID) async throws
     func renameRecordingDevice(_ deviceID: RecordingDeviceID, to nickname: String) async throws
     func archiveRecordingDevice(_ deviceID: RecordingDeviceID) async throws
@@ -19,6 +22,31 @@ protocol DevicesSettingsSession: AnyObject {
 extension WhereSession: DevicesSettingsSession {
     func recordingDeviceUpdates() -> AsyncStream<Void> {
         services.dataChangeUpdates()
+    }
+}
+
+extension DevicesSettingsSession {
+    func recordingAuthoritySnapshot() async throws -> RecordingAuthoritySnapshot {
+        let configurations = try await recordingDevices()
+        let enabled = configurations.filter { $0.isEnabled == true }.map(\.id)
+        let resolution: RecordingAssignmentResolution = switch enabled.count {
+            case 0: .resolved(.off)
+            case 1: .resolved(.device(enabled[0]))
+            default: .conflict(Set(enabled))
+        }
+        return RecordingAuthoritySnapshot(
+            resolution: resolution,
+            devices: configurations.map(\.device),
+            archivedDeviceIDs: [],
+        )
+    }
+
+    func assignAutomaticRecording(to deviceID: RecordingDeviceID) async throws {
+        try await setRecordingEnabled(true, for: deviceID)
+    }
+
+    func turnOffAutomaticRecording() async throws {
+        try await setRecordingEnabled(false, for: currentRecordingDeviceID)
     }
 }
 
@@ -64,6 +92,8 @@ final class DevicesSettingsModel {
     private let session: any DevicesSettingsSession
     private(set) var state: LoadState = .idle
     private(set) var rows: [DeviceSettingsRowModel] = []
+    private(set) var authorityResolution: RecordingAssignmentResolution = .unconfigured
+    var selectedRecordingDeviceID: RecordingDeviceID?
     private(set) var presentedFailure: Failure?
     @ObservationIgnored private var refreshTask: Task<Void, Never>?
     @ObservationIgnored private var requestedRefreshGeneration: UInt64 = 0
@@ -96,6 +126,9 @@ final class DevicesSettingsModel {
         ) {
             self.session = session
             apply(configurations)
+            let authority = Self.compatibilityAuthority(from: configurations)
+            authorityResolution = authority.resolution
+            selectedRecordingDeviceID = authority.resolution.assignment?.deviceID
             state = configurations.isEmpty ? .empty : .loaded
         }
     #endif
@@ -140,6 +173,20 @@ final class DevicesSettingsModel {
     func requestPermission() async {
         await session.requestPermission()
         await load(showLoading: false)
+    }
+
+    func recordingAssignmentChanged() async {
+        do {
+            if let selectedRecordingDeviceID {
+                try await session.assignAutomaticRecording(to: selectedRecordingDeviceID)
+            } else {
+                try await session.turnOffAutomaticRecording()
+            }
+            await load(showLoading: false)
+        } catch {
+            surfaceLoadRefreshFailure(error)
+            await load(showLoading: false)
+        }
     }
 
     private func load(showLoading: Bool) async {
@@ -234,10 +281,17 @@ final class DevicesSettingsModel {
             let generation = requestedRefreshGeneration
             do {
                 let configurations = try await session.recordingDevices()
+                let authority = if let liveSession = session as? WhereSession {
+                    try await liveSession.recordingAuthoritySnapshot()
+                } else {
+                    Self.compatibilityAuthority(from: configurations)
+                }
                 completedRefreshGeneration = generation
                 guard generation == requestedRefreshGeneration else { continue }
                 lastRefreshFailure = nil
                 apply(configurations)
+                authorityResolution = authority.resolution
+                selectedRecordingDeviceID = authority.resolution.assignment?.deviceID
             } catch {
                 completedRefreshGeneration = generation
                 guard generation == requestedRefreshGeneration else { continue }
@@ -245,6 +299,22 @@ final class DevicesSettingsModel {
             }
         }
         refreshTask = nil
+    }
+
+    private static func compatibilityAuthority(
+        from configurations: [RecordingDeviceConfiguration],
+    ) -> RecordingAuthoritySnapshot {
+        let enabled = configurations.filter { $0.isEnabled == true }.map(\.id)
+        let resolution: RecordingAssignmentResolution = switch enabled.count {
+            case 0: .resolved(.off)
+            case 1: .resolved(.device(enabled[0]))
+            default: .conflict(Set(enabled))
+        }
+        return RecordingAuthoritySnapshot(
+            resolution: resolution,
+            devices: configurations.map(\.device),
+            archivedDeviceIDs: [],
+        )
     }
 
     private func apply(_ configurations: [RecordingDeviceConfiguration]) {

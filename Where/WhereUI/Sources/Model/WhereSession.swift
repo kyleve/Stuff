@@ -448,6 +448,29 @@ public final class WhereSession {
         try await services.recording.devices()
     }
 
+    public func recordingAuthoritySnapshot() async throws -> RecordingAuthoritySnapshot {
+        try await services.recording.authoritySnapshot()
+    }
+
+    public func assignAutomaticRecording(to deviceID: RecordingDeviceID) async throws {
+        _ = try await services.recording.assignAutomaticRecording(to: deviceID)
+        if deviceID == currentRecordingDeviceID {
+            do {
+                try await services.ingestor.requestPermission()
+            } catch {
+                permissionDenied = true
+            }
+            await syncAuthorization()
+            _ = try await services.recording.reconcile(authorization: authorizationStatus)
+        }
+        await synchronizeRecordingRuntimeState()
+    }
+
+    public func turnOffAutomaticRecording() async throws {
+        _ = try await services.recording.turnOffAutomaticRecording()
+        await synchronizeRecordingRuntimeState()
+    }
+
     /// Set automatic recording for any installation. The current device also
     /// runs the permission flow and updates the session's live tracking mirror.
     public func setRecordingEnabled(

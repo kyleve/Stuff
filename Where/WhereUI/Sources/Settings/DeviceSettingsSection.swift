@@ -1,8 +1,7 @@
 import SwiftUI
 import WhereCore
 
-/// Form section for one device. It binds directly to the row model and sends
-/// async effects through the owning Devices model.
+/// Form section for one installation's identity, activity, permission, and archive controls.
 struct DeviceSettingsSection: View {
     let model: DevicesSettingsModel
     @Bindable var row: DeviceSettingsRowModel
@@ -14,33 +13,6 @@ struct DeviceSettingsSection: View {
 
     var body: some View {
         Section {
-            if row.hasResolvedRecordingPolicy {
-                Toggle(
-                    String(localized: .settingsDevicesAutomaticRecording),
-                    isOn: $row.isEnabled,
-                )
-                .settingsRow(
-                    DevicesSettingsView.Item.automaticRecording,
-                    when: row.isCurrent,
-                )
-                .disabled(row.disablesRecordingControl)
-                .onChange(of: row.isEnabled) { oldValue, newValue in
-                    guard oldValue != newValue else { return }
-                    Task {
-                        await model.recordingPreferenceChanged(for: row)
-                    }
-                }
-            } else {
-                LabeledContent(String(localized: .settingsDevicesAutomaticRecording)) {
-                    ProgressView()
-                        .accessibilityLabel(String(localized: .settingsDevicesStatusSyncing))
-                }
-                .settingsRow(
-                    DevicesSettingsView.Item.automaticRecording,
-                    when: row.isCurrent,
-                )
-            }
-
             HStack {
                 TextField(String(localized: .settingsDevicesName), text: $row.nickname)
                     .submitLabel(.done)

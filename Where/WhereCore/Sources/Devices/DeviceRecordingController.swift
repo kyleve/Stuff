@@ -383,10 +383,13 @@ public actor DeviceRecordingController {
         if deviceID == currentDevice.id, !enabled {
             await ingestor.revokeRecordingAuthorization()
         }
+        if let assignmentChange, assignmentChange.assignedDeviceID != currentDevice.id {
+            await ingestor.revokeRecordingAuthorization()
+        }
         // The cutoff is already durable even if physical acknowledgement below fails.
         await onPolicyChanged()
 
-        if deviceID == currentDevice.id {
+        if deviceID == currentDevice.id || assignmentChange != nil {
             try await reconcileCurrentAfterCommandLocked()
         }
         return try await configurationsLocked(includeArchived: false)

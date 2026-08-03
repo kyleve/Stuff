@@ -2,8 +2,8 @@ import SnapshotKit
 import SwiftUI
 import WhereCore
 
-/// Synced device-management screen. Each installation has its own automatic
-/// recording intent, editable nickname, acknowledgement state, and last check-in.
+/// Synced device-management screen. One authority card assigns automatic recording account-wide;
+/// installation rows retain editable identity, acknowledgement, permission, and activity state.
 struct DevicesSettingsView: View {
     var focus: SettingsFocus?
 
@@ -74,6 +74,7 @@ struct DevicesSettingsView: View {
                             }
                         }
                     case .loaded:
+                        RecordingAuthoritySection(model: model)
                         ForEach(model.rows) { row in
                             DeviceSettingsSection(model: model, row: row)
                         }
