@@ -148,7 +148,7 @@ public actor DeviceRecordingController {
     /// causal follow-up command, instead of silently snapping the UI back to the earlier choice.
     @discardableResult
     public func registerForOnboarding(
-        desiredEnabled: Bool,
+        desiredEnabled: Bool?,
         authorization: LocationAuthorizationStatus,
     ) async throws -> RecordingDeviceConfiguration {
         await beginExclusive()
@@ -171,17 +171,19 @@ public actor DeviceRecordingController {
                 throw RecordingPersistenceError.currentDevicePolicyUnknown(currentDevice.id)
             }
             let commandDate = now()
-            let desiredState: RecordingPolicyState = desiredEnabled ? .on : .off
-            let desiredAssignment: RecordingAssignment = desiredEnabled
-                ? .device(currentDevice.id) : .off
-            let assignmentChange: RecordingAssignmentChange? = if RecordingAssignmentChange
-                .resolve(snapshot.assignmentChanges).assignment == desiredAssignment
+            let desiredState: RecordingPolicyState = desiredEnabled == true ? .on : .off
+            let desiredAssignment: RecordingAssignment? = desiredEnabled.map {
+                $0 ? .device(currentDevice.id) : .off
+            }
+            let assignmentChange: RecordingAssignmentChange? = if desiredAssignment == nil
+                || RecordingAssignmentChange.resolve(snapshot.assignmentChanges).assignment
+                == desiredAssignment
             {
                 nil
             } else {
                 try RecordingAssignmentChange.appendingCommand(
                     to: snapshot.assignmentChanges,
-                    assignment: desiredAssignment,
+                    assignment: desiredAssignment!,
                     issuedAt: commandDate,
                     issuedByDeviceID: currentDevice.id,
                     effectiveAt: max(commandDate, snapshot.epoch.changedAt),
@@ -716,7 +718,9 @@ public actor DeviceRecordingController {
             throw RecordingPersistenceError.currentDevicePolicyUnknown(currentDevice.id)
         }
         let latest: RecordingPolicyChange
-        if snapshot.assignmentChanges.count <= 1 {
+        let usesGlobalAssignment = snapshot.assignmentChanges.count > 1
+            || snapshot.assignmentChanges.first?.id != initialRecordingChoice.policyChangeID
+        if usesGlobalAssignment == false {
             latest = legacyPolicy
         } else {
             let resolution = RecordingAssignmentChange.resolve(snapshot.assignmentChanges)
@@ -878,7 +882,8 @@ public actor DeviceRecordingController {
             let archivedIDs = Set(resolvedArchives.map(\.deviceID))
             return resolvedDevices
                 .map { device in
-                    if resolvedAssignments.count > 1,
+                    if device.id == currentDevice.id,
+                       resolvedAssignments.count > 1,
                        let assignment,
                        let assignmentFrontierID,
                        let assignmentHeads

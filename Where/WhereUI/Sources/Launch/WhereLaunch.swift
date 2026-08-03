@@ -216,11 +216,21 @@ public protocol WhereScopeAssembling {
     /// **one** store open.
     func makeServices() async throws -> WhereServices
 
+    /// Open and retain the real store while onboarding remains dormant, then read the synced
+    /// recording assignment without constructing services or activating location/App Intents.
+    func discoverRecordingAssignment() async throws -> RecordingAssignmentResolution
+
     /// Open the durable log store the scope's records persist to, or `nil` for
     /// an assembly with no durable logging — previews and tests, which log
     /// through the in-memory pipeline and must leave no sink attached to the
     /// process-wide one.
     func makeLogStore() async throws -> PeriscopeStore?
+}
+
+extension WhereScopeAssembling {
+    public func discoverRecordingAssignment() async throws -> RecordingAssignmentResolution {
+        .unconfigured
+    }
 }
 
 /// Owns the assembly of the user's real world, so `WhereScope` and
@@ -241,6 +251,7 @@ public final class WhereBootstrap: WhereScopeAssembling {
     private let storeStorage: SwiftDataStore.Storage
     private let locationOutbox: any LocationOutbox
     private var locationSource: CoreLocationSource?
+    private var preparedStore: SwiftDataStore?
 
     public init(
         installationContextStore: any InstallationRecordingContextStoring,
@@ -284,10 +295,7 @@ public final class WhereBootstrap: WhereScopeAssembling {
                 installationContext.initialRecordingChoice != nil,
                 "A real scope cannot open before this installation confirms recording.",
             )
-            let storeStorage = storeStorage
-            let store = try await Task.detached(priority: .userInitiated) {
-                try SwiftDataStore.make(storage: storeStorage)
-            }.value
+            let store = try await prepareStore()
             let services = try await WhereServices.make(
                 store: store,
                 locationSource: source,
@@ -312,6 +320,21 @@ public final class WhereBootstrap: WhereScopeAssembling {
             }
             throw error
         }
+    }
+
+    public func discoverRecordingAssignment() async throws -> RecordingAssignmentResolution {
+        let store = try await prepareStore()
+        return try await RecordingAssignmentChange.resolve(store.recordingAssignmentChanges())
+    }
+
+    private func prepareStore() async throws -> SwiftDataStore {
+        if let preparedStore { return preparedStore }
+        let storeStorage = storeStorage
+        let store = try await Task.detached(priority: .userInitiated) {
+            try SwiftDataStore.make(storage: storeStorage)
+        }.value
+        preparedStore = store
+        return store
     }
 
     /// Open the app's durable log store: `Periscope.store` on disk, plus this

@@ -47,6 +47,8 @@ public struct OnboardingView: View {
     @State private var page = 0
     @State private var selection = PrimaryRegionSelectionModel()
     @State private var recordingEnabled: Bool
+    @State private var preserveExistingAssignment = false
+    @State private var assignmentDiscovery: AssignmentDiscovery = .idle
     @State private var isFinishing = false
     @State private var restoreSelection = OnboardingRestoreSelection()
 
@@ -69,6 +71,13 @@ public struct OnboardingView: View {
     private static let demoBuildDisplayTime = Duration.seconds(2)
 
     private static let logger = WhereLog.session(OnboardingViewLog.self)
+
+    private enum AssignmentDiscovery: Equatable {
+        case idle
+        case loading
+        case ready(RecordingAssignmentResolution)
+        case failed(String)
+    }
 
     public init(
         gate: LifecycleGateHandle,
@@ -309,10 +318,38 @@ public struct OnboardingView: View {
 
                     VStack(spacing: stylesheet.spacing.large) {
                         VStack(alignment: .leading, spacing: stylesheet.spacing.small) {
+                            switch assignmentDiscovery {
+                                case .idle, .loading:
+                                    ProgressView("Checking your other devices…")
+                                case let .ready(.resolved(existing)):
+                                    if existing.deviceID != nil {
+                                        Toggle(
+                                            "Keep the current recorder",
+                                            isOn: $preserveExistingAssignment,
+                                        )
+                                        Text(
+                                            "Choose this to leave the device already recording unchanged.",
+                                        )
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+                                    }
+                                case let .ready(.conflict(deviceIDs)):
+                                    Label(
+                                        "Choose one recorder to resolve a conflict between \(deviceIDs.count) devices.",
+                                        systemImage: "exclamationmark.triangle.fill",
+                                    )
+                                    .foregroundStyle(.orange)
+                                case .ready(.unconfigured), .ready(.invalid):
+                                    EmptyView()
+                                case let .failed(description):
+                                    Label(description, systemImage: "icloud.slash")
+                                        .foregroundStyle(.secondary)
+                            }
                             Toggle(
                                 String(localized: .settingsDevicesAutomaticRecording),
                                 isOn: $recordingEnabled,
                             )
+                            .disabled(preserveExistingAssignment)
                             Text(recordingRecommendation)
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
@@ -323,7 +360,10 @@ public struct OnboardingView: View {
                             // Request Always-location only after the user confirms an
                             // enabled choice; the launch's reconcile step picks up
                             // whatever the system grants.
-                            finish(enableLocation: recordingEnabled)
+                            finish(
+                                enableLocation: recordingEnabled,
+                                preserveExistingAssignment: preserveExistingAssignment,
+                            )
                         } label: {
                             Text(String(localized: .onboardingContinue))
                                 .frame(maxWidth: .infinity)
@@ -331,7 +371,7 @@ public struct OnboardingView: View {
                         .buttonStyle(.borderedProminent)
                         .controlSize(.large)
                     }
-                    .disabled(isFinishing)
+                    .disabled(isFinishing || assignmentDiscovery == .loading)
                 }
                 .padding(.horizontal, stylesheet.spacing.xxxLarge)
                 .padding(.bottom, stylesheet.spacing.xxxLarge)
@@ -339,6 +379,7 @@ public struct OnboardingView: View {
             }
             .scrollBounceBehavior(.basedOnSize)
         }
+        .task { await discoverRecordingAssignment() }
     }
 
     private var recordingTitle: LocalizedStringResource {
@@ -364,7 +405,10 @@ public struct OnboardingView: View {
     /// A store that won't open fails the gate rather than stranding the user
     /// on a dead intro: the runner lands on the failure surface, which is
     /// where an unopenable store has always surfaced.
-    private func finish(enableLocation: Bool) {
+    private func finish(
+        enableLocation: Bool,
+        preserveExistingAssignment: Bool = false,
+    ) {
         guard !isFinishing else { return }
         let readyImport = restoreSelection.readyImport
         if restoreSelection.selectedURL != nil {
@@ -489,7 +533,7 @@ public struct OnboardingView: View {
             do {
                 let authorization = await scope.services.ingestor.authorizationStatus()
                 try await scope.services.recording.registerForOnboarding(
-                    desiredEnabled: enableLocation,
+                    desiredEnabled: preserveExistingAssignment ? nil : enableLocation,
                     authorization: authorization,
                 )
             } catch {
@@ -511,7 +555,7 @@ public struct OnboardingView: View {
                 return
             }
 
-            if enableLocation {
+            if enableLocation, preserveExistingAssignment == false {
                 await enableTracking(in: scope)
             }
             // Only commit when the user actually picked regions in the manual
@@ -536,6 +580,20 @@ public struct OnboardingView: View {
                 model.completeOnboarding()
             }
             gate.complete()
+        }
+    }
+
+    private func discoverRecordingAssignment() async {
+        guard assignmentDiscovery == .idle else { return }
+        assignmentDiscovery = .loading
+        do {
+            let resolution = try await model.discoverRecordingAssignment()
+            assignmentDiscovery = .ready(resolution)
+            if case let .resolved(assignment) = resolution, assignment.deviceID != nil {
+                preserveExistingAssignment = true
+            }
+        } catch {
+            assignmentDiscovery = .failed(error.localizedDescription)
         }
     }
 

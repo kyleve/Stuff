@@ -179,6 +179,16 @@ public final class WhereModel {
         installationRecordingContext.initialRecordingChoice != nil
     }
 
+    /// Discover existing synced authority while the app remains logged out. The bootstrap keeps
+    /// this exact store instance for `resolveScope()`, so onboarding never opens two containers.
+    public func discoverRecordingAssignment() async throws -> RecordingAssignmentResolution {
+        guard case let .loggedOut(bootstrap) = scopeState else {
+            guard let scope = activeScope else { return .unconfigured }
+            return try await scope.services.recording.authoritySnapshot().resolution
+        }
+        return try await bootstrap.discoverRecordingAssignment()
+    }
+
     /// Whether the sidecar says onboarding crossed or may have crossed an import commit. The
     /// launch gate uses this one narrow exception to open the store before offering Restore.
     var hasInterruptedOnboardingImport: Bool {
