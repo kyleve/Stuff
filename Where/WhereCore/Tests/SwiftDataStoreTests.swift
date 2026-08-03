@@ -235,6 +235,42 @@ struct SwiftDataStoreTests {
         #expect(await firstPing(stream, within: .seconds(2)))
     }
 
+    @Test func unreadableAssignmentHeadInvalidatesTheWholeTimeline() async throws {
+        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
+        let context = ModelContext(container)
+        let deviceID = RecordingDeviceID(rawValue: UUID())
+        let date = Date(timeIntervalSinceReferenceDate: 100)
+        let initial = RecordingAssignmentChange(
+            id: UUID(),
+            parentIDs: [],
+            revision: 0,
+            issuedAt: date,
+            issuedByDeviceID: deviceID,
+            effectiveAt: date,
+            assignedDeviceID: deviceID,
+            reason: .onboarding,
+        )
+        context.insert(SDRecordingAssignmentChange(value: initial, epochID: .initial))
+        let unreadableOff = SDRecordingAssignmentChange()
+        unreadableOff.epochID = WhereDataEpochID.initial.rawValue
+        unreadableOff.id = UUID()
+        unreadableOff.parentIDs = [initial.id]
+        unreadableOff.revision = 1
+        unreadableOff.issuedAt = date
+        unreadableOff.issuedByDeviceID = deviceID.rawValue
+        unreadableOff.effectiveAt = date
+        unreadableOff.assignedDeviceID = nil
+        unreadableOff.reasonRaw = nil
+        context.insert(unreadableOff)
+        try context.save()
+
+        let store = SwiftDataStore(modelContainer: container)
+
+        await #expect(throws: RecordingPersistenceError.incompleteAssignmentHistory) {
+            try await store.recordingAssignmentChanges()
+        }
+    }
+
     @Test func simulatedRemoteRecordingImportIsReadableAfterRemoteChange() async throws {
         let source = ScriptedStoreRemoteChangeSource()
         let store = try SwiftDataStore.inMemory(remoteChangeSource: source)

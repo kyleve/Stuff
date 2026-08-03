@@ -1117,15 +1117,15 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             sortBy: [SortDescriptor(\.revision), SortDescriptor(\.id)],
         )
         descriptor.includePendingChanges = true
-        let values = try context.fetch(descriptor)
+        let records = try context.fetch(descriptor)
             .filter { Self.belongs($0.epochID, to: epochID) }
-            .compactMap { record -> RecordingAssignmentChange? in
-                guard let value = record.toValue() else {
-                    Self.logFault(forCorrupt: record)
-                    return nil
-                }
-                return value
+        let values = try records.map { record in
+            guard let value = record.toValue() else {
+                Self.logFault(forCorrupt: record)
+                throw RecordingPersistenceError.incompleteAssignmentHistory
             }
+            return value
+        }
         guard RecordingAssignmentChange.formValidPersistedTimeline(values) else {
             throw RecordingPersistenceError.incompleteAssignmentHistory
         }
