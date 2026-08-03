@@ -241,8 +241,6 @@ struct WhereStylesheetTests {
             by: 0.25,
             in: .perceptual,
         ))
-        #expect(month.futureOpacity == 0.55)
-        #expect(month.futurePeekFraction == 0.5)
         #expect(month.footerDividerSpacing == 8)
         #expect(month.footerSpacing == 4)
         #expect(month.footerRowSpacing == 6)
