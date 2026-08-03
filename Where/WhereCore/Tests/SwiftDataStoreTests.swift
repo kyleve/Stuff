@@ -271,6 +271,67 @@ struct SwiftDataStoreTests {
         }
     }
 
+    @Test func identicalPhysicalAssignmentRowsCollapseBeforeTimelineValidation() async throws {
+        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
+        let context = ModelContext(container)
+        let deviceID = RecordingDeviceID(rawValue: UUID())
+        let date = Date(timeIntervalSinceReferenceDate: 100)
+        let assignment = RecordingAssignmentChange(
+            id: UUID(),
+            parentIDs: [],
+            revision: 0,
+            issuedAt: date,
+            issuedByDeviceID: deviceID,
+            effectiveAt: date,
+            assignedDeviceID: deviceID,
+            reason: .onboarding,
+        )
+        context.insert(SDRecordingAssignmentChange(value: assignment, epochID: .initial))
+        context.insert(SDRecordingAssignmentChange(value: assignment, epochID: .initial))
+        try context.save()
+
+        let store = SwiftDataStore(modelContainer: container)
+
+        #expect(try await store.recordingAssignmentChanges() == [assignment])
+    }
+
+    @Test func conflictingPhysicalAssignmentRowsFailClosed() async throws {
+        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
+        let context = ModelContext(container)
+        let deviceID = RecordingDeviceID(rawValue: UUID())
+        let id = UUID()
+        let date = Date(timeIntervalSinceReferenceDate: 100)
+        let first = RecordingAssignmentChange(
+            id: id,
+            parentIDs: [],
+            revision: 0,
+            issuedAt: date,
+            issuedByDeviceID: deviceID,
+            effectiveAt: date,
+            assignedDeviceID: deviceID,
+            reason: .onboarding,
+        )
+        let conflicting = RecordingAssignmentChange(
+            id: id,
+            parentIDs: [],
+            revision: 0,
+            issuedAt: date,
+            issuedByDeviceID: deviceID,
+            effectiveAt: date,
+            assignedDeviceID: nil,
+            reason: .onboarding,
+        )
+        context.insert(SDRecordingAssignmentChange(value: first, epochID: .initial))
+        context.insert(SDRecordingAssignmentChange(value: conflicting, epochID: .initial))
+        try context.save()
+
+        let store = SwiftDataStore(modelContainer: container)
+
+        await #expect(throws: RecordingPersistenceError.conflictingImmutableRecord(id: id)) {
+            try await store.recordingAssignmentChanges()
+        }
+    }
+
     @Test func simulatedRemoteRecordingImportIsReadableAfterRemoteChange() async throws {
         let source = ScriptedStoreRemoteChangeSource()
         let store = try SwiftDataStore.inMemory(remoteChangeSource: source)

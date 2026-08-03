@@ -1126,18 +1126,28 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             }
             return value
         }
-        guard RecordingAssignmentChange.formValidPersistedTimeline(values) else {
+        let canonicalValues = try Dictionary(grouping: values, by: \.id).map { id, duplicates in
+            guard let canonical = duplicates.first else {
+                preconditionFailure("A grouped assignment event must contain at least one value.")
+            }
+            guard duplicates.allSatisfy({ $0 == canonical }) else {
+                Self.logImmutableConflict(
+                    type: String(describing: RecordingAssignmentChange.self),
+                    id: id.uuidString,
+                    count: duplicates.count,
+                )
+                throw RecordingPersistenceError.conflictingImmutableRecord(id: id)
+            }
+            return canonical
+        }
+        guard RecordingAssignmentChange.formValidPersistedTimeline(canonicalValues) else {
             throw RecordingPersistenceError.incompleteAssignmentHistory
         }
-        return Dictionary(grouping: values, by: \.id)
-            .compactMap { _, duplicates in
-                duplicates.min(by: RecordingAssignmentChange.isCanonicalBefore)
-            }
-            .sorted {
-                $0.revision == $1.revision
-                    ? $0.id.uuidString < $1.id.uuidString
-                    : $0.revision < $1.revision
-            }
+        return canonicalValues.sorted {
+            $0.revision == $1.revision
+                ? $0.id.uuidString < $1.id.uuidString
+                : $0.revision < $1.revision
+        }
     }
 
     public func addRecordingAssignmentChange(_ change: RecordingAssignmentChange) async throws {
