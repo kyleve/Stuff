@@ -57,6 +57,12 @@ extension DevicesSettingsSession {
 @MainActor
 @Observable
 final class DevicesSettingsModel {
+    enum RecordingSelection: Hashable {
+        case unresolved
+        case off
+        case device(RecordingDeviceID)
+    }
+
     struct Failure: Identifiable, Equatable {
         enum Context: Equatable {
             case initialLoad
@@ -93,7 +99,7 @@ final class DevicesSettingsModel {
     private(set) var state: LoadState = .idle
     private(set) var rows: [DeviceSettingsRowModel] = []
     private(set) var authorityResolution: RecordingAssignmentResolution = .unconfigured
-    var selectedRecordingDeviceID: RecordingDeviceID?
+    var recordingSelection = RecordingSelection.unresolved
     private(set) var presentedFailure: Failure?
     @ObservationIgnored private var refreshTask: Task<Void, Never>?
     @ObservationIgnored private var requestedRefreshGeneration: UInt64 = 0
@@ -128,7 +134,7 @@ final class DevicesSettingsModel {
             apply(configurations)
             let authority = Self.compatibilityAuthority(from: configurations)
             authorityResolution = authority.resolution
-            selectedRecordingDeviceID = authority.resolution.assignment?.deviceID
+            recordingSelection = Self.recordingSelection(for: authority.resolution)
             state = configurations.isEmpty ? .empty : .loaded
         }
     #endif
@@ -176,11 +182,17 @@ final class DevicesSettingsModel {
     }
 
     func recordingAssignmentChanged() async {
+        guard recordingSelection != Self.recordingSelection(for: authorityResolution) else {
+            return
+        }
         do {
-            if let selectedRecordingDeviceID {
-                try await session.assignAutomaticRecording(to: selectedRecordingDeviceID)
-            } else {
-                try await session.turnOffAutomaticRecording()
+            switch recordingSelection {
+                case .unresolved:
+                    return
+                case .off:
+                    try await session.turnOffAutomaticRecording()
+                case let .device(deviceID):
+                    try await session.assignAutomaticRecording(to: deviceID)
             }
             await load(showLoading: false)
         } catch {
@@ -281,17 +293,13 @@ final class DevicesSettingsModel {
             let generation = requestedRefreshGeneration
             do {
                 let configurations = try await session.recordingDevices()
-                let authority = if let liveSession = session as? WhereSession {
-                    try await liveSession.recordingAuthoritySnapshot()
-                } else {
-                    Self.compatibilityAuthority(from: configurations)
-                }
+                let authority = try await session.recordingAuthoritySnapshot()
                 completedRefreshGeneration = generation
                 guard generation == requestedRefreshGeneration else { continue }
                 lastRefreshFailure = nil
                 apply(configurations)
                 authorityResolution = authority.resolution
-                selectedRecordingDeviceID = authority.resolution.assignment?.deviceID
+                recordingSelection = Self.recordingSelection(for: authority.resolution)
             } catch {
                 completedRefreshGeneration = generation
                 guard generation == requestedRefreshGeneration else { continue }
@@ -315,6 +323,17 @@ final class DevicesSettingsModel {
             devices: configurations.map(\.device),
             archivedDeviceIDs: [],
         )
+    }
+
+    private static func recordingSelection(
+        for resolution: RecordingAssignmentResolution,
+    ) -> RecordingSelection {
+        switch resolution {
+            case .unconfigured, .conflict, .invalid:
+                .unresolved
+            case let .resolved(assignment):
+                assignment.deviceID.map(RecordingSelection.device) ?? .off
+        }
     }
 
     private func apply(_ configurations: [RecordingDeviceConfiguration]) {

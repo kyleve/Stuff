@@ -156,6 +156,34 @@ struct DevicesSettingsModelTests {
         #expect(model.presentedFailure?.context == .refresh)
     }
 
+    @Test func remoteConflictRefreshDoesNotSubmitAnOffCommand() async {
+        let session = ScriptedDevicesSettingsSession()
+        let model = DevicesSettingsModel(session: session)
+        await model.retry()
+        #expect(model.recordingSelection == .off)
+
+        session.simulateRemoteAuthority(.conflict([session.currentRecordingDeviceID]))
+        await model.retry()
+        #expect(model.recordingSelection == .unresolved)
+
+        // SwiftUI observes the refreshed picker selection after the model applies it. The same
+        // callback used for a user gesture must recognize that persisted truth already matches.
+        await model.recordingAssignmentChanged()
+
+        #expect(session.setEnabledCalls.isEmpty)
+    }
+
+    @Test func explicitPickerSelectionStillSubmitsACommand() async {
+        let session = ScriptedDevicesSettingsSession()
+        let model = DevicesSettingsModel(session: session)
+        await model.retry()
+
+        model.recordingSelection = .device(session.currentRecordingDeviceID)
+        await model.recordingAssignmentChanged()
+
+        #expect(session.setEnabledCalls == [true])
+    }
+
     @Test func refreshRetrySubmitsANewerToggleWithoutRepeatingTheCommittedToggle() async throws {
         let session = ScriptedDevicesSettingsSession(isEnabled: false)
         let model = DevicesSettingsModel(session: session)
@@ -640,6 +668,7 @@ private final class ScriptedDevicesSettingsSession: DevicesSettingsSession {
 
     private let policyID = UUID(uuidString: "FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF")!
     private var isEnabled: Bool
+    private var authorityOverride: RecordingAssignmentResolution?
     private var failingRecordingDevicesCalls: Set<Int> = []
 
     init(hasDevice: Bool = true, isEnabled: Bool = false) {
@@ -659,6 +688,14 @@ private final class ScriptedDevicesSettingsSession: DevicesSettingsSession {
         return hasDevice ? [configuration] : []
     }
 
+    func recordingAuthoritySnapshot() async throws -> RecordingAuthoritySnapshot {
+        RecordingAuthoritySnapshot(
+            resolution: authorityOverride ?? configuration.assignmentResolution,
+            devices: hasDevice ? [configuration.device] : [],
+            archivedDeviceIDs: [],
+        )
+    }
+
     func setRecordingEnabled(_ enabled: Bool, for _: RecordingDeviceID) async throws {
         setEnabledCalls.append(enabled)
         isEnabled = enabled
@@ -670,6 +707,10 @@ private final class ScriptedDevicesSettingsSession: DevicesSettingsSession {
 
     func failRecordingDevicesCall(_ call: Int) {
         failingRecordingDevicesCalls.insert(call)
+    }
+
+    func simulateRemoteAuthority(_ resolution: RecordingAssignmentResolution) {
+        authorityOverride = resolution
     }
 
     private var configuration: RecordingDeviceConfiguration {

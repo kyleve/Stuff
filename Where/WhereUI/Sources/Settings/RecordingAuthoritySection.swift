@@ -8,14 +8,19 @@ struct RecordingAuthoritySection: View {
 
     var body: some View {
         Section {
-            Picker("Automatic recording", selection: $model.selectedRecordingDeviceID) {
-                Text("Off").tag(RecordingDeviceID?.none)
+            Picker("Automatic recording", selection: $model.recordingSelection) {
+                if model.recordingSelection == .unresolved {
+                    Text("Choose a recorder")
+                        .tag(DevicesSettingsModel.RecordingSelection.unresolved)
+                        .disabled(true)
+                }
+                Text("Off").tag(DevicesSettingsModel.RecordingSelection.off)
                 ForEach(model.rows) { row in
                     Label(row.displayName, systemImage: row.systemImage)
-                        .tag(Optional(row.id))
+                        .tag(DevicesSettingsModel.RecordingSelection.device(row.id))
                 }
             }
-            .onChange(of: model.selectedRecordingDeviceID) { oldValue, newValue in
+            .onChange(of: model.recordingSelection) { oldValue, newValue in
                 guard oldValue != newValue else { return }
                 Task { await model.recordingAssignmentChanged() }
             }
