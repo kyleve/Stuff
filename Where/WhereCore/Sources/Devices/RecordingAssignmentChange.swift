@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 
 /// The account-wide automatic-recording assignment.
@@ -126,6 +127,36 @@ extension RecordingAssignmentChange {
     ) -> [RecordingAssignmentChange]? {
         guard changes.isEmpty == false else { return [] }
         return causalGraph(in: changes)?.heads.sorted(by: isOrderedBefore)
+    }
+
+    /// Stable acknowledgement identity for the complete maximal frontier.
+    static func frontierToken(in changes: [RecordingAssignmentChange]) -> UUID? {
+        guard let heads = maximalHeads(in: changes), heads.isEmpty == false else { return nil }
+        guard heads.count > 1 else { return heads[0].id }
+        var hasher = SHA256()
+        hasher.update(data: Data("com.stuff.where.recording-assignment-frontier.v1".utf8))
+        for head in heads {
+            hasher.update(data: Data("\n\(head.id.uuidString)".utf8))
+        }
+        let digest = Array(hasher.finalize().prefix(16))
+        return UUID(uuid: (
+            digest[0],
+            digest[1],
+            digest[2],
+            digest[3],
+            digest[4],
+            digest[5],
+            digest[6],
+            digest[7],
+            digest[8],
+            digest[9],
+            digest[10],
+            digest[11],
+            digest[12],
+            digest[13],
+            digest[14],
+            digest[15],
+        ))
     }
 
     public static func appendingCommand(

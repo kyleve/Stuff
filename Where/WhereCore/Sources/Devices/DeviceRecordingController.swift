@@ -60,6 +60,8 @@ public actor DeviceRecordingController {
         let metadataChanges: [RecordingDeviceMetadataChange]
         let checkIns: [RecordingDeviceCheckIn]
         let policyChanges: [RecordingPolicyChange]
+        let assignmentChanges: [RecordingAssignmentChange]
+        let archives: [RecordingDeviceArchive]
     }
 
     init(
@@ -170,6 +172,22 @@ public actor DeviceRecordingController {
             }
             let commandDate = now()
             let desiredState: RecordingPolicyState = desiredEnabled ? .on : .off
+            let desiredAssignment: RecordingAssignment = desiredEnabled
+                ? .device(currentDevice.id) : .off
+            let assignmentChange: RecordingAssignmentChange? = if RecordingAssignmentChange
+                .resolve(snapshot.assignmentChanges).assignment == desiredAssignment
+            {
+                nil
+            } else {
+                try RecordingAssignmentChange.appendingCommand(
+                    to: snapshot.assignmentChanges,
+                    assignment: desiredAssignment,
+                    issuedAt: commandDate,
+                    issuedByDeviceID: currentDevice.id,
+                    effectiveAt: max(commandDate, snapshot.epoch.changedAt),
+                    reason: .userCommand,
+                )
+            }
             let policyChange: RecordingPolicyChange? = if latestPolicy.state == desiredState {
                 nil
             } else {
@@ -186,9 +204,14 @@ public actor DeviceRecordingController {
                     reason: .userCommand,
                 )
             }
-            if let policyChange {
+            if policyChange != nil || assignmentChange != nil {
                 try await store.perform(expectedDataEpochID: snapshot.epoch.id) {
-                    try await self.store.addRecordingPolicyChange(policyChange)
+                    if let policyChange {
+                        try await self.store.addRecordingPolicyChange(policyChange)
+                    }
+                    if let assignmentChange {
+                        try await self.store.addRecordingAssignmentChange(assignmentChange)
+                    }
                 }
                 // Historical visibility changed as soon as the authority event committed. Do
                 // not make derived reconciliation depend on a later physical/check-in success.
@@ -239,6 +262,40 @@ public actor DeviceRecordingController {
         return try await configurationsLocked(includeArchived: false)
     }
 
+    /// Read the one account-wide assignment and every installation eligible to receive it.
+    public func authoritySnapshot() async throws -> RecordingAuthoritySnapshot {
+        await beginExclusive()
+        defer { endExclusive() }
+        try requireActive()
+        return try await store.readSnapshot {
+            async let devices = store.recordingDevices()
+            async let changes = store.recordingAssignmentChanges()
+            async let archives = store.recordingDeviceArchives()
+            let values = try await (devices, changes, archives)
+            return RecordingAuthoritySnapshot(
+                resolution: RecordingAssignmentChange.resolve(values.1),
+                devices: values.0,
+                archivedDeviceIDs: Set(values.2.map(\.deviceID)),
+            )
+        }
+    }
+
+    /// Transfer automatic recording immediately to one installation.
+    @discardableResult
+    public func assignAutomaticRecording(
+        to deviceID: RecordingDeviceID,
+    ) async throws -> RecordingAuthoritySnapshot {
+        _ = try await setEnabled(true, for: deviceID)
+        return try await authoritySnapshot()
+    }
+
+    /// Turn account-wide automatic recording Off.
+    @discardableResult
+    public func turnOffAutomaticRecording() async throws -> RecordingAuthoritySnapshot {
+        _ = try await setEnabled(false, for: currentDevice.id)
+        return try await authoritySnapshot()
+    }
+
     /// Append a desired-state command. A command for this installation is physically reconciled
     /// and acknowledged before returning; a remote command remains pending until its target syncs.
     @discardableResult
@@ -266,6 +323,21 @@ public actor DeviceRecordingController {
             throw RecordingPersistenceError.devicePolicyUnknown(deviceID)
         }
         let issuedAt = now()
+        let desiredAssignment: RecordingAssignment = enabled ? .device(deviceID) : .off
+        let assignmentChange: RecordingAssignmentChange? = if RecordingAssignmentChange
+            .resolve(snapshot.assignmentChanges).assignment == desiredAssignment
+        {
+            nil
+        } else {
+            try RecordingAssignmentChange.appendingCommand(
+                to: snapshot.assignmentChanges,
+                assignment: desiredAssignment,
+                issuedAt: issuedAt,
+                issuedByDeviceID: currentDevice.id,
+                effectiveAt: max(issuedAt, epoch.changedAt),
+                reason: .userCommand,
+            )
+        }
         let desiredState: RecordingPolicyState = enabled ? .on : .off
         let causalHead = RecordingPolicyChange.canonicalHead(in: timeline)
         let policyChange: RecordingPolicyChange? = if latestPolicy.state == desiredState {
@@ -285,7 +357,7 @@ public actor DeviceRecordingController {
             )
         }
 
-        guard let policyChange else {
+        guard policyChange != nil || assignmentChange != nil else {
             if deviceID == currentDevice.id {
                 if !enabled {
                     await ingestor.revokeRecordingAuthorization()
@@ -296,7 +368,12 @@ public actor DeviceRecordingController {
         }
 
         try await store.perform(expectedDataEpochID: epoch.id) {
-            try await self.store.addRecordingPolicyChange(policyChange)
+            if let policyChange {
+                try await self.store.addRecordingPolicyChange(policyChange)
+            }
+            if let assignmentChange {
+                try await self.store.addRecordingAssignmentChange(assignmentChange)
+            }
         }
         // Close local physical authority before any potentially slow derived-data rebuild. The
         // durable cutoff already hides history, but raw fixes must not continue entering the
@@ -373,6 +450,27 @@ public actor DeviceRecordingController {
             throw RecordingPersistenceError.devicePolicyUnknown(deviceID)
         }
         let causalHead = RecordingPolicyChange.canonicalHead(in: timeline)
+        let archive = snapshot.archives.contains(where: { $0.deviceID == deviceID }) ? nil :
+            RecordingDeviceArchive(
+                id: UUID(),
+                deviceID: deviceID,
+                archivedAt: date,
+                archivedByDeviceID: currentDevice.id,
+            )
+        let assignmentChange: RecordingAssignmentChange? = if RecordingAssignmentChange
+            .resolve(snapshot.assignmentChanges).assignment?.deviceID == deviceID
+        {
+            try RecordingAssignmentChange.appendingCommand(
+                to: snapshot.assignmentChanges,
+                assignment: .off,
+                issuedAt: date,
+                issuedByDeviceID: currentDevice.id,
+                effectiveAt: max(date, epoch.changedAt),
+                reason: .userCommand,
+            )
+        } else {
+            nil
+        }
         let policyChange: RecordingPolicyChange? = if latestPolicy.state != .archived {
             try RecordingPolicyChange.appendingCommand(
                 to: timeline,
@@ -389,11 +487,19 @@ public actor DeviceRecordingController {
         } else {
             nil
         }
-        guard let policyChange else {
+        guard policyChange != nil || archive != nil || assignmentChange != nil else {
             return try await configurationsLocked(includeArchived: false)
         }
         try await store.perform(expectedDataEpochID: epoch.id) {
-            try await self.store.addRecordingPolicyChange(policyChange)
+            if let policyChange {
+                try await self.store.addRecordingPolicyChange(policyChange)
+            }
+            if let archive {
+                try await self.store.addRecordingDeviceArchive(archive)
+            }
+            if let assignmentChange {
+                try await self.store.addRecordingAssignmentChange(assignmentChange)
+            }
         }
         await onPolicyChanged()
         return try await configurationsLocked(includeArchived: false)
@@ -545,10 +651,11 @@ public actor DeviceRecordingController {
         )
         let existingInitialPolicy = snapshot.policyChanges
             .first(where: { $0.id == initialPolicyChangeID })
+        let needsInitialAssignment = snapshot.assignmentChanges.isEmpty
         let needsProfileWrite = existingProfile != profile
         let needsInitialPolicyWrite = ownsInitialPolicyInThisEpoch
             && existingInitialPolicy != initialPolicy
-        guard needsProfileWrite || needsInitialPolicyWrite else { return }
+        guard needsProfileWrite || needsInitialPolicyWrite || needsInitialAssignment else { return }
 
         // The add APIs validate identical immutable retries and reject conflicting payloads.
         // An installation first seen in this epoch also retries its immutable initial policy.
@@ -558,6 +665,18 @@ public actor DeviceRecordingController {
             try await self.store.addRecordingDeviceProfile(profile)
             if ownsInitialPolicyInThisEpoch {
                 try await self.store.addRecordingPolicyChange(initialPolicy)
+            }
+            if needsInitialAssignment {
+                try await self.store.addRecordingAssignmentChange(RecordingAssignmentChange(
+                    id: initialPolicyChangeID,
+                    parentIDs: [],
+                    revision: 0,
+                    issuedAt: self.initialRecordingChoice.confirmedAt,
+                    issuedByDeviceID: self.currentDevice.id,
+                    effectiveAt: max(self.initialRecordingChoice.confirmedAt, epoch.changedAt),
+                    assignedDeviceID: initialEnabled ? self.currentDevice.id : nil,
+                    reason: .onboarding,
+                ))
             }
         }
     }
@@ -589,12 +708,45 @@ public actor DeviceRecordingController {
         guard Self.hasCompleteRevisionHistory(timeline) else {
             throw RecordingPersistenceError.incompletePolicyHistory(currentDevice.id)
         }
-        guard let latest = Self.effectivePolicy(
+        guard let legacyPolicy = Self.effectivePolicy(
             for: currentDevice.id,
             epoch: epoch,
             timeline: timeline,
         ) else {
             throw RecordingPersistenceError.currentDevicePolicyUnknown(currentDevice.id)
+        }
+        let latest: RecordingPolicyChange
+        if snapshot.assignmentChanges.count <= 1 {
+            latest = legacyPolicy
+        } else {
+            let resolution = RecordingAssignmentChange.resolve(snapshot.assignmentChanges)
+            guard let assignment = resolution.assignment,
+                  let frontierID = RecordingAssignmentChange.frontierToken(
+                      in: snapshot.assignmentChanges,
+                  ),
+                  let heads = RecordingAssignmentChange.maximalHeads(
+                      in: snapshot.assignmentChanges,
+                  )
+            else {
+                throw RecordingPersistenceError.incompleteAssignmentHistory
+            }
+            let assignedDeviceIsArchived = assignment.deviceID.map { assignedID in
+                snapshot.archives.contains(where: { $0.deviceID == assignedID })
+            } ?? false
+            guard assignedDeviceIsArchived == false else {
+                throw RecordingPersistenceError.incompleteAssignmentHistory
+            }
+            latest = RecordingPolicyChange(
+                id: frontierID,
+                deviceID: currentDevice.id,
+                parentIDs: [],
+                revision: 0,
+                issuedAt: heads.map(\.issuedAt).max() ?? epoch.changedAt,
+                issuedByDeviceID: heads.last?.issuedByDeviceID ?? currentDevice.id,
+                effectiveAt: heads.map(\.effectiveAt).max() ?? epoch.changedAt,
+                state: assignment.deviceID == currentDevice.id ? .on : .off,
+                reason: .userCommand,
+            )
         }
         let nickname = Self.latestMetadata(
             for: currentDevice.id,
@@ -702,14 +854,55 @@ public actor DeviceRecordingController {
         try await store.readSnapshot {
             async let devices = store.recordingDevices()
             async let policies = store.recordingPolicyChanges()
+            async let assignments = store.recordingAssignmentChanges()
+            async let archives = store.recordingDeviceArchives()
             async let epoch = store.dataEpoch()
-            let (resolvedDevices, resolvedPolicies, resolvedEpoch) = try await (
+            let (
+                resolvedDevices,
+                resolvedPolicies,
+                resolvedAssignments,
+                resolvedArchives,
+                resolvedEpoch
+            ) = try await (
                 devices,
                 policies,
+                assignments,
+                archives,
                 epoch,
             )
+            let assignment = RecordingAssignmentChange.resolve(resolvedAssignments).assignment
+            let assignmentFrontierID = RecordingAssignmentChange.frontierToken(
+                in: resolvedAssignments,
+            )
+            let assignmentHeads = RecordingAssignmentChange.maximalHeads(in: resolvedAssignments)
+            let archivedIDs = Set(resolvedArchives.map(\.deviceID))
             return resolvedDevices
                 .map { device in
+                    if resolvedAssignments.count > 1,
+                       let assignment,
+                       let assignmentFrontierID,
+                       let assignmentHeads
+                    {
+                        let change = RecordingPolicyChange(
+                            id: assignmentFrontierID,
+                            deviceID: device.id,
+                            parentIDs: [],
+                            revision: 0,
+                            issuedAt: assignmentHeads.map(\.issuedAt).max() ?? resolvedEpoch
+                                .changedAt,
+                            issuedByDeviceID: assignmentHeads.last?
+                                .issuedByDeviceID ?? currentDevice.id,
+                            effectiveAt: assignmentHeads.map(\.effectiveAt).max() ?? resolvedEpoch
+                                .changedAt,
+                            state: assignment.deviceID == device.id ? .on : .off,
+                            reason: .userCommand,
+                        )
+                        return RecordingDeviceConfiguration(
+                            device: device,
+                            policyChange: change,
+                            requiredCleanupToken: nil,
+                        )
+                    }
                     let timeline = Self.policyTimeline(for: device.id, in: resolvedPolicies)
                     guard Self.hasCompleteRevisionHistory(timeline),
                           let latest = Self.effectivePolicy(
@@ -732,7 +925,9 @@ public actor DeviceRecordingController {
                     )
                 }
                 .filter {
-                    includeArchived || !$0.isArchived || $0.id == currentDevice.id
+                    includeArchived
+                        || (!archivedIDs.contains($0.id) && !$0.isArchived)
+                        || $0.id == currentDevice.id
                 }
                 .sorted { lhs, rhs in
                     if lhs.id == currentDevice.id { return true }
@@ -824,12 +1019,16 @@ public actor DeviceRecordingController {
             async let metadataChanges = store.recordingDeviceMetadataChanges()
             async let checkIns = store.recordingDeviceCheckIns()
             async let policyChanges = store.recordingPolicyChanges()
+            async let assignmentChanges = store.recordingAssignmentChanges()
+            async let archives = store.recordingDeviceArchives()
             let values = try await (
                 epoch,
                 profiles,
                 metadataChanges,
                 checkIns,
                 policyChanges,
+                assignmentChanges,
+                archives,
             )
             return StoreSnapshot(
                 epoch: values.0,
@@ -837,6 +1036,8 @@ public actor DeviceRecordingController {
                 metadataChanges: values.2,
                 checkIns: values.3,
                 policyChanges: values.4,
+                assignmentChanges: values.5,
+                archives: values.6,
             )
         }
     }

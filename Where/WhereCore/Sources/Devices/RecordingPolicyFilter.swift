@@ -8,6 +8,21 @@ import Foundation
 public enum RecordingPolicyFilter {
     public static func visibleSamples(
         _ samples: [LocationSample],
+        assignmentChanges: [RecordingAssignmentChange],
+    ) -> [LocationSample] {
+        samples.filter { sample in
+            guard sample.source.isGPS, let deviceID = sample.recordingDeviceID else {
+                return true
+            }
+            return RecordingAssignmentChange.resolve(
+                assignmentChanges,
+                at: sample.timestamp,
+            ).permitsRecording(on: deviceID)
+        }
+    }
+
+    public static func visibleSamples(
+        _ samples: [LocationSample],
         policyChanges: [RecordingPolicyChange],
     ) -> [LocationSample] {
         let histories = Dictionary(grouping: policyChanges, by: \.deviceID)

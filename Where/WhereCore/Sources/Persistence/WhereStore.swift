@@ -135,6 +135,18 @@ public protocol WhereStore: Sendable {
     /// `perform { ... }`.
     func addRecordingPolicyChange(_ change: RecordingPolicyChange) async throws
 
+    /// Complete account-wide automatic-recording assignment history for the active epoch.
+    func recordingAssignmentChanges() async throws -> [RecordingAssignmentChange]
+
+    /// Insert one immutable global assignment command. Must run inside `perform { ... }`.
+    func addRecordingAssignmentChange(_ change: RecordingAssignmentChange) async throws
+
+    /// Irreversible device tombstones in the active epoch.
+    func recordingDeviceArchives() async throws -> [RecordingDeviceArchive]
+
+    /// Insert an immutable archive tombstone. Must run inside `perform { ... }`.
+    func addRecordingDeviceArchive(_ archive: RecordingDeviceArchive) async throws
+
     func write(evidence: Evidence, blob: Data?) async throws
     func evidence(in interval: DateInterval) async throws -> [Evidence]
     /// Every evidence record in the store, regardless of `capturedAt`. Used

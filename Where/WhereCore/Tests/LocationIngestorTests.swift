@@ -1009,6 +1009,22 @@ private actor ToggleFailingStore: WhereStore {
         try await backing.addRecordingPolicyChange(change)
     }
 
+    func recordingAssignmentChanges() async throws -> [RecordingAssignmentChange] {
+        try await backing.recordingAssignmentChanges()
+    }
+
+    func addRecordingAssignmentChange(_ change: RecordingAssignmentChange) async throws {
+        try await backing.addRecordingAssignmentChange(change)
+    }
+
+    func recordingDeviceArchives() async throws -> [RecordingDeviceArchive] {
+        try await backing.recordingDeviceArchives()
+    }
+
+    func addRecordingDeviceArchive(_ archive: RecordingDeviceArchive) async throws {
+        try await backing.addRecordingDeviceArchive(archive)
+    }
+
     func write(evidence: Evidence, blob: Data?) async throws {
         try await backing.write(evidence: evidence, blob: blob)
     }
