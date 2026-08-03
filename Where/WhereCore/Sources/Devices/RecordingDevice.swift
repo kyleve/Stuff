@@ -20,16 +20,19 @@ public enum RecordingDeviceKind: String, Codable, Sendable, Hashable {
 
 /// The last effective recording state acknowledged by a device.
 public enum RecordingDeviceStatus: String, Codable, Sendable, Hashable {
+    /// The profile arrived before this installation's first check-in.
+    case unknown
     case recording
     case off
     case permissionRequired
 }
 
-/// Synced profile for one device that can contribute automatic locations.
+/// Read model for one device assembled from independently synced records.
 ///
-/// `nickname` is user-editable and synced. `systemName` is only a generic
-/// hardware label such as “iPhone” or “iPad”; Where deliberately does not ask
-/// for the user-assigned-device-name entitlement.
+/// The immutable profile, append-only nickname timeline, desired-authority timeline, and
+/// target-owned check-in have
+/// deliberately separate persistence rows. This aggregate is never written back wholesale:
+/// doing so would let CloudKit's last writer overwrite fields owned by another device.
 public struct RecordingDevice: Identifiable, Codable, Sendable, Hashable {
     public let id: RecordingDeviceID
     public let systemName: String
@@ -39,6 +42,13 @@ public struct RecordingDevice: Identifiable, Codable, Sendable, Hashable {
     public let lastSeenAt: Date
     public let archivedAt: Date?
     public let lastAppliedPolicyChangeID: UUID?
+    /// Stable storage field; see `RecordingDeviceCheckIn.lastDiscardedPolicyChangeID`.
+    public let lastDiscardedPolicyChangeID: UUID?
+
+    var lastDiscardedPolicyFrontierToken: RecordingPolicyCleanupToken? {
+        lastDiscardedPolicyChangeID.map(RecordingPolicyCleanupToken.init(rawValue:))
+    }
+
     public let status: RecordingDeviceStatus
 
     public init(
@@ -60,6 +70,7 @@ public struct RecordingDevice: Identifiable, Codable, Sendable, Hashable {
         self.lastSeenAt = lastSeenAt
         self.archivedAt = archivedAt
         self.lastAppliedPolicyChangeID = lastAppliedPolicyChangeID
+        lastDiscardedPolicyChangeID = nil
         self.status = status
     }
 
@@ -68,64 +79,22 @@ public struct RecordingDevice: Identifiable, Codable, Sendable, Hashable {
         return if let trimmed, !trimmed.isEmpty { trimmed } else { systemName }
     }
 
-    func renamed(_ nickname: String?) -> RecordingDevice {
-        RecordingDevice(
-            id: id,
-            systemName: systemName,
-            nickname: nickname,
-            kind: kind,
-            registeredAt: registeredAt,
-            lastSeenAt: lastSeenAt,
-            archivedAt: archivedAt,
-            lastAppliedPolicyChangeID: lastAppliedPolicyChangeID,
-            status: status,
-        )
-    }
-
-    func archived(at date: Date) -> RecordingDevice {
-        RecordingDevice(
-            id: id,
-            systemName: systemName,
-            nickname: nickname,
-            kind: kind,
-            registeredAt: registeredAt,
-            lastSeenAt: lastSeenAt,
-            archivedAt: date,
-            lastAppliedPolicyChangeID: lastAppliedPolicyChangeID,
-            status: status,
-        )
-    }
-
-    func unarchived() -> RecordingDevice {
-        RecordingDevice(
-            id: id,
-            systemName: systemName,
-            nickname: nickname,
-            kind: kind,
-            registeredAt: registeredAt,
-            lastSeenAt: lastSeenAt,
-            archivedAt: nil,
-            lastAppliedPolicyChangeID: lastAppliedPolicyChangeID,
-            status: status,
-        )
-    }
-
-    func acknowledging(
-        policyChangeID: UUID,
-        status: RecordingDeviceStatus,
-        at date: Date,
-    ) -> RecordingDevice {
-        RecordingDevice(
-            id: id,
-            systemName: systemName,
-            nickname: nickname,
-            kind: kind,
-            registeredAt: registeredAt,
-            lastSeenAt: date,
-            archivedAt: archivedAt,
-            lastAppliedPolicyChangeID: policyChangeID,
-            status: status,
-        )
+    init(
+        profile: RecordingDeviceProfile,
+        nicknameChange: RecordingDeviceMetadataChange?,
+        checkIn: RecordingDeviceCheckIn?,
+        policyChange: RecordingPolicyChange?,
+    ) {
+        id = profile.id
+        systemName = profile.systemName
+        nickname = nicknameChange?.nickname
+        kind = profile.kind
+        registeredAt = profile.registeredAt
+        lastSeenAt = checkIn?.lastSeenAt ?? profile.registeredAt
+        archivedAt = policyChange?.isArchived == true ? policyChange?.effectiveAt : nil
+        lastAppliedPolicyChangeID = checkIn?.lastAppliedPolicyChangeID
+        lastDiscardedPolicyChangeID = checkIn?.lastDiscardedPolicyChangeID
+        status = checkIn?.status ?? .unknown
     }
 }
 
@@ -144,6 +113,7 @@ public struct CurrentRecordingDevice: Sendable, Hashable {
 
     /// Deterministic identity for tests and previews that do not care which
     /// installation is current.
+    @_spi(Testing)
     public static let preview = CurrentRecordingDevice(
         id: RecordingDeviceID(
             rawValue: UUID(uuidString: "00000000-0000-0000-0000-000000000001")!,

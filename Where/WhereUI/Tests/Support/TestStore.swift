@@ -8,6 +8,10 @@ struct ManualSaveFailure: Error, Equatable {}
 /// year-report load can be forced to fail.
 struct SampleReadFailure: Error, Equatable {}
 
+/// Thrown by the Devices settings save-failure hooks below.
+struct RecordingDeviceSaveFailure: Error, Equatable {}
+struct RecordingPolicySaveFailure: Error, Equatable {}
+
 /// Test `WhereStore` that forwards to an in-memory `SwiftDataStore` but adds
 /// hooks the view-model tests need:
 ///
@@ -16,6 +20,10 @@ struct SampleReadFailure: Error, Equatable {}
 ///   of order (the stale-year race).
 /// - `gateRecordingDevices(afterCalls:)` suspends a selected device read after
 ///   capturing its result, so a committed change can race an initial load.
+/// - `gateNextRecordingPolicyWrite()` suspends one recording-policy write, so
+///   the Devices model can accept a newer toggle while the first is in flight.
+/// - `failNextRecordingDeviceWrite()` / `failNextRecordingPolicyWrite()` make
+///   one Devices save fail without contaminating later retry assertions.
 /// - `failManualDays()` makes `setManualDay` throw, so manual-entry error
 ///   handling is exercisable without a real persistence fault.
 ///
@@ -33,8 +41,15 @@ actor TestStore: WhereStore {
     private var recordingDevicesGate: CheckedContinuation<Void, Never>?
     private var recordingDevicesArrival: CheckedContinuation<Void, Never>?
 
+    private var shouldGateNextRecordingPolicyWrite = false
+    private var recordingPolicyWriteGateReached = false
+    private var recordingPolicyWriteGate: CheckedContinuation<Void, Never>?
+    private var recordingPolicyWriteArrival: CheckedContinuation<Void, Never>?
+
     private var shouldFailManualDay = false
     private var shouldFailSamples = false
+    private var shouldFailNextRecordingDeviceWrite = false
+    private var shouldFailNextRecordingPolicyWrite = false
 
     init() throws {
         backing = try SwiftDataStore.inMemory()
@@ -74,6 +89,29 @@ actor TestStore: WhereStore {
         recordingDevicesGate = nil
     }
 
+    func gateNextRecordingPolicyWrite() {
+        shouldGateNextRecordingPolicyWrite = true
+        recordingPolicyWriteGateReached = false
+    }
+
+    func awaitRecordingPolicyWriteGate() async {
+        guard !recordingPolicyWriteGateReached else { return }
+        await withCheckedContinuation { recordingPolicyWriteArrival = $0 }
+    }
+
+    func releaseRecordingPolicyWriteGate() {
+        recordingPolicyWriteGate?.resume()
+        recordingPolicyWriteGate = nil
+    }
+
+    func failNextRecordingDeviceWrite() {
+        shouldFailNextRecordingDeviceWrite = true
+    }
+
+    func failNextRecordingPolicyWrite() {
+        shouldFailNextRecordingPolicyWrite = true
+    }
+
     func failManualDays() {
         shouldFailManualDay = true
     }
@@ -92,6 +130,39 @@ actor TestStore: WhereStore {
 
     nonisolated func changes() -> AsyncStream<Void> {
         backing.changes()
+    }
+
+    func dataEpoch() async throws -> WhereDataEpoch {
+        try await backing.dataEpoch()
+    }
+
+    func rotateDataEpoch(
+        reason: WhereDataEpochReason,
+        changedBy deviceID: RecordingDeviceID,
+        at date: Date,
+    ) async throws -> WhereDataEpoch {
+        try await backing.rotateDataEpoch(reason: reason, changedBy: deviceID, at: date)
+    }
+
+    func backupImportReceipt(
+        id: UUID,
+        installationID: RecordingDeviceID,
+    ) async throws -> BackupImportReceipt? {
+        try await backing.backupImportReceipt(id: id, installationID: installationID)
+    }
+
+    func addBackupImportReceipt(
+        id: UUID,
+        installationID: RecordingDeviceID,
+    ) async throws {
+        try await backing.addBackupImportReceipt(id: id, installationID: installationID)
+    }
+
+    func removeBackupImportReceipt(
+        id: UUID,
+        installationID: RecordingDeviceID,
+    ) async throws {
+        try await backing.removeBackupImportReceipt(id: id, installationID: installationID)
     }
 
     func add(sample: LocationSample) async throws {
@@ -129,8 +200,34 @@ actor TestStore: WhereStore {
         return devices
     }
 
-    func setRecordingDevice(_ device: RecordingDevice) async throws {
-        try await backing.setRecordingDevice(device)
+    func recordingDeviceProfiles() async throws -> [RecordingDeviceProfile] {
+        try await backing.recordingDeviceProfiles()
+    }
+
+    func addRecordingDeviceProfile(_ profile: RecordingDeviceProfile) async throws {
+        try await backing.addRecordingDeviceProfile(profile)
+    }
+
+    func recordingDeviceMetadataChanges() async throws -> [RecordingDeviceMetadataChange] {
+        try await backing.recordingDeviceMetadataChanges()
+    }
+
+    func addRecordingDeviceMetadataChange(
+        _ change: RecordingDeviceMetadataChange,
+    ) async throws {
+        if shouldFailNextRecordingDeviceWrite {
+            shouldFailNextRecordingDeviceWrite = false
+            throw RecordingDeviceSaveFailure()
+        }
+        try await backing.addRecordingDeviceMetadataChange(change)
+    }
+
+    func recordingDeviceCheckIns() async throws -> [RecordingDeviceCheckIn] {
+        try await backing.recordingDeviceCheckIns()
+    }
+
+    func setRecordingDeviceCheckIn(_ checkIn: RecordingDeviceCheckIn) async throws {
+        try await backing.setRecordingDeviceCheckIn(checkIn)
     }
 
     func recordingPolicyChanges() async throws -> [RecordingPolicyChange] {
@@ -138,6 +235,17 @@ actor TestStore: WhereStore {
     }
 
     func addRecordingPolicyChange(_ change: RecordingPolicyChange) async throws {
+        if shouldFailNextRecordingPolicyWrite {
+            shouldFailNextRecordingPolicyWrite = false
+            throw RecordingPolicySaveFailure()
+        }
+        if shouldGateNextRecordingPolicyWrite {
+            shouldGateNextRecordingPolicyWrite = false
+            recordingPolicyWriteGateReached = true
+            recordingPolicyWriteArrival?.resume()
+            recordingPolicyWriteArrival = nil
+            await withCheckedContinuation { recordingPolicyWriteGate = $0 }
+        }
         try await backing.addRecordingPolicyChange(change)
     }
 
@@ -179,10 +287,6 @@ actor TestStore: WhereStore {
         manualDays dayRange: ClosedRange<CalendarDay>,
     ) async throws {
         try await backing.clear(in: interval, manualDays: dayRange)
-    }
-
-    func clearAll() async throws {
-        try await backing.clearAll()
     }
 
     func dismissedIssueIDs() async throws -> Set<DataIssueID> {

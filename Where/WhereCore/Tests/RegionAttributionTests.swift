@@ -15,6 +15,7 @@ struct RegionAttributionTests {
         let illinois = try #require(Region(rawValue: "us-IL"))
         let attribution = RegionAttribution(
             store: store,
+            changes: store.changes(),
             initial: RegionAttributor(for: [.california]),
             trackedIDs: [Region.california.rawValue],
         )
@@ -39,6 +40,7 @@ struct RegionAttributionTests {
         let store = try SwiftDataStore.inMemory()
         let attribution = RegionAttribution(
             store: store,
+            changes: store.changes(),
             initial: RegionAttributor(for: Array(SwiftDataStore.defaultTrackedRegions)),
             trackedIDs: Set(SwiftDataStore.defaultTrackedRegions.map(\.rawValue)),
         )

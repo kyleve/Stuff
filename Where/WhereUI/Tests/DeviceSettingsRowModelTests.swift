@@ -45,10 +45,11 @@ struct DeviceSettingsRowModelTests {
 
         #expect(row.id == Self.id)
         #expect(row.displayName == "Desk")
-        #expect(row.confirmedNickname == "Desk")
         #expect(row.status == .off)
         #expect(row.isPending)
-        #expect(row.confirmedIsEnabled == false)
+        #expect(row.isSyncingRecordingPolicy == false)
+        #expect(row.policyPresentationState == .resolved(isAcknowledged: false))
+        #expect(row.isEnabled == false)
     }
 
     @Test func syncedRefreshDoesNotOverwriteAnUnsavedNickname() {
@@ -69,7 +70,41 @@ struct DeviceSettingsRowModelTests {
         ))
 
         #expect(row.nickname == "Home iPad")
-        #expect(row.confirmedNickname == "Synced elsewhere")
+        #expect(row.hasUnsavedNickname)
+    }
+
+    @Test func profileWithoutASyncedPolicyStaysUnresolved() {
+        let device = configuration(
+            nickname: "Home iPad",
+            status: .unknown,
+            appliedPolicyID: nil,
+        ).device
+        let row = DeviceSettingsRowModel(
+            configuration: RecordingDeviceConfiguration(
+                device: device,
+                policy: .unknown,
+            ),
+            isCurrent: false,
+        )
+
+        #expect(row.hasResolvedRecordingPolicy == false)
+        #expect(row.isPending)
+        #expect(row.isSyncingRecordingPolicy)
+        #expect(row.policyPresentationState == .syncingPolicy)
+        #expect(row.disablesDestructiveActions)
+
+        row.update(from: configuration(
+            nickname: "Home iPad",
+            status: .off,
+            appliedPolicyID: Self.policyID,
+        ))
+
+        #expect(row.hasResolvedRecordingPolicy)
+        #expect(row.isEnabled == false)
+        #expect(row.isPending == false)
+        #expect(row.isSyncingRecordingPolicy == false)
+        #expect(row.policyPresentationState == .resolved(isAcknowledged: true))
+        #expect(row.disablesDestructiveActions == false)
     }
 
     private func configuration(
@@ -89,8 +124,12 @@ struct DeviceSettingsRowModelTests {
                 lastAppliedPolicyChangeID: appliedPolicyID,
                 status: status,
             ),
-            isEnabled: status != .off,
-            latestPolicyChangeID: Self.policyID,
+            policy: .resolved(ResolvedRecordingPolicy(
+                isEnabled: status != .off,
+                isArchived: false,
+                changeID: Self.policyID,
+                isAcknowledged: appliedPolicyID == Self.policyID,
+            )),
         )
     }
 }

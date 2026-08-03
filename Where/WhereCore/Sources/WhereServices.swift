@@ -9,8 +9,9 @@ import RegionKit
 /// (`await services.journal.…`, `await services.reports.…`).
 ///
 /// The only cross-cutting operation that doesn't belong to a single
-/// collaborator is `reset()` (stop GPS, then wipe the store) — it lives here so
-/// teardown stays in Core rather than leaking into the UI layer.
+/// collaborator is `reset()` (pause GPS, erase synced user data, retire recording
+/// authority, then discard pending fixes) — it lives here so teardown stays in
+/// Core rather than leaking into the UI layer.
 public struct WhereServices: Sendable {
     /// Pure reads: `YearReport` + location projections.
     public let reports: ReportReader
@@ -68,9 +69,12 @@ public struct WhereServices: Sendable {
     /// The clock the stack was built with, retained so a derived stack can't
     /// diverge from an injected test/preview clock.
     let now: @Sendable () -> Date
-    /// Installation identity used to stamp automatic samples. Retained so a
-    /// derived App Intents stack preserves the same composition value.
-    let currentDevice: CurrentRecordingDevice
+    /// Device-local installation identity and its explicitly confirmed first policy.
+    /// Retained as one composition value so registration, sample attribution, and a derived
+    /// App Intents stack cannot accidentally describe different installations.
+    let installationContext: InstallationRecordingContext
+    /// Owns the remote-import observation task for this service lifetime.
+    private let remoteDataChangeReconciler: RemoteDataChangeReconciler
     /// Synchronous assembly with an explicitly-provided `attributor` (default:
     /// the historical four via `RegionAttributor.shared`). For **tests and
     /// previews** — hence `@_spi(Testing)` — which build in-memory stacks without
@@ -87,7 +91,7 @@ public struct WhereServices: Sendable {
     public init(
         store: any WhereStore,
         locationSource: any LocationSource,
-        currentDevice: CurrentRecordingDevice = .preview,
+        installationContext: InstallationRecordingContext = .testing,
         attributor: any RegionAttributing = RegionAttributor.shared,
         aggregator: DayAggregator = DayAggregator(),
         reminderScheduler: any LoggingReminderScheduling = NoopLoggingReminderScheduler(),
@@ -95,9 +99,11 @@ public struct WhereServices: Sendable {
         issueAlertScheduler: any DataIssueAlertScheduling = NoopDataIssueAlertScheduler(),
         widgetRefresher: any WidgetTimelineRefreshing = NoopWidgetTimelineRefresher(),
         locationOutbox: any LocationOutbox = NoOpLocationOutbox(),
+        importRecoveryPersistence: BackupCoordinator.ImportRecoveryPersistence = .none,
         activitySummaryGenerator: any ActivitySummaryGenerating = FoundationModelSummaryGenerator(),
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
+        let currentDevice = installationContext.currentDevice
         let reports = ReportReader(store: store, aggregator: aggregator, attributor: attributor)
         let evidence = EvidenceReader(store: store, aggregator: aggregator)
         // Built before the reconcilers that consume it: the reminder reconciler
@@ -147,6 +153,21 @@ public struct WhereServices: Sendable {
             calendar: aggregator.calendar,
             now: now,
         )
+        let liveAttribution = attributor as? RegionAttribution
+        let reconcileAllDerivedData: @Sendable () async -> Void = {
+            // Remote, backup, and recording-policy writes can change the tracked set at the same
+            // time as the data being rebuilt. Await the shared live attributor first so every
+            // downstream projection starts from current attribution instead of racing its
+            // independent store-change observer.
+            if let liveAttribution {
+                await liveAttribution.reconcile()
+            }
+            await resolution.invalidate()
+            await reminders.reconcile()
+            await summary.reconcile()
+            await issueAlerts.reconcile()
+            await widgets.publish()
+        }
         // After each committed GPS persist, reconcile the badge/reminders and
         // republish the widget snapshot. A live single sample uses the cheap
         // change-detection unless a drain also re-persisted other days; a
@@ -183,8 +204,13 @@ public struct WhereServices: Sendable {
         let recording = DeviceRecordingController(
             store: store,
             ingestor: ingestor,
-            currentDevice: currentDevice,
+            installationContext: installationContext,
             now: now,
+            onPolicyChanged: {
+                // A cutoff can remove already-materialized history, so every derived output
+                // must rebuild rather than waiting for its normal freshness window.
+                await reconcileAllDerivedData()
+            },
         )
         let journal = DayJournal(
             store: store,
@@ -193,13 +219,38 @@ public struct WhereServices: Sendable {
             issueAlerts: issueAlerts,
             issueScanner: resolution,
             widgets: widgets,
+            currentDeviceID: currentDevice.id,
+            now: now,
         )
-        // An import changes day data, so it reuses the journal's post-day-change
-        // reconcile (scanner invalidate + badge/notification reconcile + widget
-        // publish) rather than duplicating that fan-out.
         let backup = BackupCoordinator(
             store: store,
-            onImport: { await journal.reconcileAfterDayChange() },
+            currentDeviceID: currentDevice.id,
+            now: now,
+            importLifecycle: .init(
+                prepare: { _ in try await recording.pause() },
+                didCommit: { strategy in
+                    do {
+                        try await recording.resumeAfterImport(
+                            discardPendingSamples: strategy == .replace,
+                        )
+                    } catch {
+                        // The data transaction committed even though privacy-critical sidecar
+                        // cleanup did not. Rebuild every projection before surfacing that honest
+                        // partial-success error; never leave widgets/notifications on old data.
+                        await reconcileAllDerivedData()
+                        throw error
+                    }
+                    await reconcileAllDerivedData()
+                },
+                didRollBack: { _ in await recording.resumeAfterImportRollback() },
+            ),
+            importRecoveryPersistence: importRecoveryPersistence,
+        )
+        // Local writers await their focused fan-out above. A CloudKit/sibling-process import has
+        // no local caller, so observe the remote-only stream and rebuild every derived output.
+        let remoteDataChangeReconciler = RemoteDataChangeReconciler(
+            changes: store.remoteChanges(),
+            reconcile: reconcileAllDerivedData,
         )
         let recentActivity = RecentActivitySummarizer(
             store: store,
@@ -230,7 +281,8 @@ public struct WhereServices: Sendable {
         self.issueAlertScheduler = issueAlertScheduler
         self.widgetRefresher = widgetRefresher
         self.now = now
-        self.currentDevice = currentDevice
+        self.installationContext = installationContext
+        self.remoteDataChangeReconciler = remoteDataChangeReconciler
     }
 
     /// Assemble services whose attributor is derived from the store's **tracked
@@ -246,19 +298,21 @@ public struct WhereServices: Sendable {
     public static func make(
         store: any WhereStore,
         locationSource: any LocationSource,
-        currentDevice: CurrentRecordingDevice,
+        installationContext: InstallationRecordingContext,
         aggregator: DayAggregator = DayAggregator(),
         reminderScheduler: any LoggingReminderScheduling,
         summaryScheduler: any DailySummaryScheduling,
         issueAlertScheduler: any DataIssueAlertScheduling,
         widgetRefresher: any WidgetTimelineRefreshing,
         locationOutbox: any LocationOutbox = NoOpLocationOutbox(),
+        importRecoveryPersistence: BackupCoordinator.ImportRecoveryPersistence,
         activitySummaryGenerator: any ActivitySummaryGenerating = FoundationModelSummaryGenerator(),
         now: @escaping @Sendable () -> Date = { Date() },
     ) async throws -> WhereServices {
         let tracked = try await store.trackedRegions()
         let attribution = RegionAttribution(
             store: store,
+            changes: store.changes(),
             // Canonical order (not `Array(Set)`) so the attributor's first-match
             // priority is deterministic and matches the catalog order.
             initial: RegionAttributor(for: Region.inCanonicalOrder(tracked)),
@@ -267,7 +321,7 @@ public struct WhereServices: Sendable {
         return WhereServices(
             store: store,
             locationSource: locationSource,
-            currentDevice: currentDevice,
+            installationContext: installationContext,
             attributor: attribution,
             aggregator: aggregator,
             reminderScheduler: reminderScheduler,
@@ -275,6 +329,7 @@ public struct WhereServices: Sendable {
             issueAlertScheduler: issueAlertScheduler,
             widgetRefresher: widgetRefresher,
             locationOutbox: locationOutbox,
+            importRecoveryPersistence: importRecoveryPersistence,
             activitySummaryGenerator: activitySummaryGenerator,
             now: now,
         )
@@ -310,37 +365,50 @@ public struct WhereServices: Sendable {
     /// (upserts + removals-by-omission) is a single atomic transaction that
     /// pings `changes()` once.
     public func setPrimaryRegions(_ regions: [PrimaryRegion]) async throws {
-        try await store.perform {
+        let epochID = try await (store.dataEpoch()).id
+        try await store.perform(expectedDataEpochID: epochID) {
             try await store.setPrimaryRegions(regions)
         }
     }
 
-    /// Return the services to a clean slate for the app's "erase all data &
-    /// reset" teardown: quiesce GPS ingestion (stop monitoring, refuse further
-    /// samples, await any in-flight write, and drop the retry backlog) so
-    /// nothing can write into the store as it's wiped, then erase everything
-    /// (which also reconciles the badge/reminders and republishes an empty
-    /// widget snapshot).
+    /// Return the services to a clean slate for the app's "erase all data & reset" teardown:
+    /// pause GPS ingestion, atomically erase user data and retire this installation's authority,
+    /// then discard its pending sample backlog after the transaction commits.
     ///
     /// This is the one inherently cross-collaborator operation; keeping it here
-    /// keeps teardown ordering in Core rather than the UI. Quiescing before the
-    /// wipe is what makes the erase stick: a plain `stop()` would leave the
-    /// ingestion loop and its retry queue able to repopulate the store. Throws
-    /// on persistence failure so the caller can surface it rather than silently
-    /// half-erasing.
+    /// keeps teardown ordering in Core rather than the UI. A failed transaction resumes the
+    /// exact old authority and backlog. Throws on persistence failure so the caller can surface
+    /// it rather than silently half-erasing.
     public func reset() async throws {
-        await recording.quiesce()
+        try await recording.pause()
         do {
             try await journal.eraseAllData()
         } catch {
             await recording.resumeAfterFailedReset()
             throw error
         }
-        // `eraseAllData()` commits, which pings `store.changes()` and the
-        // scanner self-invalidates off it — but that observation is async. Drop
-        // the cache inline too so it's provably empty by the time `reset()`
-        // returns rather than racing the observer; this is the deterministic
-        // half of that pair, not redundant with it.
+        // The erase committed even if sidecar cleanup below fails. Refresh every derived
+        // projection that `DayJournal` does not already own before reporting that partial result.
         await resolution.invalidate()
+        await summary.reconcile()
+        do {
+            try await recording.finishReset()
+        } catch {
+            throw ResetCleanupError(underlying: error)
+        }
+    }
+
+    /// Synced data committed as erased, but the local raw-location sidecar could not be removed.
+    /// The installation context is deliberately retained so retrying reset can finish safely.
+    public struct ResetCleanupError: LocalizedError, @unchecked Sendable {
+        public let underlying: any Error
+
+        public init(underlying: any Error) {
+            self.underlying = underlying
+        }
+
+        public var errorDescription: String? {
+            String(localized: .dataResetErrorCommittedCleanup)
+        }
     }
 }

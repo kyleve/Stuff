@@ -26,12 +26,19 @@ struct RecordingPolicyFilterTests {
         _ timestamp: String,
         enabled: Bool,
         id: String,
+        parentIDs: [String] = [],
+        revision: Int64 = 0,
     ) -> RecordingPolicyChange {
         RecordingPolicyChange(
             id: UUID(uuidString: id)!,
             deviceID: deviceID,
+            parentIDs: parentIDs.compactMap(UUID.init(uuidString:)),
+            revision: revision,
+            issuedAt: WhereCoreTestSupport.iso(timestamp),
+            issuedByDeviceID: deviceID,
             effectiveAt: WhereCoreTestSupport.iso(timestamp),
-            isEnabled: enabled,
+            state: enabled ? .on : .off,
+            reason: .userCommand,
         )
     }
 
@@ -41,14 +48,23 @@ struct RecordingPolicyFilterTests {
         let after = Self.sample("2026-03-03T08:00:00-08:00")
         let policies = [
             Self.policy(
+                "2026-03-01T00:00:00-08:00",
+                enabled: true,
+                id: "05000000-0000-0000-0000-000000000000",
+            ),
+            Self.policy(
                 "2026-03-02T00:00:00-08:00",
                 enabled: false,
                 id: "10000000-0000-0000-0000-000000000000",
+                parentIDs: ["05000000-0000-0000-0000-000000000000"],
+                revision: 1,
             ),
             Self.policy(
                 "2026-03-03T00:00:00-08:00",
                 enabled: true,
                 id: "20000000-0000-0000-0000-000000000000",
+                parentIDs: ["10000000-0000-0000-0000-000000000000"],
+                revision: 2,
             ),
         ]
 
@@ -95,7 +111,7 @@ struct RecordingPolicyFilterTests {
         #expect(visible.map(\.id) == [legacy.id, manual.id])
     }
 
-    @Test func equalTimestampPoliciesConvergeByID() {
+    @Test func equalRevisionPoliciesPreferTheMoreRestrictiveState() {
         let disabled = Self.policy(
             "2026-03-02T00:00:00-08:00",
             enabled: false,
@@ -111,6 +127,202 @@ struct RecordingPolicyFilterTests {
         #expect(RecordingPolicyFilter.visibleSamples(
             [sample],
             policyChanges: [enabled, disabled],
-        ) == [sample])
+        ).isEmpty)
+    }
+
+    @Test func causalWinnerIsNotReversedByAnotherDevicesLaterClock() {
+        let initial = Self.policy(
+            "2026-02-28T00:00:00-08:00",
+            enabled: true,
+            id: "10000000-0000-0000-0000-000000000000",
+        )
+        let causallyLaterDisable = Self.policy(
+            "2026-03-02T00:00:00-08:00",
+            enabled: false,
+            id: "20000000-0000-0000-0000-000000000000",
+            parentIDs: ["30000000-0000-0000-0000-000000000000"],
+            revision: 2,
+        )
+        let clockSkewedOlderEnable = Self.policy(
+            "2026-03-03T00:00:00-08:00",
+            enabled: true,
+            id: "30000000-0000-0000-0000-000000000000",
+            parentIDs: ["10000000-0000-0000-0000-000000000000"],
+            revision: 1,
+        )
+        let sample = Self.sample("2026-03-04T08:00:00-08:00")
+
+        #expect(RecordingPolicyFilter.visibleSamples(
+            [sample],
+            policyChanges: [initial, clockSkewedOlderEnable, causallyLaterDisable],
+        ).isEmpty)
+    }
+
+    @Test func deviceStampedSampleFailsClosedUntilItsPolicyArrives() {
+        let stamped = Self.sample("2026-03-02T08:00:00-08:00")
+        let legacy = Self.sample("2026-03-02T09:00:00-08:00", deviceID: nil)
+
+        let visible = RecordingPolicyFilter.visibleSamples(
+            [stamped, legacy],
+            policyChanges: [],
+        )
+
+        #expect(visible == [legacy])
+    }
+
+    @Test func deviceStampedSampleFailsClosedWhilePolicyRevisionsHaveAGap() {
+        let initial = Self.policy(
+            "2026-03-01T00:00:00-08:00",
+            enabled: true,
+            id: "10000000-0000-0000-0000-000000000000",
+        )
+        let laterEnable = Self.policy(
+            "2026-03-03T00:00:00-08:00",
+            enabled: true,
+            id: "30000000-0000-0000-0000-000000000000",
+            parentIDs: ["10000000-0000-0000-0000-000000000000"],
+            revision: 2,
+        )
+        let stamped = Self.sample("2026-03-04T08:00:00-08:00")
+        let legacy = Self.sample("2026-03-04T09:00:00-08:00", deviceID: nil)
+
+        let visible = RecordingPolicyFilter.visibleSamples(
+            [stamped, legacy],
+            policyChanges: [initial, laterEnable],
+        )
+
+        #expect(visible == [legacy])
+    }
+
+    @Test func backdatedChildCannotReExposeSamplesBeforeItsOffParent() {
+        let initial = Self.policy(
+            "2026-03-01T00:00:00-08:00",
+            enabled: true,
+            id: "10000000-0000-0000-0000-000000000000",
+        )
+        let off = Self.policy(
+            "2026-03-03T00:00:00-08:00",
+            enabled: false,
+            id: "20000000-0000-0000-0000-000000000000",
+            parentIDs: ["10000000-0000-0000-0000-000000000000"],
+            revision: 1,
+        )
+        let backdatedEnable = Self.policy(
+            "2026-03-02T00:00:00-08:00",
+            enabled: true,
+            id: "30000000-0000-0000-0000-000000000000",
+            parentIDs: ["20000000-0000-0000-0000-000000000000"],
+            revision: 2,
+        )
+        let sample = Self.sample("2026-03-02T08:00:00-08:00")
+
+        #expect(RecordingPolicyFilter.visibleSamples(
+            [sample],
+            policyChanges: [initial, off, backdatedEnable],
+        ).isEmpty)
+    }
+
+    @Test func archivedAuthorityExcludesLaterSamples() throws {
+        let sample = Self.sample("2026-03-03T08:00:00-08:00")
+        let archiveID = try #require(
+            UUID(uuidString: "20000000-0000-0000-0000-000000000000"),
+        )
+        let archived = try RecordingPolicyChange(
+            id: archiveID,
+            deviceID: Self.deviceID,
+            parentIDs: [#require(UUID(uuidString: "10000000-0000-0000-0000-000000000000"))],
+            revision: 1,
+            issuedAt: WhereCoreTestSupport.iso("2026-03-02T00:00:00-08:00"),
+            issuedByDeviceID: Self.deviceID,
+            effectiveAt: WhereCoreTestSupport.iso("2026-03-02T00:00:00-08:00"),
+            state: .archived,
+            reason: .archive,
+        )
+
+        #expect(RecordingPolicyFilter.visibleSamples(
+            [sample],
+            policyChanges: [
+                Self.policy(
+                    "2026-03-01T00:00:00-08:00",
+                    enabled: true,
+                    id: "10000000-0000-0000-0000-000000000000",
+                ),
+                archived,
+            ],
+        ).isEmpty)
+    }
+
+    @Test func accountResetKeepsLatePreResetSamplesErasedAfterReenable() throws {
+        let initial = Self.policy(
+            "2026-03-01T00:00:00-08:00",
+            enabled: true,
+            id: "10000000-0000-0000-0000-000000000000",
+        )
+        let resetAt = WhereCoreTestSupport.iso("2026-03-03T00:00:00-08:00")
+        let reset = try RecordingPolicyChange(
+            id: #require(UUID(uuidString: "20000000-0000-0000-0000-000000000000")),
+            deviceID: Self.deviceID,
+            parentIDs: [initial.id],
+            revision: 1,
+            issuedAt: resetAt,
+            issuedByDeviceID: Self.deviceID,
+            effectiveAt: resetAt,
+            state: .off,
+            reason: .accountReset,
+        )
+        let reenabled = Self.policy(
+            "2026-03-04T00:00:00-08:00",
+            enabled: true,
+            id: "30000000-0000-0000-0000-000000000000",
+            parentIDs: ["20000000-0000-0000-0000-000000000000"],
+            revision: 2,
+        )
+        let latePreReset = Self.sample("2026-03-02T08:00:00-08:00")
+        let afterReenable = Self.sample("2026-03-05T08:00:00-08:00")
+
+        let visible = RecordingPolicyFilter.visibleSamples(
+            [latePreReset, afterReenable],
+            policyChanges: [initial, reset, reenabled],
+        )
+
+        #expect(visible.map(\.id) == [afterReenable.id])
+    }
+
+    @Test func concurrentAccountResetOutranksBackupReplacement() throws {
+        let initial = Self.policy(
+            "2026-03-01T00:00:00-08:00",
+            enabled: true,
+            id: "05000000-0000-0000-0000-000000000000",
+        )
+        let commandDate = WhereCoreTestSupport.iso("2026-03-03T00:00:00-08:00")
+        let reset = try RecordingPolicyChange(
+            id: #require(UUID(uuidString: "10000000-0000-0000-0000-000000000000")),
+            deviceID: Self.deviceID,
+            parentIDs: [initial.id],
+            revision: 1,
+            issuedAt: commandDate,
+            issuedByDeviceID: Self.deviceID,
+            effectiveAt: commandDate,
+            state: .off,
+            reason: .accountReset,
+        )
+        // Its lexically later id would win the old UUID tie-break, dropping the reset floor.
+        let replacement = try RecordingPolicyChange(
+            id: #require(UUID(uuidString: "20000000-0000-0000-0000-000000000000")),
+            deviceID: Self.deviceID,
+            parentIDs: [initial.id],
+            revision: 1,
+            issuedAt: commandDate,
+            issuedByDeviceID: Self.deviceID,
+            effectiveAt: commandDate,
+            state: .off,
+            reason: .backupReplace,
+        )
+        let latePreReset = Self.sample("2026-03-02T08:00:00-08:00")
+
+        #expect(RecordingPolicyFilter.visibleSamples(
+            [latePreReset],
+            policyChanges: [replacement, initial, reset],
+        ).isEmpty)
     }
 }

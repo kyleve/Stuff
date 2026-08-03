@@ -134,7 +134,7 @@
             return [
                 RecordingDeviceConfiguration(
                     device: RecordingDevice(
-                        id: CurrentRecordingDevice.preview.id,
+                        id: InstallationRecordingContext.testing.currentDevice.id,
                         systemName: "iPhone",
                         nickname: "My iPhone",
                         kind: .phone,
@@ -144,8 +144,12 @@
                         lastAppliedPolicyChangeID: currentPolicyID,
                         status: .recording,
                     ),
-                    isEnabled: true,
-                    latestPolicyChangeID: currentPolicyID,
+                    policy: .resolved(ResolvedRecordingPolicy(
+                        isEnabled: true,
+                        isArchived: false,
+                        changeID: currentPolicyID,
+                        isAcknowledged: true,
+                    )),
                 ),
                 RecordingDeviceConfiguration(
                     device: RecordingDevice(
@@ -159,8 +163,12 @@
                         lastAppliedPolicyChangeID: remoteAppliedPolicyID,
                         status: .recording,
                     ),
-                    isEnabled: false,
-                    latestPolicyChangeID: remoteLatestPolicyID,
+                    policy: .resolved(ResolvedRecordingPolicy(
+                        isEnabled: false,
+                        isArchived: false,
+                        changeID: remoteLatestPolicyID,
+                        isAcknowledged: false,
+                    )),
                 ),
             ]
         }
@@ -567,7 +575,6 @@
         public static func loadedModel() -> WhereModel {
             let preferences = previewPreferences()
             preferences.hasOnboarded = true
-            preferences.hasConfirmedRecordingChoice = true
             return WhereModel(
                 services: previewServices(),
                 report: sampleReport(),

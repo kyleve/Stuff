@@ -73,12 +73,16 @@ entitlement, and the remote-notification background mode. Widgets and the share
 extension intentionally have only the App Group entitlement: they write/read
 local shared artifacts, while the app's single SwiftData container owns
 CloudKit mirroring. Debug uses `.localOnly`; exercise sync with a Release-signed
-build.
+build or use `./Where/install --cloudkit`. Release always selects `.cloudKit`.
+The installer compiles the validation choice into that Debug app, so manual,
+background, and CloudKit-push relaunches keep using CloudKit until another build
+is installed without `--cloudkit`.
 
 Before shipping a schema change:
 
-1. Install a Release build against the Development CloudKit environment and
-   open the store so SwiftData initializes the additive schema.
+1. Run `./Where/install --cloudkit` (or install a Release build) against the
+   Development CloudKit environment and open the store so SwiftData initializes
+   the additive schema.
 2. Inspect the new fields/record types in CloudKit Console, then deploy that
    schema to Production before distributing the build.
 3. On two devices signed into the same iCloud account, open Settings → Devices
@@ -91,8 +95,9 @@ Before shipping a schema change:
    and the waiting state clears on the carried device. Re-enable it and verify
    new locations appear again.
 6. Archive the non-current device and verify it is hidden without losing older
-   report history. Export and replace-import a backup and verify device names,
-   raw samples, policy history, and archived state round-trip.
+   report history. Export and replace-import a backup; verify history and names
+   round-trip, archived imported devices stay hidden, file-absent devices stay
+   retired, and every visible device is Off until explicitly re-enabled.
 
 On a fresh install, onboarding recommends automatic recording On for an iPhone
 and Off for an iPad/other device, then requires the user to confirm. Existing

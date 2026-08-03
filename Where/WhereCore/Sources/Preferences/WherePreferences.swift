@@ -1,7 +1,7 @@
 import Foundation
 
-/// The app's persisted user intent — onboarding completion, background-tracking
-/// intent, and the reminder / daily-summary schedules — behind a `KeyValueStore`
+/// The app's persisted user intent — onboarding completion and the reminder /
+/// daily-summary schedules — behind a `KeyValueStore`
 /// so production uses `UserDefaults` and tests use an in-memory double.
 ///
 /// `store` is deliberately not defaulted: defaulting it to
@@ -27,22 +27,6 @@ public final class WherePreferences {
     public var hasOnboarded: Bool {
         get { store.bool(forKey: Keys.hasOnboarded.rawValue) }
         set { store.set(newValue, forKey: Keys.hasOnboarded.rawValue) }
-    }
-
-    /// Whether this installation has explicitly confirmed its initial
-    /// automatic-recording choice. Device-local rather than CloudKit-synced:
-    /// every installation must make its own decision before it registers a
-    /// synced recording policy.
-    public var hasConfirmedRecordingChoice: Bool {
-        get { store.bool(forKey: Keys.hasConfirmedRecordingChoice.rawValue) }
-        set { store.set(newValue, forKey: Keys.hasConfirmedRecordingChoice.rawValue) }
-    }
-
-    /// Persisted intent to track in the background. Defaults to `true` so that,
-    /// once the user grants Always, tracking resumes automatically every launch.
-    public var wantsTracking: Bool {
-        get { store.object(forKey: Keys.wantsTracking.rawValue) as? Bool ?? true }
-        set { store.set(newValue, forKey: Keys.wantsTracking.rawValue) }
     }
 
     /// Whether the daily "log before the day ends" reminder is enabled. Defaults
@@ -109,8 +93,8 @@ public final class WherePreferences {
     }
 
     /// Clear every persisted preference so the next launch behaves like a fresh
-    /// install: onboarding shows again, background tracking returns to its
-    /// default intent, and the reminder/summary schedules revert to defaults.
+    /// install: onboarding shows again and the reminder/summary schedules revert
+    /// to defaults.
     /// Removing the keys (rather than writing `false`/`0`) lets the
     /// default-valued getters report first-install state again.
     public func reset() {
@@ -124,8 +108,6 @@ public final class WherePreferences {
     /// sync — adding a case is all it takes to have it reset.
     private enum Keys: String, CaseIterable {
         case hasOnboarded = "where.hasOnboarded"
-        case hasConfirmedRecordingChoice = "where.hasConfirmedRecordingChoice"
-        case wantsTracking = "where.wantsBackgroundTracking"
         case remindersEnabled = "where.remindersEnabled"
         case reminderHour = "where.reminderHour"
         case reminderMinute = "where.reminderMinute"

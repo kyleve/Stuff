@@ -43,10 +43,11 @@ public enum LaunchStepID: String, Sendable {
     /// Republish the widget snapshot from whatever is already on disk.
     case widgetSnapshot = "widget-snapshot"
 
-    /// Reset teardown: stop GPS, wipe the store, and drop the session.
+    /// Reset teardown: pause GPS, erase synced user data, retire recording authority,
+    /// discard pending fixes, and drop the session.
     case eraseData = "erase-data"
-    /// Reset teardown: clear the persisted preferences that gate the relaunch
-    /// (onboarding flag, tracking intent, reminder/summary schedules).
+    /// Reset teardown: clear the installation context and persisted preferences
+    /// that gate the relaunch (onboarding flag and reminder/summary schedules).
     case resetPreferences = "reset-preferences"
     /// Demo teardown: drop the demo world and hand the real one its durable
     /// log sink back.
@@ -236,9 +237,20 @@ public protocol WhereScopeAssembling {
 public final class WhereBootstrap: WhereScopeAssembling {
     private static let logger = WhereLog.root(WhereLaunchLog.self)
 
+    private let installationContextStore: any InstallationRecordingContextStoring
+    private let storeStorage: SwiftDataStore.Storage
+    private let locationOutbox: any LocationOutbox
     private var locationSource: CoreLocationSource?
 
-    public init() {}
+    public init(
+        installationContextStore: any InstallationRecordingContextStoring,
+        storeStorage: SwiftDataStore.Storage,
+        locationOutbox: any LocationOutbox,
+    ) {
+        self.installationContextStore = installationContextStore
+        self.storeStorage = storeStorage
+        self.locationOutbox = locationOutbox
+    }
 
     /// Install the `CLLocationManager` + delegate right away, without touching
     /// the store. Idempotent.
@@ -267,14 +279,19 @@ public final class WhereBootstrap: WhereScopeAssembling {
         let source = locationSource ?? CoreLocationSource()
         locationSource = nil
         do {
-            let currentDevice = try CurrentRecordingDeviceProvider.current()
+            let installationContext = try installationContextStore.resolve()
+            precondition(
+                installationContext.initialRecordingChoice != nil,
+                "A real scope cannot open before this installation confirms recording.",
+            )
+            let storeStorage = storeStorage
             let store = try await Task.detached(priority: .userInitiated) {
-                try SwiftDataStore.make()
+                try SwiftDataStore.make(storage: storeStorage)
             }.value
             let services = try await WhereServices.make(
                 store: store,
                 locationSource: source,
-                currentDevice: currentDevice,
+                installationContext: installationContext,
                 // The real world's seams, named here because this is the only
                 // place that wants them: the demo scope builds the same stack
                 // out of no-ops, and every test and preview gets no-ops by
@@ -283,7 +300,9 @@ public final class WhereBootstrap: WhereScopeAssembling {
                 summaryScheduler: UserNotificationDailySummaryScheduler(),
                 issueAlertScheduler: UserNotificationDataIssueAlertScheduler(),
                 widgetRefresher: WidgetCenterTimelineRefresher(),
-                locationOutbox: FileLocationOutbox.applicationSupport(),
+                locationOutbox: locationOutbox,
+                importRecoveryPersistence: installationContextStore
+                    .backupImportRecoveryPersistence,
             )
             Self.logger { .servicesAssembled }
             return services
@@ -308,9 +327,8 @@ public final class WhereBootstrap: WhereScopeAssembling {
         )
     }
 
-    /// Where a real scope's log store belongs, mirroring
-    /// `SwiftDataStore.Storage.default`'s test-runner guard: under a test host
-    /// it must stay in memory. A suite that logs in would otherwise write its
+    /// Where a real scope's log store belongs. Under a test host it must stay
+    /// in memory. A suite that logs in would otherwise write its
     /// records into the user's `Periscope.store`, and opening that from a test
     /// host's sandbox neither succeeds nor fails promptly — it stalls the
     /// bundle instead of failing it.

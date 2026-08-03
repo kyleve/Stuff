@@ -86,33 +86,35 @@ public struct WidgetDataReader: Sendable {
     /// that day's year from the store. Same aggregation rules as the app's
     /// year report, so the widget and the app never disagree on a count.
     public func snapshot(asOf date: Date) async throws -> WidgetSnapshot {
-        let calendar = aggregator.calendar
-        let startOfDay = calendar.startOfDay(for: date)
-        let calendarDay = CalendarDay(from: date, in: calendar)
-        let year = calendarDay.year
-        let interval = aggregator.yearInterval(year: year)
-        let dayRange = CalendarDay.yearRange(year)
-        let samples = try await history.samples(in: interval)
-        let manualDays = try await store.manualDays(in: dayRange)
-        let report = aggregator.report(
-            for: year,
-            samples: samples,
-            manualDays: manualDays,
-            attributor: attributor,
-        )
-        let dayRegions = report.days
-            .first { $0.day == calendarDay }?
-            .regions ?? []
-        var appearances: [Region: RegionAppearance] = [:]
-        for primary in try await store.primaryRegions() {
-            if let appearance = primary.appearance { appearances[primary.region] = appearance }
+        try await store.readSnapshot {
+            let calendar = aggregator.calendar
+            let startOfDay = calendar.startOfDay(for: date)
+            let calendarDay = CalendarDay(from: date, in: calendar)
+            let year = calendarDay.year
+            let interval = aggregator.yearInterval(year: year)
+            let dayRange = CalendarDay.yearRange(year)
+            let samples = try await history.samples(in: interval)
+            let manualDays = try await store.manualDays(in: dayRange)
+            let report = aggregator.report(
+                for: year,
+                samples: samples,
+                manualDays: manualDays,
+                attributor: attributor,
+            )
+            let dayRegions = report.days
+                .first { $0.day == calendarDay }?
+                .regions ?? []
+            var appearances: [Region: RegionAppearance] = [:]
+            for primary in try await store.primaryRegions() {
+                if let appearance = primary.appearance { appearances[primary.region] = appearance }
+            }
+            return WidgetSnapshot(
+                day: startOfDay,
+                year: year,
+                dayRegions: dayRegions,
+                totals: report.totals,
+                appearances: appearances,
+            )
         }
-        return WidgetSnapshot(
-            day: startOfDay,
-            year: year,
-            dayRegions: dayRegions,
-            totals: report.totals,
-            appearances: appearances,
-        )
     }
 }

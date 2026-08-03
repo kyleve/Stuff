@@ -13,13 +13,14 @@ enum BackupModelLog: LogEvent {
         trackedRegionCount: Int,
     )
     case importFailed(description: String)
+    case importCleanupFailed(description: String)
 
     static let eventName = "Backup"
 
     var level: LogLevel {
         switch self {
             case .exported, .imported: .info
-            case .exportFailed, .importFailed: .warning
+            case .exportFailed, .importFailed, .importCleanupFailed: .warning
         }
     }
 
@@ -39,6 +40,8 @@ enum BackupModelLog: LogEvent {
                 "Imported backup (\(sampleCount) samples, \(evidenceCount) evidence, \(manualDayCount) manual days, \(dismissedIssueCount) dismissals, \(trackedRegionCount) tracked regions)"
             case let .importFailed(description):
                 "Backup import failed: \(description)"
+            case let .importCleanupFailed(description):
+                "Backup import committed but recording cleanup failed: \(description)"
         }
     }
 }

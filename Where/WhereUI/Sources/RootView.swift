@@ -3,7 +3,7 @@ import LifecycleKitUI
 import PeriscopeUI
 import SnapshotKit
 import SwiftUI
-import WhereCore
+@_spi(Testing) import WhereCore
 #if DEBUG
     import Inspector
     import PeriscopeCore
@@ -83,9 +83,19 @@ public struct RootView: View {
         // Mirrors the app root's wiring (see `AppDelegate`). Nothing here
         // attaches a sink unless a scope is actually resolved, which a preview
         // or the hosted UI test never gets to.
+        let installationContextStore = InMemoryInstallationRecordingContextStore(
+            context: .testing,
+        )
         let model = WhereModel(
             preferences: WherePreferences(store: UserDefaults.standard),
-            makeBootstrap: { WhereBootstrap() },
+            installationContextStore: installationContextStore,
+            makeBootstrap: {
+                WhereBootstrap(
+                    installationContextStore: $0,
+                    storeStorage: .inMemory,
+                    locationOutbox: NoOpLocationOutbox(),
+                )
+            },
             logSystem: .shared,
         )
         _model = State(initialValue: model)
@@ -103,7 +113,7 @@ public struct RootView: View {
                 animation: revealAnimation,
                 minimumSplashDuration: stylesheet.launch.minimumSplashDuration,
                 splash: { _ in LaunchSplashView() },
-                failure: { LifecycleFailureView(failure: $0) },
+                failure: { WhereLifecycleFailureView(failure: $0) },
                 gates: {
                     // The gate roots the trunk, so there is no session (and no
                     // open store) behind it yet — onboarding builds the scope
@@ -111,7 +121,7 @@ public struct RootView: View {
                     GateView(for: OnboardingGate.self) { handle, _ in
                         OnboardingView(
                             gate: handle,
-                            deviceKind: CurrentRecordingDeviceProvider.currentKind,
+                            installationContext: model.installationRecordingContext,
                             startsAtRecordingChoice: model.hasOnboarded,
                         )
                     }

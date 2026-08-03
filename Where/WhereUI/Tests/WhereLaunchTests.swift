@@ -5,9 +5,29 @@ import RegionKit
 import TestHostSupport
 import Testing
 @_spi(Testing) import WhereCore
-@_spi(Testing) import WhereUI
+@_spi(Testing) @testable import WhereUI
 
 private struct WaitTimeout: Error {}
+
+/// Records destructive outbox cleanup without relying on timing. Launch tests read the count
+/// from the services-ready hook to prove recovery completed before the later recording step.
+private actor LaunchImportOutbox: LocationOutbox {
+    private var clearCount = 0
+
+    func load() async throws -> [LocationOutboxEntry] {
+        []
+    }
+
+    func save(_: [LocationOutboxEntry]) async {}
+
+    func clear() async throws {
+        clearCount += 1
+    }
+
+    func numberOfClears() -> Int {
+        clearCount
+    }
+}
 
 /// Polls `predicate` on the main actor until it holds or the timeout elapses,
 /// yielding to the launcher's drive task between checks.
@@ -104,12 +124,16 @@ struct WhereLaunchTests {
     private func makeLoggedOutModel(
         status: LocationAuthorizationStatus = .always,
         preferences: WherePreferences,
+        installationContextStore: InMemoryInstallationRecordingContextStore? = nil,
     ) throws -> (WhereModel, ScriptedBootstrap) {
+        let installationContextStore = installationContextStore
+            ?? makeInstallationRecordingContextStore()
         let bootstrap = try ScriptedBootstrap(services: makeServices(status: status))
         return (
             WhereModel(
                 preferences: preferences,
-                makeBootstrap: { bootstrap },
+                installationContextStore: installationContextStore,
+                makeBootstrap: { _ in bootstrap },
                 logSystem: .isolated(),
             ),
             bootstrap,
@@ -242,12 +266,225 @@ struct WhereLaunchTests {
         #expect(model.session == nil)
 
         // Resolve the gate as OnboardingView would, letting the launch finish.
+        try model.confirmInitialRecordingChoice(isEnabled: true)
+        model.completeOnboarding()
         launcher.phase.gateHandle?.complete()
         await task.value
         #expect(launcher.phase.isReady)
         #expect(bootstrap.makeServicesCount == 1)
         // .ready carries the session the trunk produced.
         #expect(launcher.phase.readyValue === model.session)
+    }
+
+    @Test func coldPreparedOnboardingImportWithoutReceiptReturnsToOnboarding() async throws {
+        let installationStore = makeInstallationRecordingContextStore()
+        let details = Self.onboardingRecoveryDetails()
+        try installationStore.setBackupImportRecovery(.prepared(details))
+        let services = try WhereServices(
+            store: SwiftDataStore.inMemory(),
+            locationSource: ScriptedLocationSource(),
+            importRecoveryPersistence: installationStore.backupImportRecoveryPersistence,
+        )
+        let bootstrap = ScriptedBootstrap(services: services)
+        let model = WhereModel(
+            preferences: makePreferences(),
+            installationContextStore: installationStore,
+            makeBootstrap: { _ in bootstrap },
+            logSystem: .isolated(),
+        )
+
+        let isNeeded = await OnboardingGate(model: model).isNeeded(())
+
+        #expect(isNeeded)
+        #expect(!model.hasOnboarded)
+        #expect(model.activeScope == nil)
+        #expect(installationStore.backupImportRecovery == nil)
+    }
+
+    @Test func coldCommittedOnboardingImportCompletesBeforeRestoreCanReappear() async throws {
+        let installationStore = makeInstallationRecordingContextStore()
+        let details = Self.onboardingRecoveryDetails()
+        try installationStore.setBackupImportRecovery(.committed(
+            details,
+            cleanupCompleted: true,
+            onboardingAcknowledged: false,
+        ))
+        let services = try WhereServices(
+            store: SwiftDataStore.inMemory(),
+            locationSource: ScriptedLocationSource(),
+            importRecoveryPersistence: installationStore.backupImportRecoveryPersistence,
+        )
+        let bootstrap = ScriptedBootstrap(services: services)
+        let model = WhereModel(
+            preferences: makePreferences(),
+            installationContextStore: installationStore,
+            makeBootstrap: { _ in bootstrap },
+            logSystem: .isolated(),
+        )
+
+        let isNeeded = await OnboardingGate(model: model).isNeeded(())
+
+        #expect(!isNeeded)
+        #expect(model.hasOnboarded)
+        #expect(model.activeScope != nil)
+        #expect(installationStore.backupImportRecovery == nil)
+    }
+
+    @Test func coldOnboardingRecoveryOpenFailureNeverFallsThroughToRestore() async throws {
+        let installationStore = makeInstallationRecordingContextStore()
+        try installationStore.setBackupImportRecovery(.committed(
+            Self.onboardingRecoveryDetails(),
+            cleanupCompleted: false,
+            onboardingAcknowledged: false,
+        ))
+        let model = WhereModel(
+            preferences: makePreferences(),
+            installationContextStore: installationStore,
+            makeBootstrap: { _ in FailingBootstrap() },
+            logSystem: .isolated(),
+        )
+
+        let isNeeded = await OnboardingGate(model: model).isNeeded(())
+
+        #expect(!isNeeded)
+        #expect(!model.hasOnboarded)
+        #expect(model.takeInterruptedOnboardingImportError() is FailingBootstrap.AssemblyFailure)
+        #expect(installationStore.backupImportRecovery != nil)
+    }
+
+    @Test func coldPreparedSettingsImportRollsBackBeforeRecordingRegistration() async throws {
+        let installationStore = makeInstallationRecordingContextStore()
+        let details = Self.settingsRecoveryDetails(strategy: .replace)
+        let installationID = installationStore.onboardingContext.currentDevice.id
+        try installationStore.setBackupImportRecovery(.prepared(details))
+        let store = try SwiftDataStore.inMemory()
+        let outbox = LaunchImportOutbox()
+        let services = WhereServices(
+            store: store,
+            locationSource: ScriptedLocationSource(authorizationStatus: .always),
+            installationContext: installationStore.onboardingContext,
+            locationOutbox: outbox,
+            importRecoveryPersistence: installationStore.backupImportRecoveryPersistence,
+        )
+        let model = WhereModel(
+            preferences: makePreferences(),
+            installationContextStore: installationStore,
+            makeBootstrap: { _ in ScriptedBootstrap(services: services) },
+            logSystem: .isolated(),
+        )
+        model.completeOnboarding()
+
+        var recoveryAtHandoff: BackupCoordinator.DurableImportRecovery?
+        var profilesAtHandoff: [RecordingDeviceProfile]?
+        var clearCountAtHandoff: Int?
+        let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground) { _ in
+            recoveryAtHandoff = installationStore.backupImportRecovery
+            profilesAtHandoff = try? await store.recordingDeviceProfiles()
+            clearCountAtHandoff = await outbox.numberOfClears()
+        }
+
+        await launcher.run()
+
+        #expect(launcher.phase.isReady)
+        #expect(recoveryAtHandoff == nil)
+        #expect(profilesAtHandoff?.isEmpty == true)
+        // A prepared Replace with no receipt rolled back, so its old outbox was not destroyed.
+        #expect(clearCountAtHandoff == 0)
+        #expect(try await store.recordingDeviceProfiles().map(\.id) == [
+            installationID,
+        ])
+        #expect(model.session?.isTracking == true)
+    }
+
+    @Test func coldCommittedSettingsReplaceCleansBeforeRecordingRegistration() async throws {
+        let installationStore = makeInstallationRecordingContextStore()
+        let details = Self.settingsRecoveryDetails(strategy: .replace)
+        let installationID = installationStore.onboardingContext.currentDevice.id
+        try installationStore.setBackupImportRecovery(.committed(
+            details,
+            cleanupCompleted: false,
+            onboardingAcknowledged: true,
+        ))
+        let store = try SwiftDataStore.inMemory()
+        try await store.perform {
+            try await store.addBackupImportReceipt(
+                id: details.transactionID,
+                installationID: installationID,
+            )
+        }
+        let outbox = LaunchImportOutbox()
+        let services = WhereServices(
+            store: store,
+            locationSource: ScriptedLocationSource(authorizationStatus: .always),
+            installationContext: installationStore.onboardingContext,
+            locationOutbox: outbox,
+            importRecoveryPersistence: installationStore.backupImportRecoveryPersistence,
+        )
+        let model = WhereModel(
+            preferences: makePreferences(),
+            installationContextStore: installationStore,
+            makeBootstrap: { _ in ScriptedBootstrap(services: services) },
+            logSystem: .isolated(),
+        )
+        model.completeOnboarding()
+
+        var recoveryAtHandoff: BackupCoordinator.DurableImportRecovery?
+        var profilesAtHandoff: [RecordingDeviceProfile]?
+        var clearCountAtHandoff: Int?
+        var receiptAtHandoff: BackupImportReceipt?
+        let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground) { _ in
+            recoveryAtHandoff = installationStore.backupImportRecovery
+            profilesAtHandoff = try? await store.recordingDeviceProfiles()
+            clearCountAtHandoff = await outbox.numberOfClears()
+            receiptAtHandoff = try? await store.backupImportReceipt(
+                id: details.transactionID,
+                installationID: installationID,
+            )
+        }
+
+        await launcher.run()
+
+        #expect(launcher.phase.isReady)
+        #expect(recoveryAtHandoff == nil)
+        #expect(profilesAtHandoff?.isEmpty == true)
+        #expect(clearCountAtHandoff == 1)
+        #expect(receiptAtHandoff == nil)
+        #expect(try await store.recordingDeviceProfiles().map(\.id) == [
+            installationID,
+        ])
+        #expect(model.session?.isTracking == true)
+    }
+
+    private static func onboardingRecoveryDetails() -> BackupCoordinator.ImportRecoveryDetails {
+        BackupCoordinator.ImportRecoveryDetails(
+            transactionID: UUID(uuidString: "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE")!,
+            strategy: .merge,
+            summary: BackupCoordinator.ImportSummary(
+                sampleCount: 3,
+                evidenceCount: 2,
+                manualDayCount: 1,
+                dismissedIssueCount: 0,
+                trackedRegionCount: 4,
+            ),
+            purpose: .onboarding,
+        )
+    }
+
+    private static func settingsRecoveryDetails(
+        strategy: BackupCoordinator.ImportStrategy,
+    ) -> BackupCoordinator.ImportRecoveryDetails {
+        BackupCoordinator.ImportRecoveryDetails(
+            transactionID: UUID(),
+            strategy: strategy,
+            summary: BackupCoordinator.ImportSummary(
+                sampleCount: 3,
+                evidenceCount: 2,
+                manualDayCount: 1,
+                dismissedIssueCount: 0,
+                trackedRegionCount: 4,
+            ),
+            purpose: .settings,
+        )
     }
 
     @Test func headlessFirstRunParksRatherThanOpeningTheStore() async throws {
@@ -268,6 +505,8 @@ struct WhereLaunchTests {
         try await waitUntil { launcher.phase.isAwaitingGate(LaunchStepID.onboarding) }
         #expect(bootstrap.makeServicesCount == 0)
 
+        try model.confirmInitialRecordingChoice(isEnabled: true)
+        model.completeOnboarding()
         launcher.phase.gateHandle?.complete()
         await promote.value
         await task.value
@@ -286,10 +525,24 @@ struct WhereLaunchTests {
         #expect(bootstrap.makeServicesCount == 1)
     }
 
-    @Test func existingInstallationParksForItsRecordingChoiceBeforeOpening() async throws {
+    @Test func restoredInstallationParksForItsRecordingChoiceBeforeOpening() async throws {
         let preferences = makePreferences()
         preferences.hasOnboarded = true
-        let (model, bootstrap) = try makeLoggedOutModel(preferences: preferences)
+        let installationContextStore = InMemoryInstallationRecordingContextStore(
+            context: InstallationRecordingContext(
+                currentDevice: CurrentRecordingDevice(
+                    id: RecordingDeviceID(rawValue: UUID()),
+                    systemName: "iPad",
+                    kind: .tablet,
+                ),
+                registeredAt: Date(timeIntervalSinceReferenceDate: 0),
+                initialRecordingChoice: nil,
+            ),
+        )
+        let (model, bootstrap) = try makeLoggedOutModel(
+            preferences: preferences,
+            installationContextStore: installationContextStore,
+        )
         let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
         let task = Task { @MainActor in await launcher.run() }
 
@@ -298,7 +551,7 @@ struct WhereLaunchTests {
         #expect(model.hasConfirmedRecordingChoice == false)
         #expect(bootstrap.makeServicesCount == 0)
 
-        model.confirmRecordingChoice()
+        try model.confirmInitialRecordingChoice(isEnabled: false)
         launcher.phase.gateHandle?.complete()
         await task.value
 
@@ -312,10 +565,10 @@ struct WhereLaunchTests {
         // reading as a launch that simply never finished.
         let preferences = makePreferences()
         preferences.hasOnboarded = true
-        preferences.hasConfirmedRecordingChoice = true
         let model = WhereModel(
             preferences: preferences,
-            makeBootstrap: { FailingBootstrap() },
+            installationContextStore: makeInstallationRecordingContextStore(),
+            makeBootstrap: { _ in FailingBootstrap() },
             logSystem: .isolated(),
         )
 
@@ -358,7 +611,8 @@ struct WhereLaunchTests {
         let logSystem = Periscope.isolated()
         let model = WhereModel(
             preferences: preferences,
-            makeBootstrap: { ScriptedBootstrap(services: services) },
+            installationContextStore: makeInstallationRecordingContextStore(),
+            makeBootstrap: { _ in ScriptedBootstrap(services: services) },
             logSystem: logSystem,
         )
         model.activate(scope: .fake(
@@ -396,7 +650,8 @@ struct WhereLaunchTests {
         let logSystem = Periscope.isolated()
         let model = WhereModel(
             preferences: preferences,
-            makeBootstrap: { ScriptedBootstrap(services: services) },
+            installationContextStore: makeInstallationRecordingContextStore(),
+            makeBootstrap: { _ in ScriptedBootstrap(services: services) },
             logSystem: logSystem,
         )
         model.activate(scope: .fake(
@@ -427,6 +682,7 @@ struct WhereLaunchTests {
         // so a relaunch parked in onboarding has handed nothing to consumers.
         #expect(hookFires == 1)
 
+        try model.confirmInitialRecordingChoice(isEnabled: true)
         model.completeOnboarding()
         launcher.phase.gateHandle?.complete()
         await teardown.value
@@ -434,17 +690,39 @@ struct WhereLaunchTests {
         #expect(hookFires == 2)
     }
 
-    @Test func backgroundLaunchSkipsOnboardingAndReachesReady() async throws {
-        // Not onboarded — but a headless background launch must skip the
-        // foreground-only onboarding step (waiting for a tap with no UI would
-        // deadlock) and still run the rest.
-        let model = try makeModel(status: .always, preferences: makePreferences())
+    @Test func backgroundLaunchParksUntilTheInstallationIsConfirmed() async throws {
+        // A headless launch must not open the store or infer consent for a new/restored
+        // installation. It parks until a later foreground UI confirms the choice.
+        let context = InstallationRecordingContext(
+            currentDevice: CurrentRecordingDevice(
+                id: RecordingDeviceID(rawValue: UUID()),
+                systemName: "iPad",
+                kind: .tablet,
+            ),
+            registeredAt: Date(timeIntervalSinceReferenceDate: 0),
+            initialRecordingChoice: nil,
+        )
+        let (model, bootstrap) = try makeLoggedOutModel(
+            status: .always,
+            preferences: makePreferences(),
+            installationContextStore: makeInstallationRecordingContextStore(context: context),
+        )
         #expect(!model.hasOnboarded)
         let launcher = WhereLaunch.makeLauncher(model: model, reason: .background(.location))
-        await launcher.run()
-        #expect(launcher.phase.isReady)
+        let run = Task { @MainActor in await launcher.run() }
+
+        try await waitUntil { launcher.phase.isAwaitingGate(LaunchStepID.onboarding) }
+        #expect(bootstrap.makeServicesCount == 0)
+        #expect(model.session == nil)
         #expect(launcher.reason.buildsNoViewTree)
-        // The minimal background steps still ran (reconcile-tracking resumed GPS).
+
+        try model.confirmInitialRecordingChoice(isEnabled: true)
+        model.completeOnboarding()
+        launcher.phase.gateHandle?.complete()
+        await run.value
+
+        #expect(launcher.phase.isReady)
+        #expect(bootstrap.makeServicesCount == 1)
         #expect(model.session?.isTracking == true)
     }
 }

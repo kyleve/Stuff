@@ -232,7 +232,7 @@ public final class WhereScope {
         let services = try await WhereServices.make(
             store: store,
             locationSource: locationSource,
-            currentDevice: .preview,
+            installationContext: .demo,
             aggregator: aggregator,
             // Authorized, like the location source is: the demo presents a user
             // who has granted everything, so the alerts screen shows its real
@@ -244,19 +244,18 @@ public final class WhereScope {
             issueAlertScheduler: NoopDataIssueAlertScheduler(authorized: true),
             widgetRefresher: NoopWidgetTimelineRefresher(),
             locationOutbox: NoOpLocationOutbox(),
+            importRecoveryPersistence: .none,
             now: now,
         )
         try await DemoDataBuilder(now: now(), calendar: aggregator.calendar)
             .seed(into: services)
 
         let preferences = WherePreferences(store: InMemoryKeyValueStore())
-        // Onboarded and tracking, so the demo opens on the logged-in app with
-        // live tracking shown rather than on a first-run prompt. These are the
-        // demo's own preferences: the user's real ones are untouched, which is
-        // what makes quitting mid-demo return to onboarding.
+        // Onboarded, so the demo opens on the logged-in app rather than on a
+        // first-run prompt. Recording starts from the demo installation context.
+        // These are the demo's own preferences: the user's real ones are untouched,
+        // which is what makes quitting mid-demo return to onboarding.
         preferences.hasOnboarded = true
-        preferences.hasConfirmedRecordingChoice = true
-        preferences.wantsTracking = true
 
         let scope = WhereScope(
             kind: .demo,

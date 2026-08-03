@@ -7,9 +7,14 @@ import WhereUI
 
 /// Covers the launch-time reconciliation that fixes the "toggle is always off"
 /// and "Grant does nothing" bugs: tracking and the authorization indicator must
-/// reflect real authorization + persisted intent, not just the last tap.
+/// reflect real authorization plus the synced recording policy, not just the
+/// last tap.
 @MainActor
 struct WhereSessionTrackingTests {
+    private static let disabledInitialPolicyChangeID = UUID(
+        uuidString: "00000000-0000-0000-0000-000000000003",
+    )!
+
     private func makeSession(
         status: LocationAuthorizationStatus,
         preferences: WherePreferences,
@@ -21,12 +26,15 @@ struct WhereSessionTrackingTests {
     private func makeSessionAndStore(
         status: LocationAuthorizationStatus,
         preferences: WherePreferences,
+        store: SwiftDataStore? = nil,
+        installationContext: InstallationRecordingContext = .testing,
     ) throws -> (WhereSession, ScriptedLocationSource, SwiftDataStore) {
-        let store = try SwiftDataStore.inMemory()
+        let store = try store ?? SwiftDataStore.inMemory()
         let source = ScriptedLocationSource(authorizationStatus: status)
         let services = WhereServices(
             store: store,
             locationSource: source,
+            installationContext: installationContext,
             reminderScheduler: NoopLoggingReminderScheduler(),
             summaryScheduler: NoopDailySummaryScheduler(),
             issueAlertScheduler: NoopDataIssueAlertScheduler(),
@@ -34,6 +42,21 @@ struct WhereSessionTrackingTests {
         )
         let session = WhereSession(services: services, preferences: preferences)
         return (session, source, store)
+    }
+
+    private func installationContext(
+        initialRecordingEnabled: Bool,
+    ) -> InstallationRecordingContext {
+        guard initialRecordingEnabled == false else { return .testing }
+        return InstallationRecordingContext(
+            currentDevice: InstallationRecordingContext.testing.currentDevice,
+            registeredAt: InstallationRecordingContext.testing.registeredAt,
+            initialRecordingChoice: .init(
+                isEnabled: false,
+                policyChangeID: Self.disabledInitialPolicyChangeID,
+                confirmedAt: Date(timeIntervalSinceReferenceDate: 1),
+            ),
+        )
     }
 
     /// A one-shot fix stamped "now", so it lands on today's calendar day
@@ -73,16 +96,23 @@ struct WhereSessionTrackingTests {
 
     @Test func stoppingTrackingPersistsAcrossLaunches() async throws {
         let preferences = makePreferences()
-        let (session, _) = try makeSession(status: .always, preferences: preferences)
+        let (session, _, store) = try makeSessionAndStore(
+            status: .always,
+            preferences: preferences,
+        )
         await session.start()
         #expect(session.isTracking)
 
         await session.stopTracking()
         #expect(!session.isTracking)
 
-        // A fresh session sharing the same preferences should stay paused even
-        // though authorization is still Always.
-        let (relaunched, _) = try makeSession(status: .always, preferences: preferences)
+        // A fresh session sharing the same store should stay paused even though
+        // authorization is still Always.
+        let (relaunched, _, _) = try makeSessionAndStore(
+            status: .always,
+            preferences: preferences,
+            store: store,
+        )
         await relaunched.start()
         #expect(!relaunched.isTracking)
     }
@@ -92,10 +122,11 @@ struct WhereSessionTrackingTests {
         let services = try WhereServices(
             store: SwiftDataStore.inMemory(),
             locationSource: source,
+            installationContext: installationContext(initialRecordingEnabled: false),
         )
         let preferences = makePreferences()
-        preferences.wantsTracking = false
         let session = WhereSession(services: services, preferences: preferences)
+        await session.start()
 
         let enabling = Task {
             try await session.setRecordingEnabled(
@@ -105,12 +136,12 @@ struct WhereSessionTrackingTests {
         }
         await waitUntil { source.isAwaitingPermission }
 
-        _ = try await session.setRecordingEnabled(
+        try await session.setRecordingEnabled(
             false,
             for: session.currentRecordingDeviceID,
         )
         source.resolvePermission(as: .always)
-        _ = try await enabling.value
+        try await enabling.value
 
         let current = try #require(
             try await session.recordingDevices()
@@ -119,7 +150,6 @@ struct WhereSessionTrackingTests {
         #expect(current.isEnabled == false)
         #expect(current.device.status == .off)
         #expect(session.isTracking == false)
-        #expect(preferences.wantsTracking == false)
     }
 
     @Test func grantingLaterStartsTrackingViaLiveUpdates() async throws {
@@ -146,11 +176,10 @@ struct WhereSessionTrackingTests {
         let services = WhereServices(
             store: store,
             locationSource: source,
-            currentDevice: .preview,
+            installationContext: .testing,
             now: { now },
         )
         let preferences = makePreferences()
-        preferences.wantsTracking = true
         let session = WhereSession(services: services, preferences: preferences)
         await session.start()
 
@@ -160,14 +189,26 @@ struct WhereSessionTrackingTests {
         let policyID = try #require(
             UUID(uuidString: "EEEEEEEE-EEEE-EEEE-EEEE-EEEEEEEEEEEE"),
         )
+        let parentID = try #require(try await store.recordingPolicyChanges().first?.id)
         try await store.simulateRemoteRecordingImport(
-            devices: [],
+            profiles: [],
+            metadataChanges: [],
+            checkIns: [],
             policyChanges: [
                 RecordingPolicyChange(
                     id: policyID,
                     deviceID: session.currentRecordingDeviceID,
+                    parentIDs: [parentID],
+                    revision: 1,
+                    issuedAt: now.addingTimeInterval(1),
+                    issuedByDeviceID: RecordingDeviceID(
+                        rawValue: #require(UUID(
+                            uuidString: "FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF",
+                        )),
+                    ),
                     effectiveAt: now.addingTimeInterval(1),
-                    isEnabled: false,
+                    state: .off,
+                    reason: .userCommand,
                 ),
             ],
         )
@@ -188,7 +229,6 @@ struct WhereSessionTrackingTests {
         )
         #expect(source.startCount == 1)
         #expect(source.stopCount == 1)
-        #expect(preferences.wantsTracking == false)
         #expect(current.status == .off)
         #expect(current.lastAppliedPolicyChangeID == policyID)
     }
@@ -213,6 +253,7 @@ struct WhereSessionTrackingTests {
             preferences: makePreferences(),
         )
         // The user turned tracking off; opening the app must not silently log.
+        await session.start()
         await session.stopTracking()
         source.setNextRequestedLocation(todayFix())
 

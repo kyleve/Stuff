@@ -36,15 +36,17 @@ public struct ReportReader: Sendable {
     /// is visibly waiting.
     public func yearReport(for year: Int) async throws -> YearReport {
         try await Self.logger.measure(.yearReport, budget: .seconds(1)) {
-            let interval = aggregator.yearInterval(year: year)
-            let samples = try await history.samples(in: interval)
-            let manuals = try await store.manualDays(in: dayRange(for: year))
-            return aggregator.report(
-                for: year,
-                samples: samples,
-                manualDays: manuals,
-                attributor: attributor,
-            )
+            try await store.readSnapshot {
+                let interval = aggregator.yearInterval(year: year)
+                let samples = try await history.samples(in: interval)
+                let manuals = try await store.manualDays(in: dayRange(for: year))
+                return aggregator.report(
+                    for: year,
+                    samples: samples,
+                    manualDays: manuals,
+                    attributor: attributor,
+                )
+            }
         }
     }
 
@@ -56,27 +58,31 @@ public struct ReportReader: Sendable {
     /// raw); the `DaySamples` grouping is itself deferred until a detector asks.
     public func dataIssueReads(for year: Int) async throws -> DataIssueReads {
         try await Self.logger.measure(.dataIssueReads, budget: .seconds(2)) {
-            let samples = try await history.samples(in: aggregator.yearInterval(year: year))
-            let manuals = try await store.manualDays(in: dayRange(for: year))
-            let report = aggregator.report(
-                for: year,
-                samples: samples,
-                manualDays: manuals,
-                attributor: attributor,
-            )
-            let otherLocations = aggregator.locations(
-                in: .other,
-                samples: samples,
-                attributor: attributor,
-            )
-            let otherDayCoordinates = Dictionary(
-                uniqueKeysWithValues: otherLocations.map { ($0.day, $0.points.map(\.coordinate)) },
-            )
-            return DataIssueReads(
-                report: report,
-                otherDayCoordinates: otherDayCoordinates,
-                daySamples: DaySamples(samples: samples, calendar: aggregator.calendar),
-            )
+            try await store.readSnapshot {
+                let samples = try await history.samples(in: aggregator.yearInterval(year: year))
+                let manuals = try await store.manualDays(in: dayRange(for: year))
+                let report = aggregator.report(
+                    for: year,
+                    samples: samples,
+                    manualDays: manuals,
+                    attributor: attributor,
+                )
+                let otherLocations = aggregator.locations(
+                    in: .other,
+                    samples: samples,
+                    attributor: attributor,
+                )
+                let otherDayCoordinates = Dictionary(
+                    uniqueKeysWithValues: otherLocations.map {
+                        ($0.day, $0.points.map(\.coordinate))
+                    },
+                )
+                return DataIssueReads(
+                    report: report,
+                    otherDayCoordinates: otherDayCoordinates,
+                    daySamples: DaySamples(samples: samples, calendar: aggregator.calendar),
+                )
+            }
         }
     }
 

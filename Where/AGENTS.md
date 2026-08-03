@@ -71,10 +71,13 @@ Rules the code enforces and agents must preserve:
   every automatic GPS sample with its `RecordingDeviceID`; write enable/disable
   events with an effective timestamp; route every user-facing sample read
   through `LocationHistoryReader`. A synced cutoff hides later raw samples
-  immediately while the target device is still pending, and raw/legacy/manual
-  history is never deleted or hidden without an attributable device policy.
-  Seed the first policy only from that installation's confirmed onboarding
-  choice: phone recommends On; tablet/other recommend Off.
+  immediately while the target device is still pending; device-stamped samples
+  fail closed until an effective On exists; archive is a state in that same
+  multi-parent causal policy DAG, and legacy/manual history remains visible.
+  Persist immutable profiles, nickname events, target-owned check-ins, and
+  desired-policy events separately. Keep the confirmed choice and
+  immutable first profile/policy IDs and timestamps beside the backup-excluded
+  installation identity; phone recommends On, while tablet/other recommends Off.
 - **Manual entries carry a `ManualEntryAudit`**; `DayJournal`'s write methods
   take an explicit `audit:` (no default). An additive backfill can't downgrade
   an authoritative row's regions, but the newer audit always wins.
@@ -140,9 +143,9 @@ slow.
   `WhereResetTests.loggingOutReleasesTheScopeBeforeTheNextLoginOpensOne`.
   `WhereFlyoverWorldTests.buildsASeededSiblingWithoutActivatingIt`.
 - **The onboarding gate declares `modes: .all`,** not the `.foreground`
-  default: parking a headless launch is the point. It also parks an already
-  onboarded installation once when its device-local recording choice is
-  unconfirmed; that surface skips straight to the final choice page.
+  default: parking a headless launch is the point. Keep recording confirmation
+  in the backup-excluded installation sidecar, so restoring backed-up
+  `hasOnboarded` onto another device parks at the final choice page.
 - **A gate carries no value,** so a choice made *at* it reaches `resolve-scope`
   through `WhereModel` — the one step that reads model state rather than the
   trunk.

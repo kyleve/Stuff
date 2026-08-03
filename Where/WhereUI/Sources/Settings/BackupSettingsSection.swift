@@ -12,9 +12,9 @@ struct BackupSettingsSection: View {
     /// `ShareLink` once the background export finishes.
     @State private var exportedArchiveURL: URL?
 
-    // Backup import: the picked file and the merge/replace choice. The success
-    // confirmation lives on `backup` (the model), so it survives this screen
-    // being popped mid-import.
+    // Backup import: the picked file and the merge/replace choice. The committed
+    // result lives on `backup`, so its success/partial-success acknowledgment
+    // survives this screen being popped mid-import.
     @State private var showImporter = false
     @State private var pendingImportURL: URL?
     @State private var showStrategyDialog = false
@@ -51,19 +51,18 @@ struct BackupSettingsSection: View {
                 Text(String(localized: .settingsBackupImportStrategyMessage))
             }
             .alert(
-                String(localized: .settingsBackupImportedTitle),
-                isPresented: $backup.isShowingImportSuccess,
-                presenting: backup.lastImportSummary,
-            ) { _ in
+                importResultTitle,
+                isPresented: $backup.isShowingImportResult,
+                presenting: backup.lastImportResult,
+            ) { result in
+                if result.requiresCleanupRecovery {
+                    Button(String(localized: .settingsBackupRetryCleanup)) {
+                        runImportCleanupRecovery()
+                    }
+                }
                 Button(String(localized: .commonOk), role: .cancel) {}
-            } message: { summary in
-                Text(WhereFormat.settingsBackupImportedMessage(
-                    samples: summary.sampleCount,
-                    evidence: summary.evidenceCount,
-                    manualDays: summary.manualDayCount,
-                    dismissedIssues: summary.dismissedIssueCount,
-                    trackedRegions: summary.trackedRegionCount,
-                ))
+            } message: { result in
+                Text(importResultMessage(result))
             }
             .alert(
                 String(localized: .settingsBackupErrorTitle),
@@ -112,6 +111,18 @@ struct BackupSettingsSection: View {
                 }
             }
 
+            if backup.importCleanupRecoverySummary != nil {
+                Button {
+                    runImportCleanupRecovery()
+                } label: {
+                    Label(
+                        importCleanupActionTitle,
+                        systemImage: "arrow.clockwise",
+                    )
+                }
+                .disabled(backup.backupState != .idle)
+            }
+
             Button {
                 showImporter = true
             } label: {
@@ -127,12 +138,16 @@ struct BackupSettingsSection: View {
                     )
                 }
             }
-            .disabled(backup.backupState != .idle)
+            .disabled(!backup.canImport)
             .settingsRow(DataSettingsView.Item.importBackup)
         } header: {
             Text(String(localized: .settingsBackupHeader))
         } footer: {
-            Text(String(localized: .settingsBackupFooter))
+            if backup.importCleanupRecoverySummary != nil {
+                Text(String(localized: .settingsBackupCleanupRequired))
+            } else {
+                Text(String(localized: .settingsBackupFooter))
+            }
         }
         // A finished export lingers in the temp directory; stop offering it (and
         // reclaim the file) after a while so a stale link can't be shared. The
@@ -140,6 +155,9 @@ struct BackupSettingsSection: View {
         // it's `nil`.
         .task(id: exportedArchiveURL) {
             await expireExportIfNeeded()
+        }
+        .task {
+            await backup.refreshImportRecoveryState()
         }
         // Log View Mode: reveal an inspect badge for backup export/import
         // events on this section. A no-op in release.
@@ -185,16 +203,50 @@ struct BackupSettingsSection: View {
                 pendingImportURL = url
                 showStrategyDialog = true
             case let .failure(error):
-                backup.backupError = error.localizedDescription
+                backup.presentBackupError(error)
         }
     }
 
     private func runImport(url: URL, strategy: BackupCoordinator.ImportStrategy) {
         Task {
-            // On success `backup` sets `lastImportSummary`, which drives the
-            // confirmation alert; the return value is unused here.
+            // A committed result drives either the success or partial-success
+            // alert; the return value is unused here.
             _ = await backup.importBackup(from: url, strategy: strategy)
             pendingImportURL = nil
+        }
+    }
+
+    private func runImportCleanupRecovery() {
+        Task {
+            await backup.retryImportCleanup()
+        }
+    }
+
+    private var importCleanupActionTitle: String {
+        if backup.backupState == .recoveringImportCleanup {
+            String(localized: .settingsBackupRetryingCleanup)
+        } else {
+            String(localized: .settingsBackupRetryCleanup)
+        }
+    }
+
+    private var importResultTitle: String {
+        switch backup.lastImportResult {
+            case .imported:
+                String(localized: .settingsBackupImportedTitle)
+            case .committedWithCleanupFailure:
+                String(localized: .backupImportCleanupTitle)
+            case nil:
+                ""
+        }
+    }
+
+    private func importResultMessage(_ result: BackupModel.ImportResult) -> String {
+        switch result {
+            case let .imported(summary):
+                WhereFormat.settingsBackupImportedMessage(summary)
+            case let .committedWithCleanupFailure(summary):
+                WhereFormat.backupImportCleanupMessage(summary)
         }
     }
 }

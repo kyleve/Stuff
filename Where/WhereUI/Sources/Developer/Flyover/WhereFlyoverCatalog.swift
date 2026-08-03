@@ -61,6 +61,7 @@
         private static var appRegistrations: [WhereFlyoverData] {
             [
                 LaunchSplashView.flyoverData,
+                WhereLifecycleFailureView.flyoverData,
                 OnboardingView.flyoverData,
                 RegionPickerView.flyoverData,
                 RegionCustomizeView.flyoverData,

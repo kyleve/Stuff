@@ -1,52 +1,78 @@
+import Foundation
 import Testing
-@_spi(Testing) import WhereCore
-import WhereUI
+@_spi(Testing) @testable import WhereCore
+@_spi(Testing) @testable import WhereUI
 
 @MainActor
 struct OnboardingModelTests {
-    @Test func hasOnboardedDefaultsFalse() {
-        let model = WhereModel(
+    @Test func freshInstallationStartsUnonboardedAndUnconfirmed() {
+        let model = makeModel(
             preferences: makePreferences(),
-            makeBootstrap: { UnusedBootstrap() },
-            logSystem: .isolated(),
+            contextStore: unconfirmedContextStore(kind: .phone),
         )
+
         #expect(model.hasOnboarded == false)
         #expect(model.hasConfirmedRecordingChoice == false)
+        #expect(model.installationRecordingContext.recommendedRecordingEnabled)
     }
 
-    @Test func completeOnboardingPersists() {
+    @Test func confirmationPersistsChoiceAndPolicyTokenOutsidePreferences() throws {
         let preferences = makePreferences()
-        let model = WhereModel(
-            preferences: preferences,
-            makeBootstrap: { UnusedBootstrap() },
-            logSystem: .isolated(),
-        )
+        let contextStore = unconfirmedContextStore(kind: .tablet)
+        let model = makeModel(preferences: preferences, contextStore: contextStore)
+
+        let confirmed = try model.confirmInitialRecordingChoice(isEnabled: false)
         model.completeOnboarding()
+
         #expect(model.hasOnboarded)
         #expect(model.hasConfirmedRecordingChoice)
+        #expect(confirmed.initialRecordingChoice?.isEnabled == false)
+        #expect(confirmed.initialRecordingChoice?.policyChangeID != nil)
 
-        // A fresh model over the same preferences sees onboarding as done.
-        let relaunched = WhereModel(
-            preferences: preferences,
-            makeBootstrap: { UnusedBootstrap() },
-            logSystem: .isolated(),
-        )
+        let relaunched = makeModel(preferences: preferences, contextStore: contextStore)
         #expect(relaunched.hasOnboarded)
         #expect(relaunched.hasConfirmedRecordingChoice)
+        #expect(relaunched.installationRecordingContext == confirmed)
     }
 
-    @Test func recordingChoiceCanBeConfirmedWithoutRepeatingOnboarding() {
-        let preferences = makePreferences()
-        preferences.hasOnboarded = true
-        let model = WhereModel(
-            preferences: preferences,
-            makeBootstrap: { UnusedBootstrap() },
-            logSystem: .isolated(),
+    @Test func restoredOnboardingFlagDoesNotConfirmANewInstallation() {
+        let restoredPreferences = makePreferences()
+        restoredPreferences.hasOnboarded = true
+        let model = makeModel(
+            preferences: restoredPreferences,
+            contextStore: unconfirmedContextStore(kind: .tablet),
         )
 
-        model.confirmRecordingChoice()
-
         #expect(model.hasOnboarded)
-        #expect(model.hasConfirmedRecordingChoice)
+        #expect(model.hasConfirmedRecordingChoice == false)
+        #expect(model.installationRecordingContext.recommendedRecordingEnabled == false)
+    }
+
+    private func makeModel(
+        preferences: WherePreferences,
+        contextStore: InMemoryInstallationRecordingContextStore,
+    ) -> WhereModel {
+        WhereModel(
+            preferences: preferences,
+            installationContextStore: contextStore,
+            makeBootstrap: { _ in UnusedBootstrap() },
+            logSystem: .isolated(),
+        )
+    }
+
+    private func unconfirmedContextStore(
+        kind: RecordingDeviceKind,
+    ) -> InMemoryInstallationRecordingContextStore {
+        InMemoryInstallationRecordingContextStore(
+            context: InstallationRecordingContext(
+                currentDevice: CurrentRecordingDevice(
+                    id: RecordingDeviceID(rawValue: UUID()),
+                    systemName: kind == .tablet ? "iPad" : "iPhone",
+                    kind: kind,
+                ),
+                registeredAt: Date(timeIntervalSinceReferenceDate: 0),
+                initialRecordingChoice: nil,
+            ),
+        )
     }
 }

@@ -9,32 +9,55 @@ struct DeviceSettingsSection: View {
 
     @Environment(WhereSession.self) private var session
     @Environment(\.openURL) private var openURL
+    @Environment(\.stylesheet) private var stylesheet
     @State private var isConfirmingArchive = false
 
     var body: some View {
         Section {
-            Toggle(
-                String(localized: .settingsDevicesAutomaticRecording),
-                isOn: $row.isEnabled,
-            )
-            .settingsRow(DevicesSettingsView.Item.automaticRecording)
-            .disabled(row.isBusy)
-            .onChange(of: row.isEnabled) { oldValue, newValue in
-                guard oldValue != newValue else { return }
-                Task {
-                    await model.setEnabled(
-                        newValue,
-                        row: row,
-                    )
+            if row.hasResolvedRecordingPolicy {
+                Toggle(
+                    String(localized: .settingsDevicesAutomaticRecording),
+                    isOn: $row.isEnabled,
+                )
+                .settingsRow(
+                    DevicesSettingsView.Item.automaticRecording,
+                    when: row.isCurrent,
+                )
+                .disabled(row.disablesRecordingControl)
+                .onChange(of: row.isEnabled) { oldValue, newValue in
+                    guard oldValue != newValue else { return }
+                    Task {
+                        await model.recordingPreferenceChanged(for: row)
+                    }
                 }
+            } else {
+                LabeledContent(String(localized: .settingsDevicesAutomaticRecording)) {
+                    ProgressView()
+                        .accessibilityLabel(String(localized: .settingsDevicesStatusSyncing))
+                }
+                .settingsRow(
+                    DevicesSettingsView.Item.automaticRecording,
+                    when: row.isCurrent,
+                )
             }
 
-            TextField(String(localized: .settingsDevicesName), text: $row.nickname)
-                .settingsRow(DevicesSettingsView.Item.deviceName)
-                .disabled(row.isBusy)
-                .onSubmit {
-                    Task { await model.rename(row) }
+            HStack {
+                TextField(String(localized: .settingsDevicesName), text: $row.nickname)
+                    .submitLabel(.done)
+                    .onSubmit {
+                        Task { await model.saveNickname(row) }
+                    }
+
+                if row.hasUnsavedNickname {
+                    Button(String(localized: .commonSave)) {
+                        Task { await model.saveNickname(row) }
+                    }
+                    .buttonStyle(.borderless)
+                    .disabled(!row.canSaveNickname)
                 }
+            }
+            .disabled(row.disablesNicknameControl)
+            .settingsRow(DevicesSettingsView.Item.deviceName, when: row.isCurrent)
 
             LabeledContent(String(localized: .settingsDevicesStatus)) {
                 HStack {
@@ -93,7 +116,7 @@ struct DeviceSettingsSection: View {
                 ) {
                     isConfirmingArchive = true
                 }
-                .disabled(row.isBusy)
+                .disabled(row.disablesDestructiveActions)
                 .confirmationDialog(
                     String(localized: .settingsDevicesArchiveConfirmTitle),
                     isPresented: $isConfirmingArchive,
@@ -108,11 +131,22 @@ struct DeviceSettingsSection: View {
             }
         } header: {
             Label {
-                HStack {
-                    Text(row.displayName)
-                    if row.isCurrent {
-                        Text(String(localized: .settingsDevicesThisDevice))
-                            .foregroundStyle(.secondary)
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: stylesheet.spacing.small) {
+                        Text(row.displayName)
+                        if row.isCurrent {
+                            Text(String(localized: .settingsDevicesThisDevice))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .fixedSize(horizontal: true, vertical: false)
+
+                    VStack(alignment: .leading, spacing: stylesheet.spacing.xSmall) {
+                        Text(row.displayName)
+                        if row.isCurrent {
+                            Text(String(localized: .settingsDevicesThisDevice))
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
             } icon: {
@@ -128,10 +162,17 @@ struct DeviceSettingsSection: View {
     }
 
     private var statusTitle: String {
-        if row.isPending {
+        if row.isCurrent, case .unavailable = session.recordingRuntimeState {
+            return String(localized: .settingsDevicesStatusUnavailable)
+        }
+        if row.isSyncingRecordingPolicy {
+            return String(localized: .settingsDevicesStatusSyncing)
+        }
+        if row.isPending || row.isApplyingRecordingChange {
             return String(localized: .settingsDevicesStatusPending)
         }
         switch row.status {
+            case .unknown: return String(localized: .settingsDevicesStatusPending)
             case .recording: return String(localized: .settingsDevicesStatusRecording)
             case .off: return String(localized: .settingsDevicesStatusOff)
             case .permissionRequired:
@@ -140,8 +181,17 @@ struct DeviceSettingsSection: View {
     }
 
     private var statusSymbol: String {
-        if row.isPending { return "clock.arrow.trianglehead.counterclockwise.rotate.90" }
+        if row.isCurrent, case .unavailable = session.recordingRuntimeState {
+            return "exclamationmark.triangle"
+        }
+        if row.isSyncingRecordingPolicy {
+            return "icloud.and.arrow.down"
+        }
+        if row.isPending || row.isApplyingRecordingChange {
+            return "clock.arrow.trianglehead.counterclockwise.rotate.90"
+        }
         return switch row.status {
+            case .unknown: "clock.arrow.trianglehead.counterclockwise.rotate.90"
             case .recording: "location.fill"
             case .off: "location.slash"
             case .permissionRequired: "exclamationmark.triangle"
@@ -149,7 +199,15 @@ struct DeviceSettingsSection: View {
     }
 
     private var statusStyle: HierarchicalShapeStyle {
-        row.status == .recording && !row.isPending ? .primary : .secondary
+        let runtimeIsAvailable = if row.isCurrent {
+            if case .applied = session.recordingRuntimeState { true } else { false }
+        } else {
+            true
+        }
+        return row.status == .recording && runtimeIsAvailable
+            && !row.isPending && !row.isApplyingRecordingChange
+            ? .primary
+            : .secondary
     }
 
     private var showGrantButton: Bool {

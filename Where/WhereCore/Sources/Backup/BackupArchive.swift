@@ -6,22 +6,29 @@ import RegionKit
 /// `.zip`; evidence blob bytes live alongside it under `assets/` and are
 /// linked back to their records by `BackupAssetEntry`.
 ///
-/// The arrays mirror the SwiftData tables exactly (`SDLocationSample` /
+/// The arrays represent the persisted collections (`SDLocationSample` /
 /// `SDEvidence` / `SDManualDay` / `SDDismissedIssue` / `SDTrackedRegion`) via
-/// their value-type representations, plus `SDRecordingDevice` /
-/// `SDRecordingPolicyChange`, so an export captures everything and an import
-/// can upsert it back row-for-row.
+/// their value-type representations, plus the split recording profile / nickname /
+/// policy rows. The check-in collection remains in the versioned shape for compatibility, but
+/// exports leave it empty and imports ignore it: a backup cannot restore a target installation's
+/// live proof that policy was applied and its local outbox was cleared.
 public struct BackupArchive: Codable, Sendable, Hashable {
     /// Bumped whenever the archive's on-disk shape changes in a way older
     /// readers can't understand, so an importer can refuse a file it doesn't
     /// know how to read instead of silently dropping data (see
     /// `BackupService.readArchive`, which rejects any other version).
     ///
-    /// v3 adds sample device provenance plus the synced recording-device and
-    /// append-only policy tables. There's no in-app decode fallback for an older
-    /// archive — it is reshaped out of band by `Tools/upgrade-backup.rb`,
-    /// matching the module's no-migration-on-read rule (see `AGENTS.md`).
-    public static let currentFormatVersion = 3
+    /// v3 added sample device provenance plus the first recording-device shape.
+    /// v4 split that shape into immutable profiles, append-only nickname metadata,
+    /// target-owned check-ins, and append-only complete-authority policy events. v5 adds the
+    /// logical data epoch in which each immutable profile registered. v6 adds causal parent
+    /// metadata and state-preserving Merge barriers. v7 expands that metadata to a sorted parent
+    /// set so one semantic command can causally join every observed concurrent head. There's no
+    /// in-app decode
+    /// fallback for an older archive — it is reshaped out of band by
+    /// `Tools/upgrade-backup.rb`, matching the module's no-migration-on-read rule (see
+    /// `AGENTS.md`).
+    public static let currentFormatVersion = 7
 
     public let formatVersion: Int
     public let exportedAt: Date
@@ -40,8 +47,13 @@ public struct BackupArchive: Codable, Sendable, Hashable {
     /// brings back the *look*, not just the region set. Import restores from
     /// this; `trackedRegions` is the derived id list.
     public let primaryRegions: [PrimaryRegion]
-    /// Every synced device profile, including archived devices.
-    public let recordingDevices: [RecordingDevice]
+    /// Immutable installation profiles.
+    public let recordingDeviceProfiles: [RecordingDeviceProfile]
+    /// Full append-only nickname history.
+    public let recordingDeviceMetadataChanges: [RecordingDeviceMetadataChange]
+    /// Compatibility field for target-owned acknowledgements. New exports leave it empty and
+    /// imports never apply it as live authority.
+    public let recordingDeviceCheckIns: [RecordingDeviceCheckIn]
     /// The full append-only policy timeline for every device.
     public let recordingPolicyChanges: [RecordingPolicyChange]
     /// One entry per evidence record that has blob bytes in the archive.
@@ -57,8 +69,10 @@ public struct BackupArchive: Codable, Sendable, Hashable {
         dismissedIssues: [DismissedIssue],
         trackedRegions: [Region],
         primaryRegions: [PrimaryRegion],
-        recordingDevices: [RecordingDevice] = [],
-        recordingPolicyChanges: [RecordingPolicyChange] = [],
+        recordingDeviceProfiles: [RecordingDeviceProfile],
+        recordingDeviceMetadataChanges: [RecordingDeviceMetadataChange],
+        recordingDeviceCheckIns: [RecordingDeviceCheckIn],
+        recordingPolicyChanges: [RecordingPolicyChange],
         assets: [BackupAssetEntry],
     ) {
         self.formatVersion = formatVersion
@@ -69,7 +83,9 @@ public struct BackupArchive: Codable, Sendable, Hashable {
         self.dismissedIssues = dismissedIssues
         self.trackedRegions = trackedRegions
         self.primaryRegions = primaryRegions
-        self.recordingDevices = recordingDevices
+        self.recordingDeviceProfiles = recordingDeviceProfiles
+        self.recordingDeviceMetadataChanges = recordingDeviceMetadataChanges
+        self.recordingDeviceCheckIns = recordingDeviceCheckIns
         self.recordingPolicyChanges = recordingPolicyChanges
         self.assets = assets
     }

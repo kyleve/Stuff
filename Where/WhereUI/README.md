@@ -63,9 +63,10 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   opens, its bring-up is spanned (`openLogStore`) and history is trimmed with
   `LogHistoryPruner` (a 100-day window *and* a 50k-event ceiling, so the store is
   bounded however heavily the device logs).
-- **`WhereModel`** — app-level state that outlives any one scope: the
-  onboarding and per-device recording-confirmation flags, the active
-  `WhereScope`, the owned `WhereSession`, and the lifecycle intents
+- **`WhereModel`** — app-level state that outlives any one scope: the backed-up
+  onboarding flag, the separately injected non-backed-up installation
+  recording context (including stable first-profile/policy timestamps), the
+  active `WhereScope`, the owned `WhereSession`, and the lifecycle intents
   (`activate(scope:)`, `startSession(scope:)` — which
   *returns* the session the launch's `start-session` step threads onward —
   `endSession()`, `resetPreferences()`).
@@ -76,7 +77,8 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
 - **Scope-tiered models** — scene-scoped **`YearReportModel`** (the selected
   year's `YearReport`, its `LoadState`, and the manual-day edit intents), plus
   view-scoped **`ResolveModel`** (data-issue triage), **`BackupModel`**
-  (export/import), **`RemindersSettingsModel`** (notification prefs), and
+  (export/import plus a mirror of the scope-owned committed-cleanup gate),
+  **`RemindersSettingsModel`** (notification prefs), and
   **`DevicesSettingsModel`** (synced installation names, policy, status, and
   archival). Each orchestrates `WhereServices`; none reimplements Core rules.
 
@@ -88,15 +90,24 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   then picking up to five primary US regions (map or searchable list) and
   giving each a look, then verifying this installation's automatic-recording
   choice. Phones recommend On; tablets/other devices recommend Off, and only
-  an enabled confirmation requests location permission. An existing
-  installation without the new confirmation skips straight to that final
-  page. Finishing logs in to the real scope — the app's one store open — and
-  commits the picks as the tracked-region set + appearances before resolving
-  the gate. The intro also
-  offers **Restore from a backup**, which opens the store, imports a backup
-  (`.replace`), and skips the manual pick/customize steps straight to the
-  location ask; and **Explore a demo**, which builds a throwaway in-memory
-  world behind a captioned launch splash and enters it.
+  an enabled confirmation requests location permission. A restored device can
+  inherit the backed-up onboarding flag but not the installation sidecar, so it
+  skips straight to that final page. Finishing logs in to the real scope — the
+  app's one store open — and commits the picks as the tracked-region set +
+  appearances before resolving the gate. The intro also offers **Restore from
+  a backup**, which skips the manual pick/customize steps, verifies this
+  installation's recording choice, then opens the store and imports the backup
+  after asking whether to **Merge** (recommended, preserving existing data) or
+  **Replace** (destructive, starting from the backup); and **Explore a demo**,
+  which builds a throwaway in-memory world behind a captioned launch splash and
+  enters it. Once an onboarding import commits, its summary is retained and
+  a two-phase marker remains in the backup-excluded sidecar until onboarding is
+  acknowledged. A terminal tombstone remains after recovery is cleared so a
+  cold launch can repair an onboarding preference that had not reached disk,
+  but never offer the same archive for import again. Every cold launch also
+  resolves a Settings import marker before handing services to App Intents or
+  registering the recording device, so Replace cleanup finishes before GPS can
+  reopen or drain an obsolete outbox.
 - **`RegionPickerView` / `RegionCustomizeView`** — the shared primary-region
   picker (segmented map/list) and per-region color/emoji/icon customization,
   backed by `PrimaryRegionSelectionModel`. Reused by onboarding and the Settings

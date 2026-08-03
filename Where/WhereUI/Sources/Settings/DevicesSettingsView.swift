@@ -38,7 +38,10 @@ struct DevicesSettingsView: View {
     var body: some View {
         @Bindable var session = session
         @Bindable var model = model
-        SettingsFocusScope(focus: focus) {
+        SettingsFocusScope(
+            focus: focus,
+            revealWhen: model.state.isReadyForSearchFocus,
+        ) {
             Form {
                 switch model.state {
                     case .idle, .loading:
@@ -49,12 +52,22 @@ struct DevicesSettingsView: View {
                                 Spacer()
                             }
                         }
-                    case let .failed(message):
+                    case let .failed(failure):
                         Section {
                             ContentUnavailableView(
                                 String(localized: .settingsDevicesLoadFailed),
                                 systemImage: "exclamationmark.icloud",
-                                description: Text(message),
+                                description: Text(failure.message),
+                            )
+                            Button(String(localized: .commonRetry)) {
+                                Task { await model.retry() }
+                            }
+                        }
+                    case .empty:
+                        Section {
+                            ContentUnavailableView(
+                                String(localized: .settingsDevicesLoadFailed),
+                                systemImage: "exclamationmark.icloud",
                             )
                             Button(String(localized: .commonRetry)) {
                                 Task { await model.retry() }
@@ -76,11 +89,16 @@ struct DevicesSettingsView: View {
         .alert(
             String(localized: .settingsDevicesErrorTitle),
             isPresented: $model.isShowingError,
-            presenting: model.errorMessage,
+            presenting: model.presentedFailure,
         ) { _ in
+            if model.presentedFailureCanRetry {
+                Button(String(localized: .commonRetry)) {
+                    Task { await model.retry() }
+                }
+            }
             Button(String(localized: .commonOk), role: .cancel) {}
-        } message: { message in
-            Text(message)
+        } message: { failure in
+            Text(failure.message)
         }
         .alert(
             String(localized: .settingsPermissionAlertTitle),

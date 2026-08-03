@@ -15,6 +15,12 @@ import ZIPFoundation
 /// SwiftData. `BackupCoordinator` owns reading the store and committing an
 /// import transaction; this type only marshals bytes to and from the zip.
 public struct BackupService: Sendable {
+    /// Header decoded before the strict current archive shape, so an older manifest reports its
+    /// format version instead of failing first on a field introduced by a later format.
+    private struct FormatEnvelope: Decodable {
+        let formatVersion: Int
+    }
+
     /// Decoded contents of a backup archive: the manifest plus the evidence
     /// blob bytes, keyed by evidence id so the importer can pair them with
     /// the matching `Evidence` metadata.
@@ -37,6 +43,9 @@ public struct BackupService: Sendable {
         /// The manifest declares a `formatVersion` this build can't read (it
         /// must match `BackupArchive.currentFormatVersion` exactly).
         case unsupportedFormatVersion(Int)
+        /// Recording rows decoded structurally but violate persisted invariants (for example a
+        /// negative causal revision or an `.unknown` check-in).
+        case invalidRecordingData
 
         public var errorDescription: String? {
             switch self {
@@ -44,6 +53,8 @@ public struct BackupService: Sendable {
                     String(localized: .backupErrorManifestMissing)
                 case let .unsupportedFormatVersion(version):
                     String(localized: .backupErrorUnsupportedFormatVersion(version))
+                case .invalidRecordingData:
+                    String(localized: .backupErrorInvalidRecordingData)
             }
         }
     }
@@ -54,16 +65,39 @@ public struct BackupService: Sendable {
 
     public init() {}
 
-    private static func makeEncoder() -> JSONEncoder {
+    static func makeEncoder() -> JSONEncoder {
         let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
+        // ISO8601's Foundation encoder drops sub-second precision. Policy
+        // changes deliberately use that precision to preserve the order of
+        // rapid local actions, so encode the underlying instant losslessly.
+        encoder.dateEncodingStrategy = .secondsSince1970
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         return encoder
     }
 
-    private static func makeDecoder() -> JSONDecoder {
+    static func makeDecoder() -> JSONDecoder {
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        decoder.dateDecodingStrategy = .custom { decoder in
+            let container = try decoder.singleValueContainer()
+            if let seconds = try? container.decode(Double.self) {
+                return Date(timeIntervalSince1970: seconds)
+            }
+
+            let value = try container.decode(String.self)
+            if let date = try? Date(
+                value,
+                strategy: Date.ISO8601FormatStyle(includingFractionalSeconds: true),
+            ) {
+                return date
+            }
+            if let date = try? Date(value, strategy: Date.ISO8601FormatStyle()) {
+                return date
+            }
+            throw DecodingError.dataCorruptedError(
+                in: container,
+                debugDescription: "Expected a Unix timestamp or ISO8601 date.",
+            )
+        }
         return decoder
     }
 
@@ -82,12 +116,19 @@ public struct BackupService: Sendable {
         dismissedIssues: [DismissedIssue] = [],
         trackedRegions: [Region] = [],
         primaryRegions: [PrimaryRegion] = [],
-        recordingDevices: [RecordingDevice] = [],
-        recordingPolicyChanges: [RecordingPolicyChange] = [],
+        recordingDeviceProfiles: [RecordingDeviceProfile],
+        recordingDeviceMetadataChanges: [RecordingDeviceMetadataChange],
+        recordingDeviceCheckIns: [RecordingDeviceCheckIn],
+        recordingPolicyChanges: [RecordingPolicyChange],
         blobs: [UUID: Data],
         exportedAt: Date = Date(),
         archiveName: String? = nil,
     ) throws -> URL {
+        try Self.validateRecordingData(
+            metadataChanges: recordingDeviceMetadataChanges,
+            checkIns: recordingDeviceCheckIns,
+            policyChanges: recordingPolicyChanges,
+        )
         let fileManager = FileManager.default
         let workRoot = fileManager.temporaryDirectory
             .appendingPathComponent("where-backup-\(UUID().uuidString)", isDirectory: true)
@@ -118,7 +159,9 @@ public struct BackupService: Sendable {
             dismissedIssues: dismissedIssues,
             trackedRegions: trackedRegions,
             primaryRegions: primaryRegions,
-            recordingDevices: recordingDevices,
+            recordingDeviceProfiles: recordingDeviceProfiles,
+            recordingDeviceMetadataChanges: recordingDeviceMetadataChanges,
+            recordingDeviceCheckIns: recordingDeviceCheckIns,
             recordingPolicyChanges: recordingPolicyChanges,
             assets: assetEntries,
         )
@@ -181,29 +224,75 @@ public struct BackupService: Sendable {
             throw BackupError.manifestMissing
         }
         let archive = try Self.logger.measure(.decodeManifest) {
-            let manifestData = try Data(contentsOf: manifestURL)
-            return try Self.makeDecoder().decode(BackupArchive.self, from: manifestData)
+            try Self.decodeManifest(Data(contentsOf: manifestURL))
         }
-        guard archive.formatVersion == BackupArchive.currentFormatVersion else {
-            throw BackupError.unsupportedFormatVersion(archive.formatVersion)
-        }
+        try Self.validateRecordingData(archive)
 
+        let blobs = try Self.loadAssets(archive.assets, from: extractDir)
+        return ReadResult(archive: archive, blobs: blobs)
+    }
+
+    /// Load every blob the manifest explicitly declares. Evidence without an asset entry remains
+    /// intentionally metadata-only; an entry whose file is absent or unreadable is a corrupt
+    /// archive and must throw before `BackupCoordinator` pauses recording or mutates the store.
+    static func loadAssets(
+        _ entries: [BackupAssetEntry],
+        from extractDirectory: URL,
+    ) throws -> [UUID: Data] {
         var blobs: [UUID: Data] = [:]
-        Self.logger.measure(.loadAssets) {
-            for entry in archive.assets {
+        try Self.logger.measure(.loadAssets) {
+            for entry in entries {
                 // Drain the per-read bridging scratch each iteration so walking a
                 // large asset set doesn't accumulate transient temporaries (the
                 // decoded blobs themselves are retained in `blobs`).
-                autoreleasepool {
-                    let assetURL = extractDir.appendingPathComponent(entry.filename)
-                    guard let data = try? Data(contentsOf: assetURL) else {
+                try autoreleasepool {
+                    let assetURL = extractDirectory.appendingPathComponent(entry.filename)
+                    do {
+                        blobs[entry.evidenceId] = try Data(contentsOf: assetURL)
+                    } catch {
                         Self.logger { .assetMissing(evidenceID: entry.evidenceId.uuidString) }
-                        return
+                        throw error
                     }
-                    blobs[entry.evidenceId] = data
                 }
             }
         }
-        return ReadResult(archive: archive, blobs: blobs)
+        return blobs
+    }
+
+    static func decodeManifest(_ data: Data) throws -> BackupArchive {
+        let decoder = makeDecoder()
+        let envelope = try decoder.decode(FormatEnvelope.self, from: data)
+        guard envelope.formatVersion == BackupArchive.currentFormatVersion else {
+            throw BackupError.unsupportedFormatVersion(envelope.formatVersion)
+        }
+        return try decoder.decode(BackupArchive.self, from: data)
+    }
+
+    /// Validate invariants that synthesized `Decodable` cannot route through the public
+    /// initializers. Kept separate so malformed input is rejected before the import transaction,
+    /// rather than being committed and silently disappearing from later materialized reads.
+    static func validateRecordingData(_ archive: BackupArchive) throws {
+        try validateRecordingData(
+            metadataChanges: archive.recordingDeviceMetadataChanges,
+            checkIns: archive.recordingDeviceCheckIns,
+            policyChanges: archive.recordingPolicyChanges,
+        )
+    }
+
+    private static func validateRecordingData(
+        metadataChanges: [RecordingDeviceMetadataChange],
+        checkIns: [RecordingDeviceCheckIn],
+        policyChanges: [RecordingPolicyChange],
+    ) throws {
+        guard metadataChanges.allSatisfy({ $0.revision >= 0 }),
+              checkIns.allSatisfy({
+                  $0.revision >= 0 && $0.status != .unknown
+              }),
+              RecordingPolicyChange.formValidPersistedTimelines(
+                  policyChanges,
+              )
+        else {
+            throw BackupError.invalidRecordingData
+        }
     }
 }

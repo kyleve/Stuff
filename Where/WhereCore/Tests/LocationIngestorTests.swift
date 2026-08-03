@@ -6,6 +6,10 @@ import Testing
 /// Covers the GPS ingestion lifecycle, the post-persist hook, and the retry
 /// queue the controller delegates all of `startGPS`/`stopGPS`/auth to.
 struct LocationIngestorTests {
+    private enum OutboxFailure: Error {
+        case clear
+    }
+
     private actor OutcomeRecorder {
         private(set) var outcomes: [LocationIngestor.IngestOutcome] = []
 
@@ -26,18 +30,29 @@ struct LocationIngestorTests {
     /// last `save`d, so two ingestors sharing one instance models the on-disk
     /// backlog surviving a relaunch.
     private actor SpyLocationOutbox: LocationOutbox {
-        private(set) var contents: [LocationSample]
+        private(set) var entries: [LocationOutboxEntry]
+        private let failsToClear: Bool
 
-        init(_ contents: [LocationSample] = []) {
-            self.contents = contents
+        init(_ contents: [LocationSample] = [], failsToClear: Bool = false) {
+            entries = contents.map { LocationOutboxEntry(sample: $0, dataEpochID: .initial) }
+            self.failsToClear = failsToClear
         }
 
-        func load() async -> [LocationSample] {
-            contents
+        func load() async throws -> [LocationOutboxEntry] {
+            entries
         }
 
-        func save(_ samples: [LocationSample]) async {
-            contents = samples
+        func save(_ entries: [LocationOutboxEntry]) async {
+            self.entries = entries
+        }
+
+        func clear() async throws {
+            if failsToClear { throw OutboxFailure.clear }
+            entries = []
+        }
+
+        var contents: [LocationSample] {
+            entries.map(\.sample)
         }
     }
 
@@ -65,7 +80,7 @@ struct LocationIngestorTests {
         let recorder = OutcomeRecorder()
         let ingestor = Self.makeIngestor(store: store, source: source, recorder: recorder)
 
-        await ingestor.start()
+        try await ingestor.start()
         #expect(await ingestor.isActive)
         // The resume path fires a (drain-only) outcome even with an empty queue.
         #expect(await recorder.count == 1)
@@ -106,6 +121,7 @@ struct LocationIngestorTests {
         let recorder = OutcomeRecorder()
         let ingestor = Self.makeIngestor(store: store, source: source, recorder: recorder)
         source.setNextRequestedLocation(sample(at: "2026-03-15T08:05:00-07:00"))
+        try await ingestor.authorizeRecording()
 
         // No monitoring started (the When-In-Use case): the foreground fix is
         // the only way this user's data lands, and it still persists + reports.
@@ -130,6 +146,7 @@ struct LocationIngestorTests {
         try await store
             .perform { try await store.add(sample: sample(at: "2026-03-15T02:00:00-07:00")) }
         source.setNextRequestedLocation(sample(at: "2026-03-15T08:05:00-07:00"))
+        try await ingestor.authorizeRecording()
 
         await ingestor
             .captureTodayIfNeeded(now: WhereCoreTestSupport.iso("2026-03-15T08:00:00-07:00"))
@@ -156,6 +173,7 @@ struct LocationIngestorTests {
             ))
         }
         source.setNextRequestedLocation(sample(at: "2026-03-15T08:05:00-07:00"))
+        try await ingestor.authorizeRecording()
 
         await ingestor
             .captureTodayIfNeeded(now: WhereCoreTestSupport.iso("2026-03-15T08:00:00-07:00"))
@@ -169,6 +187,7 @@ struct LocationIngestorTests {
         let recorder = OutcomeRecorder()
         let ingestor = Self.makeIngestor(store: store, source: source, recorder: recorder)
         // No fix scripted → `requestCurrentLocation()` returns nil.
+        try await ingestor.authorizeRecording()
 
         await ingestor
             .captureTodayIfNeeded(now: WhereCoreTestSupport.iso("2026-03-15T08:00:00-07:00"))
@@ -189,6 +208,7 @@ struct LocationIngestorTests {
             onPersisted: { outcome in await recorder.record(outcome) },
         )
         let now = WhereCoreTestSupport.iso("2026-03-15T08:00:00-07:00")
+        try await ingestor.authorizeRecording()
 
         // The first capture parks awaiting the gated fix, holding the
         // single-flight slot.
@@ -206,12 +226,95 @@ struct LocationIngestorTests {
         #expect(source.requestCount == 1)
     }
 
+    @Test func cancelledFixCannotReviveAfterRecordingIsReenabled() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let source = GatedLocationSource(fix: sample(at: "2026-03-15T08:05:00-07:00"))
+        let ingestor = LocationIngestor(
+            store: store,
+            locationSource: source,
+            recordingDeviceID: CurrentRecordingDevice.preview.id,
+            calendar: WhereCoreTestSupport.calendar(),
+            onPersisted: { _ in },
+        )
+        try await ingestor.authorizeRecording()
+        await ingestor.captureTodayIfNeeded(
+            now: WhereCoreTestSupport.iso("2026-03-15T08:00:00-07:00"),
+        )
+        try await waitUntil { source.requestCount == 1 }
+
+        await ingestor.revokeRecordingAuthorization()
+        try await ingestor.authorizeRecording()
+        // The cancelled, continuation-backed request remains the single-flight owner until it
+        // actually exits; re-enabling cannot replace it with a handle the old task could clear.
+        await ingestor.captureTodayIfNeeded(
+            now: WhereCoreTestSupport.iso("2026-03-15T08:00:00-07:00"),
+        )
+        #expect(source.requestCount == 1)
+        source.openGate()
+
+        // Once the cancelled task exits, a genuinely new capture can claim the slot and persist.
+        try await waitUntil {
+            await ingestor.captureTodayIfNeeded(
+                now: WhereCoreTestSupport.iso("2026-03-15T08:00:00-07:00"),
+            )
+            return source.requestCount == 2
+        }
+        try await waitUntil { await (try? store.allSamples().count) == 1 }
+        #expect(source.requestCount == 2)
+    }
+
+    @Test func revokedAuthorizationDropsAOneShotFixEchoedOntoTheSampleStream() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let source = EchoingLocationSource(fix: sample(at: "2026-03-15T08:05:00-07:00"))
+        let ingestor = LocationIngestor(
+            store: store,
+            locationSource: source,
+            recordingDeviceID: CurrentRecordingDevice.preview.id,
+            calendar: WhereCoreTestSupport.calendar(),
+            onPersisted: { _ in },
+        )
+        try await ingestor.start()
+        await ingestor.revokeRecordingAuthorization()
+
+        #expect(await ingestor.currentLocation() != nil)
+        try await waitUntil {
+            guard source.didEchoFix else { return false }
+            return await ingestor.testingHasConsumedSample(id: source.fixID)
+        }
+
+        #expect(try await store.allSamples().isEmpty)
+    }
+
+    @Test func sampleBufferedDuringInitialOffIsNotAcceptedByALaterOn() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let source = ScriptedLocationSource(authorizationStatus: .always)
+        let ingestor = Self.makeIngestor(
+            store: store,
+            source: source,
+            recorder: OutcomeRecorder(),
+        )
+        let beforeConsent = sample(at: "2026-03-15T11:59:00-07:00")
+        let enabledAt = WhereCoreTestSupport.iso("2026-03-15T12:00:00-07:00")
+        let afterConsent = sample(at: "2026-03-15T12:01:00-07:00")
+
+        // The source can buffer before the first policy reconciliation. Initial Off installs a
+        // closed consumer; even if this row is not drained until after On, its timestamp remains
+        // outside the new authority window.
+        source.emit(beforeConsent)
+        await ingestor.revokeRecordingAuthorization()
+        try await ingestor.start(effectiveAt: enabledAt, dataEpochID: .initial)
+        source.emit(afterConsent)
+
+        try await waitUntil { await (try? store.allSamples().count) == 1 }
+        #expect(try await store.allSamples().map(\.id) == [afterConsent.id])
+    }
+
     @Test func liveSampleIsPersistedAndReported() async throws {
         let store = try SwiftDataStore.inMemory()
         let source = ScriptedLocationSource(authorizationStatus: .always)
         let recorder = OutcomeRecorder()
         let ingestor = Self.makeIngestor(store: store, source: source, recorder: recorder)
-        await ingestor.start()
+        try await ingestor.start()
 
         source.emit(LocationSample(
             timestamp: WhereCoreTestSupport.iso("2026-03-15T12:00:00-07:00"),
@@ -225,13 +328,38 @@ struct LocationIngestorTests {
         #expect(try await store.allSamples().count == 1)
     }
 
+    @Test func liveSampleFromSupersededEpochStopsWithoutEnteringRetryOutbox() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let source = ScriptedLocationSource(authorizationStatus: .always)
+        let ingestor = Self.makeIngestor(
+            store: store,
+            source: source,
+            recorder: OutcomeRecorder(),
+        )
+        try await ingestor.start(effectiveAt: .distantPast, dataEpochID: .initial)
+        _ = try await store.perform {
+            try await store.rotateDataEpoch(
+                reason: .accountReset,
+                changedBy: CurrentRecordingDevice.preview.id,
+                at: Date(timeIntervalSinceReferenceDate: 100),
+            )
+        }
+
+        source.emit(sample(at: "2026-03-15T12:00:00-07:00"))
+
+        try await waitUntil { await !ingestor.testingIsAcceptingSamples }
+        #expect(await !ingestor.isActive)
+        #expect(await ingestor.retryQueueDepth == 0)
+        #expect(try await store.allSamples().isEmpty)
+    }
+
     @Test func failedPersistEnqueuesThenLaterDrains() async throws {
         let backing = try SwiftDataStore.inMemory()
         let store = ToggleFailingStore(backing: backing)
         let source = ScriptedLocationSource(authorizationStatus: .always)
         let recorder = OutcomeRecorder()
         let ingestor = Self.makeIngestor(store: store, source: source, recorder: recorder)
-        await ingestor.start()
+        try await ingestor.start()
 
         await store.setShouldFail(true)
         source.emit(sample(at: "2026-03-15T12:00:00-07:00"))
@@ -254,7 +382,7 @@ struct LocationIngestorTests {
         let source = ScriptedLocationSource(authorizationStatus: .always)
         let recorder = OutcomeRecorder()
         let ingestor = Self.makeIngestor(store: store, source: source, recorder: recorder)
-        await ingestor.start()
+        try await ingestor.start()
 
         await store.setShouldFail(true)
         source.emit(sample(at: "2026-03-15T12:00:00-07:00"))
@@ -262,9 +390,41 @@ struct LocationIngestorTests {
 
         // Quiescing for a teardown drops the backlog so a later start() can't
         // re-drain those samples into the freshly wiped store.
-        await ingestor.quiesce()
+        try await ingestor.quiesce()
         #expect(await ingestor.retryQueueDepth == 0)
         #expect(await !(ingestor.isActive))
+    }
+
+    @Test func pausePreservesRetryBacklogForAResume() async throws {
+        let backing = try SwiftDataStore.inMemory()
+        let store = ToggleFailingStore(backing: backing)
+        let source = ScriptedLocationSource(authorizationStatus: .always)
+        let outbox = SpyLocationOutbox()
+        let ingestor = Self.makeIngestor(
+            store: store,
+            source: source,
+            recorder: OutcomeRecorder(),
+            outbox: outbox,
+        )
+        try await ingestor.start()
+
+        await store.setShouldFail(true)
+        source.emit(sample(at: "2026-03-15T12:00:00-07:00"))
+        try await waitUntil { await ingestor.retryQueueDepth == 1 }
+        try await waitUntil { await outbox.contents.count == 1 }
+
+        await ingestor.pause()
+
+        #expect(await !(ingestor.isActive))
+        #expect(await ingestor.retryQueueDepth == 1)
+        #expect(await outbox.contents.count == 1)
+
+        await store.setShouldFail(false)
+        try await ingestor.start()
+
+        try await waitUntil { await (try? backing.allSamples().count) == 1 }
+        #expect(await ingestor.retryQueueDepth == 0)
+        #expect(await outbox.contents.isEmpty)
     }
 
     @Test func quiesceStopsPersistingFurtherSamples() async throws {
@@ -272,14 +432,14 @@ struct LocationIngestorTests {
         let source = ScriptedLocationSource(authorizationStatus: .always)
         let recorder = OutcomeRecorder()
         let ingestor = Self.makeIngestor(store: store, source: source, recorder: recorder)
-        await ingestor.start()
+        try await ingestor.start()
 
         source.emit(sample(at: "2026-03-15T12:00:00-07:00"))
         // start() fires one drain-only outcome; the live sample fires a second.
         try await waitUntil { await recorder.count >= 2 }
         #expect(try await store.allSamples().count == 1)
 
-        await ingestor.quiesce()
+        try await ingestor.quiesce()
 
         // A sample delivered after quiesce (e.g. a buffered event arriving mid
         // teardown) must not be persisted, so it can't clobber the wipe that
@@ -300,7 +460,7 @@ struct LocationIngestorTests {
             recorder: OutcomeRecorder(),
             outbox: outbox,
         )
-        await ingestor.start()
+        try await ingestor.start()
 
         await store.setShouldFail(true)
         source.emit(sample(at: "2026-03-15T12:00:00-07:00"))
@@ -325,7 +485,7 @@ struct LocationIngestorTests {
             recorder: OutcomeRecorder(),
             outbox: outbox,
         )
-        await ingestor1.start()
+        try await ingestor1.start()
         await failing.setShouldFail(true)
         source1.emit(sample(at: "2026-03-15T12:00:00-07:00"))
         try await waitUntil { await ingestor1.retryQueueDepth == 1 }
@@ -340,11 +500,104 @@ struct LocationIngestorTests {
             recorder: OutcomeRecorder(),
             outbox: outbox,
         )
-        await ingestor2.start()
+        try await ingestor2.start()
 
         try await waitUntil { await (try? backing.allSamples().count) == 1 }
         #expect(await ingestor2.retryQueueDepth == 0)
         #expect(await outbox.contents.isEmpty)
+    }
+
+    @Test func durableBacklogPreservesExistingDeviceProvenance() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let originalDeviceID = try RecordingDeviceID(
+            rawValue: #require(UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")),
+        )
+        let restoredSample = LocationSample(
+            timestamp: WhereCoreTestSupport.iso("2026-03-15T12:00:00-07:00"),
+            coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
+            horizontalAccuracy: 5,
+            source: .gpsSignificantChange,
+            recordingDeviceID: originalDeviceID,
+        )
+        let outbox = SpyLocationOutbox([restoredSample])
+        let ingestor = Self.makeIngestor(
+            store: store,
+            source: ScriptedLocationSource(authorizationStatus: .always),
+            recorder: OutcomeRecorder(),
+            outbox: outbox,
+        )
+
+        try await ingestor.start()
+
+        let stored = try await store.allSamples()
+        #expect(stored.count == 1)
+        #expect(stored.first?.recordingDeviceID == originalDeviceID)
+    }
+
+    @Test func authorizingNewEpochDiscardsOldEpochBacklogWithoutPersistingIt() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let newEpoch = try await store.perform {
+            try await store.rotateDataEpoch(
+                reason: .accountReset,
+                changedBy: CurrentRecordingDevice.preview.id,
+                at: Date(timeIntervalSinceReferenceDate: 100),
+            )
+        }
+        let outbox = SpyLocationOutbox()
+        await outbox.save([LocationOutboxEntry(
+            sample: sample(at: "2026-03-15T12:00:00-07:00"),
+            dataEpochID: .initial,
+        )])
+        let ingestor = Self.makeIngestor(
+            store: store,
+            source: ScriptedLocationSource(authorizationStatus: .always),
+            recorder: OutcomeRecorder(),
+            outbox: outbox,
+        )
+
+        try await ingestor.authorizeRecording(
+            effectiveAt: .distantPast,
+            dataEpochID: newEpoch.id,
+        )
+
+        #expect(await ingestor.retryQueueDepth == 0)
+        #expect(await outbox.entries.isEmpty)
+        #expect(try await store.allSamples().isEmpty)
+    }
+
+    @Test func epochRotationDuringBacklogDrainFailsClosedWithoutStartingGPS() async throws {
+        let backing = try SwiftDataStore.inMemory()
+        let gatedStore = ToggleFailingStore(backing: backing)
+        let gate = OneShotGate()
+        await gatedStore.gateNextExpectedEpochPerform(with: gate)
+        let outbox = SpyLocationOutbox([sample(at: "2026-03-15T12:00:00-07:00")])
+        let ingestor = Self.makeIngestor(
+            store: gatedStore,
+            source: ScriptedLocationSource(authorizationStatus: .always),
+            recorder: OutcomeRecorder(),
+            outbox: outbox,
+        )
+
+        let start = Task {
+            try await ingestor.start(effectiveAt: .distantPast, dataEpochID: .initial)
+        }
+        await gate.waitUntilEntered()
+        _ = try await backing.perform {
+            try await backing.rotateDataEpoch(
+                reason: .accountReset,
+                changedBy: CurrentRecordingDevice.preview.id,
+                at: Date(timeIntervalSinceReferenceDate: 100),
+            )
+        }
+        await gate.release()
+
+        await #expect(throws: RecordingPersistenceError.dataEpochChanged) {
+            try await start.value
+        }
+        #expect(await !ingestor.testingIsAcceptingSamples)
+        #expect(await !ingestor.isActive)
+        #expect(await ingestor.retryQueueDepth == 1)
+        #expect(try await backing.allSamples().isEmpty)
     }
 
     @Test func quiesceClearsTheDurableOutbox() async throws {
@@ -358,7 +611,7 @@ struct LocationIngestorTests {
             recorder: OutcomeRecorder(),
             outbox: outbox,
         )
-        await ingestor.start()
+        try await ingestor.start()
 
         await store.setShouldFail(true)
         source.emit(sample(at: "2026-03-15T12:00:00-07:00"))
@@ -367,9 +620,59 @@ struct LocationIngestorTests {
 
         // A reset/erase teardown must wipe the durable backlog too, or it would
         // re-drain into the freshly erased store on the next launch.
-        await ingestor.quiesce()
+        try await ingestor.quiesce()
         #expect(await ingestor.retryQueueDepth == 0)
         #expect(await outbox.contents.isEmpty)
+    }
+
+    @Test func discardRetryBacklogClearsTheDurableAndLiveCopies() async throws {
+        let backing = try SwiftDataStore.inMemory()
+        let store = ToggleFailingStore(backing: backing)
+        let source = ScriptedLocationSource(authorizationStatus: .always)
+        let outbox = SpyLocationOutbox()
+        let ingestor = Self.makeIngestor(
+            store: store,
+            source: source,
+            recorder: OutcomeRecorder(),
+            outbox: outbox,
+        )
+        try await ingestor.start()
+        await store.setShouldFail(true)
+        source.emit(sample(at: "2026-03-15T12:00:00-07:00"))
+        try await waitUntil { await ingestor.retryQueueDepth == 1 }
+        try await waitUntil { await outbox.contents.count == 1 }
+        await ingestor.pause()
+
+        try await ingestor.discardRetryBacklog()
+
+        #expect(await ingestor.retryQueueDepth == 0)
+        #expect(await outbox.contents.isEmpty)
+    }
+
+    @Test func failedRetryBacklogDiscardPreservesTheLiveAndDurableCopies() async throws {
+        let backing = try SwiftDataStore.inMemory()
+        let store = ToggleFailingStore(backing: backing)
+        let source = ScriptedLocationSource(authorizationStatus: .always)
+        let outbox = SpyLocationOutbox(failsToClear: true)
+        let ingestor = Self.makeIngestor(
+            store: store,
+            source: source,
+            recorder: OutcomeRecorder(),
+            outbox: outbox,
+        )
+        try await ingestor.start()
+        await store.setShouldFail(true)
+        source.emit(sample(at: "2026-03-15T12:00:00-07:00"))
+        try await waitUntil { await ingestor.retryQueueDepth == 1 }
+        try await waitUntil { await outbox.contents.count == 1 }
+        await ingestor.pause()
+
+        await #expect(throws: OutboxFailure.self) {
+            try await ingestor.discardRetryBacklog()
+        }
+
+        #expect(await ingestor.retryQueueDepth == 1)
+        #expect(await outbox.contents.count == 1)
     }
 
     @Test func retryQueueEvictsOldestSampleAtCapacity() async throws {
@@ -395,7 +698,7 @@ struct LocationIngestorTests {
                 coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
                 horizontalAccuracy: 0,
                 source: .gpsSignificantChange,
-            ))
+            ), dataEpochID: .initial)
         }
         #expect(await ingestor.retryQueueDepth == 20)
 
@@ -405,7 +708,7 @@ struct LocationIngestorTests {
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 0,
             source: .gpsSignificantChange,
-        ))
+        ), dataEpochID: .initial)
 
         let queuedIDs = await ingestor.testingRetryQueueSampleIDs()
         #expect(queuedIDs.count == 20)
@@ -458,6 +761,7 @@ private final class GatedLocationSource: LocationSource, @unchecked Sendable {
     private let lock = NSLock()
     private var waiters: [CheckedContinuation<Void, Never>] = []
     private var _requestCount = 0
+    private var isOpen = false
 
     init(fix: LocationSample) {
         self.fix = fix
@@ -477,11 +781,18 @@ private final class GatedLocationSource: LocationSource, @unchecked Sendable {
     func requestPermission() async throws {}
 
     func requestCurrentLocation() async -> LocationSample? {
+        let shouldWait = lock.withLock {
+            _requestCount += 1
+            return !isOpen
+        }
+        guard shouldWait else { return fix }
         await withCheckedContinuation { continuation in
-            lock.withLock {
-                _requestCount += 1
+            let openedBeforeRegistration = lock.withLock {
+                guard !isOpen else { return true }
                 waiters.append(continuation)
+                return false
             }
+            if openedBeforeRegistration { continuation.resume() }
         }
         return fix
     }
@@ -489,6 +800,7 @@ private final class GatedLocationSource: LocationSource, @unchecked Sendable {
     /// Resume every parked fix request with the scripted fix.
     func openGate() {
         let resumed = lock.withLock {
+            isOpen = true
             let current = waiters
             waiters.removeAll()
             return current
@@ -499,13 +811,90 @@ private final class GatedLocationSource: LocationSource, @unchecked Sendable {
     }
 }
 
+/// Models Core Location delivering a requested one-shot fix through both the direct callback and
+/// the passive sample stream. The stream echo must still obey recording authority.
+private final class EchoingLocationSource: LocationSource, @unchecked Sendable {
+    let sampleStream: AsyncStream<LocationSample>
+    var authorizationUpdates: AsyncStream<LocationAuthorizationStatus> {
+        AsyncStream { _ in }
+    }
+
+    private let fix: LocationSample
+    var fixID: UUID {
+        fix.id
+    }
+
+    private let continuation: AsyncStream<LocationSample>.Continuation
+    private let lock = NSLock()
+    private var _didEchoFix = false
+
+    init(fix: LocationSample) {
+        self.fix = fix
+        let stream = AsyncStream.makeStream(of: LocationSample.self)
+        sampleStream = stream.stream
+        continuation = stream.continuation
+    }
+
+    var didEchoFix: Bool {
+        lock.withLock { _didEchoFix }
+    }
+
+    func start() async {}
+    func stop() async {}
+    func currentAuthorization() async -> LocationAuthorizationStatus {
+        .always
+    }
+
+    func requestPermission() async throws {}
+
+    func requestCurrentLocation() async -> LocationSample? {
+        lock.withLock { _didEchoFix = true }
+        continuation.yield(fix)
+        return fix
+    }
+}
+
 private struct ToggleFailingStoreError: Error {}
+
+/// One-use suspension point whose entry can be awaited deterministically.
+private actor OneShotGate {
+    private var didEnter = false
+    private var didRelease = false
+    private var enteredWaiters: [CheckedContinuation<Void, Never>] = []
+    private var releaseWaiters: [CheckedContinuation<Void, Never>] = []
+
+    func suspend() async {
+        didEnter = true
+        let waiters = enteredWaiters
+        enteredWaiters.removeAll()
+        for waiter in waiters {
+            waiter.resume()
+        }
+        guard !didRelease else { return }
+        await withCheckedContinuation { releaseWaiters.append($0) }
+    }
+
+    func waitUntilEntered() async {
+        guard !didEnter else { return }
+        await withCheckedContinuation { enteredWaiters.append($0) }
+    }
+
+    func release() {
+        didRelease = true
+        let waiters = releaseWaiters
+        releaseWaiters.removeAll()
+        for waiter in waiters {
+            waiter.resume()
+        }
+    }
+}
 
 /// `WhereStore` that lets a test toggle whether `add(sample:)` succeeds; every
 /// other API forwards to a real in-memory `SwiftDataStore`.
 private actor ToggleFailingStore: WhereStore {
     private let backing: SwiftDataStore
     private var shouldFail = false
+    private var nextExpectedEpochGate: OneShotGate?
 
     init(backing: SwiftDataStore) {
         self.backing = backing
@@ -515,12 +904,60 @@ private actor ToggleFailingStore: WhereStore {
         shouldFail = value
     }
 
+    func gateNextExpectedEpochPerform(with gate: OneShotGate) {
+        nextExpectedEpochGate = gate
+    }
+
     func perform<T: Sendable>(_ block: @Sendable () async throws -> T) async throws -> T {
         try await backing.perform(block)
     }
 
+    func perform<T: Sendable>(
+        expectedDataEpochID: WhereDataEpochID,
+        _ block: @Sendable () async throws -> T,
+    ) async throws -> T {
+        if let gate = nextExpectedEpochGate {
+            nextExpectedEpochGate = nil
+            await gate.suspend()
+        }
+        return try await backing.perform(expectedDataEpochID: expectedDataEpochID, block)
+    }
+
     nonisolated func changes() -> AsyncStream<Void> {
         backing.changes()
+    }
+
+    func dataEpoch() async throws -> WhereDataEpoch {
+        try await backing.dataEpoch()
+    }
+
+    func rotateDataEpoch(
+        reason: WhereDataEpochReason,
+        changedBy deviceID: RecordingDeviceID,
+        at date: Date,
+    ) async throws -> WhereDataEpoch {
+        try await backing.rotateDataEpoch(reason: reason, changedBy: deviceID, at: date)
+    }
+
+    func backupImportReceipt(
+        id: UUID,
+        installationID: RecordingDeviceID,
+    ) async throws -> BackupImportReceipt? {
+        try await backing.backupImportReceipt(id: id, installationID: installationID)
+    }
+
+    func addBackupImportReceipt(
+        id: UUID,
+        installationID: RecordingDeviceID,
+    ) async throws {
+        try await backing.addBackupImportReceipt(id: id, installationID: installationID)
+    }
+
+    func removeBackupImportReceipt(
+        id: UUID,
+        installationID: RecordingDeviceID,
+    ) async throws {
+        try await backing.removeBackupImportReceipt(id: id, installationID: installationID)
     }
 
     func add(sample: LocationSample) async throws {
@@ -540,8 +977,28 @@ private actor ToggleFailingStore: WhereStore {
         try await backing.recordingDevices()
     }
 
-    func setRecordingDevice(_ device: RecordingDevice) async throws {
-        try await backing.setRecordingDevice(device)
+    func recordingDeviceProfiles() async throws -> [RecordingDeviceProfile] {
+        try await backing.recordingDeviceProfiles()
+    }
+
+    func addRecordingDeviceProfile(_ profile: RecordingDeviceProfile) async throws {
+        try await backing.addRecordingDeviceProfile(profile)
+    }
+
+    func recordingDeviceMetadataChanges() async throws -> [RecordingDeviceMetadataChange] {
+        try await backing.recordingDeviceMetadataChanges()
+    }
+
+    func addRecordingDeviceMetadataChange(_ change: RecordingDeviceMetadataChange) async throws {
+        try await backing.addRecordingDeviceMetadataChange(change)
+    }
+
+    func recordingDeviceCheckIns() async throws -> [RecordingDeviceCheckIn] {
+        try await backing.recordingDeviceCheckIns()
+    }
+
+    func setRecordingDeviceCheckIn(_ checkIn: RecordingDeviceCheckIn) async throws {
+        try await backing.setRecordingDeviceCheckIn(checkIn)
     }
 
     func recordingPolicyChanges() async throws -> [RecordingPolicyChange] {
@@ -589,10 +1046,6 @@ private actor ToggleFailingStore: WhereStore {
         manualDays dayRange: ClosedRange<CalendarDay>,
     ) async throws {
         try await backing.clear(in: interval, manualDays: dayRange)
-    }
-
-    func clearAll() async throws {
-        try await backing.clearAll()
     }
 
     func dismissedIssueIDs() async throws -> Set<DataIssueID> {

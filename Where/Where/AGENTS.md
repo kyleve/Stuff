@@ -49,7 +49,8 @@ layering, and the domain rules this target merely starts up.
   the `LifecycleRunner` (whose synchronous `initializePrerequisites` installs
   the `CLLocationManager` in time to receive the queued event) and hands it to
   `RootView` through `WhereApp`. Don't move this wiring into a view.
-- **The regular runtime owns exactly one of each shared thing** — one `WhereModel`, one
+- **The regular runtime owns exactly one of each shared thing** — one
+  `FileInstallationRecordingContextStore`, one `WhereModel`, one
   `IntentServices`, one launcher — created here and injected down, per
   [Composition](../../AGENTS.md#composition-create-once-inject-down). The
   launch's `resolve-scope` step is the process's only store open and runs
@@ -60,6 +61,9 @@ layering, and the domain rules this target merely starts up.
   container (`iCloud.com.stuff.where`), Push Notifications entitlement, and
   remote-notification background mode together in `Project.swift`; widgets and
   the share extension stay App Group-only and never open a CloudKit container.
+- **Choose the regular runtime's store explicitly.** Release uses `.cloudKit`;
+  Debug uses `.localOnly` unless built with `WHERE_CLOUDKIT_VALIDATION`
+  (`./Where/install --cloudkit`); the choice must survive every process relaunch.
 - **Nothing here may assume the user has a store.** `didFinishLaunching` starts
   the ambient log sources and drives the launch; anything wanting the user's
   data waits for `.ready` and checks what it got — the Spotlight indexing after

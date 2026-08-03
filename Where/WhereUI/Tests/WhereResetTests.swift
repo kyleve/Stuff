@@ -1,5 +1,6 @@
 import Foundation
 import LifecycleKit
+import RegionKit
 import TestHostSupport
 import Testing
 @_spi(Testing) import WhereCore
@@ -89,15 +90,17 @@ struct WhereResetTests {
         // (the editing surface, `RemindersSettingsModel`, writes here).
         preferences.remindersEnabled = false
         preferences.summaryEnabled = false
+        let originalInstallationID = model.installationRecordingContext.currentDevice.id
         #expect(model.hasOnboarded)
         #expect(model.hasConfirmedRecordingChoice)
 
-        model.resetPreferences()
+        try model.resetPreferences()
 
-        // Removing the keys lets the default-valued getters report first-install
-        // state again: onboarding returns and reminders/summary default back on.
+        // Removing the sidecar and keys restores a real first-install state:
+        // onboarding returns with a new identity and schedules default back on.
         #expect(model.hasOnboarded == false)
         #expect(model.hasConfirmedRecordingChoice == false)
+        #expect(model.installationRecordingContext.currentDevice.id != originalInstallationID)
         #expect(preferences.remindersEnabled)
         #expect(preferences.summaryEnabled)
     }
@@ -155,7 +158,8 @@ struct WhereResetTests {
         let bootstrap = try ScriptedBootstrap(services: makeServices())
         let model = WhereModel(
             preferences: preferences,
-            makeBootstrap: { bootstrap },
+            installationContextStore: makeInstallationRecordingContextStore(),
+            makeBootstrap: { _ in bootstrap },
             logSystem: .isolated(),
         )
         model.completeOnboarding()
@@ -175,6 +179,8 @@ struct WhereResetTests {
         #expect(model.activeScope == nil)
         #expect(bootstrap.makeServicesCount == 1)
 
+        try model.confirmInitialRecordingChoice(isEnabled: true)
+        model.completeOnboarding()
         launcher.phase.gateHandle?.complete()
         await task.value
 
@@ -223,6 +229,8 @@ struct WhereResetTests {
             }
         }
         try await waitUntil { launcher.phase.isAwaitingGate(LaunchStepID.onboarding) }
+        try model.confirmInitialRecordingChoice(isEnabled: true)
+        model.completeOnboarding()
         launcher.phase.gateHandle?.complete()
         await task.value
         #expect(launcher.phase.isReady)
@@ -272,10 +280,12 @@ struct WhereResetTests {
         #expect(model.hasConfirmedRecordingChoice == false)
         #expect(model.session == nil)
         #expect(launcher.phase.gateHandle != nil)
-        // The erase quiesced GPS before wiping, so the torn-down session is no
-        // longer tracking and can't write into the store as it's cleared.
+        // The erase paused GPS before its transaction, so the torn-down session is no
+        // longer tracking and can't write while user data is cleared.
         #expect(!session.isTracking)
 
+        try model.confirmInitialRecordingChoice(isEnabled: true)
+        model.completeOnboarding()
         launcher.phase.gateHandle?.complete()
         await task.value
 
@@ -283,7 +293,7 @@ struct WhereResetTests {
         // Resolving the gate rebuilt a fresh session over the erased scope.
         let rebuilt = try #require(model.session)
         #expect(rebuilt !== session)
-        // The store was wiped: a fresh report read against it finds nothing.
+        // Synced user data was erased: a fresh report read against it finds nothing.
         await report.refresh()
         #expect(report.trackedDayCount == 0)
     }
@@ -322,12 +332,14 @@ struct WhereResetTests {
         #expect(preferences.remindersEnabled)
         #expect(preferences.summaryEnabled)
 
+        try model.confirmInitialRecordingChoice(isEnabled: true)
+        model.completeOnboarding()
         launcher.phase.gateHandle?.complete()
         await task.value
         #expect(launcher.phase.isReady)
         let rebuilt = try #require(model.session)
         #expect(rebuilt !== original)
-        // The store was wiped: a fresh report read against it is empty.
+        // Synced user data was erased: a fresh report read against it is empty.
         await report.refresh()
         #expect(report.trackedDayCount == 0)
     }
@@ -352,6 +364,87 @@ struct WhereResetTests {
         #expect(model.hasOnboarded) // reset-preferences never ran
         #expect(model.hasConfirmedRecordingChoice)
     }
+
+    @Test func committedCleanupFailureLogsOutWhileKeepingInstallationContextForRetry() async throws {
+        let outbox = ResetLocationOutbox()
+        let services = try WhereServices(
+            store: SwiftDataStore.inMemory(),
+            locationSource: ScriptedLocationSource(authorizationStatus: .always),
+            reminderScheduler: NoopLoggingReminderScheduler(),
+            summaryScheduler: NoopDailySummaryScheduler(),
+            issueAlertScheduler: NoopDataIssueAlertScheduler(),
+            widgetRefresher: NoopWidgetTimelineRefresher(),
+            locationOutbox: outbox,
+        )
+        let model = WhereModel(
+            services: services,
+            preferences: makePreferences(),
+            logSystem: .isolated(),
+        )
+        model.completeOnboarding()
+        var logOuts = 0
+        model.onLoggedOut = { logOuts += 1 }
+        let installationID = model.installationRecordingContext.currentDevice.id
+        let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
+        await launcher.run()
+        let session = try #require(model.session)
+        await outbox.save([LocationOutboxEntry(
+            sample: LocationSample(
+                timestamp: Date(),
+                coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
+                horizontalAccuracy: 5,
+                source: .gpsVisit,
+                recordingDeviceID: installationID,
+            ),
+            dataEpochID: .initial,
+        )])
+        await outbox.setFailsToClear(true)
+
+        await launcher.teardown(WhereLaunch.resetPlan(for: model), input: session)
+
+        #expect(launcher.phase.failed(at: LaunchStepID.eraseData))
+        #expect(launcher.phase.failure?.error is WhereServices.ResetCleanupError)
+        #expect(model.hasOnboarded)
+        #expect(model.hasConfirmedRecordingChoice)
+        #expect(model.installationRecordingContext.currentDevice.id == installationID)
+        #expect(model.session == nil)
+        #expect(model.activeScope == nil)
+        #expect(logOuts == 1)
+        #expect(await outbox.samples.count == 1)
+    }
+
+    @Test func committedInstallationCleanupFailureLogsOutAndUsesResetCleanupError() async throws {
+        let services = try makeServices()
+        let preferences = makePreferences()
+        let contextStore = CommittedFailingResetInstallationContextStore(context: .testing)
+        let bootstrap = ScriptedBootstrap(services: services)
+        let model = WhereModel(
+            preferences: preferences,
+            installationContextStore: contextStore,
+            makeBootstrap: { _ in bootstrap },
+            logSystem: .isolated(),
+        )
+        model.completeOnboarding()
+        var logOuts = 0
+        model.onLoggedOut = { logOuts += 1 }
+        let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
+        await launcher.run()
+        let session = try #require(model.session)
+        let report = YearReportModel(services: services, preferences: preferences)
+        try await report.setManualDay(date: Date(), regions: [.california])
+
+        await launcher.teardown(WhereLaunch.resetPlan(for: model), input: session)
+
+        #expect(launcher.phase.failed(at: LaunchStepID.resetPreferences))
+        #expect(launcher.phase.failure?.error is WhereServices.ResetCleanupError)
+        #expect(model.session == nil)
+        #expect(model.activeScope == nil)
+        #expect(logOuts == 1)
+        #expect(model.hasOnboarded == false)
+        #expect(model.hasConfirmedRecordingChoice == false)
+        await report.refresh()
+        #expect(report.trackedDayCount == 0)
+    }
 }
 
 /// An erase stand-in that always throws, so the teardown-failure path can be
@@ -372,6 +465,81 @@ private struct ResetPreferencesProbeStep: LifecycleStep {
     let id = LaunchStepID.resetPreferences
 
     func run(_: Void, _: LifecycleStepContext) async throws {
-        model.resetPreferences()
+        try model.resetPreferences()
+    }
+}
+
+private actor ResetLocationOutbox: LocationOutbox {
+    private(set) var entries: [LocationOutboxEntry] = []
+    private var failsToClear = false
+
+    func load() async throws -> [LocationOutboxEntry] {
+        entries
+    }
+
+    func save(_ entries: [LocationOutboxEntry]) async {
+        self.entries = entries
+    }
+
+    func clear() async throws {
+        guard !failsToClear else { throw CocoaError(.fileWriteUnknown) }
+        entries.removeAll()
+    }
+
+    func setFailsToClear(_ value: Bool) {
+        failsToClear = value
+    }
+
+    var samples: [LocationSample] {
+        entries.map(\.sample)
+    }
+}
+
+@MainActor
+private final class CommittedFailingResetInstallationContextStore:
+    InstallationRecordingContextStoring
+{
+    private(set) var onboardingContext: InstallationRecordingContext
+    private(set) var backupImportRecovery: BackupCoordinator.DurableImportRecovery?
+    private(set) var onboardingImportCompletion:
+        BackupCoordinator.OnboardingImportCompletion?
+
+    init(context: InstallationRecordingContext) {
+        onboardingContext = context
+    }
+
+    func resolve() throws -> InstallationRecordingContext {
+        onboardingContext
+    }
+
+    func confirmInitialRecording(isEnabled _: Bool) throws -> InstallationRecordingContext {
+        onboardingContext
+    }
+
+    func setBackupImportRecovery(
+        _ recovery: BackupCoordinator.DurableImportRecovery?,
+    ) {
+        backupImportRecovery = recovery
+    }
+
+    func recordOnboardingImportCompletion(
+        _ completion: BackupCoordinator.OnboardingImportCompletion,
+    ) {
+        onboardingImportCompletion = completion
+    }
+
+    func reset() throws {
+        backupImportRecovery = nil
+        onboardingImportCompletion = nil
+        onboardingContext = InstallationRecordingContext(
+            currentDevice: CurrentRecordingDevice(
+                id: RecordingDeviceID(rawValue: UUID()),
+                systemName: onboardingContext.currentDevice.systemName,
+                kind: onboardingContext.currentDevice.kind,
+            ),
+            registeredAt: Date(),
+            initialRecordingChoice: nil,
+        )
+        throw WhereServices.ResetCleanupError(underlying: CocoaError(.fileWriteUnknown))
     }
 }

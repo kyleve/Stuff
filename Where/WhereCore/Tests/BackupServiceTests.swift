@@ -1,13 +1,11 @@
 import Foundation
 import RegionKit
 import Testing
-import WhereCore
+@testable import WhereCore
 
 struct BackupServiceTests {
     private static let calendar = WhereCoreTestSupport.calendar()
 
-    // Whole-second timestamps so the `.iso8601` date strategy (no
-    // fractional seconds) round-trips exactly.
     private static let exportDate = Date(timeIntervalSince1970: 1_700_000_000)
     private static let evidenceWithBlobId =
         UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")!
@@ -38,16 +36,41 @@ struct BackupServiceTests {
         ]
     }
 
-    private static func recordingDeviceFixtures() -> [RecordingDevice] {
+    private static let recordingMetadataID =
+        UUID(uuidString: "EEEEEEEE-EEEE-EEEE-EEEE-EEEEEEEEEEEE")!
+
+    private static func recordingDeviceProfileFixtures() -> [RecordingDeviceProfile] {
         [
-            RecordingDevice(
+            RecordingDeviceProfile(
                 id: recordingDeviceID,
                 systemName: "iPad",
-                nickname: "Travel iPad",
                 kind: .tablet,
                 registeredAt: exportDate,
+                registrationEpochID: .initial,
+            ),
+        ]
+    }
+
+    private static func recordingDeviceMetadataFixtures() -> [RecordingDeviceMetadataChange] {
+        [
+            RecordingDeviceMetadataChange(
+                id: recordingMetadataID,
+                deviceID: recordingDeviceID,
+                revision: 0,
+                changedAt: exportDate,
+                changedByDeviceID: recordingDeviceID,
+                nickname: "Travel iPad",
+            ),
+        ]
+    }
+
+    private static func recordingDeviceCheckInFixtures() -> [RecordingDeviceCheckIn] {
+        [
+            RecordingDeviceCheckIn(
+                deviceID: recordingDeviceID,
+                revision: 0,
                 lastSeenAt: exportDate,
-                archivedAt: nil,
+                appliedAt: exportDate,
                 lastAppliedPolicyChangeID: recordingPolicyID,
                 status: .recording,
             ),
@@ -59,10 +82,34 @@ struct BackupServiceTests {
             RecordingPolicyChange(
                 id: recordingPolicyID,
                 deviceID: recordingDeviceID,
+                parentIDs: [],
+                revision: 0,
+                issuedAt: exportDate,
+                issuedByDeviceID: recordingDeviceID,
                 effectiveAt: exportDate,
-                isEnabled: true,
+                state: .on,
+                reason: .initialRegistration,
             ),
         ]
+    }
+
+    private static func archive(
+        recordingPolicyChanges: [RecordingPolicyChange],
+    ) -> BackupArchive {
+        BackupArchive(
+            exportedAt: exportDate,
+            samples: [],
+            evidence: [],
+            manualDays: [],
+            dismissedIssues: [],
+            trackedRegions: [],
+            primaryRegions: [],
+            recordingDeviceProfiles: recordingDeviceProfileFixtures(),
+            recordingDeviceMetadataChanges: [],
+            recordingDeviceCheckIns: [],
+            recordingPolicyChanges: recordingPolicyChanges,
+            assets: [],
+        )
     }
 
     private static func evidenceFixtures() -> [Evidence] {
@@ -117,7 +164,9 @@ struct BackupServiceTests {
         let blobs: [UUID: Data] = [Self.evidenceWithBlobId: Data("boarding-pass-pdf".utf8)]
 
         let dismissedIssues = Self.dismissedIssueFixtures()
-        let recordingDevices = Self.recordingDeviceFixtures()
+        let recordingDeviceProfiles = Self.recordingDeviceProfileFixtures()
+        let recordingDeviceMetadataChanges = Self.recordingDeviceMetadataFixtures()
+        let recordingDeviceCheckIns = Self.recordingDeviceCheckInFixtures()
         let recordingPolicies = Self.recordingPolicyFixtures()
 
         let url = try service.makeArchiveFile(
@@ -125,7 +174,9 @@ struct BackupServiceTests {
             evidence: evidence,
             manualDays: manualDays,
             dismissedIssues: dismissedIssues,
-            recordingDevices: recordingDevices,
+            recordingDeviceProfiles: recordingDeviceProfiles,
+            recordingDeviceMetadataChanges: recordingDeviceMetadataChanges,
+            recordingDeviceCheckIns: recordingDeviceCheckIns,
             recordingPolicyChanges: recordingPolicies,
             blobs: blobs,
             exportedAt: Self.exportDate,
@@ -144,11 +195,222 @@ struct BackupServiceTests {
         #expect(result.archive.manualDays == manualDays)
         // Dismissals round-trip verbatim, id and timestamp.
         #expect(result.archive.dismissedIssues == dismissedIssues)
-        #expect(result.archive.recordingDevices == recordingDevices)
+        #expect(result.archive.recordingDeviceProfiles == recordingDeviceProfiles)
+        #expect(result.archive.recordingDeviceMetadataChanges == recordingDeviceMetadataChanges)
+        #expect(result.archive.recordingDeviceCheckIns == recordingDeviceCheckIns)
         #expect(result.archive.recordingPolicyChanges == recordingPolicies)
+        let encodedManifest = try #require(String(
+            data: BackupService.makeEncoder().encode(result.archive),
+            encoding: .utf8,
+        ))
+        #expect(encodedManifest.contains("\"state\" : \"on\""))
+        #expect(encodedManifest.contains("\"reason\" : \"initialRegistration\""))
+        #expect(encodedManifest.contains("\"isEnabled\"") == false)
+        #expect(encodedManifest.contains("\"registrationEpochID\""))
+        #expect(encodedManifest.contains("00000000-0000-0000-0000-0000000000E0"))
         // Only the evidence with bytes gets an asset; the other is metadata-only.
         #expect(result.archive.assets.map(\.evidenceId) == [Self.evidenceWithBlobId])
         #expect(result.blobs == blobs)
+    }
+
+    @Test func rapidPolicyChangesPreserveTheirSubsecondOrder() throws {
+        let service = BackupService()
+        let firstDate = Date(timeIntervalSince1970: 1_700_000_000.123_456)
+        let policies = try [
+            RecordingPolicyChange(
+                id: #require(UUID(uuidString: "11111111-1111-1111-1111-111111111111")),
+                deviceID: Self.recordingDeviceID,
+                parentIDs: [],
+                revision: 0,
+                issuedAt: firstDate,
+                issuedByDeviceID: Self.recordingDeviceID,
+                effectiveAt: firstDate,
+                state: .on,
+                reason: .initialRegistration,
+            ),
+            RecordingPolicyChange(
+                id: #require(UUID(uuidString: "22222222-2222-2222-2222-222222222222")),
+                deviceID: Self.recordingDeviceID,
+                parentIDs: [#require(UUID(
+                    uuidString: "11111111-1111-1111-1111-111111111111",
+                ))],
+                revision: 1,
+                issuedAt: firstDate.addingTimeInterval(0.000_001),
+                issuedByDeviceID: Self.recordingDeviceID,
+                effectiveAt: firstDate.addingTimeInterval(0.000_001),
+                state: .off,
+                reason: .userCommand,
+            ),
+        ]
+        let url = try service.makeArchiveFile(
+            samples: [],
+            evidence: [],
+            manualDays: [],
+            recordingDeviceProfiles: [],
+            recordingDeviceMetadataChanges: [],
+            recordingDeviceCheckIns: [],
+            recordingPolicyChanges: policies,
+            blobs: [:],
+            exportedAt: Self.exportDate,
+        )
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        let restored = try service.readArchive(at: url).archive.recordingPolicyChanges
+
+        #expect(restored == policies)
+        let first = try #require(restored.first)
+        let last = try #require(restored.last)
+        #expect(first.effectiveAt < last.effectiveAt)
+    }
+
+    @Test func decoderAcceptsLegacyWholeSecondISO8601Dates() throws {
+        let archive = BackupArchive(
+            exportedAt: Self.exportDate,
+            samples: [],
+            evidence: [],
+            manualDays: [],
+            dismissedIssues: [],
+            trackedRegions: [],
+            primaryRegions: [],
+            recordingDeviceProfiles: [],
+            recordingDeviceMetadataChanges: [],
+            recordingDeviceCheckIns: [],
+            recordingPolicyChanges: [],
+            assets: [],
+        )
+        let legacyEncoder = JSONEncoder()
+        legacyEncoder.dateEncodingStrategy = .iso8601
+        let legacyData = try legacyEncoder.encode(archive)
+
+        let decoded = try BackupService.makeDecoder().decode(BackupArchive.self, from: legacyData)
+
+        #expect(decoded == archive)
+    }
+
+    @Test func olderFormatIsRejectedBeforeItsMissingCurrentFieldsAreDecoded() {
+        let legacyManifest = Data(#"{"formatVersion":4}"#.utf8)
+
+        do {
+            _ = try BackupService.decodeManifest(legacyManifest)
+            Issue.record("Expected the legacy backup format to be rejected.")
+        } catch BackupService.BackupError.unsupportedFormatVersion(4) {
+            // Expected: the version envelope was decoded before the strict v6 shape.
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+    }
+
+    @Test func currentFormatDoesNotSilentlyBackfillAMissingProfileEpoch() throws {
+        let data = try BackupService.makeEncoder().encode(
+            Self.archive(recordingPolicyChanges: Self.recordingPolicyFixtures()),
+        )
+        var manifest = try #require(
+            JSONSerialization.jsonObject(with: data) as? [String: Any],
+        )
+        let profiles = try #require(
+            manifest["recordingDeviceProfiles"] as? [[String: Any]],
+        )
+        manifest["recordingDeviceProfiles"] = profiles.map { profile in
+            var profile = profile
+            profile.removeValue(forKey: "registrationEpochID")
+            return profile
+        }
+
+        do {
+            _ = try BackupService.decodeManifest(
+                JSONSerialization.data(withJSONObject: manifest),
+            )
+            Issue.record("Expected the missing registration epoch to be rejected.")
+        } catch let DecodingError.keyNotFound(key, _) {
+            #expect(key.stringValue == "registrationEpochID")
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+    }
+
+    @Test func validationRejectsANegativePolicyRevisionDecodedFromABackup() throws {
+        let archive = try BackupArchive(
+            exportedAt: Self.exportDate,
+            samples: [],
+            evidence: [],
+            manualDays: [],
+            dismissedIssues: [],
+            trackedRegions: [],
+            primaryRegions: [],
+            recordingDeviceProfiles: Self.recordingDeviceProfileFixtures(),
+            recordingDeviceMetadataChanges: [],
+            recordingDeviceCheckIns: [],
+            recordingPolicyChanges: [#require(Self.recordingPolicyFixtures().first)],
+            assets: [],
+        )
+        var json = try #require(String(
+            data: BackupService.makeEncoder().encode(archive),
+            encoding: .utf8,
+        ))
+        let revision = try #require(json.range(of: "\"revision\" : 0"))
+        json.replaceSubrange(revision, with: "\"revision\" : -1")
+        let decoded = try BackupService.makeDecoder().decode(
+            BackupArchive.self,
+            from: Data(json.utf8),
+        )
+
+        do {
+            try BackupService.validateRecordingData(decoded)
+            Issue.record("Expected the negative policy revision to be rejected.")
+        } catch BackupService.BackupError.invalidRecordingData {
+            // Expected.
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+    }
+
+    @Test func validationRejectsAGapInADevicePolicyTimeline() throws {
+        let initial = try #require(Self.recordingPolicyFixtures().first)
+        let skippedRevision = try RecordingPolicyChange(
+            id: #require(UUID(uuidString: "FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF")),
+            deviceID: Self.recordingDeviceID,
+            parentIDs: [initial.id],
+            revision: 2,
+            issuedAt: Self.exportDate.addingTimeInterval(1),
+            issuedByDeviceID: Self.recordingDeviceID,
+            effectiveAt: Self.exportDate.addingTimeInterval(1),
+            state: .off,
+            reason: .userCommand,
+        )
+        let archive = Self.archive(recordingPolicyChanges: [initial, skippedRevision])
+
+        do {
+            try BackupService.validateRecordingData(archive)
+            Issue.record("Expected the incomplete policy timeline to be rejected.")
+        } catch BackupService.BackupError.invalidRecordingData {
+            // Expected.
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+    }
+
+    @Test func validationRejectsADestructivePolicyThatTurnsRecordingOn() throws {
+        let invalid = RecordingPolicyChange(
+            id: Self.recordingPolicyID,
+            deviceID: Self.recordingDeviceID,
+            parentIDs: [],
+            revision: 0,
+            issuedAt: Self.exportDate,
+            issuedByDeviceID: Self.recordingDeviceID,
+            effectiveAt: Self.exportDate,
+            state: .on,
+            reason: .accountReset,
+        )
+        let archive = Self.archive(recordingPolicyChanges: [invalid])
+
+        do {
+            try BackupService.validateRecordingData(archive)
+            Issue.record("Expected the invalid reason/state pair to be rejected.")
+        } catch BackupService.BackupError.invalidRecordingData {
+            // Expected.
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
     }
 
     @Test func archiveNameIsDateAndTimeStamped() throws {
@@ -157,6 +419,10 @@ struct BackupServiceTests {
             samples: [],
             evidence: [],
             manualDays: [],
+            recordingDeviceProfiles: [],
+            recordingDeviceMetadataChanges: [],
+            recordingDeviceCheckIns: [],
+            recordingPolicyChanges: [],
             blobs: [:],
             exportedAt: Self.exportDate,
         )
@@ -185,6 +451,10 @@ struct BackupServiceTests {
             samples: [],
             evidence: [],
             manualDays: manualDays,
+            recordingDeviceProfiles: [],
+            recordingDeviceMetadataChanges: [],
+            recordingDeviceCheckIns: [],
+            recordingPolicyChanges: [],
             blobs: [:],
             exportedAt: Self.exportDate,
         )
@@ -203,6 +473,10 @@ struct BackupServiceTests {
             evidence: [],
             manualDays: [],
             trackedRegions: [.california, texas],
+            recordingDeviceProfiles: [],
+            recordingDeviceMetadataChanges: [],
+            recordingDeviceCheckIns: [],
+            recordingPolicyChanges: [],
             blobs: [:],
             exportedAt: Self.exportDate,
         )
@@ -233,6 +507,10 @@ struct BackupServiceTests {
             manualDays: [],
             trackedRegions: primary.map(\.region),
             primaryRegions: primary,
+            recordingDeviceProfiles: [],
+            recordingDeviceMetadataChanges: [],
+            recordingDeviceCheckIns: [],
+            recordingPolicyChanges: [],
             blobs: [:],
             exportedAt: Self.exportDate,
         )
@@ -267,6 +545,10 @@ struct BackupServiceTests {
             samples: [],
             evidence: [],
             manualDays: manualDays,
+            recordingDeviceProfiles: [],
+            recordingDeviceMetadataChanges: [],
+            recordingDeviceCheckIns: [],
+            recordingPolicyChanges: [],
             blobs: [:],
             exportedAt: Self.exportDate,
         )
@@ -297,7 +579,9 @@ struct BackupServiceTests {
                 ),
                 PrimaryRegion(region: .newYork, appearance: nil, order: 1),
             ],
-            recordingDevices: Self.recordingDeviceFixtures(),
+            recordingDeviceProfiles: Self.recordingDeviceProfileFixtures(),
+            recordingDeviceMetadataChanges: Self.recordingDeviceMetadataFixtures(),
+            recordingDeviceCheckIns: Self.recordingDeviceCheckInFixtures(),
             recordingPolicyChanges: Self.recordingPolicyFixtures(),
             assets: [BackupAssetEntry(
                 evidenceId: Self.evidenceWithBlobId,
@@ -305,13 +589,8 @@ struct BackupServiceTests {
             )],
         )
 
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        let data = try encoder.encode(archive)
-
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        let decoded = try decoder.decode(BackupArchive.self, from: data)
+        let data = try BackupService.makeEncoder().encode(archive)
+        let decoded = try BackupService.makeDecoder().decode(BackupArchive.self, from: data)
 
         #expect(decoded == archive)
         #expect(decoded.formatVersion == BackupArchive.currentFormatVersion)
@@ -326,6 +605,31 @@ struct BackupServiceTests {
 
         #expect(throws: (any Error).self) {
             _ = try service.readArchive(at: bogus)
+        }
+    }
+
+    @Test func loadingADeclaredAssetThrowsWhenItsFileIsMissing() throws {
+        let extractDirectory = FileManager.default.temporaryDirectory.appending(
+            path: "where-missing-backup-asset-\(UUID().uuidString)",
+            directoryHint: .isDirectory,
+        )
+        try FileManager.default.createDirectory(
+            at: extractDirectory,
+            withIntermediateDirectories: true,
+        )
+        defer { try? FileManager.default.removeItem(at: extractDirectory) }
+        let entry = BackupAssetEntry(
+            evidenceId: Self.evidenceWithBlobId,
+            filename: "assets/\(Self.evidenceWithBlobId.uuidString)",
+        )
+
+        do {
+            _ = try BackupService.loadAssets([entry], from: extractDirectory)
+            Issue.record("Expected a missing manifest-declared asset to throw.")
+        } catch let error as CocoaError {
+            #expect(error.code == .fileReadNoSuchFile)
+        } catch {
+            Issue.record("Unexpected error: \(error)")
         }
     }
 }

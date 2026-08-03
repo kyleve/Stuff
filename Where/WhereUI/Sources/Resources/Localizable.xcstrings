@@ -139,6 +139,54 @@
         }
       }
     },
+    "backup.importCleanup.message" : {
+      "comment" : "Message shown after backup data committed but recording cleanup failed. The placeholder is the preserved import summary.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Your backup data was imported successfully. Where couldn't finish recording cleanup, so automatic recording remains off. Close and reopen Where. Do not import this backup again.\n\n%@"
+          }
+        }
+      }
+    },
+    "backup.importCleanup.title" : {
+      "comment" : "Title shown when a backup import committed but recording cleanup still requires an app relaunch.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Backup imported; cleanup incomplete"
+          }
+        }
+      }
+    },
+    "backup.importSetup.message" : {
+      "comment" : "Terminal launch message after an onboarding backup committed but setup of the new installation failed. The placeholder is the preserved import summary.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Your backup data was imported successfully, but Where couldn't finish setting up this device. Close and reopen Where; setup will retry automatically. Do not import this backup again.\n\n%@"
+          }
+        }
+      }
+    },
+    "backup.importSetup.title" : {
+      "comment" : "Terminal launch title after an onboarding backup committed but setup of the new installation failed.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Backup imported; setup incomplete"
+          }
+        }
+      }
+    },
     "calendar.day.accessibility" : {
       "comment" : "Accessibility label for a calendar day, including the day of the week and the names of the regions that day.",
       "extractionState" : "manual",
@@ -2878,6 +2926,30 @@
         }
       }
     },
+    "launch.resetCleanup.message" : {
+      "comment" : "Terminal launch message after synced data was erased but local post-commit cleanup failed.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Your synced data was erased, but Where couldn't finish local cleanup. Automatic recording remains off. Close and reopen Where. If Settings appears, retry Erase All Data & Reset; if onboarding appears, finish setup."
+          }
+        }
+      }
+    },
+    "launch.resetCleanup.title" : {
+      "comment" : "Terminal launch title after reset committed but local cleanup failed.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Data erased; cleanup incomplete"
+          }
+        }
+      }
+    },
     "locations.elsewhere.subtitle" : {
       "comment" : "Subtitle on the Locations tab's Elsewhere entry card: region count.",
       "extractionState" : "manual",
@@ -3444,6 +3516,18 @@
         }
       }
     },
+    "onboarding.installationSecurityError" : {
+      "comment" : "Launch failure shown when Where cannot prove that the device-local recording identity is excluded from backup and also cannot remove it safely.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Where couldn't secure this device's recording identity. Close and reopen Where, then try again."
+          }
+        }
+      }
+    },
     "onboarding.next" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3578,6 +3662,18 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Couldn't restore backup"
+          }
+        }
+      }
+    },
+    "onboarding.restoreMergeRecommended" : {
+      "comment" : "Recommended non-destructive backup strategy shown during onboarding.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Merge (Recommended)"
           }
         }
       }
@@ -5334,6 +5430,18 @@
         }
       }
     },
+    "settings.backup.cleanupRequired" : {
+      "comment" : "Settings footer while a committed backup import still needs its post-commit cleanup retried.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "A previous backup finished importing, but recording cleanup still needs attention. Finish cleanup before importing another backup."
+          }
+        }
+      }
+    },
     "settings.backup.errorTitle" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5406,7 +5514,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Merge keeps everything already on this device and adds the file's records. Replace erases this device first, then restores only what's in the file."
+            "value" : "Merge keeps the data already synced to your devices and adds the file's records. Replace restores the file's history and settings, retains device identities for safe syncing, and turns automatic recording off until you re-enable it. Offline devices receive the changes when they reconnect."
           }
         }
       }
@@ -5477,6 +5585,30 @@
         }
       }
     },
+    "settings.backup.retryCleanup" : {
+      "comment" : "Button that retries only cleanup after a backup import already committed.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Retry Backup Cleanup"
+          }
+        }
+      }
+    },
+    "settings.backup.retryingCleanup" : {
+      "comment" : "Progress label while retrying only cleanup after a backup import already committed.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Finishing Backup Cleanup…"
+          }
+        }
+      }
+    },
     "settings.backup.share" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5516,7 +5648,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This removes every sample, manual day, and piece of evidence in %@. It can't be undone."
+            "value" : "This removes every sample, manual day, and piece of evidence in %@ across all synced devices, including offline devices when they next connect. It can't be undone."
           }
         }
       }
@@ -5607,7 +5739,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Automatic recording will be turned off from now on and this device will be hidden. Its existing history is kept."
+            "value" : "Where will hide this device now. Automatic recording stops after that device next connects and syncs. Its existing history is kept."
           }
         }
       }
@@ -5784,6 +5916,29 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Recording"
+          }
+        }
+      }
+    },
+    "settings.devices.status.syncing" : {
+      "comment" : "Status shown while a device profile has synced but its recording policy is still arriving.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Syncing Recording Setting"
+          }
+        }
+      }
+    },
+    "settings.devices.status.unavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unavailable"
           }
         }
       }
@@ -6346,7 +6501,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "This erases every sample, manual day, and piece of evidence on this device and returns you to first-run setup. It can't be undone."
+            "value" : "This erases every synced sample, manual day, and piece of evidence across all your devices, stops automatic recording on every known device, then returns this device to first-run setup. Offline devices discard pending fixes and receive the changes when they reconnect. It can't be undone."
           }
         }
       }

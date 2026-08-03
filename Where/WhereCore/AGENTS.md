@@ -27,11 +27,17 @@ internal shape.
   collaborator it belongs to.
 - **`WhereStore` is a value-type boundary.** Everything crossing it is a
   value, never a SwiftData record; every mutation runs inside
-  `perform { … }` (the production store traps otherwise), and each committed
-  transaction pings `changes()`. Never expose its `ModelContainer` through
+  `perform { … }` (the production store traps otherwise), stale-decision writes
+  use `perform(expectedDataEpochID:)`, and multi-table reads use `readSnapshot`;
+  guard: `SwiftDataStoreTests.readSnapshotRejectsCommitBeforeNotification`. Each
+  committed transaction pings `changes()`. Never expose its `ModelContainer` through
   `WhereServices`; the separate DEBUG Inspector runtime uses
   `SwiftDataStore.makeContainer`, `inspectorModelTypes`, and
   `inspectorStoreURL` as its schema/storage adapter.
+- **Resolve destructive generations as a multi-parent causal DAG.** A rotation names every real
+  maximal head; two unjoined reset heads resolve to a deterministic empty UUIDv8 synthetic epoch
+  until the next rotation joins them, and persisted epoch events must never use that reserved
+  namespace (`WhereDataEpoch.resolve(in:)`).
 - **Each process opens its on-disk store once and injects it** — the app's
   launch opens it; the App Intents stack shares it via
   `WhereServices.forIntents(sharingStoreOf:)`. A second container over the
@@ -42,14 +48,21 @@ internal shape.
   `trackedRegions()` — picking scopes GPS attribution *and* carries each
   region's `RegionAppearance` + pick order. `RegionAppearance` is data
   (WhereCore); the token→`Color` mapping is presentation (WhereUI).
-- **Backups mirror the persisted model — keep them lossless.** Any persisted
-  change is reflected end-to-end: add it to `BackupArchive`, write it in
-  `BackupService.makeArchiveFile`, read it back in
-  `BackupCoordinator.importBackup` for **both** `.replace` and `.merge`, and
-  add a round-trip test (`BackupServiceTests` / `BackupCoordinatorTests`).
-  The archive is strict synthesized `Codable` — no in-code legacy decode; a
-  shape change bumps `BackupArchive.currentFormatVersion` and extends
-  [`../Tools/upgrade-backup.rb`](../Tools/upgrade-backup.rb) instead.
+- **Export backups from one `readSnapshot` and keep restorable user data
+  lossless.** Add persisted user-data shapes end-to-end and cover both import
+  strategies, but export no target-owned recording check-ins and ignore any in
+  an imported archive (`BackupServiceTests` / `BackupCoordinatorTests`).
+- **Backup import never changes live recording authority.** Merge reasserts each pre-import
+  state (including the destructive epoch's implicit archive, defaulting every new imported
+  device Off); Replace rotates to a child epoch and appends an Off/archive barrier to every
+  imported device before discarding the local outbox (`BackupCoordinatorTests`).
+- **Gate import recovery with a two-phase sidecar plus an atomic store receipt.** Never clear a
+  committed onboarding marker before its independent terminal completion tombstone
+  (`BackupCoordinatorTests` / `WhereLaunchTests`).
+- **Keep the backup archive strict synthesized `Codable`.** A shape change bumps
+  `BackupArchive.currentFormatVersion` and extends
+  [`../Tools/upgrade-backup.rb`](../Tools/upgrade-backup.rb); never add an
+  in-code legacy decode fallback.
 - **A logical day is a `CalendarDay`, not a `Date`.** `CalendarDay` (Y-M-D)
   is the timezone-independent identity every stored user record and day
   comparison keys on; persisting a `Date` makes a day drift across time-zone
@@ -66,7 +79,9 @@ internal shape.
   with `StoreURL`; families without a dedicated identity type get theirs from
   `WhereStoreID`. Used to stamp Periscope `LogEvent.externalID`s.
 - **No in-app data migration or legacy recovery.** `SD….toValue()` reads only
-  the current shape and drops (fault-logs) a row it can't place. The one-time
+  the current shape and fault-logs a row it can't place; incomplete epoch or
+  policy authority throws and fails closed instead of dropping into a benign
+  state. The one-time
   reshape path is backup **export → transform
   ([`../Tools/upgrade-backup.rb`](../Tools/upgrade-backup.rb)) →
   replace-import**. Deliberate pre-release; the durable successor
@@ -74,14 +89,14 @@ internal shape.
 - **Writes await their side effects.** `DayJournal` commits, then awaits the
   reminder reconcile + widget publish in sequence, so a reader on the next
   `changes()` ping never observes a half-applied write.
-- **Filter persistent-store remote-change notifications by the Where store
-  URL.** Never let another store in the process (notably Periscope) ping
-  `WhereStore.changes()`; guard: `StoreRemoteChangeSourceTests`.
+- **Filter persistent-store remote-change notifications by the Where store URL
+  and the store instance's transaction author.** Never let Periscope or Where's
+  own local saves enter `remoteChanges()`; guard: `StoreRemoteChangeSourceTests`.
 - **Post-write reconciliation is defined once.** Every write and import
   routes through `DayJournal.reconcileAfterDayChange()` (or its widget-less
   subset `reconcileIssueState()`) — never copy the fan-out into a new write
   path. Cross-collaborator hooks take a single closure wired at the
-  composition root (`BackupCoordinator.onImport`).
+  composition root (`BackupCoordinator.ImportLifecycle.didCommit`).
 - **Detectors read aggregated input; the speed-based one needs raw fixes.**
   `DataIssueInput.daySamples` carries per-day GPS fixes only (`.gpsVisit` /
   `.gpsSignificantChange`, sorted) — manual and evidence-implied samples are
@@ -92,11 +107,18 @@ internal shape.
   `LocationIngestor.captureTodayIfNeeded(now:)`.
 - **`DeviceRecordingController` owns automatic-recording policy and physical
   GPS state.** Keep policy events append-only, serialize mutations across
-  awaits, stamp every ingested GPS sample with the current installation id,
-  seed the first policy from the installation's explicitly confirmed
-  preference, and apply `LocationHistoryReader` to every user-facing
-  projection. Backups alone read the lossless raw samples and full
-  policy/device tables.
+  awaits, fail closed when authority or acknowledgement is unavailable, stamp
+  every ingested GPS sample with the current installation id, seed the first
+  policy from `InstallationRecordingContext`'s explicitly confirmed choice plus
+  its stable profile/policy IDs and timestamps, and apply `LocationHistoryReader`
+  to every user-facing projection. Require an effective On event for every
+  device-stamped sample, and represent On, Off, and archive in one multi-parent causal authority
+  DAG. Make each command name every observed maximal head, resolve concurrent heads
+  safety-first, and derive cleanup/reset floors from the independent destructive frontier.
+  Persist immutable profiles, nickname events, target-owned check-ins, and policy events separately.
+  Stamp every durable location-outbox entry with its authorizing data epoch and
+  never replay it into another generation; backups alone read lossless raw
+  samples and policy/device timelines, excluding non-restorable check-ins.
 - **Tracked regions live in the store, not preferences** — one
   `SDTrackedRegion` row per region so cross-device edits merge; read as a
   `Set` defaulting to the four. `RegionAttribution` derives the attributor

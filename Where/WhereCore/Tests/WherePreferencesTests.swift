@@ -2,16 +2,24 @@ import Testing
 @testable import WhereCore
 
 struct WherePreferencesTests {
-    @Test func recordingChoiceConfirmationIsPersistedAndReset() {
-        let store = InMemoryKeyValueStore()
-        let preferences = WherePreferences(store: store)
-        #expect(preferences.hasConfirmedRecordingChoice == false)
+    @Test func resetRestoresFirstInstallDefaults() {
+        let preferences = WherePreferences(store: InMemoryKeyValueStore())
+        preferences.hasOnboarded = true
+        preferences.remindersEnabled = false
+        preferences.reminderTime = ReminderTime(hour: 1, minute: 2)
+        preferences.summaryEnabled = false
+        preferences.summaryTime = ReminderTime(hour: 3, minute: 4)
+        preferences.issueAlertsEnabled = false
+        preferences.driftThresholdMeters = 123
 
-        preferences.hasConfirmedRecordingChoice = true
-        let relaunched = WherePreferences(store: store)
-        #expect(relaunched.hasConfirmedRecordingChoice)
+        preferences.reset()
 
-        relaunched.reset()
-        #expect(relaunched.hasConfirmedRecordingChoice == false)
+        #expect(preferences.hasOnboarded == false)
+        #expect(preferences.remindersEnabled)
+        #expect(preferences.reminderTime == .defaultEvening)
+        #expect(preferences.summaryEnabled)
+        #expect(preferences.summaryTime == .defaultMorning)
+        #expect(preferences.issueAlertsEnabled)
+        #expect(preferences.driftThresholdMeters == DriftThreshold.default.rawValue)
     }
 }

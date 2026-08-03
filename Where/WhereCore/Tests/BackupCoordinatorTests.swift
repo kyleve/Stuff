@@ -3,16 +3,16 @@ import RegionKit
 import Testing
 @testable import WhereCore
 
-/// Covers export/import round-trips and the post-import `onImport` hook the
+/// Covers export/import round-trips and the post-commit lifecycle hook the
 /// coordinator invokes once new data lands.
 struct BackupCoordinatorTests {
     private struct Harness {
         let coordinator: BackupCoordinator
         let store: SwiftDataStore
-        let onImport: HookSpy
+        let didCommit: HookSpy
     }
 
-    /// Records how many times the coordinator invoked its `onImport` hook, so a
+    /// Records how many times the coordinator invoked its commit hook, so a
     /// test can assert an import triggers the (composition-root-supplied)
     /// badge / notification / widget reconcile exactly once.
     private actor HookSpy {
@@ -22,14 +22,57 @@ struct BackupCoordinatorTests {
         }
     }
 
+    private struct CleanupFailure: Error {}
+
+    private actor CleanupSpy {
+        private var shouldFail = true
+        private(set) var count = 0
+
+        func run() throws {
+            count += 1
+            if shouldFail { throw CleanupFailure() }
+        }
+
+        func allowSuccess() {
+            shouldFail = false
+        }
+    }
+
+    private actor RecoveryPersistenceSpy {
+        private(set) var recovery: BackupCoordinator.DurableImportRecovery?
+
+        init(_ recovery: BackupCoordinator.DurableImportRecovery? = nil) {
+            self.recovery = recovery
+        }
+
+        nonisolated var persistence: BackupCoordinator.ImportRecoveryPersistence {
+            BackupCoordinator.ImportRecoveryPersistence(
+                load: { await self.recovery },
+                save: { await self.save($0) },
+                recordOnboardingCompletion: { _ in },
+            )
+        }
+
+        private func save(_ recovery: BackupCoordinator.DurableImportRecovery?) {
+            self.recovery = recovery
+        }
+    }
+
     private static func makeHarness() throws -> Harness {
         let store = try SwiftDataStore.inMemory()
         let hook = HookSpy()
         let coordinator = BackupCoordinator(
             store: store,
-            onImport: { await hook.run() },
+            currentDeviceID: recordingDeviceID,
+            now: { Date(timeIntervalSinceReferenceDate: 1000) },
+            importLifecycle: .init(
+                prepare: { _ in },
+                didCommit: { _ in await hook.run() },
+                didRollBack: { _ in },
+            ),
+            importRecoveryPersistence: .none,
         )
-        return Harness(coordinator: coordinator, store: store, onImport: hook)
+        return Harness(coordinator: coordinator, store: store, didCommit: hook)
     }
 
     private static let evidence = Evidence(
@@ -64,27 +107,44 @@ struct BackupCoordinatorTests {
                 regions: [.newYork],
             ))
             try await store.restoreDismissedIssue(dismissal)
-            try await store.setRecordingDevice(RecordingDevice(
+            try await store.addRecordingDeviceProfile(RecordingDeviceProfile(
                 id: recordingDeviceID,
                 systemName: "iPad",
-                nickname: "Travel iPad",
                 kind: .tablet,
                 registeredAt: dismissal.dismissedAt,
+                registrationEpochID: .initial,
+            ))
+            try await store.addRecordingDeviceMetadataChange(RecordingDeviceMetadataChange(
+                id: UUID(uuidString: "DDDDDDDD-DDDD-DDDD-DDDD-DDDDDDDDDDDD")!,
+                deviceID: recordingDeviceID,
+                revision: 0,
+                changedAt: dismissal.dismissedAt,
+                changedByDeviceID: recordingDeviceID,
+                nickname: "Travel iPad",
+            ))
+            try await store.setRecordingDeviceCheckIn(RecordingDeviceCheckIn(
+                deviceID: recordingDeviceID,
+                revision: 0,
                 lastSeenAt: dismissal.dismissedAt,
-                archivedAt: nil,
+                appliedAt: dismissal.dismissedAt,
                 lastAppliedPolicyChangeID: recordingPolicyID,
                 status: .recording,
             ))
             try await store.addRecordingPolicyChange(RecordingPolicyChange(
                 id: recordingPolicyID,
                 deviceID: recordingDeviceID,
+                parentIDs: [],
+                revision: 0,
+                issuedAt: dismissal.dismissedAt,
+                issuedByDeviceID: recordingDeviceID,
                 effectiveAt: dismissal.dismissedAt,
-                isEnabled: true,
+                state: .on,
+                reason: .initialRegistration,
             ))
         }
     }
 
-    @Test func exportThenMergeImportReproducesEveryTable() async throws {
+    @Test func exportThenMergeImportReproducesRestorableTables() async throws {
         let source = try Self.makeHarness()
         try await Self.seed(source.store)
 
@@ -108,12 +168,288 @@ struct BackupCoordinatorTests {
         #expect(try await destination.store.allDismissedIssues() == source.store
             .allDismissedIssues())
         #expect(try await destination.store.allDismissedIssues() == [Self.dismissal])
-        #expect(try await destination.store.recordingDevices() == source.store.recordingDevices())
-        #expect(try await destination.store.recordingPolicyChanges() == source.store
-            .recordingPolicyChanges())
+        #expect(try await destination.store.recordingDeviceProfiles() == source.store
+            .recordingDeviceProfiles())
+        #expect(try await destination.store.recordingDeviceMetadataChanges() == source.store
+            .recordingDeviceMetadataChanges())
+        // Check-ins prove that a particular installation applied policy and cleared its own
+        // outbox. A backup cannot safely reproduce that proof on another installation.
+        #expect(try await destination.store.recordingDeviceCheckIns().isEmpty)
+        let policies = try await destination.store.recordingPolicyChanges()
+        let sourcePolicies = try await source.store.recordingPolicyChanges()
+        #expect(Array(policies.dropLast()) == sourcePolicies)
+        #expect(policies.last?.parentIDs == [Self.recordingPolicyID])
+        #expect(policies.last?.state == .off)
+        #expect(policies.last?.reason == .backupMerge)
         #expect(try await destination.store.evidenceBlob(for: Self.evidence.id) == Self.blob)
-        // An import that lands new data runs the post-import hook once.
-        #expect(await destination.onImport.count == 1)
+        // An import that lands new data runs the post-commit hook once.
+        #expect(await destination.didCommit.count == 1)
+    }
+
+    @Test func exportOmitsTargetOwnedRecordingCheckIns() async throws {
+        let source = try Self.makeHarness()
+        try await Self.seed(source.store)
+
+        let url = try await source.coordinator.exportBackup()
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        let archive = try BackupService().readArchive(at: url).archive
+        #expect(archive.recordingDeviceCheckIns.isEmpty)
+    }
+
+    @Test func importTreatsLegacyRecordingCheckInsAsInertHistory() async throws {
+        let profile = RecordingDeviceProfile(
+            id: Self.recordingDeviceID,
+            systemName: "iPad",
+            kind: .tablet,
+            registeredAt: Self.dismissal.dismissedAt,
+            registrationEpochID: .initial,
+        )
+        let policy = RecordingPolicyChange(
+            id: Self.recordingPolicyID,
+            deviceID: Self.recordingDeviceID,
+            parentIDs: [],
+            revision: 0,
+            issuedAt: Self.dismissal.dismissedAt,
+            issuedByDeviceID: Self.recordingDeviceID,
+            effectiveAt: Self.dismissal.dismissedAt,
+            state: .off,
+            reason: .userCommand,
+        )
+        let checkIn = RecordingDeviceCheckIn(
+            deviceID: Self.recordingDeviceID,
+            revision: 0,
+            lastSeenAt: Self.dismissal.dismissedAt,
+            appliedAt: Self.dismissal.dismissedAt,
+            lastAppliedPolicyChangeID: Self.recordingPolicyID,
+            status: .off,
+        )
+        let url = try BackupService().makeArchiveFile(
+            samples: [],
+            evidence: [],
+            manualDays: [],
+            recordingDeviceProfiles: [profile],
+            recordingDeviceMetadataChanges: [],
+            recordingDeviceCheckIns: [checkIn],
+            recordingPolicyChanges: [policy],
+            blobs: [:],
+        )
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        let destination = try Self.makeHarness()
+        _ = try await destination.coordinator.importBackup(from: url, strategy: .merge)
+
+        #expect(try await destination.store.recordingDeviceProfiles() == [profile])
+        let policies = try await destination.store.recordingPolicyChanges()
+        #expect(policies.first == policy)
+        #expect(policies.last?.parentIDs == [policy.id])
+        #expect(policies.last?.state == .off)
+        #expect(policies.last?.reason == .backupMerge)
+        #expect(try await destination.store.recordingDeviceCheckIns().isEmpty)
+    }
+
+    @Test func mergeGivesANewProfileWithoutPolicyAnOffRoot() async throws {
+        let profile = RecordingDeviceProfile(
+            id: Self.recordingDeviceID,
+            systemName: "Travel iPad",
+            kind: .tablet,
+            registeredAt: Self.dismissal.dismissedAt,
+            registrationEpochID: .initial,
+        )
+        let url = try BackupService().makeArchiveFile(
+            samples: [],
+            evidence: [],
+            manualDays: [],
+            recordingDeviceProfiles: [profile],
+            recordingDeviceMetadataChanges: [],
+            recordingDeviceCheckIns: [],
+            recordingPolicyChanges: [],
+            blobs: [:],
+        )
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        let destination = try Self.makeHarness()
+        _ = try await destination.coordinator.importBackup(from: url, strategy: .merge)
+
+        #expect(try await destination.store.recordingDeviceProfiles() == [profile])
+        let policy = try #require(try await destination.store.recordingPolicyChanges().first)
+        #expect(policy.deviceID == profile.id)
+        #expect(policy.revision == 0)
+        #expect(policy.parentIDs.isEmpty)
+        #expect(policy.state == .off)
+        #expect(policy.reason == .backupMerge)
+    }
+
+    @Test func mergeImportReassertsTheAuthorityThatExistedBeforeImportedPolicy() async throws {
+        let root = try RecordingPolicyChange(
+            id: #require(UUID(uuidString: "10000000-0000-0000-0000-000000000000")),
+            deviceID: Self.recordingDeviceID,
+            parentIDs: [],
+            revision: 0,
+            issuedAt: Date(timeIntervalSinceReferenceDate: 100),
+            issuedByDeviceID: Self.recordingDeviceID,
+            effectiveAt: Date(timeIntervalSinceReferenceDate: 100),
+            state: .on,
+            reason: .initialRegistration,
+        )
+        let off = try RecordingPolicyChange(
+            id: #require(UUID(uuidString: "20000000-0000-0000-0000-000000000000")),
+            deviceID: Self.recordingDeviceID,
+            parentIDs: [root.id],
+            revision: 1,
+            issuedAt: Date(timeIntervalSinceReferenceDate: 200),
+            issuedByDeviceID: Self.recordingDeviceID,
+            effectiveAt: Date(timeIntervalSinceReferenceDate: 200),
+            state: .off,
+            reason: .userCommand,
+        )
+        let importedOn = try RecordingPolicyChange(
+            id: #require(UUID(uuidString: "30000000-0000-0000-0000-000000000000")),
+            deviceID: Self.recordingDeviceID,
+            parentIDs: [off.id],
+            revision: 2,
+            issuedAt: Date(timeIntervalSinceReferenceDate: 300),
+            issuedByDeviceID: Self.recordingDeviceID,
+            effectiveAt: Date(timeIntervalSinceReferenceDate: 300),
+            state: .on,
+            reason: .userCommand,
+        )
+        let url = try BackupService().makeArchiveFile(
+            samples: [],
+            evidence: [],
+            manualDays: [],
+            recordingDeviceProfiles: [],
+            recordingDeviceMetadataChanges: [],
+            recordingDeviceCheckIns: [],
+            recordingPolicyChanges: [root, off, importedOn],
+            blobs: [:],
+        )
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        let destination = try Self.makeHarness()
+        try await destination.store.perform {
+            try await destination.store.addRecordingPolicyChange(root)
+            try await destination.store.addRecordingPolicyChange(off)
+        }
+
+        _ = try await destination.coordinator.importBackup(from: url, strategy: .merge)
+
+        let timeline = try #require(try await RecordingPolicyChange.canonicalTimeline(
+            in: destination.store.recordingPolicyChanges(),
+        ))
+        #expect(timeline.map(\.state) == [.on, .off, .on, .off])
+        #expect(timeline.last?.parentIDs == [importedOn.id])
+        #expect(timeline.last?.reason == .backupMerge)
+    }
+
+    @Test func mergePreservesImplicitArchiveAuthorityAfterReplace() async throws {
+        let importedOn = try RecordingPolicyChange(
+            id: #require(UUID(uuidString: "40000000-0000-0000-0000-000000000000")),
+            deviceID: Self.recordingDeviceID,
+            parentIDs: [],
+            revision: 0,
+            issuedAt: Date(timeIntervalSinceReferenceDate: 100),
+            issuedByDeviceID: Self.recordingDeviceID,
+            effectiveAt: Date(timeIntervalSinceReferenceDate: 100),
+            state: .on,
+            reason: .initialRegistration,
+        )
+        let emptyURL = try BackupService().makeArchiveFile(
+            samples: [],
+            evidence: [],
+            manualDays: [],
+            recordingDeviceProfiles: [],
+            recordingDeviceMetadataChanges: [],
+            recordingDeviceCheckIns: [],
+            recordingPolicyChanges: [],
+            blobs: [:],
+        )
+        defer { try? FileManager.default.removeItem(at: emptyURL.deletingLastPathComponent()) }
+        let mergeURL = try BackupService().makeArchiveFile(
+            samples: [],
+            evidence: [],
+            manualDays: [],
+            recordingDeviceProfiles: [],
+            recordingDeviceMetadataChanges: [],
+            recordingDeviceCheckIns: [],
+            recordingPolicyChanges: [importedOn],
+            blobs: [:],
+        )
+        defer { try? FileManager.default.removeItem(at: mergeURL.deletingLastPathComponent()) }
+
+        let destination = try Self.makeHarness()
+        try await destination.store.perform {
+            try await destination.store.addRecordingDeviceProfile(RecordingDeviceProfile(
+                id: Self.recordingDeviceID,
+                systemName: "iPad",
+                kind: .tablet,
+                registeredAt: Date(timeIntervalSinceReferenceDate: 50),
+                registrationEpochID: .initial,
+            ))
+        }
+        _ = try await destination.coordinator.importBackup(from: emptyURL, strategy: .replace)
+        #expect(try await destination.store.dataEpoch().isDestructive)
+        #expect(try await destination.store.recordingPolicyChanges().isEmpty)
+
+        _ = try await destination.coordinator.importBackup(from: mergeURL, strategy: .merge)
+
+        let timeline = try #require(try await RecordingPolicyChange.canonicalTimeline(
+            in: destination.store.recordingPolicyChanges(),
+        ))
+        #expect(timeline.map(\.state) == [.on, .archived])
+        #expect(timeline.last?.parentIDs == [importedOn.id])
+        #expect(timeline.last?.reason == .backupMerge)
+    }
+
+    @Test func replaceAddsABarrierForAPolicyOnlyDevice() async throws {
+        let policyOnlyDeviceID = try RecordingDeviceID(
+            rawValue: #require(UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")),
+        )
+        let importedOn = try RecordingPolicyChange(
+            id: #require(UUID(uuidString: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB")),
+            deviceID: policyOnlyDeviceID,
+            parentIDs: [],
+            revision: 0,
+            issuedAt: Date(timeIntervalSinceReferenceDate: 100),
+            issuedByDeviceID: policyOnlyDeviceID,
+            effectiveAt: Date(timeIntervalSinceReferenceDate: 100),
+            state: .on,
+            reason: .initialRegistration,
+        )
+        let url = try BackupService().makeArchiveFile(
+            samples: [],
+            evidence: [],
+            manualDays: [],
+            recordingDeviceProfiles: [],
+            recordingDeviceMetadataChanges: [],
+            recordingDeviceCheckIns: [],
+            recordingPolicyChanges: [importedOn],
+            blobs: [:],
+        )
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        let destination = try Self.makeHarness()
+        _ = try await destination.coordinator.importBackup(from: url, strategy: .replace)
+
+        var policies = try await destination.store.recordingPolicyChanges()
+        #expect(policies.map(\.state) == [.on, .off])
+        #expect(policies.last?.parentIDs == [importedOn.id])
+        #expect(policies.last?.reason == .backupReplace)
+
+        try await destination.store.perform {
+            try await destination.store.addRecordingDeviceProfile(RecordingDeviceProfile(
+                id: policyOnlyDeviceID,
+                systemName: "iPad",
+                kind: .tablet,
+                registeredAt: Date(timeIntervalSinceReferenceDate: 100),
+                registrationEpochID: .initial,
+            ))
+        }
+        policies = try await destination.store.recordingPolicyChanges()
+        let device = try #require(try await destination.store.recordingDevices().first)
+        #expect(device.id == policyOnlyDeviceID)
+        #expect(policies.last?.deviceID == device.id)
+        #expect(policies.last?.state == .off)
     }
 
     @Test func mergeImportKeepsPreexistingRows() async throws {
@@ -148,7 +484,7 @@ struct BackupCoordinatorTests {
                 regions: [.canada],
             ))
             // A preexisting dismissal that the file doesn't contain must be wiped
-            // by `.replace` so the device mirrors the file exactly.
+            // by `.replace` so synced user data mirrors the file.
             try await destination.store.restoreDismissedIssue(DismissedIssue(
                 id: .missingDays(start: CalendarDay(year: 2026, month: 1, day: 2)),
                 dismissedAt: Date(timeIntervalSince1970: 1),
@@ -281,23 +617,185 @@ struct BackupCoordinatorTests {
     }
 
     /// Regression guard: an import rewrites day data, so the coordinator must
-    /// invoke its `onImport` hook once new data lands — the composition root
+    /// invoke its commit hook once new data lands — the composition root
     /// wires that hook to the badge / notification / widget reconcile, so
     /// skipping it leaves the home-screen badge and issues alert stuck at their
     /// pre-import values (the "badge stuck at 157 after replace import" bug).
     /// The end-to-end badge recount is asserted in `WhereServicesTests`.
-    @Test func replaceImportInvokesTheOnImportHook() async throws {
+    @Test func replaceImportInvokesTheCommitHook() async throws {
         let source = try Self.makeHarness()
         try await Self.seed(source.store)
         let url = try await source.coordinator.exportBackup()
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
 
         let destination = try Self.makeHarness()
-        #expect(await destination.onImport.count == 0)
+        #expect(await destination.didCommit.count == 0)
 
         _ = try await destination.coordinator.importBackup(from: url, strategy: .replace)
 
-        #expect(await destination.onImport.count == 1)
+        #expect(await destination.didCommit.count == 1)
+    }
+
+    @Test func committedCleanupFailureBlocksReimportUntilCleanupRetrySucceeds() async throws {
+        let source = try Self.makeHarness()
+        let url = try await source.coordinator.exportBackup()
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        let store = try SwiftDataStore.inMemory()
+        let cleanup = CleanupSpy()
+        let coordinator = BackupCoordinator(
+            store: store,
+            currentDeviceID: Self.recordingDeviceID,
+            now: { Date(timeIntervalSinceReferenceDate: 1000) },
+            importLifecycle: .init(
+                prepare: { _ in },
+                didCommit: { _ in try await cleanup.run() },
+                didRollBack: { _ in },
+            ),
+            importRecoveryPersistence: .none,
+        )
+
+        let committedError = await #expect(
+            throws: BackupCoordinator.CommittedImportCleanupError.self,
+        ) {
+            try await coordinator.importBackup(from: url, strategy: .merge)
+        }
+        let summary = try #require(committedError?.summary)
+        #expect(try await coordinator.importRecoveryState() == .cleanupRequired(summary))
+
+        let recoveryError = await #expect(
+            throws: BackupCoordinator.ImportRecoveryRequiredError.self,
+        ) {
+            try await coordinator.importBackup(from: url, strategy: .merge)
+        }
+        #expect(recoveryError?.summary == summary)
+        #expect(await cleanup.count == 1)
+
+        await #expect(throws: BackupCoordinator.CommittedImportCleanupError.self) {
+            try await coordinator.retryImportCleanup()
+        }
+        #expect(try await coordinator.importRecoveryState() == .cleanupRequired(summary))
+        #expect(await cleanup.count == 2)
+
+        await cleanup.allowSuccess()
+        try await coordinator.retryImportCleanup()
+
+        #expect(try await coordinator.importRecoveryState() == .ready)
+        #expect(await cleanup.count == 3)
+    }
+
+    @Test func recreatedCoordinatorHydratesAndGatesCommittedCleanup() async throws {
+        let source = try Self.makeHarness()
+        let url = try await source.coordinator.exportBackup()
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        let store = try SwiftDataStore.inMemory()
+        let cleanup = CleanupSpy()
+        let persistence = RecoveryPersistenceSpy()
+        func makeCoordinator() -> BackupCoordinator {
+            BackupCoordinator(
+                store: store,
+                currentDeviceID: Self.recordingDeviceID,
+                now: { Date(timeIntervalSinceReferenceDate: 1000) },
+                importLifecycle: .init(
+                    prepare: { _ in },
+                    didCommit: { _ in try await cleanup.run() },
+                    didRollBack: { _ in },
+                ),
+                importRecoveryPersistence: persistence.persistence,
+            )
+        }
+
+        let first = makeCoordinator()
+        let committedError = await #expect(
+            throws: BackupCoordinator.CommittedImportCleanupError.self,
+        ) {
+            try await first.importBackup(from: url, strategy: .merge)
+        }
+        let summary = try #require(committedError?.summary)
+
+        let recreated = makeCoordinator()
+        #expect(try await recreated.importRecoveryState() == .cleanupRequired(summary))
+        await #expect(throws: BackupCoordinator.ImportRecoveryRequiredError.self) {
+            try await recreated.importBackup(from: url, strategy: .replace)
+        }
+
+        await cleanup.allowSuccess()
+        try await recreated.retryImportCleanup()
+
+        #expect(try await recreated.importRecoveryState() == .ready)
+        #expect(await persistence.recovery == nil)
+    }
+
+    @Test func concurrentImportCannotPassReadyWhileTheFirstImportFinishesCleanup() async throws {
+        let source = try Self.makeHarness()
+        let url = try await source.coordinator.exportBackup()
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        let secondSample = Self.sample(at: "2026-08-03T10:00:00-07:00")
+        let secondURL = try BackupService().makeArchiveFile(
+            samples: [secondSample],
+            evidence: [],
+            manualDays: [],
+            recordingDeviceProfiles: [],
+            recordingDeviceMetadataChanges: [],
+            recordingDeviceCheckIns: [],
+            recordingPolicyChanges: [],
+            blobs: [:],
+        )
+        defer { try? FileManager.default.removeItem(at: secondURL.deletingLastPathComponent()) }
+
+        let prepare = HookSpy()
+        let (didCommitStarted, didCommitStartedContinuation) = AsyncStream.makeStream(of: Void.self)
+        let (releaseDidCommit, releaseDidCommitContinuation) = AsyncStream.makeStream(of: Void.self)
+        let destinationStore = try SwiftDataStore.inMemory()
+        let coordinator = BackupCoordinator(
+            store: destinationStore,
+            currentDeviceID: Self.recordingDeviceID,
+            now: { Date(timeIntervalSinceReferenceDate: 1000) },
+            importLifecycle: .init(
+                prepare: { _ in await prepare.run() },
+                didCommit: { _ in
+                    didCommitStartedContinuation.yield()
+                    for await _ in releaseDidCommit {
+                        break
+                    }
+                    throw CleanupFailure()
+                },
+                didRollBack: { _ in },
+            ),
+            importRecoveryPersistence: .none,
+        )
+        let firstImport = Task {
+            do {
+                _ = try await coordinator.importBackup(from: url, strategy: .merge)
+                return false
+            } catch is BackupCoordinator.CommittedImportCleanupError {
+                return true
+            } catch {
+                return false
+            }
+        }
+        var didCommitStartedIterator = didCommitStarted.makeAsyncIterator()
+        _ = await didCommitStartedIterator.next()
+
+        let secondError = await #expect(
+            throws: BackupCoordinator.ImportRecoveryRequiredError.self,
+        ) {
+            try await coordinator.importBackup(from: secondURL, strategy: .merge)
+        }
+        #expect(secondError?.summary.sampleCount == 0)
+        #expect(await prepare.count == 1)
+        #expect(try await destinationStore.allSamples().isEmpty)
+
+        releaseDidCommitContinuation.yield()
+        releaseDidCommitContinuation.finish()
+        #expect(await firstImport.value)
+        switch try await coordinator.importRecoveryState() {
+            case .cleanupRequired:
+                break
+            case .ready, .onboardingAcknowledgementRequired:
+                Issue.record("The first committed import must retain its cleanup recovery gate.")
+        }
     }
 
     /// The coordinator owns the export staging directory's lifecycle: starting a

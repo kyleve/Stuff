@@ -1,7 +1,7 @@
 import Foundation
 import RegionKit
 import Testing
-@_spi(Testing) import WhereCore
+@_spi(Testing) @testable import WhereCore
 
 /// Integration coverage for the assembled `WhereServices`: the cross-collaborator
 /// wiring that no single focused suite owns — the ingestor's post-persist hook
@@ -57,12 +57,13 @@ struct WhereServicesTests {
         let services = try await WhereServices.make(
             store: store,
             locationSource: ScriptedLocationSource(),
-            currentDevice: .preview,
+            installationContext: .testing,
             aggregator: Self.makeAggregator(),
             reminderScheduler: NoopLoggingReminderScheduler(),
             summaryScheduler: NoopDailySummaryScheduler(),
             issueAlertScheduler: NoopDataIssueAlertScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
+            importRecoveryPersistence: .none,
         )
         // Two samples on the same Pacific day: one in California, one in New York.
         try await store.perform {
@@ -400,16 +401,16 @@ struct WhereServicesTests {
         }
     }
 
-    @Test func resetStopsTrackingAndWipesTheStore() async throws {
+    @Test func resetStopsTrackingAndErasesSyncedUserData() async throws {
         let (services, _, source) = try Self.makeServices()
-        await services.ingestor.start()
+        _ = try await services.recording.register(authorization: .always)
         source.emit(sample(at: "2026-03-15T12:00:00-07:00"))
         try await waitUntil { try await services.reports.yearReport(for: 2026).days.count == 1 }
         #expect(await services.ingestor.isActive)
 
         try await services.reset()
 
-        // reset() owns the full teardown: GPS stopped and every year wiped.
+        // reset() owns the full teardown: GPS stopped and every year's user data erased.
         #expect(await !(services.ingestor.isActive))
         let report = try await services.reports.yearReport(for: 2026)
         #expect(report.days.isEmpty)
@@ -425,7 +426,7 @@ struct WhereServicesTests {
             locationSource: source,
             aggregator: Self.makeAggregator(),
         )
-        await services.ingestor.start()
+        _ = try await services.recording.register(authorization: .always)
 
         let sampleA = LocationSample(
             timestamp: WhereCoreTestSupport.iso("2026-03-15T12:00:00-07:00"),
@@ -465,7 +466,7 @@ struct WhereServicesTests {
     @Test func trackingResumesAfterPauseWithoutDroppingSamples() async throws {
         let (services, _, source) = try Self.makeServices()
 
-        await services.ingestor.start()
+        _ = try await services.recording.register(authorization: .always)
         source.emit(sample(at: "2026-03-15T12:00:00-07:00"))
         try await waitUntil { try await services.reports.yearReport(for: 2026).days.count == 1 }
 
@@ -475,7 +476,7 @@ struct WhereServicesTests {
         await services.ingestor.stop()
         let pausedActive = await services.ingestor.isActive
         #expect(!pausedActive)
-        await services.ingestor.start()
+        try await services.ingestor.start()
         let resumedActive = await services.ingestor.isActive
         #expect(resumedActive)
 
@@ -491,6 +492,7 @@ struct WhereServicesTests {
     /// manual edit does.
     @Test func liveGPSIngestPingsDataChangeUpdates() async throws {
         let (services, _, source) = try Self.makeServices()
+        _ = try await services.recording.register(authorization: .always)
         // Subscribe before the ingest; the broadcaster buffers the newest ping,
         // so a commit landing before the consumer iterates still delivers.
         let changes = services.dataChangeUpdates()
@@ -501,8 +503,6 @@ struct WhereServicesTests {
         let consumer = Task { for await _ in changes {
             await recorder.record()
         } }
-
-        await services.ingestor.start()
         source.emit(sample(at: "2026-03-15T12:00:00-07:00"))
 
         try await waitUntil { await recorder.pingCount >= 1 }
@@ -514,6 +514,51 @@ struct WhereServicesTests {
         // signal must fire exactly once — a higher count would mean a single
         // write fanned out duplicate pings.
         #expect(await recorder.pingCount == 1)
+    }
+
+    @Test func remoteDayImportReconcilesNotificationsAndWidgets() async throws {
+        let remoteChanges = ScriptedStoreRemoteChangeSource()
+        let store = try SwiftDataStore.inMemory(remoteChangeSource: remoteChanges)
+        let reminder = SpyReminderScheduler()
+        let summary = SpyDailySummaryScheduler()
+        let widget = SpyWidgetRefresher()
+        let now = WhereCoreTestSupport.iso("2026-03-15T20:00:00-07:00")
+        let services = WhereServices(
+            store: store,
+            locationSource: ScriptedLocationSource(),
+            aggregator: Self.makeAggregator(),
+            reminderScheduler: reminder,
+            summaryScheduler: summary,
+            widgetRefresher: widget,
+            now: { now },
+        )
+        await services.reminders.configure(
+            enabled: true,
+            time: .defaultEvening,
+            issueAlertsEnabled: false,
+            driftThresholdMeters: Double(DriftThreshold.default.rawValue),
+        )
+        await services.summary.configure(enabled: true, time: .defaultMorning)
+        let reminderCount = await reminder.reconcileCount
+        let summaryCount = await summary.reconcileCount
+
+        try await store.simulateRemoteDayImport(
+            samples: [],
+            manualDays: [DayPresence(
+                date: now,
+                in: Self.pacificCalendar,
+                regions: [.california],
+            )],
+        )
+        remoteChanges.yield()
+
+        try await waitUntil {
+            let didReconcileReminder = await reminder.reconcileCount > reminderCount
+            let didReconcileSummary = await summary.reconcileCount > summaryCount
+            let didPublishWidget = await widget.publishCount == 1
+            return didReconcileReminder && didReconcileSummary && didPublishWidget
+        }
+        #expect(await widget.lastSnapshot?.dayRegions == [.california])
     }
 
     @Test func performThrow_rollsBackEntireTransaction() async throws {
@@ -565,6 +610,16 @@ struct WhereServicesTests {
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 5,
             source: .manual,
+        )
+    }
+
+    private func gpsSample(at isoString: String) -> LocationSample {
+        LocationSample(
+            id: UUID(),
+            timestamp: WhereCoreTestSupport.iso(isoString),
+            coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
+            horizontalAccuracy: 5,
+            source: .gpsSignificantChange,
         )
     }
 
@@ -652,6 +707,320 @@ struct WhereServicesTests {
         #expect(ids.count == 2)
     }
 
+    @Test func backupMergePreservesAndDrainsAPendingLocation() async throws {
+        let (sourceServices, _, _) = try Self.makeServices()
+        let url = try await sourceServices.backup.exportBackup()
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        let backing = try SwiftDataStore.inMemory()
+        let store = ToggleFailingStore(backing: backing)
+        let source = ScriptedLocationSource(authorizationStatus: .always)
+        let outbox = ScriptedLocationOutbox()
+        let destination = WhereServices(
+            store: store,
+            locationSource: source,
+            locationOutbox: outbox,
+        )
+        _ = try await destination.recording.register(authorization: .always)
+        let pending = gpsSample(at: "2026-03-15T12:00:00-07:00")
+        await store.setShouldFail(true)
+        source.emit(pending)
+        try await waitUntil { await destination.ingestor.retryQueueDepth == 1 }
+        await store.setShouldFail(false)
+
+        _ = try await destination.backup.importBackup(from: url, strategy: .merge)
+
+        try await waitUntil {
+            try await backing.allSamples().contains(where: { $0.id == pending.id })
+        }
+        #expect(await destination.ingestor.retryQueueDepth == 0)
+        #expect(await outbox.persistedSamples.isEmpty)
+    }
+
+    @Test func backupMergeCannotTurnAnOffInstallationOn() async throws {
+        let context = InstallationRecordingContext.testing
+        let currentDeviceID = context.currentDevice.id
+        let initialChoice = try #require(context.initialRecordingChoice)
+        let initial = RecordingPolicyChange(
+            id: initialChoice.policyChangeID,
+            deviceID: currentDeviceID,
+            parentIDs: [],
+            revision: 0,
+            issuedAt: initialChoice.confirmedAt,
+            issuedByDeviceID: currentDeviceID,
+            effectiveAt: initialChoice.confirmedAt,
+            state: .on,
+            reason: .initialRegistration,
+        )
+        let off = try RecordingPolicyChange(
+            id: #require(UUID(uuidString: "10000000-0000-0000-0000-000000000000")),
+            deviceID: currentDeviceID,
+            parentIDs: [initial.id],
+            revision: 1,
+            issuedAt: Date(timeIntervalSinceReferenceDate: 2),
+            issuedByDeviceID: currentDeviceID,
+            effectiveAt: Date(timeIntervalSinceReferenceDate: 2),
+            state: .off,
+            reason: .userCommand,
+        )
+        let importedOn = try RecordingPolicyChange(
+            id: #require(UUID(uuidString: "20000000-0000-0000-0000-000000000000")),
+            deviceID: currentDeviceID,
+            parentIDs: [off.id],
+            revision: 2,
+            issuedAt: Date(timeIntervalSinceReferenceDate: 3),
+            issuedByDeviceID: currentDeviceID,
+            effectiveAt: Date(timeIntervalSinceReferenceDate: 3),
+            state: .on,
+            reason: .userCommand,
+        )
+        let profile = RecordingDeviceProfile(
+            id: currentDeviceID,
+            systemName: context.currentDevice.systemName,
+            kind: context.currentDevice.kind,
+            registeredAt: context.registeredAt,
+            registrationEpochID: .initial,
+        )
+        let url = try BackupService().makeArchiveFile(
+            samples: [],
+            evidence: [],
+            manualDays: [],
+            recordingDeviceProfiles: [profile],
+            recordingDeviceMetadataChanges: [],
+            recordingDeviceCheckIns: [],
+            recordingPolicyChanges: [initial, off, importedOn],
+            blobs: [:],
+        )
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        let store = try SwiftDataStore.inMemory()
+        try await store.perform {
+            try await store.addRecordingDeviceProfile(profile)
+            try await store.addRecordingPolicyChange(initial)
+            try await store.addRecordingPolicyChange(off)
+        }
+        let destination = WhereServices(
+            store: store,
+            locationSource: ScriptedLocationSource(authorizationStatus: .always),
+            installationContext: context,
+        )
+        let before = try await destination.recording.register(authorization: .always)
+        #expect(before.isEnabled == false)
+        #expect(await destination.ingestor.isActive == false)
+
+        _ = try await destination.backup.importBackup(from: url, strategy: .merge)
+
+        let policies = try await store.recordingPolicyChanges()
+        let head = try #require(RecordingPolicyChange.canonicalHead(in: policies))
+        #expect(head.parentIDs == [importedOn.id])
+        #expect(head.state == .off)
+        #expect(head.reason == .backupMerge)
+        #expect(try await store.recordingDeviceCheckIns().first?.lastAppliedPolicyChangeID == head
+            .id)
+        #expect(await destination.ingestor.isActive == false)
+    }
+
+    @Test func failedBackupMergePreservesThePendingLocationThroughRollback() async throws {
+        let (sourceServices, _, _) = try Self.makeServices()
+        try await seedBackupData(sourceServices)
+        let url = try await sourceServices.backup.exportBackup()
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        let backing = try SwiftDataStore.inMemory()
+        let store = ToggleFailingStore(backing: backing)
+        let source = ScriptedLocationSource(authorizationStatus: .always)
+        let outbox = ScriptedLocationOutbox()
+        let destination = WhereServices(
+            store: store,
+            locationSource: source,
+            locationOutbox: outbox,
+        )
+        _ = try await destination.recording.register(authorization: .always)
+        let pending = gpsSample(at: "2026-03-15T12:00:00-07:00")
+        await store.setShouldFail(true)
+        source.emit(pending)
+        try await waitUntil { await destination.ingestor.retryQueueDepth == 1 }
+
+        await #expect(throws: ToggleFailingStoreError.self) {
+            try await destination.backup.importBackup(from: url, strategy: .merge)
+        }
+
+        #expect(await destination.ingestor.retryQueueDepth == 1)
+        #expect(await outbox.persistedSamples.map(\.id) == [pending.id])
+    }
+
+    @Test func backupReplaceDiscardsAPendingLocationOnlyAfterCommit() async throws {
+        let (sourceServices, _, _) = try Self.makeServices()
+        let url = try await sourceServices.backup.exportBackup()
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        let backing = try SwiftDataStore.inMemory()
+        let store = ToggleFailingStore(backing: backing)
+        let source = ScriptedLocationSource(authorizationStatus: .always)
+        let outbox = ScriptedLocationOutbox()
+        let destination = WhereServices(
+            store: store,
+            locationSource: source,
+            locationOutbox: outbox,
+        )
+        _ = try await destination.recording.register(authorization: .always)
+        let pending = gpsSample(at: "2026-03-15T12:00:00-07:00")
+        await store.setShouldFail(true)
+        source.emit(pending)
+        try await waitUntil { await destination.ingestor.retryQueueDepth == 1 }
+        await store.setShouldFail(false)
+
+        _ = try await destination.backup.importBackup(from: url, strategy: .replace)
+
+        #expect(try await backing.allSamples().contains(where: { $0.id == pending.id }) == false)
+        #expect(await destination.ingestor.retryQueueDepth == 0)
+        #expect(await outbox.persistedSamples.isEmpty)
+        #expect(await destination.ingestor.isActive == false)
+    }
+
+    @Test func backupReplaceNeverRestoresRecordingConsent() async throws {
+        let (source, _, _) = try Self.makeServices()
+        _ = try await source.recording.register(authorization: .always)
+        #expect(await source.ingestor.isActive)
+        let url = try await source.backup.exportBackup()
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        let (destination, store, _) = try Self.makeServices()
+        _ = try await destination.recording.register(authorization: .always)
+        #expect(await destination.ingestor.isActive)
+        _ = try await destination.backup.importBackup(from: url, strategy: .replace)
+
+        let policies = try await store.recordingPolicyChanges()
+        #expect(policies.map(\.state) == [.on, .off])
+        #expect(policies.last?.reason == .backupReplace)
+        #expect(try await store.recordingDeviceCheckIns().first?.status == .off)
+        #expect(await destination.ingestor.isActive == false)
+    }
+
+    @Test func replaceCleanupFailureReportsCommittedPartialSuccessAndStaysOff() async throws {
+        let (sourceServices, _, _) = try Self.makeServices()
+        let url = try await sourceServices.backup.exportBackup()
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        let pending = gpsSample(at: "2026-03-15T12:00:00-07:00")
+        let outbox = ScriptedLocationOutbox([pending], failsToClear: true)
+        let store = try SwiftDataStore.inMemory()
+        let destination = WhereServices(
+            store: store,
+            locationSource: ScriptedLocationSource(authorizationStatus: .always),
+            locationOutbox: outbox,
+        )
+
+        await #expect(throws: BackupCoordinator.CommittedImportCleanupError.self) {
+            try await destination.backup.importBackup(from: url, strategy: .replace)
+        }
+
+        #expect(await outbox.persistedSamples == [pending])
+        #expect(await destination.ingestor.isActive == false)
+        #expect(try await store.dataEpoch().reason == .backupReplace)
+        #expect(try await store.recordingPolicyChanges().isEmpty)
+    }
+
+    @Test func resetCleanupFailureKeepsTheOldInstallationForSafeRetry() async throws {
+        let pending = gpsSample(at: "2026-03-15T12:00:00-07:00")
+        let outbox = ScriptedLocationOutbox()
+        let store = try SwiftDataStore.inMemory()
+        let services = WhereServices(
+            store: store,
+            locationSource: ScriptedLocationSource(authorizationStatus: .always),
+            locationOutbox: outbox,
+        )
+        _ = try await services.recording.register(authorization: .always)
+        await outbox.save([LocationOutboxEntry(sample: pending, dataEpochID: .initial)])
+        await outbox.setFailsToClear(true)
+
+        let error = await #expect(throws: WhereServices.ResetCleanupError.self) {
+            try await services.reset()
+        }
+
+        #expect(error?.localizedDescription.contains("Close and reopen Where") == true)
+        #expect(await outbox.persistedSamples == [pending])
+        #expect(await services.ingestor.isActive == false)
+        #expect(try await store.recordingDeviceProfiles().count == 1)
+        #expect(try await store.recordingDeviceCheckIns().isEmpty)
+        #expect(try await store.recordingPolicyChanges().isEmpty)
+        #expect(try await store.dataEpoch().reason == .accountReset)
+    }
+
+    @Test func committedResetDiscardsPendingLocationsAndPreservesTheGlobalProfile() async throws {
+        let pending = gpsSample(at: "2026-03-15T12:00:00-07:00")
+        let outbox = ScriptedLocationOutbox()
+        let store = try SwiftDataStore.inMemory()
+        let services = WhereServices(
+            store: store,
+            locationSource: ScriptedLocationSource(authorizationStatus: .always),
+            locationOutbox: outbox,
+        )
+        _ = try await services.recording.register(authorization: .always)
+        await outbox.save([LocationOutboxEntry(sample: pending, dataEpochID: .initial)])
+
+        try await services.reset()
+
+        #expect(await outbox.persistedSamples.isEmpty)
+        #expect(try await store.recordingDeviceProfiles().count == 1)
+        #expect(try await store.recordingPolicyChanges().isEmpty)
+        #expect(try await store.dataEpoch().reason == .accountReset)
+        #expect(await services.ingestor.isActive == false)
+    }
+
+    @Test func onboardingRestoreWaitsForTheLatestChoiceBeforeOpeningAuthority() async throws {
+        let (source, _, _) = try Self.makeServices()
+        let url = try await source.backup.exportBackup()
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        // The sidecar's immutable first choice came from an earlier attempt, but the user has
+        // selected Off on this retry. Merely restoring the archive must not register that old On
+        // choice or start GPS in the gap before onboarding can append the latest selection.
+        let (destination, store, _) = try Self.makeServices()
+        _ = try await destination.backup.importBackup(from: url, strategy: .replace)
+
+        #expect(await destination.ingestor.isActive == false)
+        #expect(try await store.recordingDeviceProfiles().isEmpty)
+        #expect(try await store.recordingDeviceCheckIns().isEmpty)
+
+        let configuration = try await destination.recording.registerForOnboarding(
+            desiredEnabled: false,
+            authorization: .always,
+        )
+
+        #expect(configuration.isEnabled == false)
+        #expect(configuration.device.status == .off)
+        #expect(await destination.ingestor.isActive == false)
+        #expect(try await store.recordingPolicyChanges().map(\.isEnabled) == [true, false])
+    }
+
+    @Test func failedBackupTransactionRestoresThePreviousRecordingAuthority() async throws {
+        let (source, _, _) = try Self.makeServices()
+        try await seedBackupData(source)
+        let url = try await source.backup.exportBackup()
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        let store = try ToggleFailingStore(backing: SwiftDataStore.inMemory())
+        let destination = WhereServices(
+            store: store,
+            locationSource: ScriptedLocationSource(authorizationStatus: .always),
+            aggregator: Self.makeAggregator(),
+        )
+        _ = try await destination.recording.register(authorization: .always)
+        #expect(await destination.ingestor.isActive)
+        await store.setShouldFail(true)
+
+        await #expect(throws: ToggleFailingStoreError.self) {
+            try await destination.backup.importBackup(from: url, strategy: .merge)
+        }
+
+        #expect(await destination.ingestor.isActive)
+
+        await store.setShouldFail(false)
+        _ = try await destination.backup.importBackup(from: url, strategy: .merge)
+        #expect(await destination.ingestor.isActive)
+    }
+
     @Test func backupReplaceImportWipesPreexistingRows() async throws {
         let (source, sourceStore, _) = try Self.makeServices()
         try await seedBackupData(source)
@@ -669,8 +1038,7 @@ struct WhereServicesTests {
 
         _ = try await destination.backup.importBackup(from: url, strategy: .replace)
 
-        // The store now mirrors the backup exactly — none of the pre-existing
-        // rows survive.
+        // Synced user history now mirrors the backup — none of these pre-existing rows survive.
         #expect(try await destinationStore.allSamples() == sourceStore.allSamples())
         #expect(try await destinationStore.allManualDays() == sourceStore.allManualDays())
     }
@@ -721,7 +1089,53 @@ struct WhereServicesTests {
         #expect(await spy.lastBadgeCount == 0)
     }
 
-    @Test func clearAll_removesEveryTable() async throws {
+    @Test func backupImportReconcilesAttributionBeforePublishingDerivedData() async throws {
+        let texas = try #require(Region(rawValue: "us-TX"))
+        let austin = Self.sample(
+            "2026-03-15T12:00:00-07:00",
+            latitude: 30.2672,
+            longitude: -97.7431,
+        )
+        let (source, _, _) = try Self.makeServices()
+        try await source.setPrimaryRegions([
+            PrimaryRegion(region: texas, appearance: nil, order: 0),
+        ])
+        try await source.journal.ingest(austin)
+        let url = try await source.backup.exportBackup()
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        let destinationStore = try SwiftDataStore.inMemory()
+        let defaultRegions = SwiftDataStore.defaultTrackedRegions
+        // Silence the autonomous observer so only the backup hook's explicit reconciliation can
+        // update this live attributor; the assertion therefore guards the required fan-out order.
+        let (ignoredChanges, ignoredChangesContinuation) = AsyncStream.makeStream(of: Void.self)
+        ignoredChangesContinuation.finish()
+        let attribution = RegionAttribution(
+            store: destinationStore,
+            changes: ignoredChanges,
+            initial: RegionAttributor(for: Region.inCanonicalOrder(defaultRegions)),
+            trackedIDs: Set(defaultRegions.map(\.rawValue)),
+        )
+        let widget = SpyWidgetRefresher()
+        let destination = WhereServices(
+            store: destinationStore,
+            locationSource: ScriptedLocationSource(),
+            attributor: attribution,
+            aggregator: Self.makeAggregator(),
+            widgetRefresher: widget,
+            now: { austin.timestamp },
+        )
+
+        #expect(attribution.region(at: austin.coordinate) == .other)
+
+        _ = try await destination.backup.importBackup(from: url, strategy: .replace)
+
+        #expect(attribution.region(at: austin.coordinate) == texas)
+        #expect(await widget.lastSnapshot?.dayRegions == [texas])
+        #expect(await widget.lastSnapshot?.totals == [texas: 1])
+    }
+
+    @Test func rotatingDataEpochClearsSyncedStateButPreservesDeviceProfiles() async throws {
         let store = try SwiftDataStore.inMemory()
         let seedSample = sample(at: "2026-03-15T12:00:00-07:00")
         let seedDay = DayPresence(
@@ -735,31 +1149,46 @@ struct WhereServicesTests {
             try await store.add(sample: seedSample)
             try await store.write(evidence: Self.backupEvidence, blob: Self.backupBlob)
             try await store.setManualDay(seedDay)
-            try await store.setRecordingDevice(RecordingDevice(
+            try await store.addRecordingDeviceProfile(RecordingDeviceProfile(
                 id: deviceID,
                 systemName: "iPhone",
-                nickname: nil,
                 kind: .phone,
                 registeredAt: seedSample.timestamp,
+                registrationEpochID: .initial,
+            ))
+            try await store.setRecordingDeviceCheckIn(RecordingDeviceCheckIn(
+                deviceID: deviceID,
+                revision: 0,
                 lastSeenAt: seedSample.timestamp,
-                archivedAt: nil,
+                appliedAt: seedSample.timestamp,
                 lastAppliedPolicyChangeID: policyID,
                 status: .recording,
             ))
             try await store.addRecordingPolicyChange(RecordingPolicyChange(
                 id: policyID,
                 deviceID: deviceID,
+                parentIDs: [],
+                revision: 0,
+                issuedAt: seedSample.timestamp,
+                issuedByDeviceID: deviceID,
                 effectiveAt: seedSample.timestamp,
-                isEnabled: true,
+                state: .on,
+                reason: .initialRegistration,
             ))
         }
 
-        try await store.perform { try await store.clearAll() }
+        try await store.perform {
+            _ = try await store.rotateDataEpoch(
+                reason: .accountReset,
+                changedBy: deviceID,
+                at: seedSample.timestamp.addingTimeInterval(1),
+            )
+        }
 
         #expect(try await store.allSamples().isEmpty)
         #expect(try await store.allEvidence().isEmpty)
         #expect(try await store.allManualDays().isEmpty)
-        #expect(try await store.recordingDevices().isEmpty)
+        #expect(try await store.recordingDevices().count == 1)
         #expect(try await store.recordingPolicyChanges().isEmpty)
     }
 
@@ -823,7 +1252,7 @@ struct WhereServicesTests {
         #expect(await spy.lastBadgeCount == 4)
         #expect(await spy.lastScheduleDays.contains(today))
 
-        await services.ingestor.start()
+        _ = try await services.recording.register(authorization: .always)
         source.emit(LocationSample(
             timestamp: WhereCoreTestSupport.iso("2026-01-05T12:00:00-08:00"),
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
@@ -849,7 +1278,7 @@ struct WhereServicesTests {
             driftThresholdMeters: Double(DriftThreshold.default.rawValue),
         )
 
-        await services.ingestor.start()
+        _ = try await services.recording.register(authorization: .always)
         source.emit(LocationSample(
             timestamp: WhereCoreTestSupport.iso("2026-01-05T12:00:00-08:00"),
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
@@ -1135,7 +1564,7 @@ struct WhereServicesTests {
         let refresher = SpyWidgetRefresher()
         let (services, source) = try Self.makeWidgetServices(refresher: refresher)
 
-        await services.ingestor.start()
+        _ = try await services.recording.register(authorization: .always)
         source.emit(sample(at: "2026-03-15T12:00:00-07:00"))
         try await waitUntil { await refresher.publishCount == 1 }
 
@@ -1150,7 +1579,7 @@ struct WhereServicesTests {
             store: store,
         )
 
-        await services.ingestor.start()
+        _ = try await services.recording.register(authorization: .always)
         await store.setShouldFail(true)
         source.emit(sample(at: "2026-03-15T12:00:00-07:00"))
         try await waitUntil { await services.ingestor.retryQueueDepth == 1 }
@@ -1376,6 +1805,39 @@ private actor ToggleFailingStore: WhereStore {
         backing.changes()
     }
 
+    func dataEpoch() async throws -> WhereDataEpoch {
+        try await backing.dataEpoch()
+    }
+
+    func rotateDataEpoch(
+        reason: WhereDataEpochReason,
+        changedBy deviceID: RecordingDeviceID,
+        at date: Date,
+    ) async throws -> WhereDataEpoch {
+        try await backing.rotateDataEpoch(reason: reason, changedBy: deviceID, at: date)
+    }
+
+    func backupImportReceipt(
+        id: UUID,
+        installationID: RecordingDeviceID,
+    ) async throws -> BackupImportReceipt? {
+        try await backing.backupImportReceipt(id: id, installationID: installationID)
+    }
+
+    func addBackupImportReceipt(
+        id: UUID,
+        installationID: RecordingDeviceID,
+    ) async throws {
+        try await backing.addBackupImportReceipt(id: id, installationID: installationID)
+    }
+
+    func removeBackupImportReceipt(
+        id: UUID,
+        installationID: RecordingDeviceID,
+    ) async throws {
+        try await backing.removeBackupImportReceipt(id: id, installationID: installationID)
+    }
+
     func add(sample: LocationSample) async throws {
         if shouldFail { throw ToggleFailingStoreError() }
         try await backing.add(sample: sample)
@@ -1393,8 +1855,28 @@ private actor ToggleFailingStore: WhereStore {
         try await backing.recordingDevices()
     }
 
-    func setRecordingDevice(_ device: RecordingDevice) async throws {
-        try await backing.setRecordingDevice(device)
+    func recordingDeviceProfiles() async throws -> [RecordingDeviceProfile] {
+        try await backing.recordingDeviceProfiles()
+    }
+
+    func addRecordingDeviceProfile(_ profile: RecordingDeviceProfile) async throws {
+        try await backing.addRecordingDeviceProfile(profile)
+    }
+
+    func recordingDeviceMetadataChanges() async throws -> [RecordingDeviceMetadataChange] {
+        try await backing.recordingDeviceMetadataChanges()
+    }
+
+    func addRecordingDeviceMetadataChange(_ change: RecordingDeviceMetadataChange) async throws {
+        try await backing.addRecordingDeviceMetadataChange(change)
+    }
+
+    func recordingDeviceCheckIns() async throws -> [RecordingDeviceCheckIn] {
+        try await backing.recordingDeviceCheckIns()
+    }
+
+    func setRecordingDeviceCheckIn(_ checkIn: RecordingDeviceCheckIn) async throws {
+        try await backing.setRecordingDeviceCheckIn(checkIn)
     }
 
     func recordingPolicyChanges() async throws -> [RecordingPolicyChange] {
@@ -1442,10 +1924,6 @@ private actor ToggleFailingStore: WhereStore {
         manualDays dayRange: ClosedRange<CalendarDay>,
     ) async throws {
         try await backing.clear(in: interval, manualDays: dayRange)
-    }
-
-    func clearAll() async throws {
-        try await backing.clearAll()
     }
 
     func dismissedIssueIDs() async throws -> Set<DataIssueID> {

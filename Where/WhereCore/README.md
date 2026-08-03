@@ -23,10 +23,18 @@ one it belongs to rather than to a god-object:
 
 - **`WhereStore`** — the value-type persistence boundary (a protocol; nothing
   crossing it is a SwiftData record). Mutations run inside `perform { … }` (one
-  atomic transaction) and `changes()` emits once per commit and on a CloudKit
-  remote import for the Where store URL, excluding other process stores such as
-  Periscope. `SwiftDataStore.make()` is the production, CloudKit-backed
-  implementation; `SwiftDataStore.inMemory()` backs tests and previews. Each
+  atomic transaction); callers whose decision was made against a particular
+  data epoch use `perform(expectedDataEpochID:)`, and multi-table reads use
+  `readSnapshot { … }` so a Reset or Replace cannot split one operation across
+  generations; a persistent-history boundary invalidates any external commit
+  crossing a snapshot even when its remote-change notification arrives later.
+  `changes()` emits once per local commit and external import for the Where store
+  URL, excluding other stores such as Periscope. `remoteChanges()` uses
+  persistent-history transaction authors to emit only the external-import subset,
+  so headless notifications and widgets rebuild without duplicating local work.
+  `SwiftDataStore.make(storage:)` opens an explicitly selected
+  CloudKit, local-only, or in-memory store; `SwiftDataStore.inMemory()` is the
+  convenience used by tests and previews. Each
   process opens its on-disk store **once** and injects it where it's needed —
   in the app, the launch's `resolve-scope` step opens it and the App Intents
   stack shares it via `WhereServices.forIntents(sharingStoreOf:)` — so two
@@ -36,9 +44,16 @@ one it belongs to rather than to a god-object:
   which surface and persist each region's picked `RegionAppearance` — color
   token, emoji, SF Symbol — and pick order alongside the synced rows) — one row
   per region, defaulting to the four until the user chooses in the onboarding /
-  Settings region picker. It also stores one `RecordingDevice` profile per
-  installation plus the append-only `RecordingPolicyChange` timeline used to
-  control automatic recording across devices.
+  Settings region picker. Recording identity and authority are split into
+  immutable profiles, append-only nickname and policy events, and target-owned
+  check-ins rather than one mutable device row.
+- **`WhereDataEpoch`** — the account-wide logical generation that keeps late
+  uploads from an offline device from repopulating data after Reset or Replace.
+  Each destructive operation appends one immutable node naming every real
+  maximal epoch it observed. Reset wins a concurrent Replace; multiple unjoined
+  resets resolve to a deterministic empty UUIDv8 synthetic generation, so neither
+  reset branch's rows can reappear before another operation causally joins them. Persisted
+  event ids remain UUIDv4; UUIDv8 is reserved for resolver-derived generations.
 - **`RegionAttribution`** — a live `RegionAttributing` built from the tracked
   regions that rebuilds on `changes()` (a local edit or a remote import), so the
   app + App Intents process attribute against the same synced set. Assemble
@@ -87,15 +102,25 @@ one it belongs to rather than to a god-object:
 - **`LocationIngestor`** — monitoring, the persist-with-retry queue, and
   authorization; after each committed sample it reconciles the badge/reminders
   and republishes the widget snapshot. Every automatic sample is stamped with
-  the current installation's `RecordingDeviceID`.
+  the current installation's `RecordingDeviceID`. Every durable retry entry
+  also carries the data epoch that authorized it, so a pre-reset fix can be
+  discarded but never written into the replacement generation.
 - **`DeviceRecordingController`** — serializes per-device enable/disable
-  policy with the current installation's physical `LocationIngestor`. A remote
-  disable is effective at its timestamp as soon as it syncs; the target device
-  later acknowledges that event after it has stopped.
+  policy with the current installation's physical `LocationIngestor`. Immutable
+  profiles, nickname events, target-owned check-ins, and complete-authority
+  desired-policy events sync independently so one writer cannot roll another
+  field backward. Each policy command names every maximal event it observed;
+  concurrent unjoined heads resolve to the most restrictive authority, while a
+  later command joins them with one identity.
+  A remote disable or archive affects history at its timestamp
+  as soon as it syncs, and the target device acknowledges only after privacy-critical
+  cleanup is durable.
 - **`LocationHistoryReader`** — the shared policy-aware read boundary used by
   reports, widgets, recent activity, and foreground capture checks. It filters
-  GPS samples during disabled intervals while keeping raw storage, backups,
-  legacy samples without provenance, and user-asserted samples lossless.
+  GPS samples during disabled/archived intervals while keeping raw storage,
+  backups, legacy samples without provenance, and user-asserted samples
+  lossless. A device-stamped sample remains invisible until its matching
+  effective On policy arrives, so partial CloudKit delivery fails closed.
 
 ### Detection, notifications & the rest
 
@@ -114,16 +139,36 @@ one it belongs to rather than to a god-object:
   `DataIssueAlertReconciler` ("issues to resolve").
 - **`WidgetSnapshotPublisher`** — republishes the App Group snapshot the widgets
   read, with a freshness policy.
-- **`BackupCoordinator`** — whole-database export / import (a ZIP archive, via
-  `ZIPFoundation`).
+- **`BackupCoordinator`** — ZIP export/import via `ZIPFoundation`. Export pins
+  tables and evidence blobs to one epoch-consistent snapshot. Merge preserves
+  queued locations and reasserts each device's pre-import recording authority
+  after the imported timeline (including an existing profile's implicit Archived
+  state after a destructive epoch; only a newly seen policy defaults Off). Replace writes
+  the archive into a new child epoch, retains the global device-profile ledger,
+  and appends an Off/archive barrier to every imported policy timeline—even when
+  its profile has not synced yet—and gives a profile-only import an Off root before
+  pending fixes are discarded. A prepared marker in the backup-excluded installation
+  sidecar pairs with a receipt committed in the same store transaction as the archive;
+  recreated services can therefore distinguish rollback from commit and gate further
+  imports until cleanup succeeds. Onboarding acknowledgement records an independent terminal
+  sidecar tombstone before clearing recovery, so a cold launch can repair a preference write
+  that did not reach disk without blocking later Settings imports.
+  Check-ins are deliberately neither exported nor restored: an archive cannot
+  prove that the target installation applied authority and cleared its local
+  outbox.
 - **`RecentActivitySummarizer`** — an on-device Foundation Models narrative over
   a selectable look-back `RecentActivityWindow`.
-- **`WherePreferences`** — persisted user intent (onboarding, the device-local
-  recording-choice confirmation and tracking intent, reminder / summary
-  schedules) behind a `KeyValueStore`. The store has no default: production
-  names `UserDefaults.standard` and everything else names
+- **`InstallationRecordingContext`** — the device-local installation identity,
+  explicitly confirmed initial choice, and stable IDs/timestamps for recreating
+  its immutable first device profile and recording policy idempotently.
+  `InstallationRecordingContextStoring` keeps the persistence adapter outside
+  the domain value.
+- **`WherePreferences`** — persisted user intent (onboarding and reminder /
+  summary schedules) behind a `KeyValueStore`. The store has no
+  default: production names `UserDefaults.standard` and everything else names
   `InMemoryKeyValueStore()`, so no test or preview can reach the host's real
-  defaults by saying nothing.
+  defaults by saying nothing. Recording confirmation is deliberately absent:
+  it lives beside the non-backed-up installation identity instead.
 - **`BuildInfo`** + **`AppAttribution`** — what Settings > About says about the
   bundle it is running in. `BuildInfo.current(bundle:)` reads the marketing
   version, build number, the commit the app was built from, and how the Swift
@@ -166,8 +211,9 @@ import WhereCore
 // previews use the synchronous `@_spi(Testing)` `init` instead (an explicit
 // attributor, default four) via `@_spi(Testing) import WhereCore`.
 let services = try await WhereServices.make(
-    store: try SwiftDataStore.make(),   // production; use .inMemory() in tests
+    store: try SwiftDataStore.make(storage: .cloudKit),
     locationSource: CoreLocationSource(),
+    installationContext: installationContext, // resolved once by the app composition root
 )
 
 // Read a year, aggregated with the injected calendar + region attribution.
@@ -191,9 +237,11 @@ funnels through `WhereStore.perform` (or the remote-import path) and pings
 `changes()`. Readers (the UI's session, the issue scanner) re-derive purely off
 that ping, so nothing goes stale behind a write it didn't initiate; and because
 writes await their own side effects, a reader on the next ping sees a
-fully-applied change. `WhereServices.reset()` is the one inherently
-cross-collaborator operation — it quiesces GPS ingestion *before* wiping the
-store so the retry queue can't repopulate it mid-erase.
+fully-applied change. Epoch-pinned snapshots keep a multi-table projection in
+one generation, while expected-epoch writes reject work whose assumptions went
+stale across a suspension. `WhereServices.reset()` is the one inherently
+cross-collaborator operation — it reversibly pauses ingestion, atomically
+rotates to a Reset child epoch, and discards the retry queue only after commit.
 
 ## Contracts & limitations
 
@@ -207,6 +255,15 @@ store so the retry queue can't repopulate it mid-erase.
   being online before reports become correct: once the policy event syncs,
   samples at or after its effective timestamp are excluded. Its row remains
   "waiting" until the target installation physically stops and acknowledges it.
+  The sample gate stays closed until that check-in and any destructive-backlog
+  cleanup are durable; an incomplete multi-parent policy DAG also fails closed.
+  The cutoff currently uses the issuing device's wall clock; substantial
+  cross-device clock skew can shift the historical boundary even though the causal
+  DAG still converges the current desired state correctly.
+- **Destructive operations are logical generations.** Old rows may remain in
+  CloudKit as sync/audit history, but ordinary reads select only the resolved
+  epoch. Concurrent unjoined resets select a synthetic empty generation; an
+  incomplete causal epoch DAG fails closed instead of mixing old and new state.
 - **Failures surface.** Store methods are `async throws`; errors are logged via
   `WhereLog` and left observable — never swallowed into an empty default.
 - **Foundation Models may be unavailable.** `RecentActivitySummarizer` reports a

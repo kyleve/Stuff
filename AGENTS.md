@@ -527,7 +527,9 @@ flag is needed there.
 ## Running tests
 
 **Use [`./test`](test)** — the only way to run tests. Never hand-roll `tuist
-test` or `xcodebuild`. **Validate in proportion to risk:** run
+test` or `xcodebuild`. It runs the host-side backup-upgrader regression before
+selecting an iOS bundle, so tool-only changes remain covered by the same entry
+point. **Validate in proportion to risk:** run
 `./swiftformat --lint` when the changed files are in its scope, and run the
 narrowest applicable `./test` tier for code, build, tooling, or behavior
 changes. Pure documentation or comment-only changes may skip checks that
