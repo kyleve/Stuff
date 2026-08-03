@@ -944,8 +944,21 @@ struct WhereServicesTests {
         #expect(await services.ingestor.isActive == false)
         #expect(try await store.recordingDeviceProfiles().count == 1)
         #expect(try await store.recordingDeviceCheckIns().isEmpty)
-        #expect(try await store.recordingAssignmentChanges().isEmpty)
+        #expect(
+            try await RecordingAssignmentChange.resolve(store.recordingAssignmentChanges())
+                == .resolved(.off),
+        )
         #expect(try await store.dataEpoch().reason == .accountReset)
+
+        // A retained installation context must not mistake the reset-empty generation for first
+        // run and restore its original On choice after process restart.
+        let relaunched = WhereServices(
+            store: store,
+            locationSource: ScriptedLocationSource(authorizationStatus: .always),
+        )
+        let configuration = try await relaunched.recording.register(authorization: .always)
+        #expect(configuration.isEnabled == false)
+        #expect(await relaunched.ingestor.isActive == false)
     }
 
     @Test func committedResetDiscardsPendingLocationsAndPreservesTheGlobalProfile() async throws {
@@ -964,7 +977,10 @@ struct WhereServicesTests {
 
         #expect(await outbox.persistedSamples.isEmpty)
         #expect(try await store.recordingDeviceProfiles().count == 1)
-        #expect(try await store.recordingAssignmentChanges().isEmpty)
+        #expect(
+            try await RecordingAssignmentChange.resolve(store.recordingAssignmentChanges())
+                == .resolved(.off),
+        )
         #expect(try await store.dataEpoch().reason == .accountReset)
         #expect(await services.ingestor.isActive == false)
     }

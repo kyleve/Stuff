@@ -244,13 +244,24 @@ public actor DayJournal {
     /// `clearYear`'s reconciliation so the badge/reminders reflect the now-empty
     /// store immediately rather than relying on a later launch step.
     public func eraseAllData() async throws {
+        let resetAt = now()
         try await Self.logger.measure(.eraseAllData, budget: .seconds(10)) {
             try await store.perform {
-                _ = try await store.rotateDataEpoch(
+                let epoch = try await store.rotateDataEpoch(
                     reason: .accountReset,
                     changedBy: currentDeviceID,
-                    at: now(),
+                    at: resetAt,
                 )
+                try await store.addRecordingAssignmentChange(RecordingAssignmentChange(
+                    id: UUID(),
+                    parentIDs: [],
+                    revision: 0,
+                    issuedAt: resetAt,
+                    issuedByDeviceID: currentDeviceID,
+                    effectiveAt: epoch.changedAt,
+                    assignedDeviceID: nil,
+                    reason: .accountReset,
+                ))
             }
         }
         await reconcileAfterDayChange()
