@@ -92,7 +92,7 @@ struct BackupCoordinatorTests {
     private static let recordingDeviceID = RecordingDeviceID(
         rawValue: UUID(uuidString: "EEEEEEEE-EEEE-EEEE-EEEE-EEEEEEEEEEEE")!,
     )
-    private static let recordingPolicyID =
+    private static let recordingAssignmentID =
         UUID(uuidString: "FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF")!
 
     /// Seed every persisted domain directly into a store so backup tests don't
@@ -127,19 +127,18 @@ struct BackupCoordinatorTests {
                 revision: 0,
                 lastSeenAt: dismissal.dismissedAt,
                 appliedAt: dismissal.dismissedAt,
-                lastAppliedPolicyChangeID: recordingPolicyID,
+                lastAppliedAssignmentChangeID: recordingAssignmentID,
                 status: .recording,
             ))
-            try await store.addRecordingPolicyChange(RecordingPolicyChange(
-                id: recordingPolicyID,
-                deviceID: recordingDeviceID,
+            try await store.addRecordingAssignmentChange(RecordingAssignmentChange(
+                id: recordingAssignmentID,
                 parentIDs: [],
                 revision: 0,
                 issuedAt: dismissal.dismissedAt,
                 issuedByDeviceID: recordingDeviceID,
                 effectiveAt: dismissal.dismissedAt,
-                state: .on,
-                reason: .initialRegistration,
+                assignedDeviceID: recordingDeviceID,
+                reason: .onboarding,
             ))
         }
     }
@@ -159,7 +158,7 @@ struct BackupCoordinatorTests {
         #expect(summary.manualDayCount == 1)
         #expect(summary.dismissedIssueCount == 1)
         #expect(summary.recordingDeviceCount == 1)
-        #expect(summary.recordingPolicyChangeCount == 1)
+        #expect(summary.recordingAssignmentChangeCount == 1)
 
         #expect(try await destination.store.allSamples() == source.store.allSamples())
         #expect(try await destination.store.allEvidence() == source.store.allEvidence())
@@ -175,281 +174,15 @@ struct BackupCoordinatorTests {
         // Check-ins prove that a particular installation applied policy and cleared its own
         // outbox. A backup cannot safely reproduce that proof on another installation.
         #expect(try await destination.store.recordingDeviceCheckIns().isEmpty)
-        let policies = try await destination.store.recordingPolicyChanges()
-        let sourcePolicies = try await source.store.recordingPolicyChanges()
-        #expect(Array(policies.dropLast()) == sourcePolicies)
-        #expect(policies.last?.parentIDs == [Self.recordingPolicyID])
-        #expect(policies.last?.state == .off)
-        #expect(policies.last?.reason == .backupMerge)
+        let assignments = try await destination.store.recordingAssignmentChanges()
+        let sourceAssignments = try await source.store.recordingAssignmentChanges()
+        #expect(Array(assignments.dropLast()) == sourceAssignments)
+        #expect(assignments.last?.parentIDs == [Self.recordingAssignmentID])
+        #expect(assignments.last?.assignedDeviceID == nil)
+        #expect(assignments.last?.reason == .backupMerge)
         #expect(try await destination.store.evidenceBlob(for: Self.evidence.id) == Self.blob)
         // An import that lands new data runs the post-commit hook once.
         #expect(await destination.didCommit.count == 1)
-    }
-
-    @Test func exportOmitsTargetOwnedRecordingCheckIns() async throws {
-        let source = try Self.makeHarness()
-        try await Self.seed(source.store)
-
-        let url = try await source.coordinator.exportBackup()
-        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
-
-        let archive = try BackupService().readArchive(at: url).archive
-        #expect(archive.recordingDeviceCheckIns.isEmpty)
-    }
-
-    @Test func importTreatsLegacyRecordingCheckInsAsInertHistory() async throws {
-        let profile = RecordingDeviceProfile(
-            id: Self.recordingDeviceID,
-            systemName: "iPad",
-            kind: .tablet,
-            registeredAt: Self.dismissal.dismissedAt,
-            registrationEpochID: .initial,
-        )
-        let policy = RecordingPolicyChange(
-            id: Self.recordingPolicyID,
-            deviceID: Self.recordingDeviceID,
-            parentIDs: [],
-            revision: 0,
-            issuedAt: Self.dismissal.dismissedAt,
-            issuedByDeviceID: Self.recordingDeviceID,
-            effectiveAt: Self.dismissal.dismissedAt,
-            state: .off,
-            reason: .userCommand,
-        )
-        let checkIn = RecordingDeviceCheckIn(
-            deviceID: Self.recordingDeviceID,
-            revision: 0,
-            lastSeenAt: Self.dismissal.dismissedAt,
-            appliedAt: Self.dismissal.dismissedAt,
-            lastAppliedPolicyChangeID: Self.recordingPolicyID,
-            status: .off,
-        )
-        let url = try BackupService().makeArchiveFile(
-            samples: [],
-            evidence: [],
-            manualDays: [],
-            recordingDeviceProfiles: [profile],
-            recordingDeviceMetadataChanges: [],
-            recordingDeviceCheckIns: [checkIn],
-            recordingPolicyChanges: [policy],
-            blobs: [:],
-        )
-        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
-
-        let destination = try Self.makeHarness()
-        _ = try await destination.coordinator.importBackup(from: url, strategy: .merge)
-
-        #expect(try await destination.store.recordingDeviceProfiles() == [profile])
-        let policies = try await destination.store.recordingPolicyChanges()
-        #expect(policies.first == policy)
-        #expect(policies.last?.parentIDs == [policy.id])
-        #expect(policies.last?.state == .off)
-        #expect(policies.last?.reason == .backupMerge)
-        #expect(try await destination.store.recordingDeviceCheckIns().isEmpty)
-    }
-
-    @Test func mergeGivesANewProfileWithoutPolicyAnOffRoot() async throws {
-        let profile = RecordingDeviceProfile(
-            id: Self.recordingDeviceID,
-            systemName: "Travel iPad",
-            kind: .tablet,
-            registeredAt: Self.dismissal.dismissedAt,
-            registrationEpochID: .initial,
-        )
-        let url = try BackupService().makeArchiveFile(
-            samples: [],
-            evidence: [],
-            manualDays: [],
-            recordingDeviceProfiles: [profile],
-            recordingDeviceMetadataChanges: [],
-            recordingDeviceCheckIns: [],
-            recordingPolicyChanges: [],
-            blobs: [:],
-        )
-        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
-
-        let destination = try Self.makeHarness()
-        _ = try await destination.coordinator.importBackup(from: url, strategy: .merge)
-
-        #expect(try await destination.store.recordingDeviceProfiles() == [profile])
-        let policy = try #require(try await destination.store.recordingPolicyChanges().first)
-        #expect(policy.deviceID == profile.id)
-        #expect(policy.revision == 0)
-        #expect(policy.parentIDs.isEmpty)
-        #expect(policy.state == .off)
-        #expect(policy.reason == .backupMerge)
-    }
-
-    @Test func mergeImportReassertsTheAuthorityThatExistedBeforeImportedPolicy() async throws {
-        let root = try RecordingPolicyChange(
-            id: #require(UUID(uuidString: "10000000-0000-0000-0000-000000000000")),
-            deviceID: Self.recordingDeviceID,
-            parentIDs: [],
-            revision: 0,
-            issuedAt: Date(timeIntervalSinceReferenceDate: 100),
-            issuedByDeviceID: Self.recordingDeviceID,
-            effectiveAt: Date(timeIntervalSinceReferenceDate: 100),
-            state: .on,
-            reason: .initialRegistration,
-        )
-        let off = try RecordingPolicyChange(
-            id: #require(UUID(uuidString: "20000000-0000-0000-0000-000000000000")),
-            deviceID: Self.recordingDeviceID,
-            parentIDs: [root.id],
-            revision: 1,
-            issuedAt: Date(timeIntervalSinceReferenceDate: 200),
-            issuedByDeviceID: Self.recordingDeviceID,
-            effectiveAt: Date(timeIntervalSinceReferenceDate: 200),
-            state: .off,
-            reason: .userCommand,
-        )
-        let importedOn = try RecordingPolicyChange(
-            id: #require(UUID(uuidString: "30000000-0000-0000-0000-000000000000")),
-            deviceID: Self.recordingDeviceID,
-            parentIDs: [off.id],
-            revision: 2,
-            issuedAt: Date(timeIntervalSinceReferenceDate: 300),
-            issuedByDeviceID: Self.recordingDeviceID,
-            effectiveAt: Date(timeIntervalSinceReferenceDate: 300),
-            state: .on,
-            reason: .userCommand,
-        )
-        let url = try BackupService().makeArchiveFile(
-            samples: [],
-            evidence: [],
-            manualDays: [],
-            recordingDeviceProfiles: [],
-            recordingDeviceMetadataChanges: [],
-            recordingDeviceCheckIns: [],
-            recordingPolicyChanges: [root, off, importedOn],
-            blobs: [:],
-        )
-        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
-
-        let destination = try Self.makeHarness()
-        try await destination.store.perform {
-            try await destination.store.addRecordingPolicyChange(root)
-            try await destination.store.addRecordingPolicyChange(off)
-        }
-
-        _ = try await destination.coordinator.importBackup(from: url, strategy: .merge)
-
-        let timeline = try #require(try await RecordingPolicyChange.canonicalTimeline(
-            in: destination.store.recordingPolicyChanges(),
-        ))
-        #expect(timeline.map(\.state) == [.on, .off, .on, .off])
-        #expect(timeline.last?.parentIDs == [importedOn.id])
-        #expect(timeline.last?.reason == .backupMerge)
-    }
-
-    @Test func mergePreservesImplicitArchiveAuthorityAfterReplace() async throws {
-        let importedOn = try RecordingPolicyChange(
-            id: #require(UUID(uuidString: "40000000-0000-0000-0000-000000000000")),
-            deviceID: Self.recordingDeviceID,
-            parentIDs: [],
-            revision: 0,
-            issuedAt: Date(timeIntervalSinceReferenceDate: 100),
-            issuedByDeviceID: Self.recordingDeviceID,
-            effectiveAt: Date(timeIntervalSinceReferenceDate: 100),
-            state: .on,
-            reason: .initialRegistration,
-        )
-        let emptyURL = try BackupService().makeArchiveFile(
-            samples: [],
-            evidence: [],
-            manualDays: [],
-            recordingDeviceProfiles: [],
-            recordingDeviceMetadataChanges: [],
-            recordingDeviceCheckIns: [],
-            recordingPolicyChanges: [],
-            blobs: [:],
-        )
-        defer { try? FileManager.default.removeItem(at: emptyURL.deletingLastPathComponent()) }
-        let mergeURL = try BackupService().makeArchiveFile(
-            samples: [],
-            evidence: [],
-            manualDays: [],
-            recordingDeviceProfiles: [],
-            recordingDeviceMetadataChanges: [],
-            recordingDeviceCheckIns: [],
-            recordingPolicyChanges: [importedOn],
-            blobs: [:],
-        )
-        defer { try? FileManager.default.removeItem(at: mergeURL.deletingLastPathComponent()) }
-
-        let destination = try Self.makeHarness()
-        try await destination.store.perform {
-            try await destination.store.addRecordingDeviceProfile(RecordingDeviceProfile(
-                id: Self.recordingDeviceID,
-                systemName: "iPad",
-                kind: .tablet,
-                registeredAt: Date(timeIntervalSinceReferenceDate: 50),
-                registrationEpochID: .initial,
-            ))
-        }
-        _ = try await destination.coordinator.importBackup(from: emptyURL, strategy: .replace)
-        #expect(try await destination.store.dataEpoch().isDestructive)
-        #expect(try await destination.store.recordingPolicyChanges().isEmpty)
-
-        _ = try await destination.coordinator.importBackup(from: mergeURL, strategy: .merge)
-
-        let timeline = try #require(try await RecordingPolicyChange.canonicalTimeline(
-            in: destination.store.recordingPolicyChanges(),
-        ))
-        #expect(timeline.map(\.state) == [.on, .archived])
-        #expect(timeline.last?.parentIDs == [importedOn.id])
-        #expect(timeline.last?.reason == .backupMerge)
-    }
-
-    @Test func replaceAddsABarrierForAPolicyOnlyDevice() async throws {
-        let policyOnlyDeviceID = try RecordingDeviceID(
-            rawValue: #require(UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")),
-        )
-        let importedOn = try RecordingPolicyChange(
-            id: #require(UUID(uuidString: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB")),
-            deviceID: policyOnlyDeviceID,
-            parentIDs: [],
-            revision: 0,
-            issuedAt: Date(timeIntervalSinceReferenceDate: 100),
-            issuedByDeviceID: policyOnlyDeviceID,
-            effectiveAt: Date(timeIntervalSinceReferenceDate: 100),
-            state: .on,
-            reason: .initialRegistration,
-        )
-        let url = try BackupService().makeArchiveFile(
-            samples: [],
-            evidence: [],
-            manualDays: [],
-            recordingDeviceProfiles: [],
-            recordingDeviceMetadataChanges: [],
-            recordingDeviceCheckIns: [],
-            recordingPolicyChanges: [importedOn],
-            blobs: [:],
-        )
-        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
-
-        let destination = try Self.makeHarness()
-        _ = try await destination.coordinator.importBackup(from: url, strategy: .replace)
-
-        var policies = try await destination.store.recordingPolicyChanges()
-        #expect(policies.map(\.state) == [.on, .off])
-        #expect(policies.last?.parentIDs == [importedOn.id])
-        #expect(policies.last?.reason == .backupReplace)
-
-        try await destination.store.perform {
-            try await destination.store.addRecordingDeviceProfile(RecordingDeviceProfile(
-                id: policyOnlyDeviceID,
-                systemName: "iPad",
-                kind: .tablet,
-                registeredAt: Date(timeIntervalSinceReferenceDate: 100),
-                registrationEpochID: .initial,
-            ))
-        }
-        policies = try await destination.store.recordingPolicyChanges()
-        let device = try #require(try await destination.store.recordingDevices().first)
-        #expect(device.id == policyOnlyDeviceID)
-        #expect(policies.last?.deviceID == device.id)
-        #expect(policies.last?.state == .off)
     }
 
     @Test func mergeImportKeepsPreexistingRows() async throws {
@@ -738,8 +471,8 @@ struct BackupCoordinatorTests {
             manualDays: [],
             recordingDeviceProfiles: [],
             recordingDeviceMetadataChanges: [],
-            recordingDeviceCheckIns: [],
-            recordingPolicyChanges: [],
+            recordingAssignmentChanges: [],
+            recordingDeviceArchives: [],
             blobs: [:],
         )
         defer { try? FileManager.default.removeItem(at: secondURL.deletingLastPathComponent()) }

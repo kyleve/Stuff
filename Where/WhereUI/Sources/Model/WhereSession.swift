@@ -341,7 +341,7 @@ public final class WhereSession {
         observeRecordingConfigurationChanges()
         let wasTracking = isTracking
         do {
-            await services.recording.startMonitoringPolicyChanges()
+            await services.recording.startMonitoringAssignmentChanges()
             if didRegisterRecordingDevice {
                 _ = try await services.recording.reconcile(
                     authorization: authorizationStatus,
@@ -503,7 +503,7 @@ public final class WhereSession {
 
         guard let current = devices.first(where: { $0.id == deviceID }) else { return }
         guard let resolvedEnabled = current.isEnabled else {
-            throw RecordingPersistenceError.currentDevicePolicyUnknown(deviceID)
+            throw RecordingPersistenceError.currentDeviceAssignmentUnknown(deviceID)
         }
         await synchronizeRecordingRuntimeState()
         permissionDenied = resolvedEnabled && permissionRequestFailed

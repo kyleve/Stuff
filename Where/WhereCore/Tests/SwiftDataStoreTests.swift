@@ -149,12 +149,12 @@ struct SwiftDataStoreTests {
         #expect(await !firstPing(stream, within: .milliseconds(200)))
     }
 
-    @Test func recordingDeviceAndPolicyRowsRoundTripWithoutDuplicateLogicalRows() async throws {
+    @Test func recordingDeviceAndAssignmentRowsRoundTripWithoutDuplicateLogicalRows() async throws {
         let store = try SwiftDataStore.inMemory()
         let deviceID = try RecordingDeviceID(
             rawValue: #require(UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")),
         )
-        let policyID = try #require(UUID(uuidString: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB"))
+        let assignmentID = try #require(UUID(uuidString: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB"))
         let date = Date(timeIntervalSinceReferenceDate: 100)
         let profile = RecordingDeviceProfile(
             id: deviceID,
@@ -176,19 +176,18 @@ struct SwiftDataStoreTests {
             revision: 0,
             lastSeenAt: date,
             appliedAt: date,
-            lastAppliedPolicyChangeID: policyID,
+            lastAppliedAssignmentChangeID: assignmentID,
             status: .off,
         )
-        let policy = RecordingPolicyChange(
-            id: policyID,
-            deviceID: deviceID,
+        let assignment = RecordingAssignmentChange(
+            id: assignmentID,
             parentIDs: [],
             revision: 0,
             issuedAt: date,
             issuedByDeviceID: deviceID,
             effectiveAt: date,
-            state: .off,
-            reason: .initialRegistration,
+            assignedDeviceID: nil,
+            reason: .onboarding,
         )
 
         try await store.perform {
@@ -198,8 +197,8 @@ struct SwiftDataStoreTests {
             try await store.addRecordingDeviceMetadataChange(nicknameMetadata)
             try await store.setRecordingDeviceCheckIn(checkIn)
             try await store.setRecordingDeviceCheckIn(checkIn)
-            try await store.addRecordingPolicyChange(policy)
-            try await store.addRecordingPolicyChange(policy)
+            try await store.addRecordingAssignmentChange(assignment)
+            try await store.addRecordingAssignmentChange(assignment)
         }
 
         #expect(try await store.recordingDeviceProfiles() == [profile])
@@ -213,10 +212,10 @@ struct SwiftDataStoreTests {
             registeredAt: date,
             lastSeenAt: date,
             archivedAt: nil,
-            lastAppliedPolicyChangeID: policyID,
+            lastAppliedAssignmentChangeID: assignmentID,
             status: .off,
         )])
-        #expect(try await store.recordingPolicyChanges() == [policy])
+        #expect(try await store.recordingAssignmentChanges() == [assignment])
     }
 
     /// A remote import (simulated via a scripted source) re-pings the same
@@ -243,7 +242,7 @@ struct SwiftDataStoreTests {
         let deviceID = try RecordingDeviceID(
             rawValue: #require(UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")),
         )
-        let policyID = try #require(UUID(uuidString: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB"))
+        let assignmentID = try #require(UUID(uuidString: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB"))
         let date = Date(timeIntervalSinceReferenceDate: 100)
         let profile = RecordingDeviceProfile(
             id: deviceID,
@@ -265,26 +264,26 @@ struct SwiftDataStoreTests {
             revision: 0,
             lastSeenAt: date,
             appliedAt: date,
-            lastAppliedPolicyChangeID: policyID,
+            lastAppliedAssignmentChangeID: assignmentID,
             status: .recording,
         )
-        let policy = RecordingPolicyChange(
-            id: policyID,
-            deviceID: deviceID,
+        let assignment = RecordingAssignmentChange(
+            id: assignmentID,
             parentIDs: [],
             revision: 0,
             issuedAt: date,
             issuedByDeviceID: deviceID,
             effectiveAt: date,
-            state: .on,
-            reason: .initialRegistration,
+            assignedDeviceID: deviceID,
+            reason: .onboarding,
         )
 
         try await store.simulateRemoteRecordingImport(
             profiles: [profile],
             metadataChanges: [metadata],
             checkIns: [checkIn],
-            policyChanges: [policy],
+            assignmentChanges: [assignment],
+            archives: [],
         )
 
         // The seam suppresses the ordinary local-commit ping: observers must
@@ -297,11 +296,11 @@ struct SwiftDataStoreTests {
         #expect(try await store.recordingDeviceProfiles() == [profile])
         #expect(try await store.recordingDeviceMetadataChanges() == [metadata])
         #expect(try await store.recordingDeviceCheckIns() == [checkIn])
-        #expect(try await store.recordingPolicyChanges() == [policy])
+        #expect(try await store.recordingAssignmentChanges() == [assignment])
         let device = try #require(try await store.recordingDevices().first)
         #expect(device.nickname == "Travel iPad")
         #expect(device.status == .recording)
-        #expect(device.lastAppliedPolicyChangeID == policyID)
+        #expect(device.lastAppliedAssignmentChangeID == assignmentID)
     }
 
     @Test func newerCheckInRevisionWinsEvenWhenItsWallClockMovedBackward() async throws {
@@ -316,7 +315,7 @@ struct SwiftDataStoreTests {
             revision: 0,
             lastSeenAt: Date(timeIntervalSinceReferenceDate: 200),
             appliedAt: Date(timeIntervalSinceReferenceDate: 200),
-            lastAppliedPolicyChangeID: firstPolicyID,
+            lastAppliedAssignmentChangeID: firstPolicyID,
             status: .recording,
         )
         let causallyLater = RecordingDeviceCheckIn(
@@ -324,7 +323,7 @@ struct SwiftDataStoreTests {
             revision: 1,
             lastSeenAt: Date(timeIntervalSinceReferenceDate: 100),
             appliedAt: Date(timeIntervalSinceReferenceDate: 100),
-            lastAppliedPolicyChangeID: secondPolicyID,
+            lastAppliedAssignmentChangeID: secondPolicyID,
             status: .off,
         )
 
@@ -363,34 +362,20 @@ struct SwiftDataStoreTests {
         checkIn.revision = -1
         checkIn.lastSeenAt = date
         checkIn.appliedAt = date
-        checkIn.lastAppliedPolicyChangeID = eventID
+        checkIn.lastAppliedAssignmentChangeID = eventID
         checkIn.statusRaw = RecordingDeviceStatus.off.rawValue
-
-        let policy = SDRecordingPolicyChange()
-        policy.id = eventID
-        policy.deviceID = deviceID
-        policy.revision = -1
-        policy.issuedAt = date
-        policy.issuedByDeviceID = deviceID
-        policy.effectiveAt = date
-        policy.stateRaw = RecordingPolicyState.off.rawValue
-        policy.reasonRaw = RecordingPolicyReason.userCommand.rawValue
 
         context.insert(negativeMetadata)
         context.insert(combinedMetadata)
         context.insert(checkIn)
-        context.insert(policy)
         try context.save()
         let store = SwiftDataStore(modelContainer: container)
 
         #expect(try await store.recordingDeviceMetadataChanges().isEmpty)
         #expect(try await store.recordingDeviceCheckIns().isEmpty)
-        await #expect(throws: RecordingPersistenceError.corruptRecordingPolicyHistory) {
-            try await store.recordingPolicyChanges()
-        }
     }
 
-    @Test func newMultiParentRowsFailClosedWhileTheirParentArrayIsUnavailable() throws {
+    @Test func newMultiParentRowsFailClosedWhileTheirParentArrayIsUnavailable() {
         let firstEpochParent = Self.epochID("10000000-0000-0000-0000-000000000000")
         let secondEpochParent = Self.epochID("20000000-0000-0000-0000-000000000000")
         let epoch = Self.epoch(
@@ -408,28 +393,7 @@ struct SwiftDataStoreTests {
         ])
         epochRow.parentIDs = nil
 
-        let policyParentIDs = try [
-            #require(UUID(uuidString: "40000000-0000-0000-0000-000000000000")),
-            #require(UUID(uuidString: "50000000-0000-0000-0000-000000000000")),
-        ]
-        let policy = try RecordingPolicyChange(
-            id: #require(UUID(uuidString: "60000000-0000-0000-0000-000000000000")),
-            deviceID: Self.epochWriterID,
-            parentIDs: policyParentIDs,
-            revision: 2,
-            issuedAt: Date(timeIntervalSinceReferenceDate: 300),
-            issuedByDeviceID: Self.epochWriterID,
-            effectiveAt: Date(timeIntervalSinceReferenceDate: 300),
-            state: .off,
-            reason: .userCommand,
-        )
-        let policyRow = SDRecordingPolicyChange(value: policy, epochID: .initial)
-        #expect(policyRow.parentID == nil)
-        #expect(policyRow.parentIDs == policyParentIDs)
-        policyRow.parentIDs = nil
-
         #expect(epochRow.toValue() == nil)
-        #expect(policyRow.toValue() == nil)
     }
 
     @Test func legacyScalarParentsStillDecodeAsSingleParentArrays() throws {
@@ -443,23 +407,7 @@ struct SwiftDataStoreTests {
         epochRow.changedByDeviceID = Self.epochWriterID.rawValue
         epochRow.reasonRaw = WhereDataEpochReason.accountReset.rawValue
 
-        let policyID = try #require(UUID(uuidString: "20000000-0000-0000-0000-000000000000"))
-        let policyParentID = try #require(UUID(uuidString: "30000000-0000-0000-0000-000000000000"))
-        let policyRow = SDRecordingPolicyChange()
-        policyRow.epochID = WhereDataEpochID.initial.rawValue
-        policyRow.id = policyID
-        policyRow.deviceID = Self.epochWriterID.rawValue
-        policyRow.parentID = policyParentID
-        policyRow.parentIDs = nil
-        policyRow.revision = 1
-        policyRow.issuedAt = Date(timeIntervalSinceReferenceDate: 100)
-        policyRow.issuedByDeviceID = Self.epochWriterID.rawValue
-        policyRow.effectiveAt = Date(timeIntervalSinceReferenceDate: 100)
-        policyRow.stateRaw = RecordingPolicyState.off.rawValue
-        policyRow.reasonRaw = RecordingPolicyReason.userCommand.rawValue
-
         #expect(try #require(epochRow.toValue()).parentIDs == [.initial])
-        #expect(try #require(policyRow.toValue()).parentIDs == [policyParentID])
     }
 
     @Test func lateRowsFromASupersededEpochCannotRepopulateAnySyncedUserData() async throws {
@@ -514,19 +462,18 @@ struct SwiftDataStoreTests {
             revision: 0,
             lastSeenAt: date,
             appliedAt: date,
-            lastAppliedPolicyChangeID: policyID,
+            lastAppliedAssignmentChangeID: policyID,
             status: .recording,
         )
-        let policy = RecordingPolicyChange(
+        let assignment = RecordingAssignmentChange(
             id: policyID,
-            deviceID: deviceID,
             parentIDs: [],
             revision: 0,
             issuedAt: date,
             issuedByDeviceID: deviceID,
             effectiveAt: date,
-            state: .on,
-            reason: .initialRegistration,
+            assignedDeviceID: deviceID,
+            reason: .onboarding,
         )
 
         let epoch = try await store.perform {
@@ -553,7 +500,7 @@ struct SwiftDataStoreTests {
         remoteContext.insert(SDTrackedRegion(regionID: "us-TX", epochID: .initial))
         remoteContext.insert(SDRecordingDeviceMetadataChange(value: metadata, epochID: .initial))
         remoteContext.insert(SDRecordingDeviceCheckIn(value: checkIn, epochID: .initial))
-        remoteContext.insert(SDRecordingPolicyChange(value: policy, epochID: .initial))
+        remoteContext.insert(SDRecordingAssignmentChange(value: assignment, epochID: .initial))
         try remoteContext.save()
 
         let reader = SwiftDataStore(modelContainer: container)
@@ -567,7 +514,7 @@ struct SwiftDataStoreTests {
         #expect(try await reader.recordingDeviceProfiles() == [profile])
         #expect(try await reader.recordingDeviceMetadataChanges().isEmpty)
         #expect(try await reader.recordingDeviceCheckIns().isEmpty)
-        #expect(try await reader.recordingPolicyChanges().isEmpty)
+        #expect(try await reader.recordingAssignmentChanges().isEmpty)
     }
 
     @Test func expectedEpochTransactionRejectsStaleAuthorityWithoutWriting() async throws {
@@ -981,16 +928,15 @@ struct SwiftDataStoreTests {
             changedByDeviceID: deviceID,
             nickname: "Home iPad",
         )
-        let policy = RecordingPolicyChange(
+        let assignment = RecordingAssignmentChange(
             id: policyID,
-            deviceID: deviceID,
             parentIDs: [],
             revision: 0,
             issuedAt: date,
             issuedByDeviceID: deviceID,
             effectiveAt: date,
-            state: .off,
-            reason: .initialRegistration,
+            assignedDeviceID: nil,
+            reason: .onboarding,
         )
         let currentEpoch = try await store.perform {
             try await store.rotateDataEpoch(
@@ -1003,13 +949,13 @@ struct SwiftDataStoreTests {
         let remoteContext = ModelContext(container)
         remoteContext.insert(SDLocationSample(value: sample, epochID: .initial))
         remoteContext.insert(SDRecordingDeviceMetadataChange(value: metadata, epochID: .initial))
-        remoteContext.insert(SDRecordingPolicyChange(value: policy, epochID: .initial))
+        remoteContext.insert(SDRecordingAssignmentChange(value: assignment, epochID: .initial))
         try remoteContext.save()
 
         try await store.perform(expectedDataEpochID: currentEpoch.id) {
             try await store.add(sample: sample)
             try await store.addRecordingDeviceMetadataChange(metadata)
-            try await store.addRecordingPolicyChange(policy)
+            try await store.addRecordingAssignmentChange(assignment)
         }
 
         let inspectionContext = ModelContext(container)
@@ -1021,8 +967,10 @@ struct SwiftDataStoreTests {
                 $0.id == metadataID
             }),
         )
-        let policyRows = try inspectionContext.fetch(
-            FetchDescriptor<SDRecordingPolicyChange>(predicate: #Predicate { $0.id == policyID }),
+        let assignmentRows = try inspectionContext.fetch(
+            FetchDescriptor<SDRecordingAssignmentChange>(predicate: #Predicate {
+                $0.id == policyID
+            }),
         )
         let expectedEpochIDs = Set([
             WhereDataEpochID.initial.rawValue,
@@ -1033,11 +981,11 @@ struct SwiftDataStoreTests {
         #expect(Set(sampleRows.compactMap(\.epochID)) == expectedEpochIDs)
         #expect(metadataRows.count == 2)
         #expect(Set(metadataRows.compactMap(\.epochID)) == expectedEpochIDs)
-        #expect(policyRows.count == 2)
-        #expect(Set(policyRows.compactMap(\.epochID)) == expectedEpochIDs)
+        #expect(assignmentRows.count == 2)
+        #expect(Set(assignmentRows.compactMap(\.epochID)) == expectedEpochIDs)
         #expect(try await store.allSamples() == [sample])
         #expect(try await store.recordingDeviceMetadataChanges() == [metadata])
-        #expect(try await store.recordingPolicyChanges() == [policy])
+        #expect(try await store.recordingAssignmentChanges() == [assignment])
     }
 
     @Test func duplicateProfilesResolveDeterministicallyByRegistrationEpoch() async throws {

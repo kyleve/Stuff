@@ -15,11 +15,11 @@ public actor BackupCoordinator {
         /// Upsert the imported rows into the existing data (by `id` for
         /// samples/evidence, by day key for manual days), leaving anything not
         /// present in the file untouched. Recording authority is snapshotted before the write
-        /// and reasserted after every imported policy timeline; a newly seen device defaults Off.
+        /// and reasserted after the imported assignment timeline.
         case merge
         /// Replace synced user history and settings with the file. Recording-device identities
-        /// remain append-only, and every imported policy receives a newer destructive barrier so
-        /// restoring an archive can never silently start GPS on a device whose profile syncs later.
+        /// remain append-only, and a newer Off assignment ensures restoring an archive can never
+        /// silently start GPS.
         case replace
     }
 
@@ -31,7 +31,7 @@ public actor BackupCoordinator {
         public let dismissedIssueCount: Int
         public let trackedRegionCount: Int
         public let recordingDeviceCount: Int
-        public let recordingPolicyChangeCount: Int
+        public let recordingAssignmentChangeCount: Int
 
         public init(
             sampleCount: Int,
@@ -40,7 +40,7 @@ public actor BackupCoordinator {
             dismissedIssueCount: Int,
             trackedRegionCount: Int,
             recordingDeviceCount: Int = 0,
-            recordingPolicyChangeCount: Int = 0,
+            recordingAssignmentChangeCount: Int = 0,
         ) {
             self.sampleCount = sampleCount
             self.evidenceCount = evidenceCount
@@ -48,7 +48,7 @@ public actor BackupCoordinator {
             self.dismissedIssueCount = dismissedIssueCount
             self.trackedRegionCount = trackedRegionCount
             self.recordingDeviceCount = recordingDeviceCount
-            self.recordingPolicyChangeCount = recordingPolicyChangeCount
+            self.recordingAssignmentChangeCount = recordingAssignmentChangeCount
         }
     }
 
@@ -167,8 +167,6 @@ public actor BackupCoordinator {
                     primaryRegions: store.primaryRegions(),
                     recordingDeviceProfiles: store.recordingDeviceProfiles(),
                     recordingDeviceMetadataChanges: store.recordingDeviceMetadataChanges(),
-                    recordingDeviceCheckIns: [],
-                    recordingPolicyChanges: store.recordingPolicyChanges(),
                     recordingAssignmentChanges: store.recordingAssignmentChanges(),
                     recordingDeviceArchives: store.recordingDeviceArchives(),
                 )
@@ -204,8 +202,6 @@ public actor BackupCoordinator {
                 primaryRegions: tables.primaryRegions,
                 recordingDeviceProfiles: tables.recordingDeviceProfiles,
                 recordingDeviceMetadataChanges: tables.recordingDeviceMetadataChanges,
-                recordingDeviceCheckIns: tables.recordingDeviceCheckIns,
-                recordingPolicyChanges: tables.recordingPolicyChanges,
                 recordingAssignmentChanges: tables.recordingAssignmentChanges,
                 recordingDeviceArchives: tables.recordingDeviceArchives,
                 blobs: snapshot.blobs,
@@ -227,8 +223,6 @@ public actor BackupCoordinator {
         let primaryRegions: [PrimaryRegion]
         let recordingDeviceProfiles: [RecordingDeviceProfile]
         let recordingDeviceMetadataChanges: [RecordingDeviceMetadataChange]
-        let recordingDeviceCheckIns: [RecordingDeviceCheckIn]
-        let recordingPolicyChanges: [RecordingPolicyChange]
         let recordingAssignmentChanges: [RecordingAssignmentChange]
         let recordingDeviceArchives: [RecordingDeviceArchive]
     }
@@ -409,8 +403,6 @@ public actor BackupCoordinator {
         }.value
         let archive = result.archive
         let blobs = result.blobs
-        let importedDeviceIDs = Set(archive.recordingPolicyChanges.map(\.deviceID))
-            .union(archive.recordingDeviceProfiles.map(\.id))
         let summary = ImportSummary(
             sampleCount: archive.samples.count,
             evidenceCount: archive.evidence.count,
@@ -418,7 +410,7 @@ public actor BackupCoordinator {
             dismissedIssueCount: archive.dismissedIssues.count,
             trackedRegionCount: archive.primaryRegions.count,
             recordingDeviceCount: archive.recordingDeviceProfiles.count,
-            recordingPolicyChangeCount: archive.recordingPolicyChanges.count,
+            recordingAssignmentChangeCount: archive.recordingAssignmentChanges.count,
         )
         let recoveryDetails = ImportRecoveryDetails(
             transactionID: transactionID,
@@ -430,14 +422,12 @@ public actor BackupCoordinator {
             + archive.manualDays.count + archive.dismissedIssues.count
             + archive.recordingDeviceProfiles.count
             + archive.recordingDeviceMetadataChanges.count
-            + archive.recordingDeviceCheckIns.count
-            + archive.recordingPolicyChanges.count
             + archive.recordingAssignmentChanges.count
             + archive.recordingDeviceArchives.count
 
         // Decode and validate before touching live authority. Once the archive is known-good,
         // close ingestion before either merge or replace: both can change this installation's
-        // policy while a streamed sample is otherwise able to cross the transaction boundary.
+        // assignment while a streamed sample is otherwise able to cross the transaction boundary.
         let preparedRecovery = DurableImportRecovery.prepared(recoveryDetails)
         try await importRecoveryPersistence.save(preparedRecovery)
         do {
@@ -458,26 +448,9 @@ public actor BackupCoordinator {
         do {
             try await Self.logger.measure(.importWrite) {
                 try await store.perform(expectedDataEpochID: expectedEpochID) {
-                    let mergeAuthority = if strategy == .merge {
-                        try await Self.snapshotAuthority(
-                            for: importedDeviceIDs,
-                            in: store,
-                        )
-                    } else {
-                        [RecordingDeviceID: RecordingPolicyState]()
-                    }
                     let existingAssignments = try await store.recordingAssignmentChanges()
-                    let usesGlobalAssignment = existingAssignments.count > 1
-                        || archive.recordingAssignmentChanges.isEmpty == false
                     let preservedAssignment: RecordingAssignment = if strategy == .merge {
-                        if existingAssignments.count <= 1,
-                           let legacyState = mergeAuthority[currentDeviceID]
-                        {
-                            legacyState == .on ? .device(currentDeviceID) : .off
-                        } else {
-                            RecordingAssignmentChange.resolve(existingAssignments).assignment
-                                ?? .off
-                        }
+                        RecordingAssignmentChange.resolve(existingAssignments).assignment ?? .off
                     } else {
                         .off
                     }
@@ -527,16 +500,6 @@ public actor BackupCoordinator {
                         try await store.addRecordingDeviceMetadataChange(metadataChange)
                         report()
                     }
-                    // A check-in is a target installation's proof that it applied policy and
-                    // cleared its own raw outbox. A backup cannot make that proof on its behalf;
-                    // consume progress for legacy archives but never restore it as live authority.
-                    for _ in archive.recordingDeviceCheckIns {
-                        report()
-                    }
-                    for change in archive.recordingPolicyChanges {
-                        try await store.addRecordingPolicyChange(change)
-                        report()
-                    }
                     for change in archive.recordingAssignmentChanges {
                         try await store.addRecordingAssignmentChange(change)
                         report()
@@ -545,34 +508,16 @@ public actor BackupCoordinator {
                         try await store.addRecordingDeviceArchive(archive)
                         report()
                     }
-                    if usesGlobalAssignment {
-                        let joinedAssignments = try await store.recordingAssignmentChanges()
-                        let assignmentBarrier = try RecordingAssignmentChange.appendingCommand(
-                            to: joinedAssignments,
-                            assignment: preservedAssignment,
-                            issuedAt: importDate,
-                            issuedByDeviceID: currentDeviceID,
-                            effectiveAt: importDate,
-                            reason: strategy == .merge ? .backupMerge : .backupReplace,
-                        )
-                        try await store.addRecordingAssignmentChange(assignmentBarrier)
-                    }
-                    if let replacementEpoch {
-                        try await Self.appendReplacementSafetyBarriers(
-                            to: store,
-                            epoch: replacementEpoch,
-                            importedDeviceIDs: importedDeviceIDs,
-                            issuedBy: currentDeviceID,
-                        )
-                    } else {
-                        try await Self.appendMergeSafetyBarriers(
-                            to: store,
-                            preserving: mergeAuthority,
-                            importedDeviceIDs: importedDeviceIDs,
-                            issuedBy: currentDeviceID,
-                            issuedAt: importDate,
-                        )
-                    }
+                    let joinedAssignments = try await store.recordingAssignmentChanges()
+                    let assignmentBarrier = try RecordingAssignmentChange.appendingCommand(
+                        to: joinedAssignments,
+                        assignment: preservedAssignment,
+                        issuedAt: importDate,
+                        issuedByDeviceID: currentDeviceID,
+                        effectiveAt: importDate,
+                        reason: replacementEpoch == nil ? .backupMerge : .backupReplace,
+                    )
+                    try await store.addRecordingAssignmentChange(assignmentBarrier)
                     // Primary regions (with their picked looks) round-trip like any
                     // other data. On `.replace` the store was cleared above, so write
                     // the archive's set exactly; on `.merge` union it into the current
@@ -865,107 +810,6 @@ public actor BackupCoordinator {
                     String(localized: .backupErrorCommittedCleanupReplace)
             }
         }
-    }
-
-    /// Snapshot the authority that a merge must preserve. This runs inside the import transaction,
-    /// so epoch, profiles, and policies describe one indivisible pre-import state. After a
-    /// destructive generation, an existing profile with no current policy has the controller's
-    /// implicit archived authority; only a genuinely new policy-only id defaults Off.
-    private static func snapshotAuthority(
-        for deviceIDs: Set<RecordingDeviceID>,
-        in store: any WhereStore,
-    ) async throws -> [RecordingDeviceID: RecordingPolicyState] {
-        let epoch = try await store.dataEpoch()
-        let profiles = try await store.recordingDeviceProfiles()
-        let policies = try await store.recordingPolicyChanges()
-        let existingProfileIDs = Set(profiles.map(\.id))
-        var states: [RecordingDeviceID: RecordingPolicyState] = [:]
-        for deviceID in deviceIDs {
-            let history = policies.filter { $0.deviceID == deviceID }
-            guard history.isEmpty || RecordingPolicyChange.formValidPersistedTimelines(history)
-            else {
-                throw RecordingPersistenceError.incompletePolicyHistory(deviceID)
-            }
-            if let state = RecordingPolicyChange.canonicalHead(in: history)?.state {
-                states[deviceID] = state
-            } else if epoch.isDestructive, existingProfileIDs.contains(deviceID) {
-                states[deviceID] = .archived
-            } else {
-                states[deviceID] = .off
-            }
-        }
-        return states
-    }
-
-    /// Merge restores historical policy without letting the archive change live authority. Each
-    /// imported timeline receives one command joining every observed head and reasserting the
-    /// pre-import state; a profile without policy receives a safe root.
-    private static func appendMergeSafetyBarriers(
-        to store: any WhereStore,
-        preserving states: [RecordingDeviceID: RecordingPolicyState],
-        importedDeviceIDs: Set<RecordingDeviceID>,
-        issuedBy deviceID: RecordingDeviceID,
-        issuedAt: Date,
-    ) async throws {
-        let policies = try await store.recordingPolicyChanges()
-        for importedDeviceID in importedDeviceIDs.sorted(by: deviceIDIsOrderedBefore) {
-            let history = policies.filter { $0.deviceID == importedDeviceID }
-            guard history.isEmpty || RecordingPolicyChange.formValidPersistedTimelines(history)
-            else {
-                throw RecordingPersistenceError.incompletePolicyHistory(importedDeviceID)
-            }
-            try await store.addRecordingPolicyChange(RecordingPolicyChange.appendingCommand(
-                to: history,
-                deviceID: importedDeviceID,
-                issuedAt: issuedAt,
-                issuedByDeviceID: deviceID,
-                effectiveAt: issuedAt,
-                state: states[importedDeviceID] ?? .off,
-                reason: .backupMerge,
-            ))
-        }
-    }
-
-    /// Replace restores history but never restores recording consent. Every imported policy
-    /// timeline receives one destructive command joining every observed head; a profile-only
-    /// device receives an Off root. Active devices become Off and archived devices stay archived.
-    private static func appendReplacementSafetyBarriers(
-        to store: any WhereStore,
-        epoch: WhereDataEpoch,
-        importedDeviceIDs: Set<RecordingDeviceID>,
-        issuedBy deviceID: RecordingDeviceID,
-    ) async throws {
-        let policies = try await store.recordingPolicyChanges()
-        for importedDeviceID in importedDeviceIDs.sorted(by: deviceIDIsOrderedBefore) {
-            let history = policies.filter { $0.deviceID == importedDeviceID }
-            guard history.isEmpty || RecordingPolicyChange.formValidPersistedTimelines(history)
-            else {
-                throw RecordingPersistenceError.incompletePolicyHistory(importedDeviceID)
-            }
-            let replacementState: RecordingPolicyState = if RecordingPolicyChange.canonicalHead(
-                in: history,
-            )?.state == .archived {
-                .archived
-            } else {
-                .off
-            }
-            try await store.addRecordingPolicyChange(RecordingPolicyChange.appendingCommand(
-                to: history,
-                deviceID: importedDeviceID,
-                issuedAt: epoch.changedAt,
-                issuedByDeviceID: deviceID,
-                effectiveAt: epoch.changedAt,
-                state: replacementState,
-                reason: .backupReplace,
-            ))
-        }
-    }
-
-    private static func deviceIDIsOrderedBefore(
-        _ lhs: RecordingDeviceID,
-        _ rhs: RecordingDeviceID,
-    ) -> Bool {
-        lhs.storeURL.absoluteString < rhs.storeURL.absoluteString
     }
 
     /// Union `archive` primary regions into `current` for a `.merge` import:

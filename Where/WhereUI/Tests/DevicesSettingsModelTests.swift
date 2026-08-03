@@ -49,7 +49,7 @@ struct DevicesSettingsModelTests {
                 registeredAt: InstallationRecordingContext.testing.registeredAt,
                 initialRecordingChoice: .init(
                     isEnabled: false,
-                    policyChangeID: Self.disabledInitialPolicyID,
+                    assignmentChangeID: Self.disabledInitialPolicyID,
                     confirmedAt: Date(timeIntervalSinceReferenceDate: 1),
                 ),
             )
@@ -217,12 +217,12 @@ struct DevicesSettingsModelTests {
         let row = try #require(subject.model.rows.first)
         #expect(row.isEnabled == false)
 
-        await store.gateNextRecordingPolicyWrite()
+        await store.gateNextRecordingAssignmentWrite()
         row.isEnabled = true
         let firstWrite = Task {
             await subject.model.recordingPreferenceChanged(for: row)
         }
-        await store.awaitRecordingPolicyWriteGate()
+        await store.awaitRecordingAssignmentWriteGate()
         #expect(row.isApplyingRecordingChange)
 
         row.isEnabled = false
@@ -230,14 +230,15 @@ struct DevicesSettingsModelTests {
             await subject.model.recordingPreferenceChanged(for: row)
         }
         await newestIntent.value
-        await store.releaseRecordingPolicyWriteGate()
+        await store.releaseRecordingAssignmentWriteGate()
         await firstWrite.value
 
         #expect(row.isEnabled == false)
         #expect(row.operationState == .idle)
         #expect(row.isApplyingRecordingChange == false)
-        let policyChanges = try await store.recordingPolicyChanges()
-        #expect(policyChanges.suffix(2).map(\.isEnabled) == [true, false])
+        let assignmentChanges = try await store.recordingAssignmentChanges()
+        #expect(assignmentChanges.suffix(2).map(\.assignedDeviceID)
+            == [subject.session.currentRecordingDeviceID, nil])
     }
 
     @Test func remoteRefreshWinsWhileANicknameCommandIsSuspended() async throws {
@@ -267,7 +268,7 @@ struct DevicesSettingsModelTests {
         await subject.model.retry()
         let row = try #require(subject.model.rows.first)
 
-        await store.failNextRecordingPolicyWrite()
+        await store.failNextRecordingAssignmentWrite()
         row.isEnabled = false
         await subject.model.recordingPreferenceChanged(for: row)
 
@@ -351,23 +352,23 @@ struct DevicesSettingsModelTests {
                     revision: 0,
                     lastSeenAt: Self.now,
                     appliedAt: Self.now,
-                    lastAppliedPolicyChangeID: policyID,
+                    lastAppliedAssignmentChangeID: policyID,
                     status: .off,
                 ),
             ],
-            policyChanges: [
-                RecordingPolicyChange(
+            assignmentChanges: [
+                RecordingAssignmentChange(
                     id: policyID,
-                    deviceID: remoteID,
                     parentIDs: [],
                     revision: 0,
                     issuedAt: Self.now,
                     issuedByDeviceID: subject.session.currentRecordingDeviceID,
                     effectiveAt: Self.now,
-                    state: .off,
+                    assignedDeviceID: nil,
                     reason: .userCommand,
                 ),
             ],
+            archives: [],
         )
 
         // The imported rows alone are intentionally silent: this assertion
@@ -421,17 +422,10 @@ struct DevicesSettingsModelTests {
         }
         let remote = try #require(subject.model.rows.first(where: { $0.id == remoteID }))
 
-        remote.isEnabled = false
-        await subject.model.recordingPreferenceChanged(for: remote)
-
-        #expect(remote.isEnabled == false)
+        #expect(remote.isEnabled)
         #expect(remote.isPending)
         #expect(remote.status == .recording)
-        let disableID = try #require(
-            try await store.recordingPolicyChanges().first(where: {
-                $0.deviceID == remoteID && $0.state == .off
-            })?.id,
-        )
+        let assignmentID = try #require(try await store.recordingAssignmentChanges().last?.id)
 
         try await store.simulateRemoteRecordingImport(
             profiles: [],
@@ -441,21 +435,22 @@ struct DevicesSettingsModelTests {
                 revision: 1,
                 lastSeenAt: Self.now.addingTimeInterval(60),
                 appliedAt: Self.now.addingTimeInterval(60),
-                lastAppliedPolicyChangeID: disableID,
-                status: .off,
+                lastAppliedAssignmentChangeID: assignmentID,
+                status: .recording,
             )],
-            policyChanges: [],
+            assignmentChanges: [],
+            archives: [],
         )
         #expect(remote.isPending)
 
         remoteChanges.yield()
 
         await waitUntil {
-            remote.isPending == false && remote.status == .off
+            remote.isPending == false && remote.status == .recording
         }
-        #expect(remote.isEnabled == false)
+        #expect(remote.isEnabled)
         #expect(remote.isPending == false)
-        #expect(remote.status == .off)
+        #expect(remote.status == .recording)
         runTask.cancel()
         await runTask.value
     }
@@ -521,23 +516,20 @@ struct DevicesSettingsModelTests {
                 nickname: $0,
             )
         }
-        let policy = RecordingPolicyChange(
-            id: policyID,
-            deviceID: id,
-            parentIDs: [],
-            revision: 0,
+        let assignment = try await RecordingAssignmentChange.appendingCommand(
+            to: store.recordingAssignmentChanges(),
+            assignment: enabled ? .device(id) : .off,
             issuedAt: Self.now,
             issuedByDeviceID: writerID,
             effectiveAt: Self.now,
-            state: enabled ? .on : .off,
-            reason: .initialRegistration,
+            reason: .userCommand,
         )
         let checkIn = RecordingDeviceCheckIn(
             deviceID: id,
             revision: 0,
             lastSeenAt: Self.now,
             appliedAt: Self.now,
-            lastAppliedPolicyChangeID: policyID,
+            lastAppliedAssignmentChangeID: policyID,
             status: status,
         )
         try await store.perform {
@@ -545,7 +537,7 @@ struct DevicesSettingsModelTests {
             if let metadata {
                 try await store.addRecordingDeviceMetadataChange(metadata)
             }
-            try await store.addRecordingPolicyChange(policy)
+            try await store.addRecordingAssignmentChange(assignment)
             try await store.setRecordingDeviceCheckIn(checkIn)
         }
     }
@@ -620,15 +612,13 @@ private final class SuspendedDevicesSettingsSession: DevicesSettingsSession {
                 registeredAt: Date(timeIntervalSinceReferenceDate: 1000),
                 lastSeenAt: Date(timeIntervalSinceReferenceDate: 1000),
                 archivedAt: nil,
-                lastAppliedPolicyChangeID: policyID,
+                lastAppliedAssignmentChangeID: policyID,
                 status: .recording,
             ),
-            policy: .resolved(ResolvedRecordingPolicy(
-                isEnabled: true,
-                isArchived: false,
-                changeID: policyID,
-                isAcknowledged: true,
-            )),
+            assignmentResolution: .resolved(.device(currentRecordingDeviceID)),
+            assignmentFrontierID: policyID,
+            isAssignmentAcknowledged: true,
+            isArchived: false,
         )
     }
 }
@@ -692,15 +682,15 @@ private final class ScriptedDevicesSettingsSession: DevicesSettingsSession {
                 registeredAt: Date(timeIntervalSinceReferenceDate: 1000),
                 lastSeenAt: Date(timeIntervalSinceReferenceDate: 1000),
                 archivedAt: nil,
-                lastAppliedPolicyChangeID: policyID,
+                lastAppliedAssignmentChangeID: policyID,
                 status: isEnabled ? .recording : .off,
             ),
-            policy: .resolved(ResolvedRecordingPolicy(
-                isEnabled: isEnabled,
-                isArchived: false,
-                changeID: policyID,
-                isAcknowledged: true,
-            )),
+            assignmentResolution: .resolved(
+                isEnabled ? .device(currentRecordingDeviceID) : .off,
+            ),
+            assignmentFrontierID: policyID,
+            isAssignmentAcknowledged: true,
+            isArchived: false,
         )
     }
 }

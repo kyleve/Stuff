@@ -6,22 +6,22 @@ import Foundation
 /// therefore gets a new identity and must confirm its own initial recording
 /// choice, while repeated launches of the same installation reuse both the
 /// identity and the complete immutable payload inputs for its first synced
-/// device profile and policy event.
+/// device profile and assignment event.
 public struct InstallationRecordingContext: Sendable, Hashable {
     /// The explicitly confirmed first policy for this installation, including
     /// the timestamp reused whenever its immutable event must be recreated.
     public struct InitialRecordingChoice: Sendable, Hashable {
         public let isEnabled: Bool
-        public let policyChangeID: UUID
+        public let assignmentChangeID: UUID
         public let confirmedAt: Date
 
         public init(
             isEnabled: Bool,
-            policyChangeID: UUID,
+            assignmentChangeID: UUID,
             confirmedAt: Date,
         ) {
             self.isEnabled = isEnabled
-            self.policyChangeID = policyChangeID
+            self.assignmentChangeID = assignmentChangeID
             self.confirmedAt = confirmedAt
         }
     }
@@ -47,10 +47,10 @@ public struct InstallationRecordingContext: Sendable, Hashable {
     }
 
     /// Return the confirmed form of a newly proposed context, freezing every
-    /// value needed to recreate the first policy event byte-for-byte.
+    /// value needed to recreate the first assignment event byte-for-byte.
     public func confirmingInitialRecording(
         isEnabled: Bool,
-        policyChangeID: UUID,
+        assignmentChangeID: UUID,
         confirmedAt: Date,
     ) -> InstallationRecordingContext {
         precondition(
@@ -62,7 +62,7 @@ public struct InstallationRecordingContext: Sendable, Hashable {
             registeredAt: registeredAt,
             initialRecordingChoice: InitialRecordingChoice(
                 isEnabled: isEnabled,
-                policyChangeID: policyChangeID,
+                assignmentChangeID: assignmentChangeID,
                 confirmedAt: confirmedAt,
             ),
         )
@@ -81,7 +81,7 @@ public struct InstallationRecordingContext: Sendable, Hashable {
         registeredAt: Date(timeIntervalSinceReferenceDate: 0),
         initialRecordingChoice: InitialRecordingChoice(
             isEnabled: true,
-            policyChangeID: UUID(uuidString: "00000000-0000-0000-0000-0000000000D1")!,
+            assignmentChangeID: UUID(uuidString: "00000000-0000-0000-0000-0000000000D1")!,
             confirmedAt: Date(timeIntervalSinceReferenceDate: 1),
         ),
     )
@@ -100,7 +100,7 @@ public struct InstallationRecordingContext: Sendable, Hashable {
         registeredAt: Date(timeIntervalSinceReferenceDate: 0),
         initialRecordingChoice: InitialRecordingChoice(
             isEnabled: true,
-            policyChangeID: UUID(uuidString: "00000000-0000-0000-0000-000000000002")!,
+            assignmentChangeID: UUID(uuidString: "00000000-0000-0000-0000-000000000002")!,
             confirmedAt: Date(timeIntervalSinceReferenceDate: 1),
         ),
     )

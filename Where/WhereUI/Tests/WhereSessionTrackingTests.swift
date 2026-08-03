@@ -11,7 +11,7 @@ import WhereUI
 /// last tap.
 @MainActor
 struct WhereSessionTrackingTests {
-    private static let disabledInitialPolicyChangeID = UUID(
+    private static let disabledInitialAssignmentChangeID = UUID(
         uuidString: "00000000-0000-0000-0000-000000000003",
     )!
 
@@ -53,7 +53,7 @@ struct WhereSessionTrackingTests {
             registeredAt: InstallationRecordingContext.testing.registeredAt,
             initialRecordingChoice: .init(
                 isEnabled: false,
-                policyChangeID: Self.disabledInitialPolicyChangeID,
+                assignmentChangeID: Self.disabledInitialAssignmentChangeID,
                 confirmedAt: Date(timeIntervalSinceReferenceDate: 1),
             ),
         )
@@ -186,18 +186,17 @@ struct WhereSessionTrackingTests {
         #expect(session.isTracking)
         #expect(source.isMonitoring)
 
-        let policyID = try #require(
+        let assignmentID = try #require(
             UUID(uuidString: "EEEEEEEE-EEEE-EEEE-EEEE-EEEEEEEEEEEE"),
         )
-        let parentID = try #require(try await store.recordingPolicyChanges().first?.id)
+        let parentID = try #require(try await store.recordingAssignmentChanges().first?.id)
         try await store.simulateRemoteRecordingImport(
             profiles: [],
             metadataChanges: [],
             checkIns: [],
-            policyChanges: [
-                RecordingPolicyChange(
-                    id: policyID,
-                    deviceID: session.currentRecordingDeviceID,
+            assignmentChanges: [
+                RecordingAssignmentChange(
+                    id: assignmentID,
                     parentIDs: [parentID],
                     revision: 1,
                     issuedAt: now.addingTimeInterval(1),
@@ -207,10 +206,11 @@ struct WhereSessionTrackingTests {
                         )),
                     ),
                     effectiveAt: now.addingTimeInterval(1),
-                    state: .off,
+                    assignedDeviceID: nil,
                     reason: .userCommand,
                 ),
             ],
+            archives: [],
         )
 
         // Saving the imported row is not enough; the session must be responding
@@ -230,7 +230,7 @@ struct WhereSessionTrackingTests {
         #expect(source.startCount == 1)
         #expect(source.stopCount == 1)
         #expect(current.status == .off)
-        #expect(current.lastAppliedPolicyChangeID == policyID)
+        #expect(current.lastAppliedAssignmentChangeID == assignmentID)
     }
 
     @Test func foregroundLogsTodayWhenWantedAndAuthorized() async throws {

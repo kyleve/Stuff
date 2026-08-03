@@ -1001,14 +1001,6 @@ private actor ToggleFailingStore: WhereStore {
         try await backing.setRecordingDeviceCheckIn(checkIn)
     }
 
-    func recordingPolicyChanges() async throws -> [RecordingPolicyChange] {
-        try await backing.recordingPolicyChanges()
-    }
-
-    func addRecordingPolicyChange(_ change: RecordingPolicyChange) async throws {
-        try await backing.addRecordingPolicyChange(change)
-    }
-
     func recordingAssignmentChanges() async throws -> [RecordingAssignmentChange] {
         try await backing.recordingAssignmentChanges()
     }

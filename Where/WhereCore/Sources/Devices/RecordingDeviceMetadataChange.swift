@@ -7,8 +7,8 @@ public enum RecordingDeviceMetadataField: String, Codable, Sendable, Hashable {
 
 /// Append-only nickname edit for one recording installation.
 ///
-/// Recording authority, including archive, deliberately does not live here: On, Off, and
-/// archived are mutually exclusive states in the single ``RecordingPolicyChange`` stream.
+/// Recording authority deliberately does not live here; the account-wide assignment and
+/// irreversible archive tombstones own it.
 public struct RecordingDeviceMetadataChange: Identifiable, Codable, Sendable, Hashable {
     public let id: UUID
     public let deviceID: RecordingDeviceID

@@ -47,16 +47,15 @@ struct ReportReaderTests {
             rawValue: #require(UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")),
         )
         try await store.perform {
-            try await store.addRecordingPolicyChange(RecordingPolicyChange(
+            try await store.addRecordingAssignmentChange(RecordingAssignmentChange(
                 id: UUID(uuidString: "CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC")!,
-                deviceID: deviceID,
                 parentIDs: [],
                 revision: 0,
                 issuedAt: WhereCoreTestSupport.iso("2026-01-01T00:00:00-08:00"),
                 issuedByDeviceID: deviceID,
                 effectiveAt: WhereCoreTestSupport.iso("2026-01-01T00:00:00-08:00"),
-                state: .on,
-                reason: .initialRegistration,
+                assignedDeviceID: deviceID,
+                reason: .onboarding,
             ))
             try await store.add(sample: LocationSample(
                 timestamp: WhereCoreTestSupport.iso("2026-01-10T12:00:00-08:00"),
@@ -72,15 +71,14 @@ struct ReportReaderTests {
                 source: .gpsVisit,
                 recordingDeviceID: deviceID,
             ))
-            try await store.addRecordingPolicyChange(RecordingPolicyChange(
+            try await store.addRecordingAssignmentChange(RecordingAssignmentChange(
                 id: UUID(uuidString: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB")!,
-                deviceID: deviceID,
                 parentIDs: [UUID(uuidString: "CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC")!],
                 revision: 1,
                 issuedAt: WhereCoreTestSupport.iso("2026-01-11T00:00:00-08:00"),
                 issuedByDeviceID: deviceID,
                 effectiveAt: WhereCoreTestSupport.iso("2026-01-11T00:00:00-08:00"),
-                state: .off,
+                assignedDeviceID: nil,
                 reason: .userCommand,
             ))
         }

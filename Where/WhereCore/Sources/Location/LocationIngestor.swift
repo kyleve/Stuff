@@ -209,7 +209,7 @@ public actor LocationIngestor {
         }
         // Rows written before device provenance existed intentionally remain unstamped and
         // legacy-visible. Re-attributing them to this installation would make them depend on
-        // a policy event that did not exist when they were captured.
+        // an assignment event that did not exist when they were captured.
         retryQueue = restored + retryQueue
         didLoadDurableBacklog = true
     }

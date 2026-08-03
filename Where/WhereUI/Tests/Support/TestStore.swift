@@ -10,7 +10,7 @@ struct SampleReadFailure: Error, Equatable {}
 
 /// Thrown by the Devices settings save-failure hooks below.
 struct RecordingDeviceSaveFailure: Error, Equatable {}
-struct RecordingPolicySaveFailure: Error, Equatable {}
+struct RecordingAssignmentSaveFailure: Error, Equatable {}
 
 /// Test `WhereStore` that forwards to an in-memory `SwiftDataStore` but adds
 /// hooks the view-model tests need:
@@ -20,9 +20,9 @@ struct RecordingPolicySaveFailure: Error, Equatable {}
 ///   of order (the stale-year race).
 /// - `gateRecordingDevices(afterCalls:)` suspends a selected device read after
 ///   capturing its result, so a committed change can race an initial load.
-/// - `gateNextRecordingPolicyWrite()` suspends one recording-policy write, so
+/// - `gateNextRecordingAssignmentWrite()` suspends one recording-assignment write, so
 ///   the Devices model can accept a newer toggle while the first is in flight.
-/// - `failNextRecordingDeviceWrite()` / `failNextRecordingPolicyWrite()` make
+/// - `failNextRecordingDeviceWrite()` / `failNextRecordingAssignmentWrite()` make
 ///   one Devices save fail without contaminating later retry assertions.
 /// - `failManualDays()` makes `setManualDay` throw, so manual-entry error
 ///   handling is exercisable without a real persistence fault.
@@ -41,15 +41,15 @@ actor TestStore: WhereStore {
     private var recordingDevicesGate: CheckedContinuation<Void, Never>?
     private var recordingDevicesArrival: CheckedContinuation<Void, Never>?
 
-    private var shouldGateNextRecordingPolicyWrite = false
-    private var recordingPolicyWriteGateReached = false
-    private var recordingPolicyWriteGate: CheckedContinuation<Void, Never>?
-    private var recordingPolicyWriteArrival: CheckedContinuation<Void, Never>?
+    private var shouldGateNextRecordingAssignmentWrite = false
+    private var recordingAssignmentWriteGateReached = false
+    private var recordingAssignmentWriteGate: CheckedContinuation<Void, Never>?
+    private var recordingAssignmentWriteArrival: CheckedContinuation<Void, Never>?
 
     private var shouldFailManualDay = false
     private var shouldFailSamples = false
     private var shouldFailNextRecordingDeviceWrite = false
-    private var shouldFailNextRecordingPolicyWrite = false
+    private var shouldFailNextRecordingAssignmentWrite = false
 
     init() throws {
         backing = try SwiftDataStore.inMemory()
@@ -89,27 +89,27 @@ actor TestStore: WhereStore {
         recordingDevicesGate = nil
     }
 
-    func gateNextRecordingPolicyWrite() {
-        shouldGateNextRecordingPolicyWrite = true
-        recordingPolicyWriteGateReached = false
+    func gateNextRecordingAssignmentWrite() {
+        shouldGateNextRecordingAssignmentWrite = true
+        recordingAssignmentWriteGateReached = false
     }
 
-    func awaitRecordingPolicyWriteGate() async {
-        guard !recordingPolicyWriteGateReached else { return }
-        await withCheckedContinuation { recordingPolicyWriteArrival = $0 }
+    func awaitRecordingAssignmentWriteGate() async {
+        guard !recordingAssignmentWriteGateReached else { return }
+        await withCheckedContinuation { recordingAssignmentWriteArrival = $0 }
     }
 
-    func releaseRecordingPolicyWriteGate() {
-        recordingPolicyWriteGate?.resume()
-        recordingPolicyWriteGate = nil
+    func releaseRecordingAssignmentWriteGate() {
+        recordingAssignmentWriteGate?.resume()
+        recordingAssignmentWriteGate = nil
     }
 
     func failNextRecordingDeviceWrite() {
         shouldFailNextRecordingDeviceWrite = true
     }
 
-    func failNextRecordingPolicyWrite() {
-        shouldFailNextRecordingPolicyWrite = true
+    func failNextRecordingAssignmentWrite() {
+        shouldFailNextRecordingAssignmentWrite = true
     }
 
     func failManualDays() {
@@ -230,30 +230,22 @@ actor TestStore: WhereStore {
         try await backing.setRecordingDeviceCheckIn(checkIn)
     }
 
-    func recordingPolicyChanges() async throws -> [RecordingPolicyChange] {
-        try await backing.recordingPolicyChanges()
-    }
-
-    func addRecordingPolicyChange(_ change: RecordingPolicyChange) async throws {
-        if shouldFailNextRecordingPolicyWrite {
-            shouldFailNextRecordingPolicyWrite = false
-            throw RecordingPolicySaveFailure()
-        }
-        if shouldGateNextRecordingPolicyWrite {
-            shouldGateNextRecordingPolicyWrite = false
-            recordingPolicyWriteGateReached = true
-            recordingPolicyWriteArrival?.resume()
-            recordingPolicyWriteArrival = nil
-            await withCheckedContinuation { recordingPolicyWriteGate = $0 }
-        }
-        try await backing.addRecordingPolicyChange(change)
-    }
-
     func recordingAssignmentChanges() async throws -> [RecordingAssignmentChange] {
         try await backing.recordingAssignmentChanges()
     }
 
     func addRecordingAssignmentChange(_ change: RecordingAssignmentChange) async throws {
+        if shouldFailNextRecordingAssignmentWrite {
+            shouldFailNextRecordingAssignmentWrite = false
+            throw RecordingAssignmentSaveFailure()
+        }
+        if shouldGateNextRecordingAssignmentWrite {
+            shouldGateNextRecordingAssignmentWrite = false
+            recordingAssignmentWriteGateReached = true
+            recordingAssignmentWriteArrival?.resume()
+            recordingAssignmentWriteArrival = nil
+            await withCheckedContinuation { recordingAssignmentWriteGate = $0 }
+        }
         try await backing.addRecordingAssignmentChange(change)
     }
 

@@ -4,7 +4,7 @@ import Foundation
 ///
 /// A single barrier uses its event id; concurrent barriers use a deterministic digest of every
 /// frontier event id, so this is deliberately not modeled as one policy-change identity.
-struct RecordingPolicyCleanupToken: RawRepresentable, Hashable {
+struct RecordingAssignmentCleanupToken: RawRepresentable, Hashable {
     let rawValue: UUID
 }
 
@@ -23,14 +23,14 @@ public struct RecordingDeviceCheckIn: Identifiable, Codable, Sendable, Hashable 
     public let revision: Int64
     public let lastSeenAt: Date
     public let appliedAt: Date
-    public let lastAppliedPolicyChangeID: UUID
+    public let lastAppliedAssignmentChangeID: UUID
     /// Persisted UUID backing the destructive-frontier cleanup proof. It is an event id for a
     /// singleton frontier and a deterministic digest for concurrent barriers. The legacy storage
-    /// name remains stable; domain code uses ``lastDiscardedPolicyFrontierToken``.
-    public let lastDiscardedPolicyChangeID: UUID?
+    /// name remains stable; domain code uses ``lastDiscardedAssignmentFrontierToken``.
+    public let lastDiscardedAssignmentChangeID: UUID?
 
-    var lastDiscardedPolicyFrontierToken: RecordingPolicyCleanupToken? {
-        lastDiscardedPolicyChangeID.map(RecordingPolicyCleanupToken.init(rawValue:))
+    var lastDiscardedAssignmentFrontierToken: RecordingAssignmentCleanupToken? {
+        lastDiscardedAssignmentChangeID.map(RecordingAssignmentCleanupToken.init(rawValue:))
     }
 
     public let status: RecordingDeviceStatus
@@ -40,7 +40,7 @@ public struct RecordingDeviceCheckIn: Identifiable, Codable, Sendable, Hashable 
         revision: Int64,
         lastSeenAt: Date,
         appliedAt: Date,
-        lastAppliedPolicyChangeID: UUID,
+        lastAppliedAssignmentChangeID: UUID,
         status: RecordingDeviceStatus,
     ) {
         precondition(revision >= 0, "A recording-device check-in revision cannot be negative.")
@@ -49,8 +49,8 @@ public struct RecordingDeviceCheckIn: Identifiable, Codable, Sendable, Hashable 
         self.revision = revision
         self.lastSeenAt = lastSeenAt
         self.appliedAt = appliedAt
-        self.lastAppliedPolicyChangeID = lastAppliedPolicyChangeID
-        lastDiscardedPolicyChangeID = nil
+        self.lastAppliedAssignmentChangeID = lastAppliedAssignmentChangeID
+        lastDiscardedAssignmentChangeID = nil
         self.status = status
     }
 
@@ -59,8 +59,8 @@ public struct RecordingDeviceCheckIn: Identifiable, Codable, Sendable, Hashable 
         revision: Int64,
         lastSeenAt: Date,
         appliedAt: Date,
-        lastAppliedPolicyChangeID: UUID,
-        lastDiscardedPolicyFrontierToken: RecordingPolicyCleanupToken?,
+        lastAppliedAssignmentChangeID: UUID,
+        lastDiscardedAssignmentFrontierToken: RecordingAssignmentCleanupToken?,
         status: RecordingDeviceStatus,
     ) {
         precondition(revision >= 0, "A recording-device check-in revision cannot be negative.")
@@ -69,8 +69,8 @@ public struct RecordingDeviceCheckIn: Identifiable, Codable, Sendable, Hashable 
         self.revision = revision
         self.lastSeenAt = lastSeenAt
         self.appliedAt = appliedAt
-        self.lastAppliedPolicyChangeID = lastAppliedPolicyChangeID
-        lastDiscardedPolicyChangeID = lastDiscardedPolicyFrontierToken?.rawValue
+        self.lastAppliedAssignmentChangeID = lastAppliedAssignmentChangeID
+        lastDiscardedAssignmentChangeID = lastDiscardedAssignmentFrontierToken?.rawValue
         self.status = status
     }
 
@@ -78,13 +78,13 @@ public struct RecordingDeviceCheckIn: Identifiable, Codable, Sendable, Hashable 
         if lhs.revision != rhs.revision {
             return lhs.revision < rhs.revision
         }
-        if lhs.lastAppliedPolicyChangeID != rhs.lastAppliedPolicyChangeID {
-            return lhs.lastAppliedPolicyChangeID.uuidString
-                < rhs.lastAppliedPolicyChangeID.uuidString
+        if lhs.lastAppliedAssignmentChangeID != rhs.lastAppliedAssignmentChangeID {
+            return lhs.lastAppliedAssignmentChangeID.uuidString
+                < rhs.lastAppliedAssignmentChangeID.uuidString
         }
-        if lhs.lastDiscardedPolicyChangeID != rhs.lastDiscardedPolicyChangeID {
-            return (lhs.lastDiscardedPolicyChangeID?.uuidString ?? "")
-                < (rhs.lastDiscardedPolicyChangeID?.uuidString ?? "")
+        if lhs.lastDiscardedAssignmentChangeID != rhs.lastDiscardedAssignmentChangeID {
+            return (lhs.lastDiscardedAssignmentChangeID?.uuidString ?? "")
+                < (rhs.lastDiscardedAssignmentChangeID?.uuidString ?? "")
         }
         if lhs.appliedAt != rhs.appliedAt {
             return lhs.appliedAt < rhs.appliedAt

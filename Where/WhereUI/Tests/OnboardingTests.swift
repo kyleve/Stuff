@@ -27,7 +27,7 @@ struct OnboardingModelTests {
         #expect(model.hasOnboarded)
         #expect(model.hasConfirmedRecordingChoice)
         #expect(confirmed.initialRecordingChoice?.isEnabled == false)
-        #expect(confirmed.initialRecordingChoice?.policyChangeID != nil)
+        #expect(confirmed.initialRecordingChoice?.assignmentChangeID != nil)
 
         let relaunched = makeModel(preferences: preferences, contextStore: contextStore)
         #expect(relaunched.hasOnboarded)

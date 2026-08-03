@@ -741,37 +741,34 @@ struct WhereServicesTests {
         let context = InstallationRecordingContext.testing
         let currentDeviceID = context.currentDevice.id
         let initialChoice = try #require(context.initialRecordingChoice)
-        let initial = RecordingPolicyChange(
-            id: initialChoice.policyChangeID,
-            deviceID: currentDeviceID,
+        let initial = RecordingAssignmentChange(
+            id: initialChoice.assignmentChangeID,
             parentIDs: [],
             revision: 0,
             issuedAt: initialChoice.confirmedAt,
             issuedByDeviceID: currentDeviceID,
             effectiveAt: initialChoice.confirmedAt,
-            state: .on,
-            reason: .initialRegistration,
+            assignedDeviceID: currentDeviceID,
+            reason: .onboarding,
         )
-        let off = try RecordingPolicyChange(
+        let off = try RecordingAssignmentChange(
             id: #require(UUID(uuidString: "10000000-0000-0000-0000-000000000000")),
-            deviceID: currentDeviceID,
             parentIDs: [initial.id],
             revision: 1,
             issuedAt: Date(timeIntervalSinceReferenceDate: 2),
             issuedByDeviceID: currentDeviceID,
             effectiveAt: Date(timeIntervalSinceReferenceDate: 2),
-            state: .off,
+            assignedDeviceID: nil,
             reason: .userCommand,
         )
-        let importedOn = try RecordingPolicyChange(
+        let importedOn = try RecordingAssignmentChange(
             id: #require(UUID(uuidString: "20000000-0000-0000-0000-000000000000")),
-            deviceID: currentDeviceID,
             parentIDs: [off.id],
             revision: 2,
             issuedAt: Date(timeIntervalSinceReferenceDate: 3),
             issuedByDeviceID: currentDeviceID,
             effectiveAt: Date(timeIntervalSinceReferenceDate: 3),
-            state: .on,
+            assignedDeviceID: currentDeviceID,
             reason: .userCommand,
         )
         let profile = RecordingDeviceProfile(
@@ -787,8 +784,8 @@ struct WhereServicesTests {
             manualDays: [],
             recordingDeviceProfiles: [profile],
             recordingDeviceMetadataChanges: [],
-            recordingDeviceCheckIns: [],
-            recordingPolicyChanges: [initial, off, importedOn],
+            recordingAssignmentChanges: [initial, off, importedOn],
+            recordingDeviceArchives: [],
             blobs: [:],
         )
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
@@ -796,8 +793,8 @@ struct WhereServicesTests {
         let store = try SwiftDataStore.inMemory()
         try await store.perform {
             try await store.addRecordingDeviceProfile(profile)
-            try await store.addRecordingPolicyChange(initial)
-            try await store.addRecordingPolicyChange(off)
+            try await store.addRecordingAssignmentChange(initial)
+            try await store.addRecordingAssignmentChange(off)
         }
         let destination = WhereServices(
             store: store,
@@ -810,12 +807,13 @@ struct WhereServicesTests {
 
         _ = try await destination.backup.importBackup(from: url, strategy: .merge)
 
-        let policies = try await store.recordingPolicyChanges()
-        let head = try #require(RecordingPolicyChange.canonicalHead(in: policies))
+        let assignments = try await store.recordingAssignmentChanges()
+        let head = try #require(RecordingAssignmentChange.maximalHeads(in: assignments)?.first)
         #expect(head.parentIDs == [importedOn.id])
-        #expect(head.state == .off)
+        #expect(head.assignedDeviceID == nil)
         #expect(head.reason == .backupMerge)
-        #expect(try await store.recordingDeviceCheckIns().first?.lastAppliedPolicyChangeID == head
+        #expect(try await store.recordingDeviceCheckIns().first?
+            .lastAppliedAssignmentChangeID == head
             .id)
         #expect(await destination.ingestor.isActive == false)
     }
@@ -890,9 +888,9 @@ struct WhereServicesTests {
         #expect(await destination.ingestor.isActive)
         _ = try await destination.backup.importBackup(from: url, strategy: .replace)
 
-        let policies = try await store.recordingPolicyChanges()
-        #expect(policies.map(\.state) == [.on, .off])
-        #expect(policies.last?.reason == .backupReplace)
+        let assignments = try await store.recordingAssignmentChanges()
+        #expect(assignments.map(\.assignedDeviceID) == [CurrentRecordingDevice.preview.id, nil])
+        #expect(assignments.last?.reason == .backupReplace)
         #expect(try await store.recordingDeviceCheckIns().first?.status == .off)
         #expect(await destination.ingestor.isActive == false)
     }
@@ -918,7 +916,10 @@ struct WhereServicesTests {
         #expect(await outbox.persistedSamples == [pending])
         #expect(await destination.ingestor.isActive == false)
         #expect(try await store.dataEpoch().reason == .backupReplace)
-        #expect(try await store.recordingPolicyChanges().isEmpty)
+        #expect(
+            try await RecordingAssignmentChange.resolve(store.recordingAssignmentChanges())
+                == .resolved(.off),
+        )
     }
 
     @Test func resetCleanupFailureKeepsTheOldInstallationForSafeRetry() async throws {
@@ -943,7 +944,7 @@ struct WhereServicesTests {
         #expect(await services.ingestor.isActive == false)
         #expect(try await store.recordingDeviceProfiles().count == 1)
         #expect(try await store.recordingDeviceCheckIns().isEmpty)
-        #expect(try await store.recordingPolicyChanges().isEmpty)
+        #expect(try await store.recordingAssignmentChanges().isEmpty)
         #expect(try await store.dataEpoch().reason == .accountReset)
     }
 
@@ -963,7 +964,7 @@ struct WhereServicesTests {
 
         #expect(await outbox.persistedSamples.isEmpty)
         #expect(try await store.recordingDeviceProfiles().count == 1)
-        #expect(try await store.recordingPolicyChanges().isEmpty)
+        #expect(try await store.recordingAssignmentChanges().isEmpty)
         #expect(try await store.dataEpoch().reason == .accountReset)
         #expect(await services.ingestor.isActive == false)
     }
@@ -991,7 +992,10 @@ struct WhereServicesTests {
         #expect(configuration.isEnabled == false)
         #expect(configuration.device.status == .off)
         #expect(await destination.ingestor.isActive == false)
-        #expect(try await store.recordingPolicyChanges().map(\.isEnabled) == [true, false])
+        #expect(
+            try await RecordingAssignmentChange.resolve(store.recordingAssignmentChanges())
+                == .resolved(.off),
+        )
     }
 
     @Test func failedBackupTransactionRestoresThePreviousRecordingAuthority() async throws {
@@ -1161,19 +1165,18 @@ struct WhereServicesTests {
                 revision: 0,
                 lastSeenAt: seedSample.timestamp,
                 appliedAt: seedSample.timestamp,
-                lastAppliedPolicyChangeID: policyID,
+                lastAppliedAssignmentChangeID: policyID,
                 status: .recording,
             ))
-            try await store.addRecordingPolicyChange(RecordingPolicyChange(
+            try await store.addRecordingAssignmentChange(RecordingAssignmentChange(
                 id: policyID,
-                deviceID: deviceID,
                 parentIDs: [],
                 revision: 0,
                 issuedAt: seedSample.timestamp,
                 issuedByDeviceID: deviceID,
                 effectiveAt: seedSample.timestamp,
-                state: .on,
-                reason: .initialRegistration,
+                assignedDeviceID: deviceID,
+                reason: .onboarding,
             ))
         }
 
@@ -1189,7 +1192,7 @@ struct WhereServicesTests {
         #expect(try await store.allEvidence().isEmpty)
         #expect(try await store.allManualDays().isEmpty)
         #expect(try await store.recordingDevices().count == 1)
-        #expect(try await store.recordingPolicyChanges().isEmpty)
+        #expect(try await store.recordingAssignmentChanges().isEmpty)
     }
 
     // MARK: - Logging reminders
@@ -1877,14 +1880,6 @@ private actor ToggleFailingStore: WhereStore {
 
     func setRecordingDeviceCheckIn(_ checkIn: RecordingDeviceCheckIn) async throws {
         try await backing.setRecordingDeviceCheckIn(checkIn)
-    }
-
-    func recordingPolicyChanges() async throws -> [RecordingPolicyChange] {
-        try await backing.recordingPolicyChanges()
-    }
-
-    func addRecordingPolicyChange(_ change: RecordingPolicyChange) async throws {
-        try await backing.addRecordingPolicyChange(change)
     }
 
     func recordingAssignmentChanges() async throws -> [RecordingAssignmentChange] {

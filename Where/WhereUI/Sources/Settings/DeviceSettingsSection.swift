@@ -137,7 +137,7 @@ struct DeviceSettingsSection: View {
         if row.isCurrent, case .unavailable = session.recordingRuntimeState {
             return String(localized: .settingsDevicesStatusUnavailable)
         }
-        if row.isSyncingRecordingPolicy {
+        if row.isSyncingRecordingAssignment {
             return String(localized: .settingsDevicesStatusSyncing)
         }
         if row.isPending || row.isApplyingRecordingChange {
@@ -156,7 +156,7 @@ struct DeviceSettingsSection: View {
         if row.isCurrent, case .unavailable = session.recordingRuntimeState {
             return "exclamationmark.triangle"
         }
-        if row.isSyncingRecordingPolicy {
+        if row.isSyncingRecordingAssignment {
             return "icloud.and.arrow.down"
         }
         if row.isPending || row.isApplyingRecordingChange {

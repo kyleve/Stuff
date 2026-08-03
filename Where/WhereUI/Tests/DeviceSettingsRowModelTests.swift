@@ -46,9 +46,9 @@ struct DeviceSettingsRowModelTests {
         #expect(row.id == Self.id)
         #expect(row.displayName == "Desk")
         #expect(row.status == .off)
-        #expect(row.isPending)
-        #expect(row.isSyncingRecordingPolicy == false)
-        #expect(row.policyPresentationState == .resolved(isAcknowledged: false))
+        #expect(row.isPending == false)
+        #expect(row.isSyncingRecordingAssignment == false)
+        #expect(row.assignmentPresentationState == .resolved(isAcknowledged: true))
         #expect(row.isEnabled == false)
     }
 
@@ -82,15 +82,18 @@ struct DeviceSettingsRowModelTests {
         let row = DeviceSettingsRowModel(
             configuration: RecordingDeviceConfiguration(
                 device: device,
-                policy: .unknown,
+                assignmentResolution: .unconfigured,
+                assignmentFrontierID: nil,
+                isAssignmentAcknowledged: false,
+                isArchived: false,
             ),
             isCurrent: false,
         )
 
-        #expect(row.hasResolvedRecordingPolicy == false)
+        #expect(row.hasResolvedRecordingAssignment == false)
         #expect(row.isPending)
-        #expect(row.isSyncingRecordingPolicy)
-        #expect(row.policyPresentationState == .syncingPolicy)
+        #expect(row.isSyncingRecordingAssignment)
+        #expect(row.assignmentPresentationState == .syncingAssignment)
         #expect(row.disablesDestructiveActions)
 
         row.update(from: configuration(
@@ -99,11 +102,11 @@ struct DeviceSettingsRowModelTests {
             appliedPolicyID: Self.policyID,
         ))
 
-        #expect(row.hasResolvedRecordingPolicy)
+        #expect(row.hasResolvedRecordingAssignment)
         #expect(row.isEnabled == false)
         #expect(row.isPending == false)
-        #expect(row.isSyncingRecordingPolicy == false)
-        #expect(row.policyPresentationState == .resolved(isAcknowledged: true))
+        #expect(row.isSyncingRecordingAssignment == false)
+        #expect(row.assignmentPresentationState == .resolved(isAcknowledged: true))
         #expect(row.disablesDestructiveActions == false)
     }
 
@@ -121,15 +124,15 @@ struct DeviceSettingsRowModelTests {
                 registeredAt: Self.date,
                 lastSeenAt: Self.date,
                 archivedAt: nil,
-                lastAppliedPolicyChangeID: appliedPolicyID,
+                lastAppliedAssignmentChangeID: appliedPolicyID,
                 status: status,
             ),
-            policy: .resolved(ResolvedRecordingPolicy(
-                isEnabled: status != .off,
-                isArchived: false,
-                changeID: Self.policyID,
-                isAcknowledged: appliedPolicyID == Self.policyID,
-            )),
+            assignmentResolution: .resolved(
+                status == .off ? .off : .device(Self.id),
+            ),
+            assignmentFrontierID: Self.policyID,
+            isAssignmentAcknowledged: appliedPolicyID == Self.policyID,
+            isArchived: false,
         )
     }
 }

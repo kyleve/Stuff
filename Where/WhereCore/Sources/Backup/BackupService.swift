@@ -44,7 +44,7 @@ public struct BackupService: Sendable {
         /// must match `BackupArchive.currentFormatVersion` exactly).
         case unsupportedFormatVersion(Int)
         /// Recording rows decoded structurally but violate persisted invariants (for example a
-        /// negative causal revision or an `.unknown` check-in).
+        /// a negative causal revision or incomplete assignment history).
         case invalidRecordingData
 
         public var errorDescription: String? {
@@ -118,18 +118,14 @@ public struct BackupService: Sendable {
         primaryRegions: [PrimaryRegion] = [],
         recordingDeviceProfiles: [RecordingDeviceProfile],
         recordingDeviceMetadataChanges: [RecordingDeviceMetadataChange],
-        recordingDeviceCheckIns: [RecordingDeviceCheckIn],
-        recordingPolicyChanges: [RecordingPolicyChange],
-        recordingAssignmentChanges: [RecordingAssignmentChange] = [],
-        recordingDeviceArchives: [RecordingDeviceArchive] = [],
+        recordingAssignmentChanges: [RecordingAssignmentChange],
+        recordingDeviceArchives: [RecordingDeviceArchive],
         blobs: [UUID: Data],
         exportedAt: Date = Date(),
         archiveName: String? = nil,
     ) throws -> URL {
         try Self.validateRecordingData(
             metadataChanges: recordingDeviceMetadataChanges,
-            checkIns: recordingDeviceCheckIns,
-            policyChanges: recordingPolicyChanges,
             assignmentChanges: recordingAssignmentChanges,
         )
         let fileManager = FileManager.default
@@ -164,8 +160,6 @@ public struct BackupService: Sendable {
             primaryRegions: primaryRegions,
             recordingDeviceProfiles: recordingDeviceProfiles,
             recordingDeviceMetadataChanges: recordingDeviceMetadataChanges,
-            recordingDeviceCheckIns: recordingDeviceCheckIns,
-            recordingPolicyChanges: recordingPolicyChanges,
             recordingAssignmentChanges: recordingAssignmentChanges,
             recordingDeviceArchives: recordingDeviceArchives,
             assets: assetEntries,
@@ -279,26 +273,16 @@ public struct BackupService: Sendable {
     static func validateRecordingData(_ archive: BackupArchive) throws {
         try validateRecordingData(
             metadataChanges: archive.recordingDeviceMetadataChanges,
-            checkIns: archive.recordingDeviceCheckIns,
-            policyChanges: archive.recordingPolicyChanges,
             assignmentChanges: archive.recordingAssignmentChanges,
         )
     }
 
     private static func validateRecordingData(
         metadataChanges: [RecordingDeviceMetadataChange],
-        checkIns: [RecordingDeviceCheckIn],
-        policyChanges: [RecordingPolicyChange],
         assignmentChanges: [RecordingAssignmentChange],
     ) throws {
         guard metadataChanges.allSatisfy({ $0.revision >= 0 }),
-              checkIns.allSatisfy({
-                  $0.revision >= 0 && $0.status != .unknown
-              }),
-              RecordingAssignmentChange.formValidPersistedTimeline(assignmentChanges),
-              RecordingPolicyChange.formValidPersistedTimelines(
-                  policyChanges,
-              )
+              RecordingAssignmentChange.formValidPersistedTimeline(assignmentChanges)
         else {
             throw BackupError.invalidRecordingData
         }

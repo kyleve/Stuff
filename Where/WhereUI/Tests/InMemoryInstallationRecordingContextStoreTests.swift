@@ -17,13 +17,13 @@ struct InMemoryInstallationRecordingContextStoreTests {
         )
         let store = InMemoryInstallationRecordingContextStore(
             context: context,
-            makeUUID: { Self.policyChangeID },
+            makeUUID: { Self.assignmentChangeID },
             now: { Self.confirmedAt },
         )
 
         let confirmed = try store.confirmInitialRecording(isEnabled: false)
 
-        #expect(confirmed.initialRecordingChoice?.policyChangeID == Self.policyChangeID)
+        #expect(confirmed.initialRecordingChoice?.assignmentChangeID == Self.assignmentChangeID)
         #expect(confirmed.registeredAt == Self.registeredAt)
         #expect(confirmed.initialRecordingChoice?.confirmedAt == Self.confirmedAt)
         #expect(try store.resolve() == confirmed)
@@ -57,7 +57,7 @@ struct InMemoryInstallationRecordingContextStoreTests {
     }
 
     private static let deviceID = UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")!
-    private static let policyChangeID = UUID(
+    private static let assignmentChangeID = UUID(
         uuidString: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB",
     )!
     private static let resetDeviceID = UUID(

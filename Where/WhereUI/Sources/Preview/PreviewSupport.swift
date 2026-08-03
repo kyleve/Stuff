@@ -122,9 +122,6 @@
             let currentPolicyID = UUID(
                 uuidString: "10000000-0000-0000-0000-000000000001",
             )!
-            let remoteAppliedPolicyID = UUID(
-                uuidString: "20000000-0000-0000-0000-000000000001",
-            )!
             let remoteLatestPolicyID = UUID(
                 uuidString: "20000000-0000-0000-0000-000000000002",
             )!
@@ -141,15 +138,15 @@
                         registeredAt: referenceNow.addingTimeInterval(-90 * 24 * 60 * 60),
                         lastSeenAt: referenceNow,
                         archivedAt: nil,
-                        lastAppliedPolicyChangeID: currentPolicyID,
+                        lastAppliedAssignmentChangeID: currentPolicyID,
                         status: .recording,
                     ),
-                    policy: .resolved(ResolvedRecordingPolicy(
-                        isEnabled: true,
-                        isArchived: false,
-                        changeID: currentPolicyID,
-                        isAcknowledged: true,
+                    assignmentResolution: .resolved(.device(
+                        InstallationRecordingContext.testing.currentDevice.id,
                     )),
+                    assignmentFrontierID: currentPolicyID,
+                    isAssignmentAcknowledged: true,
+                    isArchived: false,
                 ),
                 RecordingDeviceConfiguration(
                     device: RecordingDevice(
@@ -160,15 +157,15 @@
                         registeredAt: referenceNow.addingTimeInterval(-60 * 24 * 60 * 60),
                         lastSeenAt: referenceNow.addingTimeInterval(-2 * 24 * 60 * 60),
                         archivedAt: nil,
-                        lastAppliedPolicyChangeID: remoteAppliedPolicyID,
-                        status: .recording,
+                        lastAppliedAssignmentChangeID: nil,
+                        status: .off,
                     ),
-                    policy: .resolved(ResolvedRecordingPolicy(
-                        isEnabled: false,
-                        isArchived: false,
-                        changeID: remoteLatestPolicyID,
-                        isAcknowledged: false,
+                    assignmentResolution: .resolved(.device(
+                        InstallationRecordingContext.testing.currentDevice.id,
                     )),
+                    assignmentFrontierID: remoteLatestPolicyID,
+                    isAssignmentAcknowledged: true,
+                    isArchived: false,
                 ),
             ]
         }

@@ -9,7 +9,7 @@ import WhereCore
 /// context stays in memory until onboarding confirms its first choice, which
 /// keeps merely viewing onboarding or entering demo mode free of durable writes.
 /// The sidecar also freezes the timestamps used by the first immutable device
-/// profile and policy event, and retains active import recovery plus terminal
+/// profile and assignment event, and retains active import recovery plus terminal
 /// onboarding-import authority, so retries and cold-launch repair are deterministic.
 @MainActor
 public final class FileInstallationRecordingContextStore:
@@ -46,12 +46,12 @@ public final class FileInstallationRecordingContextStore:
     private struct StoredContext: Codable {
         struct InitialRecordingChoice: Codable {
             let isEnabled: Bool
-            let policyChangeID: UUID
+            let assignmentChangeID: UUID
             let confirmedAt: Date
 
             enum CodingKeys: String, CodingKey {
                 case isEnabled
-                case policyChangeID
+                case assignmentChangeID
                 case confirmedAt
             }
         }
@@ -74,7 +74,7 @@ public final class FileInstallationRecordingContextStore:
                 let dismissedIssueCount: Int
                 let trackedRegionCount: Int
                 let recordingDeviceCount: Int
-                let recordingPolicyChangeCount: Int
+                let recordingAssignmentChangeCount: Int
 
                 init(_ summary: BackupCoordinator.ImportSummary) {
                     sampleCount = summary.sampleCount
@@ -83,7 +83,7 @@ public final class FileInstallationRecordingContextStore:
                     dismissedIssueCount = summary.dismissedIssueCount
                     trackedRegionCount = summary.trackedRegionCount
                     recordingDeviceCount = summary.recordingDeviceCount
-                    recordingPolicyChangeCount = summary.recordingPolicyChangeCount
+                    recordingAssignmentChangeCount = summary.recordingAssignmentChangeCount
                 }
 
                 var value: BackupCoordinator.ImportSummary {
@@ -94,7 +94,7 @@ public final class FileInstallationRecordingContextStore:
                         dismissedIssueCount: dismissedIssueCount,
                         trackedRegionCount: trackedRegionCount,
                         recordingDeviceCount: recordingDeviceCount,
-                        recordingPolicyChangeCount: recordingPolicyChangeCount,
+                        recordingAssignmentChangeCount: recordingAssignmentChangeCount,
                     )
                 }
             }
@@ -192,7 +192,7 @@ public final class FileInstallationRecordingContextStore:
             initialRecordingChoice = context.initialRecordingChoice.map {
                 InitialRecordingChoice(
                     isEnabled: $0.isEnabled,
-                    policyChangeID: $0.policyChangeID,
+                    assignmentChangeID: $0.assignmentChangeID,
                     confirmedAt: $0.confirmedAt,
                 )
             }
@@ -211,7 +211,7 @@ public final class FileInstallationRecordingContextStore:
                 initialRecordingChoice: initialRecordingChoice.map {
                     InstallationRecordingContext.InitialRecordingChoice(
                         isEnabled: $0.isEnabled,
-                        policyChangeID: $0.policyChangeID,
+                        assignmentChangeID: $0.assignmentChangeID,
                         confirmedAt: $0.confirmedAt,
                     )
                 },
@@ -368,13 +368,13 @@ public final class FileInstallationRecordingContextStore:
         isEnabled: Bool,
     ) throws -> InstallationRecordingContext {
         let context = try resolution.get()
-        // Confirmation freezes one immutable policy event. A later UI retry cannot rewrite
-        // that event under the same id; subsequent changes belong in the synced policy stream.
+        // Confirmation freezes one immutable assignment event. A later UI retry cannot rewrite
+        // that event under the same id; subsequent changes belong in the synced assignment stream.
         if context.initialRecordingChoice != nil { return context }
 
         let confirmed = context.confirmingInitialRecording(
             isEnabled: isEnabled,
-            policyChangeID: makeUUID(),
+            assignmentChangeID: makeUUID(),
             confirmedAt: now(),
         )
         try persist(

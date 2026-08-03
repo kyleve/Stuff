@@ -29,8 +29,8 @@ public enum RecordingDeviceStatus: String, Codable, Sendable, Hashable {
 
 /// Read model for one device assembled from independently synced records.
 ///
-/// The immutable profile, append-only nickname timeline, desired-authority timeline, and
-/// target-owned check-in have
+/// The immutable profile, append-only nickname timeline, archive tombstone, and target-owned
+/// check-in have
 /// deliberately separate persistence rows. This aggregate is never written back wholesale:
 /// doing so would let CloudKit's last writer overwrite fields owned by another device.
 public struct RecordingDevice: Identifiable, Codable, Sendable, Hashable {
@@ -41,12 +41,12 @@ public struct RecordingDevice: Identifiable, Codable, Sendable, Hashable {
     public let registeredAt: Date
     public let lastSeenAt: Date
     public let archivedAt: Date?
-    public let lastAppliedPolicyChangeID: UUID?
-    /// Stable storage field; see `RecordingDeviceCheckIn.lastDiscardedPolicyChangeID`.
-    public let lastDiscardedPolicyChangeID: UUID?
+    public let lastAppliedAssignmentChangeID: UUID?
+    /// Stable storage field; see `RecordingDeviceCheckIn.lastDiscardedAssignmentChangeID`.
+    public let lastDiscardedAssignmentChangeID: UUID?
 
-    var lastDiscardedPolicyFrontierToken: RecordingPolicyCleanupToken? {
-        lastDiscardedPolicyChangeID.map(RecordingPolicyCleanupToken.init(rawValue:))
+    var lastDiscardedAssignmentFrontierToken: RecordingAssignmentCleanupToken? {
+        lastDiscardedAssignmentChangeID.map(RecordingAssignmentCleanupToken.init(rawValue:))
     }
 
     public let status: RecordingDeviceStatus
@@ -59,7 +59,7 @@ public struct RecordingDevice: Identifiable, Codable, Sendable, Hashable {
         registeredAt: Date,
         lastSeenAt: Date,
         archivedAt: Date?,
-        lastAppliedPolicyChangeID: UUID?,
+        lastAppliedAssignmentChangeID: UUID?,
         status: RecordingDeviceStatus,
     ) {
         self.id = id
@@ -69,8 +69,8 @@ public struct RecordingDevice: Identifiable, Codable, Sendable, Hashable {
         self.registeredAt = registeredAt
         self.lastSeenAt = lastSeenAt
         self.archivedAt = archivedAt
-        self.lastAppliedPolicyChangeID = lastAppliedPolicyChangeID
-        lastDiscardedPolicyChangeID = nil
+        self.lastAppliedAssignmentChangeID = lastAppliedAssignmentChangeID
+        lastDiscardedAssignmentChangeID = nil
         self.status = status
     }
 
@@ -83,7 +83,7 @@ public struct RecordingDevice: Identifiable, Codable, Sendable, Hashable {
         profile: RecordingDeviceProfile,
         nicknameChange: RecordingDeviceMetadataChange?,
         checkIn: RecordingDeviceCheckIn?,
-        policyChange: RecordingPolicyChange?,
+        archive: RecordingDeviceArchive?,
     ) {
         id = profile.id
         systemName = profile.systemName
@@ -91,9 +91,9 @@ public struct RecordingDevice: Identifiable, Codable, Sendable, Hashable {
         kind = profile.kind
         registeredAt = profile.registeredAt
         lastSeenAt = checkIn?.lastSeenAt ?? profile.registeredAt
-        archivedAt = policyChange?.isArchived == true ? policyChange?.effectiveAt : nil
-        lastAppliedPolicyChangeID = checkIn?.lastAppliedPolicyChangeID
-        lastDiscardedPolicyChangeID = checkIn?.lastDiscardedPolicyChangeID
+        archivedAt = archive?.archivedAt
+        lastAppliedAssignmentChangeID = checkIn?.lastAppliedAssignmentChangeID
+        lastDiscardedAssignmentChangeID = checkIn?.lastDiscardedAssignmentChangeID
         status = checkIn?.status ?? .unknown
     }
 }

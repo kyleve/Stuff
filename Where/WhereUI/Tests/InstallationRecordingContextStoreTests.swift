@@ -37,7 +37,7 @@ struct InstallationRecordingContextStoreTests {
         #expect(restored.currentDevice.id.rawValue == Self.deviceID)
         #expect(restored.registeredAt == Self.registeredAt)
         #expect(restored.initialRecordingChoice?.isEnabled == false)
-        #expect(restored.initialRecordingChoice?.policyChangeID == Self.policyChangeID)
+        #expect(restored.initialRecordingChoice?.assignmentChangeID == Self.assignmentChangeID)
         #expect(restored.initialRecordingChoice?.confirmedAt == Self.confirmedAt)
         #expect(
             try fixture.fileURL.resourceValues(forKeys: [.isExcludedFromBackupKey])
@@ -197,7 +197,7 @@ struct InstallationRecordingContextStoreTests {
     @Test func completePendingReplacementWinsOverAnOlderAuthoritativeContext() throws {
         let oldFixture = try makeFixture()
         let newFixture = try makeFixture(
-            ids: [Self.resetDeviceID, Self.resetPolicyChangeID],
+            ids: [Self.resetDeviceID, Self.resetAssignmentChangeID],
             dates: [Self.resetRegisteredAt, Self.resetConfirmedAt],
         )
         defer {
@@ -229,7 +229,7 @@ struct InstallationRecordingContextStoreTests {
     @Test func resetRemovesTheSidecarAndRotatesTheInstallationIdentity() throws {
         let fixture = try makeFixture(ids: [
             Self.deviceID,
-            Self.policyChangeID,
+            Self.assignmentChangeID,
             Self.resetDeviceID,
         ], dates: [
             Self.registeredAt,
@@ -253,7 +253,7 @@ struct InstallationRecordingContextStoreTests {
     @Test func committedResetCleanupRetriesWithoutRestoringTheOldContextOrRotatingAgain() throws {
         let fixture = try makeFixture(ids: [
             Self.deviceID,
-            Self.policyChangeID,
+            Self.assignmentChangeID,
             Self.resetDeviceID,
         ], dates: [
             Self.registeredAt,
@@ -287,13 +287,13 @@ struct InstallationRecordingContextStoreTests {
     private nonisolated static let deviceID = UUID(
         uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA",
     )!
-    private nonisolated static let policyChangeID = UUID(
+    private nonisolated static let assignmentChangeID = UUID(
         uuidString: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB",
     )!
     private nonisolated static let resetDeviceID = UUID(
         uuidString: "CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC",
     )!
-    private nonisolated static let resetPolicyChangeID = UUID(
+    private nonisolated static let resetAssignmentChangeID = UUID(
         uuidString: "DDDDDDDD-DDDD-DDDD-DDDD-DDDDDDDDDDDD",
     )!
     private nonisolated static let registeredAt = Date(timeIntervalSinceReferenceDate: 100)
@@ -302,7 +302,7 @@ struct InstallationRecordingContextStoreTests {
     private nonisolated static let resetConfirmedAt = Date(timeIntervalSinceReferenceDate: 400)
 
     private func makeFixture(
-        ids: [UUID] = [Self.deviceID, Self.policyChangeID],
+        ids: [UUID] = [Self.deviceID, Self.assignmentChangeID],
         dates: [Date] = [Self.registeredAt, Self.confirmedAt],
     ) throws -> Fixture {
         let directory = FileManager.default.temporaryDirectory

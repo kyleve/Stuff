@@ -39,7 +39,8 @@ public protocol WhereStore: Sendable {
 
     /// Pin every read in `block` to one logical data epoch and verify that epoch and the durable
     /// store generation are still current before returning. This is the multi-table read boundary
-    /// for policy decisions and backup export; a remote commit crossing its reads invalidates the
+    /// for authority decisions and backup export; a remote commit crossing its reads invalidates
+    /// the
     /// result through persistent history even if its notification has not arrived yet.
     @discardableResult
     func readSnapshot<T: Sendable>(
@@ -71,7 +72,7 @@ public protocol WhereStore: Sendable {
     /// Atomically erase the active epoch's synced rows and append a fresh destructive epoch.
     /// Every subsequent write in the same transaction is stamped into the returned epoch.
     /// Immutable device profiles remain global so a late/offline installation can still be
-    /// identified, but its old policy and user-data rows cannot affect the new generation.
+    /// identified, but its old assignment and user-data rows cannot affect the new generation.
     func rotateDataEpoch(
         reason: WhereDataEpochReason,
         changedBy deviceID: RecordingDeviceID,
@@ -113,8 +114,7 @@ public protocol WhereStore: Sendable {
     /// an existing installation id. Must run inside `perform { ... }`.
     func addRecordingDeviceProfile(_ profile: RecordingDeviceProfile) async throws
 
-    /// Full append-only nickname timeline. Effective archive authority lives in
-    /// ``recordingPolicyChanges()``.
+    /// Full append-only nickname timeline.
     func recordingDeviceMetadataChanges() async throws -> [RecordingDeviceMetadataChange]
 
     /// Insert an immutable metadata event. Must run inside `perform { ... }`.
@@ -126,14 +126,6 @@ public protocol WhereStore: Sendable {
     /// Upsert one target-owned check-in, preserving a newer existing value during backup merge.
     /// Must run inside `perform { ... }`.
     func setRecordingDeviceCheckIn(_ checkIn: RecordingDeviceCheckIn) async throws
-
-    /// Every append-only recording-policy event, oldest first.
-    func recordingPolicyChanges() async throws -> [RecordingPolicyChange]
-
-    /// Insert one immutable policy event naming every causal head its command observed. An
-    /// identical retry is idempotent; a different value with the same id throws. Must run inside
-    /// `perform { ... }`.
-    func addRecordingPolicyChange(_ change: RecordingPolicyChange) async throws
 
     /// Complete account-wide automatic-recording assignment history for the active epoch.
     func recordingAssignmentChanges() async throws -> [RecordingAssignmentChange]

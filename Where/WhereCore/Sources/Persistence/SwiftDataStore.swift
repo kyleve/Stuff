@@ -257,7 +257,6 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             SDRecordingDeviceProfile.self,
             SDRecordingDeviceMetadataChange.self,
             SDRecordingDeviceCheckIn.self,
-            SDRecordingPolicyChange.self,
             SDRecordingAssignmentChange.self,
             SDRecordingDeviceArchive.self,
         ]
@@ -459,7 +458,8 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             profiles: [RecordingDeviceProfile],
             metadataChanges: [RecordingDeviceMetadataChange],
             checkIns: [RecordingDeviceCheckIn],
-            policyChanges: [RecordingPolicyChange],
+            assignmentChanges: [RecordingAssignmentChange],
+            archives: [RecordingDeviceArchive],
         ) async throws {
             try await perform(sendsChange: false, expectedDataEpochID: nil) {
                 for profile in profiles {
@@ -471,8 +471,11 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
                 for checkIn in checkIns {
                     try await self.setRecordingDeviceCheckIn(checkIn)
                 }
-                for policyChange in policyChanges {
-                    try await self.addRecordingPolicyChange(policyChange)
+                for assignmentChange in assignmentChanges {
+                    try await self.addRecordingAssignmentChange(assignmentChange)
+                }
+                for archive in archives {
+                    try await self.addRecordingDeviceArchive(archive)
                 }
             }
         }
@@ -841,11 +844,6 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         {
             context.delete(record)
         }
-        for record in try context.fetch(FetchDescriptor<SDRecordingPolicyChange>())
-            where belongs(record.epochID, to: epochID)
-        {
-            context.delete(record)
-        }
         for record in try context.fetch(FetchDescriptor<SDRecordingAssignmentChange>())
             where belongs(record.epochID, to: epochID)
         {
@@ -924,12 +922,12 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         async let profiles = recordingDeviceProfiles()
         async let metadataChanges = recordingDeviceMetadataChanges()
         async let checkIns = recordingDeviceCheckIns()
-        async let policies = recordingPolicyChanges()
-        let (resolvedProfiles, resolvedMetadata, resolvedCheckIns, resolvedPolicies) = try await (
+        async let archives = recordingDeviceArchives()
+        let (resolvedProfiles, resolvedMetadata, resolvedCheckIns, resolvedArchives) = try await (
             profiles,
             metadataChanges,
             checkIns,
-            policies,
+            archives,
         )
         let latestNicknames = Dictionary(
             grouping: resolvedMetadata.filter { $0.field == .nickname },
@@ -939,21 +937,15 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         let checkInsByDevice = Dictionary(uniqueKeysWithValues: resolvedCheckIns.map {
             ($0.deviceID, $0)
         })
-        let policyTimelines = Dictionary(grouping: resolvedPolicies, by: \.deviceID)
-        for (deviceID, timeline) in policyTimelines {
-            guard RecordingPolicyChange.formValidPersistedTimelines(timeline) else {
-                throw RecordingPersistenceError.incompletePolicyHistory(deviceID)
-            }
-        }
-        let policiesByDevice = policyTimelines
-            .compactMapValues { RecordingPolicyChange.canonicalHead(in: $0) }
+        let archivesByDevice = Dictionary(grouping: resolvedArchives, by: \.deviceID)
+            .compactMapValues { $0.min(by: { $0.archivedAt < $1.archivedAt }) }
         return resolvedProfiles
             .map {
                 RecordingDevice(
                     profile: $0,
                     nicknameChange: latestNicknames[$0.id],
                     checkIn: checkInsByDevice[$0.id],
-                    policyChange: policiesByDevice[$0.id],
+                    archive: archivesByDevice[$0.id],
                 )
             }
             .sorted {
@@ -1114,60 +1106,6 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         // winner while collapsing CloudKit duplicates.
         canonical.update(from: winner, epochID: epochID)
         for duplicate in existing.dropFirst() {
-            context.delete(duplicate)
-        }
-    }
-
-    public func recordingPolicyChanges() async throws -> [RecordingPolicyChange] {
-        let context = readContext()
-        let epochID = try readEpochID(in: context)
-        var descriptor = FetchDescriptor<SDRecordingPolicyChange>(
-            sortBy: [
-                SortDescriptor(\.revision),
-                SortDescriptor(\.id),
-            ],
-        )
-        descriptor.includePendingChanges = true
-        let records = try context.fetch(descriptor)
-        var values: [RecordingPolicyChange] = []
-        for record in records where Self.belongs(record.epochID, to: epochID) {
-            guard let value = record.toValue() else {
-                Self.logFault(forCorrupt: record)
-                throw RecordingPersistenceError.corruptRecordingPolicyHistory
-            }
-            values.append(value)
-        }
-        // Keep one immutable value per event id if CloudKit delivers duplicate rows.
-        return Dictionary(grouping: values, by: \.id)
-            .compactMap { id, duplicates in
-                if Set(duplicates).count > 1 {
-                    Self.logImmutableConflict(
-                        type: String(describing: RecordingPolicyChange.self),
-                        id: id.uuidString,
-                        count: duplicates.count,
-                    )
-                }
-                return duplicates.min(by: RecordingPolicyChange.isCanonicalBefore)
-            }
-            .sorted(by: RecordingPolicyChange.isOrderedBefore)
-    }
-
-    public func addRecordingPolicyChange(_ change: RecordingPolicyChange) async throws {
-        let context = mutationContext()
-        let epochID = mutationEpochID()
-        let id = change.id
-        let existing = try context.fetch(
-            FetchDescriptor<SDRecordingPolicyChange>(predicate: #Predicate { $0.id == id }),
-        )
-        let active = existing.filter { Self.belongs($0.epochID, to: epochID) }
-        guard !active.isEmpty else {
-            context.insert(SDRecordingPolicyChange(value: change, epochID: epochID))
-            return
-        }
-        guard active.allSatisfy({ $0.toValue() == change }) else {
-            throw RecordingPersistenceError.conflictingImmutableRecord(id: id)
-        }
-        for duplicate in active.dropFirst() {
             context.delete(duplicate)
         }
     }
@@ -2186,10 +2124,10 @@ final class SDRecordingDeviceCheckIn {
     var revision: Int64?
     var lastSeenAt: Date?
     var appliedAt: Date?
-    var lastAppliedPolicyChangeID: UUID?
+    var lastAppliedAssignmentChangeID: UUID?
     /// Singleton destructive event id or deterministic multi-head frontier digest. The field name
     /// predates multi-parent policy and remains stable for CloudKit compatibility.
-    var lastDiscardedPolicyChangeID: UUID?
+    var lastDiscardedAssignmentChangeID: UUID?
     var statusRaw: String?
 
     init() {}
@@ -2205,8 +2143,8 @@ final class SDRecordingDeviceCheckIn {
         revision = value.revision
         lastSeenAt = value.lastSeenAt
         appliedAt = value.appliedAt
-        lastAppliedPolicyChangeID = value.lastAppliedPolicyChangeID
-        lastDiscardedPolicyChangeID = value.lastDiscardedPolicyChangeID
+        lastAppliedAssignmentChangeID = value.lastAppliedAssignmentChangeID
+        lastDiscardedAssignmentChangeID = value.lastDiscardedAssignmentChangeID
         statusRaw = value.status.rawValue
     }
 
@@ -2216,7 +2154,7 @@ final class SDRecordingDeviceCheckIn {
               revision >= 0,
               let lastSeenAt,
               let appliedAt,
-              let lastAppliedPolicyChangeID,
+              let lastAppliedAssignmentChangeID,
               let statusRaw,
               let status = RecordingDeviceStatus(rawValue: statusRaw),
               status != .unknown
@@ -2226,93 +2164,12 @@ final class SDRecordingDeviceCheckIn {
             revision: revision,
             lastSeenAt: lastSeenAt,
             appliedAt: appliedAt,
-            lastAppliedPolicyChangeID: lastAppliedPolicyChangeID,
-            lastDiscardedPolicyFrontierToken: lastDiscardedPolicyChangeID.map {
-                RecordingPolicyCleanupToken(rawValue: $0)
+            lastAppliedAssignmentChangeID: lastAppliedAssignmentChangeID,
+            lastDiscardedAssignmentFrontierToken: lastDiscardedAssignmentChangeID.map {
+                RecordingAssignmentCleanupToken(rawValue: $0)
             },
             status: status,
         )
-    }
-}
-
-/// Append-only desired recording state. Optional columns keep the CloudKit
-/// schema additive and tolerant of partially synced rows.
-@Model
-final class SDRecordingPolicyChange {
-    var epochID: UUID?
-    var id: UUID?
-    var deviceID: UUID?
-    /// Legacy scalar parent. New multi-parent rows leave it nil; a non-root row therefore remains
-    /// unavailable until its complete parent-id array arrives.
-    var parentID: UUID?
-    var parentIDs: [UUID]?
-    var revision: Int64?
-    var issuedAt: Date?
-    var issuedByDeviceID: UUID?
-    var effectiveAt: Date?
-    var stateRaw: String?
-    var reasonRaw: String?
-
-    init() {}
-
-    convenience init(value: RecordingPolicyChange, epochID: WhereDataEpochID) {
-        self.init()
-        update(from: value, epochID: epochID)
-    }
-
-    func update(from value: RecordingPolicyChange, epochID: WhereDataEpochID) {
-        self.epochID = epochID.rawValue
-        id = value.id
-        deviceID = value.deviceID.rawValue
-        parentID = nil
-        parentIDs = value.parentIDs
-        revision = value.revision
-        issuedAt = value.issuedAt
-        issuedByDeviceID = value.issuedByDeviceID.rawValue
-        effectiveAt = value.effectiveAt
-        stateRaw = value.state.rawValue
-        reasonRaw = value.reason.rawValue
-    }
-
-    func toValue() -> RecordingPolicyChange? {
-        guard let id,
-              let deviceID,
-              let revision,
-              revision >= 0,
-              let issuedAt,
-              let issuedByDeviceID,
-              let effectiveAt,
-              let stateRaw,
-              let state = RecordingPolicyState(rawValue: stateRaw),
-              let reasonRaw,
-              let reason = RecordingPolicyReason(rawValue: reasonRaw)
-        else { return nil }
-        let resolvedParentIDs: [UUID]
-        if let parentIDs {
-            resolvedParentIDs = parentIDs
-        } else if let parentID {
-            resolvedParentIDs = [parentID]
-        } else if revision == 0 {
-            resolvedParentIDs = []
-        } else {
-            return nil
-        }
-        guard (revision == 0) == resolvedParentIDs.isEmpty,
-              Set(resolvedParentIDs).count == resolvedParentIDs.count,
-              resolvedParentIDs.contains(id) == false
-        else { return nil }
-        let value = RecordingPolicyChange(
-            id: id,
-            deviceID: RecordingDeviceID(rawValue: deviceID),
-            parentIDs: resolvedParentIDs,
-            revision: revision,
-            issuedAt: issuedAt,
-            issuedByDeviceID: RecordingDeviceID(rawValue: issuedByDeviceID),
-            effectiveAt: effectiveAt,
-            state: state,
-            reason: reason,
-        )
-        return value.hasValidReasonAndState ? value : nil
     }
 }
 

@@ -9,8 +9,8 @@ final class DeviceSettingsRowModel: Identifiable {
     /// Why the desired recording setting is not yet settled. A missing policy
     /// is still arriving through CloudKit; a resolved policy can instead be
     /// waiting for its target installation to acknowledge it.
-    enum PolicyPresentationState: Equatable {
-        case syncingPolicy
+    enum AssignmentPresentationState: Equatable {
+        case syncingAssignment
         case resolved(isAcknowledged: Bool)
     }
 
@@ -53,7 +53,7 @@ final class DeviceSettingsRowModel: Identifiable {
     private(set) var operationState: OperationState = .idle
     private(set) var status: RecordingDeviceStatus
     private(set) var lastSeenAt: Date
-    private(set) var policyPresentationState: PolicyPresentationState
+    private(set) var assignmentPresentationState: AssignmentPresentationState
 
     init(configuration: RecordingDeviceConfiguration, isCurrent: Bool) {
         id = configuration.id
@@ -69,7 +69,7 @@ final class DeviceSettingsRowModel: Identifiable {
         draftValues = editableValues
         status = configuration.device.status
         lastSeenAt = configuration.device.lastSeenAt
-        policyPresentationState = Self.policyPresentationState(for: configuration.policy)
+        assignmentPresentationState = Self.assignmentPresentationState(for: configuration)
     }
 
     var nickname: String {
@@ -94,17 +94,17 @@ final class DeviceSettingsRowModel: Identifiable {
         }
     }
 
-    var hasResolvedRecordingPolicy: Bool {
+    var hasResolvedRecordingAssignment: Bool {
         draftValues.isEnabled != nil
     }
 
-    var isSyncingRecordingPolicy: Bool {
-        if case .syncingPolicy = policyPresentationState { true } else { false }
+    var isSyncingRecordingAssignment: Bool {
+        if case .syncingAssignment = assignmentPresentationState { true } else { false }
     }
 
     var isPending: Bool {
-        switch policyPresentationState {
-            case .syncingPolicy: true
+        switch assignmentPresentationState {
+            case .syncingAssignment: true
             case let .resolved(isAcknowledged): !isAcknowledged
         }
     }
@@ -133,7 +133,7 @@ final class DeviceSettingsRowModel: Identifiable {
     }
 
     var disablesDestructiveActions: Bool {
-        guard hasResolvedRecordingPolicy else { return true }
+        guard hasResolvedRecordingAssignment else { return true }
         return if case .saving = operationState { true } else { false }
     }
 
@@ -261,7 +261,7 @@ final class DeviceSettingsRowModel: Identifiable {
         }
         status = configuration.device.status
         lastSeenAt = configuration.device.lastSeenAt
-        policyPresentationState = Self.policyPresentationState(for: configuration.policy)
+        assignmentPresentationState = Self.assignmentPresentationState(for: configuration)
     }
 
     private var normalizedNickname: String {
@@ -283,15 +283,13 @@ final class DeviceSettingsRowModel: Identifiable {
         }
     }
 
-    private static func policyPresentationState(
-        for resolution: RecordingPolicyResolution,
-    ) -> PolicyPresentationState {
-        switch resolution {
-            case .unknown:
-                .syncingPolicy
-            case let .resolved(policy):
-                .resolved(isAcknowledged: policy.isAcknowledged)
+    private static func assignmentPresentationState(
+        for configuration: RecordingDeviceConfiguration,
+    ) -> AssignmentPresentationState {
+        guard configuration.assignmentResolution.assignment != nil else {
+            return .syncingAssignment
         }
+        return .resolved(isAcknowledged: !configuration.isPending)
     }
 }
 

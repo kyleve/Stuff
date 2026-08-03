@@ -14,7 +14,7 @@ public protocol InstallationRecordingContextStoring: AnyObject {
 
     /// Persist the first explicit choice and its immutable event time beside
     /// the installation identity and immutable profile time. Later calls return
-    /// that frozen choice; subsequent intent changes belong in the synced policy stream.
+    /// that frozen choice; subsequent intent changes belong in the synced assignment stream.
     func confirmInitialRecording(isEnabled: Bool) throws -> InstallationRecordingContext
 
     /// Durable two-phase state for an import started by this installation. Kept beside the

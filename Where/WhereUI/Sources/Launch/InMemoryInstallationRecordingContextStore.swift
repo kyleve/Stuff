@@ -44,7 +44,7 @@ public final class InMemoryInstallationRecordingContextStore:
         if onboardingContext.initialRecordingChoice != nil { return onboardingContext }
         onboardingContext = onboardingContext.confirmingInitialRecording(
             isEnabled: isEnabled,
-            policyChangeID: makeUUID(),
+            assignmentChangeID: makeUUID(),
             confirmedAt: now(),
         )
         return onboardingContext

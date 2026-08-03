@@ -140,14 +140,11 @@ one it belongs to rather than to a god-object:
 - **`WidgetSnapshotPublisher`** — republishes the App Group snapshot the widgets
   read, with a freshness policy.
 - **`BackupCoordinator`** — ZIP export/import via `ZIPFoundation`. Export pins
-  tables and evidence blobs to one epoch-consistent snapshot. Merge preserves
-  queued locations and reasserts each device's pre-import recording authority
-  after the imported timeline (including an existing profile's implicit Archived
-  state after a destructive epoch; only a newly seen policy defaults Off). Replace writes
-  the archive into a new child epoch, retains the global device-profile ledger,
-  and appends an Off/archive barrier to every imported policy timeline—even when
-  its profile has not synced yet—and gives a profile-only import an Off root before
-  pending fixes are discarded. A prepared marker in the backup-excluded installation
+  tables and evidence blobs to one epoch-consistent snapshot. Merge preserves queued locations
+  and reasserts the pre-import account-wide recording assignment after joining the imported
+  timeline. Replace writes the archive into a new child epoch, retains the global device-profile
+  ledger, and appends a newer Off assignment before pending fixes are discarded. A prepared
+  marker in the backup-excluded installation
   sidecar pairs with a receipt committed in the same store transaction as the archive;
   recreated services can therefore distinguish rollback from commit and gate further
   imports until cleanup succeeds. Onboarding acknowledgement records an independent terminal
@@ -160,7 +157,7 @@ one it belongs to rather than to a god-object:
   a selectable look-back `RecentActivityWindow`.
 - **`InstallationRecordingContext`** — the device-local installation identity,
   explicitly confirmed initial choice, and stable IDs/timestamps for recreating
-  its immutable first device profile and recording policy idempotently.
+  its immutable first device profile and recording assignment idempotently.
   `InstallationRecordingContextStoring` keeps the persistence adapter outside
   the domain value.
 - **`WherePreferences`** — persisted user intent (onboarding and reminder /
@@ -251,12 +248,12 @@ rotates to a Reset child epoch, and discards the retry queue only after commit.
   constructing `WhereServices`.
 - **Always-location.** Background day tracking needs Always; `requestPermission()`
   throws `LocationPermissionDeniedError` on denial / restriction.
-- **Strong remote cutoff.** Turning a device off does not depend on that device
-  being online before reports become correct: once the policy event syncs,
-  samples at or after its effective timestamp are excluded. Its row remains
-  "waiting" until the target installation physically stops and acknowledges it.
+- **Strong remote cutoff.** Transferring or turning off automatic recording does not depend on
+  the former recorder being online before reports become correct: once the assignment event
+  syncs, samples at or after its effective timestamp are excluded. The assigned row remains
+  "waiting" until the target installation starts or stops and acknowledges it.
   The sample gate stays closed until that check-in and any destructive-backlog
-  cleanup are durable; an incomplete multi-parent policy DAG also fails closed.
+  cleanup are durable; an incomplete multi-parent assignment DAG also fails closed.
   The cutoff currently uses the issuing device's wall clock; substantial
   cross-device clock skew can shift the historical boundary even though the causal
   DAG still converges the current desired state correctly.

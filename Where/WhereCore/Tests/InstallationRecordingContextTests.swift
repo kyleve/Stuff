@@ -13,20 +13,20 @@ struct InstallationRecordingContextTests {
 
     @Test func confirmationPreservesIdentityAndCarriesAStablePolicyToken() throws {
         let proposed = context(kind: .tablet)
-        let policyChangeID = try #require(
+        let assignmentChangeID = try #require(
             UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA"),
         )
 
         let confirmed = proposed.confirmingInitialRecording(
             isEnabled: false,
-            policyChangeID: policyChangeID,
+            assignmentChangeID: assignmentChangeID,
             confirmedAt: Self.confirmedAt,
         )
 
         #expect(confirmed.currentDevice == proposed.currentDevice)
         #expect(confirmed.registeredAt == proposed.registeredAt)
         #expect(confirmed.initialRecordingChoice?.isEnabled == false)
-        #expect(confirmed.initialRecordingChoice?.policyChangeID == policyChangeID)
+        #expect(confirmed.initialRecordingChoice?.assignmentChangeID == assignmentChangeID)
         #expect(confirmed.initialRecordingChoice?.confirmedAt == Self.confirmedAt)
     }
 

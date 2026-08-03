@@ -6,11 +6,8 @@ public enum RecordingPersistenceError: Error, LocalizedError, Sendable, Hashable
     case assignmentRevisionExhausted
     case conflictingImmutableRecord(id: UUID)
     case deviceNotFound(RecordingDeviceID)
-    case devicePolicyUnknown(RecordingDeviceID)
     case currentDeviceNotRegistered(RecordingDeviceID)
-    case currentDevicePolicyUnknown(RecordingDeviceID)
-    case incompletePolicyHistory(RecordingDeviceID)
-    case corruptRecordingPolicyHistory
+    case currentDeviceAssignmentUnknown(RecordingDeviceID)
     case revisionExhausted(RecordingDeviceID)
     case incompleteDataEpochHistory
     case dataEpochRevisionExhausted
@@ -27,16 +24,10 @@ public enum RecordingPersistenceError: Error, LocalizedError, Sendable, Hashable
                 String(localized: .recordingErrorConflictingImmutableRecord)
             case .deviceNotFound:
                 String(localized: .recordingErrorDeviceNotFound)
-            case .devicePolicyUnknown:
-                String(localized: .recordingErrorDevicePolicyUnknown)
             case .currentDeviceNotRegistered:
                 String(localized: .recordingErrorCurrentDeviceNotRegistered)
-            case .currentDevicePolicyUnknown:
+            case .currentDeviceAssignmentUnknown:
                 String(localized: .recordingErrorCurrentDevicePolicyUnknown)
-            case .incompletePolicyHistory:
-                String(localized: .recordingErrorIncompletePolicyHistory)
-            case .corruptRecordingPolicyHistory:
-                String(localized: .recordingErrorCorruptPolicyHistory)
             case .revisionExhausted:
                 String(localized: .recordingErrorRevisionExhausted)
             case .incompleteDataEpochHistory:
