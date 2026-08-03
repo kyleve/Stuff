@@ -1014,7 +1014,7 @@ struct WhereServicesTests {
             try await destination.backup.importBackup(from: url, strategy: .merge)
         }
 
-        #expect(await destination.ingestor.isActive)
+        try await waitUntil { await destination.ingestor.isActive }
 
         await store.setShouldFail(false)
         _ = try await destination.backup.importBackup(from: url, strategy: .merge)

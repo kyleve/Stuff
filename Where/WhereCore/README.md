@@ -45,8 +45,8 @@ one it belongs to rather than to a god-object:
   token, emoji, SF Symbol — and pick order alongside the synced rows) — one row
   per region, defaulting to the four until the user chooses in the onboarding /
   Settings region picker. Recording identity and authority are split into
-  immutable profiles, append-only nickname and policy events, and target-owned
-  check-ins rather than one mutable device row.
+  immutable profiles, append-only nickname events and archive tombstones, one global assignment
+  history, and target-owned check-ins rather than one mutable device row.
 - **`WhereDataEpoch`** — the account-wide logical generation that keeps late
   uploads from an offline device from repopulating data after Reset or Replace.
   Each destructive operation appends one immutable node naming every real
@@ -105,11 +105,11 @@ one it belongs to rather than to a god-object:
   the current installation's `RecordingDeviceID`. Every durable retry entry
   also carries the data epoch that authorized it, so a pre-reset fix can be
   discarded but never written into the replacement generation.
-- **`DeviceRecordingController`** — serializes per-device enable/disable
-  policy with the current installation's physical `LocationIngestor`. Immutable
+- **`DeviceRecordingController`** — serializes one account-wide Off-or-one-device assignment
+  with the current installation's physical `LocationIngestor`. Immutable
   profiles, nickname events, target-owned check-ins, and complete-authority
-  desired-policy events sync independently so one writer cannot roll another
-  field backward. Each policy command names every maximal event it observed;
+  assignment events sync independently so one writer cannot roll another field backward. Each
+  assignment command names every maximal event it observed;
   concurrent unjoined heads resolve to the most restrictive authority, while a
   later command joins them with one identity.
   A remote disable or archive affects history at its timestamp
@@ -120,7 +120,7 @@ one it belongs to rather than to a god-object:
   GPS samples during disabled/archived intervals while keeping raw storage,
   backups, legacy samples without provenance, and user-asserted samples
   lossless. A device-stamped sample remains invisible until its matching
-  effective On policy arrives, so partial CloudKit delivery fails closed.
+  effective assignment arrives, so partial CloudKit delivery and concurrent claims fail closed.
 
 ### Detection, notifications & the rest
 

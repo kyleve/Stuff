@@ -53,7 +53,7 @@ require "set"
 require "digest"
 
 MANIFEST_NAME = "manifest.json"
-CURRENT_FORMAT_VERSION = 7
+CURRENT_FORMAT_VERSION = 8
 INITIAL_DATA_EPOCH_ID = "00000000-0000-0000-0000-0000000000E0"
 SUPPORTED_SOURCE_FORMAT_VERSIONS = (1..CURRENT_FORMAT_VERSION).freeze
 
@@ -457,6 +457,8 @@ def upgrade_manifest(manifest)
     sample["recordingDeviceID"] = nil unless sample.key?("recordingDeviceID")
   end
   manifest["recordingPolicyChanges"] ||= []
+  manifest["recordingAssignmentChanges"] ||= []
+  manifest["recordingDeviceArchives"] ||= []
   upgrade_recording_devices!(manifest, source_version)
   manifest["formatVersion"] = CURRENT_FORMAT_VERSION
   warnings.uniq.each { |message| warn "warning: #{message}" }

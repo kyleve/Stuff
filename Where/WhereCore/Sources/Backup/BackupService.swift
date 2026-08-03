@@ -120,6 +120,8 @@ public struct BackupService: Sendable {
         recordingDeviceMetadataChanges: [RecordingDeviceMetadataChange],
         recordingDeviceCheckIns: [RecordingDeviceCheckIn],
         recordingPolicyChanges: [RecordingPolicyChange],
+        recordingAssignmentChanges: [RecordingAssignmentChange] = [],
+        recordingDeviceArchives: [RecordingDeviceArchive] = [],
         blobs: [UUID: Data],
         exportedAt: Date = Date(),
         archiveName: String? = nil,
@@ -128,6 +130,7 @@ public struct BackupService: Sendable {
             metadataChanges: recordingDeviceMetadataChanges,
             checkIns: recordingDeviceCheckIns,
             policyChanges: recordingPolicyChanges,
+            assignmentChanges: recordingAssignmentChanges,
         )
         let fileManager = FileManager.default
         let workRoot = fileManager.temporaryDirectory
@@ -163,6 +166,8 @@ public struct BackupService: Sendable {
             recordingDeviceMetadataChanges: recordingDeviceMetadataChanges,
             recordingDeviceCheckIns: recordingDeviceCheckIns,
             recordingPolicyChanges: recordingPolicyChanges,
+            recordingAssignmentChanges: recordingAssignmentChanges,
+            recordingDeviceArchives: recordingDeviceArchives,
             assets: assetEntries,
         )
         try Self.logger.measure(.encodeManifest) {
@@ -276,6 +281,7 @@ public struct BackupService: Sendable {
             metadataChanges: archive.recordingDeviceMetadataChanges,
             checkIns: archive.recordingDeviceCheckIns,
             policyChanges: archive.recordingPolicyChanges,
+            assignmentChanges: archive.recordingAssignmentChanges,
         )
     }
 
@@ -283,11 +289,13 @@ public struct BackupService: Sendable {
         metadataChanges: [RecordingDeviceMetadataChange],
         checkIns: [RecordingDeviceCheckIn],
         policyChanges: [RecordingPolicyChange],
+        assignmentChanges: [RecordingAssignmentChange],
     ) throws {
         guard metadataChanges.allSatisfy({ $0.revision >= 0 }),
               checkIns.allSatisfy({
                   $0.revision >= 0 && $0.status != .unknown
               }),
+              RecordingAssignmentChange.formValidPersistedTimeline(assignmentChanges),
               RecordingPolicyChange.formValidPersistedTimelines(
                   policyChanges,
               )

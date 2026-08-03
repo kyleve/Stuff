@@ -169,6 +169,8 @@ public actor BackupCoordinator {
                     recordingDeviceMetadataChanges: store.recordingDeviceMetadataChanges(),
                     recordingDeviceCheckIns: [],
                     recordingPolicyChanges: store.recordingPolicyChanges(),
+                    recordingAssignmentChanges: store.recordingAssignmentChanges(),
+                    recordingDeviceArchives: store.recordingDeviceArchives(),
                 )
             }
             let evidence = tables.evidence
@@ -204,6 +206,8 @@ public actor BackupCoordinator {
                 recordingDeviceMetadataChanges: tables.recordingDeviceMetadataChanges,
                 recordingDeviceCheckIns: tables.recordingDeviceCheckIns,
                 recordingPolicyChanges: tables.recordingPolicyChanges,
+                recordingAssignmentChanges: tables.recordingAssignmentChanges,
+                recordingDeviceArchives: tables.recordingDeviceArchives,
                 blobs: snapshot.blobs,
             )
         }.value
@@ -225,6 +229,8 @@ public actor BackupCoordinator {
         let recordingDeviceMetadataChanges: [RecordingDeviceMetadataChange]
         let recordingDeviceCheckIns: [RecordingDeviceCheckIn]
         let recordingPolicyChanges: [RecordingPolicyChange]
+        let recordingAssignmentChanges: [RecordingAssignmentChange]
+        let recordingDeviceArchives: [RecordingDeviceArchive]
     }
 
     private struct ExportSnapshot {
@@ -426,6 +432,8 @@ public actor BackupCoordinator {
             + archive.recordingDeviceMetadataChanges.count
             + archive.recordingDeviceCheckIns.count
             + archive.recordingPolicyChanges.count
+            + archive.recordingAssignmentChanges.count
+            + archive.recordingDeviceArchives.count
 
         // Decode and validate before touching live authority. Once the archive is known-good,
         // close ingestion before either merge or replace: both can change this installation's
@@ -457,6 +465,21 @@ public actor BackupCoordinator {
                         )
                     } else {
                         [RecordingDeviceID: RecordingPolicyState]()
+                    }
+                    let existingAssignments = try await store.recordingAssignmentChanges()
+                    let usesGlobalAssignment = existingAssignments.count > 1
+                        || archive.recordingAssignmentChanges.isEmpty == false
+                    let preservedAssignment: RecordingAssignment = if strategy == .merge {
+                        if existingAssignments.count <= 1,
+                           let legacyState = mergeAuthority[currentDeviceID]
+                        {
+                            legacyState == .on ? .device(currentDeviceID) : .off
+                        } else {
+                            RecordingAssignmentChange.resolve(existingAssignments).assignment
+                                ?? .off
+                        }
+                    } else {
+                        .off
                     }
                     let replacementEpoch: WhereDataEpoch? = if strategy == .replace {
                         try await store.rotateDataEpoch(
@@ -513,6 +536,26 @@ public actor BackupCoordinator {
                     for change in archive.recordingPolicyChanges {
                         try await store.addRecordingPolicyChange(change)
                         report()
+                    }
+                    for change in archive.recordingAssignmentChanges {
+                        try await store.addRecordingAssignmentChange(change)
+                        report()
+                    }
+                    for archive in archive.recordingDeviceArchives {
+                        try await store.addRecordingDeviceArchive(archive)
+                        report()
+                    }
+                    if usesGlobalAssignment {
+                        let joinedAssignments = try await store.recordingAssignmentChanges()
+                        let assignmentBarrier = try RecordingAssignmentChange.appendingCommand(
+                            to: joinedAssignments,
+                            assignment: preservedAssignment,
+                            issuedAt: importDate,
+                            issuedByDeviceID: currentDeviceID,
+                            effectiveAt: importDate,
+                            reason: strategy == .merge ? .backupMerge : .backupReplace,
+                        )
+                        try await store.addRecordingAssignmentChange(assignmentBarrier)
                     }
                     if let replacementEpoch {
                         try await Self.appendReplacementSafetyBarriers(

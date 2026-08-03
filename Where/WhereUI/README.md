@@ -79,21 +79,23 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   view-scoped **`ResolveModel`** (data-issue triage), **`BackupModel`**
   (export/import plus a mirror of the scope-owned committed-cleanup gate),
   **`RemindersSettingsModel`** (notification prefs), and
-  **`DevicesSettingsModel`** (synced installation names, policy, status, and
+  **`DevicesSettingsModel`** (one recorder assignment plus synced installation names, status, and
   archival). Each orchestrates `WhereServices`; none reimplements Core rules.
 
 ### Reusable views & styling
 
 - **`OnboardingView`** — the first-run flow, registered for the launch's
   `OnboardingGate` and handed its `LifecycleGateHandle`. The gate roots the
-  trunk, so there is no session (and no open store) behind it: a paged intro,
+  trunk, so there is no session behind it: a paged intro,
   then picking up to five primary US regions (map or searchable list) and
   giving each a look, then verifying this installation's automatic-recording
-  choice. Phones recommend On; tablets/other devices recommend Off, and only
+  choice. The final page opens and retains the real store in a dormant state to discover synced
+  authority, offering to preserve the existing recorder or resolve a conflict before any services,
+  App Intents, or GPS are active. Phones recommend On; tablets/other devices recommend Off, and only
   an enabled confirmation requests location permission. A restored device can
   inherit the backed-up onboarding flag but not the installation sidecar, so it
   skips straight to that final page. Finishing logs in to the real scope — the
-  app's one store open — and commits the picks as the tracked-region set +
+  app promotes that same store into its one real scope — and commits the picks as the tracked-region set +
   appearances before resolving the gate. The intro also offers **Restore from
   a backup**, which skips the manual pick/customize steps, verifies this
   installation's recording choice, then opens the store and imports the backup
@@ -112,8 +114,8 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   picker (segmented map/list) and per-region color/emoji/icon customization,
   backed by `PrimaryRegionSelectionModel`. Reused by onboarding and the Settings
   `RegionsSettingsView` editor.
-- **`DevicesSettingsView`** — Settings’ per-installation automatic-recording
-  controls. It distinguishes desired policy from acknowledged physical state,
+- **`DevicesSettingsView`** — Settings’ one account-wide automatic-recorder card plus installation
+  rows for names, activity, permission, and archive. It distinguishes assignment from acknowledged physical state,
   labels the current installation, permits synced nicknames, and archives only
   remote devices while preserving their history.
 - **Widget views** — the shared renderers the **WhereWidgets** extension draws

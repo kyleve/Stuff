@@ -11,8 +11,9 @@ import UniformTypeIdentifiers
 /// record automatically. Enabling it requests background-location permission
 /// here, rather than burying that decision in Settings.
 ///
-/// Nothing exists behind this screen yet: the gate roots the trunk, so the
-/// store is unopened and there is no session. Onboarding is what brings the
+/// No session exists behind this screen: the gate roots the trunk. The final choice may prepare
+/// and retain the real store solely to discover synced authority; services and GPS remain dormant.
+/// Onboarding is what brings the
 /// user's world into being — restoring a backup or finishing the flow logs in
 /// to the real scope (`WhereModel.resolveScope()`, which performs the app's one
 /// store open), commits the picked regions + appearances to it, persists the

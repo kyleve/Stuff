@@ -57,3 +57,15 @@ struct RecordingAuthoritySection: View {
         }
     }
 }
+
+#if DEBUG
+    #Preview {
+        let session = PreviewSupport.loadedSession()
+        let model = DevicesSettingsModel(
+            session: session,
+            configurations: PreviewSupport.recordingDeviceConfigurations(),
+        )
+        Form { RecordingAuthoritySection(model: model) }
+            .environment(session)
+    }
+#endif

@@ -67,15 +67,13 @@ Rules the code enforces and agents must preserve:
   `CoreLocationSource` in production, `ScriptedLocationSource` in
   tests/previews. The one-shot `requestCurrentLocation()` returns `nil` rather
   than throwing when no fix is available.
-- **Automatic location policy is per installation and append-only.** Stamp
-  every automatic GPS sample with its `RecordingDeviceID`; write enable/disable
-  events with an effective timestamp; route every user-facing sample read
-  through `LocationHistoryReader`. A synced cutoff hides later raw samples
-  immediately while the target device is still pending; device-stamped samples
-  fail closed until an effective On exists; archive is a state in that same
-  multi-parent causal policy DAG, and legacy/manual history remains visible.
-  Persist immutable profiles, nickname events, target-owned check-ins, and
-  desired-policy events separately. Keep the confirmed choice and
+- **Automatic location authority is one account-wide append-only assignment.** Stamp every
+  automatic GPS sample with its `RecordingDeviceID` and route every user-facing sample read
+  through `LocationHistoryReader`. Resolve Off or exactly one installation; concurrent claims,
+  incomplete history, and an archived assignee fail closed. Show samples only when their source
+  held the assignment at capture time; legacy/manual history remains visible. Persist immutable
+  profiles, nickname events, archive tombstones, target-owned check-ins, and assignment events
+  separately. Keep the confirmed choice and
   immutable first profile/policy IDs and timestamps beside the backup-excluded
   installation identity; phone recommends On, while tablet/other recommends Off.
 - **Manual entries carry a `ManualEntryAudit`**; `DayJournal`'s write methods
@@ -130,10 +128,9 @@ slow.
   `WhereServices`, the `WherePreferences` driving it, and the durable log store
   they record into. Created whole; `WhereSession` is built from one, so a
   surface can't read one world's store against another's preferences.
-- **Nothing opens until the user picks a world.** The trunk is rooted at the
-  onboarding gate, so an install that never onboards creates no store file,
-  contacts no CloudKit, and opens no log store. Guard:
-  `WhereLaunchTests.firstRunForegroundLaunchParksOnTheOnboardingGateBeforeOpeningAnything`.
+- **Onboarding may prepare the real store only for recording-authority discovery.** Retain that
+  exact store for scope resolution; do not construct services, expose App Intents, start GPS, or
+  open the log store until the user finishes choosing a world.
 - **At most one scope is active and log-routing at a time.** Logging out — a
   reset, or leaving a demo — releases and tears down the scope; logging back in
   builds a fresh one. Flyover is the narrow exception to "one open world": it

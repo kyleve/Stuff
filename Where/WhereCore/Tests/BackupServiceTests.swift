@@ -168,6 +168,22 @@ struct BackupServiceTests {
         let recordingDeviceMetadataChanges = Self.recordingDeviceMetadataFixtures()
         let recordingDeviceCheckIns = Self.recordingDeviceCheckInFixtures()
         let recordingPolicies = Self.recordingPolicyFixtures()
+        let assignment = RecordingAssignmentChange(
+            id: UUID(),
+            parentIDs: [],
+            revision: 0,
+            issuedAt: Self.exportDate,
+            issuedByDeviceID: Self.recordingDeviceID,
+            effectiveAt: Self.exportDate,
+            assignedDeviceID: Self.recordingDeviceID,
+            reason: .userCommand,
+        )
+        let deviceArchive = RecordingDeviceArchive(
+            id: UUID(),
+            deviceID: Self.recordingDeviceID,
+            archivedAt: Self.exportDate,
+            archivedByDeviceID: Self.recordingDeviceID,
+        )
 
         let url = try service.makeArchiveFile(
             samples: samples,
@@ -178,6 +194,8 @@ struct BackupServiceTests {
             recordingDeviceMetadataChanges: recordingDeviceMetadataChanges,
             recordingDeviceCheckIns: recordingDeviceCheckIns,
             recordingPolicyChanges: recordingPolicies,
+            recordingAssignmentChanges: [assignment],
+            recordingDeviceArchives: [deviceArchive],
             blobs: blobs,
             exportedAt: Self.exportDate,
         )
@@ -199,6 +217,8 @@ struct BackupServiceTests {
         #expect(result.archive.recordingDeviceMetadataChanges == recordingDeviceMetadataChanges)
         #expect(result.archive.recordingDeviceCheckIns == recordingDeviceCheckIns)
         #expect(result.archive.recordingPolicyChanges == recordingPolicies)
+        #expect(result.archive.recordingAssignmentChanges == [assignment])
+        #expect(result.archive.recordingDeviceArchives == [deviceArchive])
         let encodedManifest = try #require(String(
             data: BackupService.makeEncoder().encode(result.archive),
             encoding: .utf8,

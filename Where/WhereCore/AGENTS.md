@@ -52,10 +52,9 @@ internal shape.
   lossless.** Add persisted user-data shapes end-to-end and cover both import
   strategies, but export no target-owned recording check-ins and ignore any in
   an imported archive (`BackupServiceTests` / `BackupCoordinatorTests`).
-- **Backup import never changes live recording authority.** Merge reasserts each pre-import
-  state (including the destructive epoch's implicit archive, defaulting every new imported
-  device Off); Replace rotates to a child epoch and appends an Off/archive barrier to every
-  imported device before discarding the local outbox (`BackupCoordinatorTests`).
+- **Backup import never adopts restored recording authority.** Merge reasserts the pre-import
+  global assignment; Replace rotates to a child epoch and appends global Off before discarding
+  the local outbox (`BackupCoordinatorTests`).
 - **Gate import recovery with a two-phase sidecar plus an atomic store receipt.** Never clear a
   committed onboarding marker before its independent terminal completion tombstone
   (`BackupCoordinatorTests` / `WhereLaunchTests`).
@@ -105,17 +104,16 @@ internal shape.
   `ScriptedLocationSource` in tests/previews; `requestCurrentLocation()`
   returns `nil`, never throws, and backs
   `LocationIngestor.captureTodayIfNeeded(now:)`.
-- **`DeviceRecordingController` owns automatic-recording policy and physical
-  GPS state.** Keep policy events append-only, serialize mutations across
+- **`DeviceRecordingController` owns the account-wide recording assignment and physical GPS
+  state.** Keep assignment events append-only, serialize mutations across
   awaits, fail closed when authority or acknowledgement is unavailable, stamp
   every ingested GPS sample with the current installation id, seed the first
   policy from `InstallationRecordingContext`'s explicitly confirmed choice plus
   its stable profile/policy IDs and timestamps, and apply `LocationHistoryReader`
-  to every user-facing projection. Require an effective On event for every
-  device-stamped sample, and represent On, Off, and archive in one multi-parent causal authority
-  DAG. Make each command name every observed maximal head, resolve concurrent heads
+  to every user-facing projection. Require the source installation to hold the effective
+  assignment for every device-stamped sample. Make each command name every observed maximal head, resolve concurrent heads
   safety-first, and derive cleanup/reset floors from the independent destructive frontier.
-  Persist immutable profiles, nickname events, target-owned check-ins, and policy events separately.
+  Persist immutable profiles, nickname events, archive tombstones, target-owned check-ins, and assignment events separately.
   Stamp every durable location-outbox entry with its authorizing data epoch and
   never replay it into another generation; backups alone read lossless raw
   samples and policy/device timelines, excluding non-restorable check-ins.

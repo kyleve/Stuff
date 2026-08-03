@@ -323,7 +323,12 @@ public final class WhereBootstrap: WhereScopeAssembling {
     }
 
     public func discoverRecordingAssignment() async throws -> RecordingAssignmentResolution {
+        let readiness = CloudKitImportReadiness()
+        if storeStorage == .cloudKit { readiness.start() }
         let store = try await prepareStore()
+        if storeStorage == .cloudKit, await readiness.waitForImport() == false {
+            throw CloudKitImportReadiness.Timeout()
+        }
         return try await RecordingAssignmentChange.resolve(store.recordingAssignmentChanges())
     }
 

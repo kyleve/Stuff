@@ -23,12 +23,13 @@ public struct BackupArchive: Codable, Sendable, Hashable {
     /// target-owned check-ins, and append-only complete-authority policy events. v5 adds the
     /// logical data epoch in which each immutable profile registered. v6 adds causal parent
     /// metadata and state-preserving Merge barriers. v7 expands that metadata to a sorted parent
-    /// set so one semantic command can causally join every observed concurrent head. There's no
+    /// set so one semantic command can causally join every observed concurrent head. v8 adds the
+    /// account-wide recording assignment and irreversible device archive tombstones. There's no
     /// in-app decode
     /// fallback for an older archive — it is reshaped out of band by
     /// `Tools/upgrade-backup.rb`, matching the module's no-migration-on-read rule (see
     /// `AGENTS.md`).
-    public static let currentFormatVersion = 7
+    public static let currentFormatVersion = 8
 
     public let formatVersion: Int
     public let exportedAt: Date
@@ -56,6 +57,10 @@ public struct BackupArchive: Codable, Sendable, Hashable {
     public let recordingDeviceCheckIns: [RecordingDeviceCheckIn]
     /// The full append-only policy timeline for every device.
     public let recordingPolicyChanges: [RecordingPolicyChange]
+    /// Account-wide automatic-recording assignment history.
+    public let recordingAssignmentChanges: [RecordingAssignmentChange]
+    /// Irreversible installation archive tombstones.
+    public let recordingDeviceArchives: [RecordingDeviceArchive]
     /// One entry per evidence record that has blob bytes in the archive.
     /// Evidence without bytes simply has no entry here.
     public let assets: [BackupAssetEntry]
@@ -73,6 +78,8 @@ public struct BackupArchive: Codable, Sendable, Hashable {
         recordingDeviceMetadataChanges: [RecordingDeviceMetadataChange],
         recordingDeviceCheckIns: [RecordingDeviceCheckIn],
         recordingPolicyChanges: [RecordingPolicyChange],
+        recordingAssignmentChanges: [RecordingAssignmentChange] = [],
+        recordingDeviceArchives: [RecordingDeviceArchive] = [],
         assets: [BackupAssetEntry],
     ) {
         self.formatVersion = formatVersion
@@ -87,6 +94,8 @@ public struct BackupArchive: Codable, Sendable, Hashable {
         self.recordingDeviceMetadataChanges = recordingDeviceMetadataChanges
         self.recordingDeviceCheckIns = recordingDeviceCheckIns
         self.recordingPolicyChanges = recordingPolicyChanges
+        self.recordingAssignmentChanges = recordingAssignmentChanges
+        self.recordingDeviceArchives = recordingDeviceArchives
         self.assets = assets
     }
 }
