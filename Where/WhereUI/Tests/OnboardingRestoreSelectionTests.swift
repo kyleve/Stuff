@@ -27,6 +27,18 @@ struct OnboardingRestoreSelectionTests {
         selection.choose(.replace)
 
         #expect(selection.strategy == .replace)
+        #expect(selection.permitsPreservingExistingRecorder == false)
+    }
+
+    @Test func mergeAllowsPreservingTheDiscoveredRecorder() {
+        var selection = OnboardingRestoreSelection(
+            url: URL(fileURLWithPath: "/tmp/where-backup.zip"),
+            hasScopedAccess: false,
+        )
+
+        selection.choose(.merge)
+
+        #expect(selection.permitsPreservingExistingRecorder)
     }
 
     @Test func committedImportRetainsItsBoundaryAndCannotReturnToSelection() throws {

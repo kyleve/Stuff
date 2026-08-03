@@ -323,7 +323,9 @@ public struct OnboardingView: View {
                                 case .idle, .loading:
                                     ProgressView("Checking your other devices…")
                                 case let .ready(.resolved(existing)):
-                                    if existing.deviceID != nil {
+                                    if existing.deviceID != nil,
+                                       restoreSelection.permitsPreservingExistingRecorder
+                                    {
                                         Toggle(
                                             "Keep the current recorder",
                                             isOn: $preserveExistingAssignment,
@@ -425,6 +427,8 @@ public struct OnboardingView: View {
             phase = .intro
         }
         isFinishing = true
+        let shouldPreserveExistingAssignment = preserveExistingAssignment
+            && restoreSelection.permitsPreservingExistingRecorder
         Task {
             do {
                 let context = try model.confirmInitialRecordingChoice(isEnabled: enableLocation)
@@ -534,7 +538,7 @@ public struct OnboardingView: View {
             do {
                 let authorization = await scope.services.ingestor.authorizationStatus()
                 try await scope.services.recording.registerForOnboarding(
-                    desiredEnabled: preserveExistingAssignment ? nil : enableLocation,
+                    desiredEnabled: shouldPreserveExistingAssignment ? nil : enableLocation,
                     authorization: authorization,
                 )
             } catch {
@@ -556,7 +560,7 @@ public struct OnboardingView: View {
                 return
             }
 
-            if enableLocation, preserveExistingAssignment == false {
+            if enableLocation, shouldPreserveExistingAssignment == false {
                 await enableTracking(in: scope)
             }
             // Only commit when the user actually picked regions in the manual
@@ -669,6 +673,9 @@ public struct OnboardingView: View {
             return
         }
         restoreSelection.choose(strategy)
+        if restoreSelection.permitsPreservingExistingRecorder == false {
+            preserveExistingAssignment = false
+        }
         phase = .location
     }
 
