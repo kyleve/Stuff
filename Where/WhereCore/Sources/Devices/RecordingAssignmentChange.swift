@@ -108,6 +108,34 @@ extension RecordingAssignmentChange {
         let heads: [RecordingAssignmentChange]
     }
 
+    static func persisted(
+        id: UUID,
+        parentIDs: [UUID],
+        revision: Int64,
+        issuedAt: Date,
+        issuedByDeviceID: RecordingDeviceID,
+        effectiveAt: Date,
+        assignedDeviceID: RecordingDeviceID?,
+        reason: RecordingAssignmentReason,
+    ) -> RecordingAssignmentChange? {
+        guard revision >= 0,
+              (revision == 0) == parentIDs.isEmpty,
+              Set(parentIDs).count == parentIDs.count,
+              parentIDs.contains(id) == false,
+              isValid(reason: reason, assignedDeviceID: assignedDeviceID)
+        else { return nil }
+        return RecordingAssignmentChange(
+            id: id,
+            parentIDs: parentIDs,
+            revision: revision,
+            issuedAt: issuedAt,
+            issuedByDeviceID: issuedByDeviceID,
+            effectiveAt: effectiveAt,
+            assignedDeviceID: assignedDeviceID,
+            reason: reason,
+        )
+    }
+
     public static func resolve(
         _ changes: [RecordingAssignmentChange],
     ) -> RecordingAssignmentResolution {

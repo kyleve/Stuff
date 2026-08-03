@@ -9,6 +9,13 @@ import Testing
 /// covered by `StoreChangeBroadcasterTests`; here we assert the *store* fires it
 /// on a committed `perform` and stays silent on a rolled-back one.
 struct SwiftDataStoreTests {
+    enum AssignmentMalformation: CaseIterable {
+        case negativeRevision
+        case duplicateParent
+        case selfParent
+        case resetTargetsDevice
+    }
+
     @Test func inspectorStoreURLUsesTheResolvedAppGroupRoot() {
         let groupURL = FileManager.default.temporaryDirectory.appending(
             path: "where-group-\(UUID().uuidString)",
@@ -328,6 +335,57 @@ struct SwiftDataStoreTests {
         let store = SwiftDataStore(modelContainer: container)
 
         await #expect(throws: RecordingPersistenceError.conflictingImmutableRecord(id: id)) {
+            try await store.recordingAssignmentChanges()
+        }
+    }
+
+    @Test(arguments: AssignmentMalformation.allCases)
+    func malformedPersistedAssignmentsFailClosed(
+        _ malformation: AssignmentMalformation,
+    ) async throws {
+        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
+        let context = ModelContext(container)
+        let deviceID = RecordingDeviceID(rawValue: UUID())
+        let date = Date(timeIntervalSinceReferenceDate: 100)
+        let initial = RecordingAssignmentChange(
+            id: UUID(),
+            parentIDs: [],
+            revision: 0,
+            issuedAt: date,
+            issuedByDeviceID: deviceID,
+            effectiveAt: date,
+            assignedDeviceID: deviceID,
+            reason: .onboarding,
+        )
+        context.insert(SDRecordingAssignmentChange(value: initial, epochID: .initial))
+        let malformed = SDRecordingAssignmentChange()
+        let malformedID = UUID()
+        malformed.epochID = WhereDataEpochID.initial.rawValue
+        malformed.id = malformedID
+        malformed.parentIDs = [initial.id]
+        malformed.revision = 1
+        malformed.issuedAt = date
+        malformed.issuedByDeviceID = deviceID.rawValue
+        malformed.effectiveAt = date
+        malformed.assignedDeviceID = nil
+        malformed.reasonRaw = RecordingAssignmentReason.userCommand.rawValue
+        switch malformation {
+            case .negativeRevision:
+                malformed.revision = -1
+            case .duplicateParent:
+                malformed.parentIDs = [initial.id, initial.id]
+            case .selfParent:
+                malformed.parentIDs = [malformedID]
+            case .resetTargetsDevice:
+                malformed.assignedDeviceID = deviceID.rawValue
+                malformed.reasonRaw = RecordingAssignmentReason.accountReset.rawValue
+        }
+        context.insert(malformed)
+        try context.save()
+
+        let store = SwiftDataStore(modelContainer: container)
+
+        await #expect(throws: RecordingPersistenceError.incompleteAssignmentHistory) {
             try await store.recordingAssignmentChanges()
         }
     }

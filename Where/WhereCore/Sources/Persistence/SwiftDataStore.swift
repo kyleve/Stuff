@@ -2219,10 +2219,9 @@ final class SDRecordingAssignmentChange {
               let issuedByDeviceID,
               let effectiveAt,
               let reasonRaw,
-              let reason = RecordingAssignmentReason(rawValue: reasonRaw),
-              (revision == 0) == parentIDs.isEmpty
+              let reason = RecordingAssignmentReason(rawValue: reasonRaw)
         else { return nil }
-        return RecordingAssignmentChange(
+        return RecordingAssignmentChange.persisted(
             id: id,
             parentIDs: parentIDs,
             revision: revision,
