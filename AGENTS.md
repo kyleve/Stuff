@@ -99,17 +99,18 @@ over a build setting Xcode didn't export.
 
 An app ships an **attribution report** — every third-party work it is built
 with, license notices inline. **Re-run `./attribution` and commit the result
-whenever you add or bump a package or an agent skill**; `./attribution
---check` fails CI if you forget (offline, sub-second — an app's own tests
-can't do this job, since a test bundle can't read `Package.swift`).
+whenever you add or bump a package, an agent skill, or a development tool**;
+`./attribution --check` fails CI if you forget (offline, sub-second — an app's
+own tests can't do this job, since a test bundle can't read `Package.swift`).
 
 - [`Shared/CreditKit`](Shared/CreditKit/AGENTS.md) owns the types and the
   reporting tool and holds **no credits of its own**; each app declares its
   sources in an `attribution-sources.json` and ships the report in its own
   resources (for Where, `Where/Where/Resources/attribution.json`).
 - The report derives from `.product(name:package:)` links (pinned by
-  `Package.resolved`) and `.agents/external-skills.json`, notices read at the
-  pinned revision — so tooling-only packages correctly aren't credited.
+  `Package.resolved`), `.agents/external-skills.json`, and
+  `.agents/development-tools.json`, notices read at the pinned revision — so
+  tooling-only packages correctly aren't credited.
 - **Kind is derived, not declared**: anything reachable from `shippedFrom`'s
   target closure is a library, any other linked package a development tool —
   linking is not shipping, and a UI must keep the two apart.
@@ -150,7 +151,9 @@ by `./sync-agents`.
 `.agents/skills/.gitignore` excludes those fetched copies, so anything else
 under `.agents/skills/` is **repo-owned** and committed. External skills are
 also an **attribution** input — after adding or updating one, re-run
-`./attribution` (see [Attribution](#attribution)).
+`./attribution` (see [Attribution](#attribution)). The same applies to
+`.agents/development-tools.json` when pinned verification or other non-SPM
+tooling changes.
 
 **`.agents/skills/` is the real home; edit the source, never the
 `.claude/skills/` mirror**, and run `./sync-agents` after adding or editing a
