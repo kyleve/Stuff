@@ -914,10 +914,9 @@ struct SwiftDataStoreTests {
         #expect(try await store.evidenceBlob(for: evidence.id) == nil)
     }
 
-    /// Reusing an inactive row would also reuse its CloudKit record identity. A delayed
-    /// tombstone from the old generation could then delete current restored data, so every
-    /// same-id write must preserve the inactive row and create a current-epoch record.
-    @Test func inactiveSameIDRowsRemainSeparateFromCurrentEpochUpserts() async throws {
+    /// Epoch-scoped data needs a new CloudKit record in the current generation. Global removal
+    /// tombstones instead retain one identity across rotations so a delayed sync remains active.
+    @Test func scopedRowsRemainSeparateWhileGlobalRemovalsCanonicalize() async throws {
         let container = try SwiftDataStore.makeContainer(storage: .inMemory)
         let store = SwiftDataStore(modelContainer: container)
         let deviceID = try RecordingDeviceID(
@@ -992,8 +991,8 @@ struct SwiftDataStoreTests {
         #expect(Set(sampleRows.compactMap(\.epochID)) == expectedEpochIDs)
         #expect(metadataRows.count == 2)
         #expect(Set(metadataRows.compactMap(\.epochID)) == expectedEpochIDs)
-        #expect(removalRows.count == 2)
-        #expect(Set(removalRows.compactMap(\.epochID)) == expectedEpochIDs)
+        #expect(removalRows.count == 1)
+        #expect(removalRows.first?.epochID == WhereDataEpochID.initial.rawValue)
         #expect(try await store.allSamples() == [sample])
         #expect(try await store.recordingDeviceMetadataChanges() == [metadata])
         #expect(try await store.recordingDeviceRemovals() == [removal])
