@@ -2,8 +2,8 @@ import Foundation
 import os
 import SwiftData
 
-/// A scoped feature-flag container with synchronous cached reads and serialized writes.
-public actor Flagger {
+/// A scoped feature-flag container with synchronous cached reads and actor-isolated persistence.
+public final class Flagger: Sendable {
     public enum Storage: Sendable {
         case inMemory
         case onDisk(name: String)
@@ -26,7 +26,7 @@ public actor Flagger {
         var failureObservers: [UUID: AsyncStream<FlaggerFailure>.Continuation] = [:]
     }
 
-    private nonisolated let state: OSAllocatedUnfairLock<State>
+    private let state: OSAllocatedUnfairLock<State>
     private let persistence: FlaggerPersistence
 
     private init(
@@ -73,7 +73,7 @@ public actor Flagger {
         )
     }
 
-    public nonisolated func value<Value: Codable & Sendable>(
+    public func value<Value: Codable & Sendable>(
         for flag: Flag<Value, some FeatureFlagBehavior>,
     ) throws -> Value {
         let resolution = try resolution(for: flag.id)
@@ -81,7 +81,7 @@ public actor Flagger {
         return try FlagDefinition.value(Value.self, from: resolution.value)
     }
 
-    public nonisolated func valueOrDefault<Value: Codable & Sendable>(
+    public func valueOrDefault<Value: Codable & Sendable>(
         for flag: Flag<Value, some FeatureFlagBehavior>,
     ) -> Value {
         do {
@@ -108,7 +108,7 @@ public actor Flagger {
         try await persist(nil, for: flag.id, operation: .reset)
     }
 
-    public nonisolated func values<Value: Codable & Sendable>(
+    public func values<Value: Codable & Sendable>(
         for flag: Flag<Value, LiveUpdating>,
     ) -> AsyncStream<Value> {
         let changes = changes()
@@ -128,7 +128,7 @@ public actor Flagger {
         return stream
     }
 
-    public nonisolated func changes() -> AsyncStream<FlagID> {
+    public func changes() -> AsyncStream<FlagID> {
         let id = UUID()
         let (stream, continuation) = AsyncStream.makeStream(
             of: FlagID.self,
@@ -141,7 +141,7 @@ public actor Flagger {
         return stream
     }
 
-    public nonisolated func failures() -> AsyncStream<FlaggerFailure> {
+    public func failures() -> AsyncStream<FlaggerFailure> {
         let id = UUID()
         let (stream, continuation) = AsyncStream.makeStream(
             of: FlaggerFailure.self,
@@ -154,7 +154,7 @@ public actor Flagger {
         return stream
     }
 
-    public nonisolated func snapshots() -> [FlagSnapshot] {
+    public func snapshots() -> [FlagSnapshot] {
         state.withLock { state in
             state.orderedDefinitions.map { definition in
                 let stored = state.storedValues[definition.id]
@@ -162,7 +162,6 @@ public actor Flagger {
                 let displayedResolution = frozenResolution ?? Self.resolve(definition, stored)
                 return FlagSnapshot(
                     id: definition.id,
-                    propertyName: definition.propertyName,
                     name: definition.name,
                     detail: definition.detail,
                     source: definition.source,
@@ -189,7 +188,7 @@ public actor Flagger {
         try await persist(nil, for: id, operation: .reset)
     }
 
-    private nonisolated func resolution(for id: FlagID) throws -> Resolution {
+    private func resolution(for id: FlagID) throws -> Resolution {
         let (result, emittedChange) = try state.withLock { state -> (Resolution, Bool) in
             guard let definition = state.definitions[id] else {
                 throw FlaggerError.unregisteredFlag(id)
@@ -245,7 +244,7 @@ public actor Flagger {
         }
     }
 
-    private nonisolated func registeredDefinition(for id: FlagID) throws -> FlagDefinition {
+    private func registeredDefinition(for id: FlagID) throws -> FlagDefinition {
         try state.withLock { state in
             guard let definition = state.definitions[id] else {
                 throw FlaggerError.unregisteredFlag(id)
@@ -254,7 +253,7 @@ public actor Flagger {
         }
     }
 
-    private nonisolated static func resolve(
+    private static func resolve(
         _ definition: FlagDefinition,
         _ storedValue: JSONValue?,
     ) -> Resolution {
@@ -270,21 +269,21 @@ public actor Flagger {
         }
     }
 
-    private nonisolated func notifyChange(_ id: FlagID) {
+    private func notifyChange(_ id: FlagID) {
         let observers = state.withLock { Array($0.changeObservers.values) }
         for observer in observers {
             observer.yield(id)
         }
     }
 
-    private nonisolated func emit(_ failure: FlaggerFailure) {
+    private func emit(_ failure: FlaggerFailure) {
         let observers = state.withLock { Array($0.failureObservers.values) }
         for observer in observers {
             observer.yield(failure)
         }
     }
 
-    private nonisolated static func definitions(
+    private static func definitions(
         from sources: FlagSourceRegistry,
     ) throws -> [FlagDefinition] {
         var sourceIDs: Set<FlagSourceID> = []
@@ -293,32 +292,32 @@ public actor Flagger {
         var flagIDs: Set<FlagID> = []
         var definitions: [FlagDefinition] = []
 
-        for source in sources.registrations {
+        for sourceType in sources.types {
+            let source = FeatureFlagSourceMetadata(id: sourceType.id, name: sourceType.name)
             precondition(
-                sourceIDs.insert(source.metadata.id).inserted,
+                sourceIDs.insert(source.id).inserted,
                 "Flag source IDs must be unique.",
             )
-            for registration in source.groups.registrations {
+            for groupType in sourceType.groups.types {
                 precondition(
-                    groupTypes.insert(registration.typeID).inserted,
+                    groupTypes.insert(ObjectIdentifier(groupType)).inserted,
                     "A flag group type may be registered only once.",
                 )
-                let qualifiedGroupID = "\(source.metadata.id.rawValue).\(registration.metadata.id.rawValue)"
+                let group = FeatureFlagGroupMetadata(
+                    id: groupType.id,
+                    name: groupType.name,
+                    detail: groupType.detail,
+                )
+                let qualifiedGroupID = "\(source.id.rawValue).\(group.id.rawValue)"
                 precondition(
                     groupIDs.insert(qualifiedGroupID).inserted,
                     "Flag group IDs must be unique within a source.",
                 )
-                let group = registration.make()
-                for child in Mirror(reflecting: group).children {
-                    guard let propertyName = child.label,
-                          let flag = child.value as? any AnyFeatureFlag
-                    else {
-                        continue
-                    }
+                for child in Mirror(reflecting: groupType.init()).children {
+                    guard let flag = child.value as? any AnyFeatureFlag else { continue }
                     let definition = try flag.definition(
-                        propertyName: propertyName,
-                        source: source.metadata,
-                        group: registration.metadata,
+                        source: source,
+                        group: group,
                     )
                     precondition(
                         flagIDs.insert(definition.id).inserted,

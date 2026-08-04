@@ -2,7 +2,6 @@ import Foundation
 
 struct FlagDefinition {
     let id: FlagID
-    let propertyName: String
     let name: String
     let detail: String?
     let behavior: FeatureFlagBehaviorKind
@@ -13,12 +12,10 @@ struct FlagDefinition {
 
     init<Value, Behavior>(
         flag: Flag<Value, Behavior>,
-        propertyName: String,
         source: FeatureFlagSourceMetadata,
         group: FeatureFlagGroupMetadata,
     ) throws where Value: Codable & Sendable, Behavior: FeatureFlagBehavior {
         id = flag.id
-        self.propertyName = propertyName
         name = flag.name
         detail = flag.detail
         behavior = Behavior.kind

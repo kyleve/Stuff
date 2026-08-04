@@ -10,13 +10,11 @@ public final class FlaggerModel {
     public private(set) var latestFailure: FlaggerFailure?
     public private(set) var error: (any Error)?
     public var searchText = ""
-    private(set) var revision = 0
 
     public var filteredFlags: [FlagSnapshot] {
         guard searchText.isEmpty == false else { return flags }
         return flags.filter {
             $0.name.localizedStandardContains(searchText)
-                || $0.propertyName.localizedStandardContains(searchText)
                 || $0.id.rawValue.localizedStandardContains(searchText)
                 || $0.group.name.localizedStandardContains(searchText)
                 || $0.source.name.localizedStandardContains(searchText)
@@ -79,14 +77,14 @@ public final class FlaggerModel {
     func value<Value: Codable & Sendable>(
         for flag: Flag<Value, some FeatureFlagBehavior>,
     ) -> Value {
-        _ = revision
+        _ = flags
         return flagger.valueOrDefault(for: flag)
     }
 
     func throwingValue<Value: Codable & Sendable>(
         for flag: Flag<Value, some FeatureFlagBehavior>,
     ) throws -> Value {
-        _ = revision
+        _ = flags
         return try flagger.value(for: flag)
     }
 
@@ -135,6 +133,5 @@ public final class FlaggerModel {
 
     private func refresh() {
         flags = flagger.snapshots()
-        revision &+= 1
     }
 }

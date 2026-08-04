@@ -4,10 +4,10 @@ import Testing
 struct FeatureFlagGroupRegistryTests {
     @Test
     func builderRegistersConcreteGroupMetadataAndFactory() {
-        let registration = TestFlagSource.groups.registrations.first
+        let type = TestFlagSource.groups.types.first
 
-        #expect(registration?.metadata.id == TestFlags.id)
-        #expect(registration?.metadata.name == TestFlags.name)
-        #expect(registration?.make() is TestFlags)
+        #expect(type?.id == TestFlags.id)
+        #expect(type?.name == TestFlags.name)
+        #expect(type?.init() is TestFlags)
     }
 }

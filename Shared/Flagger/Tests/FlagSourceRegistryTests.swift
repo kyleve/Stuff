@@ -4,9 +4,9 @@ import Testing
 struct FlagSourceRegistryTests {
     @Test
     func builderRegistersSourceMetadataAndGroups() {
-        let registration = testSources.registrations.first
+        let type = testSources.types.first
 
-        #expect(registration?.metadata.id == TestFlagSource.id)
-        #expect(registration?.groups.registrations.count == 1)
+        #expect(type?.id == TestFlagSource.id)
+        #expect(type?.groups.types.count == 1)
     }
 }

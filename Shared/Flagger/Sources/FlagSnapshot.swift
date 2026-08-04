@@ -1,7 +1,6 @@
 /// Editor-facing state for one registered flag.
 public struct FlagSnapshot: Identifiable, Equatable, Sendable {
     public let id: FlagID
-    public let propertyName: String
     public let name: String
     public let detail: String?
     public let source: FeatureFlagSourceMetadata

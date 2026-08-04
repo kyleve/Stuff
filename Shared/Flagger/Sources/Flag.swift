@@ -31,7 +31,6 @@ public struct Flag<Value: Codable & Sendable, Behavior: FeatureFlagBehavior>: Se
 
 protocol AnyFeatureFlag: Sendable {
     func definition(
-        propertyName: String,
         source: FeatureFlagSourceMetadata,
         group: FeatureFlagGroupMetadata,
     ) throws -> FlagDefinition
@@ -39,13 +38,11 @@ protocol AnyFeatureFlag: Sendable {
 
 extension Flag: AnyFeatureFlag {
     func definition(
-        propertyName: String,
         source: FeatureFlagSourceMetadata,
         group: FeatureFlagGroupMetadata,
     ) throws -> FlagDefinition {
         try FlagDefinition(
             flag: self,
-            propertyName: propertyName,
             source: source,
             group: group,
         )

@@ -1,21 +1,9 @@
 /// An immutable, result-builder-created list of group types exposed by a source.
 public struct FeatureFlagGroupRegistry: Sendable {
-    let registrations: [FeatureFlagGroupRegistration]
+    let types: [any FeatureFlagGroup.Type]
 
-    public init(@FeatureFlagGroupRegistryBuilder _ content: () -> [FeatureFlagGroupRegistration]) {
-        registrations = content()
-    }
-}
-
-public struct FeatureFlagGroupRegistration: Sendable {
-    let typeID: ObjectIdentifier
-    let metadata: FeatureFlagGroupMetadata
-    let make: @Sendable () -> any FeatureFlagGroup
-
-    init<Group: FeatureFlagGroup>(_ type: Group.Type) {
-        typeID = ObjectIdentifier(type)
-        metadata = FeatureFlagGroupMetadata(id: type.id, name: type.name, detail: type.detail)
-        make = { Group() }
+    public init(@FeatureFlagGroupRegistryBuilder _ content: () -> [any FeatureFlagGroup.Type]) {
+        types = content()
     }
 }
 
@@ -23,37 +11,37 @@ public struct FeatureFlagGroupRegistration: Sendable {
 public enum FeatureFlagGroupRegistryBuilder {
     public static func buildExpression(
         _ expression: (some FeatureFlagGroup).Type,
-    ) -> [FeatureFlagGroupRegistration] {
-        [FeatureFlagGroupRegistration(expression)]
+    ) -> [any FeatureFlagGroup.Type] {
+        [expression]
     }
 
     public static func buildBlock(
-        _ components: [FeatureFlagGroupRegistration]...,
-    ) -> [FeatureFlagGroupRegistration] {
+        _ components: [any FeatureFlagGroup.Type]...,
+    ) -> [any FeatureFlagGroup.Type] {
         components.flatMap(\.self)
     }
 
     public static func buildOptional(
-        _ component: [FeatureFlagGroupRegistration]?,
-    ) -> [FeatureFlagGroupRegistration] {
+        _ component: [any FeatureFlagGroup.Type]?,
+    ) -> [any FeatureFlagGroup.Type] {
         component ?? []
     }
 
     public static func buildEither(
-        first component: [FeatureFlagGroupRegistration],
-    ) -> [FeatureFlagGroupRegistration] {
+        first component: [any FeatureFlagGroup.Type],
+    ) -> [any FeatureFlagGroup.Type] {
         component
     }
 
     public static func buildEither(
-        second component: [FeatureFlagGroupRegistration],
-    ) -> [FeatureFlagGroupRegistration] {
+        second component: [any FeatureFlagGroup.Type],
+    ) -> [any FeatureFlagGroup.Type] {
         component
     }
 
     public static func buildArray(
-        _ components: [[FeatureFlagGroupRegistration]],
-    ) -> [FeatureFlagGroupRegistration] {
+        _ components: [[any FeatureFlagGroup.Type]],
+    ) -> [any FeatureFlagGroup.Type] {
         components.flatMap(\.self)
     }
 }

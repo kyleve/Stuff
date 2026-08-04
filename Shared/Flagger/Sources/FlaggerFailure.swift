@@ -1,7 +1,6 @@
 /// An observable failure from resolving or persisting a feature flag.
 public struct FlaggerFailure: Error, Equatable, Sendable {
     public enum Operation: String, Sendable {
-        case open
         case read
         case write
         case reset

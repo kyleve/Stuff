@@ -1,19 +1,9 @@
 /// The composition root's explicit list of module-level flag sources.
 public struct FlagSourceRegistry: Sendable {
-    let registrations: [FlagSourceRegistration]
+    let types: [any FlagSource.Type]
 
-    public init(@FlagSourceRegistryBuilder _ content: () -> [FlagSourceRegistration]) {
-        registrations = content()
-    }
-}
-
-public struct FlagSourceRegistration: Sendable {
-    let metadata: FeatureFlagSourceMetadata
-    let groups: FeatureFlagGroupRegistry
-
-    init(_ type: (some FlagSource).Type) {
-        metadata = FeatureFlagSourceMetadata(id: type.id, name: type.name)
-        groups = type.groups
+    public init(@FlagSourceRegistryBuilder _ content: () -> [any FlagSource.Type]) {
+        types = content()
     }
 }
 
@@ -21,37 +11,37 @@ public struct FlagSourceRegistration: Sendable {
 public enum FlagSourceRegistryBuilder {
     public static func buildExpression(
         _ expression: (some FlagSource).Type,
-    ) -> [FlagSourceRegistration] {
-        [FlagSourceRegistration(expression)]
+    ) -> [any FlagSource.Type] {
+        [expression]
     }
 
     public static func buildBlock(
-        _ components: [FlagSourceRegistration]...,
-    ) -> [FlagSourceRegistration] {
+        _ components: [any FlagSource.Type]...,
+    ) -> [any FlagSource.Type] {
         components.flatMap(\.self)
     }
 
     public static func buildOptional(
-        _ component: [FlagSourceRegistration]?,
-    ) -> [FlagSourceRegistration] {
+        _ component: [any FlagSource.Type]?,
+    ) -> [any FlagSource.Type] {
         component ?? []
     }
 
     public static func buildEither(
-        first component: [FlagSourceRegistration],
-    ) -> [FlagSourceRegistration] {
+        first component: [any FlagSource.Type],
+    ) -> [any FlagSource.Type] {
         component
     }
 
     public static func buildEither(
-        second component: [FlagSourceRegistration],
-    ) -> [FlagSourceRegistration] {
+        second component: [any FlagSource.Type],
+    ) -> [any FlagSource.Type] {
         component
     }
 
     public static func buildArray(
-        _ components: [[FlagSourceRegistration]],
-    ) -> [FlagSourceRegistration] {
+        _ components: [[any FlagSource.Type]],
+    ) -> [any FlagSource.Type] {
         components.flatMap(\.self)
     }
 }

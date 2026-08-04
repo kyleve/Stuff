@@ -13,7 +13,6 @@ struct FlagSnapshotTests {
     private func makeSnapshot(storedValue: JSONValue?, isFrozen: Bool) -> FlagSnapshot {
         FlagSnapshot(
             id: FlagID(rawValue: "flag"),
-            propertyName: "flag",
             name: "Flag",
             detail: nil,
             source: FeatureFlagSourceMetadata(id: FlagSourceID("source"), name: "Source"),
