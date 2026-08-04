@@ -12,7 +12,6 @@ enum SettingsDestination: Hashable, CaseIterable {
     case alerts
     case appearance
     case year
-    case backup
     case data
     case about
 
@@ -27,7 +26,6 @@ enum SettingsDestination: Hashable, CaseIterable {
             case .alerts: String(localized: .settingsAlertsGroup)
             case .appearance: String(localized: .settingsAppearanceGroup)
             case .year: String(localized: .settingsYearHeader)
-            case .backup: String(localized: .settingsBackupHeader)
             case .data: String(localized: .settingsDataHeader)
             case .about: String(localized: .settingsAboutHeader)
         }
@@ -43,8 +41,7 @@ enum SettingsDestination: Hashable, CaseIterable {
             case .alerts: "bell.badge"
             case .appearance: "paintbrush.fill"
             case .year: "calendar"
-            case .backup: "externaldrive.fill"
-            case .data: "trash.fill"
+            case .data: "externaldrive.fill"
             case .about: "info"
         }
     }
@@ -61,23 +58,20 @@ enum SettingsDestination: Hashable, CaseIterable {
             case .alerts: .red
             case .appearance: .purple
             case .year: .orange
-            case .backup: .teal
-            case .data: .gray
+            case .data: .teal
             case .about: .brown
         }
     }
 
     /// Whether the group is offered while the app is running on demo data.
     ///
-    /// The three that aren't would each reach past the demo and touch the
-    /// device: **backup** writes (or restores) a real archive, **data** erases
-    /// and resets — which in a demo world would only blank the demo, while
-    /// reading as if it erased something real — and **appearance** exists
-    /// solely to set an alternate app icon, which outlives the process. A demo
-    /// leaves no trace, so it doesn't offer the ways to leave one.
+    /// The two that aren't would each reach past the demo and touch the device:
+    /// **data** backs up, restores, erases, and resets, while **appearance**
+    /// exists solely to set an alternate app icon, which outlives the process.
+    /// A demo leaves no trace, so it doesn't offer the ways to leave one.
     var isAvailableInDemoMode: Bool {
         switch self {
-            case .backup, .data, .appearance: false
+            case .data, .appearance: false
             case .attachments, .loggedDays, .location, .regions, .alerts, .year, .about: true
         }
     }
@@ -88,8 +82,7 @@ enum SettingsDestination: Hashable, CaseIterable {
     var isSheet: Bool {
         switch self {
             case .regions: true
-            case .attachments, .loggedDays, .location, .alerts, .appearance, .year, .backup, .data,
-                 .about:
+            case .attachments, .loggedDays, .location, .alerts, .appearance, .year, .data, .about:
                 false
         }
     }
@@ -115,7 +108,7 @@ enum SettingsListSection: CaseIterable {
             case .tracking: [.location]
             case .notifications: [.alerts]
             case .display: [.appearance, .year]
-            case .storage: [.backup, .data]
+            case .storage: [.data]
             case .about: [.about]
         }
     }
@@ -221,7 +214,6 @@ enum SettingsCatalog {
             + AlertsSettingsView.searchResults
             + AppearanceSettingsView.searchResults
             + VisibleYearSettingsView.searchResults
-            + BackupSettingsView.searchResults
             + DataSettingsView.searchResults
             + AboutSettingsView.searchResults
 

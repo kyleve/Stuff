@@ -165,9 +165,12 @@ esac
 WORKSPACE="Stuff.xcworkspace"
 UNIT_SCHEME="Stuff-iOS-Tests"
 SNAPSHOT_SCHEME="StuffSnapshotTests"
+CHECKOUT_HASH="$(printf '%s' "$(pwd -P)" | shasum -a 256 | cut -c1-12)"
 # Overridable so CI can collect the logs and result bundles from a known path
-# rather than digging through DerivedData.
-WORKDIR="${TEST_WORKDIR:-${TMPDIR:-/tmp}/where-test}"
+# rather than digging through DerivedData. Local runs include the canonical
+# checkout path's hash so clones/worktrees cannot overwrite one another's
+# logs, progress state, or result bundles while running concurrently.
+WORKDIR="${TEST_WORKDIR:-${TMPDIR:-/tmp}/where-test-$CHECKOUT_HASH}"
 # 700 because this directory holds the progress filter, which the run then
 # executes — a world-writable path would let anyone on the machine swap it.
 mkdir -p "$WORKDIR" && chmod 700 "$WORKDIR"
@@ -645,6 +648,27 @@ RUN_ENV=()
 [ -n "$RECORD" ] && RUN_ENV+=("TEST_RUNNER_SNAPSHOT_RECORD=$RECORD")
 [ "$TIMINGS" = true ] && RUN_ENV+=("TEST_RUNNER_SNAPSHOT_TIMING=1")
 [ "$REVIEW" = true ] && RUN_ENV+=("TEST_RUNNER_SNAPSHOT_DIFF=1")
+
+# SwiftPM's generated `Bundle.module` accessors honor
+# PACKAGE_RESOURCE_BUNDLE_PATH as their first lookup candidate (DEBUG-only,
+# which test builds are). The schemes set it to $(BUILT_PRODUCTS_DIR) for
+# Xcode-IDE runs, but xcodebuild does not expand build-setting macros in
+# scheme environment variables, so this script resolves the concrete path
+# and delivers it via TEST_RUNNER_ like the pins above. See
+# `packageResourceEnvironment` in Project.swift for why the lookup needs an
+# override at all (Xcode 27 beta 4's package linking orphans the resource
+# bundles copied into each .xctest).
+BUILT_PRODUCTS_DIR="$(xcodebuild -showBuildSettings \
+    -workspace "$WORKSPACE" \
+    -scheme "${SCHEMES[0]}" \
+    -destination "$DESTINATION" 2>/dev/null \
+    | awk -F' = ' '/ BUILT_PRODUCTS_DIR = /{print $2; exit}')"
+if [ -n "$BUILT_PRODUCTS_DIR" ]; then
+    RUN_ENV+=("TEST_RUNNER_PACKAGE_RESOURCE_BUNDLE_PATH=$BUILT_PRODUCTS_DIR")
+else
+    echo "warning: could not resolve BUILT_PRODUCTS_DIR; package resource" \
+        "bundle lookups will fall back to the linker's placement" >&2
+fi
 
 overall_status=0
 RESULTS=()

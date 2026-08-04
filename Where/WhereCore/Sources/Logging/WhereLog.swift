@@ -47,6 +47,11 @@ public enum WhereLog {
     public static let evidence = group(.evidence)
     /// On-device recent-activity summarization.
     public static let recentActivity = group(.recentActivity)
+    /// The read/derive path everything else consumes: year reports, calendar
+    /// layout, and the data-issue scan. Mostly a span subtree — these
+    /// collaborators throw their failures rather than logging them, so what's
+    /// worth recording about them is what they *cost*.
+    public static let reporting = group(.reporting)
 
     private static func group(_ area: Area) -> Log<WhereRoot> {
         root(for: area)
@@ -62,5 +67,6 @@ public enum WhereLog {
         case session
         case evidence
         case recentActivity
+        case reporting
     }
 }

@@ -40,7 +40,15 @@ public struct SnapshotCase: Identifiable {
     /// (only the test pipeline can re-settle around it).
     public let onReadyToSnapshot: (@MainActor () async -> Void)?
     /// The content rendered under each configuration.
-    public let content: AnyView
+    ///
+    /// The builder stays lazy so describing a snapshot matrix does not also
+    /// instantiate every view and its model. Each access creates an independent
+    /// view value for its configuration.
+    @MainActor public var content: AnyView {
+        contentFactory()
+    }
+
+    private let contentFactory: @MainActor () -> AnyView
 
     public var id: String {
         name
@@ -52,13 +60,13 @@ public struct SnapshotCase: Identifiable {
         configurations: [SnapshotConfiguration],
         settle: SnapshotSettle = .settled,
         onReadyToSnapshot: (@MainActor () async -> Void)? = nil,
-        @ViewBuilder content: @MainActor () -> some View,
+        @ViewBuilder content: @escaping @MainActor () -> some View,
     ) {
         self.name = name
         self.configurations = configurations
         self.settle = settle
         self.onReadyToSnapshot = onReadyToSnapshot
-        self.content = AnyView(content())
+        contentFactory = { AnyView(content()) }
     }
 
     /// The configurations that can render in a plain SwiftUI preview. Accessibility
@@ -92,7 +100,7 @@ extension SnapshotCase: View {
     }
 
     @ViewBuilder
-    private func framed(for configuration: SnapshotConfiguration) -> some View {
+    @MainActor private func framed(for configuration: SnapshotConfiguration) -> some View {
         switch configuration.device.size {
             case let .intrinsic(maxWidth):
                 if let maxWidth {

@@ -18,7 +18,8 @@ let package = Package(
         .library(name: "PeriscopeCore", targets: ["PeriscopeCore"]),
         .library(name: "PeriscopeUI", targets: ["PeriscopeUI"]),
         .library(name: "PeriscopeTools", targets: ["PeriscopeTools"]),
-        .library(name: "SwiftDataInspector", targets: ["SwiftDataInspector"]),
+        .library(name: "Inspector", targets: ["Inspector"]),
+        .library(name: "Flyover", targets: ["Flyover"]),
         .library(name: "SnapshotKit", targets: ["SnapshotKit"]),
         .library(name: "SnapshotKitTesting", targets: ["SnapshotKitTesting"]),
         .library(name: "TestHostSupport", targets: ["TestHostSupport"]),
@@ -100,8 +101,17 @@ let package = Package(
             path: "Shared/Periscope/PeriscopeTools/Sources",
         ),
         .target(
-            name: "SwiftDataInspector",
-            path: "Shared/SwiftDataInspector/Sources",
+            name: "Inspector",
+            path: "Shared/Inspector/Sources",
+        ),
+        .target(
+            name: "Flyover",
+            dependencies: [
+                .target(name: "BroadwayCore"),
+                .target(name: "BroadwayUI"),
+                .target(name: "SnapshotKit"),
+            ],
+            path: "Shared/Flyover/Sources",
         ),
         .target(
             name: "SnapshotKit",
@@ -155,6 +165,7 @@ let package = Package(
                 .target(name: "BroadwayCore"),
                 .target(name: "BroadwayUI"),
                 .target(name: "CreditKit"),
+                .target(name: "Flyover"),
                 .target(name: "LifecycleKit"),
                 .target(name: "LifecycleKitUI"),
                 .target(name: "PeriscopeCore"),
@@ -162,7 +173,7 @@ let package = Package(
                 .target(name: "PeriscopeUI"),
                 .target(name: "RegionKit"),
                 .target(name: "SnapshotKit"),
-                .target(name: "SwiftDataInspector"),
+                .target(name: "Inspector"),
             ],
             path: "Where/WhereUI/Sources",
             resources: [

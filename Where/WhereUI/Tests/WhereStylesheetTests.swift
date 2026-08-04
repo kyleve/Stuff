@@ -31,21 +31,62 @@ struct WhereStylesheetTests {
         #expect(card.padding == 22)
         #expect(card.contentSpacing == 16)
         #expect(card.progressBarHeight == 10)
-        #expect(card.entryStampSize == 88)
-        #expect(card.showsArcText)
-        #expect(card.regionNameFont == .system(size: 38, weight: .semibold, design: .serif))
+        #expect(card.entryStamp == expectedEntryStamp(size: 88, showsArcText: true))
+        #expect(card.regionNameTypography == .init(
+            size: .fixed(38),
+            weight: .semibold,
+            design: .serif,
+        ))
+        #expect(card.regionNameTypography.font == .system(
+            size: 38,
+            weight: .semibold,
+            design: .serif,
+        ))
+        #expect(card.heroNumberTypography == .init(
+            size: .fixed(40),
+            weight: .bold,
+            design: .rounded,
+        ))
+        #expect(card.dayUnitTypography == .init(
+            size: .semantic(.title3),
+            weight: .medium,
+            design: .default,
+        ))
         #expect(card.regionNameTracking == -0.5)
         #expect(card.watermarkFontSize == 150)
         #expect(card.watermarkOffset == CGSize(width: 20, height: 12))
-        #expect(card.holographicIntensity == 1)
-        #expect(card.frameOuterLineWidth == 3.5)
-        #expect(card.showsPerforationRing)
-        #expect(card.innerFrameInset == 16)
+        #expect(card.regionShape == .init(
+            watermark: .init(
+                center: CGPoint(x: 0.7, y: 0.57),
+                extent: CGSize(width: 0.72, height: 0.78),
+                scale: 0.88,
+                fillOpacity: 0.13,
+                stroke: .init(opacity: 0.28, width: 1.5),
+            ),
+            stamp: .init(
+                center: CGPoint(x: 0.5, y: 0.5),
+                extent: CGSize(width: 0.78, height: 0.78),
+                scale: 0.88,
+                fillOpacity: 0.78,
+                stroke: nil,
+            ),
+            securityBorder: .init(
+                inset: 9,
+                glyphSize: 8,
+                spacing: 11,
+                opacity: 0.22,
+            ),
+        ))
+        #expect(card.sheen == .init(
+            intensity: 1,
+            staticGlintIntensity: 0.25,
+            staticPose: .init(roll: 0, pitch: -1),
+        ))
         #expect(card.rosette == .init(
-            wobble: 3,
-            lineWidth: 3,
-            primaryRingSpacing: 18,
-            secondaryRingSpacing: 15,
+            wobble: 2,
+            lineWidth: 1,
+            primaryRingSpacing: 13.5,
+            secondaryRingSpacing: 9.5,
         ))
         #expect(card.glow == .init(opacity: 0.75, radius: 12))
         #expect(card.lift == .init(opacity: 0.6, radius: 34, offsetY: 18))
@@ -57,18 +98,34 @@ struct WhereStylesheetTests {
         #expect(card.padding == 16)
         #expect(card.contentSpacing == 10)
         #expect(card.progressBarHeight == 6)
-        #expect(card.entryStampSize == 52)
-        #expect(!card.showsArcText)
+        #expect(card.entryStamp == expectedEntryStamp(size: 52, showsArcText: false))
+        #expect(card.regionNameTypography == .init(
+            size: .semantic(.title3),
+            weight: .semibold,
+            design: .serif,
+        ))
+        #expect(card.heroNumberTypography == .init(
+            size: .semantic(.title),
+            weight: .bold,
+            design: .rounded,
+        ))
+        #expect(card.dayUnitTypography == .init(
+            size: .semantic(.subheadline),
+            weight: .medium,
+            design: .default,
+        ))
         #expect(card.regionNameTracking == 0)
         #expect(card.watermarkFontSize == 96)
         #expect(card.watermarkOffset == CGSize(width: 12, height: 10))
-        #expect(card.holographicIntensity == 0.5)
-        #expect(card.frameOuterLineWidth == 2.5)
-        #expect(!card.showsPerforationRing)
-        #expect(card.innerFrameInset == 12)
+        #expect(card.regionShape == nil)
+        #expect(card.sheen == .init(
+            intensity: 0.5,
+            staticGlintIntensity: 0.5,
+            staticPose: .init(roll: 0, pitch: 0),
+        ))
         #expect(card.rosette == .init(
             wobble: 2,
-            lineWidth: 2,
+            lineWidth: 1,
             primaryRingSpacing: 13,
             secondaryRingSpacing: 11,
         ))
@@ -81,23 +138,46 @@ struct WhereStylesheetTests {
         #expect(style.card[.compact] == style.card.compact)
     }
 
+    private func expectedEntryStamp(
+        size: CGFloat,
+        showsArcText: Bool,
+    ) -> WhereStylesheet.CardStyle.EntryStamp {
+        .init(
+            size: size,
+            outerRing: .init(opacity: 0.7, lineWidthFraction: 0.035),
+            innerRing: .init(
+                opacity: 0.45,
+                lineWidthFraction: 0.012,
+                dash: .init(lengthFraction: 0.05, spacingFraction: 0.035),
+                insetFraction: 0.13,
+            ),
+            content: .init(
+                spacingFraction: 0.02,
+                artworkExtent: CGSize(width: 0.42, height: 0.28),
+                symbolFont: .init(sizeFraction: 0.26, weight: .regular, design: .default),
+                yearFont: .init(sizeFraction: 0.15, weight: .bold, design: .serif),
+                opacity: 0.85,
+            ),
+            arc: showsArcText ? .init(
+                radiusFraction: 0.37,
+                font: .init(sizeFraction: 0.1, weight: .semibold, design: .serif),
+                opacity: 0.7,
+                maximumSweepDegrees: 250,
+                sweepDegreesPerCharacter: 17,
+            ) : nil,
+            rotationDegrees: -8,
+        )
+    }
+
     @Test func sharedCardStyle() {
         let card = style.card
         #expect(card.watermarkOpacity == 0.08)
         #expect(card.glassTintOpacity == 0.18)
         #expect(card.nameOpacity == 0.8)
         #expect(card.rosetteFill == .init(primary: 0.12, secondary: 0.08))
-        #expect(card.frame == .init(
-            outerOpacity: 0.6,
-            thinOpacity: 0.35,
-            thinWidth: 1,
-            perforationOpacity: 0.45,
-            perforationWidth: 2.5,
-            perforationDash: [0.01, 6],
-            innerOpacity: 0.4,
-            innerWidth: 1,
-            innerDash: [5, 4],
-        ))
+        #expect(card.securityPrint == .standard)
+        #expect(card.securityPrint.backgroundBlendMode == .normal)
+        #expect(card.securityPrint.tint(.red) == .red)
         #expect(card.dayCount == .standard)
         #expect(card.dayCount.animation == .easeOut(duration: 0.3))
     }
@@ -148,15 +228,19 @@ struct WhereStylesheetTests {
         #expect(month.sectionSpacing == 8)
         #expect(month.gridSpacing == 6)
         #expect(month.padding == 16)
-        #expect(month.cornerRadius == 21)
+        #expect(month.cornerRadius == 28)
         #expect(month.plain.fill == Color.primary.opacity(0.03))
         #expect(month.plain.border == Color.primary.opacity(0.12))
         #expect(month.plain.borderWidth == 2)
+        #expect(month.plain.foreground == .primary)
         #expect(month.current.fill == Color.accentColor.opacity(0.08))
         #expect(month.current.border == Color.accentColor.opacity(0.7))
-        #expect(month.current.borderWidth == 4)
-        #expect(month.futureOpacity == 0.55)
-        #expect(month.futurePeekFraction == 0.5)
+        #expect(month.current.borderWidth == 3)
+        #expect(month.current.foreground == Color.primary.mix(
+            with: .accentColor,
+            by: 0.25,
+            in: .perceptual,
+        ))
         #expect(month.footerDividerSpacing == 8)
         #expect(month.footerSpacing == 4)
         #expect(month.footerRowSpacing == 6)
@@ -275,6 +359,48 @@ struct WhereStylesheetTests {
         #expect(settings.scrollSettleDelay == .milliseconds(350))
     }
 
+    @Test func developerOverlayStyle() {
+        let overlay = style.developerOverlay
+        #expect(overlay.edgeInset == 16)
+        #expect(overlay.presentationAnimation == .snappy(duration: 0.3))
+        #expect(overlay.floatingWindow == .standard)
+        #expect(overlay.floatingWindow.maxWidth == 420)
+        #expect(overlay.floatingWindow.maxHeight == 620)
+        #expect(overlay.floatingWindow.heightFraction == 0.62)
+        #expect(overlay.floatingWindow.minSize == CGSize(width: 260, height: 320))
+        #expect(overlay.floatingWindow.maxContentInsetFraction == 0.8)
+
+        let panel = overlay.panel
+        #expect(panel.cornerRadius == 22)
+        #expect(panel.fullScreenInset == 12)
+        #expect(panel.shadowOpacity == 0.3)
+        #expect(panel.shadowRadius == 20)
+        #expect(panel.shadowOffsetY == 6)
+        #expect(panel.controlHorizontalPadding == 16)
+        #expect(panel.controlVerticalPadding == 10)
+        #expect(panel.dragHandleSize == CGSize(width: 40, height: 5))
+        #expect(panel.dragHandleMinHeight == 28)
+        #expect(panel.resizeGripSize == 44)
+        #expect(panel.resizeIconSize == 13)
+        #expect(panel.resizeGripClearance == 40)
+
+        let menu = overlay.menu
+        #expect(menu.maxWidth == 310)
+        #expect(menu.launcherSpacing == 10)
+        #expect(menu.rowSpacing == 8)
+        #expect(menu.horizontalPadding == 14)
+        #expect(menu.verticalPadding == 10)
+        #expect(menu.minRowHeight == 44)
+        #expect(menu.cornerRadius == 18)
+        #expect(menu.subtitleSpacing == 2)
+        #expect(menu.iconWidth == 24)
+        #expect(menu.motion == .standard)
+        #expect(menu.motion.animation == .spring(duration: 0.42, bounce: 0.2))
+        #expect(menu.motion.stagger == 0.04)
+        #expect(menu.motion.scale == 0.86)
+        #expect(menu.motion.usesSpatialMotion)
+    }
+
     @Test func paletteColors() {
         let palette = style.palette
         #expect(palette.primary.backgroundTop == Color(red: 0.07, green: 0.08, blue: 0.13))
@@ -324,6 +450,22 @@ struct WhereStylesheetTests {
         context.traitOverrides.accessibility = BAccessibility(isReduceMotionEnabled: true)
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
         #expect(resolved.card.dayCount == .reducedMotion)
+        #expect(resolved.developerOverlay.menu.motion == .reduced)
+        #expect(resolved.developerOverlay.menu.motion.usesSpatialMotion == false)
+    }
+
+    @MainActor
+    @Test func palesCardSecurityPrintInDarkMode() throws {
+        var context = BContext(traits: .system)
+        context.traitOverrides.mode = .dark
+        let resolved = try context.stylesheets.get(WhereStylesheet.self)
+        #expect(resolved.card.securityPrint == .dark)
+        #expect(resolved.card.securityPrint.backgroundBlendMode == .luminosity)
+        #expect(resolved.card.securityPrint.tint(.red) == Color.red.mix(
+            with: .white,
+            by: 0.65,
+            in: .perceptual,
+        ))
     }
 }
 

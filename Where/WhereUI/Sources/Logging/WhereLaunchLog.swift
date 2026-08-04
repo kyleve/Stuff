@@ -3,9 +3,30 @@ import PeriscopeCore
 /// Structured events for the app launch sequence (`WhereLaunch` /
 /// `WhereBootstrap`), including the process-global log-store bootstrap.
 enum WhereLaunchLog: LogEvent {
-    /// Names the launch spans — one bounded span per launch step.
-    enum SpanName: Hashable {
-        case step
+    /// Names the launch spans — one budgeted span per measured launch or
+    /// teardown step (see `MeasuredStep`), plus the two log-store chores the
+    /// bootstrap runs off the critical path.
+    ///
+    /// `description` is spelled out rather than left to `String(describing:)`
+    /// because ``step(_:)`` carries a payload: reflection would render it
+    /// `step(WhereUI.LaunchStepID.resolveScope)`, leaking the module and the Swift
+    /// case name into a span name the tools group by. The hand-written form
+    /// yields `step(open-store)`, matching the step IDs everywhere else.
+    enum SpanName: Hashable, CustomStringConvertible {
+        /// One measured step of the launch or reset plan.
+        case step(LaunchStepID)
+        /// Opening the durable Periscope store and attaching it as a sink.
+        case openLogStore
+        /// Trimming persisted log history past the retention window.
+        case pruneHistory
+
+        var description: String {
+            switch self {
+                case let .step(id): "step(\(id.rawValue))"
+                case .openLogStore: "openLogStore"
+                case .pruneHistory: "pruneHistory"
+            }
+        }
     }
 
     case runnerCreated(reason: String)
@@ -20,9 +41,12 @@ enum WhereLaunchLog: LogEvent {
     /// Opening the durable log store failed; logging continues through the
     /// OSLog sink only, with no persisted history this launch.
     case loggingStoreUnavailable(description: String)
-    /// Retention pruning finished, removing `prunedEventCount` events past the
-    /// window. Runs after ``loggingStoreReady``, so it never delays readiness.
-    case historyPruned(prunedEventCount: Int)
+    /// Retention pruning finished. The two counts are reported separately
+    /// because they mean different things: `expiredEventCount` is routine, while
+    /// a nonzero `overflowEventCount` says this install out-logs its retention
+    /// window and is being held to the size cap instead. Runs after
+    /// ``loggingStoreReady``, so it never delays readiness.
+    case historyPruned(expiredEventCount: Int, overflowEventCount: Int)
     /// Retention pruning failed; the store is still usable (last good history
     /// preserved), it just isn't trimmed this launch.
     case historyPruneFailed(description: String)
@@ -61,8 +85,9 @@ enum WhereLaunchLog: LogEvent {
                 "Log store ready"
             case let .loggingStoreUnavailable(description):
                 "Log store unavailable: \(description)"
-            case let .historyPruned(prunedEventCount):
-                "Pruned \(prunedEventCount) log event(s) past retention"
+            case let .historyPruned(expiredEventCount, overflowEventCount):
+                "Pruned \(expiredEventCount) log event(s) past retention"
+                    + " and \(overflowEventCount) past the size cap"
             case let .historyPruneFailed(description):
                 "Failed to prune log history: \(description)"
             case let .detachedStepFailed(stepID, description):

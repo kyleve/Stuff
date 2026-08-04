@@ -24,7 +24,7 @@ final class AppIconModel {
         options: [AppIconOption]? = nil,
         setter: any AlternateIconSetting = UIApplication.shared,
     ) {
-        let resolved = options ?? AppIconModel.loadOptions()
+        let resolved = options ?? AppIconCatalog.loadedOptions()
         self.options = resolved
         self.setter = setter
         selectedID = AppIconModel.matchSelection(in: resolved, current: setter.alternateIconName)
@@ -67,10 +67,6 @@ final class AppIconModel {
     var isShowingError: Bool {
         get { applyError != nil }
         set { if !newValue { applyError = nil } }
-    }
-
-    private static func loadOptions() -> [AppIconOption] {
-        (try? AppIconCatalog.load()) ?? []
     }
 
     /// Match the live `alternateIconName` to a manifest option, falling back to

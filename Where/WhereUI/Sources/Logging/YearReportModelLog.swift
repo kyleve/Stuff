@@ -5,6 +5,19 @@ import WhereCore
 /// `externalID`. A successful load is `.info`; read failures that leave a
 /// degraded UI state are `.warning`.
 enum YearReportModelLog: LogEvent {
+    /// Names the model's timed span.
+    ///
+    /// Only the composed pass is timed: the report read, the evidence-day fetch,
+    /// and the issue scan each already span themselves in `WhereCore`, so what's
+    /// missing at this layer is their *sum* — what a screen waits on.
+    enum SpanName: Hashable {
+        /// The scene's whole data pull: year report, evidence day keys, and the
+        /// Resolve badge recount. Runs on activation, on a year switch, and on
+        /// every committed write, so its duration is the refresh cost the UI
+        /// pays per store change.
+        case sceneRefresh
+    }
+
     case selectedYear(year: Int)
     case reportLoaded(year: Int, dayCount: Int)
     case reportLoadFailed(year: Int, description: String)

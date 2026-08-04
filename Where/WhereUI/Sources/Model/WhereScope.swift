@@ -62,6 +62,9 @@ public final class WhereScope {
         /// the open hadn't landed yet, which is what tells that open to record
         /// its store instead of attaching it.
         case idle(store: PeriscopeStore?)
+        /// The one attempted open failed. The scope remains usable through
+        /// OSLog, but no durable sink will arrive for this scope.
+        case failed(description: String)
     }
 
     private var logRouting: LogRouting = .pending
@@ -71,10 +74,26 @@ public final class WhereScope {
     /// arrival. Nil in previews and tests, which log through the in-memory
     /// pipeline only.
     public var logStore: PeriscopeStore? {
+        if case let .ready(store) = logStoreState {
+            return store
+        }
+        return nil
+    }
+
+    /// The current durable-store state, projected into the process model's
+    /// observable representation. This lets activation publish a terminal
+    /// state even when a very fast open finished before `WhereModel` installed
+    /// the scope and began accepting its callbacks.
+    var logStoreState: WhereModel.LogStoreState {
         switch logRouting {
-            case .pending: nil
-            case let .routing(store, _): store
-            case let .idle(store): store
+            case .pending:
+                .opening
+            case let .routing(store, _):
+                .ready(store)
+            case let .idle(store):
+                store.map(WhereModel.LogStoreState.ready) ?? .unavailable
+            case let .failed(description):
+                .failed(description: description)
         }
     }
 
@@ -86,11 +105,13 @@ public final class WhereScope {
 
     private static let logger = WhereLog.root(WhereLaunchLog.self)
 
-    /// How much log history the durable store keeps: 100 days. Older events
-    /// are pruned when the store opens so the database can't grow without
-    /// bound. (A size cap to bound heavy-logging devices within the window is
-    /// tracked in `Where/TODOs.md`.)
-    private static let logRetention: TimeInterval = 100 * 24 * 60 * 60
+    /// Trims the durable store to ``LogHistoryPruner/Policy/standard`` when it
+    /// opens — an age window *and* an event ceiling, so the database is
+    /// bounded whichever way this install logs.
+    private static let historyPruner = LogHistoryPruner(
+        policy: .standard,
+        now: { Date() },
+    )
 
     /// Whether this scope is the user's real world or a throwaway demo one.
     ///
@@ -121,12 +142,14 @@ public final class WhereScope {
         preferences: WherePreferences,
         logSystem: Periscope,
     ) -> WhereScope {
-        WhereScope(
+        let scope = WhereScope(
             kind: .real,
             services: services,
             preferences: preferences,
             logSystem: logSystem,
         )
+        scope.logRouting = .idle(store: nil)
+        return scope
     }
 
     init(
@@ -152,6 +175,8 @@ public final class WhereScope {
         bootstrap: any WhereScopeAssembling,
         preferences: WherePreferences,
         logSystem: Periscope,
+        onLogStoreStateChange:
+        @escaping @MainActor (WhereScope, WhereModel.LogStoreState) -> Void,
     ) async throws -> WhereScope {
         let scope = try await WhereScope(
             kind: .real,
@@ -159,7 +184,10 @@ public final class WhereScope {
             preferences: preferences,
             logSystem: logSystem,
         )
-        scope.openDurableLogStore(from: bootstrap)
+        scope.openDurableLogStore(
+            from: bootstrap,
+            onStateChange: onLogStoreStateChange,
+        )
         return scope
     }
 
@@ -240,7 +268,9 @@ public final class WhereScope {
         // behind on the logging system.
         try await scope.adopt(logStore: PeriscopeStore.make(
             storage: .inMemory,
-            session: .current(),
+            session: .current(
+                attributes: BuildInfo.current(bundle: .main).logSessionAttributes,
+            ),
         ))
         return scope
     }
@@ -268,6 +298,8 @@ public final class WhereScope {
                 break
             case .idle:
                 logRouting = .idle(store: store)
+            case .failed:
+                break
         }
     }
 
@@ -302,6 +334,8 @@ public final class WhereScope {
                 await logSystem.remove(token)
             case .idle:
                 break
+            case .failed:
+                break
         }
     }
 
@@ -311,38 +345,67 @@ public final class WhereScope {
     /// before it lands. (Fully closing that window — a bootstrap journal from
     /// process start — is tracked as a P0 in `Shared/Periscope/TODOs.md`.)
     ///
+    /// The bring-up is itself a span (`openLogStore`), deliberately ending
+    /// *after* the sink is routed rather than around the open alone: a span
+    /// that closes before the store is a sink records nowhere but OSLog and
+    /// Instruments. Its `SpanBegan` is still lost for that same reason — the
+    /// pre-sink window above — so the persisted history holds the end (and
+    /// with it the duration) without a matching begin, which is what the span
+    /// history reads anyway.
+    ///
     /// Degraded-but-handled on failure: if the store can't open, logging keeps
     /// flowing through OSLog and the failure is recorded (with the error
     /// attached) rather than taking a launch down over diagnostics. An
     /// assembly with no durable store (previews, tests) simply gets none.
-    private func openDurableLogStore(from bootstrap: any WhereScopeAssembling) {
+    private func openDurableLogStore(
+        from bootstrap: any WhereScopeAssembling,
+        onStateChange:
+        @escaping @MainActor (WhereScope, WhereModel.LogStoreState) -> Void,
+    ) {
         Task {
             let store: PeriscopeStore?
             do {
-                store = try await bootstrap.makeLogStore()
+                store = try await Self.logger.measure(.openLogStore, budget: .seconds(1)) {
+                    guard let store = try await bootstrap.makeLogStore() else { return nil }
+                    receive(logStore: store)
+                    return store
+                }
             } catch {
+                let description = String(describing: error)
+                logRouting = .failed(description: description)
+                onStateChange(self, .failed(description: description))
                 Self.logger(attachments: [.error(error, name: "open-error")]) {
-                    .loggingStoreUnavailable(description: String(describing: error))
+                    .loggingStoreUnavailable(description: description)
                 }
                 return
             }
-            guard let store else { return }
-            receive(logStore: store)
+            guard let store else {
+                logRouting = .idle(store: nil)
+                onStateChange(self, .unavailable)
+                return
+            }
+            onStateChange(self, .ready(store))
             Self.logger { .loggingStoreReady }
             pruneHistory(in: store)
         }
     }
 
-    /// Trim log history past `logRetention` on its own task, so it never
+    /// Trim log history to the retention policy on its own task, so it never
     /// delays `.loggingStoreReady`. The prune runs on the store actor (off the
     /// main thread); a failure is degraded-but-handled — the store keeps its
     /// last good history and stays usable, it just isn't trimmed this launch.
     private func pruneHistory(in store: PeriscopeStore) {
         Task {
             do {
-                let cutoff = Date().addingTimeInterval(-Self.logRetention)
-                let pruned = try await store.pruneEvents(olderThan: cutoff)
-                Self.logger { .historyPruned(prunedEventCount: pruned) }
+                let pruned = try await Self.logger.measure(.pruneHistory, budget: .seconds(2)) {
+                    try await Self.historyPruner.prune(store)
+                }
+                Self.logger {
+                    .historyPruned(
+                        expiredEventCount: pruned.expired,
+                        overflowEventCount: pruned.overflowed,
+                    )
+                }
             } catch {
                 Self.logger(attachments: [.error(error, name: "prune-error")]) {
                     .historyPruneFailed(description: String(describing: error))

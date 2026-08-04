@@ -2,10 +2,11 @@ import LifecycleKitUI
 import SwiftUI
 import WhereCore
 
-/// Settings drill-in for the destructive actions: erase the selected year's data,
-/// or erase everything and return to first-run setup.
+/// Settings drill-in for backup and data management: export or restore the
+/// database, erase the selected year's data, or reset the entire app.
 struct DataSettingsView: View {
     let report: YearReportModel
+    let backup: BackupModel
     var focus: SettingsFocus?
 
     @Environment(WhereModel.self) private var model
@@ -21,6 +22,7 @@ struct DataSettingsView: View {
     var body: some View {
         SettingsFocusScope(focus: focus) {
             Form {
+                BackupSettingsSection(backup: backup)
                 dataSection
                 resetSection
             }
@@ -100,11 +102,15 @@ extension DataSettingsView: SettingsSection {
     }
 
     enum Item: SettingsItem {
+        case exportBackup
+        case importBackup
         case eraseYear
         case resetApp
 
         var title: String {
             switch self {
+                case .exportBackup: String(localized: .settingsBackupExport)
+                case .importBackup: String(localized: .settingsBackupImport)
                 case .eraseYear: String(localized: .settingsEraseYearTitle)
                 case .resetApp: String(localized: .settingsResetErase)
             }
@@ -112,6 +118,8 @@ extension DataSettingsView: SettingsSection {
 
         var keywords: [String] {
             switch self {
+                case .exportBackup: splitKeywords(String(localized: .settingsKeywordsExport))
+                case .importBackup: splitKeywords(String(localized: .settingsKeywordsImport))
                 case .eraseYear: splitKeywords(String(localized: .settingsKeywordsEraseYear))
                 case .resetApp: splitKeywords(String(localized: .settingsKeywordsReset))
             }
@@ -122,10 +130,24 @@ extension DataSettingsView: SettingsSection {
 #if DEBUG
     #Preview {
         NavigationStack {
-            DataSettingsView(report: PreviewSupport.loadedYearReportModel())
-                .environment(PreviewSupport.loadedModel())
-                .environment(PreviewSupport.loadedSession())
+            DataSettingsView(
+                report: PreviewSupport.loadedYearReportModel(),
+                backup: PreviewSupport.backupModel(),
+            )
+            .environment(PreviewSupport.loadedModel())
+            .environment(PreviewSupport.loadedSession())
         }
         .whereBroadwayRoot()
+    }
+#endif
+
+#if DEBUG
+    extension DataSettingsView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData.hosted(
+            DataSettingsView.self,
+            title: "Data",
+        ) { world in
+            DataSettingsView(report: world.report, backup: world.backup)
+        }
     }
 #endif

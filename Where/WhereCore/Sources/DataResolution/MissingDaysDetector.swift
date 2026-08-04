@@ -11,6 +11,8 @@ import Foundation
 public struct MissingDaysDetector: DataIssueDetector {
     public typealias Issue = MissingDaysIssue
 
+    public let detects = DataIssueCategory.missingDays
+
     public init() {}
 
     public func detectIssues(in input: DataIssueInput) -> [MissingDaysIssue] {

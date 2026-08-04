@@ -4,6 +4,19 @@ import PeriscopeCore
 /// coordinator. Degraded-but-handled authorization states log at `.warning`;
 /// successful lifecycle transitions at `.info`.
 enum WhereSessionLog: LogEvent {
+    /// Names the coordinator's timed span.
+    ///
+    /// Only the *composed* foreground pass is timed. Each individual step
+    /// (`syncAuthorization`, `applyReminderConfiguration`, …) delegates straight
+    /// to a `WhereCore` collaborator that spans itself, and the launch measures
+    /// the same steps individually; a second span per step would double every
+    /// reading without adding a fact.
+    enum SpanName: Hashable {
+        /// Everything the coordinator re-runs when the app returns to the
+        /// foreground — the wall-clock cost of a resume, from the user's side.
+        case foregroundRefresh
+    }
+
     case whenInUseOnly
     case locationAccessDenied(status: String)
     case backgroundTrackingStarted

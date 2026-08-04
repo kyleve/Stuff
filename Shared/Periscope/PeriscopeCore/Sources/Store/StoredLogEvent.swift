@@ -60,6 +60,10 @@ public struct StoredLogEvent: Sendable, Identifiable, Hashable {
     /// `PeriscopeStore.attachments(forEvent:)`.
     public let attachments: [LogAttachmentInfo]
     public let sessionID: UUID
+    /// The ambient state the event was stamped with — resolve it with
+    /// `PeriscopeStore.ambientSnapshot(for:)`. `nil` when no ambient source
+    /// had reported anything yet.
+    public let ambientSnapshotID: UUID?
 
     public init(
         id: UUID,
@@ -78,6 +82,7 @@ public struct StoredLogEvent: Sendable, Identifiable, Hashable {
         externalID: String?,
         attachments: [LogAttachmentInfo],
         sessionID: UUID,
+        ambientSnapshotID: UUID?,
     ) {
         self.id = id
         self.date = date
@@ -95,6 +100,7 @@ public struct StoredLogEvent: Sendable, Identifiable, Hashable {
         self.externalID = externalID
         self.attachments = attachments
         self.sessionID = sessionID
+        self.ambientSnapshotID = ambientSnapshotID
     }
 
     public var primaryScope: ScopeID? {

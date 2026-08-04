@@ -115,3 +115,14 @@ public struct YearTotalsWidgetView: View {
         YearTotalsWidgetView.snapshotPreviews
     }
 #endif
+
+#if DEBUG
+    extension YearTotalsWidgetView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData.snapshots(
+            YearTotalsWidgetView.self,
+            title: "Year Totals Widget",
+            viewport: .fixed(CGSize(width: 338, height: 158)),
+            navigationContainer: .none,
+        )
+    }
+#endif

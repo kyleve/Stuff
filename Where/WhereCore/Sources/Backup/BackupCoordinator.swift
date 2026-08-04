@@ -96,44 +96,72 @@ public actor BackupCoordinator {
     public func exportBackup(
         onProgress: @Sendable (Double) -> Void = { _ in },
     ) async throws -> URL {
+        try await Self.logger.measure(.exportBackup) {
+            try await performExport(onProgress: onProgress)
+        }
+    }
+
+    /// `exportBackup`'s body, split out so the outer span reads as one leg-by-leg
+    /// tree rather than wrapping a `return`.
+    private func performExport(
+        onProgress: @Sendable (Double) -> Void,
+    ) async throws -> URL {
         purgePreviousExport()
 
-        let samples = try await store.allSamples()
-        let evidence = try await store.allEvidence()
-        let manualDays = try await store.allManualDays()
-        let dismissedIssues = try await store.allDismissedIssues()
-        // The user's primary regions with their picked looks + order (the
-        // resolved default set when they haven't chosen yet). `trackedRegions`
-        // carries the bare ids alongside it for older readers.
-        let primaryRegions = try await store.primaryRegions()
-        let trackedRegions = primaryRegions.map(\.region)
+        let tables = try await Self.logger.measure(.exportReads) {
+            // The user's primary regions with their picked looks + order (the
+            // resolved default set when they haven't chosen yet).
+            try await ExportTables(
+                samples: store.allSamples(),
+                evidence: store.allEvidence(),
+                manualDays: store.allManualDays(),
+                dismissedIssues: store.allDismissedIssues(),
+                primaryRegions: store.primaryRegions(),
+            )
+        }
+        let evidence = tables.evidence
         var blobs: [UUID: Data] = [:]
-        var lastPercent = -1
-        for (index, item) in evidence.enumerated() {
-            if let blob = try await store.evidenceBlob(for: item.id) {
-                blobs[item.id] = blob
+        try await Self.logger.measure(.exportBlobLoad) {
+            var lastPercent = -1
+            for (index, item) in evidence.enumerated() {
+                if let blob = try await store.evidenceBlob(for: item.id) {
+                    blobs[item.id] = blob
+                }
+                let fraction = Double(index + 1) / Double(evidence.count)
+                    * Self.exportBlobLoadFraction
+                let percent = Int(fraction * 100)
+                guard percent != lastPercent else { continue }
+                lastPercent = percent
+                onProgress(fraction)
             }
-            let fraction = Double(index + 1) / Double(evidence.count) * Self.exportBlobLoadFraction
-            let percent = Int(fraction * 100)
-            guard percent != lastPercent else { continue }
-            lastPercent = percent
-            onProgress(fraction)
         }
         let backupService = backupService
         let url = try await Task.detached(priority: .utility) {
             try backupService.makeArchiveFile(
-                samples: samples,
-                evidence: evidence,
-                manualDays: manualDays,
-                dismissedIssues: dismissedIssues,
-                trackedRegions: trackedRegions,
-                primaryRegions: primaryRegions,
+                samples: tables.samples,
+                evidence: tables.evidence,
+                manualDays: tables.manualDays,
+                dismissedIssues: tables.dismissedIssues,
+                // The bare ids ride alongside the primary regions for older readers.
+                trackedRegions: tables.primaryRegions.map(\.region),
+                primaryRegions: tables.primaryRegions,
                 blobs: blobs,
             )
         }.value
         onProgress(1)
         previousExportDirectory = url.deletingLastPathComponent()
         return url
+    }
+
+    /// Everything an export reads out of the store before it starts on blobs.
+    /// A named value rather than five locals so the whole read leg fits inside
+    /// one span without threading a tuple through it.
+    private struct ExportTables {
+        let samples: [LocationSample]
+        let evidence: [Evidence]
+        let manualDays: [DayPresence]
+        let dismissedIssues: [DismissedIssue]
+        let primaryRegions: [PrimaryRegion]
     }
 
     /// Delete the most recent export's staging directory now, rather than
@@ -174,6 +202,18 @@ public actor BackupCoordinator {
         strategy: ImportStrategy,
         onProgress: @Sendable (Double) -> Void = { _ in },
     ) async throws -> ImportSummary {
+        try await Self.logger.measure(.importBackup) {
+            try await performImport(from: url, strategy: strategy, onProgress: onProgress)
+        }
+    }
+
+    /// `importBackup`'s body, split out for the same reason as
+    /// ``performExport(onProgress:)``.
+    private func performImport(
+        from url: URL,
+        strategy: ImportStrategy,
+        onProgress: @Sendable (Double) -> Void,
+    ) async throws -> ImportSummary {
         // Files handed over by the document picker are security-scoped; we must
         // bracket the read with start/stop access or `Data(contentsOf:)` fails
         // with a permissions error.
@@ -189,54 +229,57 @@ public actor BackupCoordinator {
         let total = archive.samples.count + archive.evidence.count
             + archive.manualDays.count + archive.dismissedIssues.count
 
-        try await store.perform {
-            if strategy == .replace {
-                try await store.clearAll()
+        try await Self.logger.measure(.importWrite) {
+            try await store.perform {
+                if strategy == .replace {
+                    try await store.clearAll()
+                }
+                // `completed`/`report` are local to this `@Sendable` block, so
+                // the running count never crosses the actor boundary; only the
+                // throttled fraction is handed to `onProgress`.
+                var completed = 0
+                var lastPercent = -1
+                func report() {
+                    completed += 1
+                    guard total > 0 else { return }
+                    let percent = Int(Double(completed) / Double(total) * 100)
+                    guard percent != lastPercent else { return }
+                    lastPercent = percent
+                    onProgress(Double(completed) / Double(total))
+                }
+                for sample in archive.samples {
+                    try await store.add(sample: sample)
+                    report()
+                }
+                for item in archive.evidence {
+                    try await store.write(evidence: item, blob: blobs[item.id])
+                    report()
+                }
+                for day in archive.manualDays {
+                    try await store.setManualDay(day)
+                    report()
+                }
+                for dismissal in archive.dismissedIssues {
+                    try await store.restoreDismissedIssue(dismissal)
+                    report()
+                }
+                // Primary regions (with their picked looks) round-trip like any
+                // other data. On `.replace` the store was cleared above, so write
+                // the archive's set exactly; on `.merge` union it into the current
+                // set (reading the *resolved* current set first so a device on the
+                // implicit default four doesn't collapse to just the imported
+                // ones), with the archive's appearance winning on overlap.
+                // `setPrimaryRegions` is a whole-set replace, so a merge builds
+                // the full merged list. A handful of rows, so they're not folded
+                // into the progress total.
+                let archivePrimary = archive.primaryRegions
+                let regionsToWrite: [PrimaryRegion] = if strategy == .merge {
+                    try await Self.merge(archivePrimary, into: store.primaryRegions())
+                } else {
+                    archivePrimary
+                }
+                try await store.setPrimaryRegions(regionsToWrite)
             }
-            // `completed`/`report` are local to this `@Sendable` block, so the
-            // running count never crosses the actor boundary; only the throttled
-            // fraction is handed to `onProgress`.
-            var completed = 0
-            var lastPercent = -1
-            func report() {
-                completed += 1
-                guard total > 0 else { return }
-                let percent = Int(Double(completed) / Double(total) * 100)
-                guard percent != lastPercent else { return }
-                lastPercent = percent
-                onProgress(Double(completed) / Double(total))
-            }
-            for sample in archive.samples {
-                try await store.add(sample: sample)
-                report()
-            }
-            for item in archive.evidence {
-                try await store.write(evidence: item, blob: blobs[item.id])
-                report()
-            }
-            for day in archive.manualDays {
-                try await store.setManualDay(day)
-                report()
-            }
-            for dismissal in archive.dismissedIssues {
-                try await store.restoreDismissedIssue(dismissal)
-                report()
-            }
-            // Primary regions (with their picked looks) round-trip like any
-            // other data. On `.replace` the store was cleared above, so write
-            // the archive's set exactly; on `.merge` union it into the current
-            // set (reading the *resolved* current set first so a device on the
-            // implicit default four doesn't collapse to just the imported ones),
-            // with the archive's appearance winning on overlap. `setPrimaryRegions`
-            // is a whole-set replace, so a merge builds the full merged list. A
-            // handful of rows, so they're not folded into the progress total.
-            let archivePrimary = archive.primaryRegions
-            let regionsToWrite: [PrimaryRegion] = if strategy == .merge {
-                try await Self.merge(archivePrimary, into: store.primaryRegions())
-            } else {
-                archivePrimary
-            }
-            try await store.setPrimaryRegions(regionsToWrite)
         }
         // An import rewrites day data, so the badge / notification / widget
         // reconcile a day change runs has to follow it — these headless

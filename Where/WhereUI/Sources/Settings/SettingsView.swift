@@ -5,9 +5,9 @@ import WhereCore
 
 /// Settings tab: an iOS-Settings-style top-level list of icon rows that drill
 /// into grouped sub-screens — a Data group at the top (attachments, logged days,
-/// regions), then location, alerts, appearance, report year, backup, erase, and
-/// About — plus a search field that filters individual settings and deep-links
-/// to the screen — and the row — containing each.
+/// regions), then location, alerts, appearance, report year, data management,
+/// and About — plus a search field that filters individual settings and
+/// deep-links to the screen — and the row — containing each.
 ///
 /// The top level owns nothing but navigation; behavior lives in the sub-screens
 /// (`LocationSettingsView`, `AlertsSettingsView`, …). The scene's report model and
@@ -157,8 +157,7 @@ struct SettingsView: View {
         switch destination {
             case .regions:
                 showRegions = true
-            case .attachments, .loggedDays, .location, .alerts, .appearance, .year, .backup, .data,
-                 .about:
+            case .attachments, .loggedDays, .location, .alerts, .appearance, .year, .data, .about:
                 assertionFailure("\(destination) is a push destination, not a sheet")
         }
     }
@@ -191,7 +190,7 @@ struct SettingsView: View {
                 )
             case .year:
                 report.selectedYear.formatted(.number.grouping(.never))
-            case .attachments, .loggedDays, .regions, .alerts, .appearance, .backup, .data, .about:
+            case .attachments, .loggedDays, .regions, .alerts, .appearance, .data, .about:
                 nil
         }
     }
@@ -233,10 +232,8 @@ struct SettingsView: View {
                 AppearanceSettingsView(focus: route.focus)
             case .year:
                 VisibleYearSettingsView(report: report, focus: route.focus)
-            case .backup:
-                BackupSettingsView(backup: backup, focus: route.focus)
             case .data:
-                DataSettingsView(report: report, focus: route.focus)
+                DataSettingsView(report: report, backup: backup, focus: route.focus)
             case .about:
                 AboutSettingsView(focus: route.focus)
         }
@@ -279,5 +276,28 @@ struct SettingsView: View {
 
     #Preview {
         SettingsView.snapshotPreviews
+    }
+#endif
+
+#if DEBUG
+    extension SettingsView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData.hosted(
+            SettingsView.self,
+            title: "Settings",
+            navigationContainer: .none,
+            routes: [
+                .push(to: EvidenceListView.flyoverID),
+                .push(to: LoggedDaysView.flyoverID),
+                .modal(to: RegionsSettingsView.flyoverID),
+                .push(to: LocationSettingsView.flyoverID),
+                .push(to: AlertsSettingsView.flyoverID),
+                .push(to: AppearanceSettingsView.flyoverID),
+                .push(to: VisibleYearSettingsView.flyoverID),
+                .push(to: DataSettingsView.flyoverID),
+                .push(to: AboutSettingsView.flyoverID),
+            ],
+        ) { world in
+            SettingsView(report: world.report)
+        }
     }
 #endif

@@ -18,15 +18,7 @@ struct CalendarContentView: View {
     let report: YearReportModel
 
     @Environment(\.stylesheet) private var stylesheet
-    @Environment(\.isCapturingSnapshot) private var isCapturingSnapshot
-
     @State private var monthsLoad: Result<[CalendarMonth], Error>?
-    /// The year we've already positioned to the current month. Doubles as the
-    /// reveal gate: the grid stays hidden until it's scrolled into place (so the
-    /// jump isn't visible), then shows. Guarded per year so returning to the tab
-    /// keeps the user's scroll instead of re-hiding/re-jumping; a year switch
-    /// rebuilds the grid and positions afresh.
-    @State private var scrolledForYear: Int?
 
     private static let logger = WhereLog.session(CalendarViewLog.self)
 
@@ -123,133 +115,29 @@ struct CalendarContentView: View {
     }
 
     private func calendarContent(months: [CalendarMonth]) -> some View {
-        let shown = shownMonths(months)
-        return ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(spacing: stylesheet.calendar.monthSpacing) {
-                    ForEach(shown.full) { month in
-                        MonthGridView(month: month, focusedRegion: focusedRegion)
-                            .id(month.id)
-                    }
-                    if let teaser = shown.teaser {
-                        teaserMonth(teaser)
-                            .id(teaser.id)
-                    }
+        ScrollView {
+            LazyVStack(spacing: stylesheet.calendar.monthSpacing) {
+                ForEach(shownMonths(months)) { month in
+                    MonthGridView(month: month, focusedRegion: focusedRegion)
                 }
-                .padding()
             }
-            // Hidden until positioned so the jump to the current month isn't
-            // visible; revealed once scrolled into place (see below).
-            .opacity(scrolledForYear == report.selectedYear ? 1 : 0)
-            .onAppear { positionToCurrentMonthIfNeeded(proxy, months: months) }
+            .padding()
         }
     }
 
-    /// The months to show: every month up to and including the current one,
-    /// plus the single month immediately after it as a "teaser" — later months
-    /// are dropped. A year with no current month (a past year) shows them all
-    /// with no teaser.
-    private func shownMonths(_ months: [CalendarMonth])
-        -> (full: [CalendarMonth], teaser: CalendarMonth?)
-    {
+    /// The months to show, newest first. Future months are omitted; a past year
+    /// has no future months, so it shows the full year from December backward.
+    private func shownMonths(_ months: [CalendarMonth]) -> [CalendarMonth] {
         guard
             let currentMonthStart = report.calendar
             .dateInterval(of: .month, for: report.referenceDate)?
             .start
         else {
-            return (months, nil)
+            return Array(months.reversed())
         }
-        var full: [CalendarMonth] = []
-        var teaser: CalendarMonth?
-        for month in months {
-            if month.startOfMonth <= currentMonthStart {
-                full.append(month)
-            } else if teaser == nil {
-                teaser = month
-            }
-        }
-        return (full, teaser)
-    }
-
-    /// The next month rendered as a peek: clipped to a fraction of its own
-    /// rendered height (so the grid can only scroll partway into it), dimmed, and
-    /// faded out over that height.
-    private func teaserMonth(_ month: CalendarMonth) -> some View {
-        MonthGridView(month: month, focusedRegion: focusedRegion)
-            .modifier(TeaserPeek(fraction: stylesheet.calendar.month.futurePeekFraction))
-            .opacity(stylesheet.calendar.month.futureOpacity)
-            .allowsHitTesting(false)
-    }
-
-    /// Scrolls to the current month once per year while the grid is still hidden
-    /// (a `scrollTo` to a lazy month has to run after layout, so it's deferred a
-    /// tick), then reveals it — so the user sees the calendar appear already at
-    /// the current month rather than watching it jump there. Reappearing (a tab
-    /// return) skips this and keeps the user's scroll; a year switch rebuilds
-    /// the grid and positions afresh. A past year has no current month, so it
-    /// simply reveals from the top.
-    ///
-    /// Under snapshot capture the scroll itself is skipped — the landing offset
-    /// of a scroll over a `LazyVStack` depends on how much lazy content has been
-    /// measured, so it's nondeterministic — but the reveal still happens, so
-    /// captures get the deterministic top-of-year state rather than a hidden grid.
-    private func positionToCurrentMonthIfNeeded(_ proxy: ScrollViewProxy, months: [CalendarMonth]) {
-        guard scrolledForYear != report.selectedYear else { return }
-        let targetID = isCapturingSnapshot ? nil : months.first(where: \.isCurrentMonth)?.id
-        DispatchQueue.main.async {
-            if let targetID {
-                proxy.scrollTo(targetID, anchor: .top)
-            }
-            scrolledForYear = report.selectedYear
-        }
-    }
-}
-
-/// Reveals `fraction` of the next month's *rendered* height as a peek and fades
-/// it out over that revealed height, so the fade and the visual cutoff are
-/// derived from one number and can't drift into a hard cutoff line: the gradient
-/// reaches fully transparent exactly where the content is clipped.
-///
-/// The pixel height depends on layout (how tall that month renders), so it's
-/// measured at view time rather than baked into the stylesheet: the month is
-/// `fixedSize`d to its natural height (decoupling it from the clamped frame
-/// below, so measuring doesn't feed back), and the peek is `naturalHeight *
-/// fraction`. Hidden until measured so the full month never flashes.
-private struct TeaserPeek: ViewModifier {
-    let fraction: CGFloat
-
-    @State private var naturalHeight: CGFloat?
-
-    func body(content: Content) -> some View {
-        content
-            // Lay the month out at its own height regardless of the clamped frame
-            // below, so the measurement is the natural height and can't loop.
-            .fixedSize(horizontal: false, vertical: true)
-            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { naturalHeight = $0 }
-            .frame(height: peekHeight, alignment: .top)
-            .clipped()
-            .mask(fade)
-            .opacity(naturalHeight == nil ? 0 : 1)
-    }
-
-    /// The revealed height, once the month's natural height is known.
-    private var peekHeight: CGFloat? {
-        naturalHeight.map { $0 * fraction }
-    }
-
-    /// A top-anchored fade that stays solid through the first third, then eases
-    /// to fully clear right at the bottom edge (`location: 1` == `peekHeight`).
-    private var fade: LinearGradient {
-        LinearGradient(
-            stops: [
-                .init(color: .black, location: 0),
-                .init(color: .black.opacity(0.9), location: 0.35),
-                .init(color: .black.opacity(0.3), location: 0.75),
-                .init(color: .clear, location: 1),
-            ],
-            startPoint: .top,
-            endPoint: .bottom,
-        )
+        return Array(months
+            .filter { $0.startOfMonth <= currentMonthStart }
+            .reversed())
     }
 }
 
@@ -264,6 +152,18 @@ private struct MonthGridView: View {
 
     private var calendar: WhereStylesheet.CalendarStyle {
         stylesheet.calendar
+    }
+
+    /// Resolve the month variant once so its background and inherited text
+    /// treatment cannot drift apart.
+    private var card: WhereStylesheet.CalendarStyle.MonthStyle.Card {
+        month.isCurrentMonth ? calendar.month.current : calendar.month.plain
+    }
+
+    /// Shared by the fill and border so every month uses the same continuous
+    /// corner geometry.
+    private var cardShape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: calendar.month.cornerRadius, style: .continuous)
     }
 
     var body: some View {
@@ -301,15 +201,14 @@ private struct MonthGridView: View {
             }
         }
         .padding(calendar.month.padding)
+        .foregroundStyle(card.foreground)
         .background {
-            // Past and future months share the plain card; the current one
-            // gets the accent card (bluer wash, heavier border).
-            let card = month.isCurrentMonth ? calendar.month.current : calendar.month.plain
-            RoundedRectangle(cornerRadius: calendar.month.cornerRadius)
+            // Past months use the plain card; the current one gets the accent
+            // card (bluer wash, text, and heavier border).
+            cardShape
                 .fill(card.fill)
                 .overlay {
-                    RoundedRectangle(cornerRadius: calendar.month.cornerRadius)
-                        .strokeBorder(card.border, lineWidth: card.borderWidth)
+                    cardShape.strokeBorder(card.border, lineWidth: card.borderWidth)
                 }
         }
     }
@@ -599,5 +498,20 @@ private struct DayCell: View {
 
     #Preview {
         CalendarContentView.snapshotPreviews
+    }
+#endif
+
+#if DEBUG
+    extension CalendarContentView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData.snapshots(
+            CalendarContentView.self,
+            title: "Region Calendar",
+        )
+
+        static let yearFlyoverData = WhereFlyoverData.snapshots(
+            CalendarContentView.self,
+            id: WhereFlyoverScreenID(CalendarContentView.self, in: YearView.self),
+            title: "Calendar",
+        )
     }
 #endif

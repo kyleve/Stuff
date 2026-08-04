@@ -10,6 +10,8 @@ import RegionKit
 /// describes when it's stale, so callers just keep asking with `force: false`.
 /// An `actor` because it holds that cache; composes `ReportReader`.
 public actor DataIssueScanner {
+    private static let logger = WhereLog.reporting(DataIssueScannerLog.self)
+
     private let reportReader: ReportReader
     private let attributor: any RegionAttributing
     private let calendar: Calendar
@@ -96,24 +98,32 @@ public actor DataIssueScanner {
             return cached.issues
         }
 
-        let reads = try await reportReader.dataIssueReads(for: year)
-        let dismissed = try await reportReader.dismissedIssueIDs()
-        let input = DataIssueInput(
-            year: year,
-            report: reads.report,
-            otherDayCoordinates: reads.otherDayCoordinates,
-            daySamples: reads.daySamples,
-            primaryRegions: primaryRegions,
-            attributor: attributor,
-            driftThresholdMeters: driftThresholdMeters,
-            calendar: calendar,
-            now: currentDate,
-        )
-        let sorted = Self.sortIssues(
-            detectors
-                .flatMap { $0.detectAnyIssues(in: input) }
-                .filter { !dismissed.contains($0.id) },
-        )
+        // Only a miss is spanned — a throttled hit returns above, so the span
+        // history holds real scans rather than a run of near-zero cache reads.
+        let sorted = try await Self.logger.measure(.scan, budget: .seconds(3)) {
+            let reads = try await reportReader.dataIssueReads(for: year)
+            let dismissed = try await reportReader.dismissedIssueIDs()
+            let input = DataIssueInput(
+                year: year,
+                report: reads.report,
+                otherDayCoordinates: reads.otherDayCoordinates,
+                daySamples: reads.daySamples,
+                primaryRegions: primaryRegions,
+                attributor: attributor,
+                driftThresholdMeters: driftThresholdMeters,
+                calendar: calendar,
+                now: currentDate,
+            )
+            return Self.sortIssues(
+                detectors
+                    .flatMap { detector in
+                        Self.logger.measure(.detect(detector.detects)) {
+                            detector.detectAnyIssues(in: input)
+                        }
+                    }
+                    .filter { !dismissed.contains($0.id) },
+            )
+        }
         cache = CachedScan(
             year: year,
             driftThresholdMeters: driftThresholdMeters,

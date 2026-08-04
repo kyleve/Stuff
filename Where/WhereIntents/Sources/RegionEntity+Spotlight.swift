@@ -14,7 +14,7 @@ extension RegionEntity: IndexedEntity {}
 /// (see the app's `AppDelegate`); indexing a handful of items is cheap and
 /// idempotent, and re-runs pick up any change to the tracked set.
 public enum RegionSpotlightIndexer {
-    private static let logger = WhereLog.root(WhereIntentsLog.self)
+    private static let logger = WhereIntentsLog.logger
 
     /// Not system-instantiated (the app calls this), so the services handoff
     /// arrives by plain injection rather than `@Dependency`.

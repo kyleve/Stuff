@@ -273,4 +273,39 @@ struct LogSpanTests {
         let orphaned = SpanEnded(spanID: span, name: "save", duration: nil, exit: .orphaned)
         #expect(orphaned.message == "◀ save orphaned")
     }
+
+    /// The inverse of the `message` format: whatever the exit, reason, and
+    /// duration added, recovery gets the bare name back — that's what lets
+    /// undecodable rows of one kind share one bucket instead of one per row.
+    @Test func nameRecoversFromARenderedMessage() {
+        let ended = SpanEnded(
+            spanID: SpanID(),
+            name: "save",
+            duration: .seconds(2),
+            exit: .failure("card declined"),
+        )
+        #expect(SpanEnded.nameRecovered(fromMessage: ended.message, exit: .failure) == "save")
+
+        let plain = SpanEnded(spanID: SpanID(), name: "save", duration: nil, exit: .orphaned)
+        #expect(SpanEnded.nameRecovered(fromMessage: plain.message, exit: .orphaned) == "save")
+    }
+
+    /// Without a usable exit column the duration parenthetical — the part
+    /// that varies per instance — still comes off.
+    @Test func nameRecoveryWithoutAnExitStripsTheDuration() {
+        let ended = SpanEnded(
+            spanID: SpanID(),
+            name: "save",
+            duration: .seconds(2),
+            exit: .success,
+        )
+        #expect(
+            SpanEnded.nameRecovered(fromMessage: ended.message, exit: nil) == "save succeeded",
+        )
+    }
+
+    @Test func nameRecoveryLeavesABareMessageAlone() {
+        #expect(SpanEnded.nameRecovered(fromMessage: "◀ save", exit: .success) == "save")
+        #expect(SpanEnded.nameRecovered(fromMessage: "no marker", exit: nil) == "no marker")
+    }
 }

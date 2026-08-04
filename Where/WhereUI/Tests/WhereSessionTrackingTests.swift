@@ -87,6 +87,35 @@ struct WhereSessionTrackingTests {
         #expect(!relaunched.isTracking)
     }
 
+    @Test func newerStopWinsOverInFlightStart() async throws {
+        let preferences = makePreferences()
+        preferences.wantsTracking = false
+        let source = GatedStartLocationSource()
+        let services = try WhereServices(
+            store: SwiftDataStore.inMemory(),
+            locationSource: source,
+            reminderScheduler: NoopLoggingReminderScheduler(),
+            summaryScheduler: NoopDailySummaryScheduler(),
+            issueAlertScheduler: NoopDataIssueAlertScheduler(),
+            widgetRefresher: NoopWidgetTimelineRefresher(),
+        )
+        let session = WhereSession(services: services, preferences: preferences)
+
+        let inFlightStart = Task { await session.startTracking() }
+        await source.waitUntilStartEntered()
+
+        await session.stopTracking()
+        #expect(preferences.wantsTracking == false)
+        #expect(await services.ingestor.isActive == false)
+
+        await source.resumeStart()
+        await inFlightStart.value
+
+        withKnownIssue("The TLA+ pilot reproduces the stale publication after start resumes") {
+            #expect(session.isTracking == false)
+        }
+    }
+
     @Test func grantingLaterStartsTrackingViaLiveUpdates() async throws {
         let (session, source) = try makeSession(
             status: .notDetermined,
@@ -184,5 +213,50 @@ struct WhereSessionTrackingTests {
             try? await Task.sleep(for: .milliseconds(5))
         }
         #expect(await predicate(), "condition was not met before timeout")
+    }
+}
+
+private actor GatedStartLocationSource: LocationSource {
+    nonisolated let sampleStream = AsyncStream<LocationSample> { _ in }
+    nonisolated var authorizationUpdates: AsyncStream<LocationAuthorizationStatus> {
+        AsyncStream { _ in }
+    }
+
+    private var didEnterStart = false
+    private var enteredStartContinuation: CheckedContinuation<Void, Never>?
+    private var startContinuation: CheckedContinuation<Void, Never>?
+
+    func start() async {
+        await withCheckedContinuation { continuation in
+            startContinuation = continuation
+            didEnterStart = true
+            enteredStartContinuation?.resume()
+            enteredStartContinuation = nil
+        }
+    }
+
+    func stop() async {}
+
+    func requestCurrentLocation() async -> LocationSample? {
+        nil
+    }
+
+    func currentAuthorization() async -> LocationAuthorizationStatus {
+        .always
+    }
+
+    func requestPermission() async throws {}
+
+    func waitUntilStartEntered() async {
+        guard !didEnterStart else { return }
+        await withCheckedContinuation { continuation in
+            enteredStartContinuation = continuation
+        }
+    }
+
+    func resumeStart() {
+        precondition(startContinuation != nil)
+        startContinuation?.resume()
+        startContinuation = nil
     }
 }

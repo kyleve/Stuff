@@ -1,9 +1,6 @@
 import Foundation
 import Observation
 import PeriscopeCore
-#if DEBUG
-    import SwiftDataInspector
-#endif
 import WhereCore
 
 /// The always-on, logged-in coordinator for the Where app: GPS / permission
@@ -201,16 +198,18 @@ public final class WhereSession {
     /// and the widget snapshot (calendar-day rollover). The scene's `YearReportModel`
     /// separately re-pulls the report on `.active`.
     public func appBecameActive() async {
-        await syncAuthorization()
-        await reconcileTracking()
-        await captureTodayIfNeeded()
-        await applyReminderConfiguration()
-        await applySummaryConfiguration()
-        await applyIssueAlertConfiguration()
-        // The calendar day may have rolled over while backgrounded; recompute
-        // so the widget's "today" reflects the current day rather than stale
-        // foreground state.
-        await refreshWidgetSnapshot()
+        await Self.logger.measure(.foregroundRefresh, budget: .seconds(5)) {
+            await syncAuthorization()
+            await reconcileTracking()
+            await captureTodayIfNeeded()
+            await applyReminderConfiguration()
+            await applySummaryConfiguration()
+            await applyIssueAlertConfiguration()
+            // The calendar day may have rolled over while backgrounded;
+            // recompute so the widget's "today" reflects the current day rather
+            // than stale foreground state.
+            await refreshWidgetSnapshot()
+        }
     }
 
     /// Republish the widget snapshot from whatever is on disk. A launch step
@@ -466,19 +465,3 @@ public final class WhereSession {
         }
     }
 }
-
-#if DEBUG
-    extension WhereSession {
-        /// A read-only SwiftData inspector over the live store, for the DEBUG-only
-        /// developer overlay. `nil` when the backing store isn't SwiftData (e.g. a
-        /// preview/test fake), so the inspector row hides itself.
-        var swiftDataInspectorConfiguration: SwiftDataInspectorConfiguration? {
-            guard let container = services.modelContainer else { return nil }
-            return SwiftDataInspectorConfiguration(
-                container: container,
-                modelTypes: SwiftDataStore.inspectorModelTypes,
-                title: String(localized: .developerInspectorTitle),
-            )
-        }
-    }
-#endif

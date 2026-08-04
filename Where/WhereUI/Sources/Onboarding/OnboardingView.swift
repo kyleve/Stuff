@@ -521,3 +521,13 @@ struct OnboardingPage: Identifiable {
         OnboardingView.snapshotPreviews
     }
 #endif
+
+#if DEBUG
+    extension OnboardingView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData.snapshots(
+            OnboardingView.self,
+            title: "Onboarding",
+            navigationContainer: .none,
+        )
+    }
+#endif

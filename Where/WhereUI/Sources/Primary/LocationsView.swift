@@ -13,7 +13,7 @@ struct LocationsView: View {
 
     @State private var showingResolution = false
 
-    /// Drives the region cards' tilt-reactive holographic sheen. Started/stopped
+    /// Drives the region cards' tilt-reactive light sheen. Started/stopped
     /// with the view's lifecycle; a no-op on hardware without device motion.
     @State private var tilt = TiltProvider()
 
@@ -249,5 +249,44 @@ private struct ResolveToolbarLabel: View {
 
     #Preview {
         LocationsView.snapshotPreviews
+    }
+#endif
+
+#if DEBUG
+    extension LocationsView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData(
+            LocationsView.self,
+            routes: [
+                .push(to: CalendarContentView.flyoverID),
+                .push(to: ElsewhereView.flyoverID),
+                .modal(to: ResolutionView.flyoverID),
+            ],
+        ) { id, world in
+            let state = WhereFlyoverLocationsState(report: world.report)
+            return .init(
+                id: id,
+                title: "Locations",
+                navigationContainer: .none,
+                variants: [
+                    WhereFlyoverData.hostedVariant(
+                        id: "demo",
+                        title: "Demo data",
+                        world: world,
+                    ) {
+                        LocationsView(report: state.report)
+                    },
+                    WhereFlyoverData.hostedVariant(
+                        id: "empty",
+                        title: "Empty",
+                        world: world,
+                    ) {
+                        LocationsView(report: PreviewSupport.emptyYearReportModel())
+                    },
+                ],
+                reset: state.reset,
+            ) {
+                WhereFlyoverLocationsControls(state: state)
+            }
+        }
     }
 #endif

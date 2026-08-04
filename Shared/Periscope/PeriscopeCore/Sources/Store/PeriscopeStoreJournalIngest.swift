@@ -157,8 +157,11 @@ extension PeriscopeStore {
                 payload: record.payload,
                 orderedScopeIDs: record.scopes,
                 sessionID: sessionRow.sessionID,
+                ambientSnapshotID: ambientRow(for: record.ambient, at: record.date)?
+                    .snapshotID,
                 spanID: record.spanID,
                 spanExitMode: record.spanExitMode,
+                spanRelaunchPolicy: record.spanRelaunchPolicy,
                 callFunction: record.callFunction,
                 callFileID: record.callFileID,
                 externalID: record.externalID,
@@ -193,8 +196,12 @@ extension PeriscopeStore {
             payload: JSONEncoder().encode(notice),
             orderedScopeIDs: [],
             sessionID: sessionRow.sessionID,
+            // The marker describes the recovery, not a moment in the
+            // crashed session — it has no ambient state of its own.
+            ambientSnapshotID: nil,
             spanID: nil,
             spanExitMode: nil,
+            spanRelaunchPolicy: nil,
             callFunction: nil,
             callFileID: nil,
             externalID: nil,

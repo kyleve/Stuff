@@ -5,6 +5,7 @@ import SnapshotKit
 import SwiftUI
 import WhereCore
 #if DEBUG
+    import Inspector
     import PeriscopeCore
     import PeriscopeTools
 #endif
@@ -42,14 +43,38 @@ public struct RootView: View {
         /// the store is available.
         @State private var alerter: PeriscopeAlerter?
         @State private var toastCenter = DeveloperToastCenter()
+        /// One process-scoped designer draft. Its configuration persists, but
+        /// applying it to real cards remains session-only.
+        @State private var cardDesigner = CardDesignerModel(
+            store: .standard,
+            key: "where.debug.card-designer.configuration",
+        )
     #endif
     private let launcher: LifecycleRunner<WhereSession>
+    #if DEBUG
+        private let inspectorModeController: InspectorModeController?
+    #endif
 
-    /// Inject the app-owned model + runner built at launch. The app uses this.
-    public init(model: WhereModel, launcher: LifecycleRunner<WhereSession>) {
-        _model = State(initialValue: model)
-        self.launcher = launcher
-    }
+    // Inject the app-owned model + runner built at launch. The app uses this.
+    #if DEBUG
+        public init(
+            model: WhereModel,
+            launcher: LifecycleRunner<WhereSession>,
+            inspectorModeController: InspectorModeController? = nil,
+        ) {
+            _model = State(initialValue: model)
+            self.launcher = launcher
+            self.inspectorModeController = inspectorModeController
+        }
+    #else
+        public init(
+            model: WhereModel,
+            launcher: LifecycleRunner<WhereSession>,
+        ) {
+            _model = State(initialValue: model)
+            self.launcher = launcher
+        }
+    #endif
 
     /// Convenience for previews and the hosted UI test: build a model and a
     /// foreground runner for it. The runner isn't run by the app delegate
@@ -65,6 +90,9 @@ public struct RootView: View {
         )
         _model = State(initialValue: model)
         launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
+        #if DEBUG
+            inspectorModeController = nil
+        #endif
     }
 
     public var body: some View {
@@ -107,9 +135,10 @@ public struct RootView: View {
             .safeAreaPadding(developerOverlayInsets)
             #endif
 
-            // The floating developer surface sits above every launch phase and
-            // tab so its tools are reachable from anywhere (even logged out). It's
-            // DEBUG-only and compiled out of release entirely.
+            // The floating developer launcher/accordion sits above every launch
+            // phase and tab so its tools are reachable from anywhere (even logged
+            // out). Selected tools open in its HUD. The whole surface is DEBUG-only
+            // and compiled out of release entirely.
             #if DEBUG
                 DeveloperOverlay(tabBarInset: developerTabBarInset)
                 // High-severity log toasts float above everything, including the
@@ -135,9 +164,16 @@ public struct RootView: View {
             // `TabView`'s `@Environment(WhereSession.self)` views resolve it
             // (they only render at `.ready`, by which point it's present) and
             // re-inject when a reset rebuilds it. The DEBUG developer overlay
-            // reads it optionally — it can appear before login, where the
-            // SwiftData inspector row simply hides.
+            // reads it optionally — it can appear before login.
             .environment(model.session)
+        #if DEBUG
+            .environment(inspectorModeController)
+            .environment(\.cardDesignerModel, cardDesigner)
+            .environment(
+                \.cardDesignerConfiguration,
+                cardDesigner.appliesToApp ? cardDesigner.configuration : nil,
+            )
+        #endif
             // Which world the app is in, seeded once here so no view has to
             // ask the model. Reading the model's mode tracks its scope state,
             // so entering or leaving demo mode re-renders what branches on it.

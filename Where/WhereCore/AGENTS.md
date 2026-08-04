@@ -28,8 +28,10 @@ internal shape.
 - **`WhereStore` is a value-type boundary.** Everything crossing it is a
   value, never a SwiftData record; every mutation runs inside
   `perform { … }` (the production store traps otherwise), and each committed
-  transaction pings `changes()`. The live `ModelContainer` is surfaced only
-  for the read-only debug inspector.
+  transaction pings `changes()`. Never expose its `ModelContainer` through
+  `WhereServices`; the separate DEBUG Inspector runtime uses
+  `SwiftDataStore.makeContainer`, `inspectorModelTypes`, and
+  `inspectorStoreURL` as its schema/storage adapter.
 - **Each process opens its on-disk store once and injects it** — the app's
   launch opens it; the App Intents stack shares it via
   `WhereServices.forIntents(sharingStoreOf:)`. A second container over the
@@ -72,6 +74,9 @@ internal shape.
 - **Writes await their side effects.** `DayJournal` commits, then awaits the
   reminder reconcile + widget publish in sequence, so a reader on the next
   `changes()` ping never observes a half-applied write.
+- **Filter persistent-store remote-change notifications by the Where store
+  URL.** Never let another store in the process (notably Periscope) ping
+  `WhereStore.changes()`; guard: `StoreRemoteChangeSourceTests`.
 - **Post-write reconciliation is defined once.** Every write and import
   routes through `DayJournal.reconcileAfterDayChange()` (or its widget-less
   subset `reconcileIssueState()`) — never copy the fan-out into a new write
@@ -101,6 +106,13 @@ internal shape.
   `.public`, error as `LogAttachment.error(_:)`) and leaves state honest —
   never a benign-looking default. The `WhereLog` facade and every
   `*Log.swift` event type live together in `Sources/Logging/`.
+- **Expensive Core work is spanned, with a budget** — bulk reads and `perform`
+  commits, aggregation, calendar layout, issue detection, the reconcile
+  fan-out, backup, GPS acquisition. Names come from each `*Log`'s nested
+  `SpanName`; see [Spans](../AGENTS.md#spans) for the convention. A detector
+  names its own span through `DataIssueDetecting.detects`, so
+  `DataIssueScanner` reports per-category cost (`detect(border-drift)`) without
+  a switch over concrete detector types.
 
 ## Testing
 

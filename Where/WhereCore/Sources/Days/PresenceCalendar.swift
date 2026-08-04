@@ -110,6 +110,8 @@ public struct CalendarMonth: Hashable, Sendable, Identifiable {
 /// Builds month grids from a `YearReport`. Pure calendar layout derived from
 /// `DayPresence`, parallel to `PresenceTimeline` in WhereUI.
 public enum PresenceCalendar {
+    private static let logger = WhereLog.reporting(PresenceCalendarLog.self)
+
     /// Build every month in `report.year`. `missingDates` and `evidenceDays` are
     /// `CalendarDay`s; the grid resolves each cell's day in `calendar`.
     ///
@@ -125,37 +127,39 @@ public enum PresenceCalendar {
         evidenceDays: Set<CalendarDay> = [],
         focusedRegion: Region? = nil,
     ) throws -> [CalendarMonth] {
-        var regionsByDay: [CalendarDay: Set<Region>] = [:]
-        for day in report.days {
-            regionsByDay[day.day] = day.regions
-        }
+        try logger.measure(.layoutYear, budget: .milliseconds(500)) {
+            var regionsByDay: [CalendarDay: Set<Region>] = [:]
+            for day in report.days {
+                regionsByDay[day.day] = day.regions
+            }
 
-        guard
-            let yearStart = calendar.date(from: DateComponents(
-                year: report.year,
-                month: 1,
-                day: 1,
-            ))
-        else {
-            throw PresenceCalendarError.missingYearStart(year: report.year)
-        }
-        guard let monthRange = calendar.range(of: .month, in: .year, for: yearStart) else {
-            throw PresenceCalendarError.missingMonthRange(year: report.year)
-        }
+            guard
+                let yearStart = calendar.date(from: DateComponents(
+                    year: report.year,
+                    month: 1,
+                    day: 1,
+                ))
+            else {
+                throw PresenceCalendarError.missingYearStart(year: report.year)
+            }
+            guard let monthRange = calendar.range(of: .month, in: .year, for: yearStart) else {
+                throw PresenceCalendarError.missingMonthRange(year: report.year)
+            }
 
-        let referenceStartOfDay = calendar.startOfDay(for: referenceDate)
+            let referenceStartOfDay = calendar.startOfDay(for: referenceDate)
 
-        return try monthRange.map { monthNumber in
-            try Self.month(
-                year: report.year,
-                month: monthNumber,
-                regionsByDay: regionsByDay,
-                calendar: calendar,
-                referenceDate: referenceStartOfDay,
-                missingDates: missingDates,
-                evidenceDays: evidenceDays,
-                focusedRegion: focusedRegion,
-            )
+            return try monthRange.map { monthNumber in
+                try Self.month(
+                    year: report.year,
+                    month: monthNumber,
+                    regionsByDay: regionsByDay,
+                    calendar: calendar,
+                    referenceDate: referenceStartOfDay,
+                    missingDates: missingDates,
+                    evidenceDays: evidenceDays,
+                    focusedRegion: focusedRegion,
+                )
+            }
         }
     }
 

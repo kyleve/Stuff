@@ -16,16 +16,51 @@ and testing conventions live in the feature [`Where/AGENTS.md`](../AGENTS.md)
 - Composition is the one exception: `WhereScope` and `WhereModel` decide which
   world the app is logged in to and assemble it. That's launch wiring, not
   domain logic — see [Scopes and the launch](../AGENTS.md#scopes-and-the-launch).
+- The DEBUG developer accordion may only latch or clear
+  `InspectorModeController` for the next launch. It must not host a live
+  SwiftData inspector or switch the current runtime.
+- Keep the DEBUG Logs destination visible for every
+  `WhereModel.logStoreState`; opening, unavailable, and failed stores are
+  diagnostics to render, not reasons to hide the tool.
+- Keep the DEBUG card designer's draft in one root-owned `CardDesignerModel`;
+  persist the draft, but leave its app-wide override disabled at every launch.
+- Flyover infrastructure stays under `#if DEBUG` in
+  [`Sources/Developer/Flyover`](Sources/Developer/Flyover), while each
+  represented screen declares a DEBUG-only `WhereFlyoverProviding` extension
+  in its own source file. The integration may import the app-agnostic
+  `Flyover` module and build one unactivated in-memory `WhereScope`; the shared
+  module must never import WhereUI.
+- Derive `WhereFlyoverScreenID` from the represented view type, and keep that
+  screen's variants, viewport/navigation settings, and outgoing routes in its
+  colocated registration; never restore a centralized screen enum or catalog
+  factory methods.
+- Construct and retain the Where Flyover catalog once after its world loads;
+  never rebuild fixture state from a SwiftUI `body`.
+- Present Where Flyover from the developer accordion with `fullScreenCover`,
+  outside the selected-tool `NavigationStack`.
+- Register leaf screens against Flyover's default navigation container; use
+  `.none` only for views that own their root stack and for widgets/snippets.
 - Consumers (`WhereWidgets`, `WhereIntents`) get Broadway *through* WhereUI
   and must **not** link `BroadwayUI`/`BroadwayCore` themselves (root
   [double-link rule](../../AGENTS.md#never-double-link-a-product-whereui-already-carries));
   that's why `whereBroadwayRoot()` lives here rather than being called as
   `broadwayRoot` at each site.
+- Keep render-ready region geometry in the root-injected
+  `RegionOutlinePathCache`: RegionKit owns the cached source outlines and its
+  stateless simplifier, while WhereUI chooses full/medium/small/micro
+  tolerances and caches the resulting SwiftUI `Path`s; use the small path for
+  the stamp and the micro path for the repeated border, and never project or
+  simplify a boundary in a card's `body`.
 - Continuous/looping motion (repeat-forever pulses, `TimelineView(.animation)`,
   typewriter reveals) must consult the shared `@MotionIsStatic` helper
   ([`Sources/Shared/MotionIsStatic.swift`](Sources/Shared/MotionIsStatic.swift))
   for its static end-state — never hand-roll the
   `\.accessibilityReduceMotion` + `\.isCapturingSnapshot` pair.
+- A step joins `WhereLaunch`'s plan through `.measured()` and so must declare a
+  `budget` (`BudgetedLaunchStep`) — see [Spans](../AGENTS.md#spans). WhereUI also
+  owns log retention: `LogHistoryPruner` bounds the store by age *and* event
+  count, and both bounds are load-bearing (an age window alone leaves a
+  heavy-logging device unbounded inside it).
 - A compact form `DatePicker` goes through `WhereDatePicker`
   ([`Sources/Shared/WhereDatePicker.swift`](Sources/Shared/WhereDatePicker.swift)),
   which substitutes a deterministic stand-in under capture — the live control
@@ -70,6 +105,9 @@ rules:
   `.accentColor` stay inline.
 - `WhereThemes` is deliberately empty — the seam a future app-wide theme
   plugs into.
+- The DEBUG card designer may override only presentation values already owned
+  by `CardStyles`; it must not add a second production styling system or alter
+  count animation and outline-cache behavior.
 
 ## Testing
 
@@ -78,6 +116,12 @@ rules:
 glue and `whereBroadwayRoot()` seeding, including the WhereWidgets path.
 Adding, renaming, or retuning a token means updating those assertions in the
 same change.
+
+`WhereFlyoverCatalogTests` pins the catalog against the colocated registrations
+assembled by `WhereFlyoverCatalog`; add a registration beside every new
+top-level screen and list its type in the appropriate catalog group. Flyover
+frames share one `WhereFlyoverWorld`; synthetic preview models are reserved for
+states the seeded demo cannot express.
 
 Screens, widgets, and app-flow surfaces are pinned as matrixed image
 snapshots under [`SnapshotTests/`](SnapshotTests) — those, not hosting smoke

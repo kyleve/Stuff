@@ -31,24 +31,44 @@
             let model = DeveloperOverlayModel(store: InMemoryKeyValueStore())
             #expect(model.presentation == .collapsed)
 
-            model.open()
-            #expect(model.presentation == .floating)
+            model.openMenu()
+            #expect(model.presentation == .menu)
+
+            model.open(.regionMap)
+            #expect(model.presentation == .floating(.regionMap))
 
             model.toggleFullScreen()
-            #expect(model.presentation == .fullScreen)
+            #expect(model.presentation == .fullScreen(.regionMap))
 
             model.toggleFullScreen()
-            #expect(model.presentation == .floating)
+            #expect(model.presentation == .floating(.regionMap))
 
-            model.close()
+            model.closeTool()
             #expect(model.presentation == .collapsed)
         }
 
         @MainActor
-        @Test func toggleFullScreenIsANoOpWhileCollapsed() {
+        @Test func menuClosesWithoutOpeningATool() {
+            let model = DeveloperOverlayModel(store: InMemoryKeyValueStore())
+            model.openMenu()
+            model.closeMenu()
+            #expect(model.presentation == .collapsed)
+        }
+
+        @MainActor
+        @Test func unrelatedTransitionsAreNoOps() {
             let model = DeveloperOverlayModel(store: InMemoryKeyValueStore())
             model.toggleFullScreen()
+            model.open(.logs)
+            model.closeMenu()
+            model.closeTool()
             #expect(model.presentation == .collapsed)
+
+            model.openMenu()
+            model.openMenu()
+            model.toggleFullScreen()
+            model.closeTool()
+            #expect(model.presentation == .menu)
         }
 
         // MARK: Floating layout geometry
@@ -81,7 +101,7 @@
             )
             #expect(
                 DeveloperOverlayModel.clamp(tiny, in: container).size
-                    == DeveloperOverlayModel.Layout.minSize,
+                    == WhereStylesheet.default.developerOverlay.floatingWindow.minSize,
             )
 
             let huge = DeveloperOverlayModel.FloatingLayout(
@@ -93,8 +113,8 @@
 
         @Test func movedShiftsTheCenterAndClampsBackIn() {
             let container = CGSize(width: 400, height: 800)
-            // Size is above `Layout.minSize`, so `clamp` won't resize it and the
-            // center math is exact.
+            // Size is above the stylesheet's minimum, so `clamp` won't resize it
+            // and the center math is exact.
             let base = DeveloperOverlayModel.FloatingLayout(
                 center: CGPoint(x: 200, y: 400),
                 size: CGSize(width: 300, height: 400),
@@ -143,7 +163,7 @@
                 by: CGSize(width: -9999, height: -9999),
                 in: container,
             )
-            #expect(shrunk.size == DeveloperOverlayModel.Layout.minSize)
+            #expect(shrunk.size == WhereStylesheet.default.developerOverlay.floatingWindow.minSize)
             #expect(shrunk.center.x - shrunk.size.width / 2 == topLeading.x)
             #expect(shrunk.center.y - shrunk.size.height / 2 == topLeading.y)
         }
@@ -227,8 +247,12 @@
                 center: CGPoint(x: 200, y: 420),
                 size: CGSize(width: 200, height: 760),
             ).bottom
-            #expect(bottom == insetContainer.height * DeveloperOverlayModel.Layout
-                .maxContentInsetFraction)
+            #expect(
+                bottom
+                    == insetContainer.height
+                    * WhereStylesheet.default.developerOverlay.floatingWindow
+                    .maxContentInsetFraction,
+            )
         }
 
         @Test func contentInsetsAreZeroForAnEmptyContainer() {
@@ -280,7 +304,7 @@
         }
 
         @MainActor
-        @Test func floatingLayoutSurvivesAFullScreenToggle() {
+        @Test func floatingLayoutAndToolSurviveAFullScreenToggle() {
             let model = DeveloperOverlayModel(store: InMemoryKeyValueStore())
             let layout = DeveloperOverlayModel.FloatingLayout(
                 center: CGPoint(x: 100, y: 200),
@@ -288,11 +312,12 @@
             )
             model.setFloating(layout)
 
-            model.open()
+            model.openMenu()
+            model.open(.regionMap)
             model.toggleFullScreen()
             model.toggleFullScreen()
 
-            #expect(model.presentation == .floating)
+            #expect(model.presentation == .floating(.regionMap))
             #expect(model.floating == layout)
         }
     }

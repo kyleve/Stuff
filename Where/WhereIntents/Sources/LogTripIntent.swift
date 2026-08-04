@@ -39,8 +39,10 @@ public struct LogTripIntent: AppIntent {
             return .result(dialog: IntentDialog("\(IntentStrings.chooseRegions())"))
         }
         let services = try await intentServices.current()
-        let dayCount = try await WhereIntentWriter(services: services)
-            .logTrip(from: startDate, through: endDate, regions: regionSet)
+        let dayCount = try await measureIntent(.logTrip) {
+            try await WhereIntentWriter(services: services)
+                .logTrip(from: startDate, through: endDate, regions: regionSet)
+        }
         guard dayCount > 0 else {
             return .result(dialog: IntentDialog("\(IntentStrings.emptyTripRange())"))
         }

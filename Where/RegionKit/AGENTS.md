@@ -33,12 +33,16 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
   checks its regions in order and the first polygon match wins (regions are
   mutually exclusive at our resolution). (Day-count ranking lives in `WhereCore`'s
   `Region+Ordering`, not here.)
-- **Attribution is per-region, on demand.** `RegionAttributor(for:)` loads only
+- **Geometry access is per-region, on demand.** `RegionAttributor(for:)` loads only
   the passed regions' `regions/<id>.geojson` files, so the app parses only the
-  tracked set — never the whole US at launch. `.all` loads the whole catalog
-  (dev viewer/tests); `.shared` the default four. It's UI-free: `BoundingBox` /
-  `LongitudeSpan` expose the min/max math, but MapKit conversion lives in the UI
-  layer. `RegionAttributing` lets `WhereCore` supply a live, swappable attributor.
+  tracked set, while `RegionGeometryCatalog.outlines(for: Region)` caches only
+  the drawable region requested by UI artwork — never load the whole US for one
+  card. `RegionGeometrySimplifier` vends stateless, projection-aware geometry
+  reduction; rendering fidelity and render-artifact caches belong to consumers.
+  `.all` loads the whole catalog (dev viewer/tests); `.shared` the default four.
+  It's UI-free: `BoundingBox` / `LongitudeSpan` expose the min/max math, but
+  drawing and MapKit conversion live in the UI layer. `RegionAttributing` lets
+  `WhereCore` supply a live, swappable attributor.
 - **Bundled geometry is credited in code, not only in prose.** `RegionDataSource`
   states each boundary set's origin, license, and fidelity, and derives its
   coverage from the catalog — the US sources by the `us-` id prefix the generator
@@ -56,7 +60,10 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
   degrading to `.other`/an empty catalog in release rather than crashing.
 - **Logging goes through `RegionLog`**, RegionKit's own `"RegionKit"` root
   scope — never `WhereLog`, which it can't see — emitted into the shared
-  `Periscope.shared` so the app's sink still captures it.
+  `Periscope.shared` so the app's sink still captures it. The bundled-data loads
+  are spanned against a budget (the manifest decode, the whole polygon load, and
+  each region's geometry separately as `loadRegion(us-CA)`), because one region
+  with heavy geometry is otherwise invisible inside a slow attributor build.
 - **Object identities are `region://` URLs** — `RegionURL` (RegionKit's local
   analog of WhereCore's `StoreURL`) builds/parses `region://<collection>/<type>`
   URLs, and `Region.regionURL` vends `region://regions/<id>`. Used to key a

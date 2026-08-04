@@ -125,13 +125,25 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         // change (new optional fields, new models); the launch flow shows
         // migration UI purely off slowness, not a predicted version, so no
         // `VersionedSchema`/`SchemaMigrationPlan` scaffolding is needed.
-        let schema = Schema([
-            SDLocationSample.self,
-            SDEvidence.self,
-            SDManualDay.self,
-            SDDismissedIssue.self,
-            SDTrackedRegion.self,
-        ])
+        let schema = Schema(inspectorModelTypes)
+        let configuration = modelConfiguration(storage: storage, schema: schema)
+        return try ModelContainer(for: schema, configurations: [configuration])
+    }
+
+    /// The exact store URL used inside the resolved App Group container.
+    /// Inspector passes the entitlement-resolved root so this lookup never asks
+    /// SwiftData to resolve an unavailable App Group in a test host.
+    public static func inspectorStoreURL(groupContainerURL: URL) -> URL {
+        groupContainerURL.appending(
+            path: "Library/Application Support/default.store",
+            directoryHint: .notDirectory,
+        )
+    }
+
+    private static func modelConfiguration(
+        storage: Storage,
+        schema: Schema,
+    ) -> ModelConfiguration {
         // On-disk storage lives in the App Group container so the share
         // extension (and any other sibling process) writes into the same store
         // the app reads. An in-memory store has no container — leave it default.
@@ -144,13 +156,12 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         // `.NSPersistentStoreRemoteChange` on remote import — no extra knobs
         // needed (and SwiftData exposes none). `make` observes that notification
         // via `PersistentStoreRemoteChangeSource`.
-        let config = ModelConfiguration(
+        return ModelConfiguration(
             schema: schema,
             isStoredInMemoryOnly: storage == .inMemory,
             groupContainer: groupContainer,
             cloudKitDatabase: storage == .cloudKit ? .automatic : .none,
         )
-        return try ModelContainer(for: schema, configurations: [config])
     }
 
     /// Convenience for tests and SwiftUI previews: builds an
@@ -209,7 +220,13 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         // share-extension add show up live in the running app (debug included),
         // not just on next launch.
         if storage.observesRemoteChanges {
-            store.startObservingRemoteChanges(PersistentStoreRemoteChangeSource())
+            if let storeURL = container.configurations.first?.url {
+                store.startObservingRemoteChanges(PersistentStoreRemoteChangeSource(
+                    storeURL: storeURL,
+                ))
+            } else {
+                assertionFailure("An on-disk Where store must have a resolved URL")
+            }
         }
         return store
     }
@@ -234,17 +251,8 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
 
     #endif
 
-    /// The live model container, re-exposed for read-only debug tooling (the
-    /// SwiftData inspector). The `@ModelActor`-synthesized `modelContainer` is
-    /// otherwise module-internal; this narrow accessor surfaces it without
-    /// widening the value-type `WhereStore` boundary — anything that isn't the
-    /// inspector should keep talking to `WhereStore`, never the container.
-    public nonisolated var inspectorContainer: ModelContainer {
-        modelContainer
-    }
-
     /// The live `@Model` record types, erased to existentials so a generic
-    /// SwiftData inspector can enumerate them without naming the (intentionally
+    /// Inspector runtime can enumerate them without naming the (intentionally
     /// internal) record types. Mirrors the `Schema` in `makeContainer`.
     public static var inspectorModelTypes: [any PersistentModel.Type] {
         [
@@ -369,25 +377,32 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             writerContext = nil
             endExclusive()
         }
-        // Mark this store as transacting for the duration of the block so nested
-        // `perform` calls on this task reuse the peer above.
-        let result = try await Self.$activeTransactionStores.withValue(
-            Self.activeTransactionStores.union([ObjectIdentifier(self)]),
-        ) {
-            try await block()
+        // One span per committed transaction, opened *after* the exclusivity
+        // wait so it measures the write rather than the queueing behind another
+        // writer. Only the outermost `perform` spans, so a nested write doesn't
+        // nest a duplicate inside its own commit.
+        return try await Self.logger.measure(.commit) {
+            // Mark this store as transacting for the duration of the block so
+            // nested `perform` calls on this task reuse the peer above.
+            let result = try await Self.$activeTransactionStores.withValue(
+                Self.activeTransactionStores.union([ObjectIdentifier(self)]),
+            ) {
+                try await block()
+            }
+            // Outermost success: save the peer, which propagates the batched
+            // writes to the persistent store. The main `modelContext` picks the
+            // changes up on its next fetch. A throw before here (from the block
+            // or the save) skips the save, so the peer is discarded without
+            // reaching the persistent store — a clean rollback of the entire
+            // transaction — while `defer` still clears `writerContext` and
+            // releases the gate.
+            try peer.save()
+            // Committed: ping `changes()` subscribers so they re-read. Only the
+            // outermost `perform` reaches here (nested calls returned above
+            // without saving), so a transaction pings exactly once.
+            changeBroadcaster.send()
+            return result
         }
-        // Outermost success: save the peer, which propagates the batched writes
-        // to the persistent store. The main `modelContext` picks the changes up
-        // on its next fetch. A throw before here (from the block or the save)
-        // skips the save, so the peer is discarded without reaching the
-        // persistent store — a clean rollback of the entire transaction — while
-        // `defer` still clears `writerContext` and releases the gate.
-        try peer.save()
-        // Committed: ping `changes()` subscribers so they re-read. Only the
-        // outermost `perform` reaches here (nested calls returned above without
-        // saving), so a transaction pings exactly once.
-        changeBroadcaster.send()
-        return result
     }
 
     /// The context mutating methods write to. Mutations are
@@ -439,10 +454,15 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             sortBy: [SortDescriptor(\.timestamp)],
         )
         descriptor.includePendingChanges = true
-        return try context.fetch(descriptor).compactMap { record in
-            let value = record.toValue()
-            if value == nil { Self.logFault(forCorrupt: record) }
-            return value
+        // Spanning the fetch *and* the materialization together is deliberate:
+        // decoding a year of rows into values is a real share of the cost, and
+        // splitting them would only obscure it.
+        return try Self.logger.measure(.fetchSamples) {
+            try context.fetch(descriptor).compactMap { record in
+                let value = record.toValue()
+                if value == nil { Self.logFault(forCorrupt: record) }
+                return value
+            }
         }
     }
 
@@ -488,10 +508,12 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             sortBy: [SortDescriptor(\.capturedAt)],
         )
         descriptor.includePendingChanges = true
-        return try context.fetch(descriptor).compactMap { record in
-            let value = record.toValue()
-            if value == nil { Self.logFault(forCorrupt: record) }
-            return value
+        return try Self.logger.measure(.fetchEvidence) {
+            try context.fetch(descriptor).compactMap { record in
+                let value = record.toValue()
+                if value == nil { Self.logFault(forCorrupt: record) }
+                return value
+            }
         }
     }
 
@@ -509,7 +531,11 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     public func evidenceBlob(for id: UUID) async throws -> Data? {
         let context = readContext()
         let descriptor = FetchDescriptor<SDEvidence>(predicate: #Predicate { $0.id == id })
-        return try context.fetch(descriptor).first?.blob
+        // Blobs live in external storage, so this is a file read behind a fetch
+        // — the one evidence read whose cost scales with the attachment.
+        return try Self.logger.measure(.fetchEvidenceBlob) {
+            try context.fetch(descriptor).first?.blob
+        }
     }
 
     public func write(blob: Data, for id: UUID) async throws {
@@ -589,10 +615,12 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             sortBy: [SortDescriptor(\.dayKey)],
         )
         descriptor.includePendingChanges = true
-        return try context.fetch(descriptor).compactMap { record in
-            let value = record.toValue()
-            if value == nil { Self.logFault(forCorrupt: record) }
-            return value
+        return try Self.logger.measure(.fetchManualDays) {
+            try context.fetch(descriptor).compactMap { record in
+                let value = record.toValue()
+                if value == nil { Self.logFault(forCorrupt: record) }
+                return value
+            }
         }
     }
 

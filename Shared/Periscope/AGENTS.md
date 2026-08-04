@@ -38,6 +38,12 @@ target and no CI job.
   never attaches one, and processes that shouldn't persist (app extensions)
   simply never get a store — they stay OSLog-only rather than opting out
   somewhere in the framework.
+- **The app names the build; Periscope only carries it.** The session the app
+  starts the store with supplies `LogSession.attributes` (commit, configuration,
+  optimization level — see `LogSessionAttributeKey`). Periscope sits below the
+  app modules, so it cannot read a build stamp, and it must not invent one: a
+  bundle that wasn't stamped contributes no attributes rather than a build
+  called `unknown`. Where fills them from `BuildInfo.logSessionAttributes`.
 - **Tests never touch `Periscope.shared`.** Build a fresh system with an
   in-memory store per test and pass it explicitly (`Log<Event>()` defaults to
   `.shared`, so an omitted `system:` silently joins the process-wide one).

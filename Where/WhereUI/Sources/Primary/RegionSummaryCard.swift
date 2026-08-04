@@ -1,4 +1,5 @@
 import Foundation
+import RegionKit
 import SwiftUI
 import WhereCore
 
@@ -32,9 +33,8 @@ struct RegionSummaryCard: View {
     /// pass `WhereSession.selectedYear`; the default is only for previews.
     var year = WhereModel.currentYear
 
-    /// Drives the holographic stamp sheen. The Primary tab passes its live
-    /// `TiltProvider`; Elsewhere (and previews) pass `nil`, leaving a gentle
-    /// static sheen.
+    /// Drives the card's light sheen. Locations and the region editor pass a
+    /// live `TiltProvider`; callers without one use the card's static pose.
     var tilt: TiltProvider?
 
     /// An explicit style to render instead of resolving the region's look from
@@ -43,17 +43,45 @@ struct RegionSummaryCard: View {
     /// other caller leaves it `nil` and gets the resolved look.
     var styleOverride: RegionStyle?
 
+    /// Loaded once per regular card from the root-owned UI path cache. The large
+    /// watermark uses medium fidelity, the stamp uses small, and the repeated
+    /// border uses micro.
+    @State private var regionPaths: RegionArtworkPaths?
+
     @Environment(\.stylesheet) private var stylesheet
     @Environment(\.regionStyles) private var regionStyles
+    @Environment(\.regionOutlinePathCache) private var regionOutlinePathCache
+    #if DEBUG
+        @Environment(\.colorScheme) private var colorScheme
+        @Environment(\.cardDesignerConfiguration) private var cardDesignerConfiguration
+    #endif
+
+    private var cardStyles: WhereStylesheet.CardStyles {
+        #if DEBUG
+            if let cardDesignerConfiguration {
+                return cardDesignerConfiguration.resolve(
+                    over: stylesheet.card,
+                    colorScheme: colorScheme,
+                )
+            }
+        #endif
+        return stylesheet.card
+    }
 
     /// The resolved spec for this card's variant, read once so the rest of the
     /// view is a straight-line render with no `compact` branching.
     private var card: WhereStylesheet.CardStyle {
-        stylesheet.card[variant]
+        cardStyles[variant]
     }
 
     private var style: RegionStyle {
         styleOverride ?? regionStyles.style(for: regionDays.region)
+    }
+
+    /// Region ink on light cards; a pale derivative on dark cards that remains
+    /// distinct while interactive Liquid Glass illuminates nearby surfaces.
+    private var securityPrintTint: Color {
+        cardStyles.securityPrint.tint(style.tint)
     }
 
     private var cardShape: RoundedRectangle {
@@ -69,10 +97,18 @@ struct RegionSummaryCard: View {
         card.progressBarHeight
     }
 
+    private var regionArtworkLoadID: RegionArtworkLoadID {
+        RegionArtworkLoadID(
+            region: regionDays.region,
+            variant: variant,
+            isEnabled: card.regionShape != nil,
+        )
+    }
+
     /// How a count change plays out while the card is on screen. Reduce Motion is
     /// already resolved into it by the stylesheet.
     private var dayCount: WhereStylesheet.CardStyles.DayCountStyle {
-        stylesheet.card.dayCount
+        cardStyles.dayCount
     }
 
     /// A circular rubber-stamp "entry" impression: the region glyph and year
@@ -83,23 +119,24 @@ struct RegionSummaryCard: View {
             title: regionDays.region.localizedName.uppercased(),
             year: year,
             symbolName: style.symbolName,
-            tint: style.tint,
-            size: card.entryStampSize,
-            showsArcText: card.showsArcText,
+            tint: securityPrintTint,
+            style: card.entryStamp,
+            regionPath: regionPaths?.stamp ?? Path(),
+            regionShape: card.regionShape,
         )
     }
 
     /// A faint, region-tinted "security print" behind the content: a guilloché
     /// rosette of subtly wobbling concentric rings plus an oversized region
-    /// glyph watermarked into the corner, the way a passport page is printed
-    /// beneath its stamps.
+    /// glyph and microprinted silhouette border, the way a passport page is
+    /// printed beneath its stamps.
     private var stampPaper: some View {
         // Read the main-actor `style.tint` and the value-type `rosette` spec once
         // here so the nonisolated `Canvas` renderer closure captures `Sendable`
         // values rather than reaching back into main-actor state.
-        let tint = style.tint
+        let tint = securityPrintTint
         let rosette = card.rosette
-        let rosetteFill = stylesheet.card.rosetteFill
+        let rosetteFill = cardStyles.rosetteFill
         return ZStack {
             Canvas { context, size in
                 func drawRosette(center: CGPoint, spacing: CGFloat, opacity: Double) {
@@ -138,52 +175,67 @@ struct RegionSummaryCard: View {
                 )
             }
 
-            Image(systemName: style.symbolName)
-                .font(.system(size: card.watermarkFontSize))
-                .foregroundStyle(style.tint.opacity(stylesheet.card.watermarkOpacity))
-                .rotationEffect(.degrees(-14))
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-                .offset(x: card.watermarkOffset.width, y: card.watermarkOffset.height)
+            if
+                let regionShape = card.regionShape,
+                let regionPath = regionPaths?.microprint,
+                !regionPath.isEmpty
+            {
+                RegionOutlineSecurityBorder(
+                    path: regionPath,
+                    tint: tint,
+                    cornerRadius: card.cornerRadius,
+                    style: regionShape.securityBorder,
+                )
+            }
+
+            if
+                let regionShape = card.regionShape,
+                let regionPath = regionPaths?.watermark,
+                !regionPath.isEmpty
+            {
+                RegionOutlineArtwork(
+                    path: regionPath,
+                    tint: tint,
+                    style: regionShape.watermark,
+                )
+            } else {
+                Image(systemName: style.symbolName)
+                    .font(.system(size: card.watermarkFontSize))
+                    .foregroundStyle(tint.opacity(cardStyles.watermarkOpacity))
+                    .rotationEffect(.degrees(-14))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                    .offset(x: card.watermarkOffset.width, y: card.watermarkOffset.height)
+            }
         }
+        .blendMode(cardStyles.securityPrint.backgroundBlendMode)
         .clipShape(cardShape)
         .allowsHitTesting(false)
         .accessibilityHidden(true)
     }
 
-    /// A layered, official-looking frame: a heavy solid outer line, a thin solid
-    /// line, a ring of perforation dots (Primary cards only), and a dashed inner
-    /// line — like the engraved, perforated edge of a passport page.
-    private var stampFrame: some View {
-        let frame = stylesheet.card.frame
-        return ZStack {
-            cardShape
-                .strokeBorder(
-                    style.tint.opacity(frame.outerOpacity),
-                    lineWidth: card.frameOuterLineWidth,
-                )
-            cardShape
-                .inset(by: stylesheet.spacing.small)
-                .strokeBorder(style.tint.opacity(frame.thinOpacity), lineWidth: frame.thinWidth)
-            if card.showsPerforationRing {
-                cardShape
-                    .inset(by: stylesheet.spacing.large)
-                    .strokeBorder(
-                        style.tint.opacity(frame.perforationOpacity),
-                        style: StrokeStyle(
-                            lineWidth: frame.perforationWidth,
-                            lineCap: .round,
-                            dash: frame.perforationDash,
-                        ),
-                    )
-            }
-            cardShape
-                .inset(by: card.innerFrameInset)
-                .strokeBorder(
-                    style.tint.opacity(frame.innerOpacity),
-                    style: StrokeStyle(lineWidth: frame.innerWidth, dash: frame.innerDash),
-                )
-        }
-        .allowsHitTesting(false)
+    private func loadRegionOutlines() async {
+        regionPaths = nil
+        guard card.regionShape != nil, let regionOutlinePathCache else { return }
+        async let watermark = regionOutlinePathCache.path(
+            for: regionDays.region,
+            resolution: .medium,
+        )
+        async let stamp = regionOutlinePathCache.path(
+            for: regionDays.region,
+            resolution: .small,
+        )
+        async let microprint = regionOutlinePathCache.path(
+            for: regionDays.region,
+            resolution: .micro,
+        )
+        let (watermarkPath, stampPath, microprintPath) = await (watermark, stamp, microprint)
+        let loaded = RegionArtworkPaths(
+            watermark: watermarkPath,
+            stamp: stampPath,
+            microprint: microprintPath,
+        )
+        guard !Task.isCancelled else { return }
+        regionPaths = loaded
     }
 
     var body: some View {
@@ -191,13 +243,13 @@ struct RegionSummaryCard: View {
             HStack(alignment: .top, spacing: stylesheet.spacing.large) {
                 VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
                     Text(regionDays.region.localizedName)
-                        .font(card.regionNameFont)
+                        .font(card.regionNameTypography.font)
                         .tracking(card.regionNameTracking)
                         .lineLimit(1)
                         .allowsTightening(true)
                         .minimumScaleFactor(0.7)
                         .foregroundStyle(style.tint)
-                        .opacity(stylesheet.card.nameOpacity)
+                        .opacity(cardStyles.nameOpacity)
                     if let caption {
                         Text(caption)
                             .font(.caption2.weight(.semibold))
@@ -220,11 +272,11 @@ struct RegionSummaryCard: View {
 
             HStack(alignment: .firstTextBaseline, spacing: stylesheet.spacing.small) {
                 Text(regionDays.days, format: .number)
-                    .font(card.heroNumberFont)
+                    .font(card.heroNumberTypography.font)
                     .contentTransition(dayCount.transition(days: regionDays.days))
                     .foregroundStyle(style.tint)
                 Text(WhereFormat.dayUnit(regionDays.days))
-                    .font(card.dayUnitFont)
+                    .font(card.dayUnitTypography.font)
                     .foregroundStyle(.secondary)
             }
 
@@ -249,18 +301,18 @@ struct RegionSummaryCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background { stampPaper }
         .glassEffect(
-            .regular.tint(style.tint.opacity(stylesheet.card.glassTintOpacity))
+            .regular.tint(style.tint.opacity(cardStyles.glassTintOpacity))
                 .interactive(interactive),
             in: cardShape,
         )
-        .holographicSheen(
-            roll: tilt?.roll ?? 0,
-            pitch: tilt?.pitch ?? 0,
+        .tiltSheen(
+            tilt: tilt,
+            staticRoll: card.sheen.staticPose.roll,
+            staticPitch: card.sheen.staticPose.pitch,
             in: cardShape,
-            tint: .white,
-            intensity: card.holographicIntensity,
+            intensity: card.sheen.intensity,
+            staticGlintIntensity: card.sheen.staticGlintIntensity,
         )
-        .overlay { stampFrame }
         .clipShape(cardShape)
         // Make the whole card a single hit target — without this only the
         // opaque sub-views (text, stamp, bar) take taps, leaving dead gaps
@@ -282,57 +334,93 @@ struct RegionSummaryCard: View {
                 days: regionDays.days,
             ),
         )
+        .task(id: regionArtworkLoadID, loadRegionOutlines)
     }
+}
+
+/// Restarts cached artwork loading when a designer switches either card variant
+/// or the outline layer without first changing the previewed region.
+struct RegionArtworkLoadID: Equatable {
+    let region: Region
+    let variant: WhereStylesheet.CardStyle.Variant
+    let isEnabled: Bool
 }
 
 /// A circular rubber-stamp impression — double ring, centered region glyph and
 /// year, with the region name curved along the top arc — tilted as if an
-/// official pressed it onto a passport page. Sizes scale off `size` so it reads
-/// the same on the big Primary cards and the compact Elsewhere ones.
+/// official pressed it onto a passport page. The card stylesheet owns its
+/// complete drawing treatment for both regular and compact cards.
 private struct EntryStamp: View {
     let title: String
     let year: Int
     let symbolName: String
     let tint: Color
-    let size: CGFloat
-    var showsArcText = true
+    let style: WhereStylesheet.CardStyle.EntryStamp
+    let regionPath: Path
+    let regionShape: WhereStylesheet.CardStyle.RegionShape?
 
     var body: some View {
+        let size = style.size
         ZStack {
             Circle()
-                .strokeBorder(tint.opacity(0.7), lineWidth: size * 0.035)
+                .strokeBorder(
+                    tint.opacity(style.outerRing.opacity),
+                    lineWidth: size * style.outerRing.lineWidthFraction,
+                )
             Circle()
                 .strokeBorder(
-                    tint.opacity(0.45),
+                    tint.opacity(style.innerRing.opacity),
                     style: StrokeStyle(
-                        lineWidth: size * 0.012,
-                        dash: [size * 0.05, size * 0.035],
+                        lineWidth: size * style.innerRing.lineWidthFraction,
+                        dash: [
+                            size * style.innerRing.dash.lengthFraction,
+                            size * style.innerRing.dash.spacingFraction,
+                        ],
                     ),
                 )
-                .padding(size * 0.13)
+                .padding(size * style.innerRing.insetFraction)
 
-            VStack(spacing: size * 0.02) {
-                Image(systemName: symbolName)
-                    .font(.system(size: size * 0.26))
+            VStack(spacing: size * style.content.spacingFraction) {
+                if let regionShape, !regionPath.isEmpty {
+                    RegionOutlineArtwork(
+                        path: regionPath,
+                        tint: tint,
+                        style: regionShape.stamp,
+                    )
+                    .frame(
+                        width: size * style.content.artworkExtent.width,
+                        height: size * style.content.artworkExtent.height,
+                    )
+                } else {
+                    Image(systemName: symbolName)
+                        .font(style.content.symbolFont.font(for: size))
+                }
                 Text(verbatim: String(year))
-                    .font(.system(size: size * 0.15, weight: .bold, design: .serif))
+                    .font(style.content.yearFont.font(for: size))
                     .monospacedDigit()
             }
-            .foregroundStyle(tint.opacity(0.85))
+            .foregroundStyle(tint.opacity(style.content.opacity))
 
-            if showsArcText {
+            if let arc = style.arc {
                 ArcText(
                     text: title,
-                    radius: size * 0.37,
-                    font: .system(size: size * 0.1, weight: .semibold, design: .serif),
-                    color: tint.opacity(0.7),
+                    size: size,
+                    tint: tint,
+                    style: arc,
                 )
             }
         }
         .frame(width: size, height: size)
-        .rotationEffect(.degrees(-8))
+        .rotationEffect(.degrees(style.rotationDegrees))
         .accessibilityHidden(true)
     }
+}
+
+/// The three cached render artifacts a regular card consumes together.
+private struct RegionArtworkPaths {
+    let watermark: Path
+    let stamp: Path
+    let microprint: Path
 }
 
 /// Lays out `text` along the upper arc of a circle of the given `radius`,
@@ -341,19 +429,22 @@ private struct EntryStamp: View {
 /// region names both stay legible.
 private struct ArcText: View {
     let text: String
-    let radius: CGFloat
-    let font: Font
-    let color: Color
+    let size: CGFloat
+    let tint: Color
+    let style: WhereStylesheet.CardStyle.EntryStamp.Arc
 
     var body: some View {
         let characters = Array(text)
-        let sweep = min(250, Double(characters.count) * 17)
+        let sweep = min(
+            style.maximumSweepDegrees,
+            Double(characters.count) * style.sweepDegreesPerCharacter,
+        )
         ZStack {
             ForEach(Array(characters.enumerated()), id: \.offset) { index, character in
                 Text(String(character))
-                    .font(font)
-                    .foregroundStyle(color)
-                    .offset(y: -radius)
+                    .font(style.font.font(for: size))
+                    .foregroundStyle(tint.opacity(style.opacity))
+                    .offset(y: -size * style.radiusFraction)
                     .rotationEffect(angle(at: index, count: characters.count, sweep: sweep))
             }
         }
@@ -381,10 +472,12 @@ private struct ArcText: View {
             )
         }
         .padding()
+        .whereBroadwayRoot()
     }
 
     #Preview("Changing count") {
         ChangingCountPreview()
+            .whereBroadwayRoot()
     }
 
     /// Stands in for the count changing under the user, which is otherwise only

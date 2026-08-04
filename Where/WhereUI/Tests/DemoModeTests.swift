@@ -246,7 +246,10 @@ struct DemoModeTests {
     /// the routing itself rather than the bookkeeping around it.
     @Test func demoRecordsNeverReachTheRealLogStore() async throws {
         let logSystem = Periscope.isolated()
-        let realLogStore = try await PeriscopeStore.make(storage: .inMemory, session: .current())
+        let realLogStore = try await PeriscopeStore.make(
+            storage: .inMemory,
+            session: .current(attributes: [:]),
+        )
         let bootstrap = try ScriptedBootstrap(services: makeServices(), logStore: realLogStore)
         let model = WhereModel(
             preferences: makePreferences(),
@@ -293,7 +296,10 @@ struct DemoModeTests {
     /// store and the user then taps into the demo.
     @Test func aLogStoreOpeningLateNeverAttachesToAShadowedScope() async throws {
         let logSystem = Periscope.isolated()
-        let realLogStore = try await PeriscopeStore.make(storage: .inMemory, session: .current())
+        let realLogStore = try await PeriscopeStore.make(
+            storage: .inMemory,
+            session: .current(attributes: [:]),
+        )
         let bootstrap = try ScriptedBootstrap(services: makeServices(), logStore: realLogStore)
         let model = WhereModel(
             preferences: makePreferences(),
@@ -307,6 +313,7 @@ struct DemoModeTests {
         #expect(realScope.logStore == nil)
 
         try await model.activateDemo(model.makeDemoScope())
+        let demoStore = try #require(model.logStore)
         bootstrap.releaseLogStore()
         try await waitUntil { realScope.logStore != nil }
 
@@ -315,6 +322,7 @@ struct DemoModeTests {
         // The store arrived and is remembered, but nothing routed into it —
         // the scope it belongs to was shadowed before it landed.
         #expect(realScope.logStore != nil)
+        #expect(model.logStore === demoStore)
         #expect(try await !messages(in: realLogStore).contains("during the demo"))
     }
 

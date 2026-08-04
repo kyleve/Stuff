@@ -4,6 +4,14 @@ import PeriscopeCore
 /// unparseable `regions.json` is a programmer error (corrupt bundled resource),
 /// so those cases log at `.fault` to match the paired `assertionFailure`.
 enum RegionCatalogLog: LogEvent {
+    /// Names the catalog's timed span.
+    enum SpanName: Hashable {
+        /// Reading and decoding the bundled manifest. Happens once per process,
+        /// lazily, on whichever thread first touches `RegionCatalog.shared` —
+        /// usually the launch — so it's worth knowing what it costs there.
+        case loadManifest
+    }
+
     /// The bundled `regions.json` manifest is absent from the bundle.
     case missingManifest
     /// The manifest decoded successfully into `regionCount` entries.

@@ -50,6 +50,15 @@ open class NotificationAmbientSource: NSObject, AmbientEventSource, @unchecked S
 
     /// Called at the end of `start`; override to emit an initial snapshot.
     /// The default does nothing.
+    ///
+    /// Observers are registered *before* this runs, so a transition landing
+    /// in the gap posts its notification rather than going unobserved. The
+    /// mirror-image race — a notification handler folding its emission
+    /// before the baseline's — is accepted: both read the *current* state
+    /// at emit time, so the values agree except in the sub-microsecond
+    /// window between a read and its fold, and the next real transition
+    /// re-reads and corrects any skew. Ordering machinery here would buy
+    /// nothing measurable.
     open func started() {}
 
     /// The event to log for a delivered notification, or `nil` to skip it.

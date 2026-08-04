@@ -24,7 +24,8 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   `MainTabs`, the Liquid Glass tab bar over three tabs — Locations, Your Year,
   Settings. Elsewhere is an entry card on Locations, Resolve a Locations toolbar
   button, and the data screens (attachments, logged days, regions) sit in the
-  Settings "Data" group. `AboutSettingsView` is the last Settings block — build
+  Settings "Data" group. Backup and destructive data management share one Data
+  drill-in. `AboutSettingsView` is the last Settings block — build
   identity, the app's generated attribution report (linked libraries and
   development tools as separate sections), and bundled-data provenance, each
   vended by whoever owns it rather than listed in the view; it renders an
@@ -33,6 +34,19 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   injects the launch-built model + runner
   (`init(model:launcher:)`); a no-arg `init()` builds its own for previews and
   the hosted UI test.
+- **Developer tools** — DEBUG-only logging, span, region-map, Flyover, and
+  next-launch Inspector controls. The global launcher's accordion only updates
+  `InspectorModeController`; the current regular runtime continues until the
+  developer relaunches. The Logs destination is always present: before its
+  durable store is ready it reports whether the open is still running,
+  unavailable, or failed with the actual error.
+- **`WhereLaunch`** — the launch, reset, and exit-demo plans themselves. Every
+  step declares how long it should take (`BudgetedLaunchStep`) and joins the
+  plan through `.measured()`, so each run is one Periscope span named after
+  the step (`step(resolve-scope)`) that warns while it overruns its budget —
+  the launch's cost breaks down per step instead of arriving as one slow
+  splash. (The onboarding gate is the one unmeasured node: it parks on the
+  user.)
 - **`WhereScope`** — what the app is logged in *to*: one open store's
   `WhereServices`, the `WherePreferences` driving it, and the durable log store
   they record into, created whole and never reconfigured. `WhereModel` owns
@@ -42,9 +56,13 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   on-disk store, and `makeDemoScope()` builds a seeded in-memory world that
   leaves nothing behind. Its log sink is registered on an **injected**
   `Periscope` — and only while `WhereModel` says the scope is active — with
-  routing modelled as one state (`pending` / `routing` / `idle`), so a store that
-  finishes opening while the scope is shadowed is remembered rather than routed
-  into.
+  routing modelled as one state (`pending` / `routing` / `idle` / `failed`), so
+  a store that finishes opening while the scope is shadowed is remembered rather
+  than routed into. `WhereModel.logStoreState` mirrors the active scope's
+  asynchronous bring-up for direct SwiftUI observation. When the durable store
+  opens, its bring-up is spanned (`openLogStore`) and history is trimmed with
+  `LogHistoryPruner` (a 100-day window *and* a 50k-event ceiling, so the store is
+  bounded however heavily the device logs).
 - **`WhereModel`** — app-level state that outlives any one scope: the
   onboarding flag, the active `WhereScope`, the owned `WhereSession`, and the
   lifecycle intents (`activate(scope:)`, `startSession(scope:)` — which
@@ -92,6 +110,10 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   system](#design-system)). Applied by `RootView` and by each widget.
 - **`RegionMapView`** — the developer region-map tool (also hosted standalone by
   the RegionViewer Mac Catalyst app).
+- **Flyover** — a DEBUG-only all-screens browser reached from the developer
+  launcher's accordion. It renders the app's screens on a zoomable navigation
+  canvas or linear list, shows push/modal routes, switches global device and
+  accessibility traits, and opens any frame in a live focused inspector.
 
 ## Installation
 
@@ -104,9 +126,8 @@ target's dependencies in [`Package.swift`](../../Package.swift):
 
 ## Quick start
 
-The app target is deliberately tiny — it builds the model + launch runner at
-startup (so CoreLocation is wired for background relaunch) and hands them to
-`RootView`:
+The app target is deliberately tiny. It selects one application runtime, then
+forwards the process launch and root view:
 
 ```swift
 import SwiftUI
@@ -118,13 +139,15 @@ struct WhereApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootView(model: appDelegate.model, launcher: appDelegate.launcher)
+            appDelegate.runtime.makeRootView()
         }
     }
 }
 ```
 
-`RootView` applies `whereBroadwayRoot()` itself, so a host doesn't wrap it. For
+The regular runtime owns the model and launch runner; the DEBUG Inspector
+runtime supplies an entirely separate root. `RootView` applies
+`whereBroadwayRoot()` itself, so a host doesn't wrap it. For
 a self-contained preview or UI test, the no-arg `RootView()` builds its own
 model and a foreground launch runner.
 
@@ -190,6 +213,27 @@ default empty resolver yields the fallback looks
 region-map viewer. The catalog also owns the selectable color/emoji/symbol
 option lists the picker shows.
 
+Regular `RegionSummaryCard`s ask the root-owned `RegionOutlinePathCache` for a
+medium SwiftUI path for the large security-print watermark and a small path for
+the seal inside the circular entry stamp. A separate micro path is repeated as
+a tangent-aligned microprint border around the card's inner perimeter. The UI
+cache derives all four resolutions from RegionKit's one cached source outline
+using its stateless simplifier; compact cards retain the simpler symbol
+treatment. Security-print layers use normal compositing in light mode and
+Screen in dark mode, so the same tinted details darken pale glass but lighten
+dark glass.
+Live tilt is observed only by the sheen overlay, so its 60 Hz updates do not
+invalidate the card's text or Canvas artwork. The card adds no standalone edge
+stroke; its containing Liquid Glass surface owns the subtle outer border so
+direct and production rendering do not diverge.
+
+DEBUG builds include Card Designer Studio under Settings → Appearance. It
+edits a versioned, persisted draft of the regular, compact, and shared card
+presentation, previews both appearances with live tilt, and exports the full
+result—or only its changes from the app defaults—as shareable or clipboard JSON
+and Swift. The draft affects the rest of the app only while “Apply to App” is
+enabled; that switch intentionally resets on every launch.
+
 ## Previews
 
 Every previewable component ships a `#Preview` (wrapped in `#if DEBUG`) built
@@ -198,6 +242,32 @@ disk, CloudKit, or CoreLocation. Pull services and models from there rather than
 constructing them inline, and cover the empty / loaded / edge states, not just
 the happy path. See the feature
 [`Where/AGENTS.md`](../AGENTS.md#swiftui-views--previews).
+
+## Flyover
+
+`Sources/Developer/Flyover` owns an explicit `WhereFlyoverScreenID` catalog.
+The enum is exhaustive and completeness-tested, so adding a top-level screen
+produces one obvious registration update rather than depending on source
+scanning or a macro that cannot discover navigation across the module.
+
+Opening Flyover asynchronously builds one `WhereScope.demo` and shares its
+seeded in-memory services, preferences, and session across live frames. That
+scope is never activated and never log-routed; the app's current scope remains
+untouched. The loader constructs and retains the completed catalog once, so
+host-view updates preserve those frame fixtures and their controls. Synthetic
+`PreviewSupport` states fill the gaps the demo data cannot express cleanly
+(empty, failed, unavailable, widget, and intent-snippet states). Frame-local
+controls can mutate only their own observable fixture—for example, Locations
+can show or hide its Resolve toolbar item—and Reset restores that fixture.
+
+Overview frames ignore hit testing so embedded navigation containers cannot
+fight the canvas. Leaf screens receive an isolated navigation stack so their
+titles, toolbar items, and destinations render inside the frame rather than
+escaping into the Developer Tools stack; app roots, widgets, and snippets opt
+out. Selecting the inspect button opens the same screen in a full-screen
+interactive viewport. Flyover's appearance, device, Dynamic Type, contrast,
+layout-direction, and bold-text choices are session-only and apply only to
+registered content.
 
 ## Testing
 

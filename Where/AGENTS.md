@@ -21,6 +21,11 @@ reaches only *down*; each module's own `AGENTS.md` / `README.md` is the
 authority on what it is. Add domain behavior to WhereCore and presentation to
 WhereUI — the app target stays tiny.
 
+The DEBUG app has a second boot runtime from
+[`Shared/Inspector`](../Shared/Inspector). `AppDelegate` selects either the
+regular composition root or the standalone Inspector before launch; Inspector
+is not a `WhereScope` and must never construct regular app services.
+
 ## Layering
 
 | Layer | Where | Owns |
@@ -56,6 +61,8 @@ Rules the code enforces and agents must preserve:
   Intents run in the app process. An event about a store object stamps its
   `externalID` with the object's `store://` identity; RegionKit's parallel
   scheme is `region://` (see [`RegionKit/AGENTS.md`](RegionKit/AGENTS.md)).
+- **Spans measure work, and declare what "too slow" means** — see
+  [Spans](#spans).
 - **Location comes through the `LocationSource` protocol** —
   `CoreLocationSource` in production, `ScriptedLocationSource` in
   tests/previews. The one-shot `requestCurrentLocation()` returns `nil` rather
@@ -68,6 +75,44 @@ Rules the code enforces and agents must preserve:
   `WhereServices.summary` (the daily notification recap); model unavailability
   surfaces as a typed reason, never a silent empty summary.
 
+## Spans
+
+Anything plausibly expensive is measured — `logger.measure(.name, budget:)` on
+the owning type's `*Log` — so the [Periscope](../Shared/Periscope) span history
+can say which work is slow on a real device rather than only that a screen felt
+slow.
+
+- **Names are a typed `enum SpanName`** nested on the `*Log`, never a raw
+  string. When a name carries a value, give it `CustomStringConvertible` so the
+  history buckets by something readable — `step(resolve-scope)`,
+  `loadRegion(us-CA)`, `detect(border-drift)` — not the Swift case's shape.
+- **The budget is the promise, and it lives next to the work.** Overrunning it
+  emits a `SpanOverdue` warning while the span keeps running, so a budget is a
+  claim about this specific call ("a widget publish shouldn't take 2s"), not a
+  timeout. Omit it only where no ceiling is meaningful — user-driven backup
+  export/import, which scales with the archive.
+- **Launch and reset steps declare a budget, not a `measure` call.** Every step
+  in `WhereLaunch`'s plans conforms to `BudgetedLaunchStep` and joins the plan
+  through `.measured()`, which wraps it in `MeasuredStep` — so a new step is
+  spanned by declaring `budget`, and `MeasuredStep` pointedly isn't itself
+  budgeted, so nothing can be measured twice into nested duplicate spans. Gates
+  are exempt: the onboarding gate parks on the user, so it has nothing to
+  promise.
+- **Span the work, not the property.** Composite orchestration that reflects
+  user-perceived latency is worth a span even when its callees have their own
+  (`WhereSession.appBecameActive`, `YearReportModel.refreshAll`, an intent's
+  `perform`). A SwiftUI computed property re-evaluated per `body` pass is not:
+  it would emit continuously and bury the real signal.
+- **A type that needs spans but has no events** gets a span-only facade: a
+  `struct` conforming to `LogEvent` with a `private init` and an empty `message`
+  (`ReportReaderLog`, `DataIssueScannerLog`, `PresenceCalendarLog`). It names
+  spans without inventing an event nobody emits.
+- **Spans emitted before a scope's durable store attaches are
+  half-persisted.** A `SpanBegan` from the pre-sink window is only in OSLog;
+  the `SpanEnded` lands in the store, so durations survive but the pair
+  doesn't. That gap is Periscope's to close (P0 in its
+  [`TODOs.md`](../Shared/Periscope/TODOs.md)) — don't work around it here.
+
 ## Scopes and the launch
 
 - **A `WhereScope` is what the app is logged in *to*** — one open store's
@@ -78,12 +123,14 @@ Rules the code enforces and agents must preserve:
   onboarding gate, so an install that never onboards creates no store file,
   contacts no CloudKit, and opens no log store. Guard:
   `WhereLaunchTests.firstRunForegroundLaunchParksOnTheOnboardingGateBeforeOpeningAnything`.
-- **At most one scope is live at a time.** Logging out — a reset, or leaving a
-  demo — releases and tears down the scope; logging back in builds a fresh one.
-  What went wrong historically wasn't opening a second container *ever*, it was
-  two long-lived ones open *at once*, which sequenced teardown makes
-  unspellable. Guard:
+- **At most one scope is active and log-routing at a time.** Logging out — a
+  reset, or leaving a demo — releases and tears down the scope; logging back in
+  builds a fresh one. Flyover is the narrow exception to "one open world": it
+  may retain one separately built, in-memory demo scope beside the active app
+  scope, but never activates or log-routes it and never opens a second copy of
+  the real store. Guards:
   `WhereResetTests.loggingOutReleasesTheScopeBeforeTheNextLoginOpensOne`.
+  `WhereFlyoverWorldTests.buildsASeededSiblingWithoutActivatingIt`.
 - **The onboarding gate declares `modes: .all`,** not the `.foreground`
   default: parking a headless launch is the point. A background wake needs the
   permission this flow asks for, so `isNeeded` is false by then.
@@ -92,6 +139,10 @@ Rules the code enforces and agents must preserve:
   trunk.
 - **Ambient log sources start at process launch; the durable sink is a
   scope's.** Records emitted before a scope exists reach OSLog only.
+- **Publish durable-log bring-up through `WhereModel.logStoreState`.** The
+  active scope owns the store, while the process model mirrors opening, ready,
+  unavailable, and failed states for the DEBUG developer surface. Guards:
+  `WhereModelTests`.
 
 ### Demo mode
 
@@ -109,6 +160,10 @@ Rules the code enforces and agents must preserve:
   store from birth and routes only while active, so one that opens while
   shadowed is remembered rather than attached. Guard:
   `DemoModeTests.aLogStoreOpeningLateNeverAttachesToAShadowedScope`.
+- **Flyover builds but never activates its demo scope.** Its frames share that
+  one in-memory world while the real app keeps its current scope; dismissing
+  Flyover releases the sibling. The process-global `WhereLog` facade remains a
+  known exception tracked in [`TODOs.md`](TODOs.md).
 - **The logging system is injected, not global** — `WhereModel.logSystem` has no
   default, so a test can't silently attach sinks to `Periscope.shared`. (The
   `WhereLog` facade still emits into `.shared`; pre-existing.)

@@ -59,3 +59,14 @@ extension VisibleYearSettingsView: SettingsSection {
         .whereBroadwayRoot()
     }
 #endif
+
+#if DEBUG
+    extension VisibleYearSettingsView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData.hosted(
+            VisibleYearSettingsView.self,
+            title: "Visible Year",
+        ) { world in
+            VisibleYearSettingsView(report: world.report)
+        }
+    }
+#endif

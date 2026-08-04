@@ -35,6 +35,13 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
   `current()` (cancellation-aware) — there is deliberately no self-open
   fallback. A `LogDayIntent` write therefore pings the same `changes()`
   signal the running UI refreshes from.
+- **Every `perform()` wraps its work in `measureIntent(_:)`**, and each
+  `WhereIntentsLog.IntentName` carries the budget for its own kind of work — so
+  the span history reads per intent (`perform(days-in-region)`) and a slow Siri
+  answer is attributable. Build the `IntentResult` *outside* the measured
+  closure: keep the span around the fetch/write, and the result's type inference
+  out of it. `IntentServices.current()` spans only the parking path, so a
+  measured wait means the intent actually raced the app's launch.
 - **Use `Calendar.whereIntents` for all year/day math**, never
   `Calendar.current` — Gregorian in the current time zone, matching
   `DayAggregator()`. Guard: `Calendar+WhereIntentsTests`.

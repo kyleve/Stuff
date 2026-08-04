@@ -86,6 +86,7 @@ struct LogHierarchyModelTests {
             externalID: nil,
             attachments: [],
             sessionID: UUID(),
+            ambientSnapshotID: nil,
         )
 
         let forest = LogHierarchyModel.buildForest(

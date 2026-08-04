@@ -10,18 +10,78 @@ struct SpanNode: Identifiable, Hashable {
     let name: String
     /// The stored `SpanBegan` event — the drill-in target.
     let began: StoredLogEvent
-    /// The stored `SpanEnded` event, or `nil` while the span is still open.
-    let ended: StoredLogEvent?
-    /// Measured duration, when the end recorded one.
-    let duration: Duration?
-    /// How the span ended, or `nil` while open.
-    let exitMode: SpanExit.Mode?
     /// When the span began — the row's timestamp.
     let begin: Date
+    /// Whether the span is still running and, once it isn't, everything its end
+    /// had to say.
+    let outcome: Outcome
     var children: [SpanNode]?
 
+    /// Whether the span is still running and, once it isn't, everything its end
+    /// had to say.
+    ///
+    /// One value rather than parallel `ended` / `exitMode` / `duration`
+    /// optionals: with those, a span whose end payload failed to decode rendered
+    /// an exit chip beside a "running" duration — the one reading that cannot be
+    /// true, since the exit came from an indexed column while the duration came
+    /// from the payload. Here a span that ended can only describe itself as
+    /// ended.
+    enum Outcome: Hashable {
+        /// No `SpanEnded` has been seen for this span.
+        case open
+        case ended(Ended)
+
+        /// A span's end: the event, the exit its row recorded, and how long the
+        /// span took.
+        struct Ended: Hashable {
+            /// The stored `SpanEnded` event.
+            let event: StoredLogEvent
+            /// The exit from the end row's indexed column, or `nil` when the row
+            /// carries none.
+            let mode: SpanExit.Mode?
+            let timing: Timing
+        }
+
+        /// How long an ended span took, as far as its end could say.
+        enum Timing: Hashable {
+            /// The duration the end recorded.
+            case measured(Duration)
+            /// The end recorded none. An orphan closed by the relaunch sweep has
+            /// no duration to record — the process died at an unknown point.
+            case unmeasured
+            /// The end's payload wouldn't decode, so the duration is unknown
+            /// rather than absent. Kept distinct so a corrupt row reads as
+            /// corrupt instead of as a span that never measured anything.
+            case undecodable
+        }
+    }
+
     var isOpen: Bool {
-        ended == nil
+        if case .open = outcome { return true }
+        return false
+    }
+
+    /// The stored `SpanEnded` event, or `nil` while the span is still open.
+    var ended: StoredLogEvent? {
+        if case let .ended(ended) = outcome { return ended.event }
+        return nil
+    }
+
+    /// How the span ended, or `nil` while open (or when the end row recorded no
+    /// exit).
+    var exitMode: SpanExit.Mode? {
+        if case let .ended(ended) = outcome { return ended.mode }
+        return nil
+    }
+
+    /// The measured duration, or `nil` for an open span and for an end that
+    /// couldn't produce one. Callers that must *distinguish* those — anything
+    /// rendering the span — switch on ``outcome`` instead.
+    var measuredDuration: Duration? {
+        guard case let .ended(ended) = outcome, case let .measured(duration) = ended.timing else {
+            return nil
+        }
+        return duration
     }
 }
 
@@ -92,6 +152,9 @@ final class SpanTreeModel {
             scopes = Dictionary(uniqueKeysWithValues: scopeList.map { ($0.id, $0) })
             state = .loaded(Self.buildTree(begins: begins, ends: ends))
         } catch {
+            PeriscopeToolsLog.failures.error(
+                "Span tree could not read the store: \(error, privacy: .public)",
+            )
             state = .failed(String(describing: error))
         }
     }
@@ -132,27 +195,20 @@ final class SpanTreeModel {
             let id: SpanID
             let name: String
             let began: StoredLogEvent
-            let ended: StoredLogEvent?
-            let duration: Duration?
-            let exitMode: SpanExit.Mode?
             let begin: Date
+            let outcome: SpanNode.Outcome
             let effectiveEnd: Date
         }
 
         let buildings: [Building] = begins.compactMap { began in
             guard let id = began.spanID else { return nil }
             let ended = endBySpan[id]
-            let name = (try? began.decode(SpanBegan.self))?.name
-                ?? began.message.replacingOccurrences(of: "▶ ", with: "")
-            let duration = ended.flatMap { try? $0.decode(SpanEnded.self) }?.duration
             return Building(
                 id: id,
-                name: name,
+                name: spanName(from: began),
                 began: began,
-                ended: ended,
-                duration: duration,
-                exitMode: ended?.spanExitMode,
                 begin: began.date,
+                outcome: ended.map { outcome(for: $0) } ?? .open,
                 effectiveEnd: ended?.date ?? .distantFuture,
             )
         }
@@ -175,10 +231,8 @@ final class SpanTreeModel {
                     id: building.id,
                     name: building.name,
                     began: building.began,
-                    ended: building.ended,
-                    duration: building.duration,
-                    exitMode: building.exitMode,
                     begin: building.begin,
+                    outcome: building.outcome,
                     children: childNodes.isEmpty ? nil : childNodes,
                 )
             }
@@ -199,5 +253,48 @@ final class SpanTreeModel {
             stack.append(node)
         }
         return roots.map { $0.freeze() }
+    }
+
+    /// The span's name from its began payload, falling back to the row's
+    /// message with the span-began marker stripped. A decode failure here is
+    /// cosmetic — the tree still shows the span — but it's logged, since a
+    /// payload written by `JSONEncoder` failing to decode means on-disk
+    /// corruption.
+    private static func spanName(from began: StoredLogEvent) -> String {
+        do {
+            return try began.decode(SpanBegan.self).name
+        } catch {
+            PeriscopeToolsLog.failures.warning(
+                """
+                Span tree could not decode the SpanBegan payload for span \
+                \(began.spanID?.rawValue.uuidString ?? "unknown", privacy: .public); \
+                naming it from its message: \(error, privacy: .public)
+                """,
+            )
+            return began.message.replacingOccurrences(of: "▶ ", with: "")
+        }
+    }
+
+    /// The end's outcome: its recorded exit plus what its payload could say
+    /// about the duration. An undecodable payload is reported as such rather
+    /// than as a missing duration, so the row can't read as still running.
+    private static func outcome(for ended: StoredLogEvent) -> SpanNode.Outcome {
+        let timing: SpanNode.Outcome.Timing
+        do {
+            let decoded = try ended.decode(SpanEnded.self)
+            timing = decoded.duration.map { .measured($0) } ?? .unmeasured
+        } catch {
+            PeriscopeToolsLog.failures.warning(
+                """
+                Span tree could not decode the SpanEnded payload for span \
+                \(ended.spanID?.rawValue.uuidString ?? "unknown", privacy: .public); \
+                its duration is unknown: \(error, privacy: .public)
+                """,
+            )
+            timing = .undecodable
+        }
+        return .ended(
+            SpanNode.Outcome.Ended(event: ended, mode: ended.spanExitMode, timing: timing),
+        )
     }
 }

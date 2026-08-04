@@ -116,6 +116,14 @@ public actor ReminderReconciler {
     /// the unresolved data-issue count, and a rolling window of upcoming unlogged
     /// days gets per-day reminders.
     func reconcile() async {
+        await Self.logger.measure(.reconcile, budget: .seconds(3)) {
+            await performReconcile()
+        }
+    }
+
+    /// `reconcile()`'s body, split out so the span wraps every path through it —
+    /// including the reminders-off branch, which still scans for the badge.
+    private func performReconcile() async {
         let today = calendar.startOfDay(for: now())
         let year = calendar.component(.year, from: today)
 
