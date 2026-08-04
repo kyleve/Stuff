@@ -678,10 +678,10 @@ extension WhereStylesheet {
                     staticPose: .init(roll: 0, pitch: -1),
                 ),
                 rosette: CardStyle.Rosette(
-                    wobble: 3,
-                    lineWidth: 2,
-                    primaryRingSpacing: 18,
-                    secondaryRingSpacing: 15,
+                    wobble: 2,
+                    lineWidth: 1,
+                    primaryRingSpacing: 13.5,
+                    secondaryRingSpacing: 9.5,
                 ),
                 glow: CardStyle.Shadow(opacity: 0.75, radius: 12),
                 lift: CardStyle.Shadow(opacity: 0.6, radius: 34, offsetY: 18),
@@ -719,7 +719,7 @@ extension WhereStylesheet {
                 ),
                 rosette: CardStyle.Rosette(
                     wobble: 2,
-                    lineWidth: 2,
+                    lineWidth: 1,
                     primaryRingSpacing: 13,
                     secondaryRingSpacing: 11,
                 ),
@@ -765,20 +765,11 @@ extension WhereStylesheet {
             var gridSpacing: CGFloat
             var padding: CGFloat
             var cornerRadius: CGFloat
-            /// Card treatment for a past or future month — the plain wash + rim.
+            /// Card treatment for a past month — the plain wash + rim.
             var plain: Card
             /// Card treatment for the current month — a bluer accent wash and a
             /// heavier accent border so it stands out from the plain months.
             var current: Card
-            /// Opacity of the next-month "teaser" peek, dimming it so it clearly
-            /// hasn't happened yet.
-            var futureOpacity: Double
-            /// Fraction of the future (next) month's *rendered* height revealed as
-            /// a peek — the grid can only scroll partway into it, faded out over
-            /// it. Dimensionless on purpose: the absolute pixel height depends on
-            /// layout (how tall that month renders), so it's computed at view time
-            /// from this fraction rather than hardcoded here.
-            var futurePeekFraction: CGFloat
             /// Extra space below the footer's divider, so the tally rows don't
             /// butt right up against it.
             var footerDividerSpacing: CGFloat
@@ -790,7 +781,7 @@ extension WhereStylesheet {
             var unfocusedRowOpacity: Double
 
             /// One month card's fill + border, so the same treatment can be
-            /// applied by state: `plain` for past/future months, `current` for
+            /// applied by state: `plain` for past months, `current` for
             /// the current one. The grid picks a `Card` and reads both from it,
             /// rather than ternary-ing each property against `isCurrentMonth`.
             struct Card: Equatable {
@@ -895,8 +886,6 @@ extension WhereStylesheet {
                         in: .perceptual,
                     ),
                 ),
-                futureOpacity: 0.55,
-                futurePeekFraction: 0.5,
                 footerDividerSpacing: 8,
                 footerSpacing: 4,
                 footerRowSpacing: 6,
