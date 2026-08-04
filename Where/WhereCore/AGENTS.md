@@ -78,7 +78,7 @@ internal shape.
   URL.** Never let another store in the process (notably Periscope) ping
   `WhereStore.changes()`; guard: `StoreRemoteChangeSourceTests`.
 - **Post-write reconciliation is defined once.** Every write and import
-  routes through `DayJournal.reconcileAfterDayChange()` (or its widget-less
+  routes through `DayJournal.reconcileAfterDayDataChange()` (or its widget-less
   subset `reconcileIssueState()`) — never copy the fan-out into a new write
   path. Cross-collaborator hooks take a single closure wired at the
   composition root (`BackupCoordinator.onImport`).

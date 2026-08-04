@@ -1,6 +1,6 @@
 # Post-write reconcile
 
-Models the intended contract in [`DayJournal.reconcileAfterDayChange()`](../../WhereCore/Sources/Journal/DayJournal.swift):
+Models the intended contract in [`DayJournal.reconcileAfterDayDataChange()`](../../WhereCore/Sources/Journal/DayJournal.swift):
 commit, then full fan-out (invalidate → reminders → issue alerts → widgets), then
 `changes()` readers observe applied side effects.
 
@@ -31,7 +31,7 @@ Swift guards: [`DayJournalTests.addManualDayReconcilesAndPublishes`](../../Where
 
 Single-sample ingest routes through `reconcileIssueState()` plus
 `publishAfterIngest(of:)` (skips redundant widget rebuilds); bulk ingest uses
-full `reconcileAfterDayChange()`.
+full `reconcileAfterDayDataChange()`.
 
 Out of model until routed: `DailySummaryReconciler`, `setPrimaryRegions` (see
 [`Where/TODOs.md`](../../TODOs.md) with links here). Dismiss/restore uses

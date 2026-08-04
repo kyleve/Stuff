@@ -44,7 +44,7 @@ public actor DayJournal {
     /// Recount data issues and reconcile the reminder badge + the "issues to
     /// resolve" notification off the fresh count. The subset every committed
     /// write shares; a write that changes *day data* additionally republishes
-    /// the widget snapshot via `reconcileAfterDayChange()`.
+    /// the widget snapshot via `reconcileAfterDayDataChange()`.
     ///
     /// The scanner is invalidated inline (not just via its async store-change
     /// observation) so the reconciles below recount from fresh data rather than
@@ -62,8 +62,8 @@ public actor DayJournal {
     /// snapshot. Every day-mutating write funnels through here so the fan-out
     /// stays in one place — including the backup import, which the composition
     /// root points at this method via `BackupCoordinator`'s `onImport` hook.
-    func reconcileAfterDayChange() async {
-        await Self.logger.measure(.reconcileAfterDayChange, budget: .seconds(5)) {
+    func reconcileAfterDayDataChange() async {
+        await Self.logger.measure(.reconcileAfterDayDataChange, budget: .seconds(5)) {
             await reconcileIssueState()
             await widgets.publish()
         }
@@ -98,7 +98,7 @@ public actor DayJournal {
                 }
             }
         }
-        await reconcileAfterDayChange()
+        await reconcileAfterDayDataChange()
     }
 
     // MARK: - Retroactive entry
@@ -116,7 +116,7 @@ public actor DayJournal {
         let day = CalendarDay(from: date, in: aggregator.calendar)
         let presence = DayPresence(day: day, regions: regions, audit: audit)
         try await store.perform { try await store.setManualDay(presence) }
-        await reconcileAfterDayChange()
+        await reconcileAfterDayDataChange()
         Self.logger { .addedManualDay(day: String(describing: day), regionCount: regions.count) }
     }
 
@@ -133,7 +133,7 @@ public actor DayJournal {
         let day = CalendarDay(from: date, in: aggregator.calendar)
         let presence = DayPresence(day: day, regions: regions, isAuthoritative: true, audit: audit)
         try await store.perform { try await store.setManualDay(presence) }
-        await reconcileAfterDayChange()
+        await reconcileAfterDayDataChange()
         Self.logger { .overrodeDay(day: String(describing: day), regionCount: regions.count) }
     }
 
@@ -144,7 +144,7 @@ public actor DayJournal {
     public func clearManualDay(date: Date) async throws {
         let day = CalendarDay(from: date, in: aggregator.calendar)
         try await store.perform { try await store.clearManualDay(day) }
-        await reconcileAfterDayChange()
+        await reconcileAfterDayDataChange()
         Self.logger { .clearedManualDay(day: String(describing: day)) }
     }
 
@@ -167,7 +167,7 @@ public actor DayJournal {
                 }
             }
         }
-        await reconcileAfterDayChange()
+        await reconcileAfterDayDataChange()
         Self.logger { .clearedManualDays(dayCount: days.count) }
     }
 
@@ -201,7 +201,7 @@ public actor DayJournal {
                 }
             }
         }
-        await reconcileAfterDayChange()
+        await reconcileAfterDayDataChange()
         Self.logger {
             .backfilledManualDays(dayCount: days.count, regionCount: regions.count)
         }
@@ -215,7 +215,7 @@ public actor DayJournal {
         try await Self.logger.measure(.clearYear, budget: .seconds(5)) {
             try await store.perform { try await store.clear(in: interval, manualDays: dayRange) }
         }
-        await reconcileAfterDayChange()
+        await reconcileAfterDayDataChange()
         Self.logger { .clearedYear(year: year) }
     }
 
@@ -228,7 +228,7 @@ public actor DayJournal {
         try await Self.logger.measure(.eraseAllData, budget: .seconds(10)) {
             try await store.perform { try await store.clearAll() }
         }
-        await reconcileAfterDayChange()
+        await reconcileAfterDayDataChange()
         Self.logger { .erasedAllData }
     }
 
