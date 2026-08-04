@@ -60,7 +60,7 @@ public actor DeviceRecordingController {
         currentDevice = installationContext.currentDevice
         registeredAt = installationContext.registeredAt
         self.automaticRecordingEnabled = automaticRecordingEnabled
-        enabledAt = automaticRecordingEnabled ? installationContext.registeredAt : nil
+        enabledAt = installationContext.recordingEnabledAt
         self.now = now
         self.onPolicyChanged = onPolicyChanged
     }

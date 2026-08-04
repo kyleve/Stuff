@@ -19,7 +19,7 @@ and testing conventions live in the feature [`Where/AGENTS.md`](../AGENTS.md)
 - Keep `FileInstallationRecordingContextStore` as the UIKit/FileManager
   adapter for Core's installation-context protocol; resolve one instance at
   the app root and inject it into both `WhereModel` and `WhereBootstrap`.
-- Persist the installation identity, confirmed first recording choice, stable
+- Persist the installation identity, recording choice with its current-On timestamp, stable
   profile/policy IDs and timestamps, two-phase backup-import recovery, and the independent
   terminal onboarding-import tombstone together in the excluded-from-backup sidecar; never infer
   confirmation from backed-up preferences or migrate it from `UserDefaults`. Persist an explicit

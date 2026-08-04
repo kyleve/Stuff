@@ -54,7 +54,7 @@ struct WhereSessionTrackingTests {
         return InstallationRecordingContext(
             currentDevice: InstallationRecordingContext.testing.currentDevice,
             registeredAt: InstallationRecordingContext.testing.registeredAt,
-            automaticRecordingEnabled: false,
+            recordingChoice: .off,
             isRejoining: false,
         )
     }

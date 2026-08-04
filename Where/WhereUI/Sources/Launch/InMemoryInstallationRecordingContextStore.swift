@@ -47,7 +47,7 @@ public final class InMemoryInstallationRecordingContextStore:
     }
 
     public func setAutomaticRecordingEnabled(_ isEnabled: Bool) throws {
-        onboardingContext = onboardingContext.settingAutomaticRecordingEnabled(isEnabled)
+        onboardingContext = onboardingContext.settingAutomaticRecordingEnabled(isEnabled, at: now())
     }
 
     public func rejoin() throws -> InstallationRecordingContext {
@@ -81,7 +81,7 @@ public final class InMemoryInstallationRecordingContextStore:
                 kind: onboardingContext.currentDevice.kind,
             ),
             registeredAt: now(),
-            automaticRecordingEnabled: nil,
+            recordingChoice: .unconfirmed,
             isRejoining: isRejoining,
         )
     }

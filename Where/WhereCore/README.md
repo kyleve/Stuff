@@ -106,7 +106,8 @@ one it belongs to rather than to a god-object:
   also carries the data epoch that authorized it, so a pre-reset fix can be
   discarded but never written into the replacement generation.
 - **`DeviceRecordingController`** — applies this installation's local automatic-recording
-  preference to its physical `LocationIngestor`. Immutable profiles, nickname events,
+  preference and persisted current-On cutoff to its physical `LocationIngestor`, so a late visit
+  from an Off interval remains rejected after relaunch. Immutable profiles, nickname events,
   target-owned advisory check-ins, and global removal tombstones sync independently. Another
   installation can rename or remove a device identity, but cannot change its recording consent.
 - **`LocationHistoryReader`** — the shared removal-aware read boundary used by reports, widgets,

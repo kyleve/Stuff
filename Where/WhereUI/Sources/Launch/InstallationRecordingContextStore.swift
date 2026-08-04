@@ -155,6 +155,7 @@ public final class FileInstallationRecordingContextStore:
         let kind: RecordingDeviceKind
         let registeredAt: Date
         let automaticRecordingEnabled: Bool?
+        let recordingEnabledAt: Date?
         let isRejoining: Bool?
         let backupImportRecovery: BackupImportRecovery?
         let onboardingImportCompletionID: UUID?
@@ -165,6 +166,7 @@ public final class FileInstallationRecordingContextStore:
             case kind
             case registeredAt
             case automaticRecordingEnabled
+            case recordingEnabledAt
             case isRejoining
             case backupImportRecovery
             case onboardingImportCompletionID
@@ -180,20 +182,29 @@ public final class FileInstallationRecordingContextStore:
             kind = context.currentDevice.kind
             registeredAt = context.registeredAt
             automaticRecordingEnabled = context.automaticRecordingEnabled
+            recordingEnabledAt = context.recordingEnabledAt
             isRejoining = context.isRejoining
             self.backupImportRecovery = backupImportRecovery.map(BackupImportRecovery.init)
             onboardingImportCompletionID = onboardingImportCompletion?.transactionID
         }
 
         var value: InstallationRecordingContext {
-            InstallationRecordingContext(
+            let recordingChoice: InstallationRecordingContext.RecordingChoice =
+                switch automaticRecordingEnabled {
+                    case nil: .unconfirmed
+                    case false?: .off
+                    case true?: .on(
+                            enabledAt: recordingEnabledAt ?? registeredAt,
+                        )
+                }
+            return InstallationRecordingContext(
                 currentDevice: CurrentRecordingDevice(
                     id: RecordingDeviceID(rawValue: deviceID),
                     systemName: systemName,
                     kind: kind,
                 ),
                 registeredAt: registeredAt,
-                automaticRecordingEnabled: automaticRecordingEnabled,
+                recordingChoice: recordingChoice,
                 isRejoining: isRejoining ?? false,
             )
         }
@@ -362,7 +373,7 @@ public final class FileInstallationRecordingContextStore:
     }
 
     public func setAutomaticRecordingEnabled(_ isEnabled: Bool) throws {
-        let updated = try resolution.get().settingAutomaticRecordingEnabled(isEnabled)
+        let updated = try resolution.get().settingAutomaticRecordingEnabled(isEnabled, at: now())
         try persist(
             updated,
             backupImportRecovery: backupImportRecovery,
@@ -496,7 +507,7 @@ public final class FileInstallationRecordingContextStore:
                 kind: kind,
             ),
             registeredAt: registeredAt,
-            automaticRecordingEnabled: nil,
+            recordingChoice: .unconfirmed,
             isRejoining: isRejoining,
         )
     }

@@ -59,6 +59,18 @@ struct InstallationRecordingContextStoreTests {
         #expect(second == first)
     }
 
+    @Test func latestEnableCutoffSurvivesStoreRecreation() throws {
+        let enabledAt = Self.registeredAt.addingTimeInterval(100)
+        let fixture = try makeFixture(dates: [Self.registeredAt, enabledAt])
+        defer { fixture.cleanup() }
+        let store = fixture.makeStore()
+
+        _ = try store.confirmInitialRecording(isEnabled: false)
+        try store.setAutomaticRecordingEnabled(true)
+
+        #expect(try fixture.makeStore().resolve().recordingEnabledAt == enabledAt)
+    }
+
     @Test func importRecoveryTransitionsSurviveStoreRecreation() throws {
         let fixture = try makeFixture()
         defer { fixture.cleanup() }

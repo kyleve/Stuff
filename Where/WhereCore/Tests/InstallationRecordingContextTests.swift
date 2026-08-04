@@ -14,12 +14,14 @@ struct InstallationRecordingContextTests {
     @Test func confirmationAndLaterSettingsChangePreserveIdentity() {
         let proposed = context(kind: .tablet)
         let confirmed = proposed.confirmingInitialRecording(isEnabled: false)
-        let updated = confirmed.settingAutomaticRecordingEnabled(true)
+        let enabledAt = Self.registeredAt.addingTimeInterval(100)
+        let updated = confirmed.settingAutomaticRecordingEnabled(true, at: enabledAt)
 
         #expect(updated.currentDevice == proposed.currentDevice)
         #expect(updated.registeredAt == proposed.registeredAt)
         #expect(confirmed.automaticRecordingEnabled == false)
         #expect(updated.automaticRecordingEnabled == true)
+        #expect(updated.recordingEnabledAt == enabledAt)
     }
 
     private func context(kind: RecordingDeviceKind) -> InstallationRecordingContext {
@@ -30,7 +32,7 @@ struct InstallationRecordingContextTests {
                 kind: kind,
             ),
             registeredAt: Self.registeredAt,
-            automaticRecordingEnabled: nil,
+            recordingChoice: .unconfirmed,
             isRejoining: false,
         )
     }

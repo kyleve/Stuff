@@ -817,7 +817,7 @@ struct OnboardingPage: Identifiable {
                                 kind: .tablet,
                             ),
                             registeredAt: InstallationRecordingContext.testing.registeredAt,
-                            automaticRecordingEnabled: nil,
+                            recordingChoice: .unconfirmed,
                             isRejoining: false,
                         ),
                         startsAtRecordingChoice: true,

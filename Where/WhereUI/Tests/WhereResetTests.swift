@@ -517,7 +517,10 @@ private final class CommittedFailingResetInstallationContextStore:
     }
 
     func setAutomaticRecordingEnabled(_ isEnabled: Bool) throws {
-        onboardingContext = onboardingContext.settingAutomaticRecordingEnabled(isEnabled)
+        onboardingContext = onboardingContext.settingAutomaticRecordingEnabled(
+            isEnabled,
+            at: Date(),
+        )
     }
 
     func rejoin() throws -> InstallationRecordingContext {
@@ -528,7 +531,7 @@ private final class CommittedFailingResetInstallationContextStore:
                 kind: onboardingContext.currentDevice.kind,
             ),
             registeredAt: Date(),
-            automaticRecordingEnabled: nil,
+            recordingChoice: .unconfirmed,
             isRejoining: true,
         )
         return onboardingContext
@@ -556,7 +559,7 @@ private final class CommittedFailingResetInstallationContextStore:
                 kind: onboardingContext.currentDevice.kind,
             ),
             registeredAt: Date(),
-            automaticRecordingEnabled: nil,
+            recordingChoice: .unconfirmed,
             isRejoining: false,
         )
         throw WhereServices.ResetCleanupError(underlying: CocoaError(.fileWriteUnknown))

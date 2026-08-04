@@ -81,7 +81,7 @@ struct OnboardingModelTests {
                     kind: kind,
                 ),
                 registeredAt: Date(timeIntervalSinceReferenceDate: 0),
-                automaticRecordingEnabled: nil,
+                recordingChoice: .unconfirmed,
                 isRejoining: false,
             ),
         )

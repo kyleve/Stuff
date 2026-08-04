@@ -168,15 +168,19 @@ public final class WhereSession {
         services = scope.services
         preferences = scope.preferences
         self.now = now
-        self.installationContextStore = installationContextStore
-            ?? InMemoryInstallationRecordingContextStore(
+        if let installationContextStore {
+            self.installationContextStore = installationContextStore
+        } else {
+            let registeredAt = now()
+            self.installationContextStore = InMemoryInstallationRecordingContextStore(
                 context: InstallationRecordingContext(
                     currentDevice: scope.services.recording.currentDevice,
-                    registeredAt: now(),
-                    automaticRecordingEnabled: true,
+                    registeredAt: registeredAt,
+                    recordingChoice: .on(enabledAt: registeredAt),
                     isRejoining: false,
                 ),
             )
+        }
     }
 
     /// Build a coordinator over a loose service layer, wrapping it in a scope.

@@ -7,24 +7,44 @@ import Foundation
 /// choice, while repeated launches of the same installation reuse both the
 /// identity and its explicitly chosen local automatic-recording preference.
 public struct InstallationRecordingContext: Sendable, Hashable {
+    public enum RecordingChoice: Sendable, Hashable {
+        case unconfirmed
+        case off
+        case on(enabledAt: Date)
+    }
+
     public let currentDevice: CurrentRecordingDevice
     /// Stable creation time for this installation's immutable device profile.
     public let registeredAt: Date
-    /// This installation's explicit local choice. `nil` means onboarding has not confirmed it.
-    public let automaticRecordingEnabled: Bool?
+    public let recordingChoice: RecordingChoice
     /// Whether this identity was created by the explicit rejoin flow.
     public let isRejoining: Bool
 
     public init(
         currentDevice: CurrentRecordingDevice,
         registeredAt: Date,
-        automaticRecordingEnabled: Bool?,
+        recordingChoice: RecordingChoice,
         isRejoining: Bool,
     ) {
         self.currentDevice = currentDevice
         self.registeredAt = registeredAt
-        self.automaticRecordingEnabled = automaticRecordingEnabled
+        self.recordingChoice = recordingChoice
         self.isRejoining = isRejoining
+    }
+
+    /// This installation's explicit local choice. `nil` means onboarding has not confirmed it.
+    public var automaticRecordingEnabled: Bool? {
+        switch recordingChoice {
+            case .unconfirmed: nil
+            case .off: false
+            case .on: true
+        }
+    }
+
+    /// Earliest historical location accepted for the current On interval.
+    public var recordingEnabledAt: Date? {
+        guard case let .on(enabledAt) = recordingChoice else { return nil }
+        return enabledAt
     }
 
     /// The safe default shown until this installation confirms a choice.
@@ -35,27 +55,33 @@ public struct InstallationRecordingContext: Sendable, Hashable {
     /// Return the confirmed form of a newly proposed context.
     public func confirmingInitialRecording(isEnabled: Bool) -> InstallationRecordingContext {
         precondition(
-            automaticRecordingEnabled == nil,
+            recordingChoice == .unconfirmed,
             "An installation's initial recording choice can only be confirmed once.",
         )
         return InstallationRecordingContext(
             currentDevice: currentDevice,
             registeredAt: registeredAt,
-            automaticRecordingEnabled: isEnabled,
+            recordingChoice: isEnabled ? .on(enabledAt: registeredAt) : .off,
             isRejoining: false,
         )
     }
 
     /// Return a copy carrying a later local Settings choice.
-    public func settingAutomaticRecordingEnabled(_ isEnabled: Bool) -> Self {
+    public func settingAutomaticRecordingEnabled(_ isEnabled: Bool, at date: Date) -> Self {
         precondition(
-            automaticRecordingEnabled != nil,
+            recordingChoice != .unconfirmed,
             "Automatic recording must be confirmed before Settings can change it.",
         )
+        let updatedChoice: RecordingChoice = if isEnabled {
+            recordingEnabledAt.map(RecordingChoice.on(enabledAt:))
+                ?? .on(enabledAt: date)
+        } else {
+            .off
+        }
         return InstallationRecordingContext(
             currentDevice: currentDevice,
             registeredAt: registeredAt,
-            automaticRecordingEnabled: isEnabled,
+            recordingChoice: updatedChoice,
             isRejoining: false,
         )
     }
@@ -71,7 +97,7 @@ public struct InstallationRecordingContext: Sendable, Hashable {
             kind: .phone,
         ),
         registeredAt: Date(timeIntervalSinceReferenceDate: 0),
-        automaticRecordingEnabled: true,
+        recordingChoice: .on(enabledAt: Date(timeIntervalSinceReferenceDate: 0)),
         isRejoining: false,
     )
 
@@ -87,7 +113,7 @@ public struct InstallationRecordingContext: Sendable, Hashable {
             kind: .phone,
         ),
         registeredAt: Date(timeIntervalSinceReferenceDate: 0),
-        automaticRecordingEnabled: true,
+        recordingChoice: .on(enabledAt: Date(timeIntervalSinceReferenceDate: 0)),
         isRejoining: false,
     )
 }

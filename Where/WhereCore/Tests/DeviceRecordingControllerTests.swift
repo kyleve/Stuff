@@ -1,28 +1,36 @@
 import Foundation
+import RegionKit
 import Testing
 @_spi(Testing) @testable import WhereCore
 
 struct DeviceRecordingControllerTests {
+    private struct WaitTimeout: Error {}
+
     private static let now = Date(timeIntervalSinceReferenceDate: 1000)
 
     private func makeController(
         enabled: Bool,
+        enabledAt: Date? = nil,
         authorization: LocationAuthorizationStatus = .always,
-    ) throws -> (DeviceRecordingController, SwiftDataStore, LocationIngestor) {
+    ) throws
+        -> (DeviceRecordingController, SwiftDataStore, LocationIngestor, ScriptedLocationSource)
+    {
         let store = try SwiftDataStore.inMemory()
+        let source = ScriptedLocationSource(authorizationStatus: authorization)
         let ingestor = LocationIngestor(
             store: store,
-            locationSource: ScriptedLocationSource(authorizationStatus: authorization),
+            locationSource: source,
             recordingDeviceID: InstallationRecordingContext.testing.currentDevice.id,
             calendar: WhereCoreTestSupport.calendar(),
             outbox: NoOpLocationOutbox(),
             retryQueueCapacity: 1000,
             onPersisted: { _ in },
         )
+        let registeredAt = Self.now.addingTimeInterval(-100)
         let context = InstallationRecordingContext(
             currentDevice: InstallationRecordingContext.testing.currentDevice,
-            registeredAt: Self.now.addingTimeInterval(-100),
-            automaticRecordingEnabled: enabled,
+            registeredAt: registeredAt,
+            recordingChoice: enabled ? .on(enabledAt: enabledAt ?? registeredAt) : .off,
             isRejoining: false,
         )
         return (
@@ -35,11 +43,12 @@ struct DeviceRecordingControllerTests {
             ),
             store,
             ingestor,
+            source,
         )
     }
 
     @Test func registrationAppliesLocalChoiceAndWritesAdvisoryStatus() async throws {
-        let (controller, store, ingestor) = try makeController(enabled: true)
+        let (controller, store, ingestor, _) = try makeController(enabled: true)
 
         let configuration = try await controller.register(authorization: .always)
 
@@ -50,8 +59,47 @@ struct DeviceRecordingControllerTests {
         #expect(try await store.recordingDeviceCheckIns().first?.status == .recording)
     }
 
+    @Test func registrationRestoresTheLatestEnableCutoff() async throws {
+        let enabledAt = Self.now.addingTimeInterval(-50)
+        let (controller, store, _, source) = try makeController(
+            enabled: true,
+            enabledAt: enabledAt,
+        )
+        _ = try await controller.register(authorization: .always)
+        let beforeEnable = LocationSample(
+            timestamp: enabledAt.addingTimeInterval(-1),
+            coordinate: Coordinate(latitude: 37, longitude: -122),
+            horizontalAccuracy: 0,
+            source: .gpsVisit,
+        )
+        let afterEnable = LocationSample(
+            timestamp: enabledAt.addingTimeInterval(1),
+            coordinate: Coordinate(latitude: 37, longitude: -122),
+            horizontalAccuracy: 0,
+            source: .gpsVisit,
+        )
+
+        source.emit(beforeEnable)
+        source.emit(afterEnable)
+
+        try await waitUntil {
+            await (try? store.allSamples().count) == 1
+        }
+        #expect(try await store.allSamples().map(\.id) == [afterEnable.id])
+    }
+
+    private func waitUntil(
+        _ predicate: () async -> Bool,
+    ) async throws {
+        let deadline = ContinuousClock.now.advanced(by: .seconds(5))
+        while await predicate() == false {
+            guard ContinuousClock.now < deadline else { throw WaitTimeout() }
+            await Task.yield()
+        }
+    }
+
     @Test func localSettingsChoiceStopsAndRestartsOnlyThisInstallation() async throws {
-        let (controller, _, ingestor) = try makeController(enabled: true)
+        let (controller, _, ingestor, _) = try makeController(enabled: true)
         _ = try await controller.register(authorization: .always)
 
         let off = try await controller.setAutomaticRecordingEnabled(
@@ -70,7 +118,7 @@ struct DeviceRecordingControllerTests {
     }
 
     @Test func removalStopsCurrentIdentityAndPublishesTerminalState() async throws {
-        let (controller, store, ingestor) = try makeController(enabled: true)
+        let (controller, store, ingestor, _) = try makeController(enabled: true)
         _ = try await controller.register(authorization: .always)
         let deviceID = controller.currentDevice.id
         try await store.perform {
@@ -91,7 +139,7 @@ struct DeviceRecordingControllerTests {
     }
 
     @Test func remoteRowsNeverExposeALocalPreference() async throws {
-        let (controller, store, _) = try makeController(enabled: false)
+        let (controller, store, _, _) = try makeController(enabled: false)
         _ = try await controller.register(authorization: .always)
         let remoteID = RecordingDeviceID(rawValue: UUID())
         try await store.perform {

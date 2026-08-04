@@ -77,7 +77,7 @@ struct InMemoryInstallationRecordingContextStoreTests {
                 kind: .tablet,
             ),
             registeredAt: Self.registeredAt,
-            automaticRecordingEnabled: nil,
+            recordingChoice: .unconfirmed,
             isRejoining: false,
         )
     }

@@ -536,7 +536,7 @@ struct WhereLaunchTests {
                     kind: .tablet,
                 ),
                 registeredAt: Date(timeIntervalSinceReferenceDate: 0),
-                automaticRecordingEnabled: nil,
+                recordingChoice: .unconfirmed,
                 isRejoining: false,
             ),
         )
@@ -701,7 +701,7 @@ struct WhereLaunchTests {
                 kind: .tablet,
             ),
             registeredAt: Date(timeIntervalSinceReferenceDate: 0),
-            automaticRecordingEnabled: nil,
+            recordingChoice: .unconfirmed,
             isRejoining: false,
         )
         let (model, bootstrap) = try makeLoggedOutModel(
