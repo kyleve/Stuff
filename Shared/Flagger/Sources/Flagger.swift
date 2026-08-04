@@ -21,7 +21,7 @@ public actor Flagger {
         let orderedDefinitions: [FlagDefinition]
         var storedValues: [FlagID: JSONValue]
         var resolutions: [FlagID: Resolution]
-        var appliedCommitSequences: [FlagID: UInt64] = [:]
+        var appliedStoreRevision: UInt64
         var changeObservers: [UUID: AsyncStream<FlagID>.Continuation] = [:]
         var failureObservers: [UUID: AsyncStream<FlaggerFailure>.Continuation] = [:]
     }
@@ -31,19 +31,23 @@ public actor Flagger {
 
     private init(
         definitions: [FlagDefinition],
-        storedValues: [FlagID: JSONValue],
+        storedSnapshot: FlaggerPersistence.StoreSnapshot,
         persistence: FlaggerPersistence,
     ) {
         let indexed = Dictionary(uniqueKeysWithValues: definitions.map { ($0.id, $0) })
         var resolutions: [FlagID: Resolution] = [:]
         for definition in definitions where definition.behavior == .readOnceOnLaunch {
-            resolutions[definition.id] = Self.resolve(definition, storedValues[definition.id])
+            resolutions[definition.id] = Self.resolve(
+                definition,
+                storedSnapshot.values[definition.id],
+            )
         }
         state = OSAllocatedUnfairLock(initialState: State(
             definitions: indexed,
             orderedDefinitions: definitions,
-            storedValues: storedValues,
+            storedValues: storedSnapshot.values,
             resolutions: resolutions,
+            appliedStoreRevision: storedSnapshot.revision,
         ))
         self.persistence = persistence
     }
@@ -55,15 +59,16 @@ public actor Flagger {
         let definitions = try definitions(from: sources)
         let container = try await makeContainer(storage: storage)
         let persistence = FlaggerPersistence(modelContainer: container)
-        var storedValues = try await persistence.load()
-
-        for definition in definitions where storedValues[definition.id] == definition.defaultValue {
-            _ = try await persistence.persist(nil, for: definition.id)
-            storedValues[definition.id] = nil
+        var storedSnapshot = try await persistence.load()
+        let redundantOverrideIDs = Set(definitions.compactMap { definition in
+            storedSnapshot.values[definition.id] == definition.defaultValue ? definition.id : nil
+        })
+        if redundantOverrideIDs.isEmpty == false {
+            storedSnapshot = try await persistence.remove(redundantOverrideIDs)
         }
         return Flagger(
             definitions: definitions,
-            storedValues: storedValues,
+            storedSnapshot: storedSnapshot,
             persistence: persistence,
         )
     }
@@ -212,18 +217,27 @@ public actor Flagger {
                 _ = try definition.decode(requestedValue)
             }
             let value = requestedValue == definition.defaultValue ? nil : requestedValue
-            let commit = try await persistence.persist(value, for: id)
-            let shouldNotify = state.withLock { state in
-                let appliedSequence = state.appliedCommitSequences[id] ?? 0
-                guard commit.sequence > appliedSequence else { return false }
-                state.appliedCommitSequences[id] = commit.sequence
-                state.storedValues[id] = commit.value
-                if definition.behavior == .liveUpdating {
-                    state.resolutions[id] = nil
+            let storeSnapshot = try await persistence.persist(value, for: id)
+            let changedIDs = state.withLock { state -> [FlagID] in
+                guard storeSnapshot.revision > state.appliedStoreRevision else { return [] }
+                let oldValues = state.storedValues
+                state.appliedStoreRevision = storeSnapshot.revision
+                state.storedValues = storeSnapshot.values
+
+                var changedIDs: [FlagID] = []
+                for definition in state.orderedDefinitions
+                    where oldValues[definition.id] != storeSnapshot.values[definition.id]
+                {
+                    changedIDs.append(definition.id)
+                    if definition.behavior == .liveUpdating {
+                        state.resolutions[definition.id] = nil
+                    }
                 }
-                return true
+                return changedIDs
             }
-            if shouldNotify { notifyChange(id) }
+            for changedID in changedIDs {
+                notifyChange(changedID)
+            }
         } catch {
             let failure = FlaggerFailure(flagID: id, operation: operation, error: error)
             emit(failure)

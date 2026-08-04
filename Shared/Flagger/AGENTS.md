@@ -16,7 +16,7 @@ This complements the root [`AGENTS.md`](../../AGENTS.md).
 - Persist only overrides; writing the current default deletes the row.
 - Launch and first-access policies freeze effective values for the instance lifetime; only `LiveUpdating` has public typed mutation and value-stream APIs.
 - Sources, group types, and stable flag IDs are unique within a Flagger.
-- Synchronous reads touch only `OSAllocatedUnfairLock` state; every SwiftData operation stays in `FlaggerPersistence`.
+- Synchronous reads touch only `OSAllocatedUnfairLock` state; mutations replace its cache from a complete, versioned snapshot fetched by `FlaggerPersistence`.
 
 ## Testing
 

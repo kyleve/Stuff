@@ -62,7 +62,9 @@ for app-wide, logged-in, demo, or other worlds; inject an existing
 - `LiveUpdating` may be changed and observed while Flagger is alive.
 
 Reads are synchronous from lock-protected state loaded at open. SwiftData opens
-and writes remain asynchronous and actor-isolated:
+and writes remain asynchronous and actor-isolated. Because flags change rarely,
+each mutation reloads the complete override store and atomically replaces the
+cache with the newest versioned snapshot:
 
 ```swift
 let enabled = try flagger.value(for: MapFlags().newRenderer)
