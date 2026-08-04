@@ -619,6 +619,15 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         return try Self.resolvedDataEpoch(in: readContext())
     }
 
+    public func recordingDeviceResetBarrier(
+        for registrationEpochID: WhereDataEpochID,
+    ) async throws -> Date? {
+        try WhereDataEpoch.resetBarrier(
+            for: registrationEpochID,
+            in: Self.dataEpochHistory(in: readContext()),
+        )
+    }
+
     public func rotateDataEpoch(
         reason: WhereDataEpochReason,
         changedBy deviceID: RecordingDeviceID,

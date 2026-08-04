@@ -42,6 +42,7 @@ public actor DeviceRecordingController {
         let metadataChanges: [RecordingDeviceMetadataChange]
         let checkIns: [RecordingDeviceCheckIn]
         let removals: [RecordingDeviceRemoval]
+        let currentDeviceResetBarrier: Date?
     }
 
     init(
@@ -351,6 +352,17 @@ public actor DeviceRecordingController {
             let snapshot = try await storeSnapshot()
             let epoch = snapshot.epoch
             let existing = snapshot.profiles.first(where: { $0.id == currentDevice.id })
+            if let existing, let resetAt = snapshot.currentDeviceResetBarrier {
+                try await store.perform(expectedDataEpochID: epoch.id) {
+                    try await self.store.addRecordingDeviceRemoval(RecordingDeviceRemoval(
+                        id: UUID(),
+                        deviceID: existing.id,
+                        removedAt: resetAt,
+                        removedByDeviceID: self.currentDevice.id,
+                    ))
+                }
+                return try await reconcileLocked(authorization: authorization)
+            }
             let expected = expectedProfile(
                 registrationEpochID: existing?.registrationEpochID ?? epoch.id,
             )
@@ -544,12 +556,21 @@ public actor DeviceRecordingController {
             async let checkIns = store.recordingDeviceCheckIns()
             async let removals = store.recordingDeviceRemovals()
             let values = try await (epoch, profiles, metadataChanges, checkIns, removals)
+            let currentProfile = values.1.first { $0.id == currentDevice.id }
+            let resetBarrier: Date? = if let currentProfile {
+                try await store.recordingDeviceResetBarrier(
+                    for: currentProfile.registrationEpochID,
+                )
+            } else {
+                nil
+            }
             return StoreSnapshot(
                 epoch: values.0,
                 profiles: values.1,
                 metadataChanges: values.2,
                 checkIns: values.3,
                 removals: values.4,
+                currentDeviceResetBarrier: resetBarrier,
             )
         }
     }

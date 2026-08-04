@@ -224,6 +224,58 @@ public struct WhereDataEpoch: Identifiable, Codable, Sendable, Hashable {
         try resolve(in: changes).current
     }
 
+    /// Latest account reset that the installation's registration point did not observe.
+    /// Registrations normally name a persisted epoch. A registration made while concurrent
+    /// resets resolve to a synthetic epoch is recognized both while that conflict is current and
+    /// after a later destructive operation joins its real reset heads.
+    static func resetBarrier(
+        for registrationEpochID: WhereDataEpochID,
+        in changes: [WhereDataEpoch],
+    ) throws -> Date? {
+        let resets = changes.filter { $0.reason == .accountReset }
+        guard resets.isEmpty == false else { return nil }
+
+        var byID = Dictionary(uniqueKeysWithValues: changes.map { ($0.id, $0) })
+        byID[initial.id] = initial
+
+        func ancestors(of epochIDs: [WhereDataEpochID]) -> Set<WhereDataEpochID>? {
+            var result = Set<WhereDataEpochID>()
+            var pending = epochIDs
+            while let id = pending.popLast() {
+                guard result.insert(id).inserted else { continue }
+                guard let epoch = byID[id] else { return nil }
+                pending.append(contentsOf: epoch.parentIDs)
+            }
+            return result
+        }
+
+        let observed: Set<WhereDataEpochID>?
+        if byID[registrationEpochID] != nil {
+            observed = ancestors(of: [registrationEpochID])
+        } else {
+            let resolution = try resolve(in: changes)
+            if resolution.current.id == registrationEpochID {
+                observed = ancestors(of: resolution.current.parentIDs)
+            } else {
+                let joinedResetParents = changes.compactMap { epoch -> [WhereDataEpoch]? in
+                    let parents = epoch.parentIDs.compactMap { byID[$0] }
+                    let resetParents = parents.filter { $0.reason == .accountReset }
+                    guard resetParents.count > 1,
+                          resetConflictID(for: resetParents) == registrationEpochID
+                    else { return nil }
+                    return resetParents
+                }.first
+                observed = joinedResetParents.flatMap { ancestors(of: $0.map(\.id)) }
+            }
+        }
+
+        let observedIDs = observed ?? []
+        return resets
+            .filter { observedIDs.contains($0.id) == false }
+            .map(\.changedAt)
+            .max()
+    }
+
     /// Versioned, domain-separated digest locked by `WhereDataEpochTests`. Only reset-head ids
     /// participate, keeping the synthetic empty generation stable when a weaker concurrent
     /// Replace arrives while still changing it for every newly relevant reset.

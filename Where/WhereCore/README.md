@@ -242,7 +242,9 @@ rotates to a Reset child epoch, and discards the retry queue only after commit.
   the target identity's samples at and after its timestamp and makes that installation stop when
   it next observes the change. Turning recording on or off affects only the installation where
   the user made the choice. Device check-ins are advisory status, not command acknowledgements;
-  Apple Lost Mode or remote erase remains the security boundary for a missing device.
+  Apple Lost Mode or remote erase remains the security boundary for a missing device. Account
+  Reset also retires an installation registered before its causal reset boundary, even when that
+  installation's profile did not reach the resetting device until later.
 - **Destructive operations are logical generations.** Old rows may remain in
   CloudKit as sync/audit history, but ordinary reads select only the resolved
   epoch. Concurrent unjoined resets select a synthetic empty generation; an

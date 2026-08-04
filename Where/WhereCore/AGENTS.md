@@ -37,7 +37,8 @@ internal shape.
 - **Resolve destructive generations as a multi-parent causal DAG.** A rotation names every real
   maximal head; two unjoined reset heads resolve to a deterministic empty UUIDv8 synthetic epoch
   until the next rotation joins them, and persisted epoch events must never use that reserved
-  namespace (`WhereDataEpoch.resolve(in:)`).
+  namespace. Retire a profile whose registration frontier omits any observed account-reset epoch
+  (`WhereDataEpochTests.resetBarrierRejectsEarlierRegistrationAndAcceptsLaterRegistration`).
 - **Each process opens its on-disk store once and injects it** — the app's
   launch opens it; the App Intents stack shares it via
   `WhereServices.forIntents(sharingStoreOf:)`. A second container over the

@@ -931,6 +931,12 @@ private actor ToggleFailingStore: WhereStore {
         try await backing.dataEpoch()
     }
 
+    func recordingDeviceResetBarrier(
+        for registrationEpochID: WhereDataEpochID,
+    ) async throws -> Date? {
+        try await backing.recordingDeviceResetBarrier(for: registrationEpochID)
+    }
+
     func rotateDataEpoch(
         reason: WhereDataEpochReason,
         changedBy deviceID: RecordingDeviceID,

@@ -908,6 +908,53 @@ struct WhereServicesTests {
         #expect(await services.ingestor.isActive == false)
     }
 
+    @Test func profileArrivingAfterResetCannotResumeRecording() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let resetterID = RecordingDeviceID(rawValue: UUID())
+        let resetAt = WhereCoreTestSupport.iso("2026-03-15T12:00:00-07:00")
+        let oldDevice = CurrentRecordingDevice(
+            id: RecordingDeviceID(rawValue: UUID()),
+            systemName: "Offline iPhone",
+            kind: .phone,
+        )
+        let oldContext = InstallationRecordingContext(
+            currentDevice: oldDevice,
+            registeredAt: resetAt.addingTimeInterval(-100),
+            automaticRecordingEnabled: true,
+            isRejoining: false,
+        )
+
+        try await store.perform {
+            _ = try await store.rotateDataEpoch(
+                reason: .accountReset,
+                changedBy: resetterID,
+                at: resetAt,
+            )
+            try await store.addRecordingDeviceProfile(RecordingDeviceProfile(
+                id: oldDevice.id,
+                systemName: oldDevice.systemName,
+                kind: oldDevice.kind,
+                registeredAt: oldContext.registeredAt,
+                registrationEpochID: .initial,
+            ))
+        }
+
+        let relaunched = WhereServices(
+            store: store,
+            locationSource: ScriptedLocationSource(authorizationStatus: .always),
+            installationContext: oldContext,
+        )
+        await #expect(throws: RecordingPersistenceError.currentDeviceRemoved(oldDevice.id)) {
+            try await relaunched.recording.register(authorization: .always)
+        }
+
+        #expect(await relaunched.ingestor.isActive == false)
+        let removal = try #require(await store.recordingDeviceRemovals().first {
+            $0.deviceID == oldDevice.id
+        })
+        #expect(removal.removedAt == resetAt)
+    }
+
     @Test func onboardingRestoreWaitsForTheLatestChoiceBeforeOpeningAuthority() async throws {
         let (source, _, _) = try Self.makeServices()
         let url = try await source.backup.exportBackup()
@@ -1732,6 +1779,12 @@ private actor ToggleFailingStore: WhereStore {
 
     func dataEpoch() async throws -> WhereDataEpoch {
         try await backing.dataEpoch()
+    }
+
+    func recordingDeviceResetBarrier(
+        for registrationEpochID: WhereDataEpochID,
+    ) async throws -> Date? {
+        try await backing.recordingDeviceResetBarrier(for: registrationEpochID)
     }
 
     func rotateDataEpoch(

@@ -69,6 +69,12 @@ public protocol WhereStore: Sendable {
     /// sync/audit history and never participate in normal reads.
     func dataEpoch() async throws -> WhereDataEpoch
 
+    /// Reset boundary not causally observed when `registrationEpochID` was created. A non-nil
+    /// result retires that pre-reset installation at the returned account-reset timestamp.
+    func recordingDeviceResetBarrier(
+        for registrationEpochID: WhereDataEpochID,
+    ) async throws -> Date?
+
     /// Atomically erase the active epoch's synced rows and append a fresh destructive epoch.
     /// Every subsequent write in the same transaction is stamped into the returned epoch.
     /// Immutable device profiles remain global so a late/offline installation can still be

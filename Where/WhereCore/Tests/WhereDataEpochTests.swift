@@ -15,6 +15,24 @@ struct WhereDataEpochTests {
         #expect(resolution.realHeads == [.initial])
     }
 
+    @Test func resetBarrierRejectsEarlierRegistrationAndAcceptsLaterRegistration() throws {
+        let reset = Self.reset(
+            id: "10000000-0000-0000-0000-000000000000",
+            changedAt: Self.baseDate,
+        )
+        let later = Self.epoch(
+            id: "20000000-0000-0000-0000-000000000000",
+            parentIDs: [reset.id],
+            revision: 2,
+            changedAt: Self.baseDate.addingTimeInterval(1),
+            reason: .backupReplace,
+        )
+
+        #expect(try WhereDataEpoch.resetBarrier(for: .initial, in: [reset, later]) == reset
+            .changedAt)
+        #expect(try WhereDataEpoch.resetBarrier(for: later.id, in: [reset, later]) == nil)
+    }
+
     @Test func concurrentResetOutranksReplaceAtTheSameRevision() throws {
         let replacement = Self.epoch(
             id: "30000000-0000-0000-0000-000000000000",
