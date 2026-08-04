@@ -812,7 +812,7 @@ private final class GatedLocationSource: LocationSource, @unchecked Sendable {
 }
 
 /// Models Core Location delivering a requested one-shot fix through both the direct callback and
-/// the passive sample stream. The stream echo must still obey recording authority.
+/// the passive sample stream. The stream echo must still obey the local recording gate.
 private final class EchoingLocationSource: LocationSource, @unchecked Sendable {
     let sampleStream: AsyncStream<LocationSample>
     var authorizationUpdates: AsyncStream<LocationAuthorizationStatus> {
@@ -1001,20 +1001,12 @@ private actor ToggleFailingStore: WhereStore {
         try await backing.setRecordingDeviceCheckIn(checkIn)
     }
 
-    func recordingAssignmentChanges() async throws -> [RecordingAssignmentChange] {
-        try await backing.recordingAssignmentChanges()
+    func recordingDeviceRemovals() async throws -> [RecordingDeviceRemoval] {
+        try await backing.recordingDeviceRemovals()
     }
 
-    func addRecordingAssignmentChange(_ change: RecordingAssignmentChange) async throws {
-        try await backing.addRecordingAssignmentChange(change)
-    }
-
-    func recordingDeviceArchives() async throws -> [RecordingDeviceArchive] {
-        try await backing.recordingDeviceArchives()
-    }
-
-    func addRecordingDeviceArchive(_ archive: RecordingDeviceArchive) async throws {
-        try await backing.addRecordingDeviceArchive(archive)
+    func addRecordingDeviceRemoval(_ archive: RecordingDeviceRemoval) async throws {
+        try await backing.addRecordingDeviceRemoval(archive)
     }
 
     func write(evidence: Evidence, blob: Data?) async throws {

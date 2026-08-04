@@ -67,15 +67,12 @@ Rules the code enforces and agents must preserve:
   `CoreLocationSource` in production, `ScriptedLocationSource` in
   tests/previews. The one-shot `requestCurrentLocation()` returns `nil` rather
   than throwing when no fix is available.
-- **Automatic location authority is one account-wide append-only assignment.** Stamp every
-  automatic GPS sample with its `RecordingDeviceID` and route every user-facing sample read
-  through `LocationHistoryReader`. Resolve Off or exactly one installation; concurrent claims,
-  incomplete history, and an archived assignee fail closed. Show samples only when their source
-  held the assignment at capture time; legacy/manual history remains visible. Persist immutable
-  profiles, nickname events, archive tombstones, target-owned check-ins, and assignment events
-  separately. Keep the confirmed choice and
-  immutable first profile/policy IDs and timestamps beside the backup-excluded
-  installation identity; phone recommends On, while tablet/other recommends Off.
+- **Automatic recording consent is installation-local.** Stamp automatic GPS samples with their
+  `RecordingDeviceID` and route user-facing reads through `LocationHistoryReader`. Sync profiles,
+  nickname events, advisory check-ins, and global removal tombstones, but never another device's
+  recording toggle. Keep consent beside the backup-excluded installation identity; phone
+  onboarding recommends On only when no other active device recently reported recording, while
+  tablet/other and explicit rejoins recommend Off.
 - **Manual entries carry a `ManualEntryAudit`**; `DayJournal`'s write methods
   take an explicit `audit:` (no default). An additive backfill can't downgrade
   an authoritative row's regions, but the newer audit always wins.

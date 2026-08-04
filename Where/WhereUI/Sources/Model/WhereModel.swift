@@ -176,17 +176,34 @@ public final class WhereModel {
     /// in backed-up preferences. Restoring onto a new device therefore makes
     /// this false even when `hasOnboarded` arrived in the backup.
     public var hasConfirmedRecordingChoice: Bool {
-        installationRecordingContext.initialRecordingChoice != nil
+        installationRecordingContext.automaticRecordingEnabled != nil
     }
 
-    /// Discover existing synced authority while the app remains logged out. The bootstrap keeps
-    /// this exact store instance for `resolveScope()`, so onboarding never opens two containers.
-    public func discoverRecordingAssignment() async throws -> RecordingAssignmentResolution {
-        guard case let .loggedOut(bootstrap) = scopeState else {
-            guard let scope = activeScope else { return .unconfigured }
-            return try await scope.services.recording.authoritySnapshot().resolution
+    /// Derive an advisory local default from synced device status while the app remains logged out.
+    func discoverRecordingRecommendation(
+        for context: InstallationRecordingContext,
+    ) async throws
+        -> RecordingOnboardingRecommendation
+    {
+        if context.isRejoining {
+            return RecordingOnboardingRecommendation(
+                isEnabled: false,
+                recentRecordingDevice: nil,
+            )
         }
-        return try await bootstrap.discoverRecordingAssignment()
+        guard case let .loggedOut(bootstrap) = scopeState else {
+            let devices = try await activeScope?.services.recording.devices() ?? []
+            return RecordingOnboardingRecommendation(
+                for: context.currentDevice,
+                devices: devices.map(\.device),
+                now: now(),
+            )
+        }
+        return try await RecordingOnboardingRecommendation(
+            for: context.currentDevice,
+            devices: bootstrap.discoverRecordingDevices(),
+            now: now(),
+        )
     }
 
     /// Whether the sidecar says onboarding crossed or may have crossed an import commit. The
@@ -360,7 +377,11 @@ public final class WhereModel {
         self.now = now
         initialSelectedYear = selectedYear
         initialReport = report
-        session = WhereSession(scope: scope, now: now)
+        session = WhereSession(
+            scope: scope,
+            installationContextStore: installationContextStore,
+            now: now,
+        )
     }
 
     /// Record a log store on the active scope for the developer surface to
@@ -492,7 +513,11 @@ public final class WhereModel {
     /// session here over the retained (now-erased) scope.
     func startSession(scope: WhereScope) -> WhereSession {
         if let session { return session }
-        let session = WhereSession(scope: scope, now: now)
+        let session = WhereSession(
+            scope: scope,
+            installationContextStore: scope.kind == .real ? installationContextStore : nil,
+            now: now,
+        )
         self.session = session
         Self.logger { .startedSession(year: initialSelectedYear) }
         return session
@@ -503,6 +528,12 @@ public final class WhereModel {
     /// restore attempt: the next login builds a fresh scope over a newly-opened
     /// store and the installation context current at that attempt.
     public func endSession() async {
+        await logOut()
+        Self.logger { .endedSession }
+    }
+
+    func rejoinInstallation() async throws {
+        _ = try installationContextStore.rejoin()
         await logOut()
         Self.logger { .endedSession }
     }

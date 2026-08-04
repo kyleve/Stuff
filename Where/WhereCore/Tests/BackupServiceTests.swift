@@ -13,8 +13,6 @@ struct BackupServiceTests {
     private static let recordingDeviceID = RecordingDeviceID(
         rawValue: UUID(uuidString: "CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC")!,
     )
-    private static let recordingAssignmentID =
-        UUID(uuidString: "DDDDDDDD-DDDD-DDDD-DDDD-DDDDDDDDDDDD")!
 
     private static func sampleFixtures() -> [LocationSample] {
         [
@@ -70,31 +68,12 @@ struct BackupServiceTests {
                 deviceID: recordingDeviceID,
                 revision: 0,
                 lastSeenAt: exportDate,
-                appliedAt: exportDate,
-                lastAppliedAssignmentChangeID: recordingAssignmentID,
                 status: .recording,
             ),
         ]
     }
 
-    private static func recordingAssignmentFixtures() -> [RecordingAssignmentChange] {
-        [
-            RecordingAssignmentChange(
-                id: recordingAssignmentID,
-                parentIDs: [],
-                revision: 0,
-                issuedAt: exportDate,
-                issuedByDeviceID: recordingDeviceID,
-                effectiveAt: exportDate,
-                assignedDeviceID: recordingDeviceID,
-                reason: .onboarding,
-            ),
-        ]
-    }
-
-    private static func archive(
-        recordingAssignmentChanges: [RecordingAssignmentChange],
-    ) -> BackupArchive {
+    private static func archive() -> BackupArchive {
         BackupArchive(
             exportedAt: exportDate,
             samples: [],
@@ -105,8 +84,7 @@ struct BackupServiceTests {
             primaryRegions: [],
             recordingDeviceProfiles: recordingDeviceProfileFixtures(),
             recordingDeviceMetadataChanges: [],
-            recordingAssignmentChanges: recordingAssignmentChanges,
-            recordingDeviceArchives: [],
+            recordingDeviceRemovals: [],
             assets: [],
         )
     }
@@ -165,12 +143,11 @@ struct BackupServiceTests {
         let dismissedIssues = Self.dismissedIssueFixtures()
         let recordingDeviceProfiles = Self.recordingDeviceProfileFixtures()
         let recordingDeviceMetadataChanges = Self.recordingDeviceMetadataFixtures()
-        let recordingAssignments = Self.recordingAssignmentFixtures()
-        let deviceArchive = RecordingDeviceArchive(
+        let deviceArchive = RecordingDeviceRemoval(
             id: UUID(),
             deviceID: Self.recordingDeviceID,
-            archivedAt: Self.exportDate,
-            archivedByDeviceID: Self.recordingDeviceID,
+            removedAt: Self.exportDate,
+            removedByDeviceID: Self.recordingDeviceID,
         )
 
         let url = try service.makeArchiveFile(
@@ -180,8 +157,7 @@ struct BackupServiceTests {
             dismissedIssues: dismissedIssues,
             recordingDeviceProfiles: recordingDeviceProfiles,
             recordingDeviceMetadataChanges: recordingDeviceMetadataChanges,
-            recordingAssignmentChanges: recordingAssignments,
-            recordingDeviceArchives: [deviceArchive],
+            recordingDeviceRemovals: [deviceArchive],
             blobs: blobs,
             exportedAt: Self.exportDate,
         )
@@ -201,67 +177,17 @@ struct BackupServiceTests {
         #expect(result.archive.dismissedIssues == dismissedIssues)
         #expect(result.archive.recordingDeviceProfiles == recordingDeviceProfiles)
         #expect(result.archive.recordingDeviceMetadataChanges == recordingDeviceMetadataChanges)
-        #expect(result.archive.recordingAssignmentChanges == recordingAssignments)
-        #expect(result.archive.recordingDeviceArchives == [deviceArchive])
+        #expect(result.archive.recordingDeviceRemovals == [deviceArchive])
         let encodedManifest = try #require(String(
             data: BackupService.makeEncoder().encode(result.archive),
             encoding: .utf8,
         ))
-        #expect(encodedManifest.contains("\"reason\" : \"onboarding\""))
         #expect(encodedManifest.contains("\"isEnabled\"") == false)
         #expect(encodedManifest.contains("\"registrationEpochID\""))
         #expect(encodedManifest.contains("00000000-0000-0000-0000-0000000000E0"))
         // Only the evidence with bytes gets an asset; the other is metadata-only.
         #expect(result.archive.assets.map(\.evidenceId) == [Self.evidenceWithBlobId])
         #expect(result.blobs == blobs)
-    }
-
-    @Test func rapidAssignmentChangesPreserveTheirSubsecondOrder() throws {
-        let service = BackupService()
-        let firstDate = Date(timeIntervalSince1970: 1_700_000_000.123_456)
-        let assignments = try [
-            RecordingAssignmentChange(
-                id: #require(UUID(uuidString: "11111111-1111-1111-1111-111111111111")),
-                parentIDs: [],
-                revision: 0,
-                issuedAt: firstDate,
-                issuedByDeviceID: Self.recordingDeviceID,
-                effectiveAt: firstDate,
-                assignedDeviceID: Self.recordingDeviceID,
-                reason: .onboarding,
-            ),
-            RecordingAssignmentChange(
-                id: #require(UUID(uuidString: "22222222-2222-2222-2222-222222222222")),
-                parentIDs: [#require(UUID(
-                    uuidString: "11111111-1111-1111-1111-111111111111",
-                ))],
-                revision: 1,
-                issuedAt: firstDate.addingTimeInterval(0.000_001),
-                issuedByDeviceID: Self.recordingDeviceID,
-                effectiveAt: firstDate.addingTimeInterval(0.000_001),
-                assignedDeviceID: nil,
-                reason: .userCommand,
-            ),
-        ]
-        let url = try service.makeArchiveFile(
-            samples: [],
-            evidence: [],
-            manualDays: [],
-            recordingDeviceProfiles: [],
-            recordingDeviceMetadataChanges: [],
-            recordingAssignmentChanges: assignments,
-            recordingDeviceArchives: [],
-            blobs: [:],
-            exportedAt: Self.exportDate,
-        )
-        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
-
-        let restored = try service.readArchive(at: url).archive.recordingAssignmentChanges
-
-        #expect(restored == assignments)
-        let first = try #require(restored.first)
-        let last = try #require(restored.last)
-        #expect(first.effectiveAt < last.effectiveAt)
     }
 
     @Test func decoderAcceptsLegacyWholeSecondISO8601Dates() throws {
@@ -275,8 +201,7 @@ struct BackupServiceTests {
             primaryRegions: [],
             recordingDeviceProfiles: [],
             recordingDeviceMetadataChanges: [],
-            recordingAssignmentChanges: [],
-            recordingDeviceArchives: [],
+            recordingDeviceRemovals: [],
             assets: [],
         )
         let legacyEncoder = JSONEncoder()
@@ -303,7 +228,7 @@ struct BackupServiceTests {
 
     @Test func currentFormatDoesNotSilentlyBackfillAMissingProfileEpoch() throws {
         let data = try BackupService.makeEncoder().encode(
-            Self.archive(recordingAssignmentChanges: Self.recordingAssignmentFixtures()),
+            Self.archive(),
         )
         var manifest = try #require(
             JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -329,8 +254,8 @@ struct BackupServiceTests {
         }
     }
 
-    @Test func validationRejectsANegativeAssignmentRevisionDecodedFromABackup() throws {
-        let archive = try BackupArchive(
+    @Test func decoderRejectsANegativeMetadataRevisionFromABackup() throws {
+        let archive = BackupArchive(
             exportedAt: Self.exportDate,
             samples: [],
             evidence: [],
@@ -339,9 +264,8 @@ struct BackupServiceTests {
             trackedRegions: [],
             primaryRegions: [],
             recordingDeviceProfiles: Self.recordingDeviceProfileFixtures(),
-            recordingDeviceMetadataChanges: [],
-            recordingAssignmentChanges: [#require(Self.recordingAssignmentFixtures().first)],
-            recordingDeviceArchives: [],
+            recordingDeviceMetadataChanges: Self.recordingDeviceMetadataFixtures(),
+            recordingDeviceRemovals: [],
             assets: [],
         )
         var json = try #require(String(
@@ -350,39 +274,13 @@ struct BackupServiceTests {
         ))
         let revision = try #require(json.range(of: "\"revision\" : 0"))
         json.replaceSubrange(revision, with: "\"revision\" : -1")
-        let decoded = try BackupService.makeDecoder().decode(
-            BackupArchive.self,
-            from: Data(json.utf8),
-        )
-
         do {
-            try BackupService.validateRecordingData(decoded)
-            Issue.record("Expected the negative assignment revision to be rejected.")
-        } catch BackupService.BackupError.invalidRecordingData {
-            // Expected.
-        } catch {
-            Issue.record("Unexpected error: \(error)")
-        }
-    }
-
-    @Test func validationRejectsAGapInADeviceAssignmentTimeline() throws {
-        let initial = try #require(Self.recordingAssignmentFixtures().first)
-        let skippedRevision = try RecordingAssignmentChange(
-            id: #require(UUID(uuidString: "FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF")),
-            parentIDs: [initial.id],
-            revision: 2,
-            issuedAt: Self.exportDate.addingTimeInterval(1),
-            issuedByDeviceID: Self.recordingDeviceID,
-            effectiveAt: Self.exportDate.addingTimeInterval(1),
-            assignedDeviceID: nil,
-            reason: .userCommand,
-        )
-        let archive = Self.archive(recordingAssignmentChanges: [initial, skippedRevision])
-
-        do {
-            try BackupService.validateRecordingData(archive)
-            Issue.record("Expected the incomplete assignment timeline to be rejected.")
-        } catch BackupService.BackupError.invalidRecordingData {
+            _ = try BackupService.makeDecoder().decode(
+                BackupArchive.self,
+                from: Data(json.utf8),
+            )
+            Issue.record("Expected the negative metadata revision to be rejected.")
+        } catch DecodingError.dataCorrupted {
             // Expected.
         } catch {
             Issue.record("Unexpected error: \(error)")
@@ -397,8 +295,7 @@ struct BackupServiceTests {
             manualDays: [],
             recordingDeviceProfiles: [],
             recordingDeviceMetadataChanges: [],
-            recordingAssignmentChanges: [],
-            recordingDeviceArchives: [],
+            recordingDeviceRemovals: [],
             blobs: [:],
             exportedAt: Self.exportDate,
         )
@@ -429,8 +326,7 @@ struct BackupServiceTests {
             manualDays: manualDays,
             recordingDeviceProfiles: [],
             recordingDeviceMetadataChanges: [],
-            recordingAssignmentChanges: [],
-            recordingDeviceArchives: [],
+            recordingDeviceRemovals: [],
             blobs: [:],
             exportedAt: Self.exportDate,
         )
@@ -451,8 +347,7 @@ struct BackupServiceTests {
             trackedRegions: [.california, texas],
             recordingDeviceProfiles: [],
             recordingDeviceMetadataChanges: [],
-            recordingAssignmentChanges: [],
-            recordingDeviceArchives: [],
+            recordingDeviceRemovals: [],
             blobs: [:],
             exportedAt: Self.exportDate,
         )
@@ -485,8 +380,7 @@ struct BackupServiceTests {
             primaryRegions: primary,
             recordingDeviceProfiles: [],
             recordingDeviceMetadataChanges: [],
-            recordingAssignmentChanges: [],
-            recordingDeviceArchives: [],
+            recordingDeviceRemovals: [],
             blobs: [:],
             exportedAt: Self.exportDate,
         )
@@ -523,8 +417,7 @@ struct BackupServiceTests {
             manualDays: manualDays,
             recordingDeviceProfiles: [],
             recordingDeviceMetadataChanges: [],
-            recordingAssignmentChanges: [],
-            recordingDeviceArchives: [],
+            recordingDeviceRemovals: [],
             blobs: [:],
             exportedAt: Self.exportDate,
         )
@@ -557,8 +450,7 @@ struct BackupServiceTests {
             ],
             recordingDeviceProfiles: Self.recordingDeviceProfileFixtures(),
             recordingDeviceMetadataChanges: Self.recordingDeviceMetadataFixtures(),
-            recordingAssignmentChanges: Self.recordingAssignmentFixtures(),
-            recordingDeviceArchives: [],
+            recordingDeviceRemovals: [],
             assets: [BackupAssetEntry(
                 evidenceId: Self.evidenceWithBlobId,
                 filename: "assets/\(Self.evidenceWithBlobId.uuidString)",

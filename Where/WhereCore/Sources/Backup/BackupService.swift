@@ -44,7 +44,7 @@ public struct BackupService: Sendable {
         /// must match `BackupArchive.currentFormatVersion` exactly).
         case unsupportedFormatVersion(Int)
         /// Recording rows decoded structurally but violate persisted invariants (for example a
-        /// a negative causal revision or incomplete assignment history).
+        /// a negative causal revision or incomplete removal history).
         case invalidRecordingData
 
         public var errorDescription: String? {
@@ -118,15 +118,13 @@ public struct BackupService: Sendable {
         primaryRegions: [PrimaryRegion] = [],
         recordingDeviceProfiles: [RecordingDeviceProfile],
         recordingDeviceMetadataChanges: [RecordingDeviceMetadataChange],
-        recordingAssignmentChanges: [RecordingAssignmentChange],
-        recordingDeviceArchives: [RecordingDeviceArchive],
+        recordingDeviceRemovals: [RecordingDeviceRemoval],
         blobs: [UUID: Data],
         exportedAt: Date = Date(),
         archiveName: String? = nil,
     ) throws -> URL {
         try Self.validateRecordingData(
             metadataChanges: recordingDeviceMetadataChanges,
-            assignmentChanges: recordingAssignmentChanges,
         )
         let fileManager = FileManager.default
         let workRoot = fileManager.temporaryDirectory
@@ -160,8 +158,7 @@ public struct BackupService: Sendable {
             primaryRegions: primaryRegions,
             recordingDeviceProfiles: recordingDeviceProfiles,
             recordingDeviceMetadataChanges: recordingDeviceMetadataChanges,
-            recordingAssignmentChanges: recordingAssignmentChanges,
-            recordingDeviceArchives: recordingDeviceArchives,
+            recordingDeviceRemovals: recordingDeviceRemovals,
             assets: assetEntries,
         )
         try Self.logger.measure(.encodeManifest) {
@@ -273,17 +270,13 @@ public struct BackupService: Sendable {
     static func validateRecordingData(_ archive: BackupArchive) throws {
         try validateRecordingData(
             metadataChanges: archive.recordingDeviceMetadataChanges,
-            assignmentChanges: archive.recordingAssignmentChanges,
         )
     }
 
     private static func validateRecordingData(
         metadataChanges: [RecordingDeviceMetadataChange],
-        assignmentChanges: [RecordingAssignmentChange],
     ) throws {
-        guard metadataChanges.allSatisfy({ $0.revision >= 0 }),
-              RecordingAssignmentChange.formValidPersistedTimeline(assignmentChanges)
-        else {
+        guard metadataChanges.allSatisfy({ $0.revision >= 0 }) else {
             throw BackupError.invalidRecordingData
         }
     }

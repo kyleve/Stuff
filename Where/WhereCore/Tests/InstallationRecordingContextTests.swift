@@ -11,23 +11,15 @@ struct InstallationRecordingContextTests {
         #expect(tablet.recommendedRecordingEnabled == false)
     }
 
-    @Test func confirmationPreservesIdentityAndCarriesAStablePolicyToken() throws {
+    @Test func confirmationAndLaterSettingsChangePreserveIdentity() {
         let proposed = context(kind: .tablet)
-        let assignmentChangeID = try #require(
-            UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA"),
-        )
+        let confirmed = proposed.confirmingInitialRecording(isEnabled: false)
+        let updated = confirmed.settingAutomaticRecordingEnabled(true)
 
-        let confirmed = proposed.confirmingInitialRecording(
-            isEnabled: false,
-            assignmentChangeID: assignmentChangeID,
-            confirmedAt: Self.confirmedAt,
-        )
-
-        #expect(confirmed.currentDevice == proposed.currentDevice)
-        #expect(confirmed.registeredAt == proposed.registeredAt)
-        #expect(confirmed.initialRecordingChoice?.isEnabled == false)
-        #expect(confirmed.initialRecordingChoice?.assignmentChangeID == assignmentChangeID)
-        #expect(confirmed.initialRecordingChoice?.confirmedAt == Self.confirmedAt)
+        #expect(updated.currentDevice == proposed.currentDevice)
+        #expect(updated.registeredAt == proposed.registeredAt)
+        #expect(confirmed.automaticRecordingEnabled == false)
+        #expect(updated.automaticRecordingEnabled == true)
     }
 
     private func context(kind: RecordingDeviceKind) -> InstallationRecordingContext {
@@ -38,10 +30,10 @@ struct InstallationRecordingContextTests {
                 kind: kind,
             ),
             registeredAt: Self.registeredAt,
-            initialRecordingChoice: nil,
+            automaticRecordingEnabled: nil,
+            isRejoining: false,
         )
     }
 
     private static let registeredAt = Date(timeIntervalSinceReferenceDate: 100)
-    private static let confirmedAt = Date(timeIntervalSinceReferenceDate: 200)
 }

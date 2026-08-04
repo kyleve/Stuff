@@ -3,18 +3,14 @@ import RegionKit
 import TestHostSupport
 import Testing
 @_spi(Testing) import WhereCore
-import WhereUI
+@_spi(Testing) @testable import WhereUI
 
 /// Covers the launch-time reconciliation that fixes the "toggle is always off"
 /// and "Grant does nothing" bugs: tracking and the authorization indicator must
-/// reflect real authorization plus the synced recording policy, not just the
-/// last tap.
+/// reflect real authorization plus the installation-local recording choice,
+/// not just the last tap.
 @MainActor
 struct WhereSessionTrackingTests {
-    private static let disabledInitialAssignmentChangeID = UUID(
-        uuidString: "00000000-0000-0000-0000-000000000003",
-    )!
-
     private func makeSession(
         status: LocationAuthorizationStatus,
         preferences: WherePreferences,
@@ -28,19 +24,26 @@ struct WhereSessionTrackingTests {
         preferences: WherePreferences,
         store: SwiftDataStore? = nil,
         installationContext: InstallationRecordingContext = .testing,
+        installationContextStore: InMemoryInstallationRecordingContextStore? = nil,
     ) throws -> (WhereSession, ScriptedLocationSource, SwiftDataStore) {
         let store = try store ?? SwiftDataStore.inMemory()
         let source = ScriptedLocationSource(authorizationStatus: status)
+        let resolvedContext = try installationContextStore?.resolve() ?? installationContext
         let services = WhereServices(
             store: store,
             locationSource: source,
-            installationContext: installationContext,
+            installationContext: resolvedContext,
             reminderScheduler: NoopLoggingReminderScheduler(),
             summaryScheduler: NoopDailySummaryScheduler(),
             issueAlertScheduler: NoopDataIssueAlertScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
-        let session = WhereSession(services: services, preferences: preferences)
+        let contextStore = installationContextStore
+            ?? InMemoryInstallationRecordingContextStore(context: resolvedContext)
+        let session = WhereSession(
+            scope: .fake(services: services, preferences: preferences, logSystem: .shared),
+            installationContextStore: contextStore,
+        )
         return (session, source, store)
     }
 
@@ -51,11 +54,8 @@ struct WhereSessionTrackingTests {
         return InstallationRecordingContext(
             currentDevice: InstallationRecordingContext.testing.currentDevice,
             registeredAt: InstallationRecordingContext.testing.registeredAt,
-            initialRecordingChoice: .init(
-                isEnabled: false,
-                assignmentChangeID: Self.disabledInitialAssignmentChangeID,
-                confirmedAt: Date(timeIntervalSinceReferenceDate: 1),
-            ),
+            automaticRecordingEnabled: false,
+            isRejoining: false,
         )
     }
 
@@ -96,9 +96,11 @@ struct WhereSessionTrackingTests {
 
     @Test func stoppingTrackingPersistsAcrossLaunches() async throws {
         let preferences = makePreferences()
+        let contextStore = InMemoryInstallationRecordingContextStore(context: .testing)
         let (session, _, store) = try makeSessionAndStore(
             status: .always,
             preferences: preferences,
+            installationContextStore: contextStore,
         )
         await session.start()
         #expect(session.isTracking)
@@ -112,6 +114,7 @@ struct WhereSessionTrackingTests {
             status: .always,
             preferences: preferences,
             store: store,
+            installationContextStore: contextStore,
         )
         await relaunched.start()
         #expect(!relaunched.isTracking)
@@ -125,21 +128,21 @@ struct WhereSessionTrackingTests {
             installationContext: installationContext(initialRecordingEnabled: false),
         )
         let preferences = makePreferences()
-        let session = WhereSession(services: services, preferences: preferences)
+        let contextStore = InMemoryInstallationRecordingContextStore(
+            context: installationContext(initialRecordingEnabled: false),
+        )
+        let session = WhereSession(
+            scope: .fake(services: services, preferences: preferences, logSystem: .shared),
+            installationContextStore: contextStore,
+        )
         await session.start()
 
         let enabling = Task {
-            try await session.setRecordingEnabled(
-                true,
-                for: session.currentRecordingDeviceID,
-            )
+            try await session.setRecordingEnabled(true)
         }
         await waitUntil { source.isAwaitingPermission }
 
-        try await session.setRecordingEnabled(
-            false,
-            for: session.currentRecordingDeviceID,
-        )
+        try await session.setRecordingEnabled(false)
         source.resolvePermission(as: .always)
         try await enabling.value
 
@@ -147,7 +150,7 @@ struct WhereSessionTrackingTests {
             try await session.recordingDevices()
                 .first(where: { $0.id == session.currentRecordingDeviceID }),
         )
-        #expect(current.isEnabled == false)
+        #expect(current.localAutomaticRecordingEnabled == false)
         #expect(current.device.status == .off)
         #expect(session.isTracking == false)
     }
@@ -168,7 +171,7 @@ struct WhereSessionTrackingTests {
         #expect(session.isTracking)
     }
 
-    @Test func remoteOffPolicyStopsThisDeviceAndAcknowledgesIt() async throws {
+    @Test func remoteRemovalStopsThisDevice() async throws {
         let remoteChanges = ScriptedStoreRemoteChangeSource()
         let store = try SwiftDataStore.inMemory(remoteChangeSource: remoteChanges)
         let source = TrackingLocationSource()
@@ -186,31 +189,25 @@ struct WhereSessionTrackingTests {
         #expect(session.isTracking)
         #expect(source.isMonitoring)
 
-        let assignmentID = try #require(
+        let removalID = try #require(
             UUID(uuidString: "EEEEEEEE-EEEE-EEEE-EEEE-EEEEEEEEEEEE"),
         )
-        let parentID = try #require(try await store.recordingAssignmentChanges().first?.id)
         try await store.simulateRemoteRecordingImport(
             profiles: [],
             metadataChanges: [],
             checkIns: [],
-            assignmentChanges: [
-                RecordingAssignmentChange(
-                    id: assignmentID,
-                    parentIDs: [parentID],
-                    revision: 1,
-                    issuedAt: now.addingTimeInterval(1),
-                    issuedByDeviceID: RecordingDeviceID(
+            removals: [
+                RecordingDeviceRemoval(
+                    id: removalID,
+                    deviceID: InstallationRecordingContext.testing.currentDevice.id,
+                    removedAt: now.addingTimeInterval(1),
+                    removedByDeviceID: RecordingDeviceID(
                         rawValue: #require(UUID(
                             uuidString: "FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF",
                         )),
                     ),
-                    effectiveAt: now.addingTimeInterval(1),
-                    assignedDeviceID: nil,
-                    reason: .userCommand,
                 ),
             ],
-            archives: [],
         )
 
         // Saving the imported row is not enough; the session must be responding
@@ -229,8 +226,7 @@ struct WhereSessionTrackingTests {
         )
         #expect(source.startCount == 1)
         #expect(source.stopCount == 1)
-        #expect(current.status == .off)
-        #expect(current.lastAppliedAssignmentChangeID == assignmentID)
+        #expect(current.removedAt == now.addingTimeInterval(1))
     }
 
     @Test func foregroundLogsTodayWhenWantedAndAuthorized() async throws {

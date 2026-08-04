@@ -10,8 +10,7 @@ class UpgradeBackupTest < Minitest::Test
     assert_equal 3, upgraded.fetch("formatVersion")
     assert_equal [], upgraded.fetch("recordingDeviceProfiles")
     assert_equal [], upgraded.fetch("recordingDeviceMetadataChanges")
-    assert_equal [], upgraded.fetch("recordingAssignmentChanges")
-    assert_equal [], upgraded.fetch("recordingDeviceArchives")
+    assert_equal [], upgraded.fetch("recordingDeviceRemovals")
     assert_nil upgraded.fetch("samples").first.fetch("recordingDeviceID")
   end
 

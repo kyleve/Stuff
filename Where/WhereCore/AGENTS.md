@@ -52,9 +52,9 @@ internal shape.
   lossless.** Add persisted user-data shapes end-to-end and cover both import
   strategies, but export no target-owned recording check-ins and ignore any in
   an imported archive (`BackupServiceTests` / `BackupCoordinatorTests`).
-- **Backup import never adopts restored recording authority.** Merge reasserts the pre-import
-  global assignment; Replace rotates to a child epoch and appends global Off before discarding
-  the local outbox (`BackupCoordinatorTests`).
+- **Backup import never adopts or changes local recording consent.** Archives omit that
+  device-local choice; Replace preserves it and every existing removal tombstone while rotating
+  the data epoch and discarding the local outbox (`BackupCoordinatorTests`).
 - **Gate import recovery with a two-phase sidecar plus an atomic store receipt.** Never clear a
   committed onboarding marker before its independent terminal completion tombstone
   (`BackupCoordinatorTests` / `WhereLaunchTests`).
@@ -79,7 +79,7 @@ internal shape.
   `WhereStoreID`. Used to stamp Periscope `LogEvent.externalID`s.
 - **No in-app data migration or legacy recovery.** `SD….toValue()` reads only
   the current shape and fault-logs a row it can't place; incomplete epoch or
-  policy authority throws and fails closed instead of dropping into a benign
+  removal history throws and fails closed instead of dropping into a benign
   state. The one-time
   reshape path is backup **export → transform
   ([`../Tools/upgrade-backup.rb`](../Tools/upgrade-backup.rb)) →
@@ -104,19 +104,15 @@ internal shape.
   `ScriptedLocationSource` in tests/previews; `requestCurrentLocation()`
   returns `nil`, never throws, and backs
   `LocationIngestor.captureTodayIfNeeded(now:)`.
-- **`DeviceRecordingController` owns the account-wide recording assignment and physical GPS
-  state.** Keep assignment events append-only, serialize mutations across
-  awaits, fail closed when authority or acknowledgement is unavailable, stamp
-  every ingested GPS sample with the current installation id, seed the first
-  policy from `InstallationRecordingContext`'s explicitly confirmed choice plus
-  its stable profile/policy IDs and timestamps, and apply `LocationHistoryReader`
-  to every user-facing projection. Require the source installation to hold the effective
-  assignment for every device-stamped sample. Make each command name every observed maximal head, resolve concurrent heads
-  safety-first, and derive cleanup/reset floors from the independent destructive frontier.
-  Persist immutable profiles, nickname events, archive tombstones, target-owned check-ins, and assignment events separately.
+- **`DeviceRecordingController` owns this installation's local recording choice and physical GPS
+  state.** Serialize mutations across awaits, fail closed when the current identity is removed,
+  stamp every ingested GPS sample with the current installation id, and apply
+  `LocationHistoryReader` to every user-facing projection. Persist immutable profiles, nickname
+  events, global removal tombstones, and target-owned advisory check-ins separately. A remote
+  device may rename or remove an identity, but never change another installation's local consent.
   Stamp every durable location-outbox entry with its authorizing data epoch and
   never replay it into another generation; backups alone read lossless raw
-  samples and policy/device timelines, excluding non-restorable check-ins.
+  samples and device/removal timelines, excluding non-restorable check-ins.
 - **Tracked regions live in the store, not preferences** — one
   `SDTrackedRegion` row per region so cross-device edits merge; read as a
   `Set` defaulting to the four. `RegionAttribution` derives the attributor

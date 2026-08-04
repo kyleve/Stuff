@@ -115,16 +115,8 @@
             WhereSession(services: previewServices(), preferences: previewPreferences())
         }
 
-        /// Current + left-behind device rows for the Devices screen. The iPad's
-        /// off policy is intentionally unacknowledged so previews pin the
-        /// cross-device "waiting" state as well as the current happy path.
+        /// Current + left-behind device rows for the Devices screen.
         public static func recordingDeviceConfigurations() -> [RecordingDeviceConfiguration] {
-            let currentPolicyID = UUID(
-                uuidString: "10000000-0000-0000-0000-000000000001",
-            )!
-            let remoteLatestPolicyID = UUID(
-                uuidString: "20000000-0000-0000-0000-000000000002",
-            )!
             let remoteID = RecordingDeviceID(
                 rawValue: UUID(uuidString: "00000000-0000-0000-0000-000000000002")!,
             )
@@ -137,16 +129,11 @@
                         kind: .phone,
                         registeredAt: referenceNow.addingTimeInterval(-90 * 24 * 60 * 60),
                         lastSeenAt: referenceNow,
-                        archivedAt: nil,
-                        lastAppliedAssignmentChangeID: currentPolicyID,
+                        removedAt: nil,
                         status: .recording,
                     ),
-                    assignmentResolution: .resolved(.device(
-                        InstallationRecordingContext.testing.currentDevice.id,
-                    )),
-                    assignmentFrontierID: currentPolicyID,
-                    isAssignmentAcknowledged: true,
-                    isArchived: false,
+                    isCurrentDevice: true,
+                    localAutomaticRecordingEnabled: true,
                 ),
                 RecordingDeviceConfiguration(
                     device: RecordingDevice(
@@ -156,16 +143,11 @@
                         kind: .tablet,
                         registeredAt: referenceNow.addingTimeInterval(-60 * 24 * 60 * 60),
                         lastSeenAt: referenceNow.addingTimeInterval(-2 * 24 * 60 * 60),
-                        archivedAt: nil,
-                        lastAppliedAssignmentChangeID: nil,
+                        removedAt: nil,
                         status: .off,
                     ),
-                    assignmentResolution: .resolved(.device(
-                        InstallationRecordingContext.testing.currentDevice.id,
-                    )),
-                    assignmentFrontierID: remoteLatestPolicyID,
-                    isAssignmentAcknowledged: true,
-                    isArchived: false,
+                    isCurrentDevice: false,
+                    localAutomaticRecordingEnabled: nil,
                 ),
             ]
         }

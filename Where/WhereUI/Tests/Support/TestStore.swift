@@ -10,7 +10,6 @@ struct SampleReadFailure: Error, Equatable {}
 
 /// Thrown by the Devices settings save-failure hooks below.
 struct RecordingDeviceSaveFailure: Error, Equatable {}
-struct RecordingAssignmentSaveFailure: Error, Equatable {}
 
 /// Test `WhereStore` that forwards to an in-memory `SwiftDataStore` but adds
 /// hooks the view-model tests need:
@@ -20,10 +19,8 @@ struct RecordingAssignmentSaveFailure: Error, Equatable {}
 ///   of order (the stale-year race).
 /// - `gateRecordingDevices(afterCalls:)` suspends a selected device read after
 ///   capturing its result, so a committed change can race an initial load.
-/// - `gateNextRecordingAssignmentWrite()` suspends one recording-assignment write, so
-///   the Devices model can accept a newer toggle while the first is in flight.
-/// - `failNextRecordingDeviceWrite()` / `failNextRecordingAssignmentWrite()` make
-///   one Devices save fail without contaminating later retry assertions.
+/// - `failNextRecordingDeviceWrite()` makes one Devices save fail without
+///   contaminating later retry assertions.
 /// - `failManualDays()` makes `setManualDay` throw, so manual-entry error
 ///   handling is exercisable without a real persistence fault.
 ///
@@ -41,15 +38,9 @@ actor TestStore: WhereStore {
     private var recordingDevicesGate: CheckedContinuation<Void, Never>?
     private var recordingDevicesArrival: CheckedContinuation<Void, Never>?
 
-    private var shouldGateNextRecordingAssignmentWrite = false
-    private var recordingAssignmentWriteGateReached = false
-    private var recordingAssignmentWriteGate: CheckedContinuation<Void, Never>?
-    private var recordingAssignmentWriteArrival: CheckedContinuation<Void, Never>?
-
     private var shouldFailManualDay = false
     private var shouldFailSamples = false
     private var shouldFailNextRecordingDeviceWrite = false
-    private var shouldFailNextRecordingAssignmentWrite = false
 
     init() throws {
         backing = try SwiftDataStore.inMemory()
@@ -89,27 +80,8 @@ actor TestStore: WhereStore {
         recordingDevicesGate = nil
     }
 
-    func gateNextRecordingAssignmentWrite() {
-        shouldGateNextRecordingAssignmentWrite = true
-        recordingAssignmentWriteGateReached = false
-    }
-
-    func awaitRecordingAssignmentWriteGate() async {
-        guard !recordingAssignmentWriteGateReached else { return }
-        await withCheckedContinuation { recordingAssignmentWriteArrival = $0 }
-    }
-
-    func releaseRecordingAssignmentWriteGate() {
-        recordingAssignmentWriteGate?.resume()
-        recordingAssignmentWriteGate = nil
-    }
-
     func failNextRecordingDeviceWrite() {
         shouldFailNextRecordingDeviceWrite = true
-    }
-
-    func failNextRecordingAssignmentWrite() {
-        shouldFailNextRecordingAssignmentWrite = true
     }
 
     func failManualDays() {
@@ -230,31 +202,12 @@ actor TestStore: WhereStore {
         try await backing.setRecordingDeviceCheckIn(checkIn)
     }
 
-    func recordingAssignmentChanges() async throws -> [RecordingAssignmentChange] {
-        try await backing.recordingAssignmentChanges()
+    func recordingDeviceRemovals() async throws -> [RecordingDeviceRemoval] {
+        try await backing.recordingDeviceRemovals()
     }
 
-    func addRecordingAssignmentChange(_ change: RecordingAssignmentChange) async throws {
-        if shouldFailNextRecordingAssignmentWrite {
-            shouldFailNextRecordingAssignmentWrite = false
-            throw RecordingAssignmentSaveFailure()
-        }
-        if shouldGateNextRecordingAssignmentWrite {
-            shouldGateNextRecordingAssignmentWrite = false
-            recordingAssignmentWriteGateReached = true
-            recordingAssignmentWriteArrival?.resume()
-            recordingAssignmentWriteArrival = nil
-            await withCheckedContinuation { recordingAssignmentWriteGate = $0 }
-        }
-        try await backing.addRecordingAssignmentChange(change)
-    }
-
-    func recordingDeviceArchives() async throws -> [RecordingDeviceArchive] {
-        try await backing.recordingDeviceArchives()
-    }
-
-    func addRecordingDeviceArchive(_ archive: RecordingDeviceArchive) async throws {
-        try await backing.addRecordingDeviceArchive(archive)
+    func addRecordingDeviceRemoval(_ archive: RecordingDeviceRemoval) async throws {
+        try await backing.addRecordingDeviceRemoval(archive)
     }
 
     func write(evidence: Evidence, blob: Data?) async throws {

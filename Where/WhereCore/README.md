@@ -44,9 +44,9 @@ one it belongs to rather than to a god-object:
   which surface and persist each region's picked `RegionAppearance` — color
   token, emoji, SF Symbol — and pick order alongside the synced rows) — one row
   per region, defaulting to the four until the user chooses in the onboarding /
-  Settings region picker. Recording identity and authority are split into
-  immutable profiles, append-only nickname events and archive tombstones, one global assignment
-  history, and target-owned check-ins rather than one mutable device row.
+  Settings region picker. Recording identity and synced status are split into
+  immutable profiles, append-only nickname events and removal tombstones, and target-owned
+  advisory check-ins rather than one mutable device row. Recording consent stays local.
 - **`WhereDataEpoch`** — the account-wide logical generation that keeps late
   uploads from an offline device from repopulating data after Reset or Replace.
   Each destructive operation appends one immutable node naming every real
@@ -105,22 +105,14 @@ one it belongs to rather than to a god-object:
   the current installation's `RecordingDeviceID`. Every durable retry entry
   also carries the data epoch that authorized it, so a pre-reset fix can be
   discarded but never written into the replacement generation.
-- **`DeviceRecordingController`** — serializes one account-wide Off-or-one-device assignment
-  with the current installation's physical `LocationIngestor`. Immutable
-  profiles, nickname events, target-owned check-ins, and complete-authority
-  assignment events sync independently so one writer cannot roll another field backward. Each
-  assignment command names every maximal event it observed;
-  concurrent unjoined heads resolve to the most restrictive authority, while a
-  later command joins them with one identity.
-  A remote disable or archive affects history at its timestamp
-  as soon as it syncs, and the target device acknowledges only after privacy-critical
-  cleanup is durable.
-- **`LocationHistoryReader`** — the shared policy-aware read boundary used by
-  reports, widgets, recent activity, and foreground capture checks. It filters
-  GPS samples during disabled/archived intervals while keeping raw storage,
-  backups, legacy samples without provenance, and user-asserted samples
-  lossless. A device-stamped sample remains invisible until its matching
-  effective assignment arrives, so partial CloudKit delivery and concurrent claims fail closed.
+- **`DeviceRecordingController`** — applies this installation's local automatic-recording
+  preference to its physical `LocationIngestor`. Immutable profiles, nickname events,
+  target-owned advisory check-ins, and global removal tombstones sync independently. Another
+  installation can rename or remove a device identity, but cannot change its recording consent.
+- **`LocationHistoryReader`** — the shared removal-aware read boundary used by reports, widgets,
+  recent activity, and foreground capture checks. It hides a removed identity's GPS samples at
+  and after its earliest tombstone while keeping earlier raw storage, backups, legacy samples
+  without provenance, and user-asserted samples lossless.
 
 ### Detection, notifications & the rest
 
@@ -141,23 +133,21 @@ one it belongs to rather than to a god-object:
   read, with a freshness policy.
 - **`BackupCoordinator`** — ZIP export/import via `ZIPFoundation`. Export pins
   tables and evidence blobs to one epoch-consistent snapshot. Merge preserves queued locations
-  and reasserts the pre-import account-wide recording assignment after joining the imported
-  timeline. Replace writes the archive into a new child epoch, retains the global device-profile
-  ledger, and appends a newer Off assignment before pending fixes are discarded. A prepared
+  and the installation-local recording choice. Replace writes the archive into a new child epoch,
+  retains existing removal tombstones, and preserves the local choice before pending fixes are
+  discarded. A prepared
   marker in the backup-excluded installation
   sidecar pairs with a receipt committed in the same store transaction as the archive;
   recreated services can therefore distinguish rollback from commit and gate further
   imports until cleanup succeeds. Onboarding acknowledgement records an independent terminal
   sidecar tombstone before clearing recovery, so a cold launch can repair a preference write
   that did not reach disk without blocking later Settings imports.
-  Check-ins are deliberately neither exported nor restored: an archive cannot
-  prove that the target installation applied authority and cleared its local
-  outbox.
+  Check-ins are deliberately neither exported nor restored because they are live advisory status.
 - **`RecentActivitySummarizer`** — an on-device Foundation Models narrative over
   a selectable look-back `RecentActivityWindow`.
 - **`InstallationRecordingContext`** — the device-local installation identity,
-  explicitly confirmed initial choice, and stable IDs/timestamps for recreating
-  its immutable first device profile and recording assignment idempotently.
+  explicitly confirmed local recording choice, and stable timestamp for recreating
+  its immutable device profile idempotently.
   `InstallationRecordingContextStoring` keeps the persistence adapter outside
   the domain value.
 - **`WherePreferences`** — persisted user intent (onboarding and reminder /
@@ -248,15 +238,11 @@ rotates to a Reset child epoch, and discards the retry queue only after commit.
   constructing `WhereServices`.
 - **Always-location.** Background day tracking needs Always; `requestPermission()`
   throws `LocationPermissionDeniedError` on denial / restriction.
-- **Strong remote cutoff.** Transferring or turning off automatic recording does not depend on
-  the former recorder being online before reports become correct: once the assignment event
-  syncs, samples at or after its effective timestamp are excluded. The assigned row remains
-  "waiting" until the target installation starts or stops and acknowledges it.
-  The sample gate stays closed until that check-in and any destructive-backlog
-  cleanup are durable; an incomplete multi-parent assignment DAG also fails closed.
-  The cutoff currently uses the issuing device's wall clock; substantial
-  cross-device clock skew can shift the historical boundary even though the causal
-  DAG still converges the current desired state correctly.
+- **Removal is global; recording consent is local.** A synced removal tombstone immediately hides
+  the target identity's samples at and after its timestamp and makes that installation stop when
+  it next observes the change. Turning recording on or off affects only the installation where
+  the user made the choice. Device check-ins are advisory status, not command acknowledgements;
+  Apple Lost Mode or remote erase remains the security boundary for a missing device.
 - **Destructive operations are logical generations.** Old rows may remain in
   CloudKit as sync/audit history, but ordinary reads select only the resolved
   epoch. Concurrent unjoined resets select a synthetic empty generation; an

@@ -143,8 +143,7 @@ def upgrade_manifest(manifest)
 
   manifest["recordingDeviceProfiles"] ||= []
   manifest["recordingDeviceMetadataChanges"] ||= []
-  manifest["recordingAssignmentChanges"] ||= []
-  manifest["recordingDeviceArchives"] ||= []
+  manifest["recordingDeviceRemovals"] ||= []
   manifest.delete("recordingDevices")
   manifest.delete("recordingDeviceCheckIns")
   manifest.delete("recordingPolicyChanges")

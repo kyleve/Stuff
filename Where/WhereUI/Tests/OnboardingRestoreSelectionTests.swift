@@ -67,6 +67,6 @@ struct OnboardingRestoreSelectionTests {
         dismissedIssueCount: 4,
         trackedRegionCount: 5,
         recordingDeviceCount: 2,
-        recordingAssignmentChangeCount: 3,
+        recordingDeviceRemovalCount: 3,
     )
 }

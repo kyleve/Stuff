@@ -7,8 +7,8 @@ public enum RecordingDeviceMetadataField: String, Codable, Sendable, Hashable {
 
 /// Append-only nickname edit for one recording installation.
 ///
-/// Recording authority deliberately does not live here; the account-wide assignment and
-/// irreversible archive tombstones own it.
+/// Recording consent deliberately does not live here; it stays installation-local while
+/// irreversible removal tombstones sync separately.
 public struct RecordingDeviceMetadataChange: Identifiable, Codable, Sendable, Hashable {
     public let id: UUID
     public let deviceID: RecordingDeviceID

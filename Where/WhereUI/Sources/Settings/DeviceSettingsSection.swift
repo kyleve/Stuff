@@ -1,7 +1,7 @@
 import SwiftUI
 import WhereCore
 
-/// Form section for one installation's identity, activity, permission, and archive controls.
+/// Form section for one installation's identity, status, local preference, and removal controls.
 struct DeviceSettingsSection: View {
     let model: DevicesSettingsModel
     @Bindable var row: DeviceSettingsRowModel
@@ -9,7 +9,7 @@ struct DeviceSettingsSection: View {
     @Environment(WhereSession.self) private var session
     @Environment(\.openURL) private var openURL
     @Environment(\.stylesheet) private var stylesheet
-    @State private var isConfirmingArchive = false
+    @State private var isConfirmingRemoval = false
 
     var body: some View {
         Section {
@@ -28,7 +28,7 @@ struct DeviceSettingsSection: View {
                     .disabled(!row.canSaveNickname)
                 }
             }
-            .disabled(row.disablesNicknameControl)
+            .disabled(row.isSaving)
             .settingsRow(DevicesSettingsView.Item.deviceName, when: row.isCurrent)
 
             LabeledContent(String(localized: .settingsDevicesStatus)) {
@@ -54,6 +54,17 @@ struct DeviceSettingsSection: View {
             }
 
             if row.isCurrent {
+                Toggle(
+                    String(localized: .settingsDevicesAutomaticRecording),
+                    isOn: $row.isEnabled,
+                )
+                .disabled(row.isSaving)
+                .settingsRow(DevicesSettingsView.Item.automaticRecording)
+                .onChange(of: row.isEnabled) { oldValue, newValue in
+                    guard oldValue != newValue else { return }
+                    Task { await model.recordingPreferenceChanged(for: row) }
+                }
+
                 LocationStatusRow(
                     status: session.authorizationStatus,
                     isTracking: session.isTracking,
@@ -81,24 +92,26 @@ struct DeviceSettingsSection: View {
                     }
                 }
             } else {
-                Button(
-                    String(localized: .settingsDevicesArchive),
-                    systemImage: "archivebox",
-                    role: .destructive,
-                ) {
-                    isConfirmingArchive = true
+                Button(role: .destructive) {
+                    isConfirmingRemoval = true
+                } label: {
+                    HStack {
+                        Image(systemName: "trash")
+                        Text(String(localized: .settingsDevicesRemove))
+                    }
+                    .foregroundStyle(.red)
                 }
-                .disabled(row.disablesDestructiveActions)
+                .disabled(row.isSaving)
                 .confirmationDialog(
-                    String(localized: .settingsDevicesArchiveConfirmTitle),
-                    isPresented: $isConfirmingArchive,
+                    String(localized: .settingsDevicesRemoveConfirmTitle),
+                    isPresented: $isConfirmingRemoval,
                     titleVisibility: .visible,
                 ) {
-                    Button(String(localized: .settingsDevicesArchive), role: .destructive) {
-                        Task { await model.archive(row) }
+                    Button(String(localized: .settingsDevicesRemove), role: .destructive) {
+                        Task { await model.remove(row) }
                     }
                 } message: {
-                    Text(String(localized: .settingsDevicesArchiveConfirmMessage))
+                    Text(String(localized: .settingsDevicesRemoveConfirmMessage))
                 }
             }
         } header: {
@@ -137,12 +150,6 @@ struct DeviceSettingsSection: View {
         if row.isCurrent, case .unavailable = session.recordingRuntimeState {
             return String(localized: .settingsDevicesStatusUnavailable)
         }
-        if row.isSyncingRecordingAssignment {
-            return String(localized: .settingsDevicesStatusSyncing)
-        }
-        if row.isPending || row.isApplyingRecordingChange {
-            return String(localized: .settingsDevicesStatusPending)
-        }
         switch row.status {
             case .unknown: return String(localized: .settingsDevicesStatusPending)
             case .recording: return String(localized: .settingsDevicesStatusRecording)
@@ -155,12 +162,6 @@ struct DeviceSettingsSection: View {
     private var statusSymbol: String {
         if row.isCurrent, case .unavailable = session.recordingRuntimeState {
             return "exclamationmark.triangle"
-        }
-        if row.isSyncingRecordingAssignment {
-            return "icloud.and.arrow.down"
-        }
-        if row.isPending || row.isApplyingRecordingChange {
-            return "clock.arrow.trianglehead.counterclockwise.rotate.90"
         }
         return switch row.status {
             case .unknown: "clock.arrow.trianglehead.counterclockwise.rotate.90"
@@ -177,13 +178,12 @@ struct DeviceSettingsSection: View {
             true
         }
         return row.status == .recording && runtimeIsAvailable
-            && !row.isPending && !row.isApplyingRecordingChange
             ? .primary
             : .secondary
     }
 
     private var showGrantButton: Bool {
-        guard row.isEnabled else { return false }
+        guard row.isCurrent, row.isEnabled else { return false }
         return switch session.authorizationStatus {
             case .notDetermined, .whenInUse: true
             case .restricted, .denied, .always: false
@@ -191,7 +191,7 @@ struct DeviceSettingsSection: View {
     }
 
     private var showOpenSettingsButton: Bool {
-        guard row.isEnabled else { return false }
+        guard row.isCurrent, row.isEnabled else { return false }
         return switch session.authorizationStatus {
             case .denied, .restricted, .whenInUse: true
             case .notDetermined, .always: false

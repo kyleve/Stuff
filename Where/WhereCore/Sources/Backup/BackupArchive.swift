@@ -9,7 +9,7 @@ import RegionKit
 /// The arrays represent the persisted collections (`SDLocationSample` /
 /// `SDEvidence` / `SDManualDay` / `SDDismissedIssue` / `SDTrackedRegion`) via
 /// their value-type representations, plus installation profiles, nickname events, the
-/// account-wide recording assignment, and archive tombstones. Target-owned check-ins are
+/// device-removal tombstones. Target-owned check-ins and local recording consent are
 /// intentionally excluded because a backup cannot restore proof of local physical state.
 public struct BackupArchive: Codable, Sendable, Hashable {
     /// Bumped whenever the archive's on-disk shape changes in a way older
@@ -18,7 +18,7 @@ public struct BackupArchive: Codable, Sendable, Hashable {
     /// `BackupService.readArchive`, which rejects any other version).
     ///
     /// v3 adds sample provenance, immutable installation profiles, nickname changes, archive
-    /// tombstones, and the account-wide recording assignment. Intermediate branch-only formats
+    /// tombstones. Intermediate branch-only formats
     /// were never shipped. There's no
     /// in-app decode
     /// fallback for an older archive — it is reshaped out of band by
@@ -47,10 +47,8 @@ public struct BackupArchive: Codable, Sendable, Hashable {
     public let recordingDeviceProfiles: [RecordingDeviceProfile]
     /// Full append-only nickname history.
     public let recordingDeviceMetadataChanges: [RecordingDeviceMetadataChange]
-    /// Account-wide automatic-recording assignment history.
-    public let recordingAssignmentChanges: [RecordingAssignmentChange]
-    /// Irreversible installation archive tombstones.
-    public let recordingDeviceArchives: [RecordingDeviceArchive]
+    /// Irreversible installation-removal tombstones.
+    public let recordingDeviceRemovals: [RecordingDeviceRemoval]
     /// One entry per evidence record that has blob bytes in the archive.
     /// Evidence without bytes simply has no entry here.
     public let assets: [BackupAssetEntry]
@@ -66,8 +64,7 @@ public struct BackupArchive: Codable, Sendable, Hashable {
         primaryRegions: [PrimaryRegion],
         recordingDeviceProfiles: [RecordingDeviceProfile],
         recordingDeviceMetadataChanges: [RecordingDeviceMetadataChange],
-        recordingAssignmentChanges: [RecordingAssignmentChange],
-        recordingDeviceArchives: [RecordingDeviceArchive],
+        recordingDeviceRemovals: [RecordingDeviceRemoval],
         assets: [BackupAssetEntry],
     ) {
         self.formatVersion = formatVersion
@@ -80,8 +77,7 @@ public struct BackupArchive: Codable, Sendable, Hashable {
         self.primaryRegions = primaryRegions
         self.recordingDeviceProfiles = recordingDeviceProfiles
         self.recordingDeviceMetadataChanges = recordingDeviceMetadataChanges
-        self.recordingAssignmentChanges = recordingAssignmentChanges
-        self.recordingDeviceArchives = recordingDeviceArchives
+        self.recordingDeviceRemovals = recordingDeviceRemovals
         self.assets = assets
     }
 }

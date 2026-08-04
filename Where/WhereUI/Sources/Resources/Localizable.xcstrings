@@ -2524,6 +2524,39 @@
         }
       }
     },
+    "device.removed.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatic recording has stopped. Rejoin to create a new device identity and choose whether this device should record."
+          }
+        }
+      }
+    },
+    "device.removed.rejoin" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rejoin This Device"
+          }
+        }
+      }
+    },
+    "device.removed.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This device was removed from Where"
+          }
+        }
+      }
+    },
     "evidence.add" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3565,6 +3598,17 @@
         }
       }
     },
+    "onboarding.recording.checking" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Checking your other devices…"
+          }
+        }
+      }
+    },
     "onboarding.recording.description" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3594,6 +3638,17 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Record on this iPhone?"
+          }
+        }
+      }
+    },
+    "onboarding.recording.recent" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Another device was recording recently"
           }
         }
       }
@@ -5722,39 +5777,6 @@
         }
       }
     },
-    "settings.devices.archive" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Archive Device"
-          }
-        }
-      }
-    },
-    "settings.devices.archive.confirm.message" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Where will hide this device now. Automatic recording stops after that device next connects and syncs. Its existing history is kept."
-          }
-        }
-      }
-    },
-    "settings.devices.archive.confirm.title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Archive this device?"
-          }
-        }
-      }
-    },
     "settings.devices.automaticRecording" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5860,7 +5882,40 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Turning recording off hides new locations from the cutoff immediately. The device physically stops when it next syncs."
+            "value" : "Recording choices are local to each device. Remove this device to stop it when it next syncs and hide later automatic locations."
+          }
+        }
+      }
+    },
+    "settings.devices.remove" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove from Where"
+          }
+        }
+      }
+    },
+    "settings.devices.remove.confirm.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatic recording stops when that device reconnects. Earlier history stays visible. Use Apple Lost Mode or remote erase for a missing device."
+          }
+        }
+      }
+    },
+    "settings.devices.remove.confirm.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove this device from Where?"
           }
         }
       }

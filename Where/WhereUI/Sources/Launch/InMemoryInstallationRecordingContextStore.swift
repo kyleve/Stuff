@@ -41,12 +41,17 @@ public final class InMemoryInstallationRecordingContextStore:
     public func confirmInitialRecording(
         isEnabled: Bool,
     ) throws -> InstallationRecordingContext {
-        if onboardingContext.initialRecordingChoice != nil { return onboardingContext }
-        onboardingContext = onboardingContext.confirmingInitialRecording(
-            isEnabled: isEnabled,
-            assignmentChangeID: makeUUID(),
-            confirmedAt: now(),
-        )
+        if onboardingContext.automaticRecordingEnabled != nil { return onboardingContext }
+        onboardingContext = onboardingContext.confirmingInitialRecording(isEnabled: isEnabled)
+        return onboardingContext
+    }
+
+    public func setAutomaticRecordingEnabled(_ isEnabled: Bool) throws {
+        onboardingContext = onboardingContext.settingAutomaticRecordingEnabled(isEnabled)
+    }
+
+    public func rejoin() throws -> InstallationRecordingContext {
+        onboardingContext = proposedContext(isRejoining: true)
         return onboardingContext
     }
 
@@ -65,14 +70,19 @@ public final class InMemoryInstallationRecordingContextStore:
     public func reset() throws {
         backupImportRecovery = nil
         onboardingImportCompletion = nil
-        onboardingContext = InstallationRecordingContext(
+        onboardingContext = proposedContext(isRejoining: false)
+    }
+
+    private func proposedContext(isRejoining: Bool) -> InstallationRecordingContext {
+        InstallationRecordingContext(
             currentDevice: CurrentRecordingDevice(
                 id: RecordingDeviceID(rawValue: makeUUID()),
                 systemName: onboardingContext.currentDevice.systemName,
                 kind: onboardingContext.currentDevice.kind,
             ),
             registeredAt: now(),
-            initialRecordingChoice: nil,
+            automaticRecordingEnabled: nil,
+            isRejoining: isRejoining,
         )
     }
 }

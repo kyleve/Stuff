@@ -99,7 +99,7 @@ struct WhereFormatTests {
             dismissedIssueCount: 4,
             trackedRegionCount: 6,
             recordingDeviceCount: 2,
-            recordingAssignmentChangeCount: 7,
+            recordingDeviceRemovalCount: 7,
         )
 
         let message = WhereFormat.backupImportCleanupMessage(summary)

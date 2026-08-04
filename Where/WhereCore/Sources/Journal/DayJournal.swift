@@ -247,21 +247,21 @@ public actor DayJournal {
         let resetAt = now()
         try await Self.logger.measure(.eraseAllData, budget: .seconds(10)) {
             try await store.perform {
-                let epoch = try await store.rotateDataEpoch(
+                let deviceIDs = try await Set(store.recordingDeviceProfiles().map(\.id))
+                    .union([currentDeviceID])
+                _ = try await store.rotateDataEpoch(
                     reason: .accountReset,
                     changedBy: currentDeviceID,
                     at: resetAt,
                 )
-                try await store.addRecordingAssignmentChange(RecordingAssignmentChange(
-                    id: UUID(),
-                    parentIDs: [],
-                    revision: 0,
-                    issuedAt: resetAt,
-                    issuedByDeviceID: currentDeviceID,
-                    effectiveAt: epoch.changedAt,
-                    assignedDeviceID: nil,
-                    reason: .accountReset,
-                ))
+                for deviceID in deviceIDs {
+                    try await store.addRecordingDeviceRemoval(RecordingDeviceRemoval(
+                        id: UUID(),
+                        deviceID: deviceID,
+                        removedAt: resetAt,
+                        removedByDeviceID: currentDeviceID,
+                    ))
+                }
             }
         }
         await reconcileAfterDayChange()

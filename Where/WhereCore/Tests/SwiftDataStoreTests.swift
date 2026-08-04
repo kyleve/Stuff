@@ -9,13 +9,6 @@ import Testing
 /// covered by `StoreChangeBroadcasterTests`; here we assert the *store* fires it
 /// on a committed `perform` and stays silent on a rolled-back one.
 struct SwiftDataStoreTests {
-    enum AssignmentMalformation: CaseIterable {
-        case negativeRevision
-        case duplicateParent
-        case selfParent
-        case resetTargetsDevice
-    }
-
     @Test func inspectorStoreURLUsesTheResolvedAppGroupRoot() {
         let groupURL = FileManager.default.temporaryDirectory.appending(
             path: "where-group-\(UUID().uuidString)",
@@ -156,12 +149,11 @@ struct SwiftDataStoreTests {
         #expect(await !firstPing(stream, within: .milliseconds(200)))
     }
 
-    @Test func recordingDeviceAndAssignmentRowsRoundTripWithoutDuplicateLogicalRows() async throws {
+    @Test func recordingDeviceRowsRoundTripWithoutDuplicateLogicalRows() async throws {
         let store = try SwiftDataStore.inMemory()
         let deviceID = try RecordingDeviceID(
             rawValue: #require(UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")),
         )
-        let assignmentID = try #require(UUID(uuidString: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB"))
         let date = Date(timeIntervalSinceReferenceDate: 100)
         let profile = RecordingDeviceProfile(
             id: deviceID,
@@ -182,19 +174,7 @@ struct SwiftDataStoreTests {
             deviceID: deviceID,
             revision: 0,
             lastSeenAt: date,
-            appliedAt: date,
-            lastAppliedAssignmentChangeID: assignmentID,
             status: .off,
-        )
-        let assignment = RecordingAssignmentChange(
-            id: assignmentID,
-            parentIDs: [],
-            revision: 0,
-            issuedAt: date,
-            issuedByDeviceID: deviceID,
-            effectiveAt: date,
-            assignedDeviceID: nil,
-            reason: .onboarding,
         )
 
         try await store.perform {
@@ -204,8 +184,6 @@ struct SwiftDataStoreTests {
             try await store.addRecordingDeviceMetadataChange(nicknameMetadata)
             try await store.setRecordingDeviceCheckIn(checkIn)
             try await store.setRecordingDeviceCheckIn(checkIn)
-            try await store.addRecordingAssignmentChange(assignment)
-            try await store.addRecordingAssignmentChange(assignment)
         }
 
         #expect(try await store.recordingDeviceProfiles() == [profile])
@@ -218,11 +196,9 @@ struct SwiftDataStoreTests {
             kind: .tablet,
             registeredAt: date,
             lastSeenAt: date,
-            archivedAt: nil,
-            lastAppliedAssignmentChangeID: assignmentID,
+            removedAt: nil,
             status: .off,
         )])
-        #expect(try await store.recordingAssignmentChanges() == [assignment])
     }
 
     /// A remote import (simulated via a scripted source) re-pings the same
@@ -242,151 +218,52 @@ struct SwiftDataStoreTests {
         #expect(await firstPing(stream, within: .seconds(2)))
     }
 
-    @Test func unreadableAssignmentHeadInvalidatesTheWholeTimeline() async throws {
+    @Test func unreadableRemovalFailsClosed() async throws {
         let container = try SwiftDataStore.makeContainer(storage: .inMemory)
         let context = ModelContext(container)
-        let deviceID = RecordingDeviceID(rawValue: UUID())
-        let date = Date(timeIntervalSinceReferenceDate: 100)
-        let initial = RecordingAssignmentChange(
-            id: UUID(),
-            parentIDs: [],
-            revision: 0,
-            issuedAt: date,
-            issuedByDeviceID: deviceID,
-            effectiveAt: date,
-            assignedDeviceID: deviceID,
-            reason: .onboarding,
-        )
-        context.insert(SDRecordingAssignmentChange(value: initial, epochID: .initial))
-        let unreadableOff = SDRecordingAssignmentChange()
-        unreadableOff.epochID = WhereDataEpochID.initial.rawValue
-        unreadableOff.id = UUID()
-        unreadableOff.parentIDs = [initial.id]
-        unreadableOff.revision = 1
-        unreadableOff.issuedAt = date
-        unreadableOff.issuedByDeviceID = deviceID.rawValue
-        unreadableOff.effectiveAt = date
-        unreadableOff.assignedDeviceID = nil
-        unreadableOff.reasonRaw = nil
-        context.insert(unreadableOff)
+        let row = SDRecordingDeviceRemoval()
+        row.epochID = WhereDataEpochID.initial.rawValue
+        row.id = UUID()
+        row.deviceID = UUID()
+        row.removedAt = Date(timeIntervalSinceReferenceDate: 100)
+        context.insert(row)
         try context.save()
 
         let store = SwiftDataStore(modelContainer: container)
-
-        await #expect(throws: RecordingPersistenceError.incompleteAssignmentHistory) {
-            try await store.recordingAssignmentChanges()
+        await #expect(throws: RecordingPersistenceError.incompleteRemovalHistory) {
+            try await store.recordingDeviceRemovals()
         }
     }
 
-    @Test func identicalPhysicalAssignmentRowsCollapseBeforeTimelineValidation() async throws {
+    @Test func identicalRemovalRowsCanonicalizeAndConflictsFailClosed() async throws {
         let container = try SwiftDataStore.makeContainer(storage: .inMemory)
         let context = ModelContext(container)
-        let deviceID = RecordingDeviceID(rawValue: UUID())
-        let date = Date(timeIntervalSinceReferenceDate: 100)
-        let assignment = RecordingAssignmentChange(
+        let removal = RecordingDeviceRemoval(
             id: UUID(),
-            parentIDs: [],
-            revision: 0,
-            issuedAt: date,
-            issuedByDeviceID: deviceID,
-            effectiveAt: date,
-            assignedDeviceID: deviceID,
-            reason: .onboarding,
+            deviceID: RecordingDeviceID(rawValue: UUID()),
+            removedAt: Date(timeIntervalSinceReferenceDate: 100),
+            removedByDeviceID: RecordingDeviceID(rawValue: UUID()),
         )
-        context.insert(SDRecordingAssignmentChange(value: assignment, epochID: .initial))
-        context.insert(SDRecordingAssignmentChange(value: assignment, epochID: .initial))
+        context.insert(SDRecordingDeviceRemoval(value: removal, epochID: .initial))
+        context.insert(SDRecordingDeviceRemoval(value: removal, epochID: .initial))
         try context.save()
-
         let store = SwiftDataStore(modelContainer: container)
+        #expect(try await store.recordingDeviceRemovals() == [removal])
 
-        #expect(try await store.recordingAssignmentChanges() == [assignment])
-    }
-
-    @Test func conflictingPhysicalAssignmentRowsFailClosed() async throws {
-        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
-        let context = ModelContext(container)
-        let deviceID = RecordingDeviceID(rawValue: UUID())
-        let id = UUID()
-        let date = Date(timeIntervalSinceReferenceDate: 100)
-        let first = RecordingAssignmentChange(
-            id: id,
-            parentIDs: [],
-            revision: 0,
-            issuedAt: date,
-            issuedByDeviceID: deviceID,
-            effectiveAt: date,
-            assignedDeviceID: deviceID,
-            reason: .onboarding,
+        let conflictContext = ModelContext(container)
+        let conflicting = RecordingDeviceRemoval(
+            id: removal.id,
+            deviceID: removal.deviceID,
+            removedAt: removal.removedAt.addingTimeInterval(1),
+            removedByDeviceID: removal.removedByDeviceID,
         )
-        let conflicting = RecordingAssignmentChange(
-            id: id,
-            parentIDs: [],
-            revision: 0,
-            issuedAt: date,
-            issuedByDeviceID: deviceID,
-            effectiveAt: date,
-            assignedDeviceID: nil,
-            reason: .onboarding,
-        )
-        context.insert(SDRecordingAssignmentChange(value: first, epochID: .initial))
-        context.insert(SDRecordingAssignmentChange(value: conflicting, epochID: .initial))
-        try context.save()
+        conflictContext.insert(SDRecordingDeviceRemoval(value: conflicting, epochID: .initial))
+        try conflictContext.save()
 
-        let store = SwiftDataStore(modelContainer: container)
-
-        await #expect(throws: RecordingPersistenceError.conflictingImmutableRecord(id: id)) {
-            try await store.recordingAssignmentChanges()
-        }
-    }
-
-    @Test(arguments: AssignmentMalformation.allCases)
-    func malformedPersistedAssignmentsFailClosed(
-        _ malformation: AssignmentMalformation,
-    ) async throws {
-        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
-        let context = ModelContext(container)
-        let deviceID = RecordingDeviceID(rawValue: UUID())
-        let date = Date(timeIntervalSinceReferenceDate: 100)
-        let initial = RecordingAssignmentChange(
-            id: UUID(),
-            parentIDs: [],
-            revision: 0,
-            issuedAt: date,
-            issuedByDeviceID: deviceID,
-            effectiveAt: date,
-            assignedDeviceID: deviceID,
-            reason: .onboarding,
-        )
-        context.insert(SDRecordingAssignmentChange(value: initial, epochID: .initial))
-        let malformed = SDRecordingAssignmentChange()
-        let malformedID = UUID()
-        malformed.epochID = WhereDataEpochID.initial.rawValue
-        malformed.id = malformedID
-        malformed.parentIDs = [initial.id]
-        malformed.revision = 1
-        malformed.issuedAt = date
-        malformed.issuedByDeviceID = deviceID.rawValue
-        malformed.effectiveAt = date
-        malformed.assignedDeviceID = nil
-        malformed.reasonRaw = RecordingAssignmentReason.userCommand.rawValue
-        switch malformation {
-            case .negativeRevision:
-                malformed.revision = -1
-            case .duplicateParent:
-                malformed.parentIDs = [initial.id, initial.id]
-            case .selfParent:
-                malformed.parentIDs = [malformedID]
-            case .resetTargetsDevice:
-                malformed.assignedDeviceID = deviceID.rawValue
-                malformed.reasonRaw = RecordingAssignmentReason.accountReset.rawValue
-        }
-        context.insert(malformed)
-        try context.save()
-
-        let store = SwiftDataStore(modelContainer: container)
-
-        await #expect(throws: RecordingPersistenceError.incompleteAssignmentHistory) {
-            try await store.recordingAssignmentChanges()
+        await #expect(throws: RecordingPersistenceError
+            .conflictingImmutableRecord(id: removal.id))
+        {
+            try await store.recordingDeviceRemovals()
         }
     }
 
@@ -397,7 +274,6 @@ struct SwiftDataStoreTests {
         let deviceID = try RecordingDeviceID(
             rawValue: #require(UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")),
         )
-        let assignmentID = try #require(UUID(uuidString: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB"))
         let date = Date(timeIntervalSinceReferenceDate: 100)
         let profile = RecordingDeviceProfile(
             id: deviceID,
@@ -418,27 +294,14 @@ struct SwiftDataStoreTests {
             deviceID: deviceID,
             revision: 0,
             lastSeenAt: date,
-            appliedAt: date,
-            lastAppliedAssignmentChangeID: assignmentID,
             status: .recording,
-        )
-        let assignment = RecordingAssignmentChange(
-            id: assignmentID,
-            parentIDs: [],
-            revision: 0,
-            issuedAt: date,
-            issuedByDeviceID: deviceID,
-            effectiveAt: date,
-            assignedDeviceID: deviceID,
-            reason: .onboarding,
         )
 
         try await store.simulateRemoteRecordingImport(
             profiles: [profile],
             metadataChanges: [metadata],
             checkIns: [checkIn],
-            assignmentChanges: [assignment],
-            archives: [],
+            removals: [],
         )
 
         // The seam suppresses the ordinary local-commit ping: observers must
@@ -451,11 +314,9 @@ struct SwiftDataStoreTests {
         #expect(try await store.recordingDeviceProfiles() == [profile])
         #expect(try await store.recordingDeviceMetadataChanges() == [metadata])
         #expect(try await store.recordingDeviceCheckIns() == [checkIn])
-        #expect(try await store.recordingAssignmentChanges() == [assignment])
         let device = try #require(try await store.recordingDevices().first)
         #expect(device.nickname == "Travel iPad")
         #expect(device.status == .recording)
-        #expect(device.lastAppliedAssignmentChangeID == assignmentID)
     }
 
     @Test func newerCheckInRevisionWinsEvenWhenItsWallClockMovedBackward() async throws {
@@ -463,22 +324,16 @@ struct SwiftDataStoreTests {
         let deviceID = try RecordingDeviceID(
             rawValue: #require(UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")),
         )
-        let firstPolicyID = try #require(UUID(uuidString: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB"))
-        let secondPolicyID = try #require(UUID(uuidString: "CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC"))
         let first = RecordingDeviceCheckIn(
             deviceID: deviceID,
             revision: 0,
             lastSeenAt: Date(timeIntervalSinceReferenceDate: 200),
-            appliedAt: Date(timeIntervalSinceReferenceDate: 200),
-            lastAppliedAssignmentChangeID: firstPolicyID,
             status: .recording,
         )
         let causallyLater = RecordingDeviceCheckIn(
             deviceID: deviceID,
             revision: 1,
             lastSeenAt: Date(timeIntervalSinceReferenceDate: 100),
-            appliedAt: Date(timeIntervalSinceReferenceDate: 100),
-            lastAppliedAssignmentChangeID: secondPolicyID,
             status: .off,
         )
 
@@ -516,8 +371,6 @@ struct SwiftDataStoreTests {
         checkIn.deviceID = deviceID
         checkIn.revision = -1
         checkIn.lastSeenAt = date
-        checkIn.appliedAt = date
-        checkIn.lastAppliedAssignmentChangeID = eventID
         checkIn.statusRaw = RecordingDeviceStatus.off.rawValue
 
         context.insert(negativeMetadata)
@@ -571,7 +424,6 @@ struct SwiftDataStoreTests {
         let deviceID = try RecordingDeviceID(
             rawValue: #require(UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")),
         )
-        let policyID = try #require(UUID(uuidString: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB"))
         let date = Date(timeIntervalSinceReferenceDate: 100)
         let sample = LocationSample(
             timestamp: date,
@@ -616,19 +468,7 @@ struct SwiftDataStoreTests {
             deviceID: deviceID,
             revision: 0,
             lastSeenAt: date,
-            appliedAt: date,
-            lastAppliedAssignmentChangeID: policyID,
             status: .recording,
-        )
-        let assignment = RecordingAssignmentChange(
-            id: policyID,
-            parentIDs: [],
-            revision: 0,
-            issuedAt: date,
-            issuedByDeviceID: deviceID,
-            effectiveAt: date,
-            assignedDeviceID: deviceID,
-            reason: .onboarding,
         )
 
         let epoch = try await store.perform {
@@ -655,7 +495,6 @@ struct SwiftDataStoreTests {
         remoteContext.insert(SDTrackedRegion(regionID: "us-TX", epochID: .initial))
         remoteContext.insert(SDRecordingDeviceMetadataChange(value: metadata, epochID: .initial))
         remoteContext.insert(SDRecordingDeviceCheckIn(value: checkIn, epochID: .initial))
-        remoteContext.insert(SDRecordingAssignmentChange(value: assignment, epochID: .initial))
         try remoteContext.save()
 
         let reader = SwiftDataStore(modelContainer: container)
@@ -669,7 +508,6 @@ struct SwiftDataStoreTests {
         #expect(try await reader.recordingDeviceProfiles() == [profile])
         #expect(try await reader.recordingDeviceMetadataChanges().isEmpty)
         #expect(try await reader.recordingDeviceCheckIns().isEmpty)
-        #expect(try await reader.recordingAssignmentChanges().isEmpty)
     }
 
     @Test func expectedEpochTransactionRejectsStaleAuthorityWithoutWriting() async throws {
@@ -1063,7 +901,7 @@ struct SwiftDataStoreTests {
         let deviceID = try RecordingDeviceID(
             rawValue: #require(UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")),
         )
-        let policyID = try #require(UUID(uuidString: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB"))
+        let removalID = try #require(UUID(uuidString: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB"))
         let metadataID = try #require(UUID(uuidString: "CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC"))
         let sampleID = try #require(UUID(uuidString: "DDDDDDDD-DDDD-DDDD-DDDD-DDDDDDDDDDDD"))
         let date = Date(timeIntervalSinceReferenceDate: 200)
@@ -1083,15 +921,11 @@ struct SwiftDataStoreTests {
             changedByDeviceID: deviceID,
             nickname: "Home iPad",
         )
-        let assignment = RecordingAssignmentChange(
-            id: policyID,
-            parentIDs: [],
-            revision: 0,
-            issuedAt: date,
-            issuedByDeviceID: deviceID,
-            effectiveAt: date,
-            assignedDeviceID: nil,
-            reason: .onboarding,
+        let removal = RecordingDeviceRemoval(
+            id: removalID,
+            deviceID: deviceID,
+            removedAt: date,
+            removedByDeviceID: deviceID,
         )
         let currentEpoch = try await store.perform {
             try await store.rotateDataEpoch(
@@ -1104,13 +938,13 @@ struct SwiftDataStoreTests {
         let remoteContext = ModelContext(container)
         remoteContext.insert(SDLocationSample(value: sample, epochID: .initial))
         remoteContext.insert(SDRecordingDeviceMetadataChange(value: metadata, epochID: .initial))
-        remoteContext.insert(SDRecordingAssignmentChange(value: assignment, epochID: .initial))
+        remoteContext.insert(SDRecordingDeviceRemoval(value: removal, epochID: .initial))
         try remoteContext.save()
 
         try await store.perform(expectedDataEpochID: currentEpoch.id) {
             try await store.add(sample: sample)
             try await store.addRecordingDeviceMetadataChange(metadata)
-            try await store.addRecordingAssignmentChange(assignment)
+            try await store.addRecordingDeviceRemoval(removal)
         }
 
         let inspectionContext = ModelContext(container)
@@ -1122,9 +956,9 @@ struct SwiftDataStoreTests {
                 $0.id == metadataID
             }),
         )
-        let assignmentRows = try inspectionContext.fetch(
-            FetchDescriptor<SDRecordingAssignmentChange>(predicate: #Predicate {
-                $0.id == policyID
+        let removalRows = try inspectionContext.fetch(
+            FetchDescriptor<SDRecordingDeviceRemoval>(predicate: #Predicate {
+                $0.id == removalID
             }),
         )
         let expectedEpochIDs = Set([
@@ -1136,11 +970,11 @@ struct SwiftDataStoreTests {
         #expect(Set(sampleRows.compactMap(\.epochID)) == expectedEpochIDs)
         #expect(metadataRows.count == 2)
         #expect(Set(metadataRows.compactMap(\.epochID)) == expectedEpochIDs)
-        #expect(assignmentRows.count == 2)
-        #expect(Set(assignmentRows.compactMap(\.epochID)) == expectedEpochIDs)
+        #expect(removalRows.count == 2)
+        #expect(Set(removalRows.compactMap(\.epochID)) == expectedEpochIDs)
         #expect(try await store.allSamples() == [sample])
         #expect(try await store.recordingDeviceMetadataChanges() == [metadata])
-        #expect(try await store.recordingAssignmentChanges() == [assignment])
+        #expect(try await store.recordingDeviceRemovals() == [removal])
     }
 
     @Test func duplicateProfilesResolveDeterministicallyByRegistrationEpoch() async throws {

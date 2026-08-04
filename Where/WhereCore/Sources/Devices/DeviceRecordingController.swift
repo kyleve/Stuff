@@ -1,67 +1,47 @@
 import Foundation
 
-/// Owns recording-device registration, account-wide assignment commands, and this installation's
+/// Owns this installation's local automatic-recording choice, synced device presence, and
 /// physical GPS reconciliation.
 ///
-/// The controller deliberately persists three independently owned device records: an immutable
-/// profile created by the installation, append-only nickname events authored from any device,
-/// and a target-owned check-in. Desired authority is one account-wide append-only assignment;
-/// irreversible archive tombstones are separate.
-/// Keeping those writers apart prevents CloudKit's last-writer-wins merge from rolling unrelated
-/// fields backward.
-///
-/// Registration is one explicit lifecycle operation. Reads and later commands never accept or
-/// infer an initial preference, so the synced assignment is the only authority after registration.
-/// A
-/// focused store observer compares the current installation's effective authority and check-in.
-/// Unrelated sample or region writes do not repeatedly reconcile GPS except when a heartbeat
-/// is due.
+/// Recording consent never enters CloudKit: the controller receives it from the backup-excluded
+/// installation sidecar. Synced check-ins are advisory status, while an append-only removal
+/// tombstone permanently retires an identity. Every removal read is epoch-pinned and failures
+/// stop recording rather than trusting stale state.
 public actor DeviceRecordingController {
     private let store: any WhereStore
     private let ingestor: LocationIngestor
     public nonisolated let currentDevice: CurrentRecordingDevice
+    private let registeredAt: Date
     private let now: @Sendable () -> Date
     private let onPolicyChanged: @Sendable () async -> Void
-    private let registeredAt: Date
-    private let initialRecordingChoice: InstallationRecordingContext.InitialRecordingChoice
     private let configurationBroadcaster = RecordingConfigurationBroadcaster()
 
-    /// Reentrancy-safe gate held across store and physical-ingestor awaits. Actor isolation alone
-    /// is insufficient because another command can enter while an actor method is suspended.
+    private var automaticRecordingEnabled: Bool
+    private var enabledAt: Date?
+    private var preparedEpochID: WhereDataEpochID?
+
+    /// Actor reentrancy permits another command to enter at an `await`; this gate serializes the
+    /// full store/physical transition rather than only its synchronous fragments.
     private var isExclusive = false
     private var waiters: [CheckedContinuation<Void, Never>] = []
     private var acceptsOperations = true
-    /// Whether this stack has entered the recording lifecycle. A scope created only to restore
-    /// onboarding data has not: backup completion must not invent authority that did not exist
-    /// before the reversible import pause.
     private var recordingLifecycleStarted = false
-    /// Snapshot consumed by the matching resume path after a reversible pause.
-    private var shouldResumeAuthorityAfterPause = false
-    /// Prevents two reset/import lifecycles from interleaving across their actor awaits.
+    private var shouldResumeAfterPause = false
     private var isRewritePaused = false
-
-    private var assignmentObservationTask: Task<Void, Never>?
-    /// Exact assignment frontier most recently applied and acknowledged on this installation.
-    private var lastAppliedCurrentAssignmentID: UUID?
-    /// Retained after fail-closed reconciliation so any later store ping retries it.
-    private var needsAssignmentReconciliation = false
+    private var observationTask: Task<Void, Never>?
+    private var needsReconciliation = false
     private var nextRuntimeSequence: UInt64 = 0
     private var latestRuntimeUpdate: RecordingDeviceRuntimeUpdate?
 
     private static let checkInInterval: TimeInterval = 15 * 60
-
     private static let logger = WhereLog.root(DeviceRecordingControllerLog.self)
 
-    /// Epoch-pinned recording tables used to make one authority decision. A reset/Replace that
-    /// lands while these tables are loading makes the snapshot throw instead of combining old
-    /// assignment with new-epoch check-ins.
     private struct StoreSnapshot {
         let epoch: WhereDataEpoch
         let profiles: [RecordingDeviceProfile]
         let metadataChanges: [RecordingDeviceMetadataChange]
         let checkIns: [RecordingDeviceCheckIn]
-        let assignmentChanges: [RecordingAssignmentChange]
-        let archives: [RecordingDeviceArchive]
+        let removals: [RecordingDeviceRemoval]
     }
 
     init(
@@ -71,53 +51,45 @@ public actor DeviceRecordingController {
         now: @escaping @Sendable () -> Date,
         onPolicyChanged: @escaping @Sendable () async -> Void,
     ) {
-        self.store = store
-        self.ingestor = ingestor
-        guard let initialRecordingChoice = installationContext.initialRecordingChoice else {
+        guard let automaticRecordingEnabled = installationContext.automaticRecordingEnabled else {
             preconditionFailure("Recording services require a confirmed installation context.")
         }
+        self.store = store
+        self.ingestor = ingestor
         currentDevice = installationContext.currentDevice
         registeredAt = installationContext.registeredAt
-        self.initialRecordingChoice = initialRecordingChoice
+        self.automaticRecordingEnabled = automaticRecordingEnabled
+        enabledAt = automaticRecordingEnabled ? installationContext.registeredAt : nil
         self.now = now
         self.onPolicyChanged = onPolicyChanged
     }
 
     deinit {
-        assignmentObservationTask?.cancel()
+        observationTask?.cancel()
         configurationBroadcaster.finishAll()
     }
 
-    /// Applied current-installation states, emitted only after acknowledgement is durable.
-    public nonisolated func runtimeUpdates()
-        -> AsyncStream<RecordingDeviceRuntimeUpdate>
-    {
+    public nonisolated func runtimeUpdates() -> AsyncStream<RecordingDeviceRuntimeUpdate> {
         configurationBroadcaster.subscribe()
     }
 
-    /// Latest controller-ordered runtime state, for a caller that needs to synchronize after an
-    /// awaited command without racing a newer emission already queued on the async stream.
     public func currentRuntimeUpdate() -> RecordingDeviceRuntimeUpdate? {
         latestRuntimeUpdate
     }
 
-    /// Start the focused assignment observer. Safe to call repeatedly from lifecycle setup.
-    public func startMonitoringAssignmentChanges() {
+    /// Observe local commits and CloudKit imports for removal, status, and heartbeat changes.
+    public func startMonitoringChanges() {
         recordingLifecycleStarted = true
-        guard assignmentObservationTask == nil else { return }
+        guard observationTask == nil else { return }
         let updates = store.changes()
-        assignmentObservationTask = Task { [weak self] in
+        observationTask = Task { [weak self] in
             for await _ in updates {
                 guard let self else { break }
-                await applyObservedAssignmentChange()
+                await applyObservedChange()
             }
         }
     }
 
-    /// Register this installation and its confirmed initial choice exactly once, then apply it.
-    /// `initialAssignmentChangeID` comes from the non-backed-up installation context, making a
-    /// retry
-    /// idempotent even if profile and assignment records are observed at different times.
     @discardableResult
     public func register(
         authorization: LocationAuthorizationStatus,
@@ -126,27 +98,9 @@ public actor DeviceRecordingController {
         defer { endExclusive() }
         try requireActive()
         recordingLifecycleStarted = true
-        do {
-            try await registerLocked(
-                initialAssignmentChangeID: initialRecordingChoice.assignmentChangeID,
-                initialEnabled: initialRecordingChoice.isEnabled,
-            )
-            let reconciliation = try await reconcileLocked(authorization: authorization)
-            lastAppliedCurrentAssignmentID = reconciliation.latestAssignmentChangeID
-            needsAssignmentReconciliation = false
-            return reconciliation
-        } catch {
-            needsAssignmentReconciliation = true
-            await ingestor.revokeRecordingAuthorization()
-            publishRuntimeState(.unavailable)
-            throw error
-        }
+        return try await registerAndReconcileLocked(authorization: authorization)
     }
 
-    /// Register the immutable first choice, then apply the user's current onboarding selection
-    /// before opening physical recording authority. This differs only on a retry after the first
-    /// choice was already persisted: the immutable event stays intact and the new selection is a
-    /// causal follow-up command, instead of silently snapping the UI back to the earlier choice.
     @discardableResult
     public func registerForOnboarding(
         desiredEnabled: Bool?,
@@ -156,56 +110,13 @@ public actor DeviceRecordingController {
         defer { endExclusive() }
         try requireActive()
         recordingLifecycleStarted = true
-        do {
-            try await registerLocked(
-                initialAssignmentChangeID: initialRecordingChoice.assignmentChangeID,
-                initialEnabled: initialRecordingChoice.isEnabled,
-            )
-            let snapshot = try await storeSnapshot()
-            let commandDate = now()
-            let desiredAssignment: RecordingAssignment? = desiredEnabled.map {
-                $0 ? .device(currentDevice.id) : .off
-            }
-            let assignmentChange: RecordingAssignmentChange? = if let desiredAssignment,
-                                                                  RecordingAssignmentChange
-                                                                  .resolve(snapshot
-                                                                      .assignmentChanges).assignment
-                                                                  != desiredAssignment
-            {
-                try RecordingAssignmentChange.appendingCommand(
-                    to: snapshot.assignmentChanges,
-                    assignment: desiredAssignment,
-                    issuedAt: commandDate,
-                    issuedByDeviceID: currentDevice.id,
-                    effectiveAt: max(commandDate, snapshot.epoch.changedAt),
-                    reason: .userCommand,
-                )
-            } else {
-                nil
-            }
-            if let assignmentChange {
-                try await store.perform(expectedDataEpochID: snapshot.epoch.id) {
-                    try await self.store.addRecordingAssignmentChange(assignmentChange)
-                }
-                // Historical visibility changed as soon as the authority event committed. Do
-                // not make derived reconciliation depend on a later physical/check-in success.
-                await onPolicyChanged()
-            }
-
-            let reconciliation = try await reconcileLocked(authorization: authorization)
-            lastAppliedCurrentAssignmentID = reconciliation.latestAssignmentChangeID
-            needsAssignmentReconciliation = false
-            return reconciliation
-        } catch {
-            needsAssignmentReconciliation = true
-            await ingestor.revokeRecordingAuthorization()
-            publishRuntimeState(.unavailable)
-            throw error
+        if let desiredEnabled, desiredEnabled != automaticRecordingEnabled {
+            automaticRecordingEnabled = desiredEnabled
+            enabledAt = desiredEnabled ? now() : nil
         }
+        return try await registerAndReconcileLocked(authorization: authorization)
     }
 
-    /// Apply the latest synced assignment to this installation. Failure is fail-closed: GPS is
-    /// stopped before the error is surfaced, so stale local preference can never authorize a fix.
     @discardableResult
     public func reconcile(
         authorization: LocationAuthorizationStatus,
@@ -214,115 +125,34 @@ public actor DeviceRecordingController {
         defer { endExclusive() }
         try requireActive()
         recordingLifecycleStarted = true
-        do {
-            let reconciliation = try await reconcileLocked(authorization: authorization)
-            lastAppliedCurrentAssignmentID = reconciliation.latestAssignmentChangeID
-            needsAssignmentReconciliation = false
-            return reconciliation
-        } catch {
-            needsAssignmentReconciliation = true
-            await ingestor.revokeRecordingAuthorization()
-            publishRuntimeState(.unavailable)
-            throw error
-        }
+        return try await reconcileOrFailClosed(authorization: authorization)
     }
 
-    /// Pure read of active device configurations paired with the global assignment.
+    /// Apply a choice already persisted by the installation sidecar.
+    @discardableResult
+    public func setAutomaticRecordingEnabled(
+        _ enabled: Bool,
+        authorization: LocationAuthorizationStatus,
+    ) async throws -> RecordingDeviceConfiguration {
+        await beginExclusive()
+        defer { endExclusive() }
+        try requireActive()
+        if automaticRecordingEnabled != enabled {
+            automaticRecordingEnabled = enabled
+            enabledAt = enabled ? now() : nil
+        }
+        if !enabled {
+            await ingestor.revokeRecordingAuthorization()
+            try await ingestor.discardRetryBacklog()
+        }
+        return try await reconcileOrFailClosed(authorization: authorization)
+    }
+
     public func devices() async throws -> [RecordingDeviceConfiguration] {
         await beginExclusive()
         defer { endExclusive() }
         try requireActive()
-        return try await configurationsLocked(includeArchived: false)
-    }
-
-    /// Read the one account-wide assignment and every installation eligible to receive it.
-    public func authoritySnapshot() async throws -> RecordingAuthoritySnapshot {
-        await beginExclusive()
-        defer { endExclusive() }
-        try requireActive()
-        return try await store.readSnapshot {
-            async let devices = store.recordingDevices()
-            async let changes = store.recordingAssignmentChanges()
-            async let archives = store.recordingDeviceArchives()
-            let values = try await (devices, changes, archives)
-            return RecordingAuthoritySnapshot(
-                resolution: RecordingAssignmentChange.resolve(values.1),
-                devices: values.0,
-                archivedDeviceIDs: Set(values.2.map(\.deviceID)),
-            )
-        }
-    }
-
-    /// Transfer automatic recording immediately to one installation.
-    @discardableResult
-    public func assignAutomaticRecording(
-        to deviceID: RecordingDeviceID,
-    ) async throws -> RecordingAuthoritySnapshot {
-        _ = try await setEnabled(true, for: deviceID)
-        return try await authoritySnapshot()
-    }
-
-    /// Turn account-wide automatic recording Off.
-    @discardableResult
-    public func turnOffAutomaticRecording() async throws -> RecordingAuthoritySnapshot {
-        _ = try await setEnabled(false, for: currentDevice.id)
-        return try await authoritySnapshot()
-    }
-
-    /// Append a desired-state command. A command for this installation is physically reconciled
-    /// and acknowledged before returning; a remote command remains pending until its target syncs.
-    @discardableResult
-    public func setEnabled(
-        _ enabled: Bool,
-        for deviceID: RecordingDeviceID,
-    ) async throws -> [RecordingDeviceConfiguration] {
-        await beginExclusive()
-        defer { endExclusive() }
-        try requireActive()
-
-        let snapshot = try await storeSnapshot()
-        guard snapshot.profiles.contains(where: { $0.id == deviceID }) else {
-            throw RecordingPersistenceError.deviceNotFound(deviceID)
-        }
-        let epoch = snapshot.epoch
-        let issuedAt = now()
-        let desiredAssignment: RecordingAssignment = enabled ? .device(deviceID) : .off
-        let assignmentChange: RecordingAssignmentChange? = if RecordingAssignmentChange
-            .resolve(snapshot.assignmentChanges).assignment == desiredAssignment
-        {
-            nil
-        } else {
-            try RecordingAssignmentChange.appendingCommand(
-                to: snapshot.assignmentChanges,
-                assignment: desiredAssignment,
-                issuedAt: issuedAt,
-                issuedByDeviceID: currentDevice.id,
-                effectiveAt: max(issuedAt, epoch.changedAt),
-                reason: .userCommand,
-            )
-        }
-        guard let assignmentChange else {
-            try await reconcileCurrentAfterCommandLocked()
-            return try await configurationsLocked(includeArchived: false)
-        }
-
-        try await store.perform(expectedDataEpochID: epoch.id) {
-            try await self.store.addRecordingAssignmentChange(assignmentChange)
-        }
-        // Close local physical authority before any potentially slow derived-data rebuild. The
-        // durable cutoff already hides history, but raw fixes must not continue entering the
-        // store/outbox after the user turns this installation Off.
-        if deviceID == currentDevice.id, !enabled {
-            await ingestor.revokeRecordingAuthorization()
-        }
-        if assignmentChange.assignedDeviceID != currentDevice.id {
-            await ingestor.revokeRecordingAuthorization()
-        }
-        // The cutoff is already durable even if physical acknowledgement below fails.
-        await onPolicyChanged()
-
-        try await reconcileCurrentAfterCommandLocked()
-        return try await configurationsLocked(includeArchived: false)
+        return try await configurationsLocked(includeRemoved: false)
     }
 
     /// Append a user-editable nickname change. Empty or whitespace-only input clears it.
@@ -337,12 +167,15 @@ public actor DeviceRecordingController {
         guard snapshot.profiles.contains(where: { $0.id == deviceID }) else {
             throw RecordingPersistenceError.deviceNotFound(deviceID)
         }
-        let changes = snapshot.metadataChanges
-        let latest = Self.latestMetadata(for: deviceID, field: .nickname, in: changes)
+        let latest = Self.latestMetadata(
+            for: deviceID,
+            field: .nickname,
+            in: snapshot.metadataChanges,
+        )
         let trimmed = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
         let resolvedNickname = trimmed.isEmpty ? nil : trimmed
         guard latest?.nickname != resolvedNickname else {
-            return try await configurationsLocked(includeArchived: false)
+            return try await configurationsLocked(includeRemoved: false)
         }
         let change = try RecordingDeviceMetadataChange(
             id: UUID(),
@@ -355,16 +188,15 @@ public actor DeviceRecordingController {
         try await store.perform(expectedDataEpochID: snapshot.epoch.id) {
             try await self.store.addRecordingDeviceMetadataChange(change)
         }
-        return try await configurationsLocked(includeArchived: false)
+        return try await configurationsLocked(includeRemoved: false)
     }
 
-    /// Hide a non-current device and turn global recording Off if it was assigned. History and raw
-    /// samples
-    /// remain in the event log and backups.
-    public func archive(
+    /// Permanently retire a remote installation identity. The target stops when it receives the
+    /// tombstone; retained samples before the cutoff remain part of history.
+    public func remove(
         _ deviceID: RecordingDeviceID,
     ) async throws -> [RecordingDeviceConfiguration] {
-        precondition(deviceID != currentDevice.id, "The current device cannot archive itself.")
+        precondition(deviceID != currentDevice.id, "The current device cannot remove itself.")
         await beginExclusive()
         defer { endExclusive() }
         try requireActive()
@@ -372,47 +204,22 @@ public actor DeviceRecordingController {
         guard snapshot.profiles.contains(where: { $0.id == deviceID }) else {
             throw RecordingPersistenceError.deviceNotFound(deviceID)
         }
-
-        let date = now()
-        let epoch = snapshot.epoch
-        let archive = snapshot.archives.contains(where: { $0.deviceID == deviceID }) ? nil :
-            RecordingDeviceArchive(
-                id: UUID(),
-                deviceID: deviceID,
-                archivedAt: date,
-                archivedByDeviceID: currentDevice.id,
-            )
-        let assignmentChange: RecordingAssignmentChange? = if RecordingAssignmentChange
-            .resolve(snapshot.assignmentChanges).assignment?.deviceID == deviceID
-        {
-            try RecordingAssignmentChange.appendingCommand(
-                to: snapshot.assignmentChanges,
-                assignment: .off,
-                issuedAt: date,
-                issuedByDeviceID: currentDevice.id,
-                effectiveAt: max(date, epoch.changedAt),
-                reason: .userCommand,
-            )
-        } else {
-            nil
+        guard snapshot.removals.contains(where: { $0.deviceID == deviceID }) == false else {
+            return try await configurationsLocked(includeRemoved: false)
         }
-        guard archive != nil || assignmentChange != nil else {
-            return try await configurationsLocked(includeArchived: false)
-        }
-        try await store.perform(expectedDataEpochID: epoch.id) {
-            if let archive {
-                try await self.store.addRecordingDeviceArchive(archive)
-            }
-            if let assignmentChange {
-                try await self.store.addRecordingAssignmentChange(assignmentChange)
-            }
+        let removal = RecordingDeviceRemoval(
+            id: UUID(),
+            deviceID: deviceID,
+            removedAt: now(),
+            removedByDeviceID: currentDevice.id,
+        )
+        try await store.perform(expectedDataEpochID: snapshot.epoch.id) {
+            try await self.store.addRecordingDeviceRemoval(removal)
         }
         await onPolicyChanged()
-        return try await configurationsLocked(includeArchived: false)
+        return try await configurationsLocked(includeRemoved: false)
     }
 
-    /// Reversibly close this stack around a backup import or reset transaction. Pending samples
-    /// remain owned by the installation until the destructive operation actually commits.
     func pause() async throws {
         await beginExclusive()
         defer { endExclusive() }
@@ -420,47 +227,115 @@ public actor DeviceRecordingController {
             throw RecordingPersistenceError.recordingRewriteInProgress
         }
         isRewritePaused = true
-        shouldResumeAuthorityAfterPause = shouldResumeAuthorityAfterPause
-            || recordingLifecycleStarted
+        shouldResumeAfterPause = shouldResumeAfterPause || recordingLifecycleStarted
         recordingLifecycleStarted = false
         acceptsOperations = false
-        assignmentObservationTask?.cancel()
-        assignmentObservationTask = nil
+        observationTask?.cancel()
+        observationTask = nil
         await ingestor.pause()
     }
 
-    /// Reopen a stack retained after a failed reset.
     func resumeAfterFailedReset() async {
         await beginExclusive()
         defer { endExclusive() }
         await resumeLocked()
     }
 
-    /// Reopen the old authority after a backup-import transaction rolls back.
     func resumeAfterImportRollback() async {
         await beginExclusive()
         defer { endExclusive() }
         await resumeLocked()
     }
 
+    func resumeAfterImport(discardPendingSamples: Bool) async throws {
+        await beginExclusive()
+        acceptsOperations = true
+        let shouldResume = shouldResumeAfterPause
+        if discardPendingSamples {
+            do {
+                try await ingestor.discardRetryBacklog()
+            } catch {
+                isRewritePaused = false
+                acceptsOperations = false
+                needsReconciliation = true
+                publishRuntimeState(.unavailable)
+                endExclusive()
+                throw error
+            }
+        }
+        shouldResumeAfterPause = false
+        isRewritePaused = false
+        guard shouldResume else {
+            endExclusive()
+            return
+        }
+        startMonitoringChanges()
+        do {
+            let authorization = await ingestor.authorizationStatus()
+            _ = try await registerAndReconcileLocked(authorization: authorization)
+        } catch RecordingPersistenceError.currentDeviceRemoved {
+            endExclusive()
+            return
+        } catch {
+            needsReconciliation = true
+            await ingestor.revokeRecordingAuthorization()
+            publishRuntimeState(.unavailable)
+            Self.logger(attachments: [.error(error, name: "import-recovery-error")]) {
+                .importRecoveryFailed(description: error.localizedDescription)
+            }
+        }
+        endExclusive()
+    }
+
+    func finishReset() async throws {
+        await beginExclusive()
+        do {
+            try await ingestor.discardRetryBacklog()
+        } catch {
+            isRewritePaused = false
+            needsReconciliation = true
+            publishRuntimeState(.unavailable)
+            endExclusive()
+            throw error
+        }
+        shouldResumeAfterPause = false
+        isRewritePaused = false
+        endExclusive()
+    }
+
+    /// Permanently close the removed scope before the app rotates its local identity.
+    public func retireForRejoin() async throws {
+        await beginExclusive()
+        acceptsOperations = false
+        recordingLifecycleStarted = false
+        observationTask?.cancel()
+        observationTask = nil
+        await ingestor.pause()
+        do {
+            try await ingestor.discardRetryBacklog()
+            publishRuntimeState(.removed)
+            endExclusive()
+        } catch {
+            publishRuntimeState(.unavailable)
+            endExclusive()
+            throw error
+        }
+    }
+
     private func resumeLocked() async {
         acceptsOperations = true
         isRewritePaused = false
-        let shouldResumeAuthority = shouldResumeAuthorityAfterPause
-        shouldResumeAuthorityAfterPause = false
-        guard shouldResumeAuthority else { return }
-        startMonitoringAssignmentChanges()
+        let shouldResume = shouldResumeAfterPause
+        shouldResumeAfterPause = false
+        guard shouldResume else { return }
+        startMonitoringChanges()
         do {
-            try await registerLocked(
-                initialAssignmentChangeID: initialRecordingChoice.assignmentChangeID,
-                initialEnabled: initialRecordingChoice.isEnabled,
-            )
             let authorization = await ingestor.authorizationStatus()
-            let reconciliation = try await reconcileLocked(authorization: authorization)
-            lastAppliedCurrentAssignmentID = reconciliation.latestAssignmentChangeID
-            needsAssignmentReconciliation = false
+            _ = try await registerAndReconcileLocked(authorization: authorization)
+        } catch RecordingPersistenceError.currentDeviceRemoved {
+            return
         } catch {
-            needsAssignmentReconciliation = true
+            needsReconciliation = true
             await ingestor.revokeRecordingAuthorization()
             publishRuntimeState(.unavailable)
             Self.logger(attachments: [.error(error, name: "rollback-recovery-error")]) {
@@ -469,115 +344,41 @@ public actor DeviceRecordingController {
         }
     }
 
-    /// Reactivate after a committed backup import, restore this installation's fixed
-    /// registration, and apply imported authority. Import data is already committed at this
-    /// point. Privacy-critical sidecar cleanup throws so the coordinator can report committed
-    /// partial success; later physical recovery remains fail-closed and logged for retry.
-    func resumeAfterImport(discardPendingSamples: Bool) async throws {
-        await beginExclusive()
-        acceptsOperations = true
-        let shouldResumeAuthority = shouldResumeAuthorityAfterPause
-        if discardPendingSamples {
-            do {
-                try await ingestor.discardRetryBacklog()
-            } catch {
-                // The import is already committed. Keep the old installation context and
-                // recording stack paused so a retry can remove the same sidecar safely.
-                isRewritePaused = false
-                acceptsOperations = false
-                needsAssignmentReconciliation = true
-                publishRuntimeState(.unavailable)
-                endExclusive()
-                throw error
-            }
-        }
-        shouldResumeAuthorityAfterPause = false
-        isRewritePaused = false
-        guard shouldResumeAuthority else {
-            endExclusive()
-            return
-        }
-        startMonitoringAssignmentChanges()
+    private func registerAndReconcileLocked(
+        authorization: LocationAuthorizationStatus,
+    ) async throws -> RecordingDeviceConfiguration {
         do {
-            try await registerLocked(
-                initialAssignmentChangeID: initialRecordingChoice.assignmentChangeID,
-                initialEnabled: initialRecordingChoice.isEnabled,
+            let snapshot = try await storeSnapshot()
+            let epoch = snapshot.epoch
+            let existing = snapshot.profiles.first(where: { $0.id == currentDevice.id })
+            let expected = expectedProfile(
+                registrationEpochID: existing?.registrationEpochID ?? epoch.id,
             )
-            let authorization = await ingestor.authorizationStatus()
-            let reconciliation = try await reconcileLocked(authorization: authorization)
-            lastAppliedCurrentAssignmentID = reconciliation.latestAssignmentChangeID
-            needsAssignmentReconciliation = false
-            endExclusive()
+            if existing != expected {
+                try await store.perform(expectedDataEpochID: epoch.id) {
+                    try await self.store.addRecordingDeviceProfile(expected)
+                }
+            }
+            return try await reconcileLocked(authorization: authorization)
+        } catch RecordingPersistenceError.currentDeviceRemoved {
+            throw RecordingPersistenceError.currentDeviceRemoved(currentDevice.id)
         } catch {
-            needsAssignmentReconciliation = true
+            needsReconciliation = true
             await ingestor.revokeRecordingAuthorization()
             publishRuntimeState(.unavailable)
-            endExclusive()
-            Self.logger(attachments: [.error(error, name: "import-recovery-error")]) {
-                .importRecoveryFailed(description: error.localizedDescription)
-            }
-        }
-    }
-
-    /// Finish a committed reset without reopening this installation's authority. A failed
-    /// sidecar cleanup leaves the old installation fail-closed; the destructive data epoch makes
-    /// a later retry clear the same backlog before acknowledgement.
-    func finishReset() async throws {
-        await beginExclusive()
-        do {
-            try await ingestor.discardRetryBacklog()
-        } catch {
-            isRewritePaused = false
-            needsAssignmentReconciliation = true
-            publishRuntimeState(.unavailable)
-            endExclusive()
             throw error
         }
-        shouldResumeAuthorityAfterPause = false
-        isRewritePaused = false
-        endExclusive()
     }
 
-    private func registerLocked(
-        initialAssignmentChangeID: UUID,
-        initialEnabled: Bool,
-    ) async throws {
-        let snapshot = try await storeSnapshot()
-        let epoch = snapshot.epoch
-        let existingProfile = snapshot.profiles.first(where: { $0.id == currentDevice.id })
-        let profile = expectedProfile(
-            registrationEpochID: existingProfile?.registrationEpochID ?? epoch.id,
-        )
-        let needsInitialAssignment = snapshot.assignmentChanges.isEmpty
-        let needsProfileWrite = existingProfile != profile
-        guard needsProfileWrite || needsInitialAssignment else { return }
-
-        // The add APIs validate identical immutable retries and reject conflicting payloads.
-        try await store.perform(expectedDataEpochID: epoch.id) {
-            try await self.store.addRecordingDeviceProfile(profile)
-            if needsInitialAssignment {
-                try await self.store.addRecordingAssignmentChange(RecordingAssignmentChange(
-                    id: initialAssignmentChangeID,
-                    parentIDs: [],
-                    revision: 0,
-                    issuedAt: self.initialRecordingChoice.confirmedAt,
-                    issuedByDeviceID: self.currentDevice.id,
-                    effectiveAt: max(self.initialRecordingChoice.confirmedAt, epoch.changedAt),
-                    assignedDeviceID: initialEnabled ? self.currentDevice.id : nil,
-                    reason: .onboarding,
-                ))
-            }
-        }
-    }
-
-    private func reconcileCurrentAfterCommandLocked() async throws {
+    private func reconcileOrFailClosed(
+        authorization: LocationAuthorizationStatus,
+    ) async throws -> RecordingDeviceConfiguration {
         do {
-            let authorization = await ingestor.authorizationStatus()
-            let reconciliation = try await reconcileLocked(authorization: authorization)
-            lastAppliedCurrentAssignmentID = reconciliation.latestAssignmentChangeID
-            needsAssignmentReconciliation = false
+            return try await reconcileLocked(authorization: authorization)
+        } catch RecordingPersistenceError.currentDeviceRemoved {
+            throw RecordingPersistenceError.currentDeviceRemoved(currentDevice.id)
         } catch {
-            needsAssignmentReconciliation = true
+            needsReconciliation = true
             await ingestor.revokeRecordingAuthorization()
             publishRuntimeState(.unavailable)
             throw error
@@ -591,75 +392,58 @@ public actor DeviceRecordingController {
         guard let profile = snapshot.profiles.first(where: { $0.id == currentDevice.id }) else {
             throw RecordingPersistenceError.currentDeviceNotRegistered(currentDevice.id)
         }
-        let epoch = snapshot.epoch
-        let resolution = RecordingAssignmentChange.resolve(snapshot.assignmentChanges)
-        guard let assignment = resolution.assignment,
-              let frontierID = RecordingAssignmentChange.frontierToken(
-                  in: snapshot.assignmentChanges,
-              ),
-              let heads = RecordingAssignmentChange.maximalHeads(in: snapshot.assignmentChanges)
-        else { throw RecordingPersistenceError.incompleteAssignmentHistory }
-        let assignedDeviceIsArchived = assignment.deviceID.map { assignedID in
-            snapshot.archives.contains(where: { $0.deviceID == assignedID })
-        } ?? false
-        guard assignedDeviceIsArchived == false else {
-            throw RecordingPersistenceError.incompleteAssignmentHistory
-        }
-        let isEnabled = assignment.deviceID == currentDevice.id
-        let effectiveAt = heads.map(\.effectiveAt).max() ?? epoch.changedAt
-        let nickname = Self.latestMetadata(
-            for: currentDevice.id,
-            field: .nickname,
-            in: snapshot.metadataChanges,
-        )
+        let removal = snapshot.removals
+            .filter { $0.deviceID == currentDevice.id }
+            .min { $0.removedAt < $1.removedAt }
 
-        let existing = snapshot.checkIns
-            .first(where: { $0.deviceID == currentDevice.id })
-        let requiredCleanupToken: RecordingAssignmentCleanupToken? = if epoch.isDestructive {
-            RecordingAssignmentCleanupToken(rawValue: epoch.id.rawValue)
-        } else {
-            nil
-        }
-
-        // Close the sample gate before computing or acknowledging authority. In particular,
-        // `authorizeRecording` restores and drains the durable outbox, so it cannot run until
-        // the check-in proving this assignment was applied has committed.
         await ingestor.revokeRecordingAuthorization()
-        if existing?.lastDiscardedAssignmentFrontierToken != requiredCleanupToken,
-           requiredCleanupToken != nil
-        {
+        if removal != nil {
             try await ingestor.discardRetryBacklog()
-        }
-        if isEnabled {
-            try await ingestor.prepareRetryBacklog()
+            needsReconciliation = false
+            publishRuntimeState(.removed)
+            throw RecordingPersistenceError.currentDeviceRemoved(currentDevice.id)
         }
 
-        let status: RecordingDeviceStatus = if isEnabled {
+        let epoch = snapshot.epoch
+        if preparedEpochID != epoch.id {
+            try await ingestor.discardRetryBacklog()
+            preparedEpochID = epoch.id
+        }
+
+        let status: RecordingDeviceStatus = if automaticRecordingEnabled {
             authorization.allowsBackgroundTracking ? .recording : .permissionRequired
         } else {
             .off
         }
+        if automaticRecordingEnabled {
+            try await ingestor.prepareRetryBacklog()
+            let effectiveAt = max(enabledAt ?? registeredAt, epoch.changedAt)
+            if authorization.allowsBackgroundTracking {
+                try await ingestor.start(effectiveAt: effectiveAt, dataEpochID: epoch.id)
+            } else {
+                try await ingestor.authorizeRecording(
+                    effectiveAt: effectiveAt,
+                    dataEpochID: epoch.id,
+                )
+                await ingestor.stop()
+            }
+        } else {
+            try await ingestor.discardRetryBacklog()
+        }
 
+        // Publish advisory status only after the physical transition succeeds. If the write
+        // fails, the caller revokes recording again rather than advertising an uncommitted state.
+        let existing = snapshot.checkIns.first { $0.deviceID == currentDevice.id }
         let checkInDate = now()
-        let needsAcknowledgement = existing?.lastAppliedAssignmentChangeID != frontierID
-            || existing?.lastDiscardedAssignmentFrontierToken != requiredCleanupToken
-            || existing?.status != status
-        let needsPeriodicCheckIn = existing.map {
+        let checkInDue = existing.map {
             checkInDate.timeIntervalSince($0.lastSeenAt) >= Self.checkInInterval
         } ?? true
         let checkIn: RecordingDeviceCheckIn
-        if needsAcknowledgement || needsPeriodicCheckIn {
+        if existing?.status != status || checkInDue {
             checkIn = try RecordingDeviceCheckIn(
                 deviceID: currentDevice.id,
-                revision: Self.nextRevision(
-                    after: existing?.revision,
-                    for: currentDevice.id,
-                ),
+                revision: Self.nextRevision(after: existing?.revision, for: currentDevice.id),
                 lastSeenAt: checkInDate,
-                appliedAt: needsAcknowledgement ? checkInDate :
-                    (existing?.appliedAt ?? checkInDate),
-                lastAppliedAssignmentChangeID: frontierID,
-                lastDiscardedAssignmentFrontierToken: requiredCleanupToken,
                 status: status,
             )
             try await store.perform(expectedDataEpochID: epoch.id) {
@@ -671,87 +455,49 @@ public actor DeviceRecordingController {
             preconditionFailure("A required recording check-in was not created.")
         }
 
-        // Only a durable acknowledgement opens physical authority. This ordering also prevents
-        // an outbox drain from committing samples when the check-in write fails.
-        if isEnabled {
-            if authorization.allowsBackgroundTracking {
-                try await ingestor.start(
-                    effectiveAt: effectiveAt,
-                    dataEpochID: epoch.id,
-                )
-            } else {
-                // Keep foreground fill-in fixes authorized for When-In-Use while pausing
-                // background monitoring.
-                try await ingestor.authorizeRecording(
-                    effectiveAt: effectiveAt,
-                    dataEpochID: epoch.id,
-                )
-                await ingestor.stop()
-            }
-        }
-
         let configuration = RecordingDeviceConfiguration(
             device: RecordingDevice(
                 profile: profile,
-                nicknameChange: nickname,
+                nicknameChange: Self.latestMetadata(
+                    for: currentDevice.id,
+                    field: .nickname,
+                    in: snapshot.metadataChanges,
+                ),
                 checkIn: checkIn,
-                archive: snapshot.archives.first(where: { $0.deviceID == currentDevice.id }),
+                removal: nil,
             ),
-            assignmentResolution: resolution,
-            assignmentFrontierID: frontierID,
-            isAssignmentAcknowledged: checkIn.lastAppliedAssignmentChangeID == frontierID
-                && checkIn.lastDiscardedAssignmentFrontierToken == requiredCleanupToken,
-            isArchived: false,
+            isCurrentDevice: true,
+            localAutomaticRecordingEnabled: automaticRecordingEnabled,
         )
+        needsReconciliation = false
         publishRuntimeState(.applied(configuration))
         return configuration
     }
 
     private func configurationsLocked(
-        includeArchived: Bool,
+        includeRemoved: Bool,
     ) async throws -> [RecordingDeviceConfiguration] {
-        try await store.readSnapshot {
-            async let devices = store.recordingDevices()
-            async let assignments = store.recordingAssignmentChanges()
-            async let archives = store.recordingDeviceArchives()
-            let (resolvedDevices, resolvedAssignments, resolvedArchives) = try await (
-                devices,
-                assignments,
-                archives,
-            )
-            let resolution = RecordingAssignmentChange.resolve(resolvedAssignments)
-            let assignmentFrontierID = RecordingAssignmentChange.frontierToken(
-                in: resolvedAssignments,
-            )
-            let archivedIDs = Set(resolvedArchives.map(\.deviceID))
-            return resolvedDevices
-                .map { device in
-                    RecordingDeviceConfiguration(
-                        device: device,
-                        assignmentResolution: resolution,
-                        assignmentFrontierID: assignmentFrontierID,
-                        isAssignmentAcknowledged: device.lastAppliedAssignmentChangeID
-                            == assignmentFrontierID,
-                        isArchived: archivedIDs.contains(device.id),
-                    )
+        try await store.recordingDevices()
+            .filter { includeRemoved || $0.removedAt == nil || $0.id == currentDevice.id }
+            .map { device in
+                let isCurrent = device.id == currentDevice.id
+                return RecordingDeviceConfiguration(
+                    device: device,
+                    isCurrentDevice: isCurrent,
+                    localAutomaticRecordingEnabled: isCurrent ? automaticRecordingEnabled : nil,
+                )
+            }
+            .sorted { lhs, rhs in
+                if lhs.isCurrentDevice { return true }
+                if rhs.isCurrentDevice { return false }
+                if lhs.device.lastSeenAt != rhs.device.lastSeenAt {
+                    return lhs.device.lastSeenAt > rhs.device.lastSeenAt
                 }
-                .filter {
-                    includeArchived
-                        || (!archivedIDs.contains($0.id) && !$0.isArchived)
-                        || $0.id == currentDevice.id
-                }
-                .sorted { lhs, rhs in
-                    if lhs.id == currentDevice.id { return true }
-                    if rhs.id == currentDevice.id { return false }
-                    if lhs.device.lastSeenAt != rhs.device.lastSeenAt {
-                        return lhs.device.lastSeenAt > rhs.device.lastSeenAt
-                    }
-                    return lhs.id.storeURL.absoluteString < rhs.id.storeURL.absoluteString
-                }
-        }
+                return lhs.id.storeURL.absoluteString < rhs.id.storeURL.absoluteString
+            }
     }
 
-    private func applyObservedAssignmentChange() async {
+    private func applyObservedChange() async {
         await beginExclusive()
         guard acceptsOperations else {
             endExclusive()
@@ -759,55 +505,35 @@ public actor DeviceRecordingController {
         }
         do {
             let snapshot = try await storeSnapshot()
-            let epoch = snapshot.epoch
-            let checkIns = snapshot.checkIns
-            let existingProfile = snapshot.profiles.first { $0.id == currentDevice.id }
-            let hasExpectedProfile = existingProfile.map {
-                $0 == expectedProfile(registrationEpochID: $0.registrationEpochID)
-            } ?? false
-            let hasAssignment = snapshot.assignmentChanges.isEmpty == false
-            let latestCurrentAssignmentID = RecordingAssignmentChange.frontierToken(
-                in: snapshot.assignmentChanges,
-            )
-            let requiredCleanupToken: RecordingAssignmentCleanupToken? = epoch.isDestructive
-                ? RecordingAssignmentCleanupToken(rawValue: epoch.id.rawValue)
-                : nil
-            let acknowledgedCurrentAssignmentID = checkIns.first(where: {
-                $0.deviceID == currentDevice.id
-            })?.lastAppliedAssignmentChangeID
-            let currentCheckIn = checkIns.first { $0.deviceID == currentDevice.id }
-            let acknowledgedCleanupToken = currentCheckIn?
-                .lastDiscardedAssignmentFrontierToken
+            let currentCheckIn = snapshot.checkIns.first { $0.deviceID == currentDevice.id }
+            let removalExists = snapshot.removals.contains { $0.deviceID == currentDevice.id }
             let heartbeatDue = currentCheckIn.map {
                 now().timeIntervalSince($0.lastSeenAt) >= Self.checkInInterval
             } ?? true
-            let shouldReconcile = needsAssignmentReconciliation
-                || !hasExpectedProfile
-                || !hasAssignment
-                || latestCurrentAssignmentID != lastAppliedCurrentAssignmentID
-                || acknowledgedCurrentAssignmentID != latestCurrentAssignmentID
-                || acknowledgedCleanupToken != requiredCleanupToken
-                || heartbeatDue
-            if shouldReconcile {
-                try await registerLocked(
-                    initialAssignmentChangeID: initialRecordingChoice.assignmentChangeID,
-                    initialEnabled: initialRecordingChoice.isEnabled,
-                )
+            let expectedStatus: RecordingDeviceStatus = await automaticRecordingEnabled
+                ? ((ingestor.authorizationStatus()).allowsBackgroundTracking
+                    ? .recording : .permissionRequired)
+                : .off
+            let profileMatches = snapshot.profiles.first(where: { $0.id == currentDevice.id }).map {
+                $0 == expectedProfile(registrationEpochID: $0.registrationEpochID)
+            } ?? false
+            if needsReconciliation || removalExists || heartbeatDue
+                || currentCheckIn?.status != expectedStatus || !profileMatches
+            {
                 let authorization = await ingestor.authorizationStatus()
-                let reconciliation = try await reconcileLocked(authorization: authorization)
-                lastAppliedCurrentAssignmentID = reconciliation.latestAssignmentChangeID
-                needsAssignmentReconciliation = false
+                _ = try await registerAndReconcileLocked(authorization: authorization)
             }
-            endExclusive()
+        } catch RecordingPersistenceError.currentDeviceRemoved {
+            // `reconcileLocked` already stopped ingestion and published the terminal state.
         } catch {
-            needsAssignmentReconciliation = true
+            needsReconciliation = true
             await ingestor.revokeRecordingAuthorization()
             publishRuntimeState(.unavailable)
-            endExclusive()
             Self.logger(attachments: [.error(error, name: "policy-observation-error")]) {
                 .policyObservationFailed(description: error.localizedDescription)
             }
         }
+        endExclusive()
     }
 
     private func storeSnapshot() async throws -> StoreSnapshot {
@@ -816,23 +542,14 @@ public actor DeviceRecordingController {
             async let profiles = store.recordingDeviceProfiles()
             async let metadataChanges = store.recordingDeviceMetadataChanges()
             async let checkIns = store.recordingDeviceCheckIns()
-            async let assignmentChanges = store.recordingAssignmentChanges()
-            async let archives = store.recordingDeviceArchives()
-            let values = try await (
-                epoch,
-                profiles,
-                metadataChanges,
-                checkIns,
-                assignmentChanges,
-                archives,
-            )
+            async let removals = store.recordingDeviceRemovals()
+            let values = try await (epoch, profiles, metadataChanges, checkIns, removals)
             return StoreSnapshot(
                 epoch: values.0,
                 profiles: values.1,
                 metadataChanges: values.2,
                 checkIns: values.3,
-                assignmentChanges: values.4,
-                archives: values.5,
+                removals: values.4,
             )
         }
     }
@@ -865,9 +582,7 @@ public actor DeviceRecordingController {
     ) throws -> Int64 {
         guard let revision else { return 0 }
         let (next, overflow) = revision.addingReportingOverflow(1)
-        guard !overflow else {
-            throw RecordingPersistenceError.revisionExhausted(deviceID)
-        }
+        guard !overflow else { throw RecordingPersistenceError.revisionExhausted(deviceID) }
         return next
     }
 
@@ -886,9 +601,7 @@ public actor DeviceRecordingController {
 
     private func beginExclusive() async {
         if isExclusive {
-            await withCheckedContinuation { continuation in
-                waiters.append(continuation)
-            }
+            await withCheckedContinuation { continuation in waiters.append(continuation) }
         } else {
             isExclusive = true
         }

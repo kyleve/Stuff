@@ -6,23 +6,10 @@ import WhereCore
 @MainActor
 @Observable
 final class DeviceSettingsRowModel: Identifiable {
-    /// Why the desired recording setting is not yet settled. A missing policy
-    /// is still arriving through CloudKit; a resolved policy can instead be
-    /// waiting for its target installation to acknowledge it.
-    enum AssignmentPresentationState: Equatable {
-        case syncingAssignment
-        case resolved(isAcknowledged: Bool)
-    }
-
-    struct EditableValues: Equatable {
-        var nickname: String
-        var isEnabled: Bool?
-    }
-
     enum Operation: Equatable {
         case setRecordingEnabled(Bool)
         case rename(String)
-        case archive
+        case remove
     }
 
     struct OperationFailure: Identifiable, Equatable {
@@ -37,108 +24,57 @@ final class DeviceSettingsRowModel: Identifiable {
         case failed(OperationFailure)
     }
 
-    private enum PendingAction: Hashable {
-        case saveNickname
-        case archive
-    }
-
     let id: RecordingDeviceID
     let systemName: String
     let kind: RecordingDeviceKind
     let isCurrent: Bool
 
-    private var confirmedValues: EditableValues
-    private var draftValues: EditableValues
-    private var pendingActions: Set<PendingAction> = []
+    private var confirmedNickname: String
+    private var confirmedRecordingEnabled: Bool?
+    private var recordingEnabled: Bool
+    private var pendingRecordingIntent = false
+    private var wantsNicknameSave = false
+    private var wantsRemoval = false
+
+    var nickname: String
     private(set) var operationState: OperationState = .idle
     private(set) var status: RecordingDeviceStatus
     private(set) var lastSeenAt: Date
-    private(set) var assignmentPresentationState: AssignmentPresentationState
 
-    init(configuration: RecordingDeviceConfiguration, isCurrent: Bool) {
+    init(configuration: RecordingDeviceConfiguration) {
         id = configuration.id
         systemName = configuration.device.systemName
         kind = configuration.device.kind
-        self.isCurrent = isCurrent
+        isCurrent = configuration.isCurrentDevice
         let nickname = configuration.device.nickname ?? ""
-        let editableValues = EditableValues(
-            nickname: nickname,
-            isEnabled: configuration.isEnabled,
-        )
-        confirmedValues = editableValues
-        draftValues = editableValues
+        self.nickname = nickname
+        confirmedNickname = nickname
+        confirmedRecordingEnabled = configuration.localAutomaticRecordingEnabled
+        recordingEnabled = configuration.localAutomaticRecordingEnabled ?? false
         status = configuration.device.status
         lastSeenAt = configuration.device.lastSeenAt
-        assignmentPresentationState = Self.assignmentPresentationState(for: configuration)
-    }
-
-    var nickname: String {
-        get { draftValues.nickname }
-        set {
-            guard draftValues.nickname != newValue else { return }
-            draftValues.nickname = newValue
-            clearFailure(for: .rename(newValue))
-        }
     }
 
     var isEnabled: Bool {
-        get { draftValues.isEnabled ?? false }
+        get { recordingEnabled }
         set {
-            guard draftValues.isEnabled != nil else {
-                assertionFailure("An unresolved recording policy cannot be edited.")
-                return
-            }
-            guard draftValues.isEnabled != newValue else { return }
-            draftValues.isEnabled = newValue
-            clearFailure(for: .setRecordingEnabled(newValue))
-        }
-    }
-
-    var hasResolvedRecordingAssignment: Bool {
-        draftValues.isEnabled != nil
-    }
-
-    var isSyncingRecordingAssignment: Bool {
-        if case .syncingAssignment = assignmentPresentationState { true } else { false }
-    }
-
-    var isPending: Bool {
-        switch assignmentPresentationState {
-            case .syncingAssignment: true
-            case let .resolved(isAcknowledged): !isAcknowledged
+            guard isCurrent, recordingEnabled != newValue else { return }
+            recordingEnabled = newValue
+            pendingRecordingIntent = true
+            clearFailure(matching: .setRecordingEnabled(newValue))
         }
     }
 
     var hasUnsavedNickname: Bool {
-        normalizedNickname != confirmedValues.nickname
+        normalizedNickname != confirmedNickname
     }
 
     var canSaveNickname: Bool {
-        guard hasUnsavedNickname else { return false }
-        return switch operationState {
-            case .saving: false
-            case .idle, .failed: true
-        }
+        hasUnsavedNickname && !isSaving
     }
 
-    var disablesRecordingControl: Bool {
-        switch operationState {
-            case .saving(.rename), .saving(.archive): true
-            case .idle, .saving(.setRecordingEnabled), .failed: false
-        }
-    }
-
-    var disablesNicknameControl: Bool {
+    var isSaving: Bool {
         if case .saving = operationState { true } else { false }
-    }
-
-    var disablesDestructiveActions: Bool {
-        guard hasResolvedRecordingAssignment else { return true }
-        return if case .saving = operationState { true } else { false }
-    }
-
-    var isApplyingRecordingChange: Bool {
-        operationState.isSavingRecording
     }
 
     var displayName: String {
@@ -150,118 +86,61 @@ final class DeviceSettingsRowModel: Identifiable {
         kind.systemImage
     }
 
-    /// Marks the current nickname draft as an explicit save request. Typing
-    /// alone never writes, while a request made during another save is retained
-    /// and processed when that operation finishes.
     func requestNicknameSave() {
-        pendingActions.insert(.saveNickname)
+        wantsNicknameSave = true
     }
 
-    func requestArchive() {
-        pendingActions.insert(.archive)
+    func requestRemoval() {
+        precondition(!isCurrent, "The current device cannot remove itself.")
+        wantsRemoval = true
     }
 
-    /// Claims the next accepted intent for the owning model's single writer
-    /// loop. Recording uses the live draft, so a second toggle made while the
-    /// first write is suspended becomes the next operation instead of being
-    /// discarded by a busy guard.
     func beginNextOperation() -> Operation? {
-        if case .saving = operationState { return nil }
-
-        if pendingActions.remove(.archive) != nil {
-            return begin(.archive)
+        guard !isSaving else { return nil }
+        if wantsRemoval {
+            wantsRemoval = false
+            return begin(.remove)
         }
-
-        if let desiredEnabled = draftValues.isEnabled,
-           desiredEnabled != confirmedValues.isEnabled
-        {
-            return begin(.setRecordingEnabled(desiredEnabled))
+        if pendingRecordingIntent {
+            pendingRecordingIntent = false
+            return begin(.setRecordingEnabled(recordingEnabled))
         }
-
-        if pendingActions.remove(.saveNickname) != nil {
-            let nickname = normalizedNickname
-            guard nickname != confirmedValues.nickname else {
-                draftValues.nickname = confirmedValues.nickname
-                operationState = .idle
-                return nil
-            }
-            return begin(.rename(nickname))
+        if wantsNicknameSave, hasUnsavedNickname {
+            wantsNicknameSave = false
+            return begin(.rename(normalizedNickname))
         }
-
-        operationState = .idle
+        wantsNicknameSave = false
         return nil
     }
 
     func finish(_ operation: Operation) {
-        guard operationState == .saving(operation) else {
-            assertionFailure("Finished a device operation that was not active.")
-            return
-        }
-        if case let .rename(savedNickname) = operation,
-           normalizedNickname == savedNickname
-        {
-            draftValues.nickname = confirmedValues.nickname
+        switch operation {
+            case let .setRecordingEnabled(enabled):
+                confirmedRecordingEnabled = enabled
+            case let .rename(nickname):
+                confirmedNickname = nickname
+            case .remove:
+                break
         }
         operationState = .idle
     }
 
     func fail(_ operation: Operation, error: any Error) -> OperationFailure {
-        guard operationState == .saving(operation) else {
-            assertionFailure("Failed a device operation that was not active.")
-            return OperationFailure(
-                operation: operation,
-                message: error.localizedDescription,
-            )
-        }
-
-        switch operation {
-            case .setRecordingEnabled:
-                // A failed toggle must display the last confirmed value rather
-                // than leave an optimistic value looking successfully saved.
-                draftValues.isEnabled = confirmedValues.isEnabled
-            case .rename:
-                // Preserve the draft so the explicit Save button is a reliable
-                // retry path and a failed write never destroys user input.
-                break
-            case .archive:
-                break
-        }
-
-        let failure = OperationFailure(
-            operation: operation,
-            message: error.localizedDescription,
-        )
+        let failure = OperationFailure(operation: operation, message: error.localizedDescription)
         operationState = .failed(failure)
         return failure
     }
 
-    func dismiss(_ failure: OperationFailure) {
-        guard operationState == .failed(failure) else { return }
-        operationState = .idle
-    }
-
     func update(from configuration: RecordingDeviceConfiguration) {
-        let previousConfirmedValues = confirmedValues
-        let updatedNickname = configuration.device.nickname ?? ""
-        let updatedValues = EditableValues(
-            nickname: updatedNickname,
-            isEnabled: configuration.isEnabled,
-        )
-
-        let preservesNicknameDraft = draftValues.nickname != previousConfirmedValues.nickname
-            || operationState.isSavingNickname
-        let preservesRecordingDraft = draftValues.isEnabled != previousConfirmedValues.isEnabled
-            || operationState.isSavingRecording
-        confirmedValues = updatedValues
-        if !preservesNicknameDraft {
-            draftValues.nickname = updatedValues.nickname
-        }
-        if !preservesRecordingDraft {
-            draftValues.isEnabled = updatedValues.isEnabled
+        let newNickname = configuration.device.nickname ?? ""
+        if !hasUnsavedNickname { nickname = newNickname }
+        confirmedNickname = newNickname
+        if let enabled = configuration.localAutomaticRecordingEnabled {
+            if !pendingRecordingIntent { recordingEnabled = enabled }
+            confirmedRecordingEnabled = enabled
         }
         status = configuration.device.status
         lastSeenAt = configuration.device.lastSeenAt
-        assignmentPresentationState = Self.assignmentPresentationState(for: configuration)
     }
 
     private var normalizedNickname: String {
@@ -273,33 +152,14 @@ final class DeviceSettingsRowModel: Identifiable {
         return operation
     }
 
-    private func clearFailure(for operation: Operation) {
+    private func clearFailure(matching operation: Operation) {
         guard case let .failed(failure) = operationState else { return }
         switch (failure.operation, operation) {
             case (.setRecordingEnabled, .setRecordingEnabled), (.rename, .rename):
                 operationState = .idle
-            case (.archive, _), (.setRecordingEnabled, _), (.rename, _):
+            case (.remove, _), (.setRecordingEnabled, _), (.rename, _):
                 break
         }
-    }
-
-    private static func assignmentPresentationState(
-        for configuration: RecordingDeviceConfiguration,
-    ) -> AssignmentPresentationState {
-        guard configuration.assignmentResolution.assignment != nil else {
-            return .syncingAssignment
-        }
-        return .resolved(isAcknowledged: !configuration.isPending)
-    }
-}
-
-extension DeviceSettingsRowModel.OperationState {
-    fileprivate var isSavingNickname: Bool {
-        if case .saving(.rename) = self { true } else { false }
-    }
-
-    fileprivate var isSavingRecording: Bool {
-        if case .saving(.setRecordingEnabled) = self { true } else { false }
     }
 }
 

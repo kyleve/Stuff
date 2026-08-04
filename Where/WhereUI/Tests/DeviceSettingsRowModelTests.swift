@@ -8,112 +8,57 @@ struct DeviceSettingsRowModelTests {
     private static let id = RecordingDeviceID(
         rawValue: UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")!,
     )
-    private static let policyID = UUID(
-        uuidString: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB",
-    )!
     private static let date = Date(timeIntervalSinceReferenceDate: 100)
 
-    @Test func presentsNicknameKindAndAcknowledgement() {
+    @Test func presentsRemoteDeviceWithoutAnEditableRecordingChoice() {
         let row = DeviceSettingsRowModel(
-            configuration: configuration(
-                nickname: "Home iPad",
-                status: .recording,
-                appliedPolicyID: Self.policyID,
-            ),
-            isCurrent: false,
+            configuration: configuration(nickname: "Home iPad", status: .recording),
         )
 
         #expect(row.displayName == "Home iPad")
         #expect(row.systemImage == "ipad")
-        #expect(row.isPending == false)
+        #expect(row.isCurrent == false)
+        #expect(row.beginNextOperation() == nil)
     }
 
-    @Test func updateKeepsEditableObjectIdentityAndAppliesRemoteState() {
+    @Test func refreshAppliesLocalChoiceWithoutCreatingAUserCommand() {
         let row = DeviceSettingsRowModel(
-            configuration: configuration(
-                nickname: nil,
-                status: .recording,
-                appliedPolicyID: Self.policyID,
-            ),
-            isCurrent: false,
+            configuration: configuration(status: .recording, isCurrent: true, enabled: true),
         )
-        row.update(from: configuration(
-            nickname: "Desk",
-            status: .off,
-            appliedPolicyID: nil,
-        ))
 
-        #expect(row.id == Self.id)
-        #expect(row.displayName == "Desk")
-        #expect(row.status == .off)
-        #expect(row.isPending == false)
-        #expect(row.isSyncingRecordingAssignment == false)
-        #expect(row.assignmentPresentationState == .resolved(isAcknowledged: true))
+        row.update(from: configuration(status: .off, isCurrent: true, enabled: false))
+
         #expect(row.isEnabled == false)
+        #expect(row.beginNextOperation() == nil)
+    }
+
+    @Test func explicitLocalToggleCreatesOneRecordingCommand() {
+        let row = DeviceSettingsRowModel(
+            configuration: configuration(status: .recording, isCurrent: true, enabled: true),
+        )
+
+        row.isEnabled = false
+
+        #expect(row.beginNextOperation() == .setRecordingEnabled(false))
     }
 
     @Test func syncedRefreshDoesNotOverwriteAnUnsavedNickname() {
         let row = DeviceSettingsRowModel(
-            configuration: configuration(
-                nickname: "Home",
-                status: .off,
-                appliedPolicyID: Self.policyID,
-            ),
-            isCurrent: false,
+            configuration: configuration(nickname: "Home", status: .off),
         )
         row.nickname = "Home iPad"
 
-        row.update(from: configuration(
-            nickname: "Synced elsewhere",
-            status: .off,
-            appliedPolicyID: Self.policyID,
-        ))
+        row.update(from: configuration(nickname: "Synced elsewhere", status: .off))
 
         #expect(row.nickname == "Home iPad")
         #expect(row.hasUnsavedNickname)
     }
 
-    @Test func profileWithoutASyncedPolicyStaysUnresolved() {
-        let device = configuration(
-            nickname: "Home iPad",
-            status: .unknown,
-            appliedPolicyID: nil,
-        ).device
-        let row = DeviceSettingsRowModel(
-            configuration: RecordingDeviceConfiguration(
-                device: device,
-                assignmentResolution: .unconfigured,
-                assignmentFrontierID: nil,
-                isAssignmentAcknowledged: false,
-                isArchived: false,
-            ),
-            isCurrent: false,
-        )
-
-        #expect(row.hasResolvedRecordingAssignment == false)
-        #expect(row.isPending)
-        #expect(row.isSyncingRecordingAssignment)
-        #expect(row.assignmentPresentationState == .syncingAssignment)
-        #expect(row.disablesDestructiveActions)
-
-        row.update(from: configuration(
-            nickname: "Home iPad",
-            status: .off,
-            appliedPolicyID: Self.policyID,
-        ))
-
-        #expect(row.hasResolvedRecordingAssignment)
-        #expect(row.isEnabled == false)
-        #expect(row.isPending == false)
-        #expect(row.isSyncingRecordingAssignment == false)
-        #expect(row.assignmentPresentationState == .resolved(isAcknowledged: true))
-        #expect(row.disablesDestructiveActions == false)
-    }
-
     private func configuration(
-        nickname: String?,
+        nickname: String? = nil,
         status: RecordingDeviceStatus,
-        appliedPolicyID: UUID?,
+        isCurrent: Bool = false,
+        enabled: Bool? = nil,
     ) -> RecordingDeviceConfiguration {
         RecordingDeviceConfiguration(
             device: RecordingDevice(
@@ -123,16 +68,11 @@ struct DeviceSettingsRowModelTests {
                 kind: .tablet,
                 registeredAt: Self.date,
                 lastSeenAt: Self.date,
-                archivedAt: nil,
-                lastAppliedAssignmentChangeID: appliedPolicyID,
+                removedAt: nil,
                 status: status,
             ),
-            assignmentResolution: .resolved(
-                status == .off ? .off : .device(Self.id),
-            ),
-            assignmentFrontierID: Self.policyID,
-            isAssignmentAcknowledged: appliedPolicyID == Self.policyID,
-            isArchived: false,
+            isCurrentDevice: isCurrent,
+            localAutomaticRecordingEnabled: enabled,
         )
     }
 }

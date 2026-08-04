@@ -131,7 +131,7 @@ struct WhereLifecycleFailureView: View {
             dismissedIssueCount: 2,
             trackedRegionCount: 5,
             recordingDeviceCount: 2,
-            recordingAssignmentChangeCount: 4,
+            recordingDeviceRemovalCount: 4,
         )
     }
 

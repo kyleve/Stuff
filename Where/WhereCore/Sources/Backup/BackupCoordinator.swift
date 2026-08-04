@@ -3,7 +3,7 @@ import PeriscopeCore
 import RegionKit
 
 /// Owns backup export/import over the `BackupService` and the store. Its lifecycle seam lets the
-/// composition root revoke recording before the transaction, restore the old authority after a
+/// composition root pause recording before the transaction, restore the local choice after a
 /// rollback, and reconcile all derived state after a commit.
 ///
 /// Public so its `ImportStrategy` / `ImportSummary` types stay nameable from the
@@ -14,12 +14,10 @@ public actor BackupCoordinator {
     public enum ImportStrategy: Sendable, Hashable {
         /// Upsert the imported rows into the existing data (by `id` for
         /// samples/evidence, by day key for manual days), leaving anything not
-        /// present in the file untouched. Recording authority is snapshotted before the write
-        /// and reasserted after the imported assignment timeline.
+        /// present in the file untouched. Local recording consent is not stored in the archive.
         case merge
-        /// Replace synced user history and settings with the file. Recording-device identities
-        /// remain append-only, and a newer Off assignment ensures restoring an archive can never
-        /// silently start GPS.
+        /// Replace synced user history and settings with the file. Local recording consent is
+        /// untouched, and existing removals are retained so restore cannot reactivate a device.
         case replace
     }
 
@@ -31,7 +29,7 @@ public actor BackupCoordinator {
         public let dismissedIssueCount: Int
         public let trackedRegionCount: Int
         public let recordingDeviceCount: Int
-        public let recordingAssignmentChangeCount: Int
+        public let recordingDeviceRemovalCount: Int
 
         public init(
             sampleCount: Int,
@@ -40,7 +38,7 @@ public actor BackupCoordinator {
             dismissedIssueCount: Int,
             trackedRegionCount: Int,
             recordingDeviceCount: Int = 0,
-            recordingAssignmentChangeCount: Int = 0,
+            recordingDeviceRemovalCount: Int = 0,
         ) {
             self.sampleCount = sampleCount
             self.evidenceCount = evidenceCount
@@ -48,7 +46,7 @@ public actor BackupCoordinator {
             self.dismissedIssueCount = dismissedIssueCount
             self.trackedRegionCount = trackedRegionCount
             self.recordingDeviceCount = recordingDeviceCount
-            self.recordingAssignmentChangeCount = recordingAssignmentChangeCount
+            self.recordingDeviceRemovalCount = recordingDeviceRemovalCount
         }
     }
 
@@ -167,8 +165,7 @@ public actor BackupCoordinator {
                     primaryRegions: store.primaryRegions(),
                     recordingDeviceProfiles: store.recordingDeviceProfiles(),
                     recordingDeviceMetadataChanges: store.recordingDeviceMetadataChanges(),
-                    recordingAssignmentChanges: store.recordingAssignmentChanges(),
-                    recordingDeviceArchives: store.recordingDeviceArchives(),
+                    recordingDeviceRemovals: store.recordingDeviceRemovals(),
                 )
             }
             let evidence = tables.evidence
@@ -202,8 +199,7 @@ public actor BackupCoordinator {
                 primaryRegions: tables.primaryRegions,
                 recordingDeviceProfiles: tables.recordingDeviceProfiles,
                 recordingDeviceMetadataChanges: tables.recordingDeviceMetadataChanges,
-                recordingAssignmentChanges: tables.recordingAssignmentChanges,
-                recordingDeviceArchives: tables.recordingDeviceArchives,
+                recordingDeviceRemovals: tables.recordingDeviceRemovals,
                 blobs: snapshot.blobs,
             )
         }.value
@@ -223,8 +219,7 @@ public actor BackupCoordinator {
         let primaryRegions: [PrimaryRegion]
         let recordingDeviceProfiles: [RecordingDeviceProfile]
         let recordingDeviceMetadataChanges: [RecordingDeviceMetadataChange]
-        let recordingAssignmentChanges: [RecordingAssignmentChange]
-        let recordingDeviceArchives: [RecordingDeviceArchive]
+        let recordingDeviceRemovals: [RecordingDeviceRemoval]
     }
 
     private struct ExportSnapshot {
@@ -410,7 +405,7 @@ public actor BackupCoordinator {
             dismissedIssueCount: archive.dismissedIssues.count,
             trackedRegionCount: archive.primaryRegions.count,
             recordingDeviceCount: archive.recordingDeviceProfiles.count,
-            recordingAssignmentChangeCount: archive.recordingAssignmentChanges.count,
+            recordingDeviceRemovalCount: archive.recordingDeviceRemovals.count,
         )
         let recoveryDetails = ImportRecoveryDetails(
             transactionID: transactionID,
@@ -422,12 +417,11 @@ public actor BackupCoordinator {
             + archive.manualDays.count + archive.dismissedIssues.count
             + archive.recordingDeviceProfiles.count
             + archive.recordingDeviceMetadataChanges.count
-            + archive.recordingAssignmentChanges.count
-            + archive.recordingDeviceArchives.count
+            + archive.recordingDeviceRemovals.count
 
-        // Decode and validate before touching live authority. Once the archive is known-good,
-        // close ingestion before either merge or replace: both can change this installation's
-        // assignment while a streamed sample is otherwise able to cross the transaction boundary.
+        // Decode and validate before touching live recording. Once the archive is known-good,
+        // close ingestion before either merge or replace so a streamed sample cannot cross the
+        // transaction boundary.
         let preparedRecovery = DurableImportRecovery.prepared(recoveryDetails)
         try await importRecoveryPersistence.save(preparedRecovery)
         do {
@@ -448,20 +442,17 @@ public actor BackupCoordinator {
         do {
             try await Self.logger.measure(.importWrite) {
                 try await store.perform(expectedDataEpochID: expectedEpochID) {
-                    let existingAssignments = try await store.recordingAssignmentChanges()
-                    let preservedAssignment: RecordingAssignment = if strategy == .merge {
-                        RecordingAssignmentChange.resolve(existingAssignments).assignment ?? .off
+                    let preservedRemovals: [RecordingDeviceRemoval] = if strategy == .replace {
+                        try await store.recordingDeviceRemovals()
                     } else {
-                        .off
+                        []
                     }
-                    let replacementEpoch: WhereDataEpoch? = if strategy == .replace {
-                        try await store.rotateDataEpoch(
+                    if strategy == .replace {
+                        _ = try await store.rotateDataEpoch(
                             reason: .backupReplace,
                             changedBy: currentDeviceID,
                             at: importDate,
                         )
-                    } else {
-                        nil
                     }
                     // `completed`/`report` are local to this `@Sendable` block, so
                     // the running count never crosses the actor boundary; only the
@@ -500,24 +491,13 @@ public actor BackupCoordinator {
                         try await store.addRecordingDeviceMetadataChange(metadataChange)
                         report()
                     }
-                    for change in archive.recordingAssignmentChanges {
-                        try await store.addRecordingAssignmentChange(change)
+                    for removal in preservedRemovals {
+                        try await store.addRecordingDeviceRemoval(removal)
+                    }
+                    for removal in archive.recordingDeviceRemovals {
+                        try await store.addRecordingDeviceRemoval(removal)
                         report()
                     }
-                    for archive in archive.recordingDeviceArchives {
-                        try await store.addRecordingDeviceArchive(archive)
-                        report()
-                    }
-                    let joinedAssignments = try await store.recordingAssignmentChanges()
-                    let assignmentBarrier = try RecordingAssignmentChange.appendingCommand(
-                        to: joinedAssignments,
-                        assignment: preservedAssignment,
-                        issuedAt: importDate,
-                        issuedByDeviceID: currentDeviceID,
-                        effectiveAt: importDate,
-                        reason: replacementEpoch == nil ? .backupMerge : .backupReplace,
-                    )
-                    try await store.addRecordingAssignmentChange(assignmentBarrier)
                     // Primary regions (with their picked looks) round-trip like any
                     // other data. On `.replace` the store was cleared above, so write
                     // the archive's set exactly; on `.merge` union it into the current

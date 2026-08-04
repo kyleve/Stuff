@@ -20,11 +20,11 @@ struct InstallationRecordingContextStoreTests {
 
         #expect(store.onboardingContext.currentDevice.id.rawValue == Self.deviceID)
         #expect(store.onboardingContext.registeredAt == Self.registeredAt)
-        #expect(store.onboardingContext.initialRecordingChoice == nil)
+        #expect(store.onboardingContext.automaticRecordingEnabled == nil)
         #expect(fixture.fileExists == false)
     }
 
-    @Test func confirmationPersistsIdentityChoiceAndPolicyTokenTogether() throws {
+    @Test func confirmationPersistsIdentityAndLocalChoiceTogether() throws {
         let fixture = try makeFixture()
         defer { fixture.cleanup() }
         let first = fixture.makeStore()
@@ -36,9 +36,7 @@ struct InstallationRecordingContextStoreTests {
         #expect(restored == confirmed)
         #expect(restored.currentDevice.id.rawValue == Self.deviceID)
         #expect(restored.registeredAt == Self.registeredAt)
-        #expect(restored.initialRecordingChoice?.isEnabled == false)
-        #expect(restored.initialRecordingChoice?.assignmentChangeID == Self.assignmentChangeID)
-        #expect(restored.initialRecordingChoice?.confirmedAt == Self.confirmedAt)
+        #expect(restored.automaticRecordingEnabled == false)
         #expect(
             try fixture.fileURL.resourceValues(forKeys: [.isExcludedFromBackupKey])
                 .isExcludedFromBackup == true,
@@ -168,7 +166,7 @@ struct InstallationRecordingContextStoreTests {
         #expect(relaunchedStore.onboardingImportCompletion?.transactionID == details.transactionID)
     }
 
-    @Test func laterConfirmationCannotRewriteTheInitialPolicyEvent() throws {
+    @Test func laterConfirmationCannotRewriteTheInitialChoice() throws {
         let fixture = try makeFixture()
         defer { fixture.cleanup() }
         let store = fixture.makeStore()
@@ -177,7 +175,7 @@ struct InstallationRecordingContextStoreTests {
         let repeated = try store.confirmInitialRecording(isEnabled: true)
 
         #expect(repeated == first)
-        #expect(repeated.initialRecordingChoice?.isEnabled == false)
+        #expect(repeated.automaticRecordingEnabled == false)
         #expect(try fixture.makeStore().resolve() == first)
     }
 
@@ -197,8 +195,8 @@ struct InstallationRecordingContextStoreTests {
     @Test func completePendingReplacementWinsOverAnOlderAuthoritativeContext() throws {
         let oldFixture = try makeFixture()
         let newFixture = try makeFixture(
-            ids: [Self.resetDeviceID, Self.resetAssignmentChangeID],
-            dates: [Self.resetRegisteredAt, Self.resetConfirmedAt],
+            ids: [Self.resetDeviceID],
+            dates: [Self.resetRegisteredAt],
         )
         defer {
             oldFixture.cleanup()
@@ -229,11 +227,9 @@ struct InstallationRecordingContextStoreTests {
     @Test func resetRemovesTheSidecarAndRotatesTheInstallationIdentity() throws {
         let fixture = try makeFixture(ids: [
             Self.deviceID,
-            Self.assignmentChangeID,
             Self.resetDeviceID,
         ], dates: [
             Self.registeredAt,
-            Self.confirmedAt,
             Self.resetRegisteredAt,
         ])
         defer { fixture.cleanup() }
@@ -247,17 +243,34 @@ struct InstallationRecordingContextStoreTests {
         #expect(store.onboardingImportCompletion == nil)
         #expect(store.onboardingContext.currentDevice.id.rawValue == Self.resetDeviceID)
         #expect(store.onboardingContext.registeredAt == Self.resetRegisteredAt)
-        #expect(store.onboardingContext.initialRecordingChoice == nil)
+        #expect(store.onboardingContext.automaticRecordingEnabled == nil)
+    }
+
+    @Test func rejoinPersistsANewIdentityWithRecordingDefaultedOff() throws {
+        let fixture = try makeFixture(
+            ids: [Self.deviceID, Self.resetDeviceID],
+            dates: [Self.registeredAt, Self.resetRegisteredAt],
+        )
+        defer { fixture.cleanup() }
+        let store = fixture.makeStore()
+        _ = try store.confirmInitialRecording(isEnabled: true)
+
+        let rejoined = try store.rejoin()
+        let relaunched = try fixture.makeStore().resolve()
+
+        #expect(rejoined.currentDevice.id.rawValue == Self.resetDeviceID)
+        #expect(rejoined.automaticRecordingEnabled == nil)
+        #expect(rejoined.isRejoining)
+        #expect(rejoined.recommendedRecordingEnabled == false)
+        #expect(relaunched == rejoined)
     }
 
     @Test func committedResetCleanupRetriesWithoutRestoringTheOldContextOrRotatingAgain() throws {
         let fixture = try makeFixture(ids: [
             Self.deviceID,
-            Self.assignmentChangeID,
             Self.resetDeviceID,
         ], dates: [
             Self.registeredAt,
-            Self.confirmedAt,
             Self.resetRegisteredAt,
         ])
         defer { fixture.cleanup() }
@@ -287,23 +300,15 @@ struct InstallationRecordingContextStoreTests {
     private nonisolated static let deviceID = UUID(
         uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA",
     )!
-    private nonisolated static let assignmentChangeID = UUID(
-        uuidString: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB",
-    )!
     private nonisolated static let resetDeviceID = UUID(
         uuidString: "CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC",
     )!
-    private nonisolated static let resetAssignmentChangeID = UUID(
-        uuidString: "DDDDDDDD-DDDD-DDDD-DDDD-DDDDDDDDDDDD",
-    )!
     private nonisolated static let registeredAt = Date(timeIntervalSinceReferenceDate: 100)
-    private nonisolated static let confirmedAt = Date(timeIntervalSinceReferenceDate: 200)
     private nonisolated static let resetRegisteredAt = Date(timeIntervalSinceReferenceDate: 300)
-    private nonisolated static let resetConfirmedAt = Date(timeIntervalSinceReferenceDate: 400)
 
     private func makeFixture(
-        ids: [UUID] = [Self.deviceID, Self.assignmentChangeID],
-        dates: [Date] = [Self.registeredAt, Self.confirmedAt],
+        ids: [UUID] = [Self.deviceID],
+        dates: [Date] = [Self.registeredAt],
     ) throws -> Fixture {
         let directory = FileManager.default.temporaryDirectory
             .appending(path: "InstallationRecordingContextStoreTests.\(UUID().uuidString)")

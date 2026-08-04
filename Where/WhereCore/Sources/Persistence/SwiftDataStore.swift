@@ -257,8 +257,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             SDRecordingDeviceProfile.self,
             SDRecordingDeviceMetadataChange.self,
             SDRecordingDeviceCheckIn.self,
-            SDRecordingAssignmentChange.self,
-            SDRecordingDeviceArchive.self,
+            SDRecordingDeviceRemoval.self,
         ]
     }
 
@@ -458,8 +457,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             profiles: [RecordingDeviceProfile],
             metadataChanges: [RecordingDeviceMetadataChange],
             checkIns: [RecordingDeviceCheckIn],
-            assignmentChanges: [RecordingAssignmentChange],
-            archives: [RecordingDeviceArchive],
+            removals: [RecordingDeviceRemoval],
         ) async throws {
             try await perform(sendsChange: false, expectedDataEpochID: nil) {
                 for profile in profiles {
@@ -471,11 +469,8 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
                 for checkIn in checkIns {
                     try await self.setRecordingDeviceCheckIn(checkIn)
                 }
-                for assignmentChange in assignmentChanges {
-                    try await self.addRecordingAssignmentChange(assignmentChange)
-                }
-                for archive in archives {
-                    try await self.addRecordingDeviceArchive(archive)
+                for removal in removals {
+                    try await self.addRecordingDeviceRemoval(removal)
                 }
             }
         }
@@ -844,12 +839,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         {
             context.delete(record)
         }
-        for record in try context.fetch(FetchDescriptor<SDRecordingAssignmentChange>())
-            where belongs(record.epochID, to: epochID)
-        {
-            context.delete(record)
-        }
-        for record in try context.fetch(FetchDescriptor<SDRecordingDeviceArchive>())
+        for record in try context.fetch(FetchDescriptor<SDRecordingDeviceRemoval>())
             where belongs(record.epochID, to: epochID)
         {
             context.delete(record)
@@ -922,12 +912,12 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         async let profiles = recordingDeviceProfiles()
         async let metadataChanges = recordingDeviceMetadataChanges()
         async let checkIns = recordingDeviceCheckIns()
-        async let archives = recordingDeviceArchives()
-        let (resolvedProfiles, resolvedMetadata, resolvedCheckIns, resolvedArchives) = try await (
+        async let removals = recordingDeviceRemovals()
+        let (resolvedProfiles, resolvedMetadata, resolvedCheckIns, resolvedRemovals) = try await (
             profiles,
             metadataChanges,
             checkIns,
-            archives,
+            removals,
         )
         let latestNicknames = Dictionary(
             grouping: resolvedMetadata.filter { $0.field == .nickname },
@@ -937,15 +927,15 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         let checkInsByDevice = Dictionary(uniqueKeysWithValues: resolvedCheckIns.map {
             ($0.deviceID, $0)
         })
-        let archivesByDevice = Dictionary(grouping: resolvedArchives, by: \.deviceID)
-            .compactMapValues { $0.min(by: { $0.archivedAt < $1.archivedAt }) }
+        let removalsByDevice = Dictionary(grouping: resolvedRemovals, by: \.deviceID)
+            .compactMapValues { $0.min(by: { $0.removedAt < $1.removedAt }) }
         return resolvedProfiles
             .map {
                 RecordingDevice(
                     profile: $0,
                     nicknameChange: latestNicknames[$0.id],
                     checkIn: checkInsByDevice[$0.id],
-                    archive: archivesByDevice[$0.id],
+                    removal: removalsByDevice[$0.id],
                 )
             }
             .sorted {
@@ -1110,11 +1100,11 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         }
     }
 
-    public func recordingAssignmentChanges() async throws -> [RecordingAssignmentChange] {
+    public func recordingDeviceRemovals() async throws -> [RecordingDeviceRemoval] {
         let context = readContext()
         let epochID = try readEpochID(in: context)
-        var descriptor = FetchDescriptor<SDRecordingAssignmentChange>(
-            sortBy: [SortDescriptor(\.revision), SortDescriptor(\.id)],
+        var descriptor = FetchDescriptor<SDRecordingDeviceRemoval>(
+            sortBy: [SortDescriptor(\.removedAt), SortDescriptor(\.id)],
         )
         descriptor.includePendingChanges = true
         let records = try context.fetch(descriptor)
@@ -1122,75 +1112,41 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         let values = try records.map { record in
             guard let value = record.toValue() else {
                 Self.logFault(forCorrupt: record)
-                throw RecordingPersistenceError.incompleteAssignmentHistory
+                throw RecordingPersistenceError.incompleteRemovalHistory
             }
             return value
         }
-        let canonicalValues = try Dictionary(grouping: values, by: \.id).map { id, duplicates in
-            guard let canonical = duplicates.first else {
-                preconditionFailure("A grouped assignment event must contain at least one value.")
+        return try Dictionary(grouping: values, by: \.id)
+            .map { id, duplicates in
+                guard let canonical = duplicates.first else {
+                    preconditionFailure("A grouped removal must contain at least one value.")
+                }
+                guard duplicates.allSatisfy({ $0 == canonical }) else {
+                    Self.logImmutableConflict(
+                        type: String(describing: RecordingDeviceRemoval.self),
+                        id: id.uuidString,
+                        count: duplicates.count,
+                    )
+                    throw RecordingPersistenceError.conflictingImmutableRecord(id: id)
+                }
+                return canonical
             }
-            guard duplicates.allSatisfy({ $0 == canonical }) else {
-                Self.logImmutableConflict(
-                    type: String(describing: RecordingAssignmentChange.self),
-                    id: id.uuidString,
-                    count: duplicates.count,
-                )
-                throw RecordingPersistenceError.conflictingImmutableRecord(id: id)
+            .sorted {
+                $0.removedAt == $1.removedAt
+                    ? $0.id.uuidString < $1.id.uuidString
+                    : $0.removedAt < $1.removedAt
             }
-            return canonical
-        }
-        guard RecordingAssignmentChange.formValidPersistedTimeline(canonicalValues) else {
-            throw RecordingPersistenceError.incompleteAssignmentHistory
-        }
-        return canonicalValues.sorted {
-            $0.revision == $1.revision
-                ? $0.id.uuidString < $1.id.uuidString
-                : $0.revision < $1.revision
-        }
     }
 
-    public func addRecordingAssignmentChange(_ change: RecordingAssignmentChange) async throws {
-        let context = mutationContext()
-        let epochID = mutationEpochID()
-        let id = change.id
-        let existing = try context.fetch(
-            FetchDescriptor<SDRecordingAssignmentChange>(predicate: #Predicate { $0.id == id }),
-        ).filter { Self.belongs($0.epochID, to: epochID) }
-        guard existing.isEmpty == false else {
-            context.insert(SDRecordingAssignmentChange(value: change, epochID: epochID))
-            return
-        }
-        guard existing.allSatisfy({ $0.toValue() == change }) else {
-            throw RecordingPersistenceError.conflictingImmutableRecord(id: id)
-        }
-        for duplicate in existing.dropFirst() {
-            context.delete(duplicate)
-        }
-    }
-
-    public func recordingDeviceArchives() async throws -> [RecordingDeviceArchive] {
-        let context = readContext()
-        let epochID = try readEpochID(in: context)
-        var descriptor = FetchDescriptor<SDRecordingDeviceArchive>(
-            sortBy: [SortDescriptor(\.archivedAt), SortDescriptor(\.id)],
-        )
-        descriptor.includePendingChanges = true
-        let records: [SDRecordingDeviceArchive] = try context.fetch(descriptor)
-        return records
-            .filter { Self.belongs($0.epochID, to: epochID) }
-            .compactMap { $0.toValue() }
-    }
-
-    public func addRecordingDeviceArchive(_ archive: RecordingDeviceArchive) async throws {
+    public func addRecordingDeviceRemoval(_ archive: RecordingDeviceRemoval) async throws {
         let context = mutationContext()
         let epochID = mutationEpochID()
         let id = archive.id
         let existing = try context.fetch(
-            FetchDescriptor<SDRecordingDeviceArchive>(predicate: #Predicate { $0.id == id }),
+            FetchDescriptor<SDRecordingDeviceRemoval>(predicate: #Predicate { $0.id == id }),
         ).filter { Self.belongs($0.epochID, to: epochID) }
         guard existing.isEmpty == false else {
-            context.insert(SDRecordingDeviceArchive(value: archive, epochID: epochID))
+            context.insert(SDRecordingDeviceRemoval(value: archive, epochID: epochID))
             return
         }
         guard existing.allSatisfy({ $0.toValue() == archive }) else {
@@ -2125,7 +2081,7 @@ final class SDRecordingDeviceMetadataChange {
     }
 }
 
-/// Target-owned acknowledgement/check-in row. No other installation writes this row during
+/// Target-owned status/check-in row. No other installation writes this row during
 /// normal operation, so a whole-value update cannot clobber user metadata.
 @Model
 final class SDRecordingDeviceCheckIn {
@@ -2133,11 +2089,6 @@ final class SDRecordingDeviceCheckIn {
     var deviceID: UUID?
     var revision: Int64?
     var lastSeenAt: Date?
-    var appliedAt: Date?
-    var lastAppliedAssignmentChangeID: UUID?
-    /// Singleton destructive event id or deterministic multi-head frontier digest. The field name
-    /// predates multi-parent policy and remains stable for CloudKit compatibility.
-    var lastDiscardedAssignmentChangeID: UUID?
     var statusRaw: String?
 
     init() {}
@@ -2152,9 +2103,6 @@ final class SDRecordingDeviceCheckIn {
         deviceID = value.deviceID.rawValue
         revision = value.revision
         lastSeenAt = value.lastSeenAt
-        appliedAt = value.appliedAt
-        lastAppliedAssignmentChangeID = value.lastAppliedAssignmentChangeID
-        lastDiscardedAssignmentChangeID = value.lastDiscardedAssignmentChangeID
         statusRaw = value.status.rawValue
     }
 
@@ -2163,8 +2111,6 @@ final class SDRecordingDeviceCheckIn {
               let revision,
               revision >= 0,
               let lastSeenAt,
-              let appliedAt,
-              let lastAppliedAssignmentChangeID,
               let statusRaw,
               let status = RecordingDeviceStatus(rawValue: statusRaw),
               status != .unknown
@@ -2173,94 +2119,38 @@ final class SDRecordingDeviceCheckIn {
             deviceID: RecordingDeviceID(rawValue: deviceID),
             revision: revision,
             lastSeenAt: lastSeenAt,
-            appliedAt: appliedAt,
-            lastAppliedAssignmentChangeID: lastAppliedAssignmentChangeID,
-            lastDiscardedAssignmentFrontierToken: lastDiscardedAssignmentChangeID.map {
-                RecordingAssignmentCleanupToken(rawValue: $0)
-            },
             status: status,
         )
     }
 }
 
-/// Account-wide automatic-recording assignment command.
+/// Irreversible installation removal tombstone.
 @Model
-final class SDRecordingAssignmentChange {
-    var epochID: UUID?
-    var id: UUID?
-    var parentIDs: [UUID]?
-    var revision: Int64?
-    var issuedAt: Date?
-    var issuedByDeviceID: UUID?
-    var effectiveAt: Date?
-    var assignedDeviceID: UUID?
-    var reasonRaw: String?
-
-    init() {}
-
-    convenience init(value: RecordingAssignmentChange, epochID: WhereDataEpochID) {
-        self.init()
-        self.epochID = epochID.rawValue
-        id = value.id
-        parentIDs = value.parentIDs
-        revision = value.revision
-        issuedAt = value.issuedAt
-        issuedByDeviceID = value.issuedByDeviceID.rawValue
-        effectiveAt = value.effectiveAt
-        assignedDeviceID = value.assignedDeviceID?.rawValue
-        reasonRaw = value.reason.rawValue
-    }
-
-    func toValue() -> RecordingAssignmentChange? {
-        guard let id,
-              let parentIDs,
-              let revision,
-              let issuedAt,
-              let issuedByDeviceID,
-              let effectiveAt,
-              let reasonRaw,
-              let reason = RecordingAssignmentReason(rawValue: reasonRaw)
-        else { return nil }
-        return RecordingAssignmentChange.persisted(
-            id: id,
-            parentIDs: parentIDs,
-            revision: revision,
-            issuedAt: issuedAt,
-            issuedByDeviceID: RecordingDeviceID(rawValue: issuedByDeviceID),
-            effectiveAt: effectiveAt,
-            assignedDeviceID: assignedDeviceID.map(RecordingDeviceID.init(rawValue:)),
-            reason: reason,
-        )
-    }
-}
-
-/// Irreversible installation archive tombstone.
-@Model
-final class SDRecordingDeviceArchive {
+final class SDRecordingDeviceRemoval {
     var epochID: UUID?
     var id: UUID?
     var deviceID: UUID?
-    var archivedAt: Date?
-    var archivedByDeviceID: UUID?
+    var removedAt: Date?
+    var removedByDeviceID: UUID?
 
     init() {}
 
-    convenience init(value: RecordingDeviceArchive, epochID: WhereDataEpochID) {
+    convenience init(value: RecordingDeviceRemoval, epochID: WhereDataEpochID) {
         self.init()
         self.epochID = epochID.rawValue
         id = value.id
         deviceID = value.deviceID.rawValue
-        archivedAt = value.archivedAt
-        archivedByDeviceID = value.archivedByDeviceID.rawValue
+        removedAt = value.removedAt
+        removedByDeviceID = value.removedByDeviceID.rawValue
     }
 
-    func toValue() -> RecordingDeviceArchive? {
-        guard let id, let deviceID, let archivedAt, let archivedByDeviceID else { return nil }
-        return RecordingDeviceArchive(
+    func toValue() -> RecordingDeviceRemoval? {
+        guard let id, let deviceID, let removedAt, let removedByDeviceID else { return nil }
+        return RecordingDeviceRemoval(
             id: id,
             deviceID: RecordingDeviceID(rawValue: deviceID),
-            archivedAt: archivedAt,
-            archivedByDeviceID: RecordingDeviceID(rawValue: archivedByDeviceID),
+            removedAt: removedAt,
+            removedByDeviceID: RecordingDeviceID(rawValue: removedByDeviceID),
         )
     }
 }

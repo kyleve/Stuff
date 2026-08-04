@@ -6,64 +6,86 @@ import Testing
 @MainActor
 struct InMemoryInstallationRecordingContextStoreTests {
     @Test func confirmationStaysInMemory() throws {
-        let context = InstallationRecordingContext(
+        let context = unconfirmedContext()
+        let store = InMemoryInstallationRecordingContextStore(
+            context: context,
+            makeUUID: { Self.replacementDeviceID },
+            now: { Self.replacementRegisteredAt },
+        )
+
+        let confirmed = try store.confirmInitialRecording(isEnabled: false)
+
+        #expect(confirmed.automaticRecordingEnabled == false)
+        #expect(confirmed.registeredAt == Self.registeredAt)
+        #expect(try store.resolve() == confirmed)
+    }
+
+    @Test func settingsCanChangeTheConfirmedLocalChoice() throws {
+        let store = InMemoryInstallationRecordingContextStore(context: .testing)
+
+        try store.setAutomaticRecordingEnabled(false)
+
+        #expect(try store.resolve().automaticRecordingEnabled == false)
+    }
+
+    @Test func resetCreatesANewOrdinaryUnconfirmedIdentity() throws {
+        let store = makeStore(context: .testing)
+
+        try store.reset()
+
+        #expect(store.onboardingContext.currentDevice.id.rawValue == Self.replacementDeviceID)
+        #expect(store.onboardingContext.registeredAt == Self.replacementRegisteredAt)
+        #expect(store.onboardingContext.automaticRecordingEnabled == nil)
+        #expect(store.onboardingContext.isRejoining == false)
+    }
+
+    @Test func rejoinCreatesANewConservativeUnconfirmedIdentity() throws {
+        let store = makeStore(context: .testing)
+
+        let rejoined = try store.rejoin()
+
+        #expect(rejoined.currentDevice.id.rawValue == Self.replacementDeviceID)
+        #expect(rejoined.automaticRecordingEnabled == nil)
+        #expect(rejoined.isRejoining)
+        #expect(rejoined.recommendedRecordingEnabled == false)
+    }
+
+    @Test func laterConfirmationCannotRewriteTheInitialChoice() throws {
+        let store = InMemoryInstallationRecordingContextStore(context: .testing)
+
+        let repeated = try store.confirmInitialRecording(isEnabled: false)
+
+        #expect(repeated == .testing)
+        #expect(repeated.automaticRecordingEnabled == true)
+    }
+
+    private func makeStore(
+        context: InstallationRecordingContext,
+    ) -> InMemoryInstallationRecordingContextStore {
+        InMemoryInstallationRecordingContextStore(
+            context: context,
+            makeUUID: { Self.replacementDeviceID },
+            now: { Self.replacementRegisteredAt },
+        )
+    }
+
+    private func unconfirmedContext() -> InstallationRecordingContext {
+        InstallationRecordingContext(
             currentDevice: CurrentRecordingDevice(
                 id: RecordingDeviceID(rawValue: Self.deviceID),
                 systemName: "iPad",
                 kind: .tablet,
             ),
             registeredAt: Self.registeredAt,
-            initialRecordingChoice: nil,
+            automaticRecordingEnabled: nil,
+            isRejoining: false,
         )
-        let store = InMemoryInstallationRecordingContextStore(
-            context: context,
-            makeUUID: { Self.assignmentChangeID },
-            now: { Self.confirmedAt },
-        )
-
-        let confirmed = try store.confirmInitialRecording(isEnabled: false)
-
-        #expect(confirmed.initialRecordingChoice?.assignmentChangeID == Self.assignmentChangeID)
-        #expect(confirmed.registeredAt == Self.registeredAt)
-        #expect(confirmed.initialRecordingChoice?.confirmedAt == Self.confirmedAt)
-        #expect(try store.resolve() == confirmed)
-    }
-
-    @Test func resetCreatesANewUnconfirmedIdentity() throws {
-        let store = InMemoryInstallationRecordingContextStore(
-            context: .testing,
-            makeUUID: { Self.resetDeviceID },
-            now: { Self.resetRegisteredAt },
-        )
-
-        try store.reset()
-
-        #expect(store.onboardingContext.currentDevice.id.rawValue == Self.resetDeviceID)
-        #expect(store.onboardingContext.registeredAt == Self.resetRegisteredAt)
-        #expect(store.onboardingContext.initialRecordingChoice == nil)
-    }
-
-    @Test func laterConfirmationCannotRewriteTheInitialPolicyEvent() throws {
-        let store = InMemoryInstallationRecordingContextStore(
-            context: .testing,
-            makeUUID: { Self.resetDeviceID },
-            now: { Self.confirmedAt },
-        )
-
-        let repeated = try store.confirmInitialRecording(isEnabled: false)
-
-        #expect(repeated == .testing)
-        #expect(repeated.initialRecordingChoice?.isEnabled == true)
     }
 
     private static let deviceID = UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")!
-    private static let assignmentChangeID = UUID(
-        uuidString: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB",
-    )!
-    private static let resetDeviceID = UUID(
+    private static let replacementDeviceID = UUID(
         uuidString: "CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC",
     )!
     private static let registeredAt = Date(timeIntervalSinceReferenceDate: 100)
-    private static let confirmedAt = Date(timeIntervalSinceReferenceDate: 200)
-    private static let resetRegisteredAt = Date(timeIntervalSinceReferenceDate: 300)
+    private static let replacementRegisteredAt = Date(timeIntervalSinceReferenceDate: 300)
 }

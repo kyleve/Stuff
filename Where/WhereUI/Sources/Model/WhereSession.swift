@@ -51,6 +51,10 @@ public final class WhereSession {
         return configuration.device.status == .recording
     }
 
+    public var isCurrentDeviceRemoved: Bool {
+        if case .removed = recordingRuntimeState { true } else { false }
+    }
+
     /// Stable installation identity used by the Devices settings screen to mark
     /// the current row and prevent archiving it.
     public var currentRecordingDeviceID: RecordingDeviceID {
@@ -70,6 +74,7 @@ public final class WhereSession {
     /// `MainTabs` / the tabs can build their scoped models from the injected
     /// coordinator.
     let services: WhereServices
+    private let installationContextStore: any InstallationRecordingContextStoring
 
     /// The persisted user intent (tracking, reminder/summary schedules) the
     /// coordinator applies at launch/foreground. Owned by `WhereModel` and shared
@@ -122,6 +127,9 @@ public final class WhereSession {
 
     /// Whether this session has performed its explicit, idempotent registration operation.
     private var didRegisterRecordingDevice = false
+    /// Orders local recording intents across permission prompts; a newer Off must not be
+    /// overwritten when an earlier On resumes after the prompt.
+    private var recordingIntentSequence: UInt64 = 0
     /// Last controller-ordered runtime emission applied to presentation state.
     private var lastRecordingRuntimeSequence: UInt64?
 
@@ -129,7 +137,7 @@ public final class WhereSession {
     /// and acknowledges it. This gates foreground capture without a second mutable mirror.
     private var recordingEnabled: Bool {
         guard case let .applied(configuration) = recordingRuntimeState else { return false }
-        return configuration.isEnabled == true
+        return configuration.localAutomaticRecordingEnabled == true
     }
 
     /// A process-unique session identity. A typed token rather than a raw `Int`
@@ -151,11 +159,24 @@ public final class WhereSession {
     /// Build a coordinator over the scope the app is logged in to. The
     /// designated initializer: taking the whole scope is what guarantees the
     /// services and the preferences a session reads belong to the same world.
-    init(scope: WhereScope, now: @escaping @Sendable () -> Date = { Date() }) {
+    init(
+        scope: WhereScope,
+        installationContextStore: (any InstallationRecordingContextStoring)? = nil,
+        now: @escaping @Sendable () -> Date = { Date() },
+    ) {
         id = Self.mintID()
         services = scope.services
         preferences = scope.preferences
         self.now = now
+        self.installationContextStore = installationContextStore
+            ?? InMemoryInstallationRecordingContextStore(
+                context: InstallationRecordingContext(
+                    currentDevice: scope.services.recording.currentDevice,
+                    registeredAt: now(),
+                    automaticRecordingEnabled: true,
+                    isRejoining: false,
+                ),
+            )
     }
 
     /// Build a coordinator over a loose service layer, wrapping it in a scope.
@@ -321,7 +342,7 @@ public final class WhereSession {
     }
 
     /// Observe Core's focused policy reconciliation output. The controller emits only after
-    /// physical GPS state and its target-owned acknowledgement agree, so this mirror never has
+    /// physical GPS state and its target-owned advisory check-in agree, so this mirror never has
     /// to infer state from an arbitrary store-change notification.
     private func observeRecordingConfigurationChanges() {
         guard recordingConfigurationTask == nil else { return }
@@ -341,7 +362,7 @@ public final class WhereSession {
         observeRecordingConfigurationChanges()
         let wasTracking = isTracking
         do {
-            await services.recording.startMonitoringAssignmentChanges()
+            await services.recording.startMonitoringChanges()
             if didRegisterRecordingDevice {
                 _ = try await services.recording.reconcile(
                     authorization: authorizationStatus,
@@ -382,6 +403,8 @@ public final class WhereSession {
         lastRecordingRuntimeSequence = update.sequence
         recordingRuntimeState = update.state
         if case .unavailable = update.state {
+            didRegisterRecordingDevice = false
+        } else if case .removed = update.state {
             didRegisterRecordingDevice = false
         }
     }
@@ -425,7 +448,7 @@ public final class WhereSession {
     /// hard denial the Settings alert is surfaced.
     public func startTracking() async {
         do {
-            try await setRecordingEnabled(true, for: currentRecordingDeviceID)
+            try await setRecordingEnabled(true)
         } catch {
             Self.logger(attachments: [.error(error, name: "recording-enable-error")]) {
                 .recordingReconcileFailed(description: error.localizedDescription)
@@ -435,7 +458,7 @@ public final class WhereSession {
 
     public func stopTracking() async {
         do {
-            try await setRecordingEnabled(false, for: currentRecordingDeviceID)
+            try await setRecordingEnabled(false)
         } catch {
             Self.logger(attachments: [.error(error, name: "recording-disable-error")]) {
                 .recordingReconcileFailed(description: error.localizedDescription)
@@ -448,40 +471,12 @@ public final class WhereSession {
         try await services.recording.devices()
     }
 
-    public func recordingAuthoritySnapshot() async throws -> RecordingAuthoritySnapshot {
-        try await services.recording.authoritySnapshot()
-    }
-
-    public func assignAutomaticRecording(to deviceID: RecordingDeviceID) async throws {
-        _ = try await services.recording.assignAutomaticRecording(to: deviceID)
-        if deviceID == currentRecordingDeviceID {
-            do {
-                try await services.ingestor.requestPermission()
-            } catch {
-                permissionDenied = true
-            }
-            await syncAuthorization()
-            _ = try await services.recording.reconcile(authorization: authorizationStatus)
-        }
-        await synchronizeRecordingRuntimeState()
-    }
-
-    public func turnOffAutomaticRecording() async throws {
-        _ = try await services.recording.turnOffAutomaticRecording()
-        await synchronizeRecordingRuntimeState()
-    }
-
-    /// Set automatic recording for any installation. The current device also
-    /// runs the permission flow and updates the session's live tracking mirror.
-    public func setRecordingEnabled(
-        _ enabled: Bool,
-        for deviceID: RecordingDeviceID,
-    ) async throws {
-        var devices = try await services.recording.setEnabled(
-            enabled,
-            for: deviceID,
-        )
-        guard deviceID == currentRecordingDeviceID else { return }
+    /// Persist and apply this installation's local recording choice.
+    public func setRecordingEnabled(_ enabled: Bool) async throws {
+        let (sequence, overflow) = recordingIntentSequence.addingReportingOverflow(1)
+        precondition(!overflow, "Recording intent sequence exhausted UInt64.")
+        recordingIntentSequence = sequence
+        try installationContextStore.setAutomaticRecordingEnabled(enabled)
 
         var permissionRequestFailed = false
         if enabled {
@@ -491,25 +486,17 @@ public final class WhereSession {
                 permissionRequestFailed = true
             }
             await syncAuthorization()
-            _ = try await services.recording.reconcile(
-                authorization: authorizationStatus,
-            )
-            // The permission prompt is an actor suspension point. Re-read after
-            // it because a later Off action may have won while the prompt was
-            // visible; reconciliation honors that latest policy rather than
-            // appending another On event.
-            devices = try await services.recording.devices()
         }
-
-        guard let current = devices.first(where: { $0.id == deviceID }) else { return }
-        guard let resolvedEnabled = current.isEnabled else {
-            throw RecordingPersistenceError.currentDeviceAssignmentUnknown(deviceID)
-        }
+        guard sequence == recordingIntentSequence else { return }
+        let configuration = try await services.recording.setAutomaticRecordingEnabled(
+            enabled,
+            authorization: authorizationStatus,
+        )
         await synchronizeRecordingRuntimeState()
-        permissionDenied = resolvedEnabled && permissionRequestFailed
-        if resolvedEnabled, isTracking {
+        permissionDenied = enabled && permissionRequestFailed
+        if configuration.localAutomaticRecordingEnabled == true, isTracking {
             Self.logger { .trackingEnabled }
-        } else if !resolvedEnabled {
+        } else if configuration.localAutomaticRecordingEnabled == false {
             Self.logger { .stoppedBackgroundTracking }
         }
     }
@@ -521,10 +508,17 @@ public final class WhereSession {
         _ = try await services.recording.rename(deviceID, to: nickname)
     }
 
-    public func archiveRecordingDevice(
+    public func removeRecordingDevice(
         _ deviceID: RecordingDeviceID,
     ) async throws {
-        _ = try await services.recording.archive(deviceID)
+        _ = try await services.recording.remove(deviceID)
+    }
+
+    func prepareDeviceRejoin() async throws {
+        authorizationTask?.cancel()
+        recordingConfigurationTask?.cancel()
+        regionStyleTask?.cancel()
+        try await services.recording.retireForRejoin()
     }
 
     /// Push the persisted reminder intent to the reminder reconciler and warn if
@@ -597,7 +591,7 @@ public final class WhereSession {
 
     /// Erase synced user data and reset the coordinator's observable state to a
     /// clean slate. A thin pass-through to `WhereServices.reset()`, which owns
-    /// *what* gets cleared (recording authority + user-data transaction + pending
+    /// *what* gets cleared (device identities + user-data transaction + pending
     /// fixes + derived-state reconciliation); the coordinator only mirrors the outcome. The
     /// scene's `YearReportModel` is torn down and rebuilt by the relaunch, so no
     /// report/issue state needs clearing here. The data half of the reset/erase
@@ -618,7 +612,7 @@ public final class WhereSession {
             try await services.reset()
         } catch let error as WhereServices.ResetCleanupError {
             // Synced erasure already committed. Keep the old installation context available to
-            // a later cleanup retry, but never revive this session's observers or authority: the
+            // a later cleanup retry, but never revive this session's observers or recording: the
             // teardown step must release the scope and App Intents before surfacing the terminal
             // partial-success state.
             recordingRuntimeState = .unavailable

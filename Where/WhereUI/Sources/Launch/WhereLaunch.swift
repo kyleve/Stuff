@@ -43,7 +43,7 @@ public enum LaunchStepID: String, Sendable {
     /// Republish the widget snapshot from whatever is already on disk.
     case widgetSnapshot = "widget-snapshot"
 
-    /// Reset teardown: pause GPS, erase synced user data, retire recording authority,
+    /// Reset teardown: pause GPS, erase synced user data, remove old device identities,
     /// discard pending fixes, and drop the session.
     case eraseData = "erase-data"
     /// Reset teardown: clear the installation context and persisted preferences
@@ -52,6 +52,8 @@ public enum LaunchStepID: String, Sendable {
     /// Demo teardown: drop the demo world and hand the real one its durable
     /// log sink back.
     case exitDemo = "exit-demo"
+    /// Retire a removed local identity, then re-drive onboarding with a fresh identity.
+    case rejoinDevice = "rejoin-device"
 }
 
 /// Assembles the Where app's cold-launch plan and the `LifecycleRunner` that
@@ -195,6 +197,12 @@ public enum WhereLaunch {
     {
         LaunchPlan(ExitDemoStep(model: model).measured())
     }
+
+    public static func rejoinPlan(for model: WhereModel)
+        -> LaunchPlan<LaunchStepID, WhereSession, Void>
+    {
+        LaunchPlan(RejoinDeviceStep(model: model).measured())
+    }
 }
 
 /// Assembles the outside-world pieces a real `WhereScope` is built from: the
@@ -216,9 +224,9 @@ public protocol WhereScopeAssembling {
     /// **one** store open.
     func makeServices() async throws -> WhereServices
 
-    /// Open and retain the real store while onboarding remains dormant, then read the synced
-    /// recording assignment without constructing services or activating location/App Intents.
-    func discoverRecordingAssignment() async throws -> RecordingAssignmentResolution
+    /// Open and retain the real store while onboarding remains dormant, then read synced device
+    /// status without constructing services or activating location/App Intents.
+    func discoverRecordingDevices() async throws -> [RecordingDevice]
 
     /// Open the durable log store the scope's records persist to, or `nil` for
     /// an assembly with no durable logging — previews and tests, which log
@@ -228,8 +236,8 @@ public protocol WhereScopeAssembling {
 }
 
 extension WhereScopeAssembling {
-    public func discoverRecordingAssignment() async throws -> RecordingAssignmentResolution {
-        .unconfigured
+    public func discoverRecordingDevices() async throws -> [RecordingDevice] {
+        []
     }
 }
 
@@ -292,7 +300,7 @@ public final class WhereBootstrap: WhereScopeAssembling {
         do {
             let installationContext = try installationContextStore.resolve()
             precondition(
-                installationContext.initialRecordingChoice != nil,
+                installationContext.automaticRecordingEnabled != nil,
                 "A real scope cannot open before this installation confirms recording.",
             )
             let store = try await prepareStore()
@@ -322,14 +330,14 @@ public final class WhereBootstrap: WhereScopeAssembling {
         }
     }
 
-    public func discoverRecordingAssignment() async throws -> RecordingAssignmentResolution {
+    public func discoverRecordingDevices() async throws -> [RecordingDevice] {
         let readiness = CloudKitImportReadiness()
         if storeStorage == .cloudKit { readiness.start() }
         let store = try await prepareStore()
         if storeStorage == .cloudKit, await readiness.waitForImport() == false {
             throw CloudKitImportReadiness.Timeout()
         }
-        return try await RecordingAssignmentChange.resolve(store.recordingAssignmentChanges())
+        return try await store.recordingDevices()
     }
 
     private func prepareStore() async throws -> SwiftDataStore {

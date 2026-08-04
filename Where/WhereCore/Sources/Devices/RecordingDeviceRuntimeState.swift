@@ -1,8 +1,10 @@
 /// Honest physical state of automatic recording on the current installation.
 public enum RecordingDeviceRuntimeState: Sendable, Hashable {
-    /// Desired policy, physical monitoring, and durable acknowledgement agree.
+    /// Local consent, physical monitoring, and the advisory check-in agree.
     case applied(RecordingDeviceConfiguration)
-    /// Core stopped monitoring because it could not prove or persist the applicable policy.
+    /// This installation identity was globally removed and cannot record again.
+    case removed
+    /// Core stopped monitoring because it could not read or persist the applicable state.
     case unavailable
 }
 

@@ -92,8 +92,6 @@ struct BackupCoordinatorTests {
     private static let recordingDeviceID = RecordingDeviceID(
         rawValue: UUID(uuidString: "EEEEEEEE-EEEE-EEEE-EEEE-EEEEEEEEEEEE")!,
     )
-    private static let recordingAssignmentID =
-        UUID(uuidString: "FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF")!
 
     /// Seed every persisted domain directly into a store so backup tests don't
     /// depend on the journal or recording controller.
@@ -126,19 +124,13 @@ struct BackupCoordinatorTests {
                 deviceID: recordingDeviceID,
                 revision: 0,
                 lastSeenAt: dismissal.dismissedAt,
-                appliedAt: dismissal.dismissedAt,
-                lastAppliedAssignmentChangeID: recordingAssignmentID,
                 status: .recording,
             ))
-            try await store.addRecordingAssignmentChange(RecordingAssignmentChange(
-                id: recordingAssignmentID,
-                parentIDs: [],
-                revision: 0,
-                issuedAt: dismissal.dismissedAt,
-                issuedByDeviceID: recordingDeviceID,
-                effectiveAt: dismissal.dismissedAt,
-                assignedDeviceID: recordingDeviceID,
-                reason: .onboarding,
+            try await store.addRecordingDeviceRemoval(RecordingDeviceRemoval(
+                id: UUID(uuidString: "FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF")!,
+                deviceID: recordingDeviceID,
+                removedAt: dismissal.dismissedAt,
+                removedByDeviceID: recordingDeviceID,
             ))
         }
     }
@@ -158,7 +150,7 @@ struct BackupCoordinatorTests {
         #expect(summary.manualDayCount == 1)
         #expect(summary.dismissedIssueCount == 1)
         #expect(summary.recordingDeviceCount == 1)
-        #expect(summary.recordingAssignmentChangeCount == 1)
+        #expect(summary.recordingDeviceRemovalCount == 1)
 
         #expect(try await destination.store.allSamples() == source.store.allSamples())
         #expect(try await destination.store.allEvidence() == source.store.allEvidence())
@@ -171,15 +163,11 @@ struct BackupCoordinatorTests {
             .recordingDeviceProfiles())
         #expect(try await destination.store.recordingDeviceMetadataChanges() == source.store
             .recordingDeviceMetadataChanges())
-        // Check-ins prove that a particular installation applied policy and cleared its own
-        // outbox. A backup cannot safely reproduce that proof on another installation.
+        // Check-ins are live advisory status from a particular installation. A backup cannot
+        // safely reproduce that status on another installation.
         #expect(try await destination.store.recordingDeviceCheckIns().isEmpty)
-        let assignments = try await destination.store.recordingAssignmentChanges()
-        let sourceAssignments = try await source.store.recordingAssignmentChanges()
-        #expect(Array(assignments.dropLast()) == sourceAssignments)
-        #expect(assignments.last?.parentIDs == [Self.recordingAssignmentID])
-        #expect(assignments.last?.assignedDeviceID == nil)
-        #expect(assignments.last?.reason == .backupMerge)
+        #expect(try await destination.store.recordingDeviceRemovals() == source.store
+            .recordingDeviceRemovals())
         #expect(try await destination.store.evidenceBlob(for: Self.evidence.id) == Self.blob)
         // An import that lands new data runs the post-commit hook once.
         #expect(await destination.didCommit.count == 1)
@@ -209,6 +197,7 @@ struct BackupCoordinatorTests {
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
 
         let destination = try Self.makeHarness()
+        let previouslyRemovedDeviceID = RecordingDeviceID(rawValue: UUID())
         try await destination.store.perform {
             try await destination.store.add(sample: Self.sample(at: "2026-01-01T09:00:00-08:00"))
             try await destination.store.setManualDay(DayPresence(
@@ -222,6 +211,12 @@ struct BackupCoordinatorTests {
                 id: .missingDays(start: CalendarDay(year: 2026, month: 1, day: 2)),
                 dismissedAt: Date(timeIntervalSince1970: 1),
             ))
+            try await destination.store.addRecordingDeviceRemoval(RecordingDeviceRemoval(
+                id: UUID(),
+                deviceID: previouslyRemovedDeviceID,
+                removedAt: Date(timeIntervalSinceReferenceDate: 500),
+                removedByDeviceID: Self.recordingDeviceID,
+            ))
         }
 
         _ = try await destination.coordinator.importBackup(from: url, strategy: .replace)
@@ -231,6 +226,10 @@ struct BackupCoordinatorTests {
         #expect(try await destination.store.allDismissedIssues() == source.store
             .allDismissedIssues())
         #expect(try await destination.store.allDismissedIssues() == [Self.dismissal])
+        #expect(try await Set(destination.store.recordingDeviceRemovals().map(\.deviceID)) == [
+            Self.recordingDeviceID,
+            previouslyRemovedDeviceID,
+        ])
     }
 
     @Test func replaceImportRestoresTheArchivesTrackedRegions() async throws {
@@ -471,8 +470,7 @@ struct BackupCoordinatorTests {
             manualDays: [],
             recordingDeviceProfiles: [],
             recordingDeviceMetadataChanges: [],
-            recordingAssignmentChanges: [],
-            recordingDeviceArchives: [],
+            recordingDeviceRemovals: [],
             blobs: [:],
         )
         defer { try? FileManager.default.removeItem(at: secondURL.deletingLastPathComponent()) }

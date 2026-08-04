@@ -134,12 +134,16 @@ public struct RootView: View {
                 // monotonic `id` (never reused within the process) rather than
                 // its address, so a rebuilt session can't collide with a freed
                 // one and skip the rebuild.
-                MainTabs(
-                    session: session,
-                    initialReport: model.initialReport,
-                    selectedYear: model.initialSelectedYear,
-                )
-                .id(session.id)
+                if session.isCurrentDeviceRemoved {
+                    RemovedDeviceView(model: model, session: session)
+                } else {
+                    MainTabs(
+                        session: session,
+                        initialReport: model.initialReport,
+                        selectedYear: model.initialSelectedYear,
+                    )
+                    .id(session.id)
+                }
             }
             // Extend the app content's safe area by the floating HUD's footprint so
             // scroll views behind the non-modal window inset and their last rows

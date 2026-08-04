@@ -12,10 +12,14 @@ public protocol InstallationRecordingContextStoring: AnyObject {
     /// value for the lifetime of the store object.
     func resolve() throws -> InstallationRecordingContext
 
-    /// Persist the first explicit choice and its immutable event time beside
-    /// the installation identity and immutable profile time. Later calls return
-    /// that frozen choice; subsequent intent changes belong in the synced assignment stream.
+    /// Persist the first explicit local choice beside the installation identity.
     func confirmInitialRecording(isEnabled: Bool) throws -> InstallationRecordingContext
+
+    /// Persist a later Settings choice locally. The installation must already be confirmed.
+    func setAutomaticRecordingEnabled(_ isEnabled: Bool) throws
+
+    /// Replace a removed installation identity without touching synced account data or recovery.
+    func rejoin() throws -> InstallationRecordingContext
 
     /// Durable two-phase state for an import started by this installation. Kept beside the
     /// identity so a recreated service layer cannot forget a committed cleanup or onboarding

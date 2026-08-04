@@ -5,66 +5,58 @@ import Foundation
 /// The whole value is persisted outside backed-up preferences. A restored device
 /// therefore gets a new identity and must confirm its own initial recording
 /// choice, while repeated launches of the same installation reuse both the
-/// identity and the complete immutable payload inputs for its first synced
-/// device profile and assignment event.
+/// identity and its explicitly chosen local automatic-recording preference.
 public struct InstallationRecordingContext: Sendable, Hashable {
-    /// The explicitly confirmed first policy for this installation, including
-    /// the timestamp reused whenever its immutable event must be recreated.
-    public struct InitialRecordingChoice: Sendable, Hashable {
-        public let isEnabled: Bool
-        public let assignmentChangeID: UUID
-        public let confirmedAt: Date
-
-        public init(
-            isEnabled: Bool,
-            assignmentChangeID: UUID,
-            confirmedAt: Date,
-        ) {
-            self.isEnabled = isEnabled
-            self.assignmentChangeID = assignmentChangeID
-            self.confirmedAt = confirmedAt
-        }
-    }
-
     public let currentDevice: CurrentRecordingDevice
     /// Stable creation time for this installation's immutable device profile.
     public let registeredAt: Date
-    public let initialRecordingChoice: InitialRecordingChoice?
+    /// This installation's explicit local choice. `nil` means onboarding has not confirmed it.
+    public let automaticRecordingEnabled: Bool?
+    /// Whether this identity was created by the explicit rejoin flow.
+    public let isRejoining: Bool
 
     public init(
         currentDevice: CurrentRecordingDevice,
         registeredAt: Date,
-        initialRecordingChoice: InitialRecordingChoice?,
+        automaticRecordingEnabled: Bool?,
+        isRejoining: Bool,
     ) {
         self.currentDevice = currentDevice
         self.registeredAt = registeredAt
-        self.initialRecordingChoice = initialRecordingChoice
+        self.automaticRecordingEnabled = automaticRecordingEnabled
+        self.isRejoining = isRejoining
     }
 
     /// The safe default shown until this installation confirms a choice.
     public var recommendedRecordingEnabled: Bool {
-        currentDevice.kind.recommendsAutomaticRecording
+        !isRejoining && currentDevice.kind.recommendsAutomaticRecording
     }
 
-    /// Return the confirmed form of a newly proposed context, freezing every
-    /// value needed to recreate the first assignment event byte-for-byte.
-    public func confirmingInitialRecording(
-        isEnabled: Bool,
-        assignmentChangeID: UUID,
-        confirmedAt: Date,
-    ) -> InstallationRecordingContext {
+    /// Return the confirmed form of a newly proposed context.
+    public func confirmingInitialRecording(isEnabled: Bool) -> InstallationRecordingContext {
         precondition(
-            initialRecordingChoice == nil,
+            automaticRecordingEnabled == nil,
             "An installation's initial recording choice can only be confirmed once.",
         )
         return InstallationRecordingContext(
             currentDevice: currentDevice,
             registeredAt: registeredAt,
-            initialRecordingChoice: InitialRecordingChoice(
-                isEnabled: isEnabled,
-                assignmentChangeID: assignmentChangeID,
-                confirmedAt: confirmedAt,
-            ),
+            automaticRecordingEnabled: isEnabled,
+            isRejoining: false,
+        )
+    }
+
+    /// Return a copy carrying a later local Settings choice.
+    public func settingAutomaticRecordingEnabled(_ isEnabled: Bool) -> Self {
+        precondition(
+            automaticRecordingEnabled != nil,
+            "Automatic recording must be confirmed before Settings can change it.",
+        )
+        return InstallationRecordingContext(
+            currentDevice: currentDevice,
+            registeredAt: registeredAt,
+            automaticRecordingEnabled: isEnabled,
+            isRejoining: false,
         )
     }
 
@@ -79,11 +71,8 @@ public struct InstallationRecordingContext: Sendable, Hashable {
             kind: .phone,
         ),
         registeredAt: Date(timeIntervalSinceReferenceDate: 0),
-        initialRecordingChoice: InitialRecordingChoice(
-            isEnabled: true,
-            assignmentChangeID: UUID(uuidString: "00000000-0000-0000-0000-0000000000D1")!,
-            confirmedAt: Date(timeIntervalSinceReferenceDate: 1),
-        ),
+        automaticRecordingEnabled: true,
+        isRejoining: false,
     )
 
     /// Deterministic context for tests and previews that do not care which
@@ -98,10 +87,7 @@ public struct InstallationRecordingContext: Sendable, Hashable {
             kind: .phone,
         ),
         registeredAt: Date(timeIntervalSinceReferenceDate: 0),
-        initialRecordingChoice: InitialRecordingChoice(
-            isEnabled: true,
-            assignmentChangeID: UUID(uuidString: "00000000-0000-0000-0000-000000000002")!,
-            confirmedAt: Date(timeIntervalSinceReferenceDate: 1),
-        ),
+        automaticRecordingEnabled: true,
+        isRejoining: false,
     )
 }

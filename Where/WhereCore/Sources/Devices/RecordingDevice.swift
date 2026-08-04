@@ -18,7 +18,7 @@ public enum RecordingDeviceKind: String, Codable, Sendable, Hashable {
     }
 }
 
-/// The last effective recording state acknowledged by a device.
+/// The latest advisory recording status reported by a device.
 public enum RecordingDeviceStatus: String, Codable, Sendable, Hashable {
     /// The profile arrived before this installation's first check-in.
     case unknown
@@ -29,9 +29,9 @@ public enum RecordingDeviceStatus: String, Codable, Sendable, Hashable {
 
 /// Read model for one device assembled from independently synced records.
 ///
-/// The immutable profile, append-only nickname timeline, archive tombstone, and target-owned
-/// check-in have
-/// deliberately separate persistence rows. This aggregate is never written back wholesale:
+/// The immutable profile, append-only nickname timeline, removal tombstone, and target-owned
+/// check-in have deliberately separate persistence rows. This aggregate is never written back
+/// wholesale:
 /// doing so would let CloudKit's last writer overwrite fields owned by another device.
 public struct RecordingDevice: Identifiable, Codable, Sendable, Hashable {
     public let id: RecordingDeviceID
@@ -40,14 +40,7 @@ public struct RecordingDevice: Identifiable, Codable, Sendable, Hashable {
     public let kind: RecordingDeviceKind
     public let registeredAt: Date
     public let lastSeenAt: Date
-    public let archivedAt: Date?
-    public let lastAppliedAssignmentChangeID: UUID?
-    /// Stable storage field; see `RecordingDeviceCheckIn.lastDiscardedAssignmentChangeID`.
-    public let lastDiscardedAssignmentChangeID: UUID?
-
-    var lastDiscardedAssignmentFrontierToken: RecordingAssignmentCleanupToken? {
-        lastDiscardedAssignmentChangeID.map(RecordingAssignmentCleanupToken.init(rawValue:))
-    }
+    public let removedAt: Date?
 
     public let status: RecordingDeviceStatus
 
@@ -58,8 +51,7 @@ public struct RecordingDevice: Identifiable, Codable, Sendable, Hashable {
         kind: RecordingDeviceKind,
         registeredAt: Date,
         lastSeenAt: Date,
-        archivedAt: Date?,
-        lastAppliedAssignmentChangeID: UUID?,
+        removedAt: Date?,
         status: RecordingDeviceStatus,
     ) {
         self.id = id
@@ -68,9 +60,7 @@ public struct RecordingDevice: Identifiable, Codable, Sendable, Hashable {
         self.kind = kind
         self.registeredAt = registeredAt
         self.lastSeenAt = lastSeenAt
-        self.archivedAt = archivedAt
-        self.lastAppliedAssignmentChangeID = lastAppliedAssignmentChangeID
-        lastDiscardedAssignmentChangeID = nil
+        self.removedAt = removedAt
         self.status = status
     }
 
@@ -83,7 +73,7 @@ public struct RecordingDevice: Identifiable, Codable, Sendable, Hashable {
         profile: RecordingDeviceProfile,
         nicknameChange: RecordingDeviceMetadataChange?,
         checkIn: RecordingDeviceCheckIn?,
-        archive: RecordingDeviceArchive?,
+        removal: RecordingDeviceRemoval?,
     ) {
         id = profile.id
         systemName = profile.systemName
@@ -91,9 +81,7 @@ public struct RecordingDevice: Identifiable, Codable, Sendable, Hashable {
         kind = profile.kind
         registeredAt = profile.registeredAt
         lastSeenAt = checkIn?.lastSeenAt ?? profile.registeredAt
-        archivedAt = archive?.archivedAt
-        lastAppliedAssignmentChangeID = checkIn?.lastAppliedAssignmentChangeID
-        lastDiscardedAssignmentChangeID = checkIn?.lastDiscardedAssignmentChangeID
+        removedAt = removal?.removedAt
         status = checkIn?.status ?? .unknown
     }
 }

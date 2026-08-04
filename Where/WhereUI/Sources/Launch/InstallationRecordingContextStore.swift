@@ -8,9 +8,9 @@ import WhereCore
 /// cannot clone the source installation's identity or recording consent. A new
 /// context stays in memory until onboarding confirms its first choice, which
 /// keeps merely viewing onboarding or entering demo mode free of durable writes.
-/// The sidecar also freezes the timestamps used by the first immutable device
-/// profile and assignment event, and retains active import recovery plus terminal
-/// onboarding-import authority, so retries and cold-launch repair are deterministic.
+/// The sidecar also freezes the timestamp used by the immutable device profile
+/// and retains active import recovery plus terminal onboarding-import authority,
+/// so retries and cold-launch repair are deterministic.
 @MainActor
 public final class FileInstallationRecordingContextStore:
     InstallationRecordingContextStoring
@@ -44,18 +44,6 @@ public final class FileInstallationRecordingContextStore:
     }
 
     private struct StoredContext: Codable {
-        struct InitialRecordingChoice: Codable {
-            let isEnabled: Bool
-            let assignmentChangeID: UUID
-            let confirmedAt: Date
-
-            enum CodingKeys: String, CodingKey {
-                case isEnabled
-                case assignmentChangeID
-                case confirmedAt
-            }
-        }
-
         struct BackupImportRecovery: Codable {
             enum Strategy: String, Codable {
                 case merge = "backup-merge"
@@ -74,7 +62,7 @@ public final class FileInstallationRecordingContextStore:
                 let dismissedIssueCount: Int
                 let trackedRegionCount: Int
                 let recordingDeviceCount: Int
-                let recordingAssignmentChangeCount: Int
+                let recordingDeviceRemovalCount: Int
 
                 init(_ summary: BackupCoordinator.ImportSummary) {
                     sampleCount = summary.sampleCount
@@ -83,7 +71,7 @@ public final class FileInstallationRecordingContextStore:
                     dismissedIssueCount = summary.dismissedIssueCount
                     trackedRegionCount = summary.trackedRegionCount
                     recordingDeviceCount = summary.recordingDeviceCount
-                    recordingAssignmentChangeCount = summary.recordingAssignmentChangeCount
+                    recordingDeviceRemovalCount = summary.recordingDeviceRemovalCount
                 }
 
                 var value: BackupCoordinator.ImportSummary {
@@ -94,7 +82,7 @@ public final class FileInstallationRecordingContextStore:
                         dismissedIssueCount: dismissedIssueCount,
                         trackedRegionCount: trackedRegionCount,
                         recordingDeviceCount: recordingDeviceCount,
-                        recordingAssignmentChangeCount: recordingAssignmentChangeCount,
+                        recordingDeviceRemovalCount: recordingDeviceRemovalCount,
                     )
                 }
             }
@@ -166,7 +154,8 @@ public final class FileInstallationRecordingContextStore:
         let systemName: String
         let kind: RecordingDeviceKind
         let registeredAt: Date
-        let initialRecordingChoice: InitialRecordingChoice?
+        let automaticRecordingEnabled: Bool?
+        let isRejoining: Bool?
         let backupImportRecovery: BackupImportRecovery?
         let onboardingImportCompletionID: UUID?
 
@@ -175,7 +164,8 @@ public final class FileInstallationRecordingContextStore:
             case systemName
             case kind
             case registeredAt
-            case initialRecordingChoice
+            case automaticRecordingEnabled
+            case isRejoining
             case backupImportRecovery
             case onboardingImportCompletionID
         }
@@ -189,13 +179,8 @@ public final class FileInstallationRecordingContextStore:
             systemName = context.currentDevice.systemName
             kind = context.currentDevice.kind
             registeredAt = context.registeredAt
-            initialRecordingChoice = context.initialRecordingChoice.map {
-                InitialRecordingChoice(
-                    isEnabled: $0.isEnabled,
-                    assignmentChangeID: $0.assignmentChangeID,
-                    confirmedAt: $0.confirmedAt,
-                )
-            }
+            automaticRecordingEnabled = context.automaticRecordingEnabled
+            isRejoining = context.isRejoining
             self.backupImportRecovery = backupImportRecovery.map(BackupImportRecovery.init)
             onboardingImportCompletionID = onboardingImportCompletion?.transactionID
         }
@@ -208,13 +193,8 @@ public final class FileInstallationRecordingContextStore:
                     kind: kind,
                 ),
                 registeredAt: registeredAt,
-                initialRecordingChoice: initialRecordingChoice.map {
-                    InstallationRecordingContext.InitialRecordingChoice(
-                        isEnabled: $0.isEnabled,
-                        assignmentChangeID: $0.assignmentChangeID,
-                        confirmedAt: $0.confirmedAt,
-                    )
-                },
+                automaticRecordingEnabled: automaticRecordingEnabled,
+                isRejoining: isRejoining ?? false,
             )
         }
     }
@@ -327,6 +307,7 @@ public final class FileInstallationRecordingContextStore:
             kind: kind,
             id: makeUUID(),
             registeredAt: now(),
+            isRejoining: false,
         )
         if let initialFailure {
             resolution = .failed(initialFailure, proposed: proposed)
@@ -368,15 +349,9 @@ public final class FileInstallationRecordingContextStore:
         isEnabled: Bool,
     ) throws -> InstallationRecordingContext {
         let context = try resolution.get()
-        // Confirmation freezes one immutable assignment event. A later UI retry cannot rewrite
-        // that event under the same id; subsequent changes belong in the synced assignment stream.
-        if context.initialRecordingChoice != nil { return context }
+        if context.automaticRecordingEnabled != nil { return context }
 
-        let confirmed = context.confirmingInitialRecording(
-            isEnabled: isEnabled,
-            assignmentChangeID: makeUUID(),
-            confirmedAt: now(),
-        )
+        let confirmed = context.confirmingInitialRecording(isEnabled: isEnabled)
         try persist(
             confirmed,
             backupImportRecovery: backupImportRecovery,
@@ -384,6 +359,33 @@ public final class FileInstallationRecordingContextStore:
         )
         resolution = .resolved(confirmed)
         return confirmed
+    }
+
+    public func setAutomaticRecordingEnabled(_ isEnabled: Bool) throws {
+        let updated = try resolution.get().settingAutomaticRecordingEnabled(isEnabled)
+        try persist(
+            updated,
+            backupImportRecovery: backupImportRecovery,
+            onboardingImportCompletion: onboardingImportCompletion,
+        )
+        resolution = .resolved(updated)
+    }
+
+    public func rejoin() throws -> InstallationRecordingContext {
+        let proposed = Self.proposedContext(
+            systemName: systemName,
+            kind: kind,
+            id: makeUUID(),
+            registeredAt: now(),
+            isRejoining: true,
+        )
+        try persist(
+            proposed,
+            backupImportRecovery: backupImportRecovery,
+            onboardingImportCompletion: onboardingImportCompletion,
+        )
+        resolution = .resolved(proposed)
+        return proposed
     }
 
     public func setBackupImportRecovery(
@@ -425,6 +427,7 @@ public final class FileInstallationRecordingContextStore:
                     kind: kind,
                     id: makeUUID(),
                     registeredAt: now(),
+                    isRejoining: false,
                 )
                 wasAlreadyCommitted = false
         }
@@ -484,6 +487,7 @@ public final class FileInstallationRecordingContextStore:
         kind: RecordingDeviceKind,
         id: UUID,
         registeredAt: Date,
+        isRejoining: Bool,
     ) -> InstallationRecordingContext {
         InstallationRecordingContext(
             currentDevice: CurrentRecordingDevice(
@@ -492,7 +496,8 @@ public final class FileInstallationRecordingContextStore:
                 kind: kind,
             ),
             registeredAt: registeredAt,
-            initialRecordingChoice: nil,
+            automaticRecordingEnabled: nil,
+            isRejoining: isRejoining,
         )
     }
 

@@ -1,6 +1,6 @@
 import PeriscopeCore
 
-/// Structured failures from background recording-assignment reconciliation.
+/// Structured failures from local recording and synced-removal reconciliation.
 enum DeviceRecordingControllerLog: LogEvent {
     case policyObservationFailed(description: String)
     case rollbackRecoveryFailed(description: String)
@@ -15,7 +15,7 @@ enum DeviceRecordingControllerLog: LogEvent {
     var message: String {
         switch self {
             case let .policyObservationFailed(description):
-                "Failed to apply a synced recording assignment; recording was stopped: \(description)"
+                "Failed to reconcile recording state; recording was stopped: \(description)"
             case let .rollbackRecoveryFailed(description):
                 "Failed to restore recording after an operation rolled back: \(description)"
             case let .importRecoveryFailed(description):

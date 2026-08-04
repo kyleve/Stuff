@@ -737,87 +737,6 @@ struct WhereServicesTests {
         #expect(await outbox.persistedSamples.isEmpty)
     }
 
-    @Test func backupMergeCannotTurnAnOffInstallationOn() async throws {
-        let context = InstallationRecordingContext.testing
-        let currentDeviceID = context.currentDevice.id
-        let initialChoice = try #require(context.initialRecordingChoice)
-        let initial = RecordingAssignmentChange(
-            id: initialChoice.assignmentChangeID,
-            parentIDs: [],
-            revision: 0,
-            issuedAt: initialChoice.confirmedAt,
-            issuedByDeviceID: currentDeviceID,
-            effectiveAt: initialChoice.confirmedAt,
-            assignedDeviceID: currentDeviceID,
-            reason: .onboarding,
-        )
-        let off = try RecordingAssignmentChange(
-            id: #require(UUID(uuidString: "10000000-0000-0000-0000-000000000000")),
-            parentIDs: [initial.id],
-            revision: 1,
-            issuedAt: Date(timeIntervalSinceReferenceDate: 2),
-            issuedByDeviceID: currentDeviceID,
-            effectiveAt: Date(timeIntervalSinceReferenceDate: 2),
-            assignedDeviceID: nil,
-            reason: .userCommand,
-        )
-        let importedOn = try RecordingAssignmentChange(
-            id: #require(UUID(uuidString: "20000000-0000-0000-0000-000000000000")),
-            parentIDs: [off.id],
-            revision: 2,
-            issuedAt: Date(timeIntervalSinceReferenceDate: 3),
-            issuedByDeviceID: currentDeviceID,
-            effectiveAt: Date(timeIntervalSinceReferenceDate: 3),
-            assignedDeviceID: currentDeviceID,
-            reason: .userCommand,
-        )
-        let profile = RecordingDeviceProfile(
-            id: currentDeviceID,
-            systemName: context.currentDevice.systemName,
-            kind: context.currentDevice.kind,
-            registeredAt: context.registeredAt,
-            registrationEpochID: .initial,
-        )
-        let url = try BackupService().makeArchiveFile(
-            samples: [],
-            evidence: [],
-            manualDays: [],
-            recordingDeviceProfiles: [profile],
-            recordingDeviceMetadataChanges: [],
-            recordingAssignmentChanges: [initial, off, importedOn],
-            recordingDeviceArchives: [],
-            blobs: [:],
-        )
-        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
-
-        let store = try SwiftDataStore.inMemory()
-        try await store.perform {
-            try await store.addRecordingDeviceProfile(profile)
-            try await store.addRecordingAssignmentChange(initial)
-            try await store.addRecordingAssignmentChange(off)
-        }
-        let destination = WhereServices(
-            store: store,
-            locationSource: ScriptedLocationSource(authorizationStatus: .always),
-            installationContext: context,
-        )
-        let before = try await destination.recording.register(authorization: .always)
-        #expect(before.isEnabled == false)
-        #expect(await destination.ingestor.isActive == false)
-
-        _ = try await destination.backup.importBackup(from: url, strategy: .merge)
-
-        let assignments = try await store.recordingAssignmentChanges()
-        let head = try #require(RecordingAssignmentChange.maximalHeads(in: assignments)?.first)
-        #expect(head.parentIDs == [importedOn.id])
-        #expect(head.assignedDeviceID == nil)
-        #expect(head.reason == .backupMerge)
-        #expect(try await store.recordingDeviceCheckIns().first?
-            .lastAppliedAssignmentChangeID == head
-            .id)
-        #expect(await destination.ingestor.isActive == false)
-    }
-
     @Test func failedBackupMergePreservesThePendingLocationThroughRollback() async throws {
         let (sourceServices, _, _) = try Self.makeServices()
         try await seedBackupData(sourceServices)
@@ -873,10 +792,10 @@ struct WhereServicesTests {
         #expect(try await backing.allSamples().contains(where: { $0.id == pending.id }) == false)
         #expect(await destination.ingestor.retryQueueDepth == 0)
         #expect(await outbox.persistedSamples.isEmpty)
-        #expect(await destination.ingestor.isActive == false)
+        #expect(await destination.ingestor.isActive)
     }
 
-    @Test func backupReplaceNeverRestoresRecordingConsent() async throws {
+    @Test func backupReplacePreservesLocalRecordingConsent() async throws {
         let (source, _, _) = try Self.makeServices()
         _ = try await source.recording.register(authorization: .always)
         #expect(await source.ingestor.isActive)
@@ -888,11 +807,8 @@ struct WhereServicesTests {
         #expect(await destination.ingestor.isActive)
         _ = try await destination.backup.importBackup(from: url, strategy: .replace)
 
-        let assignments = try await store.recordingAssignmentChanges()
-        #expect(assignments.map(\.assignedDeviceID) == [CurrentRecordingDevice.preview.id, nil])
-        #expect(assignments.last?.reason == .backupReplace)
-        #expect(try await store.recordingDeviceCheckIns().first?.status == .off)
-        #expect(await destination.ingestor.isActive == false)
+        #expect(try await store.recordingDeviceCheckIns().first?.status == .recording)
+        #expect(await destination.ingestor.isActive)
     }
 
     @Test func replaceCleanupFailureReportsCommittedPartialSuccessAndStaysOff() async throws {
@@ -916,10 +832,6 @@ struct WhereServicesTests {
         #expect(await outbox.persistedSamples == [pending])
         #expect(await destination.ingestor.isActive == false)
         #expect(try await store.dataEpoch().reason == .backupReplace)
-        #expect(
-            try await RecordingAssignmentChange.resolve(store.recordingAssignmentChanges())
-                == .resolved(.off),
-        )
     }
 
     @Test func resetCleanupFailureKeepsTheOldInstallationForSafeRetry() async throws {
@@ -944,10 +856,9 @@ struct WhereServicesTests {
         #expect(await services.ingestor.isActive == false)
         #expect(try await store.recordingDeviceProfiles().count == 1)
         #expect(try await store.recordingDeviceCheckIns().isEmpty)
-        #expect(
-            try await RecordingAssignmentChange.resolve(store.recordingAssignmentChanges())
-                == .resolved(.off),
-        )
+        #expect(try await store.recordingDeviceRemovals().map(\.deviceID) == [
+            CurrentRecordingDevice.preview.id,
+        ])
         #expect(try await store.dataEpoch().reason == .accountReset)
 
         // A retained installation context must not mistake the reset-empty generation for first
@@ -956,8 +867,10 @@ struct WhereServicesTests {
             store: store,
             locationSource: ScriptedLocationSource(authorizationStatus: .always),
         )
-        let configuration = try await relaunched.recording.register(authorization: .always)
-        #expect(configuration.isEnabled == false)
+        await #expect(throws: RecordingPersistenceError.self) {
+            try await relaunched.recording.register(authorization: .always)
+        }
+        #expect(await relaunched.recording.currentRuntimeUpdate()?.state == .removed)
         #expect(await relaunched.ingestor.isActive == false)
     }
 
@@ -971,16 +884,26 @@ struct WhereServicesTests {
             locationOutbox: outbox,
         )
         _ = try await services.recording.register(authorization: .always)
+        let remoteDeviceID = RecordingDeviceID(rawValue: UUID())
+        try await store.perform {
+            try await store.addRecordingDeviceProfile(RecordingDeviceProfile(
+                id: remoteDeviceID,
+                systemName: "iPad",
+                kind: .tablet,
+                registeredAt: pending.timestamp,
+                registrationEpochID: .initial,
+            ))
+        }
         await outbox.save([LocationOutboxEntry(sample: pending, dataEpochID: .initial)])
 
         try await services.reset()
 
         #expect(await outbox.persistedSamples.isEmpty)
-        #expect(try await store.recordingDeviceProfiles().count == 1)
-        #expect(
-            try await RecordingAssignmentChange.resolve(store.recordingAssignmentChanges())
-                == .resolved(.off),
-        )
+        #expect(try await store.recordingDeviceProfiles().count == 2)
+        #expect(try await Set(store.recordingDeviceRemovals().map(\.deviceID)) == [
+            CurrentRecordingDevice.preview.id,
+            remoteDeviceID,
+        ])
         #expect(try await store.dataEpoch().reason == .accountReset)
         #expect(await services.ingestor.isActive == false)
     }
@@ -1005,16 +928,12 @@ struct WhereServicesTests {
             authorization: .always,
         )
 
-        #expect(configuration.isEnabled == false)
+        #expect(configuration.localAutomaticRecordingEnabled == false)
         #expect(configuration.device.status == .off)
         #expect(await destination.ingestor.isActive == false)
-        #expect(
-            try await RecordingAssignmentChange.resolve(store.recordingAssignmentChanges())
-                == .resolved(.off),
-        )
     }
 
-    @Test func failedBackupTransactionRestoresThePreviousRecordingAuthority() async throws {
+    @Test func failedBackupTransactionRestoresTheLocalRecordingChoice() async throws {
         let (source, _, _) = try Self.makeServices()
         try await seedBackupData(source)
         let url = try await source.backup.exportBackup()
@@ -1164,7 +1083,6 @@ struct WhereServicesTests {
             regions: [.california],
         )
         let deviceID = CurrentRecordingDevice.preview.id
-        let policyID = try #require(UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA"))
         try await store.perform {
             try await store.add(sample: seedSample)
             try await store.write(evidence: Self.backupEvidence, blob: Self.backupBlob)
@@ -1180,19 +1098,7 @@ struct WhereServicesTests {
                 deviceID: deviceID,
                 revision: 0,
                 lastSeenAt: seedSample.timestamp,
-                appliedAt: seedSample.timestamp,
-                lastAppliedAssignmentChangeID: policyID,
                 status: .recording,
-            ))
-            try await store.addRecordingAssignmentChange(RecordingAssignmentChange(
-                id: policyID,
-                parentIDs: [],
-                revision: 0,
-                issuedAt: seedSample.timestamp,
-                issuedByDeviceID: deviceID,
-                effectiveAt: seedSample.timestamp,
-                assignedDeviceID: deviceID,
-                reason: .onboarding,
             ))
         }
 
@@ -1208,7 +1114,7 @@ struct WhereServicesTests {
         #expect(try await store.allEvidence().isEmpty)
         #expect(try await store.allManualDays().isEmpty)
         #expect(try await store.recordingDevices().count == 1)
-        #expect(try await store.recordingAssignmentChanges().isEmpty)
+        #expect(try await store.recordingDeviceCheckIns().isEmpty)
     }
 
     // MARK: - Logging reminders
@@ -1898,20 +1804,12 @@ private actor ToggleFailingStore: WhereStore {
         try await backing.setRecordingDeviceCheckIn(checkIn)
     }
 
-    func recordingAssignmentChanges() async throws -> [RecordingAssignmentChange] {
-        try await backing.recordingAssignmentChanges()
+    func recordingDeviceRemovals() async throws -> [RecordingDeviceRemoval] {
+        try await backing.recordingDeviceRemovals()
     }
 
-    func addRecordingAssignmentChange(_ change: RecordingAssignmentChange) async throws {
-        try await backing.addRecordingAssignmentChange(change)
-    }
-
-    func recordingDeviceArchives() async throws -> [RecordingDeviceArchive] {
-        try await backing.recordingDeviceArchives()
-    }
-
-    func addRecordingDeviceArchive(_ archive: RecordingDeviceArchive) async throws {
-        try await backing.addRecordingDeviceArchive(archive)
+    func addRecordingDeviceRemoval(_ archive: RecordingDeviceRemoval) async throws {
+        try await backing.addRecordingDeviceRemoval(archive)
     }
 
     func write(evidence: Evidence, blob: Data?) async throws {

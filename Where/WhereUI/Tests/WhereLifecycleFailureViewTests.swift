@@ -12,7 +12,7 @@ struct WhereLifecycleFailureViewTests {
         dismissedIssueCount: 4,
         trackedRegionCount: 6,
         recordingDeviceCount: 2,
-        recordingAssignmentChangeCount: 7,
+        recordingDeviceRemovalCount: 7,
     )
 
     @Test func committedImportCleanupPreservesSummaryInADedicatedPresentation() throws {

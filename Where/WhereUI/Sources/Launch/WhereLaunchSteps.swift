@@ -53,6 +53,17 @@ struct OnboardingGate: LifecycleGate {
     }
 }
 
+struct RejoinDeviceStep: BudgetedLaunchStep {
+    let model: WhereModel
+    let id = LaunchStepID.rejoinDevice
+    let budget: Duration = .seconds(5)
+
+    func run(_ session: WhereSession, _: LifecycleStepContext) async throws {
+        try await session.prepareDeviceRejoin()
+        try await model.rejoinInstallation()
+    }
+}
+
 /// Resolve the scope the rest of the launch runs against: the one the user's
 /// choice at the gate activated, or — for someone who onboarded on an earlier
 /// launch — their real scope, opening the app's **one** store on the way (see
@@ -203,7 +214,7 @@ struct WidgetSnapshotStep: BudgetedLaunchStep {
 
 // MARK: - Reset teardown steps
 
-/// Retire recording authority, erase synced user data, discard pending fixes,
+/// Remove old device identities, erase synced user data, discard pending fixes,
 /// and log out. Takes the session being erased as
 /// the teardown plan's root input — handed in by Settings, not re-read from an
 /// optional. If the erase throws the runner parks in `.failed` (terminally —

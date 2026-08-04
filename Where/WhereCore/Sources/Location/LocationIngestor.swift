@@ -70,7 +70,7 @@ public actor LocationIngestor {
     /// of background monitoring: an enabled When-In-Use device may take a foreground fix while
     /// monitoring remains paused.
     private var acceptsSamples = false
-    /// Logical generation whose recording authority opened the sample gate. Every persist and
+    /// Logical generation whose local recording choice opened the sample gate. Every persist and
     /// retry uses this as an expected-epoch token, so a remote reset cannot restamp an in-flight
     /// old-authority sample into the new generation.
     private var authorizedDataEpochID: WhereDataEpochID?
@@ -209,7 +209,7 @@ public actor LocationIngestor {
         }
         // Rows written before device provenance existed intentionally remain unstamped and
         // legacy-visible. Re-attributing them to this installation would make them depend on
-        // an assignment event that did not exist when they were captured.
+        // a device identity that did not exist when they were captured.
         retryQueue = restored + retryQueue
         didLoadDurableBacklog = true
     }
@@ -382,7 +382,7 @@ public actor LocationIngestor {
         guard let sample = fix else { return }
         // The ~10s fix may have straddled a `pause()`; re-check the gate before
         // persisting, mirroring `ingest(_:)`. The guard and the `capturePersistTask`
-        // assignment are synchronous (no `await` between), so a concurrent
+        // assignment to the capture task is synchronous (no `await` between), so a concurrent
         // `pause()` either sees `acceptsSamples == false` here (we skip) or sees
         // the handle already set (it awaits us) — never neither.
         guard !Task.isCancelled, accepts(sample) else { return }

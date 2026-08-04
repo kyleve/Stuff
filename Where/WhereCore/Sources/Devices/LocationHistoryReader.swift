@@ -13,14 +13,14 @@ public struct LocationHistoryReader: Sendable {
     public func samples(in interval: DateInterval) async throws -> [LocationSample] {
         try await store.readSnapshot {
             async let samples = store.samples(in: interval)
-            async let assignmentChanges = store.recordingAssignmentChanges()
-            let (resolvedSamples, resolvedAssignmentChanges) = try await (
+            async let removals = store.recordingDeviceRemovals()
+            let (resolvedSamples, resolvedRemovals) = try await (
                 samples,
-                assignmentChanges,
+                removals,
             )
-            return RecordingAssignmentFilter.visibleSamples(
+            return RecordingDeviceRemovalFilter.visibleSamples(
                 resolvedSamples,
-                assignmentChanges: resolvedAssignmentChanges,
+                removals: resolvedRemovals,
             )
         }
     }

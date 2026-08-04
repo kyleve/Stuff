@@ -72,7 +72,7 @@ public protocol WhereStore: Sendable {
     /// Atomically erase the active epoch's synced rows and append a fresh destructive epoch.
     /// Every subsequent write in the same transaction is stamped into the returned epoch.
     /// Immutable device profiles remain global so a late/offline installation can still be
-    /// identified, but its old assignment and user-data rows cannot affect the new generation.
+    /// identified, but its old user-data rows cannot affect the new generation.
     func rotateDataEpoch(
         reason: WhereDataEpochReason,
         changedBy deviceID: RecordingDeviceID,
@@ -104,7 +104,7 @@ public protocol WhereStore: Sendable {
     func samples(in interval: DateInterval) async throws -> [LocationSample]
     func allSamples() async throws -> [LocationSample]
 
-    /// Every assembled synced device read model, including archived devices.
+    /// Every assembled synced device read model, including removed devices.
     func recordingDevices() async throws -> [RecordingDevice]
 
     /// Immutable installation profiles.
@@ -127,17 +127,11 @@ public protocol WhereStore: Sendable {
     /// Must run inside `perform { ... }`.
     func setRecordingDeviceCheckIn(_ checkIn: RecordingDeviceCheckIn) async throws
 
-    /// Complete account-wide automatic-recording assignment history for the active epoch.
-    func recordingAssignmentChanges() async throws -> [RecordingAssignmentChange]
-
-    /// Insert one immutable global assignment command. Must run inside `perform { ... }`.
-    func addRecordingAssignmentChange(_ change: RecordingAssignmentChange) async throws
-
     /// Irreversible device tombstones in the active epoch.
-    func recordingDeviceArchives() async throws -> [RecordingDeviceArchive]
+    func recordingDeviceRemovals() async throws -> [RecordingDeviceRemoval]
 
-    /// Insert an immutable archive tombstone. Must run inside `perform { ... }`.
-    func addRecordingDeviceArchive(_ archive: RecordingDeviceArchive) async throws
+    /// Insert an immutable removal tombstone. Must run inside `perform { ... }`.
+    func addRecordingDeviceRemoval(_ removal: RecordingDeviceRemoval) async throws
 
     func write(evidence: Evidence, blob: Data?) async throws
     func evidence(in interval: DateInterval) async throws -> [Evidence]

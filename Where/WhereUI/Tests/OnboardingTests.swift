@@ -16,7 +16,7 @@ struct OnboardingModelTests {
         #expect(model.installationRecordingContext.recommendedRecordingEnabled)
     }
 
-    @Test func confirmationPersistsChoiceAndPolicyTokenOutsidePreferences() throws {
+    @Test func confirmationPersistsLocalChoiceOutsidePreferences() throws {
         let preferences = makePreferences()
         let contextStore = unconfirmedContextStore(kind: .tablet)
         let model = makeModel(preferences: preferences, contextStore: contextStore)
@@ -26,8 +26,7 @@ struct OnboardingModelTests {
 
         #expect(model.hasOnboarded)
         #expect(model.hasConfirmedRecordingChoice)
-        #expect(confirmed.initialRecordingChoice?.isEnabled == false)
-        #expect(confirmed.initialRecordingChoice?.assignmentChangeID != nil)
+        #expect(confirmed.automaticRecordingEnabled == false)
 
         let relaunched = makeModel(preferences: preferences, contextStore: contextStore)
         #expect(relaunched.hasOnboarded)
@@ -71,7 +70,8 @@ struct OnboardingModelTests {
                     kind: kind,
                 ),
                 registeredAt: Date(timeIntervalSinceReferenceDate: 0),
-                initialRecordingChoice: nil,
+                automaticRecordingEnabled: nil,
+                isRejoining: false,
             ),
         )
     }

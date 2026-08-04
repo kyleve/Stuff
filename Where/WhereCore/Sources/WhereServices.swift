@@ -155,7 +155,7 @@ public struct WhereServices: Sendable {
         )
         let liveAttribution = attributor as? RegionAttribution
         let reconcileAllDerivedData: @Sendable () async -> Void = {
-            // Remote, backup, and recording-assignment writes can change the tracked set at the
+            // Remote, backup, and device-ledger writes can change the tracked set at the
             // same
             // time as the data being rebuilt. Await the shared live attributor first so every
             // downstream projection starts from current attribution instead of racing its
