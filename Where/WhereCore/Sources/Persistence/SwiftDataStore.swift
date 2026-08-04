@@ -839,11 +839,6 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         {
             context.delete(record)
         }
-        for record in try context.fetch(FetchDescriptor<SDRecordingDeviceRemoval>())
-            where belongs(record.epochID, to: epochID)
-        {
-            context.delete(record)
-        }
     }
 
     public func add(sample: LocationSample) async throws {
@@ -1102,13 +1097,11 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
 
     public func recordingDeviceRemovals() async throws -> [RecordingDeviceRemoval] {
         let context = readContext()
-        let epochID = try readEpochID(in: context)
         var descriptor = FetchDescriptor<SDRecordingDeviceRemoval>(
             sortBy: [SortDescriptor(\.removedAt), SortDescriptor(\.id)],
         )
         descriptor.includePendingChanges = true
         let records = try context.fetch(descriptor)
-            .filter { Self.belongs($0.epochID, to: epochID) }
         let values = try records.map { record in
             guard let value = record.toValue() else {
                 Self.logFault(forCorrupt: record)
@@ -1144,7 +1137,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         let id = archive.id
         let existing = try context.fetch(
             FetchDescriptor<SDRecordingDeviceRemoval>(predicate: #Predicate { $0.id == id }),
-        ).filter { Self.belongs($0.epochID, to: epochID) }
+        )
         guard existing.isEmpty == false else {
             context.insert(SDRecordingDeviceRemoval(value: archive, epochID: epochID))
             return

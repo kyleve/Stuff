@@ -267,6 +267,28 @@ struct SwiftDataStoreTests {
         }
     }
 
+    @Test func removalTombstonesSurviveDataEpochRotation() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let removingDeviceID = RecordingDeviceID(rawValue: UUID())
+        let removal = RecordingDeviceRemoval(
+            id: UUID(),
+            deviceID: RecordingDeviceID(rawValue: UUID()),
+            removedAt: Date(timeIntervalSinceReferenceDate: 100),
+            removedByDeviceID: removingDeviceID,
+        )
+
+        try await store.perform {
+            try await store.addRecordingDeviceRemoval(removal)
+            _ = try await store.rotateDataEpoch(
+                reason: .accountReset,
+                changedBy: removingDeviceID,
+                at: Date(timeIntervalSinceReferenceDate: 200),
+            )
+        }
+
+        #expect(try await store.recordingDeviceRemovals() == [removal])
+    }
+
     @Test func simulatedRemoteRecordingImportIsReadableAfterRemoteChange() async throws {
         let source = ScriptedStoreRemoteChangeSource()
         let store = try SwiftDataStore.inMemory(remoteChangeSource: source)
