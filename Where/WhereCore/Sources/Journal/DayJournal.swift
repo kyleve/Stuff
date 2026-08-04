@@ -69,11 +69,18 @@ public actor DayJournal {
         }
     }
 
+    /// Reminder/issue fan-out plus the hot-path widget policy: skip a rebuild
+    /// when the sample cannot change what widgets show (same day + region).
+    private func reconcileAfterSampleIngest(_ sample: LocationSample) async {
+        await reconcileIssueState()
+        await widgets.publishAfterIngest(of: sample)
+    }
+
     // MARK: - Ingestion
 
     public func ingest(_ sample: LocationSample) async throws {
         try await store.perform { try await store.add(sample: sample) }
-        await reconcileAfterDayChange()
+        await reconcileAfterSampleIngest(sample)
     }
 
     /// Persist many samples in a *single* transaction, rebuilding the widget
@@ -98,7 +105,7 @@ public actor DayJournal {
 
     public func addManualSample(_ sample: LocationSample) async throws {
         try await store.perform { try await store.add(sample: sample) }
-        await reconcileAfterDayChange()
+        await reconcileAfterSampleIngest(sample)
     }
 
     public func addManualDay(
