@@ -81,6 +81,12 @@ public final class WhereSession {
     /// `authorizationTask` — only touched on the main actor except `deinit`.
     @ObservationIgnored private nonisolated(unsafe) var regionStyleTask: Task<Void, Never>?
 
+    /// Serialized tracking reconcile: one ingestor start/stop in flight; re-run
+    /// after each await if intent or authorization no longer matches the target
+    /// captured for that effect (see `Where/Specifications/TrackingReconciliation`).
+    @ObservationIgnored private var trackingWorkerTask: Task<Void, Never>?
+    @ObservationIgnored private var trackingReconcilePending = false
+
     /// The user's picked region looks, resolved for the view environment (seeded
     /// into `whereBroadwayRoot(regionStyles:)` by `RootView`). Loaded at launch
     /// and kept live on every store change, so a Settings edit or a synced pick
@@ -300,15 +306,59 @@ public final class WhereSession {
     /// current authorization. Tracking only runs with Always authorization. A
     /// launch step (see `WhereLaunch.plan(for:)`).
     func reconcileTracking() async {
-        let wasTracking = isTracking
-        if wantsTracking, authorizationStatus.allowsBackgroundTracking {
-            await services.ingestor.start()
-            isTracking = true
-            if !wasTracking { Self.logger { .backgroundTrackingStarted } }
-        } else {
-            await services.ingestor.stop()
-            isTracking = false
-            if wasTracking { Self.logger { .backgroundTrackingStopped } }
+        await runTrackingReconcile()
+    }
+
+    /// Apply ingestor start/stop and publish ``isTracking`` on a single lane so
+    /// a newer stop cannot lose to an older start that resumes after its await.
+    private func runTrackingReconcile() async {
+        if let running = trackingWorkerTask {
+            trackingReconcilePending = true
+            let targetEffective = wantsTracking && authorizationStatus.allowsBackgroundTracking
+            if !targetEffective {
+                // Stop must not await an in-flight `ingestor.start()` — it can be
+                // parked on `LocationSource.start()` indefinitely. Pause monitoring
+                // now; the worker reruns after that await and publishes intent.
+                await services.ingestor.stop()
+                return
+            }
+            await running.value
+            return
+        }
+
+        let task = Task { @MainActor in
+            await trackingWorkerLoop()
+        }
+        trackingWorkerTask = task
+        await task.value
+        trackingWorkerTask = nil
+    }
+
+    private func trackingWorkerLoop() async {
+        while true {
+            trackingReconcilePending = false
+
+            let targetEffective = wantsTracking && authorizationStatus.allowsBackgroundTracking
+            let wasTracking = isTracking
+
+            if targetEffective {
+                await services.ingestor.start()
+            } else {
+                await services.ingestor.stop()
+            }
+
+            let currentEffective = wantsTracking && authorizationStatus.allowsBackgroundTracking
+            guard currentEffective == targetEffective, !trackingReconcilePending else {
+                continue
+            }
+
+            isTracking = currentEffective
+            if isTracking, !wasTracking {
+                Self.logger { .backgroundTrackingStarted }
+            } else if !isTracking, wasTracking {
+                Self.logger { .backgroundTrackingStopped }
+            }
+            return
         }
     }
 
@@ -366,8 +416,7 @@ public final class WhereSession {
 
     public func stopTracking() async {
         wantsTracking = false
-        await services.ingestor.stop()
-        isTracking = false
+        await runTrackingReconcile()
         Self.logger { .stoppedBackgroundTracking }
     }
 
