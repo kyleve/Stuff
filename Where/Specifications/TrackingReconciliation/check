@@ -18,8 +18,10 @@ usage() {
     cat <<'EOF'
 Usage: ./check
 
-Check that TLC finds the expected tracking race in Broken.cfg and accepts the
-serialized worker in Coalesced.cfg. Downloads pinned tools into .build/tla/.
+Check that TLC finds the expected tracking race in Broken.cfg, reaches the
+stale-permission path, and accepts the current generation-token + exclusive-
+lane design across the configured bounds. Downloads pinned tools into
+.build/tla/.
 
 Set TLA_JAVA to a Java executable to bypass the pinned mise runtime.
 EOF
@@ -41,7 +43,7 @@ mkdir -p "$jar_dir" "$runs_dir"
 run_dir="$(mktemp -d "$runs_dir/TrackingReconciliation.XXXXXX")"
 logs_dir="$run_dir/logs"
 states_dir="$run_dir/states"
-mkdir -p "$logs_dir" "$states_dir/broken" "$states_dir/coalesced"
+mkdir -p "$logs_dir" "$states_dir/broken" "$states_dir/stale-reachability"
 
 checksum() {
     shasum -a 256 "$1" | awk '{print $1}'
@@ -91,7 +93,7 @@ run_tlc() {
 }
 
 broken_log="$logs_dir/broken.log"
-coalesced_log="$logs_dir/coalesced.log"
+stale_log="$logs_dir/stale-reachability.log"
 
 echo "Checking that the broken implementation produces the expected counterexample..."
 set +e
@@ -109,17 +111,48 @@ if ! grep -Fq "Invariant CorrectAtQuiescence is violated." "$broken_log"; then
     exit 1
 fi
 
-echo "Checking that the coalesced worker satisfies the model..."
-if ! run_tlc "$script_dir/Coalesced.cfg" "$states_dir/coalesced" >"$coalesced_log" 2>&1; then
-    echo "Coalesced.cfg failed; inspect $coalesced_log." >&2
-    tail -n 80 "$coalesced_log" >&2
+echo "Checking that the stale permission-completion path is reachable..."
+set +e
+run_tlc \
+    "$script_dir/CurrentStaleReachability.cfg" \
+    "$states_dir/stale-reachability" >"$stale_log" 2>&1
+stale_status=$?
+set -e
+
+if [[ $stale_status -eq 0 ]]; then
+    echo "CurrentStaleReachability.cfg did not reach stale rejection; inspect $stale_log." >&2
     exit 1
 fi
-if ! grep -Fq "Model checking completed. No error has been found." "$coalesced_log"; then
-    echo "Coalesced.cfg did not report a clean model check; inspect $coalesced_log." >&2
-    tail -n 80 "$coalesced_log" >&2
+if ! grep -Fq "Invariant StalePermissionNotObserved is violated." "$stale_log"; then
+    echo "CurrentStaleReachability.cfg failed for an unexpected reason; inspect $stale_log." >&2
+    tail -n 80 "$stale_log" >&2
     exit 1
 fi
 
-echo "TLA+ pilot passed: the race is reproduced and the coalesced design checks clean."
+current_configs=(
+    Current.cfg
+    CurrentDenied.cfg
+    CurrentRepeated.cfg
+    CurrentReversed.cfg
+)
+
+for config in "${current_configs[@]}"; do
+    name="${config%.cfg}"
+    log="$logs_dir/${name}.log"
+    metadir="$states_dir/${name}"
+    mkdir -p "$metadir"
+    echo "Checking ${config}..."
+    if ! run_tlc "$script_dir/$config" "$metadir" >"$log" 2>&1; then
+        echo "${config} failed; inspect $log." >&2
+        tail -n 80 "$log" >&2
+        exit 1
+    fi
+    if ! grep -Fq "Model checking completed. No error has been found." "$log"; then
+        echo "${config} did not report a clean model check; inspect $log." >&2
+        tail -n 80 "$log" >&2
+        exit 1
+    fi
+done
+
+echo "TLA+ pilot passed: the old race is reproduced, stale rejection is reachable, and the current design checks clean."
 echo "TLC run artifacts: $run_dir"
