@@ -73,7 +73,7 @@ public actor DayJournal {
 
     public func ingest(_ sample: LocationSample) async throws {
         try await store.perform { try await store.add(sample: sample) }
-        await widgets.publishAfterIngest(of: sample)
+        await reconcileAfterDayChange()
     }
 
     /// Persist many samples in a *single* transaction, rebuilding the widget
@@ -91,14 +91,14 @@ public actor DayJournal {
                 }
             }
         }
-        await widgets.publish()
+        await reconcileAfterDayChange()
     }
 
     // MARK: - Retroactive entry
 
     public func addManualSample(_ sample: LocationSample) async throws {
         try await store.perform { try await store.add(sample: sample) }
-        await widgets.publish()
+        await reconcileAfterDayChange()
     }
 
     public func addManualDay(
