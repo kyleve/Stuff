@@ -34,6 +34,17 @@ struct OnboardingModelTests {
         #expect(relaunched.installationRecordingContext == confirmed)
     }
 
+    @Test func retryPersistsAChangedRecordingChoice() throws {
+        let contextStore = unconfirmedContextStore(kind: .phone)
+        let model = makeModel(preferences: makePreferences(), contextStore: contextStore)
+
+        _ = try model.confirmInitialRecordingChoice(isEnabled: true)
+        let retried = try model.confirmInitialRecordingChoice(isEnabled: false)
+
+        #expect(retried.automaticRecordingEnabled == false)
+        #expect(try contextStore.resolve().automaticRecordingEnabled == false)
+    }
+
     @Test func restoredOnboardingFlagDoesNotConfirmANewInstallation() {
         let restoredPreferences = makePreferences()
         restoredPreferences.hasOnboarded = true

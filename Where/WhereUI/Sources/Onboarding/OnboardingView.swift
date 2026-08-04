@@ -512,9 +512,8 @@ public struct OnboardingView: View {
                 }
             }
 
-            // A prior attempt may already have frozen a different immutable first choice. Honor
-            // what the user selected on this attempt by appending a causal follow-up before any
-            // physical authority opens; never silently snap back to the earlier value.
+            // Apply the choice persisted before this scope opened, then start physical recording
+            // only after the rest of onboarding or restore work has succeeded.
             do {
                 let authorization = await scope.services.ingestor.authorizationStatus()
                 try await scope.services.recording.registerForOnboarding(

@@ -246,14 +246,19 @@ public final class WhereModel {
         }
     }
 
-    /// Persist this installation's first recording choice.
+    /// Persist this installation's explicit onboarding choice, including a changed retry.
     @discardableResult
     public func confirmInitialRecordingChoice(
         isEnabled: Bool,
     ) throws -> InstallationRecordingContext {
-        try installationContextStore.confirmInitialRecording(
-            isEnabled: isEnabled,
-        )
+        let context = try installationContextStore.resolve()
+        if let existing = context.automaticRecordingEnabled {
+            if existing != isEnabled {
+                try installationContextStore.setAutomaticRecordingEnabled(isEnabled)
+            }
+            return try installationContextStore.resolve()
+        }
+        return try installationContextStore.confirmInitialRecording(isEnabled: isEnabled)
     }
 
     /// Mark the first-run app flow complete after its scope and selections have

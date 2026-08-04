@@ -22,8 +22,8 @@ and testing conventions live in the feature [`Where/AGENTS.md`](../AGENTS.md)
 - Persist the installation identity, confirmed first recording choice, stable
   profile/policy IDs and timestamps, two-phase backup-import recovery, and the independent
   terminal onboarding-import tombstone together in the excluded-from-backup sidecar; never infer
-  confirmation from backed-up preferences, rewrite the confirmed first event, or migrate it from
-  `UserDefaults`.
+  confirmation from backed-up preferences or migrate it from `UserDefaults`. Persist an explicit
+  changed choice when onboarding retries after a later failure.
 - Retire the installation sidecar with an atomic directory rename before
   cleanup; retain the proposed replacement behind `ResetCleanupError` until
   tombstone deletion succeeds (`InstallationRecordingContextStoreTests`).
