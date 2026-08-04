@@ -88,18 +88,19 @@ Before shipping a schema change:
 3. On two devices signed into the same iCloud account, open Settings → Devices
    and verify both generic hardware profiles arrive; rename one and verify the
    nickname syncs.
-4. From the carried device, turn automatic recording off for the left-behind
-   device. Verify its row says it is waiting, and that locations at/after the
-   cutoff disappear from reports as soon as the policy syncs.
-5. Open the left-behind device. Verify it stops monitoring, acknowledges Off,
-   and the waiting state clears on the carried device. Re-enable it and verify
-   new locations appear again.
-6. Archive the non-current device and verify it is hidden without losing older
-   report history. Export and replace-import a backup; verify history and names
-   round-trip, archived imported devices stay hidden, file-absent devices stay
-   retired, and every visible device is Off until explicitly re-enabled.
+4. On each device, toggle only its own Automatic Recording switch. Verify the
+   local device starts or stops and its advisory status later updates on the
+   other device without changing that other installation's switch.
+5. Remove the secondary device from the carried device. Verify its earlier
+   history remains visible, locations at and after the removal disappear, and
+   the secondary device stops when it next syncs. Rejoin it and verify it gets
+   a new identity with recording Off until explicitly enabled there.
+6. Export a backup, then exercise Merge and Replace. Verify names and removals
+   round-trip, neither strategy changes this installation's recording choice,
+   and Replace discards pending pre-import locations before recording resumes.
 
 On a fresh install, onboarding recommends automatic recording On for an iPhone
-and Off for an iPad/other device, then requires the user to confirm. Existing
+only when no other device recently reported recording, and Off for an
+iPad/other device or explicit rejoin, then requires the user to confirm. Existing
 installations created before that choice was introduced revisit only the final
 recording page once; enabling is the only path that asks for location access.
