@@ -21,8 +21,9 @@ build system, formatting, and global conventions. Read that first.
 
 ## Scope & dependencies
 
-- **Foundation + Observation + Security + ServiceManagement + SQLite3 + LogKit
-  only.** No SwiftUI, no AppKit UI — views and the thin session facade belong to
+- **Foundation + Observation + Security + ServiceManagement + SQLite3 +
+  PeriscopeCore only.** No SwiftUI, no AppKit UI — views and the thin session
+  facade belong to
   the app target. LedgerCore is the repo's only macOS-only package library
   (`.macOS(.v26)` in [`Package.swift`](../../Package.swift)).
 - The hostless macOS test bundle `LedgerCoreTests` is declared directly in

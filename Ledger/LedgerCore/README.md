@@ -3,8 +3,10 @@
 The model layer for the **Ledger** menu bar app: it fetches your current
 Cursor billing-cycle spend from the same
 undocumented dashboard endpoints the `cursor.com/dashboard/usage` page uses,
-authenticated with your Cursor **session token**. The SwiftUI/AppKit shell
-lives in the [`Ledger`](../Ledger) app target and binds this tree directly.
+authenticated with your Cursor **session token**. It logs through
+[`Periscope`](../../Shared/Periscope) via the `LedgerLog` facade. The
+SwiftUI/AppKit shell lives in the [`Ledger`](../Ledger) app target and binds
+this tree directly.
 
 ## What it does
 
@@ -48,7 +50,8 @@ auto-token", surfaced as `LoadError.missingCredentials`.
 - `LedgerSettings` / `LedgerConfiguration` / `LedgerConfigStore` — the persisted
   refresh interval (no secrets).
 - `LoginItemController` — launch-at-login via `SMAppService`.
-- `LedgerLog` — the LogKit logging facade (subsystem `com.stuff.ledger`).
+- **`LedgerLog`** — the Periscope logging facade: a `"Ledger"` root scope with
+  grouping scopes (`services`, `dashboard`), emitted into `Periscope.shared`.
 
 ## How the figures are computed
 
