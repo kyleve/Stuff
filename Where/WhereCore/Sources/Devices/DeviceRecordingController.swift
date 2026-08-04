@@ -30,6 +30,7 @@ public actor DeviceRecordingController {
     private var isRewritePaused = false
     private var observationTask: Task<Void, Never>?
     private var needsReconciliation = false
+    private var pendingOffCleanup = false
     private var nextRuntimeSequence: UInt64 = 0
     private var latestRuntimeUpdate: RecordingDeviceRuntimeUpdate?
 
@@ -142,9 +143,8 @@ public actor DeviceRecordingController {
             automaticRecordingEnabled = enabled
             enabledAt = enabled ? now() : nil
         }
-        if !enabled {
-            await ingestor.revokeRecordingAuthorization()
-            try await ingestor.discardRetryBacklog()
+        if !enabled || pendingOffCleanup {
+            try await discardRetryBacklogForOffChoice()
         }
         return try await reconcileOrFailClosed(authorization: authorization)
     }
@@ -397,9 +397,25 @@ public actor DeviceRecordingController {
         }
     }
 
+    private func discardRetryBacklogForOffChoice() async throws {
+        await ingestor.revokeRecordingAuthorization()
+        do {
+            try await ingestor.discardRetryBacklog()
+            pendingOffCleanup = false
+        } catch {
+            pendingOffCleanup = true
+            needsReconciliation = true
+            publishRuntimeState(.unavailable)
+            throw error
+        }
+    }
+
     private func reconcileLocked(
         authorization: LocationAuthorizationStatus,
     ) async throws -> RecordingDeviceConfiguration {
+        if pendingOffCleanup {
+            try await discardRetryBacklogForOffChoice()
+        }
         let snapshot = try await storeSnapshot()
         guard let profile = snapshot.profiles.first(where: { $0.id == currentDevice.id }) else {
             throw RecordingPersistenceError.currentDeviceNotRegistered(currentDevice.id)

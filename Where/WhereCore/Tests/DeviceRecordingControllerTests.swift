@@ -12,6 +12,7 @@ struct DeviceRecordingControllerTests {
         enabled: Bool,
         enabledAt: Date? = nil,
         authorization: LocationAuthorizationStatus = .always,
+        outbox: any LocationOutbox = NoOpLocationOutbox(),
     ) throws
         -> (DeviceRecordingController, SwiftDataStore, LocationIngestor, ScriptedLocationSource)
     {
@@ -22,7 +23,7 @@ struct DeviceRecordingControllerTests {
             locationSource: source,
             recordingDeviceID: InstallationRecordingContext.testing.currentDevice.id,
             calendar: WhereCoreTestSupport.calendar(),
-            outbox: NoOpLocationOutbox(),
+            outbox: outbox,
             retryQueueCapacity: 1000,
             onPersisted: { _ in },
         )
@@ -114,6 +115,35 @@ struct DeviceRecordingControllerTests {
             authorization: .always,
         )
         #expect(on.localAutomaticRecordingEnabled == true)
+        #expect(await ingestor.isActive)
+    }
+
+    @Test func failedOffCleanupPublishesUnavailableAndBlocksReenable() async throws {
+        let outbox = ScriptedLocationOutbox()
+        let (controller, _, ingestor, _) = try makeController(
+            enabled: true,
+            outbox: outbox,
+        )
+        _ = try await controller.register(authorization: .always)
+        await outbox.setFailsToClear(true)
+
+        await #expect(throws: (any Error).self) {
+            try await controller.setAutomaticRecordingEnabled(false, authorization: .always)
+        }
+        #expect(await controller.currentRuntimeUpdate()?.state == .unavailable)
+        #expect(await ingestor.isActive == false)
+
+        await #expect(throws: (any Error).self) {
+            try await controller.setAutomaticRecordingEnabled(true, authorization: .always)
+        }
+        #expect(await ingestor.isActive == false)
+
+        await outbox.setFailsToClear(false)
+        let recovered = try await controller.setAutomaticRecordingEnabled(
+            true,
+            authorization: .always,
+        )
+        #expect(recovered.localAutomaticRecordingEnabled == true)
         #expect(await ingestor.isActive)
     }
 
