@@ -12,6 +12,7 @@ struct LocationsView: View {
     let report: YearReportModel
 
     @State private var showingResolution = false
+    @State private var dayCountPresentation: LocationDayCountPresentationModel
 
     /// Drives the region cards' tilt-reactive light sheen. Started/stopped
     /// with the view's lifecycle; a no-op on hardware without device motion.
@@ -24,6 +25,14 @@ struct LocationsView: View {
 
     @Environment(\.stylesheet) private var stylesheet
     @Environment(\.regionStyles) private var regionStyles
+
+    init(report: YearReportModel) {
+        self.report = report
+        _dayCountPresentation = State(initialValue: LocationDayCountPresentationModel(
+            preferences: report.preferences,
+            year: report.selectedYear,
+        ))
+    }
 
     var body: some View {
         NavigationStack {
@@ -47,6 +56,9 @@ struct LocationsView: View {
         }
         .onAppear { tilt.start() }
         .onDisappear { tilt.stop() }
+        .onChange(of: report.selectedYear) { _, year in
+            dayCountPresentation.prepare(for: year)
+        }
         .sheet(isPresented: $showingResolution) {
             ResolutionView(report: report)
         }
@@ -93,11 +105,12 @@ struct LocationsView: View {
             GlassEffectContainer(spacing: stylesheet.spacing.xxLarge) {
                 VStack(spacing: stylesheet.spacing.xxLarge) {
                     ForEach(report.ranking.primary) { item in
+                        let presentedItem = dayCountPresentation.presented(item)
                         NavigationLink {
                             calendarDestination(item.region)
                         } label: {
                             RegionSummaryCard(
-                                regionDays: item,
+                                regionDays: presentedItem,
                                 interactive: true,
                                 yearLength: report.daysInSelectedYear,
                                 year: report.selectedYear,
@@ -157,6 +170,16 @@ struct LocationsView: View {
         .defaultScrollAnchor(.center)
         .scrollBounceBehavior(.basedOnSize)
         .accessibilityIdentifier("where_root_title")
+        // A task belongs to the card surface rather than the tab container: it
+        // is cancelled while another tab or a pushed destination covers these
+        // numbers, then re-runs when the user can see them again.
+        .task(id: report.ranking.primary) {
+            dayCountPresentation.reveal(report.ranking.primary, in: report.selectedYear)
+        }
+        .sensoryFeedback(
+            .impact(weight: .light),
+            trigger: dayCountPresentation.feedbackTrigger,
+        )
     }
 
     /// The region's calendar, pushed as a nested view. It's the zoom
