@@ -314,8 +314,11 @@ public final class WhereSession {
     private func runTrackingReconcile() async {
         if let running = trackingWorkerTask {
             trackingReconcilePending = true
-            let targetEffective = wantsTracking && authorizationStatus.allowsBackgroundTracking
-            if !targetEffective {
+            let targetEffective = TrackingReconcile.effectiveTracking(
+                desired: wantsTracking,
+                authorizationAllowsBackground: authorizationStatus.allowsBackgroundTracking,
+            )
+            if TrackingReconcile.shouldPreemptInFlightStop(targetEffective: targetEffective) {
                 // Stop must not await an in-flight `ingestor.start()` — it can be
                 // parked on `LocationSource.start()` indefinitely. Pause monitoring
                 // now; the worker reruns after that await and publishes intent.
@@ -338,7 +341,10 @@ public final class WhereSession {
         while true {
             trackingReconcilePending = false
 
-            let targetEffective = wantsTracking && authorizationStatus.allowsBackgroundTracking
+            let targetEffective = TrackingReconcile.effectiveTracking(
+                desired: wantsTracking,
+                authorizationAllowsBackground: authorizationStatus.allowsBackgroundTracking,
+            )
             let wasTracking = isTracking
 
             if targetEffective {
@@ -347,8 +353,15 @@ public final class WhereSession {
                 await services.ingestor.stop()
             }
 
-            let currentEffective = wantsTracking && authorizationStatus.allowsBackgroundTracking
-            guard currentEffective == targetEffective, !trackingReconcilePending else {
+            let currentEffective = TrackingReconcile.effectiveTracking(
+                desired: wantsTracking,
+                authorizationAllowsBackground: authorizationStatus.allowsBackgroundTracking,
+            )
+            guard TrackingReconcile.shouldPublish(
+                target: targetEffective,
+                currentEffective: currentEffective,
+                reconcilePending: trackingReconcilePending,
+            ) else {
                 continue
             }
 

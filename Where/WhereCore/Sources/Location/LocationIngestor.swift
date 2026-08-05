@@ -125,7 +125,11 @@ public actor LocationIngestor {
         guard !isMonitoring else { return }
         isMonitoring = true
         await locationSource.start()
-        guard isMonitoring else { return }
+        guard LocationIngestorStart
+            .afterLocationSourceStart(isMonitoring: isMonitoring) == .completeSetup
+        else {
+            return
+        }
         Self.logger { .monitoringStarted }
         // Seed the in-memory queue from the durable backlog once, so samples that
         // failed to persist in a prior launch get retried now.
