@@ -27,7 +27,7 @@ struct WhereStylesheet: BStylesheet {
     var launch = LaunchStyle.standard
     var typography = Typography.standard
     var settings = SettingsStyle.standard
-    var aboutOpenSource = AboutOpenSourceStyle.standard
+    var passportCard = PassportCardStyle.standard
     var developerOverlay = DeveloperOverlayStyle.standard
 
     init() {}
@@ -1257,18 +1257,16 @@ extension WhereStylesheet {
     }
 }
 
-// MARK: - About open source
+// MARK: - Passport card
 
 extension WhereStylesheet {
-    /// Appearance for the compact open-source sign-off at the bottom of About.
-    /// It echoes the Locations cards' security print without borrowing their
-    /// region-specific card spec.
-    struct AboutOpenSourceStyle: Equatable {
+    /// Appearance for compact passport statements in Settings.
+    struct PassportCardStyle: Equatable {
         var cornerRadius: CGFloat
         var padding: CGFloat
         var contentSpacing: CGFloat
         var titleFont: Font
-        var actionFont: Font
+        var detailFont: Font
         var seal: Seal
         var rosette: Rosette
         var glassTintOpacity: Double
@@ -1301,12 +1299,12 @@ extension WhereStylesheet {
             var offsetY: CGFloat = 0
         }
 
-        static let standard = AboutOpenSourceStyle(
+        static let standard = PassportCardStyle(
             cornerRadius: 20,
             padding: 16,
             contentSpacing: 12,
             titleFont: .headline,
-            actionFont: .subheadline,
+            detailFont: .subheadline,
             seal: Seal(
                 size: 52,
                 rotationDegrees: -8,

@@ -359,13 +359,13 @@ struct WhereStylesheetTests {
         #expect(settings.scrollSettleDelay == .milliseconds(350))
     }
 
-    @Test func aboutOpenSourceStyle() {
-        let source = style.aboutOpenSource
+    @Test func passportCardStyle() {
+        let source = style.passportCard
         #expect(source.cornerRadius == 20)
         #expect(source.padding == 16)
         #expect(source.contentSpacing == 12)
         #expect(source.titleFont == .headline)
-        #expect(source.actionFont == .subheadline)
+        #expect(source.detailFont == .subheadline)
         #expect(source.seal == .init(
             size: 52,
             rotationDegrees: -8,
