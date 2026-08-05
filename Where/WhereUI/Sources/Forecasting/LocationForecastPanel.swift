@@ -45,8 +45,13 @@ struct LocationForecastPanel: View {
                 shape
                     .fill(.background)
                     .overlay {
-                        shape.strokeBorder(.quaternary, lineWidth: style.borderWidth)
+                        shape.strokeBorder(style.borderColor, lineWidth: style.borderWidth)
                     }
+                    .shadow(
+                        color: style.shadowColor,
+                        radius: style.shadowRadius,
+                        y: style.shadowOffsetY,
+                    )
             } else {
                 Color.clear.glassEffect(.regular, in: shape)
             }

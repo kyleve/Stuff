@@ -79,7 +79,11 @@ extension WhereStylesheet {
         var padding: CGFloat
         var rowSpacing: CGFloat
         var estimateSpacing: CGFloat
+        var borderColor: Color
         var borderWidth: CGFloat
+        var shadowColor: Color
+        var shadowRadius: CGFloat
+        var shadowOffsetY: CGFloat
         var expansionAnimation: Animation
 
         static let standard = LocationForecastStyle(
@@ -87,7 +91,11 @@ extension WhereStylesheet {
             padding: 16,
             rowSpacing: 12,
             estimateSpacing: 3,
-            borderWidth: 1,
+            borderColor: Color.primary.opacity(0.06),
+            borderWidth: 0.5,
+            shadowColor: Color.black.opacity(0.06),
+            shadowRadius: 8,
+            shadowOffsetY: 2,
             expansionAnimation: .easeInOut(duration: 0.2),
         )
     }

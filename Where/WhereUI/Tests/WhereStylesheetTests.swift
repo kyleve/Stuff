@@ -253,7 +253,11 @@ struct WhereStylesheetTests {
         #expect(forecast.padding == 16)
         #expect(forecast.rowSpacing == 12)
         #expect(forecast.estimateSpacing == 3)
-        #expect(forecast.borderWidth == 1)
+        #expect(forecast.borderColor == Color.primary.opacity(0.06))
+        #expect(forecast.borderWidth == 0.5)
+        #expect(forecast.shadowColor == Color.black.opacity(0.06))
+        #expect(forecast.shadowRadius == 8)
+        #expect(forecast.shadowOffsetY == 2)
         #expect(forecast.expansionAnimation == .easeInOut(duration: 0.2))
     }
 
