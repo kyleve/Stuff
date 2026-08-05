@@ -60,6 +60,26 @@ enum WhereFormat {
         String(localized: .manualRangeFooter(count))
     }
 
+    static func locationForecastEstimate(days: Int) -> String {
+        String(localized: .locationForecastEstimate(dayCount(days)))
+    }
+
+    static func locationForecastBasis(yearToDateDays: Int, elapsedDays: Int) -> String {
+        String(localized: .locationForecastBasis(
+            dayCount(yearToDateDays),
+            dayCount(elapsedDays),
+        ))
+    }
+
+    static func locationForecastPlan(through day: CalendarDay) -> String {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .current
+        let date = day.startOfDay(in: calendar)
+        return String(localized: .locationForecastPlan(
+            date.formatted(.dateTime.month(.wide).day().year()),
+        ))
+    }
+
     static func settingsBackupImportedMessage(
         samples: Int,
         evidence: Int,

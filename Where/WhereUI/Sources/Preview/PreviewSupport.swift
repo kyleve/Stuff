@@ -245,6 +245,16 @@
             )
         }
 
+        @MainActor
+        public static func plannedStayYearReportModel() -> YearReportModel {
+            let report = loadedYearReportModel()
+            report.forecasts.setActivePlannedStay(PlannedStay(
+                region: .newYork,
+                through: CalendarDay(year: year, month: 8, day: 15),
+            ))
+            return report
+        }
+
         /// An empty report model (in-memory services, no data) for empty-state
         /// previews.
         @MainActor

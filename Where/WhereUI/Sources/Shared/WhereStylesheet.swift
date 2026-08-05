@@ -22,6 +22,7 @@ struct WhereStylesheet: BStylesheet {
     var regionPicker = RegionPickerStyle.standard
     var evidence = EvidenceStyle.standard
     var elsewhereCard = ElsewhereCardStyle.standard
+    var locationForecast = LocationForecastStyle.standard
     var palette = Palette.standard
     var motion = Motion.standard
     var launch = LaunchStyle.standard
@@ -66,6 +67,26 @@ struct WhereStylesheet: BStylesheet {
     /// The fixed token set: the fallback used off the `View` tree (layout
     /// helpers, tests) and when no Broadway root has seeded a context.
     static let `default` = WhereStylesheet()
+}
+
+// MARK: - Location forecast
+
+extension WhereStylesheet {
+    /// Geometry for the annual-estimate panel shared by the Locations tab and
+    /// region-focused calendars.
+    struct LocationForecastStyle: Equatable {
+        var cornerRadius: CGFloat
+        var padding: CGFloat
+        var rowSpacing: CGFloat
+        var estimateSpacing: CGFloat
+
+        static let standard = LocationForecastStyle(
+            cornerRadius: 22,
+            padding: 16,
+            rowSpacing: 12,
+            estimateSpacing: 3,
+        )
+    }
 }
 
 extension WhereStylesheet {

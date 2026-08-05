@@ -2867,6 +2867,108 @@
         }
       }
     },
+    "locationForecast.basis" : {
+      "comment" : "Short explanation below a location forecast. The first value is the region's year-to-date day count and the second is the elapsed calendar-day count.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Based on %1$@ here across %2$@ elapsed."
+          }
+        }
+      }
+    },
+    "locationForecast.editStay" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "I’ll be here through…"
+          }
+        }
+      }
+    },
+    "locationForecast.editor.date" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Here through"
+          }
+        }
+      }
+    },
+    "locationForecast.editor.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "The selected day is included in your planned stay. The estimate resumes your year-to-date pace the following day."
+          }
+        }
+      }
+    },
+    "locationForecast.editor.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Plan This Stay"
+          }
+        }
+      }
+    },
+    "locationForecast.estimate" : {
+      "comment" : "Annual location forecast; the placeholder is an already-localized day count, for example '183 days'.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "About %@ this year"
+          }
+        }
+      }
+    },
+    "locationForecast.plan" : {
+      "comment" : "Explains the planned-stay input included in an annual location forecast.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Includes staying through %@."
+          }
+        }
+      }
+    },
+    "locationForecast.removePlan" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Remove Plan"
+          }
+        }
+      }
+    },
+    "locationForecast.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Estimated Time"
+          }
+        }
+      }
+    },
     "locations.elsewhere.subtitle" : {
       "comment" : "Subtitle on the Locations tab's Elsewhere entry card: region count.",
       "extractionState" : "manual",

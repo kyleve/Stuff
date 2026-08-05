@@ -88,6 +88,20 @@ public protocol WhereStore: Sendable {
     /// verbatim.
     func allDismissedIssues() async throws -> [DismissedIssue]
 
+    /// Every revision of the single planned-stay register. Multiple rows can
+    /// temporarily exist after CloudKit merges; callers choose the newest
+    /// `PlannedStayRecord` deterministically.
+    func plannedStayRecords() async throws -> [PlannedStayRecord]
+
+    /// Replace local planned-stay revisions with `record`, retaining tombstones
+    /// so an older remote row cannot resurrect cleared intent. Must run inside
+    /// `perform { ... }`.
+    func replacePlannedStayRecord(with record: PlannedStayRecord) async throws
+
+    /// Upsert an exact planned-stay revision during backup import. Must run
+    /// inside `perform { ... }`.
+    func restorePlannedStayRecord(_ record: PlannedStayRecord) async throws
+
     /// Persist or remove a dismissed data-resolution issue. Must run inside
     /// `perform { ... }`. Upserts when `dismissed == true` (stamping the current
     /// date); deletes when false.
@@ -157,4 +171,12 @@ extension WhereStore {
     /// Default: a no-op. `SwiftDataStore` overrides this to replace the persisted
     /// rows; test fakes that don't exercise persistence inherit the no-op.
     public func setPrimaryRegions(_: [PrimaryRegion]) async throws {}
+
+    public func plannedStayRecords() async throws -> [PlannedStayRecord] {
+        []
+    }
+
+    public func replacePlannedStayRecord(with _: PlannedStayRecord) async throws {}
+
+    public func restorePlannedStayRecord(_: PlannedStayRecord) async throws {}
 }

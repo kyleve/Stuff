@@ -47,6 +47,15 @@ struct BackupCoordinatorTests {
         dismissedAt: Date(timeIntervalSince1970: 1_700_000_000),
     )
 
+    private static let plannedStay = PlannedStayRecord(
+        id: UUID(uuidString: "DDDDDDDD-DDDD-DDDD-DDDD-DDDDDDDDDDDD")!,
+        value: PlannedStay(
+            region: .newYork,
+            through: CalendarDay(year: 2026, month: 9, day: 1),
+        ),
+        updatedAt: Date(timeIntervalSince1970: 1_700_000_000),
+    )
+
     /// Seed all four tables (sample, evidence + blob, manual day, dismissed
     /// issue) directly into a store so backup tests don't depend on the journal.
     private static func seed(_ store: SwiftDataStore) async throws {
@@ -59,6 +68,7 @@ struct BackupCoordinatorTests {
                 regions: [.newYork],
             ))
             try await store.restoreDismissedIssue(dismissal)
+            try await store.restorePlannedStayRecord(plannedStay)
         }
     }
 
@@ -84,6 +94,7 @@ struct BackupCoordinatorTests {
         #expect(try await destination.store.allDismissedIssues() == source.store
             .allDismissedIssues())
         #expect(try await destination.store.allDismissedIssues() == [Self.dismissal])
+        #expect(try await destination.store.plannedStayRecords() == [Self.plannedStay])
         #expect(try await destination.store.evidenceBlob(for: Self.evidence.id) == Self.blob)
         // An import that lands new data runs the post-import hook once.
         #expect(await destination.onImport.count == 1)

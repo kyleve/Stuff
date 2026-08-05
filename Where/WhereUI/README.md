@@ -73,7 +73,8 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   `startTracking()` / `stopTracking()`, `refreshWidgetSnapshot()`). It holds no
   presentation state of its own.
 - **Scope-tiered models** — scene-scoped **`YearReportModel`** (the selected
-  year's `YearReport`, its `LoadState`, and the manual-day edit intents), plus
+  year's `YearReport`, its `LoadState`, and the manual-day edit intents) with a
+  focused **`LocationForecastModel`** child for the synced planned stay, plus
   view-scoped **`ResolveModel`** (data-issue triage), **`BackupModel`**
   (export/import), and **`RemindersSettingsModel`** (notification prefs). Each
   orchestrates `WhereServices`; none reimplements Core rules.

@@ -157,6 +157,22 @@ struct LocationsView: View {
         .defaultScrollAnchor(.center)
         .scrollBounceBehavior(.basedOnSize)
         .accessibilityIdentifier("where_root_title")
+        .safeAreaInset(edge: .bottom) {
+            if !topForecasts.isEmpty {
+                LocationForecastPanel(
+                    forecasts: topForecasts,
+                    plannedStay: report.forecasts.activePlannedStay,
+                )
+                .padding(.horizontal)
+                .padding(.bottom, stylesheet.spacing.small)
+            }
+        }
+    }
+
+    /// Three forecast rows are independent from the two-card Primary split.
+    /// `.other` is a catch-all rather than a place a user can plan around.
+    private var topForecasts: [LocationForecast] {
+        report.forecasts.leadingForecasts(report: report.report)
     }
 
     /// The region's calendar, pushed as a nested view. It's the zoom
@@ -234,6 +250,9 @@ private struct ResolveToolbarLabel: View {
                 settle: .settledAtLeast(minDuration: 1.0),
             ) {
                 LocationsView(report: PreviewSupport.loadedYearReportModel())
+            }
+            whereSnapshot(name: "PlannedStay", configurations: .phoneLightDark) {
+                LocationsView(report: PreviewSupport.plannedStayYearReportModel())
             }
             whereSnapshot(name: "Empty", configurations: .phoneLightDark) {
                 LocationsView(report: PreviewSupport.emptyYearReportModel())

@@ -33,6 +33,9 @@ public struct WhereServices: Sendable {
     public let journal: DayJournal
     /// Backup export / import.
     public let backup: BackupCoordinator
+    /// The single synced “I’ll be here through…” intent used by location
+    /// forecasts.
+    public let plannedStays: PlannedStayCoordinator
     /// Data-quality issue detection for the Resolve tab.
     public let resolution: DataIssueScanner
     /// On-device summary of a selectable look-back window of tracked locations
@@ -187,6 +190,11 @@ public struct WhereServices: Sendable {
             store: store,
             onImport: { await journal.reconcileAfterDayChange() },
         )
+        let plannedStays = PlannedStayCoordinator(
+            store: store,
+            calendar: aggregator.calendar,
+            now: now,
+        )
         let recentActivity = RecentActivitySummarizer(
             store: store,
             attributor: attributor,
@@ -205,6 +213,7 @@ public struct WhereServices: Sendable {
         self.ingestor = ingestor
         self.journal = journal
         self.backup = backup
+        self.plannedStays = plannedStays
         self.resolution = resolution
         self.recentActivity = recentActivity
         self.store = store

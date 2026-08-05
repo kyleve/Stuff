@@ -97,6 +97,9 @@ public final class YearReportModel {
     /// Gregorian calendar in the current time zone — matches the day keys the
     /// aggregator produces in `report.days`, so the missing-day math lines up.
     let calendar: Calendar
+    /// Synced planned-stay state and pure forecast projections for the
+    /// Locations surfaces.
+    let forecasts: LocationForecastModel
 
     /// Long-lived subscription to `services.dataChangeUpdates()` while the scene
     /// is active. `@ObservationIgnored` (plumbing, not UI state) and
@@ -205,6 +208,7 @@ public final class YearReportModel {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = .current
         self.calendar = calendar
+        forecasts = LocationForecastModel(services: services, calendar: calendar, now: now)
         loadState = report == nil ? .idle : .loaded
     }
 
@@ -269,6 +273,7 @@ public final class YearReportModel {
             await refresh()
             await refreshEvidenceDayKeys()
             await refreshDataIssueCount(force: forceDataIssueCount)
+            await forecasts.refresh()
         }
     }
 

@@ -247,6 +247,14 @@ struct WhereStylesheetTests {
         #expect(month.unfocusedRowOpacity == 0.55)
     }
 
+    @Test func locationForecastStyle() {
+        let forecast = style.locationForecast
+        #expect(forecast.cornerRadius == 22)
+        #expect(forecast.padding == 16)
+        #expect(forecast.rowSpacing == 12)
+        #expect(forecast.estimateSpacing == 3)
+    }
+
     @Test func appIconStyle() {
         let appIcon = style.appIcon
         #expect(appIcon.gridMax == 180)

@@ -75,6 +75,11 @@ one it belongs to rather than to a god-object:
 - **`DayAggregator`** — turns samples + manual overlays into those reports,
   carrying the injected `Calendar` (which decides how a `sample.timestamp`
   buckets into a `CalendarDay`).
+- **`LocationForecast` / `PlannedStayCoordinator`** — annualizes a region's
+  current-year day count after three complete months, optionally counting one
+  synced “here through” stay before resuming the year-to-date pace. Forecasts
+  stay independent per region, so a future residency-percentage goal can
+  compare against them without changing the estimate.
 
 ### Location
 

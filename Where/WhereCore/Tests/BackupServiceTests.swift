@@ -239,7 +239,7 @@ struct BackupServiceTests {
     }
 
     @Test func manifestRoundTripsThroughJSON() throws {
-        let archive = BackupArchive(
+        let archive = try BackupArchive(
             exportedAt: Self.exportDate,
             samples: Self.sampleFixtures(),
             evidence: Self.evidenceFixtures(),
@@ -258,6 +258,14 @@ struct BackupServiceTests {
                 ),
                 PrimaryRegion(region: .newYork, appearance: nil, order: 1),
             ],
+            plannedStayRecords: [PlannedStayRecord(
+                id: #require(UUID(uuidString: "CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC")),
+                value: PlannedStay(
+                    region: .newYork,
+                    through: CalendarDay(year: 2026, month: 9, day: 1),
+                ),
+                updatedAt: Self.exportDate,
+            )],
             assets: [BackupAssetEntry(
                 evidenceId: Self.evidenceWithBlobId,
                 filename: "assets/\(Self.evidenceWithBlobId.uuidString)",
@@ -273,7 +281,7 @@ struct BackupServiceTests {
         let decoded = try decoder.decode(BackupArchive.self, from: data)
 
         #expect(decoded == archive)
-        #expect(decoded.formatVersion == 2)
+        #expect(decoded.formatVersion == BackupArchive.currentFormatVersion)
     }
 
     @Test func readingAFileThatIsNotAZipThrows() throws {

@@ -261,6 +261,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             SDManualDay.self,
             SDDismissedIssue.self,
             SDTrackedRegion.self,
+            SDPlannedStay.self,
         ]
     }
 
@@ -699,6 +700,45 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         for tracked in try context.fetch(FetchDescriptor<SDTrackedRegion>()) {
             context.delete(tracked)
         }
+        for plannedStay in try context.fetch(FetchDescriptor<SDPlannedStay>()) {
+            context.delete(plannedStay)
+        }
+    }
+
+    // MARK: - Planned stay
+
+    public func plannedStayRecords() async throws -> [PlannedStayRecord] {
+        let context = readContext()
+        var descriptor = FetchDescriptor<SDPlannedStay>(sortBy: [
+            SortDescriptor(\.updatedAt),
+            SortDescriptor(\.id),
+        ])
+        descriptor.includePendingChanges = true
+        return try context.fetch(descriptor).compactMap { record in
+            let value = record.toValue()
+            if value == nil { Self.logFault(forCorrupt: record) }
+            return value
+        }
+    }
+
+    public func replacePlannedStayRecord(with record: PlannedStayRecord) async throws {
+        let context = mutationContext()
+        for existing in try context.fetch(FetchDescriptor<SDPlannedStay>()) {
+            context.delete(existing)
+        }
+        context.insert(SDPlannedStay(value: record))
+    }
+
+    public func restorePlannedStayRecord(_ record: PlannedStayRecord) async throws {
+        let context = mutationContext()
+        let id = record.id
+        let existing = try context.fetch(FetchDescriptor<SDPlannedStay>(
+            predicate: #Predicate { $0.id == id },
+        ))
+        for duplicate in existing {
+            context.delete(duplicate)
+        }
+        context.insert(SDPlannedStay(value: record))
     }
 
     public func dismissedIssueIDs() async throws -> Set<DataIssueID> {
@@ -1162,5 +1202,43 @@ final class SDTrackedRegion {
         emoji = appearance?.emoji
         symbolName = appearance?.symbolName
         orderIndex = order
+    }
+}
+
+/// One CloudKit-compatible revision of the single planned-stay register. Every
+/// field is optional as required by the mirrored schema. `nil` region/day
+/// together represents a tombstone; only a mismatched pair is corrupt.
+@Model
+final class SDPlannedStay {
+    var id: UUID?
+    var regionID: String?
+    var throughDayKey: String?
+    var updatedAt: Date?
+
+    init() {}
+
+    convenience init(value: PlannedStayRecord) {
+        self.init()
+        id = value.id
+        regionID = value.value?.region.rawValue
+        throughDayKey = value.value?.through.description
+        updatedAt = value.updatedAt
+    }
+
+    func toValue() -> PlannedStayRecord? {
+        guard let id, let updatedAt else { return nil }
+        let stay: PlannedStay?
+        switch (regionID, throughDayKey) {
+            case (nil, nil):
+                stay = nil
+            case let (regionID?, throughDayKey?):
+                guard let region = Region(rawValue: regionID),
+                      let through = CalendarDay(iso: throughDayKey)
+                else { return nil }
+                stay = PlannedStay(region: region, through: through)
+            case (.some, nil), (nil, .some):
+                return nil
+        }
+        return PlannedStayRecord(id: id, value: stay, updatedAt: updatedAt)
     }
 }

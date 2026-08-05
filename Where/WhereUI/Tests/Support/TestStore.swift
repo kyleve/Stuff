@@ -8,6 +8,8 @@ struct ManualSaveFailure: Error, Equatable {}
 /// year-report load can be forced to fail.
 struct SampleReadFailure: Error, Equatable {}
 
+struct PlannedStaySaveFailure: Error, Equatable {}
+
 /// Test `WhereStore` that forwards to an in-memory `SwiftDataStore` but adds
 /// two hooks the view-model tests need:
 ///
@@ -28,6 +30,7 @@ actor TestStore: WhereStore {
 
     private var shouldFailManualDay = false
     private var shouldFailSamples = false
+    private var shouldFailPlannedStay = false
 
     init() throws {
         backing = try SwiftDataStore.inMemory()
@@ -58,6 +61,10 @@ actor TestStore: WhereStore {
     /// the model's `.failed` load state is exercisable.
     func failSamples() {
         shouldFailSamples = true
+    }
+
+    func failPlannedStays() {
+        shouldFailPlannedStay = true
     }
 
     // MARK: - WhereStore
@@ -147,5 +154,18 @@ actor TestStore: WhereStore {
 
     func restoreDismissedIssue(_ issue: DismissedIssue) async throws {
         try await backing.restoreDismissedIssue(issue)
+    }
+
+    func plannedStayRecords() async throws -> [PlannedStayRecord] {
+        try await backing.plannedStayRecords()
+    }
+
+    func replacePlannedStayRecord(with record: PlannedStayRecord) async throws {
+        if shouldFailPlannedStay { throw PlannedStaySaveFailure() }
+        try await backing.replacePlannedStayRecord(with: record)
+    }
+
+    func restorePlannedStayRecord(_ record: PlannedStayRecord) async throws {
+        try await backing.restorePlannedStayRecord(record)
     }
 }

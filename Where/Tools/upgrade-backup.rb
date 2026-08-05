@@ -23,7 +23,8 @@
 #     old joined key and recovering any legacy epoch value to a calendar day.
 #   - Top level: ensures `dismissedIssues` / `trackedRegions` exist, synthesizes
 #     `primaryRegions` from the tracked ids (null appearance, listed order) when
-#     absent, and sets `formatVersion` to 2 (the current version).
+#     absent, adds an empty planned-stay register for pre-v3 archives, and sets
+#     `formatVersion` to 3 (the current version).
 #
 # Idempotent: re-running on an already-upgraded archive is a no-op (it only
 # touches legacy `date` / `key` fields and unmapped region ids).
@@ -40,7 +41,7 @@ require "time"
 require "set"
 
 MANIFEST_NAME = "manifest.json"
-CURRENT_FORMAT_VERSION = 2
+CURRENT_FORMAT_VERSION = 3
 
 # Former enum-case region ids -> current catalog ids. `canada` / `other` are
 # unchanged but listed so an already-current id passes through untouched.
@@ -178,6 +179,7 @@ def upgrade_manifest(manifest)
   manifest["primaryRegions"] ||= manifest["trackedRegions"].each_with_index.map do |id, index|
     { "region" => id, "appearance" => nil, "order" => index }
   end
+  manifest["plannedStayRecords"] ||= []
   manifest["formatVersion"] = CURRENT_FORMAT_VERSION
   warnings.uniq.each { |message| warn "warning: #{message}" }
   manifest

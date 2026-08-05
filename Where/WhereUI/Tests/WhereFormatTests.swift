@@ -37,6 +37,19 @@ struct WhereFormatTests {
         #expect(WhereFormat.dayUnit(2) == "days")
     }
 
+    @Test func locationForecastCopyComposesLocalizedDayCounts() {
+        #expect(WhereFormat.locationForecastEstimate(days: 183) == "About 183 days this year")
+        #expect(
+            WhereFormat.locationForecastBasis(yearToDateDays: 91, elapsedDays: 182)
+                == "Based on 91 days here across 182 days elapsed.",
+        )
+        #expect(
+            WhereFormat.locationForecastPlan(
+                through: CalendarDay(year: 2026, month: 8, day: 15),
+            ) == "Includes staying through August 15, 2026.",
+        )
+    }
+
     /// The one string that agrees grammatically via automatic inflection
     /// (`^[%lld region](inflect: true)`) rather than an explicit plural
     /// variation, so both forms are worth pinning.

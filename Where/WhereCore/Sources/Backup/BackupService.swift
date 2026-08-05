@@ -82,6 +82,7 @@ public struct BackupService: Sendable {
         dismissedIssues: [DismissedIssue] = [],
         trackedRegions: [Region] = [],
         primaryRegions: [PrimaryRegion] = [],
+        plannedStayRecords: [PlannedStayRecord] = [],
         blobs: [UUID: Data],
         exportedAt: Date = Date(),
         archiveName: String? = nil,
@@ -116,6 +117,7 @@ public struct BackupService: Sendable {
             dismissedIssues: dismissedIssues,
             trackedRegions: trackedRegions,
             primaryRegions: primaryRegions,
+            plannedStayRecords: plannedStayRecords,
             assets: assetEntries,
         )
         try Self.logger.measure(.encodeManifest) {

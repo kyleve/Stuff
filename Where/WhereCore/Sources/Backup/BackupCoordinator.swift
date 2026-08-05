@@ -80,7 +80,8 @@ public actor BackupCoordinator {
     /// here and jump to `1` once the archive file exists.
     private static let exportBlobLoadFraction = 0.8
 
-    /// Serialize the entire store (all four tables plus evidence blobs) to a
+    /// Serialize the entire store (including planned-stay revisions and
+    /// evidence blobs) to a
     /// `.zip` in a fresh temporary directory and return its URL, first purging
     /// the previous export's directory. The caller shares the file; the next
     /// export (or process exit) reclaims the disk.
@@ -117,6 +118,7 @@ public actor BackupCoordinator {
                 manualDays: store.allManualDays(),
                 dismissedIssues: store.allDismissedIssues(),
                 primaryRegions: store.primaryRegions(),
+                plannedStayRecords: store.plannedStayRecords(),
             )
         }
         let evidence = tables.evidence
@@ -145,6 +147,7 @@ public actor BackupCoordinator {
                 // The bare ids ride alongside the primary regions for older readers.
                 trackedRegions: tables.primaryRegions.map(\.region),
                 primaryRegions: tables.primaryRegions,
+                plannedStayRecords: tables.plannedStayRecords,
                 blobs: blobs,
             )
         }.value
@@ -162,6 +165,7 @@ public actor BackupCoordinator {
         let manualDays: [DayPresence]
         let dismissedIssues: [DismissedIssue]
         let primaryRegions: [PrimaryRegion]
+        let plannedStayRecords: [PlannedStayRecord]
     }
 
     /// Delete the most recent export's staging directory now, rather than
@@ -228,6 +232,7 @@ public actor BackupCoordinator {
         let blobs = result.blobs
         let total = archive.samples.count + archive.evidence.count
             + archive.manualDays.count + archive.dismissedIssues.count
+            + archive.plannedStayRecords.count
 
         try await Self.logger.measure(.importWrite) {
             try await store.perform {
@@ -261,6 +266,10 @@ public actor BackupCoordinator {
                 }
                 for dismissal in archive.dismissedIssues {
                     try await store.restoreDismissedIssue(dismissal)
+                    report()
+                }
+                for plannedStay in archive.plannedStayRecords {
+                    try await store.restorePlannedStayRecord(plannedStay)
                     report()
                 }
                 // Primary regions (with their picked looks) round-trip like any

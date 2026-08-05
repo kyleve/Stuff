@@ -19,6 +19,7 @@ struct CalendarContentView: View {
 
     @Environment(\.stylesheet) private var stylesheet
     @State private var monthsLoad: Result<[CalendarMonth], Error>?
+    @State private var showingPlannedStayEditor = false
 
     private static let logger = WhereLog.session(CalendarViewLog.self)
 
@@ -79,6 +80,11 @@ struct CalendarContentView: View {
         // Log View Mode: reveal an inspect badge for this calendar's events. A
         // no-op in release.
         .debugLogInspectable(WhereLog.session(CalendarViewLog.self))
+        .sheet(isPresented: $showingPlannedStayEditor) {
+            if let focusedRegion {
+                PlannedStayEditor(region: focusedRegion, model: report.forecasts)
+            }
+        }
     }
 
     private func calendarLoadID(report yearReport: YearReport) -> CalendarLoadID {
@@ -117,12 +123,30 @@ struct CalendarContentView: View {
     private func calendarContent(months: [CalendarMonth]) -> some View {
         ScrollView {
             LazyVStack(spacing: stylesheet.calendar.monthSpacing) {
+                if let focusedForecast {
+                    LocationForecastPanel(
+                        forecasts: [focusedForecast],
+                        plannedStay: report.forecasts.activePlannedStay,
+                        editableRegion: report.forecasts.isCurrent(
+                            focusedForecast.region,
+                            report: report.report,
+                        ) ? focusedForecast.region : nil,
+                        editAction: {
+                            showingPlannedStayEditor = true
+                        },
+                    )
+                }
                 ForEach(shownMonths(months)) { month in
                     MonthGridView(month: month, focusedRegion: focusedRegion)
                 }
             }
             .padding()
         }
+    }
+
+    private var focusedForecast: LocationForecast? {
+        guard let focusedRegion else { return nil }
+        return report.forecasts.forecast(for: focusedRegion, report: report.report)
     }
 
     /// The months to show, newest first. Future months are omitted; a past year
@@ -477,6 +501,14 @@ private struct DayCell: View {
                     CalendarContentView(
                         focusedRegion: .california,
                         report: PreviewSupport.loadedYearReportModel(),
+                    )
+                }
+            }
+            whereSnapshot(name: "FocusedPlannedStay", configurations: .phoneLightDark) {
+                NavigationStack {
+                    CalendarContentView(
+                        focusedRegion: .newYork,
+                        report: PreviewSupport.plannedStayYearReportModel(),
                     )
                 }
             }
