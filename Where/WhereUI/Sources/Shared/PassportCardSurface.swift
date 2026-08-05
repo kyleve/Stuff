@@ -18,7 +18,14 @@ struct PassportCardSurface<Content: View>: View {
         if let tilt {
             let reflection = style.reflectiveSurface
             content
-                .background(reflection.background, in: shape)
+                .background(
+                    LinearGradient(
+                        colors: [reflection.backgroundTop, reflection.backgroundBottom],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing,
+                    ),
+                    in: shape,
+                )
                 .tiltSheen(
                     tilt: tilt,
                     staticRoll: reflection.staticPose.roll,
@@ -27,7 +34,8 @@ struct PassportCardSurface<Content: View>: View {
                     intensity: reflection.intensity,
                     staticGlintIntensity: reflection.staticGlintIntensity,
                 )
-                .environment(\.colorScheme, .light)
+                .tint(reflection.accent)
+                .environment(\.colorScheme, .dark)
         } else {
             content
                 .background {

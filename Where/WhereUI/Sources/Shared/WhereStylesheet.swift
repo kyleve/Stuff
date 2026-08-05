@@ -1273,6 +1273,7 @@ extension WhereStylesheet {
         var glassTintOpacity: Double
         var accentGlow: Shadow
         var liftShadow: Shadow
+        var shadowBleed: CGFloat
 
         struct Seal: Equatable {
             var size: CGFloat
@@ -1295,7 +1296,9 @@ extension WhereStylesheet {
         }
 
         struct ReflectiveSurface: Equatable {
-            var background: Color
+            var backgroundTop: Color
+            var backgroundBottom: Color
+            var accent: Color
             var intensity: Double
             var staticGlintIntensity: Double
             var staticPose: Pose
@@ -1337,14 +1340,17 @@ extension WhereStylesheet {
                 secondaryOpacity: 0.06,
             ),
             reflectiveSurface: ReflectiveSurface(
-                background: .white,
-                intensity: 0.2,
-                staticGlintIntensity: 0.2,
+                backgroundTop: Color(red: 0.08, green: 0.18, blue: 0.34),
+                backgroundBottom: Color(red: 0.02, green: 0.07, blue: 0.16),
+                accent: Color(red: 0.88, green: 0.72, blue: 0.32),
+                intensity: 0.28,
+                staticGlintIntensity: 0.28,
                 staticPose: .init(roll: 0.3, pitch: -0.15),
             ),
             glassTintOpacity: 0.06,
-            accentGlow: Shadow(opacity: 0.18, radius: 7),
-            liftShadow: Shadow(opacity: 0.08, radius: 5, offsetY: 2),
+            accentGlow: Shadow(opacity: 0.26, radius: 11, offsetY: 1),
+            liftShadow: Shadow(opacity: 0.16, radius: 9, offsetY: 4),
+            shadowBleed: 10,
         )
     }
 }

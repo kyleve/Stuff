@@ -80,6 +80,9 @@ struct PassportCard: View {
             radius: style.liftShadow.radius,
             y: style.liftShadow.offsetY,
         )
+        // Zero Form-row insets make the surface align with grouped rows, so
+        // reserve vertical breathing room inside the row for both shadows.
+        .padding(.vertical, style.shadowBleed)
         .accessibilityElement(children: .combine)
     }
 }

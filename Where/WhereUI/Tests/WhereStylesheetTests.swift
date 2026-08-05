@@ -385,14 +385,17 @@ struct WhereStylesheetTests {
             secondaryOpacity: 0.06,
         ))
         #expect(source.reflectiveSurface == .init(
-            background: .white,
-            intensity: 0.2,
-            staticGlintIntensity: 0.2,
+            backgroundTop: Color(red: 0.08, green: 0.18, blue: 0.34),
+            backgroundBottom: Color(red: 0.02, green: 0.07, blue: 0.16),
+            accent: Color(red: 0.88, green: 0.72, blue: 0.32),
+            intensity: 0.28,
+            staticGlintIntensity: 0.28,
             staticPose: .init(roll: 0.3, pitch: -0.15),
         ))
         #expect(source.glassTintOpacity == 0.06)
-        #expect(source.accentGlow == .init(opacity: 0.18, radius: 7))
-        #expect(source.liftShadow == .init(opacity: 0.08, radius: 5, offsetY: 2))
+        #expect(source.accentGlow == .init(opacity: 0.26, radius: 11, offsetY: 1))
+        #expect(source.liftShadow == .init(opacity: 0.16, radius: 9, offsetY: 4))
+        #expect(source.shadowBleed == 10)
     }
 
     @Test func developerOverlayStyle() {

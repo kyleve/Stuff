@@ -26,9 +26,9 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   button, and the data screens (attachments, logged days, regions) sit in the
   Settings "Data" group. Backup and destructive data management share one Data
   drill-in. Both Data and About lead with the same full-width passport-style
-  privacy statement on a white, tilt-reflective surface: location history stays
-  on the user's devices and in their private iCloud account, never on
-  Where-operated servers. `AboutSettingsView` is the last Settings block —
+  privacy statement on a passport-navy, tilt-reflective surface: location
+  history stays on the user's devices and in their private iCloud account,
+  never on Where-operated servers. `AboutSettingsView` is the last Settings block —
   build identity, the app's generated attribution report (linked libraries and
   development tools as separate sections), and bundled-data provenance, each
   vended by whoever owns it rather than listed in the view; it renders an
