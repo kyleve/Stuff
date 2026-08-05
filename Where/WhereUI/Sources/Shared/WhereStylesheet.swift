@@ -27,6 +27,7 @@ struct WhereStylesheet: BStylesheet {
     var launch = LaunchStyle.standard
     var typography = Typography.standard
     var settings = SettingsStyle.standard
+    var aboutOpenSource = AboutOpenSourceStyle.standard
     var developerOverlay = DeveloperOverlayStyle.standard
 
     init() {}
@@ -1252,6 +1253,71 @@ extension WhereStylesheet {
             flashAnimation: .easeInOut(duration: 0.4),
             flashDuration: .seconds(1),
             scrollSettleDelay: .milliseconds(350),
+        )
+    }
+}
+
+// MARK: - About open source
+
+extension WhereStylesheet {
+    /// Appearance for the compact open-source sign-off at the bottom of About.
+    /// It echoes the Locations cards' security print without borrowing their
+    /// region-specific card spec.
+    struct AboutOpenSourceStyle: Equatable {
+        var cornerRadius: CGFloat
+        var padding: CGFloat
+        var contentSpacing: CGFloat
+        var titleFont: Font
+        var actionFont: Font
+        var seal: Seal
+        var rosette: Rosette
+        var glassTintOpacity: Double
+
+        struct Seal: Equatable {
+            var size: CGFloat
+            var rotationDegrees: Double
+            var outerLineWidth: CGFloat
+            var innerLineWidth: CGFloat
+            var innerInset: CGFloat
+            var dashLength: CGFloat
+            var dashSpacing: CGFloat
+            var symbolFont: Font
+        }
+
+        struct Rosette: Equatable {
+            var wobble: CGFloat
+            var lineWidth: CGFloat
+            var primaryRingSpacing: CGFloat
+            var secondaryRingSpacing: CGFloat
+            var primaryOpacity: Double
+            var secondaryOpacity: Double
+        }
+
+        static let standard = AboutOpenSourceStyle(
+            cornerRadius: 20,
+            padding: 16,
+            contentSpacing: 12,
+            titleFont: .headline,
+            actionFont: .subheadline,
+            seal: Seal(
+                size: 52,
+                rotationDegrees: -8,
+                outerLineWidth: 2,
+                innerLineWidth: 1,
+                innerInset: 7,
+                dashLength: 3,
+                dashSpacing: 3,
+                symbolFont: .title3,
+            ),
+            rosette: Rosette(
+                wobble: 5,
+                lineWidth: 0.75,
+                primaryRingSpacing: 10,
+                secondaryRingSpacing: 16,
+                primaryOpacity: 0.1,
+                secondaryOpacity: 0.06,
+            ),
+            glassTintOpacity: 0.06,
         )
     }
 }

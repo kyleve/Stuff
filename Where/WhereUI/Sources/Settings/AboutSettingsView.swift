@@ -48,6 +48,9 @@ struct AboutSettingsView: View {
                 dependenciesSection
                 developmentToolsSection
                 dataSourcesSection
+                AboutOpenSourceFooter()
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
             }
         }
         .navigationTitle(String(localized: .settingsAboutHeader))
