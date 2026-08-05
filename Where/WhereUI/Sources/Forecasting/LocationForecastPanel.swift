@@ -95,3 +95,16 @@ private struct LocationForecastRow: View {
         .accessibilityElement(children: .combine)
     }
 }
+
+#if DEBUG
+    #Preview {
+        let report = PreviewSupport.plannedStayYearReportModel()
+        LocationForecastPanel(
+            forecasts: report.forecasts.leadingForecasts(report: report.report),
+            plannedStay: report.forecasts.activePlannedStay,
+            editableRegion: .newYork,
+            editAction: {},
+        )
+        .padding()
+    }
+#endif
