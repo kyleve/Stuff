@@ -384,6 +384,12 @@ struct WhereStylesheetTests {
             primaryOpacity: 0.1,
             secondaryOpacity: 0.06,
         ))
+        #expect(source.reflectiveSurface == .init(
+            background: .white,
+            intensity: 0.2,
+            staticGlintIntensity: 0.2,
+            staticPose: .init(roll: 0.3, pitch: -0.15),
+        ))
         #expect(source.glassTintOpacity == 0.06)
         #expect(source.accentGlow == .init(opacity: 0.18, radius: 7))
         #expect(source.liftShadow == .init(opacity: 0.08, radius: 5, offsetY: 2))

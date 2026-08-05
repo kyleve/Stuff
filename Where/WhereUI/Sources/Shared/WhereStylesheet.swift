@@ -1269,6 +1269,7 @@ extension WhereStylesheet {
         var detailFont: Font
         var seal: Seal
         var rosette: Rosette
+        var reflectiveSurface: ReflectiveSurface
         var glassTintOpacity: Double
         var accentGlow: Shadow
         var liftShadow: Shadow
@@ -1291,6 +1292,18 @@ extension WhereStylesheet {
             var secondaryRingSpacing: CGFloat
             var primaryOpacity: Double
             var secondaryOpacity: Double
+        }
+
+        struct ReflectiveSurface: Equatable {
+            var background: Color
+            var intensity: Double
+            var staticGlintIntensity: Double
+            var staticPose: Pose
+
+            struct Pose: Equatable {
+                var roll: Double
+                var pitch: Double
+            }
         }
 
         struct Shadow: Equatable {
@@ -1322,6 +1335,12 @@ extension WhereStylesheet {
                 secondaryRingSpacing: 16,
                 primaryOpacity: 0.1,
                 secondaryOpacity: 0.06,
+            ),
+            reflectiveSurface: ReflectiveSurface(
+                background: .white,
+                intensity: 0.2,
+                staticGlintIntensity: 0.2,
+                staticPose: .init(roll: 0.3, pitch: -0.15),
             ),
             glassTintOpacity: 0.06,
             accentGlow: Shadow(opacity: 0.18, radius: 7),

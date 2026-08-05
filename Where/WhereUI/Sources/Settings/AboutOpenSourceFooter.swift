@@ -13,6 +13,7 @@ struct AboutOpenSourceFooter: View {
                 sealSystemImage: "chevron.left.forwardslash.chevron.right",
                 accessorySystemImage: "arrow.up.right",
                 isInteractive: true,
+                tilt: nil,
             )
         }
         .buttonStyle(.plain)
