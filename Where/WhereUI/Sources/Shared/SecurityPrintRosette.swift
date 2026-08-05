@@ -61,3 +61,19 @@ struct SecurityPrintRosette: View {
         }
     }
 }
+
+#if DEBUG
+    #Preview {
+        let rosette = WhereStylesheet.default.aboutOpenSource.rosette
+        SecurityPrintRosette(
+            tint: .accentColor,
+            wobble: rosette.wobble,
+            lineWidth: rosette.lineWidth,
+            primaryRingSpacing: rosette.primaryRingSpacing,
+            secondaryRingSpacing: rosette.secondaryRingSpacing,
+            primaryOpacity: rosette.primaryOpacity,
+            secondaryOpacity: rosette.secondaryOpacity,
+        )
+        .frame(width: 360, height: 120)
+    }
+#endif

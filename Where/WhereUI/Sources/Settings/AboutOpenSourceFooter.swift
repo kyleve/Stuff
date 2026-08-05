@@ -84,3 +84,14 @@ struct AboutOpenSourceFooter: View {
         .accessibilityHidden(true)
     }
 }
+
+#if DEBUG
+    #Preview {
+        Form {
+            AboutOpenSourceFooter()
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+        }
+        .whereBroadwayRoot()
+    }
+#endif
