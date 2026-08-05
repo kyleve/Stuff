@@ -31,7 +31,9 @@ struct LocationForecastPanel: View {
                 label: {
                     forecastHeader
                 }
-                .tint(.primary)
+                .disclosureGroupStyle(LocationForecastDisclosureStyle(
+                    foregroundColor: style.collapsedLabelColor,
+                ))
             } else {
                 forecastHeader
                 forecastContent

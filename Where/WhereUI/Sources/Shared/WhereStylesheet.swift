@@ -79,6 +79,7 @@ extension WhereStylesheet {
         var padding: CGFloat
         var rowSpacing: CGFloat
         var estimateSpacing: CGFloat
+        var collapsedLabelColor: Color
         var borderColor: Color
         var borderWidth: CGFloat
         var shadowColor: Color
@@ -91,6 +92,7 @@ extension WhereStylesheet {
             padding: 16,
             rowSpacing: 12,
             estimateSpacing: 3,
+            collapsedLabelColor: Color.primary.opacity(0.5),
             borderColor: Color.primary.opacity(0.06),
             borderWidth: 0.5,
             shadowColor: Color.black.opacity(0.06),

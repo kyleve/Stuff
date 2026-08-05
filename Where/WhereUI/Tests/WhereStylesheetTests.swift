@@ -253,6 +253,7 @@ struct WhereStylesheetTests {
         #expect(forecast.padding == 16)
         #expect(forecast.rowSpacing == 12)
         #expect(forecast.estimateSpacing == 3)
+        #expect(forecast.collapsedLabelColor == Color.primary.opacity(0.5))
         #expect(forecast.borderColor == Color.primary.opacity(0.06))
         #expect(forecast.borderWidth == 0.5)
         #expect(forecast.shadowColor == Color.black.opacity(0.06))
