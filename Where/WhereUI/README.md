@@ -75,8 +75,13 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
 - **Scope-tiered models** — scene-scoped **`YearReportModel`** (the selected
   year's `YearReport`, its `LoadState`, and the manual-day edit intents), plus
   view-scoped **`ResolveModel`** (data-issue triage), **`BackupModel`**
-  (export/import), and **`RemindersSettingsModel`** (notification prefs). Each
-  orchestrates `WhereServices`; none reimplements Core rules.
+  (export/import), **`RemindersSettingsModel`** (notification prefs), and
+  **`LocationDayCountPresentationModel`** (the last primary-card counts the
+  user saw). The Location model holds saved values until the card surface is
+  visible and unobscured, then advances every changed number in one animated
+  beat, adding one light haptic when any count increased; decreases, first
+  visits, and newly appearing cards stay silent. Each model keeps its behavior
+  off the view; none reimplements Core rules.
 
 ### Reusable views & styling
 
