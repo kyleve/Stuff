@@ -393,9 +393,9 @@ struct WhereStylesheetTests {
             staticPose: .init(roll: 0.3, pitch: -0.15),
         ))
         #expect(source.glassTintOpacity == 0.06)
-        #expect(source.accentGlow == .init(opacity: 0.26, radius: 11, offsetY: 1))
-        #expect(source.liftShadow == .init(opacity: 0.16, radius: 9, offsetY: 4))
-        #expect(source.shadowBleed == 10)
+        #expect(source.accentGlow == .init(opacity: 0.22, radius: 6, lineWidth: 2))
+        #expect(source.liftShadow == .init(opacity: 0.08, radius: 5, offsetY: 2))
+        #expect(source.shadowBleed == 6)
     }
 
     @Test func developerOverlayStyle() {

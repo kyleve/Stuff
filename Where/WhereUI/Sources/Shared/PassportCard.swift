@@ -69,19 +69,27 @@ struct PassportCard: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .clipShape(shape)
+        .overlay {
+            shape
+                .stroke(
+                    Color.accentColor.opacity(style.accentGlow.opacity),
+                    lineWidth: style.accentGlow.lineWidth,
+                )
+                .blur(radius: style.accentGlow.radius)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+        }
+        // Flatten the surface before shadowing so Liquid Glass, gradients, and
+        // text cast one card silhouette rather than layered backing shapes.
+        .compositingGroup()
         .contentShape(shape)
-        .shadow(
-            color: Color.accentColor.opacity(style.accentGlow.opacity),
-            radius: style.accentGlow.radius,
-            y: style.accentGlow.offsetY,
-        )
         .shadow(
             color: Color.black.opacity(style.liftShadow.opacity),
             radius: style.liftShadow.radius,
             y: style.liftShadow.offsetY,
         )
         // Zero Form-row insets make the surface align with grouped rows, so
-        // reserve vertical breathing room inside the row for both shadows.
+        // reserve a little breathing room inside the row for the soft halo.
         .padding(.vertical, style.shadowBleed)
         .accessibilityElement(children: .combine)
     }
