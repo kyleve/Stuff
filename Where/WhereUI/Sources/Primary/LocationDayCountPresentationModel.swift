@@ -7,6 +7,14 @@ import WhereCore
 @MainActor
 @Observable
 final class LocationDayCountPresentationModel {
+    /// Everything that decides whether SwiftUI should restart the card-surface
+    /// reconciliation task.
+    struct ReconciliationID: Hashable {
+        let counts: [RegionDays]
+        let year: Int
+        let isVisible: Bool
+    }
+
     private let preferences: WherePreferences
     private var lastSeenCounts: [Region: Int]?
     private var displayedCounts: [Region: Int]
@@ -42,9 +50,11 @@ final class LocationDayCountPresentationModel {
         )
     }
 
-    /// Advance visible cards to the report, persist that presentation, and emit
-    /// one feedback trigger if any card has a comparable saved value that moved.
-    func reveal(_ current: [RegionDays], in year: Int) {
+    /// When the cards are visible, advance them to the report, persist that
+    /// presentation, and emit one feedback trigger if any comparable saved value
+    /// increased. Hidden or obscured surfaces leave their baseline untouched.
+    func reconcile(_ current: [RegionDays], in year: Int, isVisible: Bool) {
+        guard isVisible else { return }
         prepare(for: year)
 
         let currentCounts = Dictionary(uniqueKeysWithValues: current.map { item in

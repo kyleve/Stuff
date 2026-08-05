@@ -12,6 +12,7 @@ struct LocationsView: View {
     let report: YearReportModel
 
     @State private var showingResolution = false
+    @State private var isCardSurfaceVisible = false
     @State private var dayCountPresentation: LocationDayCountPresentationModel
 
     /// Drives the region cards' tilt-reactive light sheen. Started/stopped
@@ -25,6 +26,14 @@ struct LocationsView: View {
 
     @Environment(\.stylesheet) private var stylesheet
     @Environment(\.regionStyles) private var regionStyles
+
+    private var dayCountReconciliationID: LocationDayCountPresentationModel.ReconciliationID {
+        LocationDayCountPresentationModel.ReconciliationID(
+            counts: report.ranking.primary,
+            year: report.selectedYear,
+            isVisible: isCardSurfaceVisible && !showingResolution,
+        )
+    }
 
     init(report: YearReportModel) {
         self.report = report
@@ -170,11 +179,17 @@ struct LocationsView: View {
         .defaultScrollAnchor(.center)
         .scrollBounceBehavior(.basedOnSize)
         .accessibilityIdentifier("where_root_title")
-        // A task belongs to the card surface rather than the tab container: it
-        // is cancelled while another tab or a pushed destination covers these
-        // numbers, then re-runs when the user can see them again.
-        .task(id: report.ranking.primary) {
-            dayCountPresentation.reveal(report.ranking.primary, in: report.selectedYear)
+        .onAppear { isCardSurfaceVisible = true }
+        .onDisappear { isCardSurfaceVisible = false }
+        // The task belongs to the cards, and its ID includes explicit visibility
+        // so a covering sheet cannot consume their baseline behind itself.
+        .task(id: dayCountReconciliationID) {
+            let reconciliation = dayCountReconciliationID
+            dayCountPresentation.reconcile(
+                reconciliation.counts,
+                in: reconciliation.year,
+                isVisible: reconciliation.isVisible,
+            )
         }
         .sensoryFeedback(
             .impact(weight: .light),

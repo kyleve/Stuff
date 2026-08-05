@@ -19,7 +19,7 @@ struct LocationDayCountPresentationModelTests {
         let current = [item(.california, 148), item(.newYork, 37)]
 
         #expect(model.presented(current[0]).days == 148)
-        model.reveal(current, in: 2026)
+        model.reconcile(current, in: 2026, isVisible: true)
 
         #expect(model.feedbackTrigger == 0)
         #expect(preferences.lastSeenLocationDayCounts(in: 2026) == [
@@ -37,13 +37,13 @@ struct LocationDayCountPresentationModelTests {
         #expect(model.presented(current).days == 148)
         #expect(preferences.lastSeenLocationDayCounts(in: 2026) == [.california: 148])
 
-        model.reveal([current], in: 2026)
+        model.reconcile([current], in: 2026, isVisible: true)
 
         #expect(model.presented(current).days == 149)
         #expect(model.feedbackTrigger == 1)
         #expect(preferences.lastSeenLocationDayCounts(in: 2026) == [.california: 149])
 
-        model.reveal([current], in: 2026)
+        model.reconcile([current], in: 2026, isVisible: true)
 
         #expect(model.feedbackTrigger == 1)
     }
@@ -56,7 +56,7 @@ struct LocationDayCountPresentationModelTests {
 
         #expect(model.presented(current).days == 148)
 
-        model.reveal([current], in: 2026)
+        model.reconcile([current], in: 2026, isVisible: true)
 
         #expect(model.presented(current).days == 147)
         #expect(model.feedbackTrigger == 0)
@@ -71,10 +71,10 @@ struct LocationDayCountPresentationModelTests {
         ], in: 2026)
         let model = LocationDayCountPresentationModel(preferences: preferences, year: 2026)
 
-        model.reveal([
+        model.reconcile([
             item(.california, 149),
             item(.newYork, 38),
-        ], in: 2026)
+        ], in: 2026, isVisible: true)
 
         #expect(model.feedbackTrigger == 1)
     }
@@ -86,7 +86,7 @@ struct LocationDayCountPresentationModelTests {
         let current = [item(.california, 148), item(.newYork, 12)]
 
         #expect(model.presented(current[1]).days == 12)
-        model.reveal(current, in: 2026)
+        model.reconcile(current, in: 2026, isVisible: true)
 
         #expect(model.feedbackTrigger == 0)
         #expect(preferences.lastSeenLocationDayCounts(in: 2026) == [
@@ -95,16 +95,19 @@ struct LocationDayCountPresentationModelTests {
         ])
     }
 
-    @Test func currentCountsRemainPendingUntilReveal() {
+    @Test func hiddenReconciliationLeavesCurrentCountsPending() {
         let preferences = preferences()
         preferences.setLastSeenLocationDayCounts([.california: 148], in: 2026)
         let model = LocationDayCountPresentationModel(preferences: preferences, year: 2026)
         let current = item(.california, 151)
 
+        model.reconcile([current], in: 2026, isVisible: false)
+
         #expect(model.presented(current).days == 148)
         #expect(preferences.lastSeenLocationDayCounts(in: 2026) == [.california: 148])
+        #expect(model.feedbackTrigger == 0)
 
-        model.reveal([current], in: 2026)
+        model.reconcile([current], in: 2026, isVisible: true)
 
         #expect(model.presented(current).days == 151)
         #expect(preferences.lastSeenLocationDayCounts(in: 2026) == [.california: 151])

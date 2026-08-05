@@ -78,10 +78,10 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   (export/import), **`RemindersSettingsModel`** (notification prefs), and
   **`LocationDayCountPresentationModel`** (the last primary-card counts the
   user saw). The Location model holds saved values until the card surface is
-  visible, then advances every changed number in one animated beat, adding one
-  light haptic when any count increased; decreases, first visits, and newly
-  appearing cards stay silent. Each model keeps its behavior off the view; none
-  reimplements Core rules.
+  visible and unobscured, then advances every changed number in one animated
+  beat, adding one light haptic when any count increased; decreases, first
+  visits, and newly appearing cards stay silent. Each model keeps its behavior
+  off the view; none reimplements Core rules.
 
 ### Reusable views & styling
 
