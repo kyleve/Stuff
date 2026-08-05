@@ -49,11 +49,26 @@ public actor DayJournal {
     /// The scanner is invalidated inline (not just via its async store-change
     /// observation) so the reconciles below recount from fresh data rather than
     /// racing it.
+    private func execute(_ plan: PostWriteReconcilePlan) async {
+        for step in plan.steps {
+            switch step {
+                case .invalidateIssues:
+                    await issueScanner.invalidate()
+                case .reconcileReminders:
+                    await reminders.reconcile()
+                case .reconcileIssueAlerts:
+                    await issueAlerts.reconcile()
+                case .publishWidgets:
+                    await widgets.publish()
+                case let .publishWidgetsAfterIngest(sample):
+                    await widgets.publishAfterIngest(of: sample)
+            }
+        }
+    }
+
     private func reconcileIssueState() async {
         await Self.logger.measure(.reconcileIssueState, budget: .seconds(3)) {
-            await issueScanner.invalidate()
-            await reminders.reconcile()
-            await issueAlerts.reconcile()
+            await execute(PostWriteReconcilePlan.forOutcome(.issueOnly))
         }
     }
 
@@ -64,16 +79,14 @@ public actor DayJournal {
     /// root points at this method via `BackupCoordinator`'s `onImport` hook.
     func reconcileAfterDayDataChange() async {
         await Self.logger.measure(.reconcileAfterDayDataChange, budget: .seconds(5)) {
-            await reconcileIssueState()
-            await widgets.publish()
+            await execute(PostWriteReconcilePlan.forOutcome(.dayDataChanged))
         }
     }
 
     /// Reminder/issue fan-out plus the hot-path widget policy: skip a rebuild
     /// when the sample cannot change what widgets show (same day + region).
     private func reconcileAfterSampleIngest(_ sample: LocationSample) async {
-        await reconcileIssueState()
-        await widgets.publishAfterIngest(of: sample)
+        await execute(PostWriteReconcilePlan.forOutcome(.sampleIngest(sample)))
     }
 
     // MARK: - Ingestion
