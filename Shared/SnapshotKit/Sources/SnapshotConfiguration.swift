@@ -83,6 +83,9 @@ extension SnapshotConfiguration {
     /// How a variant is sized, plus an optional short name that stands in for the
     /// size in identifiers (e.g. `iPhone` instead of `402x874`).
     public struct Frame: Hashable, Sendable {
+        private static let iPhoneWidth: CGFloat = 402
+        private static let iPadWidth: CGFloat = 834
+
         /// The identifier token for this frame (`""` for the unnamed component
         /// frame, `iPhone`/`iPad` for device frames).
         public var name: String
@@ -139,19 +142,28 @@ extension SnapshotConfiguration {
             Frame(name: name, size: .fullContent(width: width))
         }
 
+        /// The iPhone frame width with height measured from the settled content.
+        public static let iPhoneFullContent = fullContent(name: "iPhone", width: iPhoneWidth)
+
+        /// The iPad frame width with height measured from the settled content.
+        public static let iPadFullContent = fullContent(name: "iPad", width: iPadWidth)
+
         /// A phone screen frame (iPhone 17 point size).
         public static let iPhone = Frame(
             name: "iPhone",
-            size: .fixed(CGSize(width: 402, height: 874)),
+            size: .fixed(CGSize(width: iPhoneWidth, height: 874)),
         )
         /// A tablet screen frame (iPad Pro 11" portrait point size).
-        public static let iPad = Frame(name: "iPad", size: .fixed(CGSize(width: 834, height: 1194)))
+        public static let iPad = Frame(
+            name: "iPad",
+            size: .fixed(CGSize(width: iPadWidth, height: 1194)),
+        )
         /// The iPhone frame with simulated device insets (Dynamic Island top,
         /// home-indicator bottom), for cases that must prove layout under real
         /// device chrome rather than the inset-free default.
         public static let iPhoneNotched = Frame(
             name: "iPhoneNotched",
-            size: .fixed(CGSize(width: 402, height: 874)),
+            size: .fixed(CGSize(width: iPhoneWidth, height: 874)),
             safeAreaInsets: Insets(top: 47, leading: 0, bottom: 34, trailing: 0),
         )
     }
