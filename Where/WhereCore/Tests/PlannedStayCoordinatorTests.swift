@@ -46,9 +46,34 @@ struct PlannedStayCoordinatorTests {
             region: .newYork,
             through: CalendarDay(year: 2026, month: 2, day: 28),
         )
+        let expiredRecord = try #require(await store.plannedStayRecords().first)
 
         #expect(try await coordinator.active() == nil)
-        #expect(try await store.plannedStayRecords().first?.value == nil)
+        let tombstone = try #require(await store.plannedStayRecords().first)
+        #expect(tombstone.value == nil)
+        #expect(tombstone.updatedAt > expiredRecord.updatedAt)
+    }
+
+    @Test func staleExpiryCannotOverwriteANewerStay() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let coordinator = Self.makeCoordinator(store: store)
+        try await coordinator.set(
+            region: .california,
+            through: CalendarDay(year: 2026, month: 6, day: 30),
+        )
+        let staleExpiredRecord = try #require(await store.plannedStayRecords().first)
+
+        let futureStay = PlannedStay(
+            region: .newYork,
+            through: CalendarDay(year: 2026, month: 8, day: 1),
+        )
+        try await coordinator.set(region: futureStay.region, through: futureStay.through)
+        try await coordinator.expireIfLatest(
+            staleExpiredRecord,
+            asOf: CalendarDay(year: 2026, month: 7, day: 1),
+        )
+
+        #expect(try await coordinator.active() == futureStay)
     }
 
     @Test func newestSyncedRevisionWinsDeterministically() async throws {
