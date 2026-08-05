@@ -97,3 +97,10 @@ struct PlannedStayEditor: View {
         }
     }
 }
+
+#if DEBUG
+    #Preview {
+        let report = PreviewSupport.plannedStayYearReportModel()
+        PlannedStayEditor(region: .newYork, model: report.forecasts)
+    }
+#endif
