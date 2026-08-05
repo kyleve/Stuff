@@ -1,4 +1,5 @@
 import Foundation
+import JournalKit
 import PeriscopeCore
 
 /// One retryable raw sample together with the logical generation that authorized it. The epoch
@@ -21,15 +22,15 @@ public struct LocationOutboxEntry: Codable, Sendable, Hashable {
 ///
 /// Deliberately separate from `WhereStore`: the store is the thing that's
 /// failing when samples land here, so the backlog must not depend on it. The
-/// production implementation is a small atomically-written JSON file in the
-/// app's own sandbox, explicitly excluded from device backups (the samples are
-/// sensitive raw locations — not the App Group the widget reads).
+/// production implementation journals complete queue snapshots in the app's
+/// sandbox, explicitly excluded from device backups (the samples are sensitive
+/// raw locations — not the App Group the widget reads).
 public protocol LocationOutbox: Sendable {
     /// The persisted backlog, or empty when none exists. A read/security/decoding failure throws;
-    /// callers must not treat an unreadable raw-location file as an empty successful load.
+    /// callers must not treat an unreadable raw-location journal as an empty successful load.
     func load() async throws -> [LocationOutboxEntry]
     /// Replace the persisted backlog with `entries`; an empty array clears it.
-    func save(_ entries: [LocationOutboxEntry]) async
+    func save(_ entries: [LocationOutboxEntry]) async throws
     /// Remove every persisted retry sample. Reset uses the throwing path so it cannot report a
     /// successful erase while raw locations remain able to repopulate the next installation.
     func clear() async throws
@@ -44,25 +45,31 @@ public struct NoOpLocationOutbox: LocationOutbox {
         []
     }
 
-    public func save(_: [LocationOutboxEntry]) async {}
+    public func save(_: [LocationOutboxEntry]) async throws {}
     public func clear() async throws {}
 }
 
-/// File-backed `LocationOutbox`: the backlog is one atomically-written JSON file
-/// (write-to-temp-then-rename), so a crash mid-write can never corrupt a
-/// previously good backlog. An `actor` so its disk I/O runs off the
-/// `LocationIngestor`'s executor.
+private enum LocationOutboxRecoveryError: Error {
+    case noCompleteSnapshot
+}
+
+/// Journal-backed `LocationOutbox`. Each entry is a complete bounded retry-queue
+/// snapshot, so recovery needs only the newest intact entry and JournalKit may
+/// discard older segments without changing queue semantics.
 public actor FileLocationOutbox: LocationOutbox {
     private static let directoryName = "LocationRetryOutbox"
     private static let fileName = "outbox.json"
     private static let legacyFileName = "location-retry-outbox.json"
+    private static let maximumJournalByteCount = 8 * 1024 * 1024
 
     private let fileURL: URL
+    private let directoryURL: URL
     /// Retained when composing the production outbox so a failed legacy migration cannot leave
     /// raw locations outside the scope of a later reset.
     private let legacyFileURL: URL?
     private let readData: @Sendable (URL) throws -> Data
     private let excludeFromBackup: @Sendable (URL) throws -> Void
+    private var journal: Journal?
 
     private static let logger = WhereLog.location(LocationOutboxLog.self)
 
@@ -91,6 +98,7 @@ public actor FileLocationOutbox: LocationOutbox {
         excludeFromBackup: @escaping @Sendable (URL) throws -> Void,
     ) {
         self.fileURL = fileURL
+        directoryURL = fileURL.deletingLastPathComponent()
         self.legacyFileURL = legacyFileURL
         self.readData = readData
         self.excludeFromBackup = excludeFromBackup
@@ -129,121 +137,140 @@ public actor FileLocationOutbox: LocationOutbox {
     }
 
     public func load() async throws -> [LocationOutboxEntry] {
-        guard FileManager.default.fileExists(atPath: fileURL.path(percentEncoded: false)) else {
-            return []
+        do {
+            try secureDirectoryIfPresent()
+            let recovered = try JournalRecovery.recover(directory: directoryURL)
+            if recovered.foundTornEntry {
+                Self.logger { .recoveredTornJournal }
+            }
+            if let payload = recovered.payloads.last {
+                return try Self.decodeEntries(from: payload)
+            }
+            if recovered.foundTornEntry {
+                throw LocationOutboxRecoveryError.noCompleteSnapshot
+            }
+            return try migrateLegacyJSONIfNeeded()
+        } catch {
+            Self.logger(attachments: [.error(error, name: "read-error")]) {
+                .readBacklogFailed(description: error.localizedDescription)
+            }
+            throw error
+        }
+    }
+
+    public func save(_ entries: [LocationOutboxEntry]) async throws {
+        guard !entries.isEmpty else {
+            try await clear()
+            return
         }
         do {
-            try excludeFromBackup(fileURL.deletingLastPathComponent())
-            try excludeFromBackup(fileURL)
+            let data = try JSONEncoder().encode(entries)
+            try openJournal().append(data, sync: .processDeath)
+        } catch {
+            Self.logger(attachments: [.error(error, name: "persist-error")]) {
+                .persistBacklogFailed(description: error.localizedDescription)
+            }
+            throw error
+        }
+    }
+
+    public func clear() async throws {
+        do {
+            if FileManager.default.fileExists(atPath: directoryURL.path(percentEncoded: false)) {
+                // The empty checkpoint becomes authoritative before removing old bytes. If the
+                // process dies during deletion, recovery still cannot resurrect an older queue.
+                try openJournal().append(JSONEncoder().encode([LocationOutboxEntry]()), sync: .full)
+                journal?.close()
+                journal = nil
+                try FileManager.default.removeItem(at: directoryURL)
+            }
+            if let legacyFileURL,
+               FileManager.default.fileExists(atPath: legacyFileURL.path(percentEncoded: false))
+            {
+                try FileManager.default.removeItem(at: legacyFileURL)
+            }
+        } catch {
+            Self.logger(attachments: [.error(error, name: "clear-error")]) {
+                .persistBacklogFailed(description: error.localizedDescription)
+            }
+            throw error
+        }
+    }
+
+    private func openJournal() throws -> Journal {
+        if let journal { return journal }
+        try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+        try excludeFromBackup(directoryURL)
+        let opened = try Journal(
+            directory: directoryURL,
+            configuration: .init(maximumByteCount: Self.maximumJournalByteCount),
+        )
+        journal = opened
+        return opened
+    }
+
+    private func secureDirectoryIfPresent() throws {
+        guard FileManager.default.fileExists(atPath: directoryURL.path(percentEncoded: false))
+        else {
+            return
+        }
+        do {
+            try excludeFromBackup(directoryURL)
         } catch {
             Self.logger(attachments: [.error(error, name: "backup-exclusion-error")]) {
                 .excludeFromBackupFailed(description: error.localizedDescription)
             }
-            Self.discardInsecureFile(at: fileURL)
+            journal?.close()
+            journal = nil
+            Self.discardInsecureDirectory(at: directoryURL)
             throw error
         }
+    }
 
+    /// Import the previous atomically-written JSON format exactly once. The journal snapshot is
+    /// fully durable before the legacy bytes are removed, so interruption can only leave both.
+    private func migrateLegacyJSONIfNeeded() throws -> [LocationOutboxEntry] {
+        guard FileManager.default.fileExists(atPath: fileURL.path(percentEncoded: false)) else {
+            return []
+        }
         let data: Data
         do {
             data = try readData(fileURL)
         } catch {
             // File protection and transient I/O failures can clear later. Preserve the only
             // durable copy so a subsequent load can retry it.
-            Self.logger(attachments: [.error(error, name: "read-error")]) {
-                .readBacklogFailed(description: error.localizedDescription)
-            }
             throw error
         }
-
+        let entries: [LocationOutboxEntry]
         do {
-            return try Self.decodeEntries(from: data)
+            entries = try Self.decodeEntries(from: data)
         } catch {
-            // Decoding validly read bytes cannot recover without a format change. Drop them rather
-            // than crash-looping on the same corrupt backlog every launch.
             Self.logger(attachments: [.error(error, name: "decode-error")]) {
                 .droppedUnreadableBacklog(description: error.localizedDescription)
             }
             Self.discardInsecureFile(at: fileURL)
             throw error
         }
-    }
-
-    public func save(_ entries: [LocationOutboxEntry]) async {
-        guard !entries.isEmpty else {
-            do {
-                try await clear()
-            } catch {
-                Self.logger(attachments: [.error(error, name: "clear-error")]) {
-                    .persistBacklogFailed(description: error.localizedDescription)
-                }
-            }
-            return
-        }
-        var publishedNewFile = false
-        do {
-            let data = try JSONEncoder().encode(entries)
-            let directoryURL = fileURL.deletingLastPathComponent()
-            try FileManager.default.createDirectory(
-                at: directoryURL,
-                withIntermediateDirectories: true,
-            )
-            // Secure the empty directory before writing either atomic-write scratch or pending
-            // bytes, closing the crash window between a completed write and per-file exclusion.
-            try excludeFromBackup(directoryURL)
-            let pendingURL = fileURL.appendingPathExtension("pending")
-            if FileManager.default.fileExists(atPath: pendingURL.path(percentEncoded: false)) {
-                try FileManager.default.removeItem(at: pendingURL)
-            }
-            // Exclude the new inode before it acquires the authoritative path. A crash or
-            // exclusion failure can therefore never publish backup-eligible raw locations.
-            try data.write(to: pendingURL, options: .atomic)
-            try excludeFromBackup(pendingURL)
-            if FileManager.default.fileExists(atPath: fileURL.path(percentEncoded: false)) {
-                _ = try FileManager.default.replaceItemAt(
-                    fileURL,
-                    withItemAt: pendingURL,
-                    backupItemName: nil,
-                    options: .usingNewMetadataOnly,
-                )
-            } else {
-                try FileManager.default.moveItem(at: pendingURL, to: fileURL)
-            }
-            publishedNewFile = true
-            try excludeFromBackup(fileURL)
-        } catch {
-            Self.logger(attachments: [.error(error, name: "persist-error")]) {
-                .persistBacklogFailed(description: error.localizedDescription)
-            }
-            if publishedNewFile {
-                Self.discardInsecureFile(at: fileURL)
-            }
-        }
-    }
-
-    public func clear() async throws {
+        try openJournal().append(JSONEncoder().encode(entries), sync: .full)
+        try FileManager.default.removeItem(at: fileURL)
         let pendingURL = fileURL.appendingPathExtension("pending")
-        for url in [fileURL, pendingURL] + [legacyFileURL].compactMap(\.self)
-            where FileManager.default.fileExists(
-                atPath: url.path(percentEncoded: false),
-            )
-        {
-            try FileManager.default.removeItem(at: url)
+        if FileManager.default.fileExists(atPath: pendingURL.path(percentEncoded: false)) {
+            try FileManager.default.removeItem(at: pendingURL)
         }
+        return entries
     }
 
     /// Secure an outbox directory left by an interrupted write even when recording is Off and
     /// the ingestor never loads it. A complete pending file is the newest atomically-written
-    /// backlog, so promote it instead of dropping samples merely because the process died before
-    /// the final rename. If exclusion cannot be proven for either raw copy, privacy still wins
-    /// over that copy's retry durability and it is discarded.
+    /// legacy backlog, so promote it instead of dropping samples merely because the process died
+    /// before the final rename.
     private static func recoverExistingDirectory(
         containing fileURL: URL,
         fileManager: FileManager,
         excludeFromBackup: @Sendable (URL) throws -> Void,
     ) {
         let directoryURL = fileURL.deletingLastPathComponent()
-        guard fileManager.fileExists(atPath: directoryURL.path(percentEncoded: false))
-        else {
+        guard fileManager.fileExists(atPath: directoryURL.path(percentEncoded: false)) else {
             return
         }
         let pendingURL = fileURL.appendingPathExtension("pending")
@@ -251,9 +278,11 @@ public actor FileLocationOutbox: LocationOutbox {
         do {
             try excludeFromBackup(directoryURL)
         } catch {
-            Self.logger(attachments: [.error(error, name: "backup-exclusion-error")]) {
+            logger(attachments: [.error(error, name: "backup-exclusion-error")]) {
                 .excludeFromBackupFailed(description: error.localizedDescription)
             }
+            discardInsecureDirectory(at: directoryURL)
+            return
         }
 
         func secureExistingFile(at url: URL) -> Bool {
@@ -264,7 +293,7 @@ public actor FileLocationOutbox: LocationOutbox {
                 try excludeFromBackup(url)
                 return true
             } catch {
-                Self.logger(attachments: [.error(error, name: "backup-exclusion-error")]) {
+                logger(attachments: [.error(error, name: "backup-exclusion-error")]) {
                     .excludeFromBackupFailed(description: error.localizedDescription)
                 }
                 discardInsecureFile(at: url)
@@ -273,16 +302,14 @@ public actor FileLocationOutbox: LocationOutbox {
         }
 
         _ = secureExistingFile(at: fileURL)
-        guard secureExistingFile(at: pendingURL) else {
-            return
-        }
+        guard secureExistingFile(at: pendingURL) else { return }
         let pendingData: Data
         do {
             pendingData = try Data(contentsOf: pendingURL)
         } catch {
-            // File protection and transient I/O failures can clear later. Both copies are already
-            // excluded, so preserve the pending file for the next construction attempt.
-            Self.logger(attachments: [.error(error, name: "pending-read-error")]) {
+            // Both copies are already excluded, so a transient file-protection failure may retry
+            // next launch without sacrificing the newer pending snapshot.
+            logger(attachments: [.error(error, name: "pending-read-error")]) {
                 .readBacklogFailed(description: error.localizedDescription)
             }
             return
@@ -290,9 +317,7 @@ public actor FileLocationOutbox: LocationOutbox {
         do {
             _ = try decodeEntries(from: pendingData)
         } catch {
-            // Atomic write completion makes a decodable pending file safe to promote. Invalid bytes
-            // cannot become a backlog, so retain any older authoritative copy and drop only these.
-            Self.logger(attachments: [.error(error, name: "pending-decode-error")]) {
+            logger(attachments: [.error(error, name: "pending-decode-error")]) {
                 .droppedUnreadableBacklog(description: error.localizedDescription)
             }
             discardInsecureFile(at: pendingURL)
@@ -311,20 +336,16 @@ public actor FileLocationOutbox: LocationOutbox {
                 try fileManager.moveItem(at: pendingURL, to: fileURL)
             }
         } catch {
-            // Both copies remain excluded. Keep them so another launch can retry publication rather
-            // than turning a recoverable rename failure into location loss.
-            Self.logger(attachments: [.error(error, name: "pending-promotion-error")]) {
+            logger(attachments: [.error(error, name: "pending-promotion-error")]) {
                 .persistBacklogFailed(description: error.localizedDescription)
             }
             return
         }
 
         do {
-            // Moving preserves the pending inode and replacement metadata rules are subtle. Prove
-            // the final authoritative path is still excluded before allowing it to survive.
             try excludeFromBackup(fileURL)
         } catch {
-            Self.logger(attachments: [.error(error, name: "backup-exclusion-error")]) {
+            logger(attachments: [.error(error, name: "backup-exclusion-error")]) {
                 .excludeFromBackupFailed(description: error.localizedDescription)
             }
             discardInsecureFile(at: fileURL)
@@ -332,9 +353,8 @@ public actor FileLocationOutbox: LocationOutbox {
         }
     }
 
-    /// Move the former single-file outbox into the pre-excluded directory. This runs when the
-    /// app composes its outbox, independently of recording policy, so an Off device cannot leave
-    /// an older raw-location file backup-eligible indefinitely.
+    /// Move the former root-level file into the pre-excluded directory. This runs when the app
+    /// composes its outbox, independently of recording policy.
     private static func migrateLegacyFileIfNeeded(
         from legacyURL: URL,
         to fileURL: URL,
@@ -356,8 +376,6 @@ public actor FileLocationOutbox: LocationOutbox {
             logger(attachments: [.error(error, name: "legacy-migration-error")]) {
                 .persistBacklogFailed(description: error.localizedDescription)
             }
-            // If migration cannot complete, at least prove the old file is excluded. The helper
-            // deletes it when that cannot be guaranteed.
             secureExistingFile(at: legacyURL)
         }
     }
@@ -417,11 +435,25 @@ public actor FileLocationOutbox: LocationOutbox {
             }
         }
     }
+
+    private static func discardInsecureDirectory(at directoryURL: URL) {
+        guard FileManager.default.fileExists(atPath: directoryURL.path(percentEncoded: false))
+        else {
+            return
+        }
+        do {
+            try FileManager.default.removeItem(at: directoryURL)
+        } catch {
+            logger(attachments: [.error(error, name: "insecure-discard-error")]) {
+                .discardInsecureBacklogFailed(description: error.localizedDescription)
+            }
+        }
+    }
 }
 
 #if DEBUG
     extension FileLocationOutbox {
-        /// Injects a deterministic file reader for testing transient read failures.
+        /// Injects a deterministic legacy-file reader for testing transient migration failures.
         @_spi(Testing)
         public init(
             fileURL: URL,
@@ -448,6 +480,12 @@ public actor FileLocationOutbox: LocationOutbox {
                 readData: readData,
                 excludeFromBackup: excludeFromBackup,
             )
+        }
+
+        /// Closes the current writer so a test can reproduce next-launch recovery over its bytes.
+        @_spi(Testing) public func closeJournalForTesting() {
+            journal?.close()
+            journal = nil
         }
     }
 #endif

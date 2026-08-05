@@ -111,9 +111,12 @@ internal shape.
   `LocationHistoryReader` to every user-facing projection. Persist immutable profiles, nickname
   events, global removal tombstones, and target-owned advisory check-ins separately. A remote
   device may rename or remove an identity, but never change another installation's local consent.
-  Stamp every durable location-outbox entry with its authorizing data epoch and
-  never replay it into another generation; backups alone read lossless raw
+  Backups alone read lossless raw
   samples and device/removal timelines, excluding non-restorable check-ins.
+- **Journal complete `LocationOutbox` snapshots through `JournalKit`.** Stamp every entry with its
+  authorizing data epoch, never replay it into another generation, keep the directory excluded
+  from device backups, and make a destructive clear durable before removing old segments; guards:
+  `LocationOutboxTests` and `LocationIngestorTests.failedOutboxWriteStopsRecordingWithTheSampleStillInMemory`.
 - **Tracked regions live in the store, not preferences** — one
   `SDTrackedRegion` row per region so cross-device edits merge; read as a
   `Set` defaulting to the four. `RegionAttribution` derives the attributor

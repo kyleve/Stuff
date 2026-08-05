@@ -18,7 +18,7 @@ private actor LaunchImportOutbox: LocationOutbox {
         []
     }
 
-    func save(_: [LocationOutboxEntry]) async {}
+    func save(_: [LocationOutboxEntry]) async throws {}
 
     func clear() async throws {
         clearCount += 1

@@ -105,6 +105,10 @@ one it belongs to rather than to a god-object:
   the current installation's `RecordingDeviceID`. Every durable retry entry
   also carries the data epoch that authorized it, so a pre-reset fix can be
   discarded but never written into the replacement generation.
+- **`LocationOutbox`** — a backup-excluded, JournalKit-backed sidecar for samples
+  SwiftData could not commit. It appends complete bounded queue snapshots, so a
+  crash-torn final write falls back to the preceding intact state; Reset and
+  Replace durably checkpoint an empty queue before deleting its raw bytes.
 - **`DeviceRecordingController`** — applies this installation's local automatic-recording
   preference and persisted current-On cutoff to its physical `LocationIngestor`, so a late visit
   from an Off interval remains rejected after relaunch. Immutable profiles, nickname events,

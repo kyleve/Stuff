@@ -8,6 +8,7 @@ enum LocationOutboxLog: LogEvent {
     case noApplicationSupport
     case droppedUnreadableBacklog(description: String)
     case readBacklogFailed(description: String)
+    case recoveredTornJournal
     case persistBacklogFailed(description: String)
     case excludeFromBackupFailed(description: String)
     case discardInsecureBacklogFailed(description: String)
@@ -16,7 +17,7 @@ enum LocationOutboxLog: LogEvent {
 
     var level: LogLevel {
         switch self {
-            case .noApplicationSupport: .warning
+            case .noApplicationSupport, .recoveredTornJournal: .warning
             case .droppedUnreadableBacklog,
                  .readBacklogFailed,
                  .persistBacklogFailed,
@@ -33,6 +34,8 @@ enum LocationOutboxLog: LogEvent {
                 "Dropping unreadable location retry backlog: \(description)"
             case let .readBacklogFailed(description):
                 "Failed to read location retry backlog; preserving it for retry: \(description)"
+            case .recoveredTornJournal:
+                "Recovered the last intact location retry snapshot after a torn journal entry"
             case let .persistBacklogFailed(description):
                 "Failed to persist location retry backlog: \(description)"
             case let .excludeFromBackupFailed(description):

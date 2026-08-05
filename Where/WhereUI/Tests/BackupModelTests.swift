@@ -169,7 +169,7 @@ private actor FailingClearLocationOutbox: LocationOutbox {
         []
     }
 
-    func save(_: [LocationOutboxEntry]) async {}
+    func save(_: [LocationOutboxEntry]) async throws {}
     func clear() async throws {
         guard !failsToClear else { throw CleanupFailure() }
     }

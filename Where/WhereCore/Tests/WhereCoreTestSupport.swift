@@ -79,7 +79,7 @@ actor ScriptedLocationOutbox: LocationOutbox {
         return entries
     }
 
-    func save(_ entries: [LocationOutboxEntry]) async {
+    func save(_ entries: [LocationOutboxEntry]) async throws {
         self.entries = entries
     }
 

@@ -177,7 +177,7 @@ public actor LocationIngestor {
         let retained = retryQueue.filter { $0.dataEpochID == dataEpochID }
         if retained.count != retryQueue.count {
             retryQueue = retained
-            await outbox.save(retryQueue)
+            try await outbox.save(retryQueue)
         }
         // Flush anything that failed to persist before this session started,
         // before we (re)attach the stream consumer.
@@ -469,7 +469,16 @@ public actor LocationIngestor {
                 )
             }
             enqueueForRetry(LocationOutboxEntry(sample: sample, dataEpochID: dataEpochID))
-            await outbox.save(retryQueue)
+            do {
+                try await outbox.save(retryQueue)
+            } catch {
+                Self.logger(attachments: [.error(error, name: "outbox-persist-error")]) {
+                    .retryBacklogPersistenceFailed(description: error.localizedDescription)
+                }
+                // Continuing to accept locations would make the in-memory queue the only copy;
+                // fail closed until reconciliation can reopen recording with durable storage.
+                await closeRecordingAuthority(ifAuthorizedFor: dataEpochID)
+            }
         }
     }
 
@@ -533,7 +542,7 @@ public actor LocationIngestor {
                 )
             }
         }
-        await outbox.save(retryQueue)
+        try await outbox.save(retryQueue)
         if epochChanged {
             throw RecordingPersistenceError.dataEpochChanged
         }

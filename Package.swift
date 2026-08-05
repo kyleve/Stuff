@@ -140,6 +140,7 @@ let package = Package(
             name: "WhereCore",
             dependencies: [
                 .target(name: "CreditKit"),
+                .target(name: "JournalKit"),
                 .target(name: "PeriscopeCore"),
                 .target(name: "RegionKit"),
                 .product(name: "ZIPFoundation", package: "ZIPFoundation"),

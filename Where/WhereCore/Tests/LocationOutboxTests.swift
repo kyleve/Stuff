@@ -68,7 +68,7 @@ struct LocationOutboxTests {
         let outbox = FileLocationOutbox(fileURL: url)
 
         let samples = [sample("2026-03-15T12:00:00Z"), sample("2026-03-15T13:00:00Z")]
-        await outbox.save(entries(samples))
+        try await outbox.save(entries(samples))
         #expect(try await loadedSamples(from: outbox) == samples)
     }
 
@@ -83,7 +83,7 @@ struct LocationOutboxTests {
             ))),
         )
 
-        await outbox.save([entry])
+        try await outbox.save([entry])
 
         #expect(try await outbox.load() == [entry])
     }
@@ -93,9 +93,10 @@ struct LocationOutboxTests {
         defer { cleanup(url) }
         let outbox = FileLocationOutbox(fileURL: url)
 
-        await outbox.save(entries([sample("2026-03-15T12:00:00Z")]))
+        try await outbox.save(entries([sample("2026-03-15T12:00:00Z")]))
 
-        let values = try url.resourceValues(forKeys: [.isExcludedFromBackupKey])
+        let values = try url.deletingLastPathComponent()
+            .resourceValues(forKeys: [.isExcludedFromBackupKey])
         #expect(values.isExcludedFromBackup == true)
     }
 
@@ -180,7 +181,10 @@ struct LocationOutboxTests {
         )
 
         #expect(try await loadedSamples(from: outbox) == previous)
-        #expect(FileManager.default.fileExists(atPath: url.path))
+        #expect(!FileManager.default.fileExists(atPath: url.path))
+        #expect(try FileManager.default.contentsOfDirectory(atPath: url
+                .deletingLastPathComponent().path)
+            .contains { $0.hasSuffix(".journalsegment") })
         #expect(FileManager.default.fileExists(atPath: pendingURL.path) == false)
     }
 
@@ -208,11 +212,11 @@ struct LocationOutboxTests {
         defer { cleanup(url) }
         let outbox = FileLocationOutbox(fileURL: url)
 
-        await outbox.save(entries([sample("2026-03-15T12:00:00Z")]))
-        await outbox.save([])
+        try await outbox.save(entries([sample("2026-03-15T12:00:00Z")]))
+        try await outbox.save([])
 
         #expect(try await outbox.load().isEmpty)
-        #expect(!FileManager.default.fileExists(atPath: url.path))
+        #expect(!FileManager.default.fileExists(atPath: url.deletingLastPathComponent().path))
     }
 
     @Test func clearAlsoRemovesALegacyBacklogLeftByFailedMigration() async throws {
@@ -256,8 +260,7 @@ struct LocationOutboxTests {
         let url = tempURL()
         defer { cleanup(url) }
         let samples = [sample("2026-03-15T12:00:00Z")]
-        let writer = FileLocationOutbox(fileURL: url)
-        await writer.save(entries(samples))
+        try write(samples, to: url)
         let unavailableMarkerURL = url.appendingPathExtension("unavailable")
         try Data().write(to: unavailableMarkerURL)
         let outbox = FileLocationOutbox(fileURL: url) { fileURL in
@@ -274,5 +277,59 @@ struct LocationOutboxTests {
 
         try FileManager.default.removeItem(at: unavailableMarkerURL)
         #expect(try await loadedSamples(from: outbox) == samples)
+    }
+
+    @Test func newestCompleteJournalSnapshotWinsAfterRelaunch() async throws {
+        let url = tempURL()
+        defer { cleanup(url) }
+        let first = [sample("2026-03-15T12:00:00Z")]
+        let second = first + [sample("2026-03-15T13:00:00Z")]
+        let writer = FileLocationOutbox(fileURL: url)
+        try await writer.save(entries(first))
+        try await writer.save(entries(second))
+        await writer.closeJournalForTesting()
+
+        let recovered = FileLocationOutbox(fileURL: url)
+
+        #expect(try await loadedSamples(from: recovered) == second)
+    }
+
+    @Test func tornFinalJournalSnapshotFallsBackToPreviousCompleteSnapshot() async throws {
+        let url = tempURL()
+        defer { cleanup(url) }
+        let first = [sample("2026-03-15T12:00:00Z")]
+        let second = first + [sample("2026-03-15T13:00:00Z")]
+        let writer = FileLocationOutbox(fileURL: url)
+        try await writer.save(entries(first))
+        try await writer.save(entries(second))
+        await writer.closeJournalForTesting()
+        let segmentURL = try #require(
+            FileManager.default.contentsOfDirectory(
+                at: url.deletingLastPathComponent(),
+                includingPropertiesForKeys: nil,
+            ).first { $0.pathExtension == "journalsegment" },
+        )
+        let handle = try FileHandle(forWritingTo: segmentURL)
+        let byteCount = try handle.seekToEnd()
+        try handle.truncate(atOffset: byteCount - 4)
+        try handle.close()
+
+        let recovered = FileLocationOutbox(fileURL: url)
+
+        #expect(try await loadedSamples(from: recovered) == first)
+    }
+
+    @Test func legacyJSONMigratesToJournalBeforeItIsRemoved() async throws {
+        let url = tempURL()
+        defer { cleanup(url) }
+        let samples = [sample("2026-03-15T12:00:00Z")]
+        try write(samples, to: url)
+        let outbox = FileLocationOutbox(fileURL: url)
+
+        #expect(try await loadedSamples(from: outbox) == samples)
+        #expect(!FileManager.default.fileExists(atPath: url.path))
+        #expect(try FileManager.default.contentsOfDirectory(atPath: url
+                .deletingLastPathComponent().path)
+            .contains { $0.hasSuffix(".journalsegment") })
     }
 }

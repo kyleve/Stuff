@@ -844,7 +844,7 @@ struct WhereServicesTests {
             locationOutbox: outbox,
         )
         _ = try await services.recording.register(authorization: .always)
-        await outbox.save([LocationOutboxEntry(sample: pending, dataEpochID: .initial)])
+        try await outbox.save([LocationOutboxEntry(sample: pending, dataEpochID: .initial)])
         await outbox.setFailsToClear(true)
 
         let error = await #expect(throws: WhereServices.ResetCleanupError.self) {
@@ -894,7 +894,7 @@ struct WhereServicesTests {
                 registrationEpochID: .initial,
             ))
         }
-        await outbox.save([LocationOutboxEntry(sample: pending, dataEpochID: .initial)])
+        try await outbox.save([LocationOutboxEntry(sample: pending, dataEpochID: .initial)])
 
         try await services.reset()
 

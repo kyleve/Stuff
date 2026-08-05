@@ -388,7 +388,7 @@ struct WhereResetTests {
         let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
         await launcher.run()
         let session = try #require(model.session)
-        await outbox.save([LocationOutboxEntry(
+        try await outbox.save([LocationOutboxEntry(
             sample: LocationSample(
                 timestamp: Date(),
                 coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
@@ -477,7 +477,7 @@ private actor ResetLocationOutbox: LocationOutbox {
         entries
     }
 
-    func save(_ entries: [LocationOutboxEntry]) async {
+    func save(_ entries: [LocationOutboxEntry]) async throws {
         self.entries = entries
     }
 

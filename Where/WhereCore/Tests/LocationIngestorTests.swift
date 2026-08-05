@@ -8,6 +8,7 @@ import Testing
 struct LocationIngestorTests {
     private enum OutboxFailure: Error {
         case clear
+        case save
     }
 
     private actor OutcomeRecorder {
@@ -32,17 +33,24 @@ struct LocationIngestorTests {
     private actor SpyLocationOutbox: LocationOutbox {
         private(set) var entries: [LocationOutboxEntry]
         private let failsToClear: Bool
+        private let failsToSave: Bool
 
-        init(_ contents: [LocationSample] = [], failsToClear: Bool = false) {
+        init(
+            _ contents: [LocationSample] = [],
+            failsToClear: Bool = false,
+            failsToSave: Bool = false,
+        ) {
             entries = contents.map { LocationOutboxEntry(sample: $0, dataEpochID: .initial) }
             self.failsToClear = failsToClear
+            self.failsToSave = failsToSave
         }
 
         func load() async throws -> [LocationOutboxEntry] {
             entries
         }
 
-        func save(_ entries: [LocationOutboxEntry]) async {
+        func save(_ entries: [LocationOutboxEntry]) async throws {
+            if failsToSave { throw OutboxFailure.save }
             self.entries = entries
         }
 
@@ -471,6 +479,27 @@ struct LocationIngestorTests {
         #expect(await outbox.contents.count == 1)
     }
 
+    @Test func failedOutboxWriteStopsRecordingWithTheSampleStillInMemory() async throws {
+        let backing = try SwiftDataStore.inMemory()
+        let store = ToggleFailingStore(backing: backing)
+        let source = ScriptedLocationSource(authorizationStatus: .always)
+        let outbox = SpyLocationOutbox(failsToSave: true)
+        let ingestor = Self.makeIngestor(
+            store: store,
+            source: source,
+            recorder: OutcomeRecorder(),
+            outbox: outbox,
+        )
+        try await ingestor.start()
+
+        await store.setShouldFail(true)
+        source.emit(sample(at: "2026-03-15T12:00:00-07:00"))
+
+        try await waitUntil { await !ingestor.isActive }
+        #expect(await ingestor.retryQueueDepth == 1)
+        #expect(await outbox.contents.isEmpty)
+    }
+
     @Test func durableBacklogDrainsOnTheNextLaunch() async throws {
         let backing = try SwiftDataStore.inMemory()
         let failing = ToggleFailingStore(backing: backing)
@@ -544,7 +573,7 @@ struct LocationIngestorTests {
             )
         }
         let outbox = SpyLocationOutbox()
-        await outbox.save([LocationOutboxEntry(
+        try await outbox.save([LocationOutboxEntry(
             sample: sample(at: "2026-03-15T12:00:00-07:00"),
             dataEpochID: .initial,
         )])
