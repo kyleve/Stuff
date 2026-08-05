@@ -48,6 +48,9 @@ struct AboutSettingsView: View {
                 dependenciesSection
                 developmentToolsSection
                 dataSourcesSection
+                AboutOpenSourceFooter()
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
             }
         }
         .navigationTitle(String(localized: .settingsAboutHeader))
@@ -230,47 +233,39 @@ extension AboutSettingsView: SettingsSection {
         /// and attributed, so the interesting cases are what each missing piece
         /// renders as.
         static var snapshots: [SnapshotCase] {
-            whereSnapshot(name: "Default", configurations: .screenDefaults) {
-                NavigationStack {
-                    AboutSettingsView(
-                        focus: nil,
-                        buildInfo: PreviewSupport.stampedBuildInfo(),
-                        attribution: PreviewSupport.sampleAttribution(),
-                    )
-                }
+            whereSnapshot(name: "Default", configurations: .fullContentScreenDefaults) {
+                AboutSettingsView(
+                    focus: nil,
+                    buildInfo: PreviewSupport.stampedBuildInfo(),
+                    attribution: PreviewSupport.sampleAttribution(),
+                )
             }
-            whereSnapshot(name: "DirtyTree", configurations: .phoneLightDark) {
-                NavigationStack {
-                    AboutSettingsView(
-                        focus: nil,
-                        buildInfo: PreviewSupport.stampedBuildInfo(isDirty: true),
-                        attribution: PreviewSupport.sampleAttribution(),
-                    )
-                }
+            whereSnapshot(name: "DirtyTree", configurations: .fullContentPhoneLightDark) {
+                AboutSettingsView(
+                    focus: nil,
+                    buildInfo: PreviewSupport.stampedBuildInfo(isDirty: true),
+                    attribution: PreviewSupport.sampleAttribution(),
+                )
             }
-            whereSnapshot(name: "Unattributed", configurations: .phoneLightDark) {
+            whereSnapshot(name: "Unattributed", configurations: .fullContentPhoneLightDark) {
                 // What a bundle outside the app target shows: honest unknowns and
                 // an explicit "no report" rather than blank rows and empty sections.
-                NavigationStack {
-                    AboutSettingsView(
-                        focus: nil,
-                        buildInfo: PreviewSupport.unstampedBuildInfo(),
-                        attribution: nil,
-                    )
-                }
+                AboutSettingsView(
+                    focus: nil,
+                    buildInfo: PreviewSupport.unstampedBuildInfo(),
+                    attribution: nil,
+                )
             }
-            whereSnapshot(name: "LibrariesOnly", configurations: .phoneLightDark) {
+            whereSnapshot(name: "LibrariesOnly", configurations: .fullContentPhoneLightDark) {
                 // A real report that credits nothing of one kind. Pinned as an
                 // image because the failure mode is purely visual: a header and
                 // footer over no rows, promising a list that isn't there.
                 let libraries = PreviewSupport.sampleAttribution().credits(ofKind: .library)
-                NavigationStack {
-                    AboutSettingsView(
-                        focus: nil,
-                        buildInfo: PreviewSupport.stampedBuildInfo(),
-                        attribution: AttributionManifest(credits: libraries),
-                    )
-                }
+                AboutSettingsView(
+                    focus: nil,
+                    buildInfo: PreviewSupport.stampedBuildInfo(),
+                    attribution: AttributionManifest(credits: libraries),
+                )
             }
         }
     }

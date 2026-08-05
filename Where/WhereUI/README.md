@@ -29,7 +29,8 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   identity, the app's generated attribution report (linked libraries and
   development tools as separate sections), and bundled-data provenance, each
   vended by whoever owns it rather than listed in the view; it renders an
-  explicit "no report" state, since only the app bundle carries one. `MainTabs`
+  explicit "no report" state, since only the app bundle carries one, and ends
+  with a passport-style link to the project's public source on GitHub. `MainTabs`
   is built from the `WhereSession` the launch's `.ready` carries. The app
   injects the launch-built model + runner
   (`init(model:launcher:)`); a no-arg `init()` builds its own for previews and

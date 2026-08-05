@@ -359,6 +359,36 @@ struct WhereStylesheetTests {
         #expect(settings.scrollSettleDelay == .milliseconds(350))
     }
 
+    @Test func aboutOpenSourceStyle() {
+        let source = style.aboutOpenSource
+        #expect(source.cornerRadius == 20)
+        #expect(source.padding == 16)
+        #expect(source.contentSpacing == 12)
+        #expect(source.titleFont == .headline)
+        #expect(source.actionFont == .subheadline)
+        #expect(source.seal == .init(
+            size: 52,
+            rotationDegrees: -8,
+            outerLineWidth: 2,
+            innerLineWidth: 1,
+            innerInset: 7,
+            dashLength: 3,
+            dashSpacing: 3,
+            symbolFont: .title3,
+        ))
+        #expect(source.rosette == .init(
+            wobble: 5,
+            lineWidth: 0.75,
+            primaryRingSpacing: 10,
+            secondaryRingSpacing: 16,
+            primaryOpacity: 0.1,
+            secondaryOpacity: 0.06,
+        ))
+        #expect(source.glassTintOpacity == 0.06)
+        #expect(source.accentGlow == .init(opacity: 0.18, radius: 7))
+        #expect(source.liftShadow == .init(opacity: 0.08, radius: 5, offsetY: 2))
+    }
+
     @Test func developerOverlayStyle() {
         let overlay = style.developerOverlay
         #expect(overlay.edgeInset == 16)

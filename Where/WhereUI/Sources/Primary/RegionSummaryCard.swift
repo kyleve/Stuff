@@ -138,42 +138,15 @@ struct RegionSummaryCard: View {
         let rosette = card.rosette
         let rosetteFill = cardStyles.rosetteFill
         return ZStack {
-            Canvas { context, size in
-                func drawRosette(center: CGPoint, spacing: CGFloat, opacity: Double) {
-                    let ringCount = Int(max(size.width, size.height) / spacing)
-                    for ring in 1 ... max(1, ringCount) {
-                        let angle = Double(ring) * 0.55
-                        let ringCenter = CGPoint(
-                            x: center.x + CGFloat(cos(angle)) * rosette.wobble,
-                            y: center.y + CGFloat(sin(angle)) * rosette.wobble,
-                        )
-                        let radius = CGFloat(ring) * spacing
-                        let rect = CGRect(
-                            x: ringCenter.x - radius,
-                            y: ringCenter.y - radius,
-                            width: radius * 2,
-                            height: radius * 2,
-                        )
-                        context.stroke(
-                            Path(ellipseIn: rect),
-                            with: .color(tint.opacity(opacity)),
-                            lineWidth: rosette.lineWidth,
-                        )
-                    }
-                }
-                // A bold rosette behind the stamp, plus a smaller, fainter one
-                // in the opposite corner for denser, layered security print.
-                drawRosette(
-                    center: CGPoint(x: size.width * 0.8, y: size.height * 0.5),
-                    spacing: rosette.primaryRingSpacing,
-                    opacity: rosetteFill.primary,
-                )
-                drawRosette(
-                    center: CGPoint(x: size.width * 0.12, y: size.height * 0.22),
-                    spacing: rosette.secondaryRingSpacing,
-                    opacity: rosetteFill.secondary,
-                )
-            }
+            SecurityPrintRosette(
+                tint: tint,
+                wobble: rosette.wobble,
+                lineWidth: rosette.lineWidth,
+                primaryRingSpacing: rosette.primaryRingSpacing,
+                secondaryRingSpacing: rosette.secondaryRingSpacing,
+                primaryOpacity: rosetteFill.primary,
+                secondaryOpacity: rosetteFill.secondary,
+            )
 
             if
                 let regionShape = card.regionShape,
