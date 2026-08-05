@@ -2868,13 +2868,13 @@
       }
     },
     "locationForecast.basis" : {
-      "comment" : "Short explanation below a location forecast. The first value is the region's year-to-date day count and the second is the elapsed calendar-day count.",
+      "comment" : "Short explanation below a location forecast. The placeholder is the region's year-to-date day count.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Based on %1$@ here across %2$@ elapsed."
+            "value" : "Based on %@ here."
           }
         }
       }
@@ -2919,6 +2919,18 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Plan This Stay"
+          }
+        }
+      }
+    },
+    "locationForecast.elapsed" : {
+      "comment" : "Shared elapsed-time context in the annual location forecast header. The placeholder is an already-localized day count, for example '182 days'.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%@ elapsed"
           }
         }
       }

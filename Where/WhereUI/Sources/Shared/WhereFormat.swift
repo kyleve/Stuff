@@ -67,11 +67,12 @@ enum WhereFormat {
         ))
     }
 
-    static func locationForecastBasis(yearToDateDays: Int, elapsedDays: Int) -> String {
-        String(localized: .locationForecastBasis(
-            dayCount(yearToDateDays),
-            dayCount(elapsedDays),
-        ))
+    static func locationForecastElapsed(days: Int) -> String {
+        String(localized: .locationForecastElapsed(dayCount(days)))
+    }
+
+    static func locationForecastBasis(yearToDateDays: Int) -> String {
+        String(localized: .locationForecastBasis(dayCount(yearToDateDays)))
     }
 
     static func locationForecastPlan(through day: CalendarDay) -> String {

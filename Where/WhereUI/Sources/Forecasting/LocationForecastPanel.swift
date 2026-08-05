@@ -18,12 +18,44 @@ struct LocationForecastPanel: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: style.rowSpacing) {
-            HStack(alignment: .firstTextBaseline) {
-                Image(systemName: "chart.line.uptrend.xyaxis")
-                    .accessibilityHidden(true)
-                Text(String(localized: .locationForecastTitle))
+            if let elapsedDays = forecasts.first?.elapsedDays {
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .firstTextBaseline) {
+                        Image(systemName: "chart.line.uptrend.xyaxis")
+                            .accessibilityHidden(true)
+                        Text(String(localized: .locationForecastTitle))
+                            .fixedSize(horizontal: true, vertical: false)
+                        Spacer(minLength: stylesheet.spacing.large)
+                        Text(WhereFormat.locationForecastElapsed(days: elapsedDays))
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                            .fixedSize(horizontal: true, vertical: false)
+                    }
+
+                    VStack(alignment: .leading, spacing: style.estimateSpacing) {
+                        HStack(alignment: .firstTextBaseline) {
+                            Image(systemName: "chart.line.uptrend.xyaxis")
+                                .accessibilityHidden(true)
+                            Text(String(localized: .locationForecastTitle))
+                        }
+                        Text(WhereFormat.locationForecastElapsed(days: elapsedDays))
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                            .multilineTextAlignment(.trailing)
+                            .frame(maxWidth: .infinity, alignment: .trailing)
+                    }
+                }
+                .font(.headline)
+            } else {
+                HStack(alignment: .firstTextBaseline) {
+                    Image(systemName: "chart.line.uptrend.xyaxis")
+                        .accessibilityHidden(true)
+                    Text(String(localized: .locationForecastTitle))
+                }
+                .font(.headline)
             }
-            .font(.headline)
 
             ForEach(forecasts, id: \.region) { forecast in
                 LocationForecastRow(
@@ -67,7 +99,6 @@ private struct LocationForecastRow: View {
             .font(.subheadline)
             Text(WhereFormat.locationForecastBasis(
                 yearToDateDays: forecast.yearToDateDays,
-                elapsedDays: forecast.elapsedDays,
             ))
             .font(.footnote)
             .foregroundStyle(.secondary)

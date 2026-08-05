@@ -47,9 +47,10 @@ struct WhereFormatTests {
             return String(estimate[run.range].characters)
         }
         #expect(emphasized == ["183 days"])
+        #expect(WhereFormat.locationForecastElapsed(days: 182) == "182 days elapsed")
         #expect(
-            WhereFormat.locationForecastBasis(yearToDateDays: 91, elapsedDays: 182)
-                == "Based on 91 days here across 182 days elapsed.",
+            WhereFormat.locationForecastBasis(yearToDateDays: 91)
+                == "Based on 91 days here.",
         )
         #expect(
             WhereFormat.locationForecastPlan(
