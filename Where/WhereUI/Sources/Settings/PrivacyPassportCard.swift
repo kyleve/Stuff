@@ -11,7 +11,7 @@ struct PrivacyPassportCard: View {
             sealSystemImage: "lock.shield.fill",
             accessorySystemImage: nil,
             isInteractive: false,
-            tilt: tilt,
+            surface: .reflective(tilt: tilt),
         )
         .onAppear { tilt.start() }
         .onDisappear { tilt.stop() }

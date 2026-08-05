@@ -12,7 +12,7 @@ struct PassportCardTests {
             sealSystemImage: "lock.shield.fill",
             accessorySystemImage: nil,
             isInteractive: false,
-            tilt: .preview,
+            surface: .reflective(tilt: .preview),
         )
         .whereBroadwayRoot()
         try show(UIHostingController(rootView: rootView)) { hosted in

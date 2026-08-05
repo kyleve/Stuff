@@ -10,10 +10,14 @@ struct PassportCardSurfaceTests {
             cornerRadius: WhereStylesheet.default.passportCard.cornerRadius,
         )
         let rootView = VStack {
-            PassportCardSurface(tilt: nil, isInteractive: true, shape: shape) {
+            PassportCardSurface(surface: .securityPrint, isInteractive: true, shape: shape) {
                 Color.clear.frame(height: 80)
             }
-            PassportCardSurface(tilt: .preview, isInteractive: false, shape: shape) {
+            PassportCardSurface(
+                surface: .reflective(tilt: .preview),
+                isInteractive: false,
+                shape: shape,
+            ) {
                 Color.clear.frame(height: 80)
             }
         }

@@ -3,44 +3,37 @@ import SwiftUI
 /// Applies either the security-print glass or reflective privacy surface to a
 /// passport card without making the card's content observe device motion.
 struct PassportCardSurface<Content: View>: View {
-    let tilt: TiltProvider?
+    let surface: PassportCardSurfaceKind
     let isInteractive: Bool
     let shape: RoundedRectangle
     @ViewBuilder let content: Content
 
     @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.colorScheme) private var colorScheme
 
     private var style: WhereStylesheet.PassportCardStyle {
         stylesheet.passportCard
     }
 
+    private var surfaceTint: Color {
+        surface.isReflective ? style.reflectiveSurface.accent : .accentColor
+    }
+
     var body: some View {
-        if let tilt {
-            let reflection = style.reflectiveSurface
-            content
-                .background(
-                    LinearGradient(
-                        colors: [reflection.backgroundTop, reflection.backgroundBottom],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing,
-                    ),
-                    in: shape,
-                )
-                .tiltSheen(
-                    tilt: tilt,
-                    staticRoll: reflection.staticPose.roll,
-                    staticPitch: reflection.staticPose.pitch,
-                    in: shape,
-                    intensity: reflection.intensity,
-                    staticGlintIntensity: reflection.staticGlintIntensity,
-                )
-                .tint(reflection.accent)
-                .environment(\.colorScheme, .dark)
-        } else {
-            content
-                .background {
+        let reflection = style.reflectiveSurface
+        content
+            .background {
+                ZStack {
+                    if surface.isReflective {
+                        LinearGradient(
+                            colors: [reflection.backgroundTop, reflection.backgroundBottom],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing,
+                        )
+                    }
+
                     SecurityPrintRosette(
-                        tint: .accentColor,
+                        tint: surfaceTint,
                         wobble: style.rosette.wobble,
                         lineWidth: style.rosette.lineWidth,
                         primaryRingSpacing: style.rosette.primaryRingSpacing,
@@ -49,19 +42,31 @@ struct PassportCardSurface<Content: View>: View {
                         secondaryOpacity: style.rosette.secondaryOpacity,
                     )
                 }
-                .glassEffect(
-                    .regular.tint(Color.accentColor.opacity(style.glassTintOpacity))
-                        .interactive(isInteractive),
-                    in: shape,
-                )
-        }
+            }
+            .glassEffect(
+                .regular.tint(surfaceTint.opacity(style.glassTintOpacity))
+                    .interactive(isInteractive),
+                in: shape,
+            )
+            .tiltSheen(
+                tilt: surface.tilt,
+                staticRoll: reflection.staticPose.roll,
+                staticPitch: reflection.staticPose.pitch,
+                in: shape,
+                intensity: surface.isReflective ? reflection.intensity : 0,
+                staticGlintIntensity: surface.isReflective
+                    ? reflection.staticGlintIntensity
+                    : 0,
+            )
+            .tint(surfaceTint)
+            .environment(\.colorScheme, surface.isReflective ? .dark : colorScheme)
     }
 }
 
 #if DEBUG
     #Preview {
         PassportCardSurface(
-            tilt: .preview,
+            surface: .reflective(tilt: .preview),
             isInteractive: false,
             shape: RoundedRectangle(
                 cornerRadius: WhereStylesheet.default.passportCard.cornerRadius,

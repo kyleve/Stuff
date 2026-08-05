@@ -7,9 +7,7 @@ struct PassportCard: View {
     let sealSystemImage: String
     let accessorySystemImage: String?
     let isInteractive: Bool
-    /// A live provider selects the reflective white privacy surface; `nil`
-    /// keeps the security-print surface used by the GitHub card.
-    let tilt: TiltProvider?
+    let surface: PassportCardSurfaceKind
 
     @Environment(\.stylesheet) private var stylesheet
 
@@ -23,7 +21,7 @@ struct PassportCard: View {
 
     var body: some View {
         PassportCardSurface(
-            tilt: tilt,
+            surface: surface,
             isInteractive: isInteractive,
             shape: shape,
         ) {
@@ -103,7 +101,7 @@ struct PassportCard: View {
             sealSystemImage: "lock.shield.fill",
             accessorySystemImage: nil,
             isInteractive: false,
-            tilt: .preview,
+            surface: .reflective(tilt: .preview),
         )
         .padding()
         .whereBroadwayRoot()
