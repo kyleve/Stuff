@@ -1272,6 +1272,8 @@ extension WhereStylesheet {
         var seal: Seal
         var rosette: Rosette
         var glassTintOpacity: Double
+        var accentGlow: Shadow
+        var liftShadow: Shadow
 
         struct Seal: Equatable {
             var size: CGFloat
@@ -1291,6 +1293,12 @@ extension WhereStylesheet {
             var secondaryRingSpacing: CGFloat
             var primaryOpacity: Double
             var secondaryOpacity: Double
+        }
+
+        struct Shadow: Equatable {
+            var opacity: Double
+            var radius: CGFloat
+            var offsetY: CGFloat = 0
         }
 
         static let standard = AboutOpenSourceStyle(
@@ -1318,6 +1326,8 @@ extension WhereStylesheet {
                 secondaryOpacity: 0.06,
             ),
             glassTintOpacity: 0.06,
+            accentGlow: Shadow(opacity: 0.18, radius: 7),
+            liftShadow: Shadow(opacity: 0.08, radius: 5, offsetY: 2),
         )
     }
 }

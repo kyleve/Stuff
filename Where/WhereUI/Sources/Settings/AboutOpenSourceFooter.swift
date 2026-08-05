@@ -56,6 +56,16 @@ struct AboutOpenSourceFooter: View {
             )
             .clipShape(shape)
             .contentShape(shape)
+            .shadow(
+                color: Color.accentColor.opacity(style.accentGlow.opacity),
+                radius: style.accentGlow.radius,
+                y: style.accentGlow.offsetY,
+            )
+            .shadow(
+                color: Color.black.opacity(style.liftShadow.opacity),
+                radius: style.liftShadow.radius,
+                y: style.liftShadow.offsetY,
+            )
         }
         .buttonStyle(.plain)
         .accessibilityElement(children: .combine)
