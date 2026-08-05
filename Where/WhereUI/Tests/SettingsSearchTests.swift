@@ -49,6 +49,15 @@ struct SettingsSearchTests {
         #expect(destinations.contains(.alerts))
     }
 
+    @Test func matchesLocationForecastVisibilityOnEstimateKeyword() {
+        let results = SettingsCatalog.results(matching: "estimate")
+
+        #expect(results.contains {
+            $0.destination == .location
+                && $0.title == String(localized: .settingsLocationForecastsToggle)
+        })
+    }
+
     @Test func matchesTheAboutScreenOnALicenseKeyword() {
         // "license" is nowhere in a section title, so this only passes if the
         // About screen's keywords are registered.

@@ -5941,6 +5941,18 @@
         }
       }
     },
+    "settings.keywords.locationForecasts" : {
+      "comment" : "Comma-separated Settings search keywords for the annual location forecast visibility toggle.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "estimate, estimates, estimated time, forecast, forecasts, annual, year"
+          }
+        }
+      }
+    },
     "settings.keywords.loggedDays" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6025,6 +6037,41 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Where watches for visits and big moves to figure out which region you're in. It needs Always access and a little patience."
+          }
+        }
+      }
+    },
+    "settings.location.forecasts.footer" : {
+      "comment" : "Explains the scope of the annual location forecast visibility toggle.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Show or hide the annual estimated-time summary at the bottom of the Locations tab."
+          }
+        }
+      }
+    },
+    "settings.location.forecasts.header" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Estimated Time"
+          }
+        }
+      }
+    },
+    "settings.location.forecasts.toggle" : {
+      "comment" : "Toggle that controls whether annual location forecasts appear on the Locations tab.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Show on Locations tab"
           }
         }
       }

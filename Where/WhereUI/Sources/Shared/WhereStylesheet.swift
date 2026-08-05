@@ -79,12 +79,16 @@ extension WhereStylesheet {
         var padding: CGFloat
         var rowSpacing: CGFloat
         var estimateSpacing: CGFloat
+        var borderWidth: CGFloat
+        var expansionAnimation: Animation
 
         static let standard = LocationForecastStyle(
             cornerRadius: 22,
             padding: 16,
             rowSpacing: 12,
             estimateSpacing: 3,
+            borderWidth: 1,
+            expansionAnimation: .easeInOut(duration: 0.2),
         )
     }
 }

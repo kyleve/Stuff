@@ -253,6 +253,8 @@ struct WhereStylesheetTests {
         #expect(forecast.padding == 16)
         #expect(forecast.rowSpacing == 12)
         #expect(forecast.estimateSpacing == 3)
+        #expect(forecast.borderWidth == 1)
+        #expect(forecast.expansionAnimation == .easeInOut(duration: 0.2))
     }
 
     @Test func appIconStyle() {

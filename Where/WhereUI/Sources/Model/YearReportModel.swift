@@ -117,6 +117,17 @@ public final class YearReportModel {
     /// of sync with the badge count.
     private var driftThresholdStorage: DriftThreshold
 
+    /// Observed mirror of the Locations tab's forecast-visibility preference.
+    /// `WherePreferences` is intentionally not observable, so Settings writes
+    /// through this property to update the mounted Locations tab immediately.
+    public var showsLocationForecastsOnLocationsTab: Bool {
+        didSet {
+            guard oldValue != showsLocationForecastsOnLocationsTab else { return }
+            preferences.showsLocationForecastsOnLocationsTab =
+                showsLocationForecastsOnLocationsTab
+        }
+    }
+
     /// GPS border-drift detection threshold (device setting). The setter persists
     /// it, forces a badge recount, and — through the observed mirror — re-keys
     /// `dataIssueScanInputs` so the Resolve list re-scans immediately, not just on
@@ -203,6 +214,8 @@ public final class YearReportModel {
         self.selectedYear = selectedYear
         self.preferences = preferences
         self.now = now
+        showsLocationForecastsOnLocationsTab =
+            preferences.showsLocationForecastsOnLocationsTab
         driftThresholdStorage = DriftThreshold(rawValue: preferences.driftThresholdMeters)
             ?? .default
         var calendar = Calendar(identifier: .gregorian)

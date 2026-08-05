@@ -1,10 +1,10 @@
 import SwiftUI
 import WhereCore
 
-/// Settings drill-in for location permission and background tracking: the live
-/// status row, the tracking toggle, and the grant / open-Settings affordances
-/// that depend on the current authorization.
+/// Settings drill-in for location permission, background tracking, and the
+/// Locations tab's annual-estimate visibility.
 struct LocationSettingsView: View {
+    let report: YearReportModel
     var focus: SettingsFocus?
 
     @Environment(WhereSession.self) private var session
@@ -12,6 +12,7 @@ struct LocationSettingsView: View {
 
     var body: some View {
         @Bindable var session = session
+        @Bindable var report = report
         SettingsFocusScope(focus: focus) {
             Form {
                 Section {
@@ -53,6 +54,20 @@ struct LocationSettingsView: View {
                     Text(String(localized: .settingsLocationHeader))
                 } footer: {
                     Text(String(localized: .settingsLocationFooter))
+                }
+
+                Section {
+                    Toggle(isOn: $report.showsLocationForecastsOnLocationsTab) {
+                        Label(
+                            String(localized: .settingsLocationForecastsToggle),
+                            systemImage: "chart.line.uptrend.xyaxis",
+                        )
+                    }
+                    .settingsRow(Item.forecasts)
+                } header: {
+                    Text(String(localized: .settingsLocationForecastsHeader))
+                } footer: {
+                    Text(String(localized: .settingsLocationForecastsFooter))
                 }
             }
         }
@@ -100,16 +115,20 @@ extension LocationSettingsView: SettingsSection {
 
     enum Item: SettingsItem {
         case tracking
+        case forecasts
 
         var title: String {
             switch self {
                 case .tracking: String(localized: .settingsLocationToggle)
+                case .forecasts: String(localized: .settingsLocationForecastsToggle)
             }
         }
 
         var keywords: [String] {
             switch self {
                 case .tracking: splitKeywords(String(localized: .settingsKeywordsTracking))
+                case .forecasts:
+                    splitKeywords(String(localized: .settingsKeywordsLocationForecasts))
             }
         }
     }
@@ -118,7 +137,7 @@ extension LocationSettingsView: SettingsSection {
 #if DEBUG
     #Preview {
         NavigationStack {
-            LocationSettingsView()
+            LocationSettingsView(report: PreviewSupport.loadedYearReportModel())
                 .environment(PreviewSupport.loadedSession())
         }
         .whereBroadwayRoot()
@@ -131,7 +150,7 @@ extension LocationSettingsView: SettingsSection {
             LocationSettingsView.self,
             title: "Location Settings",
         ) { _ in
-            LocationSettingsView()
+            LocationSettingsView(report: PreviewSupport.loadedYearReportModel())
         }
     }
 #endif

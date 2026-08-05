@@ -158,10 +158,11 @@ struct LocationsView: View {
         .scrollBounceBehavior(.basedOnSize)
         .accessibilityIdentifier("where_root_title")
         .safeAreaInset(edge: .bottom) {
-            if !topForecasts.isEmpty {
+            if report.showsLocationForecastsOnLocationsTab, !topForecasts.isEmpty {
                 LocationForecastPanel(
                     forecasts: topForecasts,
                     plannedStay: report.forecasts.activePlannedStay,
+                    isCollapsible: true,
                 )
                 .padding(.horizontal)
                 .padding(.bottom, stylesheet.spacing.small)
@@ -254,6 +255,9 @@ private struct ResolveToolbarLabel: View {
             whereSnapshot(name: "PlannedStay", configurations: .phoneLightDark) {
                 LocationsView(report: PreviewSupport.plannedStayYearReportModel())
             }
+            whereSnapshot(name: "ForecastsHidden", configurations: .phoneLightDark) {
+                LocationsView(report: forecastsHiddenReport())
+            }
             whereSnapshot(name: "Empty", configurations: .phoneLightDark) {
                 LocationsView(report: PreviewSupport.emptyYearReportModel())
             }
@@ -263,6 +267,12 @@ private struct ResolveToolbarLabel: View {
             whereSnapshot(name: "ElsewhereOnly", configurations: .phoneLightDark) {
                 LocationsView(report: PreviewSupport.elsewhereOnlyYearReportModel())
             }
+        }
+
+        private static func forecastsHiddenReport() -> YearReportModel {
+            let report = PreviewSupport.loadedYearReportModel()
+            report.showsLocationForecastsOnLocationsTab = false
+            return report
         }
     }
 

@@ -221,7 +221,7 @@ struct SettingsView: View {
             case .loggedDays:
                 LoggedDaysView(report: report)
             case .location:
-                LocationSettingsView(focus: route.focus)
+                LocationSettingsView(report: report, focus: route.focus)
             case .regions:
                 // Regions is presented as a sheet (`isSheet`), so it's never
                 // routed here; this arm only keeps the switch exhaustive.

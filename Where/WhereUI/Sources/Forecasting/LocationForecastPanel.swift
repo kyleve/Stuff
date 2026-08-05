@@ -9,6 +9,9 @@ struct LocationForecastPanel: View {
     var plannedStay: PlannedStay?
     var editableRegion: Region?
     var editAction: (() -> Void)?
+    var isCollapsible = false
+
+    @State private var isExpanded = false
 
     @Environment(\.stylesheet) private var stylesheet
 
@@ -18,68 +21,97 @@ struct LocationForecastPanel: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: style.rowSpacing) {
-            if let elapsedDays = forecasts.first?.elapsedDays {
-                ViewThatFits(in: .horizontal) {
-                    HStack(alignment: .firstTextBaseline) {
-                        Image(systemName: "chart.line.uptrend.xyaxis")
-                            .accessibilityHidden(true)
-                        Text(String(localized: .locationForecastTitle))
-                            .fixedSize(horizontal: true, vertical: false)
-                        Spacer(minLength: stylesheet.spacing.large)
-                        Text(WhereFormat.locationForecastElapsed(days: elapsedDays))
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                            .monospacedDigit()
-                            .fixedSize(horizontal: true, vertical: false)
+            if isCollapsible {
+                DisclosureGroup(isExpanded: $isExpanded) {
+                    VStack(alignment: .leading, spacing: style.rowSpacing) {
+                        forecastContent
                     }
-
-                    VStack(alignment: .leading, spacing: style.estimateSpacing) {
-                        HStack(alignment: .firstTextBaseline) {
-                            Image(systemName: "chart.line.uptrend.xyaxis")
-                                .accessibilityHidden(true)
-                            Text(String(localized: .locationForecastTitle))
-                        }
-                        Text(WhereFormat.locationForecastElapsed(days: elapsedDays))
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                            .monospacedDigit()
-                            .multilineTextAlignment(.trailing)
-                            .frame(maxWidth: .infinity, alignment: .trailing)
-                    }
+                    .padding(.top, style.rowSpacing)
                 }
-                .font(.headline)
+                label: {
+                    forecastHeader
+                }
+                .tint(.primary)
             } else {
-                HStack(alignment: .firstTextBaseline) {
-                    Image(systemName: "chart.line.uptrend.xyaxis")
-                        .accessibilityHidden(true)
-                    Text(String(localized: .locationForecastTitle))
-                }
-                .font(.headline)
-            }
-
-            ForEach(forecasts, id: \.region) { forecast in
-                LocationForecastRow(
-                    forecast: forecast,
-                    plannedStay: plannedStay,
-                )
-            }
-
-            if editableRegion != nil, let editAction {
-                Button(
-                    String(localized: .locationForecastEditStay),
-                    systemImage: "calendar.badge.clock",
-                    action: editAction,
-                )
-                .buttonStyle(.bordered)
+                forecastHeader
+                forecastContent
             }
         }
         .padding(style.padding)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background {
-            Color.clear.glassEffect(
-                .regular,
-                in: RoundedRectangle(cornerRadius: style.cornerRadius),
+            let shape = RoundedRectangle(cornerRadius: style.cornerRadius)
+            if isCollapsible {
+                shape
+                    .fill(.background)
+                    .overlay {
+                        shape.strokeBorder(.quaternary, lineWidth: style.borderWidth)
+                    }
+            } else {
+                Color.clear.glassEffect(.regular, in: shape)
+            }
+        }
+        .animation(style.expansionAnimation, value: isExpanded)
+    }
+
+    @ViewBuilder
+    private var forecastHeader: some View {
+        if let elapsedDays = forecasts.first?.elapsedDays {
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .firstTextBaseline) {
+                    Image(systemName: "chart.line.uptrend.xyaxis")
+                        .accessibilityHidden(true)
+                    Text(String(localized: .locationForecastTitle))
+                        .fixedSize(horizontal: true, vertical: false)
+                    Spacer(minLength: stylesheet.spacing.large)
+                    Text(WhereFormat.locationForecastElapsed(days: elapsedDays))
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                        .fixedSize(horizontal: true, vertical: false)
+                }
+
+                VStack(alignment: .leading, spacing: style.estimateSpacing) {
+                    HStack(alignment: .firstTextBaseline) {
+                        Image(systemName: "chart.line.uptrend.xyaxis")
+                            .accessibilityHidden(true)
+                        Text(String(localized: .locationForecastTitle))
+                    }
+                    Text(WhereFormat.locationForecastElapsed(days: elapsedDays))
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                        .multilineTextAlignment(.trailing)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                }
+            }
+            .font(.headline)
+        } else {
+            HStack(alignment: .firstTextBaseline) {
+                Image(systemName: "chart.line.uptrend.xyaxis")
+                    .accessibilityHidden(true)
+                Text(String(localized: .locationForecastTitle))
+            }
+            .font(.headline)
+        }
+    }
+
+    @ViewBuilder
+    private var forecastContent: some View {
+        ForEach(forecasts, id: \.region) { forecast in
+            LocationForecastRow(
+                forecast: forecast,
+                plannedStay: plannedStay,
             )
+        }
+
+        if editableRegion != nil, let editAction {
+            Button(
+                String(localized: .locationForecastEditStay),
+                systemImage: "calendar.badge.clock",
+                action: editAction,
+            )
+            .buttonStyle(.bordered)
         }
     }
 }
