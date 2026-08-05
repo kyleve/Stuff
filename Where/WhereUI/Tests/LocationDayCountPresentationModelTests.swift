@@ -28,25 +28,39 @@ struct LocationDayCountPresentationModelTests {
         ])
     }
 
-    @Test(arguments: [147, 149])
-    func changedCountRevealsFromSavedValueAndTriggersOnce(currentDays: Int) {
+    @Test func increasedCountRevealsFromSavedValueAndTriggersOnce() {
         let preferences = preferences()
         preferences.setLastSeenLocationDayCounts([.california: 148], in: 2026)
         let model = LocationDayCountPresentationModel(preferences: preferences, year: 2026)
-        let current = item(.california, currentDays)
+        let current = item(.california, 149)
 
         #expect(model.presented(current).days == 148)
         #expect(preferences.lastSeenLocationDayCounts(in: 2026) == [.california: 148])
 
         model.reveal([current], in: 2026)
 
-        #expect(model.presented(current).days == currentDays)
+        #expect(model.presented(current).days == 149)
         #expect(model.feedbackTrigger == 1)
-        #expect(preferences.lastSeenLocationDayCounts(in: 2026) == [.california: currentDays])
+        #expect(preferences.lastSeenLocationDayCounts(in: 2026) == [.california: 149])
 
         model.reveal([current], in: 2026)
 
         #expect(model.feedbackTrigger == 1)
+    }
+
+    @Test func decreasedCountRevealsWithoutFeedback() {
+        let preferences = preferences()
+        preferences.setLastSeenLocationDayCounts([.california: 148], in: 2026)
+        let model = LocationDayCountPresentationModel(preferences: preferences, year: 2026)
+        let current = item(.california, 147)
+
+        #expect(model.presented(current).days == 148)
+
+        model.reveal([current], in: 2026)
+
+        #expect(model.presented(current).days == 147)
+        #expect(model.feedbackTrigger == 0)
+        #expect(preferences.lastSeenLocationDayCounts(in: 2026) == [.california: 147])
     }
 
     @Test func multipleChangedCardsProduceOneFeedbackEvent() {

@@ -52,7 +52,7 @@ final class LocationDayCountPresentationModel {
         })
         let shouldProvideFeedback = current.contains { item in
             guard let previousDays = lastSeenCounts?[item.region] else { return false }
-            return previousDays != item.days
+            return previousDays < item.days
         }
 
         if displayedCounts != currentCounts {
