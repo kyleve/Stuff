@@ -67,6 +67,10 @@ and testing conventions live in the feature [`Where/AGENTS.md`](../AGENTS.md)
   renders relative to *today*, so no reference containing one is stable across
   days. Views don't read `\.isCapturingSnapshot` to branch themselves; capture
   handling stays inside the shared component.
+- Reconcile `LocationDayCountPresentationModel` only from the visible primary
+  card surface; another tab, covering sheet, or pushed destination must leave
+  its persisted baseline untouched so returning can animate and haptically
+  signal the change.
 
 ## Design system — `WhereStylesheet`
 

@@ -12,6 +12,8 @@ struct LocationsView: View {
     let report: YearReportModel
 
     @State private var showingResolution = false
+    @State private var isCardSurfaceVisible = false
+    @State private var dayCountPresentation: LocationDayCountPresentationModel
 
     /// Drives the region cards' tilt-reactive light sheen. Started/stopped
     /// with the view's lifecycle; a no-op on hardware without device motion.
@@ -24,6 +26,22 @@ struct LocationsView: View {
 
     @Environment(\.stylesheet) private var stylesheet
     @Environment(\.regionStyles) private var regionStyles
+
+    private var dayCountReconciliationID: LocationDayCountPresentationModel.ReconciliationID {
+        LocationDayCountPresentationModel.ReconciliationID(
+            counts: report.ranking.primary,
+            year: report.selectedYear,
+            isVisible: isCardSurfaceVisible && !showingResolution,
+        )
+    }
+
+    init(report: YearReportModel) {
+        self.report = report
+        _dayCountPresentation = State(initialValue: LocationDayCountPresentationModel(
+            preferences: report.preferences,
+            year: report.selectedYear,
+        ))
+    }
 
     var body: some View {
         NavigationStack {
@@ -47,6 +65,9 @@ struct LocationsView: View {
         }
         .onAppear { tilt.start() }
         .onDisappear { tilt.stop() }
+        .onChange(of: report.selectedYear) { _, year in
+            dayCountPresentation.prepare(for: year)
+        }
         .sheet(isPresented: $showingResolution) {
             ResolutionView(report: report)
         }
@@ -93,11 +114,12 @@ struct LocationsView: View {
             GlassEffectContainer(spacing: stylesheet.spacing.xxLarge) {
                 VStack(spacing: stylesheet.spacing.xxLarge) {
                     ForEach(report.ranking.primary) { item in
+                        let presentedItem = dayCountPresentation.presented(item)
                         NavigationLink {
                             calendarDestination(item.region)
                         } label: {
                             RegionSummaryCard(
-                                regionDays: item,
+                                regionDays: presentedItem,
                                 interactive: true,
                                 yearLength: report.daysInSelectedYear,
                                 year: report.selectedYear,
@@ -168,6 +190,22 @@ struct LocationsView: View {
                 .padding(.bottom, stylesheet.spacing.small)
             }
         }
+        .onAppear { isCardSurfaceVisible = true }
+        .onDisappear { isCardSurfaceVisible = false }
+        // The task belongs to the cards, and its ID includes explicit visibility
+        // so a covering sheet cannot consume their baseline behind itself.
+        .task(id: dayCountReconciliationID) {
+            let reconciliation = dayCountReconciliationID
+            dayCountPresentation.reconcile(
+                reconciliation.counts,
+                in: reconciliation.year,
+                isVisible: reconciliation.isVisible,
+            )
+        }
+        .sensoryFeedback(
+            .impact(weight: .light),
+            trigger: dayCountPresentation.feedbackTrigger,
+        )
     }
 
     /// Three forecast rows are independent from the two-card Primary split.

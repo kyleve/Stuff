@@ -100,6 +100,9 @@ internal shape.
   from them and rebuilds on `changes()`; assemble via the async
   `WhereServices.make(...)` / `forIntents()` so both attribute against the
   same synced set. `distanceToBoundary` is `nil` outside the tracked set.
+- **Location-card history is non-authoritative preference state.** Keep its
+  snapshots year-keyed by stable `Region` id, and clear them through
+  `WherePreferences.reset()`; current report totals remain the source of truth.
 - **`DemoDataBuilder` seeds through the ordinary write paths** (`DayJournal`,
   `setPrimaryRegions`) — no private door into the store, so a demo exercises
   the code a real user does. Its data is sized against the *elapsed* year, not
