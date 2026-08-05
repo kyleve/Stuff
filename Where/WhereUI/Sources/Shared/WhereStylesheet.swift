@@ -1271,9 +1271,8 @@ extension WhereStylesheet {
         var rosette: Rosette
         var reflectiveSurface: ReflectiveSurface
         var glassTintOpacity: Double
-        var accentGlow: Glow
+        var accentGlow: Shadow
         var liftShadow: Shadow
-        var shadowBleed: CGFloat
 
         struct Seal: Equatable {
             var size: CGFloat
@@ -1299,6 +1298,7 @@ extension WhereStylesheet {
             var backgroundTop: Color
             var backgroundBottom: Color
             var accent: Color
+            var glowOpacity: Double
             var intensity: Double
             var staticGlintIntensity: Double
             var staticPose: Pose
@@ -1313,12 +1313,6 @@ extension WhereStylesheet {
             var opacity: Double
             var radius: CGFloat
             var offsetY: CGFloat = 0
-        }
-
-        struct Glow: Equatable {
-            var opacity: Double
-            var radius: CGFloat
-            var lineWidth: CGFloat
         }
 
         static let standard = PassportCardStyle(
@@ -1349,14 +1343,14 @@ extension WhereStylesheet {
                 backgroundTop: Color(red: 0.08, green: 0.18, blue: 0.34),
                 backgroundBottom: Color(red: 0.02, green: 0.07, blue: 0.16),
                 accent: Color(red: 0.88, green: 0.72, blue: 0.32),
+                glowOpacity: 0.12,
                 intensity: 0.28,
                 staticGlintIntensity: 0.28,
                 staticPose: .init(roll: 0.3, pitch: -0.15),
             ),
             glassTintOpacity: 0.06,
-            accentGlow: Glow(opacity: 0.22, radius: 6, lineWidth: 2),
+            accentGlow: Shadow(opacity: 0.18, radius: 7),
             liftShadow: Shadow(opacity: 0.08, radius: 5, offsetY: 2),
-            shadowBleed: 6,
         )
     }
 }
