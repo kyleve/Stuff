@@ -1273,7 +1273,6 @@ extension WhereStylesheet {
         var glassTintOpacity: Double
         var accentGlow: Shadow
         var liftShadow: Shadow
-        var shadowBleed: CGFloat
 
         struct Seal: Equatable {
             var size: CGFloat
@@ -1352,7 +1351,6 @@ extension WhereStylesheet {
             glassTintOpacity: 0.06,
             accentGlow: Shadow(opacity: 0.18, radius: 7),
             liftShadow: Shadow(opacity: 0.08, radius: 5, offsetY: 2),
-            shadowBleed: 7,
         )
     }
 }

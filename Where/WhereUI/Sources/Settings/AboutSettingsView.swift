@@ -47,7 +47,6 @@ struct AboutSettingsView: View {
                 PrivacyPassportCard()
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
-                    .listRowInsets(EdgeInsets())
                 versionSection
                 dependenciesSection
                 developmentToolsSection
@@ -55,7 +54,6 @@ struct AboutSettingsView: View {
                 AboutOpenSourceFooter()
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
-                    .listRowInsets(EdgeInsets())
             }
         }
         .navigationTitle(String(localized: .settingsAboutHeader))
