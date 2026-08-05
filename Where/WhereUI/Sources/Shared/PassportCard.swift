@@ -19,16 +19,6 @@ struct PassportCard: View {
         RoundedRectangle(cornerRadius: style.cornerRadius)
     }
 
-    private var glowColor: Color {
-        surface.isReflective ? style.reflectiveSurface.backgroundTop : .accentColor
-    }
-
-    private var glowOpacity: Double {
-        surface.isReflective
-            ? style.reflectiveSurface.glowOpacity
-            : style.accentGlow.opacity
-    }
-
     var body: some View {
         PassportCardSurface(
             surface: surface,
@@ -76,18 +66,11 @@ struct PassportCard: View {
             .padding(style.padding)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .clipShape(shape)
         .contentShape(shape)
-        .shadow(
-            color: glowColor.opacity(glowOpacity),
-            radius: style.accentGlow.radius,
-            y: style.accentGlow.offsetY,
-        )
-        .shadow(
-            color: Color.black.opacity(style.liftShadow.opacity),
-            radius: style.liftShadow.radius,
-            y: style.liftShadow.offsetY,
-        )
+        // The full-width Form row has no system inset to contain the source
+        // card's glow. Preserve that vertical breathing room without narrowing
+        // the card or adding a backing surface behind the privacy variant.
+        .padding(.vertical, surface.isReflective ? 0 : style.shadowBleed)
         .accessibilityElement(children: .combine)
     }
 }

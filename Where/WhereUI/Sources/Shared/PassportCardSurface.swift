@@ -19,6 +19,16 @@ struct PassportCardSurface<Content: View>: View {
         surface.isReflective ? style.reflectiveSurface.accent : .accentColor
     }
 
+    private var glowColor: Color {
+        surface.isReflective ? style.reflectiveSurface.backgroundTop : .accentColor
+    }
+
+    private var glowOpacity: Double {
+        surface.isReflective
+            ? style.reflectiveSurface.glowOpacity
+            : style.accentGlow.opacity
+    }
+
     var body: some View {
         let reflection = style.reflectiveSurface
         content
@@ -60,6 +70,20 @@ struct PassportCardSurface<Content: View>: View {
             )
             .tint(surfaceTint)
             .environment(\.colorScheme, surface.isReflective ? .dark : colorScheme)
+            .clipShape(shape)
+            // Keep the shadows on the same render chain as Liquid Glass. A
+            // shadow applied by the parent cannot reliably see its out-of-band
+            // glass surface and falls back to the content's sparse silhouette.
+            .shadow(
+                color: glowColor.opacity(glowOpacity),
+                radius: style.accentGlow.radius,
+                y: style.accentGlow.offsetY,
+            )
+            .shadow(
+                color: Color.black.opacity(style.liftShadow.opacity),
+                radius: style.liftShadow.radius,
+                y: style.liftShadow.offsetY,
+            )
     }
 }
 
