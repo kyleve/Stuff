@@ -60,8 +60,11 @@ enum WhereFormat {
         String(localized: .manualRangeFooter(count))
     }
 
-    static func locationForecastEstimate(days: Int) -> String {
-        String(localized: .locationForecastEstimate(dayCount(days)))
+    static func locationForecastEstimate(region: Region, days: Int) -> AttributedString {
+        AttributedString(localized: .locationForecastEstimate(
+            region.localizedName,
+            dayCount(days),
+        ))
     }
 
     static func locationForecastBasis(yearToDateDays: Int, elapsedDays: Int) -> String {

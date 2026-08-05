@@ -57,28 +57,14 @@ private struct LocationForecastRow: View {
     var plannedStay: PlannedStay?
 
     @Environment(\.stylesheet) private var stylesheet
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         VStack(alignment: .leading, spacing: stylesheet.locationForecast.estimateSpacing) {
-            if dynamicTypeSize.isAccessibilitySize {
-                VStack(alignment: .leading, spacing: stylesheet.locationForecast.estimateSpacing) {
-                    Text(forecast.region.localizedName)
-                        .font(.subheadline.bold())
-                    Text(WhereFormat.locationForecastEstimate(days: forecast.estimatedTotalDays))
-                        .font(.subheadline)
-                        .monospacedDigit()
-                }
-            } else {
-                HStack(alignment: .firstTextBaseline) {
-                    Text(forecast.region.localizedName)
-                        .font(.subheadline.bold())
-                    Spacer(minLength: stylesheet.spacing.large)
-                    Text(WhereFormat.locationForecastEstimate(days: forecast.estimatedTotalDays))
-                        .font(.subheadline)
-                        .monospacedDigit()
-                }
-            }
+            Text(WhereFormat.locationForecastEstimate(
+                region: forecast.region,
+                days: forecast.estimatedTotalDays,
+            ))
+            .font(.subheadline)
             Text(WhereFormat.locationForecastBasis(
                 yearToDateDays: forecast.yearToDateDays,
                 elapsedDays: forecast.elapsedDays,

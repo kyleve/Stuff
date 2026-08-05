@@ -38,7 +38,15 @@ struct WhereFormatTests {
     }
 
     @Test func locationForecastCopyComposesLocalizedDayCounts() {
-        #expect(WhereFormat.locationForecastEstimate(days: 183) == "About 183 days this year")
+        let estimate = WhereFormat.locationForecastEstimate(region: .newYork, days: 183)
+        #expect(String(estimate.characters) == "New York might be 183 days this year")
+        let emphasized = estimate.runs.compactMap { run -> String? in
+            guard run.inlinePresentationIntent?.contains(.stronglyEmphasized) == true else {
+                return nil
+            }
+            return String(estimate[run.range].characters)
+        }
+        #expect(emphasized == ["183 days"])
         #expect(
             WhereFormat.locationForecastBasis(yearToDateDays: 91, elapsedDays: 182)
                 == "Based on 91 days here across 182 days elapsed.",

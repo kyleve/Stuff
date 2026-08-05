@@ -2924,13 +2924,13 @@
       }
     },
     "locationForecast.estimate" : {
-      "comment" : "Annual location forecast; the placeholder is an already-localized day count, for example '183 days'.",
+      "comment" : "Annual location forecast sentence. The first placeholder is a region name; the second is an already-localized day count, for example '183 days', and is emphasized.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "About %@ this year"
+            "value" : "%1$@ might be **%2$@** this year"
           }
         }
       }
