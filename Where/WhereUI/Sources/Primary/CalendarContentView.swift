@@ -123,26 +123,30 @@ struct CalendarContentView: View {
     private func calendarContent(months: [CalendarMonth]) -> some View {
         ScrollView {
             LazyVStack(spacing: stylesheet.calendar.monthSpacing) {
-                if let focusedForecast {
-                    LocationForecastPanel(
-                        forecasts: [focusedForecast],
-                        plannedStay: report.forecasts.activePlannedStay,
-                        editableRegion: report.forecasts.isCurrent(
-                            focusedForecast.region,
-                            report: report.report,
-                        ) ? focusedForecast.region : nil,
-                        editAction: {
-                            showingPlannedStayEditor = true
-                        },
-                    )
-                }
                 ForEach(shownMonths(months)) { month in
-                    MonthGridView(
-                        month: month,
-                        focusedRegion: focusedRegion,
-                        dateCalendar: report.calendar,
-                        plannedRegion: report.forecasts.plannedRegion(on:),
-                    )
+                    VStack(spacing: stylesheet.calendar.monthSpacing) {
+                        MonthGridView(
+                            month: month,
+                            focusedRegion: focusedRegion,
+                            dateCalendar: report.calendar,
+                            plannedRegion: report.forecasts.plannedRegion(on:),
+                        )
+                        // In chronological flow, the estimate belongs immediately
+                        // after the month whose recorded pace it is projecting from.
+                        if month.isCurrentMonth, let focusedForecast {
+                            LocationForecastPanel(
+                                forecasts: [focusedForecast],
+                                plannedStay: report.forecasts.activePlannedStay,
+                                editableRegion: report.forecasts.isCurrent(
+                                    focusedForecast.region,
+                                    report: report.report,
+                                ) ? focusedForecast.region : nil,
+                                editAction: {
+                                    showingPlannedStayEditor = true
+                                },
+                            )
+                        }
+                    }
                 }
             }
             .padding()
