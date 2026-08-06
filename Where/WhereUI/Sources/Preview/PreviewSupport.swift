@@ -248,7 +248,9 @@
         @MainActor
         public static func plannedStayYearReportModel() -> YearReportModel {
             let completeReport = sampleReport()
-            let today = CalendarDay(from: referenceNow, in: .current)
+            var calendar = Calendar(identifier: .gregorian)
+            calendar.timeZone = TimeZone(identifier: "America/Los_Angeles")!
+            let today = CalendarDay(from: referenceNow, in: calendar)
             let recordedDays = completeReport.days.filter { $0.day <= today }
             var recordedTotals: [Region: Int] = [:]
             for day in recordedDays {
