@@ -113,10 +113,10 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   app, the `WidgetSnapshot` in the widget process, and services in App Intents —
   falling back to a deterministic default from `RegionAppearanceCatalog`.
 - **`CalendarContentView`** — the selected year's recorded location history,
-  with a region-focused destination from each Locations card. An active planned
-  stay extends the calendar through its end month and renders tomorrow through
-  the inclusive end date with a hatched region band; recorded monthly totals
-  remain historical.
+  presented chronologically from January downward, with a region-focused
+  destination from each Locations card. An active planned stay extends the
+  calendar through its end month and renders tomorrow through the inclusive end
+  date with a hatched region band; recorded monthly totals remain historical.
 - **`whereBroadwayRoot()`** — seeds the Broadway design-system context so
   descendants resolve the `WhereStylesheet` tokens (see [Design
   system](#design-system)). Applied by `RootView` and by each widget.

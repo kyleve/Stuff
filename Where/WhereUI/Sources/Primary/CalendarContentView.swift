@@ -163,15 +163,15 @@ struct CalendarContentView: View {
         return stay
     }
 
-    /// The months to show, newest first. Future months are omitted unless a
-    /// planned stay reaches into them; a past year shows the full year.
+    /// The months to show in chronological order. Future months are omitted
+    /// unless a planned stay reaches into them; a past year shows the full year.
     private func shownMonths(_ months: [CalendarMonth]) -> [CalendarMonth] {
         guard
             let currentMonthStart = report.calendar
             .dateInterval(of: .month, for: report.referenceDate)?
             .start
         else {
-            return Array(months.reversed())
+            return months
         }
         let lastShownMonth = displayedPlannedStay.flatMap { stay in
             report.calendar.date(from: DateComponents(
@@ -180,9 +180,7 @@ struct CalendarContentView: View {
                 day: 1,
             ))
         }.map { max(currentMonthStart, $0) } ?? currentMonthStart
-        return Array(months
-            .filter { $0.startOfMonth <= lastShownMonth }
-            .reversed())
+        return months.filter { $0.startOfMonth <= lastShownMonth }
     }
 }
 
@@ -583,6 +581,17 @@ private struct DayCell: View {
                         report: PreviewSupport.plannedStayYearReportModel(),
                     )
                 }
+            }
+            whereSnapshot(
+                name: "FocusedPlannedStayFullContent",
+                configurations: [
+                    SnapshotConfiguration(device: .fullContent(name: "fullHeight", width: 402)),
+                ],
+            ) {
+                CalendarContentView(
+                    focusedRegion: .newYork,
+                    report: PreviewSupport.plannedStayYearReportModel(),
+                )
             }
             // The shown months in one image. The full-content frame measures the
             // scroll view's content height, so every lazy month materializes and
