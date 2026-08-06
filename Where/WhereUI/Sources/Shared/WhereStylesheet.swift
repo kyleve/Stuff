@@ -574,6 +574,9 @@ extension WhereStylesheet {
         /// fade). The animation also sweeps the ambient bar, which reads the same
         /// count, in the same beat.
         struct DayCountStyle: Equatable {
+            /// How long the visible card surface holds its previous count before
+            /// the animation and its coordinated haptic begin.
+            var revealDelay: Duration
             /// Which way the count changes.
             var morph: Morph
             /// The animation that runs it.
@@ -598,6 +601,7 @@ extension WhereStylesheet {
             }
 
             static let standard = DayCountStyle(
+                revealDelay: .milliseconds(500),
                 morph: .rollingDigits,
                 // Long enough for the digits to read as rolling, short enough
                 // that a card tapped mid-roll doesn't feel held up.
@@ -606,6 +610,7 @@ extension WhereStylesheet {
 
             /// The Reduce-Motion pairing.
             static let reducedMotion = DayCountStyle(
+                revealDelay: .milliseconds(500),
                 morph: .crossFade,
                 animation: .easeInOut(duration: 0.2),
             )

@@ -179,6 +179,7 @@ struct WhereStylesheetTests {
         #expect(card.securityPrint.backgroundBlendMode == .normal)
         #expect(card.securityPrint.tint(.red) == .red)
         #expect(card.dayCount == .standard)
+        #expect(card.dayCount.revealDelay == .milliseconds(500))
         #expect(card.dayCount.animation == .easeOut(duration: 0.3))
     }
 
@@ -191,6 +192,7 @@ struct WhereStylesheetTests {
         #expect(rolling.transition(days: 149) != rolling.transition(days: 148))
 
         let reduced = WhereStylesheet.CardStyles.DayCountStyle.reducedMotion
+        #expect(reduced.revealDelay == .milliseconds(500))
         #expect(reduced.morph == .crossFade)
         #expect(reduced.transition(days: 148) == .opacity)
         #expect(reduced.transition(days: 149) == reduced.transition(days: 148))
