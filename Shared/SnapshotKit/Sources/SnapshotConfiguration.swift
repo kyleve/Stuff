@@ -93,9 +93,6 @@ extension SnapshotConfiguration {
         public var name: String
         /// How the content is sized.
         public var size: SizeStrategy
-        /// The minimum rendered height for a content-measured frame. `nil`
-        /// allows the frame to shrink-wrap its content; fixed frames ignore it.
-        public var minimumHeight: CGFloat?
         /// Simulated device safe-area insets applied at capture. `.zero` (the
         /// default) keeps images independent of any physical device's chrome;
         /// a preset like ``iPhoneNotched`` opts a case into rendering under
@@ -105,12 +102,10 @@ extension SnapshotConfiguration {
         public init(
             name: String,
             size: SizeStrategy,
-            minimumHeight: CGFloat? = nil,
             safeAreaInsets: Insets = .zero,
         ) {
             self.name = name
             self.size = size
-            self.minimumHeight = minimumHeight
             self.safeAreaInsets = safeAreaInsets
         }
 
@@ -153,8 +148,7 @@ extension SnapshotConfiguration {
         ) -> Frame {
             Frame(
                 name: name,
-                size: .fullContent(width: width),
-                minimumHeight: minimumHeight,
+                size: .fullContent(width: width, minimumHeight: minimumHeight),
             )
         }
 
@@ -200,7 +194,7 @@ extension SnapshotConfiguration {
         case fixed(CGSize)
         /// A fixed width with the height measured from the settled content, so
         /// scrollable content renders whole (see ``Frame/fullContent(name:width:)``).
-        case fullContent(width: CGFloat)
+        case fullContent(width: CGFloat, minimumHeight: CGFloat?)
     }
 }
 

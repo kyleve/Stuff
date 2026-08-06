@@ -30,7 +30,7 @@ struct LargeViewCaptureTests {
         let view = Color.red.frame(width: 402, height: 100)
         let host = UIHostingController(rootView: view)
         host.view.frame = CGRect(x: 0, y: 0, width: 402, height: 1)
-        let image = await renderSnapshotImage(
+        let image = try await renderSnapshotImage(
             of: host,
             named: "full-content-minimum-height-probe",
             sizing: .intrinsic(width: 402, minimumHeight: 874),
@@ -59,7 +59,7 @@ struct LargeViewCaptureTests {
         }
         let host = UIHostingController(rootView: scroll)
         host.view.frame = CGRect(x: 0, y: 0, width: 402, height: 1)
-        let image = await renderSnapshotImage(
+        let image = try await renderSnapshotImage(
             of: host,
             named: "full-content-scroll-probe",
             sizing: .intrinsic(width: 402, minimumHeight: 0),
@@ -91,7 +91,7 @@ struct LargeViewCaptureTests {
         }
         let host = UIHostingController(rootView: form)
         host.view.frame = CGRect(x: 0, y: 0, width: 402, height: 1)
-        let image = await renderSnapshotImage(
+        let image = try await renderSnapshotImage(
             of: host,
             named: "full-content-form-probe",
             sizing: .intrinsic(width: 402, minimumHeight: 0),
@@ -117,11 +117,13 @@ struct LargeViewCaptureTests {
                 }
             }
             .safeAreaInset(edge: .bottom) {
-                Text("Bottom toolbar")
-                    .frame(maxWidth: .infinity, minHeight: 50)
-                    .background(.regularMaterial)
+                Color.green
+                    .frame(height: 50)
+                    .accessibilityLabel("Bottom toolbar")
             }
             .navigationTitle("Full Content")
+            .toolbarBackground(Color.yellow, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Button("Add", systemImage: "plus", action: {})
@@ -130,13 +132,76 @@ struct LargeViewCaptureTests {
         }
         let host = UIHostingController(rootView: screen)
         host.view.frame = CGRect(x: 0, y: 0, width: 402, height: 1)
-        let image = await renderSnapshotImage(
+        let image = try await renderSnapshotImage(
             of: host,
             named: "full-content-navigation-probe",
             sizing: .intrinsic(width: 402, minimumHeight: 0),
             safeAreaInsets: .zero,
         )
-        #expect(image.size.height >= 3050)
+        #expect(image.size.height >= 3255)
+        #expect(image.size.height < 3265)
+
+        let topToolbar = image.probePixel(atUnitPoint: CGPoint(
+            x: 0.1,
+            y: 20 / image.size.height,
+        ))
+        #expect(topToolbar.red > 0.5)
+        #expect(topToolbar.green > 0.5)
+        #expect(topToolbar.blue < 0.5)
+
+        let firstContent = image.probePixel(atUnitPoint: CGPoint(
+            x: 0.5,
+            y: 200 / image.size.height,
+        ))
+        #expect(firstContent.red > 0.5)
+        #expect(firstContent.blue < 0.5)
+
+        let lastContent = image.probePixel(atUnitPoint: CGPoint(
+            x: 0.5,
+            y: (image.size.height - 160) / image.size.height,
+        ))
+        #expect(lastContent.blue > 0.5)
+        #expect(lastContent.red < 0.5)
+
+        let bottomToolbar = image.probePixel(atUnitPoint: CGPoint(
+            x: 0.5,
+            y: (image.size.height - 80) / image.size.height,
+        ))
+        #expect(bottomToolbar.green > 0.5)
+        #expect(bottomToolbar.red < 0.5)
+    }
+
+    @Test func rejectsNonConvergingBoundedScrollMeasurement() async throws {
+        try waitFor { hostKeyWindow() != nil }
+        let screen = VStack(spacing: 0) {
+            Color.red.frame(height: 100)
+            List(0 ..< 20, id: \.self) { index in
+                Text("Bounded row \(index)")
+            }
+            .frame(height: 200)
+        }
+        let host = UIHostingController(rootView: screen)
+        host.view.frame = CGRect(x: 0, y: 0, width: 402, height: 1)
+
+        do {
+            _ = try await renderSnapshotImage(
+                of: host,
+                named: "non-converging-bounded-scroll-probe",
+                sizing: .intrinsic(width: 402, minimumHeight: 0),
+                safeAreaInsets: .zero,
+            )
+            Issue.record("Expected intrinsic-height measurement to fail.")
+        } catch let error as SnapshotRenderingError {
+            guard case let .intrinsicHeightDidNotConverge(name, measuredHeights) = error else {
+                Issue.record("Expected non-convergence, got \(error).")
+                return
+            }
+            #expect(name == "non-converging-bounded-scroll-probe")
+            #expect(measuredHeights.count == 11)
+            #expect((measuredHeights.last ?? 0) > (measuredHeights.first ?? 0))
+        } catch {
+            Issue.record("Expected SnapshotRenderingError, got \(error).")
+        }
     }
 
     @Test func annotatesTallFullContentAccessibilitySnapshots() async throws {
@@ -151,7 +216,7 @@ struct LargeViewCaptureTests {
         }
         let host = UIHostingController(rootView: screen)
         host.view.frame = CGRect(x: 0, y: 0, width: 402, height: 1)
-        let image = await renderSnapshotImage(
+        let image = try await renderSnapshotImage(
             of: host,
             named: "full-content-accessibility-probe",
             sizing: .intrinsic(width: 402, minimumHeight: 0),
@@ -172,7 +237,7 @@ struct LargeViewCaptureTests {
         .frame(width: 402, height: height)
         let host = UIHostingController(rootView: view)
         host.view.frame = CGRect(x: 0, y: 0, width: 402, height: height)
-        let image = await renderSnapshotImage(
+        let image = try await renderSnapshotImage(
             of: host,
             named: "two-tone-\(Int(height))pt-probe",
             safeAreaInsets: .zero,

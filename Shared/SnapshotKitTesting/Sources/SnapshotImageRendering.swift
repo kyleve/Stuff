@@ -29,6 +29,25 @@ public enum SnapshotSizing: Sendable {
     case intrinsic(width: CGFloat, minimumHeight: CGFloat)
 }
 
+/// A capture failure that callers can report without comparing or recording an
+/// invalid image.
+public enum SnapshotRenderingError: Error, Equatable, Sendable {
+    /// Full-content measurement did not reach a stable height within the
+    /// bounded fixed-point pass budget.
+    case intrinsicHeightDidNotConverge(name: String, measuredHeights: [CGFloat])
+}
+
+extension SnapshotRenderingError: LocalizedError {
+    public var errorDescription: String? {
+        switch self {
+            case let .intrinsicHeightDidNotConverge(name, measuredHeights):
+                let heights = measuredHeights.map { String(format: "%.1f", $0) }
+                    .joined(separator: ", ")
+                return "Snapshot \(name) intrinsic height did not converge: \(heights)."
+        }
+    }
+}
+
 /// Renders a view controller to an image on the fixed CI simulator.
 ///
 /// Overrides safe-area insets (default `.zero`) so the image is independent of the
@@ -85,8 +104,8 @@ public func renderSnapshotImage(
     isAccessibility: Bool = false,
     settle: SnapshotSettle = .settled,
     onReadyToSnapshot: (@MainActor () async -> Void)? = nil,
-) async -> UIImage {
-    await renderSnapshotCapture(
+) async throws -> UIImage {
+    try await renderSnapshotCapture(
         of: viewController,
         named: name,
         sizing: sizing,
@@ -124,9 +143,9 @@ public func renderSnapshotImage(
     settle: SnapshotSettle,
     onReadyToSnapshot: (@MainActor () async -> Void)?,
     timing: SnapshotCaptureTiming,
-) async -> SnapshotCapture {
-    await SnapshotCaptureLock.withLock {
-        await renderSnapshotImageLocked(
+) async throws -> SnapshotCapture {
+    try await SnapshotCaptureLock.withLock {
+        try await renderSnapshotImageLocked(
             of: viewController,
             named: name,
             sizing: sizing,
@@ -152,8 +171,8 @@ private func renderSnapshotImageLocked(
     settle: SnapshotSettle,
     onReadyToSnapshot: (@MainActor () async -> Void)?,
     timing: SnapshotCaptureTiming,
-) async -> SnapshotCapture {
-    func capture() async -> SnapshotCapture {
+) async throws -> SnapshotCapture {
+    func capture() async throws -> SnapshotCapture {
         // `hostKeyWindow()` is the specific window `StuffTestHost` stamps with
         // `isMainTestHostWindow` — the guaranteed root window we set up, not
         // merely whatever window happens to be key. So this is stable regardless
@@ -179,8 +198,8 @@ private func renderSnapshotImageLocked(
         // surfaces it to SwiftUI as `\.isCapturingSnapshot`.
         viewController.traitOverrides[SnapshotCaptureTrait.self] = true
 
-        await timing.measure(.intrinsicMeasure) {
-            await resolveContentSize(
+        try await timing.measure(.intrinsicMeasure) {
+            try await resolveContentSize(
                 of: viewController,
                 named: name,
                 sizing: sizing,
@@ -279,13 +298,13 @@ private func renderSnapshotImageLocked(
     }
 
     if let safeAreaInsets {
-        return await swizzle(
+        return try await swizzle(
             safeAreaInsets: safeAreaInsets,
             for: viewController,
             operation: capture,
         )
     }
-    return await capture()
+    return try await capture()
 }
 
 /// Adds `child` (sized to its view's current frame) into the appeared host root
@@ -338,7 +357,7 @@ private func resolveContentSize(
     hostedIn hostRoot: UIViewController,
     window: UIWindow,
     timing: SnapshotCaptureTiming,
-) async {
+) async throws {
     guard case let .intrinsic(width, minimumHeight) = sizing else { return }
 
     let probeHeight = max(window.bounds.height, 1)
@@ -372,12 +391,19 @@ private func resolveContentSize(
     }
 
     var measured = measureContent()
+    var measuredHeights = [measured.height]
+    var didConverge = false
     for _ in 0 ..< 10 {
         viewController.view.frame = CGRect(origin: .zero, size: measured)
         probeWrapper.view.frame.size = measured
         CATransaction.performWithoutAnimation(probeWrapper.view.layoutIfNeeded)
         let remeasured = measureContent()
-        if abs(remeasured.height - measured.height) < 0.5 { break }
+        measuredHeights.append(remeasured.height)
+        if abs(remeasured.height - measured.height) < 0.5 {
+            measured = remeasured
+            didConverge = true
+            break
+        }
         measured = remeasured
     }
 
@@ -386,6 +412,13 @@ private func resolveContentSize(
     viewController.willMove(toParent: nil)
     viewController.removeFromParent()
     removeChildAfterCapture(probeWrapper)
+
+    guard didConverge else {
+        throw SnapshotRenderingError.intrinsicHeightDidNotConverge(
+            name: name,
+            measuredHeights: measuredHeights,
+        )
+    }
 
     viewController.view.frame = CGRect(origin: .zero, size: measured)
     CATransaction.performWithoutAnimation(viewController.view.layoutIfNeeded)

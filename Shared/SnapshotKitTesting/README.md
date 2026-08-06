@@ -31,7 +31,10 @@ re-exports `SnapshotKit` and `SnapshotTesting`, so a test author needs a single
   use a full-width scroll descendant's content size plus surrounding chrome when
   UIKit-backed SwiftUI containers such as `Form` report only their viewport
   through `sizeThatFits`; device presets retain their normal viewport height as
-  the minimum. Captures serialize process-wide through an internal FIFO mutex —
+  the minimum. Height measurement iterates to a stable fixed point for lazy
+  content; if it cannot converge within the bounded pass budget, capture throws,
+  the assertion records a test issue, and no arbitrary image is compared or
+  recorded. Captures serialize process-wide through an internal FIFO mutex —
   the pipeline holds
   process-global state (the safe-area swizzle, the animations flag, the one
   host window) across its suspensions, so a concurrent call queues behind the

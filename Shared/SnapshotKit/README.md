@@ -2,8 +2,8 @@
 
 SnapshotKit is the generic, shippable half of a small snapshot-testing
 framework. It owns the *appearance matrix* that drives both SwiftUI previews and
-image snapshot tests, so what you see in an Xcode Preview is exactly what CI
-asserts against.
+image snapshot tests, so previews and CI share configurations, traits, and
+content.
 
 It deliberately imports **only** SwiftUI / Foundation / UIKit — never the
 snapshot-comparison engine — so any UI module can depend on it (including in
@@ -114,7 +114,10 @@ assertSnapshots(of: MyBadge.self)
 
 - Accessibility (`.accessibility`) configurations are **filtered out of the
   preview cutsheet** — VoiceOver-annotated captures need the test-only library
-  and can't render in a plain Preview. They still run as snapshot tests.
+  and can't render in a plain Preview. They still run as snapshot tests. The
+  cutsheet also cannot reproduce the capture pipeline's UIKit-backed
+  `List`/`Form` height measurement, safe-area override, ready hook, or
+  tile-and-stitch pass, so CI's rendered dimensions remain authoritative.
 - The Where app wraps content in its Broadway design-system root via a
   `whereSnapshot(...)` adapter in `WhereUI`; SnapshotKit itself stays
   design-system-agnostic.
