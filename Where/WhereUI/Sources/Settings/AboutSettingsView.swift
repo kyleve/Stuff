@@ -4,9 +4,9 @@ import SnapshotKit
 import SwiftUI
 import WhereCore
 
-/// Settings drill-in for what the app *is* rather than what it does: which build
-/// is running, the third-party work it is built with, and where its bundled
-/// region boundaries came from.
+/// Settings drill-in for what the app *is* rather than what it does: its privacy
+/// promise, which build is running, the third-party work it is built with, and
+/// where its bundled region boundaries came from.
 ///
 /// Every fact here is vended by whoever owns it — `BuildInfo` and the generated
 /// attribution report from `WhereCore`, `RegionDataSource` from `RegionKit` — so
@@ -44,6 +44,9 @@ struct AboutSettingsView: View {
     var body: some View {
         SettingsFocusScope(focus: focus) {
             Form {
+                PrivacyPassportCard()
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
                 versionSection
                 dependenciesSection
                 developmentToolsSection
