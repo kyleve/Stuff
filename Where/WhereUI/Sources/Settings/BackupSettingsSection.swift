@@ -9,8 +9,9 @@ struct BackupSettingsSection: View {
     let backup: BackupModel
 
     /// Backup export: the ready-to-share archive built up-front, revealed as a
-    /// URL-backed `ShareLink` once the background export finishes.
+    /// second row once the background export finishes.
     @State private var exportedArchiveURL: URL?
+    @State private var presentedShareItem: BackupShareSheet.Item?
 
     // Backup import: the picked file and the merge/replace choice. The success
     // confirmation lives on `backup` (the model), so it survives this screen
@@ -25,6 +26,9 @@ struct BackupSettingsSection: View {
     var body: some View {
         @Bindable var backup = backup
         backupSection
+            .sheet(item: $presentedShareItem) { item in
+                BackupShareSheet(item: item)
+            }
             .fileImporter(
                 isPresented: $showImporter,
                 allowedContentTypes: [.zip],
@@ -101,10 +105,9 @@ struct BackupSettingsSection: View {
             .settingsRow(DataSettingsView.Item.exportBackup)
 
             if backup.backupState == .idle, let url = exportedArchiveURL {
-                ShareLink(
-                    item: url,
-                    preview: SharePreview(String(localized: .settingsBackupShareTitle)),
-                ) {
+                Button {
+                    presentedShareItem = BackupShareSheet.Item(url: url)
+                } label: {
                     Label(
                         String(localized: .settingsBackupShare),
                         systemImage: "square.and.arrow.up.on.square",
