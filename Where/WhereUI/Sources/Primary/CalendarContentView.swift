@@ -287,6 +287,7 @@ private struct MonthGridView: View {
         return DayBandGeometry(
             regions: regions,
             isPlanned: isPlanned,
+            column: column,
             leadingRadius: joinsLeft ? (isRowStart ? band.continuationRadius : 0) : band
                 .cornerRadius,
             trailingRadius: joinsRight ? (isRowEnd ? band.continuationRadius : 0) : band
@@ -318,6 +319,7 @@ private struct MonthGridView: View {
 private struct DayBandGeometry {
     var regions: [Region]
     var isPlanned: Bool
+    var column: Int
     var leadingRadius: CGFloat
     var trailingRadius: CGFloat
     var extendLeading: CGFloat
@@ -326,6 +328,7 @@ private struct DayBandGeometry {
     static let none = DayBandGeometry(
         regions: [],
         isPlanned: false,
+        column: 0,
         leadingRadius: 0,
         trailingRadius: 0,
         extendLeading: 0,
@@ -508,6 +511,9 @@ private struct DayCell: View {
                                 .map { regionStyles.style(for: $0).tint } ?? .accentColor,
                             spacing: calendar.regionBand.planned.hatchSpacing,
                             lineWidth: calendar.regionBand.planned.hatchLineWidth,
+                            gridOriginX: CGFloat(band.column)
+                                * (proxy.size.width + calendar.month.gridSpacing)
+                                - band.extendLeading,
                         )
                         .opacity(calendar.regionBand.planned.hatchOpacity)
                         .clipShape(shape)
