@@ -388,12 +388,15 @@
             whereSnapshot(name: "Collapsed", configurations: .phoneLightDark) {
                 DeveloperOverlayPreview(presentation: .collapsed)
             }
-            whereSnapshot(name: "MenuBottomTrailing", configurations: .phoneLightDark) {
+            whereSnapshot(
+                name: "MenuBottomTrailing",
+                configurations: .fullContentPhoneLightDark,
+            ) {
                 DeveloperOverlayPreview(presentation: .menu)
             }
             whereSnapshot(
                 name: "MenuTopLeading",
-                configurations: SnapshotConfiguration.combinations(devices: [.iPhone]),
+                configurations: SnapshotConfiguration.combinations(devices: [.iPhoneFullContent]),
             ) {
                 DeveloperOverlayPreview(presentation: .menu, corner: .topLeading)
             }
@@ -401,7 +404,7 @@
                 name: "SelectedTool",
                 configurations: SnapshotConfiguration.combinations(devices: [.iPhone]),
             ) {
-                DeveloperOverlayPreview(presentation: .floating(.regionMap))
+                DeveloperOverlayPreview(presentation: .floating(.openSpans))
             }
         }
     }
