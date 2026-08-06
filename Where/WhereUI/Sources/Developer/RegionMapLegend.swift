@@ -56,3 +56,29 @@ struct RegionMapLegend: View {
         .contentShape(.rect)
     }
 }
+
+#if DEBUG
+    #Preview {
+        RegionMapLegend(
+            kind: .attribution,
+            groups: [
+                RegionMapLegendGroup(
+                    title: Region.california.localizedName,
+                    region: .california,
+                    outlineCount: 2,
+                ),
+                RegionMapLegendGroup(
+                    title: Region.newYork.localizedName,
+                    region: .newYork,
+                    outlineCount: 1,
+                ),
+            ],
+            selectedTitle: Region.california.localizedName,
+            color: { group in
+                group.region.map { RegionStyle.fallbackStyle(for: $0).tint } ?? .gray
+            },
+            onSelect: { _ in },
+        )
+        .whereBroadwayRoot()
+    }
+#endif
