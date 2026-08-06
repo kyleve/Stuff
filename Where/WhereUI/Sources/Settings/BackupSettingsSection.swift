@@ -9,7 +9,7 @@ struct BackupSettingsSection: View {
     let backup: BackupModel
 
     /// Backup export: the ready-to-share archive built up-front, revealed as a
-    /// `ShareLink` once the background export finishes.
+    /// URL-backed `ShareLink` once the background export finishes.
     @State private var exportedArchiveURL: URL?
 
     // Backup import: the picked file and the merge/replace choice. The success
@@ -102,7 +102,7 @@ struct BackupSettingsSection: View {
 
             if backup.backupState == .idle, let url = exportedArchiveURL {
                 ShareLink(
-                    item: BackupArchiveFile(url: url),
+                    item: url,
                     preview: SharePreview(String(localized: .settingsBackupShareTitle)),
                 ) {
                     Label(
