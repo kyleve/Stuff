@@ -68,11 +68,12 @@ struct PlannedStayCoordinatorTests {
             through: CalendarDay(year: 2026, month: 8, day: 1),
         )
         try await coordinator.set(region: futureStay.region, through: futureStay.through)
-        try await coordinator.expireIfLatest(
+        let activeStay = try await coordinator.expireIfLatest(
             staleExpiredRecord,
             asOf: CalendarDay(year: 2026, month: 7, day: 1),
         )
 
+        #expect(activeStay == futureStay)
         #expect(try await coordinator.active() == futureStay)
     }
 

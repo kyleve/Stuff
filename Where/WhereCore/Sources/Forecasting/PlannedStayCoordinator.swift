@@ -20,8 +20,7 @@ public struct PlannedStayCoordinator: Sendable {
         guard let stay = record.value else { return nil }
         let today = CalendarDay(from: now(), in: calendar)
         guard stay.through < today else { return stay }
-        try await expireIfLatest(record, asOf: today)
-        return nil
+        return try await expireIfLatest(record, asOf: today)
     }
 
     /// Replace any prior intent with a stay through the inclusive day.
@@ -42,20 +41,26 @@ public struct PlannedStayCoordinator: Sendable {
 
     /// Clear `expiredRecord` only if it is still the winning revision. The
     /// transactional re-read prevents a stale `active()` read from erasing a
-    /// newer stay saved while that read was suspended.
+    /// newer stay saved while that read was suspended, and returns that newer
+    /// stay so the caller cannot replace it with stale `nil` state.
     func expireIfLatest(
         _ expiredRecord: PlannedStayRecord,
         asOf today: CalendarDay,
-    ) async throws {
+    ) async throws -> PlannedStay? {
         try await store.perform {
-            guard try await latestRecord() == expiredRecord else { return }
-            guard let stay = expiredRecord.value, stay.through < today else { return }
+            guard let latest = try await latestRecord() else { return nil }
+            guard latest == expiredRecord else {
+                guard let stay = latest.value, stay.through >= today else { return nil }
+                return stay
+            }
+            guard let stay = expiredRecord.value, stay.through < today else { return nil }
             let tombstone = PlannedStayRecord(
                 id: UUID(),
                 value: nil,
                 updatedAt: max(now(), expiredRecord.updatedAt.addingTimeInterval(0.001)),
             )
             try await store.replacePlannedStayRecord(with: tombstone)
+            return nil
         }
     }
 
