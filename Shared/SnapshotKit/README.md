@@ -23,7 +23,10 @@ capture + comparison pipeline lives in the sibling
   fixed width, height measured from the settled content, so the whole
   scrollable content renders in one image with nothing scrolling. Full-width
   scrolling descendants drive the measured height while preserving surrounding
-  navigation, tab, sheet, search, and toolbar chrome. The iPhone/iPad
+  navigation, tab, sheet, search, and toolbar chrome. An intentionally bounded
+  or greedy production container that cannot converge should expose and
+  snapshot its shared scrolling child directly, without snapshot-only layout
+  behavior. The iPhone/iPad
   full-content presets retain their normal viewport height as a minimum and
   grow when content is taller; custom full-content frames shrink-wrap unless
   given a minimum. A frame also carries `safeAreaInsets` (default zero, keeping

@@ -51,8 +51,10 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
   viewport height as a minimum and grow only when the settled content is taller;
   custom full-content frames shrink-wrap unless given a minimum. Capture the
   production screen including its navigation, tab, sheet, search, and toolbar
-  chrome; the nested full-width scroller still determines the settled height.
-  Fixed device frames are for non-scrolling subjects.
+  chrome when measurement converges. An intentionally bounded or greedy
+  container instead snapshots its shared scrolling child directly; never add
+  snapshot-only production layout. Fixed device frames are for non-scrolling
+  subjects.
 
 ## Testing
 
