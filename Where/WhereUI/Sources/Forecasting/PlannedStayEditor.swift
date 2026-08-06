@@ -1,4 +1,5 @@
 import RegionKit
+import SnapshotKit
 import SwiftUI
 
 /// Sheet for setting or removing the inclusive departure day for the currently
@@ -99,8 +100,24 @@ struct PlannedStayEditor: View {
 }
 
 #if DEBUG
+    extension PlannedStayEditor: SnapshotProviding {
+        static var snapshots: [SnapshotCase] {
+            whereSnapshot(name: "NewPlan", configurations: .screenDefaults) {
+                PlannedStayEditor(
+                    region: .newYork,
+                    model: PreviewSupport.loadedYearReportModel().forecasts,
+                )
+            }
+            whereSnapshot(name: "ExistingPlan", configurations: .phoneLightDark) {
+                PlannedStayEditor(
+                    region: .newYork,
+                    model: PreviewSupport.plannedStayYearReportModel().forecasts,
+                )
+            }
+        }
+    }
+
     #Preview {
-        let report = PreviewSupport.plannedStayYearReportModel()
-        PlannedStayEditor(region: .newYork, model: report.forecasts)
+        PlannedStayEditor.snapshotPreviews
     }
 #endif
