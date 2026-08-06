@@ -108,7 +108,8 @@ one it belongs to rather than to a god-object:
 - **`RecentActivitySummarizer`** — an on-device Foundation Models narrative over
   a selectable look-back `RecentActivityWindow`.
 - **`WherePreferences`** — persisted user intent (onboarding, tracking intent,
-  reminder / summary schedules) behind a `KeyValueStore`. The store has no
+  reminder / summary schedules) plus the year-keyed Location-card counts used
+  for presentation continuity, behind a `KeyValueStore`. The store has no
   default: production names `UserDefaults.standard` and everything else names
   `InMemoryKeyValueStore()`, so no test or preview can reach the host's real
   defaults by saying nothing.

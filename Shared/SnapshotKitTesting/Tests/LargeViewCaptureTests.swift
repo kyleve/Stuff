@@ -13,7 +13,9 @@ import UIKit
 /// `ScrollView` measured under the pipeline's unbounded `sizeThatFits` proposal
 /// must report its *content* height (verified on this toolchain — no
 /// `.fixedSize` shim is needed), so the whole scrollable content renders with
-/// nothing scrolled out of frame.
+/// nothing scrolled out of frame. UIKit-backed SwiftUI containers such as
+/// `Form` need the pipeline's root-scroll fallback because they report only
+/// their viewport through `sizeThatFits`.
 @MainActor
 struct LargeViewCaptureTests {
     @Test func capturesAShortViewInOneTile() async throws {
@@ -55,6 +57,38 @@ struct LargeViewCaptureTests {
             size: image.size,
         )
         #expect(sample.size.height == 3000)
+        #expect(sample.top.red > 0.5)
+        #expect(sample.bottom.blue > 0.5)
+    }
+
+    @Test func capturesAFormsFullContentUnderContentMeasuredSizing() async throws {
+        try waitFor { hostKeyWindow() != nil }
+        let form = Form {
+            Section {
+                ForEach(0 ..< 20, id: \.self) { _ in
+                    Color.red
+                        .frame(height: 80)
+                        .listRowInsets(EdgeInsets())
+                }
+                Color.blue
+                    .frame(height: 500)
+                    .listRowInsets(EdgeInsets())
+            }
+        }
+        let host = UIHostingController(rootView: form)
+        host.view.frame = CGRect(x: 0, y: 0, width: 402, height: 1)
+        let image = await renderSnapshotImage(
+            of: host,
+            named: "full-content-form-probe",
+            sizing: .intrinsic(width: 402),
+            safeAreaInsets: .zero,
+        )
+        let sample = TwoToneSample(
+            top: image.probePixel(atUnitPoint: CGPoint(x: 0.5, y: 0.1)),
+            bottom: image.probePixel(atUnitPoint: CGPoint(x: 0.5, y: 0.9)),
+            size: image.size,
+        )
+        #expect(sample.size.height > 2000)
         #expect(sample.top.red > 0.5)
         #expect(sample.bottom.blue > 0.5)
     }

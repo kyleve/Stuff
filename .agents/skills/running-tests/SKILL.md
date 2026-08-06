@@ -111,4 +111,7 @@ mise install
 ./ide --no-open
 ./swiftformat --lint
 ./test --everything
+# The native-macOS Ledger scheme has no simulator and runs in its own CI job:
+mise exec -- tuist test Ledger-macOS-Tests --no-selective-testing -- \
+  -destination 'platform=macOS'
 ```

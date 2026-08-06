@@ -359,6 +359,45 @@ struct WhereStylesheetTests {
         #expect(settings.scrollSettleDelay == .milliseconds(350))
     }
 
+    @Test func passportCardStyle() {
+        let source = style.passportCard
+        #expect(source.cornerRadius == 20)
+        #expect(source.padding == 16)
+        #expect(source.contentSpacing == 12)
+        #expect(source.titleFont == .headline)
+        #expect(source.detailFont == .subheadline)
+        #expect(source.seal == .init(
+            size: 52,
+            rotationDegrees: -8,
+            outerLineWidth: 2,
+            innerLineWidth: 1,
+            innerInset: 7,
+            dashLength: 3,
+            dashSpacing: 3,
+            symbolFont: .title3,
+        ))
+        #expect(source.rosette == .init(
+            wobble: 5,
+            lineWidth: 0.75,
+            primaryRingSpacing: 10,
+            secondaryRingSpacing: 16,
+            primaryOpacity: 0.1,
+            secondaryOpacity: 0.06,
+        ))
+        #expect(source.reflectiveSurface == .init(
+            backgroundTop: Color(red: 0.08, green: 0.18, blue: 0.34),
+            backgroundBottom: Color(red: 0.02, green: 0.07, blue: 0.16),
+            accent: Color(red: 0.88, green: 0.72, blue: 0.32),
+            glowOpacity: 0.12,
+            intensity: 0.28,
+            staticGlintIntensity: 0.28,
+            staticPose: .init(roll: 0.3, pitch: -0.15),
+        ))
+        #expect(source.glassTintOpacity == 0.06)
+        #expect(source.accentGlow == .init(opacity: 0.18, radius: 7))
+        #expect(source.liftShadow == .init(opacity: 0.08, radius: 5, offsetY: 2))
+    }
+
     @Test func developerOverlayStyle() {
         let overlay = style.developerOverlay
         #expect(overlay.edgeInset == 16)
