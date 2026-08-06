@@ -6035,7 +6035,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Your location history stays on your devices and in your private iCloud account. Where doesn’t send it to servers we operate."
+            "value" : "Your location history stays on your devices and in your private iCloud account. Where sends no data to anyone."
           }
         }
       }
