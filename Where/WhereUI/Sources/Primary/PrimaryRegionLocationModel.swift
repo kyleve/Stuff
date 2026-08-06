@@ -6,6 +6,22 @@ import WhereCore
 @MainActor
 @Observable
 final class PrimaryRegionLocationModel {
+    /// Every input that determines which raw GPS fixes the Locations cards show.
+    /// `dataChangeRevision` is load-bearing: another fix on an already-credited
+    /// day leaves the aggregate report equal but must still reload the artwork.
+    struct LoadID: Hashable {
+        let year: Int
+        let regions: [Region]
+        let dataChangeRevision: Int
+
+        @MainActor
+        init(report: YearReportModel) {
+            year = report.selectedYear
+            regions = report.ranking.primary.map(\.region)
+            dataChangeRevision = report.dataChangeRevision
+        }
+    }
+
     private(set) var pointsByRegion: [Region: [RegionDayPoint]] = [:]
     private(set) var revision = 0
 

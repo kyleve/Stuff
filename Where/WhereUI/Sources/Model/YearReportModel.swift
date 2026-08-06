@@ -73,6 +73,13 @@ public final class YearReportModel {
     public private(set) var report: YearReport?
     public private(set) var loadState: LoadState = .idle
 
+    /// Monotonic identity for completed scene-data refreshes. Every observed
+    /// store change and foreground activation runs `refreshAll`, covering both
+    /// live writes and writes missed while the scene was inactive. Presentation
+    /// reads whose raw records can change without changing the aggregate report
+    /// key reloads to this revision rather than report equality alone.
+    private(set) var dataChangeRevision = 0
+
     /// Start-of-day keys for days in the selected year that carry at least one
     /// piece of evidence. Refreshed alongside the report on every committed
     /// write (so a newly added attachment lights up its day), and fed into the
@@ -276,6 +283,9 @@ public final class YearReportModel {
             await refreshEvidenceDayKeys()
             await refreshDataIssueCount(force: forceDataIssueCount)
         }
+        // Publish only after the aggregate report catches up, so dependent
+        // raw-data loads filter against the current credited-day set.
+        dataChangeRevision += 1
     }
 
     /// Reload the set of days carrying evidence for the selected year. Runs on

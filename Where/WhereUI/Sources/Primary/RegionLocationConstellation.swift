@@ -57,3 +57,30 @@ struct RegionLocationConstellation: View {
         ))
     }
 }
+
+#if DEBUG
+    #Preview {
+        let path = Path { path in
+            path.addRoundedRect(
+                in: CGRect(x: 0, y: 0, width: 200, height: 100),
+                cornerSize: CGSize(width: 18, height: 18),
+            )
+        }
+        if let artwork = WhereStylesheet.default.card.regular.regionShape?.watermark {
+            RegionLocationConstellation(
+                path: path,
+                points: [
+                    .init(position: CGPoint(x: 40, y: 30), horizontalAccuracy: 8),
+                    .init(position: CGPoint(x: 92, y: 64), horizontalAccuracy: 18),
+                    .init(position: CGPoint(x: 158, y: 42), horizontalAccuracy: 32),
+                ],
+                tint: .orange,
+                artworkStyle: artwork,
+                style: .standard,
+            )
+            .frame(width: 320, height: 180)
+            .background(.orange.opacity(0.1), in: RoundedRectangle(cornerRadius: 28))
+            .padding()
+        }
+    }
+#endif

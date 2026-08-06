@@ -36,6 +36,10 @@ struct LocationsView: View {
         )
     }
 
+    private var primaryLocationLoadID: PrimaryRegionLocationModel.LoadID {
+        PrimaryRegionLocationModel.LoadID(report: report)
+    }
+
     init(report: YearReportModel) {
         self.report = report
         _dayCountPresentation = State(initialValue: LocationDayCountPresentationModel(
@@ -198,9 +202,10 @@ struct LocationsView: View {
             .impact(weight: .light),
             trigger: dayCountPresentation.feedbackTrigger,
         )
-        .task(id: report.report) {
+        .task(id: primaryLocationLoadID) {
+            let loadID = primaryLocationLoadID
             await primaryLocations.load(
-                regions: report.ranking.primary.map(\.region),
+                regions: loadID.regions,
                 from: report,
             )
         }
