@@ -65,8 +65,12 @@ public struct PlannedStayCoordinator: Sendable {
     }
 
     private func write(value: PlannedStay?) async throws {
-        let record = PlannedStayRecord(id: UUID(), value: value, updatedAt: now())
         try await store.perform {
+            let latest = try await latestRecord()
+            let timestamp = latest.map {
+                max(now(), $0.updatedAt.addingTimeInterval(0.001))
+            } ?? now()
+            let record = PlannedStayRecord(id: UUID(), value: value, updatedAt: timestamp)
             try await store.replacePlannedStayRecord(with: record)
         }
     }

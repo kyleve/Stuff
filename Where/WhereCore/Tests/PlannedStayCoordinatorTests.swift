@@ -103,4 +103,29 @@ struct PlannedStayCoordinatorTests {
         let coordinator = Self.makeCoordinator(store: store)
         #expect(try await coordinator.active() == newer.value)
     }
+
+    @Test func localWriteAdvancesPastAFutureDatedSyncedRevision() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let synced = PlannedStayRecord(
+            id: UUID(),
+            value: PlannedStay(
+                region: .newYork,
+                through: CalendarDay(year: 2026, month: 8, day: 1),
+            ),
+            updatedAt: Self.now.addingTimeInterval(60),
+        )
+        try await store.perform {
+            try await store.restorePlannedStayRecord(synced)
+        }
+
+        let coordinator = Self.makeCoordinator(store: store)
+        try await coordinator.clear()
+        let tombstone = try #require(await store.plannedStayRecords().first)
+        #expect(tombstone.updatedAt > synced.updatedAt)
+
+        try await store.perform {
+            try await store.restorePlannedStayRecord(synced)
+        }
+        #expect(try await coordinator.active() == nil)
+    }
 }
