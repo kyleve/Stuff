@@ -16,6 +16,7 @@ import WhereCore
 /// come from the environment via the sub-screens.
 struct SettingsView: View {
     let report: YearReportModel
+    private let includesChrome: Bool
     @State private var backup: BackupModel
     @State private var reminders: RemindersSettingsModel
     @State private var searchText = ""
@@ -27,6 +28,7 @@ struct SettingsView: View {
     @Environment(\.isInDemoMode) private var isInDemoMode
 
     init(report: YearReportModel) {
+        includesChrome = true
         self.report = report
         _backup = State(initialValue: BackupModel(services: report.services))
         _reminders = State(initialValue: RemindersSettingsModel(
@@ -34,6 +36,42 @@ struct SettingsView: View {
             preferences: report.preferences,
             now: report.now,
         ))
+    }
+
+    #if DEBUG
+        init(snapshotReport report: YearReportModel) {
+            includesChrome = false
+            self.report = report
+            _backup = State(initialValue: BackupModel(services: report.services))
+            _reminders = State(initialValue: RemindersSettingsModel(
+                services: report.services,
+                preferences: report.preferences,
+                now: report.now,
+            ))
+        }
+    #endif
+
+    var body: some View {
+        if includesChrome {
+            NavigationStack {
+                settingsList
+                    .navigationTitle(String(localized: .settingsTitle))
+                    .searchable(text: $searchText, prompt: String(localized: .settingsSearchPrompt))
+                    .overlay {
+                        if isSearching, searchResults.isEmpty {
+                            ContentUnavailableView.search(text: searchQuery)
+                        }
+                    }
+                    .navigationDestination(for: SettingsRoute.self) { route in
+                        destination(for: route)
+                    }
+                    .sheet(isPresented: $showRegions) {
+                        RegionsSettingsView(usedThisYear: regionsUsedThisYear)
+                    }
+            }
+        } else {
+            settingsList
+        }
     }
 
     private var searchQuery: String {
@@ -58,41 +96,26 @@ struct SettingsView: View {
         !isInDemoMode || destination.isAvailableInDemoMode
     }
 
-    var body: some View {
-        NavigationStack {
-            List {
-                if isSearching {
-                    ForEach(searchResults) { result in
-                        searchNavigationRow(result)
-                    }
-                } else {
-                    if isInDemoMode {
-                        demoSection
-                    }
-                    ForEach(SettingsListSection.allCases, id: \.self) { section in
-                        let destinations = section.destinations.filter(isAvailable)
-                        if !destinations.isEmpty {
-                            Section {
-                                ForEach(destinations, id: \.self) { destination in
-                                    groupNavigationRow(destination)
-                                }
+    private var settingsList: some View {
+        List {
+            if isSearching {
+                ForEach(searchResults) { result in
+                    searchNavigationRow(result)
+                }
+            } else {
+                if isInDemoMode {
+                    demoSection
+                }
+                ForEach(SettingsListSection.allCases, id: \.self) { section in
+                    let destinations = section.destinations.filter(isAvailable)
+                    if !destinations.isEmpty {
+                        Section {
+                            ForEach(destinations, id: \.self) { destination in
+                                groupNavigationRow(destination)
                             }
                         }
                     }
                 }
-            }
-            .navigationTitle(String(localized: .settingsTitle))
-            .searchable(text: $searchText, prompt: String(localized: .settingsSearchPrompt))
-            .overlay {
-                if isSearching, searchResults.isEmpty {
-                    ContentUnavailableView.search(text: searchQuery)
-                }
-            }
-            .navigationDestination(for: SettingsRoute.self) { route in
-                destination(for: route)
-            }
-            .sheet(isPresented: $showRegions) {
-                RegionsSettingsView(usedThisYear: regionsUsedThisYear)
             }
         }
     }
@@ -255,18 +278,21 @@ struct SettingsView: View {
         static var snapshots: [SnapshotCase] {
             whereSnapshot(
                 name: "Default",
-                configurations: .screenDefaults + [
-                    SnapshotConfiguration(layoutDirection: .rightToLeft, device: .iPhone),
+                configurations: .fullContentScreenDefaults + [
+                    SnapshotConfiguration(
+                        layoutDirection: .rightToLeft,
+                        device: .iPhoneFullContent,
+                    ),
                 ],
             ) {
-                SettingsView(report: PreviewSupport.loadedYearReportModel())
+                SettingsView(snapshotReport: PreviewSupport.loadedYearReportModel())
                     .environment(PreviewSupport.loadedModel())
                     .environment(PreviewSupport.loadedSession())
             }
             // Demo mode: the exit section on top, and the groups that would
             // reach past the demo (backup, erase/reset, app icon) gone.
-            whereSnapshot(name: "DemoMode", configurations: .phoneLightDark) {
-                SettingsView(report: PreviewSupport.loadedYearReportModel())
+            whereSnapshot(name: "DemoMode", configurations: .fullContentPhoneLightDark) {
+                SettingsView(snapshotReport: PreviewSupport.loadedYearReportModel())
                     .environment(PreviewSupport.loadedModel())
                     .environment(PreviewSupport.loadedSession())
                     .environment(\.isInDemoMode, true)

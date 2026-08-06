@@ -34,86 +34,7 @@
                 .background(.background)
 
                 Divider()
-
-                Form {
-                    Section {
-                        Picker(String(localized: .cardDesignerVariant), selection: $variant) {
-                            ForEach(
-                                CardDesignerConfiguration.Variant.allCases,
-                                id: \.self,
-                            ) { variant in
-                                Text(variant.localizedName).tag(variant)
-                            }
-                        }
-                        .pickerStyle(.segmented)
-
-                        Picker(
-                            String(localized: .cardDesignerAppearance),
-                            selection: $previewColorScheme,
-                        ) {
-                            Text(String(localized: .cardDesignerLight))
-                                .tag(ColorScheme.light as ColorScheme?)
-                            Text(String(localized: .cardDesignerDark))
-                                .tag(ColorScheme.dark as ColorScheme?)
-                        }
-                        .pickerStyle(.segmented)
-
-                        Picker(String(localized: .cardDesignerRegion), selection: $previewRegion) {
-                            ForEach(RegionCatalog.shared.all, id: \.self) { region in
-                                Text(region.localizedName).tag(region)
-                            }
-                        }
-
-                        Picker(String(localized: .cardDesignerColor), selection: $previewColor) {
-                            ForEach(RegionAppearanceCatalog.colors, id: \.self) { color in
-                                Label {
-                                    Text(WhereFormat.regionColorAccessibility(color))
-                                } icon: {
-                                    Circle().fill(color.color)
-                                }
-                                .tag(color)
-                            }
-                        }
-
-                        Stepper(
-                            String(localized: .cardDesignerDays(previewDays)),
-                            value: $previewDays,
-                            in: 0 ... 366,
-                        )
-                        Stepper(
-                            String(localized: .cardDesignerYear(previewYear)),
-                            value: $previewYear,
-                            in: 1900 ... 2200,
-                        )
-                        Toggle(
-                            String(localized: .cardDesignerApplyToApp),
-                            isOn: $model.appliesToApp,
-                        )
-                    } header: {
-                        Text(String(localized: .cardDesignerPreview))
-                    } footer: {
-                        Text(String(localized: .cardDesignerApplyFooter))
-                    }
-
-                    switch variant {
-                        case .regular:
-                            CardDesignerVariantControls(
-                                card: $model.configuration.regular,
-                                reset: { model.reset($0, variant: .regular) },
-                            )
-                        case .compact:
-                            CardDesignerVariantControls(
-                                card: $model.configuration.compact,
-                                reset: { model.reset($0, variant: .compact) },
-                            )
-                    }
-
-                    CardDesignerSharedControls(
-                        shared: $model.configuration.shared,
-                        reset: model.resetShared,
-                    )
-                    CardDesignerExportSection(configuration: model.configuration)
-                }
+                controls
             }
             .navigationTitle(String(localized: .cardDesignerTitle))
             .navigationBarTitleDisplayMode(.inline)
@@ -164,16 +85,103 @@
             }
             .onDisappear { tilt.stop() }
         }
+
+        private var controls: some View {
+            @Bindable var model = model
+            return Form {
+                Section {
+                    Picker(String(localized: .cardDesignerVariant), selection: $variant) {
+                        ForEach(
+                            CardDesignerConfiguration.Variant.allCases,
+                            id: \.self,
+                        ) { variant in
+                            Text(variant.localizedName).tag(variant)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+
+                    Picker(
+                        String(localized: .cardDesignerAppearance),
+                        selection: $previewColorScheme,
+                    ) {
+                        Text(String(localized: .cardDesignerLight))
+                            .tag(ColorScheme.light as ColorScheme?)
+                        Text(String(localized: .cardDesignerDark))
+                            .tag(ColorScheme.dark as ColorScheme?)
+                    }
+                    .pickerStyle(.segmented)
+
+                    Picker(String(localized: .cardDesignerRegion), selection: $previewRegion) {
+                        ForEach(RegionCatalog.shared.all, id: \.self) { region in
+                            Text(region.localizedName).tag(region)
+                        }
+                    }
+
+                    Picker(String(localized: .cardDesignerColor), selection: $previewColor) {
+                        ForEach(RegionAppearanceCatalog.colors, id: \.self) { color in
+                            Label {
+                                Text(WhereFormat.regionColorAccessibility(color))
+                            } icon: {
+                                Circle().fill(color.color)
+                            }
+                            .tag(color)
+                        }
+                    }
+
+                    Stepper(
+                        String(localized: .cardDesignerDays(previewDays)),
+                        value: $previewDays,
+                        in: 0 ... 366,
+                    )
+                    Stepper(
+                        String(localized: .cardDesignerYear(previewYear)),
+                        value: $previewYear,
+                        in: 1900 ... 2200,
+                    )
+                    Toggle(
+                        String(localized: .cardDesignerApplyToApp),
+                        isOn: $model.appliesToApp,
+                    )
+                } header: {
+                    Text(String(localized: .cardDesignerPreview))
+                } footer: {
+                    Text(String(localized: .cardDesignerApplyFooter))
+                }
+
+                switch variant {
+                    case .regular:
+                        CardDesignerVariantControls(
+                            card: $model.configuration.regular,
+                            reset: { model.reset($0, variant: .regular) },
+                        )
+                    case .compact:
+                        CardDesignerVariantControls(
+                            card: $model.configuration.compact,
+                            reset: { model.reset($0, variant: .compact) },
+                        )
+                }
+
+                CardDesignerSharedControls(
+                    shared: $model.configuration.shared,
+                    reset: model.resetShared,
+                )
+                CardDesignerExportSection(configuration: model.configuration)
+            }
+        }
+
+        /// The chrome-free form used by full-content snapshots.
+        var snapshotContent: some View {
+            controls
+        }
     }
 
     extension CardDesignerStudioView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            whereSnapshot(name: "Default", configurations: .phoneLightDark) {
-                NavigationStack {
-                    CardDesignerStudioView(
-                        model: CardDesignerModel(configuration: .standard),
-                    )
-                }
+            whereSnapshot(name: "Default", configurations: .fullContentPhoneLightDark) {
+                CardDesignerStudioView(
+                    model: CardDesignerModel(configuration: .standard),
+                )
+                .snapshotContent
             }
         }
     }

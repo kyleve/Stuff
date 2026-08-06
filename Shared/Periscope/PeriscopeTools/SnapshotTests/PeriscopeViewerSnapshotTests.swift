@@ -1,6 +1,6 @@
 import Foundation
 @_spi(Testing) import PeriscopeCore
-import PeriscopeTools
+@testable import PeriscopeTools
 import SnapshotKitTesting
 import SwiftUI
 import Testing
@@ -12,14 +12,17 @@ import Testing
 struct PeriscopeViewerSnapshotTests {
     @Test func periscopeViewer() async throws {
         let store = try await Self.frozenStore()
-        let viewer = NavigationStack {
-            PeriscopeViewer(store: store, title: "Logs")
-        }
+        let viewer = PeriscopeViewer(
+            store: store,
+            title: "Logs",
+            defaults: .standard,
+            includesChrome: false,
+        )
         await assertSnapshots(
             of: viewer,
             named: "PeriscopeViewer",
             configurations: SnapshotConfiguration.combinations(
-                devices: [.iPhone],
+                devices: [.iPhoneFullContent],
                 colorSchemes: [.light, .dark],
             ),
         )

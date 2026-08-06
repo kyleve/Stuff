@@ -192,7 +192,10 @@ private func renderSnapshotImageLocked(
         }
 
         let captureViewController: UIViewController = isAccessibility
-            ? AccessibilitySnapshotViewController(wrapping: viewController)
+            ? AccessibilitySnapshotViewController(
+                wrapping: viewController,
+                ownsContent: viewController.view.bounds.height <= window.bounds.height,
+            )
             : viewController
         let wrappingViewController = SnapshotWrappingViewController(captureViewController)
 

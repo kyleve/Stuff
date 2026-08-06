@@ -17,11 +17,16 @@ final class AccessibilitySnapshotViewController: UIViewController {
         return snapshotView
     }
 
-    init(wrapping content: UIViewController) {
+    init(wrapping content: UIViewController, ownsContent: Bool) {
         self.content = content
         super.init(nibName: nil, bundle: nil)
-        addChild(content)
-        content.didMove(toParent: self)
+        if ownsContent {
+            addChild(content)
+            content.didMove(toParent: self)
+        }
+        // AccessibilitySnapshot temporarily hosts oversized contained views in
+        // its own renderer. Those controllers stay unparented so that re-hosting
+        // does not violate UIKit containment for tall, full-content captures.
     }
 
     @available(*, unavailable)

@@ -94,10 +94,8 @@ private struct StintRow: View {
 #if DEBUG
     extension PresenceTimelineList: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            whereSnapshot(name: "WithData", configurations: .screenDefaults) {
-                NavigationStack {
-                    PresenceTimelineList(report: PreviewSupport.loadedYearReportModel())
-                }
+            whereSnapshot(name: "WithData", configurations: .fullContentScreenDefaults) {
+                PresenceTimelineList(report: PreviewSupport.loadedYearReportModel())
             }
         }
     }

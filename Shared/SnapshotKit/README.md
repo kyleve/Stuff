@@ -31,6 +31,12 @@ capture + comparison pipeline lives in the sibling
 - **`combinations(...)` + presets** (`.componentDefaults`, `.screenDefaults`,
   `.fullContentScreenDefaults`) — expand a terse declaration into the full
   matrix.
+- **Full-content frames** (`.iPhoneFullContent`, `.iPadFullContent`, and
+  `.fullContent(name:width:)`) — capture the settled intrinsic height of
+  scrolling content, including UIKit-backed SwiftUI `List` and `Form`
+  containers. Pass the scrollable content itself rather than greedy navigation,
+  tab, or sheet chrome; fixed-height device frames are for non-scrolling
+  subjects.
 - **`SnapshotProviding`** — a type declares its variants via
   `static var snapshots: [SnapshotCase]`.
 - **`SnapshotCase`** — a named group of configurations plus a lazy content

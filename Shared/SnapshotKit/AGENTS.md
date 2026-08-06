@@ -44,6 +44,12 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
   `SnapshotCaptureFlag.swift`; don't simplify it to a plain `@Entry`.
 - **Design-system-agnostic.** SnapshotKit never imports Broadway/WhereUI; the
   Broadway root wrap is a consumer concern (`WhereUI`'s `whereSnapshot(...)`).
+- **Scrollable subjects use full-content frames.** A snapshot containing a
+  `ScrollView`, `List`, `Form`, or equivalent UIKit-backed scroller uses
+  `.fullContentScreenDefaults`, a consumer's matching compact preset, or an
+  explicit `.fullContent` frame. Pass the shared scrollable content without a
+  greedy `NavigationStack`, tab, or sheet wrapper so its settled content height
+  can be measured; fixed device frames are for non-scrolling subjects.
 
 ## Testing
 

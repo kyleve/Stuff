@@ -139,20 +139,28 @@ struct RecentActivitySummaryView: View {
             .padding()
         }
     }
+
+    #if DEBUG
+        /// The chrome-free state content used by full-content snapshots.
+        var snapshotContent: some View {
+            content
+                .background(Color(.systemBackground))
+        }
+    #endif
 }
 
 #if DEBUG
     extension RecentActivitySummaryView: SnapshotProviding {
-        // A NavigationStack + ScrollView sheet is a screen, not an intrinsic
-        // component: greedy containers have no meaningful `sizeThatFits`, so
-        // intrinsic sizing would measure just the pinned window picker.
+        /// Capture the full settled scroll content; fixed viewport coverage is
+        /// reserved for non-scrolling subjects.
         static var snapshots: [SnapshotCase] {
-            whereSnapshot(name: "Loaded", configurations: .screenDefaults) {
+            whereSnapshot(name: "Loaded", configurations: .fullContentScreenDefaults) {
                 RecentActivitySummaryView(
                     model: PreviewSupport.recentActivityModel(
                         state: .loaded("You were in California, then New York."),
                     ),
                 )
+                .snapshotContent
             }
             whereSnapshot(name: "Empty", configurations: .phoneLightDark) {
                 RecentActivitySummaryView(model: PreviewSupport.recentActivityModel(state: .empty))

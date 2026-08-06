@@ -262,32 +262,24 @@ public struct RootView: View {
 
 #if DEBUG
     extension RootView: SnapshotProviding {
-        /// The logged-in root is multi-phase async work — splash → launch steps →
-        /// `.ready` → `MainTabs` activation → glass-material adaptation — and
-        /// every phase is pixel-quiet under capture (motion frozen, animations
-        /// disabled), so pixel stability alone can bake *any* intermediate phase
-        /// on a slow runner (CI captured the splash and the pre-activation tabs).
-        ///
-        /// The pre-capture hook awaits the launcher's drive — `run()` is
-        /// idempotent and awaits the in-flight drive, a deterministic "reached
-        /// `.ready`" signal — so the raised settle floor only has to outlast the
-        /// post-ready tail: `MainTabs`' `.task` activation (empty-store re-pull +
-        /// Resolve badge) and the iOS 26 glass toolbar/tab bar material
-        /// adaptation, which starts quiet a few hundred ms after the chrome
-        /// hosts. Those have no reachable completion signal (the scene's report
-        /// model is private to `MainTabs`; the adaptation has no public
-        /// notification), hence the generous floor — see the flakiness ledger in
-        /// `Where/TODOs.md`.
+        /// Capture the logged-in destination directly: `LifecycleContainer` is
+        /// greedy launch chrome, while `MainTabs` owns the scroll-backed content
+        /// this case pins. The settle floor still outlasts tab-bar material
+        /// adaptation and `MainTabs`' initial report activation.
         public static var snapshots: [SnapshotCase] {
-            let model = PreviewSupport.loadedModel()
-            let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
+            let session = PreviewSupport.loadedSession()
             whereSnapshot(
                 name: "LoggedIn",
-                configurations: .phoneLightDark,
+                configurations: .fullContentPhoneLightDark,
                 settle: .settledAtLeast(minDuration: 1.5),
-                onReadyToSnapshot: { await launcher.run() },
             ) {
-                RootView(model: model, launcher: launcher)
+                MainTabs(
+                    session: session,
+                    initialReport: PreviewSupport.sampleReport(),
+                    selectedYear: PreviewSupport.year,
+                )
+                .snapshotContent
+                .environment(session)
             }
         }
     }
