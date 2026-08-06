@@ -596,6 +596,7 @@ private struct DayCell: View {
                     focusedRegion: .newYork,
                     report: PreviewSupport.plannedStayYearReportModel(),
                 )
+                .background(Color(.systemBackground))
             }
             // The shown months in one image. The full-content frame measures the
             // scroll view's content height, so every lazy month materializes and
@@ -609,6 +610,7 @@ private struct DayCell: View {
                 ],
             ) {
                 CalendarContentView(report: PreviewSupport.loadedYearReportModel())
+                    .background(Color(.systemBackground))
             }
         }
     }

@@ -107,12 +107,20 @@ struct PlannedStayEditor: View {
                     region: .newYork,
                     model: PreviewSupport.loadedYearReportModel().forecasts,
                 )
+                .background {
+                    Color(.systemBackground)
+                        .ignoresSafeArea()
+                }
             }
             whereSnapshot(name: "ExistingPlan", configurations: .phoneLightDark) {
                 PlannedStayEditor(
                     region: .newYork,
                     model: PreviewSupport.plannedStayYearReportModel().forecasts,
                 )
+                .background {
+                    Color(.systemBackground)
+                        .ignoresSafeArea()
+                }
             }
         }
     }
