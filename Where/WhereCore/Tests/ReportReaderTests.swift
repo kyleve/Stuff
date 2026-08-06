@@ -81,6 +81,38 @@ struct ReportReaderTests {
         #expect(representative[.california] != nil)
     }
 
+    @Test func locationsReadSeveralRegionsAndOnlyTheRequestedYear() async throws {
+        let (reader, store) = try Self.makeReader()
+        try await store.perform {
+            try await store.add(sample: LocationSample(
+                timestamp: WhereCoreTestSupport.iso("2026-03-15T12:00:00-07:00"),
+                coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
+                horizontalAccuracy: 15,
+                source: .gpsSignificantChange,
+            ))
+            try await store.add(sample: LocationSample(
+                timestamp: WhereCoreTestSupport.iso("2026-04-15T12:00:00-04:00"),
+                coordinate: Coordinate(latitude: 40.7128, longitude: -74.0060),
+                horizontalAccuracy: 25,
+                source: .gpsSignificantChange,
+            ))
+            try await store.add(sample: LocationSample(
+                timestamp: WhereCoreTestSupport.iso("2025-04-15T12:00:00-04:00"),
+                coordinate: Coordinate(latitude: 40.7128, longitude: -74.0060),
+                horizontalAccuracy: 35,
+                source: .gpsSignificantChange,
+            ))
+        }
+
+        let locations = try await reader.locations(
+            in: [.california, .newYork],
+            year: 2026,
+        )
+
+        #expect(locations[.california]?.flatMap(\.points).map(\.horizontalAccuracy) == [15])
+        #expect(locations[.newYork]?.flatMap(\.points).map(\.horizontalAccuracy) == [25])
+    }
+
     /// The scan's one-read bundle: `report`, `.other` day coordinates, and the
     /// GPS `daySamples` all come from a single year-samples read and stay
     /// consistent — and the GPS-only `daySamples` drops a manual coordinate.

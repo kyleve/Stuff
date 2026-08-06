@@ -228,9 +228,13 @@ the seal inside the circular entry stamp. A separate micro path is repeated as
 a tangent-aligned microprint border around the card's inner perimeter. The UI
 cache derives all four resolutions from RegionKit's one cached source outline
 using its stateless simplifier; compact cards retain the simpler symbol
-treatment. Security-print layers use normal compositing in light mode and
-Screen in dark mode, so the same tinted details darken pale glass but lighten
-dark glass.
+treatment. On the two large Locations cards, raw GPS fixes for the selected
+year are projected through that same geometry and reduced to a clipped,
+static constellation of glowing pinpricks; manually logged days add no invented
+points. Security-print layers use normal compositing in light mode and Screen
+in dark mode, so the same tinted details darken pale glass but lighten dark
+glass. Reduce Transparency removes the constellation halos while retaining the
+crisp centers.
 Live tilt is observed only by the sheen overlay, so its 60 Hz updates do not
 invalidate the card's text or Canvas artwork. The card adds no standalone edge
 stroke; its containing Liquid Glass surface owns the subtle outer border so

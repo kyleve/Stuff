@@ -61,8 +61,10 @@ one it belongs to rather than to a god-object:
 ### Reads & aggregation
 
 - **`ReportReader`** — the pure read path: `yearReport(for:)`, the year's raw
-  manual entries `manualDays(inYear:)`, per-region `locations(in:year:)`, and
-  `representativeCoordinates(for:)`.
+  manual entries `manualDays(inYear:)`, single- or multi-region
+  `locations(in:year:)` projections, and `representativeCoordinates(for:)`.
+  The multi-region form reads and attributes the year's samples once for
+  surfaces such as the Locations card constellations.
 - **`YearReport` / `DayPresence` / `RegionDayLocations`** — the aggregated,
   snapshot-stable value types the UI renders, each keyed by a
   timezone-independent **`CalendarDay`** (`DayPresence.day`). A day counts for a

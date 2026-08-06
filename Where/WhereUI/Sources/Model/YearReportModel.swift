@@ -86,6 +86,12 @@ public final class YearReportModel {
     /// is ever materialized.
     public private(set) var dataIssueCount = 0
 
+    #if DEBUG
+        /// Deterministic raw-location projection for previews and image tests.
+        /// Production reads always leave this `nil` and use `ReportReader`.
+        @ObservationIgnored private var testingLocations: [Region: [RegionDayLocations]]?
+    #endif
+
     /// The services every read/write funnels through. Exposed so sibling
     /// view-scoped models can be built from the injected `report`.
     let services: WhereServices
@@ -458,17 +464,32 @@ public final class YearReportModel {
     /// returns empty on failure — the view renders nothing, but the failure still
     /// surfaces in the log rather than passing silently as "no locations".
     public func locations(in region: Region) async -> [RegionDayLocations] {
+        await locations(in: [region])[region] ?? []
+    }
+
+    /// The raw coordinates recorded inside several regions during the selected
+    /// year. The bulk read attributes the year's samples once for the Locations
+    /// cards instead of repeating the same work per region.
+    public func locations(
+        in regions: Set<Region>,
+    ) async -> [Region: [RegionDayLocations]] {
+        #if DEBUG
+            if let testingLocations {
+                return testingLocations.filter { regions.contains($0.key) }
+            }
+        #endif
         do {
-            return try await services.reports.locations(in: region, year: selectedYear)
+            return try await services.reports.locations(in: regions, year: selectedYear)
         } catch {
+            let regionIDs = regions.map(\.rawValue).sorted().joined(separator: ",")
             Self.logger {
                 .locationsLoadFailed(
-                    region: region.rawValue,
+                    region: regionIDs,
                     year: selectedYear,
                     description: error.localizedDescription,
                 )
             }
-            return []
+            return [:]
         }
     }
 
@@ -513,6 +534,12 @@ public final class YearReportModel {
         /// Inject a badge count for previews/tests without seeding raw samples.
         public func setDataIssueCount(_ count: Int) {
             dataIssueCount = count
+        }
+
+        /// Inject raw region locations for deterministic previews/tests without
+        /// asynchronously seeding a SwiftData store.
+        public func setLocations(_ locations: [Region: [RegionDayLocations]]) {
+            testingLocations = locations
         }
     }
 #endif

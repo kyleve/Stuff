@@ -48,6 +48,7 @@ struct WhereStylesheet: BStylesheet {
         if traits.accessibility.isReduceTransparencyEnabled {
             card.regular.glow.radius = 0
             card.compact.glow.radius = 0
+            card.constellation.haloOpacity = 0
         }
 
         // Reduce Motion stops the cards' day count rolling its digits; it
@@ -528,6 +529,30 @@ extension WhereStylesheet {
         /// How the day count changes while the card is on screen; resolves to
         /// ``DayCountStyle/reducedMotion`` under Reduce Motion.
         var dayCount: DayCountStyle
+        /// Static GPS pinpricks plotted inside the regular card's region
+        /// watermark. Point selection and drawing geometry travel together so
+        /// accessibility slicing cannot leave half a glow treatment behind.
+        var constellation: Constellation
+
+        struct Constellation: Equatable {
+            var gridResolution: Int
+            var maximumPointCount: Int
+            var coreDiameter: CGFloat
+            var coreOpacity: Double
+            var coreWhiteMix: Double
+            var haloRadius: CGFloat
+            var haloOpacity: Double
+
+            static let standard = Constellation(
+                gridResolution: 48,
+                maximumPointCount: 96,
+                coreDiameter: 2.5,
+                coreOpacity: 0.92,
+                coreWhiteMix: 0.72,
+                haloRadius: 6,
+                haloOpacity: 0.32,
+            )
+        }
 
         /// Fill opacity of the bold and faint security-print rosettes.
         struct RosetteFill: Equatable {
@@ -733,6 +758,7 @@ extension WhereStylesheet {
             rosetteFill: RosetteFill(primary: 0.12, secondary: 0.08),
             securityPrint: .standard,
             dayCount: .standard,
+            constellation: .standard,
         )
     }
 }

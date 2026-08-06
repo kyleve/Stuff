@@ -43,6 +43,15 @@ struct RegionSummaryCard: View {
     /// other caller leaves it `nil` and gets the resolved look.
     var styleOverride: RegionStyle?
 
+    /// Raw recorded fixes for the region's selected year. Locations cards pass
+    /// these in; every other card keeps the empty zero-value treatment.
+    var recordedPoints: [RegionDayPoint] = []
+
+    /// Changes whenever the caller replaces `recordedPoints`, restarting the
+    /// async projection without making SwiftUI compare a year's raw fixes from
+    /// every `body` evaluation.
+    var recordedPointsRevision = 0
+
     /// Loaded once per regular card from the root-owned UI path cache. The large
     /// watermark uses medium fidelity, the stamp uses small, and the repeated
     /// border uses micro.
@@ -102,6 +111,7 @@ struct RegionSummaryCard: View {
             region: regionDays.region,
             variant: variant,
             isEnabled: card.regionShape != nil,
+            recordedPointsRevision: recordedPointsRevision,
         )
     }
 
@@ -170,6 +180,8 @@ struct RegionSummaryCard: View {
                     path: regionPath,
                     tint: tint,
                     style: regionShape.watermark,
+                    constellationPoints: regionPaths?.constellation ?? [],
+                    constellationStyle: cardStyles.constellation,
                 )
             } else {
                 Image(systemName: style.symbolName)
@@ -201,13 +213,29 @@ struct RegionSummaryCard: View {
             for: regionDays.region,
             resolution: .micro,
         )
-        let (watermarkPath, stampPath, microprintPath) = await (watermark, stamp, microprint)
+        async let projectedPoints = regionOutlinePathCache.projectedPoints(
+            for: regionDays.region,
+            points: recordedPoints,
+        )
+        let (watermarkPath, stampPath, microprintPath, projected) = await (
+            watermark,
+            stamp,
+            microprint,
+            projectedPoints,
+        )
+        guard Task.isCancelled == false else { return }
+        let constellation = cardStyles.constellation
         let loaded = RegionArtworkPaths(
             watermark: watermarkPath,
             stamp: stampPath,
             microprint: microprintPath,
+            constellation: RegionLocationConstellationLayout.selectedPoints(
+                from: projected,
+                inside: watermarkPath,
+                gridResolution: constellation.gridResolution,
+                maximumCount: constellation.maximumPointCount,
+            ),
         )
-        guard !Task.isCancelled else { return }
         regionPaths = loaded
     }
 
@@ -317,6 +345,7 @@ struct RegionArtworkLoadID: Equatable {
     let region: Region
     let variant: WhereStylesheet.CardStyle.Variant
     let isEnabled: Bool
+    let recordedPointsRevision: Int
 }
 
 /// A circular rubber-stamp impression — double ring, centered region glyph and
@@ -394,6 +423,7 @@ private struct RegionArtworkPaths {
     let watermark: Path
     let stamp: Path
     let microprint: Path
+    let constellation: [RegionLocationConstellationLayout.Point]
 }
 
 /// Lays out `text` along the upper arc of a circle of the given `radius`,

@@ -49,8 +49,9 @@ and testing conventions live in the feature [`Where/AGENTS.md`](../AGENTS.md)
   `RegionOutlinePathCache`: RegionKit owns the cached source outlines and its
   stateless simplifier, while WhereUI chooses full/medium/small/micro
   tolerances and caches the resulting SwiftUI `Path`s; use the small path for
-  the stamp and the micro path for the repeated border, and never project or
-  simplify a boundary in a card's `body`.
+  the stamp and the micro path for the repeated border. Project Locations-card
+  GPS points through the cache's shared `RegionArtworkProjection`, and never
+  project, simplify, or spatially reduce artwork in a card's `body`.
 - Continuous/looping motion (repeat-forever pulses, `TimelineView(.animation)`,
   typewriter reveals) must consult the shared `@MotionIsStatic` helper
   ([`Sources/Shared/MotionIsStatic.swift`](Sources/Shared/MotionIsStatic.swift))

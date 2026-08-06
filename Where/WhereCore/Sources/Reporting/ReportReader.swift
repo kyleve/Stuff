@@ -90,10 +90,21 @@ public struct ReportReader: Sendable {
     /// day, so the Elsewhere drill-in can map and name where you actually were.
     /// Manual overlays don't contribute coordinates (see `DayAggregator`).
     public func locations(in region: Region, year: Int) async throws -> [RegionDayLocations] {
+        try await locations(in: [region], year: year)[region] ?? []
+    }
+
+    /// The raw coordinates recorded inside several regions during `year`,
+    /// grouped by region and day. Reads and attributes the year's samples once,
+    /// so a surface such as Locations can populate several pieces of artwork
+    /// without repeating the store read for every region.
+    public func locations(
+        in regions: Set<Region>,
+        year: Int,
+    ) async throws -> [Region: [RegionDayLocations]] {
         try await Self.logger.measure(.regionLocations, budget: .seconds(1)) {
             let interval = aggregator.yearInterval(year: year)
             let samples = try await store.samples(in: interval)
-            return aggregator.locations(in: region, samples: samples, attributor: attributor)
+            return aggregator.locations(in: regions, samples: samples, attributor: attributor)
         }
     }
 

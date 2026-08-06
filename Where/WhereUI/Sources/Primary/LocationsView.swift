@@ -14,6 +14,7 @@ struct LocationsView: View {
     @State private var showingResolution = false
     @State private var isCardSurfaceVisible = false
     @State private var dayCountPresentation: LocationDayCountPresentationModel
+    @State private var primaryLocations = PrimaryRegionLocationModel()
 
     /// Drives the region cards' tilt-reactive light sheen. Started/stopped
     /// with the view's lifecycle; a no-op on hardware without device motion.
@@ -124,6 +125,8 @@ struct LocationsView: View {
                                 yearLength: report.daysInSelectedYear,
                                 year: report.selectedYear,
                                 tilt: tilt,
+                                recordedPoints: primaryLocations.pointsByRegion[item.region] ?? [],
+                                recordedPointsRevision: primaryLocations.revision,
                             )
                         }
                         // Plain so the card's interactive Liquid Glass owns
@@ -195,6 +198,12 @@ struct LocationsView: View {
             .impact(weight: .light),
             trigger: dayCountPresentation.feedbackTrigger,
         )
+        .task(id: report.report) {
+            await primaryLocations.load(
+                regions: report.ranking.primary.map(\.region),
+                from: report,
+            )
+        }
     }
 
     /// The region's calendar, pushed as a nested view. It's the zoom
