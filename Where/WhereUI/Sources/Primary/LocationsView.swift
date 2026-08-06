@@ -197,13 +197,6 @@ struct LocationsView: View {
         )
     }
 
-    #if DEBUG
-        /// The chrome-free state content used by intrinsic-height snapshots.
-        var snapshotContent: some View {
-            screen
-        }
-    #endif
-
     /// The region's calendar, pushed as a nested view. It's the zoom
     /// destination: the tapped card expands into it via matched geometry, and the
     /// stack's back gesture collapses it again.
@@ -279,14 +272,12 @@ private struct ResolveToolbarLabel: View {
                 settle: .settledAtLeast(minDuration: 1.0),
             ) {
                 LocationsView(report: PreviewSupport.loadedYearReportModel())
-                    .snapshotContent
             }
             whereSnapshot(name: "Empty", configurations: .phoneLightDark) {
                 LocationsView(report: PreviewSupport.emptyYearReportModel())
             }
             whereSnapshot(name: "MissingDays", configurations: .fullContentPhoneLightDark) {
                 LocationsView(report: PreviewSupport.missingDaysYearReportModel())
-                    .snapshotContent
             }
             whereSnapshot(name: "ElsewhereOnly", configurations: .phoneLightDark) {
                 LocationsView(report: PreviewSupport.elsewhereOnlyYearReportModel())

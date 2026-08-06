@@ -21,10 +21,9 @@ capture + comparison pipeline lives in the sibling
   Frames come in three sizing strategies: fixed device viewports (`.iPhone`,
   `.iPad`), the intrinsic `.component` frame, and `.fullContent(name:width:)` —
   fixed width, height measured from the settled content, so the whole
-  scrollable content renders in one image with nothing scrolling. Wrap
-  *content*, not chrome: a greedy container with pinned chrome
-  (`NavigationStack`) has no content-derived ideal height and collapses the
-  measurement to just that chrome. A frame also carries `safeAreaInsets`
+  scrollable content renders in one image with nothing scrolling. Full-width
+  scrolling descendants drive the measured height while preserving surrounding
+  navigation, tab, sheet, search, and toolbar chrome. A frame also carries `safeAreaInsets`
   (default zero, keeping images device-independent); the `.iPhoneNotched`
   preset simulates real device chrome (Dynamic Island top 47pt, home-indicator
   bottom 34pt) for cases that must prove layout under it.
@@ -34,9 +33,8 @@ capture + comparison pipeline lives in the sibling
 - **Full-content frames** (`.iPhoneFullContent`, `.iPadFullContent`, and
   `.fullContent(name:width:)`) — capture the settled intrinsic height of
   scrolling content, including UIKit-backed SwiftUI `List` and `Form`
-  containers. Pass the scrollable content itself rather than greedy navigation,
-  tab, or sheet chrome; fixed-height device frames are for non-scrolling
-  subjects.
+  containers, including when they are nested under production screen chrome;
+  fixed-height device frames are for non-scrolling subjects.
 - **`SnapshotProviding`** — a type declares its variants via
   `static var snapshots: [SnapshotCase]`.
 - **`SnapshotCase`** — a named group of configurations plus a lazy content

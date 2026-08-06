@@ -95,7 +95,9 @@ private struct StintRow: View {
     extension PresenceTimelineList: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
             whereSnapshot(name: "WithData", configurations: .fullContentScreenDefaults) {
-                PresenceTimelineList(report: PreviewSupport.loadedYearReportModel())
+                NavigationStack {
+                    PresenceTimelineList(report: PreviewSupport.loadedYearReportModel())
+                }
             }
         }
     }

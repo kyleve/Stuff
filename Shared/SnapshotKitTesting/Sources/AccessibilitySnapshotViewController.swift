@@ -17,16 +17,11 @@ final class AccessibilitySnapshotViewController: UIViewController {
         return snapshotView
     }
 
-    init(wrapping content: UIViewController, ownsContent: Bool) {
+    init(wrapping content: UIViewController) {
         self.content = content
         super.init(nibName: nil, bundle: nil)
-        if ownsContent {
-            addChild(content)
-            content.didMove(toParent: self)
-        }
-        // AccessibilitySnapshot temporarily hosts oversized contained views in
-        // its own renderer. Those controllers stay unparented so that re-hosting
-        // does not violate UIKit containment for tall, full-content captures.
+        addChild(content)
+        content.didMove(toParent: self)
     }
 
     @available(*, unavailable)
@@ -48,6 +43,15 @@ final class AccessibilitySnapshotViewController: UIViewController {
     /// annotations. Must be called while the view is in the hierarchy. Rendering
     /// failures surface loudly rather than producing a blank image.
     func parseAccessibility() {
+        // AccessibilitySnapshot temporarily moves the contained view into its
+        // renderer. Suspend controller containment around that move, then
+        // restore it before the annotated wrapper is captured.
+        content.willMove(toParent: nil)
+        content.removeFromParent()
+        defer {
+            addChild(content)
+            content.didMove(toParent: self)
+        }
         do {
             try snapshotView.parseAccessibility()
         } catch let ImageRenderingError.containedViewExceedsMaximumSize(viewSize, maximumSize) {

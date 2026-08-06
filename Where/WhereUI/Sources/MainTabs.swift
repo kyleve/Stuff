@@ -82,14 +82,6 @@ struct MainTabs: View {
             }
         }
     }
-
-    #if DEBUG
-        /// The selected tab's chrome-free content for intrinsic-height snapshots.
-        var snapshotContent: some View {
-            LocationsView(report: report)
-                .snapshotContent
-        }
-    #endif
 }
 
 #if DEBUG

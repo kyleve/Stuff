@@ -15,7 +15,6 @@ public struct PeriscopeViewer: View {
     private let store: PeriscopeStore
     private let title: String
     private let defaults: UserDefaults
-    private let includesChrome: Bool
     @State private var model: PeriscopeViewerModel
     @State private var export: NDJSONExport?
     @State private var exportFailed = false
@@ -53,68 +52,56 @@ public struct PeriscopeViewer: View {
     }
 
     public init(store: PeriscopeStore, title: String = "Logs") {
-        self.init(store: store, title: title, defaults: .standard, includesChrome: true)
+        self.init(store: store, title: title, defaults: .standard)
     }
 
-    init(
-        store: PeriscopeStore,
-        title: String,
-        defaults: UserDefaults,
-        includesChrome: Bool = true,
-    ) {
+    init(store: PeriscopeStore, title: String, defaults: UserDefaults) {
         self.store = store
         self.title = title
         self.defaults = defaults
-        self.includesChrome = includesChrome
         _model = State(initialValue: PeriscopeViewerModel(store: store))
         _density = State(initialValue: .load(from: defaults))
     }
 
     public var body: some View {
-        Group {
-            if includesChrome {
-                content
-                    .navigationTitle(title)
-                    .navigationBarTitleDisplayMode(.inline)
-                    .toolbar { toolbarContent }
-                    .navigationDestination(item: $spanDestination) { destination in
-                        switch destination {
-                            case .tree:
-                                SpanTreeView(store: store)
-                            case .history:
-                                SpanHistoryView(store: store)
-                        }
-                    }
-            } else {
-                logsList
+        content
+            .navigationTitle(title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { toolbarContent }
+            .navigationDestination(item: $spanDestination) { destination in
+                switch destination {
+                    case .tree:
+                        SpanTreeView(store: store)
+                    case .history:
+                        SpanHistoryView(store: store)
+                }
             }
-        }
-        .sheet(item: $export) { export in
-            NDJSONExportSheet(export: export)
-        }
-        .alert("Export Failed", isPresented: $exportFailed) {
-            Button("OK", role: .cancel) {}
-        }
-        .environment(\.logRowDensity, density)
-        .onChange(of: density) { _, newValue in
-            newValue.save(to: defaults)
-        }
-        .periscopeBroadwayRoot()
-        // Keyed on the store's identity: swapping stores in place cancels
-        // the old model's live stream and rebinds a fresh model —
-        // `State(initialValue:)` alone would keep serving the first store
-        // forever. Export/navigation/mode state is per-store too: nothing
-        // generated against the old store should survive the swap.
-        .task(id: ObjectIdentifier(store)) {
-            if model.store !== store {
-                model = PeriscopeViewerModel(store: store)
-                export = nil
-                exportFailed = false
-                spanDestination = nil
-                mode = .logs
+            .sheet(item: $export) { export in
+                NDJSONExportSheet(export: export)
             }
-            await model.run()
-        }
+            .alert("Export Failed", isPresented: $exportFailed) {
+                Button("OK", role: .cancel) {}
+            }
+            .environment(\.logRowDensity, density)
+            .onChange(of: density) { _, newValue in
+                newValue.save(to: defaults)
+            }
+            .periscopeBroadwayRoot()
+            // Keyed on the store's identity: swapping stores in place cancels
+            // the old model's live stream and rebinds a fresh model —
+            // `State(initialValue:)` alone would keep serving the first store
+            // forever. Export/navigation/mode state is per-store too: nothing
+            // generated against the old store should survive the swap.
+            .task(id: ObjectIdentifier(store)) {
+                if model.store !== store {
+                    model = PeriscopeViewerModel(store: store)
+                    export = nil
+                    exportFailed = false
+                    spanDestination = nil
+                    mode = .logs
+                }
+                await model.run()
+            }
     }
 
     /// The nav-bar segmented control that switches surfaces, plus the

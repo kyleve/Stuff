@@ -139,14 +139,6 @@ struct RecentActivitySummaryView: View {
             .padding()
         }
     }
-
-    #if DEBUG
-        /// The chrome-free state content used by full-content snapshots.
-        var snapshotContent: some View {
-            content
-                .background(Color(.systemBackground))
-        }
-    #endif
 }
 
 #if DEBUG
@@ -160,7 +152,6 @@ struct RecentActivitySummaryView: View {
                         state: .loaded("You were in California, then New York."),
                     ),
                 )
-                .snapshotContent
             }
             whereSnapshot(name: "Empty", configurations: .phoneLightDark) {
                 RecentActivitySummaryView(model: PreviewSupport.recentActivityModel(state: .empty))

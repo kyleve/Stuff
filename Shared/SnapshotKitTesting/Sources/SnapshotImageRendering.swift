@@ -192,10 +192,7 @@ private func renderSnapshotImageLocked(
         }
 
         let captureViewController: UIViewController = isAccessibility
-            ? AccessibilitySnapshotViewController(
-                wrapping: viewController,
-                ownsContent: viewController.view.bounds.height <= window.bounds.height,
-            )
+            ? AccessibilitySnapshotViewController(wrapping: viewController)
             : viewController
         let wrappingViewController = SnapshotWrappingViewController(captureViewController)
 
@@ -365,7 +362,7 @@ private func resolveContentSize(
         if !measured.height.isFinite || measured.height <= 0 {
             measured.height = 1
         }
-        if let scrollContentHeight = viewController.view.rootScrollContentHeight,
+        if let scrollContentHeight = viewController.view.fullScrollContentHeight,
            scrollContentHeight > measured.height
         {
             measured.height = scrollContentHeight
@@ -394,23 +391,27 @@ private func resolveContentSize(
 }
 
 extension UIView {
-    /// The content height of a scroll view that fills this view, if one exists.
+    /// The root height required to show a full-width scrolling descendant's
+    /// complete content while preserving the chrome around its viewport.
     ///
     /// `Form` and `List` are backed by UIKit scroll views whose hosting view
     /// answers `sizeThatFits` with only the current viewport. Restricting the
-    /// fallback to a root-filling scroll view avoids expanding an intentionally
-    /// fixed-height nested scroller inside an otherwise intrinsic component.
-    fileprivate var rootScrollContentHeight: CGFloat? {
+    /// fallback to full-width scrolling content avoids expanding an intentionally
+    /// narrow nested scroller inside an otherwise intrinsic component.
+    fileprivate var fullScrollContentHeight: CGFloat? {
         descendants
             .compactMap { view -> CGFloat? in
                 guard let scrollView = view as? UIScrollView else { return nil }
                 let visibleFrame = scrollView.convert(scrollView.bounds, to: self)
                 guard visibleFrame.width >= bounds.width - 1,
-                      visibleFrame.height >= bounds.height - 1,
+                      visibleFrame.height > 0,
                       scrollView.contentSize.height.isFinite,
                       scrollView.contentSize.height > 0
                 else { return nil }
-                return scrollView.contentSize.height
+                let chromeHeight = max(bounds.height - visibleFrame.height, 0)
+                let insetHeight = scrollView.adjustedContentInset.top
+                    + scrollView.adjustedContentInset.bottom
+                return scrollView.contentSize.height + insetHeight + chromeHeight
             }
             .max()
     }

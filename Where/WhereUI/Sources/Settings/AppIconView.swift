@@ -13,9 +13,6 @@ struct AppIconView: View {
     @State private var previewMode: ColorScheme = .light
     @State private var appearanceToggles = 0
     @State private var dragOffset: CGFloat = 0
-    #if DEBUG
-        @State private var snapshotContainerWidth: CGFloat = 402
-    #endif
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dismiss) private var dismiss
     @Environment(\.stylesheet) private var stylesheet
@@ -310,19 +307,6 @@ struct AppIconImage: View {
 }
 
 #if DEBUG
-    extension AppIconView {
-        /// The shared icon grid without the sheet's greedy navigation and geometry chrome.
-        var snapshotContent: some View {
-            grids(metrics: AppIconLayout.gridMetrics(
-                containerWidth: snapshotContainerWidth,
-                style: appIcon,
-            ))
-            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: {
-                snapshotContainerWidth = $0
-            }
-        }
-    }
-
     extension AppIconView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
             whereSnapshot(
@@ -330,8 +314,7 @@ struct AppIconImage: View {
                 configurations: .fullContentScreenDefaults,
                 settle: .immediate,
             ) {
-                AppIconView(model: .preview())
-                    .snapshotContent
+                NavigationStack { AppIconView(model: .preview()) }
             }
         }
     }

@@ -93,6 +93,61 @@ struct LargeViewCaptureTests {
         #expect(sample.bottom.blue > 0.5)
     }
 
+    @Test func preservesChromeAroundFullContentScrollingContent() async throws {
+        try waitFor { hostKeyWindow() != nil }
+        let screen = NavigationStack {
+            ScrollView {
+                VStack(spacing: 0) {
+                    Color.red.frame(height: 1500)
+                    Color.blue.frame(height: 1500)
+                }
+            }
+            .safeAreaInset(edge: .bottom) {
+                Text("Bottom toolbar")
+                    .frame(maxWidth: .infinity, minHeight: 50)
+                    .background(.regularMaterial)
+            }
+            .navigationTitle("Full Content")
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button("Add", systemImage: "plus", action: {})
+                }
+            }
+        }
+        let host = UIHostingController(rootView: screen)
+        host.view.frame = CGRect(x: 0, y: 0, width: 402, height: 1)
+        let image = await renderSnapshotImage(
+            of: host,
+            named: "full-content-navigation-probe",
+            sizing: .intrinsic(width: 402),
+            safeAreaInsets: .zero,
+        )
+        #expect(image.size.height >= 3050)
+    }
+
+    @Test func annotatesTallFullContentAccessibilitySnapshots() async throws {
+        try waitFor { hostKeyWindow() != nil }
+        let screen = ScrollView {
+            VStack {
+                ForEach(0 ..< 30, id: \.self) { index in
+                    Text("Accessible row \(index)")
+                        .frame(maxWidth: .infinity, minHeight: 100)
+                }
+            }
+        }
+        let host = UIHostingController(rootView: screen)
+        host.view.frame = CGRect(x: 0, y: 0, width: 402, height: 1)
+        let image = await renderSnapshotImage(
+            of: host,
+            named: "full-content-accessibility-probe",
+            sizing: .intrinsic(width: 402),
+            safeAreaInsets: .zero,
+            isAccessibility: true,
+        )
+        #expect(image.size.height > 3000)
+        #expect(image.size.width > 402)
+    }
+
     private func renderTwoTone(height: CGFloat) async throws -> TwoToneSample {
         try waitFor { hostKeyWindow() != nil }
         let half = height / 2
