@@ -5308,6 +5308,30 @@
         }
       }
     },
+    "settings.about.source.action" : {
+      "comment" : "Action text in the About screen's open-source footer.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Explore the project on GitHub."
+          }
+        }
+      }
+    },
+    "settings.about.source.title" : {
+      "comment" : "Headline in the About screen's open-source footer.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Where is open source."
+          }
+        }
+      }
+    },
     "settings.about.value.unknown" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5826,7 +5850,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "license, licenses, open source, credits, acknowledgements, libraries, dependencies, third party"
+            "value" : "license, licenses, open source, credits, acknowledgements, libraries, dependencies, third party, github, source code, repository"
           }
         }
       }

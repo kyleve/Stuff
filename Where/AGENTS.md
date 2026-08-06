@@ -192,7 +192,8 @@ The About screen renders three live sources — the generated attribution
 report (`WhereCore.AppAttribution`), `RegionDataSource`, and `BuildInfo` —
 never a list hard-coded in the view. A missing report or unstamped build
 renders an honest empty state, and shipped libraries stay a separate section
-from development tools. Design and rationale: PR #140.
+from development tools; keep its final passport sign-off linked to the public
+project repository. Design and rationale: PR #140.
 
 ## Localization
 
