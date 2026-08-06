@@ -395,17 +395,6 @@
                 calendar.date(from: DateComponents(year: year, month: month, day: dayOfMonth))!
             }
             return [
-                DayPresence(date: day(1, 6), in: calendar, regions: [.california]),
-                DayPresence(
-                    date: day(3, 14),
-                    in: calendar,
-                    regions: [.newYork],
-                    audit: ManualEntryAudit(
-                        recordedAt: day(3, 15),
-                        note: "Backfilled a trip the GPS missed.",
-                        location: nil,
-                    ),
-                ),
                 DayPresence(
                     date: day(6, 2),
                     in: calendar,
@@ -421,6 +410,17 @@
                         ),
                     ),
                 ),
+                DayPresence(
+                    date: day(3, 14),
+                    in: calendar,
+                    regions: [.newYork],
+                    audit: ManualEntryAudit(
+                        recordedAt: day(3, 15),
+                        note: "Backfilled a trip the GPS missed.",
+                        location: nil,
+                    ),
+                ),
+                DayPresence(date: day(1, 6), in: calendar, regions: [.california]),
             ]
         }
 
