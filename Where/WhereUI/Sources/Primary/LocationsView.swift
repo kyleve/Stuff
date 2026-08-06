@@ -185,10 +185,19 @@ struct LocationsView: View {
         // so a covering sheet cannot consume their baseline behind itself.
         .task(id: dayCountReconciliationID) {
             let reconciliation = dayCountReconciliationID
+            guard reconciliation.isVisible else { return }
+            do {
+                try await Task.sleep(for: stylesheet.card.dayCount.revealDelay)
+            } catch is CancellationError {
+                return
+            } catch {
+                assertionFailure("Unexpected day-count reveal delay failure: \(error)")
+                return
+            }
             dayCountPresentation.reconcile(
                 reconciliation.counts,
                 in: reconciliation.year,
-                isVisible: reconciliation.isVisible,
+                isVisible: true,
             )
         }
         .sensoryFeedback(
