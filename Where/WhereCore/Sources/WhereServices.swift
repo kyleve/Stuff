@@ -185,7 +185,7 @@ public struct WhereServices: Sendable {
         // publish) rather than duplicating that fan-out.
         let backup = BackupCoordinator(
             store: store,
-            onImport: { await journal.reconcileAfterDayChange() },
+            onImport: { await journal.reconcileAfterDayDataChange() },
         )
         let recentActivity = RecentActivitySummarizer(
             store: store,

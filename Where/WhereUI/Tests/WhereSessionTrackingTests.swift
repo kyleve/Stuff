@@ -111,9 +111,7 @@ struct WhereSessionTrackingTests {
         await source.resumeStart()
         await inFlightStart.value
 
-        withKnownIssue("The TLA+ pilot reproduces the stale publication after start resumes") {
-            #expect(session.isTracking == false)
-        }
+        #expect(session.isTracking == false)
     }
 
     @Test func grantingLaterStartsTrackingViaLiveUpdates() async throws {
