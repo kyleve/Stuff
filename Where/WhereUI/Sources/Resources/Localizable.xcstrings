@@ -6028,6 +6028,30 @@
         }
       }
     },
+    "settings.privacy.detail" : {
+      "comment" : "Detail in the privacy passport card shown at the top of Data and About settings.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Your location history stays on your devices and in your private iCloud account. Where sends no data to anyone."
+          }
+        }
+      }
+    },
+    "settings.privacy.title" : {
+      "comment" : "Headline in the privacy passport card shown at the top of Data and About settings.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Private by design"
+          }
+        }
+      }
+    },
     "settings.regions.empty" : {
       "extractionState" : "manual",
       "localizations" : {
