@@ -25,6 +25,20 @@ struct LargeViewCaptureTests {
         #expect(sample.bottom.blue > 0.5)
     }
 
+    @Test func contentMeasuredSizingRetainsItsMinimumHeight() async throws {
+        try waitFor { hostKeyWindow() != nil }
+        let view = Color.red.frame(width: 402, height: 100)
+        let host = UIHostingController(rootView: view)
+        host.view.frame = CGRect(x: 0, y: 0, width: 402, height: 1)
+        let image = await renderSnapshotImage(
+            of: host,
+            named: "full-content-minimum-height-probe",
+            sizing: .intrinsic(width: 402, minimumHeight: 874),
+            safeAreaInsets: .zero,
+        )
+        #expect(image.size.height == 874)
+    }
+
     @Test func capturesAViewTallerThanTheTileLimit() async throws {
         let sample = try await renderTwoTone(height: 3000)
         #expect(sample.size.height == 3000)
@@ -48,7 +62,7 @@ struct LargeViewCaptureTests {
         let image = await renderSnapshotImage(
             of: host,
             named: "full-content-scroll-probe",
-            sizing: .intrinsic(width: 402),
+            sizing: .intrinsic(width: 402, minimumHeight: 0),
             safeAreaInsets: .zero,
         )
         let sample = TwoToneSample(
@@ -80,7 +94,7 @@ struct LargeViewCaptureTests {
         let image = await renderSnapshotImage(
             of: host,
             named: "full-content-form-probe",
-            sizing: .intrinsic(width: 402),
+            sizing: .intrinsic(width: 402, minimumHeight: 0),
             safeAreaInsets: .zero,
         )
         let sample = TwoToneSample(
@@ -119,7 +133,7 @@ struct LargeViewCaptureTests {
         let image = await renderSnapshotImage(
             of: host,
             named: "full-content-navigation-probe",
-            sizing: .intrinsic(width: 402),
+            sizing: .intrinsic(width: 402, minimumHeight: 0),
             safeAreaInsets: .zero,
         )
         #expect(image.size.height >= 3050)
@@ -140,7 +154,7 @@ struct LargeViewCaptureTests {
         let image = await renderSnapshotImage(
             of: host,
             named: "full-content-accessibility-probe",
-            sizing: .intrinsic(width: 402),
+            sizing: .intrinsic(width: 402, minimumHeight: 0),
             safeAreaInsets: .zero,
             isAccessibility: true,
         )

@@ -25,8 +25,8 @@ public enum SnapshotSizing: Sendable {
     case fixed
     /// Size to fit the content at a fixed width, measured *after* the content is
     /// in the window and settled (so async `.task` loads are included, not a
-    /// placeholder).
-    case intrinsic(width: CGFloat)
+    /// placeholder), while retaining the requested minimum height.
+    case intrinsic(width: CGFloat, minimumHeight: CGFloat)
 }
 
 /// Renders a view controller to an image on the fixed CI simulator.
@@ -311,10 +311,10 @@ private func removeChildAfterCapture(_ child: UIViewController) {
 /// appearance lifecycle driven (so SwiftUI `.task` loads and finite time-based
 /// reveals run), lets it settle, then measures `sizeThatFits` and pins the frame —
 /// so a content-loading component is sized to its loaded content rather than an
-/// empty placeholder. UIKit-backed SwiftUI containers such as `Form` report
-/// their viewport rather than their ideal height, so a root-filling scroll view's
-/// content size is used when it is taller. `.fixed` sizing leaves the frame
-/// untouched.
+/// empty placeholder. The result never falls below the requested minimum
+/// height. UIKit-backed SwiftUI containers such as `Form` report their viewport
+/// rather than their ideal height, so a full-width scroll descendant's content
+/// size is used when it is taller. `.fixed` sizing leaves the frame untouched.
 ///
 /// The measurement iterates to a fixed point: a lazy container (`LazyVStack` in
 /// a `ScrollView`) reports an *estimated* content height until its rows
@@ -339,7 +339,7 @@ private func resolveContentSize(
     window: UIWindow,
     timing: SnapshotCaptureTiming,
 ) async {
-    guard case let .intrinsic(width) = sizing else { return }
+    guard case let .intrinsic(width, minimumHeight) = sizing else { return }
 
     let probeHeight = max(window.bounds.height, 1)
     viewController.view.frame = CGRect(x: 0, y: 0, width: width, height: probeHeight)
@@ -367,6 +367,7 @@ private func resolveContentSize(
         {
             measured.height = scrollContentHeight
         }
+        measured.height = max(measured.height, minimumHeight)
         return measured
     }
 

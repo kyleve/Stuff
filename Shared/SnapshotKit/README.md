@@ -23,18 +23,23 @@ capture + comparison pipeline lives in the sibling
   fixed width, height measured from the settled content, so the whole
   scrollable content renders in one image with nothing scrolling. Full-width
   scrolling descendants drive the measured height while preserving surrounding
-  navigation, tab, sheet, search, and toolbar chrome. A frame also carries `safeAreaInsets`
-  (default zero, keeping images device-independent); the `.iPhoneNotched`
-  preset simulates real device chrome (Dynamic Island top 47pt, home-indicator
-  bottom 34pt) for cases that must prove layout under it.
+  navigation, tab, sheet, search, and toolbar chrome. The iPhone/iPad
+  full-content presets retain their normal viewport height as a minimum and
+  grow when content is taller; custom full-content frames shrink-wrap unless
+  given a minimum. A frame also carries `safeAreaInsets` (default zero, keeping
+  images device-independent); the `.iPhoneNotched` preset simulates real device
+  chrome (Dynamic Island top 47pt, home-indicator bottom 34pt) for cases that
+  must prove layout under it.
 - **`combinations(...)` + presets** (`.componentDefaults`, `.screenDefaults`,
   `.fullContentScreenDefaults`) — expand a terse declaration into the full
   matrix.
 - **Full-content frames** (`.iPhoneFullContent`, `.iPadFullContent`, and
   `.fullContent(name:width:)`) — capture the settled intrinsic height of
   scrolling content, including UIKit-backed SwiftUI `List` and `Form`
-  containers, including when they are nested under production screen chrome;
-  fixed-height device frames are for non-scrolling subjects.
+  containers, including when they are nested under production screen chrome.
+  Device presets render at least one normal viewport tall, then expand to show
+  content that would otherwise scroll; fixed-height device frames are for
+  non-scrolling subjects.
 - **`SnapshotProviding`** — a type declares its variants via
   `static var snapshots: [SnapshotCase]`.
 - **`SnapshotCase`** — a named group of configurations plus a lazy content

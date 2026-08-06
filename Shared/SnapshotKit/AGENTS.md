@@ -47,10 +47,12 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
 - **Scrollable subjects use full-content frames.** A snapshot containing a
   `ScrollView`, `List`, `Form`, or equivalent UIKit-backed scroller uses
   `.fullContentScreenDefaults`, a consumer's matching compact preset, or an
-  explicit `.fullContent` frame. Capture the production screen including its
-  navigation, tab, sheet, search, and toolbar chrome; the nested full-width
-  scroller still determines the settled height. Fixed device frames are for
-  non-scrolling subjects.
+  explicit `.fullContent` frame. Device full-content presets keep their normal
+  viewport height as a minimum and grow only when the settled content is taller;
+  custom full-content frames shrink-wrap unless given a minimum. Capture the
+  production screen including its navigation, tab, sheet, search, and toolbar
+  chrome; the nested full-width scroller still determines the settled height.
+  Fixed device frames are for non-scrolling subjects.
 
 ## Testing
 

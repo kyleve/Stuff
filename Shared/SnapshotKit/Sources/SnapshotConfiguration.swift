@@ -84,22 +84,33 @@ extension SnapshotConfiguration {
     /// size in identifiers (e.g. `iPhone` instead of `402x874`).
     public struct Frame: Hashable, Sendable {
         private static let iPhoneWidth: CGFloat = 402
+        private static let iPhoneHeight: CGFloat = 874
         private static let iPadWidth: CGFloat = 834
+        private static let iPadHeight: CGFloat = 1194
 
         /// The identifier token for this frame (`""` for the unnamed component
         /// frame, `iPhone`/`iPad` for device frames).
         public var name: String
         /// How the content is sized.
         public var size: SizeStrategy
+        /// The minimum rendered height for a content-measured frame. `nil`
+        /// allows the frame to shrink-wrap its content; fixed frames ignore it.
+        public var minimumHeight: CGFloat?
         /// Simulated device safe-area insets applied at capture. `.zero` (the
         /// default) keeps images independent of any physical device's chrome;
         /// a preset like ``iPhoneNotched`` opts a case into rendering under
         /// notch/home-indicator insets.
         public var safeAreaInsets: Insets
 
-        public init(name: String, size: SizeStrategy, safeAreaInsets: Insets = .zero) {
+        public init(
+            name: String,
+            size: SizeStrategy,
+            minimumHeight: CGFloat? = nil,
+            safeAreaInsets: Insets = .zero,
+        ) {
             self.name = name
             self.size = size
+            self.minimumHeight = minimumHeight
             self.safeAreaInsets = safeAreaInsets
         }
 
@@ -129,41 +140,54 @@ extension SnapshotConfiguration {
         /// scrolls. A `ScrollView` measured this way reports its content height,
         /// so wrapping scrollable content captures every row (lazy stacks
         /// materialize fully — at full-content height every row is visible).
-        ///
-        /// **Wrap content, not chrome.** Greedy containers with pinned chrome
-        /// (`NavigationStack`, a sheet with a pinned picker) have no
-        /// content-derived ideal height and collapse the measurement to just
-        /// that chrome — pass the scrollable content itself, without the
-        /// navigation wrapper.
+        /// Production navigation, tab, sheet, search, and toolbar chrome stays
+        /// wrapped around the full-width scrolling descendant that drives the
+        /// measured height.
         ///
         /// `name` is the identifier token for the frame (conventionally
         /// `fullHeight`); it must stay stable once references are recorded.
-        public static func fullContent(name: String, width: CGFloat) -> Frame {
-            Frame(name: name, size: .fullContent(width: width))
+        public static func fullContent(
+            name: String,
+            width: CGFloat,
+            minimumHeight: CGFloat? = nil,
+        ) -> Frame {
+            Frame(
+                name: name,
+                size: .fullContent(width: width),
+                minimumHeight: minimumHeight,
+            )
         }
 
-        /// The iPhone frame width with height measured from the settled content.
-        public static let iPhoneFullContent = fullContent(name: "iPhone", width: iPhoneWidth)
+        /// An iPhone viewport that grows to fit settled scrolling content.
+        public static let iPhoneFullContent = fullContent(
+            name: "iPhone",
+            width: iPhoneWidth,
+            minimumHeight: iPhoneHeight,
+        )
 
-        /// The iPad frame width with height measured from the settled content.
-        public static let iPadFullContent = fullContent(name: "iPad", width: iPadWidth)
+        /// An iPad viewport that grows to fit settled scrolling content.
+        public static let iPadFullContent = fullContent(
+            name: "iPad",
+            width: iPadWidth,
+            minimumHeight: iPadHeight,
+        )
 
         /// A phone screen frame (iPhone 17 point size).
         public static let iPhone = Frame(
             name: "iPhone",
-            size: .fixed(CGSize(width: iPhoneWidth, height: 874)),
+            size: .fixed(CGSize(width: iPhoneWidth, height: iPhoneHeight)),
         )
         /// A tablet screen frame (iPad Pro 11" portrait point size).
         public static let iPad = Frame(
             name: "iPad",
-            size: .fixed(CGSize(width: iPadWidth, height: 1194)),
+            size: .fixed(CGSize(width: iPadWidth, height: iPadHeight)),
         )
         /// The iPhone frame with simulated device insets (Dynamic Island top,
         /// home-indicator bottom), for cases that must prove layout under real
         /// device chrome rather than the inset-free default.
         public static let iPhoneNotched = Frame(
             name: "iPhoneNotched",
-            size: .fixed(CGSize(width: iPhoneWidth, height: 874)),
+            size: .fixed(CGSize(width: iPhoneWidth, height: iPhoneHeight)),
             safeAreaInsets: Insets(top: 47, leading: 0, bottom: 34, trailing: 0),
         )
     }

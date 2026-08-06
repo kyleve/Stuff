@@ -48,6 +48,14 @@ struct SnapshotConfigurationTests {
         })
     }
 
+    @Test func fullContentDeviceFramesRetainViewportMinimums() {
+        #expect(SnapshotConfiguration.Frame.iPhoneFullContent.minimumHeight == 874)
+        #expect(SnapshotConfiguration.Frame.iPadFullContent.minimumHeight == 1194)
+
+        let custom = SnapshotConfiguration.Frame.fullContent(name: "custom", width: 500)
+        #expect(custom.minimumHeight == nil)
+    }
+
     @Test func baselineIdentifierIsEmpty() {
         #expect(SnapshotConfiguration().identifier.isEmpty)
     }

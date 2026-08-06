@@ -107,13 +107,19 @@ public func assertSnapshots(
             case .fixed:
                 .fixed
             case let .intrinsic(maxWidth):
-                .intrinsic(width: maxWidth ?? UIScreen.main.bounds.width)
+                .intrinsic(
+                    width: maxWidth ?? UIScreen.main.bounds.width,
+                    minimumHeight: configuration.device.minimumHeight ?? 0,
+                )
             case let .fullContent(width):
                 // Same measured-height pipeline as `.intrinsic`: a `ScrollView`
                 // measured under the unbounded proposal reports its content
                 // height (guarded by `LargeViewCaptureTests`), so the capture
                 // renders the whole scrollable content.
-                .intrinsic(width: width)
+                .intrinsic(
+                    width: width,
+                    minimumHeight: configuration.device.minimumHeight ?? 0,
+                )
         }
         let identifier = fullSnapshotIdentifier(caseName: name, configuration: configuration)
         let timing = SnapshotCaptureTiming(
@@ -310,9 +316,11 @@ private func makeHostingController(
             hostingController.view.frame = CGRect(origin: .zero, size: size)
         case let .intrinsic(maxWidth):
             let width = maxWidth ?? UIScreen.main.bounds.width
-            hostingController.view.frame = CGRect(x: 0, y: 0, width: width, height: 1)
+            let height = configuration.device.minimumHeight ?? 1
+            hostingController.view.frame = CGRect(x: 0, y: 0, width: width, height: height)
         case let .fullContent(width):
-            hostingController.view.frame = CGRect(x: 0, y: 0, width: width, height: 1)
+            let height = configuration.device.minimumHeight ?? 1
+            hostingController.view.frame = CGRect(x: 0, y: 0, width: width, height: height)
     }
 
     return hostingController

@@ -111,10 +111,11 @@ extension SnapshotCase: View {
             case let .fixed(size):
                 content.frame(width: size.width, height: size.height)
             case let .fullContent(width):
-                // No height: in the cutsheet's scroll view the content gets an
-                // unbounded proposal and takes its ideal (content) height, the
-                // preview analogue of the pipeline's content measurement.
-                content.frame(width: width)
+                // The cutsheet mirrors the capture pipeline: device presets
+                // keep their viewport height, then grow when content is taller.
+                content
+                    .frame(width: width)
+                    .frame(minHeight: configuration.device.minimumHeight)
         }
     }
 }
