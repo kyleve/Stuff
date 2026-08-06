@@ -73,6 +73,19 @@ final class LocationForecastModel {
         return stay.region
     }
 
+    /// The active stay when its future projection intersects `year`. A stay
+    /// ending next year still occupies the rest of this year; a past report has
+    /// no overlap because projections begin tomorrow.
+    func plannedStay(intersecting year: Int) -> PlannedStay? {
+        guard let stay = activePlannedStay else { return nil }
+        let tomorrow = CalendarDay(from: now(), in: calendar).adding(days: 1)
+        let firstDay = CalendarDay(year: year, month: 1, day: 1)
+        let lastDay = CalendarDay.lastDay(ofYear: year)
+        let projectedStart = max(tomorrow, firstDay)
+        let projectedEnd = min(stay.through, lastDay)
+        return projectedStart <= projectedEnd ? stay : nil
+    }
+
     func departureDate(for region: Region) -> Date {
         guard let stay = activePlannedStay, stay.region == region else {
             return calendar.startOfDay(for: now())

@@ -101,6 +101,25 @@ struct LocationForecastModelTests {
         #expect(model.plannedRegion(on: CalendarDay(year: 2026, month: 7, day: 19)) == nil)
     }
 
+    @Test func crossYearStayIntersectsTheRestOfTheCurrentYear() async throws {
+        let model = try LocationForecastModel(
+            services: Self.services(store: SwiftDataStore.inMemory()),
+            calendar: Self.calendar,
+            now: { Self.now },
+        )
+        let stay = PlannedStay(
+            region: .newYork,
+            through: CalendarDay(year: 2027, month: 2, day: 1),
+        )
+        try await model.set(
+            region: stay.region,
+            through: stay.through.startOfDay(in: Self.calendar),
+        )
+
+        #expect(model.plannedStay(intersecting: 2026) == stay)
+        #expect(model.plannedStay(intersecting: 2025) == nil)
+    }
+
     @Test func failedSaveKeepsTheLastGoodValue() async throws {
         let store = try TestStore()
         await store.failPlannedStays()

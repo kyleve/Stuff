@@ -157,8 +157,8 @@ struct CalendarContentView: View {
     /// A plan belongs on the selected year's calendar and, when this is a
     /// region-focused calendar, only on that region's destination.
     private var displayedPlannedStay: PlannedStay? {
-        guard let stay = report.forecasts.activePlannedStay else { return nil }
-        guard stay.through.year == report.report?.year else { return nil }
+        guard let year = report.report?.year else { return nil }
+        guard let stay = report.forecasts.plannedStay(intersecting: year) else { return nil }
         guard focusedRegion == nil || focusedRegion == stay.region else { return nil }
         return stay
     }
