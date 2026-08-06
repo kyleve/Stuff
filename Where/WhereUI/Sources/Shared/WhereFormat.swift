@@ -193,12 +193,16 @@ enum WhereFormat {
         regions: [Region],
         needsAttention: Bool,
         hasEvidence: Bool,
+        isPlanned: Bool,
     ) -> String {
-        let base = calendarDayBase(date: date, regions: regions, needsAttention: needsAttention)
-        guard hasEvidence else { return base }
+        var label = calendarDayBase(date: date, regions: regions, needsAttention: needsAttention)
+        if isPlanned {
+            label = String(localized: .calendarDayPlannedAccessibility(label))
+        }
+        guard hasEvidence else { return label }
         // Append the attachment cue so VoiceOver announces it after the day's
         // regions/status, e.g. "Monday, March 4, California, has evidence".
-        return String(localized: .calendarDayHasEvidenceAccessibility(base))
+        return String(localized: .calendarDayHasEvidenceAccessibility(label))
     }
 
     private static func calendarDayBase(

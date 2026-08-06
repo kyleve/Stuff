@@ -205,6 +205,12 @@ struct WhereStylesheetTests {
         #expect(calendar.regionBand.cornerRadius == 14)
         #expect(calendar.regionBand.continuationRadius == 3)
         #expect(calendar.regionBand.verticalInset == 4)
+        #expect(calendar.regionBand.planned == .init(
+            fillOpacity: 0.07,
+            hatchOpacity: 0.32,
+            hatchSpacing: 6,
+            hatchLineWidth: 1,
+        ))
 
         let day = calendar.day
         #expect(day.minHeight == 44)

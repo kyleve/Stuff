@@ -189,6 +189,18 @@
         }
       }
     },
+    "calendar.day.planned.accessibility" : {
+      "comment" : "Accessibility label appended to a future calendar day covered by the user's planned stay.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%@, planned"
+          }
+        }
+      }
+    },
     "calendar.region.title" : {
       "comment" : "Title for the calendar when it's focused on a single region, e.g. \"California · 2026\".",
       "extractionState" : "manual",

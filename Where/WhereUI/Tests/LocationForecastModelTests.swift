@@ -86,6 +86,21 @@ struct LocationForecastModelTests {
         #expect(model.activePlannedStay == nil)
     }
 
+    @Test func plannedRegionCoversTomorrowThroughTheSelectedDay() async throws {
+        let model = try LocationForecastModel(
+            services: Self.services(store: SwiftDataStore.inMemory()),
+            calendar: Self.calendar,
+            now: { Self.now },
+        )
+        let through = CalendarDay(year: 2026, month: 7, day: 18)
+        try await model.set(region: .newYork, through: through.startOfDay(in: Self.calendar))
+
+        #expect(model.plannedRegion(on: CalendarDay(year: 2026, month: 7, day: 15)) == nil)
+        #expect(model.plannedRegion(on: CalendarDay(year: 2026, month: 7, day: 16)) == .newYork)
+        #expect(model.plannedRegion(on: through) == .newYork)
+        #expect(model.plannedRegion(on: CalendarDay(year: 2026, month: 7, day: 19)) == nil)
+    }
+
     @Test func failedSaveKeepsTheLastGoodValue() async throws {
         let store = try TestStore()
         await store.failPlannedStays()

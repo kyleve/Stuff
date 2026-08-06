@@ -247,7 +247,26 @@
 
         @MainActor
         public static func plannedStayYearReportModel() -> YearReportModel {
-            let report = loadedYearReportModel()
+            let completeReport = sampleReport()
+            let today = CalendarDay(from: referenceNow, in: .current)
+            let recordedDays = completeReport.days.filter { $0.day <= today }
+            var recordedTotals: [Region: Int] = [:]
+            for day in recordedDays {
+                for region in day.regions {
+                    recordedTotals[region, default: 0] += 1
+                }
+            }
+            let report = YearReportModel(
+                services: previewServices(),
+                report: YearReport(
+                    year: completeReport.year,
+                    days: recordedDays,
+                    totals: recordedTotals,
+                ),
+                selectedYear: year,
+                preferences: previewPreferences(),
+                now: { referenceNow },
+            )
             report.forecasts.setActivePlannedStay(PlannedStay(
                 region: .newYork,
                 through: CalendarDay(year: year, month: 8, day: 15),

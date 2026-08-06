@@ -137,7 +137,12 @@ struct CalendarContentView: View {
                     )
                 }
                 ForEach(shownMonths(months)) { month in
-                    MonthGridView(month: month, focusedRegion: focusedRegion)
+                    MonthGridView(
+                        month: month,
+                        focusedRegion: focusedRegion,
+                        dateCalendar: report.calendar,
+                        plannedRegion: report.forecasts.plannedRegion(on:),
+                    )
                 }
             }
             .padding()
@@ -149,8 +154,17 @@ struct CalendarContentView: View {
         return report.forecasts.forecast(for: focusedRegion, report: report.report)
     }
 
-    /// The months to show, newest first. Future months are omitted; a past year
-    /// has no future months, so it shows the full year from December backward.
+    /// A plan belongs on the selected year's calendar and, when this is a
+    /// region-focused calendar, only on that region's destination.
+    private var displayedPlannedStay: PlannedStay? {
+        guard let stay = report.forecasts.activePlannedStay else { return nil }
+        guard stay.through.year == report.report?.year else { return nil }
+        guard focusedRegion == nil || focusedRegion == stay.region else { return nil }
+        return stay
+    }
+
+    /// The months to show, newest first. Future months are omitted unless a
+    /// planned stay reaches into them; a past year shows the full year.
     private func shownMonths(_ months: [CalendarMonth]) -> [CalendarMonth] {
         guard
             let currentMonthStart = report.calendar
@@ -159,8 +173,15 @@ struct CalendarContentView: View {
         else {
             return Array(months.reversed())
         }
+        let lastShownMonth = displayedPlannedStay.flatMap { stay in
+            report.calendar.date(from: DateComponents(
+                year: stay.through.year,
+                month: stay.through.month,
+                day: 1,
+            ))
+        }.map { max(currentMonthStart, $0) } ?? currentMonthStart
         return Array(months
-            .filter { $0.startOfMonth <= currentMonthStart }
+            .filter { $0.startOfMonth <= lastShownMonth }
             .reversed())
     }
 }
@@ -171,6 +192,8 @@ private struct MonthGridView: View {
     let month: CalendarMonth
     /// The region the calendar is focused on, if any — emphasized in the footer.
     var focusedRegion: Region?
+    let dateCalendar: Calendar
+    let plannedRegion: (CalendarDay) -> Region?
 
     @Environment(\.stylesheet) private var stylesheet
 
@@ -244,19 +267,26 @@ private struct MonthGridView: View {
     private func bandGeometry(at index: Int) -> DayBandGeometry {
         let days = month.days
         let day = days[index]
-        guard !day.regions.isEmpty else { return .none }
+        let regions = displayedRegions(for: day)
+        guard !regions.isEmpty else { return .none }
 
-        let regionSet = Set(day.regions)
+        let regionSet = Set(regions)
+        let isPlanned = plannedRegion(on: day) != nil
         let column = (month.leadingBlankCount + index) % month.weekdayCount
         let isRowStart = column == 0
         let isRowEnd = column == month.weekdayCount - 1
-        let joinsLeft = index > 0 && Set(days[index - 1].regions) == regionSet
-        let joinsRight = index < days.count - 1 && Set(days[index + 1].regions) == regionSet
+        let joinsLeft = index > 0
+            && Set(displayedRegions(for: days[index - 1])) == regionSet
+            && (plannedRegion(on: days[index - 1]) != nil) == isPlanned
+        let joinsRight = index < days.count - 1
+            && Set(displayedRegions(for: days[index + 1])) == regionSet
+            && (plannedRegion(on: days[index + 1]) != nil) == isPlanned
 
         let band = calendar.regionBand
         let halfGap = calendar.month.gridSpacing / 2
         return DayBandGeometry(
-            regions: day.regions,
+            regions: regions,
+            isPlanned: isPlanned,
             leadingRadius: joinsLeft ? (isRowStart ? band.continuationRadius : 0) : band
                 .cornerRadius,
             trailingRadius: joinsRight ? (isRowEnd ? band.continuationRadius : 0) : band
@@ -265,6 +295,21 @@ private struct MonthGridView: View {
             extendTrailing: joinsRight && !isRowEnd ? halfGap : 0,
         )
     }
+
+    private func displayedRegions(for day: CalendarDayCell) -> [Region] {
+        var regions = Set(day.regions)
+        if let region = plannedRegion(on: day) {
+            regions.insert(region)
+        }
+        return Region.inCanonicalOrder(regions)
+    }
+
+    private func plannedRegion(on day: CalendarDayCell) -> Region? {
+        let key = CalendarDay(from: day.date, in: dateCalendar)
+        guard let region = plannedRegion(key) else { return nil }
+        guard focusedRegion == nil || focusedRegion == region else { return nil }
+        return region
+    }
 }
 
 /// How to draw a day's slice of the region "stay" pill: which corners round
@@ -272,6 +317,7 @@ private struct MonthGridView: View {
 /// one connected shape. Empty `regions` means no pill.
 private struct DayBandGeometry {
     var regions: [Region]
+    var isPlanned: Bool
     var leadingRadius: CGFloat
     var trailingRadius: CGFloat
     var extendLeading: CGFloat
@@ -279,6 +325,7 @@ private struct DayBandGeometry {
 
     static let none = DayBandGeometry(
         regions: [],
+        isPlanned: false,
         leadingRadius: 0,
         trailingRadius: 0,
         extendLeading: 0,
@@ -401,9 +448,10 @@ private struct DayCell: View {
         .accessibilityLabel(
             WhereFormat.calendarDayAccessibility(
                 date: day.date,
-                regions: day.regions,
+                regions: band.regions,
                 needsAttention: day.needsAttention,
                 hasEvidence: day.hasEvidence,
+                isPlanned: band.isPlanned,
             ),
         )
     }
@@ -413,9 +461,9 @@ private struct DayCell: View {
     /// day the dots overlap into a cluster, the rims keeping them distinct.
     /// Empty days keep the row height so the grid baseline is even.
     private var dots: some View {
-        let isCluster = day.regions.count > 1
+        let isCluster = band.regions.count > 1
         return HStack(spacing: isCluster ? -calendar.day.dotOverlap : calendar.day.contentSpacing) {
-            ForEach(day.regions, id: \.self) { region in
+            ForEach(band.regions, id: \.self) { region in
                 Circle()
                     .fill(regionStyles.style(for: region).tint)
                     .frame(width: calendar.day.dotSize, height: calendar.day.dotSize)
@@ -439,14 +487,32 @@ private struct DayCell: View {
     private var stayPill: some View {
         if !band.regions.isEmpty {
             GeometryReader { proxy in
-                UnevenRoundedRectangle(
+                let shape = UnevenRoundedRectangle(
                     topLeadingRadius: band.leadingRadius,
                     bottomLeadingRadius: band.leadingRadius,
                     bottomTrailingRadius: band.trailingRadius,
                     topTrailingRadius: band.trailingRadius,
                 )
-                .fill(pillFill)
-                .opacity(calendar.regionBand.opacity)
+                ZStack {
+                    shape
+                        .fill(pillFill)
+                        .opacity(
+                            band.isPlanned
+                                ? calendar.regionBand.planned.fillOpacity
+                                : calendar.regionBand.opacity,
+                        )
+                    if band.isPlanned {
+                        PlannedStayHatch(
+                            color: band.regions
+                                .first
+                                .map { regionStyles.style(for: $0).tint } ?? .accentColor,
+                            spacing: calendar.regionBand.planned.hatchSpacing,
+                            lineWidth: calendar.regionBand.planned.hatchLineWidth,
+                        )
+                        .opacity(calendar.regionBand.planned.hatchOpacity)
+                        .clipShape(shape)
+                    }
+                }
                 .frame(
                     width: proxy.size.width + band.extendLeading + band.extendTrailing,
                     height: proxy.size.height,

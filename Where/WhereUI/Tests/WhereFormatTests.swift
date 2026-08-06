@@ -143,15 +143,33 @@ struct WhereFormatTests {
             regions: [.california],
             needsAttention: false,
             hasEvidence: true,
+            isPlanned: false,
         )
         let without = WhereFormat.calendarDayAccessibility(
             date: date,
             regions: [.california],
             needsAttention: false,
             hasEvidence: false,
+            isPlanned: false,
         )
         #expect(withEvidence.hasSuffix("has evidence"))
         #expect(!without.hasSuffix("has evidence"))
+    }
+
+    @Test func calendarDayAccessibilityIdentifiesPlannedPresence() throws {
+        let calendar = Calendar(identifier: .gregorian)
+        let label = try WhereFormat.calendarDayAccessibility(
+            date: #require(calendar.date(
+                from: DateComponents(year: 2026, month: 7, day: 16),
+            )),
+            regions: [.newYork],
+            needsAttention: false,
+            hasEvidence: false,
+            isPlanned: true,
+        )
+
+        #expect(label.contains("planned"))
+        #expect(label.contains(Region.newYork.localizedName))
     }
 
     @Test func regionMapKindSwitchesResolve() {

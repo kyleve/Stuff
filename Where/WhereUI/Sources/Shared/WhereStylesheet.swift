@@ -883,6 +883,16 @@ extension WhereStylesheet {
             /// Padding between the day content (number + dots) and the pill's
             /// top/bottom edges, so the pill doesn't butt against the dots.
             var verticalInset: CGFloat
+            /// Lower-opacity fill plus a diagonal pattern for future days the
+            /// user has planned but not yet recorded.
+            var planned: Planned
+
+            struct Planned: Equatable {
+                var fillOpacity: Double
+                var hatchOpacity: Double
+                var hatchSpacing: CGFloat
+                var hatchLineWidth: CGFloat
+            }
         }
 
         /// The paperclip badge in a day cell's top-trailing corner marking a day
@@ -933,6 +943,12 @@ extension WhereStylesheet {
                 cornerRadius: 14,
                 continuationRadius: 3,
                 verticalInset: 4,
+                planned: RegionBand.Planned(
+                    fillOpacity: 0.07,
+                    hatchOpacity: 0.32,
+                    hatchSpacing: 6,
+                    hatchLineWidth: 1,
+                ),
             ),
             day: DayStyle(
                 minHeight: 44,

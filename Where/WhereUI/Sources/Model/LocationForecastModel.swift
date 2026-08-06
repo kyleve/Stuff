@@ -63,6 +63,16 @@ final class LocationForecastModel {
         return report.days.first(where: { $0.day == today })?.regions.contains(region) == true
     }
 
+    /// The user's planned region for a future calendar day. Today remains
+    /// recorded presence; the projection begins tomorrow and includes the
+    /// selected through-day.
+    func plannedRegion(on day: CalendarDay) -> Region? {
+        guard let stay = activePlannedStay else { return nil }
+        let today = CalendarDay(from: now(), in: calendar)
+        guard day > today, day <= stay.through else { return nil }
+        return stay.region
+    }
+
     func departureDate(for region: Region) -> Date {
         guard let stay = activePlannedStay, stay.region == region else {
             return calendar.startOfDay(for: now())
