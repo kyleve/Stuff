@@ -311,7 +311,10 @@ private func removeChildAfterCapture(_ child: UIViewController) {
 /// appearance lifecycle driven (so SwiftUI `.task` loads and finite time-based
 /// reveals run), lets it settle, then measures `sizeThatFits` and pins the frame —
 /// so a content-loading component is sized to its loaded content rather than an
-/// empty placeholder. `.fixed` sizing leaves the frame untouched.
+/// empty placeholder. UIKit-backed SwiftUI containers such as `Form` report
+/// their viewport rather than their ideal height, so a root-filling scroll view's
+/// content size is used when it is taller. `.fixed` sizing leaves the frame
+/// untouched.
 ///
 /// The measurement iterates to a fixed point: a lazy container (`LazyVStack` in
 /// a `ScrollView`) reports an *estimated* content height until its rows
@@ -359,6 +362,11 @@ private func resolveContentSize(
         if !measured.height.isFinite || measured.height <= 0 {
             measured.height = 1
         }
+        if let scrollContentHeight = viewController.view.rootScrollContentHeight,
+           scrollContentHeight > measured.height
+        {
+            measured.height = scrollContentHeight
+        }
         return measured
     }
 
@@ -380,4 +388,31 @@ private func resolveContentSize(
 
     viewController.view.frame = CGRect(origin: .zero, size: measured)
     CATransaction.performWithoutAnimation(viewController.view.layoutIfNeeded)
+}
+
+extension UIView {
+    /// The content height of a scroll view that fills this view, if one exists.
+    ///
+    /// `Form` and `List` are backed by UIKit scroll views whose hosting view
+    /// answers `sizeThatFits` with only the current viewport. Restricting the
+    /// fallback to a root-filling scroll view avoids expanding an intentionally
+    /// fixed-height nested scroller inside an otherwise intrinsic component.
+    fileprivate var rootScrollContentHeight: CGFloat? {
+        descendants
+            .compactMap { view -> CGFloat? in
+                guard let scrollView = view as? UIScrollView else { return nil }
+                let visibleFrame = scrollView.convert(scrollView.bounds, to: self)
+                guard visibleFrame.width >= bounds.width - 1,
+                      visibleFrame.height >= bounds.height - 1,
+                      scrollView.contentSize.height.isFinite,
+                      scrollView.contentSize.height > 0
+                else { return nil }
+                return scrollView.contentSize.height
+            }
+            .max()
+    }
+
+    private var descendants: [UIView] {
+        subviews + subviews.flatMap(\.descendants)
+    }
 }

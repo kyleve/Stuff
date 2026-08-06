@@ -2,7 +2,7 @@
 
 Read-only review of all **19 SPM library targets**, **6 Tuist app/extension targets**, and the repo-owned **Bumper Bowling** architecture rules (501 source / 310 test Swift files across shipped targets, plus 3 unwired prototype sources). No code was changed.
 
-**Date:** August 2, 2026
+**Date:** August 6, 2026
 **Method:** Read-only verification of every open July 26 finding against current source, module cluster by module cluster; file-count refresh; new-surface review of the week's landings (demo mode and `WhereScope` #150, `./test` as one front door #151, ambient snapshots and build-attributed sessions #152, resolution/store-scan race #153, spans across the app #154, `Bundle.module` env override #155, Flyover browser #156, developer tools launcher #157, Inspector boot mode #158, merged Backup/Data settings #159, Xcode 27 beta 4 re-record #161, Flyover canvas stability #166, agent-skill extraction #167, nonoptional launcher #168, remote-change filtering #169).
 **Prior audit:** July 26, 2026 (~359 source / ~198 test, 14 SPM targets).
 
@@ -19,7 +19,7 @@ Read-only review of all **19 SPM library targets**, **6 Tuist app/extension targ
 
 The heaviest week the repo has had. Three new library targets landed — **Flyover** (the screen browser, 50 sources), **Inspector** (the renamed and much-expanded `SwiftDataInspector`, now a second *boot runtime*), and **LifecycleKitUI** — while **CreditKit**, **SnapshotKit**, and **SnapshotKitTesting** are counted here for the first time (they landed on July 26 itself, after the previous pass took its inventory). The tree grew from ~359 to **501** source files, WhereUI alone 113 → 150 and WhereCore 87 → 95. Demo mode (#150) reshaped composition around `WhereScope`, and #152/#154 pushed Periscope spans through every plausibly expensive path in the app.
 
-**Nothing on the July 26 high list closed this week.** Four of the five carried highs — the daily-summary fan-out gap, the tracking-toggle race, `CalendarDay.displayDate`'s `Calendar.current`, and the blind `where.gregorian_calendar` rule — were re-verified against current source and are open exactly as filed. The fifth, the LifecycleKit terminal-phase race, is gone, but it went with the typed-engine rewrite (#116) that landed *on* July 26: the previous pass listed it as open against a tree that had already fixed it. What closed since is smaller and real: `WherePreferences.init(store:)` lost its default, `IntentSnippets`' preview literal is localized, the `LocationsView`/`YearView` empty-state snapshot cases exist, and `SnapshotCase` now rebuilds content per configuration.
+**Nothing on the July 26 high list closed this week.** Three of the five carried highs — the daily-summary fan-out gap, `CalendarDay.displayDate`'s `Calendar.current`, and the blind `where.gregorian_calendar` rule — were re-verified against current source and are open exactly as filed. The tracking-toggle race and the LifecycleKit terminal-phase race are gone: the former landed a coalesced worker on `WhereSession` (#198, 2026-08-04), the latter went with the typed-engine rewrite (#116) that landed *on* July 26. What closed since is smaller and real: `WherePreferences.init(store:)` lost its default, `IntentSnippets`' preview literal is localized, the `LocationsView`/`YearView` empty-state snapshot cases exist, `SnapshotCase` now rebuilds content per configuration, and single-sample ingest / `addManualSample` / bulk ingest now route through the post-write fan-out.
 
 Three new findings were filed this pass, and one previously-filed claim was found **false** and corrected rather than carried.
 
@@ -34,13 +34,12 @@ Pointers only — each one's evidence and suggested fix live in the linked file.
 | 1 | Bumper Bowling | `where.gregorian_calendar` matches only an explicit `Calendar` base, so the rule is green while four shipped sites drift | [`TODOs.md`](TODOs.md) P0 |
 | 2 | WhereCore | `DailySummaryReconciler.reconcile()` is absent from the post-day-change fan-out — the notification body stays stale until a foreground re-`configure` | [`Where/TODOs.md`](Where/TODOs.md) P0 |
 | 3 | PeriscopeCore | The pre-store-attach window is dropped, and #154's budgeted launch spans made it more expensive: a launch span's began and ended now land in different places | [`Shared/Periscope/TODOs.md`](Shared/Periscope/TODOs.md) P0 |
-| 4 | WhereUI | Tracking toggle race — `trackingEnabled`'s setter spawns unserialized `Task`s | [`Where/TODOs.md`](Where/TODOs.md) P1 |
-| 5 | WhereUI | `CalendarDay.displayDate` resolves through `Calendar.current`, so day labels on a non-Gregorian device render ~543 years off | [`Where/TODOs.md`](Where/TODOs.md) P1 |
-| 6 | WhereUI | Notification authorization is requested during launch, unprompted — and all three preferences default to `true`, so it hits every fresh install | [`Where/TODOs.md`](Where/TODOs.md) P1 |
-| 7 | Project | `WhereTests` double-links `LifecycleKit` beside `WhereUI`, and never imports it — **new** | [`TODOs.md`](TODOs.md) P1 |
-| 8 | WhereCore | A store opened without a resolvable URL silently loses remote-change observation in release — **new** | [`Where/TODOs.md`](Where/TODOs.md) P2 |
-| 9 | Flyover | 50 sources against 10 namesake test files — the largest untested surface in the repo — **new** | [`Shared/Flyover/TODOs.md`](Shared/Flyover/TODOs.md) P1 |
-| 10 | WhereCore | `setTrackedRegion(false)` hard-deletes the row; the shipped picker reaches it, so past-year re-attribution risk is live | [`Where/TODOs.md`](Where/TODOs.md) P1 |
+| 4 | WhereUI | `CalendarDay.displayDate` resolves through `Calendar.current`, so day labels on a non-Gregorian device render ~543 years off | [`Where/TODOs.md`](Where/TODOs.md) P1 |
+| 5 | WhereUI | Notification authorization is requested during launch, unprompted — and all three preferences default to `true`, so it hits every fresh install | [`Where/TODOs.md`](Where/TODOs.md) P1 |
+| 6 | Project | `WhereTests` double-links `LifecycleKit` beside `WhereUI`, and never imports it — **new** | [`TODOs.md`](TODOs.md) P1 |
+| 7 | WhereCore | A store opened without a resolvable URL silently loses remote-change observation in release — **new** | [`Where/TODOs.md`](Where/TODOs.md) P2 |
+| 8 | Flyover | 50 sources against 10 namesake test files — the largest untested surface in the repo — **new** | [`Shared/Flyover/TODOs.md`](Shared/Flyover/TODOs.md) P1 |
+| 9 | WhereCore | `setTrackedRegion(false)` hard-deletes the row; the shipped picker reaches it, so past-year re-attribution risk is live | [`Where/TODOs.md`](Where/TODOs.md) P1 |
 
 ---
 
@@ -56,7 +55,7 @@ Demo mode was the first change to demand two worlds at once, and the shape the r
 
 ### The reconciliation holes are stable, and the docs describe the version that doesn't exist
 
-`reconcileAfterDayChange()` still fans out to issue state and widgets only. Daily summary remains outside it; `setPrimaryRegions(_:)` still commits without calling it; `ingest`, the bulk ingest, and `addManualSample` still publish widgets and skip the reminder/issue reconcile. None of that moved this week. What is worth separating out is that `WhereCore/README.md` and — worse — `WhereCore/AGENTS.md` state the *unified* fan-out as a rule, so an agent reading the module's own contract is told the invariant holds. A false rule in an `AGENTS.md` is a different category of stale than a false sentence in a `README.md`: it will be preserved against the code.
+`reconcileAfterDayDataChange()` still fans out to issue state and widgets only. Daily summary remains outside it; `setPrimaryRegions(_:)` still commits without calling it. Single-sample ingest, `addManualSample`, and bulk ingest now route through the fan-out (2026-08-04 landings on `main`), but the GPS `onPersisted` hook and backup import paths were not re-checked this merge. None of the remaining holes moved this week. What is worth separating out is that `WhereCore/README.md` and — worse — `WhereCore/AGENTS.md` state the *unified* fan-out as a rule, so an agent reading the module's own contract is told the invariant holds. A false rule in an `AGENTS.md` is a different category of stale than a false sentence in a `README.md`: it will be preserved against the code.
 
 ### Test coverage is now bimodal
 
@@ -205,7 +204,7 @@ All five: README ✓ · AGENTS ✓
 
 ## Limitations
 
-- **Static analysis only** — this pass ran on Linux, where Tuist, the simulator, and `swift run bumper` are unavailable, so no test, build, or lint execution backs any claim about runtime behavior. What *was* executed: `./swiftformat --lint` (clean, 0/818) and `./attribution --check` (clean). CI status on `main` was read via `gh` and is green through `0cce6578`, which is what lets the "the Gregorian rule finds nothing" conclusion stand — a hard `.error` gate that passes over a tree containing four drifting sites can only mean the rule doesn't see them.
+- **Static analysis only** — this pass ran on Linux, where Tuist, the simulator, and `swift run bumper` are unavailable, so no test, build, or lint execution backs any claim about runtime behavior. What *was* executed: `./swiftformat --lint` (clean, 0/818) and `./attribution --check` (clean). CI status on `main` was read via `gh` and is green through `14778027`, which is what lets the "the Gregorian rule finds nothing" conclusion stand — a hard `.error` gate that passes over a tree containing four drifting sites can only mean the rule doesn't see them.
 - Some findings need runtime confirmation: the tracking-toggle race, the outbox relaunch loss, the release-only remote-change skip, and the two quarantined snapshot instabilities.
 - No severity totals are given this pass. The previous report's counts mixed filed items with folded-in summaries and couldn't be reconciled against the backlog, which is the only place a finding lives; the top-findings table above points at real items instead.
 - DEBUG-only surfaces (PeriscopeTools, Inspector, Flyover) are held to a lighter standard for `try?` degradation and for localization, per their module docs.

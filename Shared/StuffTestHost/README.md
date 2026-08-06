@@ -11,8 +11,8 @@ plus `TestHostSupport` and run inside this app (see [`Project.swift`](../../Proj
 
 ## What it provides
 
-- `@main` [`AppDelegate`](Sources/AppDelegate.swift) — scene configuration for
-  the default window scene.
+- `@main` [`AppDelegate`](Sources/AppDelegate.swift) — installs the scene
+  delegate on the plist-derived default window-scene configuration.
 - [`SceneDelegate`](Sources/SceneDelegate.swift) — creates a key window with an
   empty `UIViewController` as root and marks it `isMainTestHostWindow` (from
   `TestHostSupport`) so `hostKeyWindow()` can find it.

@@ -28,8 +28,9 @@ capture + comparison pipeline lives in the sibling
   (default zero, keeping images device-independent); the `.iPhoneNotched`
   preset simulates real device chrome (Dynamic Island top 47pt, home-indicator
   bottom 34pt) for cases that must prove layout under it.
-- **`combinations(...)` + presets** (`.componentDefaults`, `.screenDefaults`) —
-  expand a terse declaration into the full matrix.
+- **`combinations(...)` + presets** (`.componentDefaults`, `.screenDefaults`,
+  `.fullContentScreenDefaults`) — expand a terse declaration into the full
+  matrix.
 - **`SnapshotProviding`** — a type declares its variants via
   `static var snapshots: [SnapshotCase]`.
 - **`SnapshotCase`** — a named group of configurations plus a lazy content

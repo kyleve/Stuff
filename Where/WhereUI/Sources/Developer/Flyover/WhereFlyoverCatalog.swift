@@ -91,6 +91,7 @@
                 LocationSettingsView.flyoverData,
                 AlertsSettingsView.flyoverData,
                 AppearanceSettingsView.flyoverData,
+                CardDesignerStudioView.flyoverData,
                 AppIconView.flyoverData,
                 VisibleYearSettingsView.flyoverData,
                 DataSettingsView.flyoverData,

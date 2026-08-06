@@ -111,6 +111,10 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
   image for views past ~2000pt on iOS 27.0; don't remove the tiling without
   re-running the probe. Guard:
   `SnapshotKitTestingTests.LargeViewCaptureTests`.
+- **Full-content sizing includes UIKit-backed SwiftUI containers.** When a
+  root-filling scroll view such as `Form` reports only its viewport through
+  `sizeThatFits`, use its content size. Guard:
+  `SnapshotKitTestingTests.LargeViewCaptureTests`.
 - **A settle phase costs its floor, not its passes.** Measured 2026-07-28 over
   the 260 references of the time with `SNAPSHOT_TIMING=1`: 192 captures sit at
   0.25-0.35s, the `minDuration` floor plus a pass or two, and the floor accounts

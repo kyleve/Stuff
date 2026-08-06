@@ -10,8 +10,9 @@ always-on commit and test invariants — this skill assumes those.
 
 - Use the `gh` CLI for all GitHub interaction — PRs, issues, checks, releases,
   review comments.
-- **`./swiftformat --lint` and `./test` are part of "done".** Never push a red
-  tree.
+- Validate in proportion to risk. Pure documentation or comment-only changes
+  may skip checks that cannot exercise them; record skipped checks in the PR.
+  Never push a known-red tree.
 - **Never commit on `main`.** Branch first and keep every commit for one piece
   of work on that one branch.
 

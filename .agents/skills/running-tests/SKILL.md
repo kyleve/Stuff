@@ -5,9 +5,19 @@ description: Runs the test suite via ./test, picks the right tier, and manages t
 
 How to run tests in this repo. Read root [`AGENTS.md`](../../../AGENTS.md) for
 always-on rules: **use [`./test`](../../../test)** — never hand-roll `tuist test`
-or `xcodebuild`; **`./swiftformat --lint` and `./test` are part of "done".**
+or `xcodebuild`; validate in proportion to the change.
 Canonical flag list: `./test --help`. Rationale for `./test` over alternatives:
 header comment in [`test`](../../../test).
+
+## Documentation-only changes
+
+Pure documentation or comment-only changes may skip `./test`. Skip
+`./swiftformat --lint` too when the changed files are outside the formatter's
+scope. Record skipped checks and the reason in the commit or PR validation.
+
+Do not classify a semantic change to configuration, scripts, generator inputs,
+executable examples, or app-rendered copy as documentation-only. Run the
+narrowest applicable checks below instead.
 
 ## Pick a tier
 
@@ -101,4 +111,7 @@ mise install
 ./ide --no-open
 ./swiftformat --lint
 ./test --everything
+# The native-macOS Ledger scheme has no simulator and runs in its own CI job:
+mise exec -- tuist test Ledger-macOS-Tests --no-selective-testing -- \
+  -destination 'platform=macOS'
 ```

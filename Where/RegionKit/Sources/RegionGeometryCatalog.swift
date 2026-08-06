@@ -47,10 +47,12 @@ public struct RegionOutline: Identifiable, Sendable, Hashable {
     }
 }
 
-/// Failure decoding bundled region geometry. Surfaced (never swallowed)
-/// so the viewer can show a real error state instead of an empty map.
+/// Failure decoding bundled region geometry. Surfaced (never swallowed) so
+/// developer tools can show a real error state and production artwork can log
+/// a broken bundled-resource invariant instead of silently drawing nothing.
 public enum RegionGeometryError: Error {
     case missingResource(String)
+    case emptyResource(String)
 }
 
 extension RegionGeometryError: LocalizedError {
@@ -62,15 +64,38 @@ extension RegionGeometryError: LocalizedError {
         switch self {
             case let .missingResource(resource):
                 "Missing bundled region geometry resource “\(resource).geojson”."
+            case let .emptyResource(resource):
+                "Bundled region geometry resource “\(resource).geojson” contains no drawable outlines."
         }
     }
 }
 
-/// Read-only catalog of region boundary geometry for the developer
-/// region-map viewer. The single public entry point is
-/// ``outlines(for:)``; UI never touches `RegionAttributor`'s internal
+/// Read-only catalog of region boundary geometry for region artwork and the
+/// developer region-map viewer. UI never touches `RegionAttributor`'s internal
 /// polygons or the `GeoJSON` decoder directly.
 public enum RegionGeometryCatalog {
+    /// Drawable outlines for one region, cached after the first request.
+    ///
+    /// This is the lightweight path for region-specific UI artwork: it decodes
+    /// only `region` rather than the full source catalog. `.other` returns an
+    /// empty array because it intentionally has no geometry. Missing, corrupt,
+    /// or empty bundled geometry logs a fault and asserts in debug; release
+    /// builds safely omit the decorative outline.
+    public static func outlines(for region: Region) async -> [RegionOutline] {
+        guard region != .other else { return [] }
+        do {
+            return try await RegionCache.shared.outlines(for: region)
+        } catch {
+            RegionLog.geometryCatalog(attachments: [.error(error, name: "geometry-error")]) {
+                .regionLoadFailed(region: region, description: error.localizedDescription)
+            }
+            assertionFailure(
+                "Failed to load drawable outlines for \(region.rawValue): \(error.localizedDescription)",
+            )
+            return []
+        }
+    }
+
     /// Drawable outlines for `kind`.
     ///
     /// - `.attribution` reflects exactly what `attributor` loaded (the tracked
@@ -79,14 +104,10 @@ public enum RegionGeometryCatalog {
     /// - `.source` decodes every available region from the catalog and ignores
     ///   `attributor`.
     ///
-    /// The file read + JSON decode runs **off the main thread**:
-    /// `RegionGeometryCatalog` is a plain (non-`@MainActor`) type and
-    /// this method is `nonisolated`, so `await`-ing it from a
-    /// `@MainActor` view hops to the cooperative pool (and, for
-    /// `.source`, the cache actor) to decode, then returns the
-    /// `Sendable` result back to the main actor. Throws
-    /// `RegionGeometryError` / a `DecodingError` rather than absorbing a
-    /// missing or malformed bundle into an empty list.
+    /// `.source` decoding runs on its cache actor. `.attribution` maps the
+    /// caller-provided attributor on the caller's actor because it is already
+    /// resolved in memory. Throws `RegionGeometryError` / a `DecodingError`
+    /// rather than absorbing a missing or malformed bundle into an empty list.
     public static func outlines(
         for kind: RegionGeometryKind,
         attributor: RegionAttributor,
@@ -147,6 +168,27 @@ public enum RegionGeometryCatalog {
         return try GeoJSON.namedPolygons(at: url)
     }
 
+    /// Decode one region for card/overlay artwork without loading unrelated
+    /// catalog entries.
+    private static func buildRegionOutlines(for region: Region) throws -> [RegionOutline] {
+        try RegionLog.geometryCatalog.measure(.loadRegionOutlines(region), budget: .seconds(1)) {
+            var builder = OutlineBuilder()
+            for feature in try namedPolygons(for: region) {
+                for polygon in feature.polygons {
+                    builder.add(
+                        title: region.localizedName,
+                        region: region,
+                        coordinates: polygon.vertices,
+                    )
+                }
+            }
+            guard !builder.outlines.isEmpty else {
+                throw RegionGeometryError.emptyResource(region.rawValue)
+            }
+            return builder.outlines
+        }
+    }
+
     /// Caches the heavy `.source` decode (parsing every per-region file) so
     /// toggling back to source after the first load is instant. An `actor` both
     /// serializes the one-time build and runs it off the main thread.
@@ -158,6 +200,21 @@ public enum RegionGeometryCatalog {
             if let cached { return cached }
             let built = try RegionGeometryCatalog.buildSourceOutlines()
             cached = built
+            return built
+        }
+    }
+
+    /// Per-region cache for UI artwork. Actor isolation serializes simultaneous
+    /// requests for the same first-use decode without introducing a global
+    /// mutable registry in the UI layer.
+    private actor RegionCache {
+        static let shared = RegionCache()
+        private var cached: [Region: [RegionOutline]] = [:]
+
+        func outlines(for region: Region) throws -> [RegionOutline] {
+            if let cached = cached[region] { return cached }
+            let built = try RegionGeometryCatalog.buildRegionOutlines(for: region)
+            cached[region] = built
             return built
         }
     }

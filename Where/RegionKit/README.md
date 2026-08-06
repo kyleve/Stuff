@@ -32,9 +32,11 @@ into it for lookup. RegionKit depends only on
   only those regions' files; `.all` covers the whole catalog and `.shared` the
   default four. `RegionAttributing` is the protocol the app's live, swappable
   attributor also conforms to.
-- **`RegionGeometryCatalog`** — read-only drawable `RegionOutline`s for the
-  developer region-map viewer (`.attribution` for a given attributor vs `.source`
-  for the whole catalog).
+- **`RegionGeometryCatalog`** — read-only drawable `RegionOutline`s: a cached,
+  per-region path for UI artwork, plus the developer region-map viewer's
+  `.attribution` view of a given attributor and `.source` view of the whole
+  catalog. `RegionGeometrySimplifier` can derive reduced geometry at a
+  consumer-chosen normalized tolerance without imposing UI sizes on RegionKit.
 - **`RegionDataSource`** — where the bundled geometry came from: the boundary
   set's name, its links, its `License`, its `Fidelity` (`.authoritative` vs the
   `.approximate` hand-drawn outlines), and the regions it covers.

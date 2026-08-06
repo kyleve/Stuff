@@ -11,6 +11,11 @@
       "type": "agentSkills",
       "kind": "developmentTool",
       "manifest": ".agents/external-skills.json"
+    },
+    {
+      "type": "developmentTools",
+      "kind": "developmentTool",
+      "manifest": ".agents/development-tools.json"
     }
   ]
 }

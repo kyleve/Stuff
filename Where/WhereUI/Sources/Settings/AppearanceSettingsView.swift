@@ -7,6 +7,9 @@ struct AppearanceSettingsView: View {
     var focus: SettingsFocus?
 
     @State private var showAppIcon = false
+    #if DEBUG
+        @Environment(\.cardDesignerModel) private var cardDesignerModel
+    #endif
 
     var body: some View {
         SettingsFocusScope(focus: focus) {
@@ -24,6 +27,26 @@ struct AppearanceSettingsView: View {
                 } footer: {
                     Text(String(localized: .settingsAppIconFooter))
                 }
+
+                #if DEBUG
+                    if let cardDesignerModel {
+                        Section {
+                            NavigationLink {
+                                CardDesignerStudioView(model: cardDesignerModel)
+                            } label: {
+                                Label(
+                                    String(localized: .cardDesignerTitle),
+                                    systemImage: "paintpalette",
+                                )
+                            }
+                            .settingsRow(Item.cardDesigner)
+                        } header: {
+                            Text(String(localized: .cardDesignerSettingsHeader))
+                        } footer: {
+                            Text(String(localized: .cardDesignerSettingsFooter))
+                        }
+                    }
+                #endif
             }
         }
         .navigationTitle(String(localized: .settingsAppearanceGroup))
@@ -41,16 +64,26 @@ extension AppearanceSettingsView: SettingsSection {
 
     enum Item: SettingsItem {
         case appIcon
+        #if DEBUG
+            case cardDesigner
+        #endif
 
         var title: String {
             switch self {
                 case .appIcon: String(localized: .settingsAppIconLink)
+                #if DEBUG
+                    case .cardDesigner: String(localized: .cardDesignerTitle)
+                #endif
             }
         }
 
         var keywords: [String] {
             switch self {
                 case .appIcon: splitKeywords(String(localized: .settingsKeywordsAppIcon))
+                #if DEBUG
+                    case .cardDesigner:
+                        splitKeywords(String(localized: .cardDesignerSettingsKeywords))
+                #endif
             }
         }
     }
@@ -72,6 +105,7 @@ extension AppearanceSettingsView: SettingsSection {
             title: "Appearance Settings",
             routes: [
                 .modal(to: AppIconView.flyoverID),
+                .push(to: CardDesignerStudioView.flyoverID),
             ],
         ) { _ in
             AppearanceSettingsView()
