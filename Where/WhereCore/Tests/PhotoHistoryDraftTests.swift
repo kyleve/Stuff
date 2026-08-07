@@ -139,4 +139,34 @@ struct PhotoHistoryDraftTests {
         #expect(draft.decision(for: day) == .included)
         #expect(draft.approvedImport.samples.count == 1)
     }
+
+    @Test func restoringExclusionsPreservesOtherCorrections() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+        let firstDate = try #require(ISO8601DateFormatter().date(from: "2026-01-01T12:00:00Z"))
+        let secondDate = try #require(ISO8601DateFormatter().date(from: "2026-01-02T12:00:00Z"))
+        let first = CalendarDay(from: firstDate, in: calendar)
+        let second = CalendarDay(from: secondDate, in: calendar)
+        var draft = PhotoHistoryDraft(
+            year: 2026,
+            calendar: calendar,
+            samples: [firstDate, secondDate].map {
+                LocationSample(
+                    timestamp: $0,
+                    coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
+                    horizontalAccuracy: 10,
+                    source: .photo,
+                )
+            },
+            regions: [.california, .newYork],
+        )
+        draft.setDecision(.excluded, from: first, through: first)
+        draft.setDecision(.corrected([.newYork]), from: second, through: second)
+
+        draft.restoreExcludedDays()
+
+        #expect(draft.hasExcludedDays == false)
+        #expect(draft.decision(for: first) == .included)
+        #expect(draft.decision(for: second) == .corrected([.newYork]))
+    }
 }

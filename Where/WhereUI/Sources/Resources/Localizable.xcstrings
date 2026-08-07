@@ -3701,6 +3701,28 @@
         }
       }
     },
+    "onboarding.photo.restoreExcluded" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Restore Excluded Days"
+          }
+        }
+      }
+    },
+    "onboarding.photo.restoreExcludedFooter" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Put every excluded day back into the photo-derived timeline. Other corrections stay unchanged."
+          }
+        }
+      }
+    },
     "onboarding.photo.reviewFooter" : {
       "extractionState" : "manual",
       "localizations" : {

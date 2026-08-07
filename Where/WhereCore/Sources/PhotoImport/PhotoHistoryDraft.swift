@@ -47,6 +47,16 @@ public struct PhotoHistoryDraft: Sendable {
         decisions[day] ?? .included
     }
 
+    public var hasExcludedDays: Bool {
+        decisions.values.contains(.excluded)
+    }
+
+    /// Restore every excluded day to its photo-derived attribution without
+    /// disturbing corrections made to other days.
+    public mutating func restoreExcludedDays() {
+        decisions = decisions.filter { $0.value != .excluded }
+    }
+
     /// Apply one decision to every candidate day in an inclusive range.
     public mutating func setDecision(
         _ decision: DayDecision,

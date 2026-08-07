@@ -114,6 +114,13 @@ final class OnboardingPhotoImportModel {
         activity = .ready(updated, isLimited: limited)
     }
 
+    func restoreExcludedDays() {
+        guard case let .ready(current, limited) = activity else { return }
+        var updated = current
+        updated.restoreExcludedDays()
+        activity = .ready(updated, isLimited: limited)
+    }
+
     func beginImport() -> PhotoHistoryImport? {
         guard case let .ready(draft, limited) = activity else { return nil }
         activity = .importing(draft, isLimited: limited)

@@ -164,6 +164,17 @@ struct OnboardingPhotoImportView: View {
                     Text(String(localized: .onboardingPhotoReviewFooter))
                 }
 
+                if draft.hasExcludedDays {
+                    Section {
+                        Button(
+                            String(localized: .onboardingPhotoRestoreExcluded),
+                            action: model.restoreExcludedDays,
+                        )
+                    } footer: {
+                        Text(String(localized: .onboardingPhotoRestoreExcludedFooter))
+                    }
+                }
+
                 Section {
                     Button(action: onImport) {
                         if isImporting {
