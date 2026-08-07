@@ -77,6 +77,12 @@ struct PhotoHistoryPlannerTests {
 }
 
 struct PhotoHistoryDraftTests {
+    private static let audit = ManualEntryAudit(
+        recordedAt: Date(timeIntervalSince1970: 1_800_000_000),
+        note: nil,
+        location: nil,
+    )
+
     @Test func exclusionsAndCorrectionsRebuildPreviewAndImport() throws {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
@@ -110,8 +116,10 @@ struct PhotoHistoryDraftTests {
         #expect(draft.report.days == [
             DayPresence(day: second, regions: [.newYork], isAuthoritative: false, audit: nil),
         ])
-        #expect(draft.approvedImport.samples.map(\.timestamp) == [secondDate])
-        #expect(draft.approvedImport.corrections.map(\.day) == [second])
+        let approved = draft.approvedImport(audit: Self.audit)
+        #expect(approved.samples.map(\.timestamp) == [secondDate])
+        #expect(approved.corrections.map(\.day) == [second])
+        #expect(approved.corrections.first?.audit == Self.audit)
         #expect(draft.decision(for: first) == .excluded)
         #expect(draft.decision(for: second) == .corrected([.newYork]))
     }
@@ -137,7 +145,7 @@ struct PhotoHistoryDraftTests {
         draft.setDecision(.included, from: day, through: day)
 
         #expect(draft.decision(for: day) == .included)
-        #expect(draft.approvedImport.samples.count == 1)
+        #expect(draft.approvedImport(audit: Self.audit).samples.count == 1)
     }
 
     @Test func restoringExclusionsPreservesOtherCorrections() throws {

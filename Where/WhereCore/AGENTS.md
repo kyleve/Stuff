@@ -95,7 +95,7 @@ internal shape.
   may expose only capture/added dates, coordinate/accuracy, asset source, and
   hidden state; `PhotoHistoryPlanner` keeps its draft in memory and
   `DayJournal.importPhotoHistory(_:)` commits approved `.photo` samples plus
-  corrections in one transaction.
+  audited corrections in one transaction.
 - **Tracked regions live in the store, not preferences** — one
   `SDTrackedRegion` row per region so cross-device edits merge; read as a
   `Set` defaulting to the four. `RegionAttribution` derives the attributor

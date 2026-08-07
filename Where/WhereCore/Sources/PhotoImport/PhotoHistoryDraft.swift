@@ -91,14 +91,15 @@ public struct PhotoHistoryDraft: Sendable {
         )
     }
 
-    /// The atomic payload persisted after the user approves the preview.
-    public var approvedImport: PhotoHistoryImport {
+    /// Build the atomic payload persisted after the user approves the preview.
+    /// Every authoritative correction carries the audit of that approval.
+    public func approvedImport(audit: ManualEntryAudit) -> PhotoHistoryImport {
         let approvedSamples = samples.filter { sample in
             decision(for: CalendarDay(from: sample.timestamp, in: calendar)) != .excluded
         }
         let corrections = decisions.compactMap { day, decision -> DayPresence? in
             guard case let .corrected(regions) = decision else { return nil }
-            return DayPresence(day: day, regions: regions, isAuthoritative: true, audit: nil)
+            return DayPresence(day: day, regions: regions, isAuthoritative: true, audit: audit)
         }
         return PhotoHistoryImport(samples: approvedSamples, corrections: corrections)
     }

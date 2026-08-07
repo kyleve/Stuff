@@ -142,6 +142,11 @@ struct DayJournalTests {
         let h = try Self.makeHarness()
         let sample = sample(at: "2026-01-10T12:00:00-08:00", source: .photo)
         let day = CalendarDay(from: sample.timestamp, in: WhereCoreTestSupport.calendar())
+        let audit = ManualEntryAudit(
+            recordedAt: WhereCoreTestSupport.iso("2026-08-07T12:00:00-07:00"),
+            note: nil,
+            location: nil,
+        )
 
         try await h.journal.importPhotoHistory(PhotoHistoryImport(
             samples: [sample],
@@ -149,13 +154,14 @@ struct DayJournalTests {
                 day: day,
                 regions: [.newYork],
                 isAuthoritative: true,
-                audit: nil,
+                audit: audit,
             )],
         ))
 
         let report = try await h.reader.yearReport(for: 2026)
         #expect(report.days.first?.regions == [.newYork])
         #expect(try await h.store.allSamples().first?.source == .photo)
+        #expect(try await h.store.allManualDays().first?.audit == audit)
         #expect(await h.reminders.reconcileCount == 1)
         #expect(await h.widgets.publishCount == 1)
     }

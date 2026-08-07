@@ -121,10 +121,10 @@ final class OnboardingPhotoImportModel {
         activity = .ready(updated, isLimited: limited)
     }
 
-    func beginImport() -> PhotoHistoryImport? {
+    func beginImport() -> PhotoHistoryDraft? {
         guard case let .ready(draft, limited) = activity else { return nil }
         activity = .importing(draft, isLimited: limited)
-        return draft.approvedImport
+        return draft
     }
 
     func importFailed(_ error: any Error) {

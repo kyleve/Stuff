@@ -266,12 +266,26 @@ public struct OnboardingView: View {
     /// timeline, commit the region selection it was attributed against, then
     /// persist photo samples + corrections as one journal transaction.
     private func importPhotoHistory() {
-        guard let history = photoImport.beginImport() else { return }
+        guard let draft = photoImport.beginImport() else { return }
         Task {
             do {
                 let scope = try await model.resolveScope()
                 try await selection.commit(using: scope)
                 didCommitSelection = true
+                let recordedAt = Date()
+                let sample = await scope.services.ingestor.currentLocation()
+                let location = sample.map {
+                    CapturedLocation(
+                        coordinate: $0.coordinate,
+                        horizontalAccuracy: $0.horizontalAccuracy,
+                        timestamp: $0.timestamp,
+                    )
+                }
+                let history = draft.approvedImport(audit: ManualEntryAudit(
+                    recordedAt: recordedAt,
+                    note: nil,
+                    location: location,
+                ))
                 try await scope.services.journal.importPhotoHistory(history)
                 phase = .location
             } catch is CancellationError {

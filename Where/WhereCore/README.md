@@ -94,7 +94,8 @@ one it belongs to rather than to a god-object:
   and hidden state only; the planner applies the best-effort device-capture
   policy, tags accepted samples as `.photo`, gives them deterministic IDs for
   repeat-import deduplication, and keeps corrections provisional until one
-  `DayJournal.importPhotoHistory(_:)` transaction.
+  `DayJournal.importPhotoHistory(_:)` transaction. Approved corrections carry
+  a `ManualEntryAudit` stamped when the user imports the draft.
 
 ### Detection, notifications & the rest
 
