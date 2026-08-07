@@ -36,7 +36,9 @@ one it belongs to rather than to a god-object:
   which surface and persist each region's picked `RegionAppearance` — color
   token, emoji, SF Symbol — and pick order alongside the synced rows) — one row
   per region, defaulting to the four until the user chooses in the onboarding /
-  Settings region picker.
+  Settings region picker. `setPrimaryRegions(_:)` also waits for the live
+  attributor to rebuild before returning, so a following write cannot publish
+  against the previous region set.
 - **`RegionAttribution`** — a live `RegionAttributing` built from the tracked
   regions that rebuilds on `changes()` (a local edit or a remote import), so the
   app + App Intents process attribute against the same synced set. Assemble

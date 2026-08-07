@@ -40,8 +40,9 @@ internal shape.
 - **Primary regions *are* the tracked-region set.** `primaryRegions()` /
   `setPrimaryRegions(_:)` read/write the same `SDTrackedRegion` rows as
   `trackedRegions()` — picking scopes GPS attribution *and* carries each
-  region's `RegionAppearance` + pick order. `RegionAppearance` is data
-  (WhereCore); the token→`Color` mapping is presentation (WhereUI).
+  region's `RegionAppearance` + pick order. Await the live-attributor reconcile
+  before `setPrimaryRegions(_:)` returns. `RegionAppearance` is data (WhereCore);
+  the token→`Color` mapping is presentation (WhereUI).
 - **Backups mirror the persisted model — keep them lossless.** Any persisted
   change is reflected end-to-end: add it to `BackupArchive`, write it in
   `BackupService.makeArchiveFile`, read it back in

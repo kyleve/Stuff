@@ -295,6 +295,9 @@ public struct WhereServices: Sendable {
         try await store.perform {
             try await store.setPrimaryRegions(regions)
         }
+        if let liveAttributor = attributor as? any RegionAttributionReconciling {
+            await liveAttributor.reconcile()
+        }
     }
 
     /// Return the services to a clean slate for the app's "erase all data &
