@@ -17,11 +17,11 @@ public struct BackupArchive: Codable, Sendable, Hashable {
     /// `BackupService.readArchive`, which rejects any other version).
     ///
     /// v2 adds `primaryRegions` (each tracked region's picked appearance + pick
-    /// order). There's no in-app decode fallback for a pre-v2 archive — it's
-    /// reshaped out of band by `Tools/upgrade-backup.rb` (which synthesizes
-    /// `primaryRegions` from `trackedRegions`), matching the module's
+    /// order). v3 adds `.photo` to the persisted `SampleSource` vocabulary.
+    /// There's no in-app decode fallback for an older archive — it's reshaped
+    /// out of band by `Tools/upgrade-backup.rb`, matching the module's
     /// no-migration-on-read rule (see `AGENTS.md`).
-    public static let currentFormatVersion = 2
+    public static let currentFormatVersion = 3
 
     public let formatVersion: Int
     public let exportedAt: Date

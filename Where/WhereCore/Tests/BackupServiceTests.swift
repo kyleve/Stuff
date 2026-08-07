@@ -29,6 +29,13 @@ struct BackupServiceTests {
                 horizontalAccuracy: 10,
                 source: .evidenceImplied(id: evidenceWithBlobId, kind: .boardingPass),
             ),
+            LocationSample(
+                id: UUID(uuidString: "33333333-3333-3333-3333-333333333333")!,
+                timestamp: Date(timeIntervalSince1970: 1_700_200_000),
+                coordinate: Coordinate(latitude: 41.8781, longitude: -87.6298),
+                horizontalAccuracy: 8,
+                source: .photo,
+            ),
         ]
     }
 
@@ -273,7 +280,7 @@ struct BackupServiceTests {
         let decoded = try decoder.decode(BackupArchive.self, from: data)
 
         #expect(decoded == archive)
-        #expect(decoded.formatVersion == 2)
+        #expect(decoded.formatVersion == 3)
     }
 
     @Test func readingAFileThatIsNotAZipThrows() throws {
