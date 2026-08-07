@@ -365,3 +365,35 @@ private struct PhotoHistoryStintEditor: View {
         }
     }
 }
+
+#if DEBUG
+    #Preview("Photo history") {
+        OnboardingPhotoImportView.snapshotPreviews
+    }
+
+    #Preview("Photo history stint row") {
+        List {
+            PhotoHistoryStintRow(
+                stint: RegionStint(
+                    region: .california,
+                    start: Date(timeIntervalSince1970: 1_768_500_000),
+                    end: Date(timeIntervalSince1970: 1_768_586_400),
+                    dayCount: 2,
+                ),
+                calendar: Calendar(identifier: .gregorian),
+            )
+        }
+    }
+
+    #Preview("Photo history stint editor") {
+        PhotoHistoryStintEditor(
+            stint: RegionStint(
+                region: .california,
+                start: Date(timeIntervalSince1970: 1_768_500_000),
+                end: Date(timeIntervalSince1970: 1_768_586_400),
+                dayCount: 2,
+            ),
+            onApply: { _, _, _ in },
+        )
+    }
+#endif
