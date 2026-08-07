@@ -286,6 +286,10 @@ surfaces survive at near-Release speed. Options: `./Where/install --help`.
 
 Root [testing conventions](../AGENTS.md#testing) apply. What's specific here:
 
+- **Formal protocol specs** live under [`Specifications/`](Specifications/); run
+  them locally with [`./tla-check`](../tla-check) (opt-in, not CI). Each folder
+  holds a `.tla` model, TLC configs, a `manifest.json`, and a README tying the
+  model to production code and cited Swift tests.
 - Test bundles run in `StuffTestHost` via the `unitTests` helper in
   `Project.swift` and link `TestHostSupport` (`show(_:perform:)`, `waitFor`).
 - Use `ScriptedLocationSource` and `SwiftDataStore.inMemory()` — never
