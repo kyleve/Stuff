@@ -188,11 +188,13 @@ typed-route list (`SettingsSearch.swift`; every switch is exhaustive), so a
 new drill-in is a set of compile errors to fill in; About stays the last
 block and the demo-mode exit the first.
 
+The Data and About screens lead with the shared privacy passport statement.
 The About screen renders three live sources — the generated attribution
 report (`WhereCore.AppAttribution`), `RegionDataSource`, and `BuildInfo` —
 never a list hard-coded in the view. A missing report or unstamped build
 renders an honest empty state, and shipped libraries stay a separate section
-from development tools. Design and rationale: PR #140.
+from development tools; keep its final passport sign-off linked to the public
+project repository. Design and rationale: PR #140.
 
 ## Localization
 
@@ -284,6 +286,10 @@ surfaces survive at near-Release speed. Options: `./Where/install --help`.
 
 Root [testing conventions](../AGENTS.md#testing) apply. What's specific here:
 
+- **Formal protocol specs** live under [`Specifications/`](Specifications/); run
+  them locally with [`./tla-check`](../tla-check) (opt-in, not CI). Each folder
+  holds a `.tla` model, TLC configs, a `manifest.json`, and a README tying the
+  model to production code and cited Swift tests.
 - Test bundles run in `StuffTestHost` via the `unitTests` helper in
   `Project.swift` and link `TestHostSupport` (`show(_:perform:)`, `waitFor`).
 - Use `ScriptedLocationSource` and `SwiftDataStore.inMemory()` — never

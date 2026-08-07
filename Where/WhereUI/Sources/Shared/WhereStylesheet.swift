@@ -28,6 +28,7 @@ struct WhereStylesheet: BStylesheet {
     var launch = LaunchStyle.standard
     var typography = Typography.standard
     var settings = SettingsStyle.standard
+    var passportCard = PassportCardStyle.standard
     var developerOverlay = DeveloperOverlayStyle.standard
 
     init() {}
@@ -57,6 +58,12 @@ struct WhereStylesheet: BStylesheet {
             developerOverlay.menu.motion = .reduced
             yearOverview.picker.selectionAnimation = .easeInOut(duration: 0.18)
             yearOverview.picker.contentAnimation = .easeInOut(duration: 0.18)
+        }
+
+        // Pale, luminosity-only ink lifts the background security print off
+        // dark glass without changing its hue or saturation on touch.
+        if traits.mode == .dark {
+            card.securityPrint = .dark
         }
     }
 
@@ -246,27 +253,21 @@ extension WhereStylesheet {
         /// Spacing between the card's stacked rows (header, hero number, bar).
         var contentSpacing: CGFloat
         var progressBarHeight: CGFloat
-        /// Diameter of the circular "entry stamp" impression.
-        var entryStampSize: CGFloat
-        /// Whether the entry stamp draws its curved region-name arc — dropped on
-        /// the small compact stamp where it can't be read.
-        var showsArcText: Bool
-        var regionNameFont: Font
+        var entryStamp: EntryStamp
+        var regionNameTypography: Typography
         var regionNameTracking: CGFloat
-        var heroNumberFont: Font
-        var dayUnitFont: Font
+        var heroNumberTypography: Typography
+        var dayUnitTypography: Typography
         /// Point size of the oversized region glyph watermarked behind the card.
         var watermarkFontSize: CGFloat
         /// Offset of that watermark toward the bottom-trailing corner.
         var watermarkOffset: CGSize
-        /// Holographic sheen strength (the Primary cards catch more light).
-        var holographicIntensity: Double
-        /// Line width of the heavy outer frame stroke.
-        var frameOuterLineWidth: CGFloat
-        /// Whether the dashed perforation ring is drawn (Primary cards only).
-        var showsPerforationRing: Bool
-        /// Inset of the innermost dashed frame line.
-        var innerFrameInset: CGFloat
+        /// RegionKit silhouette artwork for the regular card. `nil` keeps the
+        /// compact card on its simpler SF Symbol watermark and stamp glyph.
+        var regionShape: RegionShape?
+        /// Light-sheen strength plus the deterministic pose used until a
+        /// live motion sample arrives (and whenever motion must stay static).
+        var sheen: Sheen
         var rosette: Rosette
         /// The tight rim glow; its `radius` drops to 0 under Reduce Transparency.
         var glow: Shadow
@@ -279,6 +280,228 @@ extension WhereStylesheet {
             var lineWidth: CGFloat
             var primaryRingSpacing: CGFloat
             var secondaryRingSpacing: CGFloat
+        }
+
+        /// A card text treatment kept as structured data so the DEBUG card
+        /// designer can round-trip it without trying to inspect an opaque
+        /// SwiftUI `Font` value.
+        struct Typography: Equatable {
+            var size: Size
+            var weight: Weight
+            var design: Design
+
+            var font: Font {
+                switch size {
+                    case let .fixed(points):
+                        .system(size: points, weight: weight.fontWeight, design: design.fontDesign)
+                    case let .semantic(textStyle):
+                        .system(textStyle.fontTextStyle, design: design.fontDesign)
+                            .weight(weight.fontWeight)
+                }
+            }
+
+            enum Size: Equatable {
+                case fixed(CGFloat)
+                case semantic(TextStyle)
+            }
+
+            enum TextStyle: String, CaseIterable, Codable {
+                case caption2
+                case caption
+                case footnote
+                case subheadline
+                case callout
+                case body
+                case headline
+                case title3
+                case title2
+                case title
+                case largeTitle
+
+                var fontTextStyle: Font.TextStyle {
+                    switch self {
+                        case .caption2: .caption2
+                        case .caption: .caption
+                        case .footnote: .footnote
+                        case .subheadline: .subheadline
+                        case .callout: .callout
+                        case .body: .body
+                        case .headline: .headline
+                        case .title3: .title3
+                        case .title2: .title2
+                        case .title: .title
+                        case .largeTitle: .largeTitle
+                    }
+                }
+            }
+
+            enum Weight: String, CaseIterable, Codable {
+                case ultraLight
+                case thin
+                case light
+                case regular
+                case medium
+                case semibold
+                case bold
+                case heavy
+                case black
+
+                var fontWeight: Font.Weight {
+                    switch self {
+                        case .ultraLight: .ultraLight
+                        case .thin: .thin
+                        case .light: .light
+                        case .regular: .regular
+                        case .medium: .medium
+                        case .semibold: .semibold
+                        case .bold: .bold
+                        case .heavy: .heavy
+                        case .black: .black
+                    }
+                }
+            }
+
+            enum Design: String, CaseIterable, Codable {
+                case `default`
+                case serif
+                case rounded
+                case monospaced
+
+                var fontDesign: Font.Design {
+                    switch self {
+                        case .default: .default
+                        case .serif: .serif
+                        case .rounded: .rounded
+                        case .monospaced: .monospaced
+                    }
+                }
+            }
+        }
+
+        /// Geometry, ink strength, and typography for the circular passport
+        /// impression. The compact style omits `arc` where its text cannot read.
+        struct EntryStamp: Equatable {
+            var size: CGFloat
+            var outerRing: Ring
+            var innerRing: DashedRing
+            var content: Content
+            var arc: Arc?
+            var rotationDegrees: Double
+
+            struct Ring: Equatable {
+                var opacity: Double
+                var lineWidthFraction: CGFloat
+            }
+
+            struct DashedRing: Equatable {
+                var opacity: Double
+                var lineWidthFraction: CGFloat
+                var dash: Dash
+                var insetFraction: CGFloat
+
+                struct Dash: Equatable {
+                    var lengthFraction: CGFloat
+                    var spacingFraction: CGFloat
+                }
+            }
+
+            struct Content: Equatable {
+                var spacingFraction: CGFloat
+                var artworkExtent: CGSize
+                var symbolFont: Typography
+                var yearFont: Typography
+                var opacity: Double
+            }
+
+            struct Arc: Equatable {
+                var radiusFraction: CGFloat
+                var font: Typography
+                var opacity: Double
+                var maximumSweepDegrees: Double
+                var sweepDegreesPerCharacter: Double
+            }
+
+            struct Typography: Equatable {
+                var sizeFraction: CGFloat
+                var weight: Font.Weight
+                var design: Font.Design
+
+                func font(for size: CGFloat) -> Font {
+                    .system(size: size * sizeFraction, weight: weight, design: design)
+                }
+            }
+
+            static func standard(size: CGFloat, showsArcText: Bool) -> EntryStamp {
+                EntryStamp(
+                    size: size,
+                    outerRing: .init(opacity: 0.7, lineWidthFraction: 0.035),
+                    innerRing: .init(
+                        opacity: 0.45,
+                        lineWidthFraction: 0.012,
+                        dash: .init(lengthFraction: 0.05, spacingFraction: 0.035),
+                        insetFraction: 0.13,
+                    ),
+                    content: .init(
+                        spacingFraction: 0.02,
+                        artworkExtent: CGSize(width: 0.42, height: 0.28),
+                        symbolFont: .init(sizeFraction: 0.26, weight: .regular, design: .default),
+                        yearFont: .init(sizeFraction: 0.15, weight: .bold, design: .serif),
+                        opacity: 0.85,
+                    ),
+                    arc: showsArcText ? .init(
+                        radiusFraction: 0.37,
+                        font: .init(sizeFraction: 0.1, weight: .semibold, design: .serif),
+                        opacity: 0.7,
+                        maximumSweepDegrees: 250,
+                        sweepDegreesPerCharacter: 17,
+                    ) : nil,
+                    rotationDegrees: -8,
+                )
+            }
+        }
+
+        /// Styles for the repeated region silhouette: one large security
+        /// watermark, one stamp seal, and a microprinted inset border.
+        struct RegionShape: Equatable {
+            var watermark: Artwork
+            var stamp: Artwork
+            var securityBorder: SecurityBorder
+
+            /// Projection geometry and ink treatment for one silhouette.
+            struct Artwork: Equatable {
+                var center: CGPoint
+                var extent: CGSize
+                var scale: CGFloat
+                var fillOpacity: Double
+                var stroke: Stroke?
+
+                struct Stroke: Equatable {
+                    var opacity: Double
+                    var width: CGFloat
+                }
+            }
+
+            /// The inset ring of tiny tangent-aligned region silhouettes.
+            struct SecurityBorder: Equatable {
+                var inset: CGFloat
+                var glyphSize: CGFloat
+                var spacing: CGFloat
+                var opacity: Double
+            }
+        }
+
+        struct Sheen: Equatable {
+            var intensity: Double
+            /// Strength of only the white glint while the pose is
+            /// static; the grayscale wash keeps `intensity` so the card retains
+            /// dimensional light without fading toward white.
+            var staticGlintIntensity: Double
+            var staticPose: Pose
+
+            struct Pose: Equatable {
+                var roll: Double
+                var pitch: Double
+            }
         }
 
         /// A region-tinted drop shadow: the view supplies the region tint, this
@@ -301,34 +524,46 @@ extension WhereStylesheet {
         var glassTintOpacity: Double
         /// Opacity of the region-name header.
         var nameOpacity: Double
-        /// The layered stamp frame's strokes (shared across both variants).
-        var frame: Frame
         /// Fill opacities of the two security-print rosettes.
         var rosetteFill: RosetteFill
+        /// How the region tint is prepared for decorative security printing.
+        var securityPrint: SecurityPrint
         /// How the day count changes while the card is on screen; resolves to
         /// ``DayCountStyle/reducedMotion`` under Reduce Motion.
         var dayCount: DayCountStyle
-
-        /// The passport-style frame drawn over the card: a heavy outer line, a
-        /// thin line, an optional perforation ring (see
-        /// ``CardStyle/showsPerforationRing``), and a dashed inner line. Each
-        /// opacity applies over the region tint.
-        struct Frame: Equatable {
-            var outerOpacity: Double
-            var thinOpacity: Double
-            var thinWidth: CGFloat
-            var perforationOpacity: Double
-            var perforationWidth: CGFloat
-            var perforationDash: [CGFloat]
-            var innerOpacity: Double
-            var innerWidth: CGFloat
-            var innerDash: [CGFloat]
-        }
 
         /// Fill opacity of the bold and faint security-print rosettes.
         struct RosetteFill: Equatable {
             var primary: Double
             var secondary: Double
+        }
+
+        /// Keeps security artwork region-tinted on pale glass and mixes it
+        /// toward white on dark glass so normal compositing remains legible
+        /// while the system energizes the glass on touch.
+        struct SecurityPrint: Equatable {
+            var whiteMix: Double
+            /// Applies to the rosettes, watermark, and microprint only; the
+            /// prominent entry stamp always uses normal compositing.
+            var backgroundBlendMode: BlendMode
+
+            func tint(_ regionTint: Color) -> Color {
+                guard whiteMix > 0 else { return regionTint }
+                return regionTint.mix(
+                    with: .white,
+                    by: whiteMix,
+                    in: .perceptual,
+                )
+            }
+
+            static let standard = SecurityPrint(
+                whiteMix: 0,
+                backgroundBlendMode: .normal,
+            )
+            static let dark = SecurityPrint(
+                whiteMix: 0.65,
+                backgroundBlendMode: .luminosity,
+            )
         }
 
         /// How a card's day count changes when it updates with the card on screen
@@ -342,6 +577,9 @@ extension WhereStylesheet {
         /// fade). The animation also sweeps the ambient bar, which reads the same
         /// count, in the same beat.
         struct DayCountStyle: Equatable {
+            /// How long the visible card surface holds its previous count before
+            /// the animation and its coordinated haptic begin.
+            var revealDelay: Duration
             /// Which way the count changes.
             var morph: Morph
             /// The animation that runs it.
@@ -366,6 +604,7 @@ extension WhereStylesheet {
             }
 
             static let standard = DayCountStyle(
+                revealDelay: .milliseconds(500),
                 morph: .rollingDigits,
                 // Long enough for the digits to read as rolling, short enough
                 // that a card tapped mid-roll doesn't feel held up.
@@ -374,6 +613,7 @@ extension WhereStylesheet {
 
             /// The Reduce-Motion pairing.
             static let reducedMotion = DayCountStyle(
+                revealDelay: .milliseconds(500),
                 morph: .crossFade,
                 animation: .easeInOut(duration: 0.2),
             )
@@ -394,27 +634,63 @@ extension WhereStylesheet {
                 padding: 22,
                 contentSpacing: 16,
                 progressBarHeight: 10,
-                entryStampSize: 88,
-                showsArcText: true,
+                entryStamp: .standard(size: 88, showsArcText: true),
                 // Fixed point size (not a Dynamic Type text style) for precise
                 // control against the entry stamp: the longest common headline
                 // names ("California" / "New York") fit, and any over-long one
                 // tightens then scales via `minimumScaleFactor`.
-                regionNameFont: .system(size: 38, weight: .semibold, design: .serif),
+                regionNameTypography: .init(
+                    size: .fixed(38),
+                    weight: .semibold,
+                    design: .serif,
+                ),
                 regionNameTracking: -0.5,
-                heroNumberFont: .system(size: 40, weight: .bold, design: .rounded),
-                dayUnitFont: .title3.weight(.medium),
+                heroNumberTypography: .init(
+                    size: .fixed(40),
+                    weight: .bold,
+                    design: .rounded,
+                ),
+                dayUnitTypography: .init(
+                    size: .semantic(.title3),
+                    weight: .medium,
+                    design: .default,
+                ),
                 watermarkFontSize: 150,
                 watermarkOffset: CGSize(width: 20, height: 12),
-                holographicIntensity: 1,
-                frameOuterLineWidth: 3.5,
-                showsPerforationRing: true,
-                innerFrameInset: 16,
+                regionShape: CardStyle.RegionShape(
+                    watermark: .init(
+                        center: CGPoint(x: 0.7, y: 0.57),
+                        extent: CGSize(width: 0.72, height: 0.78),
+                        scale: 0.88,
+                        fillOpacity: 0.13,
+                        stroke: .init(opacity: 0.28, width: 1.5),
+                    ),
+                    stamp: .init(
+                        center: CGPoint(x: 0.5, y: 0.5),
+                        extent: CGSize(width: 0.78, height: 0.78),
+                        scale: 0.88,
+                        fillOpacity: 0.78,
+                        stroke: nil,
+                    ),
+                    securityBorder: .init(
+                        inset: 9,
+                        glyphSize: 8,
+                        spacing: 11,
+                        opacity: 0.22,
+                    ),
+                ),
+                sheen: CardStyle.Sheen(
+                    intensity: 1,
+                    staticGlintIntensity: 0.25,
+                    // A phone held upright: the glint sits near the lower edge
+                    // instead of washing out the card's central content.
+                    staticPose: .init(roll: 0, pitch: -1),
+                ),
                 rosette: CardStyle.Rosette(
-                    wobble: 3,
-                    lineWidth: 3,
-                    primaryRingSpacing: 18,
-                    secondaryRingSpacing: 15,
+                    wobble: 2,
+                    lineWidth: 1,
+                    primaryRingSpacing: 13.5,
+                    secondaryRingSpacing: 9.5,
                 ),
                 glow: CardStyle.Shadow(opacity: 0.75, radius: 12),
                 lift: CardStyle.Shadow(opacity: 0.6, radius: 34, offsetY: 18),
@@ -424,21 +700,35 @@ extension WhereStylesheet {
                 padding: 16,
                 contentSpacing: 10,
                 progressBarHeight: 6,
-                entryStampSize: 52,
-                showsArcText: false,
-                regionNameFont: .system(.title3, design: .serif).weight(.semibold),
+                entryStamp: .standard(size: 52, showsArcText: false),
+                regionNameTypography: .init(
+                    size: .semantic(.title3),
+                    weight: .semibold,
+                    design: .serif,
+                ),
                 regionNameTracking: 0,
-                heroNumberFont: .system(.title, design: .rounded, weight: .bold),
-                dayUnitFont: .subheadline.weight(.medium),
+                heroNumberTypography: .init(
+                    size: .semantic(.title),
+                    weight: .bold,
+                    design: .rounded,
+                ),
+                dayUnitTypography: .init(
+                    size: .semantic(.subheadline),
+                    weight: .medium,
+                    design: .default,
+                ),
                 watermarkFontSize: 96,
                 watermarkOffset: CGSize(width: 12, height: 10),
-                holographicIntensity: 0.5,
-                frameOuterLineWidth: 2.5,
-                showsPerforationRing: false,
-                innerFrameInset: 12,
+                regionShape: nil,
+                sheen: CardStyle.Sheen(
+                    intensity: 0.5,
+                    staticGlintIntensity: 0.5,
+                    // Preserve the compact card's existing neutral treatment.
+                    staticPose: .init(roll: 0, pitch: 0),
+                ),
                 rosette: CardStyle.Rosette(
                     wobble: 2,
-                    lineWidth: 2,
+                    lineWidth: 1,
                     primaryRingSpacing: 13,
                     secondaryRingSpacing: 11,
                 ),
@@ -448,18 +738,8 @@ extension WhereStylesheet {
             watermarkOpacity: 0.08,
             glassTintOpacity: 0.18,
             nameOpacity: 0.8,
-            frame: Frame(
-                outerOpacity: 0.6,
-                thinOpacity: 0.35,
-                thinWidth: 1,
-                perforationOpacity: 0.45,
-                perforationWidth: 2.5,
-                perforationDash: [0.01, 6],
-                innerOpacity: 0.4,
-                innerWidth: 1,
-                innerDash: [5, 4],
-            ),
             rosetteFill: RosetteFill(primary: 0.12, secondary: 0.08),
+            securityPrint: .standard,
             dayCount: .standard,
         )
     }
@@ -494,20 +774,11 @@ extension WhereStylesheet {
             var gridSpacing: CGFloat
             var padding: CGFloat
             var cornerRadius: CGFloat
-            /// Card treatment for a past or future month — the plain wash + rim.
+            /// Card treatment for a past month — the plain wash + rim.
             var plain: Card
             /// Card treatment for the current month — a bluer accent wash and a
             /// heavier accent border so it stands out from the plain months.
             var current: Card
-            /// Opacity of the next-month "teaser" peek, dimming it so it clearly
-            /// hasn't happened yet.
-            var futureOpacity: Double
-            /// Fraction of the future (next) month's *rendered* height revealed as
-            /// a peek — the grid can only scroll partway into it, faded out over
-            /// it. Dimensionless on purpose: the absolute pixel height depends on
-            /// layout (how tall that month renders), so it's computed at view time
-            /// from this fraction rather than hardcoded here.
-            var futurePeekFraction: CGFloat
             /// Extra space below the footer's divider, so the tally rows don't
             /// butt right up against it.
             var footerDividerSpacing: CGFloat
@@ -519,7 +790,7 @@ extension WhereStylesheet {
             var unfocusedRowOpacity: Double
 
             /// One month card's fill + border, so the same treatment can be
-            /// applied by state: `plain` for past/future months, `current` for
+            /// applied by state: `plain` for past months, `current` for
             /// the current one. The grid picks a `Card` and reads both from it,
             /// rather than ternary-ing each property against `isCurrentMonth`.
             struct Card: Equatable {
@@ -528,6 +799,10 @@ extension WhereStylesheet {
                 /// Border around the card (a touch darker than `fill`).
                 var border: Color
                 var borderWidth: CGFloat
+                /// Base foreground inherited by the month's neutral primary and
+                /// secondary text. Explicit semantic colors (today, unresolved,
+                /// and region tints) still override it.
+                var foreground: Color
             }
         }
 
@@ -603,19 +878,23 @@ extension WhereStylesheet {
                 sectionSpacing: 8,
                 gridSpacing: 6,
                 padding: 16,
-                cornerRadius: 21,
+                cornerRadius: 28,
                 plain: MonthStyle.Card(
                     fill: Color.primary.opacity(0.03),
                     border: Color.primary.opacity(0.12),
                     borderWidth: 2,
+                    foreground: .primary,
                 ),
                 current: MonthStyle.Card(
                     fill: Color.accentColor.opacity(0.08),
                     border: Color.accentColor.opacity(0.7),
-                    borderWidth: 4,
+                    borderWidth: 3,
+                    foreground: Color.primary.mix(
+                        with: .accentColor,
+                        by: 0.25,
+                        in: .perceptual,
+                    ),
                 ),
-                futureOpacity: 0.55,
-                futurePeekFraction: 0.5,
                 footerDividerSpacing: 8,
                 footerSpacing: 4,
                 footerRowSpacing: 6,
@@ -1067,6 +1346,104 @@ extension WhereStylesheet {
     }
 }
 
+// MARK: - Passport card
+
+extension WhereStylesheet {
+    /// Appearance for compact passport statements in Settings.
+    struct PassportCardStyle: Equatable {
+        var cornerRadius: CGFloat
+        var padding: CGFloat
+        var contentSpacing: CGFloat
+        var titleFont: Font
+        var detailFont: Font
+        var seal: Seal
+        var rosette: Rosette
+        var reflectiveSurface: ReflectiveSurface
+        var glassTintOpacity: Double
+        var accentGlow: Shadow
+        var liftShadow: Shadow
+
+        struct Seal: Equatable {
+            var size: CGFloat
+            var rotationDegrees: Double
+            var outerLineWidth: CGFloat
+            var innerLineWidth: CGFloat
+            var innerInset: CGFloat
+            var dashLength: CGFloat
+            var dashSpacing: CGFloat
+            var symbolFont: Font
+        }
+
+        struct Rosette: Equatable {
+            var wobble: CGFloat
+            var lineWidth: CGFloat
+            var primaryRingSpacing: CGFloat
+            var secondaryRingSpacing: CGFloat
+            var primaryOpacity: Double
+            var secondaryOpacity: Double
+        }
+
+        struct ReflectiveSurface: Equatable {
+            var backgroundTop: Color
+            var backgroundBottom: Color
+            var accent: Color
+            var glowOpacity: Double
+            var intensity: Double
+            var staticGlintIntensity: Double
+            var staticPose: Pose
+
+            struct Pose: Equatable {
+                var roll: Double
+                var pitch: Double
+            }
+        }
+
+        struct Shadow: Equatable {
+            var opacity: Double
+            var radius: CGFloat
+            var offsetY: CGFloat = 0
+        }
+
+        static let standard = PassportCardStyle(
+            cornerRadius: 20,
+            padding: 16,
+            contentSpacing: 12,
+            titleFont: .headline,
+            detailFont: .subheadline,
+            seal: Seal(
+                size: 52,
+                rotationDegrees: -8,
+                outerLineWidth: 2,
+                innerLineWidth: 1,
+                innerInset: 7,
+                dashLength: 3,
+                dashSpacing: 3,
+                symbolFont: .title3,
+            ),
+            rosette: Rosette(
+                wobble: 5,
+                lineWidth: 0.75,
+                primaryRingSpacing: 10,
+                secondaryRingSpacing: 16,
+                primaryOpacity: 0.1,
+                secondaryOpacity: 0.06,
+            ),
+            reflectiveSurface: ReflectiveSurface(
+                backgroundTop: Color(red: 0.08, green: 0.18, blue: 0.34),
+                backgroundBottom: Color(red: 0.02, green: 0.07, blue: 0.16),
+                accent: Color(red: 0.88, green: 0.72, blue: 0.32),
+                glowOpacity: 0.12,
+                intensity: 0.28,
+                staticGlintIntensity: 0.28,
+                staticPose: .init(roll: 0.3, pitch: -0.15),
+            ),
+            glassTintOpacity: 0.06,
+            accentGlow: Shadow(opacity: 0.18, radius: 7),
+            liftShadow: Shadow(opacity: 0.08, radius: 5, offsetY: 2),
+        )
+    }
+}
+
 // MARK: - Palette
 
 extension WhereStylesheet {
@@ -1160,11 +1537,27 @@ extension View {
     /// passes `WhereSession`'s live resolver, the widget process one built from
     /// its `WidgetSnapshot`, and intents one from their services; the default
     /// empty resolver yields fallback looks (previews, the region-map viewer).
+    /// The root also owns and injects the region-outline `Path` cache so cards
+    /// share render artifacts without a process-global UI singleton.
     public func whereBroadwayRoot(
         regionStyles: RegionStyleResolver = .default,
     ) -> some View {
-        broadwayRoot(themes: WhereThemes.current)
+        modifier(WhereBroadwayRootModifier(regionStyles: regionStyles))
+    }
+}
+
+/// Owns UI render resources once per Where root and injects them alongside the
+/// Broadway/design context. Keeping the path cache here shares it across cards
+/// without introducing a process-global UI singleton.
+private struct WhereBroadwayRootModifier: ViewModifier {
+    let regionStyles: RegionStyleResolver
+    @State private var regionOutlinePathCache = RegionOutlinePathCache()
+
+    func body(content: Content) -> some View {
+        content
+            .broadwayRoot(themes: WhereThemes.current)
             .environment(\.regionStyles, regionStyles)
+            .environment(\.regionOutlinePathCache, regionOutlinePathCache)
     }
 }
 

@@ -32,9 +32,10 @@ comes last.
    `AGENTS.md` when its architecture, public API, or a documented behavior
    changed; the root `AGENTS.md` when a global rule, a target, or the build/test
    flow did. Run `./sync-agents` afterwards if any `AGENTS.md` changed.
-6. **Open a PR** ready-for-review with `gh`, describing the end state: what
-   moved in the backlog, what the audit now says, and what you verified rather
-   than assumed.
+6. **Open a PR** ready-for-review — follow the
+   [`github-workflow`](../github-workflow/SKILL.md) skill, describing the end
+   state: what moved in the backlog, what the audit now says, and what you
+   verified rather than assumed.
 
 An ad-hoc run — someone asking you to triage the inbox or file a finding — is
 just the relevant section below, not the whole pass.

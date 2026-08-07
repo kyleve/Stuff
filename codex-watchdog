@@ -1,0 +1,102 @@
+#!/bin/bash
+set -euo pipefail
+
+# codex-watchdog — keep the ChatGPT macOS app running for Codex.
+#
+# Codex runs as a child process inside ChatGPT. This intentionally checks the
+# parent app's main executable rather than a Codex helper process: helpers can
+# briefly outlive the app after a crash. Launches use `open -g` so restarting
+# ChatGPT does not steal focus from the active app.
+
+APP_NAME="ChatGPT"
+PROCESS_NAME="ChatGPT"
+INTERVAL=10
+
+usage() {
+    cat <<'USAGE'
+Usage: ./codex-watchdog [options]
+
+Polls for the ChatGPT macOS app that hosts Codex and launches it whenever it is
+not running. The watchdog continues until interrupted with Ctrl-C.
+
+Options:
+  --interval SECONDS  Poll interval (default: 10)
+  --app NAME          Application name passed to `open -a` (default: ChatGPT)
+  --process NAME      Main executable name to match literally (default: ChatGPT)
+  -h, --help          Show this help
+
+Examples:
+  ./codex-watchdog
+  ./codex-watchdog --interval 30
+USAGE
+}
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --interval)
+            shift
+            INTERVAL="${1:?--interval requires a value}"
+            ;;
+        --app)
+            shift
+            APP_NAME="${1:?--app requires a value}"
+            ;;
+        --process)
+            shift
+            PROCESS_NAME="${1:?--process requires a value}"
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            echo "error: unknown option '$1' (see ./codex-watchdog --help)" >&2
+            exit 1
+            ;;
+    esac
+    shift
+done
+
+case "$INTERVAL" in
+    ''|*[!0-9]*)
+        echo "error: --interval must be a positive whole number" >&2
+        exit 1
+        ;;
+esac
+if [ "$INTERVAL" -eq 0 ]; then
+    echo "error: --interval must be greater than zero" >&2
+    exit 1
+fi
+
+timestamp() { date '+%Y-%m-%d %H:%M:%S'; }
+
+# `-U` keeps another login session from satisfying the lookup, and `-ww` keeps
+# long executable paths intact. Shell equality makes PROCESS_NAME literal.
+process_is_running() {
+    local command process_list
+    if ! process_list="$(ps -ww -U "$UID" -o comm= 2>&1)"; then
+        echo "[$(timestamp)] warning: could not inspect processes for UID $UID: $process_list; retrying in $INTERVAL seconds" >&2
+        return 2
+    fi
+
+    while IFS= read -r command; do
+        if [ "${command##*/}" = "$PROCESS_NAME" ]; then
+            return 0
+        fi
+    done <<<"$process_list"
+    return 1
+}
+
+echo "[$(timestamp)] Watching $APP_NAME every $INTERVAL seconds (Ctrl-C to stop)"
+
+while true; do
+    process_status=0
+    process_is_running || process_status=$?
+    if [ "$process_status" -eq 1 ]; then
+        echo "[$(timestamp)] $APP_NAME is not running; launching it"
+        if ! open -g -a "$APP_NAME"; then
+            echo "[$(timestamp)] warning: could not launch $APP_NAME; retrying in $INTERVAL seconds" >&2
+        fi
+    fi
+    sleep "$INTERVAL"
+done

@@ -22,6 +22,8 @@ and testing conventions live in the feature [`Where/AGENTS.md`](../AGENTS.md)
 - Keep the DEBUG Logs destination visible for every
   `WhereModel.logStoreState`; opening, unavailable, and failed stores are
   diagnostics to render, not reasons to hide the tool.
+- Keep the DEBUG card designer's draft in one root-owned `CardDesignerModel`;
+  persist the draft, but leave its app-wide override disabled at every launch.
 - Flyover infrastructure stays under `#if DEBUG` in
   [`Sources/Developer/Flyover`](Sources/Developer/Flyover), while each
   represented screen declares a DEBUG-only `WhereFlyoverProviding` extension
@@ -43,6 +45,12 @@ and testing conventions live in the feature [`Where/AGENTS.md`](../AGENTS.md)
   [double-link rule](../../AGENTS.md#never-double-link-a-product-whereui-already-carries));
   that's why `whereBroadwayRoot()` lives here rather than being called as
   `broadwayRoot` at each site.
+- Keep render-ready region geometry in the root-injected
+  `RegionOutlinePathCache`: RegionKit owns the cached source outlines and its
+  stateless simplifier, while WhereUI chooses full/medium/small/micro
+  tolerances and caches the resulting SwiftUI `Path`s; use the small path for
+  the stamp and the micro path for the repeated border, and never project or
+  simplify a boundary in a card's `body`.
 - Continuous/looping motion (repeat-forever pulses, `TimelineView(.animation)`,
   typewriter reveals) must consult the shared `@MotionIsStatic` helper
   ([`Sources/Shared/MotionIsStatic.swift`](Sources/Shared/MotionIsStatic.swift))
@@ -59,6 +67,10 @@ and testing conventions live in the feature [`Where/AGENTS.md`](../AGENTS.md)
   renders relative to *today*, so no reference containing one is stable across
   days. Views don't read `\.isCapturingSnapshot` to branch themselves; capture
   handling stays inside the shared component.
+- Reconcile `LocationDayCountPresentationModel` only from the visible primary
+  card surface after its stylesheet-owned reveal delay; another tab, covering
+  sheet, or pushed destination must cancel the delay and leave its persisted
+  baseline untouched so returning can animate and haptically signal the change.
 
 ## Design system — `WhereStylesheet`
 
@@ -97,6 +109,9 @@ rules:
   `.accentColor` stay inline.
 - `WhereThemes` is deliberately empty — the seam a future app-wide theme
   plugs into.
+- The DEBUG card designer may override only presentation values already owned
+  by `CardStyles`; it must not add a second production styling system or alter
+  count animation and outline-cache behavior.
 
 ## Testing
 
