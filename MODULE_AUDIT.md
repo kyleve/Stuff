@@ -53,7 +53,7 @@ Pointers only — each one's evidence and suggested fix live in the linked file.
 | 3 | **high** | WhereCore | `DailySummaryReconciler.reconcile()` is absent from the post-day-change fan-out — the notification body stays stale until a foreground re-`configure` | [`Where/TODOs.md`](Where/TODOs.md) P0 |
 | 4 | **high** | WhereUI | Tracking toggle race — `trackingEnabled`'s setter spawns unserialized `Task`s | [`Where/TODOs.md`](Where/TODOs.md) P1 |
 | 5 | **high** | LifecycleKit | Cancel during the *last* step's `minVisible` hold isn't observed, so a superseded drive can set `phase = .ready` | [`Shared/LifecycleKit/TODOs.md`](Shared/LifecycleKit/TODOs.md) P0 |
-| 6 | **medium** | WhereCore | `setPrimaryRegions(_:)` commits atomically but skips `reconcileAfterDayChange()` | [`Where/TODOs.md`](Where/TODOs.md) P1 |
+| 6 | **medium** | WhereCore | `setPrimaryRegions(_:)` commits atomically but skips `reconcileAfterDayDataChange()` | [`Where/TODOs.md`](Where/TODOs.md) P1 |
 | 7 | **medium** | WhereCore | `setTrackedRegion(false)` hard-deletes the row; the shipped picker now reaches it, so past-year re-attribution risk is live | [`Where/TODOs.md`](Where/TODOs.md) P1 |
 | 8 | **medium** | PeriscopeCore | Orphan sweep treats an undecodable `SpanBegan` as an orphan-close candidate, silently overriding `survivesRelaunch` | [`Shared/Periscope/TODOs.md`](Shared/Periscope/TODOs.md) P1 |
 | 9 | **medium** | WhereUI | Load-state UI duplicated across four views; `PresenceTimelineList` renders the *empty* state while the year is still loading | [`Where/TODOs.md`](Where/TODOs.md) P1 |
@@ -69,7 +69,7 @@ Pointers only — each one's evidence and suggested fix live in the linked file.
 
 ### Reconciliation: same two holes, one now user-reachable
 
-`reconcileAfterDayChange()` still fans out to issue state and widgets only. **Daily summary** remains outside it, and **`setPrimaryRegions(_:)`** still commits without calling it. Related and newly urgent: untracking a region hard-deletes its row, and the shipped onboarding picker plus the Settings region editor both route into that path, so the past-year re-attribution risk the `SwiftDataStore` TODO describes is now something a user can trigger.
+`reconcileAfterDayDataChange()` still fans out to issue state and widgets only. **Daily summary** remains outside it, and **`setPrimaryRegions(_:)`** still commits without calling it. Related and newly urgent: untracking a region hard-deletes its row, and the shipped onboarding picker plus the Settings region editor both route into that path, so the past-year re-attribution risk the `SwiftDataStore` TODO describes is now something a user can trigger.
 
 ### Presentation-layer calendar drift outlived the fix
 

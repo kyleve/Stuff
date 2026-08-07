@@ -54,6 +54,11 @@ import UIKit
     private var observer: CFRunLoopObserver?
     public private(set) var idleCount = 0
 
+    /// The observer whose run-loop registration the regression tests inspect.
+    public var registeredObserver: CFRunLoopObserver? {
+        observer
+    }
+
     public init() {}
 
     public func start() {

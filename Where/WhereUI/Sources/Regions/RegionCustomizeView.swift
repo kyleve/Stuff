@@ -1,4 +1,5 @@
 import RegionKit
+import SnapshotKit
 import SwiftUI
 import WhereCore
 
@@ -10,6 +11,10 @@ import WhereCore
 struct RegionAppearanceEditor: View {
     @Bindable var model: PrimaryRegionSelectionModel
     let region: Region
+
+    /// Matches the Locations card's live sheen response while this editor is
+    /// visible; the card uses its static pose until the first sample arrives.
+    @State private var tilt = TiltProvider()
 
     @Environment(\.stylesheet) private var stylesheet
 
@@ -34,14 +39,19 @@ struct RegionAppearanceEditor: View {
             }
             .padding(stylesheet.spacing.large)
         }
+        .onAppear { tilt.start() }
+        .onDisappear { tilt.stop() }
     }
 
     private var preview: some View {
-        RegionSummaryCard(
-            regionDays: RegionDays(region: region, days: 128),
-            caption: WhereFormat.regionCustomizeSubtitle(region: region.localizedName),
-            styleOverride: RegionStyle(appearance),
-        )
+        GlassEffectContainer(spacing: stylesheet.spacing.xxLarge) {
+            RegionSummaryCard(
+                regionDays: RegionDays(region: region, days: 128),
+                caption: WhereFormat.regionCustomizeSubtitle(region: region.localizedName),
+                tilt: tilt,
+                styleOverride: RegionStyle(appearance),
+            )
+        }
         .animation(stylesheet.motion.captionFade, value: appearance)
     }
 
@@ -86,7 +96,7 @@ struct RegionAppearanceEditor: View {
                             if isSelected {
                                 Image(systemName: "checkmark")
                                     .font(.caption.weight(.bold))
-                                    .foregroundStyle(.white)
+                                    .foregroundStyle(token.selectionForeground)
                             }
                         }
                 }
@@ -254,11 +264,30 @@ struct RegionCustomizeView: View {
         .whereBroadwayRoot()
     }
 
-    #Preview("Stepping") {
-        NavigationStack {
-            RegionCustomizeView(model: PreviewSupport.primaryRegionSelectionModel())
+    extension RegionCustomizeView: SnapshotProviding {
+        static var snapshots: [SnapshotCase] {
+            whereSnapshot(name: "Editor", configurations: .phoneLightDark) {
+                NavigationStack {
+                    RegionCustomizeView(model: PreviewSupport.primaryRegionSelectionModel())
+                }
+            }
+
+            whereSnapshot(name: "NeutralEditor", configurations: .phoneLightDark) {
+                NavigationStack {
+                    RegionCustomizeView(model: neutralPreviewModel())
+                }
+            }
         }
-        .whereBroadwayRoot()
+
+        private static func neutralPreviewModel() -> PrimaryRegionSelectionModel {
+            let model = PreviewSupport.primaryRegionSelectionModel()
+            model.setColor(.slate, for: .california)
+            return model
+        }
+    }
+
+    #Preview("Stepping") {
+        RegionCustomizeView.snapshotPreviews
     }
 #endif
 

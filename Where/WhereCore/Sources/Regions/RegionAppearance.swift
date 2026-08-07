@@ -5,8 +5,9 @@ import Foundation
 /// processes, backups, and the CloudKit mirror; the presentation layer
 /// (`WhereUI.RegionStyle`) maps each token to a concrete SwiftUI color.
 ///
-/// The cases mirror the historical `RegionStyle` default palette so an
-/// unpicked region and a picked-then-matched one render identically.
+/// The first cases mirror the historical `RegionStyle` default palette so an
+/// unpicked region and a picked-then-matched one render identically. Additional
+/// picker colors append to that set so existing raw values stay stable.
 public enum RegionColorToken: String, CaseIterable, Sendable, Codable, Hashable {
     case orange
     case indigo
@@ -19,6 +20,13 @@ public enum RegionColorToken: String, CaseIterable, Sendable, Codable, Hashable 
     case purple
     case pink
     case brown
+    case gold
+    case lime
+    case coral
+    case magenta
+    case silver
+    case slate
+    case charcoal
 }
 
 /// The user-chosen look for a region: an accent color token, an emoji, and an

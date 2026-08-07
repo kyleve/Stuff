@@ -66,17 +66,20 @@ ruby Shared/CreditKit/Tools/generate-attribution.rb <config.json>   # just one
     { "type": "swiftPackageManager", "manifest": "Package.swift",
       "resolved": "Package.resolved", "shippedFrom": ["WhereUI"] },
     { "type": "agentSkills", "kind": "developmentTool",
-      "manifest": ".agents/external-skills.json" }
+      "manifest": ".agents/external-skills.json" },
+    { "type": "developmentTools", "kind": "developmentTool",
+      "manifest": ".agents/development-tools.json" }
   ]
 }
 ```
 
-Paths are relative to the repository root. Two source types are understood:
+Paths are relative to the repository root. Three source types are understood:
 
 | Type | Reads | Credits |
 |------|-------|---------|
 | `swiftPackageManager` | packages a target links via `.product(name:package:)`, pinned by the resolved file | one per linked package |
 | `agentSkills` | a `./sync-agents` manifest of `name -> { repo, ref }` | one per vendored skill |
+| `developmentTools` | a manifest of `name -> { repo, ref, version? }` for pinned GitHub-hosted tooling the repo uses but does not link as an SPM package | one per entry |
 
 Deriving the list rather than maintaining it is the point: a package linked by
 *any* module shows up the next time the report runs, so no module has to
@@ -91,6 +94,12 @@ package inside that closure is a `library` while any other linked package is a
 a test-support target is credited (the repo depends on it) but must not be
 described as being in the binary. `shippedFrom` is the only part set by hand, so
 adding a dependency can't quietly land under the wrong kind.
+
+`developmentTools` entries may carry an optional `version` for display; when
+omitted, the pinned ref's short prefix is used (as for agent skills). Keep each
+entry's `ref` aligned with the revision the repository actually uses — for
+example, bump `.agents/development-tools.json` when `./tla-check`'s pinned TLC
+version changes.
 
 The tool needs network and an authenticated `gh`. It is idempotent: re-running
 with nothing changed rewrites the same bytes.
@@ -116,9 +125,10 @@ handle at runtime.
   credit names in a test — a test bundle can't read the manifests, so it can
   only compare the report to a literal, which a stale report matches too.
 - **Development tools are not in the binary.** They are credited because the
-  repository makes copies of them, which permissive licenses ask us to
-  attribute. Any UI must keep the two kinds visually distinct so a reader isn't
-  told something untrue about the app they are running.
+  repository depends on them — vendored agent skills, pinned verification
+  tooling, and the like — which permissive licenses ask us to attribute. Any UI
+  must keep the two kinds visually distinct so a reader isn't told something
+  untrue about the app they are running.
 - **A missing report is not automatically an error.** Only the app target ships
   one, so `load` throwing `.reportMissing` is routine in a developer tool or
   test host. CreditKit reports it and leaves the judgement to the caller.
@@ -129,5 +139,6 @@ handle at runtime.
   is on its own; the type can't check what it can't see.
 - **Names, versions, and license titles are never localized.** They are proper
   nouns and legal terms; a UI supplies the translated framing around them.
-- **GitHub-hosted sources only.** Both source types resolve notices through the
-  GitHub API; a dependency hosted elsewhere would need a new source type.
+- **GitHub-hosted sources only.** All manifest-based source types resolve
+  notices through the GitHub API; a dependency hosted elsewhere would need a
+  new source type.

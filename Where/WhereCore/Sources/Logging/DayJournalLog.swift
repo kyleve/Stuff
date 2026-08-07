@@ -26,9 +26,9 @@ enum DayJournalLog: LogEvent {
         /// scanner, then recount the badge and the issue notification.
         case reconcileIssueState
         /// ``reconcileIssueState`` plus the widget republish, for writes that
-        /// changed day data. Nests the former, so the difference between the two
+        /// changed persisted day data. Nests the former, so the difference between the two
         /// spans is what WidgetKit cost.
-        case reconcileAfterDayChange
+        case reconcileAfterDayDataChange
     }
 
     case addedManualDay(day: String, regionCount: Int)

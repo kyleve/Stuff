@@ -1,9 +1,10 @@
 import LifecycleKitUI
+import SnapshotKit
 import SwiftUI
 import WhereCore
 
-/// Settings drill-in for backup and data management: export or restore the
-/// database, erase the selected year's data, or reset the entire app.
+/// Settings drill-in for Where's privacy promise and data management: export or
+/// restore the database, erase the selected year's data, or reset the entire app.
 struct DataSettingsView: View {
     let report: YearReportModel
     let backup: BackupModel
@@ -22,6 +23,9 @@ struct DataSettingsView: View {
     var body: some View {
         SettingsFocusScope(focus: focus) {
             Form {
+                PrivacyPassportCard()
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
                 BackupSettingsSection(backup: backup)
                 dataSection
                 resetSection
@@ -128,16 +132,21 @@ extension DataSettingsView: SettingsSection {
 }
 
 #if DEBUG
-    #Preview {
-        NavigationStack {
-            DataSettingsView(
-                report: PreviewSupport.loadedYearReportModel(),
-                backup: PreviewSupport.backupModel(),
-            )
-            .environment(PreviewSupport.loadedModel())
-            .environment(PreviewSupport.loadedSession())
+    extension DataSettingsView: SnapshotProviding {
+        static var snapshots: [SnapshotCase] {
+            whereSnapshot(name: "Default", configurations: .fullContentScreenDefaults) {
+                DataSettingsView(
+                    report: PreviewSupport.loadedYearReportModel(),
+                    backup: PreviewSupport.backupModel(),
+                )
+                .environment(PreviewSupport.loadedModel())
+                .environment(PreviewSupport.loadedSession())
+            }
         }
-        .whereBroadwayRoot()
+    }
+
+    #Preview {
+        DataSettingsView.snapshotPreviews
     }
 #endif
 

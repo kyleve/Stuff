@@ -78,8 +78,11 @@ internal shape.
 - **Writes await their side effects.** `DayJournal` commits, then awaits the
   reminder reconcile + widget publish in sequence, so a reader on the next
   `changes()` ping never observes a half-applied write.
+- **Filter persistent-store remote-change notifications by the Where store
+  URL.** Never let another store in the process (notably Periscope) ping
+  `WhereStore.changes()`; guard: `StoreRemoteChangeSourceTests`.
 - **Post-write reconciliation is defined once.** Every write and import
-  routes through `DayJournal.reconcileAfterDayChange()` (or its widget-less
+  routes through `DayJournal.reconcileAfterDayDataChange()` (or its widget-less
   subset `reconcileIssueState()`) — never copy the fan-out into a new write
   path. Cross-collaborator hooks take a single closure wired at the
   composition root (`BackupCoordinator.onImport`).
@@ -97,6 +100,9 @@ internal shape.
   from them and rebuilds on `changes()`; assemble via the async
   `WhereServices.make(...)` / `forIntents()` so both attribute against the
   same synced set. `distanceToBoundary` is `nil` outside the tracked set.
+- **Location-card history is non-authoritative preference state.** Keep its
+  snapshots year-keyed by stable `Region` id, and clear them through
+  `WherePreferences.reset()`; current report totals remain the source of truth.
 - **`DemoDataBuilder` seeds through the ordinary write paths** (`DayJournal`,
   `setPrimaryRegions`) — no private door into the store, so a demo exercises
   the code a real user does. Its data is sized against the *elapsed* year, not
