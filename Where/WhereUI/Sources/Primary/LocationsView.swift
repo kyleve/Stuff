@@ -130,6 +130,7 @@ struct LocationsView: View {
                                 year: report.selectedYear,
                                 tilt: tilt,
                                 recordedPoints: primaryLocations.pointsByRegion[item.region] ?? [],
+                                showsRecordedPoints: report.showsRecordedLocationDots,
                                 recordedPointsRevision: primaryLocations.revision,
                             )
                         }
@@ -295,6 +296,11 @@ private struct ResolveToolbarLabel: View {
             }
             whereSnapshot(name: "ElsewhereOnly", configurations: .phoneLightDark) {
                 LocationsView(report: PreviewSupport.elsewhereOnlyYearReportModel())
+            }
+            whereSnapshot(name: "DotsHidden", configurations: .phoneLightDark) {
+                LocationsView(
+                    report: PreviewSupport.loadedYearReportModelWithLocationDotsHidden(),
+                )
             }
         }
     }

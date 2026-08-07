@@ -41,6 +41,27 @@ struct YearReportModelTests {
         )
     }
 
+    @Test func recordedLocationDotsDefaultOnAndPersistAcrossModels() throws {
+        let preferences = makePreferences()
+        let services = try makeServices()
+        let model = YearReportModel(
+            services: services,
+            selectedYear: 2026,
+            preferences: preferences,
+        )
+
+        #expect(model.showsRecordedLocationDots)
+        model.showsRecordedLocationDots = false
+        #expect(model.showsRecordedLocationDots == false)
+
+        let reloaded = YearReportModel(
+            services: services,
+            selectedYear: 2026,
+            preferences: preferences,
+        )
+        #expect(reloaded.showsRecordedLocationDots == false)
+    }
+
     // MARK: - Year load / stale fetches / save errors
 
     @Test func staleYearFetchDoesNotOverwriteNewerSelection() async throws {

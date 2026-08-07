@@ -1,9 +1,11 @@
+import SnapshotKit
 import SwiftUI
 import WhereCore
 
-/// Settings drill-in for presentation choices: which alternate app icon is used
-/// (the icon picker pushes on from here).
+/// Settings drill-in for presentation choices: whether recorded GPS dots appear
+/// on Locations cards and which alternate app icon is used.
 struct AppearanceSettingsView: View {
+    let report: YearReportModel
     var focus: SettingsFocus?
 
     @State private var showAppIcon = false
@@ -12,8 +14,21 @@ struct AppearanceSettingsView: View {
     #endif
 
     var body: some View {
+        @Bindable var report = report
         SettingsFocusScope(focus: focus) {
             Form {
+                Section {
+                    Toggle(isOn: $report.showsRecordedLocationDots) {
+                        Label(
+                            String(localized: .settingsAppearanceLocationDotsToggle),
+                            systemImage: "mappin.and.ellipse",
+                        )
+                    }
+                    .settingsRow(Item.locationDots)
+                } footer: {
+                    Text(String(localized: .settingsAppearanceLocationDotsFooter))
+                }
+
                 Section {
                     // A sheet (not a push) so the icon picker's Done/commit point
                     // is explicit, matching the app's other editor flows.
@@ -63,6 +78,7 @@ extension AppearanceSettingsView: SettingsSection {
     }
 
     enum Item: SettingsItem {
+        case locationDots
         case appIcon
         #if DEBUG
             case cardDesigner
@@ -70,6 +86,8 @@ extension AppearanceSettingsView: SettingsSection {
 
         var title: String {
             switch self {
+                case .locationDots:
+                    String(localized: .settingsAppearanceLocationDotsToggle)
                 case .appIcon: String(localized: .settingsAppIconLink)
                 #if DEBUG
                     case .cardDesigner: String(localized: .cardDesignerTitle)
@@ -79,6 +97,8 @@ extension AppearanceSettingsView: SettingsSection {
 
         var keywords: [String] {
             switch self {
+                case .locationDots:
+                    splitKeywords(String(localized: .settingsKeywordsLocationDots))
                 case .appIcon: splitKeywords(String(localized: .settingsKeywordsAppIcon))
                 #if DEBUG
                     case .cardDesigner:
@@ -90,11 +110,16 @@ extension AppearanceSettingsView: SettingsSection {
 }
 
 #if DEBUG
-    #Preview {
-        NavigationStack {
-            AppearanceSettingsView()
+    extension AppearanceSettingsView: SnapshotProviding {
+        static var snapshots: [SnapshotCase] {
+            whereSnapshot(name: "Default", configurations: .fullContentScreenDefaults) {
+                AppearanceSettingsView(report: PreviewSupport.loadedYearReportModel())
+            }
         }
-        .whereBroadwayRoot()
+    }
+
+    #Preview {
+        AppearanceSettingsView.snapshotPreviews
     }
 #endif
 
@@ -107,8 +132,8 @@ extension AppearanceSettingsView: SettingsSection {
                 .modal(to: AppIconView.flyoverID),
                 .push(to: CardDesignerStudioView.flyoverID),
             ],
-        ) { _ in
-            AppearanceSettingsView()
+        ) { world in
+            AppearanceSettingsView(report: world.report)
         }
     }
 #endif

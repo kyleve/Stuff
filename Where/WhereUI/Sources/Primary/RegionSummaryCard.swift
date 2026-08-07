@@ -47,6 +47,10 @@ struct RegionSummaryCard: View {
     /// these in; every other card keeps the empty zero-value treatment.
     var recordedPoints: [RegionDayPoint] = []
 
+    /// Whether the card renders `recordedPoints`. Locations binds this to the
+    /// user's Appearance preference so hiding dots leaves the raw data intact.
+    var showsRecordedPoints = true
+
     /// Changes whenever the caller replaces `recordedPoints`, restarting the
     /// async projection without making SwiftUI compare a year's raw fixes from
     /// every `body` evaluation.
@@ -111,6 +115,7 @@ struct RegionSummaryCard: View {
             region: regionDays.region,
             variant: variant,
             isEnabled: card.regionShape != nil,
+            showsRecordedPoints: showsRecordedPoints,
             recordedPointsRevision: recordedPointsRevision,
         )
     }
@@ -213,9 +218,10 @@ struct RegionSummaryCard: View {
             for: regionDays.region,
             resolution: .micro,
         )
+        let visibleRecordedPoints = showsRecordedPoints ? recordedPoints : []
         async let projectedPoints = regionOutlinePathCache.projectedPoints(
             for: regionDays.region,
-            points: recordedPoints,
+            points: visibleRecordedPoints,
         )
         let (watermarkPath, stampPath, microprintPath, projected) = await (
             watermark,
@@ -339,12 +345,13 @@ struct RegionSummaryCard: View {
     }
 }
 
-/// Restarts cached artwork loading when a designer switches either card variant
-/// or the outline layer without first changing the previewed region.
+/// Restarts cached artwork loading when a designer changes the outline treatment
+/// or the user changes GPS-dot visibility without changing the card's region.
 struct RegionArtworkLoadID: Equatable {
     let region: Region
     let variant: WhereStylesheet.CardStyle.Variant
     let isEnabled: Bool
+    let showsRecordedPoints: Bool
     let recordedPointsRevision: Int
 }
 

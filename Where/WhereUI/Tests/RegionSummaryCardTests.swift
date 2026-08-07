@@ -11,30 +11,42 @@ struct RegionSummaryCardTests {
             region: .newYork,
             variant: .regular,
             isEnabled: false,
+            showsRecordedPoints: true,
             recordedPointsRevision: 0,
         )
         let enabled = RegionArtworkLoadID(
             region: .newYork,
             variant: .regular,
             isEnabled: true,
+            showsRecordedPoints: true,
             recordedPointsRevision: 0,
         )
         let compact = RegionArtworkLoadID(
             region: .newYork,
             variant: .compact,
             isEnabled: true,
+            showsRecordedPoints: true,
             recordedPointsRevision: 0,
         )
         let refreshed = RegionArtworkLoadID(
             region: .newYork,
             variant: .regular,
             isEnabled: true,
+            showsRecordedPoints: true,
             recordedPointsRevision: 1,
+        )
+        let pointsHidden = RegionArtworkLoadID(
+            region: .newYork,
+            variant: .regular,
+            isEnabled: true,
+            showsRecordedPoints: false,
+            recordedPointsRevision: 0,
         )
 
         #expect(disabled != enabled)
         #expect(enabled != compact)
         #expect(enabled != refreshed)
+        #expect(enabled != pointsHidden)
     }
 
     /// A region card's count can change with the card on screen, which runs an

@@ -229,7 +229,7 @@ struct SettingsView: View {
             case .alerts:
                 AlertsSettingsView(report: report, reminders: reminders, focus: route.focus)
             case .appearance:
-                AppearanceSettingsView(focus: route.focus)
+                AppearanceSettingsView(report: report, focus: route.focus)
             case .year:
                 VisibleYearSettingsView(report: report, focus: route.focus)
             case .data:

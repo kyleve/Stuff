@@ -127,6 +127,22 @@ public final class YearReportModel {
     /// of sync with the badge count.
     private var driftThresholdStorage: DriftThreshold
 
+    /// Observed mirror of the persisted Locations-card GPS-dot preference.
+    /// `WherePreferences` is intentionally a plain wrapper, so the shared scene
+    /// model publishes this value to both the Appearance toggle and Locations.
+    private var showsRecordedLocationDotsStorage: Bool
+
+    /// Whether Locations cards render their recorded GPS constellations.
+    /// Writes persist synchronously and update the visible cards immediately.
+    var showsRecordedLocationDots: Bool {
+        get { showsRecordedLocationDotsStorage }
+        set {
+            guard newValue != showsRecordedLocationDotsStorage else { return }
+            showsRecordedLocationDotsStorage = newValue
+            preferences.showsRecordedLocationDots = newValue
+        }
+    }
+
     /// GPS border-drift detection threshold (device setting). The setter persists
     /// it, forces a badge recount, and — through the observed mirror — re-keys
     /// `dataIssueScanInputs` so the Resolve list re-scans immediately, not just on
@@ -215,6 +231,7 @@ public final class YearReportModel {
         self.now = now
         driftThresholdStorage = DriftThreshold(rawValue: preferences.driftThresholdMeters)
             ?? .default
+        showsRecordedLocationDotsStorage = preferences.showsRecordedLocationDots
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = .current
         self.calendar = calendar

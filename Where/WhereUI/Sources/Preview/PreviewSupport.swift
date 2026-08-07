@@ -247,6 +247,15 @@
             return model
         }
 
+        /// The loaded report fixture with the Appearance GPS-dot preference off,
+        /// for the Locations snapshot that proves recorded points disappear.
+        @MainActor
+        public static func loadedYearReportModelWithLocationDotsHidden() -> YearReportModel {
+            let model = loadedYearReportModel()
+            model.showsRecordedLocationDots = false
+            return model
+        }
+
         /// Deterministic point clouds for the Locations card constellations.
         /// Dates fall inside the corresponding region's block in `sampleReport`.
         private static func sampleRegionLocations() -> [Region: [RegionDayLocations]] {
