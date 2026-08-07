@@ -138,6 +138,28 @@ struct DayJournalTests {
         #expect(await h.widgets.publishCount == 1)
     }
 
+    @Test func photoHistoryImportPersistsSamplesAndCorrectionsWithOneFanOut() async throws {
+        let h = try Self.makeHarness()
+        let sample = sample(at: "2026-01-10T12:00:00-08:00", source: .photo)
+        let day = CalendarDay(from: sample.timestamp, in: WhereCoreTestSupport.calendar())
+
+        try await h.journal.importPhotoHistory(PhotoHistoryImport(
+            samples: [sample],
+            corrections: [DayPresence(
+                day: day,
+                regions: [.newYork],
+                isAuthoritative: true,
+                audit: nil,
+            )],
+        ))
+
+        let report = try await h.reader.yearReport(for: 2026)
+        #expect(report.days.first?.regions == [.newYork])
+        #expect(try await h.store.allSamples().first?.source == .photo)
+        #expect(await h.reminders.reconcileCount == 1)
+        #expect(await h.widgets.publishCount == 1)
+    }
+
     @Test func emptyBulkIngestIsANoOp() async throws {
         let h = try Self.makeHarness()
         try await h.journal.ingest([LocationSample]())
@@ -339,13 +361,16 @@ struct DayJournalTests {
         ),
     )
 
-    private func sample(at isoString: String) -> LocationSample {
+    private func sample(
+        at isoString: String,
+        source: SampleSource = .manual,
+    ) -> LocationSample {
         LocationSample(
             id: UUID(),
             timestamp: WhereCoreTestSupport.iso(isoString),
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 5,
-            source: .manual,
+            source: source,
         )
     }
 }

@@ -139,6 +139,11 @@ public final class WhereModel {
 
     private let now: @Sendable () -> Date
 
+    /// Metadata-only Photos access for the optional onboarding backfill. The
+    /// production adapter is composed by the app; tests/previews use the
+    /// unavailable default and never prompt.
+    let photoLibrary: any PhotoLocationLibrary
+
     /// The year the scene's `YearReportModel` opens on. Always the current year in
     /// the app; a preview/test can pin it via the services init.
     let initialSelectedYear: Int
@@ -189,11 +194,13 @@ public final class WhereModel {
         preferences: WherePreferences,
         makeBootstrap: @escaping @MainActor () -> any WhereScopeAssembling,
         logSystem: Periscope,
+        photoLibrary: any PhotoLocationLibrary = UnavailablePhotoLocationLibrary(),
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
         self.preferences = preferences
         self.makeBootstrap = makeBootstrap
         self.logSystem = logSystem
+        self.photoLibrary = photoLibrary
         self.now = now
         scopeState = .loggedOut(bootstrap: makeBootstrap())
         initialSelectedYear = WhereModel.currentYear
@@ -215,6 +222,7 @@ public final class WhereModel {
         selectedYear: Int = WhereModel.currentYear,
         preferences: WherePreferences,
         logSystem: Periscope,
+        photoLibrary: any PhotoLocationLibrary = UnavailablePhotoLocationLibrary(),
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
         let scope = WhereScope.fake(
@@ -226,6 +234,7 @@ public final class WhereModel {
         self.preferences = preferences
         makeBootstrap = { InjectedServicesAssembler(services: services) }
         self.logSystem = logSystem
+        self.photoLibrary = photoLibrary
         self.now = now
         initialSelectedYear = selectedYear
         initialReport = report

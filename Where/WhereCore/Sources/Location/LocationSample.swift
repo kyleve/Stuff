@@ -12,6 +12,8 @@ public enum SampleSource: Sendable, Hashable, Codable {
     case gpsVisit
     /// A `CLLocationManager` significant-change callback.
     case gpsSignificantChange
+    /// Read from the location metadata of a photo the user approved importing.
+    case photo
     /// User typed in a coordinate or picked a place after the fact.
     case manual
     /// Derived from an attached piece of evidence (e.g. a boarding pass).
@@ -26,6 +28,7 @@ public enum SampleSource: Sendable, Hashable, Codable {
         switch self {
             case .gpsVisit: "gpsVisit"
             case .gpsSignificantChange: "gpsSignificantChange"
+            case .photo: "photo"
             case .manual: "manual"
             case .evidenceImplied: "evidenceImplied"
         }
@@ -37,7 +40,7 @@ public enum SampleSource: Sendable, Hashable, Codable {
     public var isGPS: Bool {
         switch self {
             case .gpsVisit, .gpsSignificantChange: true
-            case .manual, .evidenceImplied: false
+            case .photo, .manual, .evidenceImplied: false
         }
     }
 
@@ -68,6 +71,7 @@ public enum SampleSource: Sendable, Hashable, Codable {
             switch candidate {
                 case .gpsVisit: return .gpsVisit
                 case .gpsSignificantChange: return .gpsSignificantChange
+                case .photo: return .photo
                 case .manual: return .manual
                 case .evidenceImplied:
                     guard let evidenceId,
@@ -87,6 +91,7 @@ public enum SampleSource: Sendable, Hashable, Codable {
     private static let knownCases: [SampleSource] = [
         .gpsVisit,
         .gpsSignificantChange,
+        .photo,
         .manual,
         .evidenceImplied(
             id: UUID(uuidString: "00000000-0000-0000-0000-000000000000")!,

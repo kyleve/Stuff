@@ -18,6 +18,7 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
         preferences: WherePreferences(store: UserDefaults.standard),
         makeBootstrap: { WhereBootstrap() },
         logSystem: .shared,
+        photoLibrary: PhotoKitLocationLibrary(),
     )
 
     let intentServices = IntentServices()

@@ -46,8 +46,9 @@ one it belongs to rather than to a god-object:
 - **`DayJournal`** — the user-sourced writes: manual-day overlays
   (`addManualDay` / `overrideDay` / `addManualDays`), clears
   (`clearManualDay` / `clearYear` / `eraseAllData`), evidence, and issue
-  dismissals. Each write commits, then awaits its reminder reconcile + widget
-  publish so the next reader sees a fully-applied change.
+  dismissals, and approved photo-history imports. Each write commits, then
+  awaits its reminder reconcile + widget publish so the next reader sees a
+  fully-applied change.
 
 - **`DemoDataBuilder`** — writes the dataset the app's demo mode runs on into a
   given `WhereServices`: a plausible current year of living in New York with
@@ -85,6 +86,13 @@ one it belongs to rather than to a god-object:
 - **`LocationIngestor`** — monitoring, the persist-with-retry queue, and
   authorization; after each committed sample it reconciles the badge/reminders
   and republishes the widget snapshot.
+- **`PhotoLocationLibrary` / `PhotoHistoryPlanner`** — the metadata-only seam
+  and pure planner for onboarding's optional current-year Photos backfill. The
+  app adapter supplies capture date, added date, coordinate, accuracy, source,
+  and hidden state only; the planner applies the best-effort device-capture
+  policy, tags accepted samples as `.photo`, gives them deterministic IDs for
+  repeat-import deduplication, and keeps corrections provisional until one
+  `DayJournal.importPhotoHistory(_:)` transaction.
 
 ### Detection, notifications & the rest
 

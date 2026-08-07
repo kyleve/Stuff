@@ -34,13 +34,16 @@ public struct OnboardingView: View {
         case intro
         case pickRegions
         case customize
+        case photos
         case location
     }
 
     @State private var phase: Phase = .intro
     @State private var page = 0
     @State private var selection = PrimaryRegionSelectionModel()
+    @State private var photoImport = OnboardingPhotoImportModel()
     @State private var isFinishing = false
+    @State private var didCommitSelection = false
 
     /// What the intro is doing, and how it went — see ``OnboardingIntroState``.
     @State private var intro = OnboardingIntroState()
@@ -70,6 +73,7 @@ public struct OnboardingView: View {
                 case .intro: introScreen
                 case .pickRegions: pickRegions
                 case .customize: customize
+                case .photos: photos
                 case .location: location
             }
         }
@@ -227,8 +231,57 @@ public struct OnboardingView: View {
             RegionCustomizeView(
                 model: selection,
                 onBack: { phase = .pickRegions },
-                onFinish: { phase = .location },
+                onFinish: { phase = .photos },
             )
+        }
+    }
+
+    // MARK: - Photo history
+
+    private var photos: some View {
+        OnboardingPhotoImportView(
+            model: photoImport,
+            onScan: scanPhotos,
+            onImport: importPhotoHistory,
+            onSkip: { phase = .location },
+        )
+    }
+
+    private func scanPhotos() {
+        photoImport.beginScan()
+        Task {
+            var calendar = Calendar(identifier: .gregorian)
+            calendar.timeZone = .current
+            await photoImport.scan(
+                library: model.photoLibrary,
+                year: WhereModel.currentYear,
+                regions: selection.selectedRegions,
+                calendar: calendar,
+                now: Date(),
+            )
+        }
+    }
+
+    /// Open the user's real scope only after they approve the provisional
+    /// timeline, commit the region selection it was attributed against, then
+    /// persist photo samples + corrections as one journal transaction.
+    private func importPhotoHistory() {
+        guard let history = photoImport.beginImport() else { return }
+        Task {
+            do {
+                let scope = try await model.resolveScope()
+                try await selection.commit(using: scope)
+                didCommitSelection = true
+                try await scope.services.journal.importPhotoHistory(history)
+                phase = .location
+            } catch is CancellationError {
+                photoImport.importCancelled()
+            } catch {
+                photoImport.importFailed(error)
+                Self.logger(attachments: [.error(error, name: "photo-import-error")]) {
+                    .photoImportFailed(description: error.localizedDescription)
+                }
+            }
         }
     }
 
@@ -308,7 +361,7 @@ public struct OnboardingView: View {
             // (rather than a "did restore" flag) makes that impossible: the
             // manual flow can't reach `finish` empty (its Next is gated on a
             // selection), so a non-empty selection is exactly "the user picked".
-            if selection.hasSelection {
+            if selection.hasSelection, !didCommitSelection {
                 do {
                     try await selection.commit(using: scope)
                 } catch {

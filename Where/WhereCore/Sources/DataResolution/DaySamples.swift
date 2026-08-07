@@ -53,7 +53,7 @@ public final class DaySamples: Sendable {
                 case .gpsVisit, .gpsSignificantChange:
                     byDay[CalendarDay(from: sample.timestamp, in: calendar), default: []]
                         .append(sample)
-                case .manual, .evidenceImplied:
+                case .photo, .manual, .evidenceImplied:
                     continue
             }
         }

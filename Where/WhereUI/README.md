@@ -94,8 +94,11 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   `OnboardingGate` and handed its `LifecycleGateHandle`. The gate roots the
   trunk, so there is no session (and no open store) behind it: a paged intro,
   then picking up to five primary US regions (map or searchable list) and
-  giving each a look, then the location-permission ask. Finishing logs in to
-  the real scope — the app's one store open — and commits the picks as the
+  giving each a look, an optional metadata-only Photos scan that previews and
+  edits the current year's inferred timeline, then the location-permission
+  ask. The scan reads no image data, thumbnails, captions, or filenames and
+  saves nothing until the user approves the preview. Finishing logs in to the
+  real scope — the app's one store open — and commits the picks as the
   tracked-region set + appearances before resolving the gate. The intro also
   offers **Restore from a backup**, which opens the store, imports a backup
   (`.replace`), and skips the manual pick/customize steps straight to the
