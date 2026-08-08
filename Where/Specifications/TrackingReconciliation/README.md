@@ -4,10 +4,10 @@ This model checks one narrow question about automatic-recording commands: after 
 of local enable/disable choices and all asynchronous work settles, do the installation sidecar,
 Core controller, real ingestor, and published UI state all describe the latest choice?
 
-The model represents the recording-command design merged through `2dfb31ea`. It is design
-evidence for the stated bounds and assumptions, not proof that the Swift implementation is correct.
-Relevant changes to the recording command, permission, controller-serialization, or publication
-paths invalidate the result until this mapping is checked again.
+The model represents the final recording-command design from PR #160. It is design evidence for
+the stated bounds and assumptions, not proof that the Swift implementation is correct. Relevant
+changes to the recording command, permission, controller-serialization, or publication paths
+invalidate the result until this mapping is checked again.
 
 ## Source correspondence
 
