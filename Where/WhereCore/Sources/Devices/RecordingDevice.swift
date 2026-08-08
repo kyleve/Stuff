@@ -91,6 +91,8 @@ public enum RecordingDeviceStatus: String, Codable, Sendable, Hashable {
 /// doing so would let CloudKit's last writer overwrite fields owned by another device.
 public struct RecordingDevice: Identifiable, Codable, Sendable, Hashable {
     public let id: RecordingDeviceID
+    /// Hardware-family fallback captured at registration (for example “iPhone” or “iPad”), not
+    /// the user's device name. `nickname` is the synced user-editable display name.
     public let systemName: String
     public let nickname: String?
     public let kind: RecordingDeviceKind
@@ -146,6 +148,7 @@ public struct RecordingDevice: Identifiable, Codable, Sendable, Hashable {
 /// synced device list.
 public struct CurrentRecordingDevice: Sendable, Hashable {
     public let id: RecordingDeviceID
+    /// Hardware-family fallback supplied by the platform composition boundary.
     public let systemName: String
     public let kind: RecordingDeviceKind
 
