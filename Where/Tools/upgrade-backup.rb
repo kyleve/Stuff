@@ -3,7 +3,7 @@
 
 # Reshapes a legacy Where backup into the current v4 manifest. The automatic-recording feature
 # was not shipped in v1 or v2, so upgrading adds the recording tables empty; it never invents an
-# installation or recording consent. v4 gives device kinds and metadata edits rename-safe shapes.
+# installation or recording consent. v4 expands device kinds and groups metadata edit payloads.
 
 require "json"
 require "tmpdir"
@@ -142,7 +142,7 @@ def upgrade_recording_devices!(manifest, source_version)
 
   Array(manifest["recordingDeviceProfiles"]).each do |profile|
     kind = profile["kind"]
-    profile["kind"] = { "kind" => kind } if kind.is_a?(String)
+    profile["kind"] = { kind => {} } if kind.is_a?(String)
     if profile.key?("registrationEpochID")
       profile["registrationGenerationID"] = profile.delete("registrationEpochID")
     end

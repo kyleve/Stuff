@@ -55,7 +55,7 @@ class UpgradeBackupTest < Minitest::Test
 
     assert_equal 4, upgraded.fetch("formatVersion")
     assert_equal({
-      "kind" => { "kind" => "other" },
+      "kind" => { "other" => {} },
       "registrationGenerationID" => "generation-id",
     }, upgraded.fetch("recordingDeviceProfiles").first)
     assert_equal({

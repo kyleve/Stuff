@@ -25,4 +25,17 @@ struct RecordingDeviceTests {
 
         #expect(decoded == kind)
     }
+
+    @Test func synthesizedCodableDecodesUpgradedV3Kinds() throws {
+        let decoder = JSONDecoder()
+
+        #expect(try decoder.decode(
+            RecordingDeviceKind.self,
+            from: Data(#"{"phone":{}}"#.utf8),
+        ) == .phone)
+        #expect(try decoder.decode(
+            RecordingDeviceKind.self,
+            from: Data(#"{"other":{}}"#.utf8),
+        ) == .other(nil))
+    }
 }

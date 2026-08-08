@@ -44,34 +44,6 @@ public enum RecordingDeviceKind: Codable, Sendable, Hashable {
             default: return nil
         }
     }
-
-    private enum CodingKeys: String, CodingKey {
-        case kind
-        case detail
-    }
-
-    public init(from decoder: any Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        let discriminator = try container.decode(String.self, forKey: .kind)
-        let detail = try container.decodeIfPresent(String.self, forKey: .detail)
-        guard let value = Self(
-            persistenceDiscriminator: discriminator,
-            detail: detail,
-        ) else {
-            throw DecodingError.dataCorruptedError(
-                forKey: .kind,
-                in: container,
-                debugDescription: "Unknown recording-device kind \(discriminator).",
-            )
-        }
-        self = value
-    }
-
-    public func encode(to encoder: any Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(persistenceDiscriminator, forKey: .kind)
-        try container.encodeIfPresent(persistenceDetail, forKey: .detail)
-    }
 }
 
 /// The latest advisory recording status reported by a device.

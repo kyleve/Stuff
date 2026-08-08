@@ -18,7 +18,7 @@ public struct BackupArchive: Codable, Sendable, Hashable {
     /// `BackupService.readArchive`, which rejects any other version).
     ///
     /// v3 adds sample provenance, immutable installation profiles, nickname changes, and archive
-    /// tombstones. v4 gives device kinds and metadata edits rename-safe payloads and renames the
+    /// tombstones. v4 expands device kinds, groups metadata edit payloads, and renames the
     /// profile's registration-generation key. There's no in-app decode fallback for an older
     /// archive — it is reshaped out of band by
     /// `Tools/upgrade-backup.rb`, matching the module's no-migration-on-read rule (see
