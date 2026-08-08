@@ -235,12 +235,6 @@ public protocol WhereScopeAssembling {
     func makeLogStore() async throws -> PeriscopeStore?
 }
 
-extension WhereScopeAssembling {
-    public func discoverRecordingDevices() async throws -> [RecordingDevice] {
-        []
-    }
-}
-
 /// Owns the assembly of the user's real world, so `WhereScope` and
 /// `WhereModel` consume finished pieces rather than wiring up persistence and
 /// CoreLocation themselves.

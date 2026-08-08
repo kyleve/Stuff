@@ -598,6 +598,10 @@ private struct InjectedServicesAssembler: WhereScopeAssembling {
         services
     }
 
+    func discoverRecordingDevices() async throws -> [RecordingDevice] {
+        []
+    }
+
     /// No durable logging: a preview or test must leave nothing on disk and no
     /// sink on the logging system.
     func makeLogStore() async throws -> PeriscopeStore? {
