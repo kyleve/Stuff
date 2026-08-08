@@ -41,6 +41,13 @@ struct WhereStylesheet: BStylesheet {
         // Grow day-grid tap targets at accessibility Dynamic Type sizes.
         if traits.contentSizeCategory.isAccessibilitySize {
             calendar.day.minHeight = 56
+            timeline.row.stacksDayCount = true
+        }
+
+        // Give every region a consistently labeled ribbon band when tint
+        // alone is not an acceptable differentiator.
+        if traits.accessibility.shouldDifferentiateWithoutColor {
+            timeline.ribbon.separatesRegions = true
         }
 
         // Reduce Transparency flattens the cards: drop the decorative rim-glow
@@ -1111,28 +1118,114 @@ extension WhereStylesheet {
 // MARK: - Timeline
 
 extension WhereStylesheet {
-    /// Style for the presence timeline's stint rows (`PresenceTimelineList`): the
-    /// leading region-tinted accent bar and the row's internal spacing.
+    /// Style for the presence timeline's calendar-proportional overview ribbon
+    /// and the connected journey rows below it.
     struct TimelineStyle: Equatable {
-        /// Spacing between a row's elements (accent, emoji, labels, count).
-        var rowSpacing: CGFloat
-        /// The leading accent bar's dimensions.
-        var accentWidth: CGFloat
-        var accentHeight: CGFloat
-        /// Spacing within a row's name/date label stack.
-        var labelSpacing: CGFloat
-        /// Minimum spacing before the trailing day count.
-        var trailingMinSpacing: CGFloat
-        /// Vertical padding around a row.
-        var rowVerticalPadding: CGFloat
+        var overview: Overview
+        var ribbon: Ribbon
+        var rail: Rail
+        var row: Row
+
+        struct Overview: Equatable {
+            var spacing: CGFloat
+            var padding: CGFloat
+            var cornerRadius: CGFloat
+            var background: Color
+            var border: Color
+            var borderWidth: CGFloat
+            var yearFont: Font
+        }
+
+        struct Ribbon: Equatable {
+            var monthLabelSpacing: CGFloat
+            var height: CGFloat
+            var track: Color
+            var border: Color
+            var borderWidth: CGFloat
+            var regionSpacing: CGFloat
+            var regionLabelSpacing: CGFloat
+            /// Split the overview into labeled region bands instead of
+            /// relying on tint to distinguish a combined track.
+            var separatesRegions: Bool
+        }
+
+        /// The route, marker, and space between the marker and row card.
+        struct Rail: Equatable {
+            var lineWidth: CGFloat
+            var toCardSpacing: CGFloat
+            var nodeSize: CGFloat
+            var nodeEmojiFont: Font
+            var nodeFillOpacity: Double
+            var nodeStrokeWidth: CGFloat
+        }
+
+        /// Spacing and surface treatment within each journey row.
+        struct Row: Equatable {
+            var spacing: CGFloat
+            var labelSpacing: CGFloat
+            var gap: CGFloat
+            /// Every row reserves room for its content, then adds this full-year
+            /// scale multiplied by `stintDays / daysInYear`.
+            var baseHeight: CGFloat
+            var yearScaleHeight: CGFloat
+            var horizontalPadding: CGFloat
+            var verticalPadding: CGFloat
+            var cornerRadius: CGFloat
+            var fillOpacity: Double
+            var borderOpacity: Double
+            var borderWidth: CGFloat
+            var countHorizontalPadding: CGFloat
+            var countVerticalPadding: CGFloat
+            var countFillOpacity: Double
+            /// Accessibility Dynamic Type stacks the count beneath the labels.
+            var stacksDayCount: Bool
+        }
 
         static let standard = TimelineStyle(
-            rowSpacing: 12,
-            accentWidth: 4,
-            accentHeight: 34,
-            labelSpacing: 2,
-            trailingMinSpacing: 8,
-            rowVerticalPadding: 4,
+            overview: Overview(
+                spacing: 12,
+                padding: 16,
+                cornerRadius: 24,
+                background: Color.primary.opacity(0.035),
+                border: Color.primary.opacity(0.1),
+                borderWidth: 1,
+                yearFont: .system(.title2, design: .serif).bold(),
+            ),
+            ribbon: Ribbon(
+                monthLabelSpacing: 6,
+                height: 18,
+                track: Color.primary.opacity(0.07),
+                border: Color.primary.opacity(0.12),
+                borderWidth: 1,
+                regionSpacing: 8,
+                regionLabelSpacing: 4,
+                separatesRegions: false,
+            ),
+            rail: Rail(
+                lineWidth: 4,
+                toCardSpacing: 10,
+                nodeSize: 42,
+                nodeEmojiFont: .system(size: 20),
+                nodeFillOpacity: 0.18,
+                nodeStrokeWidth: 2,
+            ),
+            row: Row(
+                spacing: 12,
+                labelSpacing: 3,
+                gap: 8,
+                baseHeight: 64,
+                yearScaleHeight: 320,
+                horizontalPadding: 14,
+                verticalPadding: 12,
+                cornerRadius: 18,
+                fillOpacity: 0.09,
+                borderOpacity: 0.24,
+                borderWidth: 1,
+                countHorizontalPadding: 10,
+                countVerticalPadding: 6,
+                countFillOpacity: 0.16,
+                stacksDayCount: false,
+            ),
         )
     }
 }
