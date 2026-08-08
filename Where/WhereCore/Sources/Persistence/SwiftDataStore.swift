@@ -976,7 +976,10 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
                         return $0.registeredAt < $1.registeredAt
                     }
                     if $0.systemName != $1.systemName { return $0.systemName < $1.systemName }
-                    if $0.kind != $1.kind { return $0.kind.rawValue < $1.kind.rawValue }
+                    if $0.kind != $1.kind {
+                        return $0.kind.persistenceDiscriminator
+                            < $1.kind.persistenceDiscriminator
+                    }
                     return $0.registrationEpochID.rawValue.uuidString
                         < $1.registrationEpochID.rawValue.uuidString
                 }
@@ -2003,6 +2006,7 @@ final class SDRecordingDeviceProfile {
     var id: UUID?
     var systemName: String?
     var kindRaw: String?
+    var kindDetail: String?
     var registeredAt: Date?
     var registrationEpochID: UUID?
 
@@ -2012,7 +2016,8 @@ final class SDRecordingDeviceProfile {
         self.init()
         id = value.id.rawValue
         systemName = value.systemName
-        kindRaw = value.kind.rawValue
+        kindRaw = value.kind.persistenceDiscriminator
+        kindDetail = value.kind.persistenceDetail
         registeredAt = value.registeredAt
         registrationEpochID = value.registrationEpochID.rawValue
     }
@@ -2021,7 +2026,10 @@ final class SDRecordingDeviceProfile {
         guard let id,
               let systemName,
               let kindRaw,
-              let kind = RecordingDeviceKind(rawValue: kindRaw),
+              let kind = RecordingDeviceKind(
+                  persistenceDiscriminator: kindRaw,
+                  detail: kindDetail,
+              ),
               let registeredAt,
               let registrationEpochID
         else { return nil }

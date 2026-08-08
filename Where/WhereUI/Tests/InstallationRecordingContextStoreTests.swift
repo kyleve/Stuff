@@ -9,7 +9,8 @@ struct InstallationRecordingContextStoreTests {
     @Test func mapsInterfaceIdiomsToRecordingKinds() {
         #expect(FileInstallationRecordingContextStore.kind(for: .phone) == .phone)
         #expect(FileInstallationRecordingContextStore.kind(for: .pad) == .tablet)
-        #expect(FileInstallationRecordingContextStore.kind(for: .mac) == .other)
+        #expect(FileInstallationRecordingContextStore.kind(for: .mac) == .computer)
+        #expect(FileInstallationRecordingContextStore.kind(for: .tv) == .other("tv"))
     }
 
     @Test func proposedContextLeavesNoDurableMark() throws {

@@ -70,7 +70,12 @@ struct RecordingOnboardingRecommendationTests {
         #expect(recommendation.isEnabled)
     }
 
-    @Test(arguments: [RecordingDeviceKind.tablet, .other])
+    @Test(arguments: [
+        RecordingDeviceKind.tablet,
+        .computer,
+        .watch,
+        .other(nil),
+    ])
     func nonPhoneDefaultsOff(kind: RecordingDeviceKind) {
         let recommendation = RecordingOnboardingRecommendation(
             for: installation(kind: kind),

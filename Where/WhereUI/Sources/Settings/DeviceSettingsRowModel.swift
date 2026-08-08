@@ -168,6 +168,8 @@ extension RecordingDeviceKind {
         switch self {
             case .phone: "iphone"
             case .tablet: "ipad"
+            case .computer: "desktopcomputer"
+            case .watch: "applewatch"
             case .other: "apple.logo"
         }
     }

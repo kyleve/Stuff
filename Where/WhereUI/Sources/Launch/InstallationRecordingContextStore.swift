@@ -473,8 +473,12 @@ public final class FileInstallationRecordingContextStore:
         switch idiom {
             case .phone: .phone
             case .pad: .tablet
-            case .unspecified, .tv, .carPlay, .mac, .vision: .other
-            @unknown default: .other
+            case .mac: .computer
+            case .tv: .other("tv")
+            case .carPlay: .other("carPlay")
+            case .vision: .other("vision")
+            case .unspecified: .other(nil)
+            @unknown default: .other("idiom-\(idiom.rawValue)")
         }
     }
 

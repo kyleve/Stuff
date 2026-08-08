@@ -369,7 +369,7 @@ public struct OnboardingView: View {
         switch deviceKind {
             case .phone: .onboardingRecordingPhoneTitle
             case .tablet: .onboardingRecordingTabletTitle
-            case .other: .onboardingRecordingOtherTitle
+            case .computer, .watch, .other: .onboardingRecordingOtherTitle
         }
     }
 
