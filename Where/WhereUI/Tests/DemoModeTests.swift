@@ -3,7 +3,7 @@ import LifecycleKit
 @_spi(Testing) import PeriscopeCore
 import RegionKit
 import Testing
-@_spi(Testing) import WhereCore
+@_spi(Demo) @_spi(Testing) import WhereCore
 import WhereUI
 
 private struct WaitTimeout: Error {}
