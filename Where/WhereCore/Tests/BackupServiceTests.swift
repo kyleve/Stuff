@@ -57,7 +57,7 @@ struct BackupServiceTests {
                 revision: 0,
                 changedAt: exportDate,
                 changedByDeviceID: recordingDeviceID,
-                nickname: "Travel iPad",
+                payload: .nickname("Travel iPad"),
             ),
         ]
     }

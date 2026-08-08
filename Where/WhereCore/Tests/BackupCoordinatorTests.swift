@@ -120,7 +120,7 @@ struct BackupCoordinatorTests {
                 revision: 0,
                 changedAt: dismissal.dismissedAt,
                 changedByDeviceID: recordingDeviceID,
-                nickname: "Travel iPad",
+                payload: .nickname("Travel iPad"),
             ))
             try await store.setRecordingDeviceCheckIn(RecordingDeviceCheckIn(
                 deviceID: recordingDeviceID,

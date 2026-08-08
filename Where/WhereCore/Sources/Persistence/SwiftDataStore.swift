@@ -2086,7 +2086,7 @@ final class SDRecordingDeviceMetadataChange {
             revision: revision,
             changedAt: changedAt,
             changedByDeviceID: RecordingDeviceID(rawValue: changedByDeviceID),
-            nickname: nickname,
+            payload: .nickname(nickname),
         )
     }
 }

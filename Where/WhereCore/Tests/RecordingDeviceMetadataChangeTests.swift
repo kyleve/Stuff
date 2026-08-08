@@ -17,7 +17,7 @@ struct RecordingDeviceMetadataChangeTests {
             revision: 1,
             changedAt: Date(timeIntervalSinceReferenceDate: 100),
             changedByDeviceID: Self.deviceID,
-            nickname: nil,
+            payload: .nickname(nil),
         )
 
         let decoded = try JSONDecoder().decode(
@@ -37,13 +37,15 @@ struct RecordingDeviceMetadataChangeTests {
             revision: 0,
             changedAt: Date(timeIntervalSinceReferenceDate: 100),
             changedByDeviceID: Self.deviceID,
-            nickname: nil,
+            payload: .nickname(nil),
         )
         var object = try #require(
             JSONSerialization.jsonObject(with: JSONEncoder().encode(change)) as? [String: Any],
         )
-        object["field"] = "archive"
-        object["isArchived"] = true
+        var payload = try #require(object["payload"] as? [String: Any])
+        payload["field"] = "archive"
+        payload["isArchived"] = true
+        object["payload"] = payload
         let data = try JSONSerialization.data(withJSONObject: object)
 
         #expect(throws: DecodingError.self) {

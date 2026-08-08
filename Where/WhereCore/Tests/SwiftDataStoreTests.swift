@@ -168,7 +168,7 @@ struct SwiftDataStoreTests {
             revision: 0,
             changedAt: date,
             changedByDeviceID: deviceID,
-            nickname: "Home iPad",
+            payload: .nickname("Home iPad"),
         )
         let checkIn = RecordingDeviceCheckIn(
             deviceID: deviceID,
@@ -310,7 +310,7 @@ struct SwiftDataStoreTests {
             revision: 0,
             changedAt: date,
             changedByDeviceID: deviceID,
-            nickname: "Travel iPad",
+            payload: .nickname("Travel iPad"),
         )
         let checkIn = RecordingDeviceCheckIn(
             deviceID: deviceID,
@@ -484,7 +484,7 @@ struct SwiftDataStoreTests {
             revision: 0,
             changedAt: date,
             changedByDeviceID: deviceID,
-            nickname: "Home iPad",
+            payload: .nickname("Home iPad"),
         )
         let checkIn = RecordingDeviceCheckIn(
             deviceID: deviceID,
@@ -940,7 +940,7 @@ struct SwiftDataStoreTests {
             revision: 0,
             changedAt: date,
             changedByDeviceID: deviceID,
-            nickname: "Home iPad",
+            payload: .nickname("Home iPad"),
         )
         let removal = RecordingDeviceRemoval(
             id: removalID,

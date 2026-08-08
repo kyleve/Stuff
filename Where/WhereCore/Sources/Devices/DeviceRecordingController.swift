@@ -184,7 +184,7 @@ public actor DeviceRecordingController {
             revision: Self.nextRevision(after: latest?.revision, for: deviceID),
             changedAt: now(),
             changedByDeviceID: currentDevice.id,
-            nickname: resolvedNickname,
+            payload: .nickname(resolvedNickname),
         )
         try await store.perform(expectedDataEpochID: snapshot.epoch.id) {
             try await self.store.addRecordingDeviceMetadataChange(change)
