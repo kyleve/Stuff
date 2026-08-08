@@ -12,20 +12,20 @@ public struct RecordingDeviceProfile: Identifiable, Codable, Sendable, Hashable 
     public let registeredAt: Date
     /// Logical account generation in which this installation first registered. A profile is
     /// global and survives later rotations; this origin lets the target distinguish an
-    /// interrupted first registration from an old installation entering a new epoch.
-    public let registrationEpochID: WhereDataEpochID
+    /// interrupted first registration from an old installation entering a new generation.
+    public let registrationGenerationID: WhereDataGenerationID
 
     public init(
         id: RecordingDeviceID,
         systemName: String,
         kind: RecordingDeviceKind,
         registeredAt: Date,
-        registrationEpochID: WhereDataEpochID,
+        registrationGenerationID: WhereDataGenerationID,
     ) {
         self.id = id
         self.systemName = systemName
         self.kind = kind
         self.registeredAt = registeredAt
-        self.registrationEpochID = registrationEpochID
+        self.registrationGenerationID = registrationGenerationID
     }
 }

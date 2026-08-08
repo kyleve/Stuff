@@ -834,7 +834,7 @@ struct WhereServicesTests {
 
         #expect(await outbox.persistedSamples == [pending])
         #expect(await destination.ingestor.isActive == false)
-        #expect(try await store.dataEpoch().reason == .backupReplace)
+        #expect(try await store.dataGeneration().reason == .backupReplace)
     }
 
     @Test func resetCleanupFailureKeepsTheOldInstallationForSafeRetry() async throws {
@@ -847,7 +847,7 @@ struct WhereServicesTests {
             locationOutbox: outbox,
         )
         _ = try await services.recording.register(authorization: .always)
-        try await outbox.save([LocationOutboxEntry(sample: pending, dataEpochID: .initial)])
+        try await outbox.save([LocationOutboxEntry(sample: pending, dataGenerationID: .initial)])
         await outbox.setFailsToClear(true)
 
         let error = await #expect(throws: WhereServices.ResetCleanupError.self) {
@@ -862,7 +862,7 @@ struct WhereServicesTests {
         #expect(try await store.recordingDeviceRemovals().map(\.deviceID) == [
             CurrentRecordingDevice.preview.id,
         ])
-        #expect(try await store.dataEpoch().reason == .accountReset)
+        #expect(try await store.dataGeneration().reason == .accountReset)
 
         // A retained installation context must not mistake the reset-empty generation for first
         // run and restore its original On choice after process restart.
@@ -894,10 +894,10 @@ struct WhereServicesTests {
                 systemName: "iPad",
                 kind: .tablet,
                 registeredAt: pending.timestamp,
-                registrationEpochID: .initial,
+                registrationGenerationID: .initial,
             ))
         }
-        try await outbox.save([LocationOutboxEntry(sample: pending, dataEpochID: .initial)])
+        try await outbox.save([LocationOutboxEntry(sample: pending, dataGenerationID: .initial)])
 
         try await services.reset()
 
@@ -907,7 +907,7 @@ struct WhereServicesTests {
             CurrentRecordingDevice.preview.id,
             remoteDeviceID,
         ])
-        #expect(try await store.dataEpoch().reason == .accountReset)
+        #expect(try await store.dataGeneration().reason == .accountReset)
         #expect(await services.ingestor.isActive == false)
     }
 
@@ -928,7 +928,7 @@ struct WhereServicesTests {
         )
 
         try await store.perform {
-            _ = try await store.rotateDataEpoch(
+            _ = try await store.rotateDataGeneration(
                 reason: .accountReset,
                 changedBy: resetterID,
                 at: resetAt,
@@ -938,7 +938,7 @@ struct WhereServicesTests {
                 systemName: oldDevice.systemName,
                 kind: oldDevice.kind,
                 registeredAt: oldContext.registeredAt,
-                registrationEpochID: .initial,
+                registrationGenerationID: .initial,
             ))
         }
 
@@ -1124,7 +1124,7 @@ struct WhereServicesTests {
         #expect(await widget.lastSnapshot?.totals == [texas: 1])
     }
 
-    @Test func rotatingDataEpochClearsSyncedStateButPreservesDeviceProfiles() async throws {
+    @Test func rotatingDataGenerationClearsSyncedStateButPreservesDeviceProfiles() async throws {
         let store = try SwiftDataStore.inMemory()
         let seedSample = sample(at: "2026-03-15T12:00:00-07:00")
         let seedDay = DayPresence(
@@ -1142,7 +1142,7 @@ struct WhereServicesTests {
                 systemName: "iPhone",
                 kind: .phone,
                 registeredAt: seedSample.timestamp,
-                registrationEpochID: .initial,
+                registrationGenerationID: .initial,
             ))
             try await store.setRecordingDeviceCheckIn(RecordingDeviceCheckIn(
                 deviceID: deviceID,
@@ -1153,7 +1153,7 @@ struct WhereServicesTests {
         }
 
         try await store.perform {
-            _ = try await store.rotateDataEpoch(
+            _ = try await store.rotateDataGeneration(
                 reason: .accountReset,
                 changedBy: deviceID,
                 at: seedSample.timestamp.addingTimeInterval(1),
@@ -1780,22 +1780,22 @@ private actor ToggleFailingStore: WhereStore {
         backing.changes()
     }
 
-    func dataEpoch() async throws -> WhereDataEpoch {
-        try await backing.dataEpoch()
+    func dataGeneration() async throws -> WhereDataGeneration {
+        try await backing.dataGeneration()
     }
 
     func recordingDeviceResetBarrier(
-        for registrationEpochID: WhereDataEpochID,
+        for registrationGenerationID: WhereDataGenerationID,
     ) async throws -> Date? {
-        try await backing.recordingDeviceResetBarrier(for: registrationEpochID)
+        try await backing.recordingDeviceResetBarrier(for: registrationGenerationID)
     }
 
-    func rotateDataEpoch(
-        reason: WhereDataEpochReason,
+    func rotateDataGeneration(
+        reason: WhereDataGenerationReason,
         changedBy deviceID: RecordingDeviceID,
         at date: Date,
-    ) async throws -> WhereDataEpoch {
-        try await backing.rotateDataEpoch(reason: reason, changedBy: deviceID, at: date)
+    ) async throws -> WhereDataGeneration {
+        try await backing.rotateDataGeneration(reason: reason, changedBy: deviceID, at: date)
     }
 
     func backupImportReceipt(

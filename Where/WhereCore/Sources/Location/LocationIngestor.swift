@@ -73,7 +73,7 @@ public actor LocationIngestor {
     /// that may receive writes and the consent cutoff for buffered Core Location callbacks.
     private enum RecordingAuthority {
         case closed
-        case open(dataEpochID: WhereDataEpochID, effectiveAt: Date)
+        case open(dataGenerationID: WhereDataGenerationID, effectiveAt: Date)
     }
 
     private var recordingAuthority = RecordingAuthority.closed
@@ -137,8 +137,8 @@ public actor LocationIngestor {
     /// underlying monitoring. Cancelling that task would terminate the
     /// single-consumer `AsyncStream`, so a later `start()` would iterate an
     /// already-finished stream and silently drop every subsequent sample.
-    public func start(effectiveAt: Date, dataEpochID: WhereDataEpochID) async throws {
-        try await authorizeRecording(effectiveAt: effectiveAt, dataEpochID: dataEpochID)
+    public func start(effectiveAt: Date, dataGenerationID: WhereDataGenerationID) async throws {
+        try await authorizeRecording(effectiveAt: effectiveAt, dataGenerationID: dataGenerationID)
         guard !isMonitoring else { return }
         isMonitoring = true
         await locationSource.start()
@@ -151,43 +151,45 @@ public actor LocationIngestor {
     /// drains the durable backlog before accepting a new foreground fix.
     public func authorizeRecording(
         effectiveAt: Date,
-        dataEpochID: WhereDataEpochID,
+        dataGenerationID: WhereDataGenerationID,
     ) async throws {
-        let currentEpochID: WhereDataEpochID
+        let currentGenerationID: WhereDataGenerationID
         do {
-            currentEpochID = try await store.readSnapshot { try await (store.dataEpoch()).id }
+            currentGenerationID = try await store
+                .readSnapshot { try await (store.dataGeneration()).id }
         } catch {
             await closeRecordingAuthority()
             throw error
         }
-        guard currentEpochID == dataEpochID else {
+        guard currentGenerationID == dataGenerationID else {
             await closeRecordingAuthority()
-            throw RecordingPersistenceError.dataEpochChanged
+            throw RecordingPersistenceError.dataGenerationChanged
         }
-        if case let .open(currentDataEpochID, _) = recordingAuthority,
-           currentDataEpochID == dataEpochID
+        if case let .open(currentDataGenerationID, _) = recordingAuthority,
+           currentDataGenerationID == dataGenerationID
         {
             return
         }
 
         // Changing authority is fail-closed. In particular, if a remote reset
-        // crosses backlog restoration/draining, the previous epoch must not
+        // crosses backlog restoration/draining, the previous generation must not
         // remain authorized while the replacement attempt fails.
         await closeRecordingAuthority()
         try await prepareRetryBacklog()
-        let retained = retryQueue.filter { $0.dataEpochID == dataEpochID }
+        let retained = retryQueue.filter { $0.dataGenerationID == dataGenerationID }
         if retained.count != retryQueue.count {
             retryQueue = retained
             try await outbox.save(retryQueue)
         }
         // Flush anything that failed to persist before this session started,
         // before we (re)attach the stream consumer.
-        let drainedDays = try await drainRetryQueue(expectedDataEpochID: dataEpochID)
-        let confirmedEpochID = try await store.readSnapshot { try await (store.dataEpoch()).id }
-        guard confirmedEpochID == dataEpochID else {
-            throw RecordingPersistenceError.dataEpochChanged
+        let drainedDays = try await drainRetryQueue(expectedDataGenerationID: dataGenerationID)
+        let confirmedGenerationID = try await store
+            .readSnapshot { try await (store.dataGeneration()).id }
+        guard confirmedGenerationID == dataGenerationID else {
+            throw RecordingPersistenceError.dataGenerationChanged
         }
-        recordingAuthority = .open(dataEpochID: dataEpochID, effectiveAt: effectiveAt)
+        recordingAuthority = .open(dataGenerationID: dataGenerationID, effectiveAt: effectiveAt)
         await Self.logger.measure(.postPersist, budget: .seconds(2)) {
             await onPersisted(IngestOutcome(
                 changedDays: drainedDays,
@@ -244,14 +246,16 @@ public actor LocationIngestor {
     /// Close the in-memory authority gate immediately. Unlike
     /// ``revokeRecordingAuthorization()``, this does not await in-flight
     /// persistence tasks and is therefore safe to call from one of those tasks
-    /// when its expected epoch has just lost.
+    /// when its expected generation has just lost.
     private func closeRecordingAuthority() async {
         await closeRecordingAuthorityUnconditionally()
     }
 
-    private func closeRecordingAuthority(ifAuthorizedFor dataEpochID: WhereDataEpochID) async {
-        guard case let .open(currentDataEpochID, _) = recordingAuthority,
-              currentDataEpochID == dataEpochID
+    private func closeRecordingAuthority(
+        ifAuthorizedFor dataGenerationID: WhereDataGenerationID,
+    ) async {
+        guard case let .open(currentDataGenerationID, _) = recordingAuthority,
+              currentDataGenerationID == dataGenerationID
         else { return }
         await closeRecordingAuthorityUnconditionally()
     }
@@ -442,11 +446,11 @@ public actor LocationIngestor {
     /// failure. Drains any backlog first so a single transient outage doesn't
     /// permanently reorder samples on disk.
     private func processIngestedSample(_ sample: LocationSample) async {
-        guard case let .open(dataEpochID, _) = recordingAuthority else { return }
+        guard case let .open(dataGenerationID, _) = recordingAuthority else { return }
         let sample = sample.recorded(by: recordingDeviceID)
         do {
-            let drainedDays = try await drainRetryQueue(expectedDataEpochID: dataEpochID)
-            try await store.perform(expectedDataEpochID: dataEpochID) {
+            let drainedDays = try await drainRetryQueue(expectedDataGenerationID: dataGenerationID)
+            try await store.perform(expectedDataGenerationID: dataGenerationID) {
                 try await store.add(sample: sample)
             }
             var changedDays = drainedDays
@@ -458,12 +462,12 @@ public actor LocationIngestor {
                     needsFullWidgetRebuild: !drainedDays.isEmpty,
                 ))
             }
-        } catch RecordingPersistenceError.dataEpochChanged {
+        } catch RecordingPersistenceError.dataGenerationChanged {
             // A reset/Replace revoked the authority this sample was admitted
             // under. Stop immediately and never put the known-stale sample into
             // the durable retry sidecar; reconciliation will reopen recording
-            // only after resolving policy in the winning epoch.
-            await closeRecordingAuthority(ifAuthorizedFor: dataEpochID)
+            // only after resolving policy in the winning generation.
+            await closeRecordingAuthority(ifAuthorizedFor: dataGenerationID)
         } catch {
             // Persistence failures (SwiftData save, CloudKit, etc.) are surfaced
             // via `os.Logger` rather than silently dropped. The stream keeps
@@ -475,7 +479,7 @@ public actor LocationIngestor {
                     description: error.localizedDescription,
                 )
             }
-            enqueueForRetry(LocationOutboxEntry(sample: sample, dataEpochID: dataEpochID))
+            enqueueForRetry(LocationOutboxEntry(sample: sample, dataGenerationID: dataGenerationID))
             do {
                 try await outbox.save(retryQueue)
             } catch {
@@ -484,7 +488,7 @@ public actor LocationIngestor {
                 }
                 // Continuing to accept locations would make the in-memory queue the only copy;
                 // fail closed until reconciliation can reopen recording with durable storage.
-                await closeRecordingAuthority(ifAuthorizedFor: dataEpochID)
+                await closeRecordingAuthority(ifAuthorizedFor: dataGenerationID)
             }
         }
     }
@@ -501,7 +505,7 @@ public actor LocationIngestor {
     /// is re-queued at the tail; the next call gets the chance to retry it. The
     /// durable backlog is rewritten to match the post-drain queue.
     private func drainRetryQueue(
-        expectedDataEpochID: WhereDataEpochID,
+        expectedDataGenerationID: WhereDataGenerationID,
     ) async throws -> Set<Date> {
         // Spanned below the guard, so the common case — nothing queued, which is
         // every drain on a healthy device — records nothing at all.
@@ -510,25 +514,25 @@ public actor LocationIngestor {
         retryQueue.removeAll(keepingCapacity: true)
         var persistedDays: Set<Date> = []
         var persistedSampleCount = 0
-        var epochChanged = false
+        var generationChanged = false
         await Self.logger.measure(.drainBacklog, budget: .seconds(5)) {
             for (index, entry) in pending.enumerated() {
-                guard entry.dataEpochID == expectedDataEpochID else { continue }
+                guard entry.dataGenerationID == expectedDataGenerationID else { continue }
                 let sample = entry.sample
                 do {
-                    try await store.perform(expectedDataEpochID: entry.dataEpochID) {
+                    try await store.perform(expectedDataGenerationID: entry.dataGenerationID) {
                         try await store.add(sample: sample)
                     }
                     persistedSampleCount += 1
                     persistedDays.insert(calendar.startOfDay(for: sample.timestamp))
-                } catch RecordingPersistenceError.dataEpochChanged {
+                } catch RecordingPersistenceError.dataGenerationChanged {
                     enqueueForRetry(entry)
                     for remaining in pending.dropFirst(index + 1)
-                        where remaining.dataEpochID == expectedDataEpochID
+                        where remaining.dataGenerationID == expectedDataGenerationID
                     {
                         enqueueForRetry(remaining)
                     }
-                    epochChanged = true
+                    generationChanged = true
                     break
                 } catch {
                     Self.logger(attachments: [.error(error, name: "retry-error")]) {
@@ -550,8 +554,8 @@ public actor LocationIngestor {
             }
         }
         try await outbox.save(retryQueue)
-        if epochChanged {
-            throw RecordingPersistenceError.dataEpochChanged
+        if generationChanged {
+            throw RecordingPersistenceError.dataGenerationChanged
         }
         return persistedDays
     }
@@ -561,14 +565,17 @@ public actor LocationIngestor {
     extension LocationIngestor {
         /// Test convenience for fixtures whose samples predate no meaningful policy cutoff.
         @_spi(Testing) public func start() async throws {
-            let dataEpochID = try await (store.dataEpoch()).id
-            try await start(effectiveAt: .distantPast, dataEpochID: dataEpochID)
+            let dataGenerationID = try await (store.dataGeneration()).id
+            try await start(effectiveAt: .distantPast, dataGenerationID: dataGenerationID)
         }
 
         /// Test convenience matching ``start()`` without activating background monitoring.
         @_spi(Testing) public func authorizeRecording() async throws {
-            let dataEpochID = try await (store.dataEpoch()).id
-            try await authorizeRecording(effectiveAt: .distantPast, dataEpochID: dataEpochID)
+            let dataGenerationID = try await (store.dataGeneration()).id
+            try await authorizeRecording(
+                effectiveAt: .distantPast,
+                dataGenerationID: dataGenerationID,
+            )
         }
 
         /// Enqueue a sample for retry without persisting. Tests use this to assert
@@ -576,9 +583,9 @@ public actor LocationIngestor {
         /// persistence failures.
         @_spi(Testing) public func testingEnqueueForRetry(
             _ sample: LocationSample,
-            dataEpochID: WhereDataEpochID,
+            dataGenerationID: WhereDataGenerationID,
         ) {
-            enqueueForRetry(LocationOutboxEntry(sample: sample, dataEpochID: dataEpochID))
+            enqueueForRetry(LocationOutboxEntry(sample: sample, dataGenerationID: dataGenerationID))
         }
 
         /// Sample IDs currently in the retry queue, in FIFO order.

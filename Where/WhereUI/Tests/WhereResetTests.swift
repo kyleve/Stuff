@@ -396,7 +396,7 @@ struct WhereResetTests {
                 source: .gpsVisit,
                 recordingDeviceID: installationID,
             ),
-            dataEpochID: .initial,
+            dataGenerationID: .initial,
         )])
         await outbox.setFailsToClear(true)
 

@@ -112,7 +112,7 @@ struct BackupCoordinatorTests {
                 systemName: "iPad",
                 kind: .tablet,
                 registeredAt: dismissal.dismissedAt,
-                registrationEpochID: .initial,
+                registrationGenerationID: .initial,
             ))
             try await store.addRecordingDeviceMetadataChange(RecordingDeviceMetadataChange(
                 id: .init(

@@ -367,8 +367,8 @@ public struct WhereServices: Sendable {
     /// (upserts + removals-by-omission) is a single atomic transaction that
     /// pings `changes()` once.
     public func setPrimaryRegions(_ regions: [PrimaryRegion]) async throws {
-        let epochID = try await (store.dataEpoch()).id
-        try await store.perform(expectedDataEpochID: epochID) {
+        let generationID = try await (store.dataGeneration()).id
+        try await store.perform(expectedDataGenerationID: generationID) {
             try await store.setPrimaryRegions(regions)
         }
     }

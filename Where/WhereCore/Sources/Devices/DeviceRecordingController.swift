@@ -5,7 +5,7 @@ import Foundation
 ///
 /// Recording consent never enters CloudKit: the controller receives it from the backup-excluded
 /// installation sidecar. Synced check-ins are advisory status, while an append-only removal
-/// tombstone permanently retires an identity. Every removal read is epoch-pinned and failures
+/// tombstone permanently retires an identity. Every removal read is generation-pinned and failures
 /// stop recording rather than trusting stale state.
 public actor DeviceRecordingController {
     private let store: any WhereStore
@@ -18,7 +18,7 @@ public actor DeviceRecordingController {
 
     private var automaticRecordingEnabled: Bool
     private var enabledAt: Date?
-    private var preparedEpochID: WhereDataEpochID?
+    private var preparedGenerationID: WhereDataGenerationID?
 
     /// Actor reentrancy permits another command to enter at an `await`; this gate serializes the
     /// full store/physical transition rather than only its synchronous fragments.
@@ -38,7 +38,7 @@ public actor DeviceRecordingController {
     private static let logger = WhereLog.root(DeviceRecordingControllerLog.self)
 
     private struct StoreSnapshot {
-        let epoch: WhereDataEpoch
+        let generation: WhereDataGeneration
         let profiles: [RecordingDeviceProfile]
         let metadataChanges: [RecordingDeviceMetadataChange]
         let checkIns: [RecordingDeviceCheckIn]
@@ -186,7 +186,7 @@ public actor DeviceRecordingController {
             changedByDeviceID: currentDevice.id,
             payload: .nickname(resolvedNickname),
         )
-        try await store.perform(expectedDataEpochID: snapshot.epoch.id) {
+        try await store.perform(expectedDataGenerationID: snapshot.generation.id) {
             try await self.store.addRecordingDeviceMetadataChange(change)
         }
         return try await configurationsLocked(includeRemoved: false)
@@ -214,7 +214,7 @@ public actor DeviceRecordingController {
             removedAt: now(),
             removedByDeviceID: currentDevice.id,
         )
-        try await store.perform(expectedDataEpochID: snapshot.epoch.id) {
+        try await store.perform(expectedDataGenerationID: snapshot.generation.id) {
             try await self.store.addRecordingDeviceRemoval(removal)
         }
         await onPolicyChanged()
@@ -350,10 +350,10 @@ public actor DeviceRecordingController {
     ) async throws -> RecordingDeviceConfiguration {
         do {
             let snapshot = try await storeSnapshot()
-            let epoch = snapshot.epoch
+            let generation = snapshot.generation
             let existing = snapshot.profiles.first(where: { $0.id == currentDevice.id })
             if let existing, let resetAt = snapshot.currentDeviceResetBarrier {
-                try await store.perform(expectedDataEpochID: epoch.id) {
+                try await store.perform(expectedDataGenerationID: generation.id) {
                     try await self.store.addRecordingDeviceRemoval(RecordingDeviceRemoval(
                         id: .init(rawValue: UUID()),
                         deviceID: existing.id,
@@ -364,10 +364,10 @@ public actor DeviceRecordingController {
                 return try await reconcileLocked(authorization: authorization)
             }
             let expected = expectedProfile(
-                registrationEpochID: existing?.registrationEpochID ?? epoch.id,
+                registrationGenerationID: existing?.registrationGenerationID ?? generation.id,
             )
             if existing != expected {
-                try await store.perform(expectedDataEpochID: epoch.id) {
+                try await store.perform(expectedDataGenerationID: generation.id) {
                     try await self.store.addRecordingDeviceProfile(expected)
                 }
             }
@@ -432,10 +432,10 @@ public actor DeviceRecordingController {
             throw RecordingPersistenceError.currentDeviceRemoved(currentDevice.id)
         }
 
-        let epoch = snapshot.epoch
-        if preparedEpochID != epoch.id {
+        let generation = snapshot.generation
+        if preparedGenerationID != generation.id {
             try await ingestor.discardRetryBacklog()
-            preparedEpochID = epoch.id
+            preparedGenerationID = generation.id
         }
 
         let status: RecordingDeviceStatus = if automaticRecordingEnabled {
@@ -445,13 +445,13 @@ public actor DeviceRecordingController {
         }
         if automaticRecordingEnabled {
             try await ingestor.prepareRetryBacklog()
-            let effectiveAt = max(enabledAt ?? registeredAt, epoch.changedAt)
+            let effectiveAt = max(enabledAt ?? registeredAt, generation.changedAt)
             if authorization.allowsBackgroundTracking {
-                try await ingestor.start(effectiveAt: effectiveAt, dataEpochID: epoch.id)
+                try await ingestor.start(effectiveAt: effectiveAt, dataGenerationID: generation.id)
             } else {
                 try await ingestor.authorizeRecording(
                     effectiveAt: effectiveAt,
-                    dataEpochID: epoch.id,
+                    dataGenerationID: generation.id,
                 )
                 await ingestor.stop()
             }
@@ -474,7 +474,7 @@ public actor DeviceRecordingController {
                 lastSeenAt: checkInDate,
                 status: status,
             )
-            try await store.perform(expectedDataEpochID: epoch.id) {
+            try await store.perform(expectedDataGenerationID: generation.id) {
                 try await self.store.setRecordingDeviceCheckIn(checkIn)
             }
         } else if let existing {
@@ -543,7 +543,7 @@ public actor DeviceRecordingController {
                     ? .recording : .permissionRequired)
                 : .off
             let profileMatches = snapshot.profiles.first(where: { $0.id == currentDevice.id }).map {
-                $0 == expectedProfile(registrationEpochID: $0.registrationEpochID)
+                $0 == expectedProfile(registrationGenerationID: $0.registrationGenerationID)
             } ?? false
             if needsReconciliation || removalExists || heartbeatDue
                 || currentCheckIn?.status != expectedStatus || !profileMatches
@@ -566,22 +566,22 @@ public actor DeviceRecordingController {
 
     private func storeSnapshot() async throws -> StoreSnapshot {
         try await store.readSnapshot {
-            async let epoch = store.dataEpoch()
+            async let generation = store.dataGeneration()
             async let profiles = store.recordingDeviceProfiles()
             async let metadataChanges = store.recordingDeviceMetadataChanges()
             async let checkIns = store.recordingDeviceCheckIns()
             async let removals = store.recordingDeviceRemovals()
-            let values = try await (epoch, profiles, metadataChanges, checkIns, removals)
+            let values = try await (generation, profiles, metadataChanges, checkIns, removals)
             let currentProfile = values.1.first { $0.id == currentDevice.id }
             let resetBarrier: Date? = if let currentProfile {
                 try await store.recordingDeviceResetBarrier(
-                    for: currentProfile.registrationEpochID,
+                    for: currentProfile.registrationGenerationID,
                 )
             } else {
                 nil
             }
             return StoreSnapshot(
-                epoch: values.0,
+                generation: values.0,
                 profiles: values.1,
                 metadataChanges: values.2,
                 checkIns: values.3,
@@ -592,14 +592,14 @@ public actor DeviceRecordingController {
     }
 
     private func expectedProfile(
-        registrationEpochID: WhereDataEpochID,
+        registrationGenerationID: WhereDataGenerationID,
     ) -> RecordingDeviceProfile {
         RecordingDeviceProfile(
             id: currentDevice.id,
             systemName: currentDevice.systemName,
             kind: currentDevice.kind,
             registeredAt: registeredAt,
-            registrationEpochID: registrationEpochID,
+            registrationGenerationID: registrationGenerationID,
         )
     }
 

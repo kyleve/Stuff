@@ -39,13 +39,13 @@ struct TrackedRegionStoreTests {
         #expect(try await store.trackedRegions() == [texas])
     }
 
-    @Test func rotatingTheDataEpochResetsToTheDefault() async throws {
+    @Test func rotatingTheDataGenerationResetsToTheDefault() async throws {
         let store = try SwiftDataStore.inMemory()
         try await store.perform {
             try await store.setTrackedRegion(true, id: "us-TX")
         }
         try await store.perform {
-            _ = try await store.rotateDataEpoch(
+            _ = try await store.rotateDataGeneration(
                 reason: .accountReset,
                 changedBy: RecordingDeviceID(rawValue: UUID()),
                 at: Date(timeIntervalSinceReferenceDate: 1),

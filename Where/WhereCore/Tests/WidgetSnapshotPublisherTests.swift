@@ -51,7 +51,8 @@ struct WidgetSnapshotPublisherTests {
         #expect(await refresher.publishCount == 1)
     }
 
-    @Test func incompleteDestructiveEpochReplacesSensitiveSnapshotWithEmptyState() async throws {
+    @Test func incompleteDestructiveGenerationReplacesSensitiveSnapshotWithEmptyState(
+    ) async throws {
         let now = WhereCoreTestSupport.iso("2026-03-15T12:00:00-07:00")
         let container = try SwiftDataStore.makeContainer(storage: .inMemory)
         let store = SwiftDataStore(modelContainer: container)
@@ -86,8 +87,8 @@ struct WidgetSnapshotPublisherTests {
         // CloudKit can deliver a later destructive event before its parent. Once the store
         // knows that history may have been erased, the widget must stop showing the prior data.
         let remoteContext = ModelContext(container)
-        remoteContext.insert(SDWhereDataEpoch(value: WhereDataEpoch(
-            id: WhereDataEpochID(rawValue: UUID()),
+        remoteContext.insert(SDWhereDataGeneration(value: WhereDataGeneration(
+            id: WhereDataGenerationID(rawValue: UUID()),
             parentIDs: [.initial],
             revision: 2,
             changedAt: now.addingTimeInterval(1),

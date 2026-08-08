@@ -85,10 +85,11 @@ public struct NoopBackupImportRecoveryPersistence: BackupImportRecoveryPersistin
 ///
 /// The device-local sidecar supplies the token to query, so a receipt synced from another
 /// installation cannot create recovery work here. A receipt is stamped with the transaction's
-/// epoch, but remains discoverable after that epoch is superseded: the rows may be inert, yet the
+/// generation, but remains discoverable after that generation is superseded: the rows may be inert,
+/// yet the
 /// receipt still proves the physical save happened and prevents an automatic reapply.
 public struct BackupImportReceipt: Identifiable, Sendable, Hashable {
     public let id: UUID
     public let installationID: RecordingDeviceID
-    public let dataEpochID: WhereDataEpochID
+    public let dataGenerationID: WhereDataGenerationID
 }

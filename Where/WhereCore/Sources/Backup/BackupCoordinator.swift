@@ -379,7 +379,7 @@ public actor BackupCoordinator {
         transactionID: UUID,
         onProgress: @Sendable (Double) -> Void,
     ) async throws -> ImportSummary {
-        let expectedEpochID = try await (store.dataEpoch()).id
+        let expectedGenerationID = try await (store.dataGeneration()).id
         // Files handed over by the document picker are security-scoped; we must
         // bracket the read with start/stop access or `Data(contentsOf:)` fails
         // with a permissions error.
@@ -434,14 +434,14 @@ public actor BackupCoordinator {
         let importDate = now()
         do {
             try await Self.logger.measure(.importWrite) {
-                try await store.perform(expectedDataEpochID: expectedEpochID) {
+                try await store.perform(expectedDataGenerationID: expectedGenerationID) {
                     let preservedRemovals: [RecordingDeviceRemoval] = if strategy == .replace {
                         try await store.recordingDeviceRemovals()
                     } else {
                         []
                     }
                     if strategy == .replace {
-                        _ = try await store.rotateDataEpoch(
+                        _ = try await store.rotateDataGeneration(
                             reason: .backupReplace,
                             changedBy: currentDeviceID,
                             at: importDate,
@@ -515,7 +515,7 @@ public actor BackupCoordinator {
             }
         } catch {
             // `SwiftDataStore.perform` can throw after its peer save when a concurrent remote
-            // epoch supersedes the transaction. The receipt distinguishes that physical commit
+            // generation supersedes the transaction. The receipt distinguishes that physical commit
             // from a true rollback; never reapply an archive whose rows already landed.
             let receipt: BackupImportReceipt?
             do {
@@ -756,7 +756,8 @@ public actor BackupCoordinator {
         }
     }
 
-    /// The import physically committed, but a newer destructive epoch became authoritative before
+    /// The import physically committed, but a newer destructive generation became authoritative
+    /// before
     /// the call returned. The receipt prevents an automatic reapply into that newer generation.
     public struct CommittedImportSupersededError: LocalizedError, @unchecked Sendable {
         public let summary: ImportSummary

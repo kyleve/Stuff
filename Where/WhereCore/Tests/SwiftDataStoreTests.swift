@@ -25,7 +25,7 @@ struct SwiftDataStoreTests {
     }
 
     private static let calendar = WhereCoreTestSupport.calendar()
-    private static let epochWriterID = RecordingDeviceID(
+    private static let generationWriterID = RecordingDeviceID(
         rawValue: UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")!,
     )
 
@@ -160,7 +160,7 @@ struct SwiftDataStoreTests {
             systemName: "iPad",
             kind: .tablet,
             registeredAt: date,
-            registrationEpochID: .initial,
+            registrationGenerationID: .initial,
         )
         let nicknameMetadata = try RecordingDeviceMetadataChange(
             id: .init(rawValue: #require(UUID(
@@ -224,7 +224,7 @@ struct SwiftDataStoreTests {
         let container = try SwiftDataStore.makeContainer(storage: .inMemory)
         let context = ModelContext(container)
         let row = SDRecordingDeviceRemoval()
-        row.epochID = WhereDataEpochID.initial.rawValue
+        row.generationID = WhereDataGenerationID.initial.rawValue
         row.id = UUID()
         row.deviceID = UUID()
         row.removedAt = Date(timeIntervalSinceReferenceDate: 100)
@@ -246,8 +246,8 @@ struct SwiftDataStoreTests {
             removedAt: Date(timeIntervalSinceReferenceDate: 100),
             removedByDeviceID: RecordingDeviceID(rawValue: UUID()),
         )
-        context.insert(SDRecordingDeviceRemoval(value: removal, epochID: .initial))
-        context.insert(SDRecordingDeviceRemoval(value: removal, epochID: .initial))
+        context.insert(SDRecordingDeviceRemoval(value: removal, generationID: .initial))
+        context.insert(SDRecordingDeviceRemoval(value: removal, generationID: .initial))
         try context.save()
         let store = SwiftDataStore(modelContainer: container)
         #expect(try await store.recordingDeviceRemovals() == [removal])
@@ -259,7 +259,7 @@ struct SwiftDataStoreTests {
             removedAt: removal.removedAt.addingTimeInterval(1),
             removedByDeviceID: removal.removedByDeviceID,
         )
-        conflictContext.insert(SDRecordingDeviceRemoval(value: conflicting, epochID: .initial))
+        conflictContext.insert(SDRecordingDeviceRemoval(value: conflicting, generationID: .initial))
         try conflictContext.save()
 
         await #expect(throws: RecordingPersistenceError
@@ -269,7 +269,7 @@ struct SwiftDataStoreTests {
         }
     }
 
-    @Test func removalTombstonesSurviveDataEpochRotation() async throws {
+    @Test func removalTombstonesSurviveDataGenerationRotation() async throws {
         let store = try SwiftDataStore.inMemory()
         let removingDeviceID = RecordingDeviceID(rawValue: UUID())
         let removal = RecordingDeviceRemoval(
@@ -281,7 +281,7 @@ struct SwiftDataStoreTests {
 
         try await store.perform {
             try await store.addRecordingDeviceRemoval(removal)
-            _ = try await store.rotateDataEpoch(
+            _ = try await store.rotateDataGeneration(
                 reason: .accountReset,
                 changedBy: removingDeviceID,
                 at: Date(timeIntervalSinceReferenceDate: 200),
@@ -304,7 +304,7 @@ struct SwiftDataStoreTests {
             systemName: "iPad",
             kind: .tablet,
             registeredAt: date,
-            registrationEpochID: .initial,
+            registrationGenerationID: .initial,
         )
         let metadata = try RecordingDeviceMetadataChange(
             id: .init(rawValue: #require(UUID(
@@ -410,41 +410,41 @@ struct SwiftDataStoreTests {
     }
 
     @Test func newMultiParentRowsFailClosedWhileTheirParentArrayIsUnavailable() {
-        let firstEpochParent = Self.epochID("10000000-0000-0000-0000-000000000000")
-        let secondEpochParent = Self.epochID("20000000-0000-0000-0000-000000000000")
-        let epoch = Self.epoch(
+        let firstGenerationParent = Self.generationID("10000000-0000-0000-0000-000000000000")
+        let secondGenerationParent = Self.generationID("20000000-0000-0000-0000-000000000000")
+        let generation = Self.generation(
             id: "30000000-0000-0000-0000-000000000000",
-            parentIDs: [firstEpochParent, secondEpochParent],
+            parentIDs: [firstGenerationParent, secondGenerationParent],
             revision: 2,
             changedAt: Date(timeIntervalSinceReferenceDate: 300),
             reason: .backupReplace,
         )
-        let epochRow = SDWhereDataEpoch(value: epoch)
-        #expect(epochRow.parentID == nil)
-        #expect(epochRow.parentIDs == [
-            firstEpochParent.rawValue,
-            secondEpochParent.rawValue,
+        let generationRow = SDWhereDataGeneration(value: generation)
+        #expect(generationRow.parentID == nil)
+        #expect(generationRow.parentIDs == [
+            firstGenerationParent.rawValue,
+            secondGenerationParent.rawValue,
         ])
-        epochRow.parentIDs = nil
+        generationRow.parentIDs = nil
 
-        #expect(epochRow.toValue() == nil)
+        #expect(generationRow.toValue() == nil)
     }
 
     @Test func legacyScalarParentsStillDecodeAsSingleParentArrays() throws {
-        let epochID = try #require(UUID(uuidString: "10000000-0000-0000-0000-000000000000"))
-        let epochRow = SDWhereDataEpoch()
-        epochRow.id = epochID
-        epochRow.parentID = WhereDataEpochID.initial.rawValue
-        epochRow.parentIDs = nil
-        epochRow.revision = 1
-        epochRow.changedAt = Date(timeIntervalSinceReferenceDate: 100)
-        epochRow.changedByDeviceID = Self.epochWriterID.rawValue
-        epochRow.reasonRaw = WhereDataEpochReason.accountReset.rawValue
+        let generationID = try #require(UUID(uuidString: "10000000-0000-0000-0000-000000000000"))
+        let generationRow = SDWhereDataGeneration()
+        generationRow.id = generationID
+        generationRow.parentID = WhereDataGenerationID.initial.rawValue
+        generationRow.parentIDs = nil
+        generationRow.revision = 1
+        generationRow.changedAt = Date(timeIntervalSinceReferenceDate: 100)
+        generationRow.changedByDeviceID = Self.generationWriterID.rawValue
+        generationRow.reasonRaw = WhereDataGenerationReason.accountReset.rawValue
 
-        #expect(try #require(epochRow.toValue()).parentIDs == [.initial])
+        #expect(try #require(generationRow.toValue()).parentIDs == [.initial])
     }
 
-    @Test func lateRowsFromASupersededEpochCannotRepopulateAnySyncedUserData() async throws {
+    @Test func lateRowsFromASupersededGenerationCannotRepopulateAnySyncedUserData() async throws {
         let container = try SwiftDataStore.makeContainer(storage: .inMemory)
         let store = SwiftDataStore(modelContainer: container)
         let deviceID = try RecordingDeviceID(
@@ -480,7 +480,7 @@ struct SwiftDataStoreTests {
             systemName: "iPad",
             kind: .tablet,
             registeredAt: date,
-            registrationEpochID: .initial,
+            registrationGenerationID: .initial,
         )
         let metadata = try RecordingDeviceMetadataChange(
             id: .init(rawValue: #require(UUID(
@@ -499,9 +499,9 @@ struct SwiftDataStoreTests {
             status: .recording,
         )
 
-        let epoch = try await store.perform {
+        let generation = try await store.perform {
             try await store.addRecordingDeviceProfile(profile)
-            return try await store.rotateDataEpoch(
+            return try await store.rotateDataGeneration(
                 reason: .accountReset,
                 changedBy: deviceID,
                 at: date.addingTimeInterval(1),
@@ -512,21 +512,28 @@ struct SwiftDataStoreTests {
         // afterward. Remote CloudKit writes do not pass through WhereStore's mutation methods,
         // so insert the old-generation records at the SwiftData boundary just as an import does.
         let remoteContext = ModelContext(container)
-        remoteContext.insert(SDLocationSample(value: sample, epochID: .initial))
-        remoteContext.insert(SDEvidence(value: evidence, blob: Data("old".utf8), epochID: .initial))
-        remoteContext.insert(SDManualDay(value: manualDay, epochID: .initial))
+        remoteContext.insert(SDLocationSample(value: sample, generationID: .initial))
+        remoteContext.insert(SDEvidence(
+            value: evidence,
+            blob: Data("old".utf8),
+            generationID: .initial,
+        ))
+        remoteContext.insert(SDManualDay(value: manualDay, generationID: .initial))
         remoteContext.insert(SDDismissedIssue(
             key: dismissal.id.storeURL.absoluteString,
             dismissedAt: dismissal.dismissedAt,
-            epochID: .initial,
+            generationID: .initial,
         ))
-        remoteContext.insert(SDTrackedRegion(regionID: "us-TX", epochID: .initial))
-        remoteContext.insert(SDRecordingDeviceMetadataChange(value: metadata, epochID: .initial))
-        remoteContext.insert(SDRecordingDeviceCheckIn(value: checkIn, epochID: .initial))
+        remoteContext.insert(SDTrackedRegion(regionID: "us-TX", generationID: .initial))
+        remoteContext.insert(SDRecordingDeviceMetadataChange(
+            value: metadata,
+            generationID: .initial,
+        ))
+        remoteContext.insert(SDRecordingDeviceCheckIn(value: checkIn, generationID: .initial))
         try remoteContext.save()
 
         let reader = SwiftDataStore(modelContainer: container)
-        #expect(try await reader.dataEpoch() == epoch)
+        #expect(try await reader.dataGeneration() == generation)
         #expect(try await reader.allSamples().isEmpty)
         #expect(try await reader.allEvidence().isEmpty)
         #expect(try await reader.evidenceBlob(for: evidence.id) == nil)
@@ -538,12 +545,12 @@ struct SwiftDataStoreTests {
         #expect(try await reader.recordingDeviceCheckIns().isEmpty)
     }
 
-    @Test func expectedEpochTransactionRejectsStaleAuthorityWithoutWriting() async throws {
+    @Test func expectedGenerationTransactionRejectsStaleAuthorityWithoutWriting() async throws {
         let store = try SwiftDataStore.inMemory()
-        let staleEpochID = try await (store.dataEpoch()).id
+        let staleGenerationID = try await (store.dataGeneration()).id
         let deviceID = RecordingDeviceID(rawValue: UUID())
-        let currentEpoch = try await store.perform {
-            try await store.rotateDataEpoch(
+        let currentGeneration = try await store.perform {
+            try await store.rotateDataGeneration(
                 reason: .accountReset,
                 changedBy: deviceID,
                 at: Date(timeIntervalSinceReferenceDate: 100),
@@ -556,21 +563,21 @@ struct SwiftDataStoreTests {
             source: .manual,
         )
 
-        #expect(currentEpoch.id != staleEpochID)
-        await #expect(throws: RecordingPersistenceError.dataEpochChanged) {
-            try await store.perform(expectedDataEpochID: staleEpochID) {
+        #expect(currentGeneration.id != staleGenerationID)
+        await #expect(throws: RecordingPersistenceError.dataGenerationChanged) {
+            try await store.perform(expectedDataGenerationID: staleGenerationID) {
                 try await store.add(sample: sample)
             }
         }
         #expect(try await store.allSamples().isEmpty)
     }
 
-    @Test func epochRotationClampsABackwardClockToItsParentBoundary() async throws {
+    @Test func generationRotationClampsABackwardClockToItsParentBoundary() async throws {
         let store = try SwiftDataStore.inMemory()
         let deviceID = RecordingDeviceID(rawValue: UUID())
         let parentDate = Date(timeIntervalSinceReferenceDate: 200)
         let parent = try await store.perform {
-            try await store.rotateDataEpoch(
+            try await store.rotateDataGeneration(
                 reason: .accountReset,
                 changedBy: deviceID,
                 at: parentDate,
@@ -578,7 +585,7 @@ struct SwiftDataStoreTests {
         }
 
         let child = try await store.perform {
-            try await store.rotateDataEpoch(
+            try await store.rotateDataGeneration(
                 reason: .backupReplace,
                 changedBy: deviceID,
                 at: parentDate.addingTimeInterval(-100),
@@ -589,59 +596,60 @@ struct SwiftDataStoreTests {
         #expect(child.changedAt == parentDate)
     }
 
-    @Test func syntheticEpochRowsRequireTheExactResetFrontierAndAJoinRetiresThem() async throws {
+    @Test func syntheticGenerationRowsRequireTheExactResetFrontierAndAJoinRetiresThem(
+    ) async throws {
         let container = try SwiftDataStore.makeContainer(storage: .inMemory)
-        let first = Self.epoch(
+        let first = Self.generation(
             id: "10000000-0000-0000-0000-000000000000",
             parentIDs: [.initial],
             revision: 1,
             changedAt: Date(timeIntervalSinceReferenceDate: 100),
             reason: .accountReset,
         )
-        let second = Self.epoch(
+        let second = Self.generation(
             id: "20000000-0000-0000-0000-000000000000",
             parentIDs: [.initial],
             revision: 1,
             changedAt: Date(timeIntervalSinceReferenceDate: 200),
             reason: .accountReset,
         )
-        let firstResolution = try WhereDataEpoch.resolve(in: [first, second])
+        let firstResolution = try WhereDataGeneration.resolve(in: [first, second])
         let syntheticDay = DayPresence(
             date: Date(timeIntervalSinceReferenceDate: 10000),
             in: Self.calendar,
             regions: [.california],
         )
         let initialContext = ModelContext(container)
-        initialContext.insert(SDWhereDataEpoch(value: first))
-        initialContext.insert(SDWhereDataEpoch(value: second))
+        initialContext.insert(SDWhereDataGeneration(value: first))
+        initialContext.insert(SDWhereDataGeneration(value: second))
         initialContext.insert(SDManualDay(
             value: syntheticDay,
-            epochID: firstResolution.current.id,
+            generationID: firstResolution.current.id,
         ))
         try initialContext.save()
 
         let firstReader = SwiftDataStore(modelContainer: container)
-        #expect(try await firstReader.dataEpoch() == firstResolution.current)
+        #expect(try await firstReader.dataGeneration() == firstResolution.current)
         #expect(try await firstReader.allManualDays() == [syntheticDay])
 
-        let third = Self.epoch(
+        let third = Self.generation(
             id: "30000000-0000-0000-0000-000000000000",
             parentIDs: [.initial],
             revision: 1,
             changedAt: Date(timeIntervalSinceReferenceDate: 300),
             reason: .accountReset,
         )
-        let secondResolution = try WhereDataEpoch.resolve(in: [first, second, third])
+        let secondResolution = try WhereDataGeneration.resolve(in: [first, second, third])
         let thirdResetContext = ModelContext(container)
-        thirdResetContext.insert(SDWhereDataEpoch(value: third))
+        thirdResetContext.insert(SDWhereDataGeneration(value: third))
         try thirdResetContext.save()
 
         let secondReader = SwiftDataStore(modelContainer: container)
         #expect(secondResolution.current.id != firstResolution.current.id)
-        #expect(try await secondReader.dataEpoch() == secondResolution.current)
+        #expect(try await secondReader.dataGeneration() == secondResolution.current)
         #expect(try await secondReader.allManualDays().isEmpty)
 
-        let replacement = Self.epoch(
+        let replacement = Self.generation(
             id: "40000000-0000-0000-0000-000000000000",
             parentIDs: [first.id, second.id, third.id],
             revision: 2,
@@ -654,25 +662,25 @@ struct SwiftDataStoreTests {
             regions: [.newYork],
         )
         let replacementContext = ModelContext(container)
-        replacementContext.insert(SDWhereDataEpoch(value: replacement))
-        replacementContext.insert(SDManualDay(value: replacementDay, epochID: replacement.id))
+        replacementContext.insert(SDWhereDataGeneration(value: replacement))
+        replacementContext.insert(SDManualDay(value: replacementDay, generationID: replacement.id))
         try replacementContext.save()
 
         let replacementReader = SwiftDataStore(modelContainer: container)
-        #expect(try await replacementReader.dataEpoch() == replacement)
+        #expect(try await replacementReader.dataGeneration() == replacement)
         #expect(try await replacementReader.allManualDays() == [replacementDay])
     }
 
     @Test func rotationWritesOneCanonicalMultiParentNodeAndScopesFollowingRowsToIt() async throws {
         let container = try SwiftDataStore.makeContainer(storage: .inMemory)
-        let first = Self.epoch(
+        let first = Self.generation(
             id: "10000000-0000-0000-0000-000000000000",
             parentIDs: [.initial],
             revision: 1,
             changedAt: Date(timeIntervalSinceReferenceDate: 100),
             reason: .accountReset,
         )
-        let second = Self.epoch(
+        let second = Self.generation(
             id: "20000000-0000-0000-0000-000000000000",
             parentIDs: [.initial],
             revision: 1,
@@ -680,8 +688,8 @@ struct SwiftDataStoreTests {
             reason: .accountReset,
         )
         let seedContext = ModelContext(container)
-        seedContext.insert(SDWhereDataEpoch(value: first))
-        seedContext.insert(SDWhereDataEpoch(value: second))
+        seedContext.insert(SDWhereDataGeneration(value: first))
+        seedContext.insert(SDWhereDataGeneration(value: second))
         try seedContext.save()
 
         let replacementDay = DayPresence(
@@ -691,18 +699,18 @@ struct SwiftDataStoreTests {
         )
         let store = SwiftDataStore(modelContainer: container)
         let replacement = try await store.perform {
-            let epoch = try await store.rotateDataEpoch(
+            let generation = try await store.rotateDataGeneration(
                 reason: .backupReplace,
-                changedBy: Self.epochWriterID,
+                changedBy: Self.generationWriterID,
                 at: Date(timeIntervalSinceReferenceDate: 300),
             )
             try await store.setManualDay(replacementDay)
-            return epoch
+            return generation
         }
 
         let inspectionContext = ModelContext(container)
-        let epochRows = try inspectionContext.fetch(FetchDescriptor<SDWhereDataEpoch>())
-        let replacementRows = epochRows.filter { $0.id == replacement.id.rawValue }
+        let generationRows = try inspectionContext.fetch(FetchDescriptor<SDWhereDataGeneration>())
+        let replacementRows = generationRows.filter { $0.id == replacement.id.rawValue }
         let replacementRow = try #require(replacementRows.first)
         let manualRows = try inspectionContext.fetch(FetchDescriptor<SDManualDay>())
 
@@ -711,16 +719,16 @@ struct SwiftDataStoreTests {
         #expect(replacementRow.parentID == nil)
         #expect(replacementRow.parentIDs == [first.id.rawValue, second.id.rawValue])
         #expect(manualRows.count == 1)
-        #expect(manualRows.first?.epochID == replacement.id.rawValue)
-        #expect(try await store.dataEpoch() == replacement)
+        #expect(manualRows.first?.generationID == replacement.id.rawValue)
+        #expect(try await store.dataGeneration() == replacement)
         #expect(try await store.allManualDays() == [replacementDay])
     }
 
-    @Test func importReceiptRemainsDiscoverableAfterItsEpochIsSuperseded() async throws {
+    @Test func importReceiptRemainsDiscoverableAfterItsGenerationIsSuperseded() async throws {
         let store = try SwiftDataStore.inMemory()
         let transactionID = UUID()
         let installationID = RecordingDeviceID(rawValue: UUID())
-        let originalEpochID = try await (store.dataEpoch()).id
+        let originalGenerationID = try await (store.dataGeneration()).id
         try await store.perform {
             try await store.addBackupImportReceipt(
                 id: transactionID,
@@ -729,7 +737,7 @@ struct SwiftDataStoreTests {
         }
 
         _ = try await store.perform {
-            try await store.rotateDataEpoch(
+            try await store.rotateDataGeneration(
                 reason: .accountReset,
                 changedBy: installationID,
                 at: Date(timeIntervalSinceReferenceDate: 100),
@@ -740,14 +748,15 @@ struct SwiftDataStoreTests {
             id: transactionID,
             installationID: installationID,
         ))
-        #expect(receipt.dataEpochID == originalEpochID)
+        #expect(receipt.dataGenerationID == originalGenerationID)
         #expect(try await store.backupImportReceipt(
             id: transactionID,
             installationID: RecordingDeviceID(rawValue: UUID()),
         ) == nil)
     }
 
-    @Test func expectedEpochTransactionRejectsEpochImportedWhileBodyIsSuspended() async throws {
+    @Test func expectedGenerationTransactionRejectsGenerationImportedWhileBodyIsSuspended(
+    ) async throws {
         let container = try SwiftDataStore.makeContainer(storage: .inMemory)
         let store = SwiftDataStore(modelContainer: container)
         let deviceID = RecordingDeviceID(rawValue: UUID())
@@ -760,7 +769,7 @@ struct SwiftDataStoreTests {
         let (started, startedContinuation) = AsyncStream.makeStream(of: Void.self)
         let (release, releaseContinuation) = AsyncStream.makeStream(of: Void.self)
         let writer = Task {
-            try await store.perform(expectedDataEpochID: .initial) {
+            try await store.perform(expectedDataGenerationID: .initial) {
                 startedContinuation.yield()
                 startedContinuation.finish()
                 for await _ in release {
@@ -774,8 +783,8 @@ struct SwiftDataStoreTests {
         }
 
         let remoteContext = ModelContext(container)
-        remoteContext.insert(SDWhereDataEpoch(value: WhereDataEpoch(
-            id: WhereDataEpochID(rawValue: UUID()),
+        remoteContext.insert(SDWhereDataGeneration(value: WhereDataGeneration(
+            id: WhereDataGenerationID(rawValue: UUID()),
             parentIDs: [.initial],
             revision: 1,
             changedAt: Date(timeIntervalSinceReferenceDate: 100),
@@ -786,11 +795,11 @@ struct SwiftDataStoreTests {
         releaseContinuation.yield()
         releaseContinuation.finish()
 
-        await #expect(throws: RecordingPersistenceError.dataEpochChanged) {
+        await #expect(throws: RecordingPersistenceError.dataGenerationChanged) {
             try await writer.value
         }
         // The stale row may have committed before the post-save guard, but it
-        // belongs to the losing epoch and is never visible as active data.
+        // belongs to the losing generation and is never visible as active data.
         #expect(try await store.allSamples().isEmpty)
     }
 
@@ -830,9 +839,9 @@ struct SwiftDataStoreTests {
                 horizontalAccuracy: 5,
                 source: .manual,
             ),
-            epochID: .initial,
+            generationID: .initial,
         ))
-        remoteContext.insert(SDManualDay(value: day, epochID: .initial))
+        remoteContext.insert(SDManualDay(value: day, generationID: .initial))
         try remoteContext.save()
         // Deliberately do not deliver the corresponding remote-change signal:
         // a store commit can be visible before Core Data posts its notification.
@@ -841,7 +850,7 @@ struct SwiftDataStoreTests {
         releaseContinuation.yield()
         releaseContinuation.finish()
 
-        await #expect(throws: RecordingPersistenceError.dataEpochChanged) {
+        await #expect(throws: RecordingPersistenceError.dataGenerationChanged) {
             try await snapshot.value
         }
         #expect(await readObserver.counts == [0, 1])
@@ -851,7 +860,7 @@ struct SwiftDataStoreTests {
         let source = ScriptedStoreRemoteChangeSource()
         let container = try SwiftDataStore.makeContainer(storage: .inMemory)
         let remoteContext = ModelContext(container)
-        remoteContext.insert(SDManualDay(value: day, epochID: .initial))
+        remoteContext.insert(SDManualDay(value: day, generationID: .initial))
         try remoteContext.save()
         let store = SwiftDataStore.inMemory(
             modelContainer: container,
@@ -888,8 +897,8 @@ struct SwiftDataStoreTests {
         let container = try SwiftDataStore.makeContainer(storage: .inMemory)
         let store = SwiftDataStore(modelContainer: container)
         let deviceID = RecordingDeviceID(rawValue: UUID())
-        let currentEpoch = try await store.perform {
-            try await store.rotateDataEpoch(
+        let currentGeneration = try await store.perform {
+            try await store.rotateDataGeneration(
                 reason: .accountReset,
                 changedBy: deviceID,
                 at: Date(timeIntervalSinceReferenceDate: 100),
@@ -908,11 +917,11 @@ struct SwiftDataStoreTests {
         remoteContext.insert(SDEvidence(
             value: evidence,
             blob: inactiveBlob,
-            epochID: .initial,
+            generationID: .initial,
         ))
         try remoteContext.save()
 
-        try await store.perform(expectedDataEpochID: currentEpoch.id) {
+        try await store.perform(expectedDataGenerationID: currentGeneration.id) {
             try await store.write(evidence: evidence, blob: nil)
         }
 
@@ -920,7 +929,7 @@ struct SwiftDataStoreTests {
         #expect(try await store.evidenceBlob(for: evidence.id) == nil)
     }
 
-    /// Epoch-scoped data needs a new CloudKit record in the current generation. Global removal
+    /// Generation-scoped data needs a new CloudKit record in the current generation. Global removal
     /// tombstones instead retain one identity across rotations so a delayed sync remains active.
     @Test func scopedRowsRemainSeparateWhileGlobalRemovalsCanonicalize() async throws {
         let container = try SwiftDataStore.makeContainer(storage: .inMemory)
@@ -958,8 +967,8 @@ struct SwiftDataStoreTests {
             removedAt: date,
             removedByDeviceID: deviceID,
         )
-        let currentEpoch = try await store.perform {
-            try await store.rotateDataEpoch(
+        let currentGeneration = try await store.perform {
+            try await store.rotateDataGeneration(
                 reason: .accountReset,
                 changedBy: deviceID,
                 at: Date(timeIntervalSinceReferenceDate: 100),
@@ -967,12 +976,15 @@ struct SwiftDataStoreTests {
         }
 
         let remoteContext = ModelContext(container)
-        remoteContext.insert(SDLocationSample(value: sample, epochID: .initial))
-        remoteContext.insert(SDRecordingDeviceMetadataChange(value: metadata, epochID: .initial))
-        remoteContext.insert(SDRecordingDeviceRemoval(value: removal, epochID: .initial))
+        remoteContext.insert(SDLocationSample(value: sample, generationID: .initial))
+        remoteContext.insert(SDRecordingDeviceMetadataChange(
+            value: metadata,
+            generationID: .initial,
+        ))
+        remoteContext.insert(SDRecordingDeviceRemoval(value: removal, generationID: .initial))
         try remoteContext.save()
 
-        try await store.perform(expectedDataEpochID: currentEpoch.id) {
+        try await store.perform(expectedDataGenerationID: currentGeneration.id) {
             try await store.add(sample: sample)
             try await store.addRecordingDeviceMetadataChange(metadata)
             try await store.addRecordingDeviceRemoval(removal)
@@ -994,31 +1006,31 @@ struct SwiftDataStoreTests {
                 $0.id == removalRawID
             }),
         )
-        let expectedEpochIDs = Set([
-            WhereDataEpochID.initial.rawValue,
-            currentEpoch.id.rawValue,
+        let expectedGenerationIDs = Set([
+            WhereDataGenerationID.initial.rawValue,
+            currentGeneration.id.rawValue,
         ])
 
         #expect(sampleRows.count == 2)
-        #expect(Set(sampleRows.compactMap(\.epochID)) == expectedEpochIDs)
+        #expect(Set(sampleRows.compactMap(\.generationID)) == expectedGenerationIDs)
         #expect(metadataRows.count == 2)
-        #expect(Set(metadataRows.compactMap(\.epochID)) == expectedEpochIDs)
+        #expect(Set(metadataRows.compactMap(\.generationID)) == expectedGenerationIDs)
         #expect(removalRows.count == 1)
-        #expect(removalRows.first?.epochID == WhereDataEpochID.initial.rawValue)
+        #expect(removalRows.first?.generationID == WhereDataGenerationID.initial.rawValue)
         #expect(try await store.allSamples() == [sample])
         #expect(try await store.recordingDeviceMetadataChanges() == [metadata])
         #expect(try await store.recordingDeviceRemovals() == [removal])
     }
 
-    @Test func duplicateProfilesResolveDeterministicallyByRegistrationEpoch() async throws {
+    @Test func duplicateProfilesResolveDeterministicallyByRegistrationGeneration() async throws {
         let container = try SwiftDataStore.makeContainer(storage: .inMemory)
         let context = ModelContext(container)
         let deviceID = RecordingDeviceID(rawValue: UUID())
         let registeredAt = Date(timeIntervalSinceReferenceDate: 100)
-        let earlierCanonicalEpoch = try WhereDataEpochID(rawValue: #require(UUID(
+        let earlierCanonicalGeneration = try WhereDataGenerationID(rawValue: #require(UUID(
             uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA",
         )))
-        let laterCanonicalEpoch = try WhereDataEpochID(rawValue: #require(UUID(
+        let laterCanonicalGeneration = try WhereDataGenerationID(rawValue: #require(UUID(
             uuidString: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB",
         )))
         let winner = RecordingDeviceProfile(
@@ -1026,14 +1038,14 @@ struct SwiftDataStoreTests {
             systemName: "iPad",
             kind: .tablet,
             registeredAt: registeredAt,
-            registrationEpochID: earlierCanonicalEpoch,
+            registrationGenerationID: earlierCanonicalGeneration,
         )
         let duplicate = RecordingDeviceProfile(
             id: deviceID,
             systemName: "iPad",
             kind: .tablet,
             registeredAt: registeredAt,
-            registrationEpochID: laterCanonicalEpoch,
+            registrationGenerationID: laterCanonicalGeneration,
         )
         context.insert(SDRecordingDeviceProfile(value: duplicate))
         context.insert(SDRecordingDeviceProfile(value: winner))
@@ -1043,11 +1055,11 @@ struct SwiftDataStoreTests {
         #expect(try await store.recordingDeviceProfiles() == [winner])
     }
 
-    @Test func incompleteEpochHistoryFailsClosed() async throws {
+    @Test func incompleteGenerationHistoryFailsClosed() async throws {
         let container = try SwiftDataStore.makeContainer(storage: .inMemory)
         let context = ModelContext(container)
-        context.insert(SDWhereDataEpoch(value: WhereDataEpoch(
-            id: WhereDataEpochID(rawValue: UUID()),
+        context.insert(SDWhereDataGeneration(value: WhereDataGeneration(
+            id: WhereDataGenerationID(rawValue: UUID()),
             parentIDs: [.initial],
             revision: 2,
             changedAt: Date(timeIntervalSinceReferenceDate: 100),
@@ -1057,8 +1069,8 @@ struct SwiftDataStoreTests {
         try context.save()
 
         let store = SwiftDataStore(modelContainer: container)
-        await #expect(throws: RecordingPersistenceError.incompleteDataEpochHistory) {
-            try await store.dataEpoch()
+        await #expect(throws: RecordingPersistenceError.incompleteDataGenerationHistory) {
+            try await store.dataGeneration()
         }
     }
 
@@ -1216,25 +1228,25 @@ struct SwiftDataStoreTests {
         #expect(stored.first?.audit == laterAudit)
     }
 
-    private static func epoch(
+    private static func generation(
         id: String,
-        parentIDs: [WhereDataEpochID],
+        parentIDs: [WhereDataGenerationID],
         revision: Int64,
         changedAt: Date,
-        reason: WhereDataEpochReason,
-    ) -> WhereDataEpoch {
-        WhereDataEpoch(
-            id: epochID(id),
+        reason: WhereDataGenerationReason,
+    ) -> WhereDataGeneration {
+        WhereDataGeneration(
+            id: generationID(id),
             parentIDs: parentIDs,
             revision: revision,
             changedAt: changedAt,
-            changedByDeviceID: epochWriterID,
+            changedByDeviceID: generationWriterID,
             reason: reason,
         )
     }
 
-    private static func epochID(_ value: String) -> WhereDataEpochID {
-        WhereDataEpochID(rawValue: UUID(uuidString: value)!)
+    private static func generationID(_ value: String) -> WhereDataGenerationID {
+        WhereDataGenerationID(rawValue: UUID(uuidString: value)!)
     }
 }
 

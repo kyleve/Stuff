@@ -58,7 +58,7 @@ struct OnboardingRestoreSelection {
         }
     }
 
-    /// Replace deliberately reopens recording Off in a new data epoch. Merge and the ordinary
+    /// Replace deliberately reopens recording Off in a new data generation. Merge and the ordinary
     /// onboarding path may retain authority already discovered in the account.
     var permitsPreservingExistingRecorder: Bool {
         strategy != .replace

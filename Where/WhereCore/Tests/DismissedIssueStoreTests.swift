@@ -43,13 +43,13 @@ struct DismissedIssueStoreTests {
         #expect(ids == [id])
     }
 
-    @Test func rotatingTheDataEpochWipesDismissals() async throws {
+    @Test func rotatingTheDataGenerationWipesDismissals() async throws {
         let store = try SwiftDataStore.inMemory()
         try await store.perform {
             try await store.setIssueDismissed(true, id: Self.missingDays)
         }
         try await store.perform {
-            _ = try await store.rotateDataEpoch(
+            _ = try await store.rotateDataGeneration(
                 reason: .accountReset,
                 changedBy: RecordingDeviceID(rawValue: UUID()),
                 at: Date(timeIntervalSinceReferenceDate: 1),

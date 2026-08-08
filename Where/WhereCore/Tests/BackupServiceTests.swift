@@ -45,7 +45,7 @@ struct BackupServiceTests {
                 systemName: "iPad",
                 kind: .tablet,
                 registeredAt: exportDate,
-                registrationEpochID: .initial,
+                registrationGenerationID: .initial,
             ),
         ]
     }
@@ -184,7 +184,7 @@ struct BackupServiceTests {
             encoding: .utf8,
         ))
         #expect(encodedManifest.contains("\"isEnabled\"") == false)
-        #expect(encodedManifest.contains("\"registrationEpochID\""))
+        #expect(encodedManifest.contains("\"registrationGenerationID\""))
         #expect(encodedManifest.contains("00000000-0000-0000-0000-0000000000E0"))
         // Only the evidence with bytes gets an asset; the other is metadata-only.
         #expect(result.archive.assets.map(\.evidenceId) == [Self.evidenceWithBlobId])
@@ -204,7 +204,7 @@ struct BackupServiceTests {
         }
     }
 
-    @Test func currentFormatDoesNotSilentlyBackfillAMissingProfileEpoch() throws {
+    @Test func currentFormatDoesNotSilentlyBackfillAMissingProfileGeneration() throws {
         let data = try BackupService.makeEncoder().encode(
             Self.archive(),
         )
@@ -216,7 +216,7 @@ struct BackupServiceTests {
         )
         manifest["recordingDeviceProfiles"] = profiles.map { profile in
             var profile = profile
-            profile.removeValue(forKey: "registrationEpochID")
+            profile.removeValue(forKey: "registrationGenerationID")
             return profile
         }
 
@@ -224,9 +224,9 @@ struct BackupServiceTests {
             _ = try BackupService.decodeManifest(
                 JSONSerialization.data(withJSONObject: manifest),
             )
-            Issue.record("Expected the missing registration epoch to be rejected.")
+            Issue.record("Expected the missing registration generation to be rejected.")
         } catch let DecodingError.keyNotFound(key, _) {
-            #expect(key.stringValue == "registrationEpochID")
+            #expect(key.stringValue == "registrationGenerationID")
         } catch {
             Issue.record("Unexpected error: \(error)")
         }

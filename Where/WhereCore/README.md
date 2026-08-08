@@ -24,7 +24,7 @@ one it belongs to rather than to a god-object:
 - **`WhereStore`** — the value-type persistence boundary (a protocol; nothing
   crossing it is a SwiftData record). Mutations run inside `perform { … }` (one
   atomic transaction); callers whose decision was made against a particular
-  data epoch use `perform(expectedDataEpochID:)`, and multi-table reads use
+  data generation use `perform(expectedDataGenerationID:)`, and multi-table reads use
   `readSnapshot { … }` so a Reset or Replace cannot split one operation across
   generations; a persistent-history boundary invalidates any external commit
   crossing a snapshot even when its remote-change notification arrives later.
@@ -47,10 +47,10 @@ one it belongs to rather than to a god-object:
   Settings region picker. Recording identity and synced status are split into
   immutable profiles, append-only nickname events and removal tombstones, and target-owned
   advisory check-ins rather than one mutable device row. Recording consent stays local.
-- **`WhereDataEpoch`** — the account-wide logical generation that keeps late
+- **`WhereDataGeneration`** — the account-wide logical generation that keeps late
   uploads from an offline device from repopulating data after Reset or Replace.
   Each destructive operation appends one immutable node naming every real
-  maximal epoch it observed. Reset wins a concurrent Replace; multiple unjoined
+  maximal generation it observed. Reset wins a concurrent Replace; multiple unjoined
   resets resolve to a deterministic empty UUIDv8 synthetic generation, so neither
   reset branch's rows can reappear before another operation causally joins them. Persisted
   event ids remain UUIDv4; UUIDv8 is reserved for resolver-derived generations.
@@ -103,7 +103,7 @@ one it belongs to rather than to a god-object:
   authorization; after each committed sample it reconciles the badge/reminders
   and republishes the widget snapshot. Every automatic sample is stamped with
   the current installation's `RecordingDeviceID`. Every durable retry entry
-  also carries the data epoch that authorized it, so a pre-reset fix can be
+  also carries the data generation that authorized it, so a pre-reset fix can be
   discarded but never written into the replacement generation.
 - **`LocationOutbox`** — a backup-excluded, JournalKit-backed sidecar for samples
   SwiftData could not commit. It appends complete bounded queue snapshots, so a
@@ -137,8 +137,8 @@ one it belongs to rather than to a god-object:
 - **`WidgetSnapshotPublisher`** — republishes the App Group snapshot the widgets
   read, with a freshness policy.
 - **`BackupCoordinator`** — ZIP export/import via `ZIPFoundation`. Export pins
-  tables and evidence blobs to one epoch-consistent snapshot. Merge preserves queued locations
-  and the installation-local recording choice. Replace writes the archive into a new child epoch,
+  tables and evidence blobs to one generation-consistent snapshot. Merge preserves queued locations
+  and the installation-local recording choice. Replace writes the archive into a new child generation,
   retains existing removal tombstones, and preserves the local choice before pending fixes are
   discarded. A prepared
   marker in the backup-excluded installation
@@ -230,11 +230,11 @@ funnels through `WhereStore.perform` (or the remote-import path) and pings
 `changes()`. Readers (the UI's session, the issue scanner) re-derive purely off
 that ping, so nothing goes stale behind a write it didn't initiate; and because
 writes await their own side effects, a reader on the next ping sees a
-fully-applied change. Epoch-pinned snapshots keep a multi-table projection in
-one generation, while expected-epoch writes reject work whose assumptions went
+fully-applied change. Generation-pinned snapshots keep a multi-table projection in
+one generation, while expected-generation writes reject work whose assumptions went
 stale across a suspension. `WhereServices.reset()` is the one inherently
 cross-collaborator operation — it reversibly pauses ingestion, atomically
-rotates to a Reset child epoch, and discards the retry queue only after commit.
+rotates to a Reset child generation, and discards the retry queue only after commit.
 
 ## Contracts & limitations
 
@@ -253,8 +253,8 @@ rotates to a Reset child epoch, and discards the retry queue only after commit.
   installation's profile did not reach the resetting device until later.
 - **Destructive operations are logical generations.** Old rows may remain in
   CloudKit as sync/audit history, but ordinary reads select only the resolved
-  epoch. Concurrent unjoined resets select a synthetic empty generation; an
-  incomplete causal epoch DAG fails closed instead of mixing old and new state.
+  generation. Concurrent unjoined resets select a synthetic empty generation; an
+  incomplete causal generation DAG fails closed instead of mixing old and new state.
 - **Failures surface.** Store methods are `async throws`; errors are logged via
   `WhereLog` and left observable — never swallowed into an empty default.
 - **Foundation Models may be unavailable.** `RecentActivitySummarizer` reports a

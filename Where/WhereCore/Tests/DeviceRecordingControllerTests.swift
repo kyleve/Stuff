@@ -178,7 +178,7 @@ struct DeviceRecordingControllerTests {
                 systemName: "iPad",
                 kind: .tablet,
                 registeredAt: Self.now,
-                registrationEpochID: .initial,
+                registrationGenerationID: .initial,
             ))
         }
 
