@@ -59,27 +59,31 @@ public struct ReportReader: Sendable {
         primaryRegionCount: Int,
     ) async throws -> YearReportDetails {
         try await Self.logger.measure(.yearReportDetails, budget: .seconds(1)) {
-            let samples = try await store.samples(in: aggregator.yearInterval(year: year))
-            let manuals = try await store.manualDays(in: dayRange(for: year))
-            let report = aggregator.report(
-                for: year,
-                samples: samples,
-                manualDays: manuals,
-                attributor: attributor,
-            )
-            let primaryRegions = Set(Region.primaryRegions(
-                in: report.totals,
-                count: primaryRegionCount,
-            ))
-            let locations = aggregator.locations(
-                in: primaryRegions,
-                samples: samples,
-                attributor: attributor,
-            )
-            return YearReportDetails(
-                report: report,
-                primaryRegionLocations: locations,
-            )
+            try await store.readSnapshot {
+                let samples = try await history.samples(
+                    in: aggregator.yearInterval(year: year),
+                )
+                let manuals = try await store.manualDays(in: dayRange(for: year))
+                let report = aggregator.report(
+                    for: year,
+                    samples: samples,
+                    manualDays: manuals,
+                    attributor: attributor,
+                )
+                let primaryRegions = Set(Region.primaryRegions(
+                    in: report.totals,
+                    count: primaryRegionCount,
+                ))
+                let locations = aggregator.locations(
+                    in: primaryRegions,
+                    samples: samples,
+                    attributor: attributor,
+                )
+                return YearReportDetails(
+                    report: report,
+                    primaryRegionLocations: locations,
+                )
+            }
         }
     }
 

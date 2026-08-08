@@ -179,6 +179,44 @@ struct ReportReaderTests {
         #expect(after != before)
     }
 
+    @Test func yearReportDetailsAppliesDeviceRecordingCutoffs() async throws {
+        let (reader, store) = try Self.makeReader()
+        let deviceID = try RecordingDeviceID(
+            rawValue: #require(UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")),
+        )
+        try await store.perform {
+            try await store.add(sample: LocationSample(
+                timestamp: WhereCoreTestSupport.iso("2026-01-10T12:00:00-08:00"),
+                coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
+                horizontalAccuracy: 10,
+                source: .gpsVisit,
+                recordingDeviceID: deviceID,
+            ))
+            try await store.add(sample: LocationSample(
+                timestamp: WhereCoreTestSupport.iso("2026-01-12T12:00:00-08:00"),
+                coordinate: Coordinate(latitude: 40.7128, longitude: -74.0060),
+                horizontalAccuracy: 20,
+                source: .gpsVisit,
+                recordingDeviceID: deviceID,
+            ))
+            try await store.addRecordingDeviceRemoval(RecordingDeviceRemoval(
+                id: .init(
+                    rawValue: #require(UUID(uuidString: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB")),
+                ),
+                deviceID: deviceID,
+                removedAt: WhereCoreTestSupport.iso("2026-01-11T00:00:00-08:00"),
+                removedByDeviceID: deviceID,
+            ))
+        }
+
+        let details = try await reader.yearReportDetails(for: 2026, primaryRegionCount: 2)
+
+        #expect(details.report.days.count == 1)
+        #expect(details.report.totals == [.california: 1])
+        #expect(details.primaryRegionLocations[.california]?.flatMap(\.points).count == 1)
+        #expect(details.primaryRegionLocations[.newYork] == nil)
+    }
+
     /// The scan's one-read bundle: `report`, `.other` day coordinates, and the
     /// GPS `daySamples` all come from a single year-samples read and stay
     /// consistent — and the GPS-only `daySamples` drops a manual coordinate.
