@@ -33,9 +33,9 @@ struct PresenceTimelineList: View {
                     )
 
                     LazyVStack(spacing: 0) {
-                        ForEach(stints.indices, id: \.self) { index in
+                        ForEach(stints.enumerated(), id: \.element.id) { index, stint in
                             PresenceJourneyRow(
-                                stint: stints[index],
+                                stint: stint,
                                 calendar: report.calendar,
                                 daysInYear: report.daysInSelectedYear,
                                 isFirst: index == stints.startIndex,
