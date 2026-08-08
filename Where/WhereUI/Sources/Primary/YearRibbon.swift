@@ -14,17 +14,19 @@ struct YearRibbon: View {
 
     var body: some View {
         let timeline = stylesheet.timeline
+        let overview = timeline.overview
+        let ribbon = timeline.ribbon
         let regions = Region.inCanonicalOrder(Set(days.flatMap(\.regions)))
         let monthStarts = (1 ... 12).compactMap { month in
             calendar.date(from: DateComponents(year: year, month: month, day: 1))
         }
 
-        VStack(alignment: .leading, spacing: timeline.overviewSpacing) {
+        VStack(alignment: .leading, spacing: overview.spacing) {
             Text(WhereFormat.yearText(year))
-                .font(timeline.overviewYearFont)
+                .font(overview.yearFont)
                 .monospacedDigit()
 
-            VStack(spacing: timeline.monthLabelSpacing) {
+            VStack(spacing: ribbon.monthLabelSpacing) {
                 HStack(spacing: 0) {
                     ForEach(monthStarts, id: \.self) { month in
                         Text(month, format: .dateTime.month(.narrow))
@@ -34,12 +36,12 @@ struct YearRibbon: View {
                     }
                 }
 
-                if timeline.separatesRibbonRegions {
-                    VStack(spacing: timeline.ribbonRegionSpacing) {
+                if ribbon.separatesRegions {
+                    VStack(spacing: ribbon.regionSpacing) {
                         ForEach(regions, id: \.self) { region in
                             VStack(
                                 alignment: .leading,
-                                spacing: timeline.ribbonRegionLabelSpacing,
+                                spacing: ribbon.regionLabelSpacing,
                             ) {
                                 let style = regionStyles.style(for: region)
                                 Label {
@@ -69,16 +71,16 @@ struct YearRibbon: View {
             }
             .accessibilityHidden(true)
         }
-        .padding(timeline.overviewPadding)
+        .padding(overview.padding)
         .background {
-            RoundedRectangle(cornerRadius: timeline.overviewCornerRadius)
-                .fill(timeline.overviewBackground)
+            RoundedRectangle(cornerRadius: overview.cornerRadius)
+                .fill(overview.background)
         }
         .overlay {
-            RoundedRectangle(cornerRadius: timeline.overviewCornerRadius)
+            RoundedRectangle(cornerRadius: overview.cornerRadius)
                 .stroke(
-                    timeline.overviewBorder,
-                    lineWidth: timeline.overviewBorderWidth,
+                    overview.border,
+                    lineWidth: overview.borderWidth,
                 )
         }
     }

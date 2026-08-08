@@ -278,42 +278,49 @@ struct WhereStylesheetTests {
 
     @Test func timelineStyle() {
         let timeline = style.timeline
-        #expect(timeline.overviewSpacing == 12)
-        #expect(timeline.overviewPadding == 16)
-        #expect(timeline.overviewCornerRadius == 24)
-        #expect(timeline.overviewBackground == Color.primary.opacity(0.035))
-        #expect(timeline.overviewBorder == Color.primary.opacity(0.1))
-        #expect(timeline.overviewBorderWidth == 1)
-        #expect(timeline.overviewYearFont == .system(.title2, design: .serif).bold())
-        #expect(timeline.monthLabelSpacing == 6)
-        #expect(timeline.ribbonHeight == 18)
-        #expect(timeline.ribbonTrack == Color.primary.opacity(0.07))
-        #expect(timeline.ribbonBorder == Color.primary.opacity(0.12))
-        #expect(timeline.ribbonBorderWidth == 1)
-        #expect(timeline.ribbonRegionSpacing == 8)
-        #expect(timeline.ribbonRegionLabelSpacing == 4)
-        #expect(timeline.separatesRibbonRegions == false)
-        #expect(timeline.railLineWidth == 4)
-        #expect(timeline.railToCardSpacing == 10)
-        #expect(timeline.nodeSize == 42)
-        #expect(timeline.nodeEmojiFont == .system(size: 20))
-        #expect(timeline.nodeFillOpacity == 0.18)
-        #expect(timeline.nodeStrokeWidth == 2)
-        #expect(timeline.rowSpacing == 12)
-        #expect(timeline.labelSpacing == 3)
-        #expect(timeline.rowGap == 8)
-        #expect(timeline.rowBaseHeight == 64)
-        #expect(timeline.rowYearScaleHeight == 320)
-        #expect(timeline.rowHorizontalPadding == 14)
-        #expect(timeline.rowVerticalPadding == 12)
-        #expect(timeline.rowCornerRadius == 18)
-        #expect(timeline.rowFillOpacity == 0.09)
-        #expect(timeline.rowBorderOpacity == 0.24)
-        #expect(timeline.rowBorderWidth == 1)
-        #expect(timeline.countHorizontalPadding == 10)
-        #expect(timeline.countVerticalPadding == 6)
-        #expect(timeline.countFillOpacity == 0.16)
-        #expect(timeline.stacksDayCount == false)
+        let overview = timeline.overview
+        #expect(overview.spacing == 12)
+        #expect(overview.padding == 16)
+        #expect(overview.cornerRadius == 24)
+        #expect(overview.background == Color.primary.opacity(0.035))
+        #expect(overview.border == Color.primary.opacity(0.1))
+        #expect(overview.borderWidth == 1)
+        #expect(overview.yearFont == .system(.title2, design: .serif).bold())
+
+        let ribbon = timeline.ribbon
+        #expect(ribbon.monthLabelSpacing == 6)
+        #expect(ribbon.height == 18)
+        #expect(ribbon.track == Color.primary.opacity(0.07))
+        #expect(ribbon.border == Color.primary.opacity(0.12))
+        #expect(ribbon.borderWidth == 1)
+        #expect(ribbon.regionSpacing == 8)
+        #expect(ribbon.regionLabelSpacing == 4)
+        #expect(ribbon.separatesRegions == false)
+
+        let rail = timeline.rail
+        #expect(rail.lineWidth == 4)
+        #expect(rail.toCardSpacing == 10)
+        #expect(rail.nodeSize == 42)
+        #expect(rail.nodeEmojiFont == .system(size: 20))
+        #expect(rail.nodeFillOpacity == 0.18)
+        #expect(rail.nodeStrokeWidth == 2)
+
+        let row = timeline.row
+        #expect(row.spacing == 12)
+        #expect(row.labelSpacing == 3)
+        #expect(row.gap == 8)
+        #expect(row.baseHeight == 64)
+        #expect(row.yearScaleHeight == 320)
+        #expect(row.horizontalPadding == 14)
+        #expect(row.verticalPadding == 12)
+        #expect(row.cornerRadius == 18)
+        #expect(row.fillOpacity == 0.09)
+        #expect(row.borderOpacity == 0.24)
+        #expect(row.borderWidth == 1)
+        #expect(row.countHorizontalPadding == 10)
+        #expect(row.countVerticalPadding == 6)
+        #expect(row.countFillOpacity == 0.16)
+        #expect(row.stacksDayCount == false)
     }
 
     @Test func regionMapStyle() {
@@ -504,7 +511,7 @@ struct WhereStylesheetTests {
         context.traitOverrides.contentSizeCategory = .accessibilityLarge
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
         #expect(resolved.calendar.day.minHeight == 56)
-        #expect(resolved.timeline.stacksDayCount)
+        #expect(resolved.timeline.row.stacksDayCount)
     }
 
     @MainActor
@@ -523,7 +530,7 @@ struct WhereStylesheetTests {
             shouldDifferentiateWithoutColor: true,
         )
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
-        #expect(resolved.timeline.separatesRibbonRegions)
+        #expect(resolved.timeline.ribbon.separatesRegions)
     }
 
     @MainActor

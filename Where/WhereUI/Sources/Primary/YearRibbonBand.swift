@@ -15,10 +15,11 @@ struct YearRibbonBand: View {
 
     var body: some View {
         let timeline = stylesheet.timeline
+        let ribbon = timeline.ribbon
 
         ZStack(alignment: .leading) {
             Capsule()
-                .fill(timeline.ribbonTrack)
+                .fill(ribbon.track)
 
             Canvas { context, size in
                 let daysInYear = calendar.dayCount(ofYear: year)
@@ -51,12 +52,12 @@ struct YearRibbonBand: View {
         .overlay {
             Capsule()
                 .stroke(
-                    timeline.ribbonBorder,
-                    lineWidth: timeline.ribbonBorderWidth,
+                    ribbon.border,
+                    lineWidth: ribbon.borderWidth,
                 )
         }
         .frame(maxWidth: .infinity)
-        .frame(height: timeline.ribbonHeight)
+        .frame(height: ribbon.height)
     }
 
     private func displayedRegions(for day: DayPresence) -> [Region] {

@@ -14,24 +14,26 @@ struct PresenceJourneyRow: View {
 
     var body: some View {
         let timeline = stylesheet.timeline
+        let rail = timeline.rail
+        let row = timeline.row
         let style = regionStyles.style(for: stint.region)
         let dateRange = DateRangeFormatting.abbreviated(
             start: stint.start,
             end: stint.end,
             calendar: calendar,
         )
-        let countLayout = timeline.stacksDayCount
-            ? AnyLayout(VStackLayout(alignment: .leading, spacing: timeline.labelSpacing))
-            : AnyLayout(HStackLayout(alignment: .center, spacing: timeline.rowSpacing))
-        let proportionalHeight = timeline.rowBaseHeight
-            + timeline.rowYearScaleHeight * CGFloat(stint.dayCount) / CGFloat(daysInYear)
+        let countLayout = row.stacksDayCount
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: row.labelSpacing))
+            : AnyLayout(HStackLayout(alignment: .center, spacing: row.spacing))
+        let proportionalHeight = row.baseHeight
+            + row.yearScaleHeight * CGFloat(stint.dayCount) / CGFloat(daysInYear)
 
-        HStack(spacing: timeline.railToCardSpacing) {
+        HStack(spacing: rail.toCardSpacing) {
             Color.clear
-                .frame(width: timeline.nodeSize)
+                .frame(width: rail.nodeSize)
 
             countLayout {
-                VStack(alignment: .leading, spacing: timeline.labelSpacing) {
+                VStack(alignment: .leading, spacing: row.labelSpacing) {
                     Text(stint.region.localizedName)
                         .font(.headline)
                     Text(dateRange)
@@ -43,29 +45,29 @@ struct PresenceJourneyRow: View {
                 Text(WhereFormat.dayCount(stint.dayCount))
                     .font(.subheadline.bold())
                     .monospacedDigit()
-                    .padding(.horizontal, timeline.countHorizontalPadding)
-                    .padding(.vertical, timeline.countVerticalPadding)
+                    .padding(.horizontal, row.countHorizontalPadding)
+                    .padding(.vertical, row.countVerticalPadding)
                     .background {
                         Capsule()
-                            .fill(style.tint.opacity(timeline.countFillOpacity))
+                            .fill(style.tint.opacity(row.countFillOpacity))
                     }
             }
             .frame(minHeight: proportionalHeight)
-            .padding(.horizontal, timeline.rowHorizontalPadding)
-            .padding(.vertical, timeline.rowVerticalPadding)
+            .padding(.horizontal, row.horizontalPadding)
+            .padding(.vertical, row.verticalPadding)
             .background {
-                RoundedRectangle(cornerRadius: timeline.rowCornerRadius)
-                    .fill(style.tint.opacity(timeline.rowFillOpacity))
+                RoundedRectangle(cornerRadius: row.cornerRadius)
+                    .fill(style.tint.opacity(row.fillOpacity))
             }
             .overlay {
-                RoundedRectangle(cornerRadius: timeline.rowCornerRadius)
+                RoundedRectangle(cornerRadius: row.cornerRadius)
                     .stroke(
-                        style.tint.opacity(timeline.rowBorderOpacity),
-                        lineWidth: timeline.rowBorderWidth,
+                        style.tint.opacity(row.borderOpacity),
+                        lineWidth: row.borderWidth,
                     )
             }
         }
-        .padding(.vertical, timeline.rowGap / 2)
+        .padding(.vertical, row.gap / 2)
         .background(alignment: .leading) {
             PresenceJourneyRail(
                 tint: style.tint,

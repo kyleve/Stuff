@@ -12,11 +12,12 @@ struct PresenceJourneyRail: View {
 
     var body: some View {
         let timeline = stylesheet.timeline
+        let rail = timeline.rail
 
         ZStack {
             Canvas { context, size in
                 let center = CGPoint(x: size.width / 2, y: size.height / 2)
-                let nodeRadius = timeline.nodeSize / 2
+                let nodeRadius = rail.nodeSize / 2
 
                 if !isFirst {
                     var incoming = Path()
@@ -25,7 +26,7 @@ struct PresenceJourneyRail: View {
                     context.stroke(
                         incoming,
                         with: .color(tint),
-                        lineWidth: timeline.railLineWidth,
+                        lineWidth: rail.lineWidth,
                     )
                 }
 
@@ -36,22 +37,22 @@ struct PresenceJourneyRail: View {
                     context.stroke(
                         outgoing,
                         with: .color(tint),
-                        lineWidth: timeline.railLineWidth,
+                        lineWidth: rail.lineWidth,
                     )
                 }
             }
 
             ZStack {
                 Circle()
-                    .fill(tint.opacity(timeline.nodeFillOpacity))
+                    .fill(tint.opacity(rail.nodeFillOpacity))
                 Circle()
-                    .stroke(tint, lineWidth: timeline.nodeStrokeWidth)
+                    .stroke(tint, lineWidth: rail.nodeStrokeWidth)
                 Text(emoji)
-                    .font(timeline.nodeEmojiFont)
+                    .font(rail.nodeEmojiFont)
             }
-            .frame(width: timeline.nodeSize, height: timeline.nodeSize)
+            .frame(width: rail.nodeSize, height: rail.nodeSize)
         }
-        .frame(width: timeline.nodeSize)
+        .frame(width: rail.nodeSize)
         .accessibilityHidden(true)
     }
 }

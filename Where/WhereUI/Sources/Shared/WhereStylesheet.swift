@@ -41,13 +41,13 @@ struct WhereStylesheet: BStylesheet {
         // Grow day-grid tap targets at accessibility Dynamic Type sizes.
         if traits.contentSizeCategory.isAccessibilitySize {
             calendar.day.minHeight = 56
-            timeline.stacksDayCount = true
+            timeline.row.stacksDayCount = true
         }
 
         // Give every region a consistently labeled ribbon band when tint
         // alone is not an acceptable differentiator.
         if traits.accessibility.shouldDifferentiateWithoutColor {
-            timeline.separatesRibbonRegions = true
+            timeline.ribbon.separatesRegions = true
         }
 
         // Reduce Transparency flattens the cards: drop the decorative rim-glow
@@ -1121,87 +1121,111 @@ extension WhereStylesheet {
     /// Style for the presence timeline's calendar-proportional overview ribbon
     /// and the connected journey rows below it.
     struct TimelineStyle: Equatable {
-        var overviewSpacing: CGFloat
-        var overviewPadding: CGFloat
-        var overviewCornerRadius: CGFloat
-        var overviewBackground: Color
-        var overviewBorder: Color
-        var overviewBorderWidth: CGFloat
-        var overviewYearFont: Font
-        var monthLabelSpacing: CGFloat
-        var ribbonHeight: CGFloat
-        var ribbonTrack: Color
-        var ribbonBorder: Color
-        var ribbonBorderWidth: CGFloat
-        var ribbonRegionSpacing: CGFloat
-        var ribbonRegionLabelSpacing: CGFloat
-        /// Split the overview into labeled region bands instead of
-        /// relying on tint to distinguish a combined track.
-        var separatesRibbonRegions: Bool
+        var overview: Overview
+        var ribbon: Ribbon
+        var rail: Rail
+        var row: Row
+
+        struct Overview: Equatable {
+            var spacing: CGFloat
+            var padding: CGFloat
+            var cornerRadius: CGFloat
+            var background: Color
+            var border: Color
+            var borderWidth: CGFloat
+            var yearFont: Font
+        }
+
+        struct Ribbon: Equatable {
+            var monthLabelSpacing: CGFloat
+            var height: CGFloat
+            var track: Color
+            var border: Color
+            var borderWidth: CGFloat
+            var regionSpacing: CGFloat
+            var regionLabelSpacing: CGFloat
+            /// Split the overview into labeled region bands instead of
+            /// relying on tint to distinguish a combined track.
+            var separatesRegions: Bool
+        }
+
         /// The route, marker, and space between the marker and row card.
-        var railLineWidth: CGFloat
-        var railToCardSpacing: CGFloat
-        var nodeSize: CGFloat
-        var nodeEmojiFont: Font
-        var nodeFillOpacity: Double
-        var nodeStrokeWidth: CGFloat
+        struct Rail: Equatable {
+            var lineWidth: CGFloat
+            var toCardSpacing: CGFloat
+            var nodeSize: CGFloat
+            var nodeEmojiFont: Font
+            var nodeFillOpacity: Double
+            var nodeStrokeWidth: CGFloat
+        }
+
         /// Spacing and surface treatment within each journey row.
-        var rowSpacing: CGFloat
-        var labelSpacing: CGFloat
-        var rowGap: CGFloat
-        /// Every row reserves room for its content, then adds this full-year
-        /// scale multiplied by `stintDays / daysInYear`.
-        var rowBaseHeight: CGFloat
-        var rowYearScaleHeight: CGFloat
-        var rowHorizontalPadding: CGFloat
-        var rowVerticalPadding: CGFloat
-        var rowCornerRadius: CGFloat
-        var rowFillOpacity: Double
-        var rowBorderOpacity: Double
-        var rowBorderWidth: CGFloat
-        var countHorizontalPadding: CGFloat
-        var countVerticalPadding: CGFloat
-        var countFillOpacity: Double
-        /// Accessibility Dynamic Type stacks the count beneath the labels.
-        var stacksDayCount: Bool
+        struct Row: Equatable {
+            var spacing: CGFloat
+            var labelSpacing: CGFloat
+            var gap: CGFloat
+            /// Every row reserves room for its content, then adds this full-year
+            /// scale multiplied by `stintDays / daysInYear`.
+            var baseHeight: CGFloat
+            var yearScaleHeight: CGFloat
+            var horizontalPadding: CGFloat
+            var verticalPadding: CGFloat
+            var cornerRadius: CGFloat
+            var fillOpacity: Double
+            var borderOpacity: Double
+            var borderWidth: CGFloat
+            var countHorizontalPadding: CGFloat
+            var countVerticalPadding: CGFloat
+            var countFillOpacity: Double
+            /// Accessibility Dynamic Type stacks the count beneath the labels.
+            var stacksDayCount: Bool
+        }
 
         static let standard = TimelineStyle(
-            overviewSpacing: 12,
-            overviewPadding: 16,
-            overviewCornerRadius: 24,
-            overviewBackground: Color.primary.opacity(0.035),
-            overviewBorder: Color.primary.opacity(0.1),
-            overviewBorderWidth: 1,
-            overviewYearFont: .system(.title2, design: .serif).bold(),
-            monthLabelSpacing: 6,
-            ribbonHeight: 18,
-            ribbonTrack: Color.primary.opacity(0.07),
-            ribbonBorder: Color.primary.opacity(0.12),
-            ribbonBorderWidth: 1,
-            ribbonRegionSpacing: 8,
-            ribbonRegionLabelSpacing: 4,
-            separatesRibbonRegions: false,
-            railLineWidth: 4,
-            railToCardSpacing: 10,
-            nodeSize: 42,
-            nodeEmojiFont: .system(size: 20),
-            nodeFillOpacity: 0.18,
-            nodeStrokeWidth: 2,
-            rowSpacing: 12,
-            labelSpacing: 3,
-            rowGap: 8,
-            rowBaseHeight: 64,
-            rowYearScaleHeight: 320,
-            rowHorizontalPadding: 14,
-            rowVerticalPadding: 12,
-            rowCornerRadius: 18,
-            rowFillOpacity: 0.09,
-            rowBorderOpacity: 0.24,
-            rowBorderWidth: 1,
-            countHorizontalPadding: 10,
-            countVerticalPadding: 6,
-            countFillOpacity: 0.16,
-            stacksDayCount: false,
+            overview: Overview(
+                spacing: 12,
+                padding: 16,
+                cornerRadius: 24,
+                background: Color.primary.opacity(0.035),
+                border: Color.primary.opacity(0.1),
+                borderWidth: 1,
+                yearFont: .system(.title2, design: .serif).bold(),
+            ),
+            ribbon: Ribbon(
+                monthLabelSpacing: 6,
+                height: 18,
+                track: Color.primary.opacity(0.07),
+                border: Color.primary.opacity(0.12),
+                borderWidth: 1,
+                regionSpacing: 8,
+                regionLabelSpacing: 4,
+                separatesRegions: false,
+            ),
+            rail: Rail(
+                lineWidth: 4,
+                toCardSpacing: 10,
+                nodeSize: 42,
+                nodeEmojiFont: .system(size: 20),
+                nodeFillOpacity: 0.18,
+                nodeStrokeWidth: 2,
+            ),
+            row: Row(
+                spacing: 12,
+                labelSpacing: 3,
+                gap: 8,
+                baseHeight: 64,
+                yearScaleHeight: 320,
+                horizontalPadding: 14,
+                verticalPadding: 12,
+                cornerRadius: 18,
+                fillOpacity: 0.09,
+                borderOpacity: 0.24,
+                borderWidth: 1,
+                countHorizontalPadding: 10,
+                countVerticalPadding: 6,
+                countFillOpacity: 0.16,
+                stacksDayCount: false,
+            ),
         )
     }
 }
