@@ -6,7 +6,6 @@ struct FeatureLockScreenPreview: View {
     let date: Date
     let snapshot: WidgetSnapshot
 
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.stylesheet) private var stylesheet
 
     var body: some View {
@@ -36,8 +35,11 @@ struct FeatureLockScreenPreview: View {
             }
         }
         .foregroundStyle(.white)
+        .containerRelativeFrame(.horizontal) { length, _ in
+            style.widgetContentWidth(in: length)
+        }
         .padding(style.devicePadding)
-        .frame(maxWidth: deviceMaxWidth)
+        .frame(maxWidth: .infinity)
         .background(
             LinearGradient(
                 colors: [style.lockWallpaperTop, style.lockWallpaperBottom],
@@ -46,16 +48,9 @@ struct FeatureLockScreenPreview: View {
             ),
             in: .rect(cornerRadius: style.deviceCornerRadius),
         )
-        .frame(maxWidth: .infinity)
         .environment(\.colorScheme, .dark)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(String(localized: .settingsExploreWidgetsLockPreviewLabel))
-    }
-
-    private var deviceMaxWidth: CGFloat {
-        horizontalSizeClass == .regular
-            ? stylesheet.featureDiscovery.regularDeviceMaxWidth
-            : stylesheet.featureDiscovery.deviceMaxWidth
     }
 }
 

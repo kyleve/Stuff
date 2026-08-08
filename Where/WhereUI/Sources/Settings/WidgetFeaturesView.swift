@@ -19,6 +19,7 @@ struct WidgetFeaturesView: View {
                 Section {
                     FeatureHomeScreenPreview(snapshot: presentation.widgetSnapshot)
                         .listRowInsets(.init())
+                        .listRowBackground(Color.clear)
                         .settingsRow(Item.homeScreen)
                 } header: {
                     Text(String(localized: .settingsExploreWidgetsHomeHeader))
@@ -32,6 +33,7 @@ struct WidgetFeaturesView: View {
                         snapshot: presentation.widgetSnapshot,
                     )
                     .listRowInsets(.init())
+                    .listRowBackground(Color.clear)
                     .settingsRow(Item.lockScreen)
                 } header: {
                     Text(String(localized: .settingsExploreWidgetsLockHeader))

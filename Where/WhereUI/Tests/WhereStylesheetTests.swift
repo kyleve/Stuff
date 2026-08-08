@@ -421,8 +421,8 @@ struct WhereStylesheetTests {
         #expect(featureDiscovery.speakerIconSize == 28)
         #expect(featureDiscovery.conversationAccent == Color(white: 0.28))
         #expect(featureDiscovery.deviceCornerRadius == 28)
-        #expect(featureDiscovery.deviceMaxWidth == 560)
-        #expect(featureDiscovery.regularDeviceMaxWidth == 440)
+        #expect(featureDiscovery.widgetContentMaxWidth == 560)
+        #expect(featureDiscovery.regularWidgetContentWidth == 320)
         #expect(featureDiscovery.devicePadding == 14)
         #expect(featureDiscovery.deviceSpacing == 12)
         #expect(featureDiscovery.widgetCornerRadius == 18)
@@ -432,6 +432,8 @@ struct WhereStylesheetTests {
         #expect(featureDiscovery.homeWallpaperBottom == .cyan)
         #expect(featureDiscovery.lockWallpaperTop == .purple)
         #expect(featureDiscovery.lockWallpaperBottom == .blue)
+        #expect(featureDiscovery.widgetContentWidth(in: 402) == 374)
+        #expect(featureDiscovery.widgetContentWidth(in: 834) == 320)
     }
 
     @Test func passportCardStyle() {
@@ -550,6 +552,8 @@ struct WhereStylesheetTests {
         #expect(resolved.timeline.row.stacksDayCount)
         #expect(resolved.featureDiscovery.bubbleIndent == 0)
         #expect(resolved.featureDiscovery.stacksHomeWidgets)
+        #expect(resolved.featureDiscovery.regularWidgetContentWidth == nil)
+        #expect(resolved.featureDiscovery.widgetContentWidth(in: 834) == 560)
     }
 
     @MainActor

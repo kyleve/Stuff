@@ -45,6 +45,7 @@ struct WhereStylesheet: BStylesheet {
             timeline.row.stacksDayCount = true
             featureDiscovery.bubbleIndent = 0
             featureDiscovery.stacksHomeWidgets = true
+            featureDiscovery.regularWidgetContentWidth = nil
         }
 
         // Give every region a consistently labeled ribbon band when tint
@@ -1403,8 +1404,8 @@ extension WhereStylesheet {
         var speakerIconSize: CGFloat
         var conversationAccent: Color
         var deviceCornerRadius: CGFloat
-        var deviceMaxWidth: CGFloat
-        var regularDeviceMaxWidth: CGFloat
+        var widgetContentMaxWidth: CGFloat
+        var regularWidgetContentWidth: CGFloat?
         var devicePadding: CGFloat
         var deviceSpacing: CGFloat
         var widgetCornerRadius: CGFloat
@@ -1428,8 +1429,8 @@ extension WhereStylesheet {
             speakerIconSize: 28,
             conversationAccent: Color(white: 0.28),
             deviceCornerRadius: 28,
-            deviceMaxWidth: 560,
-            regularDeviceMaxWidth: 440,
+            widgetContentMaxWidth: 560,
+            regularWidgetContentWidth: 320,
             devicePadding: 14,
             deviceSpacing: 12,
             widgetCornerRadius: 18,
@@ -1440,6 +1441,16 @@ extension WhereStylesheet {
             lockWallpaperTop: .purple,
             lockWallpaperBottom: .blue,
         )
+
+        func widgetContentWidth(in containerWidth: CGFloat) -> CGFloat {
+            let availableWidth = max(0, containerWidth - devicePadding * 2)
+            if availableWidth > widgetContentMaxWidth,
+               let regularWidgetContentWidth
+            {
+                return regularWidgetContentWidth
+            }
+            return min(availableWidth, widgetContentMaxWidth)
+        }
     }
 }
 

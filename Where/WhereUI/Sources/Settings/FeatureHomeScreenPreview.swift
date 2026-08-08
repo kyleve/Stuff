@@ -5,7 +5,6 @@ import WhereCore
 struct FeatureHomeScreenPreview: View {
     let snapshot: WidgetSnapshot
 
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.stylesheet) private var stylesheet
 
     var body: some View {
@@ -32,8 +31,11 @@ struct FeatureHomeScreenPreview: View {
             }
             .aspectRatio(2, contentMode: .fit)
         }
+        .containerRelativeFrame(.horizontal) { length, _ in
+            style.widgetContentWidth(in: length)
+        }
         .padding(style.devicePadding)
-        .frame(maxWidth: deviceMaxWidth)
+        .frame(maxWidth: .infinity)
         .background(
             LinearGradient(
                 colors: [style.homeWallpaperTop, style.homeWallpaperBottom],
@@ -42,15 +44,8 @@ struct FeatureHomeScreenPreview: View {
             ),
             in: .rect(cornerRadius: style.deviceCornerRadius),
         )
-        .frame(maxWidth: .infinity)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(String(localized: .settingsExploreWidgetsHomePreviewLabel))
-    }
-
-    private var deviceMaxWidth: CGFloat {
-        horizontalSizeClass == .regular
-            ? stylesheet.featureDiscovery.regularDeviceMaxWidth
-            : stylesheet.featureDiscovery.deviceMaxWidth
     }
 }
 
