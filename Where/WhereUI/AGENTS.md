@@ -4,7 +4,8 @@ WhereUI is the SwiftUI layer of the Where feature: the screens, the shared
 components and widget views, and the `@Observable` view models that
 orchestrate `WhereCore` for them (`WhereModel`, the `WhereSession`
 coordinator, and the scoped `YearReportModel` / `ResolveModel` /
-`BackupModel` / `RemindersSettingsModel` / `DevicesSettingsModel` / `OnboardingFlowModel`).
+`BackupModel` / `RemindersSettingsModel` / `DevicesSettingsModel` / `OnboardingFlowModel` /
+`OnboardingImportRecoveryModel`).
 Layering, localization, preview, and testing conventions live in the feature
 [`Where/AGENTS.md`](../AGENTS.md)
 — read that and the root [`AGENTS.md`](../../AGENTS.md) first.

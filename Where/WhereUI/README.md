@@ -81,8 +81,9 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   **`RemindersSettingsModel`** (notification prefs), and
   **`DevicesSettingsModel`** (installation-local recording choice plus synced names, advisory
   status, and irreversible removal), plus **`OnboardingFlowModel`** (first-run phase, restore,
-  demo, and completion orchestration). Each orchestrates `WhereServices`; none reimplements Core
-  rules.
+  demo, and completion orchestration) and **`OnboardingImportRecoveryModel`** (the sidecar/store
+  recovery handshake after an interrupted onboarding import). Each orchestrates `WhereServices`;
+  none reimplements Core rules.
 
 ### Reusable views & styling
 
@@ -112,7 +113,8 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   but never offer the same archive for import again. Every cold launch resolves
   that onboarding marker before handing services to App Intents or registering
   the recording device, so Replace cleanup finishes before GPS can reopen or
-  drain an obsolete outbox. Settings intentionally offers export only.
+  drain an obsolete outbox. `OnboardingImportRecoveryModel` owns that reconciliation rather than
+  the process-wide `WhereModel`. Settings intentionally offers export only.
 - **`RegionPickerView` / `RegionCustomizeView`** — the shared primary-region
   picker (segmented map/list) and per-region color/emoji/icon customization,
   backed by `PrimaryRegionSelectionModel`. Reused by onboarding and the Settings
