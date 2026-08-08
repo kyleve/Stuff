@@ -35,6 +35,7 @@ struct FeatureLockScreenPreview: View {
             }
         }
         .foregroundStyle(.white)
+        .dynamicTypeSize(...style.widgetDynamicTypeLimit)
         .containerRelativeFrame(.horizontal) { length, _ in
             style.widgetContentWidth(in: length)
         }

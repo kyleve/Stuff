@@ -423,11 +423,11 @@ struct WhereStylesheetTests {
         #expect(featureDiscovery.deviceCornerRadius == 28)
         #expect(featureDiscovery.widgetContentMaxWidth == 560)
         #expect(featureDiscovery.regularWidgetContentWidth == 320)
+        #expect(featureDiscovery.widgetDynamicTypeLimit == .xLarge)
         #expect(featureDiscovery.devicePadding == 14)
         #expect(featureDiscovery.deviceSpacing == 12)
         #expect(featureDiscovery.widgetCornerRadius == 18)
         #expect(featureDiscovery.widgetPadding == 12)
-        #expect(featureDiscovery.stacksHomeWidgets == false)
         #expect(featureDiscovery.homeWallpaperTop == .indigo)
         #expect(featureDiscovery.homeWallpaperBottom == .cyan)
         #expect(featureDiscovery.lockWallpaperTop == .purple)
@@ -551,9 +551,7 @@ struct WhereStylesheetTests {
         #expect(resolved.calendar.day.minHeight == 56)
         #expect(resolved.timeline.row.stacksDayCount)
         #expect(resolved.featureDiscovery.bubbleIndent == 0)
-        #expect(resolved.featureDiscovery.stacksHomeWidgets)
-        #expect(resolved.featureDiscovery.regularWidgetContentWidth == nil)
-        #expect(resolved.featureDiscovery.widgetContentWidth(in: 834) == 560)
+        #expect(resolved.featureDiscovery.widgetContentWidth(in: 834) == 320)
     }
 
     @MainActor

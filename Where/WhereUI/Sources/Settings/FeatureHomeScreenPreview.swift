@@ -10,11 +10,7 @@ struct FeatureHomeScreenPreview: View {
     var body: some View {
         let style = stylesheet.featureDiscovery
         VStack(spacing: style.deviceSpacing) {
-            AnyLayout(
-                style.stacksHomeWidgets
-                    ? AnyLayout(VStackLayout(spacing: style.deviceSpacing))
-                    : AnyLayout(HStackLayout(spacing: style.deviceSpacing)),
-            ) {
+            HStack(spacing: style.deviceSpacing) {
                 WidgetPreviewFrame(surface: .homeScreen) {
                     TodayWidgetView(snapshot: snapshot)
                 }
@@ -31,6 +27,7 @@ struct FeatureHomeScreenPreview: View {
             }
             .aspectRatio(2, contentMode: .fit)
         }
+        .dynamicTypeSize(...style.widgetDynamicTypeLimit)
         .containerRelativeFrame(.horizontal) { length, _ in
             style.widgetContentWidth(in: length)
         }

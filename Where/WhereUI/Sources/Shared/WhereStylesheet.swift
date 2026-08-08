@@ -44,8 +44,6 @@ struct WhereStylesheet: BStylesheet {
             calendar.day.minHeight = 56
             timeline.row.stacksDayCount = true
             featureDiscovery.bubbleIndent = 0
-            featureDiscovery.stacksHomeWidgets = true
-            featureDiscovery.regularWidgetContentWidth = nil
         }
 
         // Give every region a consistently labeled ribbon band when tint
@@ -1405,12 +1403,12 @@ extension WhereStylesheet {
         var conversationAccent: Color
         var deviceCornerRadius: CGFloat
         var widgetContentMaxWidth: CGFloat
-        var regularWidgetContentWidth: CGFloat?
+        var regularWidgetContentWidth: CGFloat
+        var widgetDynamicTypeLimit: DynamicTypeSize
         var devicePadding: CGFloat
         var deviceSpacing: CGFloat
         var widgetCornerRadius: CGFloat
         var widgetPadding: CGFloat
-        var stacksHomeWidgets: Bool
         var homeWallpaperTop: Color
         var homeWallpaperBottom: Color
         var lockWallpaperTop: Color
@@ -1431,11 +1429,11 @@ extension WhereStylesheet {
             deviceCornerRadius: 28,
             widgetContentMaxWidth: 560,
             regularWidgetContentWidth: 320,
+            widgetDynamicTypeLimit: .xLarge,
             devicePadding: 14,
             deviceSpacing: 12,
             widgetCornerRadius: 18,
             widgetPadding: 12,
-            stacksHomeWidgets: false,
             homeWallpaperTop: .indigo,
             homeWallpaperBottom: .cyan,
             lockWallpaperTop: .purple,
@@ -1444,9 +1442,7 @@ extension WhereStylesheet {
 
         func widgetContentWidth(in containerWidth: CGFloat) -> CGFloat {
             let availableWidth = max(0, containerWidth - devicePadding * 2)
-            if availableWidth > widgetContentMaxWidth,
-               let regularWidgetContentWidth
-            {
+            if availableWidth > widgetContentMaxWidth {
                 return regularWidgetContentWidth
             }
             return min(availableWidth, widgetContentMaxWidth)
