@@ -194,11 +194,13 @@ typed-route list (`SettingsSearch.swift`; every switch is exhaustive), so a
 new drill-in is a set of compile errors to fill in; About stays the last
 block and the demo-mode exit the first.
 
+The Data and About screens lead with the shared privacy passport statement.
 The About screen renders three live sources — the generated attribution
 report (`WhereCore.AppAttribution`), `RegionDataSource`, and `BuildInfo` —
 never a list hard-coded in the view. A missing report or unstamped build
 renders an honest empty state, and shipped libraries stay a separate section
-from development tools. Design and rationale: PR #140.
+from development tools; keep its final passport sign-off linked to the public
+project repository. Design and rationale: PR #140.
 
 ## Localization
 
@@ -222,7 +224,7 @@ English literal in `Text` / `errorDescription`.
   the *source* literal instead. Catalogs stay byte-identical to Xcode's own
   serialization (root [Formatting](../AGENTS.md#formatting)).
 
-## Dates & presentation
+## Dates
 
 - **A logical day is a `CalendarDay` (Y-M-D), not a `Date`** — see
   [`WhereCore/AGENTS.md`](WhereCore/AGENTS.md). Never persist a day as an
@@ -237,34 +239,16 @@ English literal in `Text` / `errorDescription`.
   hardcoded day/weekday counts (`Calendar.dayCount(ofYear:)`).
 - **Core layout APIs throw on failure**; views surface
   `ContentUnavailableView` + log, never `!`.
-- Appearance tokens live in `WhereStylesheet`
-  ([`WhereUI/AGENTS.md`](WhereUI/AGENTS.md)); shared date-range copy in
-  `DateRangeFormatting`; numbers and dates use `FormatStyle`, not string
-  interpolation. Expensive layout computes once into state, not per `body`
-  pass. Sharing uses `ShareLink` / `Transferable`.
+- Shared date-range copy lives in `DateRangeFormatting`; WhereUI composition
+  and value formatting go through `WhereFormat`.
 
-## SwiftUI views & previews
+## UI construction
 
-Every previewable component in `WhereUI` (any `View`, `Widget`, or
-`WidgetBundle`) **must** ship at least one `#Preview` in the same file,
-wrapped in `#if DEBUG` at the bottom, built from
-[`PreviewSupport`](WhereUI/Sources/Preview/PreviewSupport.swift) fixtures —
-synchronous, in-memory, never disk/CloudKit/CoreLocation. Cover empty,
-loaded, and distinct edge states, not just the happy path.
-
-- **Animate transitions between distinct states** — `.transition` on each
-  `switch` arm plus `.animation(_:value:)`; hidden means *out of the tree*,
-  not opacity zero.
-- **A displayed value that can change under the user morphs, too** — a
-  `.contentTransition` needs a paired `.animation(_:value:)` or it silently
-  hard-cuts, and the transition and its animation are one stylesheet token
-  (see `CardStyles.DayCountStyle`).
-- **Derive UI dimensions; don't repeat them** — measure real chrome via a
-  preference key / `onGeometryChange` (see `DeveloperTabBarInset`), scale
-  controls with `@ScaledMetric`, prefer semantic font styles.
-- **Custom full-screen surfaces must work under VoiceOver** — the `.isModal`
-  trait plus `.screenChanged` across the modal boundary (see
-  `DeveloperOverlay`).
+Load the repo [`building-ui`](../.agents/skills/building-ui/SKILL.md) skill for
+view/model placement, reuse, Broadway styling, layout, accessibility,
+localization, previews, and image coverage. WhereUI previews use
+[`PreviewSupport`](WhereUI/Sources/Preview/PreviewSupport.swift): synchronous,
+in-memory fixtures that never touch disk, CloudKit, or CoreLocation.
 
 ## Adding things
 
@@ -290,6 +274,10 @@ surfaces survive at near-Release speed. Options: `./Where/install --help`.
 
 Root [testing conventions](../AGENTS.md#testing) apply. What's specific here:
 
+- **Formal protocol specs** live under [`Specifications/`](Specifications/); run
+  them locally with [`./tla-check`](../tla-check) (opt-in, not CI). Each folder
+  holds a `.tla` model, TLC configs, a `manifest.json`, and a README tying the
+  model to production code and cited Swift tests.
 - Test bundles run in `StuffTestHost` via the `unitTests` helper in
   `Project.swift` and link `TestHostSupport` (`show(_:perform:)`, `waitFor`).
 - Use `ScriptedLocationSource` and `SwiftDataStore.inMemory()` — never

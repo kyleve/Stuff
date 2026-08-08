@@ -36,6 +36,32 @@ struct SnapshotConfigurationTests {
         #expect([SnapshotConfiguration].screenDefaults.count == 10)
     }
 
+    @Test func fullContentScreenDefaultsCoverBothDeviceWidths() {
+        let configs = [SnapshotConfiguration].fullContentScreenDefaults
+        #expect(configs.count == 10)
+        #expect(Set(configs.map(\.device.name)) == ["iPhone", "iPad"])
+        #expect(configs.allSatisfy { configuration in
+            switch configuration.device.size {
+                case .fullContent: true
+                case .fixed, .intrinsic: false
+            }
+        })
+    }
+
+    @Test func fullContentDeviceFramesRetainViewportMinimums() {
+        #expect(SnapshotConfiguration.Frame.iPhoneFullContent.size == .fullContent(
+            width: 402,
+            minimumHeight: 874,
+        ))
+        #expect(SnapshotConfiguration.Frame.iPadFullContent.size == .fullContent(
+            width: 834,
+            minimumHeight: 1194,
+        ))
+
+        let custom = SnapshotConfiguration.Frame.fullContent(name: "custom", width: 500)
+        #expect(custom.size == .fullContent(width: 500, minimumHeight: nil))
+    }
+
     @Test func baselineIdentifierIsEmpty() {
         #expect(SnapshotConfiguration().identifier.isEmpty)
     }

@@ -67,8 +67,8 @@ enum SettingsDestination: Hashable, CaseIterable {
     ///
     /// The two that aren't would each reach past the demo and touch the device:
     /// **data** backs up, restores, erases, and resets, while **appearance**
-    /// exists solely to set an alternate app icon, which outlives the process.
-    /// A demo leaves no trace, so it doesn't offer the ways to leave one.
+    /// includes setting an alternate app icon, which outlives the process. A
+    /// demo leaves no trace, so it doesn't offer the ways to leave one.
     var isAvailableInDemoMode: Bool {
         switch self {
             case .data, .appearance: false

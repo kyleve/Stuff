@@ -7,22 +7,20 @@ struct RegionOutlineArtwork: View {
     let path: Path
     let tint: Color
     let style: WhereStylesheet.CardStyle.RegionShape.Artwork
+    var constellationPoints: [RegionLocationConstellationLayout.Point] = []
+    var constellationStyle = WhereStylesheet.CardStyles.Constellation.standard
 
     var body: some View {
         Canvas { context, size in
-            let bounds = path.boundingRect
-            guard !path.isEmpty, bounds.width > 0, bounds.height > 0 else { return }
-            let scale = min(
-                size.width * style.extent.width / bounds.width,
-                size.height * style.extent.height / bounds.height,
-            ) * style.scale
+            guard let transform = RegionArtworkTransform(
+                path: path,
+                size: size,
+                style: style,
+            ) else {
+                return
+            }
             var projectedContext = context
-            projectedContext.translateBy(
-                x: size.width * style.center.x,
-                y: size.height * style.center.y,
-            )
-            projectedContext.scaleBy(x: scale, y: scale)
-            projectedContext.translateBy(x: -bounds.midX, y: -bounds.midY)
+            transform.apply(to: &projectedContext)
 
             projectedContext.fill(
                 path,
@@ -32,9 +30,18 @@ struct RegionOutlineArtwork: View {
                 projectedContext.stroke(
                     path,
                     with: .color(tint.opacity(stroke.opacity)),
-                    lineWidth: stroke.width / scale,
+                    lineWidth: stroke.width / transform.scale,
                 )
             }
+        }
+        .overlay {
+            RegionLocationConstellation(
+                path: path,
+                points: constellationPoints,
+                tint: tint,
+                artworkStyle: style,
+                style: constellationStyle,
+            )
         }
         .allowsHitTesting(false)
         .accessibilityHidden(true)

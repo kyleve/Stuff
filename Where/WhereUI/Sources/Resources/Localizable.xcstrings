@@ -5374,6 +5374,30 @@
         }
       }
     },
+    "settings.about.source.action" : {
+      "comment" : "Action text in the About screen's open-source footer.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Explore the project on GitHub."
+          }
+        }
+      }
+    },
+    "settings.about.source.title" : {
+      "comment" : "Headline in the About screen's open-source footer.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Where is open source."
+          }
+        }
+      }
+    },
     "settings.about.value.unknown" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5469,6 +5493,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Appearance"
+          }
+        }
+      }
+    },
+    "settings.appearance.locationDots.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show recorded GPS locations as glowing dots on the maps in Locations."
+          }
+        }
+      }
+    },
+    "settings.appearance.locationDots.toggle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GPS dots"
           }
         }
       }
@@ -6171,7 +6217,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "license, licenses, open source, credits, acknowledgements, libraries, dependencies, third party"
+            "value" : "license, licenses, open source, credits, acknowledgements, libraries, dependencies, third party, github, source code, repository"
           }
         }
       }
@@ -6282,6 +6328,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "issue, alerts, notification, badge, resolve"
+          }
+        }
+      }
+    },
+    "settings.keywords.locationDots" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "gps, locations, dots, map, cards, glow, constellation"
           }
         }
       }
@@ -6404,6 +6461,30 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Location access needed"
+          }
+        }
+      }
+    },
+    "settings.privacy.detail" : {
+      "comment" : "Detail in the privacy passport card shown at the top of Data and About settings.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Your location history stays on your devices and in your private iCloud account. Where sends no data to anyone."
+          }
+        }
+      }
+    },
+    "settings.privacy.title" : {
+      "comment" : "Headline in the privacy passport card shown at the top of Data and About settings.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Private by design"
           }
         }
       }

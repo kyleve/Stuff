@@ -10,11 +10,6 @@ struct WhereProjectRulesTests {
             component: .whereUI,
             source: "func open() throws { _ = try SwiftDataStore.make() }",
         )
-        let currentGenerationAllowed = try evaluate(
-            path: "Where/WhereCore/Sources/CurrentGenerationJournal.swift",
-            component: .whereCore,
-            source: "func save() async throws { try await store.performInCurrentGeneration { try await store.add(sample: sample) } }",
-        )
         let rejectedPath: RelativeFilePath =
             "Where/WhereUI/Sources/Model/CompetingStoreOwner.swift"
         let rejected = try evaluate(
@@ -24,7 +19,6 @@ struct WhereProjectRulesTests {
         )
 
         #expect(allowed.violations.isEmpty)
-        #expect(currentGenerationAllowed.violations.isEmpty)
         let violation = try #require(rejected.violations.first)
         #expect(rejected.violations.count == 1)
         #expect(violation.rule.id == "where.production_store_opening")
@@ -202,6 +196,11 @@ struct WhereProjectRulesTests {
             component: .whereCore,
             source: "func save() async throws { try await store.perform { try await store.add(sample: sample) } }",
         )
+        let currentGenerationAllowed = try evaluate(
+            path: "Where/WhereCore/Sources/CurrentGenerationJournal.swift",
+            component: .whereCore,
+            source: "func save() async throws { try await store.performInCurrentGeneration { try await store.add(sample: sample) } }",
+        )
         let rejectedPath: RelativeFilePath =
             "Where/WhereCore/Sources/CompetingWriter.swift"
         let rejected = try evaluate(
@@ -211,6 +210,7 @@ struct WhereProjectRulesTests {
         )
 
         #expect(allowed.violations.isEmpty)
+        #expect(currentGenerationAllowed.violations.isEmpty)
         let violation = try #require(rejected.violations.first)
         #expect(rejected.violations.count == 1)
         #expect(violation.rule.id == "where.store_transaction_boundary")

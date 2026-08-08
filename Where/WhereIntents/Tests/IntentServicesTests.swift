@@ -63,4 +63,20 @@ struct IntentServicesTests {
         #expect(resolved.journal === second.journal)
         #expect(resolved.journal !== first.journal)
     }
+
+    /// TLC property `AfterClearMustPark`: after `clear()`, a parked intent must
+    /// resume on the next `install(_:)` rather than observing a cleared stack.
+    @Test func clearWhileParkedResumesOnTheNextInstall() async throws {
+        let handoff = IntentServices()
+        let parked = Task { try await handoff.current() }
+        try await waitUntil { await handoff.waiterCount == 1 }
+
+        await handoff.clear()
+
+        let replacement = try makeStack()
+        await handoff.install(replacement)
+
+        let resolved = try await parked.value
+        #expect(resolved.journal === replacement.journal)
+    }
 }

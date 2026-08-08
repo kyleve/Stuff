@@ -50,7 +50,7 @@ public actor DayJournal {
     /// Recount data issues and reconcile the reminder badge + the "issues to
     /// resolve" notification off the fresh count. The subset every committed
     /// write shares; a write that changes *day data* additionally republishes
-    /// the widget snapshot via `reconcileAfterDayChange()`.
+    /// the widget snapshot via `reconcileAfterDayDataChange()`.
     ///
     /// The scanner is invalidated inline (not just via its async store-change
     /// observation) so the reconciles below recount from fresh data rather than
@@ -67,11 +67,18 @@ public actor DayJournal {
     /// clears): recount issues / badge / notification, then republish the widget
     /// snapshot. Every local day-mutating write funnels through here; backup and
     /// remote imports use the composition root's full derived-data fan-out.
-    func reconcileAfterDayChange() async {
-        await Self.logger.measure(.reconcileAfterDayChange, budget: .seconds(5)) {
+    func reconcileAfterDayDataChange() async {
+        await Self.logger.measure(.reconcileAfterDayDataChange, budget: .seconds(5)) {
             await reconcileIssueState()
             await widgets.publish()
         }
+    }
+
+    /// Reminder/issue fan-out plus the hot-path widget policy: skip a rebuild
+    /// when the sample cannot change what widgets show (same day + region).
+    private func reconcileAfterSampleIngest(_ sample: LocationSample) async {
+        await reconcileIssueState()
+        await widgets.publishAfterIngest(of: sample)
     }
 
     // MARK: - Ingestion
@@ -80,7 +87,7 @@ public actor DayJournal {
         try await store.performInCurrentGeneration {
             try await store.add(sample: sample)
         }
-        await widgets.publishAfterIngest(of: sample)
+        await reconcileAfterSampleIngest(sample)
     }
 
     /// Persist many samples in a *single* transaction, rebuilding the widget
@@ -98,7 +105,7 @@ public actor DayJournal {
                 }
             }
         }
-        await widgets.publish()
+        await reconcileAfterDayDataChange()
     }
 
     // MARK: - Retroactive entry
@@ -107,7 +114,7 @@ public actor DayJournal {
         try await store.performInCurrentGeneration {
             try await store.add(sample: sample)
         }
-        await widgets.publish()
+        await reconcileAfterSampleIngest(sample)
     }
 
     public func addManualDay(
@@ -120,7 +127,7 @@ public actor DayJournal {
         try await store.performInCurrentGeneration {
             try await store.setManualDay(presence)
         }
-        await reconcileAfterDayChange()
+        await reconcileAfterDayDataChange()
         Self.logger { .addedManualDay(day: String(describing: day), regionCount: regions.count) }
     }
 
@@ -139,7 +146,7 @@ public actor DayJournal {
         try await store.performInCurrentGeneration {
             try await store.setManualDay(presence)
         }
-        await reconcileAfterDayChange()
+        await reconcileAfterDayDataChange()
         Self.logger { .overrodeDay(day: String(describing: day), regionCount: regions.count) }
     }
 
@@ -152,7 +159,7 @@ public actor DayJournal {
         try await store.performInCurrentGeneration {
             try await store.clearManualDay(day)
         }
-        await reconcileAfterDayChange()
+        await reconcileAfterDayDataChange()
         Self.logger { .clearedManualDay(day: String(describing: day)) }
     }
 
@@ -175,7 +182,7 @@ public actor DayJournal {
                 }
             }
         }
-        await reconcileAfterDayChange()
+        await reconcileAfterDayDataChange()
         Self.logger { .clearedManualDays(dayCount: days.count) }
     }
 
@@ -209,7 +216,7 @@ public actor DayJournal {
                 }
             }
         }
-        await reconcileAfterDayChange()
+        await reconcileAfterDayDataChange()
         Self.logger {
             .backfilledManualDays(dayCount: days.count, regionCount: regions.count)
         }
@@ -225,7 +232,7 @@ public actor DayJournal {
                 try await store.clear(in: interval, manualDays: dayRange)
             }
         }
-        await reconcileAfterDayChange()
+        await reconcileAfterDayDataChange()
         Self.logger { .clearedYear(year: year) }
     }
 
@@ -255,7 +262,7 @@ public actor DayJournal {
                 }
             }
         }
-        await reconcileAfterDayChange()
+        await reconcileAfterDayDataChange()
         Self.logger { .erasedAllData }
     }
 

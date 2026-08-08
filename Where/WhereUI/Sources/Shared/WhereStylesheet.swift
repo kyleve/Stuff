@@ -27,6 +27,7 @@ struct WhereStylesheet: BStylesheet {
     var launch = LaunchStyle.standard
     var typography = Typography.standard
     var settings = SettingsStyle.standard
+    var passportCard = PassportCardStyle.standard
     var developerOverlay = DeveloperOverlayStyle.standard
 
     init() {}
@@ -40,6 +41,13 @@ struct WhereStylesheet: BStylesheet {
         // Grow day-grid tap targets at accessibility Dynamic Type sizes.
         if traits.contentSizeCategory.isAccessibilitySize {
             calendar.day.minHeight = 56
+            timeline.row.stacksDayCount = true
+        }
+
+        // Give every region a consistently labeled ribbon band when tint
+        // alone is not an acceptable differentiator.
+        if traits.accessibility.shouldDifferentiateWithoutColor {
+            timeline.ribbon.separatesRegions = true
         }
 
         // Reduce Transparency flattens the cards: drop the decorative rim-glow
@@ -47,6 +55,7 @@ struct WhereStylesheet: BStylesheet {
         if traits.accessibility.isReduceTransparencyEnabled {
             card.regular.glow.radius = 0
             card.compact.glow.radius = 0
+            card.constellation.haloOpacity = 0
         }
 
         // Reduce Motion stops the cards' day count rolling its digits; it
@@ -527,6 +536,30 @@ extension WhereStylesheet {
         /// How the day count changes while the card is on screen; resolves to
         /// ``DayCountStyle/reducedMotion`` under Reduce Motion.
         var dayCount: DayCountStyle
+        /// Static GPS pinpricks plotted inside the regular card's region
+        /// watermark. Point selection and drawing geometry travel together so
+        /// accessibility slicing cannot leave half a glow treatment behind.
+        var constellation: Constellation
+
+        struct Constellation: Equatable {
+            var gridResolution: Int
+            var maximumPointCount: Int
+            var coreDiameter: CGFloat
+            var coreOpacity: Double
+            var coreWhiteMix: Double
+            var haloRadius: CGFloat
+            var haloOpacity: Double
+
+            static let standard = Constellation(
+                gridResolution: 48,
+                maximumPointCount: 96,
+                coreDiameter: 2.5,
+                coreOpacity: 0.92,
+                coreWhiteMix: 0.72,
+                haloRadius: 6,
+                haloOpacity: 0.32,
+            )
+        }
 
         /// Fill opacity of the bold and faint security-print rosettes.
         struct RosetteFill: Equatable {
@@ -573,6 +606,9 @@ extension WhereStylesheet {
         /// fade). The animation also sweeps the ambient bar, which reads the same
         /// count, in the same beat.
         struct DayCountStyle: Equatable {
+            /// How long the visible card surface holds its previous count before
+            /// the animation and its coordinated haptic begin.
+            var revealDelay: Duration
             /// Which way the count changes.
             var morph: Morph
             /// The animation that runs it.
@@ -597,6 +633,7 @@ extension WhereStylesheet {
             }
 
             static let standard = DayCountStyle(
+                revealDelay: .milliseconds(500),
                 morph: .rollingDigits,
                 // Long enough for the digits to read as rolling, short enough
                 // that a card tapped mid-roll doesn't feel held up.
@@ -605,6 +642,7 @@ extension WhereStylesheet {
 
             /// The Reduce-Motion pairing.
             static let reducedMotion = DayCountStyle(
+                revealDelay: .milliseconds(500),
                 morph: .crossFade,
                 animation: .easeInOut(duration: 0.2),
             )
@@ -732,6 +770,7 @@ extension WhereStylesheet {
             rosetteFill: RosetteFill(primary: 0.12, secondary: 0.08),
             securityPrint: .standard,
             dayCount: .standard,
+            constellation: .standard,
         )
     }
 }
@@ -1105,28 +1144,114 @@ extension WhereStylesheet {
 // MARK: - Timeline
 
 extension WhereStylesheet {
-    /// Style for the presence timeline's stint rows (`PresenceTimelineList`): the
-    /// leading region-tinted accent bar and the row's internal spacing.
+    /// Style for the presence timeline's calendar-proportional overview ribbon
+    /// and the connected journey rows below it.
     struct TimelineStyle: Equatable {
-        /// Spacing between a row's elements (accent, emoji, labels, count).
-        var rowSpacing: CGFloat
-        /// The leading accent bar's dimensions.
-        var accentWidth: CGFloat
-        var accentHeight: CGFloat
-        /// Spacing within a row's name/date label stack.
-        var labelSpacing: CGFloat
-        /// Minimum spacing before the trailing day count.
-        var trailingMinSpacing: CGFloat
-        /// Vertical padding around a row.
-        var rowVerticalPadding: CGFloat
+        var overview: Overview
+        var ribbon: Ribbon
+        var rail: Rail
+        var row: Row
+
+        struct Overview: Equatable {
+            var spacing: CGFloat
+            var padding: CGFloat
+            var cornerRadius: CGFloat
+            var background: Color
+            var border: Color
+            var borderWidth: CGFloat
+            var yearFont: Font
+        }
+
+        struct Ribbon: Equatable {
+            var monthLabelSpacing: CGFloat
+            var height: CGFloat
+            var track: Color
+            var border: Color
+            var borderWidth: CGFloat
+            var regionSpacing: CGFloat
+            var regionLabelSpacing: CGFloat
+            /// Split the overview into labeled region bands instead of
+            /// relying on tint to distinguish a combined track.
+            var separatesRegions: Bool
+        }
+
+        /// The route, marker, and space between the marker and row card.
+        struct Rail: Equatable {
+            var lineWidth: CGFloat
+            var toCardSpacing: CGFloat
+            var nodeSize: CGFloat
+            var nodeEmojiFont: Font
+            var nodeFillOpacity: Double
+            var nodeStrokeWidth: CGFloat
+        }
+
+        /// Spacing and surface treatment within each journey row.
+        struct Row: Equatable {
+            var spacing: CGFloat
+            var labelSpacing: CGFloat
+            var gap: CGFloat
+            /// Every row reserves room for its content, then adds this full-year
+            /// scale multiplied by `stintDays / daysInYear`.
+            var baseHeight: CGFloat
+            var yearScaleHeight: CGFloat
+            var horizontalPadding: CGFloat
+            var verticalPadding: CGFloat
+            var cornerRadius: CGFloat
+            var fillOpacity: Double
+            var borderOpacity: Double
+            var borderWidth: CGFloat
+            var countHorizontalPadding: CGFloat
+            var countVerticalPadding: CGFloat
+            var countFillOpacity: Double
+            /// Accessibility Dynamic Type stacks the count beneath the labels.
+            var stacksDayCount: Bool
+        }
 
         static let standard = TimelineStyle(
-            rowSpacing: 12,
-            accentWidth: 4,
-            accentHeight: 34,
-            labelSpacing: 2,
-            trailingMinSpacing: 8,
-            rowVerticalPadding: 4,
+            overview: Overview(
+                spacing: 12,
+                padding: 16,
+                cornerRadius: 24,
+                background: Color.primary.opacity(0.035),
+                border: Color.primary.opacity(0.1),
+                borderWidth: 1,
+                yearFont: .system(.title2, design: .serif).bold(),
+            ),
+            ribbon: Ribbon(
+                monthLabelSpacing: 6,
+                height: 18,
+                track: Color.primary.opacity(0.07),
+                border: Color.primary.opacity(0.12),
+                borderWidth: 1,
+                regionSpacing: 8,
+                regionLabelSpacing: 4,
+                separatesRegions: false,
+            ),
+            rail: Rail(
+                lineWidth: 4,
+                toCardSpacing: 10,
+                nodeSize: 42,
+                nodeEmojiFont: .system(size: 20),
+                nodeFillOpacity: 0.18,
+                nodeStrokeWidth: 2,
+            ),
+            row: Row(
+                spacing: 12,
+                labelSpacing: 3,
+                gap: 8,
+                baseHeight: 64,
+                yearScaleHeight: 320,
+                horizontalPadding: 14,
+                verticalPadding: 12,
+                cornerRadius: 18,
+                fillOpacity: 0.09,
+                borderOpacity: 0.24,
+                borderWidth: 1,
+                countHorizontalPadding: 10,
+                countVerticalPadding: 6,
+                countFillOpacity: 0.16,
+                stacksDayCount: false,
+            ),
         )
     }
 }
@@ -1252,6 +1377,104 @@ extension WhereStylesheet {
             flashAnimation: .easeInOut(duration: 0.4),
             flashDuration: .seconds(1),
             scrollSettleDelay: .milliseconds(350),
+        )
+    }
+}
+
+// MARK: - Passport card
+
+extension WhereStylesheet {
+    /// Appearance for compact passport statements in Settings.
+    struct PassportCardStyle: Equatable {
+        var cornerRadius: CGFloat
+        var padding: CGFloat
+        var contentSpacing: CGFloat
+        var titleFont: Font
+        var detailFont: Font
+        var seal: Seal
+        var rosette: Rosette
+        var reflectiveSurface: ReflectiveSurface
+        var glassTintOpacity: Double
+        var accentGlow: Shadow
+        var liftShadow: Shadow
+
+        struct Seal: Equatable {
+            var size: CGFloat
+            var rotationDegrees: Double
+            var outerLineWidth: CGFloat
+            var innerLineWidth: CGFloat
+            var innerInset: CGFloat
+            var dashLength: CGFloat
+            var dashSpacing: CGFloat
+            var symbolFont: Font
+        }
+
+        struct Rosette: Equatable {
+            var wobble: CGFloat
+            var lineWidth: CGFloat
+            var primaryRingSpacing: CGFloat
+            var secondaryRingSpacing: CGFloat
+            var primaryOpacity: Double
+            var secondaryOpacity: Double
+        }
+
+        struct ReflectiveSurface: Equatable {
+            var backgroundTop: Color
+            var backgroundBottom: Color
+            var accent: Color
+            var glowOpacity: Double
+            var intensity: Double
+            var staticGlintIntensity: Double
+            var staticPose: Pose
+
+            struct Pose: Equatable {
+                var roll: Double
+                var pitch: Double
+            }
+        }
+
+        struct Shadow: Equatable {
+            var opacity: Double
+            var radius: CGFloat
+            var offsetY: CGFloat = 0
+        }
+
+        static let standard = PassportCardStyle(
+            cornerRadius: 20,
+            padding: 16,
+            contentSpacing: 12,
+            titleFont: .headline,
+            detailFont: .subheadline,
+            seal: Seal(
+                size: 52,
+                rotationDegrees: -8,
+                outerLineWidth: 2,
+                innerLineWidth: 1,
+                innerInset: 7,
+                dashLength: 3,
+                dashSpacing: 3,
+                symbolFont: .title3,
+            ),
+            rosette: Rosette(
+                wobble: 5,
+                lineWidth: 0.75,
+                primaryRingSpacing: 10,
+                secondaryRingSpacing: 16,
+                primaryOpacity: 0.1,
+                secondaryOpacity: 0.06,
+            ),
+            reflectiveSurface: ReflectiveSurface(
+                backgroundTop: Color(red: 0.08, green: 0.18, blue: 0.34),
+                backgroundBottom: Color(red: 0.02, green: 0.07, blue: 0.16),
+                accent: Color(red: 0.88, green: 0.72, blue: 0.32),
+                glowOpacity: 0.12,
+                intensity: 0.28,
+                staticGlintIntensity: 0.28,
+                staticPose: .init(roll: 0.3, pitch: -0.15),
+            ),
+            glassTintOpacity: 0.06,
+            accentGlow: Shadow(opacity: 0.18, radius: 7),
+            liftShadow: Shadow(opacity: 0.08, radius: 5, offsetY: 2),
         )
     }
 }

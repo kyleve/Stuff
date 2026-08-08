@@ -1,8 +1,10 @@
 import Foundation
+import RegionKit
 
 /// The app's persisted user intent — onboarding completion and the reminder /
-/// daily-summary schedules — behind a `KeyValueStore`
-/// so production uses `UserDefaults` and tests use an in-memory double.
+/// daily-summary schedules — plus small pieces of UI
+/// continuity state, behind a `KeyValueStore` so production uses `UserDefaults`
+/// and tests use an in-memory double.
 ///
 /// `store` is deliberately not defaulted: defaulting it to
 /// `UserDefaults.standard` made the real, process-wide defaults the thing you
@@ -27,6 +29,14 @@ public final class WherePreferences {
     public var hasOnboarded: Bool {
         get { store.bool(forKey: Keys.hasOnboarded.rawValue) }
         set { store.set(newValue, forKey: Keys.hasOnboarded.rawValue) }
+    }
+
+    /// Whether Locations cards render recorded GPS fixes inside their region
+    /// outlines. Defaults to `true` so the visualization is visible until the
+    /// user explicitly turns it off.
+    public var showsRecordedLocationDots: Bool {
+        get { store.object(forKey: Keys.showsRecordedLocationDots.rawValue) as? Bool ?? true }
+        set { store.set(newValue, forKey: Keys.showsRecordedLocationDots.rawValue) }
     }
 
     /// Whether the daily "log before the day ends" reminder is enabled. Defaults
@@ -92,9 +102,39 @@ public final class WherePreferences {
         set { store.set(newValue, forKey: Keys.driftThresholdMeters.rawValue) }
     }
 
+    /// The primary Location-card counts last presented for `year`, or `nil`
+    /// when that year has no baseline yet. This is non-authoritative UI
+    /// continuity state: the current report remains the source of truth.
+    public func lastSeenLocationDayCounts(in year: Int) -> [Region: Int]? {
+        guard
+            let snapshots = store.object(forKey: Keys.lastSeenLocationDayCounts.rawValue)
+            as? [String: [String: Int]],
+            let rawCounts = snapshots[String(year)]
+        else {
+            return nil
+        }
+
+        return rawCounts.reduce(into: [:]) { counts, entry in
+            guard let region = Region(rawValue: entry.key) else { return }
+            counts[region] = entry.value
+        }
+    }
+
+    /// Replaces the primary Location-card baseline for `year`, retaining the
+    /// other years the user has viewed.
+    public func setLastSeenLocationDayCounts(_ counts: [Region: Int], in year: Int) {
+        var snapshots = store.object(forKey: Keys.lastSeenLocationDayCounts.rawValue)
+            as? [String: [String: Int]] ?? [:]
+        snapshots[String(year)] = Dictionary(uniqueKeysWithValues: counts.map { region, days in
+            (region.rawValue, days)
+        })
+        store.set(snapshots, forKey: Keys.lastSeenLocationDayCounts.rawValue)
+    }
+
     /// Clear every persisted preference so the next launch behaves like a fresh
-    /// install: onboarding shows again and the reminder/summary schedules revert
-    /// to defaults.
+    /// install: onboarding shows again, reminder/summary schedules revert to
+    /// defaults, and UI
+    /// continuity snapshots are forgotten.
     /// Removing the keys (rather than writing `false`/`0`) lets the
     /// default-valued getters report first-install state again.
     public func reset() {
@@ -108,6 +148,7 @@ public final class WherePreferences {
     /// sync — adding a case is all it takes to have it reset.
     private enum Keys: String, CaseIterable {
         case hasOnboarded = "where.hasOnboarded"
+        case showsRecordedLocationDots = "where.showsRecordedLocationDots"
         case remindersEnabled = "where.remindersEnabled"
         case reminderHour = "where.reminderHour"
         case reminderMinute = "where.reminderMinute"
@@ -116,5 +157,6 @@ public final class WherePreferences {
         case summaryMinute = "where.summaryMinute"
         case issueAlertsEnabled = "where.issueAlertsEnabled"
         case driftThresholdMeters = "where.driftThresholdMeters"
+        case lastSeenLocationDayCounts = "where.lastSeenLocationDayCounts"
     }
 }

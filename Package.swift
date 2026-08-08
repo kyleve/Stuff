@@ -6,10 +6,12 @@ let package = Package(
     defaultLocalization: "en",
     platforms: [
         .iOS(.v26),
+        .macOS(.v26),
     ],
     products: [
         .library(name: "StuffCore", targets: ["StuffCore"]),
         .library(name: "CreditKit", targets: ["CreditKit"]),
+        .library(name: "LedgerCore", targets: ["LedgerCore"]),
         .library(name: "LifecycleKit", targets: ["LifecycleKit"]),
         .library(name: "LifecycleKitUI", targets: ["LifecycleKitUI"]),
         .library(name: "JournalKit", targets: ["JournalKit"]),
@@ -48,6 +50,13 @@ let package = Package(
         .target(
             name: "CreditKit",
             path: "Shared/CreditKit/Sources",
+        ),
+        .target(
+            name: "LedgerCore",
+            dependencies: [
+                .target(name: "PeriscopeCore"),
+            ],
+            path: "Ledger/LedgerCore/Sources",
         ),
         .target(
             name: "LifecycleKit",

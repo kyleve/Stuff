@@ -20,8 +20,8 @@ struct SettingsSearchTests {
     @Test func demoModeHidesOnlyTheGroupsThatReachPastIt() {
         let hidden = SettingsDestination.allCases.filter { !$0.isAvailableInDemoMode }
         // Data writes or restores an archive, erases, and resets; appearance
-        // exists only to set an app icon that outlives the process. Everything
-        // else is safe to explore, and the list would be a poor demo without it.
+        // includes an app-icon setting that outlives the process. Everything else
+        // is safe to explore, and the list would be a poor demo without it.
         #expect(Set(hidden) == [.data, .appearance])
     }
 
@@ -41,12 +41,13 @@ struct SettingsSearchTests {
     }
 
     @Test func matchesOnKeyword() {
-        // "gps" is a keyword for both the device-recording and data-resolution
-        // settings, but not part of either title.
+        // "gps" is a keyword for device recording, data resolution, and the
+        // Appearance dot toggle, but not part of their titles.
         let results = SettingsCatalog.results(matching: "gps")
         let destinations = Set(results.map(\.destination))
         #expect(destinations.contains(.devices))
         #expect(destinations.contains(.alerts))
+        #expect(destinations.contains(.appearance))
     }
 
     @Test func matchesTheAboutScreenOnALicenseKeyword() {

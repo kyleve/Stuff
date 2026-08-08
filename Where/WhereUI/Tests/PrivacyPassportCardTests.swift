@@ -4,9 +4,10 @@ import Testing
 @testable import WhereUI
 
 @MainActor
-struct AppearanceSettingsViewTests {
+struct PrivacyPassportCardTests {
     @Test func hosts() throws {
-        let rootView = NavigationStack { AppearanceSettingsView() }
+        let rootView = PrivacyPassportCard()
+            .whereBroadwayRoot()
         try show(UIHostingController(rootView: rootView)) { hosted in
             #expect(hosted.view != nil)
         }

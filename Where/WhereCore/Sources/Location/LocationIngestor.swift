@@ -142,6 +142,7 @@ public actor LocationIngestor {
         guard !isMonitoring else { return }
         isMonitoring = true
         await locationSource.start()
+        guard isMonitoring else { return }
         Self.logger { .monitoringStarted }
         installIngestTaskIfNeeded()
     }

@@ -2,18 +2,23 @@ import SnapshotKit
 import SwiftUI
 import WhereCore
 
+#if DEBUG
+    import BroadwayCore
+    import BroadwayUI
+#endif
+
 /// A chronological list of continuous stays (`RegionStint`s) for the selected
 /// year — "California, Jan 1 – Feb 3", "New York, Feb 3 – Mar 10", and so on.
 /// Hosted as the Timeline segment of the Your Year tab.
 struct PresenceTimelineList: View {
     let report: YearReportModel
 
-    private var stints: [RegionStint] {
-        guard let report = report.report else { return [] }
-        return PresenceTimeline.stints(from: report)
-    }
+    @Environment(\.stylesheet) private var stylesheet
 
     var body: some View {
+        let yearReport = report.report
+        let stints = yearReport.map { PresenceTimeline.stints(from: $0) } ?? []
+
         if stints.isEmpty {
             ContentUnavailableView {
                 Label(
@@ -24,81 +29,56 @@ struct PresenceTimelineList: View {
                 Text(String(localized: .timelineEmptyDescription))
             }
         } else {
-            List(stints) { stint in
-                StintRow(stint: stint)
+            ScrollView {
+                LazyVStack(spacing: stylesheet.spacing.large) {
+                    YearRibbon(
+                        days: yearReport?.days ?? [],
+                        year: report.selectedYear,
+                        calendar: report.calendar,
+                    )
+
+                    LazyVStack(spacing: 0) {
+                        ForEach(stints.enumerated(), id: \.element.id) { index, stint in
+                            PresenceJourneyRow(
+                                stint: stint,
+                                calendar: report.calendar,
+                                daysInYear: report.daysInSelectedYear,
+                                isFirst: index == stints.startIndex,
+                                isLast: index == stints.index(before: stints.endIndex),
+                            )
+                        }
+                    }
+                }
+                .padding(.horizontal, stylesheet.spacing.xxLarge)
+                .padding(.vertical, stylesheet.spacing.large)
             }
         }
-    }
-}
-
-/// One row in the timeline: region, the date span it covers, and how many
-/// consecutive days that was.
-private struct StintRow: View {
-    let stint: RegionStint
-
-    @Environment(\.stylesheet) private var stylesheet
-    @Environment(\.regionStyles) private var regionStyles
-
-    private var timeline: WhereStylesheet.TimelineStyle {
-        stylesheet.timeline
-    }
-
-    private var style: RegionStyle {
-        regionStyles.style(for: stint.region)
-    }
-
-    var body: some View {
-        HStack(spacing: timeline.rowSpacing) {
-            Capsule()
-                .fill(style.tint.gradient)
-                .frame(
-                    width: timeline.accentWidth,
-                    height: timeline.accentHeight,
-                )
-
-            Text(style.emoji)
-                .font(.title3)
-                .accessibilityHidden(true)
-
-            VStack(alignment: .leading, spacing: timeline.labelSpacing) {
-                Text(stint.region.localizedName)
-                    .font(.headline)
-                Text(dateRange)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer(minLength: timeline.trailingMinSpacing)
-
-            Text(WhereFormat.dayCount(stint.dayCount))
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(.secondary)
-                .monospacedDigit()
-        }
-        .padding(.vertical, timeline.rowVerticalPadding)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(
-            WhereFormat.timelineRowAccessibility(
-                region: stint.region.localizedName,
-                range: dateRange,
-                days: stint.dayCount,
-            ),
-        )
-    }
-
-    private var dateRange: String {
-        DateRangeFormatting.abbreviated(start: stint.start, end: stint.end)
     }
 }
 
 #if DEBUG
     extension PresenceTimelineList: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            whereSnapshot(name: "WithData", configurations: .screenDefaults) {
-                NavigationStack {
-                    PresenceTimelineList(report: PreviewSupport.loadedYearReportModel())
-                }
-            }
+            [
+                whereSnapshot(name: "WithData", configurations: .fullContentScreenDefaults) {
+                    NavigationStack {
+                        PresenceTimelineList(report: PreviewSupport.loadedYearReportModel())
+                    }
+                },
+                whereSnapshot(
+                    name: "DifferentiateWithoutColor",
+                    configurations: .fullContentPhoneLightDark,
+                ) {
+                    NavigationStack {
+                        PresenceTimelineList(report: PreviewSupport.loadedYearReportModel())
+                    }
+                    .bTraitOverrides { traits, overrides in
+                        var accessibility = traits.accessibility
+                        accessibility.shouldDifferentiateWithoutColor = true
+                        overrides.accessibility = accessibility
+                    }
+                },
+            ]
         }
     }
 

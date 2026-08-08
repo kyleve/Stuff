@@ -151,10 +151,10 @@ public final class WhereModel {
     /// the app; a preview/test can pin it via the services init.
     let initialSelectedYear: Int
 
-    /// Preview/test seam: a report `MainTabs` seeds its `YearReportModel` with, so a
-    /// `#Preview` renders populated content without a live store. Nil in the app
-    /// (the scene loads from the store once it appears).
-    let initialReport: YearReport?
+    /// Preview/test seam: the complete value `MainTabs` seeds its
+    /// `YearReportModel` with, so a `#Preview` renders populated content without
+    /// a live store. Nil in the app (the scene loads once it appears).
+    let initialYearDetails: YearReportDetails?
 
     private static let logger = WhereLog.root(WhereModelLog.self)
 
@@ -310,11 +310,11 @@ public final class WhereModel {
         self.now = now
         scopeState = .loggedOut(bootstrap: makeBootstrap(installationContextStore))
         initialSelectedYear = WhereModel.currentYear
-        initialReport = nil
+        initialYearDetails = nil
     }
 
-    /// Preview/test seam: inject already-built services (and optionally a
-    /// preloaded report) so SwiftUI previews and unit tests skip the live
+    /// Preview/test seam: inject already-built services (and optionally
+    /// preloaded year details) so SwiftUI previews and unit tests skip the live
     /// SwiftData + CoreLocation wiring. Activates a scope over them and builds
     /// the session up front, so the launch's `resolve-scope` step is a no-op and
     /// the model's `session` is ready to drive immediately.
@@ -324,7 +324,7 @@ public final class WhereModel {
     /// can drive the whole cycle without touching disk.
     public init(
         services: WhereServices,
-        report: YearReport? = nil,
+        details: YearReportDetails? = nil,
         selectedYear: Int = WhereModel.currentYear,
         preferences: WherePreferences,
         logSystem: Periscope,
@@ -348,7 +348,7 @@ public final class WhereModel {
         self.logSystem = logSystem
         self.now = now
         initialSelectedYear = selectedYear
-        initialReport = report
+        initialYearDetails = details
         session = WhereSession(
             scope: scope,
             installationContextStore: installationContextStore,

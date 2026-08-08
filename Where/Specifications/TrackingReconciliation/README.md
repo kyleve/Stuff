@@ -4,7 +4,7 @@ This model checks one narrow question about automatic-recording commands: after 
 of local enable/disable choices and all asynchronous work settles, do the installation sidecar,
 Core controller, real ingestor, and published UI state all describe the latest choice?
 
-The model represents production revision `42f3025ab714d7ba7220facad9ba01d526571cde`. It is design
+The model represents the recording-command design merged through `2dfb31ea`. It is design
 evidence for the stated bounds and assumptions, not proof that the Swift implementation is correct.
 Relevant changes to the recording command, permission, controller-serialization, or publication
 paths invalidate the result until this mapping is checked again.
@@ -92,13 +92,18 @@ configuration, advisory status, and UI tracking state.
 
 ## Run it
 
-From this directory:
+From the repository root:
 
 ```sh
-./check
+./tla-check TrackingReconciliation
 ```
 
-The checker pins TLC 1.7.4 by SHA-256 and Eclipse Temurin 21.0.8+9 through `mise`. It caches both
-under the repository's ignored `.build/tla/` directory and keeps each run's logs and state in an
-isolated `.build/tla/runs/` directory. A clean first run needs network access and downloads about
-350 MB, almost all of it the JDK. The pilot is opt-in and is not wired into CI.
+Or run every spec: `./tla-check`. See `./tla-check --help` for options.
+
+The checker pins TLC 1.7.4 by SHA-256 and Eclipse Temurin 21.0.8+9 through
+`mise`. It caches both under the repository's ignored `.build/tla/` directory.
+A clean first run needs network access and downloads about 350 MB, almost all of
+it the JDK. Each run keeps its TLC log and state under `.build/tla/runs/`. A
+successful run means both negative controls failed for their expected invariants
+and every current model completed without an error. Checks are opt-in and are not wired
+into CI.
