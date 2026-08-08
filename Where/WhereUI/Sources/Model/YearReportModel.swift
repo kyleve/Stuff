@@ -69,16 +69,37 @@ public final class YearReportModel {
     /// re-fires), never persisted.
     private var manualScanToken = 0
 
-    public private(set) var selectedYear: Int
-    public private(set) var report: YearReport?
-    public private(set) var loadState: LoadState = .idle
+    private struct LoadedYear {
+        let details: YearReportDetails
+        let primaryRegionLocations: PrimaryRegionLocations
 
-    /// Monotonic identity for completed scene-data refreshes. Every observed
-    /// store change and foreground activation runs `refreshAll`, covering both
-    /// live writes and writes missed while the scene was inactive. Presentation
-    /// reads whose raw records can change without changing the aggregate report
-    /// key reloads to this revision rather than report equality alone.
-    private(set) var dataChangeRevision = 0
+        init(details: YearReportDetails, previous: LoadedYear?) {
+            self.details = details
+            let updatedLocations = PrimaryRegionLocations(details: details)
+            if
+                let previous,
+                previous.primaryRegionLocations.pointsByRegion == updatedLocations.pointsByRegion
+            {
+                primaryRegionLocations = previous.primaryRegionLocations
+            } else {
+                primaryRegionLocations = updatedLocations
+            }
+        }
+    }
+
+    public private(set) var selectedYear: Int
+    private var loadedYear: LoadedYear?
+
+    public var report: YearReport? {
+        loadedYear?.details.report
+    }
+
+    /// Recorded GPS points derived from the same store snapshot as `report`.
+    var primaryRegionLocations: PrimaryRegionLocations? {
+        loadedYear?.primaryRegionLocations
+    }
+
+    public private(set) var loadState: LoadState = .idle
 
     /// Start-of-day keys for days in the selected year that carry at least one
     /// piece of evidence. Refreshed alongside the report on every committed
@@ -92,12 +113,6 @@ public final class YearReportModel {
     /// count is kept here because the badge must render before the Resolve tab
     /// is ever materialized.
     public private(set) var dataIssueCount = 0
-
-    #if DEBUG
-        /// Deterministic raw-location projection for previews and image tests.
-        /// Production reads always leave this `nil` and use `ReportReader`.
-        @ObservationIgnored private var testingLocations: [Region: [RegionDayLocations]]?
-    #endif
 
     /// The services every read/write funnels through. Exposed so sibling
     /// view-scoped models can be built from the injected `report`.
@@ -214,18 +229,20 @@ public final class YearReportModel {
         calendar.dayCount(ofYear: selectedYear)
     }
 
-    /// Build a report model over an already-assembled service layer. `report` is
-    /// the preview/test seam: a non-nil value lands `loadState` at `.loaded` so
-    /// `#Preview`s render content synchronously without driving `activate()`.
+    /// Build a report model over an already-assembled service layer. `details`
+    /// is the preview/test seam: a non-nil value lands `loadState` at `.loaded`
+    /// so `#Preview`s render the same complete snapshot production loads.
     public init(
         services: WhereServices,
-        report: YearReport? = nil,
+        details: YearReportDetails? = nil,
         selectedYear: Int = WhereModel.currentYear,
         preferences: WherePreferences,
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
         self.services = services
-        self.report = report
+        if let details {
+            loadedYear = LoadedYear(details: details, previous: nil)
+        }
         self.selectedYear = selectedYear
         self.preferences = preferences
         self.now = now
@@ -235,7 +252,7 @@ public final class YearReportModel {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = .current
         self.calendar = calendar
-        loadState = report == nil ? .idle : .loaded
+        loadState = details == nil ? .idle : .loaded
     }
 
     deinit {
@@ -282,7 +299,7 @@ public final class YearReportModel {
         selectedYear = year
         // Drop the previous year's report so views fall back to their loading
         // state instead of rendering stale data under the new year's label.
-        report = nil
+        loadedYear = nil
         // Clear the previous year's evidence markers too, so the calendar can't
         // briefly badge the new year's days with the old year's evidence.
         evidenceDayKeys = []
@@ -300,9 +317,6 @@ public final class YearReportModel {
             await refreshEvidenceDayKeys()
             await refreshDataIssueCount(force: forceDataIssueCount)
         }
-        // Publish only after the aggregate report catches up, so dependent
-        // raw-data loads filter against the current credited-day set.
-        dataChangeRevision += 1
     }
 
     /// Reload the set of days carrying evidence for the selected year. Runs on
@@ -367,8 +381,8 @@ public final class YearReportModel {
 
     public func refresh() async {
         // Capture the year this fetch is for; the model is reentrant while
-        // awaiting `yearReport`, so a rapid second `select(year:)` could install
-        // a stale report under the newer year's label.
+        // awaiting `yearReportDetails`, so a rapid second `select(year:)` could
+        // install a stale report under the newer year's label.
         let requestedYear = selectedYear
         // Only surface the loading state when there's nothing on screen yet — an
         // initial load or a year switch (which nils `report` first). A background
@@ -376,14 +390,17 @@ public final class YearReportModel {
         // equality guards below make an unrelated commit a no-op.
         if report == nil { loadState = .loading }
         do {
-            let report = try await services.reports.yearReport(for: requestedYear)
+            let details = try await services.reports.yearReportDetails(
+                for: requestedYear,
+                primaryRegionCount: RegionRanking.primaryCount,
+            )
             guard requestedYear == selectedYear else { return }
-            let changed = self.report != report
-            if changed { self.report = report }
+            let changed = loadedYear?.details != details
+            if changed { loadedYear = LoadedYear(details: details, previous: loadedYear) }
             if loadState != .loaded { loadState = .loaded }
             if changed {
                 Self.logger {
-                    .reportLoaded(year: requestedYear, dayCount: report.days.count)
+                    .reportLoaded(year: requestedYear, dayCount: details.report.days.count)
                 }
             }
         } catch {
@@ -491,32 +508,17 @@ public final class YearReportModel {
     /// returns empty on failure — the view renders nothing, but the failure still
     /// surfaces in the log rather than passing silently as "no locations".
     public func locations(in region: Region) async -> [RegionDayLocations] {
-        await locations(in: [region])[region] ?? []
-    }
-
-    /// The raw coordinates recorded inside several regions during the selected
-    /// year. The bulk read attributes the year's samples once for the Locations
-    /// cards instead of repeating the same work per region.
-    public func locations(
-        in regions: Set<Region>,
-    ) async -> [Region: [RegionDayLocations]] {
-        #if DEBUG
-            if let testingLocations {
-                return testingLocations.filter { regions.contains($0.key) }
-            }
-        #endif
         do {
-            return try await services.reports.locations(in: regions, year: selectedYear)
+            return try await services.reports.locations(in: region, year: selectedYear)
         } catch {
-            let regionIDs = regions.map(\.rawValue).sorted().joined(separator: ",")
             Self.logger {
                 .locationsLoadFailed(
-                    region: regionIDs,
+                    region: region.rawValue,
                     year: selectedYear,
                     description: error.localizedDescription,
                 )
             }
-            return [:]
+            return []
         }
     }
 
@@ -561,12 +563,6 @@ public final class YearReportModel {
         /// Inject a badge count for previews/tests without seeding raw samples.
         public func setDataIssueCount(_ count: Int) {
             dataIssueCount = count
-        }
-
-        /// Inject raw region locations for deterministic previews/tests without
-        /// asynchronously seeding a SwiftData store.
-        public func setLocations(_ locations: [Region: [RegionDayLocations]]) {
-            testingLocations = locations
         }
     }
 #endif

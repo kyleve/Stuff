@@ -51,10 +51,9 @@ struct RegionSummaryCard: View {
     /// user's Appearance preference so hiding dots leaves the raw data intact.
     var showsRecordedPoints = true
 
-    /// Changes whenever the caller replaces `recordedPoints`, restarting the
-    /// async projection without making SwiftUI compare a year's raw fixes from
-    /// every `body` evaluation.
-    var recordedPointsRevision = 0
+    /// Identity of the loaded recorded-point snapshot. Locations supplies it to
+    /// restart projection only when the underlying point content changes.
+    var recordedPointsID: PrimaryRegionLocations.ID?
 
     /// Loaded once per regular card from the root-owned UI path cache. The large
     /// watermark uses medium fidelity, the stamp uses small, and the repeated
@@ -116,7 +115,7 @@ struct RegionSummaryCard: View {
             variant: variant,
             isEnabled: card.regionShape != nil,
             showsRecordedPoints: showsRecordedPoints,
-            recordedPointsRevision: recordedPointsRevision,
+            recordedPointsID: recordedPointsID,
         )
     }
 
@@ -352,7 +351,7 @@ struct RegionArtworkLoadID: Equatable {
     let variant: WhereStylesheet.CardStyle.Variant
     let isEnabled: Bool
     let showsRecordedPoints: Bool
-    let recordedPointsRevision: Int
+    let recordedPointsID: PrimaryRegionLocations.ID?
 }
 
 /// A circular rubber-stamp impression — double ring, centered region glyph and

@@ -14,7 +14,6 @@ struct LocationsView: View {
     @State private var showingResolution = false
     @State private var isCardSurfaceVisible = false
     @State private var dayCountPresentation: LocationDayCountPresentationModel
-    @State private var primaryLocations = PrimaryRegionLocationModel()
 
     /// Drives the region cards' tilt-reactive light sheen. Started/stopped
     /// with the view's lifecycle; a no-op on hardware without device motion.
@@ -34,10 +33,6 @@ struct LocationsView: View {
             year: report.selectedYear,
             isVisible: isCardSurfaceVisible && !showingResolution,
         )
-    }
-
-    private var primaryLocationLoadID: PrimaryRegionLocationModel.LoadID {
-        PrimaryRegionLocationModel.LoadID(report: report)
     }
 
     init(report: YearReportModel) {
@@ -129,9 +124,10 @@ struct LocationsView: View {
                                 yearLength: report.daysInSelectedYear,
                                 year: report.selectedYear,
                                 tilt: tilt,
-                                recordedPoints: primaryLocations.pointsByRegion[item.region] ?? [],
+                                recordedPoints: report.primaryRegionLocations?
+                                    .pointsByRegion[item.region] ?? [],
                                 showsRecordedPoints: report.showsRecordedLocationDots,
-                                recordedPointsRevision: primaryLocations.revision,
+                                recordedPointsID: report.primaryRegionLocations?.id,
                             )
                         }
                         // Plain so the card's interactive Liquid Glass owns
@@ -203,13 +199,6 @@ struct LocationsView: View {
             .impact(weight: .light),
             trigger: dayCountPresentation.feedbackTrigger,
         )
-        .task(id: primaryLocationLoadID) {
-            let loadID = primaryLocationLoadID
-            await primaryLocations.load(
-                regions: loadID.regions,
-                from: report,
-            )
-        }
     }
 
     /// The region's calendar, pushed as a nested view. It's the zoom

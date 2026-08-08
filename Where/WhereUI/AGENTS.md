@@ -52,6 +52,8 @@ and testing conventions live in the feature [`Where/AGENTS.md`](../AGENTS.md)
   the stamp and the micro path for the repeated border. Project Locations-card
   GPS points through the cache's shared `RegionArtworkProjection`, and never
   project, simplify, or spatially reduce artwork in a card's `body`.
+- Keep Locations-card points on `YearReportModel`'s loaded
+  `YearReportDetails`.
 - Continuous/looping motion (repeat-forever pulses, `TimelineView(.animation)`,
   typewriter reveals) must consult the shared `@MotionIsStatic` helper
   ([`Sources/Shared/MotionIsStatic.swift`](Sources/Shared/MotionIsStatic.swift))

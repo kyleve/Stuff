@@ -2,12 +2,13 @@ import Foundation
 import RegionKit
 import Testing
 @_spi(Testing) import WhereCore
-@_spi(Testing) @testable import WhereUI
+@testable import WhereUI
 
 @MainActor
-struct PrimaryRegionLocationModelTests {
-    @Test func loadsRequestedRegionsAndDropsDaysNoLongerCreditedToThem() async {
-        let report = PreviewSupport.loadedYearReportModel()
+struct PrimaryRegionLocationsTests {
+    @Test func keepsRequestedRegionPointsOnlyOnCreditedDays() {
+        let creditedDay = CalendarDay(year: 2026, month: 2, day: 1)
+        let relabeledDay = CalendarDay(year: 2026, month: 7, day: 1)
         let creditedPoint = RegionDayPoint(
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 20,
@@ -16,45 +17,42 @@ struct PrimaryRegionLocationModelTests {
             coordinate: Coordinate(latitude: 34.0522, longitude: -118.2437),
             horizontalAccuracy: 30,
         )
-        report.setLocations([
-            .california: [
-                RegionDayLocations(
-                    day: CalendarDay(year: 2026, month: 2, day: 1),
-                    points: [creditedPoint],
-                ),
-                RegionDayLocations(
-                    day: CalendarDay(year: 2026, month: 7, day: 1),
-                    points: [relabeledPoint],
-                ),
+        let details = YearReportDetails(
+            report: YearReport(
+                year: 2026,
+                days: [
+                    DayPresence(day: creditedDay, regions: [.california]),
+                    DayPresence(day: relabeledDay, regions: [.newYork]),
+                ],
+                totals: [.california: 1, .newYork: 1],
+            ),
+            primaryRegionLocations: [
+                .california: [
+                    RegionDayLocations(day: creditedDay, points: [creditedPoint]),
+                    RegionDayLocations(day: relabeledDay, points: [relabeledPoint]),
+                ],
             ],
-            .newYork: [RegionDayLocations(
-                day: CalendarDay(year: 2026, month: 7, day: 1),
-                points: [relabeledPoint],
-            )],
-        ])
-        let model = PrimaryRegionLocationModel()
+        )
 
-        await model.load(regions: [.california], from: report)
+        let locations = PrimaryRegionLocations(details: details)
 
-        #expect(model.pointsByRegion == [.california: [creditedPoint]])
-        #expect(model.revision == 2)
+        #expect(locations.pointsByRegion == [.california: [creditedPoint]])
     }
 
     /// A second GPS fix on an already-credited day leaves `YearReport` equal,
-    /// but the store-change revision must re-key the raw-location load so the
-    /// card constellation gains the new point without recreating the view.
-    @Test func locationOnlyStoreChangeRekeysAndReloadsConstellation() async throws {
+    /// but the production store-change flow installs different year details and
+    /// updates the constellation without recreating the view.
+    @Test func locationOnlyStoreChangeRefreshesConstellationDetails() async throws {
         let services = try WhereServices(
             store: SwiftDataStore.inMemory(),
             locationSource: ScriptedLocationSource(),
             reminderScheduler: NoopLoggingReminderScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
-        let preferences = WherePreferences(store: InMemoryKeyValueStore())
         let report = YearReportModel(
             services: services,
             selectedYear: 2026,
-            preferences: preferences,
+            preferences: WherePreferences(store: InMemoryKeyValueStore()),
         )
         let first = LocationSample(
             timestamp: Self.date(hour: 9),
@@ -70,27 +68,24 @@ struct PrimaryRegionLocationModelTests {
         )
 
         try await services.journal.ingest(first)
-        await report.refresh()
-        report.observeDataChanges()
+        await report.activate()
+        defer { report.deactivate() }
         let initialReport = try #require(report.report)
-        let initialLoadID = PrimaryRegionLocationModel.LoadID(report: report)
-        let model = PrimaryRegionLocationModel()
-        await model.load(regions: initialLoadID.regions, from: report)
-        #expect(model.pointsByRegion[.california]?.count == 1)
+        let initialLocations = try #require(report.primaryRegionLocations)
+        #expect(initialLocations.pointsByRegion[.california]?.count == 1)
 
         try await services.journal.ingest(second)
-        await waitForRevision {
-            report.dataChangeRevision > initialLoadID.dataChangeRevision
+        await waitUntil {
+            report.primaryRegionLocations?.pointsByRegion[.california]?.count == 2
         }
 
         #expect(report.report == initialReport)
-        let refreshedLoadID = PrimaryRegionLocationModel.LoadID(report: report)
-        #expect(refreshedLoadID != initialLoadID)
-        await model.load(regions: refreshedLoadID.regions, from: report)
-        #expect(model.pointsByRegion[.california]?.count == 2)
+        let refreshedLocations = try #require(report.primaryRegionLocations)
+        #expect(refreshedLocations.id != initialLocations.id)
+        #expect(refreshedLocations.pointsByRegion[.california]?.count == 2)
     }
 
-    private func waitForRevision(
+    private func waitUntil(
         timeout: Duration = .seconds(2),
         _ predicate: () -> Bool,
     ) async {
@@ -99,7 +94,7 @@ struct PrimaryRegionLocationModelTests {
             if predicate() { return }
             try? await Task.sleep(for: .milliseconds(5))
         }
-        #expect(predicate(), "store-change revision was not published before timeout")
+        #expect(predicate(), "location details were not refreshed before timeout")
     }
 
     private static func date(hour: Int) -> Date {

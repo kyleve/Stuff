@@ -195,12 +195,12 @@ struct YearReportModelTests {
         let present = [Self.day(2026, 1, 2), Self.day(2026, 1, 4)]
         let report = try YearReportModel(
             services: makeServices(),
-            report: YearReport(
+            details: Self.details(YearReport(
                 year: 2026,
                 days: present
                     .map { DayPresence(date: $0, in: Self.calendar, regions: [.california]) },
                 totals: [.california: present.count],
-            ),
+            )),
             selectedYear: 2026,
             preferences: makePreferences(),
             now: { today },
@@ -220,7 +220,7 @@ struct YearReportModelTests {
         let today = Self.day(2026, 6, 1)
         let report = try YearReportModel(
             services: makeServices(),
-            report: YearReport(year: 2025, days: [], totals: [:]),
+            details: Self.details(YearReport(year: 2025, days: [], totals: [:])),
             selectedYear: 2025,
             preferences: makePreferences(),
             now: { today },
@@ -296,7 +296,7 @@ struct YearReportModelTests {
         let preferences = makePreferences()
         let report = YearReportModel(
             services: services,
-            report: YearReport(year: 2026, days: [], totals: [:]),
+            details: Self.details(YearReport(year: 2026, days: [], totals: [:])),
             selectedYear: 2026,
             preferences: preferences,
         )
@@ -321,7 +321,7 @@ struct YearReportModelTests {
         )
         let report = YearReportModel(
             services: services,
-            report: YearReport(year: 2026, days: [], totals: [:]),
+            details: Self.details(YearReport(year: 2026, days: [], totals: [:])),
             selectedYear: 2026,
             preferences: makePreferences(),
         )
@@ -598,5 +598,9 @@ struct YearReportModelTests {
             try? await Task.sleep(for: .milliseconds(5))
         }
         #expect(predicate(), "condition was not met before timeout")
+    }
+
+    private static func details(_ report: YearReport) -> YearReportDetails {
+        YearReportDetails(report: report, primaryRegionLocations: [:])
     }
 }

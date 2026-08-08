@@ -236,15 +236,22 @@
         /// into `#Preview`.
         @MainActor
         public static func loadedYearReportModel() -> YearReportModel {
-            let model = YearReportModel(
+            YearReportModel(
                 services: previewServices(),
-                report: sampleReport(),
+                details: sampleYearReportDetails(),
                 selectedYear: year,
                 preferences: previewPreferences(),
                 now: { referenceNow },
             )
-            model.setLocations(sampleRegionLocations())
-            return model
+        }
+
+        /// The same complete year value `ReportReader.yearReportDetails` returns
+        /// in production, built synchronously for previews and image tests.
+        public static func sampleYearReportDetails() -> YearReportDetails {
+            YearReportDetails(
+                report: sampleReport(),
+                primaryRegionLocations: sampleRegionLocations(),
+            )
         }
 
         /// The loaded report fixture with the Appearance GPS-dot preference off,
@@ -312,7 +319,10 @@
         public static func emptyYearReportModel() -> YearReportModel {
             YearReportModel(
                 services: previewServices(),
-                report: YearReport(year: year, days: [], totals: [:]),
+                details: YearReportDetails(
+                    report: YearReport(year: year, days: [], totals: [:]),
+                    primaryRegionLocations: [:],
+                ),
                 selectedYear: year,
                 preferences: previewPreferences(),
                 now: { referenceNow },
@@ -336,7 +346,10 @@
             }
             return YearReportModel(
                 services: previewServices(),
-                report: YearReport(year: year, days: days, totals: [.other: days.count]),
+                details: YearReportDetails(
+                    report: YearReport(year: year, days: days, totals: [.other: days.count]),
+                    primaryRegionLocations: [:],
+                ),
                 selectedYear: year,
                 preferences: previewPreferences(),
                 now: { referenceNow },
@@ -364,7 +377,14 @@
             }
             return YearReportModel(
                 services: previewServices(),
-                report: YearReport(year: year, days: days, totals: [.california: days.count]),
+                details: YearReportDetails(
+                    report: YearReport(
+                        year: year,
+                        days: days,
+                        totals: [.california: days.count],
+                    ),
+                    primaryRegionLocations: [:],
+                ),
                 selectedYear: year,
                 preferences: previewPreferences(),
                 now: { today },
@@ -580,7 +600,7 @@
             preferences.hasOnboarded = true
             return WhereModel(
                 services: previewServices(),
-                report: sampleReport(),
+                details: sampleYearReportDetails(),
                 selectedYear: year,
                 preferences: preferences,
                 logSystem: logSystem,

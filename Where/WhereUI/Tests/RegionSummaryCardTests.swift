@@ -6,41 +6,47 @@ import Testing
 
 @MainActor
 struct RegionSummaryCardTests {
-    @Test func artworkLoadIDChangesWithDesignerControls() {
+    @Test func artworkLoadIDChangesWithDesignerControls() throws {
+        let recordedPointsID = try #require(
+            PreviewSupport.loadedYearReportModel().primaryRegionLocations?.id,
+        )
+        let refreshedPointsID = try #require(
+            PreviewSupport.loadedYearReportModel().primaryRegionLocations?.id,
+        )
         let disabled = RegionArtworkLoadID(
             region: .newYork,
             variant: .regular,
             isEnabled: false,
             showsRecordedPoints: true,
-            recordedPointsRevision: 0,
+            recordedPointsID: recordedPointsID,
         )
         let enabled = RegionArtworkLoadID(
             region: .newYork,
             variant: .regular,
             isEnabled: true,
             showsRecordedPoints: true,
-            recordedPointsRevision: 0,
+            recordedPointsID: recordedPointsID,
         )
         let compact = RegionArtworkLoadID(
             region: .newYork,
             variant: .compact,
             isEnabled: true,
             showsRecordedPoints: true,
-            recordedPointsRevision: 0,
+            recordedPointsID: recordedPointsID,
         )
         let refreshed = RegionArtworkLoadID(
             region: .newYork,
             variant: .regular,
             isEnabled: true,
             showsRecordedPoints: true,
-            recordedPointsRevision: 1,
+            recordedPointsID: refreshedPointsID,
         )
         let pointsHidden = RegionArtworkLoadID(
             region: .newYork,
             variant: .regular,
             isEnabled: true,
             showsRecordedPoints: false,
-            recordedPointsRevision: 0,
+            recordedPointsID: recordedPointsID,
         )
 
         #expect(disabled != enabled)

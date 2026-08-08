@@ -86,6 +86,9 @@ internal shape.
   `DataIssueInput.daySamples` carries per-day GPS fixes only (`.gpsVisit` /
   `.gpsSignificantChange`, sorted) — manual and evidence-implied samples are
   excluded so `FlightDayDetector`'s speed math isn't skewed.
+- **Read related year projections from one samples snapshot.** Use
+  `ReportReader.yearReportDetails(for:primaryRegionCount:)` for the scene's
+  report and primary-region locations.
 - **`LocationSource` abstracts GPS** — `CoreLocationSource` in production,
   `ScriptedLocationSource` in tests/previews; `requestCurrentLocation()`
   returns `nil`, never throws, and backs

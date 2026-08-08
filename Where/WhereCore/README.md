@@ -60,13 +60,16 @@ one it belongs to rather than to a god-object:
 
 ### Reads & aggregation
 
-- **`ReportReader`** — the pure read path: `yearReport(for:)`, the year's raw
-  manual entries `manualDays(inYear:)`, single- or multi-region
+- **`ReportReader`** — the pure read path: `yearReport(for:)`, the one-read
+  `yearReportDetails(for:primaryRegionCount:)` bundle used by the scene, the
+  year's raw manual entries `manualDays(inYear:)`, single- or multi-region
   `locations(in:year:)` projections, and `representativeCoordinates(for:)`.
-  The multi-region form reads and attributes the year's samples once for
-  surfaces such as the Locations card constellations.
-- **`YearReport` / `DayPresence` / `RegionDayLocations`** — the aggregated,
-  snapshot-stable value types the UI renders, each keyed by a
+  `YearReportDetails` keeps the aggregate report and its primary-region raw
+  locations on the same samples snapshot, including location-only changes that
+  do not alter day totals.
+- **`YearReport` / `YearReportDetails` / `DayPresence` /
+  `RegionDayLocations`** — the aggregated, snapshot-stable value types the UI
+  renders, each keyed by a
   timezone-independent **`CalendarDay`** (`DayPresence.day`). A day counts for a
   region if *any* sample that calendar day fell inside it, so a single day can
   belong to several.
@@ -164,6 +167,12 @@ let services = try await WhereServices.make(
 
 // Read a year, aggregated with the injected calendar + region attribution.
 let report = try await services.reports.yearReport(for: 2026)
+
+// Read the scene's aggregate and primary-region recorded fixes together.
+let details = try await services.reports.yearReportDetails(
+    for: 2026,
+    primaryRegionCount: 2,
+)
 
 // Write a manual day (the caller supplies the ManualEntryAudit); the journal
 // commits, then reconciles reminders + widgets.
