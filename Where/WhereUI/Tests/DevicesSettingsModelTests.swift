@@ -15,7 +15,7 @@ struct DevicesSettingsModelTests {
 
     @Test func loadsCurrentAndRemoteDeviceRows() async {
         let session = Session(configurations: Self.configurations)
-        let model = DevicesSettingsModel(session: session)
+        let model = DevicesSettingsModel(client: session.client)
 
         await model.run()
 
@@ -25,7 +25,7 @@ struct DevicesSettingsModelTests {
 
     @Test func localToggleChangesOnlyTheCurrentInstallationsPreference() async throws {
         let session = Session(configurations: Self.configurations)
-        let model = DevicesSettingsModel(session: session)
+        let model = DevicesSettingsModel(client: session.client)
         await model.run()
         let current = try #require(model.rows.first)
 
@@ -37,7 +37,7 @@ struct DevicesSettingsModelTests {
 
     @Test func remoteDeviceCanBeRenamedAndRemovedButNotToggled() async throws {
         let session = Session(configurations: Self.configurations)
-        let model = DevicesSettingsModel(session: session)
+        let model = DevicesSettingsModel(client: session.client)
         await model.run()
         let remote = try #require(model.rows.last)
 
@@ -54,7 +54,7 @@ struct DevicesSettingsModelTests {
     @Test func operationFailureRemainsVisibleAfterRefresh() async throws {
         let session = Session(configurations: Self.configurations)
         session.nextError = TestFailure()
-        let model = DevicesSettingsModel(session: session)
+        let model = DevicesSettingsModel(client: session.client)
         await model.run()
         let current = try #require(model.rows.first)
 
@@ -113,13 +113,12 @@ struct DevicesSettingsModelTests {
 private struct TestFailure: Error {}
 
 @MainActor
-private final class Session: DevicesSettingsSession {
+private final class Session {
     struct Rename: Equatable {
         let id: RecordingDeviceID
         let nickname: String
     }
 
-    let currentRecordingDeviceID = DevicesSettingsModelTests.currentID
     var configurations: [RecordingDeviceConfiguration]
     var recordingChoices: [Bool] = []
     var renames: [Rename] = []
@@ -128,6 +127,19 @@ private final class Session: DevicesSettingsSession {
 
     init(configurations: [RecordingDeviceConfiguration]) {
         self.configurations = configurations
+    }
+
+    var client: DevicesSettingsClient {
+        DevicesSettingsClient(
+            recordingDeviceUpdates: { [self] in recordingDeviceUpdates() },
+            recordingDevices: { [self] in try await recordingDevices() },
+            setRecordingEnabled: { [self] in try await setRecordingEnabled($0) },
+            renameRecordingDevice: { [self] in
+                try await renameRecordingDevice($0, to: $1)
+            },
+            removeRecordingDevice: { [self] in try await removeRecordingDevice($0) },
+            requestPermission: { [self] in await requestPermission() },
+        )
     }
 
     func recordingDeviceUpdates() -> AsyncStream<Void> {
