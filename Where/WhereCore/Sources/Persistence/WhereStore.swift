@@ -222,6 +222,15 @@ public protocol WhereStore: Sendable {
 }
 
 extension WhereStore {
+    /// Run one mutation against the generation current at command start, failing if a reset or
+    /// Replace wins before commit. Use this when the command does not already hold a snapshot id.
+    public func performInCurrentGeneration<T: Sendable>(
+        _ block: @Sendable () async throws -> T,
+    ) async throws -> T {
+        let generationID = try await (dataGeneration()).id
+        return try await perform(expectedDataGenerationID: generationID, block)
+    }
+
     public func perform<T: Sendable>(
         expectedDataGenerationID: WhereDataGenerationID,
         _ block: @Sendable () async throws -> T,
