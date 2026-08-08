@@ -28,4 +28,25 @@ public struct RecordingDeviceProfile: Identifiable, Codable, Sendable, Hashable 
         self.registeredAt = registeredAt
         self.registrationGenerationID = registrationGenerationID
     }
+
+    /// Stable winner when CloudKit supplies conflicting immutable rows for one profile id.
+    static func isCanonicalBefore(
+        _ lhs: RecordingDeviceProfile,
+        _ rhs: RecordingDeviceProfile,
+    ) -> Bool {
+        if lhs.registeredAt != rhs.registeredAt { return lhs.registeredAt < rhs.registeredAt }
+        if lhs.systemName != rhs.systemName { return lhs.systemName < rhs.systemName }
+        if lhs.kind.persistenceDiscriminator != rhs.kind.persistenceDiscriminator {
+            return lhs.kind.persistenceDiscriminator < rhs.kind.persistenceDiscriminator
+        }
+        switch (lhs.kind.persistenceDetail, rhs.kind.persistenceDetail) {
+            case (nil, .some): return true
+            case (.some, nil): return false
+            case let (.some(lhsDetail), .some(rhsDetail)) where lhsDetail != rhsDetail:
+                return lhsDetail < rhsDetail
+            case (.some, .some), (nil, nil): break
+        }
+        return lhs.registrationGenerationID.rawValue.uuidString
+            < rhs.registrationGenerationID.rawValue.uuidString
+    }
 }

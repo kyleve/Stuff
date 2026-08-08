@@ -998,18 +998,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
                         count: duplicates.count,
                     )
                 }
-                return duplicates.min {
-                    if $0.registeredAt != $1.registeredAt {
-                        return $0.registeredAt < $1.registeredAt
-                    }
-                    if $0.systemName != $1.systemName { return $0.systemName < $1.systemName }
-                    if $0.kind != $1.kind {
-                        return $0.kind.persistenceDiscriminator
-                            < $1.kind.persistenceDiscriminator
-                    }
-                    return $0.registrationGenerationID.rawValue.uuidString
-                        < $1.registrationGenerationID.rawValue.uuidString
-                }
+                return duplicates.min(by: RecordingDeviceProfile.isCanonicalBefore)
             }
             .sorted { $0.id.storeURL.absoluteString < $1.id.storeURL.absoluteString }
     }
