@@ -12,6 +12,8 @@ enum SettingsDestination: Hashable, CaseIterable {
     case alerts
     case appearance
     case year
+    case siri
+    case widgets
     case data
     case about
 
@@ -26,6 +28,8 @@ enum SettingsDestination: Hashable, CaseIterable {
             case .alerts: String(localized: .settingsAlertsGroup)
             case .appearance: String(localized: .settingsAppearanceGroup)
             case .year: String(localized: .settingsYearHeader)
+            case .siri: String(localized: .settingsExploreSiriRow)
+            case .widgets: String(localized: .settingsExploreWidgetsRow)
             case .data: String(localized: .settingsDataHeader)
             case .about: String(localized: .settingsAboutHeader)
         }
@@ -41,6 +45,8 @@ enum SettingsDestination: Hashable, CaseIterable {
             case .alerts: "bell.badge"
             case .appearance: "paintbrush.fill"
             case .year: "calendar"
+            case .siri: "waveform"
+            case .widgets: "widget.small"
             case .data: "externaldrive.fill"
             case .about: "info"
         }
@@ -58,6 +64,8 @@ enum SettingsDestination: Hashable, CaseIterable {
             case .alerts: .red
             case .appearance: .purple
             case .year: .orange
+            case .siri: .pink
+            case .widgets: .cyan
             case .data: .teal
             case .about: .brown
         }
@@ -72,7 +80,9 @@ enum SettingsDestination: Hashable, CaseIterable {
     var isAvailableInDemoMode: Bool {
         switch self {
             case .data, .appearance: false
-            case .attachments, .loggedDays, .location, .regions, .alerts, .year, .about: true
+            case .attachments, .loggedDays, .location, .regions, .alerts, .year, .siri, .widgets,
+                 .about:
+                true
         }
     }
 
@@ -82,7 +92,8 @@ enum SettingsDestination: Hashable, CaseIterable {
     var isSheet: Bool {
         switch self {
             case .regions: true
-            case .attachments, .loggedDays, .location, .alerts, .appearance, .year, .data, .about:
+            case .attachments, .loggedDays, .location, .alerts, .appearance, .year, .siri, .widgets,
+                 .data, .about:
                 false
         }
     }
@@ -97,6 +108,7 @@ enum SettingsListSection: CaseIterable {
     case tracking
     case notifications
     case display
+    case exploreFeatures
     case storage
     /// Last on purpose: About is reference material, so it sits below everything
     /// actionable, where iOS Settings puts its own.
@@ -108,8 +120,16 @@ enum SettingsListSection: CaseIterable {
             case .tracking: [.location]
             case .notifications: [.alerts]
             case .display: [.appearance, .year]
+            case .exploreFeatures: [.siri, .widgets]
             case .storage: [.data]
             case .about: [.about]
+        }
+    }
+
+    var headerTitle: String? {
+        switch self {
+            case .exploreFeatures: String(localized: .settingsExploreHeader)
+            case .userData, .tracking, .notifications, .display, .storage, .about: nil
         }
     }
 }
@@ -162,8 +182,8 @@ struct SettingsSearchResult: Identifiable {
 
     /// Case-insensitive match on the title or any keyword.
     func matches(_ query: String) -> Bool {
-        if title.localizedCaseInsensitiveContains(query) { return true }
-        return keywords.contains { $0.localizedCaseInsensitiveContains(query) }
+        if title.localizedStandardContains(query) { return true }
+        return keywords.contains { $0.localizedStandardContains(query) }
     }
 }
 
@@ -214,6 +234,8 @@ enum SettingsCatalog {
             + AlertsSettingsView.searchResults
             + AppearanceSettingsView.searchResults
             + VisibleYearSettingsView.searchResults
+            + SiriFeaturesView.searchResults
+            + WidgetFeaturesView.searchResults
             + DataSettingsView.searchResults
             + AboutSettingsView.searchResults
 

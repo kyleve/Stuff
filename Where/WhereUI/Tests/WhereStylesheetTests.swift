@@ -407,6 +407,30 @@ struct WhereStylesheetTests {
         #expect(settings.scrollSettleDelay == .milliseconds(350))
     }
 
+    @Test func featureDiscoveryStyle() {
+        let featureDiscovery = style.featureDiscovery
+        #expect(featureDiscovery.cardCornerRadius == 20)
+        #expect(featureDiscovery.cardMaxWidth == 680)
+        #expect(featureDiscovery.cardPadding == 16)
+        #expect(featureDiscovery.cardSpacing == 12)
+        #expect(featureDiscovery.bubbleCornerRadius == 16)
+        #expect(featureDiscovery.bubbleHorizontalPadding == 12)
+        #expect(featureDiscovery.bubbleVerticalPadding == 10)
+        #expect(featureDiscovery.bubbleIndent == 34)
+        #expect(featureDiscovery.speakerIconSize == 28)
+        #expect(featureDiscovery.deviceCornerRadius == 28)
+        #expect(featureDiscovery.deviceMaxWidth == 560)
+        #expect(featureDiscovery.devicePadding == 14)
+        #expect(featureDiscovery.deviceSpacing == 12)
+        #expect(featureDiscovery.widgetCornerRadius == 18)
+        #expect(featureDiscovery.widgetPadding == 12)
+        #expect(featureDiscovery.stacksHomeWidgets == false)
+        #expect(featureDiscovery.homeWallpaperTop == .indigo)
+        #expect(featureDiscovery.homeWallpaperBottom == .cyan)
+        #expect(featureDiscovery.lockWallpaperTop == .purple)
+        #expect(featureDiscovery.lockWallpaperBottom == .blue)
+    }
+
     @Test func passportCardStyle() {
         let source = style.passportCard
         #expect(source.cornerRadius == 20)
@@ -521,6 +545,8 @@ struct WhereStylesheetTests {
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
         #expect(resolved.calendar.day.minHeight == 56)
         #expect(resolved.timeline.row.stacksDayCount)
+        #expect(resolved.featureDiscovery.bubbleIndent == 0)
+        #expect(resolved.featureDiscovery.stacksHomeWidgets)
     }
 
     @MainActor

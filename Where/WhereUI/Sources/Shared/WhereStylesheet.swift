@@ -27,6 +27,7 @@ struct WhereStylesheet: BStylesheet {
     var launch = LaunchStyle.standard
     var typography = Typography.standard
     var settings = SettingsStyle.standard
+    var featureDiscovery = FeatureDiscoveryStyle.standard
     var passportCard = PassportCardStyle.standard
     var developerOverlay = DeveloperOverlayStyle.standard
 
@@ -42,6 +43,8 @@ struct WhereStylesheet: BStylesheet {
         if traits.contentSizeCategory.isAccessibilitySize {
             calendar.day.minHeight = 56
             timeline.row.stacksDayCount = true
+            featureDiscovery.bubbleIndent = 0
+            featureDiscovery.stacksHomeWidgets = true
         }
 
         // Give every region a consistently labeled ribbon band when tint
@@ -1377,6 +1380,58 @@ extension WhereStylesheet {
             flashAnimation: .easeInOut(duration: 0.4),
             flashDuration: .seconds(1),
             scrollSettleDelay: .milliseconds(350),
+        )
+    }
+}
+
+// MARK: - Feature discovery
+
+extension WhereStylesheet {
+    /// Appearance for the Siri conversation cards and the miniature widget
+    /// surfaces in Settings' feature explorer.
+    struct FeatureDiscoveryStyle: Equatable {
+        var cardCornerRadius: CGFloat
+        var cardMaxWidth: CGFloat
+        var cardPadding: CGFloat
+        var cardSpacing: CGFloat
+        var bubbleCornerRadius: CGFloat
+        var bubbleHorizontalPadding: CGFloat
+        var bubbleVerticalPadding: CGFloat
+        var bubbleIndent: CGFloat
+        var speakerIconSize: CGFloat
+        var deviceCornerRadius: CGFloat
+        var deviceMaxWidth: CGFloat
+        var devicePadding: CGFloat
+        var deviceSpacing: CGFloat
+        var widgetCornerRadius: CGFloat
+        var widgetPadding: CGFloat
+        var stacksHomeWidgets: Bool
+        var homeWallpaperTop: Color
+        var homeWallpaperBottom: Color
+        var lockWallpaperTop: Color
+        var lockWallpaperBottom: Color
+
+        static let standard = FeatureDiscoveryStyle(
+            cardCornerRadius: 20,
+            cardMaxWidth: 680,
+            cardPadding: 16,
+            cardSpacing: 12,
+            bubbleCornerRadius: 16,
+            bubbleHorizontalPadding: 12,
+            bubbleVerticalPadding: 10,
+            bubbleIndent: 34,
+            speakerIconSize: 28,
+            deviceCornerRadius: 28,
+            deviceMaxWidth: 560,
+            devicePadding: 14,
+            deviceSpacing: 12,
+            widgetCornerRadius: 18,
+            widgetPadding: 12,
+            stacksHomeWidgets: false,
+            homeWallpaperTop: .indigo,
+            homeWallpaperBottom: .cyan,
+            lockWallpaperTop: .purple,
+            lockWallpaperBottom: .blue,
         )
     }
 }

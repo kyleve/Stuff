@@ -5618,6 +5618,392 @@
         }
       }
     },
+    "settings.explore.header" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Explore Features"
+          }
+        }
+      }
+    },
+    "settings.explore.siri.bubble.accessibility" : {
+      "comment" : "Accessibility label for an example Siri conversation bubble. The first argument is the speaker and the second is the message.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@: %2$@"
+          }
+        }
+      }
+    },
+    "settings.explore.siri.date.request" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where was I on June 3?"
+          }
+        }
+      }
+    },
+    "settings.explore.siri.date.response" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "June 3 counted for New York."
+          }
+        }
+      }
+    },
+    "settings.explore.siri.date.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Region on a Date"
+          }
+        }
+      }
+    },
+    "settings.explore.siri.days.request" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How many days have I spent in California this year?"
+          }
+        }
+      }
+    },
+    "settings.explore.siri.days.response" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You’ve spent 132 days in California this year."
+          }
+        }
+      }
+    },
+    "settings.explore.siri.days.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Days in a Region"
+          }
+        }
+      }
+    },
+    "settings.explore.siri.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Try these with Siri, or find every action in the Shortcuts app."
+          }
+        }
+      }
+    },
+    "settings.explore.siri.introduction" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ask naturally or add these actions to your own shortcuts. The conversations below are examples."
+          }
+        }
+      }
+    },
+    "settings.explore.siri.logDay.request" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Log that I was in New York today."
+          }
+        }
+      }
+    },
+    "settings.explore.siri.logDay.response" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I logged today in New York."
+          }
+        }
+      }
+    },
+    "settings.explore.siri.logDay.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Log a Day"
+          }
+        }
+      }
+    },
+    "settings.explore.siri.logTrip.request" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Log my trip to Canada from July 8 through July 12."
+          }
+        }
+      }
+    },
+    "settings.explore.siri.logTrip.response" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I logged 5 days in Canada."
+          }
+        }
+      }
+    },
+    "settings.explore.siri.logTrip.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Log a Trip"
+          }
+        }
+      }
+    },
+    "settings.explore.siri.recent.request" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Summarize where I’ve been this week."
+          }
+        }
+      }
+    },
+    "settings.explore.siri.recent.response" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You spent most of the week in California, with a trip to New York."
+          }
+        }
+      }
+    },
+    "settings.explore.siri.recent.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recent Activity"
+          }
+        }
+      }
+    },
+    "settings.explore.siri.row" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Siri & Shortcuts"
+          }
+        }
+      }
+    },
+    "settings.explore.siri.speaker" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Siri"
+          }
+        }
+      }
+    },
+    "settings.explore.siri.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Siri & Shortcuts"
+          }
+        }
+      }
+    },
+    "settings.explore.siri.today.request" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where am I today?"
+          }
+        }
+      }
+    },
+    "settings.explore.siri.today.response" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Today counts for California."
+          }
+        }
+      }
+    },
+    "settings.explore.siri.today.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Today’s Regions"
+          }
+        }
+      }
+    },
+    "settings.explore.siri.user.speaker" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You"
+          }
+        }
+      }
+    },
+    "settings.explore.widgets.home.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Today is available in Small. Year Totals is available in Small and Medium."
+          }
+        }
+      }
+    },
+    "settings.explore.widgets.home.header" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Home Screen"
+          }
+        }
+      }
+    },
+    "settings.explore.widgets.home.previewLabel" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Example Home Screen showing Where widgets."
+          }
+        }
+      }
+    },
+    "settings.explore.widgets.introduction" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "See every place and size available before adding a Where widget."
+          }
+        }
+      }
+    },
+    "settings.explore.widgets.lock.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Today is available Inline and Circular. Year Totals is available Rectangular."
+          }
+        }
+      }
+    },
+    "settings.explore.widgets.lock.header" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lock Screen"
+          }
+        }
+      }
+    },
+    "settings.explore.widgets.lock.previewLabel" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Example Lock Screen showing Where widgets."
+          }
+        }
+      }
+    },
+    "settings.explore.widgets.row" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Widgets"
+          }
+        }
+      }
+    },
+    "settings.explore.widgets.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Widgets"
+          }
+        }
+      }
+    },
     "settings.findIssues" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5928,6 +6314,17 @@
         }
       }
     },
+    "settings.keywords.siri" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Siri, Shortcuts, voice, intent, ask, automation"
+          }
+        }
+      }
+    },
     "settings.keywords.summary" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5946,6 +6343,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "location, gps, tracking, background, permission"
+          }
+        }
+      }
+    },
+    "settings.keywords.widgets" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "widget, Home Screen, Lock Screen, accessory, glance"
           }
         }
       }

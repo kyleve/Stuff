@@ -5,8 +5,8 @@ import WhereCore
 
 /// Settings tab: an iOS-Settings-style top-level list of icon rows that drill
 /// into grouped sub-screens — a Data group at the top (attachments, logged days,
-/// regions), then location, alerts, appearance, report year, data management,
-/// and About — plus a search field that filters individual settings and
+/// regions), then location, alerts, appearance, report year, feature discovery,
+/// data management, and About — plus a search field that filters individual settings and
 /// deep-links to the screen — and the row — containing each.
 ///
 /// The top level owns nothing but navigation; behavior lives in the sub-screens
@@ -75,6 +75,10 @@ struct SettingsView: View {
                             Section {
                                 ForEach(destinations, id: \.self) { destination in
                                     groupNavigationRow(destination)
+                                }
+                            } header: {
+                                if let headerTitle = section.headerTitle {
+                                    Text(headerTitle)
                                 }
                             }
                         }
@@ -157,7 +161,8 @@ struct SettingsView: View {
         switch destination {
             case .regions:
                 showRegions = true
-            case .attachments, .loggedDays, .location, .alerts, .appearance, .year, .data, .about:
+            case .attachments, .loggedDays, .location, .alerts, .appearance, .year, .siri,
+                 .widgets, .data, .about:
                 assertionFailure("\(destination) is a push destination, not a sheet")
         }
     }
@@ -190,7 +195,8 @@ struct SettingsView: View {
                 )
             case .year:
                 report.selectedYear.formatted(.number.grouping(.never))
-            case .attachments, .loggedDays, .regions, .alerts, .appearance, .data, .about:
+            case .attachments, .loggedDays, .regions, .alerts, .appearance, .siri, .widgets,
+                 .data, .about:
                 nil
         }
     }
@@ -232,6 +238,10 @@ struct SettingsView: View {
                 AppearanceSettingsView(report: report, focus: route.focus)
             case .year:
                 VisibleYearSettingsView(report: report, focus: route.focus)
+            case .siri:
+                SiriFeaturesView(focus: route.focus)
+            case .widgets:
+                WidgetFeaturesView(focus: route.focus, snapshot: widgetFeatureSnapshot)
             case .data:
                 DataSettingsView(report: report, backup: backup, focus: route.focus)
             case .about:
@@ -245,6 +255,21 @@ struct SettingsView: View {
     private var regionsUsedThisYear: Set<Region> {
         guard let totals = report.report?.totals else { return [] }
         return Set(totals.filter { $0.key != .other && $0.value > 0 }.map(\.key))
+    }
+
+    /// The explorer renders the actual widget views with the selected report's
+    /// data. Falling back to an empty snapshot keeps the catalog available while
+    /// the report loads without pretending sample data belongs to the user.
+    private var widgetFeatureSnapshot: WidgetSnapshot {
+        let date = report.referenceDate
+        let day = CalendarDay(from: date, in: report.calendar)
+        let loadedReport = report.report
+        return WidgetSnapshot(
+            day: report.calendar.startOfDay(for: date),
+            year: report.selectedYear,
+            dayRegions: loadedReport?.days.first { $0.day == day }?.regions ?? [],
+            totals: loadedReport?.totals ?? [:],
+        )
     }
 }
 
@@ -293,6 +318,8 @@ struct SettingsView: View {
                 .push(to: AlertsSettingsView.flyoverID),
                 .push(to: AppearanceSettingsView.flyoverID),
                 .push(to: VisibleYearSettingsView.flyoverID),
+                .push(to: SiriFeaturesView.flyoverID),
+                .push(to: WidgetFeaturesView.flyoverID),
                 .push(to: DataSettingsView.flyoverID),
                 .push(to: AboutSettingsView.flyoverID),
             ],
