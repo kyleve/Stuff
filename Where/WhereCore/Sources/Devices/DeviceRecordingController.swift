@@ -16,8 +16,16 @@ public actor DeviceRecordingController {
     private let onPolicyChanged: @Sendable () async -> Void
     private let configurationBroadcaster = RecordingConfigurationBroadcaster()
 
-    private var automaticRecordingEnabled: Bool
-    private var enabledAt: Date?
+    private enum AutomaticRecordingChoice: Equatable {
+        case off
+        case on(enabledAt: Date)
+
+        var isEnabled: Bool {
+            if case .on = self { true } else { false }
+        }
+    }
+
+    private var automaticRecordingChoice: AutomaticRecordingChoice
     private var preparedGenerationID: WhereDataGenerationID?
 
     /// Actor reentrancy permits another command to enter at an `await`; this gate serializes the
@@ -60,8 +68,14 @@ public actor DeviceRecordingController {
         self.ingestor = ingestor
         currentDevice = installationContext.currentDevice
         registeredAt = installationContext.registeredAt
-        self.automaticRecordingEnabled = automaticRecordingEnabled
-        enabledAt = installationContext.recordingEnabledAt
+        if automaticRecordingEnabled {
+            guard let enabledAt = installationContext.recordingEnabledAt else {
+                preconditionFailure("An enabled installation context must carry its consent date.")
+            }
+            automaticRecordingChoice = .on(enabledAt: enabledAt)
+        } else {
+            automaticRecordingChoice = .off
+        }
         self.now = now
         self.onPolicyChanged = onPolicyChanged
     }
@@ -112,9 +126,8 @@ public actor DeviceRecordingController {
         defer { endExclusive() }
         try requireActive()
         recordingLifecycleStarted = true
-        if let desiredEnabled, desiredEnabled != automaticRecordingEnabled {
-            automaticRecordingEnabled = desiredEnabled
-            enabledAt = desiredEnabled ? now() : nil
+        if let desiredEnabled, desiredEnabled != automaticRecordingChoice.isEnabled {
+            automaticRecordingChoice = desiredEnabled ? .on(enabledAt: now()) : .off
         }
         return try await registerAndReconcileLocked(authorization: authorization)
     }
@@ -139,9 +152,8 @@ public actor DeviceRecordingController {
         await beginExclusive()
         defer { endExclusive() }
         try requireActive()
-        if automaticRecordingEnabled != enabled {
-            automaticRecordingEnabled = enabled
-            enabledAt = enabled ? now() : nil
+        if automaticRecordingChoice.isEnabled != enabled {
+            automaticRecordingChoice = enabled ? .on(enabledAt: now()) : .off
         }
         if !enabled || pendingOffCleanup {
             try await discardRetryBacklogForOffChoice()
@@ -438,14 +450,14 @@ public actor DeviceRecordingController {
             preparedGenerationID = generation.id
         }
 
-        let status: RecordingDeviceStatus = if automaticRecordingEnabled {
+        let status: RecordingDeviceStatus = if automaticRecordingChoice.isEnabled {
             authorization.allowsBackgroundTracking ? .recording : .permissionRequired
         } else {
             .off
         }
-        if automaticRecordingEnabled {
+        if case let .on(enabledAt) = automaticRecordingChoice {
             try await ingestor.prepareRetryBacklog()
-            let effectiveAt = max(enabledAt ?? registeredAt, generation.changedAt)
+            let effectiveAt = max(enabledAt, generation.changedAt)
             if authorization.allowsBackgroundTracking {
                 try await ingestor.start(effectiveAt: effectiveAt, dataGenerationID: generation.id)
             } else {
@@ -495,7 +507,7 @@ public actor DeviceRecordingController {
                 removal: nil,
             ),
             isCurrentDevice: true,
-            localAutomaticRecordingEnabled: automaticRecordingEnabled,
+            localAutomaticRecordingEnabled: automaticRecordingChoice.isEnabled,
         )
         needsReconciliation = false
         publishRuntimeState(.applied(configuration))
@@ -512,7 +524,9 @@ public actor DeviceRecordingController {
                 return RecordingDeviceConfiguration(
                     device: device,
                     isCurrentDevice: isCurrent,
-                    localAutomaticRecordingEnabled: isCurrent ? automaticRecordingEnabled : nil,
+                    localAutomaticRecordingEnabled: isCurrent
+                        ? automaticRecordingChoice.isEnabled
+                        : nil,
                 )
             }
             .sorted { lhs, rhs in
@@ -538,10 +552,13 @@ public actor DeviceRecordingController {
             let heartbeatDue = currentCheckIn.map {
                 now().timeIntervalSince($0.lastSeenAt) >= Self.checkInInterval
             } ?? true
-            let expectedStatus: RecordingDeviceStatus = await automaticRecordingEnabled
-                ? ((ingestor.authorizationStatus()).allowsBackgroundTracking
-                    ? .recording : .permissionRequired)
-                : .off
+            let expectedStatus: RecordingDeviceStatus = if automaticRecordingChoice.isEnabled {
+                await ingestor.authorizationStatus().allowsBackgroundTracking
+                    ? .recording
+                    : .permissionRequired
+            } else {
+                .off
+            }
             let profileMatches = snapshot.profiles.first(where: { $0.id == currentDevice.id }).map {
                 $0 == expectedProfile(registrationGenerationID: $0.registrationGenerationID)
             } ?? false
