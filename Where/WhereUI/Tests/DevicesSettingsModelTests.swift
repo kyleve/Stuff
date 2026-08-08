@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-import WhereCore
+@_spi(Testing) import WhereCore
 @testable import WhereUI
 
 @MainActor
@@ -13,164 +13,117 @@ struct DevicesSettingsModelTests {
     )
     private static let date = Date(timeIntervalSinceReferenceDate: 100)
 
-    @Test func loadsCurrentAndRemoteDeviceRows() async {
-        let session = Session(configurations: Self.configurations)
-        let model = DevicesSettingsModel(client: session.client)
+    @Test func loadsCurrentAndRemoteDeviceRows() async throws {
+        let fixture = try await makeFixture()
+        let model = DevicesSettingsModel(session: fixture.session)
 
-        await model.run()
+        await model.retry()
 
         #expect(model.rows.map(\.id) == [Self.currentID, Self.remoteID])
         #expect(model.rows.first?.isCurrent == true)
     }
 
     @Test func localToggleChangesOnlyTheCurrentInstallationsPreference() async throws {
-        let session = Session(configurations: Self.configurations)
-        let model = DevicesSettingsModel(client: session.client)
-        await model.run()
+        let fixture = try await makeFixture()
+        let model = DevicesSettingsModel(session: fixture.session)
+        await model.retry()
         let current = try #require(model.rows.first)
 
         current.isEnabled = false
         await model.recordingPreferenceChanged(for: current)
 
-        #expect(session.recordingChoices == [false])
+        let currentConfiguration = try #require(
+            try await fixture.session.recordingDevices().first { $0.id == Self.currentID },
+        )
+        #expect(currentConfiguration.localAutomaticRecordingEnabled == false)
     }
 
     @Test func remoteDeviceCanBeRenamedAndRemovedButNotToggled() async throws {
-        let session = Session(configurations: Self.configurations)
-        let model = DevicesSettingsModel(client: session.client)
-        await model.run()
+        let fixture = try await makeFixture()
+        let model = DevicesSettingsModel(session: fixture.session)
+        await model.retry()
         let remote = try #require(model.rows.last)
 
         remote.nickname = "Kitchen iPad"
         await model.saveNickname(remote)
+        let renamed = try #require(
+            try await fixture.session.recordingDevices().first { $0.id == Self.remoteID },
+        )
+        #expect(renamed.device.nickname == "Kitchen iPad")
+
         await model.remove(remote)
 
-        #expect(session.renames.map(\.id) == [Self.remoteID])
-        #expect(session.renames.map(\.nickname) == ["Kitchen iPad"])
-        #expect(session.removals == [Self.remoteID])
-        #expect(session.recordingChoices.isEmpty)
+        #expect(try await fixture.session.recordingDevices().contains { $0.id == Self.remoteID }
+            == false)
+        let current = try #require(
+            try await fixture.session.recordingDevices().first { $0.id == Self.currentID },
+        )
+        #expect(current.localAutomaticRecordingEnabled == true)
     }
 
     @Test func operationFailureRemainsVisibleAfterRefresh() async throws {
-        let session = Session(configurations: Self.configurations)
-        session.nextError = TestFailure()
-        let model = DevicesSettingsModel(client: session.client)
-        await model.run()
-        let current = try #require(model.rows.first)
+        let fixture = try await makeFixture()
+        let model = DevicesSettingsModel(session: fixture.session)
+        await model.retry()
+        let remote = try #require(model.rows.last)
+        await fixture.store.failNextRecordingDeviceWrite()
 
-        current.isEnabled = false
-        await model.recordingPreferenceChanged(for: current)
+        remote.nickname = "Kitchen iPad"
+        await model.saveNickname(remote)
 
-        #expect(model.presentedFailure?.context == .operation(deviceID: Self.currentID))
+        #expect(model.presentedFailure?.context == .operation(deviceID: Self.remoteID))
     }
 
-    private static var configurations: [RecordingDeviceConfiguration] {
-        [
-            configuration(
-                id: currentID,
-                name: "iPhone",
+    private func makeFixture() async throws -> Fixture {
+        let store = try TestStore()
+        let context = InstallationRecordingContext(
+            currentDevice: CurrentRecordingDevice(
+                id: Self.currentID,
+                systemName: "iPhone",
                 kind: .phone,
-                status: .recording,
-                isCurrent: true,
-                enabled: true,
             ),
-            configuration(
-                id: remoteID,
-                name: "iPad",
+            registeredAt: Self.date,
+            recordingChoice: .on(enabledAt: Self.date),
+            isRejoining: false,
+        )
+        let services = WhereServices(
+            store: store,
+            locationSource: ScriptedLocationSource(authorizationStatus: .always),
+            installationContext: context,
+            reminderScheduler: NoopLoggingReminderScheduler(),
+            summaryScheduler: NoopDailySummaryScheduler(),
+            issueAlertScheduler: NoopDataIssueAlertScheduler(),
+            widgetRefresher: NoopWidgetTimelineRefresher(),
+        )
+        _ = try await services.recording.register(authorization: .always)
+        let generation = try await store.dataGeneration()
+        try await store.perform {
+            try await store.addRecordingDeviceProfile(RecordingDeviceProfile(
+                id: Self.remoteID,
+                systemName: "iPad",
                 kind: .tablet,
+                registeredAt: Self.date,
+                registrationGenerationID: generation.id,
+            ))
+            try await store.setRecordingDeviceCheckIn(RecordingDeviceCheckIn(
+                deviceID: Self.remoteID,
+                revision: 0,
+                lastSeenAt: Self.date,
                 status: .off,
-                isCurrent: false,
-                enabled: nil,
+            ))
+        }
+        return Fixture(
+            session: WhereSession(
+                services: services,
+                preferences: WherePreferences(store: InMemoryKeyValueStore()),
             ),
-        ]
-    }
-
-    private static func configuration(
-        id: RecordingDeviceID,
-        name: String,
-        kind: RecordingDeviceKind,
-        status: RecordingDeviceStatus,
-        isCurrent: Bool,
-        enabled: Bool?,
-    ) -> RecordingDeviceConfiguration {
-        RecordingDeviceConfiguration(
-            device: RecordingDevice(
-                id: id,
-                systemName: name,
-                nickname: nil,
-                kind: kind,
-                registeredAt: date,
-                lastSeenAt: date,
-                removedAt: nil,
-                status: status,
-            ),
-            isCurrentDevice: isCurrent,
-            localAutomaticRecordingEnabled: enabled,
+            store: store,
         )
     }
 }
 
-private struct TestFailure: Error {}
-
 @MainActor
-private final class Session {
-    struct Rename: Equatable {
-        let id: RecordingDeviceID
-        let nickname: String
-    }
-
-    var configurations: [RecordingDeviceConfiguration]
-    var recordingChoices: [Bool] = []
-    var renames: [Rename] = []
-    var removals: [RecordingDeviceID] = []
-    var nextError: (any Error)?
-
-    init(configurations: [RecordingDeviceConfiguration]) {
-        self.configurations = configurations
-    }
-
-    var client: DevicesSettingsClient {
-        DevicesSettingsClient(
-            recordingDeviceUpdates: { [self] in recordingDeviceUpdates() },
-            recordingDevices: { [self] in try await recordingDevices() },
-            setRecordingEnabled: { [self] in try await setRecordingEnabled($0) },
-            renameRecordingDevice: { [self] in
-                try await renameRecordingDevice($0, to: $1)
-            },
-            removeRecordingDevice: { [self] in try await removeRecordingDevice($0) },
-            requestPermission: { [self] in await requestPermission() },
-        )
-    }
-
-    func recordingDeviceUpdates() -> AsyncStream<Void> {
-        AsyncStream { $0.finish() }
-    }
-
-    func recordingDevices() async throws -> [RecordingDeviceConfiguration] {
-        configurations
-    }
-
-    func setRecordingEnabled(_ enabled: Bool) async throws {
-        try failIfNeeded()
-        recordingChoices.append(enabled)
-    }
-
-    func renameRecordingDevice(_ deviceID: RecordingDeviceID, to nickname: String) async throws {
-        try failIfNeeded()
-        renames.append(.init(id: deviceID, nickname: nickname))
-    }
-
-    func removeRecordingDevice(_ deviceID: RecordingDeviceID) async throws {
-        try failIfNeeded()
-        removals.append(deviceID)
-    }
-
-    func requestPermission() async {}
-
-    private func failIfNeeded() throws {
-        if let nextError {
-            self.nextError = nil
-            throw nextError
-        }
-    }
+private struct Fixture {
+    let session: WhereSession
+    let store: TestStore
 }

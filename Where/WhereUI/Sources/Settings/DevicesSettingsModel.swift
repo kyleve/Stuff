@@ -2,45 +2,6 @@ import Foundation
 import Observation
 import WhereCore
 
-/// View-scoped operations needed by Devices settings, without adding another responsibility to
-/// the already broad `WhereSession` type.
-@MainActor
-struct DevicesSettingsClient {
-    let recordingDeviceUpdates: () -> AsyncStream<Void>
-    let recordingDevices: () async throws -> [RecordingDeviceConfiguration]
-    let setRecordingEnabled: (Bool) async throws -> Void
-    let renameRecordingDevice: (RecordingDeviceID, String) async throws -> Void
-    let removeRecordingDevice: (RecordingDeviceID) async throws -> Void
-    let requestPermission: () async -> Void
-
-    init(
-        recordingDeviceUpdates: @escaping () -> AsyncStream<Void>,
-        recordingDevices: @escaping () async throws -> [RecordingDeviceConfiguration],
-        setRecordingEnabled: @escaping (Bool) async throws -> Void,
-        renameRecordingDevice: @escaping (RecordingDeviceID, String) async throws -> Void,
-        removeRecordingDevice: @escaping (RecordingDeviceID) async throws -> Void,
-        requestPermission: @escaping () async -> Void,
-    ) {
-        self.recordingDeviceUpdates = recordingDeviceUpdates
-        self.recordingDevices = recordingDevices
-        self.setRecordingEnabled = setRecordingEnabled
-        self.renameRecordingDevice = renameRecordingDevice
-        self.removeRecordingDevice = removeRecordingDevice
-        self.requestPermission = requestPermission
-    }
-
-    init(session: WhereSession) {
-        self.init(
-            recordingDeviceUpdates: { session.services.dataChangeUpdates() },
-            recordingDevices: { try await session.recordingDevices() },
-            setRecordingEnabled: { try await session.setRecordingEnabled($0) },
-            renameRecordingDevice: { try await session.renameRecordingDevice($0, to: $1) },
-            removeRecordingDevice: { try await session.removeRecordingDevice($0) },
-            requestPermission: { await session.requestPermission() },
-        )
-    }
-}
-
 /// View-scoped Devices settings state. Refreshes are read-only; commands originate only from
 /// explicit row intents, so a CloudKit update can never submit a local recording choice.
 @MainActor
@@ -70,7 +31,7 @@ final class DevicesSettingsModel {
         }
     }
 
-    private let client: DevicesSettingsClient
+    private let session: WhereSession
     private(set) var state: LoadState = .idle
     private(set) var rows: [DeviceSettingsRowModel] = []
     private(set) var presentedFailure: Failure?
@@ -86,11 +47,7 @@ final class DevicesSettingsModel {
     }
 
     init(session: WhereSession) {
-        client = DevicesSettingsClient(session: session)
-    }
-
-    init(client: DevicesSettingsClient) {
-        self.client = client
+        self.session = session
     }
 
     #if DEBUG
@@ -98,23 +55,14 @@ final class DevicesSettingsModel {
             session: WhereSession,
             configurations: [RecordingDeviceConfiguration],
         ) {
-            client = DevicesSettingsClient(session: session)
-            apply(configurations)
-            state = configurations.isEmpty ? .empty : .loaded
-        }
-
-        init(
-            client: DevicesSettingsClient,
-            configurations: [RecordingDeviceConfiguration],
-        ) {
-            self.client = client
+            self.session = session
             apply(configurations)
             state = configurations.isEmpty ? .empty : .loaded
         }
     #endif
 
     func run() async {
-        let updates = client.recordingDeviceUpdates()
+        let updates = session.services.dataChangeUpdates()
         await load(showLoading: true)
         for await _ in updates {
             await load(showLoading: false)
@@ -144,14 +92,14 @@ final class DevicesSettingsModel {
     }
 
     func requestPermission() async {
-        await client.requestPermission()
+        await session.requestPermission()
         await load(showLoading: false)
     }
 
     private func load(showLoading: Bool) async {
         if showLoading, rows.isEmpty { state = .loading }
         do {
-            try await apply(client.recordingDevices())
+            try await apply(session.recordingDevices())
             state = rows.isEmpty ? .empty : .loaded
             if presentedFailure?.context == .refresh { presentedFailure = nil }
         } catch {
@@ -170,11 +118,11 @@ final class DevicesSettingsModel {
             do {
                 switch operation {
                     case let .setRecordingEnabled(enabled):
-                        try await client.setRecordingEnabled(enabled)
+                        try await session.setRecordingEnabled(enabled)
                     case let .rename(nickname):
-                        try await client.renameRecordingDevice(row.id, nickname)
+                        try await session.renameRecordingDevice(row.id, to: nickname)
                     case .remove:
-                        try await client.removeRecordingDevice(row.id)
+                        try await session.removeRecordingDevice(row.id)
                 }
                 row.finish(operation)
                 await load(showLoading: false)
