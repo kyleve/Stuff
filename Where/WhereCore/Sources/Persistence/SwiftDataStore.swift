@@ -375,6 +375,16 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         }
     }
 
+    /// Runs one suspending store operation while holding the actor's logical transaction slot.
+    /// Keeping acquisition and release in this scope makes every return and throw release the slot.
+    private func withExclusiveStoreOperation<T: Sendable>(
+        _ operation: () async throws -> T,
+    ) async rethrows -> T {
+        await beginExclusive()
+        defer { endExclusive() }
+        return try await operation()
+    }
+
     public func perform<T: Sendable>(
         _ block: @Sendable () async throws -> T,
     ) async throws -> T {
@@ -402,36 +412,36 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             return try await block()
         }
 
-        await beginExclusive()
-        defer {
-            activeSnapshot = nil
-            endExclusive()
+        return try await withExclusiveStoreOperation {
+            let peer = ModelContext(modelContainer)
+            // A persistent-store transaction becomes fetch-visible atomically with
+            // its history row, but Core Data is allowed to post the corresponding
+            // remote-change notification later. Bracket every table fetch with the
+            // history head from this same peer context: if an external transaction
+            // lands anywhere across the block, its monotonically increasing id
+            // changes and the assembled value is rejected. Our own `perform`s are
+            // held behind `withExclusiveStoreOperation`, so a crossing commit can
+            // only come from another process or CloudKit.
+            let startingHistoryTransactionID = try Self.latestHistoryTransactionID(in: peer)
+            let generation = try Self.resolvedDataGeneration(in: peer)
+            activeSnapshot = ActiveSnapshot(context: peer, generation: generation)
+            defer { activeSnapshot = nil }
+            let result = try await Self.$activeSnapshotStores.withValue(
+                Self.activeSnapshotStores.union([storeID]),
+            ) {
+                try await block()
+            }
+            guard try Self.latestHistoryTransactionID(in: peer)
+                == startingHistoryTransactionID
+            else {
+                throw RecordingPersistenceError.dataGenerationChanged
+            }
+            let current = try Self.resolvedDataGeneration(in: ModelContext(modelContainer))
+            guard current.id == generation.id else {
+                throw RecordingPersistenceError.dataGenerationChanged
+            }
+            return result
         }
-        let peer = ModelContext(modelContainer)
-        // A persistent-store transaction becomes fetch-visible atomically with
-        // its history row, but Core Data is allowed to post the corresponding
-        // remote-change notification later. Bracket every table fetch with the
-        // history head from this same peer context: if an external transaction
-        // lands anywhere across the block, its monotonically increasing id
-        // changes and the assembled value is rejected. Our own `perform`s are
-        // held behind `beginExclusive`, so a crossing commit can only come from
-        // another process or CloudKit.
-        let startingHistoryTransactionID = try Self.latestHistoryTransactionID(in: peer)
-        let generation = try Self.resolvedDataGeneration(in: peer)
-        activeSnapshot = ActiveSnapshot(context: peer, generation: generation)
-        let result = try await Self.$activeSnapshotStores.withValue(
-            Self.activeSnapshotStores.union([storeID]),
-        ) {
-            try await block()
-        }
-        guard try Self.latestHistoryTransactionID(in: peer) == startingHistoryTransactionID else {
-            throw RecordingPersistenceError.dataGenerationChanged
-        }
-        let current = try Self.resolvedDataGeneration(in: ModelContext(modelContainer))
-        guard current.id == generation.id else {
-            throw RecordingPersistenceError.dataGenerationChanged
-        }
-        return result
     }
 
     /// The durable store generation used to bracket a multi-table read. Unlike
@@ -516,65 +526,63 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         // Outermost call: serialize against any other in-flight transaction so
         // overlapping top-level writers can't clobber `activeTransaction` through
         // actor reentrancy.
-        await beginExclusive()
-        defer {
-            activeTransaction = nil
-            endExclusive()
-        }
-        let peer = ModelContext(modelContainer)
-        peer.author = localTransactionAuthor
-        let generation = try Self.resolvedDataGenerationResolution(in: peer)
-        activeTransaction = ActiveTransaction(context: peer, generation: generation)
-        if let expectedDataGenerationID,
-           activeTransaction?.generation.current.id != expectedDataGenerationID
-        {
-            throw RecordingPersistenceError.dataGenerationChanged
-        }
-        // One span per committed transaction, opened *after* the exclusivity
-        // wait so it measures the write rather than the queueing behind another
-        // writer. Only the outermost `perform` spans, so a nested write doesn't
-        // nest a duplicate inside its own commit.
-        return try await Self.logger.measure(.commit) {
-            // Mark this store as transacting for the duration of the block so
-            // nested `perform` calls on this task reuse the peer above.
-            let result = try await Self.$activeTransactionStores.withValue(
-                Self.activeTransactionStores.union([ObjectIdentifier(self)]),
-            ) {
-                try await block()
-            }
-            // Outermost success: save the peer, which propagates the batched
-            // writes to the persistent store. The main `modelContext` picks the
-            // changes up on its next fetch. A throw before here (from the block
-            // or the save) skips the save, so the peer is discarded without
-            // reaching the persistent store — a clean rollback of the entire
-            // transaction — while `defer` still clears `activeTransaction` and
-            // releases the gate.
-            try peer.save()
-            // The persistent store can import a CloudKit reset while this
-            // asynchronous transaction body is suspended. Saving old-generation
-            // rows is harmless (they are inert), but reporting success would
-            // let callers run post-commit side effects under stale authority.
-            // Re-resolve through a fresh context after the commit and fail the
-            // operation if its transaction generation lost before returning.
-            guard let committedGenerationID = activeTransaction?.generation.current.id else {
-                preconditionFailure(
-                    "A store transaction must retain its data generation through save.",
-                )
-            }
-            let currentGeneration = try Self
-                .resolvedDataGeneration(in: ModelContext(modelContainer))
-            guard currentGeneration.id == committedGenerationID else {
+        return try await withExclusiveStoreOperation {
+            let peer = ModelContext(modelContainer)
+            peer.author = localTransactionAuthor
+            let generation = try Self.resolvedDataGenerationResolution(in: peer)
+            activeTransaction = ActiveTransaction(context: peer, generation: generation)
+            defer { activeTransaction = nil }
+            if let expectedDataGenerationID,
+               activeTransaction?.generation.current.id != expectedDataGenerationID
+            {
                 throw RecordingPersistenceError.dataGenerationChanged
             }
-            // Committed: ping `changes()` subscribers so they re-read. Only the
-            // outermost `perform` reaches here (nested calls returned above
-            // without saving), so a transaction pings exactly once. The DEBUG
-            // remote-import seam suppresses this local ping; its scripted
-            // source emits the corresponding remote one separately.
-            if sendsChange {
-                changeBroadcaster.send()
+            // One span per committed transaction, opened *after* the exclusivity
+            // wait so it measures the write rather than the queueing behind another
+            // writer. Only the outermost `perform` spans, so a nested write doesn't
+            // nest a duplicate inside its own commit.
+            return try await Self.logger.measure(.commit) {
+                // Mark this store as transacting for the duration of the block so
+                // nested `perform` calls on this task reuse the peer above.
+                let result = try await Self.$activeTransactionStores.withValue(
+                    Self.activeTransactionStores.union([ObjectIdentifier(self)]),
+                ) {
+                    try await block()
+                }
+                // Outermost success: save the peer, which propagates the batched
+                // writes to the persistent store. The main `modelContext` picks the
+                // changes up on its next fetch. A throw before here (from the block
+                // or the save) skips the save, so the peer is discarded without
+                // reaching the persistent store — a clean rollback of the entire
+                // transaction — while the enclosing scopes still clear the active
+                // state and release the gate.
+                try peer.save()
+                // The persistent store can import a CloudKit reset while this
+                // asynchronous transaction body is suspended. Saving old-generation
+                // rows is harmless (they are inert), but reporting success would
+                // let callers run post-commit side effects under stale authority.
+                // Re-resolve through a fresh context after the commit and fail the
+                // operation if its transaction generation lost before returning.
+                guard let committedGenerationID = activeTransaction?.generation.current.id else {
+                    preconditionFailure(
+                        "A store transaction must retain its data generation through save.",
+                    )
+                }
+                let currentGeneration = try Self
+                    .resolvedDataGeneration(in: ModelContext(modelContainer))
+                guard currentGeneration.id == committedGenerationID else {
+                    throw RecordingPersistenceError.dataGenerationChanged
+                }
+                // Committed: ping `changes()` subscribers so they re-read. Only the
+                // outermost `perform` reaches here (nested calls returned above
+                // without saving), so a transaction pings exactly once. The DEBUG
+                // remote-import seam suppresses this local ping; its scripted
+                // source emits the corresponding remote one separately.
+                if sendsChange {
+                    changeBroadcaster.send()
+                }
+                return result
             }
-            return result
         }
     }
 
