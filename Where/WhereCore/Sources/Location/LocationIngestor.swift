@@ -69,17 +69,14 @@ public actor LocationIngestor {
     /// registration, while policy is Off/unavailable, and during teardown. This is independent
     /// of background monitoring: an enabled When-In-Use device may take a foreground fix while
     /// monitoring remains paused.
-    private var acceptsSamples = false
-    /// Logical generation whose local recording choice opened the sample gate. Every persist and
-    /// retry uses this as an expected-epoch token, so a remote reset cannot restamp an in-flight
-    /// old-authority sample into the new generation.
-    private var authorizedDataEpochID: WhereDataEpochID?
+    /// The automatic-sample gate. An open authority always carries both the logical generation
+    /// that may receive writes and the consent cutoff for buffered Core Location callbacks.
+    private enum RecordingAuthority {
+        case closed
+        case open(dataEpochID: WhereDataEpochID, effectiveAt: Date)
+    }
 
-    /// Earliest timestamp a newly delivered live sample may carry for the current authority
-    /// window. Core Location can buffer callbacks before the stream consumer is installed; the
-    /// cutoff prevents those pre-consent / Off-period samples from becoming authorized merely
-    /// because they are consumed after recording turns On.
-    private var acceptsSamplesSince: Date?
+    private var recordingAuthority = RecordingAuthority.closed
 
     /// Samples whose persist call failed (e.g. transient SwiftData / CloudKit
     /// error). Drained before each new GPS save and on the next `start()` so a
@@ -167,7 +164,11 @@ public actor LocationIngestor {
             await closeRecordingAuthority()
             throw RecordingPersistenceError.dataEpochChanged
         }
-        guard acceptsSamples == false || authorizedDataEpochID != dataEpochID else { return }
+        if case let .open(currentDataEpochID, _) = recordingAuthority,
+           currentDataEpochID == dataEpochID
+        {
+            return
+        }
 
         // Changing authority is fail-closed. In particular, if a remote reset
         // crosses backlog restoration/draining, the previous epoch must not
@@ -186,9 +187,7 @@ public actor LocationIngestor {
         guard confirmedEpochID == dataEpochID else {
             throw RecordingPersistenceError.dataEpochChanged
         }
-        authorizedDataEpochID = dataEpochID
-        acceptsSamplesSince = effectiveAt
-        acceptsSamples = true
+        recordingAuthority = .open(dataEpochID: dataEpochID, effectiveAt: effectiveAt)
         await Self.logger.measure(.postPersist, budget: .seconds(2)) {
             await onPersisted(IngestOutcome(
                 changedDays: drainedDays,
@@ -246,11 +245,19 @@ public actor LocationIngestor {
     /// ``revokeRecordingAuthorization()``, this does not await in-flight
     /// persistence tasks and is therefore safe to call from one of those tasks
     /// when its expected epoch has just lost.
-    private func closeRecordingAuthority(ifAuthorizedFor epochID: WhereDataEpochID? = nil) async {
-        if let epochID, authorizedDataEpochID != epochID { return }
-        acceptsSamples = false
-        authorizedDataEpochID = nil
-        acceptsSamplesSince = nil
+    private func closeRecordingAuthority() async {
+        await closeRecordingAuthorityUnconditionally()
+    }
+
+    private func closeRecordingAuthority(ifAuthorizedFor dataEpochID: WhereDataEpochID) async {
+        guard case let .open(currentDataEpochID, _) = recordingAuthority,
+              currentDataEpochID == dataEpochID
+        else { return }
+        await closeRecordingAuthorityUnconditionally()
+    }
+
+    private func closeRecordingAuthorityUnconditionally() async {
+        recordingAuthority = .closed
         if isMonitoring {
             isMonitoring = false
             await locationSource.stop()
@@ -344,7 +351,7 @@ public actor LocationIngestor {
     /// is checked before acquisition and again before persistence, so a synced Off
     /// policy can revoke a fix already in flight.
     public func captureTodayIfNeeded(now: Date) {
-        guard acceptsSamples, captureTask == nil else { return }
+        guard case .open = recordingAuthority, captureTask == nil else { return }
         captureTask = Task { [weak self] in
             await self?.performTodayCapture(now: now)
             await self?.clearCaptureTask()
@@ -427,15 +434,15 @@ public actor LocationIngestor {
     }
 
     private func accepts(_ sample: LocationSample) -> Bool {
-        guard acceptsSamples, let acceptsSamplesSince else { return false }
-        return sample.timestamp >= acceptsSamplesSince
+        guard case let .open(_, effectiveAt) = recordingAuthority else { return false }
+        return sample.timestamp >= effectiveAt
     }
 
     /// Persist one GPS-sourced sample, falling back to the retry queue on
     /// failure. Drains any backlog first so a single transient outage doesn't
     /// permanently reorder samples on disk.
     private func processIngestedSample(_ sample: LocationSample) async {
-        guard let dataEpochID = authorizedDataEpochID else { return }
+        guard case let .open(dataEpochID, _) = recordingAuthority else { return }
         let sample = sample.recorded(by: recordingDeviceID)
         do {
             let drainedDays = try await drainRetryQueue(expectedDataEpochID: dataEpochID)
@@ -581,7 +588,7 @@ public actor LocationIngestor {
 
         /// Whether the automatic-sample authority gate is currently open.
         @_spi(Testing) public var testingIsAcceptingSamples: Bool {
-            acceptsSamples
+            if case .open = recordingAuthority { true } else { false }
         }
 
         @_spi(Testing) public func testingHasConsumedSample(id: UUID) -> Bool {
