@@ -62,7 +62,13 @@ one it belongs to rather than to a god-object:
 
 - **`ReportReader`** — the pure read path: `yearReport(for:)`, the year's raw
   manual entries `manualDays(inYear:)`, per-region `locations(in:year:)`, and
-  `representativeCoordinates(for:)`.
+  `representativeCoordinates(for:)`. `auditReport(for:)` returns a
+  `YearAuditReport`: one consistent annual snapshot containing the finalized
+  report, attributed samples, manual/evidence metadata, reporting timezone,
+  tracked-region set, and boundary provenance. Production obtains its
+  `YearAuditRecords` through one `SwiftDataStore` actor turn/read context and
+  freezes the region set into an immutable attributor before computing rows and
+  totals.
 - **`YearReport` / `DayPresence` / `RegionDayLocations`** — the aggregated,
   snapshot-stable value types the UI renders, each keyed by a
   timezone-independent **`CalendarDay`** (`DayPresence.day`). A day counts for a
@@ -162,9 +168,22 @@ let services = try await WhereServices.make(
 // Read a year, aggregated with the injected calendar + region attribution.
 let report = try await services.reports.yearReport(for: 2026)
 
+// Read a transparent audit snapshot whose source rows and totals share one
+// captured attribution policy.
+let annualAuditReport = try await services.reports.auditReport(for: 2026)
+
 // Write a manual day (the caller supplies the ManualEntryAudit); the journal
 // commits, then reconciles reminders + widgets.
-try await services.journal.addManualDay(date: day, regions: [.california], audit: audit)
+let manualEntryAudit = ManualEntryAudit(
+    recordedAt: Date(),
+    note: "Backfilled from travel records.",
+    location: nil,
+)
+try await services.journal.addManualDay(
+    date: day,
+    regions: [.california],
+    audit: manualEntryAudit,
+)
 
 // Refresh whenever anything changes — local edits, live GPS, or a synced import.
 for await _ in services.dataChangeUpdates() {

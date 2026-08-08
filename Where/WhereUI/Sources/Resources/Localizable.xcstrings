@@ -2830,6 +2830,1227 @@
         }
       }
     },
+    "export.report.demo.filename" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where Demo Presence Report"
+          }
+        }
+      }
+    },
+    "export.report.demo.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Demo exports are sample documents. Every page is permanently watermarked SAMPLE — DEMO DATA."
+          }
+        }
+      }
+    },
+    "export.report.demo.warning" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SAMPLE — DEMO DATA"
+          }
+        }
+      }
+    },
+    "export.report.details.header" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Report details"
+          }
+        }
+      }
+    },
+    "export.report.failure.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where could not create the PDF. Your data was not changed. Check available storage and try again."
+          }
+        }
+      }
+    },
+    "export.report.failure.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't Create Report"
+          }
+        }
+      }
+    },
+    "export.report.filename" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where Presence Report"
+          }
+        }
+      }
+    },
+    "export.report.generate" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Generate PDF"
+          }
+        }
+      }
+    },
+    "export.report.generating" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Generating report..."
+          }
+        }
+      }
+    },
+    "export.report.paper" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paper size"
+          }
+        }
+      }
+    },
+    "export.report.paper.a4" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A4"
+          }
+        }
+      }
+    },
+    "export.report.paper.header" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paper"
+          }
+        }
+      }
+    },
+    "export.report.paper.letter" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "US Letter"
+          }
+        }
+      }
+    },
+    "export.report.pdf.accuracy" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Accuracy"
+          }
+        }
+      }
+    },
+    "export.report.pdf.additiveBackfill" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Additive backfill"
+          }
+        }
+      }
+    },
+    "export.report.pdf.affectedDates" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Affected dates"
+          }
+        }
+      }
+    },
+    "export.report.pdf.appBuild" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "App build"
+          }
+        }
+      }
+    },
+    "export.report.pdf.appVersion" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "App version"
+          }
+        }
+      }
+    },
+    "export.report.pdf.approximateGeometry" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Approximate"
+          }
+        }
+      }
+    },
+    "export.report.pdf.approximateGeometryWarning" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "IMPORTANT: One or more tracked regions use coarse, hand-drawn approximate geometry. Those boundaries are not authoritative and are not suitable as independent proof of residency."
+          }
+        }
+      }
+    },
+    "export.report.pdf.assignedRegion" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Assigned region"
+          }
+        }
+      }
+    },
+    "export.report.pdf.attributedRegion" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Attributed region"
+          }
+        }
+      }
+    },
+    "export.report.pdf.auditDisclaimer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This transparent audit report describes information available on this device when generated. It is not certified, tamper-evident, independently verified, or a calculation of hours or elapsed time."
+          }
+        }
+      }
+    },
+    "export.report.pdf.authoritativeGeometry" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Authoritative source, simplified"
+          }
+        }
+      }
+    },
+    "export.report.pdf.authoritativeOverride" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Authoritative manual override"
+          }
+        }
+      }
+    },
+    "export.report.pdf.basis" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Basis"
+          }
+        }
+      }
+    },
+    "export.report.pdf.basis.additive" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "additive backfill"
+          }
+        }
+      }
+    },
+    "export.report.pdf.basis.evidenceCoordinate" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "evidence-derived coordinate"
+          }
+        }
+      }
+    },
+    "export.report.pdf.basis.gps" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GPS"
+          }
+        }
+      }
+    },
+    "export.report.pdf.basis.manualCoordinate" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "manual coordinate"
+          }
+        }
+      }
+    },
+    "export.report.pdf.basis.override" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "authoritative manual override"
+          }
+        }
+      }
+    },
+    "export.report.pdf.captureDate" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Capture date"
+          }
+        }
+      }
+    },
+    "export.report.pdf.contentType" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Content type"
+          }
+        }
+      }
+    },
+    "export.report.pdf.continued" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "continued"
+          }
+        }
+      }
+    },
+    "export.report.pdf.count" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Count"
+          }
+        }
+      }
+    },
+    "export.report.pdf.coverageSummary" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Coverage Summary"
+          }
+        }
+      }
+    },
+    "export.report.pdf.dailyPresence" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Daily Presence Table"
+          }
+        }
+      }
+    },
+    "export.report.pdf.dailyPresenceExplanation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Every logged calendar date is listed with its final regions and the source categories that contributed to the day. Final regions reflect additive backfills and authoritative manual overrides."
+          }
+        }
+      }
+    },
+    "export.report.pdf.date" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Date"
+          }
+        }
+      }
+    },
+    "export.report.pdf.daysWithoutPresence" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Days without presence"
+          }
+        }
+      }
+    },
+    "export.report.pdf.demoDisclaimer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This report contains generated sample data, not the user's location history. It must not be presented as proof of presence."
+          }
+        }
+      }
+    },
+    "export.report.pdf.distinctLoggedDays" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Distinct logged days"
+          }
+        }
+      }
+    },
+    "export.report.pdf.editLocation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Captured edit location"
+          }
+        }
+      }
+    },
+    "export.report.pdf.evidenceCoordinate" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Evidence-derived coordinates"
+          }
+        }
+      }
+    },
+    "export.report.pdf.evidenceExplanation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The index lists evidence metadata only. Attachment bytes are not embedded in this PDF and remain separate on the device."
+          }
+        }
+      }
+    },
+    "export.report.pdf.evidenceId" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Evidence ID"
+          }
+        }
+      }
+    },
+    "export.report.pdf.evidenceIndex" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Evidence Index"
+          }
+        }
+      }
+    },
+    "export.report.pdf.evidenceRecords" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Evidence records"
+          }
+        }
+      }
+    },
+    "export.report.pdf.fidelity" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fidelity"
+          }
+        }
+      }
+    },
+    "export.report.pdf.finalRegions" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Final regions"
+          }
+        }
+      }
+    },
+    "export.report.pdf.generated" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Generated"
+          }
+        }
+      }
+    },
+    "export.report.pdf.geometrySource" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geometry source"
+          }
+        }
+      }
+    },
+    "export.report.pdf.gpsSignificantChange" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GPS significant-change samples"
+          }
+        }
+      }
+    },
+    "export.report.pdf.gpsVisit" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GPS visit samples"
+          }
+        }
+      }
+    },
+    "export.report.pdf.jurisdictionDays" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jurisdiction-days"
+          }
+        }
+      }
+    },
+    "export.report.pdf.kind" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kind"
+          }
+        }
+      }
+    },
+    "export.report.pdf.latitude" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Latitude"
+          }
+        }
+      }
+    },
+    "export.report.pdf.longitude" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Longitude"
+          }
+        }
+      }
+    },
+    "export.report.pdf.manualAuditExplanation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contiguous manual records with identical mode, regions, and audit metadata are consolidated without dropping any affected dates."
+          }
+        }
+      }
+    },
+    "export.report.pdf.manualCoordinate" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Manual coordinate samples"
+          }
+        }
+      }
+    },
+    "export.report.pdf.manualDayRecords" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Manual-day records"
+          }
+        }
+      }
+    },
+    "export.report.pdf.manualEntryAudit" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Manual-Entry Audit"
+          }
+        }
+      }
+    },
+    "export.report.pdf.metersAbbreviation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "m"
+          }
+        }
+      }
+    },
+    "export.report.pdf.method.currentDevice" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Current-device snapshot: this report records data available in Where on this device at generation time. Data held only on another device or not yet synchronized is not represented."
+          }
+        }
+      }
+    },
+    "export.report.pdf.method.editsImports" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "User edits and imports: manual entries, evidence-derived coordinates, restored backups, and synchronized records can change the result. This report exposes those source categories but cannot independently validate them."
+          }
+        }
+      }
+    },
+    "export.report.pdf.method.manual" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Manual behavior: additive entries union their regions with coordinate-derived regions. Authoritative manual overrides replace the coordinate-derived regions for their date; raw coordinates remain stored separately."
+          }
+        }
+      }
+    },
+    "export.report.pdf.method.noCertification" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Limitations: this standard PDF is not PDF/A, encrypted, digitally signed, tamper-evident, backend-verified, or independently certified. Evidence attachments are not embedded."
+          }
+        }
+      }
+    },
+    "export.report.pdf.method.other" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Other: the region named Other means a coordinate fell outside every tracked region loaded for this report, or a user explicitly assigned an unlisted place. It does not identify a specific jurisdiction."
+          }
+        }
+      }
+    },
+    "export.report.pdf.method.timezone" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Timezone bucketing: GPS samples store instants but not the device's historical timezone. Where assigns them to Gregorian calendar dates using the reporting timezone printed on the cover. Travel near midnight can therefore bucket differently from the timezone present at capture."
+          }
+        }
+      }
+    },
+    "export.report.pdf.methodology" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Methodology and Limitations"
+          }
+        }
+      }
+    },
+    "export.report.pdf.missingDateRanges" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Missing date ranges"
+          }
+        }
+      }
+    },
+    "export.report.pdf.mode" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mode"
+          }
+        }
+      }
+    },
+    "export.report.pdf.nonExclusiveExplanation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Counts are non-exclusive jurisdiction-days. A calendar date can count in multiple regions, so regional totals can exceed the number of distinct logged days. These totals do not represent hours, nights, or elapsed duration."
+          }
+        }
+      }
+    },
+    "export.report.pdf.none" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "None"
+          }
+        }
+      }
+    },
+    "export.report.pdf.notAssigned" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not assigned"
+          }
+        }
+      }
+    },
+    "export.report.pdf.notAvailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not available"
+          }
+        }
+      }
+    },
+    "export.report.pdf.note" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Note"
+          }
+        }
+      }
+    },
+    "export.report.pdf.of" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "of"
+          }
+        }
+      }
+    },
+    "export.report.pdf.page" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Page"
+          }
+        }
+      }
+    },
+    "export.report.pdf.rawGpsAppendix" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Raw Device-GPS Appendix"
+          }
+        }
+      }
+    },
+    "export.report.pdf.rawGpsExplanation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Every gpsVisit and gpsSignificantChange sample in the selected year is included below without sampling or truncation, ordered by timestamp and UUID. Manual and evidence-derived coordinates are excluded."
+          }
+        }
+      }
+    },
+    "export.report.pdf.recordedAt" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recorded at"
+          }
+        }
+      }
+    },
+    "export.report.pdf.region" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Region"
+          }
+        }
+      }
+    },
+    "export.report.pdf.regionalTotals" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Regional Totals"
+          }
+        }
+      }
+    },
+    "export.report.pdf.regions" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Regions"
+          }
+        }
+      }
+    },
+    "export.report.pdf.reportId" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Report ID"
+          }
+        }
+      }
+    },
+    "export.report.pdf.reportingTimeZone" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reporting timezone"
+          }
+        }
+      }
+    },
+    "export.report.pdf.sampleUuid" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sample UUID"
+          }
+        }
+      }
+    },
+    "export.report.pdf.source" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Source"
+          }
+        }
+      }
+    },
+    "export.report.pdf.sourceLinks" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Source links"
+          }
+        }
+      }
+    },
+    "export.report.pdf.storedSource" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stored source"
+          }
+        }
+      }
+    },
+    "export.report.pdf.subject" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where annual jurisdiction-day presence audit"
+          }
+        }
+      }
+    },
+    "export.report.pdf.timestamp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Timestamp"
+          }
+        }
+      }
+    },
+    "export.report.pdf.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where Presence Report"
+          }
+        }
+      }
+    },
+    "export.report.pdf.todayIncomplete" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The generation date appears in recorded presence, but today is an incomplete calendar day and is excluded from the missing-day gap calculation."
+          }
+        }
+      }
+    },
+    "export.report.pdf.trackedRegions" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tracked regions"
+          }
+        }
+      }
+    },
+    "export.report.pdf.type.image" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Image"
+          }
+        }
+      }
+    },
+    "export.report.pdf.type.other" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Other"
+          }
+        }
+      }
+    },
+    "export.report.pdf.type.pdf" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PDF"
+          }
+        }
+      }
+    },
+    "export.report.pdf.type.rawData" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Raw data"
+          }
+        }
+      }
+    },
+    "export.report.pdf.type.text" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plain text"
+          }
+        }
+      }
+    },
+    "export.report.preparedFor" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prepared for (optional)"
+          }
+        }
+      }
+    },
+    "export.report.preview.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Report Preview"
+          }
+        }
+      }
+    },
+    "export.report.rawGps.toggle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Include raw device GPS"
+          }
+        }
+      }
+    },
+    "export.report.rawGps.warning" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This discloses every stored device-GPS coordinate for the year. The appendix can make the PDF very large, and email providers may reject attachments over their size limits. Off by default every time."
+          }
+        }
+      }
+    },
+    "export.report.reference" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reference (optional)"
+          }
+        }
+      }
+    },
+    "export.report.share" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Share"
+          }
+        }
+      }
+    },
+    "export.report.share.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "After generation, review the PDF before sharing it through Mail, AirDrop, Files, Messages, or another installed app."
+          }
+        }
+      }
+    },
+    "export.report.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export Annual Report"
+          }
+        }
+      }
+    },
+    "export.report.toolbar" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export Report"
+          }
+        }
+      }
+    },
+    "export.report.year" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Year"
+          }
+        }
+      }
+    },
     "launch.accessibilityLabel" : {
       "comment" : "Spoken by VoiceOver while the launch splash is on screen (the icon and radar animation are decorative and hidden from accessibility).",
       "extractionState" : "manual",

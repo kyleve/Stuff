@@ -44,6 +44,14 @@ public protocol WhereStore: Sendable {
     func samples(in interval: DateInterval) async throws -> [LocationSample]
     func allSamples() async throws -> [LocationSample]
 
+    /// Every table needed by an annual audit, captured as one logical read.
+    /// `SwiftDataStore` overrides this to use one actor turn/read context; the
+    /// protocol default composes ordinary reads for lightweight stores.
+    func auditRecords(
+        in interval: DateInterval,
+        manualDays dayRange: ClosedRange<CalendarDay>,
+    ) async throws -> YearAuditRecords
+
     func write(evidence: Evidence, blob: Data?) async throws
     func evidence(in interval: DateInterval) async throws -> [Evidence]
     /// Every evidence record in the store, regardless of `capturedAt`. Used
@@ -133,6 +141,22 @@ extension WhereStore {
     /// California / New York / Canada / European Union set.
     public static var defaultTrackedRegions: Set<Region> {
         [.california, .newYork, .canada, .europeanUnion]
+    }
+
+    public func auditRecords(
+        in interval: DateInterval,
+        manualDays dayRange: ClosedRange<CalendarDay>,
+    ) async throws -> YearAuditRecords {
+        let samples = try await samples(in: interval)
+        let manualDays = try await manualDays(in: dayRange)
+        let evidence = try await evidence(in: interval)
+        let trackedRegions = try await trackedRegions()
+        return YearAuditRecords(
+            samples: samples,
+            manualDays: manualDays,
+            evidence: evidence,
+            trackedRegions: trackedRegions,
+        )
     }
 
     /// Default: the out-of-the-box set. `SwiftDataStore` overrides this with the

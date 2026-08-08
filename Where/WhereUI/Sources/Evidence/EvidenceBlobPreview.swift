@@ -1,4 +1,3 @@
-import PDFKit
 import SwiftUI
 import UIKit
 import WhereCore
@@ -74,38 +73,6 @@ struct EvidenceBlobPreview: View {
         } description: {
             Text(String(localized: .evidenceDetailPreviewFailed))
         }
-    }
-}
-
-/// Thin `PDFView` wrapper so evidence PDFs preview inline (auto-scaled, paged).
-private struct PDFDocumentView: UIViewRepresentable {
-    let data: Data
-
-    /// Remembers the bytes the current `PDFDocument` was built from, so
-    /// `updateUIView` rebuilds only on a genuine change. Comparing against
-    /// `PDFView.document?.dataRepresentation()` doesn't work: PDFKit re-encodes
-    /// on export, so its byte count differs from the input and the document
-    /// would be rebuilt on every layout pass — resetting the user's scroll/zoom.
-    final class Coordinator {
-        var data: Data?
-    }
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator()
-    }
-
-    func makeUIView(context: Context) -> PDFView {
-        let view = PDFView()
-        view.autoScales = true
-        view.document = PDFDocument(data: data)
-        context.coordinator.data = data
-        return view
-    }
-
-    func updateUIView(_ view: PDFView, context: Context) {
-        guard context.coordinator.data != data else { return }
-        context.coordinator.data = data
-        view.document = PDFDocument(data: data)
     }
 }
 

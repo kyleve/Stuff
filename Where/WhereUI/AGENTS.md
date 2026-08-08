@@ -4,7 +4,7 @@ WhereUI is the SwiftUI layer of the Where feature: the screens, the shared
 components and widget views, and the `@Observable` view models that
 orchestrate `WhereCore` for them (`WhereModel`, the `WhereSession`
 coordinator, and the scoped `YearReportModel` / `ResolveModel` /
-`BackupModel` / `RemindersSettingsModel`). Layering, localization, preview,
+`BackupModel` / `YearExportModel` / `RemindersSettingsModel`). Layering, localization, preview,
 and testing conventions live in the feature [`Where/AGENTS.md`](../AGENTS.md)
 — read that and the root [`AGENTS.md`](../../AGENTS.md) first.
 
@@ -13,6 +13,9 @@ and testing conventions live in the feature [`Where/AGENTS.md`](../AGENTS.md)
 - Presentation layer only — no domain rules, persistence, or store I/O here
   ([Layering](../AGENTS.md#layering)). Dependencies live in the root
   [`Package.swift`](../../Package.swift).
+- Annual export rendering belongs here, but audit semantics do not: consume one
+  `YearAuditReport`, render it off the main actor, and keep identity fields,
+  raw coordinates, notes, and rows out of logs.
 - Composition is the one exception: `WhereScope` and `WhereModel` decide which
   world the app is logged in to and assemble it. That's launch wiring, not
   domain logic — see [Scopes and the launch](../AGENTS.md#scopes-and-the-launch).

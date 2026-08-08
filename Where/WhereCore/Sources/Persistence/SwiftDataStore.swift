@@ -477,6 +477,82 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         }
     }
 
+    /// Fetch every annual-audit table through the same actor-confined context
+    /// without an `await` between fetches. That makes the returned value a
+    /// coherent SwiftData snapshot even if another task is waiting to commit.
+    public func auditRecords(
+        in interval: DateInterval,
+        manualDays dayRange: ClosedRange<CalendarDay>,
+    ) async throws -> YearAuditRecords {
+        let context = readContext()
+        let start = interval.start
+        let end = interval.end
+        let low = dayRange.lowerBound.description
+        let high = dayRange.upperBound.description
+
+        var sampleDescriptor = FetchDescriptor<SDLocationSample>(
+            predicate: #Predicate {
+                if let timestamp = $0.timestamp {
+                    timestamp >= start && timestamp < end
+                } else {
+                    false
+                }
+            },
+            sortBy: [SortDescriptor(\.timestamp)],
+        )
+        sampleDescriptor.includePendingChanges = true
+        let samples = try context.fetch(sampleDescriptor).compactMap { record in
+            let value = record.toValue()
+            if value == nil { Self.logFault(forCorrupt: record) }
+            return value
+        }
+
+        var manualDescriptor = FetchDescriptor<SDManualDay>(
+            predicate: #Predicate {
+                if let dayKey = $0.dayKey {
+                    dayKey >= low && dayKey <= high
+                } else {
+                    false
+                }
+            },
+            sortBy: [SortDescriptor(\.dayKey)],
+        )
+        manualDescriptor.includePendingChanges = true
+        let manualDays = try context.fetch(manualDescriptor).compactMap { record in
+            let value = record.toValue()
+            if value == nil { Self.logFault(forCorrupt: record) }
+            return value
+        }
+
+        var evidenceDescriptor = FetchDescriptor<SDEvidence>(
+            predicate: #Predicate {
+                if let capturedAt = $0.capturedAt {
+                    capturedAt >= start && capturedAt < end
+                } else {
+                    false
+                }
+            },
+            sortBy: [SortDescriptor(\.capturedAt)],
+        )
+        evidenceDescriptor.includePendingChanges = true
+        let evidence = try context.fetch(evidenceDescriptor).compactMap { record in
+            let value = record.toValue()
+            if value == nil { Self.logFault(forCorrupt: record) }
+            return value
+        }
+
+        var trackedDescriptor = FetchDescriptor<SDTrackedRegion>()
+        trackedDescriptor.includePendingChanges = true
+        let trackedIDs = try context.fetch(trackedDescriptor).compactMap(\.regionID)
+
+        return YearAuditRecords(
+            samples: samples,
+            manualDays: manualDays,
+            evidence: evidence,
+            trackedRegions: Self.resolvedTrackedRegions(ids: trackedIDs),
+        )
+    }
+
     public func write(evidence: Evidence, blob: Data?) async throws {
         let context = mutationContext()
         let id = evidence.id
@@ -757,10 +833,14 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         var descriptor = FetchDescriptor<SDTrackedRegion>()
         descriptor.includePendingChanges = true
         let ids = try context.fetch(descriptor).compactMap(\.regionID)
+        return Self.resolvedTrackedRegions(ids: ids)
+    }
+
+    private static func resolvedTrackedRegions(ids: [String]) -> Set<Region> {
         // No rows means the user hasn't chosen yet — fall back to the default
         // set (applied identically in every process). Once any row exists, the
         // tracked set is exactly the persisted rows.
-        guard !ids.isEmpty else { return Self.defaultTrackedRegions }
+        guard !ids.isEmpty else { return defaultTrackedRegions }
         // Unknown ids (e.g. a region dropped from the catalog) are filtered out
         // rather than crashing. Surface it: a stored id we can't resolve is a
         // degraded state — and if *every* id drops, the resulting empty set makes
@@ -775,7 +855,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             }
         }
         if !unknown.isEmpty {
-            Self.logger {
+            logger {
                 .ignoredUnknownTrackedRegions(ids: unknown.sorted())
             }
         }

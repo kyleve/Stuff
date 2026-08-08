@@ -11,8 +11,11 @@ struct YearView: View {
 
     @State private var mode: YearMode
     @State private var showingRecentActivity = false
+    @State private var showingExport = false
+    @State private var exportModel: YearExportModel?
 
     @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.isInDemoMode) private var isInDemoMode
 
     init(report: YearReportModel, initialMode: YearMode = .calendar) {
         self.report = report
@@ -51,10 +54,37 @@ struct YearView: View {
                     }
                     .accessibilityIdentifier("where_recent_activity_button")
                 }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        exportModel = YearExportModel(
+                            reader: report.services.reports,
+                            displayedYear: report.selectedYear,
+                            calendar: report.calendar,
+                            locale: .current,
+                            buildInfo: .current(bundle: .main),
+                            now: report.now,
+                        )
+                        showingExport = true
+                    } label: {
+                        Label(
+                            String(localized: .exportReportToolbar),
+                            systemImage: "square.and.arrow.up",
+                        )
+                    }
+                    .accessibilityIdentifier("where_export_report_button")
+                }
             }
         }
         .sheet(isPresented: $showingRecentActivity) {
             RecentActivitySummaryView(report: report)
+        }
+        .sheet(isPresented: $showingExport, onDismiss: {
+            exportModel?.sheetDidDismiss()
+            exportModel = nil
+        }) {
+            if let exportModel {
+                YearExportView(model: exportModel, isDemo: isInDemoMode)
+            }
         }
     }
 }

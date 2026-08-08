@@ -155,7 +155,10 @@ slow.
   store is injected as a no-op or skipped at the call site (Spotlight indexing
   in `AppDelegate`), and Settings hides the groups that would reach past it
   (`SettingsDestination.isAvailableInDemoMode`). A new persisting surface needs
-  the same treatment.
+  the same treatment. The user-requested annual PDF export is the sole explicit
+  exception: it may create/share a temporary sample document, but its demo
+  filename and metadata say demo and every page carries a non-removable
+  `SAMPLE — DEMO DATA` watermark.
 - **`WhereModel` decides when a scope routes its logs.** A scope holds its log
   store from birth and routes only while active, so one that opens while
   shadowed is remembered rather than attached. Guard:
