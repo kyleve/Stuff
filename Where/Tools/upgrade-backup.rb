@@ -29,6 +29,11 @@ ISSUE_PARAM_NAMES = {
   "abruptChange" => %w[earlier later],
 }.freeze
 
+DATE_KEYS = %w[
+  exportedAt timestamp capturedAt dismissedAt registeredAt changedAt removedAt recordedAt
+  lastSeenAt auditRecordedAt auditLocationTimestamp
+].to_set.freeze
+
 def die(message)
   warn "error: #{message}"
   exit 1
@@ -114,6 +119,24 @@ def upgrade_dismissals!(manifest)
   end
 end
 
+def normalize_dates!(value)
+  case value
+  when Hash
+    value.each do |key, child|
+      value[key] = if DATE_KEYS.include?(key) && child.is_a?(String)
+        Time.iso8601(child).to_f
+      else
+        normalize_dates!(child)
+      end
+    rescue ArgumentError
+      die "could not parse date value for #{key}: #{child.inspect}"
+    end
+  when Array
+    value.each { |child| normalize_dates!(child) }
+  end
+  value
+end
+
 def source_format_version(manifest)
   version = manifest["formatVersion"]
   die "manifest formatVersion must be an integer" unless version.is_a?(Integer)
@@ -129,6 +152,7 @@ def upgrade_manifest(manifest)
   upgrade_evidence!(manifest, warnings)
   upgrade_manual_days!(manifest, warnings)
   upgrade_dismissals!(manifest)
+  normalize_dates!(manifest)
   manifest["dismissedIssues"] ||= []
   manifest["trackedRegions"] ||= []
   manifest["trackedRegions"] = manifest["trackedRegions"].map do |id|

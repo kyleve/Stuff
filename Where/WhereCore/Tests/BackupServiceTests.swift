@@ -190,29 +190,6 @@ struct BackupServiceTests {
         #expect(result.blobs == blobs)
     }
 
-    @Test func decoderAcceptsLegacyWholeSecondISO8601Dates() throws {
-        let archive = BackupArchive(
-            exportedAt: Self.exportDate,
-            samples: [],
-            evidence: [],
-            manualDays: [],
-            dismissedIssues: [],
-            trackedRegions: [],
-            primaryRegions: [],
-            recordingDeviceProfiles: [],
-            recordingDeviceMetadataChanges: [],
-            recordingDeviceRemovals: [],
-            assets: [],
-        )
-        let legacyEncoder = JSONEncoder()
-        legacyEncoder.dateEncodingStrategy = .iso8601
-        let legacyData = try legacyEncoder.encode(archive)
-
-        let decoded = try BackupService.makeDecoder().decode(BackupArchive.self, from: legacyData)
-
-        #expect(decoded == archive)
-    }
-
     @Test func olderFormatIsRejectedBeforeItsMissingCurrentFieldsAreDecoded() {
         let legacyManifest = Data(#"{"formatVersion":4}"#.utf8)
 

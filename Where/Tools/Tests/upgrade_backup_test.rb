@@ -42,6 +42,17 @@ class UpgradeBackupTest < Minitest::Test
     assert_equal once, upgrade_manifest(Marshal.load(Marshal.dump(once)))
   end
 
+  def test_normalizes_legacy_iso8601_dates_to_current_unix_timestamps
+    manifest = base_manifest(1)
+    manifest["exportedAt"] = "2023-11-14T22:13:20Z"
+    manifest["samples"].first["timestamp"] = "2023-11-14T22:15:00.500Z"
+
+    upgraded = upgrade_manifest(manifest)
+
+    assert_equal 1_700_000_000.0, upgraded.fetch("exportedAt")
+    assert_equal 1_700_000_100.5, upgraded.fetch("samples").first.fetch("timestamp")
+  end
+
   def test_rejects_branch_only_or_future_formats
     error = assert_raises(SystemExit) { upgrade_manifest(base_manifest(4)) }
     assert_equal 1, error.status
