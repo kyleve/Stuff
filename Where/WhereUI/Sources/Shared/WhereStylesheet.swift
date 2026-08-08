@@ -1127,7 +1127,6 @@ extension WhereStylesheet {
         var ribbonTrack: Color
         var ribbonBorder: Color
         var ribbonBorderWidth: CGFloat
-        var minimumRibbonSegmentWidth: CGFloat
         /// The route, marker, and space between the marker and row card.
         var railLineWidth: CGFloat
         var railToCardSpacing: CGFloat
@@ -1167,7 +1166,6 @@ extension WhereStylesheet {
             ribbonTrack: Color.primary.opacity(0.07),
             ribbonBorder: Color.primary.opacity(0.12),
             ribbonBorderWidth: 1,
-            minimumRibbonSegmentWidth: 3,
             railLineWidth: 4,
             railToCardSpacing: 10,
             nodeSize: 42,

@@ -40,7 +40,6 @@ struct YearRibbon: View {
 
                         Canvas { context, size in
                             let daysInYear = calendar.dayCount(ofYear: year)
-                            let dayWidth = size.width / CGFloat(daysInYear)
                             for day in days {
                                 let date = day.startOfDay(in: calendar)
                                 guard let ordinal = calendar.ordinality(
@@ -50,16 +49,13 @@ struct YearRibbon: View {
                                 ) else { continue }
 
                                 let regions = Region.inCanonicalOrder(day.regions)
-                                let laneHeight = size.height / CGFloat(max(1, regions.count))
                                 for (lane, region) in regions.enumerated() {
-                                    let rect = CGRect(
-                                        x: CGFloat(ordinal - 1) * dayWidth,
-                                        y: CGFloat(lane) * laneHeight,
-                                        width: max(
-                                            timeline.minimumRibbonSegmentWidth,
-                                            dayWidth,
-                                        ),
-                                        height: laneHeight,
+                                    let rect = YearRibbonLayout.segmentRect(
+                                        ordinal: ordinal,
+                                        daysInYear: daysInYear,
+                                        size: size,
+                                        lane: lane,
+                                        laneCount: regions.count,
                                     )
                                     context.fill(
                                         Path(rect),

@@ -290,7 +290,6 @@ struct WhereStylesheetTests {
         #expect(timeline.ribbonTrack == Color.primary.opacity(0.07))
         #expect(timeline.ribbonBorder == Color.primary.opacity(0.12))
         #expect(timeline.ribbonBorderWidth == 1)
-        #expect(timeline.minimumRibbonSegmentWidth == 3)
         #expect(timeline.railLineWidth == 4)
         #expect(timeline.railToCardSpacing == 10)
         #expect(timeline.nodeSize == 42)
