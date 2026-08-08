@@ -1,11 +1,13 @@
 import Foundation
 
-/// Broad hardware family used to choose an icon without persisting a
-/// user-visible device name supplied by the operating system.
-public enum RecordingDeviceKind: String, Codable, Sendable, Hashable {
+/// Broad hardware family used to choose an icon, with an optional stable platform label for
+/// hardware the current build does not recognize explicitly.
+public enum RecordingDeviceKind: Codable, Sendable, Hashable {
     case phone
     case tablet
-    case other
+    case computer
+    case watch
+    case other(String?)
 
     /// Safe first-run recommendation for automatic recording. A phone usually
     /// travels with its owner; tablets and other devices are commonly left
@@ -13,7 +15,33 @@ public enum RecordingDeviceKind: String, Codable, Sendable, Hashable {
     public var recommendsAutomaticRecording: Bool {
         switch self {
             case .phone: true
-            case .tablet, .other: false
+            case .tablet, .computer, .watch, .other: false
+        }
+    }
+
+    var persistenceDiscriminator: String {
+        switch self {
+            case .phone: "phone"
+            case .tablet: "tablet"
+            case .computer: "computer"
+            case .watch: "watch"
+            case .other: "other"
+        }
+    }
+
+    var persistenceDetail: String? {
+        guard case let .other(detail) = self else { return nil }
+        return detail
+    }
+
+    init?(persistenceDiscriminator: String, detail: String?) {
+        switch persistenceDiscriminator {
+            case "phone": self = .phone
+            case "tablet": self = .tablet
+            case "computer": self = .computer
+            case "watch": self = .watch
+            case "other": self = .other(detail)
+            default: return nil
         }
     }
 }
@@ -35,6 +63,8 @@ public enum RecordingDeviceStatus: String, Codable, Sendable, Hashable {
 /// doing so would let CloudKit's last writer overwrite fields owned by another device.
 public struct RecordingDevice: Identifiable, Codable, Sendable, Hashable {
     public let id: RecordingDeviceID
+    /// Hardware-family fallback captured at registration (for example “iPhone” or “iPad”), not
+    /// the user's device name. `nickname` is the synced user-editable display name.
     public let systemName: String
     public let nickname: String?
     public let kind: RecordingDeviceKind
@@ -90,6 +120,7 @@ public struct RecordingDevice: Identifiable, Codable, Sendable, Hashable {
 /// synced device list.
 public struct CurrentRecordingDevice: Sendable, Hashable {
     public let id: RecordingDeviceID
+    /// Hardware-family fallback supplied by the platform composition boundary.
     public let systemName: String
     public let kind: RecordingDeviceKind
 

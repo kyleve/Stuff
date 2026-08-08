@@ -48,7 +48,7 @@ struct SDLocationSampleTests {
                 horizontalAccuracy: 0,
                 source: .manual,
             ),
-            epochID: .initial,
+            generationID: .initial,
         )
         record.sourceRaw = nil
         #expect(record.toValue() == nil)
@@ -62,7 +62,7 @@ struct SDLocationSampleTests {
                 horizontalAccuracy: 0,
                 source: .manual,
             ),
-            epochID: .initial,
+            generationID: .initial,
         )
         record.sourceRaw = "not-a-real-source"
         #expect(record.toValue() == nil)

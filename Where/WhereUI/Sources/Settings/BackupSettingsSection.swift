@@ -1,10 +1,10 @@
 import PeriscopeCore
 import SwiftUI
-import UniformTypeIdentifiers
 import WhereCore
 
-/// The whole-database backup section embedded in ``DataSettingsView``: export
-/// to a shareable `.zip`, or import one by merging or replacing the store.
+/// The whole-database backup section embedded in ``DataSettingsView``.
+/// Imports deliberately live only in onboarding, where the app can recover a
+/// committed archive before exposing a running session.
 struct BackupSettingsSection: View {
     let backup: BackupModel
 
@@ -12,58 +12,12 @@ struct BackupSettingsSection: View {
     /// `ShareLink` once the background export finishes.
     @State private var exportedArchiveURL: URL?
 
-    // Backup import: the picked file and the merge/replace choice. The committed
-    // result lives on `backup`, so its success/partial-success acknowledgment
-    // survives this screen being popped mid-import.
-    @State private var showImporter = false
-    @State private var pendingImportURL: URL?
-    @State private var showStrategyDialog = false
-
     /// How long a finished export stays offered before it's auto-discarded.
     private static let exportRetention: Duration = .seconds(10 * 60)
 
     var body: some View {
         @Bindable var backup = backup
         backupSection
-            .fileImporter(
-                isPresented: $showImporter,
-                allowedContentTypes: [.zip],
-                onCompletion: handleImportSelection,
-            )
-            .confirmationDialog(
-                String(localized: .settingsBackupImportStrategyTitle),
-                isPresented: $showStrategyDialog,
-                titleVisibility: .visible,
-                presenting: pendingImportURL,
-            ) { url in
-                Button(String(localized: .settingsBackupMerge)) { runImport(
-                    url: url,
-                    strategy: .merge,
-                )
-                }
-                Button(String(localized: .settingsBackupReplace), role: .destructive) {
-                    runImport(url: url, strategy: .replace)
-                }
-                Button(String(localized: .settingsDataCancel), role: .cancel) {
-                    pendingImportURL = nil
-                }
-            } message: { _ in
-                Text(String(localized: .settingsBackupImportStrategyMessage))
-            }
-            .alert(
-                importResultTitle,
-                isPresented: $backup.isShowingImportResult,
-                presenting: backup.lastImportResult,
-            ) { result in
-                if result.requiresCleanupRecovery {
-                    Button(String(localized: .settingsBackupRetryCleanup)) {
-                        runImportCleanupRecovery()
-                    }
-                }
-                Button(String(localized: .commonOk), role: .cancel) {}
-            } message: { result in
-                Text(importResultMessage(result))
-            }
             .alert(
                 String(localized: .settingsBackupErrorTitle),
                 isPresented: $backup.isShowingBackupError,
@@ -111,43 +65,10 @@ struct BackupSettingsSection: View {
                 }
             }
 
-            if backup.importCleanupRecoverySummary != nil {
-                Button {
-                    runImportCleanupRecovery()
-                } label: {
-                    Label(
-                        importCleanupActionTitle,
-                        systemImage: "arrow.clockwise",
-                    )
-                }
-                .disabled(backup.backupState != .idle)
-            }
-
-            Button {
-                showImporter = true
-            } label: {
-                if backup.backupState == .importing {
-                    backupProgressLabel(
-                        String(localized: .settingsBackupImporting),
-                        systemImage: "square.and.arrow.down",
-                    )
-                } else {
-                    Label(
-                        String(localized: .settingsBackupImport),
-                        systemImage: "square.and.arrow.down",
-                    )
-                }
-            }
-            .disabled(!backup.canImport)
-            .settingsRow(DataSettingsView.Item.importBackup)
         } header: {
             Text(String(localized: .settingsBackupHeader))
         } footer: {
-            if backup.importCleanupRecoverySummary != nil {
-                Text(String(localized: .settingsBackupCleanupRequired))
-            } else {
-                Text(String(localized: .settingsBackupFooter))
-            }
+            Text(String(localized: .settingsBackupFooter))
         }
         // A finished export lingers in the temp directory; stop offering it (and
         // reclaim the file) after a while so a stale link can't be shared. The
@@ -156,15 +77,12 @@ struct BackupSettingsSection: View {
         .task(id: exportedArchiveURL) {
             await expireExportIfNeeded()
         }
-        .task {
-            await backup.refreshImportRecoveryState()
-        }
-        // Log View Mode: reveal an inspect badge for backup export/import
+        // Log View Mode: reveal an inspect badge for backup export
         // events on this section. A no-op in release.
         .debugLogInspectable(WhereLog.session(BackupModelLog.self))
     }
 
-    /// Determinate progress for an in-flight export or import, driven by
+    /// Determinate progress for an in-flight export, driven by
     /// `backup.backupProgress` as the backup coordinator makes progress.
     private func backupProgressLabel(_ title: String, systemImage: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -195,59 +113,6 @@ struct BackupSettingsSection: View {
         guard !Task.isCancelled else { return }
         exportedArchiveURL = nil
         await backup.discardExport()
-    }
-
-    private func handleImportSelection(_ result: Result<URL, any Error>) {
-        switch result {
-            case let .success(url):
-                pendingImportURL = url
-                showStrategyDialog = true
-            case let .failure(error):
-                backup.presentBackupError(error)
-        }
-    }
-
-    private func runImport(url: URL, strategy: BackupCoordinator.ImportStrategy) {
-        Task {
-            // A committed result drives either the success or partial-success
-            // alert; the return value is unused here.
-            _ = await backup.importBackup(from: url, strategy: strategy)
-            pendingImportURL = nil
-        }
-    }
-
-    private func runImportCleanupRecovery() {
-        Task {
-            await backup.retryImportCleanup()
-        }
-    }
-
-    private var importCleanupActionTitle: String {
-        if backup.backupState == .recoveringImportCleanup {
-            String(localized: .settingsBackupRetryingCleanup)
-        } else {
-            String(localized: .settingsBackupRetryCleanup)
-        }
-    }
-
-    private var importResultTitle: String {
-        switch backup.lastImportResult {
-            case .imported:
-                String(localized: .settingsBackupImportedTitle)
-            case .committedWithCleanupFailure:
-                String(localized: .backupImportCleanupTitle)
-            case nil:
-                ""
-        }
-    }
-
-    private func importResultMessage(_ result: BackupModel.ImportResult) -> String {
-        switch result {
-            case let .imported(summary):
-                WhereFormat.settingsBackupImportedMessage(summary)
-            case let .committedWithCleanupFailure(summary):
-                WhereFormat.backupImportCleanupMessage(summary)
-        }
     }
 }
 

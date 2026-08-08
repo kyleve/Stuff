@@ -34,7 +34,7 @@ struct StoreRemoteChangeSourceTests {
         let stream = source.remoteChanges
         let external = ModelContext(container)
         external.author = "where-other-process"
-        external.insert(SDTrackedRegion(regionID: "us-TX", epochID: .initial))
+        external.insert(SDTrackedRegion(regionID: "us-TX", generationID: .initial))
         try external.save()
 
         withExtendedLifetime(source) {
@@ -63,7 +63,7 @@ struct StoreRemoteChangeSourceTests {
             testingAfterHistoryBaseline: {
                 let external = ModelContext(container)
                 external.author = "where-other-process"
-                external.insert(SDTrackedRegion(regionID: "us-TX", epochID: .initial))
+                external.insert(SDTrackedRegion(regionID: "us-TX", generationID: .initial))
                 try external.save()
             },
         )
@@ -88,7 +88,7 @@ struct StoreRemoteChangeSourceTests {
         let stream = source.remoteChanges
         let local = ModelContext(container)
         local.author = localAuthor
-        local.insert(SDTrackedRegion(regionID: "us-TX", epochID: .initial))
+        local.insert(SDTrackedRegion(regionID: "us-TX", generationID: .initial))
         try local.save()
 
         withExtendedLifetime(source) {

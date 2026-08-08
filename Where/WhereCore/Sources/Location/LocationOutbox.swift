@@ -2,16 +2,16 @@ import Foundation
 import JournalKit
 import PeriscopeCore
 
-/// One retryable raw sample together with the logical generation that authorized it. The epoch
+/// One retryable raw sample together with the logical generation that authorized it. The generation
 /// token is load-bearing: a sample captured before reset can be discarded, but can never be
 /// reclassified and written into the post-reset account state.
 public struct LocationOutboxEntry: Codable, Sendable, Hashable {
     public let sample: LocationSample
-    public let dataEpochID: WhereDataEpochID
+    public let dataGenerationID: WhereDataGenerationID
 
-    public init(sample: LocationSample, dataEpochID: WhereDataEpochID) {
+    public init(sample: LocationSample, dataGenerationID: WhereDataGenerationID) {
         self.sample = sample
-        self.dataEpochID = dataEpochID
+        self.dataGenerationID = dataGenerationID
     }
 }
 
@@ -405,7 +405,8 @@ public actor FileLocationOutbox: LocationOutbox {
         try Data(contentsOf: fileURL)
     }
 
-    /// Decode the epoch-bearing format, with a one-way compatibility path for the pre-epoch
+    /// Decode the generation-bearing format, with a one-way compatibility path for the
+    /// pre-generation
     /// sample array. Legacy entries belong to the implicit initial generation and are therefore
     /// automatically discarded rather than replayed after any destructive rotation.
     private static func decodeEntries(from data: Data) throws -> [LocationOutboxEntry] {
@@ -415,7 +416,7 @@ public actor FileLocationOutbox: LocationOutbox {
         } catch let currentError {
             do {
                 return try decoder.decode([LocationSample].self, from: data).map {
-                    LocationOutboxEntry(sample: $0, dataEpochID: .initial)
+                    LocationOutboxEntry(sample: $0, dataGenerationID: .initial)
                 }
             } catch {
                 throw currentError

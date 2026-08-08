@@ -62,7 +62,9 @@ struct ReportReaderTests {
                 recordingDeviceID: deviceID,
             ))
             try await store.addRecordingDeviceRemoval(RecordingDeviceRemoval(
-                id: UUID(uuidString: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB")!,
+                id: .init(
+                    rawValue: UUID(uuidString: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB")!,
+                ),
                 deviceID: deviceID,
                 removedAt: WhereCoreTestSupport.iso("2026-01-11T00:00:00-08:00"),
                 removedByDeviceID: deviceID,

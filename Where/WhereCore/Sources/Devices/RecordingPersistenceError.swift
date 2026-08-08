@@ -8,9 +8,9 @@ public enum RecordingPersistenceError: Error, LocalizedError, Sendable, Hashable
     case currentDeviceNotRegistered(RecordingDeviceID)
     case currentDeviceRemoved(RecordingDeviceID)
     case revisionExhausted(RecordingDeviceID)
-    case incompleteDataEpochHistory
-    case dataEpochRevisionExhausted
-    case dataEpochChanged
+    case incompleteDataGenerationHistory
+    case dataGenerationRevisionExhausted
+    case dataGenerationChanged
     case recordingRewriteInProgress
 
     public var errorDescription: String? {
@@ -27,12 +27,12 @@ public enum RecordingPersistenceError: Error, LocalizedError, Sendable, Hashable
                 String(localized: .recordingErrorCurrentDevicePolicyUnknown)
             case .revisionExhausted:
                 String(localized: .recordingErrorRevisionExhausted)
-            case .incompleteDataEpochHistory:
-                String(localized: .recordingErrorIncompleteDataEpochHistory)
-            case .dataEpochRevisionExhausted:
-                String(localized: .recordingErrorDataEpochRevisionExhausted)
-            case .dataEpochChanged:
-                String(localized: .recordingErrorDataEpochChanged)
+            case .incompleteDataGenerationHistory:
+                String(localized: .recordingErrorIncompleteDataGenerationHistory)
+            case .dataGenerationRevisionExhausted:
+                String(localized: .recordingErrorDataGenerationRevisionExhausted)
+            case .dataGenerationChanged:
+                String(localized: .recordingErrorDataGenerationChanged)
             case .recordingRewriteInProgress:
                 String(localized: .recordingErrorRewriteInProgress)
         }

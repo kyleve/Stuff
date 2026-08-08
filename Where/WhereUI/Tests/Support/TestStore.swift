@@ -104,22 +104,22 @@ actor TestStore: WhereStore {
         backing.changes()
     }
 
-    func dataEpoch() async throws -> WhereDataEpoch {
-        try await backing.dataEpoch()
+    func dataGeneration() async throws -> WhereDataGeneration {
+        try await backing.dataGeneration()
     }
 
     func recordingDeviceResetBarrier(
-        for registrationEpochID: WhereDataEpochID,
+        for registrationGenerationID: WhereDataGenerationID,
     ) async throws -> Date? {
-        try await backing.recordingDeviceResetBarrier(for: registrationEpochID)
+        try await backing.recordingDeviceResetBarrier(for: registrationGenerationID)
     }
 
-    func rotateDataEpoch(
-        reason: WhereDataEpochReason,
+    func rotateDataGeneration(
+        reason: WhereDataGenerationReason,
         changedBy deviceID: RecordingDeviceID,
         at date: Date,
-    ) async throws -> WhereDataEpoch {
-        try await backing.rotateDataEpoch(reason: reason, changedBy: deviceID, at: date)
+    ) async throws -> WhereDataGeneration {
+        try await backing.rotateDataGeneration(reason: reason, changedBy: deviceID, at: date)
     }
 
     func backupImportReceipt(

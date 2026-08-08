@@ -1,9 +1,9 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# Reshapes a legacy Where backup into the current v3 manifest. The automatic-recording feature
-# was not shipped in v1 or v2, so upgrading adds the four new recording tables empty; it never
-# invents an installation or recording consent.
+# Reshapes a legacy Where backup into the current v4 manifest. The automatic-recording feature
+# was not shipped in v1 or v2, so upgrading adds the recording tables empty; it never invents an
+# installation or recording consent. v4 expands device kinds and groups metadata edit payloads.
 
 require "json"
 require "tmpdir"
@@ -12,7 +12,7 @@ require "time"
 require "set"
 
 MANIFEST_NAME = "manifest.json"
-CURRENT_FORMAT_VERSION = 3
+CURRENT_FORMAT_VERSION = 4
 SUPPORTED_SOURCE_FORMAT_VERSIONS = (1..CURRENT_FORMAT_VERSION).freeze
 
 REGION_MAP = {
@@ -28,6 +28,11 @@ ISSUE_PARAM_NAMES = {
   "borderDrift" => %w[day],
   "abruptChange" => %w[earlier later],
 }.freeze
+
+DATE_KEYS = %w[
+  exportedAt timestamp capturedAt dismissedAt registeredAt changedAt removedAt recordedAt
+  lastSeenAt auditRecordedAt auditLocationTimestamp
+].to_set.freeze
 
 def die(message)
   warn "error: #{message}"
@@ -114,6 +119,44 @@ def upgrade_dismissals!(manifest)
   end
 end
 
+def normalize_dates!(value)
+  case value
+  when Hash
+    value.each do |key, child|
+      value[key] = if DATE_KEYS.include?(key) && child.is_a?(String)
+        Time.iso8601(child).to_f
+      else
+        normalize_dates!(child)
+      end
+    rescue ArgumentError
+      die "could not parse date value for #{key}: #{child.inspect}"
+    end
+  when Array
+    value.each { |child| normalize_dates!(child) }
+  end
+  value
+end
+
+def upgrade_recording_devices!(manifest, source_version)
+  return unless source_version < 4
+
+  Array(manifest["recordingDeviceProfiles"]).each do |profile|
+    kind = profile["kind"]
+    profile["kind"] = { kind => {} } if kind.is_a?(String)
+    if profile.key?("registrationEpochID")
+      profile["registrationGenerationID"] = profile.delete("registrationEpochID")
+    end
+  end
+
+  Array(manifest["recordingDeviceMetadataChanges"]).each do |change|
+    next if change.key?("payload")
+
+    payload = { "field" => change.delete("field") }
+    payload["nickname"] = change.delete("nickname") if change.key?("nickname")
+    change["payload"] = payload
+  end
+end
+
 def source_format_version(manifest)
   version = manifest["formatVersion"]
   die "manifest formatVersion must be an integer" unless version.is_a?(Integer)
@@ -124,11 +167,12 @@ def source_format_version(manifest)
 end
 
 def upgrade_manifest(manifest)
-  source_format_version(manifest)
+  source_version = source_format_version(manifest)
   warnings = []
   upgrade_evidence!(manifest, warnings)
   upgrade_manual_days!(manifest, warnings)
   upgrade_dismissals!(manifest)
+  normalize_dates!(manifest)
   manifest["dismissedIssues"] ||= []
   manifest["trackedRegions"] ||= []
   manifest["trackedRegions"] = manifest["trackedRegions"].map do |id|
@@ -144,6 +188,7 @@ def upgrade_manifest(manifest)
   manifest["recordingDeviceProfiles"] ||= []
   manifest["recordingDeviceMetadataChanges"] ||= []
   manifest["recordingDeviceRemovals"] ||= []
+  upgrade_recording_devices!(manifest, source_version)
   manifest.delete("recordingDevices")
   manifest.delete("recordingDeviceCheckIns")
   manifest.delete("recordingPolicyChanges")

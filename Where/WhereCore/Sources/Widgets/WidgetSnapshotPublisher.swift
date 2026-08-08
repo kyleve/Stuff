@@ -88,7 +88,8 @@ public actor WidgetSnapshotPublisher {
                     )
                 }
             } catch let error as RecordingPersistenceError {
-                // Epoch/policy gaps mean a destructive CloudKit change may already be known even
+                // Generation/policy gaps mean a destructive CloudKit change may already be known
+                // even
                 // though its complete rows have not arrived. Keeping the last good snapshot would
                 // continue exposing history the user erased, so publish an honest empty value
                 // until a later remote-change reconcile can build the new generation.

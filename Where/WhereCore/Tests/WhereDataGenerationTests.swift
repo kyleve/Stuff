@@ -2,14 +2,14 @@ import Foundation
 import Testing
 @testable import WhereCore
 
-struct WhereDataEpochTests {
+struct WhereDataGenerationTests {
     private static let deviceID = RecordingDeviceID(
         rawValue: UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")!,
     )
     private static let baseDate = Date(timeIntervalSinceReferenceDate: 100)
 
     @Test func noDestructiveChangesResolveToTheImplicitRoot() throws {
-        let resolution = try WhereDataEpoch.resolve(in: [])
+        let resolution = try WhereDataGeneration.resolve(in: [])
 
         #expect(resolution.current == .initial)
         #expect(resolution.realHeads == [.initial])
@@ -20,7 +20,7 @@ struct WhereDataEpochTests {
             id: "10000000-0000-0000-0000-000000000000",
             changedAt: Self.baseDate,
         )
-        let later = Self.epoch(
+        let later = Self.generation(
             id: "20000000-0000-0000-0000-000000000000",
             parentIDs: [reset.id],
             revision: 2,
@@ -28,20 +28,20 @@ struct WhereDataEpochTests {
             reason: .backupReplace,
         )
 
-        #expect(try WhereDataEpoch.resetBarrier(for: .initial, in: [reset, later]) == reset
+        #expect(try WhereDataGeneration.resetBarrier(for: .initial, in: [reset, later]) == reset
             .changedAt)
-        #expect(try WhereDataEpoch.resetBarrier(for: later.id, in: [reset, later]) == nil)
+        #expect(try WhereDataGeneration.resetBarrier(for: later.id, in: [reset, later]) == nil)
     }
 
     @Test func concurrentResetOutranksReplaceAtTheSameRevision() throws {
-        let replacement = Self.epoch(
+        let replacement = Self.generation(
             id: "30000000-0000-0000-0000-000000000000",
             parentIDs: [.initial],
             revision: 1,
             changedAt: Self.baseDate,
             reason: .backupReplace,
         )
-        let reset = Self.epoch(
+        let reset = Self.generation(
             id: "10000000-0000-0000-0000-000000000000",
             parentIDs: [.initial],
             revision: 1,
@@ -49,10 +49,10 @@ struct WhereDataEpochTests {
             reason: .accountReset,
         )
 
-        #expect(try WhereDataEpoch.canonicalHead(in: [replacement, reset]) == reset)
+        #expect(try WhereDataGeneration.canonicalHead(in: [replacement, reset]) == reset)
     }
 
-    @Test func twoConcurrentResetsResolveToLockedSyntheticEmptyEpoch() throws {
+    @Test func twoConcurrentResetsResolveToLockedSyntheticEmptyGeneration() throws {
         let first = Self.reset(
             id: "10000000-0000-0000-0000-000000000000",
             changedAt: Self.baseDate,
@@ -62,7 +62,7 @@ struct WhereDataEpochTests {
             changedAt: Self.baseDate.addingTimeInterval(1),
         )
 
-        let resolution = try WhereDataEpoch.resolve(in: [second, first])
+        let resolution = try WhereDataGeneration.resolve(in: [second, first])
 
         #expect(
             resolution.current.id.rawValue
@@ -75,7 +75,7 @@ struct WhereDataEpochTests {
         #expect(resolution.realHeads == [first, second])
     }
 
-    @Test func anotherConcurrentResetChangesTheSyntheticEpochIdentity() throws {
+    @Test func anotherConcurrentResetChangesTheSyntheticGenerationIdentity() throws {
         let first = Self.reset(
             id: "10000000-0000-0000-0000-000000000000",
             changedAt: Self.baseDate,
@@ -89,8 +89,8 @@ struct WhereDataEpochTests {
             changedAt: Self.baseDate.addingTimeInterval(2),
         )
 
-        let twoResetID = try WhereDataEpoch.resolve(in: [first, second]).current.id
-        let threeResetID = try WhereDataEpoch.resolve(in: [third, second, first]).current.id
+        let twoResetID = try WhereDataGeneration.resolve(in: [first, second]).current.id
+        let threeResetID = try WhereDataGeneration.resolve(in: [third, second, first]).current.id
 
         #expect(twoResetID.rawValue == UUID(
             uuidString: "44DF774E-FC5C-8C4B-8742-04737BFCFED9",
@@ -110,7 +110,7 @@ struct WhereDataEpochTests {
             id: "20000000-0000-0000-0000-000000000000",
             changedAt: Self.baseDate.addingTimeInterval(1),
         )
-        let replacement = Self.epoch(
+        let replacement = Self.generation(
             id: "F0000000-0000-0000-0000-000000000000",
             parentIDs: [.initial],
             revision: 1,
@@ -118,8 +118,8 @@ struct WhereDataEpochTests {
             reason: .backupReplace,
         )
 
-        let before = try WhereDataEpoch.resolve(in: [first, second])
-        let after = try WhereDataEpoch.resolve(in: [replacement, second, first])
+        let before = try WhereDataGeneration.resolve(in: [first, second])
+        let after = try WhereDataGeneration.resolve(in: [replacement, second, first])
 
         #expect(after.current.id == before.current.id)
         #expect(after.current.parentIDs == before.current.parentIDs)
@@ -135,7 +135,7 @@ struct WhereDataEpochTests {
             id: "20000000-0000-0000-0000-000000000000",
             changedAt: Self.baseDate.addingTimeInterval(1),
         )
-        let replacement = Self.epoch(
+        let replacement = Self.generation(
             id: "30000000-0000-0000-0000-000000000000",
             parentIDs: [second.id, first.id],
             revision: 2,
@@ -143,11 +143,12 @@ struct WhereDataEpochTests {
             reason: .backupReplace,
         )
 
-        let resolution = try WhereDataEpoch.resolve(in: [second, replacement, first])
+        let resolution = try WhereDataGeneration.resolve(in: [second, replacement, first])
 
         #expect(resolution.current == replacement)
         #expect(resolution.realHeads == [replacement])
-        #expect(try WhereDataEpoch.maximalHeads(in: [replacement, first, second]) == [replacement])
+        #expect(try WhereDataGeneration
+            .maximalHeads(in: [replacement, first, second]) == [replacement])
     }
 
     @Test func missingOneNamedParentFailsClosed() {
@@ -156,7 +157,7 @@ struct WhereDataEpochTests {
             changedAt: Self.baseDate,
         )
         let missing = Self.id("20000000-0000-0000-0000-000000000000")
-        let invalidJoin = Self.epoch(
+        let invalidJoin = Self.generation(
             id: "30000000-0000-0000-0000-000000000000",
             parentIDs: [first.id, missing],
             revision: 2,
@@ -164,13 +165,13 @@ struct WhereDataEpochTests {
             reason: .backupReplace,
         )
 
-        #expect(throws: RecordingPersistenceError.incompleteDataEpochHistory) {
-            try WhereDataEpoch.resolve(in: [first, invalidJoin])
+        #expect(throws: RecordingPersistenceError.incompleteDataGenerationHistory) {
+            try WhereDataGeneration.resolve(in: [first, invalidJoin])
         }
     }
 
-    @Test func persistedEpochCannotReuseTheImplicitRootIdentity() {
-        let invalid = WhereDataEpoch(
+    @Test func persistedGenerationCannotReuseTheImplicitRootIdentity() {
+        let invalid = WhereDataGeneration(
             id: .initial,
             parentIDs: [Self.id("10000000-0000-0000-0000-000000000000")],
             revision: 1,
@@ -179,8 +180,8 @@ struct WhereDataEpochTests {
             reason: .accountReset,
         )
 
-        #expect(throws: RecordingPersistenceError.incompleteDataEpochHistory) {
-            try WhereDataEpoch.canonicalHead(in: [invalid])
+        #expect(throws: RecordingPersistenceError.incompleteDataGenerationHistory) {
+            try WhereDataGeneration.canonicalHead(in: [invalid])
         }
     }
 
@@ -193,7 +194,7 @@ struct WhereDataEpochTests {
             id: "20000000-0000-0000-0000-000000000000",
             changedAt: Self.baseDate.addingTimeInterval(1),
         )
-        let collision = Self.epoch(
+        let collision = Self.generation(
             id: "44DF774E-FC5C-8C4B-8742-04737BFCFED9",
             parentIDs: [.initial],
             revision: 1,
@@ -201,13 +202,13 @@ struct WhereDataEpochTests {
             reason: .backupReplace,
         )
 
-        #expect(throws: RecordingPersistenceError.incompleteDataEpochHistory) {
-            try WhereDataEpoch.resolve(in: [collision, second, first])
+        #expect(throws: RecordingPersistenceError.incompleteDataGenerationHistory) {
+            try WhereDataGeneration.resolve(in: [collision, second, first])
         }
     }
 
     @Test func persistedEventCannotUseAnyUUIDv8SyntheticIdentity() {
-        let invalid = Self.epoch(
+        let invalid = Self.generation(
             id: "DEADBEEF-0000-8000-8000-000000000001",
             parentIDs: [.initial],
             revision: 1,
@@ -215,8 +216,8 @@ struct WhereDataEpochTests {
             reason: .backupReplace,
         )
 
-        #expect(throws: RecordingPersistenceError.incompleteDataEpochHistory) {
-            try WhereDataEpoch.resolve(in: [invalid])
+        #expect(throws: RecordingPersistenceError.incompleteDataGenerationHistory) {
+            try WhereDataGeneration.resolve(in: [invalid])
         }
     }
 
@@ -225,7 +226,7 @@ struct WhereDataEpochTests {
             id: "10000000-0000-0000-0000-000000000000",
             changedAt: Self.baseDate,
         )
-        let child = Self.epoch(
+        let child = Self.generation(
             id: "20000000-0000-0000-0000-000000000000",
             parentIDs: [parent.id],
             revision: 2,
@@ -233,13 +234,13 @@ struct WhereDataEpochTests {
             reason: .backupReplace,
         )
 
-        #expect(throws: RecordingPersistenceError.incompleteDataEpochHistory) {
-            try WhereDataEpoch.canonicalHead(in: [parent, child])
+        #expect(throws: RecordingPersistenceError.incompleteDataGenerationHistory) {
+            try WhereDataGeneration.canonicalHead(in: [parent, child])
         }
     }
 
-    private static func reset(id: String, changedAt: Date) -> WhereDataEpoch {
-        epoch(
+    private static func reset(id: String, changedAt: Date) -> WhereDataGeneration {
+        generation(
             id: id,
             parentIDs: [.initial],
             revision: 1,
@@ -248,14 +249,14 @@ struct WhereDataEpochTests {
         )
     }
 
-    private static func epoch(
+    private static func generation(
         id: String,
-        parentIDs: [WhereDataEpochID],
+        parentIDs: [WhereDataGenerationID],
         revision: Int64,
         changedAt: Date,
-        reason: WhereDataEpochReason,
-    ) -> WhereDataEpoch {
-        WhereDataEpoch(
+        reason: WhereDataGenerationReason,
+    ) -> WhereDataGeneration {
+        WhereDataGeneration(
             id: self.id(id),
             parentIDs: parentIDs,
             revision: revision,
@@ -265,7 +266,7 @@ struct WhereDataEpochTests {
         )
     }
 
-    private static func id(_ value: String) -> WhereDataEpochID {
-        WhereDataEpochID(rawValue: UUID(uuidString: value)!)
+    private static func id(_ value: String) -> WhereDataGenerationID {
+        WhereDataGenerationID(rawValue: UUID(uuidString: value)!)
     }
 }

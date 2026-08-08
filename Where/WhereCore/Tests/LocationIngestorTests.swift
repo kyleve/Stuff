@@ -40,7 +40,7 @@ struct LocationIngestorTests {
             failsToClear: Bool = false,
             failsToSave: Bool = false,
         ) {
-            entries = contents.map { LocationOutboxEntry(sample: $0, dataEpochID: .initial) }
+            entries = contents.map { LocationOutboxEntry(sample: $0, dataGenerationID: .initial) }
             self.failsToClear = failsToClear
             self.failsToSave = failsToSave
         }
@@ -310,7 +310,7 @@ struct LocationIngestorTests {
         // outside the new authority window.
         source.emit(beforeConsent)
         await ingestor.revokeRecordingAuthorization()
-        try await ingestor.start(effectiveAt: enabledAt, dataEpochID: .initial)
+        try await ingestor.start(effectiveAt: enabledAt, dataGenerationID: .initial)
         source.emit(afterConsent)
 
         try await waitUntil { await (try? store.allSamples().count) == 1 }
@@ -336,7 +336,7 @@ struct LocationIngestorTests {
         #expect(try await store.allSamples().count == 1)
     }
 
-    @Test func liveSampleFromSupersededEpochStopsWithoutEnteringRetryOutbox() async throws {
+    @Test func liveSampleFromSupersededGenerationStopsWithoutEnteringRetryOutbox() async throws {
         let store = try SwiftDataStore.inMemory()
         let source = ScriptedLocationSource(authorizationStatus: .always)
         let ingestor = Self.makeIngestor(
@@ -344,9 +344,9 @@ struct LocationIngestorTests {
             source: source,
             recorder: OutcomeRecorder(),
         )
-        try await ingestor.start(effectiveAt: .distantPast, dataEpochID: .initial)
+        try await ingestor.start(effectiveAt: .distantPast, dataGenerationID: .initial)
         _ = try await store.perform {
-            try await store.rotateDataEpoch(
+            try await store.rotateDataGeneration(
                 reason: .accountReset,
                 changedBy: CurrentRecordingDevice.preview.id,
                 at: Date(timeIntervalSinceReferenceDate: 100),
@@ -563,10 +563,11 @@ struct LocationIngestorTests {
         #expect(stored.first?.recordingDeviceID == originalDeviceID)
     }
 
-    @Test func authorizingNewEpochDiscardsOldEpochBacklogWithoutPersistingIt() async throws {
+    @Test func authorizingNewGenerationDiscardsOldGenerationBacklogWithoutPersistingIt(
+    ) async throws {
         let store = try SwiftDataStore.inMemory()
-        let newEpoch = try await store.perform {
-            try await store.rotateDataEpoch(
+        let newGeneration = try await store.perform {
+            try await store.rotateDataGeneration(
                 reason: .accountReset,
                 changedBy: CurrentRecordingDevice.preview.id,
                 at: Date(timeIntervalSinceReferenceDate: 100),
@@ -575,7 +576,7 @@ struct LocationIngestorTests {
         let outbox = SpyLocationOutbox()
         try await outbox.save([LocationOutboxEntry(
             sample: sample(at: "2026-03-15T12:00:00-07:00"),
-            dataEpochID: .initial,
+            dataGenerationID: .initial,
         )])
         let ingestor = Self.makeIngestor(
             store: store,
@@ -586,7 +587,7 @@ struct LocationIngestorTests {
 
         try await ingestor.authorizeRecording(
             effectiveAt: .distantPast,
-            dataEpochID: newEpoch.id,
+            dataGenerationID: newGeneration.id,
         )
 
         #expect(await ingestor.retryQueueDepth == 0)
@@ -594,11 +595,11 @@ struct LocationIngestorTests {
         #expect(try await store.allSamples().isEmpty)
     }
 
-    @Test func epochRotationDuringBacklogDrainFailsClosedWithoutStartingGPS() async throws {
+    @Test func generationRotationDuringBacklogDrainFailsClosedWithoutStartingGPS() async throws {
         let backing = try SwiftDataStore.inMemory()
         let gatedStore = ToggleFailingStore(backing: backing)
         let gate = OneShotGate()
-        await gatedStore.gateNextExpectedEpochPerform(with: gate)
+        await gatedStore.gateNextExpectedGenerationPerform(with: gate)
         let outbox = SpyLocationOutbox([sample(at: "2026-03-15T12:00:00-07:00")])
         let ingestor = Self.makeIngestor(
             store: gatedStore,
@@ -608,11 +609,11 @@ struct LocationIngestorTests {
         )
 
         let start = Task {
-            try await ingestor.start(effectiveAt: .distantPast, dataEpochID: .initial)
+            try await ingestor.start(effectiveAt: .distantPast, dataGenerationID: .initial)
         }
         await gate.waitUntilEntered()
         _ = try await backing.perform {
-            try await backing.rotateDataEpoch(
+            try await backing.rotateDataGeneration(
                 reason: .accountReset,
                 changedBy: CurrentRecordingDevice.preview.id,
                 at: Date(timeIntervalSinceReferenceDate: 100),
@@ -620,7 +621,7 @@ struct LocationIngestorTests {
         }
         await gate.release()
 
-        await #expect(throws: RecordingPersistenceError.dataEpochChanged) {
+        await #expect(throws: RecordingPersistenceError.dataGenerationChanged) {
             try await start.value
         }
         #expect(await !ingestor.testingIsAcceptingSamples)
@@ -727,7 +728,7 @@ struct LocationIngestorTests {
                 coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
                 horizontalAccuracy: 0,
                 source: .gpsSignificantChange,
-            ), dataEpochID: .initial)
+            ), dataGenerationID: .initial)
         }
         #expect(await ingestor.retryQueueDepth == 20)
 
@@ -737,7 +738,7 @@ struct LocationIngestorTests {
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 0,
             source: .gpsSignificantChange,
-        ), dataEpochID: .initial)
+        ), dataGenerationID: .initial)
 
         let queuedIDs = await ingestor.testingRetryQueueSampleIDs()
         #expect(queuedIDs.count == 20)
@@ -923,7 +924,7 @@ private actor OneShotGate {
 private actor ToggleFailingStore: WhereStore {
     private let backing: SwiftDataStore
     private var shouldFail = false
-    private var nextExpectedEpochGate: OneShotGate?
+    private var nextExpectedGenerationGate: OneShotGate?
 
     init(backing: SwiftDataStore) {
         self.backing = backing
@@ -933,8 +934,8 @@ private actor ToggleFailingStore: WhereStore {
         shouldFail = value
     }
 
-    func gateNextExpectedEpochPerform(with gate: OneShotGate) {
-        nextExpectedEpochGate = gate
+    func gateNextExpectedGenerationPerform(with gate: OneShotGate) {
+        nextExpectedGenerationGate = gate
     }
 
     func perform<T: Sendable>(_ block: @Sendable () async throws -> T) async throws -> T {
@@ -942,36 +943,36 @@ private actor ToggleFailingStore: WhereStore {
     }
 
     func perform<T: Sendable>(
-        expectedDataEpochID: WhereDataEpochID,
+        expectedDataGenerationID: WhereDataGenerationID,
         _ block: @Sendable () async throws -> T,
     ) async throws -> T {
-        if let gate = nextExpectedEpochGate {
-            nextExpectedEpochGate = nil
+        if let gate = nextExpectedGenerationGate {
+            nextExpectedGenerationGate = nil
             await gate.suspend()
         }
-        return try await backing.perform(expectedDataEpochID: expectedDataEpochID, block)
+        return try await backing.perform(expectedDataGenerationID: expectedDataGenerationID, block)
     }
 
     nonisolated func changes() -> AsyncStream<Void> {
         backing.changes()
     }
 
-    func dataEpoch() async throws -> WhereDataEpoch {
-        try await backing.dataEpoch()
+    func dataGeneration() async throws -> WhereDataGeneration {
+        try await backing.dataGeneration()
     }
 
     func recordingDeviceResetBarrier(
-        for registrationEpochID: WhereDataEpochID,
+        for registrationGenerationID: WhereDataGenerationID,
     ) async throws -> Date? {
-        try await backing.recordingDeviceResetBarrier(for: registrationEpochID)
+        try await backing.recordingDeviceResetBarrier(for: registrationGenerationID)
     }
 
-    func rotateDataEpoch(
-        reason: WhereDataEpochReason,
+    func rotateDataGeneration(
+        reason: WhereDataGenerationReason,
         changedBy deviceID: RecordingDeviceID,
         at date: Date,
-    ) async throws -> WhereDataEpoch {
-        try await backing.rotateDataEpoch(reason: reason, changedBy: deviceID, at: date)
+    ) async throws -> WhereDataGeneration {
+        try await backing.rotateDataGeneration(reason: reason, changedBy: deviceID, at: date)
     }
 
     func backupImportReceipt(

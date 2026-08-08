@@ -88,6 +88,7 @@ public struct InstallationRecordingContext: Sendable, Hashable {
 
     /// The throwaway identity used by demo mode. It is intentionally distinct
     /// from test fixtures and never belongs to the real installation sidecar.
+    @_spi(Demo)
     public static let demo = InstallationRecordingContext(
         currentDevice: CurrentRecordingDevice(
             id: RecordingDeviceID(

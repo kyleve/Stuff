@@ -120,7 +120,7 @@ public final class WhereModel {
     /// bootstrap this model creates, so onboarding and service assembly cannot
     /// resolve different identities.
     private let installationContextStore: any InstallationRecordingContextStoring
-    private var interruptedOnboardingImportError: (any Error)?
+    private let onboardingImportRecovery: OnboardingImportRecoveryModel
 
     /// Makes the bootstrap a logged-out state carries. A factory rather than
     /// a stored instance, because a bootstrap is spent by the login it serves:
@@ -209,41 +209,26 @@ public final class WhereModel {
     /// Whether the sidecar says onboarding crossed or may have crossed an import commit. The
     /// launch gate uses this one narrow exception to open the store before offering Restore.
     var hasInterruptedOnboardingImport: Bool {
-        installationContextStore.backupImportRecovery?.details.purpose == .onboarding
+        onboardingImportRecovery.hasInterruptedImport
     }
 
     /// Reassert the backed-up preference from the sidecar's terminal import authority. The
     /// sidecar write is the durable boundary because `UserDefaults` can return from its setter
     /// before the preference reaches disk.
     func repairOnboardingFromCompletedImportIfNeeded() {
-        guard installationContextStore.onboardingImportCompletion != nil,
-              !hasOnboarded
-        else { return }
-        completeOnboarding()
+        onboardingImportRecovery.repairCompletedImportIfNeeded(
+            hasOnboarded: hasOnboarded,
+            completeOnboarding: completeOnboarding,
+        )
     }
 
-    /// Resolve any import transaction left across a process death before the launch exposes this
-    /// scope to App Intents or starts recording. Settings imports do not pass through onboarding's
-    /// special gate, so this scope-level preflight is the common safety boundary for every import
-    /// purpose.
+    /// Resolve any onboarding import transaction left across a process death before launch
+    /// exposes this scope to App Intents or starts recording.
     func preflightPendingImportRecovery(in scope: WhereScope) async throws {
-        guard let pendingRecovery = installationContextStore.backupImportRecovery else { return }
-        switch try await scope.services.backup.importRecoveryState() {
-            case .ready:
-                // Hydration proved a prepared transaction rolled back and cleared its marker.
-                return
-            case .cleanupRequired:
-                if pendingRecovery.details.purpose == .onboarding {
-                    // Preserve onboarding's ordering if a marker appears after its gate check:
-                    // persist the backed-up preference before acknowledging it in the sidecar.
-                    completeOnboarding()
-                    try await scope.services.backup.acknowledgeOnboardingImport()
-                }
-                try await scope.services.backup.retryImportCleanup()
-            case .onboardingAcknowledgementRequired:
-                completeOnboarding()
-                try await scope.services.backup.acknowledgeOnboardingImport()
-        }
+        try await onboardingImportRecovery.preflightPendingImport(
+            in: scope,
+            completeOnboarding: completeOnboarding,
+        )
     }
 
     /// Persist this installation's explicit onboarding choice, including a changed retry.
@@ -271,41 +256,17 @@ public final class WhereModel {
     /// Reconcile a cold-launch onboarding import before the Restore UI can be presented.
     /// Returns whether ordinary onboarding is still required.
     func recoverInterruptedOnboardingImport() async -> Bool {
-        guard hasInterruptedOnboardingImport else {
-            return activeScope == nil && (!hasOnboarded || !hasConfirmedRecordingChoice)
-        }
-        do {
-            let scope = try await resolveScope()
-            switch try await scope.services.backup.importRecoveryState() {
-                case .ready:
-                    // Prepared without a receipt: the store transaction never committed. Drop
-                    // the temporarily opened world and offer the original onboarding flow.
-                    await endSession()
-                    return true
-                case .cleanupRequired:
-                    // Write the backed-up preference before acknowledging it in the sidecar.
-                    // Cleanup may still fail; acknowledgement is independent so Settings can
-                    // finish it later without re-entering onboarding.
-                    completeOnboarding()
-                    try await scope.services.backup.acknowledgeOnboardingImport()
-                    try await scope.services.backup.retryImportCleanup()
-                    return false
-                case .onboardingAcknowledgementRequired:
-                    completeOnboarding()
-                    try await scope.services.backup.acknowledgeOnboardingImport()
-                    return false
-            }
-        } catch {
-            // The sidecar remains authoritative. Skip the ordinary Restore surface and let the
-            // resolve step surface this exact failure with its normal retry affordance.
-            interruptedOnboardingImportError = error
-            return false
-        }
+        await onboardingImportRecovery.recoverInterruptedImport(
+            requiresOnboarding: activeScope == nil
+                && (!hasOnboarded || !hasConfirmedRecordingChoice),
+            resolveScope: resolveScope,
+            endSession: endSession,
+            completeOnboarding: completeOnboarding,
+        )
     }
 
     func takeInterruptedOnboardingImportError() -> (any Error)? {
-        defer { interruptedOnboardingImportError = nil }
-        return interruptedOnboardingImportError
+        onboardingImportRecovery.takeInterruptedImportError()
     }
 
     public static var currentYear: Int {
@@ -341,6 +302,9 @@ public final class WhereModel {
     ) {
         self.preferences = preferences
         self.installationContextStore = installationContextStore
+        onboardingImportRecovery = OnboardingImportRecoveryModel(
+            installationContextStore: installationContextStore,
+        )
         self.makeBootstrap = makeBootstrap
         self.logSystem = logSystem
         self.now = now
@@ -377,6 +341,9 @@ public final class WhereModel {
         scopeState = .real(scope)
         self.preferences = preferences
         self.installationContextStore = installationContextStore
+        onboardingImportRecovery = OnboardingImportRecoveryModel(
+            installationContextStore: installationContextStore,
+        )
         makeBootstrap = { _ in InjectedServicesAssembler(services: services) }
         self.logSystem = logSystem
         self.now = now
@@ -600,6 +567,10 @@ private struct InjectedServicesAssembler: WhereScopeAssembling {
 
     func makeServices() async throws -> WhereServices {
         services
+    }
+
+    func discoverRecordingDevices() async throws -> [RecordingDevice] {
+        []
     }
 
     /// No durable logging: a preview or test must leave nothing on disk and no

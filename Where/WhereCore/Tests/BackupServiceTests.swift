@@ -34,8 +34,9 @@ struct BackupServiceTests {
         ]
     }
 
-    private static let recordingMetadataID =
-        UUID(uuidString: "EEEEEEEE-EEEE-EEEE-EEEE-EEEEEEEEEEEE")!
+    private static let recordingMetadataID = RecordingDeviceMetadataChange.ID(
+        rawValue: UUID(uuidString: "EEEEEEEE-EEEE-EEEE-EEEE-EEEEEEEEEEEE")!,
+    )
 
     private static func recordingDeviceProfileFixtures() -> [RecordingDeviceProfile] {
         [
@@ -44,7 +45,7 @@ struct BackupServiceTests {
                 systemName: "iPad",
                 kind: .tablet,
                 registeredAt: exportDate,
-                registrationEpochID: .initial,
+                registrationGenerationID: .initial,
             ),
         ]
     }
@@ -57,7 +58,7 @@ struct BackupServiceTests {
                 revision: 0,
                 changedAt: exportDate,
                 changedByDeviceID: recordingDeviceID,
-                nickname: "Travel iPad",
+                payload: .nickname("Travel iPad"),
             ),
         ]
     }
@@ -144,7 +145,7 @@ struct BackupServiceTests {
         let recordingDeviceProfiles = Self.recordingDeviceProfileFixtures()
         let recordingDeviceMetadataChanges = Self.recordingDeviceMetadataFixtures()
         let deviceArchive = RecordingDeviceRemoval(
-            id: UUID(),
+            id: .init(rawValue: UUID()),
             deviceID: Self.recordingDeviceID,
             removedAt: Self.exportDate,
             removedByDeviceID: Self.recordingDeviceID,
@@ -183,50 +184,27 @@ struct BackupServiceTests {
             encoding: .utf8,
         ))
         #expect(encodedManifest.contains("\"isEnabled\"") == false)
-        #expect(encodedManifest.contains("\"registrationEpochID\""))
+        #expect(encodedManifest.contains("\"registrationGenerationID\""))
         #expect(encodedManifest.contains("00000000-0000-0000-0000-0000000000E0"))
         // Only the evidence with bytes gets an asset; the other is metadata-only.
         #expect(result.archive.assets.map(\.evidenceId) == [Self.evidenceWithBlobId])
         #expect(result.blobs == blobs)
     }
 
-    @Test func decoderAcceptsLegacyWholeSecondISO8601Dates() throws {
-        let archive = BackupArchive(
-            exportedAt: Self.exportDate,
-            samples: [],
-            evidence: [],
-            manualDays: [],
-            dismissedIssues: [],
-            trackedRegions: [],
-            primaryRegions: [],
-            recordingDeviceProfiles: [],
-            recordingDeviceMetadataChanges: [],
-            recordingDeviceRemovals: [],
-            assets: [],
-        )
-        let legacyEncoder = JSONEncoder()
-        legacyEncoder.dateEncodingStrategy = .iso8601
-        let legacyData = try legacyEncoder.encode(archive)
-
-        let decoded = try BackupService.makeDecoder().decode(BackupArchive.self, from: legacyData)
-
-        #expect(decoded == archive)
-    }
-
-    @Test func olderFormatIsRejectedBeforeItsMissingCurrentFieldsAreDecoded() {
-        let legacyManifest = Data(#"{"formatVersion":4}"#.utf8)
+    @Test func unsupportedFormatIsRejectedBeforeItsMissingCurrentFieldsAreDecoded() {
+        let legacyManifest = Data(#"{"formatVersion":5}"#.utf8)
 
         do {
             _ = try BackupService.decodeManifest(legacyManifest)
             Issue.record("Expected the legacy backup format to be rejected.")
-        } catch BackupService.BackupError.unsupportedFormatVersion(4) {
-            // Expected: the version envelope was decoded before the strict v6 shape.
+        } catch BackupService.BackupError.unsupportedFormatVersion(5) {
+            // Expected: the version envelope was decoded before the strict current shape.
         } catch {
             Issue.record("Unexpected error: \(error)")
         }
     }
 
-    @Test func currentFormatDoesNotSilentlyBackfillAMissingProfileEpoch() throws {
+    @Test func currentFormatDoesNotSilentlyBackfillAMissingProfileGeneration() throws {
         let data = try BackupService.makeEncoder().encode(
             Self.archive(),
         )
@@ -238,7 +216,7 @@ struct BackupServiceTests {
         )
         manifest["recordingDeviceProfiles"] = profiles.map { profile in
             var profile = profile
-            profile.removeValue(forKey: "registrationEpochID")
+            profile.removeValue(forKey: "registrationGenerationID")
             return profile
         }
 
@@ -246,9 +224,9 @@ struct BackupServiceTests {
             _ = try BackupService.decodeManifest(
                 JSONSerialization.data(withJSONObject: manifest),
             )
-            Issue.record("Expected the missing registration epoch to be rejected.")
+            Issue.record("Expected the missing registration generation to be rejected.")
         } catch let DecodingError.keyNotFound(key, _) {
-            #expect(key.stringValue == "registrationEpochID")
+            #expect(key.stringValue == "registrationGenerationID")
         } catch {
             Issue.record("Unexpected error: \(error)")
         }

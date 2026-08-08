@@ -9,7 +9,8 @@ struct InstallationRecordingContextStoreTests {
     @Test func mapsInterfaceIdiomsToRecordingKinds() {
         #expect(FileInstallationRecordingContextStore.kind(for: .phone) == .phone)
         #expect(FileInstallationRecordingContextStore.kind(for: .pad) == .tablet)
-        #expect(FileInstallationRecordingContextStore.kind(for: .mac) == .other)
+        #expect(FileInstallationRecordingContextStore.kind(for: .mac) == .computer)
+        #expect(FileInstallationRecordingContextStore.kind(for: .tv) == .other("tv"))
     }
 
     @Test func proposedContextLeavesNoDurableMark() throws {
@@ -85,8 +86,9 @@ struct InstallationRecordingContextStoreTests {
                 manualDayCount: 1,
                 dismissedIssueCount: 0,
                 trackedRegionCount: 4,
+                recordingDeviceCount: 0,
+                recordingDeviceRemovalCount: 0,
             ),
-            purpose: .onboarding,
         )
 
         try store.setBackupImportRecovery(.prepared(details))
@@ -118,8 +120,9 @@ struct InstallationRecordingContextStoreTests {
                 manualDayCount: 1,
                 dismissedIssueCount: 0,
                 trackedRegionCount: 4,
+                recordingDeviceCount: 0,
+                recordingDeviceRemovalCount: 0,
             ),
-            purpose: .onboarding,
         )
         try installationStore.setBackupImportRecovery(.committed(
             details,
@@ -130,7 +133,7 @@ struct InstallationRecordingContextStoreTests {
             store: SwiftDataStore.inMemory(),
             locationSource: ScriptedLocationSource(),
             installationContext: installationContext,
-            importRecoveryPersistence: installationStore.backupImportRecoveryPersistence,
+            importRecoveryPersistence: installationStore,
         )
         let acknowledgedPreferences = makePreferences()
         let acknowledgedModel = WhereModel(
@@ -146,17 +149,6 @@ struct InstallationRecordingContextStoreTests {
         #expect(installationStore.backupImportRecovery == nil)
         #expect(installationStore.onboardingImportCompletion?.transactionID == details
             .transactionID)
-
-        // A later Settings transaction uses the active marker without replacing the terminal
-        // onboarding authority.
-        let settingsDetails = BackupCoordinator.ImportRecoveryDetails(
-            transactionID: UUID(),
-            strategy: .merge,
-            summary: details.summary,
-            purpose: .settings,
-        )
-        try installationStore.setBackupImportRecovery(.prepared(settingsDetails))
-        try installationStore.setBackupImportRecovery(nil)
 
         // Simulate a fresh process whose UserDefaults setter never reached disk. Recreating the
         // file-backed sidecar retains the terminal proof, so the gate repairs the preference and

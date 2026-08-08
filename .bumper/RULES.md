@@ -108,7 +108,7 @@ and retained as the closest lower-level pattern.
 
 `where.store_transaction_boundary` requires calls to the mutating `WhereStore`
 surface through `store` or `self.store` to be lexically contained by
-`store.perform { ... }`.
+`store.perform { ... }` or `store.performInCurrentGeneration { ... }`.
 
 The checked methods are `add`, `write`, `setManualDay`, `clearManualDay`,
 `clear`, `clearAll`, `setIssueDismissed`, `restoreDismissedIssue`,

@@ -77,8 +77,7 @@ public actor DayJournal {
     // MARK: - Ingestion
 
     public func ingest(_ sample: LocationSample) async throws {
-        let epochID = try await (store.dataEpoch()).id
-        try await store.perform(expectedDataEpochID: epochID) {
+        try await store.performInCurrentGeneration {
             try await store.add(sample: sample)
         }
         await widgets.publishAfterIngest(of: sample)
@@ -92,9 +91,8 @@ public actor DayJournal {
     /// sample, which is quadratic in the batch size. An empty batch is a no-op.
     public func ingest(_ samples: [LocationSample]) async throws {
         guard !samples.isEmpty else { return }
-        let epochID = try await (store.dataEpoch()).id
         try await Self.logger.measure(.ingestBatch, budget: .seconds(5)) {
-            try await store.perform(expectedDataEpochID: epochID) {
+            try await store.performInCurrentGeneration {
                 for sample in samples {
                     try await store.add(sample: sample)
                 }
@@ -106,8 +104,7 @@ public actor DayJournal {
     // MARK: - Retroactive entry
 
     public func addManualSample(_ sample: LocationSample) async throws {
-        let epochID = try await (store.dataEpoch()).id
-        try await store.perform(expectedDataEpochID: epochID) {
+        try await store.performInCurrentGeneration {
             try await store.add(sample: sample)
         }
         await widgets.publish()
@@ -120,8 +117,7 @@ public actor DayJournal {
     ) async throws {
         let day = CalendarDay(from: date, in: aggregator.calendar)
         let presence = DayPresence(day: day, regions: regions, audit: audit)
-        let epochID = try await (store.dataEpoch()).id
-        try await store.perform(expectedDataEpochID: epochID) {
+        try await store.performInCurrentGeneration {
             try await store.setManualDay(presence)
         }
         await reconcileAfterDayChange()
@@ -140,8 +136,7 @@ public actor DayJournal {
     ) async throws {
         let day = CalendarDay(from: date, in: aggregator.calendar)
         let presence = DayPresence(day: day, regions: regions, isAuthoritative: true, audit: audit)
-        let epochID = try await (store.dataEpoch()).id
-        try await store.perform(expectedDataEpochID: epochID) {
+        try await store.performInCurrentGeneration {
             try await store.setManualDay(presence)
         }
         await reconcileAfterDayChange()
@@ -154,8 +149,7 @@ public actor DayJournal {
     /// simply lets the aggregator fall back to whatever GPS recorded.
     public func clearManualDay(date: Date) async throws {
         let day = CalendarDay(from: date, in: aggregator.calendar)
-        let epochID = try await (store.dataEpoch()).id
-        try await store.perform(expectedDataEpochID: epochID) {
+        try await store.performInCurrentGeneration {
             try await store.clearManualDay(day)
         }
         await reconcileAfterDayChange()
@@ -174,9 +168,8 @@ public actor DayJournal {
     public func clearManualDays(dates: [Date]) async throws {
         guard !dates.isEmpty else { return }
         let days = dates.map { CalendarDay(from: $0, in: aggregator.calendar) }
-        let epochID = try await (store.dataEpoch()).id
         try await Self.logger.measure(.clearManualDays, budget: .seconds(2)) {
-            try await store.perform(expectedDataEpochID: epochID) {
+            try await store.performInCurrentGeneration {
                 for day in days {
                     try await store.clearManualDay(day)
                 }
@@ -205,11 +198,10 @@ public actor DayJournal {
         let days = CalendarDay(from: start, in: calendar)
             .days(through: CalendarDay(from: end, in: calendar))
         guard !days.isEmpty else { return }
-        let epochID = try await (store.dataEpoch()).id
         // One audit stamps every day in the range — it records the single act of
         // entry, not a per-day fact.
         try await Self.logger.measure(.backfillDays, budget: .seconds(2)) {
-            try await store.perform(expectedDataEpochID: epochID) {
+            try await store.performInCurrentGeneration {
                 for day in days {
                     try await store.setManualDay(
                         DayPresence(day: day, regions: regions, audit: audit),
@@ -228,9 +220,8 @@ public actor DayJournal {
     public func clearYear(_ year: Int) async throws {
         let interval = aggregator.yearInterval(year: year)
         let dayRange = CalendarDay.yearRange(year)
-        let epochID = try await (store.dataEpoch()).id
         try await Self.logger.measure(.clearYear, budget: .seconds(5)) {
-            try await store.perform(expectedDataEpochID: epochID) {
+            try await store.performInCurrentGeneration {
                 try await store.clear(in: interval, manualDays: dayRange)
             }
         }
@@ -249,14 +240,14 @@ public actor DayJournal {
             try await store.perform {
                 let deviceIDs = try await Set(store.recordingDeviceProfiles().map(\.id))
                     .union([currentDeviceID])
-                _ = try await store.rotateDataEpoch(
+                _ = try await store.rotateDataGeneration(
                     reason: .accountReset,
                     changedBy: currentDeviceID,
                     at: resetAt,
                 )
                 for deviceID in deviceIDs {
                     try await store.addRecordingDeviceRemoval(RecordingDeviceRemoval(
-                        id: UUID(),
+                        id: .init(rawValue: UUID()),
                         deviceID: deviceID,
                         removedAt: resetAt,
                         removedByDeviceID: currentDeviceID,
@@ -271,8 +262,7 @@ public actor DayJournal {
     // MARK: - Evidence
 
     public func addEvidence(_ evidence: Evidence, blob: Data? = nil) async throws {
-        let epochID = try await (store.dataEpoch()).id
-        try await store.perform(expectedDataEpochID: epochID) {
+        try await store.performInCurrentGeneration {
             try await store.write(evidence: evidence, blob: blob)
         }
         Self.logger {
@@ -291,8 +281,7 @@ public actor DayJournal {
     // MARK: - Data resolution dismissals
 
     public func dismissIssue(id: DataIssueID) async throws {
-        let epochID = try await (store.dataEpoch()).id
-        try await store.perform(expectedDataEpochID: epochID) {
+        try await store.performInCurrentGeneration {
             try await store.setIssueDismissed(true, id: id)
         }
         // Dismissing removes the issue from the unresolved count, so the badge
@@ -302,8 +291,7 @@ public actor DayJournal {
     }
 
     public func restoreIssue(id: DataIssueID) async throws {
-        let epochID = try await (store.dataEpoch()).id
-        try await store.perform(expectedDataEpochID: epochID) {
+        try await store.performInCurrentGeneration {
             try await store.setIssueDismissed(false, id: id)
         }
         await reconcileIssueState()

@@ -77,27 +77,7 @@ public struct BackupService: Sendable {
 
     static func makeDecoder() -> JSONDecoder {
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .custom { decoder in
-            let container = try decoder.singleValueContainer()
-            if let seconds = try? container.decode(Double.self) {
-                return Date(timeIntervalSince1970: seconds)
-            }
-
-            let value = try container.decode(String.self)
-            if let date = try? Date(
-                value,
-                strategy: Date.ISO8601FormatStyle(includingFractionalSeconds: true),
-            ) {
-                return date
-            }
-            if let date = try? Date(value, strategy: Date.ISO8601FormatStyle()) {
-                return date
-            }
-            throw DecodingError.dataCorruptedError(
-                in: container,
-                debugDescription: "Expected a Unix timestamp or ISO8601 date.",
-            )
-        }
+        decoder.dateDecodingStrategy = .secondsSince1970
         return decoder
     }
 

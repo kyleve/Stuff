@@ -2,23 +2,6 @@ import Foundation
 import Observation
 import WhereCore
 
-@MainActor
-protocol DevicesSettingsSession: AnyObject {
-    var currentRecordingDeviceID: RecordingDeviceID { get }
-    func recordingDeviceUpdates() -> AsyncStream<Void>
-    func recordingDevices() async throws -> [RecordingDeviceConfiguration]
-    func setRecordingEnabled(_ enabled: Bool) async throws
-    func renameRecordingDevice(_ deviceID: RecordingDeviceID, to nickname: String) async throws
-    func removeRecordingDevice(_ deviceID: RecordingDeviceID) async throws
-    func requestPermission() async
-}
-
-extension WhereSession: DevicesSettingsSession {
-    func recordingDeviceUpdates() -> AsyncStream<Void> {
-        services.dataChangeUpdates()
-    }
-}
-
 /// View-scoped Devices settings state. Refreshes are read-only; commands originate only from
 /// explicit row intents, so a CloudKit update can never submit a local recording choice.
 @MainActor
@@ -48,7 +31,7 @@ final class DevicesSettingsModel {
         }
     }
 
-    private let session: any DevicesSettingsSession
+    private let session: WhereSession
     private(set) var state: LoadState = .idle
     private(set) var rows: [DeviceSettingsRowModel] = []
     private(set) var presentedFailure: Failure?
@@ -63,13 +46,13 @@ final class DevicesSettingsModel {
         presentedFailure?.context == .refresh
     }
 
-    init(session: any DevicesSettingsSession) {
+    init(session: WhereSession) {
         self.session = session
     }
 
     #if DEBUG
         init(
-            session: any DevicesSettingsSession,
+            session: WhereSession,
             configurations: [RecordingDeviceConfiguration],
         ) {
             self.session = session
@@ -79,7 +62,7 @@ final class DevicesSettingsModel {
     #endif
 
     func run() async {
-        let updates = session.recordingDeviceUpdates()
+        let updates = session.services.dataChangeUpdates()
         await load(showLoading: true)
         for await _ in updates {
             await load(showLoading: false)

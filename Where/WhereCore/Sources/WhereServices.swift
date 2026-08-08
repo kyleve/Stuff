@@ -1,6 +1,27 @@
 import Foundation
 import RegionKit
 
+/// Rebuilds every projection affected by a remote, backup, or device-ledger write.
+private struct DerivedDataReconciler {
+    let liveAttribution: RegionAttribution?
+    let resolution: DataIssueScanner
+    let reminders: ReminderReconciler
+    let summary: DailySummaryReconciler
+    let issueAlerts: DataIssueAlertReconciler
+    let widgets: WidgetSnapshotPublisher
+
+    func reconcile() async {
+        if let liveAttribution {
+            await liveAttribution.reconcile()
+        }
+        await resolution.invalidate()
+        await reminders.reconcile()
+        await summary.reconcile()
+        await issueAlerts.reconcile()
+        await widgets.publish()
+    }
+}
+
 /// The Where feature's service layer: a small `Sendable` container of the
 /// focused collaborators that, together, do everything the old `WhereController`
 /// god-actor used to. In the app one is assembled per `WhereScope` — the real
@@ -99,7 +120,8 @@ public struct WhereServices: Sendable {
         issueAlertScheduler: any DataIssueAlertScheduling = NoopDataIssueAlertScheduler(),
         widgetRefresher: any WidgetTimelineRefreshing = NoopWidgetTimelineRefresher(),
         locationOutbox: any LocationOutbox = NoOpLocationOutbox(),
-        importRecoveryPersistence: BackupCoordinator.ImportRecoveryPersistence = .none,
+        importRecoveryPersistence: any BackupImportRecoveryPersisting =
+            NoopBackupImportRecoveryPersistence(),
         activitySummaryGenerator: any ActivitySummaryGenerating = FoundationModelSummaryGenerator(),
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
@@ -153,22 +175,14 @@ public struct WhereServices: Sendable {
             calendar: aggregator.calendar,
             now: now,
         )
-        let liveAttribution = attributor as? RegionAttribution
-        let reconcileAllDerivedData: @Sendable () async -> Void = {
-            // Remote, backup, and device-ledger writes can change the tracked set at the
-            // same
-            // time as the data being rebuilt. Await the shared live attributor first so every
-            // downstream projection starts from current attribution instead of racing its
-            // independent store-change observer.
-            if let liveAttribution {
-                await liveAttribution.reconcile()
-            }
-            await resolution.invalidate()
-            await reminders.reconcile()
-            await summary.reconcile()
-            await issueAlerts.reconcile()
-            await widgets.publish()
-        }
+        let derivedData = DerivedDataReconciler(
+            liveAttribution: attributor as? RegionAttribution,
+            resolution: resolution,
+            reminders: reminders,
+            summary: summary,
+            issueAlerts: issueAlerts,
+            widgets: widgets,
+        )
         // After each committed GPS persist, reconcile the badge/reminders and
         // republish the widget snapshot. A live single sample uses the cheap
         // change-detection unless a drain also re-persisted other days; a
@@ -210,7 +224,7 @@ public struct WhereServices: Sendable {
             onPolicyChanged: {
                 // A cutoff can remove already-materialized history, so every derived output
                 // must rebuild rather than waiting for its normal freshness window.
-                await reconcileAllDerivedData()
+                await derivedData.reconcile()
             },
         )
         let journal = DayJournal(
@@ -238,10 +252,10 @@ public struct WhereServices: Sendable {
                         // The data transaction committed even though privacy-critical sidecar
                         // cleanup did not. Rebuild every projection before surfacing that honest
                         // partial-success error; never leave widgets/notifications on old data.
-                        await reconcileAllDerivedData()
+                        await derivedData.reconcile()
                         throw error
                     }
-                    await reconcileAllDerivedData()
+                    await derivedData.reconcile()
                 },
                 didRollBack: { _ in await recording.resumeAfterImportRollback() },
             ),
@@ -251,7 +265,7 @@ public struct WhereServices: Sendable {
         // no local caller, so observe the remote-only stream and rebuild every derived output.
         let remoteDataChangeReconciler = RemoteDataChangeReconciler(
             changes: store.remoteChanges(),
-            reconcile: reconcileAllDerivedData,
+            reconcile: { await derivedData.reconcile() },
         )
         let recentActivity = RecentActivitySummarizer(
             store: store,
@@ -306,7 +320,7 @@ public struct WhereServices: Sendable {
         issueAlertScheduler: any DataIssueAlertScheduling,
         widgetRefresher: any WidgetTimelineRefreshing,
         locationOutbox: any LocationOutbox = NoOpLocationOutbox(),
-        importRecoveryPersistence: BackupCoordinator.ImportRecoveryPersistence,
+        importRecoveryPersistence: any BackupImportRecoveryPersisting,
         activitySummaryGenerator: any ActivitySummaryGenerating = FoundationModelSummaryGenerator(),
         now: @escaping @Sendable () -> Date = { Date() },
     ) async throws -> WhereServices {
@@ -366,8 +380,7 @@ public struct WhereServices: Sendable {
     /// (upserts + removals-by-omission) is a single atomic transaction that
     /// pings `changes()` once.
     public func setPrimaryRegions(_ regions: [PrimaryRegion]) async throws {
-        let epochID = try await (store.dataEpoch()).id
-        try await store.perform(expectedDataEpochID: epochID) {
+        try await store.performInCurrentGeneration {
             try await store.setPrimaryRegions(regions)
         }
     }

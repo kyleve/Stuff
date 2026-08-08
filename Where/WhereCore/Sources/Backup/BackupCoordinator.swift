@@ -37,8 +37,8 @@ public actor BackupCoordinator {
             manualDayCount: Int,
             dismissedIssueCount: Int,
             trackedRegionCount: Int,
-            recordingDeviceCount: Int = 0,
-            recordingDeviceRemovalCount: Int = 0,
+            recordingDeviceCount: Int,
+            recordingDeviceRemovalCount: Int,
         ) {
             self.sampleCount = sampleCount
             self.evidenceCount = evidenceCount
@@ -85,7 +85,7 @@ public actor BackupCoordinator {
     private let store: any WhereStore
     private let backupService = BackupService()
     private let importLifecycle: ImportLifecycle
-    private let importRecoveryPersistence: ImportRecoveryPersistence
+    private let importRecoveryPersistence: any BackupImportRecoveryPersisting
     private let currentDeviceID: RecordingDeviceID
     private let now: @Sendable () -> Date
     private static let logger = WhereLog.backup(BackupCoordinatorLog.self)
@@ -108,7 +108,7 @@ public actor BackupCoordinator {
         currentDeviceID: RecordingDeviceID,
         now: @escaping @Sendable () -> Date,
         importLifecycle: ImportLifecycle,
-        importRecoveryPersistence: ImportRecoveryPersistence,
+        importRecoveryPersistence: any BackupImportRecoveryPersisting,
     ) {
         self.store = store
         self.importLifecycle = importLifecycle
@@ -263,8 +263,7 @@ public actor BackupCoordinator {
     public func importBackup(
         from url: URL,
         strategy: ImportStrategy,
-        purpose: ImportPurpose,
-        onProgress: @Sendable (Double) -> Void = { _ in },
+        onProgress: @Sendable (Double) -> Void,
     ) async throws -> ImportSummary {
         try await hydrateImportRecovery()
         let operationID = UUID()
@@ -287,7 +286,6 @@ public actor BackupCoordinator {
             try await performImport(
                 from: url,
                 strategy: strategy,
-                purpose: purpose,
                 transactionID: operationID,
                 onProgress: onProgress,
             )
@@ -302,7 +300,6 @@ public actor BackupCoordinator {
         switch recovery {
             case let .committed(details, cleanupCompleted, onboardingAcknowledged)
             where cleanupCompleted
-            && details.purpose == .onboarding
             && !onboardingAcknowledged:
                 return .onboardingAcknowledgementRequired(details.summary)
             case .prepared, .committed:
@@ -350,9 +347,7 @@ public actor BackupCoordinator {
             details,
             cleanupCompleted,
             onboardingAcknowledged,
-        ) = recovery,
-            details.purpose == .onboarding
-        else {
+        ) = recovery else {
             throw ImportRecoveryRequiredError(summary: recovery.details.summary)
         }
         let acknowledged = DurableImportRecovery.committed(
@@ -363,16 +358,16 @@ public actor BackupCoordinator {
         // UserDefaults may acknowledge its setter before the bytes reach disk. Persist an
         // independent, backup-excluded authority before marking recovery acknowledged or clearing
         // it, so every later path that observes `onboardingAcknowledged` is safe to finish cleanup.
-        try await importRecoveryPersistence.recordOnboardingCompletion(.init(
+        try await importRecoveryPersistence.recordOnboardingImportCompletion(.init(
             transactionID: details.transactionID,
         ))
         if !onboardingAcknowledged {
-            try await importRecoveryPersistence.save(acknowledged)
+            try await importRecoveryPersistence.saveBackupImportRecovery(acknowledged)
             importRecoveryPhase = .recoveryRequired(acknowledged)
         }
         guard cleanupCompleted else { return }
         try await removeReceipt(for: details)
-        try await importRecoveryPersistence.save(nil)
+        try await importRecoveryPersistence.saveBackupImportRecovery(nil)
         importRecoveryPhase = .ready
     }
 
@@ -381,11 +376,10 @@ public actor BackupCoordinator {
     private func performImport(
         from url: URL,
         strategy: ImportStrategy,
-        purpose: ImportPurpose,
         transactionID: UUID,
         onProgress: @Sendable (Double) -> Void,
     ) async throws -> ImportSummary {
-        let expectedEpochID = try await (store.dataEpoch()).id
+        let expectedGenerationID = try await (store.dataGeneration()).id
         // Files handed over by the document picker are security-scoped; we must
         // bracket the read with start/stop access or `Data(contentsOf:)` fails
         // with a permissions error.
@@ -411,7 +405,6 @@ public actor BackupCoordinator {
             transactionID: transactionID,
             strategy: strategy,
             summary: summary,
-            purpose: purpose,
         )
         let total = archive.samples.count + archive.evidence.count
             + archive.manualDays.count + archive.dismissedIssues.count
@@ -423,12 +416,12 @@ public actor BackupCoordinator {
         // close ingestion before either merge or replace so a streamed sample cannot cross the
         // transaction boundary.
         let preparedRecovery = DurableImportRecovery.prepared(recoveryDetails)
-        try await importRecoveryPersistence.save(preparedRecovery)
+        try await importRecoveryPersistence.saveBackupImportRecovery(preparedRecovery)
         do {
             try await importLifecycle.prepare(strategy)
         } catch {
             do {
-                try await importRecoveryPersistence.save(nil)
+                try await importRecoveryPersistence.saveBackupImportRecovery(nil)
             } catch let persistenceError {
                 importRecoveryPhase = .recoveryRequired(preparedRecovery)
                 throw ImportRecoveryResolutionError(
@@ -441,14 +434,14 @@ public actor BackupCoordinator {
         let importDate = now()
         do {
             try await Self.logger.measure(.importWrite) {
-                try await store.perform(expectedDataEpochID: expectedEpochID) {
+                try await store.perform(expectedDataGenerationID: expectedGenerationID) {
                     let preservedRemovals: [RecordingDeviceRemoval] = if strategy == .replace {
                         try await store.recordingDeviceRemovals()
                     } else {
                         []
                     }
                     if strategy == .replace {
-                        _ = try await store.rotateDataEpoch(
+                        _ = try await store.rotateDataGeneration(
                             reason: .backupReplace,
                             changedBy: currentDeviceID,
                             at: importDate,
@@ -522,7 +515,7 @@ public actor BackupCoordinator {
             }
         } catch {
             // `SwiftDataStore.perform` can throw after its peer save when a concurrent remote
-            // epoch supersedes the transaction. The receipt distinguishes that physical commit
+            // generation supersedes the transaction. The receipt distinguishes that physical commit
             // from a true rollback; never reapply an archive whose rows already landed.
             let receipt: BackupImportReceipt?
             do {
@@ -540,7 +533,7 @@ public actor BackupCoordinator {
             guard receipt != nil else {
                 await importLifecycle.didRollBack(strategy)
                 do {
-                    try await importRecoveryPersistence.save(nil)
+                    try await importRecoveryPersistence.saveBackupImportRecovery(nil)
                 } catch let persistenceError {
                     importRecoveryPhase = .recoveryRequired(preparedRecovery)
                     throw ImportRecoveryResolutionError(
@@ -576,15 +569,15 @@ public actor BackupCoordinator {
     }
 
     /// Persist the irreversible boundary before cleanup, then advance monotonically through
-    /// cleanup completion, receipt removal, and (for Settings) sidecar acknowledgement.
+    /// cleanup completion, receipt removal, and onboarding acknowledgement.
     private func finishCommittedImport(_ details: ImportRecoveryDetails) async throws {
         let cleanupPending = DurableImportRecovery.committed(
             details,
             cleanupCompleted: false,
-            onboardingAcknowledged: details.purpose == .settings,
+            onboardingAcknowledged: false,
         )
         do {
-            try await importRecoveryPersistence.save(cleanupPending)
+            try await importRecoveryPersistence.saveBackupImportRecovery(cleanupPending)
         } catch {
             importRecoveryPhase = .recoveryRequired(.prepared(details))
             throw error
@@ -606,17 +599,17 @@ public actor BackupCoordinator {
                 )
                 guard receipt != nil else {
                     await importLifecycle.didRollBack(details.strategy)
-                    try await importRecoveryPersistence.save(nil)
+                    try await importRecoveryPersistence.saveBackupImportRecovery(nil)
                     importRecoveryPhase = .ready
                     return
                 }
                 cleanupPending = .committed(
                     details,
                     cleanupCompleted: false,
-                    onboardingAcknowledged: details.purpose == .settings,
+                    onboardingAcknowledged: false,
                 )
                 do {
-                    try await importRecoveryPersistence.save(cleanupPending)
+                    try await importRecoveryPersistence.saveBackupImportRecovery(cleanupPending)
                 } catch {
                     importRecoveryPhase = .recoveryRequired(recovery)
                     throw error
@@ -646,7 +639,7 @@ public actor BackupCoordinator {
                         onboardingAcknowledged: onboardingAcknowledged,
                     )
                     do {
-                        try await importRecoveryPersistence.save(completed)
+                        try await importRecoveryPersistence.saveBackupImportRecovery(completed)
                     } catch {
                         importRecoveryPhase = .recoveryRequired(cleanupPending)
                         throw error
@@ -669,9 +662,9 @@ public actor BackupCoordinator {
             case let .committed(_, _, acknowledged):
                 onboardingAcknowledged = acknowledged
         }
-        if details.purpose == .settings || onboardingAcknowledged {
+        if onboardingAcknowledged {
             do {
-                try await importRecoveryPersistence.save(nil)
+                try await importRecoveryPersistence.saveBackupImportRecovery(nil)
             } catch {
                 importRecoveryPhase = .recoveryRequired(completed)
                 throw error
@@ -713,7 +706,7 @@ public actor BackupCoordinator {
             }
         }
 
-        guard let recovery = try await importRecoveryPersistence.load() else {
+        guard let recovery = try await importRecoveryPersistence.loadBackupImportRecovery() else {
             importRecoveryPhase = .ready
             hasHydratedImportRecovery = true
             return
@@ -726,15 +719,15 @@ public actor BackupCoordinator {
                 )
                 if receipt == nil {
                     await importLifecycle.didRollBack(details.strategy)
-                    try await importRecoveryPersistence.save(nil)
+                    try await importRecoveryPersistence.saveBackupImportRecovery(nil)
                     importRecoveryPhase = .ready
                 } else {
                     let committed = DurableImportRecovery.committed(
                         details,
                         cleanupCompleted: false,
-                        onboardingAcknowledged: details.purpose == .settings,
+                        onboardingAcknowledged: false,
                     )
-                    try await importRecoveryPersistence.save(committed)
+                    try await importRecoveryPersistence.saveBackupImportRecovery(committed)
                     importRecoveryPhase = .recoveryRequired(committed)
                 }
             case .committed:
@@ -763,7 +756,8 @@ public actor BackupCoordinator {
         }
     }
 
-    /// The import physically committed, but a newer destructive epoch became authoritative before
+    /// The import physically committed, but a newer destructive generation became authoritative
+    /// before
     /// the call returned. The receipt prevents an automatic reapply into that newer generation.
     public struct CommittedImportSupersededError: LocalizedError, @unchecked Sendable {
         public let summary: ImportSummary

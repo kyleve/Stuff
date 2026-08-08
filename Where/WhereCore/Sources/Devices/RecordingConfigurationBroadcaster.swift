@@ -19,13 +19,16 @@ final class RecordingConfigurationBroadcaster: @unchecked Sendable {
 
     func subscribe() -> AsyncStream<RecordingDeviceRuntimeUpdate> {
         let id = UUID()
-        return AsyncStream(bufferingPolicy: .bufferingNewest(1)) { continuation in
-            lock.withLock { subscribers[id] = continuation }
-            continuation.onTermination = { [weak self] _ in
-                guard let self else { return }
-                lock.withLock { _ = subscribers.removeValue(forKey: id) }
-            }
+        let (stream, continuation) = AsyncStream.makeStream(
+            of: RecordingDeviceRuntimeUpdate.self,
+            bufferingPolicy: .bufferingNewest(1),
+        )
+        lock.withLock { subscribers[id] = continuation }
+        continuation.onTermination = { [weak self] _ in
+            guard let self else { return }
+            lock.withLock { _ = subscribers.removeValue(forKey: id) }
         }
+        return stream
     }
 
     func finishAll() {

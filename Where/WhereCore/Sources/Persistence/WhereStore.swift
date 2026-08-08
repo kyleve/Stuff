@@ -28,16 +28,18 @@ public protocol WhereStore: Sendable {
         _ block: @Sendable () async throws -> T,
     ) async throws -> T
 
-    /// Run a mutation only if the account is still in `expectedDataEpochID`. Callers capture the
-    /// epoch before any suspension that informs the write; a reset/Replace crossing that work
+    /// Run a mutation only if the account is still in `expectedDataGenerationID`. Callers capture
+    /// the
+    /// generation before any suspension that informs the write; a reset/Replace crossing that work
     /// then fails instead of admitting a stale decision into the new generation.
     @discardableResult
     func perform<T: Sendable>(
-        expectedDataEpochID: WhereDataEpochID,
+        expectedDataGenerationID: WhereDataGenerationID,
         _ block: @Sendable () async throws -> T,
     ) async throws -> T
 
-    /// Pin every read in `block` to one logical data epoch and verify that epoch and the durable
+    /// Pin every read in `block` to one logical data generation and verify that generation and the
+    /// durable
     /// store generation are still current before returning. This is the multi-table read boundary
     /// for authority decisions and backup export; a remote commit crossing its reads invalidates
     /// the
@@ -65,29 +67,30 @@ public protocol WhereStore: Sendable {
     /// reconciliation local writers already await.
     func remoteChanges() -> AsyncStream<Void>
 
-    /// Current account-wide logical generation. Rows from older epochs are retained only as
+    /// Current account-wide logical generation. Rows from older generations are retained only as
     /// sync/audit history and never participate in normal reads.
-    func dataEpoch() async throws -> WhereDataEpoch
+    func dataGeneration() async throws -> WhereDataGeneration
 
-    /// Reset boundary not causally observed when `registrationEpochID` was created. A non-nil
+    /// Reset boundary not causally observed when `registrationGenerationID` was created. A non-nil
     /// result retires that pre-reset installation at the returned account-reset timestamp.
     func recordingDeviceResetBarrier(
-        for registrationEpochID: WhereDataEpochID,
+        for registrationGenerationID: WhereDataGenerationID,
     ) async throws -> Date?
 
-    /// Atomically erase the active epoch's synced rows and append a fresh destructive epoch.
-    /// Every subsequent write in the same transaction is stamped into the returned epoch.
+    /// Atomically erase the active generation's synced rows and append a fresh destructive
+    /// generation.
+    /// Every subsequent write in the same transaction is stamped into the returned generation.
     /// Immutable device profiles remain global so a late/offline installation can still be
     /// identified, but its old user-data rows cannot affect the new generation.
-    func rotateDataEpoch(
-        reason: WhereDataEpochReason,
+    func rotateDataGeneration(
+        reason: WhereDataGenerationReason,
         changedBy deviceID: RecordingDeviceID,
         at date: Date,
-    ) async throws -> WhereDataEpoch
+    ) async throws -> WhereDataGeneration
 
     /// Receipt inserted atomically with an import's rows. Lookup is by both the random token and
-    /// local installation identity; callers inspect the stamped epoch but treat a receipt in a
-    /// superseded epoch as proof that the physical save occurred.
+    /// local installation identity; callers inspect the stamped generation but treat a receipt in a
+    /// superseded generation as proof that the physical save occurred.
     func backupImportReceipt(
         id: UUID,
         installationID: RecordingDeviceID,
@@ -133,7 +136,7 @@ public protocol WhereStore: Sendable {
     /// Must run inside `perform { ... }`.
     func setRecordingDeviceCheckIn(_ checkIn: RecordingDeviceCheckIn) async throws
 
-    /// Irreversible device tombstones in the active epoch.
+    /// Irreversible device tombstones in the active generation.
     func recordingDeviceRemovals() async throws -> [RecordingDeviceRemoval]
 
     /// Insert an immutable removal tombstone. Must run inside `perform { ... }`.
@@ -219,13 +222,22 @@ public protocol WhereStore: Sendable {
 }
 
 extension WhereStore {
+    /// Run one mutation against the generation current at command start, failing if a reset or
+    /// Replace wins before commit. Use this when the command does not already hold a snapshot id.
+    public func performInCurrentGeneration<T: Sendable>(
+        _ block: @Sendable () async throws -> T,
+    ) async throws -> T {
+        let generationID = try await (dataGeneration()).id
+        return try await perform(expectedDataGenerationID: generationID, block)
+    }
+
     public func perform<T: Sendable>(
-        expectedDataEpochID: WhereDataEpochID,
+        expectedDataGenerationID: WhereDataGenerationID,
         _ block: @Sendable () async throws -> T,
     ) async throws -> T {
         try await perform {
-            guard try await (dataEpoch()).id == expectedDataEpochID else {
-                throw RecordingPersistenceError.dataEpochChanged
+            guard try await (dataGeneration()).id == expectedDataGenerationID else {
+                throw RecordingPersistenceError.dataGenerationChanged
             }
             return try await block()
         }
@@ -234,10 +246,10 @@ extension WhereStore {
     public func readSnapshot<T: Sendable>(
         _ block: @Sendable () async throws -> T,
     ) async throws -> T {
-        let expected = try await (dataEpoch()).id
+        let expected = try await (dataGeneration()).id
         let result = try await block()
-        guard try await (dataEpoch()).id == expected else {
-            throw RecordingPersistenceError.dataEpochChanged
+        guard try await (dataGeneration()).id == expected else {
+            throw RecordingPersistenceError.dataGenerationChanged
         }
         return result
     }

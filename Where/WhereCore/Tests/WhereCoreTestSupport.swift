@@ -2,19 +2,21 @@ import Foundation
 @testable import WhereCore
 
 extension BackupCoordinator {
-    /// Settings-purpose convenience kept in the test target so production callers must always
-    /// name the import purpose explicitly.
-    func importBackup(
+    /// Test convenience that completes the onboarding-only acknowledgment after a successful
+    /// import, matching the production onboarding flow while keeping individual backup tests
+    /// focused on archive behavior.
+    func importAndAcknowledgeBackup(
         from url: URL,
         strategy: ImportStrategy,
         onProgress: @Sendable (Double) -> Void = { _ in },
     ) async throws -> ImportSummary {
-        try await importBackup(
+        let summary = try await importBackup(
             from: url,
             strategy: strategy,
-            purpose: .settings,
             onProgress: onProgress,
         )
+        try await acknowledgeOnboardingImport()
+        return summary
     }
 }
 
@@ -69,7 +71,7 @@ actor ScriptedLocationOutbox: LocationOutbox {
         failsToLoad: Bool = false,
         failsToClear: Bool = false,
     ) {
-        entries = samples.map { LocationOutboxEntry(sample: $0, dataEpochID: .initial) }
+        entries = samples.map { LocationOutboxEntry(sample: $0, dataGenerationID: .initial) }
         self.failsToLoad = failsToLoad
         self.failsToClear = failsToClear
     }

@@ -2,7 +2,7 @@ import Foundation
 import Observation
 import PeriscopeCore
 import RegionKit
-import WhereCore
+@_spi(Demo) import WhereCore
 
 /// Everything the app is logged in *to*: the service layer over one open
 /// store, the preferences whose intent that layer is driven by, and the
@@ -244,7 +244,7 @@ public final class WhereScope {
             issueAlertScheduler: NoopDataIssueAlertScheduler(authorized: true),
             widgetRefresher: NoopWidgetTimelineRefresher(),
             locationOutbox: NoOpLocationOutbox(),
-            importRecoveryPersistence: .none,
+            importRecoveryPersistence: NoopBackupImportRecoveryPersistence(),
             now: now,
         )
         try await DemoDataBuilder(now: now(), calendar: aggregator.calendar)

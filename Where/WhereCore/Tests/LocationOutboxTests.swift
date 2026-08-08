@@ -38,7 +38,7 @@ struct LocationOutboxTests {
     }
 
     private func entries(_ samples: [LocationSample]) -> [LocationOutboxEntry] {
-        samples.map { LocationOutboxEntry(sample: $0, dataEpochID: .initial) }
+        samples.map { LocationOutboxEntry(sample: $0, dataGenerationID: .initial) }
     }
 
     private func loadedSamples(from outbox: FileLocationOutbox) async throws -> [LocationSample] {
@@ -72,13 +72,13 @@ struct LocationOutboxTests {
         #expect(try await loadedSamples(from: outbox) == samples)
     }
 
-    @Test func roundTripPreservesNoninitialDataEpoch() async throws {
+    @Test func roundTripPreservesNoninitialDataGeneration() async throws {
         let url = tempURL()
         defer { cleanup(url) }
         let outbox = FileLocationOutbox(fileURL: url)
         let entry = try LocationOutboxEntry(
             sample: sample("2026-03-15T12:00:00Z"),
-            dataEpochID: WhereDataEpochID(rawValue: #require(UUID(
+            dataGenerationID: WhereDataGenerationID(rawValue: #require(UUID(
                 uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA",
             ))),
         )
