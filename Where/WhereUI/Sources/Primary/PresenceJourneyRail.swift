@@ -47,7 +47,7 @@ struct PresenceJourneyRail: View {
                 Circle()
                     .stroke(tint, lineWidth: timeline.nodeStrokeWidth)
                 Text(emoji)
-                    .font(.title3)
+                    .font(timeline.nodeEmojiFont)
             }
             .frame(width: timeline.nodeSize, height: timeline.nodeSize)
         }

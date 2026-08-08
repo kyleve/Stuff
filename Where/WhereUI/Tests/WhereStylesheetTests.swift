@@ -296,6 +296,7 @@ struct WhereStylesheetTests {
         #expect(timeline.railLineWidth == 4)
         #expect(timeline.railToCardSpacing == 10)
         #expect(timeline.nodeSize == 42)
+        #expect(timeline.nodeEmojiFont == .system(size: 20))
         #expect(timeline.nodeFillOpacity == 0.18)
         #expect(timeline.nodeStrokeWidth == 2)
         #expect(timeline.rowSpacing == 12)

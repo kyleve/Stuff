@@ -1142,6 +1142,7 @@ extension WhereStylesheet {
         var railLineWidth: CGFloat
         var railToCardSpacing: CGFloat
         var nodeSize: CGFloat
+        var nodeEmojiFont: Font
         var nodeFillOpacity: Double
         var nodeStrokeWidth: CGFloat
         /// Spacing and surface treatment within each journey row.
@@ -1183,6 +1184,7 @@ extension WhereStylesheet {
             railLineWidth: 4,
             railToCardSpacing: 10,
             nodeSize: 42,
+            nodeEmojiFont: .system(size: 20),
             nodeFillOpacity: 0.18,
             nodeStrokeWidth: 2,
             rowSpacing: 12,
