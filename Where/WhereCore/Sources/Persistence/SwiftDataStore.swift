@@ -403,6 +403,10 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         }
 
         await beginExclusive()
+        defer {
+            activeSnapshot = nil
+            endExclusive()
+        }
         let peer = ModelContext(modelContainer)
         // A persistent-store transaction becomes fetch-visible atomically with
         // its history row, but Core Data is allowed to post the corresponding
@@ -415,10 +419,6 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         let startingHistoryTransactionID = try Self.latestHistoryTransactionID(in: peer)
         let generation = try Self.resolvedDataGeneration(in: peer)
         activeSnapshot = ActiveSnapshot(context: peer, generation: generation)
-        defer {
-            activeSnapshot = nil
-            endExclusive()
-        }
         let result = try await Self.$activeSnapshotStores.withValue(
             Self.activeSnapshotStores.union([storeID]),
         ) {
@@ -517,14 +517,14 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         // overlapping top-level writers can't clobber `activeTransaction` through
         // actor reentrancy.
         await beginExclusive()
-        let peer = ModelContext(modelContainer)
-        peer.author = localTransactionAuthor
-        let generation = try Self.resolvedDataGenerationResolution(in: peer)
-        activeTransaction = ActiveTransaction(context: peer, generation: generation)
         defer {
             activeTransaction = nil
             endExclusive()
         }
+        let peer = ModelContext(modelContainer)
+        peer.author = localTransactionAuthor
+        let generation = try Self.resolvedDataGenerationResolution(in: peer)
+        activeTransaction = ActiveTransaction(context: peer, generation: generation)
         if let expectedDataGenerationID,
            activeTransaction?.generation.current.id != expectedDataGenerationID
         {
@@ -577,6 +577,13 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             return result
         }
     }
+
+    #if DEBUG
+        @_spi(Testing)
+        public var hasExclusiveStoreOperation: Bool {
+            isTransacting
+        }
+    #endif
 
     /// The context mutating methods write to. Mutations are
     /// contract-required to run inside `perform { ... }`; calling

@@ -1074,6 +1074,31 @@ struct SwiftDataStoreTests {
         }
     }
 
+    @Test func incompleteGenerationHistoryReleasesStoreExclusivity() async throws {
+        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
+        let context = ModelContext(container)
+        context.insert(SDWhereDataGeneration(value: WhereDataGeneration(
+            id: WhereDataGenerationID(rawValue: UUID()),
+            parentIDs: [.initial],
+            revision: 2,
+            changedAt: Date(timeIntervalSinceReferenceDate: 100),
+            changedByDeviceID: RecordingDeviceID(rawValue: UUID()),
+            reason: .accountReset,
+        )))
+        try context.save()
+
+        let store = SwiftDataStore(modelContainer: container)
+        await #expect(throws: RecordingPersistenceError.incompleteDataGenerationHistory) {
+            try await store.readSnapshot {}
+        }
+        #expect(await !store.hasExclusiveStoreOperation)
+
+        await #expect(throws: RecordingPersistenceError.incompleteDataGenerationHistory) {
+            try await store.perform {}
+        }
+        #expect(await !store.hasExclusiveStoreOperation)
+    }
+
     /// Once `perform`'s `peer.save()` returns, the committed write must be
     /// visible to a later read through the main (read) context — the question
     /// raised in review (`send()` after `save()` is only useful if readers then
