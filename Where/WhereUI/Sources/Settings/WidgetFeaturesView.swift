@@ -8,48 +8,64 @@ struct WidgetFeaturesView: View {
     let focus: SettingsFocus?
     let presentation: FeatureDiscoveryPresentation
 
+    @Environment(\.stylesheet) private var stylesheet
+
     var body: some View {
-        SettingsFocusScope(focus: focus) {
-            Form {
-                Section {
-                    Text(introduction)
-                        .foregroundStyle(.secondary)
-                }
-
-                Section {
-                    FeatureHomeScreenPreview(snapshot: presentation.widgetSnapshot)
-                        .listRowInsets(.init())
-                        .listRowBackground(Color.clear)
-                        .settingsRow(Item.homeScreen)
-                } header: {
-                    Text(String(localized: .settingsExploreWidgetsHomeHeader))
-                } footer: {
-                    Text(String(localized: .settingsExploreWidgetsHomeFooter))
-                }
-
-                Section {
-                    FeatureLockScreenPreview(
-                        date: presentation.lockScreenDate,
-                        snapshot: presentation.widgetSnapshot,
+        StaggeredRevealScope {
+            SettingsFocusScope(focus: focus) {
+                Form {
+                    FeatureMarketingHeader(
+                        title: String(localized: .settingsExploreWidgetsTitle),
+                        tagline: String(localized: .settingsExploreWidgetsTagline),
+                        systemImage: SettingsDestination.widgets.systemImage,
+                        tint: SettingsDestination.widgets.iconColor,
                     )
                     .listRowInsets(.init())
                     .listRowBackground(Color.clear)
-                    .settingsRow(Item.lockScreen)
-                } header: {
-                    Text(String(localized: .settingsExploreWidgetsLockHeader))
-                } footer: {
-                    Text(String(localized: .settingsExploreWidgetsLockFooter))
+                    .listRowSeparator(.hidden)
+                    .staggeredReveal(order: 0)
+
+                    Section {
+                        FeatureHomeScreenPreview(snapshot: presentation.widgetSnapshot)
+                            .listRowInsets(.init())
+                            .listRowBackground(Color.clear)
+                            .settingsRow(Item.homeScreen, restingBackground: .clear)
+                            .staggeredReveal(order: 1)
+                    } header: {
+                        Text(String(localized: .settingsExploreWidgetsHomeHeader))
+                            .staggeredReveal(order: 1)
+                    } footer: {
+                        Text(String(localized: .settingsExploreWidgetsHomeFooter))
+                            .staggeredReveal(order: 1)
+                    }
+
+                    Section {
+                        FeatureLockScreenPreview(
+                            date: presentation.lockScreenDate,
+                            snapshot: presentation.widgetSnapshot,
+                        )
+                        .listRowInsets(.init())
+                        .listRowBackground(Color.clear)
+                        .settingsRow(Item.lockScreen, restingBackground: .clear)
+                        .staggeredReveal(order: 2)
+                    } header: {
+                        Text(String(localized: .settingsExploreWidgetsLockHeader))
+                            .staggeredReveal(order: 2)
+                    } footer: {
+                        VStack(alignment: .leading, spacing: stylesheet.spacing.medium) {
+                            Text(String(localized: .settingsExploreWidgetsLockFooter))
+                                .staggeredReveal(order: 2)
+                            Text(String(localized: .settingsExploreWidgetsDataFooter))
+                                .staggeredReveal(order: 3)
+                        }
+                    }
                 }
+                .scrollContentBackground(.hidden)
+                .background(FeatureDiscoveryBackground())
             }
         }
-        .navigationTitle(String(localized: .settingsExploreWidgetsTitle))
+        .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
-    }
-
-    private var introduction: String {
-        presentation.usesUserData
-            ? String(localized: .settingsExploreWidgetsPersonalizedIntroduction)
-            : String(localized: .settingsExploreWidgetsIntroduction)
     }
 }
 

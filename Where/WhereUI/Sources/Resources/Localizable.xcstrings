@@ -5641,6 +5641,17 @@
         }
       }
     },
+    "settings.explore.siri.dataFooter" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where uses your data here when there’s enough to make these examples relevant. Browsing this screen never changes it."
+          }
+        }
+      }
+    },
     "settings.explore.siri.date.request" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5714,17 +5725,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Try these with Siri, or find every action in the Shortcuts app."
-          }
-        }
-      }
-    },
-    "settings.explore.siri.introduction" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ask naturally or add these actions to your own shortcuts. The conversations below are examples."
           }
         }
       }
@@ -5839,17 +5839,6 @@
         }
       }
     },
-    "settings.explore.siri.personalized.introduction" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "These examples use your Where data when relevant. Browsing this screen never changes it."
-          }
-        }
-      }
-    },
     "settings.explore.siri.personalized.recent.request" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5949,6 +5938,17 @@
         }
       }
     },
+    "settings.explore.siri.tagline" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ask about where you’ve been, or log it hands-free."
+          }
+        }
+      }
+    },
     "settings.explore.siri.title" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6004,6 +6004,17 @@
         }
       }
     },
+    "settings.explore.widgets.dataFooter" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where uses your data here when there’s enough to make these previews relevant. Browsing this screen never changes it."
+          }
+        }
+      }
+    },
     "settings.explore.widgets.home.footer" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6033,17 +6044,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Example Home Screen showing Where widgets."
-          }
-        }
-      }
-    },
-    "settings.explore.widgets.introduction" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "See every place and size available before adding a Where widget."
           }
         }
       }
@@ -6081,17 +6081,6 @@
         }
       }
     },
-    "settings.explore.widgets.personalized.introduction" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "These previews use your Where data to show how each widget looks for you."
-          }
-        }
-      }
-    },
     "settings.explore.widgets.row" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6099,6 +6088,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Widgets"
+          }
+        }
+      }
+    },
+    "settings.explore.widgets.tagline" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your travels, at a glance—wherever you need them."
           }
         }
       }

@@ -389,6 +389,25 @@ struct WhereStylesheetTests {
         #expect(motion.reveal == .easeIn(duration: 0.16))
         #expect(motion.reducedReveal == .easeInOut(duration: 0.2))
         #expect(motion.captionFade == .easeOut(duration: 0.3))
+        #expect(motion.staggeredReveal.animation == .easeOut(duration: 0.35))
+        #expect(motion.staggeredReveal.verticalOffset == 16)
+        #expect(motion.staggeredReveal.delay == 0.08)
+
+        let hidden = motion.staggeredReveal.presentation(
+            isRevealed: false,
+            motionIsStatic: false,
+            order: 2,
+        )
+        #expect(hidden.opacity == 0)
+        #expect(hidden.verticalOffset == 16)
+        #expect(hidden.animation == .easeOut(duration: 0.35).delay(0.16))
+
+        let staticPresentation = motion.staggeredReveal.presentation(
+            isRevealed: false,
+            motionIsStatic: true,
+            order: 2,
+        )
+        #expect(staticPresentation == .visible)
     }
 
     @Test func launchTimings() {
@@ -409,6 +428,23 @@ struct WhereStylesheetTests {
 
     @Test func featureDiscoveryStyle() {
         let featureDiscovery = style.featureDiscovery
+        #expect(featureDiscovery.marketingHeader == .init(
+            badgeSize: 76,
+            symbolPointSize: 34,
+            badgeTintOpacity: 0.14,
+            contentMaxWidth: 560,
+            spacing: 14,
+            verticalPadding: 24,
+        ))
+        #expect(featureDiscovery.backgroundPattern == .init(
+            motifSpacing: 190,
+            motifRadius: 68,
+            petalCount: 8,
+            petalWidthRatio: 0.36,
+            lineWidth: 0.75,
+            primaryOpacity: 0.035,
+            secondaryOpacity: 0.018,
+        ))
         #expect(featureDiscovery.cardCornerRadius == 20)
         #expect(featureDiscovery.cardMaxWidth == 680)
         #expect(featureDiscovery.cardPadding == 16)

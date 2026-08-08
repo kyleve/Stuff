@@ -12,45 +12,57 @@ struct SiriFeaturesView: View {
 
     var body: some View {
         let style = stylesheet.featureDiscovery
-        SettingsFocusScope(focus: focus) {
-            Form {
-                Section {
-                    Text(introduction)
-                        .foregroundStyle(.secondary)
-                }
+        StaggeredRevealScope {
+            SettingsFocusScope(focus: focus) {
+                Form {
+                    FeatureMarketingHeader(
+                        title: String(localized: .settingsExploreSiriTitle),
+                        tagline: String(localized: .settingsExploreSiriTagline),
+                        systemImage: SettingsDestination.siri.systemImage,
+                        tint: SettingsDestination.siri.iconColor,
+                    )
+                    .listRowInsets(.init())
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                    .staggeredReveal(order: 0)
 
-                Section {
-                    ForEach(Item.allCases, id: \.self) { feature in
-                        let personalized = presentation.siriExample(for: feature)
-                        SiriIntentCard(
-                            title: feature.title,
-                            systemImage: feature.systemImage,
-                            request: personalized?.request ?? feature.request,
-                            response: personalized?.response ?? feature.response,
-                        )
-                        .listRowBackground(Color.clear)
-                        .listRowInsets(.init(
-                            top: style.cardRowVerticalInset,
-                            leading: 0,
-                            bottom: style.cardRowVerticalInset,
-                            trailing: 0,
-                        ))
-                        .listRowSeparator(.hidden)
-                        .settingsRow(feature)
+                    Section {
+                        ForEach(
+                            Array(Item.allCases.enumerated()),
+                            id: \.element,
+                        ) { index, feature in
+                            let personalized = presentation.siriExample(for: feature)
+                            SiriIntentCard(
+                                title: feature.title,
+                                systemImage: feature.systemImage,
+                                request: personalized?.request ?? feature.request,
+                                response: personalized?.response ?? feature.response,
+                            )
+                            .listRowBackground(Color.clear)
+                            .listRowInsets(.init(
+                                top: style.cardRowVerticalInset,
+                                leading: 0,
+                                bottom: style.cardRowVerticalInset,
+                                trailing: 0,
+                            ))
+                            .listRowSeparator(.hidden)
+                            .settingsRow(feature, restingBackground: .clear)
+                            .staggeredReveal(order: index + 1)
+                        }
+                    } footer: {
+                        VStack(alignment: .leading, spacing: stylesheet.spacing.medium) {
+                            Text(String(localized: .settingsExploreSiriFooter))
+                            Text(String(localized: .settingsExploreSiriDataFooter))
+                        }
+                        .staggeredReveal(order: Item.allCases.count + 1)
                     }
-                } footer: {
-                    Text(String(localized: .settingsExploreSiriFooter))
                 }
+                .scrollContentBackground(.hidden)
+                .background(FeatureDiscoveryBackground())
             }
         }
-        .navigationTitle(String(localized: .settingsExploreSiriTitle))
+        .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
-    }
-
-    private var introduction: String {
-        presentation.usesUserData
-            ? String(localized: .settingsExploreSiriPersonalizedIntroduction)
-            : String(localized: .settingsExploreSiriIntroduction)
     }
 }
 

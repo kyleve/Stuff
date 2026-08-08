@@ -1320,11 +1320,49 @@ extension WhereStylesheet {
         var reducedReveal: Animation
         /// One-shot fade for incidental appearance (e.g. the launch caption).
         var captionFade: Animation
+        /// The reusable staged entrance used by marketing-style screens.
+        var staggeredReveal: StaggeredReveal
+
+        struct StaggeredReveal: Equatable {
+            var animation: Animation
+            var verticalOffset: CGFloat
+            var delay: TimeInterval
+
+            func presentation(
+                isRevealed: Bool,
+                motionIsStatic: Bool,
+                order: Int,
+            ) -> Presentation {
+                guard !motionIsStatic else { return .visible }
+                return Presentation(
+                    opacity: isRevealed ? 1 : 0,
+                    verticalOffset: isRevealed ? 0 : verticalOffset,
+                    animation: animation.delay(Double(max(0, order)) * delay),
+                )
+            }
+
+            struct Presentation: Equatable {
+                var opacity: Double
+                var verticalOffset: CGFloat
+                var animation: Animation?
+
+                static let visible = Presentation(
+                    opacity: 1,
+                    verticalOffset: 0,
+                    animation: nil,
+                )
+            }
+        }
 
         static let standard = Motion(
             reveal: .easeIn(duration: 0.16),
             reducedReveal: .easeInOut(duration: 0.2),
             captionFade: .easeOut(duration: 0.3),
+            staggeredReveal: StaggeredReveal(
+                animation: .easeOut(duration: 0.35),
+                verticalOffset: 16,
+                delay: 0.08,
+            ),
         )
     }
 }
@@ -1390,6 +1428,8 @@ extension WhereStylesheet {
     /// Appearance for the Siri conversation cards and the miniature widget
     /// surfaces in Settings' feature explorer.
     struct FeatureDiscoveryStyle: Equatable {
+        var marketingHeader: MarketingHeader
+        var backgroundPattern: BackgroundPattern
         var cardCornerRadius: CGFloat
         var cardMaxWidth: CGFloat
         var cardPadding: CGFloat
@@ -1414,7 +1454,43 @@ extension WhereStylesheet {
         var lockWallpaperTop: Color
         var lockWallpaperBottom: Color
 
+        struct MarketingHeader: Equatable {
+            var badgeSize: CGFloat
+            var symbolPointSize: CGFloat
+            var badgeTintOpacity: Double
+            var contentMaxWidth: CGFloat
+            var spacing: CGFloat
+            var verticalPadding: CGFloat
+        }
+
+        struct BackgroundPattern: Equatable {
+            var motifSpacing: CGFloat
+            var motifRadius: CGFloat
+            var petalCount: Int
+            var petalWidthRatio: CGFloat
+            var lineWidth: CGFloat
+            var primaryOpacity: Double
+            var secondaryOpacity: Double
+        }
+
         static let standard = FeatureDiscoveryStyle(
+            marketingHeader: MarketingHeader(
+                badgeSize: 76,
+                symbolPointSize: 34,
+                badgeTintOpacity: 0.14,
+                contentMaxWidth: 560,
+                spacing: 14,
+                verticalPadding: 24,
+            ),
+            backgroundPattern: BackgroundPattern(
+                motifSpacing: 190,
+                motifRadius: 68,
+                petalCount: 8,
+                petalWidthRatio: 0.36,
+                lineWidth: 0.75,
+                primaryOpacity: 0.035,
+                secondaryOpacity: 0.018,
+            ),
             cardCornerRadius: 20,
             cardMaxWidth: 680,
             cardPadding: 16,
