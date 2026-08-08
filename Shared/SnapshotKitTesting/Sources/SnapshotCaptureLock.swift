@@ -29,7 +29,9 @@ enum SnapshotCaptureLock {
 
     /// Runs `operation` while holding the process-wide capture lock, waiting
     /// (FIFO) for any in-flight capture to finish first.
-    static func withLock<Output>(_ operation: @MainActor () async -> Output) async -> Output {
+    static func withLock<Output>(
+        _ operation: @MainActor () async throws -> Output,
+    ) async rethrows -> Output {
         precondition(
             !taskHoldsLock,
             """
@@ -40,8 +42,8 @@ enum SnapshotCaptureLock {
         )
         await acquire()
         defer { release() }
-        return await $taskHoldsLock.withValue(true) {
-            await operation()
+        return try await $taskHoldsLock.withValue(true) {
+            try await operation()
         }
     }
 

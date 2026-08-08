@@ -21,7 +21,7 @@ struct PreCaptureHookTests {
         host.view.frame = CGRect(x: 0, y: 0, width: 100, height: 100)
 
         var hookSawSettledContent = false
-        let image = await renderSnapshotImage(
+        let image = try await renderSnapshotImage(
             of: host,
             named: "pre-capture-hook-probe",
             safeAreaInsets: .zero,

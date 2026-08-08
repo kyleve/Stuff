@@ -281,7 +281,7 @@ private struct ResolveToolbarLabel: View {
         static var snapshots: [SnapshotCase] {
             whereSnapshot(
                 name: "Loaded",
-                configurations: .screenDefaults,
+                configurations: .fullContentScreenDefaults,
                 settle: .settledAtLeast(minDuration: 1.0),
             ) {
                 LocationsView(report: PreviewSupport.loadedYearReportModel())
@@ -289,13 +289,13 @@ private struct ResolveToolbarLabel: View {
             whereSnapshot(name: "Empty", configurations: .phoneLightDark) {
                 LocationsView(report: PreviewSupport.emptyYearReportModel())
             }
-            whereSnapshot(name: "MissingDays", configurations: .phoneLightDark) {
+            whereSnapshot(name: "MissingDays", configurations: .fullContentPhoneLightDark) {
                 LocationsView(report: PreviewSupport.missingDaysYearReportModel())
             }
             whereSnapshot(name: "ElsewhereOnly", configurations: .phoneLightDark) {
                 LocationsView(report: PreviewSupport.elsewhereOnlyYearReportModel())
             }
-            whereSnapshot(name: "DotsHidden", configurations: .phoneLightDark) {
+            whereSnapshot(name: "DotsHidden", configurations: .fullContentPhoneLightDark) {
                 LocationsView(
                     report: PreviewSupport.loadedYearReportModelWithLocationDotsHidden(),
                 )

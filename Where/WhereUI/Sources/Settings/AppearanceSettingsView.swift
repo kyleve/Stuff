@@ -113,7 +113,9 @@ extension AppearanceSettingsView: SettingsSection {
     extension AppearanceSettingsView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
             whereSnapshot(name: "Default", configurations: .fullContentScreenDefaults) {
-                AppearanceSettingsView(report: PreviewSupport.loadedYearReportModel())
+                NavigationStack {
+                    AppearanceSettingsView(report: PreviewSupport.loadedYearReportModel())
+                }
             }
         }
     }

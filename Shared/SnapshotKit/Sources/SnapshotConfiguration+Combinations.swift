@@ -70,8 +70,9 @@ extension [SnapshotConfiguration] {
         defaults(devices: [.iPhone, .iPad])
     }
 
-    /// The default full-screen trait matrix at iPhone and iPad widths, with each
-    /// frame measured to the settled content's intrinsic height.
+    /// The default full-screen trait matrix at iPhone and iPad viewport sizes,
+    /// with each frame growing beyond its device height when settled content is
+    /// taller.
     public static var fullContentScreenDefaults: Self {
         defaults(devices: [.iPhoneFullContent, .iPadFullContent])
     }

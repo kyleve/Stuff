@@ -255,8 +255,11 @@ struct SettingsView: View {
         static var snapshots: [SnapshotCase] {
             whereSnapshot(
                 name: "Default",
-                configurations: .screenDefaults + [
-                    SnapshotConfiguration(layoutDirection: .rightToLeft, device: .iPhone),
+                configurations: .fullContentScreenDefaults + [
+                    SnapshotConfiguration(
+                        layoutDirection: .rightToLeft,
+                        device: .iPhoneFullContent,
+                    ),
                 ],
             ) {
                 SettingsView(report: PreviewSupport.loadedYearReportModel())
@@ -265,7 +268,7 @@ struct SettingsView: View {
             }
             // Demo mode: the exit section on top, and the groups that would
             // reach past the demo (backup, erase/reset, app icon) gone.
-            whereSnapshot(name: "DemoMode", configurations: .phoneLightDark) {
+            whereSnapshot(name: "DemoMode", configurations: .fullContentPhoneLightDark) {
                 SettingsView(report: PreviewSupport.loadedYearReportModel())
                     .environment(PreviewSupport.loadedModel())
                     .environment(PreviewSupport.loadedSession())

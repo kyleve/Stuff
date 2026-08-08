@@ -60,14 +60,14 @@ struct PresenceTimelineList: View {
     extension PresenceTimelineList: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
             [
-                whereSnapshot(name: "WithData", configurations: .screenDefaults) {
+                whereSnapshot(name: "WithData", configurations: .fullContentScreenDefaults) {
                     NavigationStack {
                         PresenceTimelineList(report: PreviewSupport.loadedYearReportModel())
                     }
                 },
                 whereSnapshot(
                     name: "DifferentiateWithoutColor",
-                    configurations: .phoneLightDark,
+                    configurations: .fullContentPhoneLightDark,
                 ) {
                     NavigationStack {
                         PresenceTimelineList(report: PreviewSupport.loadedYearReportModel())

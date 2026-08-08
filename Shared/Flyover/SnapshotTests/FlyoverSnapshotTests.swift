@@ -12,7 +12,7 @@ struct FlyoverSnapshotTests {
             of: FlyoverView(catalog: catalog),
             named: "FlyoverCanvas",
             configurations: SnapshotConfiguration.combinations(
-                devices: [.iPad],
+                devices: [.iPadFullContent],
                 colorSchemes: [.light, .dark],
             ),
             // Canvas previews load serially, so a cold CI host can still be resolving
@@ -24,7 +24,7 @@ struct FlyoverSnapshotTests {
             of: FlyoverView(catalog: catalog),
             named: "FlyoverCompact",
             configurations: SnapshotConfiguration.combinations(
-                devices: [.iPhone],
+                devices: [.iPhoneFullContent],
             ),
         )
 
@@ -37,7 +37,7 @@ struct FlyoverSnapshotTests {
                 },
             named: "FlyoverList",
             configurations: SnapshotConfiguration.combinations(
-                devices: [.iPad],
+                devices: [.iPadFullContent],
             ),
         )
     }
