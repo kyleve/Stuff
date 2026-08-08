@@ -8,13 +8,9 @@ import WhereCore
 struct BackupSettingsSection: View {
     let backup: BackupModel
 
-    /// Backup export: the ready-to-share archive built up-front, revealed as a
-    /// second row once the background export finishes.
-    @State private var exportedArchiveURL: URL?
+    /// Backup export: the ready-to-share archive built up-front, presented as
+    /// soon as the background export finishes.
     @State private var presentedShareItem: BackupShareSheet.Item?
-
-    /// How long a finished export stays offered before it's auto-discarded.
-    private static let exportRetention: Duration = .seconds(10 * 60)
 
     var body: some View {
         @Bindable var backup = backup
@@ -56,29 +52,10 @@ struct BackupSettingsSection: View {
             }
             .disabled(backup.backupState != .idle)
             .settingsRow(DataSettingsView.Item.exportBackup)
-
-            if backup.backupState == .idle, let url = exportedArchiveURL {
-                Button {
-                    presentedShareItem = BackupShareSheet.Item(url: url)
-                } label: {
-                    Label(
-                        String(localized: .settingsBackupShare),
-                        systemImage: "square.and.arrow.up.on.square",
-                    )
-                }
-            }
-
         } header: {
             Text(String(localized: .settingsBackupHeader))
         } footer: {
             Text(String(localized: .settingsBackupFooter))
-        }
-        // A finished export lingers in the temp directory; stop offering it (and
-        // reclaim the file) after a while so a stale link can't be shared. The
-        // task restarts whenever `exportedArchiveURL` changes and no-ops while
-        // it's `nil`.
-        .task(id: exportedArchiveURL) {
-            await expireExportIfNeeded()
         }
         // Log View Mode: reveal an inspect badge for backup export
         // events on this section. A no-op in release.
@@ -94,28 +71,14 @@ struct BackupSettingsSection: View {
         }
     }
 
-    /// Build the archive in the background, then reveal the share row. Clearing
-    /// `exportedArchiveURL` first hides the stale share row — the coordinator
-    /// purges the previous export's directory when this new export starts.
+    /// Build the archive in the background, then present its system activity
+    /// sheet. The coordinator purges the previous export when this one starts.
     private func runExport() {
-        exportedArchiveURL = nil
         Task {
             if let url = await backup.exportBackup() {
-                exportedArchiveURL = url
+                presentedShareItem = BackupShareSheet.Item(url: url)
             }
         }
-    }
-
-    /// After a finished export has been offered for `exportRetention`, hide the
-    /// share row and delete the temp file. Hiding before the delete closes the
-    /// window where the row could point at an already-removed file. A no-op when
-    /// there's no export to expire (the `.task(id:)` also runs on `nil`).
-    private func expireExportIfNeeded() async {
-        guard exportedArchiveURL != nil else { return }
-        try? await Task.sleep(for: Self.exportRetention)
-        guard !Task.isCancelled else { return }
-        exportedArchiveURL = nil
-        await backup.discardExport()
     }
 }
 
