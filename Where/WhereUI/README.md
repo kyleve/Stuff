@@ -80,12 +80,14 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   (Settings export progress and failures),
   **`RemindersSettingsModel`** (notification prefs), and
   **`DevicesSettingsModel`** (installation-local recording choice plus synced names, advisory
-  status, and irreversible removal). Each orchestrates `WhereServices`; none reimplements Core
+  status, and irreversible removal), plus **`OnboardingFlowModel`** (first-run phase, restore,
+  demo, and completion orchestration). Each orchestrates `WhereServices`; none reimplements Core
   rules.
 
 ### Reusable views & styling
 
-- **`OnboardingView`** — the first-run flow, registered for the launch's
+- **`OnboardingView` / `OnboardingFlowModel`** — the rendered first-run flow and its view-scoped
+  observable coordinator, registered for the launch's
   `OnboardingGate` and handed its `LifecycleGateHandle`. The gate roots the
   trunk, so there is no session behind it: a paged intro,
   then picking up to five primary US regions (map or searchable list) and

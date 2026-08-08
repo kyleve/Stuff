@@ -27,56 +27,10 @@ public struct OnboardingView: View {
     // session to hand in — nothing has built one yet.
     @Environment(WhereModel.self) private var model
     @Environment(\.stylesheet) private var stylesheet
-    private let gate: LifecycleGateHandle
-    private let installationContext: InstallationRecordingContext
+    @State private var flow: OnboardingFlowModel
 
     private var deviceKind: RecordingDeviceKind {
-        installationContext.currentDevice.kind
-    }
-
-    /// The ordered onboarding phases. An explicit state machine (rather than
-    /// loose flags) so only one screen is ever showing and the transitions are
-    /// obvious.
-    private enum Phase: Hashable {
-        case intro
-        case pickRegions
-        case customize
-        case location
-    }
-
-    @State private var phase: Phase = .intro
-    @State private var page = 0
-    @State private var selection = PrimaryRegionSelectionModel()
-    @State private var recordingEnabled: Bool
-    @State private var deviceDiscovery: DeviceDiscovery = .idle
-    @State private var isFinishing = false
-    @State private var restoreSelection = OnboardingRestoreSelection()
-
-    /// What the intro is doing, and how it went — see ``OnboardingIntroState``.
-    @State private var intro = OnboardingIntroState()
-
-    /// Whether the backup file picker is up. Separate from the intro's activity
-    /// because the system sheet isn't work the intro is doing: it can be
-    /// dismissed without starting anything.
-    @State private var showImporter = false
-
-    /// A selected backup has no import semantics until the user explicitly
-    /// chooses Merge or Replace. Merge is offered first as the safe default.
-    @State private var showRestoreStrategyDialog = false
-
-    /// How long the demo interstitial stays up at minimum. Seeding a year is
-    /// fast enough to flash by, and a screen that appears and vanishes reads
-    /// as a glitch rather than as work being done — so the wait is held long
-    /// enough to be legible, and no longer.
-    private static let demoBuildDisplayTime = Duration.seconds(2)
-
-    private static let logger = WhereLog.session(OnboardingViewLog.self)
-
-    private enum DeviceDiscovery: Equatable {
-        case idle
-        case loading
-        case ready(RecordingOnboardingRecommendation)
-        case failed(String)
+        flow.installationContext.currentDevice.kind
     }
 
     public init(
@@ -99,20 +53,18 @@ public struct OnboardingView: View {
         installationContext: InstallationRecordingContext,
         startsAtRecordingChoice: Bool,
     ) {
-        self.gate = gate
-        self.installationContext = installationContext
-        _phase = State(initialValue: startsAtRecordingChoice ? .location : .intro)
-        _recordingEnabled = State(
-            initialValue: installationContext.automaticRecordingEnabled
-                ?? installationContext.recommendedRecordingEnabled,
-        )
+        _flow = State(initialValue: OnboardingFlowModel(
+            gate: gate,
+            installationContext: installationContext,
+            startsAtRecordingChoice: startsAtRecordingChoice,
+        ))
     }
 
     private let pages = OnboardingPage.all
 
     public var body: some View {
         Group {
-            switch phase {
+            switch flow.phase {
                 case .intro: introScreen
                 case .pickRegions: pickRegions
                 case .customize: customize
@@ -131,8 +83,8 @@ public struct OnboardingView: View {
             )
             .ignoresSafeArea(),
         )
-        .animation(stylesheet.motion.reducedReveal, value: phase)
-        .onDisappear(perform: discardPendingRestore)
+        .animation(stylesheet.motion.reducedReveal, value: flow.phase)
+        .onDisappear { flow.discardPendingRestore() }
         // Log View Mode: reveal an inspect badge for onboarding events (region
         // commit / backup restore). A no-op in release.
         .debugLogInspectable(WhereLog.session(OnboardingViewLog.self))
@@ -142,7 +94,7 @@ public struct OnboardingView: View {
 
     @ViewBuilder
     private var introScreen: some View {
-        if intro.isBuildingDemo {
+        if flow.intro.isBuildingDemo {
             // The launch splash, captioned for the work: entering demo mode
             // ends in a relaunch through that same splash, so borrowing it
             // here makes the whole entry read as one continuous wait rather
@@ -151,7 +103,7 @@ public struct OnboardingView: View {
                 title: String(localized: .demoBuildingTitle),
                 subtitle: String(localized: .demoBuildingSubtitle),
             ))
-        } else if intro.isRestoringBackup {
+        } else if flow.intro.isRestoringBackup {
             // A backup restore is a whole-screen blocking wait, so show the
             // shared app-icon loading treatment (as first-load / scan / summary
             // do) rather than an inline spinner.
@@ -163,7 +115,7 @@ public struct OnboardingView: View {
 
     private var introPages: some View {
         VStack(spacing: stylesheet.spacing.xxxLarge) {
-            TabView(selection: $page) {
+            TabView(selection: $flow.page) {
                 ForEach(pages.indices, id: \.self) { index in
                     pageView(pages[index])
                         .tag(index)
@@ -177,32 +129,32 @@ public struct OnboardingView: View {
                 .padding(.bottom, stylesheet.spacing.xxxLarge)
         }
         .fileImporter(
-            isPresented: $showImporter,
+            isPresented: $flow.showImporter,
             allowedContentTypes: [.zip],
-            onCompletion: handleRestoreSelection,
+            onCompletion: flow.handleRestoreSelection,
         )
         .confirmationDialog(
             String(localized: .settingsBackupImportStrategyTitle),
-            isPresented: $showRestoreStrategyDialog,
+            isPresented: $flow.showRestoreStrategyDialog,
             titleVisibility: .visible,
-            presenting: restoreSelection.selectedURL,
+            presenting: flow.restoreSelection.selectedURL,
         ) { _ in
             Button(String(localized: .onboardingRestoreMergeRecommended)) {
-                chooseRestoreStrategy(OnboardingRestoreSelection.recommendedStrategy)
+                flow.chooseRestoreStrategy(OnboardingRestoreSelection.recommendedStrategy)
             }
             Button(String(localized: .settingsBackupReplace), role: .destructive) {
-                chooseRestoreStrategy(.replace)
+                flow.chooseRestoreStrategy(.replace)
             }
             Button(String(localized: .settingsDataCancel), role: .cancel) {
-                discardPendingRestore()
+                flow.discardPendingRestore()
             }
         } message: { _ in
             Text(String(localized: .settingsBackupImportStrategyMessage))
         }
         .alert(
-            failureTitle,
-            isPresented: $intro.isShowingFailure,
-            presenting: intro.failure,
+            flow.failureTitle,
+            isPresented: $flow.intro.isShowingFailure,
+            presenting: flow.intro.failure,
         ) { _ in
             Button(String(localized: .commonOk), role: .cancel) {}
         } message: { failure in
@@ -210,12 +162,6 @@ public struct OnboardingView: View {
             // itself, so nothing has to decide how to say it before it's shown.
             Text(failure.error.localizedDescription)
         }
-    }
-
-    /// The alert's title, which names the task that failed. Empty when
-    /// nothing has, in which case the alert isn't presented.
-    private var failureTitle: String {
-        intro.failure?.flow.title ?? ""
     }
 
     private func pageView(_ page: OnboardingPage) -> some View {
@@ -241,12 +187,7 @@ public struct OnboardingView: View {
     private var introFooter: some View {
         VStack(spacing: stylesheet.spacing.medium) {
             Button {
-                if page < pages.count - 1 {
-                    withAnimation { page += 1 }
-                } else {
-                    discardPendingRestore()
-                    phase = .pickRegions
-                }
+                withAnimation { flow.advanceIntro(pageCount: pages.count) }
             } label: {
                 Text(String(localized: .onboardingContinue))
                     .frame(maxWidth: .infinity)
@@ -256,27 +197,27 @@ public struct OnboardingView: View {
 
             // Returning users can skip the manual setup by restoring a backup;
             // the restore's progress replaces the intro with the loading view.
-            Button(String(localized: .onboardingRestoreBackup)) { showImporter = true }
+            Button(String(localized: .onboardingRestoreBackup)) { flow.showImporter = true }
                 .controlSize(.large)
 
             // And anyone can look around first, without handing over a
             // location permission or leaving anything on their device.
-            Button(String(localized: .onboardingTryDemo)) { enterDemoMode() }
+            Button(String(localized: .onboardingTryDemo)) { flow.enterDemoMode(using: model) }
                 .controlSize(.large)
         }
-        .disabled(intro.isBuildingDemo)
+        .disabled(flow.intro.isBuildingDemo)
     }
 
     // MARK: - Pick regions
 
     private var pickRegions: some View {
         NavigationStack {
-            RegionPickerView(model: selection)
+            RegionPickerView(model: flow.selection)
                 .navigationTitle(String(localized: .onboardingRegionsTitle))
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
-                        Button(String(localized: .onboardingNext)) { phase = .customize }
-                            .disabled(!selection.hasSelection)
+                        Button(String(localized: .onboardingNext)) { flow.phase = .customize }
+                            .disabled(!flow.selection.hasSelection)
                     }
                 }
         }
@@ -287,9 +228,9 @@ public struct OnboardingView: View {
     private var customize: some View {
         NavigationStack {
             RegionCustomizeView(
-                model: selection,
-                onBack: { phase = .pickRegions },
-                onFinish: { phase = .location },
+                model: flow.selection,
+                onBack: { flow.phase = .pickRegions },
+                onFinish: { flow.phase = .location },
             )
         }
     }
@@ -318,7 +259,7 @@ public struct OnboardingView: View {
 
                     VStack(spacing: stylesheet.spacing.large) {
                         VStack(alignment: .leading, spacing: stylesheet.spacing.small) {
-                            switch deviceDiscovery {
+                            switch flow.deviceDiscovery {
                                 case .idle, .loading:
                                     ProgressView(String(localized: .onboardingRecordingChecking))
                                 case let .ready(recommendation):
@@ -334,7 +275,7 @@ public struct OnboardingView: View {
                             }
                             Toggle(
                                 String(localized: .settingsDevicesAutomaticRecording),
-                                isOn: $recordingEnabled,
+                                isOn: $flow.recordingEnabled,
                             )
                             Text(recordingRecommendation)
                                 .font(.subheadline)
@@ -346,7 +287,7 @@ public struct OnboardingView: View {
                             // Request Always-location only after the user confirms an
                             // enabled choice; the launch's reconcile step picks up
                             // whatever the system grants.
-                            finish(enableLocation: recordingEnabled)
+                            flow.finish(using: model)
                         } label: {
                             Text(String(localized: .onboardingContinue))
                                 .frame(maxWidth: .infinity)
@@ -354,7 +295,7 @@ public struct OnboardingView: View {
                         .buttonStyle(.borderedProminent)
                         .controlSize(.large)
                     }
-                    .disabled(isFinishing || deviceDiscovery == .loading)
+                    .disabled(flow.isFinishing || flow.deviceDiscovery == .loading)
                 }
                 .padding(.horizontal, stylesheet.spacing.xxxLarge)
                 .padding(.bottom, stylesheet.spacing.xxxLarge)
@@ -362,7 +303,7 @@ public struct OnboardingView: View {
             }
             .scrollBounceBehavior(.basedOnSize)
         }
-        .task { await discoverRecordingDevices() }
+        .task { await flow.discoverRecordingDevices(using: model) }
     }
 
     private var recordingTitle: LocalizedStringResource {
@@ -374,294 +315,16 @@ public struct OnboardingView: View {
     }
 
     private var recordingRecommendation: LocalizedStringResource {
-        let recommendsEnabled = if case let .ready(recommendation) = deviceDiscovery {
+        let recommendsEnabled = if case let .ready(recommendation) = flow.deviceDiscovery {
             recommendation.isEnabled
         } else {
-            installationContext.recommendedRecordingEnabled
+            flow.installationContext.recommendedRecordingEnabled
         }
         if recommendsEnabled {
             return .onboardingRecordingRecommendationOn
         } else {
             return .onboardingRecordingRecommendationOff
         }
-    }
-
-    /// Persist this installation's choice first, then log in to the user's real
-    /// world, optionally restore a selected backup, commit manual region picks,
-    /// request location when enabled, and resolve the gate.
-    ///
-    /// A store that won't open fails the gate rather than stranding the user
-    /// on a dead intro: the runner lands on the failure surface, which is
-    /// where an unopenable store has always surfaced.
-    private func finish(enableLocation: Bool) {
-        guard !isFinishing else { return }
-        let readyImport = restoreSelection.readyImport
-        if restoreSelection.selectedURL != nil {
-            guard readyImport != nil else {
-                assertionFailure("An onboarding restore must have an explicit import strategy.")
-                discardPendingRestore()
-                return
-            }
-            // Opening the real CloudKit-backed scope is part of restore work and
-            // can be slow. Move to the blocking progress surface before that
-            // first await rather than leaving a disabled Continue button behind.
-            intro.activity = .restoringBackup
-            phase = .intro
-        }
-        isFinishing = true
-        Task {
-            do {
-                let context = try model.confirmInitialRecordingChoice(isEnabled: enableLocation)
-                guard context.automaticRecordingEnabled != nil else {
-                    preconditionFailure("A confirmed installation context must carry its choice.")
-                }
-            } catch {
-                Self.logger(attachments: [.error(error, name: "context-error")]) {
-                    .installationContextWriteFailed(description: error.localizedDescription)
-                }
-                gate.fail(error)
-                return
-            }
-
-            let scope: WhereScope
-            do {
-                scope = try await model.resolveScope()
-            } catch {
-                Self.logger(attachments: [.error(error, name: "scope-error")]) {
-                    .scopeCreationFailed(description: error.localizedDescription)
-                }
-                gate.fail(error)
-                return
-            }
-
-            if let readyImport {
-                do {
-                    let summary = try await scope.services.backup.importBackup(
-                        from: readyImport.url,
-                        strategy: readyImport.strategy,
-                    ) { _ in }
-                    restoreSelection.markCommitted(summary)
-                    // Persist the irreversible boundary immediately. If the process stops before
-                    // device setup finishes, the next launch continues with the imported world
-                    // instead of offering to apply the same archive again.
-                    model.completeOnboarding()
-                    do {
-                        try await scope.services.backup.acknowledgeOnboardingImport()
-                    } catch {
-                        gate.fail(OnboardingCommittedImportSetupError(
-                            summary: summary,
-                            underlying: error,
-                        ))
-                        return
-                    }
-                } catch let error as BackupCoordinator.CommittedImportCleanupError {
-                    restoreSelection.markCommitted(error.summary)
-                    // The archive is already committed. Complete onboarding and
-                    // fail the gate into the terminal, relaunch-required partial-
-                    // success surface; returning to the Restore button would lie
-                    // about rollback and could apply the archive twice.
-                    model.completeOnboarding()
-                    do {
-                        try await scope.services.backup.acknowledgeOnboardingImport()
-                    } catch let acknowledgementError {
-                        gate.fail(OnboardingCommittedImportSetupError(
-                            summary: error.summary,
-                            underlying: acknowledgementError,
-                        ))
-                        return
-                    }
-                    Self.logger(attachments: [.error(error.underlying, name: "cleanup-error")]) {
-                        .backupRestoreCleanupFailed(
-                            description: error.underlying.localizedDescription,
-                        )
-                    }
-                    gate.fail(error)
-                    return
-                } catch let error as BackupCoordinator.CommittedImportSupersededError {
-                    restoreSelection.markCommitted(error.summary)
-                    model.completeOnboarding()
-                    do {
-                        try await scope.services.backup.acknowledgeOnboardingImport()
-                    } catch let acknowledgementError {
-                        gate.fail(OnboardingCommittedImportSetupError(
-                            summary: error.summary,
-                            underlying: acknowledgementError,
-                        ))
-                        return
-                    }
-                    gate.fail(error)
-                    return
-                } catch let error as BackupCoordinator.ImportRecoveryResolutionError {
-                    // The durable prepared marker remains authoritative, but receipt resolution
-                    // failed. Never return to an importer that could apply the archive twice.
-                    gate.fail(error)
-                    return
-                } catch {
-                    restoreSelection.discardUncommittedSelection()
-                    // Drop the failed scope before retrying. The immutable first choice remains
-                    // fixed; the retry creates a fresh scope over that same installation context.
-                    await model.endSession()
-                    intro.activity = .failed(.init(flow: .restoreBackup, error: error))
-                    phase = .intro
-                    isFinishing = false
-                    Self.logger(attachments: [.error(error, name: "restore-error")]) {
-                        .backupRestoreFailed(description: error.localizedDescription)
-                    }
-                    return
-                }
-            }
-
-            // Apply the choice persisted before this scope opened, then start physical recording
-            // only after the rest of onboarding or restore work has succeeded.
-            do {
-                let authorization = await scope.services.ingestor.authorizationStatus()
-                try await scope.services.recording.registerForOnboarding(
-                    desiredEnabled: enableLocation,
-                    authorization: authorization,
-                )
-            } catch {
-                Self.logger(attachments: [.error(error, name: "recording-configuration-error")]) {
-                    .recordingConfigurationFailed(description: error.localizedDescription)
-                }
-                if let summary = restoreSelection.committedSummary {
-                    // The import cannot roll back with this later setup failure. Preserve its
-                    // summary in the terminal result. Onboarding completed at the commit
-                    // boundary, so a cold retry registers this installation without reapplying
-                    // the archive.
-                    gate.fail(OnboardingCommittedImportSetupError(
-                        summary: summary,
-                        underlying: error,
-                    ))
-                } else {
-                    gate.fail(error)
-                }
-                return
-            }
-
-            if enableLocation {
-                await enableTracking(in: scope)
-            }
-            // Only commit when the user actually picked regions in the manual
-            // flow. The restore path reaches here with an empty selection (it
-            // jumps intro → location), and committing empty would replace — i.e.
-            // wipe — the regions the restore just wrote. Guarding on `hasSelection`
-            // (rather than a "did restore" flag) makes that impossible: the
-            // manual flow can't reach `finish` empty (its Next is gated on a
-            // selection), so a non-empty selection is exactly "the user picked".
-            if selection.hasSelection {
-                do {
-                    try await selection.commit(using: scope)
-                } catch {
-                    // Don't strand the user in onboarding on a write failure —
-                    // log it and continue; they can re-pick in Settings.
-                    Self.logger(attachments: [.error(error, name: "commit-error")]) {
-                        .regionCommitFailed(description: error.localizedDescription)
-                    }
-                }
-            }
-            if !model.hasOnboarded {
-                model.completeOnboarding()
-            }
-            gate.complete()
-        }
-    }
-
-    private func discoverRecordingDevices() async {
-        guard deviceDiscovery == .idle else { return }
-        deviceDiscovery = .loading
-        do {
-            let recommendation = try await model.discoverRecordingRecommendation(
-                for: installationContext,
-            )
-            deviceDiscovery = .ready(recommendation)
-            if installationContext.automaticRecordingEnabled == nil {
-                recordingEnabled = recommendation.isEnabled
-            }
-        } catch {
-            deviceDiscovery = .failed(error.localizedDescription)
-        }
-    }
-
-    /// Drive the system prompt for the recording choice already persisted in
-    /// the installation context, so the prompt maps 1:1 to the tap that asked
-    /// for it. The `sync-auth` and `reconcile-tracking` steps run as soon as the
-    /// gate resolves; they read the granted authorization back and start GPS.
-    private func enableTracking(in scope: WhereScope) async {
-        do {
-            try await scope.services.ingestor.requestPermission()
-        } catch {
-            // Denied or restricted: nothing to recover here, and re-prompting
-            // won't help. Tracking stays intended-but-inactive, and the
-            // Location settings screen offers the route to the Settings app.
-            Self.logger { .locationPermissionDenied }
-        }
-    }
-
-    // MARK: - Demo mode
-
-    /// Build a demo world and hand the launch to it: the whole of "entering
-    /// demo mode" from the user's side.
-    ///
-    /// Nothing durable happens here — no store is opened, no permission asked
-    /// — so there is nothing to undo if they leave. Resolving the gate is what
-    /// lets the launch continue, and it finds the demo scope already active.
-    private func enterDemoMode() {
-        guard !intro.isBuildingDemo else { return }
-        intro.activity = .buildingDemo
-        Task {
-            do {
-                // Seeding and the minimum display run together, so the wait is
-                // whichever is longer rather than the sum of the two.
-                async let scope = model.makeDemoScope()
-                async let settle: Void = Task.sleep(for: Self.demoBuildDisplayTime)
-                _ = try await settle
-                try await model.activateDemo(scope)
-                gate.complete()
-            } catch is CancellationError {
-                // Nothing to report: the only thing that cancels this is the
-                // work itself going away, and there is no user waiting on an
-                // answer about it.
-                intro.activity = .browsing
-            } catch {
-                intro.activity = .failed(.init(flow: .demo, error: error))
-                Self.logger(attachments: [.error(error, name: "demo-error")]) {
-                    .demoBuildFailed(description: error.localizedDescription)
-                }
-            }
-        }
-    }
-
-    // MARK: - Restore from backup
-
-    private func handleRestoreSelection(_ result: Result<URL, Error>) {
-        switch result {
-            case let .success(url):
-                restoreSelection.select(
-                    url: url,
-                    hasScopedAccess: url.startAccessingSecurityScopedResource(),
-                )
-                showRestoreStrategyDialog = true
-            case let .failure(error):
-                discardPendingRestore()
-                intro.activity = .failed(.init(flow: .restoreBackup, error: error))
-        }
-    }
-
-    private func chooseRestoreStrategy(_ strategy: BackupCoordinator.ImportStrategy) {
-        guard restoreSelection.selectedURL != nil else {
-            assertionFailure("A restore strategy was chosen without a selected backup.")
-            return
-        }
-        restoreSelection.choose(strategy)
-        phase = .location
-    }
-
-    /// Keep the file importer's security-scoped URL available while the user
-    /// verifies this installation's recording choice, then balance access as
-    /// soon as the import finishes or onboarding leaves the hierarchy.
-    private func discardPendingRestore() {
-        showRestoreStrategyDialog = false
-        restoreSelection.discardUncommittedSelection()
     }
 }
 
@@ -770,7 +433,7 @@ struct OnboardingPage: Identifiable {
             [
                 whereSnapshot(name: "Default", configurations: .screenDefaults) {
                     // `onboardingModel()` (not `loadedModel()`) so `hasOnboarded`
-                    // is false and the capture lands on the intro phase.
+                    // is false and the capture lands on the intro flow.phase.
                     OnboardingView(
                         gate: LifecycleGateHandle(
                             id: LaunchStepID.onboarding,
