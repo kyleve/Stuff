@@ -74,39 +74,22 @@ and testing conventions live in the feature [`Where/AGENTS.md`](../AGENTS.md)
 
 ## Design system — `WhereStylesheet`
 
-All appearance tokens — geometry, fonts, colors, motion — live in
-`WhereStylesheet`
-([`Sources/Shared/WhereStylesheet.swift`](Sources/Shared/WhereStylesheet.swift)),
-a Broadway `BStylesheet` read via `@Environment(\.stylesheet)`; off the
-`View` tree (layout helpers, tests) use `WhereStylesheet.default`. How to
-consume and extend it — per-component style groups, variant subscripts, the
-`RegionStyle` resolver — is in [`README.md`](README.md#design-system). The
-rules:
+Follow the repo [`building-ui`](../../.agents/skills/building-ui/SKILL.md)
+skill for token ownership, variants, trait derivation, layout, accessibility,
+and rendering coverage. Where's sheet is
+[`WhereStylesheet`](Sources/Shared/WhereStylesheet.swift), read through
+`@Environment(\.stylesheet)` and defaulted to `WhereStylesheet.default` off the
+view tree; [`README.md`](README.md#design-system) documents its live API and
+worked examples.
 
-- **Never hardcode appearance in a view** or collect constants into a flat
-  grab-bag; a new value lands on the owning component's style group, or on a
-  shared scale (`Spacing`, `Size`, `Palette`, `Typography`, `Motion`) only
-  when genuinely cross-component.
-- **Never borrow another component's style** — a component defines its own
-  group rather than reading a value off someone else's.
-- **Resolve a variant once** (a `Variant` enum + `subscript`, see
-  `CardStyles`) — don't branch `compact ? … : …` through a body.
-- **Don't bake trait-derived values into the defaults** — `.standard` /
-  property defaults hold the fixed set; the reactive slice applies only in
-  `init(context:)`, so a default/system context reproduces
-  `WhereStylesheet.default`.
-- **Derive accessibility settings in the sheet, not the view** — vend one
-  resolved token, and a *single* token when a setting changes more than one
-  value (`CardStyles.DayCountStyle` pairs the morph with its animation).
-  Exception: the `motion` group keeps full-motion values a view picks between
+- The `motion` group keeps full-motion values a view picks between
   (`motion.reducedReveal` over `motion.reveal`), because the launch reveal's
   fallback swaps an `AnyTransition`, which isn't `Equatable` and can't be a
   token.
 - **Per-region tints stay in `RegionStyle`**, resolved via
   `@Environment(\.regionStyles)` and seeded by
   `whereBroadwayRoot(regionStyles:)` — no global accessor or hardcoded
-  per-region look in a view. Adaptive system roles (`.secondary`) and
-  `.accentColor` stay inline.
+  per-region look in a view.
 - `WhereThemes` is deliberately empty — the seam a future app-wide theme
   plugs into.
 - The DEBUG card designer may override only presentation values already owned
@@ -128,17 +111,10 @@ frames share one `WhereFlyoverWorld`; synthetic preview models are reserved for
 states the seeded demo cannot express.
 
 Screens, widgets, and app-flow surfaces are pinned as matrixed image
-snapshots under [`SnapshotTests/`](SnapshotTests) — those, not hosting smoke
-tests, own "does this screen render". They build as this module's
-`WhereUISnapshotTests` bundle, run from the shared `StuffSnapshotTests`
-scheme and its CI job, deliberately outside `Stuff-iOS-Tests` (root
-[`AGENTS.md`](../../AGENTS.md#targets)). **Each view declares its matrix
-once, in its own source file**, via a `SnapshotProviding` conformance under
-`#if DEBUG` whose `#Preview` renders `Self.snapshotPreviews` — one
-declaration drives both the Xcode cutsheet and the image tests (helpers in
-[`Sources/Preview/WhereSnapshot.swift`](Sources/Preview/WhereSnapshot.swift));
-suites are one `FooSnapshotTests` per view. To re-record a reference, delete
-the PNG under `SnapshotTests/__Snapshots__/` (LFS-tracked) and run the scheme
-— the suites record `.missing`, and a recording run fails by design. Bulk
-re-records forward `TEST_RUNNER_SNAPSHOT_RECORD=failed` (see the
-[SnapshotKitTesting README](../../Shared/SnapshotKitTesting/README.md#recording)).
+snapshots under [`SnapshotTests/`](SnapshotTests), built as this module's
+`WhereUISnapshotTests` bundle in the shared `StuffSnapshotTests` scheme and CI
+job, deliberately outside `Stuff-iOS-Tests` (root
+[`AGENTS.md`](../../AGENTS.md#targets)). Declarations use the helpers in
+[`Sources/Preview/WhereSnapshot.swift`](Sources/Preview/WhereSnapshot.swift);
+follow `building-ui` for authoring and the repo `running-tests` skill for
+recording/reviewing references.

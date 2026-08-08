@@ -16,7 +16,9 @@ Roughly, this file covers:
 - **Writing code** — [Per-module docs](#per-module-docs) (and the module layout),
   [Repo-level docs](#repo-level-docs), and [Conventions](#conventions)
   (including [Modeling state](#modeling-state) and
-  [Composition](#composition-create-once-inject-down)).
+  [Composition](#composition-create-once-inject-down)); load the
+  [`building-ui`](.agents/skills/building-ui/SKILL.md) skill for SwiftUI/UIKit
+  construction, Broadway styling, accessibility, previews, and snapshots.
 - **Working** — [Working in this repo](#working-in-this-repo): commits;
   [GitHub](#github) and [running tests](#running-tests) load their skills when
   needed.
@@ -390,49 +392,13 @@ scope and invariants on top rather than restating these.
   the data instead (see the no-in-app-migration rule in
   [`Where/WhereCore/AGENTS.md`](Where/WhereCore/AGENTS.md)).
 
-### SwiftUI, UIKit, and lifetime
+### UI construction
 
-- Don't build closure-based `Binding(get:set:)` values in SwiftUI views; bind
-  directly to observable state (`$model.foo`). For a derived binding (e.g.
-  mapping an optional error to the `Bool` an `.alert` wants), expose a computed
-  `get`/`set` on the `@Observable` model and bind to that, keeping the
-  underlying value the single source of truth.
-- **Host child view controllers with direct frame math, not Auto Layout.** When
-  a `UIViewController` embeds a child (e.g. a `UIHostingController` bridging
-  SwiftUI in an app extension), add it and set `child.view.frame = view.bounds`
-  in `viewWillLayoutSubviews()` rather than pinning four edge constraints. For a
-  full-bleed single child it's simpler, cheaper, and keeps the layout in one
-  obvious place (see `WhereShareExtension`'s `ShareViewController`).
-- **Observe with a target/selector, not a retained token; every `start` has
-  a `stop`.** Register via `addObserver(_:selector:name:object:)` with `self`
-  so teardown is one `removeObserver(self)`, and a restart
-  removes-before-re-adding (see `NotificationAmbientSource`). Never
-  block-based `addObserver(forName:)` — dropping its token makes the
-  observation unremovable and immortalizes everything the block captured.
-  Any `start…`-style observation API gets a paired `stop()`.
-
-### Architecture and reuse
-
-- **Core behavior belongs in the model/controller layer, not in views.**
-  Persistence, domain rules, detection, and side effects live in the feature's
-  core module (for Where: `WhereCore` collaborators on `WhereServices`). UI
-  modules hold view models that *orchestrate* those services for SwiftUI
-  (`WhereSession` mirrors output and exposes intent methods) and views that
-  *render* and *route* — not reimplement rules, cache policy, or store I/O.
-  When adding behavior, default to Core (+ view-model glue if the UI needs a
-  trigger or observable mirror); push logic into a `View` only for presentation.
-  See [`Where/AGENTS.md`](Where/AGENTS.md#layering).
-- **Reuse before you duplicate.** Before adding a new view / form / component
-  (or any type), look for an existing one covering the same concept and *extend*
-  it — a new mode or parameter, or a shared subview — rather than forking a
-  near-copy. Two screens that differ only in a few sections (e.g. *add* vs.
-  *edit* of the same thing) should be **one view with a mode**, not parallel
-  files; shared chrome (a save-error alert, a region-toggle section, an audit
-  block) becomes a shared subview, not copy-paste. If a planned addition would
-  substantially overlap existing UI and consolidating vs. forking isn't clearly
-  right, **flag it and align before building** rather than shipping the
-  duplicate. (This is the reflex behind `ManualDayView`'s add/edit modes and the
-  shared `ManualEntryAuditSection`.)
+Load the [`building-ui`](.agents/skills/building-ui/SKILL.md) skill when
+creating, changing, or reviewing a SwiftUI/UIKit surface. It owns the general
+view/model boundary, reuse, binding, Broadway stylesheet, layout,
+accessibility, localization, UIKit-bridge, preview, and image-snapshot
+procedures; module `AGENTS.md` files add only their local seams and invariants.
 
 ### Repo hygiene
 

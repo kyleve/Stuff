@@ -45,8 +45,6 @@ build system, formatting, and global conventions. Read that first.
   Account pane's token field is an *optional override* that commits on an
   explicit button and goes straight to the Keychain via `session.setManualToken`
   — never mirror it into `@AppStorage` or the config JSON.
-- **No `Binding(get:set:)`.** Bind to the observable session/settings; use
-  local `@State` drafts for the explicit-commit fields.
 
 ## Testing
 
