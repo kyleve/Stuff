@@ -283,7 +283,7 @@ struct WhereLaunchTests {
         let services = try WhereServices(
             store: SwiftDataStore.inMemory(),
             locationSource: ScriptedLocationSource(),
-            importRecoveryPersistence: installationStore.backupImportRecoveryPersistence,
+            importRecoveryPersistence: installationStore,
         )
         let bootstrap = ScriptedBootstrap(services: services)
         let model = WhereModel(
@@ -312,7 +312,7 @@ struct WhereLaunchTests {
         let services = try WhereServices(
             store: SwiftDataStore.inMemory(),
             locationSource: ScriptedLocationSource(),
-            importRecoveryPersistence: installationStore.backupImportRecoveryPersistence,
+            importRecoveryPersistence: installationStore,
         )
         let bootstrap = ScriptedBootstrap(services: services)
         let model = WhereModel(

@@ -38,24 +38,26 @@ struct BackupCoordinatorTests {
         }
     }
 
-    private actor RecoveryPersistenceSpy {
+    private actor RecoveryPersistenceSpy: BackupImportRecoveryPersisting {
         private(set) var recovery: BackupCoordinator.DurableImportRecovery?
 
         init(_ recovery: BackupCoordinator.DurableImportRecovery? = nil) {
             self.recovery = recovery
         }
 
-        nonisolated var persistence: BackupCoordinator.ImportRecoveryPersistence {
-            BackupCoordinator.ImportRecoveryPersistence(
-                load: { await self.recovery },
-                save: { await self.save($0) },
-                recordOnboardingCompletion: { _ in },
-            )
+        func loadBackupImportRecovery() -> BackupCoordinator.DurableImportRecovery? {
+            recovery
         }
 
-        private func save(_ recovery: BackupCoordinator.DurableImportRecovery?) {
+        func saveBackupImportRecovery(
+            _ recovery: BackupCoordinator.DurableImportRecovery?,
+        ) {
             self.recovery = recovery
         }
+
+        func recordOnboardingImportCompletion(
+            _: BackupCoordinator.OnboardingImportCompletion,
+        ) {}
     }
 
     private static func makeHarness() throws -> Harness {
@@ -70,7 +72,7 @@ struct BackupCoordinatorTests {
                 didCommit: { _ in await hook.run() },
                 didRollBack: { _ in },
             ),
-            importRecoveryPersistence: .none,
+            importRecoveryPersistence: NoopBackupImportRecoveryPersistence(),
         )
         return Harness(coordinator: coordinator, store: store, didCommit: hook)
     }
@@ -411,7 +413,7 @@ struct BackupCoordinatorTests {
                 didCommit: { _ in try await cleanup.run() },
                 didRollBack: { _ in },
             ),
-            importRecoveryPersistence: .none,
+            importRecoveryPersistence: NoopBackupImportRecoveryPersistence(),
         )
 
         let committedError = await #expect(
@@ -466,7 +468,7 @@ struct BackupCoordinatorTests {
                     didCommit: { _ in try await cleanup.run() },
                     didRollBack: { _ in },
                 ),
-                importRecoveryPersistence: persistence.persistence,
+                importRecoveryPersistence: persistence,
             )
         }
 
@@ -531,7 +533,7 @@ struct BackupCoordinatorTests {
                 },
                 didRollBack: { _ in },
             ),
-            importRecoveryPersistence: .none,
+            importRecoveryPersistence: NoopBackupImportRecoveryPersistence(),
         )
         let firstImport = Task {
             do {

@@ -128,7 +128,7 @@ struct InstallationRecordingContextStoreTests {
             store: SwiftDataStore.inMemory(),
             locationSource: ScriptedLocationSource(),
             installationContext: installationContext,
-            importRecoveryPersistence: installationStore.backupImportRecoveryPersistence,
+            importRecoveryPersistence: installationStore,
         )
         let acknowledgedPreferences = makePreferences()
         let acknowledgedModel = WhereModel(

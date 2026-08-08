@@ -39,34 +39,6 @@ extension BackupCoordinator {
         }
     }
 
-    /// Async persistence seam for the device-local, backup-excluded installation sidecar's active
-    /// recovery and terminal onboarding proof. Production bridges this to
-    /// `InstallationRecordingContextStoring`; tests can share an in-memory implementation across
-    /// recreated coordinators.
-    public struct ImportRecoveryPersistence: Sendable {
-        let load: @Sendable () async throws -> DurableImportRecovery?
-        let save: @Sendable (DurableImportRecovery?) async throws -> Void
-        let recordOnboardingCompletion: @Sendable (OnboardingImportCompletion) async throws -> Void
-
-        public init(
-            load: @escaping @Sendable () async throws -> DurableImportRecovery?,
-            save: @escaping @Sendable (DurableImportRecovery?) async throws -> Void,
-            recordOnboardingCompletion: @escaping @Sendable (
-                OnboardingImportCompletion,
-            ) async throws -> Void,
-        ) {
-            self.load = load
-            self.save = save
-            self.recordOnboardingCompletion = recordOnboardingCompletion
-        }
-
-        public static let none = ImportRecoveryPersistence(
-            load: { nil },
-            save: { _ in },
-            recordOnboardingCompletion: { _ in },
-        )
-    }
-
     /// Terminal device-local proof that an onboarding import was accepted by the app layer.
     /// It is independent of active recovery so clearing a finished marker or starting a later
     /// Settings import cannot make Restore eligible again.
@@ -77,6 +49,36 @@ extension BackupCoordinator {
             self.transactionID = transactionID
         }
     }
+}
+
+/// Persistence seam for onboarding import recovery and its terminal completion proof.
+public protocol BackupImportRecoveryPersisting: Sendable {
+    func loadBackupImportRecovery() async throws -> BackupCoordinator.DurableImportRecovery?
+    func saveBackupImportRecovery(
+        _ recovery: BackupCoordinator.DurableImportRecovery?,
+    ) async throws
+    func recordOnboardingImportCompletion(
+        _ completion: BackupCoordinator.OnboardingImportCompletion,
+    ) async throws
+}
+
+/// No-op recovery persistence for worlds that cannot outlive the process, such as demo mode.
+public struct NoopBackupImportRecoveryPersistence: BackupImportRecoveryPersisting {
+    public init() {}
+
+    public func loadBackupImportRecovery() async throws
+        -> BackupCoordinator.DurableImportRecovery?
+    {
+        nil
+    }
+
+    public func saveBackupImportRecovery(
+        _: BackupCoordinator.DurableImportRecovery?,
+    ) async throws {}
+
+    public func recordOnboardingImportCompletion(
+        _: BackupCoordinator.OnboardingImportCompletion,
+    ) async throws {}
 }
 
 /// Store receipt committed atomically with one backup import.

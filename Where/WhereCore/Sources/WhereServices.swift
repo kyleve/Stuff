@@ -99,7 +99,8 @@ public struct WhereServices: Sendable {
         issueAlertScheduler: any DataIssueAlertScheduling = NoopDataIssueAlertScheduler(),
         widgetRefresher: any WidgetTimelineRefreshing = NoopWidgetTimelineRefresher(),
         locationOutbox: any LocationOutbox = NoOpLocationOutbox(),
-        importRecoveryPersistence: BackupCoordinator.ImportRecoveryPersistence = .none,
+        importRecoveryPersistence: any BackupImportRecoveryPersisting =
+            NoopBackupImportRecoveryPersistence(),
         activitySummaryGenerator: any ActivitySummaryGenerating = FoundationModelSummaryGenerator(),
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
@@ -306,7 +307,7 @@ public struct WhereServices: Sendable {
         issueAlertScheduler: any DataIssueAlertScheduling,
         widgetRefresher: any WidgetTimelineRefreshing,
         locationOutbox: any LocationOutbox = NoOpLocationOutbox(),
-        importRecoveryPersistence: BackupCoordinator.ImportRecoveryPersistence,
+        importRecoveryPersistence: any BackupImportRecoveryPersisting,
         activitySummaryGenerator: any ActivitySummaryGenerating = FoundationModelSummaryGenerator(),
         now: @escaping @Sendable () -> Date = { Date() },
     ) async throws -> WhereServices {

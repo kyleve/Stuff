@@ -41,7 +41,7 @@ extension WhereServices {
             summaryScheduler: NoopDailySummaryScheduler(),
             issueAlertScheduler: NoopDataIssueAlertScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
-            importRecoveryPersistence: .none,
+            importRecoveryPersistence: NoopBackupImportRecoveryPersistence(),
             now: now,
         )
     }

@@ -63,7 +63,7 @@ struct WhereServicesTests {
             summaryScheduler: NoopDailySummaryScheduler(),
             issueAlertScheduler: NoopDataIssueAlertScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
-            importRecoveryPersistence: .none,
+            importRecoveryPersistence: NoopBackupImportRecoveryPersistence(),
         )
         // Two samples on the same Pacific day: one in California, one in New York.
         try await store.perform {

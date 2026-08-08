@@ -244,7 +244,7 @@ public final class WhereScope {
             issueAlertScheduler: NoopDataIssueAlertScheduler(authorized: true),
             widgetRefresher: NoopWidgetTimelineRefresher(),
             locationOutbox: NoOpLocationOutbox(),
-            importRecoveryPersistence: .none,
+            importRecoveryPersistence: NoopBackupImportRecoveryPersistence(),
             now: now,
         )
         try await DemoDataBuilder(now: now(), calendar: aggregator.calendar)

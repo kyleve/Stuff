@@ -85,7 +85,7 @@ public actor BackupCoordinator {
     private let store: any WhereStore
     private let backupService = BackupService()
     private let importLifecycle: ImportLifecycle
-    private let importRecoveryPersistence: ImportRecoveryPersistence
+    private let importRecoveryPersistence: any BackupImportRecoveryPersisting
     private let currentDeviceID: RecordingDeviceID
     private let now: @Sendable () -> Date
     private static let logger = WhereLog.backup(BackupCoordinatorLog.self)
@@ -108,7 +108,7 @@ public actor BackupCoordinator {
         currentDeviceID: RecordingDeviceID,
         now: @escaping @Sendable () -> Date,
         importLifecycle: ImportLifecycle,
-        importRecoveryPersistence: ImportRecoveryPersistence,
+        importRecoveryPersistence: any BackupImportRecoveryPersisting,
     ) {
         self.store = store
         self.importLifecycle = importLifecycle
@@ -358,16 +358,16 @@ public actor BackupCoordinator {
         // UserDefaults may acknowledge its setter before the bytes reach disk. Persist an
         // independent, backup-excluded authority before marking recovery acknowledged or clearing
         // it, so every later path that observes `onboardingAcknowledged` is safe to finish cleanup.
-        try await importRecoveryPersistence.recordOnboardingCompletion(.init(
+        try await importRecoveryPersistence.recordOnboardingImportCompletion(.init(
             transactionID: details.transactionID,
         ))
         if !onboardingAcknowledged {
-            try await importRecoveryPersistence.save(acknowledged)
+            try await importRecoveryPersistence.saveBackupImportRecovery(acknowledged)
             importRecoveryPhase = .recoveryRequired(acknowledged)
         }
         guard cleanupCompleted else { return }
         try await removeReceipt(for: details)
-        try await importRecoveryPersistence.save(nil)
+        try await importRecoveryPersistence.saveBackupImportRecovery(nil)
         importRecoveryPhase = .ready
     }
 
@@ -416,12 +416,12 @@ public actor BackupCoordinator {
         // close ingestion before either merge or replace so a streamed sample cannot cross the
         // transaction boundary.
         let preparedRecovery = DurableImportRecovery.prepared(recoveryDetails)
-        try await importRecoveryPersistence.save(preparedRecovery)
+        try await importRecoveryPersistence.saveBackupImportRecovery(preparedRecovery)
         do {
             try await importLifecycle.prepare(strategy)
         } catch {
             do {
-                try await importRecoveryPersistence.save(nil)
+                try await importRecoveryPersistence.saveBackupImportRecovery(nil)
             } catch let persistenceError {
                 importRecoveryPhase = .recoveryRequired(preparedRecovery)
                 throw ImportRecoveryResolutionError(
@@ -533,7 +533,7 @@ public actor BackupCoordinator {
             guard receipt != nil else {
                 await importLifecycle.didRollBack(strategy)
                 do {
-                    try await importRecoveryPersistence.save(nil)
+                    try await importRecoveryPersistence.saveBackupImportRecovery(nil)
                 } catch let persistenceError {
                     importRecoveryPhase = .recoveryRequired(preparedRecovery)
                     throw ImportRecoveryResolutionError(
@@ -577,7 +577,7 @@ public actor BackupCoordinator {
             onboardingAcknowledged: false,
         )
         do {
-            try await importRecoveryPersistence.save(cleanupPending)
+            try await importRecoveryPersistence.saveBackupImportRecovery(cleanupPending)
         } catch {
             importRecoveryPhase = .recoveryRequired(.prepared(details))
             throw error
@@ -599,7 +599,7 @@ public actor BackupCoordinator {
                 )
                 guard receipt != nil else {
                     await importLifecycle.didRollBack(details.strategy)
-                    try await importRecoveryPersistence.save(nil)
+                    try await importRecoveryPersistence.saveBackupImportRecovery(nil)
                     importRecoveryPhase = .ready
                     return
                 }
@@ -609,7 +609,7 @@ public actor BackupCoordinator {
                     onboardingAcknowledged: false,
                 )
                 do {
-                    try await importRecoveryPersistence.save(cleanupPending)
+                    try await importRecoveryPersistence.saveBackupImportRecovery(cleanupPending)
                 } catch {
                     importRecoveryPhase = .recoveryRequired(recovery)
                     throw error
@@ -639,7 +639,7 @@ public actor BackupCoordinator {
                         onboardingAcknowledged: onboardingAcknowledged,
                     )
                     do {
-                        try await importRecoveryPersistence.save(completed)
+                        try await importRecoveryPersistence.saveBackupImportRecovery(completed)
                     } catch {
                         importRecoveryPhase = .recoveryRequired(cleanupPending)
                         throw error
@@ -664,7 +664,7 @@ public actor BackupCoordinator {
         }
         if onboardingAcknowledged {
             do {
-                try await importRecoveryPersistence.save(nil)
+                try await importRecoveryPersistence.saveBackupImportRecovery(nil)
             } catch {
                 importRecoveryPhase = .recoveryRequired(completed)
                 throw error
@@ -706,7 +706,7 @@ public actor BackupCoordinator {
             }
         }
 
-        guard let recovery = try await importRecoveryPersistence.load() else {
+        guard let recovery = try await importRecoveryPersistence.loadBackupImportRecovery() else {
             importRecoveryPhase = .ready
             hasHydratedImportRecovery = true
             return
@@ -719,7 +719,7 @@ public actor BackupCoordinator {
                 )
                 if receipt == nil {
                     await importLifecycle.didRollBack(details.strategy)
-                    try await importRecoveryPersistence.save(nil)
+                    try await importRecoveryPersistence.saveBackupImportRecovery(nil)
                     importRecoveryPhase = .ready
                 } else {
                     let committed = DurableImportRecovery.committed(
@@ -727,7 +727,7 @@ public actor BackupCoordinator {
                         cleanupCompleted: false,
                         onboardingAcknowledged: false,
                     )
-                    try await importRecoveryPersistence.save(committed)
+                    try await importRecoveryPersistence.saveBackupImportRecovery(committed)
                     importRecoveryPhase = .recoveryRequired(committed)
                 }
             case .committed:

@@ -4,7 +4,7 @@
 /// Tests and previews inject an in-memory implementation, so domain consumers
 /// and views never reach for `FileManager`, `UIDevice`, or `UserDefaults`.
 @MainActor
-public protocol InstallationRecordingContextStoring: AnyObject {
+public protocol InstallationRecordingContextStoring: AnyObject, BackupImportRecoveryPersisting {
     /// Context used to render onboarding before any real store is opened.
     var onboardingContext: InstallationRecordingContext { get }
 
@@ -45,17 +45,15 @@ public protocol InstallationRecordingContextStoring: AnyObject {
 }
 
 extension InstallationRecordingContextStoring {
-    /// Bridge this main-actor sidecar to the coordinator's async persistence seam without
-    /// exposing the adapter's filesystem details to Core.
-    public var backupImportRecoveryPersistence: BackupCoordinator.ImportRecoveryPersistence {
-        BackupCoordinator.ImportRecoveryPersistence(
-            load: { @MainActor [self] in backupImportRecovery },
-            save: { @MainActor [self] recovery in
-                try setBackupImportRecovery(recovery)
-            },
-            recordOnboardingCompletion: { @MainActor [self] completion in
-                try recordOnboardingImportCompletion(completion)
-            },
-        )
+    public func loadBackupImportRecovery() async throws
+        -> BackupCoordinator.DurableImportRecovery?
+    {
+        backupImportRecovery
+    }
+
+    public func saveBackupImportRecovery(
+        _ recovery: BackupCoordinator.DurableImportRecovery?,
+    ) async throws {
+        try setBackupImportRecovery(recovery)
     }
 }

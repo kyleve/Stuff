@@ -317,8 +317,7 @@ public final class WhereBootstrap: WhereScopeAssembling {
                 issueAlertScheduler: UserNotificationDataIssueAlertScheduler(),
                 widgetRefresher: WidgetCenterTimelineRefresher(),
                 locationOutbox: locationOutbox,
-                importRecoveryPersistence: installationContextStore
-                    .backupImportRecoveryPersistence,
+                importRecoveryPersistence: installationContextStore,
             )
             Self.logger { .servicesAssembled }
             return services
