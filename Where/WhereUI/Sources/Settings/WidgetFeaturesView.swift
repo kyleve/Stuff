@@ -6,27 +6,18 @@ import WhereCore
 /// the system surface where the user can add it.
 struct WidgetFeaturesView: View {
     let focus: SettingsFocus?
-
-    private let snapshot: WidgetSnapshot
-
-    init(
-        focus: SettingsFocus?,
-        snapshot: WidgetSnapshot,
-    ) {
-        self.focus = focus
-        self.snapshot = snapshot
-    }
+    let presentation: FeatureDiscoveryPresentation
 
     var body: some View {
         SettingsFocusScope(focus: focus) {
             Form {
                 Section {
-                    Text(String(localized: .settingsExploreWidgetsIntroduction))
+                    Text(introduction)
                         .foregroundStyle(.secondary)
                 }
 
                 Section {
-                    FeatureHomeScreenPreview(snapshot: snapshot)
+                    FeatureHomeScreenPreview(snapshot: presentation.widgetSnapshot)
                         .listRowInsets(.init())
                         .settingsRow(Item.homeScreen)
                 } header: {
@@ -36,9 +27,12 @@ struct WidgetFeaturesView: View {
                 }
 
                 Section {
-                    FeatureLockScreenPreview(snapshot: snapshot)
-                        .listRowInsets(.init())
-                        .settingsRow(Item.lockScreen)
+                    FeatureLockScreenPreview(
+                        date: presentation.lockScreenDate,
+                        snapshot: presentation.widgetSnapshot,
+                    )
+                    .listRowInsets(.init())
+                    .settingsRow(Item.lockScreen)
                 } header: {
                     Text(String(localized: .settingsExploreWidgetsLockHeader))
                 } footer: {
@@ -48,6 +42,12 @@ struct WidgetFeaturesView: View {
         }
         .navigationTitle(String(localized: .settingsExploreWidgetsTitle))
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private var introduction: String {
+        presentation.usesUserData
+            ? String(localized: .settingsExploreWidgetsPersonalizedIntroduction)
+            : String(localized: .settingsExploreWidgetsIntroduction)
     }
 }
 
@@ -79,7 +79,7 @@ extension WidgetFeaturesView: SettingsSection {
             whereSnapshot(name: "Default", configurations: .fullContentScreenDefaults) {
                 WidgetFeaturesView(
                     focus: nil,
-                    snapshot: PreviewSupport.sampleWidgetSnapshot(),
+                    presentation: PreviewSupport.featureDiscoveryPresentation(),
                 )
             }
         }
@@ -89,7 +89,7 @@ extension WidgetFeaturesView: SettingsSection {
         NavigationStack {
             WidgetFeaturesView(
                 focus: nil,
-                snapshot: PreviewSupport.sampleWidgetSnapshot(),
+                presentation: PreviewSupport.featureDiscoveryPresentation(),
             )
         }
         .whereBroadwayRoot()

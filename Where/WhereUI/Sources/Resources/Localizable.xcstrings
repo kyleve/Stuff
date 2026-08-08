@@ -5795,6 +5795,105 @@
         }
       }
     },
+    "settings.explore.siri.personalized.date.request" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where was I on %@?"
+          }
+        }
+      }
+    },
+    "settings.explore.siri.personalized.date.response" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ counted for %2$@."
+          }
+        }
+      }
+    },
+    "settings.explore.siri.personalized.days.request" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How many days have I spent in %1$@ in %2$@?"
+          }
+        }
+      }
+    },
+    "settings.explore.siri.personalized.days.response" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You’ve spent %1$@ in %2$@ in %3$@."
+          }
+        }
+      }
+    },
+    "settings.explore.siri.personalized.introduction" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "These examples use your Where data when relevant. Browsing this screen never changes it."
+          }
+        }
+      }
+    },
+    "settings.explore.siri.personalized.recent.request" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Summarize my recent activity."
+          }
+        }
+      }
+    },
+    "settings.explore.siri.personalized.recent.response" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your latest %1$@ logged days include %2$@."
+          }
+        }
+      }
+    },
+    "settings.explore.siri.personalized.today.response.empty" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing is logged for today yet."
+          }
+        }
+      }
+    },
+    "settings.explore.siri.personalized.today.response.regions" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Today counts for %@."
+          }
+        }
+      }
+    },
     "settings.explore.siri.recent.request" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5978,6 +6077,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Example Lock Screen showing Where widgets."
+          }
+        }
+      }
+    },
+    "settings.explore.widgets.personalized.introduction" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "These previews use your Where data to show how each widget looks for you."
           }
         }
       }

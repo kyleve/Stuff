@@ -3,6 +3,7 @@ import WhereCore
 
 /// A miniature Lock Screen displaying every supported accessory widget family.
 struct FeatureLockScreenPreview: View {
+    let date: Date
     let snapshot: WidgetSnapshot
 
     @Environment(\.stylesheet) private var stylesheet
@@ -10,9 +11,9 @@ struct FeatureLockScreenPreview: View {
     var body: some View {
         let style = stylesheet.featureDiscovery
         VStack(spacing: style.deviceSpacing) {
-            Text(snapshot.day, format: .dateTime.weekday(.wide).month(.wide).day())
+            Text(date, format: .dateTime.weekday(.wide).month(.wide).day())
                 .font(.subheadline)
-            Text(snapshot.day, format: .dateTime.hour().minute())
+            Text(date, format: .dateTime.hour().minute())
                 .font(.largeTitle)
                 .bold()
 
@@ -51,8 +52,11 @@ struct FeatureLockScreenPreview: View {
 
 #if DEBUG
     #Preview {
-        FeatureLockScreenPreview(snapshot: PreviewSupport.sampleWidgetSnapshot())
-            .padding()
-            .whereBroadwayRoot()
+        FeatureLockScreenPreview(
+            date: PreviewSupport.referenceNow,
+            snapshot: PreviewSupport.sampleWidgetSnapshot(),
+        )
+        .padding()
+        .whereBroadwayRoot()
     }
 #endif

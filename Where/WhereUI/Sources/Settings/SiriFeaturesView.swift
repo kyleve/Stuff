@@ -2,25 +2,28 @@ import SnapshotKit
 import SwiftUI
 
 /// A visual catalog of every user-facing App Intent Where ships to Siri and
-/// Shortcuts. The dialogue is illustrative and never reads or changes user data.
+/// Shortcuts. The dialogue uses the selected report once it has enough history;
+/// browsing the catalog never changes user data.
 struct SiriFeaturesView: View {
     let focus: SettingsFocus?
+    let presentation: FeatureDiscoveryPresentation
 
     var body: some View {
         SettingsFocusScope(focus: focus) {
             Form {
                 Section {
-                    Text(String(localized: .settingsExploreSiriIntroduction))
+                    Text(introduction)
                         .foregroundStyle(.secondary)
                 }
 
                 Section {
                     ForEach(Item.allCases, id: \.self) { feature in
+                        let personalized = presentation.siriExample(for: feature)
                         SiriIntentCard(
                             title: feature.title,
                             systemImage: feature.systemImage,
-                            request: feature.request,
-                            response: feature.response,
+                            request: personalized?.request ?? feature.request,
+                            response: personalized?.response ?? feature.response,
                         )
                         .listRowBackground(Color.clear)
                         .listRowInsets(.init())
@@ -33,6 +36,12 @@ struct SiriFeaturesView: View {
         }
         .navigationTitle(String(localized: .settingsExploreSiriTitle))
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private var introduction: String {
+        presentation.usesUserData
+            ? String(localized: .settingsExploreSiriPersonalizedIntroduction)
+            : String(localized: .settingsExploreSiriIntroduction)
     }
 }
 
@@ -103,14 +112,20 @@ extension SiriFeaturesView: SettingsSection {
     extension SiriFeaturesView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
             whereSnapshot(name: "Default", configurations: .fullContentScreenDefaults) {
-                SiriFeaturesView(focus: nil)
+                SiriFeaturesView(
+                    focus: nil,
+                    presentation: PreviewSupport.featureDiscoveryPresentation(),
+                )
             }
         }
     }
 
     #Preview {
         NavigationStack {
-            SiriFeaturesView(focus: nil)
+            SiriFeaturesView(
+                focus: nil,
+                presentation: PreviewSupport.featureDiscoveryPresentation(),
+            )
         }
         .whereBroadwayRoot()
     }

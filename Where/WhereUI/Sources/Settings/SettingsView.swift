@@ -239,9 +239,15 @@ struct SettingsView: View {
             case .year:
                 VisibleYearSettingsView(report: report, focus: route.focus)
             case .siri:
-                SiriFeaturesView(focus: route.focus)
+                SiriFeaturesView(
+                    focus: route.focus,
+                    presentation: featureDiscoveryPresentation,
+                )
             case .widgets:
-                WidgetFeaturesView(focus: route.focus, snapshot: widgetFeatureSnapshot)
+                WidgetFeaturesView(
+                    focus: route.focus,
+                    presentation: featureDiscoveryPresentation,
+                )
             case .data:
                 DataSettingsView(report: report, backup: backup, focus: route.focus)
             case .about:
@@ -257,18 +263,12 @@ struct SettingsView: View {
         return Set(totals.filter { $0.key != .other && $0.value > 0 }.map(\.key))
     }
 
-    /// The explorer renders the actual widget views with the selected report's
-    /// data. Falling back to an empty snapshot keeps the catalog available while
-    /// the report loads without pretending sample data belongs to the user.
-    private var widgetFeatureSnapshot: WidgetSnapshot {
-        let date = report.referenceDate
-        let day = CalendarDay(from: date, in: report.calendar)
-        let loadedReport = report.report
-        return WidgetSnapshot(
-            day: report.calendar.startOfDay(for: date),
-            year: report.selectedYear,
-            dayRegions: loadedReport?.days.first { $0.day == day }?.regions ?? [],
-            totals: loadedReport?.totals ?? [:],
+    private var featureDiscoveryPresentation: FeatureDiscoveryPresentation {
+        FeatureDiscoveryPresentation(
+            report: report.report,
+            selectedYear: report.selectedYear,
+            referenceDate: report.referenceDate,
+            calendar: report.calendar,
         )
     }
 }
