@@ -191,14 +191,14 @@ struct BackupServiceTests {
         #expect(result.blobs == blobs)
     }
 
-    @Test func olderFormatIsRejectedBeforeItsMissingCurrentFieldsAreDecoded() {
-        let legacyManifest = Data(#"{"formatVersion":4}"#.utf8)
+    @Test func unsupportedFormatIsRejectedBeforeItsMissingCurrentFieldsAreDecoded() {
+        let legacyManifest = Data(#"{"formatVersion":5}"#.utf8)
 
         do {
             _ = try BackupService.decodeManifest(legacyManifest)
             Issue.record("Expected the legacy backup format to be rejected.")
-        } catch BackupService.BackupError.unsupportedFormatVersion(4) {
-            // Expected: the version envelope was decoded before the strict v6 shape.
+        } catch BackupService.BackupError.unsupportedFormatVersion(5) {
+            // Expected: the version envelope was decoded before the strict current shape.
         } catch {
             Issue.record("Unexpected error: \(error)")
         }

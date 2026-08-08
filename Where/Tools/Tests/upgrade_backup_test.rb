@@ -7,7 +7,7 @@ class UpgradeBackupTest < Minitest::Test
   def test_v1_adds_current_tables_without_inventing_recording_consent
     upgraded = upgrade_manifest(base_manifest(1))
 
-    assert_equal 3, upgraded.fetch("formatVersion")
+    assert_equal 4, upgraded.fetch("formatVersion")
     assert_equal [], upgraded.fetch("recordingDeviceProfiles")
     assert_equal [], upgraded.fetch("recordingDeviceMetadataChanges")
     assert_equal [], upgraded.fetch("recordingDeviceRemovals")
@@ -37,8 +37,37 @@ class UpgradeBackupTest < Minitest::Test
     assert_equal manifest["primaryRegions"], upgrade_manifest(manifest)["primaryRegions"]
   end
 
-  def test_v3_is_idempotent
-    once = upgrade_manifest(base_manifest(3))
+  def test_v3_reshapes_recording_device_data
+    manifest = base_manifest(3).merge(
+      "recordingDeviceProfiles" => [{
+        "kind" => "other",
+        "registrationEpochID" => "generation-id",
+      }],
+      "recordingDeviceMetadataChanges" => [{
+        "field" => "nickname",
+        "nickname" => "Travel iPad",
+      }, {
+        "field" => "nickname",
+      }],
+    )
+
+    upgraded = upgrade_manifest(manifest)
+
+    assert_equal 4, upgraded.fetch("formatVersion")
+    assert_equal({
+      "kind" => { "kind" => "other" },
+      "registrationGenerationID" => "generation-id",
+    }, upgraded.fetch("recordingDeviceProfiles").first)
+    assert_equal({
+      "payload" => { "field" => "nickname", "nickname" => "Travel iPad" },
+    }, upgraded.fetch("recordingDeviceMetadataChanges").first)
+    assert_equal({
+      "payload" => { "field" => "nickname" },
+    }, upgraded.fetch("recordingDeviceMetadataChanges").last)
+  end
+
+  def test_v4_is_idempotent
+    once = upgrade_manifest(base_manifest(4))
     assert_equal once, upgrade_manifest(Marshal.load(Marshal.dump(once)))
   end
 
@@ -54,7 +83,7 @@ class UpgradeBackupTest < Minitest::Test
   end
 
   def test_rejects_branch_only_or_future_formats
-    error = assert_raises(SystemExit) { upgrade_manifest(base_manifest(4)) }
+    error = assert_raises(SystemExit) { upgrade_manifest(base_manifest(5)) }
     assert_equal 1, error.status
   end
 

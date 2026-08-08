@@ -1,9 +1,9 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# Reshapes a legacy Where backup into the current v3 manifest. The automatic-recording feature
-# was not shipped in v1 or v2, so upgrading adds the four new recording tables empty; it never
-# invents an installation or recording consent.
+# Reshapes a legacy Where backup into the current v4 manifest. The automatic-recording feature
+# was not shipped in v1 or v2, so upgrading adds the recording tables empty; it never invents an
+# installation or recording consent. v4 gives device kinds and metadata edits rename-safe shapes.
 
 require "json"
 require "tmpdir"
@@ -12,7 +12,7 @@ require "time"
 require "set"
 
 MANIFEST_NAME = "manifest.json"
-CURRENT_FORMAT_VERSION = 3
+CURRENT_FORMAT_VERSION = 4
 SUPPORTED_SOURCE_FORMAT_VERSIONS = (1..CURRENT_FORMAT_VERSION).freeze
 
 REGION_MAP = {
@@ -137,6 +137,26 @@ def normalize_dates!(value)
   value
 end
 
+def upgrade_recording_devices!(manifest, source_version)
+  return unless source_version < 4
+
+  Array(manifest["recordingDeviceProfiles"]).each do |profile|
+    kind = profile["kind"]
+    profile["kind"] = { "kind" => kind } if kind.is_a?(String)
+    if profile.key?("registrationEpochID")
+      profile["registrationGenerationID"] = profile.delete("registrationEpochID")
+    end
+  end
+
+  Array(manifest["recordingDeviceMetadataChanges"]).each do |change|
+    next if change.key?("payload")
+
+    payload = { "field" => change.delete("field") }
+    payload["nickname"] = change.delete("nickname") if change.key?("nickname")
+    change["payload"] = payload
+  end
+end
+
 def source_format_version(manifest)
   version = manifest["formatVersion"]
   die "manifest formatVersion must be an integer" unless version.is_a?(Integer)
@@ -147,7 +167,7 @@ def source_format_version(manifest)
 end
 
 def upgrade_manifest(manifest)
-  source_format_version(manifest)
+  source_version = source_format_version(manifest)
   warnings = []
   upgrade_evidence!(manifest, warnings)
   upgrade_manual_days!(manifest, warnings)
@@ -168,6 +188,7 @@ def upgrade_manifest(manifest)
   manifest["recordingDeviceProfiles"] ||= []
   manifest["recordingDeviceMetadataChanges"] ||= []
   manifest["recordingDeviceRemovals"] ||= []
+  upgrade_recording_devices!(manifest, source_version)
   manifest.delete("recordingDevices")
   manifest.delete("recordingDeviceCheckIns")
   manifest.delete("recordingPolicyChanges")
