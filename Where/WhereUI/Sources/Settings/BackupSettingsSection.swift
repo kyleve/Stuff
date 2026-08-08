@@ -9,8 +9,9 @@ struct BackupSettingsSection: View {
     let backup: BackupModel
 
     /// Backup export: the ready-to-share archive built up-front, revealed as a
-    /// `ShareLink` once the background export finishes.
+    /// second row once the background export finishes.
     @State private var exportedArchiveURL: URL?
+    @State private var presentedShareItem: BackupShareSheet.Item?
 
     // Backup import: the picked file and the merge/replace choice. The success
     // confirmation lives on `backup` (the model), so it survives this screen
@@ -25,6 +26,9 @@ struct BackupSettingsSection: View {
     var body: some View {
         @Bindable var backup = backup
         backupSection
+            .sheet(item: $presentedShareItem) { item in
+                BackupShareSheet(item: item)
+            }
             .fileImporter(
                 isPresented: $showImporter,
                 allowedContentTypes: [.zip],
@@ -79,9 +83,9 @@ struct BackupSettingsSection: View {
     private var backupSection: some View {
         Section {
             // The archive is built up-front on a background task (with an
-            // in-app "Exporting…" bar), then shared through a `ShareLink` to the
-            // ready file — so the share sheet opens instantly instead of sitting
-            // in the system's blocking "Preparing…" state.
+            // in-app "Exporting…" bar), then handed to the system activity sheet
+            // as a ready file — so it opens instantly instead of sitting in the
+            // system's blocking "Preparing…" state.
             Button {
                 runExport()
             } label: {
@@ -101,10 +105,9 @@ struct BackupSettingsSection: View {
             .settingsRow(DataSettingsView.Item.exportBackup)
 
             if backup.backupState == .idle, let url = exportedArchiveURL {
-                ShareLink(
-                    item: BackupArchiveFile(url: url),
-                    preview: SharePreview(String(localized: .settingsBackupShareTitle)),
-                ) {
+                Button {
+                    presentedShareItem = BackupShareSheet.Item(url: url)
+                } label: {
                     Label(
                         String(localized: .settingsBackupShare),
                         systemImage: "square.and.arrow.up.on.square",
@@ -156,7 +159,7 @@ struct BackupSettingsSection: View {
     }
 
     /// Build the archive in the background, then reveal the share row. Clearing
-    /// `exportedArchiveURL` first hides the stale share link — the coordinator
+    /// `exportedArchiveURL` first hides the stale share row — the coordinator
     /// purges the previous export's directory when this new export starts.
     private func runExport() {
         exportedArchiveURL = nil

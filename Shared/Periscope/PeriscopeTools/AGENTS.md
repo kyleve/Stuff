@@ -21,11 +21,12 @@ the build system, formatting, and global conventions. Read that first.
 
 ## Design system — `PeriscopeStylesheet`
 
-Appearance tokens live in `PeriscopeStylesheet`
-([`Sources/Styling/PeriscopeStylesheet.swift`](Sources/Styling/PeriscopeStylesheet.swift)),
-a Broadway `BStylesheet` — never inline in views. Read with
-`@Environment(\.stylesheet)`; off the `View` tree use
-`PeriscopeStylesheet.default`.
+Follow the repo [`building-ui`](../../../.agents/skills/building-ui/SKILL.md)
+skill for Broadway token ownership, variants, trait derivation, layout,
+accessibility, previews, and rendering coverage. This module's sheet is
+[`PeriscopeStylesheet`](Sources/Styling/PeriscopeStylesheet.swift), read through
+`@Environment(\.stylesheet)` and defaulted to `PeriscopeStylesheet.default` off
+the view tree.
 
 - **Each public tool view seeds its own root** with `periscopeBroadwayRoot()`,
   so tooling styles correctly with or without a host Broadway root.

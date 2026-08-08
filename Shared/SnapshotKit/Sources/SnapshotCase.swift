@@ -22,7 +22,9 @@ public enum SnapshotSettle: Equatable, Sendable {
 /// render, and the content to render under each.
 ///
 /// It is also a `View`, so it renders a labeled, scrollable cutsheet of its
-/// variants inside a `#Preview` — the same content the snapshot tests capture.
+/// variants inside a `#Preview` — the same matrix, traits, and content the
+/// snapshot tests capture. Test-only capture mechanics are documented on
+/// ``previewConfigurations``.
 /// Accessibility variants are excluded from that preview (see
 /// ``previewConfigurations``); they only render as tests.
 public struct SnapshotCase: Identifiable {
@@ -71,7 +73,11 @@ public struct SnapshotCase: Identifiable {
 
     /// The configurations that can render in a plain SwiftUI preview. Accessibility
     /// captures need the test-only library's VoiceOver parser, so they're dropped
-    /// from the cutsheet (they still run as snapshot tests).
+    /// from the cutsheet (they still run as snapshot tests). The cutsheet also
+    /// cannot perform the capture pipeline's UIKit-backed `List`/`Form`
+    /// measurement, safe-area override, async ready hook, or tile-and-stitch;
+    /// full-content preview height is therefore an approximation while the test
+    /// capture is authoritative.
     public var previewConfigurations: [SnapshotConfiguration] {
         configurations.filter { $0.snapshotType != .accessibility }
     }
@@ -87,8 +93,8 @@ extension SnapshotCase: View {
                         .foregroundStyle(.secondary)
                     framed(for: configuration)
                         .snapshotTraits(configuration)
-                        // Previews mirror what the tests capture, so each
-                        // variant renders its deterministic capture state.
+                        // Preview the same deterministic content state as tests;
+                        // capture-only mechanics remain test-pipeline concerns.
                         .environment(\.isCapturingSnapshot, true)
                 }
             }
@@ -110,11 +116,12 @@ extension SnapshotCase: View {
                 }
             case let .fixed(size):
                 content.frame(width: size.width, height: size.height)
-            case let .fullContent(width):
-                // No height: in the cutsheet's scroll view the content gets an
-                // unbounded proposal and takes its ideal (content) height, the
-                // preview analogue of the pipeline's content measurement.
-                content.frame(width: width)
+            case let .fullContent(width, minimumHeight):
+                // The cutsheet shares the viewport minimum but cannot run the
+                // test pipeline's UIKit descendant measurement.
+                content
+                    .frame(width: width)
+                    .frame(minHeight: minimumHeight)
         }
     }
 }
