@@ -256,7 +256,7 @@ public actor DayJournal {
                 )
                 for deviceID in deviceIDs {
                     try await store.addRecordingDeviceRemoval(RecordingDeviceRemoval(
-                        id: UUID(),
+                        id: .init(rawValue: UUID()),
                         deviceID: deviceID,
                         removedAt: resetAt,
                         removedByDeviceID: currentDeviceID,

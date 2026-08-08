@@ -153,7 +153,7 @@ struct DeviceRecordingControllerTests {
         let deviceID = controller.currentDevice.id
         try await store.perform {
             try await store.addRecordingDeviceRemoval(RecordingDeviceRemoval(
-                id: UUID(),
+                id: .init(rawValue: UUID()),
                 deviceID: deviceID,
                 removedAt: Self.now,
                 removedByDeviceID: RecordingDeviceID(rawValue: UUID()),

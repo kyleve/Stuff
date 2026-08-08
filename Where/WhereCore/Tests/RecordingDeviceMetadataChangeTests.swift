@@ -6,9 +6,9 @@ struct RecordingDeviceMetadataChangeTests {
     private static let deviceID = RecordingDeviceID(
         rawValue: UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")!,
     )
-    private static let changeID = UUID(
-        uuidString: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB",
-    )!
+    private static let changeID = RecordingDeviceMetadataChange.ID(
+        rawValue: UUID(uuidString: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB")!,
+    )
 
     @Test func clearedNicknameRoundTripsAsANicknameEvent() throws {
         let change = RecordingDeviceMetadataChange(

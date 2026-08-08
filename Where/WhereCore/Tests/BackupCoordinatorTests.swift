@@ -115,7 +115,9 @@ struct BackupCoordinatorTests {
                 registrationEpochID: .initial,
             ))
             try await store.addRecordingDeviceMetadataChange(RecordingDeviceMetadataChange(
-                id: UUID(uuidString: "DDDDDDDD-DDDD-DDDD-DDDD-DDDDDDDDDDDD")!,
+                id: .init(
+                    rawValue: UUID(uuidString: "DDDDDDDD-DDDD-DDDD-DDDD-DDDDDDDDDDDD")!,
+                ),
                 deviceID: recordingDeviceID,
                 revision: 0,
                 changedAt: dismissal.dismissedAt,
@@ -129,7 +131,9 @@ struct BackupCoordinatorTests {
                 status: .recording,
             ))
             try await store.addRecordingDeviceRemoval(RecordingDeviceRemoval(
-                id: UUID(uuidString: "FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF")!,
+                id: .init(
+                    rawValue: UUID(uuidString: "FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF")!,
+                ),
                 deviceID: recordingDeviceID,
                 removedAt: dismissal.dismissedAt,
                 removedByDeviceID: recordingDeviceID,
@@ -220,7 +224,7 @@ struct BackupCoordinatorTests {
                 dismissedAt: Date(timeIntervalSince1970: 1),
             ))
             try await destination.store.addRecordingDeviceRemoval(RecordingDeviceRemoval(
-                id: UUID(),
+                id: .init(rawValue: UUID()),
                 deviceID: previouslyRemovedDeviceID,
                 removedAt: Date(timeIntervalSinceReferenceDate: 500),
                 removedByDeviceID: Self.recordingDeviceID,

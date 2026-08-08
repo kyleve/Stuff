@@ -34,8 +34,9 @@ struct BackupServiceTests {
         ]
     }
 
-    private static let recordingMetadataID =
-        UUID(uuidString: "EEEEEEEE-EEEE-EEEE-EEEE-EEEEEEEEEEEE")!
+    private static let recordingMetadataID = RecordingDeviceMetadataChange.ID(
+        rawValue: UUID(uuidString: "EEEEEEEE-EEEE-EEEE-EEEE-EEEEEEEEEEEE")!,
+    )
 
     private static func recordingDeviceProfileFixtures() -> [RecordingDeviceProfile] {
         [
@@ -144,7 +145,7 @@ struct BackupServiceTests {
         let recordingDeviceProfiles = Self.recordingDeviceProfileFixtures()
         let recordingDeviceMetadataChanges = Self.recordingDeviceMetadataFixtures()
         let deviceArchive = RecordingDeviceRemoval(
-            id: UUID(),
+            id: .init(rawValue: UUID()),
             deviceID: Self.recordingDeviceID,
             removedAt: Self.exportDate,
             removedByDeviceID: Self.recordingDeviceID,

@@ -163,7 +163,9 @@ struct SwiftDataStoreTests {
             registrationEpochID: .initial,
         )
         let nicknameMetadata = try RecordingDeviceMetadataChange(
-            id: #require(UUID(uuidString: "CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC")),
+            id: .init(rawValue: #require(UUID(
+                uuidString: "CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC",
+            ))),
             deviceID: deviceID,
             revision: 0,
             changedAt: date,
@@ -239,7 +241,7 @@ struct SwiftDataStoreTests {
         let container = try SwiftDataStore.makeContainer(storage: .inMemory)
         let context = ModelContext(container)
         let removal = RecordingDeviceRemoval(
-            id: UUID(),
+            id: .init(rawValue: UUID()),
             deviceID: RecordingDeviceID(rawValue: UUID()),
             removedAt: Date(timeIntervalSinceReferenceDate: 100),
             removedByDeviceID: RecordingDeviceID(rawValue: UUID()),
@@ -261,7 +263,7 @@ struct SwiftDataStoreTests {
         try conflictContext.save()
 
         await #expect(throws: RecordingPersistenceError
-            .conflictingImmutableRecord(id: removal.id))
+            .conflictingImmutableRecord(id: removal.id.rawValue))
         {
             try await store.recordingDeviceRemovals()
         }
@@ -271,7 +273,7 @@ struct SwiftDataStoreTests {
         let store = try SwiftDataStore.inMemory()
         let removingDeviceID = RecordingDeviceID(rawValue: UUID())
         let removal = RecordingDeviceRemoval(
-            id: UUID(),
+            id: .init(rawValue: UUID()),
             deviceID: RecordingDeviceID(rawValue: UUID()),
             removedAt: Date(timeIntervalSinceReferenceDate: 100),
             removedByDeviceID: removingDeviceID,
@@ -305,7 +307,9 @@ struct SwiftDataStoreTests {
             registrationEpochID: .initial,
         )
         let metadata = try RecordingDeviceMetadataChange(
-            id: #require(UUID(uuidString: "CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC")),
+            id: .init(rawValue: #require(UUID(
+                uuidString: "CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC",
+            ))),
             deviceID: deviceID,
             revision: 0,
             changedAt: date,
@@ -479,7 +483,9 @@ struct SwiftDataStoreTests {
             registrationEpochID: .initial,
         )
         let metadata = try RecordingDeviceMetadataChange(
-            id: #require(UUID(uuidString: "DDDDDDDD-DDDD-DDDD-DDDD-DDDDDDDDDDDD")),
+            id: .init(rawValue: #require(UUID(
+                uuidString: "DDDDDDDD-DDDD-DDDD-DDDD-DDDDDDDDDDDD",
+            ))),
             deviceID: deviceID,
             revision: 0,
             changedAt: date,
@@ -922,8 +928,12 @@ struct SwiftDataStoreTests {
         let deviceID = try RecordingDeviceID(
             rawValue: #require(UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")),
         )
-        let removalID = try #require(UUID(uuidString: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB"))
-        let metadataID = try #require(UUID(uuidString: "CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC"))
+        let removalID = try RecordingDeviceRemoval.ID(rawValue: #require(UUID(
+            uuidString: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB",
+        )))
+        let metadataID = try RecordingDeviceMetadataChange.ID(rawValue: #require(UUID(
+            uuidString: "CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC",
+        )))
         let sampleID = try #require(UUID(uuidString: "DDDDDDDD-DDDD-DDDD-DDDD-DDDDDDDDDDDD"))
         let date = Date(timeIntervalSinceReferenceDate: 200)
         let sample = LocationSample(
@@ -972,14 +982,16 @@ struct SwiftDataStoreTests {
         let sampleRows = try inspectionContext.fetch(
             FetchDescriptor<SDLocationSample>(predicate: #Predicate { $0.id == sampleID }),
         )
+        let metadataRawID = metadataID.rawValue
         let metadataRows = try inspectionContext.fetch(
             FetchDescriptor<SDRecordingDeviceMetadataChange>(predicate: #Predicate {
-                $0.id == metadataID
+                $0.id == metadataRawID
             }),
         )
+        let removalRawID = removalID.rawValue
         let removalRows = try inspectionContext.fetch(
             FetchDescriptor<SDRecordingDeviceRemoval>(predicate: #Predicate {
-                $0.id == removalID
+                $0.id == removalRawID
             }),
         )
         let expectedEpochIDs = Set([

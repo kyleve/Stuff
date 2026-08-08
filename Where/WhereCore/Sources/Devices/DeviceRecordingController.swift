@@ -179,7 +179,7 @@ public actor DeviceRecordingController {
             return try await configurationsLocked(includeRemoved: false)
         }
         let change = try RecordingDeviceMetadataChange(
-            id: UUID(),
+            id: .init(rawValue: UUID()),
             deviceID: deviceID,
             revision: Self.nextRevision(after: latest?.revision, for: deviceID),
             changedAt: now(),
@@ -209,7 +209,7 @@ public actor DeviceRecordingController {
             return try await configurationsLocked(includeRemoved: false)
         }
         let removal = RecordingDeviceRemoval(
-            id: UUID(),
+            id: .init(rawValue: UUID()),
             deviceID: deviceID,
             removedAt: now(),
             removedByDeviceID: currentDevice.id,
@@ -355,7 +355,7 @@ public actor DeviceRecordingController {
             if let existing, let resetAt = snapshot.currentDeviceResetBarrier {
                 try await store.perform(expectedDataEpochID: epoch.id) {
                     try await self.store.addRecordingDeviceRemoval(RecordingDeviceRemoval(
-                        id: UUID(),
+                        id: .init(rawValue: UUID()),
                         deviceID: existing.id,
                         removedAt: resetAt,
                         removedByDeviceID: self.currentDevice.id,

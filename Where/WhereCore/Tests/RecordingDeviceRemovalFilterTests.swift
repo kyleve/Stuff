@@ -51,7 +51,7 @@ struct RecordingDeviceRemovalFilterTests {
         offset: TimeInterval,
     ) -> RecordingDeviceRemoval {
         RecordingDeviceRemoval(
-            id: UUID(),
+            id: .init(rawValue: UUID()),
             deviceID: deviceID,
             removedAt: cutoff.addingTimeInterval(offset),
             removedByDeviceID: tablet,

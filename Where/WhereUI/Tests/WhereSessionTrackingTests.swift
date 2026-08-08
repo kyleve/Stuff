@@ -189,9 +189,9 @@ struct WhereSessionTrackingTests {
         #expect(session.isTracking)
         #expect(source.isMonitoring)
 
-        let removalID = try #require(
+        let removalID = try RecordingDeviceRemoval.ID(rawValue: #require(
             UUID(uuidString: "EEEEEEEE-EEEE-EEEE-EEEE-EEEEEEEEEEEE"),
-        )
+        ))
         try await store.simulateRemoteRecordingImport(
             profiles: [],
             metadataChanges: [],

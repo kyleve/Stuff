@@ -48,7 +48,25 @@ public enum RecordingDeviceMetadataPayload: Codable, Sendable, Hashable {
 /// the nonnegative revision before construction so a malformed archive throws instead of
 /// tripping the initializer precondition.
 public struct RecordingDeviceMetadataChange: Identifiable, Codable, Sendable, Hashable {
-    public let id: UUID
+    /// Stable identity for one immutable metadata event.
+    public struct ID: RawRepresentable, Codable, Sendable, Hashable {
+        public let rawValue: UUID
+
+        public init(rawValue: UUID) {
+            self.rawValue = rawValue
+        }
+
+        public init(from decoder: any Decoder) throws {
+            rawValue = try decoder.singleValueContainer().decode(UUID.self)
+        }
+
+        public func encode(to encoder: any Encoder) throws {
+            var container = encoder.singleValueContainer()
+            try container.encode(rawValue)
+        }
+    }
+
+    public let id: ID
     public let deviceID: RecordingDeviceID
     public let revision: Int64
     public let changedAt: Date
@@ -65,7 +83,7 @@ public struct RecordingDeviceMetadataChange: Identifiable, Codable, Sendable, Ha
     }
 
     public init(
-        id: UUID,
+        id: ID,
         deviceID: RecordingDeviceID,
         revision: Int64,
         changedAt: Date,
@@ -92,7 +110,7 @@ public struct RecordingDeviceMetadataChange: Identifiable, Codable, Sendable, Ha
 
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = try container.decode(UUID.self, forKey: .id)
+        id = try container.decode(ID.self, forKey: .id)
         deviceID = try container.decode(RecordingDeviceID.self, forKey: .deviceID)
         revision = try container.decode(Int64.self, forKey: .revision)
         guard revision >= 0 else {
@@ -127,7 +145,7 @@ public struct RecordingDeviceMetadataChange: Identifiable, Codable, Sendable, Ha
         if lhs.revision != rhs.revision {
             return lhs.revision < rhs.revision
         }
-        return lhs.id.uuidString < rhs.id.uuidString
+        return lhs.id.rawValue.uuidString < rhs.id.rawValue.uuidString
     }
 
     /// Stable winner when CloudKit supplies conflicting values for one immutable event id.

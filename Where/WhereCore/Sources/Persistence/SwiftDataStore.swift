@@ -1024,7 +1024,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
                 if Set(duplicates).count > 1 {
                     Self.logImmutableConflict(
                         type: String(describing: RecordingDeviceMetadataChange.self),
-                        id: id.uuidString,
+                        id: id.rawValue.uuidString,
                         count: duplicates.count,
                     )
                 }
@@ -1038,7 +1038,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     ) async throws {
         let context = mutationContext()
         let epochID = mutationEpochID()
-        let id = change.id
+        let id = change.id.rawValue
         let existing = try context.fetch(
             FetchDescriptor<SDRecordingDeviceMetadataChange>(predicate: #Predicate { $0.id == id }),
         )
@@ -1129,16 +1129,16 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
                 guard duplicates.allSatisfy({ $0 == canonical }) else {
                     Self.logImmutableConflict(
                         type: String(describing: RecordingDeviceRemoval.self),
-                        id: id.uuidString,
+                        id: id.rawValue.uuidString,
                         count: duplicates.count,
                     )
-                    throw RecordingPersistenceError.conflictingImmutableRecord(id: id)
+                    throw RecordingPersistenceError.conflictingImmutableRecord(id: id.rawValue)
                 }
                 return canonical
             }
             .sorted {
                 $0.removedAt == $1.removedAt
-                    ? $0.id.uuidString < $1.id.uuidString
+                    ? $0.id.rawValue.uuidString < $1.id.rawValue.uuidString
                     : $0.removedAt < $1.removedAt
             }
     }
@@ -1146,7 +1146,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     public func addRecordingDeviceRemoval(_ archive: RecordingDeviceRemoval) async throws {
         let context = mutationContext()
         let epochID = mutationEpochID()
-        let id = archive.id
+        let id = archive.id.rawValue
         let existing = try context.fetch(
             FetchDescriptor<SDRecordingDeviceRemoval>(predicate: #Predicate { $0.id == id }),
         )
@@ -2060,7 +2060,7 @@ final class SDRecordingDeviceMetadataChange {
     convenience init(value: RecordingDeviceMetadataChange, epochID: WhereDataEpochID) {
         self.init()
         self.epochID = epochID.rawValue
-        id = value.id
+        id = value.id.rawValue
         deviceID = value.deviceID.rawValue
         fieldRaw = value.field.rawValue
         revision = value.revision
@@ -2081,7 +2081,7 @@ final class SDRecordingDeviceMetadataChange {
         else { return nil }
         guard field == .nickname else { return nil }
         return RecordingDeviceMetadataChange(
-            id: id,
+            id: .init(rawValue: id),
             deviceID: RecordingDeviceID(rawValue: deviceID),
             revision: revision,
             changedAt: changedAt,
@@ -2148,7 +2148,7 @@ final class SDRecordingDeviceRemoval {
     convenience init(value: RecordingDeviceRemoval, epochID: WhereDataEpochID) {
         self.init()
         self.epochID = epochID.rawValue
-        id = value.id
+        id = value.id.rawValue
         deviceID = value.deviceID.rawValue
         removedAt = value.removedAt
         removedByDeviceID = value.removedByDeviceID.rawValue
@@ -2157,7 +2157,7 @@ final class SDRecordingDeviceRemoval {
     func toValue() -> RecordingDeviceRemoval? {
         guard let id, let deviceID, let removedAt, let removedByDeviceID else { return nil }
         return RecordingDeviceRemoval(
-            id: id,
+            id: .init(rawValue: id),
             deviceID: RecordingDeviceID(rawValue: deviceID),
             removedAt: removedAt,
             removedByDeviceID: RecordingDeviceID(rawValue: removedByDeviceID),

@@ -8,7 +8,7 @@ struct RecordingDeviceRemovalTests {
         let writer = RecordingDeviceID(rawValue: UUID())
         let date = Date(timeIntervalSinceReferenceDate: 1000)
         let removal = RecordingDeviceRemoval(
-            id: UUID(),
+            id: .init(rawValue: UUID()),
             deviceID: target,
             removedAt: date,
             removedByDeviceID: writer,
