@@ -27,7 +27,7 @@ struct SiriChatBubble: View {
                 .padding(.horizontal, style.bubbleHorizontalPadding)
                 .padding(.vertical, style.bubbleVerticalPadding)
                 .background(
-                    speaker == .user ? Color.accentColor : Color(.tertiarySystemFill),
+                    speaker == .user ? style.conversationAccent : Color(.tertiarySystemFill),
                     in: .rect(cornerRadius: style.bubbleCornerRadius),
                 )
 
@@ -56,7 +56,7 @@ struct SiriChatBubble: View {
             .font(.caption.bold())
             .foregroundStyle(.white)
             .frame(width: style.speakerIconSize, height: style.speakerIconSize)
-            .background(Color.accentColor.gradient, in: .circle)
+            .background(style.conversationAccent.gradient, in: .circle)
             .fixedSize()
             .accessibilityHidden(true)
     }

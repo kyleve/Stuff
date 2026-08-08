@@ -1,7 +1,13 @@
 import SwiftUI
 
-/// The rounded surface around an actual widget view in the miniature Home Screen.
-struct HomeScreenWidgetFrame<Content: View>: View {
+/// A rounded surface separating an actual widget from a miniature system screen.
+struct WidgetPreviewFrame<Content: View>: View {
+    enum Surface {
+        case homeScreen
+        case lockScreen
+    }
+
+    let surface: Surface
     @ViewBuilder let content: Content
 
     @Environment(\.stylesheet) private var stylesheet
@@ -10,15 +16,24 @@ struct HomeScreenWidgetFrame<Content: View>: View {
         content
             .padding(stylesheet.featureDiscovery.widgetPadding)
             .background(
-                .regularMaterial,
+                material,
                 in: .rect(cornerRadius: stylesheet.featureDiscovery.widgetCornerRadius),
             )
+    }
+
+    private var material: Material {
+        switch surface {
+            case .homeScreen:
+                .regularMaterial
+            case .lockScreen:
+                .ultraThinMaterial
+        }
     }
 }
 
 #if DEBUG
     #Preview {
-        HomeScreenWidgetFrame {
+        WidgetPreviewFrame(surface: .homeScreen) {
             TodayWidgetView(snapshot: PreviewSupport.sampleWidgetSnapshot())
         }
         .aspectRatio(1, contentMode: .fit)

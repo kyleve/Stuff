@@ -413,13 +413,16 @@ struct WhereStylesheetTests {
         #expect(featureDiscovery.cardMaxWidth == 680)
         #expect(featureDiscovery.cardPadding == 16)
         #expect(featureDiscovery.cardSpacing == 12)
+        #expect(featureDiscovery.cardRowVerticalInset == 6)
         #expect(featureDiscovery.bubbleCornerRadius == 16)
         #expect(featureDiscovery.bubbleHorizontalPadding == 12)
         #expect(featureDiscovery.bubbleVerticalPadding == 10)
         #expect(featureDiscovery.bubbleIndent == 34)
         #expect(featureDiscovery.speakerIconSize == 28)
+        #expect(featureDiscovery.conversationAccent == Color(white: 0.28))
         #expect(featureDiscovery.deviceCornerRadius == 28)
         #expect(featureDiscovery.deviceMaxWidth == 560)
+        #expect(featureDiscovery.regularDeviceMaxWidth == 440)
         #expect(featureDiscovery.devicePadding == 14)
         #expect(featureDiscovery.deviceSpacing == 12)
         #expect(featureDiscovery.widgetCornerRadius == 18)
@@ -586,6 +589,7 @@ struct WhereStylesheetTests {
         context.traitOverrides.mode = .dark
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
         #expect(resolved.card.securityPrint == .dark)
+        #expect(resolved.featureDiscovery.conversationAccent == Color(white: 0.42))
         #expect(resolved.card.securityPrint.backgroundBlendMode == .luminosity)
         #expect(resolved.card.securityPrint.tint(.red) == Color.red.mix(
             with: .white,

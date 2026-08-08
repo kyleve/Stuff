@@ -13,8 +13,14 @@ struct SiriIntentCard: View {
     var body: some View {
         let style = stylesheet.featureDiscovery
         VStack(alignment: .leading, spacing: style.cardSpacing) {
-            Label(title, systemImage: systemImage)
-                .font(.headline)
+            Label {
+                Text(title)
+                    .foregroundStyle(.primary)
+            } icon: {
+                Image(systemName: systemImage)
+                    .foregroundStyle(style.conversationAccent)
+            }
+            .font(.headline)
             SiriChatBubble(speaker: .user, text: request)
             SiriChatBubble(speaker: .siri, text: response)
         }

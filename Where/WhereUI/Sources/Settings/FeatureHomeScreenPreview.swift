@@ -5,6 +5,7 @@ import WhereCore
 struct FeatureHomeScreenPreview: View {
     let snapshot: WidgetSnapshot
 
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.stylesheet) private var stylesheet
 
     var body: some View {
@@ -15,24 +16,24 @@ struct FeatureHomeScreenPreview: View {
                     ? AnyLayout(VStackLayout(spacing: style.deviceSpacing))
                     : AnyLayout(HStackLayout(spacing: style.deviceSpacing)),
             ) {
-                HomeScreenWidgetFrame {
+                WidgetPreviewFrame(surface: .homeScreen) {
                     TodayWidgetView(snapshot: snapshot)
                 }
                 .aspectRatio(1, contentMode: .fit)
 
-                HomeScreenWidgetFrame {
+                WidgetPreviewFrame(surface: .homeScreen) {
                     YearTotalsWidgetView(snapshot: snapshot)
                 }
                 .aspectRatio(1, contentMode: .fit)
             }
 
-            HomeScreenWidgetFrame {
+            WidgetPreviewFrame(surface: .homeScreen) {
                 YearTotalsWidgetView(snapshot: snapshot, maxRows: 5)
             }
             .aspectRatio(2, contentMode: .fit)
         }
         .padding(style.devicePadding)
-        .frame(maxWidth: style.deviceMaxWidth)
+        .frame(maxWidth: deviceMaxWidth)
         .background(
             LinearGradient(
                 colors: [style.homeWallpaperTop, style.homeWallpaperBottom],
@@ -44,6 +45,12 @@ struct FeatureHomeScreenPreview: View {
         .frame(maxWidth: .infinity)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(String(localized: .settingsExploreWidgetsHomePreviewLabel))
+    }
+
+    private var deviceMaxWidth: CGFloat {
+        horizontalSizeClass == .regular
+            ? stylesheet.featureDiscovery.regularDeviceMaxWidth
+            : stylesheet.featureDiscovery.deviceMaxWidth
     }
 }
 

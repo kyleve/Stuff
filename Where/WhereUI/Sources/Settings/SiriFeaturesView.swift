@@ -8,7 +8,10 @@ struct SiriFeaturesView: View {
     let focus: SettingsFocus?
     let presentation: FeatureDiscoveryPresentation
 
+    @Environment(\.stylesheet) private var stylesheet
+
     var body: some View {
+        let style = stylesheet.featureDiscovery
         SettingsFocusScope(focus: focus) {
             Form {
                 Section {
@@ -26,7 +29,13 @@ struct SiriFeaturesView: View {
                             response: personalized?.response ?? feature.response,
                         )
                         .listRowBackground(Color.clear)
-                        .listRowInsets(.init())
+                        .listRowInsets(.init(
+                            top: style.cardRowVerticalInset,
+                            leading: 0,
+                            bottom: style.cardRowVerticalInset,
+                            trailing: 0,
+                        ))
+                        .listRowSeparator(.hidden)
                         .settingsRow(feature)
                     }
                 } footer: {

@@ -6,6 +6,7 @@ struct FeatureLockScreenPreview: View {
     let date: Date
     let snapshot: WidgetSnapshot
 
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.stylesheet) private var stylesheet
 
     var body: some View {
@@ -17,24 +18,26 @@ struct FeatureLockScreenPreview: View {
                 .font(.largeTitle)
                 .bold()
 
-            TodayInlineAccessoryView(snapshot: snapshot)
-                .font(.caption)
+            WidgetPreviewFrame(surface: .lockScreen) {
+                TodayInlineAccessoryView(snapshot: snapshot)
+                    .font(.caption)
+            }
 
             HStack(spacing: style.deviceSpacing) {
-                TodayCircularAccessoryView(snapshot: snapshot)
-                    .aspectRatio(1, contentMode: .fit)
-                YearTotalsRectangularAccessoryView(snapshot: snapshot)
-                    .padding(style.widgetPadding)
-                    .background(
-                        .ultraThinMaterial,
-                        in: .rect(cornerRadius: style.widgetCornerRadius),
-                    )
-                    .aspectRatio(2, contentMode: .fit)
+                WidgetPreviewFrame(surface: .lockScreen) {
+                    TodayCircularAccessoryView(snapshot: snapshot)
+                }
+                .aspectRatio(1, contentMode: .fit)
+
+                WidgetPreviewFrame(surface: .lockScreen) {
+                    YearTotalsRectangularAccessoryView(snapshot: snapshot)
+                }
+                .aspectRatio(2, contentMode: .fit)
             }
         }
         .foregroundStyle(.white)
         .padding(style.devicePadding)
-        .frame(maxWidth: style.deviceMaxWidth)
+        .frame(maxWidth: deviceMaxWidth)
         .background(
             LinearGradient(
                 colors: [style.lockWallpaperTop, style.lockWallpaperBottom],
@@ -47,6 +50,12 @@ struct FeatureLockScreenPreview: View {
         .environment(\.colorScheme, .dark)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(String(localized: .settingsExploreWidgetsLockPreviewLabel))
+    }
+
+    private var deviceMaxWidth: CGFloat {
+        horizontalSizeClass == .regular
+            ? stylesheet.featureDiscovery.regularDeviceMaxWidth
+            : stylesheet.featureDiscovery.deviceMaxWidth
     }
 }
 

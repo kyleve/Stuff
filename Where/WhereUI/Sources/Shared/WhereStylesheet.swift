@@ -72,6 +72,7 @@ struct WhereStylesheet: BStylesheet {
         // dark glass without changing its hue or saturation on touch.
         if traits.mode == .dark {
             card.securityPrint = .dark
+            featureDiscovery.conversationAccent = Color(white: 0.42)
         }
     }
 
@@ -1394,13 +1395,16 @@ extension WhereStylesheet {
         var cardMaxWidth: CGFloat
         var cardPadding: CGFloat
         var cardSpacing: CGFloat
+        var cardRowVerticalInset: CGFloat
         var bubbleCornerRadius: CGFloat
         var bubbleHorizontalPadding: CGFloat
         var bubbleVerticalPadding: CGFloat
         var bubbleIndent: CGFloat
         var speakerIconSize: CGFloat
+        var conversationAccent: Color
         var deviceCornerRadius: CGFloat
         var deviceMaxWidth: CGFloat
+        var regularDeviceMaxWidth: CGFloat
         var devicePadding: CGFloat
         var deviceSpacing: CGFloat
         var widgetCornerRadius: CGFloat
@@ -1416,13 +1420,16 @@ extension WhereStylesheet {
             cardMaxWidth: 680,
             cardPadding: 16,
             cardSpacing: 12,
+            cardRowVerticalInset: 6,
             bubbleCornerRadius: 16,
             bubbleHorizontalPadding: 12,
             bubbleVerticalPadding: 10,
             bubbleIndent: 34,
             speakerIconSize: 28,
+            conversationAccent: Color(white: 0.28),
             deviceCornerRadius: 28,
             deviceMaxWidth: 560,
+            regularDeviceMaxWidth: 440,
             devicePadding: 14,
             deviceSpacing: 12,
             widgetCornerRadius: 18,
