@@ -83,9 +83,9 @@ struct BackupSettingsSection: View {
     private var backupSection: some View {
         Section {
             // The archive is built up-front on a background task (with an
-            // in-app "Exporting…" bar), then shared through a `ShareLink` to the
-            // ready file — so the share sheet opens instantly instead of sitting
-            // in the system's blocking "Preparing…" state.
+            // in-app "Exporting…" bar), then handed to the system activity sheet
+            // as a ready file — so it opens instantly instead of sitting in the
+            // system's blocking "Preparing…" state.
             Button {
                 runExport()
             } label: {
@@ -159,7 +159,7 @@ struct BackupSettingsSection: View {
     }
 
     /// Build the archive in the background, then reveal the share row. Clearing
-    /// `exportedArchiveURL` first hides the stale share link — the coordinator
+    /// `exportedArchiveURL` first hides the stale share row — the coordinator
     /// purges the previous export's directory when this new export starts.
     private func runExport() {
         exportedArchiveURL = nil
