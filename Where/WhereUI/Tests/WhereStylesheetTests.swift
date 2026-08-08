@@ -181,6 +181,15 @@ struct WhereStylesheetTests {
         #expect(card.dayCount == .standard)
         #expect(card.dayCount.revealDelay == .milliseconds(500))
         #expect(card.dayCount.animation == .easeOut(duration: 0.3))
+        #expect(card.constellation == .init(
+            gridResolution: 48,
+            maximumPointCount: 96,
+            coreDiameter: 2.5,
+            coreOpacity: 0.92,
+            coreWhiteMix: 0.72,
+            haloRadius: 6,
+            haloOpacity: 0.32,
+        ))
     }
 
     /// The roll carries the count so it knows which way to spin the digits; the
@@ -278,12 +287,49 @@ struct WhereStylesheetTests {
 
     @Test func timelineStyle() {
         let timeline = style.timeline
-        #expect(timeline.rowSpacing == 12)
-        #expect(timeline.accentWidth == 4)
-        #expect(timeline.accentHeight == 34)
-        #expect(timeline.labelSpacing == 2)
-        #expect(timeline.trailingMinSpacing == 8)
-        #expect(timeline.rowVerticalPadding == 4)
+        let overview = timeline.overview
+        #expect(overview.spacing == 12)
+        #expect(overview.padding == 16)
+        #expect(overview.cornerRadius == 24)
+        #expect(overview.background == Color.primary.opacity(0.035))
+        #expect(overview.border == Color.primary.opacity(0.1))
+        #expect(overview.borderWidth == 1)
+        #expect(overview.yearFont == .system(.title2, design: .serif).bold())
+
+        let ribbon = timeline.ribbon
+        #expect(ribbon.monthLabelSpacing == 6)
+        #expect(ribbon.height == 18)
+        #expect(ribbon.track == Color.primary.opacity(0.07))
+        #expect(ribbon.border == Color.primary.opacity(0.12))
+        #expect(ribbon.borderWidth == 1)
+        #expect(ribbon.regionSpacing == 8)
+        #expect(ribbon.regionLabelSpacing == 4)
+        #expect(ribbon.separatesRegions == false)
+
+        let rail = timeline.rail
+        #expect(rail.lineWidth == 4)
+        #expect(rail.toCardSpacing == 10)
+        #expect(rail.nodeSize == 42)
+        #expect(rail.nodeEmojiFont == .system(size: 20))
+        #expect(rail.nodeFillOpacity == 0.18)
+        #expect(rail.nodeStrokeWidth == 2)
+
+        let row = timeline.row
+        #expect(row.spacing == 12)
+        #expect(row.labelSpacing == 3)
+        #expect(row.gap == 8)
+        #expect(row.baseHeight == 64)
+        #expect(row.yearScaleHeight == 320)
+        #expect(row.horizontalPadding == 14)
+        #expect(row.verticalPadding == 12)
+        #expect(row.cornerRadius == 18)
+        #expect(row.fillOpacity == 0.09)
+        #expect(row.borderOpacity == 0.24)
+        #expect(row.borderWidth == 1)
+        #expect(row.countHorizontalPadding == 10)
+        #expect(row.countVerticalPadding == 6)
+        #expect(row.countFillOpacity == 0.16)
+        #expect(row.stacksDayCount == false)
     }
 
     @Test func regionMapStyle() {
@@ -474,6 +520,7 @@ struct WhereStylesheetTests {
         context.traitOverrides.contentSizeCategory = .accessibilityLarge
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
         #expect(resolved.calendar.day.minHeight == 56)
+        #expect(resolved.timeline.row.stacksDayCount)
     }
 
     @MainActor
@@ -483,6 +530,18 @@ struct WhereStylesheetTests {
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
         #expect(resolved.card.regular.glow.radius == 0)
         #expect(resolved.card.compact.glow.radius == 0)
+        #expect(resolved.card.constellation.haloOpacity == 0)
+        #expect(resolved.card.constellation.coreOpacity == 0.92)
+    }
+
+    @MainActor
+    @Test func separatesRibbonRegionsWithoutColorDifferentiation() throws {
+        var context = BContext(traits: .system)
+        context.traitOverrides.accessibility = BAccessibility(
+            shouldDifferentiateWithoutColor: true,
+        )
+        let resolved = try context.stylesheets.get(WhereStylesheet.self)
+        #expect(resolved.timeline.ribbon.separatesRegions)
     }
 
     @MainActor

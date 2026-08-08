@@ -45,6 +45,39 @@ public struct ReportReader: Sendable {
         }
     }
 
+    /// Read a year's aggregate report and its primary-region recorded locations
+    /// from the same samples snapshot. A new fix can leave `report` equal while
+    /// changing `primaryRegionLocations`, so presentation models keep the full
+    /// value as their refresh identity rather than inventing a change counter.
+    public func yearReportDetails(
+        for year: Int,
+        primaryRegionCount: Int,
+    ) async throws -> YearReportDetails {
+        try await Self.logger.measure(.yearReportDetails, budget: .seconds(1)) {
+            let samples = try await store.samples(in: aggregator.yearInterval(year: year))
+            let manuals = try await store.manualDays(in: dayRange(for: year))
+            let report = aggregator.report(
+                for: year,
+                samples: samples,
+                manualDays: manuals,
+                attributor: attributor,
+            )
+            let primaryRegions = Set(Region.primaryRegions(
+                in: report.totals,
+                count: primaryRegionCount,
+            ))
+            let locations = aggregator.locations(
+                in: primaryRegions,
+                samples: samples,
+                attributor: attributor,
+            )
+            return YearReportDetails(
+                report: report,
+                primaryRegionLocations: locations,
+            )
+        }
+    }
+
     /// Everything a data-issue scan needs from a **single** year-samples read:
     /// the aggregated `report`, the `.other` day coordinates border-drift checks
     /// use, and the raw GPS fixes (lazily grouped in `DaySamples`) the
@@ -90,10 +123,21 @@ public struct ReportReader: Sendable {
     /// day, so the Elsewhere drill-in can map and name where you actually were.
     /// Manual overlays don't contribute coordinates (see `DayAggregator`).
     public func locations(in region: Region, year: Int) async throws -> [RegionDayLocations] {
+        try await locations(in: [region], year: year)[region] ?? []
+    }
+
+    /// The raw coordinates recorded inside several regions during `year`,
+    /// grouped by region and day. Reads and attributes the year's samples once,
+    /// so a surface such as Locations can populate several pieces of artwork
+    /// without repeating the store read for every region.
+    public func locations(
+        in regions: Set<Region>,
+        year: Int,
+    ) async throws -> [Region: [RegionDayLocations]] {
         try await Self.logger.measure(.regionLocations, budget: .seconds(1)) {
             let interval = aggregator.yearInterval(year: year)
             let samples = try await store.samples(in: interval)
-            return aggregator.locations(in: region, samples: samples, attributor: attributor)
+            return aggregator.locations(in: regions, samples: samples, attributor: attributor)
         }
     }
 

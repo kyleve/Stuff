@@ -122,7 +122,7 @@ public struct RootView: View {
                 // one and skip the rebuild.
                 MainTabs(
                     session: session,
-                    initialReport: model.initialReport,
+                    initialDetails: model.initialYearDetails,
                     selectedYear: model.initialSelectedYear,
                 )
                 .id(session.id)
