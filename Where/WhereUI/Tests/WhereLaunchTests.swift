@@ -362,6 +362,8 @@ struct WhereLaunchTests {
                 manualDayCount: 1,
                 dismissedIssueCount: 0,
                 trackedRegionCount: 4,
+                recordingDeviceCount: 0,
+                recordingDeviceRemovalCount: 0,
             ),
         )
     }

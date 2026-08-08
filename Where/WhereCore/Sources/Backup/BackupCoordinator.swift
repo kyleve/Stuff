@@ -37,8 +37,8 @@ public actor BackupCoordinator {
             manualDayCount: Int,
             dismissedIssueCount: Int,
             trackedRegionCount: Int,
-            recordingDeviceCount: Int = 0,
-            recordingDeviceRemovalCount: Int = 0,
+            recordingDeviceCount: Int,
+            recordingDeviceRemovalCount: Int,
         ) {
             self.sampleCount = sampleCount
             self.evidenceCount = evidenceCount
