@@ -27,7 +27,7 @@ import SwiftData
 /// would observe it too.
 ///
 /// Every outermost `perform` call spins up a fresh peer
-/// `ModelContext(modelContainer)` and stashes it in `writerContext`
+/// `ModelContext(modelContainer)` and stashes it in `activeTransaction`
 /// for the duration of the block. Mutating methods (`add(sample:)`,
 /// `write(evidence:blob:)`, `setManualDay`, `clear(in:)`, and the
 /// `EvidenceBlobStore` writers) trap if called outside a `perform`
@@ -47,7 +47,7 @@ import SwiftData
 /// `perform`'s block is `async`, and this is an `actor`, so an `await`
 /// inside the block suspends the actor and lets *other* jobs run
 /// (actor reentrancy). "Am I nested?" therefore cannot be inferred
-/// from `writerContext != nil`: a concurrent top-level `perform` on
+/// from `activeTransaction != nil`: a concurrent top-level `perform` on
 /// another task would observe the in-flight peer, wrongly reuse it,
 /// then trap in `mutationContext()` once the real owner cleared it.
 ///
@@ -317,21 +317,20 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         remoteChangeBroadcaster.finishAll()
     }
 
-    /// Peer `ModelContext` active for the duration of an outermost
-    /// `perform { ... }` block. `nil` outside `perform`. See the
-    /// type doc for the full context-strategy explanation.
-    private var writerContext: ModelContext?
-    /// Logical generation every write in the active transaction belongs to, plus the real
-    /// maximal heads a rotation must join when the write id is a synthetic reset conflict.
-    /// Cached once per outer transaction so a large backup import does not refetch the tiny
-    /// generation
-    /// ledger for every row; ``rotateDataGeneration(reason:changedBy:at:)`` replaces it in-place.
-    private var writerGeneration: WhereDataGeneration.Resolution?
-    /// Dedicated read context and generation active for one multi-table snapshot. Reads inside the
-    /// snapshot use this pair even if CloudKit imports a newer generation mid-block; the block
-    /// then fails its end validation rather than returning mixed-generation state.
-    private var snapshotContext: ModelContext?
-    private var snapshotGeneration: WhereDataGeneration?
+    private struct ActiveTransaction {
+        let context: ModelContext
+        var generation: WhereDataGeneration.Resolution
+    }
+
+    private struct ActiveSnapshot {
+        let context: ModelContext
+        let generation: WhereDataGeneration
+    }
+
+    /// The context and logical generation are installed and cleared as one value, so neither an
+    /// active transaction nor a multi-table snapshot can expose only half of its authority state.
+    private var activeTransaction: ActiveTransaction?
+    private var activeSnapshot: ActiveSnapshot?
 
     /// The store identities that currently have an outermost `perform`
     /// transaction open *on the current task's* call stack. A `perform` whose
@@ -405,12 +404,6 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
 
         await beginExclusive()
         let peer = ModelContext(modelContainer)
-        snapshotContext = peer
-        defer {
-            snapshotGeneration = nil
-            snapshotContext = nil
-            endExclusive()
-        }
         // A persistent-store transaction becomes fetch-visible atomically with
         // its history row, but Core Data is allowed to post the corresponding
         // remote-change notification later. Bracket every table fetch with the
@@ -421,7 +414,11 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         // another process or CloudKit.
         let startingHistoryTransactionID = try Self.latestHistoryTransactionID(in: peer)
         let generation = try Self.resolvedDataGeneration(in: peer)
-        snapshotGeneration = generation
+        activeSnapshot = ActiveSnapshot(context: peer, generation: generation)
+        defer {
+            activeSnapshot = nil
+            endExclusive()
+        }
         let result = try await Self.$activeSnapshotStores.withValue(
             Self.activeSnapshotStores.union([storeID]),
         ) {
@@ -510,26 +507,27 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         // task doesn't take this branch — see the type doc.)
         if Self.activeTransactionStores.contains(ObjectIdentifier(self)) {
             if let expectedDataGenerationID,
-               writerGeneration?.current.id != expectedDataGenerationID
+               activeTransaction?.generation.current.id != expectedDataGenerationID
             {
                 throw RecordingPersistenceError.dataGenerationChanged
             }
             return try await block()
         }
         // Outermost call: serialize against any other in-flight transaction so
-        // overlapping top-level writers can't clobber `writerContext` through
+        // overlapping top-level writers can't clobber `activeTransaction` through
         // actor reentrancy.
         await beginExclusive()
         let peer = ModelContext(modelContainer)
         peer.author = localTransactionAuthor
-        writerContext = peer
+        let generation = try Self.resolvedDataGenerationResolution(in: peer)
+        activeTransaction = ActiveTransaction(context: peer, generation: generation)
         defer {
-            writerGeneration = nil
-            writerContext = nil
+            activeTransaction = nil
             endExclusive()
         }
-        writerGeneration = try Self.resolvedDataGenerationResolution(in: peer)
-        if let expectedDataGenerationID, writerGeneration?.current.id != expectedDataGenerationID {
+        if let expectedDataGenerationID,
+           activeTransaction?.generation.current.id != expectedDataGenerationID
+        {
             throw RecordingPersistenceError.dataGenerationChanged
         }
         // One span per committed transaction, opened *after* the exclusivity
@@ -549,7 +547,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             // changes up on its next fetch. A throw before here (from the block
             // or the save) skips the save, so the peer is discarded without
             // reaching the persistent store — a clean rollback of the entire
-            // transaction — while `defer` still clears `writerContext` and
+            // transaction — while `defer` still clears `activeTransaction` and
             // releases the gate.
             try peer.save()
             // The persistent store can import a CloudKit reset while this
@@ -558,7 +556,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             // let callers run post-commit side effects under stale authority.
             // Re-resolve through a fresh context after the commit and fail the
             // operation if its transaction generation lost before returning.
-            guard let committedGenerationID = writerGeneration?.current.id else {
+            guard let committedGenerationID = activeTransaction?.generation.current.id else {
                 preconditionFailure(
                     "A store transaction must retain its data generation through save.",
                 )
@@ -586,12 +584,12 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     /// contract surfaces immediately instead of silently no-op'ing
     /// the save.
     private func mutationContext() -> ModelContext {
-        guard let writerContext else {
+        guard let context = activeTransaction?.context else {
             preconditionFailure(
                 "SwiftDataStore mutations must be called inside store.perform { ... }",
             )
         }
-        return writerContext
+        return context
     }
 
     /// The context read methods fetch from. Inside `perform`, reads
@@ -601,26 +599,26 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     private func readContext() -> ModelContext {
         let storeID = ObjectIdentifier(self)
         if Self.activeTransactionStores.contains(storeID) {
-            guard let writerContext else {
+            guard let context = activeTransaction?.context else {
                 preconditionFailure("An active store transaction must own a writer context.")
             }
-            return writerContext
+            return context
         }
         if Self.activeSnapshotStores.contains(storeID) {
-            guard let snapshotContext else {
+            guard let context = activeSnapshot?.context else {
                 preconditionFailure("An active store snapshot must own a read context.")
             }
-            return snapshotContext
+            return context
         }
         return modelContext
     }
 
     public func dataGeneration() async throws -> WhereDataGeneration {
-        if Self.activeTransactionStores.contains(ObjectIdentifier(self)), let writerGeneration {
-            return writerGeneration.current
+        if Self.activeTransactionStores.contains(ObjectIdentifier(self)), let activeTransaction {
+            return activeTransaction.generation.current
         }
-        if Self.activeSnapshotStores.contains(ObjectIdentifier(self)), let snapshotGeneration {
-            return snapshotGeneration
+        if Self.activeSnapshotStores.contains(ObjectIdentifier(self)), let activeSnapshot {
+            return activeSnapshot.generation
         }
         return try Self.resolvedDataGeneration(in: readContext())
     }
@@ -644,7 +642,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             "Only a destructive operation rotates the data generation.",
         )
         let context = mutationContext()
-        guard let resolution = writerGeneration else {
+        guard let resolution = activeTransaction?.generation else {
             preconditionFailure(
                 "A store transaction must resolve its data generation before mutation.",
             )
@@ -691,7 +689,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
                 "A complete generation join must resolve to its new persisted node.",
             )
         }
-        writerGeneration = nextResolution
+        activeTransaction?.generation = nextResolution
         return next
     }
 
@@ -807,18 +805,18 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     private func mutationGenerationID() -> WhereDataGenerationID {
-        guard let writerGeneration else {
+        guard let activeTransaction else {
             preconditionFailure("SwiftDataStore mutations require an active data generation.")
         }
-        return writerGeneration.current.id
+        return activeTransaction.generation.current.id
     }
 
     private func readGenerationID(in context: ModelContext) throws -> WhereDataGenerationID {
-        if Self.activeTransactionStores.contains(ObjectIdentifier(self)), let writerGeneration {
-            return writerGeneration.current.id
+        if Self.activeTransactionStores.contains(ObjectIdentifier(self)), let activeTransaction {
+            return activeTransaction.generation.current.id
         }
-        if Self.activeSnapshotStores.contains(ObjectIdentifier(self)), let snapshotGeneration {
-            return snapshotGeneration.id
+        if Self.activeSnapshotStores.contains(ObjectIdentifier(self)), let activeSnapshot {
+            return activeSnapshot.generation.id
         }
         return try Self.resolvedDataGeneration(in: context).id
     }
