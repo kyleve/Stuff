@@ -141,7 +141,7 @@ public final class FileInstallationRecordingContextStore:
         let registeredAt: Date
         let automaticRecordingEnabled: Bool?
         let recordingEnabledAt: Date?
-        let isRejoining: Bool?
+        let isRejoining: Bool
         let backupImportRecovery: BackupImportRecovery?
         let onboardingImportCompletionID: UUID?
 
@@ -190,7 +190,7 @@ public final class FileInstallationRecordingContextStore:
                 ),
                 registeredAt: registeredAt,
                 recordingChoice: recordingChoice,
-                isRejoining: isRejoining ?? false,
+                isRejoining: isRejoining,
             )
         }
     }
