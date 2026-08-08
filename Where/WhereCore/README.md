@@ -144,9 +144,10 @@ one it belongs to rather than to a god-object:
   marker in the backup-excluded installation
   sidecar pairs with a receipt committed in the same store transaction as the archive;
   recreated services can therefore distinguish rollback from commit and gate further
-  imports until cleanup succeeds. Onboarding acknowledgement records an independent terminal
+  onboarding until cleanup succeeds. Import is onboarding-only; Settings exposes export without
+  another live-session transaction path. Onboarding acknowledgement records an independent terminal
   sidecar tombstone before clearing recovery, so a cold launch can repair a preference write
-  that did not reach disk without blocking later Settings imports.
+  that did not reach disk without offering the same archive again.
   Check-ins are deliberately neither exported nor restored because they are live advisory status.
 - **`RecentActivitySummarizer`** — an on-device Foundation Models narrative over
   a selectable look-back `RecentActivityWindow`.

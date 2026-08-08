@@ -439,8 +439,7 @@ public struct OnboardingView: View {
                     let summary = try await scope.services.backup.importBackup(
                         from: readyImport.url,
                         strategy: readyImport.strategy,
-                        purpose: .onboarding,
-                    )
+                    ) { _ in }
                     restoreSelection.markCommitted(summary)
                     // Persist the irreversible boundary immediately. If the process stops before
                     // device setup finishes, the next launch continues with the imported world

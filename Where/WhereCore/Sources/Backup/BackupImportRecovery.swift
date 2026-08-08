@@ -1,30 +1,20 @@
 import Foundation
 
 extension BackupCoordinator {
-    /// Why an archive is being imported. Onboarding imports retain their durable commit marker
-    /// until the backed-up onboarding preference has been written and explicitly acknowledged.
-    public enum ImportPurpose: Sendable, Hashable {
-        case onboarding
-        case settings
-    }
-
     /// Immutable identity and result of one import attempt, persisted before the store write.
     public struct ImportRecoveryDetails: Sendable, Hashable {
         public let transactionID: UUID
         public let strategy: ImportStrategy
         public let summary: ImportSummary
-        public let purpose: ImportPurpose
 
         public init(
             transactionID: UUID,
             strategy: ImportStrategy,
             summary: ImportSummary,
-            purpose: ImportPurpose,
         ) {
             self.transactionID = transactionID
             self.strategy = strategy
             self.summary = summary
-            self.purpose = purpose
         }
     }
 

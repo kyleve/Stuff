@@ -263,8 +263,7 @@ public actor BackupCoordinator {
     public func importBackup(
         from url: URL,
         strategy: ImportStrategy,
-        purpose: ImportPurpose,
-        onProgress: @Sendable (Double) -> Void = { _ in },
+        onProgress: @Sendable (Double) -> Void,
     ) async throws -> ImportSummary {
         try await hydrateImportRecovery()
         let operationID = UUID()
@@ -287,7 +286,6 @@ public actor BackupCoordinator {
             try await performImport(
                 from: url,
                 strategy: strategy,
-                purpose: purpose,
                 transactionID: operationID,
                 onProgress: onProgress,
             )
@@ -302,7 +300,6 @@ public actor BackupCoordinator {
         switch recovery {
             case let .committed(details, cleanupCompleted, onboardingAcknowledged)
             where cleanupCompleted
-            && details.purpose == .onboarding
             && !onboardingAcknowledged:
                 return .onboardingAcknowledgementRequired(details.summary)
             case .prepared, .committed:
@@ -350,9 +347,7 @@ public actor BackupCoordinator {
             details,
             cleanupCompleted,
             onboardingAcknowledged,
-        ) = recovery,
-            details.purpose == .onboarding
-        else {
+        ) = recovery else {
             throw ImportRecoveryRequiredError(summary: recovery.details.summary)
         }
         let acknowledged = DurableImportRecovery.committed(
@@ -381,7 +376,6 @@ public actor BackupCoordinator {
     private func performImport(
         from url: URL,
         strategy: ImportStrategy,
-        purpose: ImportPurpose,
         transactionID: UUID,
         onProgress: @Sendable (Double) -> Void,
     ) async throws -> ImportSummary {
@@ -411,7 +405,6 @@ public actor BackupCoordinator {
             transactionID: transactionID,
             strategy: strategy,
             summary: summary,
-            purpose: purpose,
         )
         let total = archive.samples.count + archive.evidence.count
             + archive.manualDays.count + archive.dismissedIssues.count
@@ -576,12 +569,12 @@ public actor BackupCoordinator {
     }
 
     /// Persist the irreversible boundary before cleanup, then advance monotonically through
-    /// cleanup completion, receipt removal, and (for Settings) sidecar acknowledgement.
+    /// cleanup completion, receipt removal, and onboarding acknowledgement.
     private func finishCommittedImport(_ details: ImportRecoveryDetails) async throws {
         let cleanupPending = DurableImportRecovery.committed(
             details,
             cleanupCompleted: false,
-            onboardingAcknowledged: details.purpose == .settings,
+            onboardingAcknowledged: false,
         )
         do {
             try await importRecoveryPersistence.save(cleanupPending)
@@ -613,7 +606,7 @@ public actor BackupCoordinator {
                 cleanupPending = .committed(
                     details,
                     cleanupCompleted: false,
-                    onboardingAcknowledged: details.purpose == .settings,
+                    onboardingAcknowledged: false,
                 )
                 do {
                     try await importRecoveryPersistence.save(cleanupPending)
@@ -669,7 +662,7 @@ public actor BackupCoordinator {
             case let .committed(_, _, acknowledged):
                 onboardingAcknowledged = acknowledged
         }
-        if details.purpose == .settings || onboardingAcknowledged {
+        if onboardingAcknowledged {
             do {
                 try await importRecoveryPersistence.save(nil)
             } catch {
@@ -732,7 +725,7 @@ public actor BackupCoordinator {
                     let committed = DurableImportRecovery.committed(
                         details,
                         cleanupCompleted: false,
-                        onboardingAcknowledged: details.purpose == .settings,
+                        onboardingAcknowledged: false,
                     )
                     try await importRecoveryPersistence.save(committed)
                     importRecoveryPhase = .recoveryRequired(committed)

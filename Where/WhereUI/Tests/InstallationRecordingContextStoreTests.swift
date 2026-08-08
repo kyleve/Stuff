@@ -86,7 +86,6 @@ struct InstallationRecordingContextStoreTests {
                 dismissedIssueCount: 0,
                 trackedRegionCount: 4,
             ),
-            purpose: .onboarding,
         )
 
         try store.setBackupImportRecovery(.prepared(details))
@@ -119,7 +118,6 @@ struct InstallationRecordingContextStoreTests {
                 dismissedIssueCount: 0,
                 trackedRegionCount: 4,
             ),
-            purpose: .onboarding,
         )
         try installationStore.setBackupImportRecovery(.committed(
             details,
@@ -146,17 +144,6 @@ struct InstallationRecordingContextStoreTests {
         #expect(installationStore.backupImportRecovery == nil)
         #expect(installationStore.onboardingImportCompletion?.transactionID == details
             .transactionID)
-
-        // A later Settings transaction uses the active marker without replacing the terminal
-        // onboarding authority.
-        let settingsDetails = BackupCoordinator.ImportRecoveryDetails(
-            transactionID: UUID(),
-            strategy: .merge,
-            summary: details.summary,
-            purpose: .settings,
-        )
-        try installationStore.setBackupImportRecovery(.prepared(settingsDetails))
-        try installationStore.setBackupImportRecovery(nil)
 
         // Simulate a fresh process whose UserDefaults setter never reached disk. Recreating the
         // file-backed sidecar retains the terminal proof, so the gate repairs the preference and

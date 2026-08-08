@@ -30,9 +30,8 @@ and testing conventions live in the feature [`Where/AGENTS.md`](../AGENTS.md)
 - Reconcile every pending import after scope resolution but before session handoff or recording;
   reconcile onboarding imports before offering Restore, acknowledge their preference independently
   of cleanup, and retain the marker through any failure (`WhereLaunchTests`).
-- Initialize `BackupModel` import availability from the scope's long-lived
-  `BackupCoordinator`; keep import disabled until committed cleanup recovery
-  reports ready (`BackupModelTests`).
+- Keep backup import onboarding-only; Settings exports archives but never starts or resumes an
+  import (`BackupModelTests`).
 - The DEBUG developer accordion may only latch or clear
   `InspectorModeController` for the next launch. It must not host a live
   SwiftData inspector or switch the current runtime.

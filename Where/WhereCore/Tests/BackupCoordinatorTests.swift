@@ -143,7 +143,10 @@ struct BackupCoordinatorTests {
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
 
         let destination = try Self.makeHarness()
-        let summary = try await destination.coordinator.importBackup(from: url, strategy: .merge)
+        let summary = try await destination.coordinator.importAndAcknowledgeBackup(
+            from: url,
+            strategy: .merge,
+        )
 
         #expect(summary.sampleCount == 1)
         #expect(summary.evidenceCount == 1)
@@ -183,7 +186,10 @@ struct BackupCoordinatorTests {
         let preexisting = Self.sample(at: "2026-01-01T09:00:00-08:00")
         try await destination.store.perform { try await destination.store.add(sample: preexisting) }
 
-        _ = try await destination.coordinator.importBackup(from: url, strategy: .merge)
+        _ = try await destination.coordinator.importAndAcknowledgeBackup(
+            from: url,
+            strategy: .merge,
+        )
 
         let ids = try await destination.store.allSamples().map(\.id)
         #expect(ids.contains(preexisting.id))
@@ -219,7 +225,10 @@ struct BackupCoordinatorTests {
             ))
         }
 
-        _ = try await destination.coordinator.importBackup(from: url, strategy: .replace)
+        _ = try await destination.coordinator.importAndAcknowledgeBackup(
+            from: url,
+            strategy: .replace,
+        )
 
         #expect(try await destination.store.allSamples() == source.store.allSamples())
         #expect(try await destination.store.allManualDays() == source.store.allManualDays())
@@ -243,7 +252,10 @@ struct BackupCoordinatorTests {
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
 
         let destination = try Self.makeHarness()
-        let summary = try await destination.coordinator.importBackup(from: url, strategy: .replace)
+        let summary = try await destination.coordinator.importAndAcknowledgeBackup(
+            from: url,
+            strategy: .replace,
+        )
 
         #expect(summary.trackedRegionCount == 2)
         #expect(try await destination.store.trackedRegions() == [.california, texas])
@@ -261,7 +273,10 @@ struct BackupCoordinatorTests {
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
 
         let destination = try Self.makeHarness()
-        _ = try await destination.coordinator.importBackup(from: url, strategy: .replace)
+        _ = try await destination.coordinator.importAndAcknowledgeBackup(
+            from: url,
+            strategy: .replace,
+        )
 
         let restored = try await destination.store.primaryRegions()
         #expect(restored.map(\.region) == [.california])
@@ -287,7 +302,10 @@ struct BackupCoordinatorTests {
                 PrimaryRegion(region: .california, appearance: caLook, order: 0),
             ])
         }
-        _ = try await destination.coordinator.importBackup(from: url, strategy: .merge)
+        _ = try await destination.coordinator.importAndAcknowledgeBackup(
+            from: url,
+            strategy: .merge,
+        )
 
         let restored = try await destination.store.primaryRegions()
         #expect(restored.map(\.region) == [.california])
@@ -319,7 +337,10 @@ struct BackupCoordinatorTests {
                 PrimaryRegion(region: .california, appearance: deviceCALook, order: 0),
             ])
         }
-        _ = try await destination.coordinator.importBackup(from: url, strategy: .merge)
+        _ = try await destination.coordinator.importAndAcknowledgeBackup(
+            from: url,
+            strategy: .merge,
+        )
 
         let restored = try await destination.store.primaryRegions()
         // Existing region stays first; archive's look wins on overlap; the
@@ -342,7 +363,10 @@ struct BackupCoordinatorTests {
         try await destination.store.perform {
             try await destination.store.setTrackedRegion(true, id: Region.california.rawValue)
         }
-        _ = try await destination.coordinator.importBackup(from: url, strategy: .merge)
+        _ = try await destination.coordinator.importAndAcknowledgeBackup(
+            from: url,
+            strategy: .merge,
+        )
 
         // Merge unions the archive's set into the device's existing selection.
         #expect(try await destination.store.trackedRegions() == [.california, texas])
@@ -363,7 +387,10 @@ struct BackupCoordinatorTests {
         let destination = try Self.makeHarness()
         #expect(await destination.didCommit.count == 0)
 
-        _ = try await destination.coordinator.importBackup(from: url, strategy: .replace)
+        _ = try await destination.coordinator.importAndAcknowledgeBackup(
+            from: url,
+            strategy: .replace,
+        )
 
         #expect(await destination.didCommit.count == 1)
     }
@@ -390,7 +417,7 @@ struct BackupCoordinatorTests {
         let committedError = await #expect(
             throws: BackupCoordinator.CommittedImportCleanupError.self,
         ) {
-            try await coordinator.importBackup(from: url, strategy: .merge)
+            try await coordinator.importAndAcknowledgeBackup(from: url, strategy: .merge)
         }
         let summary = try #require(committedError?.summary)
         #expect(try await coordinator.importRecoveryState() == .cleanupRequired(summary))
@@ -398,7 +425,7 @@ struct BackupCoordinatorTests {
         let recoveryError = await #expect(
             throws: BackupCoordinator.ImportRecoveryRequiredError.self,
         ) {
-            try await coordinator.importBackup(from: url, strategy: .merge)
+            try await coordinator.importAndAcknowledgeBackup(from: url, strategy: .merge)
         }
         #expect(recoveryError?.summary == summary)
         #expect(await cleanup.count == 1)
@@ -412,6 +439,11 @@ struct BackupCoordinatorTests {
         await cleanup.allowSuccess()
         try await coordinator.retryImportCleanup()
 
+        #expect(
+            try await coordinator.importRecoveryState()
+                == .onboardingAcknowledgementRequired(summary),
+        )
+        try await coordinator.acknowledgeOnboardingImport()
         #expect(try await coordinator.importRecoveryState() == .ready)
         #expect(await cleanup.count == 3)
     }
@@ -442,19 +474,24 @@ struct BackupCoordinatorTests {
         let committedError = await #expect(
             throws: BackupCoordinator.CommittedImportCleanupError.self,
         ) {
-            try await first.importBackup(from: url, strategy: .merge)
+            try await first.importAndAcknowledgeBackup(from: url, strategy: .merge)
         }
         let summary = try #require(committedError?.summary)
 
         let recreated = makeCoordinator()
         #expect(try await recreated.importRecoveryState() == .cleanupRequired(summary))
         await #expect(throws: BackupCoordinator.ImportRecoveryRequiredError.self) {
-            try await recreated.importBackup(from: url, strategy: .replace)
+            try await recreated.importAndAcknowledgeBackup(from: url, strategy: .replace)
         }
 
         await cleanup.allowSuccess()
         try await recreated.retryImportCleanup()
 
+        #expect(
+            try await recreated.importRecoveryState()
+                == .onboardingAcknowledgementRequired(summary),
+        )
+        try await recreated.acknowledgeOnboardingImport()
         #expect(try await recreated.importRecoveryState() == .ready)
         #expect(await persistence.recovery == nil)
     }
@@ -498,7 +535,7 @@ struct BackupCoordinatorTests {
         )
         let firstImport = Task {
             do {
-                _ = try await coordinator.importBackup(from: url, strategy: .merge)
+                _ = try await coordinator.importAndAcknowledgeBackup(from: url, strategy: .merge)
                 return false
             } catch is BackupCoordinator.CommittedImportCleanupError {
                 return true
@@ -512,7 +549,7 @@ struct BackupCoordinatorTests {
         let secondError = await #expect(
             throws: BackupCoordinator.ImportRecoveryRequiredError.self,
         ) {
-            try await coordinator.importBackup(from: secondURL, strategy: .merge)
+            try await coordinator.importAndAcknowledgeBackup(from: secondURL, strategy: .merge)
         }
         #expect(secondError?.summary.sampleCount == 0)
         #expect(await prepare.count == 1)
@@ -586,7 +623,7 @@ struct BackupCoordinatorTests {
         let destination = try Self.makeHarness()
         let recorder = ProgressRecorder()
         _ = try await destination.coordinator
-            .importBackup(from: url, strategy: .replace) { fraction in
+            .importAndAcknowledgeBackup(from: url, strategy: .replace) { fraction in
                 recorder.record(fraction)
             }
 

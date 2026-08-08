@@ -674,7 +674,10 @@ struct WhereServicesTests {
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
 
         let (destination, destinationStore, _) = try Self.makeServices()
-        let summary = try await destination.backup.importBackup(from: url, strategy: .merge)
+        let summary = try await destination.backup.importAndAcknowledgeBackup(
+            from: url,
+            strategy: .merge,
+        )
 
         #expect(summary.sampleCount == 1)
         #expect(summary.evidenceCount == 1)
@@ -700,7 +703,7 @@ struct WhereServicesTests {
         let preexisting = sample(at: "2026-01-01T09:00:00-08:00")
         try await destination.journal.addManualSample(preexisting)
 
-        _ = try await destination.backup.importBackup(from: url, strategy: .merge)
+        _ = try await destination.backup.importAndAcknowledgeBackup(from: url, strategy: .merge)
 
         let ids = try await destinationStore.allSamples().map(\.id)
         #expect(ids.contains(preexisting.id))
@@ -728,7 +731,7 @@ struct WhereServicesTests {
         try await waitUntil { await destination.ingestor.retryQueueDepth == 1 }
         await store.setShouldFail(false)
 
-        _ = try await destination.backup.importBackup(from: url, strategy: .merge)
+        _ = try await destination.backup.importAndAcknowledgeBackup(from: url, strategy: .merge)
 
         try await waitUntil {
             try await backing.allSamples().contains(where: { $0.id == pending.id })
@@ -759,7 +762,7 @@ struct WhereServicesTests {
         try await waitUntil { await destination.ingestor.retryQueueDepth == 1 }
 
         await #expect(throws: ToggleFailingStoreError.self) {
-            try await destination.backup.importBackup(from: url, strategy: .merge)
+            try await destination.backup.importAndAcknowledgeBackup(from: url, strategy: .merge)
         }
 
         #expect(await destination.ingestor.retryQueueDepth == 1)
@@ -787,7 +790,7 @@ struct WhereServicesTests {
         try await waitUntil { await destination.ingestor.retryQueueDepth == 1 }
         await store.setShouldFail(false)
 
-        _ = try await destination.backup.importBackup(from: url, strategy: .replace)
+        _ = try await destination.backup.importAndAcknowledgeBackup(from: url, strategy: .replace)
 
         #expect(try await backing.allSamples().contains(where: { $0.id == pending.id }) == false)
         #expect(await destination.ingestor.retryQueueDepth == 0)
@@ -805,7 +808,7 @@ struct WhereServicesTests {
         let (destination, store, _) = try Self.makeServices()
         _ = try await destination.recording.register(authorization: .always)
         #expect(await destination.ingestor.isActive)
-        _ = try await destination.backup.importBackup(from: url, strategy: .replace)
+        _ = try await destination.backup.importAndAcknowledgeBackup(from: url, strategy: .replace)
 
         #expect(try await store.recordingDeviceCheckIns().first?.status == .recording)
         #expect(await destination.ingestor.isActive)
@@ -826,7 +829,7 @@ struct WhereServicesTests {
         )
 
         await #expect(throws: BackupCoordinator.CommittedImportCleanupError.self) {
-            try await destination.backup.importBackup(from: url, strategy: .replace)
+            try await destination.backup.importAndAcknowledgeBackup(from: url, strategy: .replace)
         }
 
         #expect(await outbox.persistedSamples == [pending])
@@ -964,7 +967,7 @@ struct WhereServicesTests {
         // selected Off on this retry. Merely restoring the archive must not register that old On
         // choice or start GPS in the gap before onboarding can append the latest selection.
         let (destination, store, _) = try Self.makeServices()
-        _ = try await destination.backup.importBackup(from: url, strategy: .replace)
+        _ = try await destination.backup.importAndAcknowledgeBackup(from: url, strategy: .replace)
 
         #expect(await destination.ingestor.isActive == false)
         #expect(try await store.recordingDeviceProfiles().isEmpty)
@@ -997,13 +1000,13 @@ struct WhereServicesTests {
         await store.setShouldFail(true)
 
         await #expect(throws: ToggleFailingStoreError.self) {
-            try await destination.backup.importBackup(from: url, strategy: .merge)
+            try await destination.backup.importAndAcknowledgeBackup(from: url, strategy: .merge)
         }
 
         try await waitUntil { await destination.ingestor.isActive }
 
         await store.setShouldFail(false)
-        _ = try await destination.backup.importBackup(from: url, strategy: .merge)
+        _ = try await destination.backup.importAndAcknowledgeBackup(from: url, strategy: .merge)
         #expect(await destination.ingestor.isActive)
     }
 
@@ -1022,7 +1025,7 @@ struct WhereServicesTests {
             audit: nil,
         )
 
-        _ = try await destination.backup.importBackup(from: url, strategy: .replace)
+        _ = try await destination.backup.importAndAcknowledgeBackup(from: url, strategy: .replace)
 
         // Synced user history now mirrors the backup — none of these pre-existing rows survive.
         #expect(try await destinationStore.allSamples() == sourceStore.allSamples())
@@ -1065,7 +1068,7 @@ struct WhereServicesTests {
         let emptyBadge = await spy.lastBadgeCount
         let reconcilesBeforeImport = await spy.reconcileCount
 
-        _ = try await destination.backup.importBackup(from: url, strategy: .replace)
+        _ = try await destination.backup.importAndAcknowledgeBackup(from: url, strategy: .replace)
 
         // The import reconciled the badge off the imported data instead of
         // leaving the stale empty-store count: Jan 1–4 are now logged with no
@@ -1114,7 +1117,7 @@ struct WhereServicesTests {
 
         #expect(attribution.region(at: austin.coordinate) == .other)
 
-        _ = try await destination.backup.importBackup(from: url, strategy: .replace)
+        _ = try await destination.backup.importAndAcknowledgeBackup(from: url, strategy: .replace)
 
         #expect(attribution.region(at: austin.coordinate) == texas)
         #expect(await widget.lastSnapshot?.dayRegions == [texas])

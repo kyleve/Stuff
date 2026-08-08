@@ -352,109 +352,6 @@ struct WhereLaunchTests {
         #expect(installationStore.backupImportRecovery != nil)
     }
 
-    @Test func coldPreparedSettingsImportRollsBackBeforeRecordingRegistration() async throws {
-        let installationStore = makeInstallationRecordingContextStore()
-        let details = Self.settingsRecoveryDetails(strategy: .replace)
-        let installationID = installationStore.onboardingContext.currentDevice.id
-        try installationStore.setBackupImportRecovery(.prepared(details))
-        let store = try SwiftDataStore.inMemory()
-        let outbox = LaunchImportOutbox()
-        let services = WhereServices(
-            store: store,
-            locationSource: ScriptedLocationSource(authorizationStatus: .always),
-            installationContext: installationStore.onboardingContext,
-            locationOutbox: outbox,
-            importRecoveryPersistence: installationStore.backupImportRecoveryPersistence,
-        )
-        let model = WhereModel(
-            preferences: makePreferences(),
-            installationContextStore: installationStore,
-            makeBootstrap: { _ in ScriptedBootstrap(services: services) },
-            logSystem: .isolated(),
-        )
-        model.completeOnboarding()
-
-        var recoveryAtHandoff: BackupCoordinator.DurableImportRecovery?
-        var profilesAtHandoff: [RecordingDeviceProfile]?
-        var clearCountAtHandoff: Int?
-        let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground) { _ in
-            recoveryAtHandoff = installationStore.backupImportRecovery
-            profilesAtHandoff = try? await store.recordingDeviceProfiles()
-            clearCountAtHandoff = await outbox.numberOfClears()
-        }
-
-        await launcher.run()
-
-        #expect(launcher.phase.isReady)
-        #expect(recoveryAtHandoff == nil)
-        #expect(profilesAtHandoff?.isEmpty == true)
-        // A prepared Replace with no receipt rolled back, so its old outbox was not destroyed.
-        #expect(clearCountAtHandoff == 0)
-        #expect(try await store.recordingDeviceProfiles().map(\.id) == [
-            installationID,
-        ])
-        #expect(model.session?.isTracking == true)
-    }
-
-    @Test func coldCommittedSettingsReplaceCleansBeforeRecordingRegistration() async throws {
-        let installationStore = makeInstallationRecordingContextStore()
-        let details = Self.settingsRecoveryDetails(strategy: .replace)
-        let installationID = installationStore.onboardingContext.currentDevice.id
-        try installationStore.setBackupImportRecovery(.committed(
-            details,
-            cleanupCompleted: false,
-            onboardingAcknowledged: true,
-        ))
-        let store = try SwiftDataStore.inMemory()
-        try await store.perform {
-            try await store.addBackupImportReceipt(
-                id: details.transactionID,
-                installationID: installationID,
-            )
-        }
-        let outbox = LaunchImportOutbox()
-        let services = WhereServices(
-            store: store,
-            locationSource: ScriptedLocationSource(authorizationStatus: .always),
-            installationContext: installationStore.onboardingContext,
-            locationOutbox: outbox,
-            importRecoveryPersistence: installationStore.backupImportRecoveryPersistence,
-        )
-        let model = WhereModel(
-            preferences: makePreferences(),
-            installationContextStore: installationStore,
-            makeBootstrap: { _ in ScriptedBootstrap(services: services) },
-            logSystem: .isolated(),
-        )
-        model.completeOnboarding()
-
-        var recoveryAtHandoff: BackupCoordinator.DurableImportRecovery?
-        var profilesAtHandoff: [RecordingDeviceProfile]?
-        var clearCountAtHandoff: Int?
-        var receiptAtHandoff: BackupImportReceipt?
-        let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground) { _ in
-            recoveryAtHandoff = installationStore.backupImportRecovery
-            profilesAtHandoff = try? await store.recordingDeviceProfiles()
-            clearCountAtHandoff = await outbox.numberOfClears()
-            receiptAtHandoff = try? await store.backupImportReceipt(
-                id: details.transactionID,
-                installationID: installationID,
-            )
-        }
-
-        await launcher.run()
-
-        #expect(launcher.phase.isReady)
-        #expect(recoveryAtHandoff == nil)
-        #expect(profilesAtHandoff?.isEmpty == true)
-        #expect(clearCountAtHandoff == 1)
-        #expect(receiptAtHandoff == nil)
-        #expect(try await store.recordingDeviceProfiles().map(\.id) == [
-            installationID,
-        ])
-        #expect(model.session?.isTracking == true)
-    }
-
     private static func onboardingRecoveryDetails() -> BackupCoordinator.ImportRecoveryDetails {
         BackupCoordinator.ImportRecoveryDetails(
             transactionID: UUID(uuidString: "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE")!,
@@ -466,24 +363,6 @@ struct WhereLaunchTests {
                 dismissedIssueCount: 0,
                 trackedRegionCount: 4,
             ),
-            purpose: .onboarding,
-        )
-    }
-
-    private static func settingsRecoveryDetails(
-        strategy: BackupCoordinator.ImportStrategy,
-    ) -> BackupCoordinator.ImportRecoveryDetails {
-        BackupCoordinator.ImportRecoveryDetails(
-            transactionID: UUID(),
-            strategy: strategy,
-            summary: BackupCoordinator.ImportSummary(
-                sampleCount: 3,
-                evidenceCount: 2,
-                manualDayCount: 1,
-                dismissedIssueCount: 0,
-                trackedRegionCount: 4,
-            ),
-            purpose: .settings,
         )
     }
 

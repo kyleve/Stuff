@@ -77,7 +77,7 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
 - **Scope-tiered models** — scene-scoped **`YearReportModel`** (the selected
   year's `YearReport`, its `LoadState`, and the manual-day edit intents), plus
   view-scoped **`ResolveModel`** (data-issue triage), **`BackupModel`**
-  (export/import plus a mirror of the scope-owned committed-cleanup gate),
+  (Settings export progress and failures),
   **`RemindersSettingsModel`** (notification prefs), and
   **`DevicesSettingsModel`** (installation-local recording choice plus synced names, advisory
   status, and irreversible removal). Each orchestrates `WhereServices`; none reimplements Core
@@ -107,10 +107,10 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   a two-phase marker remains in the backup-excluded sidecar until onboarding is
   acknowledged. A terminal tombstone remains after recovery is cleared so a
   cold launch can repair an onboarding preference that had not reached disk,
-  but never offer the same archive for import again. Every cold launch also
-  resolves a Settings import marker before handing services to App Intents or
-  registering the recording device, so Replace cleanup finishes before GPS can
-  reopen or drain an obsolete outbox.
+  but never offer the same archive for import again. Every cold launch resolves
+  that onboarding marker before handing services to App Intents or registering
+  the recording device, so Replace cleanup finishes before GPS can reopen or
+  drain an obsolete outbox. Settings intentionally offers export only.
 - **`RegionPickerView` / `RegionCustomizeView`** — the shared primary-region
   picker (segmented map/list) and per-region color/emoji/icon customization,
   backed by `PrimaryRegionSelectionModel`. Reused by onboarding and the Settings

@@ -209,7 +209,7 @@ public final class WhereModel {
     /// Whether the sidecar says onboarding crossed or may have crossed an import commit. The
     /// launch gate uses this one narrow exception to open the store before offering Restore.
     var hasInterruptedOnboardingImport: Bool {
-        installationContextStore.backupImportRecovery?.details.purpose == .onboarding
+        installationContextStore.backupImportRecovery != nil
     }
 
     /// Reassert the backed-up preference from the sidecar's terminal import authority. The
@@ -222,23 +222,19 @@ public final class WhereModel {
         completeOnboarding()
     }
 
-    /// Resolve any import transaction left across a process death before the launch exposes this
-    /// scope to App Intents or starts recording. Settings imports do not pass through onboarding's
-    /// special gate, so this scope-level preflight is the common safety boundary for every import
-    /// purpose.
+    /// Resolve any onboarding import transaction left across a process death before launch
+    /// exposes this scope to App Intents or starts recording.
     func preflightPendingImportRecovery(in scope: WhereScope) async throws {
-        guard let pendingRecovery = installationContextStore.backupImportRecovery else { return }
+        guard installationContextStore.backupImportRecovery != nil else { return }
         switch try await scope.services.backup.importRecoveryState() {
             case .ready:
                 // Hydration proved a prepared transaction rolled back and cleared its marker.
                 return
             case .cleanupRequired:
-                if pendingRecovery.details.purpose == .onboarding {
-                    // Preserve onboarding's ordering if a marker appears after its gate check:
-                    // persist the backed-up preference before acknowledging it in the sidecar.
-                    completeOnboarding()
-                    try await scope.services.backup.acknowledgeOnboardingImport()
-                }
+                // Preserve onboarding's ordering if a marker appears after its gate check:
+                // persist the backed-up preference before acknowledging it in the sidecar.
+                completeOnboarding()
+                try await scope.services.backup.acknowledgeOnboardingImport()
                 try await scope.services.backup.retryImportCleanup()
             case .onboardingAcknowledgementRequired:
                 completeOnboarding()

@@ -50,11 +50,6 @@ public final class FileInstallationRecordingContextStore:
                 case replace = "backup-replace"
             }
 
-            enum Purpose: String, Codable {
-                case onboarding = "backup-onboarding"
-                case settings = "backup-settings"
-            }
-
             struct Summary: Codable {
                 let sampleCount: Int
                 let evidenceCount: Int
@@ -95,7 +90,6 @@ public final class FileInstallationRecordingContextStore:
             let transactionID: UUID
             let strategy: Strategy
             let summary: Summary
-            let purpose: Purpose
             let phase: Phase
             let cleanupCompleted: Bool
             let onboardingAcknowledged: Bool
@@ -108,10 +102,6 @@ public final class FileInstallationRecordingContextStore:
                     case .replace: .replace
                 }
                 summary = Summary(details.summary)
-                purpose = switch details.purpose {
-                    case .onboarding: .onboarding
-                    case .settings: .settings
-                }
                 switch recovery {
                     case .prepared:
                         phase = .prepared
@@ -129,15 +119,10 @@ public final class FileInstallationRecordingContextStore:
                     case .merge: .merge
                     case .replace: .replace
                 }
-                let purpose: BackupCoordinator.ImportPurpose = switch purpose {
-                    case .onboarding: .onboarding
-                    case .settings: .settings
-                }
                 let details = BackupCoordinator.ImportRecoveryDetails(
                     transactionID: transactionID,
                     strategy: strategy,
                     summary: summary.value,
-                    purpose: purpose,
                 )
                 return switch phase {
                     case .prepared: .prepared(details)
