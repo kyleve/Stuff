@@ -238,10 +238,78 @@
         public static func loadedYearReportModel() -> YearReportModel {
             YearReportModel(
                 services: previewServices(),
-                report: sampleReport(),
+                details: sampleYearReportDetails(),
                 selectedYear: year,
                 preferences: previewPreferences(),
                 now: { referenceNow },
+            )
+        }
+
+        /// The same complete year value `ReportReader.yearReportDetails` returns
+        /// in production, built synchronously for previews and image tests.
+        public static func sampleYearReportDetails() -> YearReportDetails {
+            YearReportDetails(
+                report: sampleReport(),
+                primaryRegionLocations: sampleRegionLocations(),
+            )
+        }
+
+        /// The loaded report fixture with the Appearance GPS-dot preference off,
+        /// for the Locations snapshot that proves recorded points disappear.
+        @MainActor
+        public static func loadedYearReportModelWithLocationDotsHidden() -> YearReportModel {
+            let model = loadedYearReportModel()
+            model.showsRecordedLocationDots = false
+            return model
+        }
+
+        /// Deterministic point clouds for the Locations card constellations.
+        /// Dates fall inside the corresponding region's block in `sampleReport`.
+        private static func sampleRegionLocations() -> [Region: [RegionDayLocations]] {
+            [
+                .california: [RegionDayLocations(
+                    day: CalendarDay(year: year, month: 2, day: 1),
+                    points: [
+                        regionPoint(37.7749, -122.4194),
+                        regionPoint(37.8044, -122.2712),
+                        regionPoint(37.3382, -121.8863),
+                        regionPoint(38.5816, -121.4944),
+                        regionPoint(36.7378, -119.7871),
+                        regionPoint(34.0522, -118.2437),
+                        regionPoint(33.7701, -118.1937),
+                        regionPoint(32.7157, -117.1611),
+                        regionPoint(34.4208, -119.6982),
+                        regionPoint(35.3733, -119.0187),
+                        regionPoint(39.0968, -120.0324),
+                        regionPoint(40.5865, -122.3917),
+                    ],
+                )],
+                .newYork: [RegionDayLocations(
+                    day: CalendarDay(year: year, month: 6, day: 15),
+                    points: [
+                        regionPoint(40.7128, -74.0060),
+                        regionPoint(40.6782, -73.9442),
+                        regionPoint(40.7282, -73.7949),
+                        regionPoint(40.9176, -73.7004),
+                        regionPoint(41.7004, -73.9210),
+                        regionPoint(42.6526, -73.7562),
+                        regionPoint(43.0481, -76.1474),
+                        regionPoint(43.1566, -77.6088),
+                        regionPoint(42.8864, -78.8784),
+                        regionPoint(43.0962, -79.0377),
+                        regionPoint(44.6995, -73.4529),
+                    ],
+                )],
+            ]
+        }
+
+        private static func regionPoint(
+            _ latitude: Double,
+            _ longitude: Double,
+        ) -> RegionDayPoint {
+            RegionDayPoint(
+                coordinate: Coordinate(latitude: latitude, longitude: longitude),
+                horizontalAccuracy: 20,
             )
         }
 
@@ -251,7 +319,10 @@
         public static func emptyYearReportModel() -> YearReportModel {
             YearReportModel(
                 services: previewServices(),
-                report: YearReport(year: year, days: [], totals: [:]),
+                details: YearReportDetails(
+                    report: YearReport(year: year, days: [], totals: [:]),
+                    primaryRegionLocations: [:],
+                ),
                 selectedYear: year,
                 preferences: previewPreferences(),
                 now: { referenceNow },
@@ -275,7 +346,10 @@
             }
             return YearReportModel(
                 services: previewServices(),
-                report: YearReport(year: year, days: days, totals: [.other: days.count]),
+                details: YearReportDetails(
+                    report: YearReport(year: year, days: days, totals: [.other: days.count]),
+                    primaryRegionLocations: [:],
+                ),
                 selectedYear: year,
                 preferences: previewPreferences(),
                 now: { referenceNow },
@@ -303,7 +377,14 @@
             }
             return YearReportModel(
                 services: previewServices(),
-                report: YearReport(year: year, days: days, totals: [.california: days.count]),
+                details: YearReportDetails(
+                    report: YearReport(
+                        year: year,
+                        days: days,
+                        totals: [.california: days.count],
+                    ),
+                    primaryRegionLocations: [:],
+                ),
                 selectedYear: year,
                 preferences: previewPreferences(),
                 now: { today },
@@ -395,17 +476,6 @@
                 calendar.date(from: DateComponents(year: year, month: month, day: dayOfMonth))!
             }
             return [
-                DayPresence(date: day(1, 6), in: calendar, regions: [.california]),
-                DayPresence(
-                    date: day(3, 14),
-                    in: calendar,
-                    regions: [.newYork],
-                    audit: ManualEntryAudit(
-                        recordedAt: day(3, 15),
-                        note: "Backfilled a trip the GPS missed.",
-                        location: nil,
-                    ),
-                ),
                 DayPresence(
                     date: day(6, 2),
                     in: calendar,
@@ -421,6 +491,17 @@
                         ),
                     ),
                 ),
+                DayPresence(
+                    date: day(3, 14),
+                    in: calendar,
+                    regions: [.newYork],
+                    audit: ManualEntryAudit(
+                        recordedAt: day(3, 15),
+                        note: "Backfilled a trip the GPS missed.",
+                        location: nil,
+                    ),
+                ),
+                DayPresence(date: day(1, 6), in: calendar, regions: [.california]),
             ]
         }
 
@@ -519,7 +600,7 @@
             preferences.hasOnboarded = true
             return WhereModel(
                 services: previewServices(),
-                report: sampleReport(),
+                details: sampleYearReportDetails(),
                 selectedYear: year,
                 preferences: preferences,
                 logSystem: logSystem,

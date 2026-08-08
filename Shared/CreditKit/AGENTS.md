@@ -41,7 +41,9 @@ the root [`AGENTS.md`](../../AGENTS.md).
 - **`kind` is derived from reachability, not declared.** `shippedFrom` names
   the app's root package targets; anything inside that closure is a `library`,
   any other linked package a `developmentTool` — linking is not shipping.
-  `shippedFrom` is the only hand-set part.
+  `shippedFrom` is the only hand-set part for SPM packages. **`agentSkills` and
+  `developmentTools` declare `kind` in config** — both are development tools in
+  Where today.
 
 ## Testing
 

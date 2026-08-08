@@ -1,0 +1,16 @@
+{
+  "module": "TrackingReconciliation.tla",
+  "cases": [
+    {
+      "name": "broken",
+      "config": "Broken.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant CorrectAtQuiescence is violated."
+    },
+    {
+      "name": "coalesced",
+      "config": "Coalesced.cfg",
+      "expect": "pass"
+    }
+  ]
+}

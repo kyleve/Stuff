@@ -78,7 +78,7 @@ internal shape.
   URL.** Never let another store in the process (notably Periscope) ping
   `WhereStore.changes()`; guard: `StoreRemoteChangeSourceTests`.
 - **Post-write reconciliation is defined once.** Every write and import
-  routes through `DayJournal.reconcileAfterDayChange()` (or its widget-less
+  routes through `DayJournal.reconcileAfterDayDataChange()` (or its widget-less
   subset `reconcileIssueState()`) — never copy the fan-out into a new write
   path. Cross-collaborator hooks take a single closure wired at the
   composition root (`BackupCoordinator.onImport`).
@@ -86,6 +86,9 @@ internal shape.
   `DataIssueInput.daySamples` carries per-day GPS fixes only (`.gpsVisit` /
   `.gpsSignificantChange`, sorted) — manual and evidence-implied samples are
   excluded so `FlightDayDetector`'s speed math isn't skewed.
+- **Read related year projections from one samples snapshot.** Use
+  `ReportReader.yearReportDetails(for:primaryRegionCount:)` for the scene's
+  report and primary-region locations.
 - **`LocationSource` abstracts GPS** — `CoreLocationSource` in production,
   `ScriptedLocationSource` in tests/previews; `requestCurrentLocation()`
   returns `nil`, never throws, and backs
@@ -96,6 +99,9 @@ internal shape.
   from them and rebuilds on `changes()`; assemble via the async
   `WhereServices.make(...)` / `forIntents()` so both attribute against the
   same synced set. `distanceToBoundary` is `nil` outside the tracked set.
+- **Location-card history is non-authoritative preference state.** Keep its
+  snapshots year-keyed by stable `Region` id, and clear them through
+  `WherePreferences.reset()`; current report totals remain the source of truth.
 - **`DemoDataBuilder` seeds through the ordinary write paths** (`DayJournal`,
   `setPrimaryRegions`) — no private door into the store, so a demo exercises
   the code a real user does. Its data is sized against the *elapsed* year, not

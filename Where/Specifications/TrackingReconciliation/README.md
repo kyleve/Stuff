@@ -58,22 +58,26 @@ launch and foreground reconciliation, authorization observation, and permission
 completion must all join it. Serializing only the toggle setter would not
 implement the modeled design.
 
-This is design evidence, not yet the product fix. Implementing the worker should
-make the Swift guard pass without `withKnownIssue`; changing the design should
-change this model first so its assumptions remain explicit.
+This is design evidence that informed the product fix. The coalesced worker is
+implemented on ``WhereSession``; the deterministic guard in
+[`WhereSessionTrackingTests`](../../WhereUI/Tests/WhereSessionTrackingTests.swift)
+(`newerStopWinsOverInFlightStart`) holds the real implementation at the modeled
+await and passes without `withKnownIssue`.
 
 ## Run it
 
-From this directory:
+From the repository root:
 
 ```sh
-./check
+./tla-check TrackingReconciliation
 ```
+
+Or run every spec: `./tla-check`. See `./tla-check --help` for options.
 
 The checker pins TLC 1.7.4 by SHA-256 and Eclipse Temurin 21.0.8+9 through
 `mise`. It caches both under the repository's ignored `.build/tla/` directory.
 A clean first run needs network access and downloads about 350 MB, almost all of
 it the JDK. Each run keeps its TLC log and state under `.build/tla/runs/`. A
 successful run means the broken model failed for the expected invariant and the
-coalesced model completed without an error. The pilot is opt-in and is not wired
+coalesced model completed without an error. Checks are opt-in and are not wired
 into CI.

@@ -21,7 +21,7 @@ struct SafeAreaCompositionTests {
         try waitFor { hostKeyWindow() != nil }
         let host = UIHostingController(rootView: Color.red)
         host.view.frame = CGRect(x: 0, y: 0, width: 100, height: 100)
-        let image = await renderSnapshotImage(
+        let image = try await renderSnapshotImage(
             of: host,
             named: "zeroed-root-probe",
             safeAreaInsets: .zero,
@@ -38,7 +38,7 @@ struct SafeAreaCompositionTests {
         try waitFor { hostKeyWindow() != nil }
         let host = UIHostingController(rootView: BarProbeView())
         host.view.frame = CGRect(x: 0, y: 0, width: 100, height: 100)
-        let image = await renderSnapshotImage(
+        let image = try await renderSnapshotImage(
             of: host,
             named: "safe-area-bar-probe",
             safeAreaInsets: .zero,

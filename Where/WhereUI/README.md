@@ -25,11 +25,15 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   Settings. Elsewhere is an entry card on Locations, Resolve a Locations toolbar
   button, and the data screens (attachments, logged days, regions) sit in the
   Settings "Data" group. Backup and destructive data management share one Data
-  drill-in. `AboutSettingsView` is the last Settings block — build
-  identity, the app's generated attribution report (linked libraries and
+  drill-in. Both Data and About lead with the same full-width passport-style
+  privacy statement on a passport-navy, tilt-reflective surface: location
+  history stays on the user's devices and in their private iCloud account,
+  never on Where-operated servers. `AboutSettingsView` is the last Settings block —
+  build identity, the app's generated attribution report (linked libraries and
   development tools as separate sections), and bundled-data provenance, each
   vended by whoever owns it rather than listed in the view; it renders an
-  explicit "no report" state, since only the app bundle carries one. `MainTabs`
+  explicit "no report" state, since only the app bundle carries one, and ends
+  with a passport-style link to the project's public source on GitHub. `MainTabs`
   is built from the `WhereSession` the launch's `.ready` carries. The app
   injects the launch-built model + runner
   (`init(model:launcher:)`); a no-arg `init()` builds its own for previews and
@@ -73,10 +77,16 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   `startTracking()` / `stopTracking()`, `refreshWidgetSnapshot()`). It holds no
   presentation state of its own.
 - **Scope-tiered models** — scene-scoped **`YearReportModel`** (the selected
-  year's `YearReport`, its `LoadState`, and the manual-day edit intents), plus
-  view-scoped **`ResolveModel`** (data-issue triage), **`BackupModel`**
-  (export/import), and **`RemindersSettingsModel`** (notification prefs). Each
-  orchestrates `WhereServices`; none reimplements Core rules.
+  year's `YearReportDetails`, its `LoadState`, and the manual-day edit intents),
+  plus view-scoped **`ResolveModel`** (data-issue triage), **`BackupModel`**
+  (export/import), **`RemindersSettingsModel`** (notification prefs), and
+  **`LocationDayCountPresentationModel`** (the last primary-card counts the
+  user saw). The Location model holds saved values until the card surface is
+  visible and unobscured, holds them there for another half second, then
+  advances every changed number in one animated beat, adding one light haptic
+  when any count increased; decreases, first visits, and newly appearing cards
+  stay silent. Each model keeps its behavior off the view; none reimplements
+  Core rules.
 
 ### Reusable views & styling
 
@@ -219,9 +229,14 @@ the seal inside the circular entry stamp. A separate micro path is repeated as
 a tangent-aligned microprint border around the card's inner perimeter. The UI
 cache derives all four resolutions from RegionKit's one cached source outline
 using its stateless simplifier; compact cards retain the simpler symbol
-treatment. Security-print layers use normal compositing in light mode and
-Screen in dark mode, so the same tinted details darken pale glass but lighten
-dark glass.
+treatment. On the two large Locations cards, raw GPS fixes for the selected
+year are projected through that same geometry and reduced to a clipped,
+static constellation of glowing pinpricks; manually logged days add no invented
+points. Settings > Appearance can hide or restore that constellation without
+altering the recorded data. Security-print layers use normal compositing in
+light mode and Screen in dark mode, so the same tinted details darken pale glass
+but lighten dark glass. Reduce Transparency removes the constellation halos
+while retaining the crisp centers.
 Live tilt is observed only by the sheen overlay, so its 60 Hz updates do not
 invalidate the card's text or Canvas artwork. The card adds no standalone edge
 stroke; its containing Liquid Glass surface owns the subtle outer border so

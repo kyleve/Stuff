@@ -122,7 +122,7 @@ public struct RootView: View {
                 // one and skip the rebuild.
                 MainTabs(
                     session: session,
-                    initialReport: model.initialReport,
+                    initialDetails: model.initialYearDetails,
                     selectedYear: model.initialSelectedYear,
                 )
                 .id(session.id)
@@ -283,7 +283,7 @@ public struct RootView: View {
             let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
             whereSnapshot(
                 name: "LoggedIn",
-                configurations: .phoneLightDark,
+                configurations: .fullContentPhoneLightDark,
                 settle: .settledAtLeast(minDuration: 1.5),
                 onReadyToSnapshot: { await launcher.run() },
             ) {

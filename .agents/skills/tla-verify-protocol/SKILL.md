@@ -92,9 +92,14 @@ convention. In this repository, prefer a feature-level
 - the `.tla` module;
 - configurations for the relevant current, negative-control, and candidate
   designs;
-- a local executable checker;
+- a `manifest.json` declaring each TLC case and its pass/fail expectation;
 - a short README with the question, correspondence table, bounds, assumptions,
   exclusions, properties, results, and run command.
+
+Run checks from the repository root with `./tla-check [<Concern> ...]` (see
+[`Where/Specifications/TrackingReconciliation`](../../../Where/Specifications/TrackingReconciliation/README.md)).
+The root script owns TLC/JDK download and pinning; do not add per-spec `check`
+scripts or wire TLA+ into CI unless explicitly requested.
 
 Do not force these exact filenames when the protocol needs a different model
 shape.
