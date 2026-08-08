@@ -15,6 +15,7 @@ public actor DeviceRecordingController {
     private let now: @Sendable () -> Date
     private let onPolicyChanged: @Sendable () async -> Void
     private let configurationBroadcaster = RecordingConfigurationBroadcaster()
+    private let policyResolver: RecordingDevicePolicyResolver
 
     private enum AutomaticRecordingChoice: Equatable {
         case off
@@ -45,15 +46,6 @@ public actor DeviceRecordingController {
     private static let checkInInterval: TimeInterval = 15 * 60
     private static let logger = WhereLog.root(DeviceRecordingControllerLog.self)
 
-    private struct StoreSnapshot {
-        let generation: WhereDataGeneration
-        let profiles: [RecordingDeviceProfile]
-        let metadataChanges: [RecordingDeviceMetadataChange]
-        let checkIns: [RecordingDeviceCheckIn]
-        let removals: [RecordingDeviceRemoval]
-        let currentDeviceResetBarrier: Date?
-    }
-
     init(
         store: any WhereStore,
         ingestor: LocationIngestor,
@@ -67,6 +59,10 @@ public actor DeviceRecordingController {
         self.store = store
         self.ingestor = ingestor
         currentDevice = installationContext.currentDevice
+        policyResolver = RecordingDevicePolicyResolver(
+            store: store,
+            currentDeviceID: installationContext.currentDevice.id,
+        )
         registeredAt = installationContext.registeredAt
         if automaticRecordingEnabled {
             guard let enabledAt = installationContext.recordingEnabledAt else {
@@ -180,7 +176,7 @@ public actor DeviceRecordingController {
         guard snapshot.profiles.contains(where: { $0.id == deviceID }) else {
             throw RecordingPersistenceError.deviceNotFound(deviceID)
         }
-        let latest = Self.latestMetadata(
+        let latest = RecordingDevicePolicyResolver.latestMetadata(
             for: deviceID,
             field: .nickname,
             in: snapshot.metadataChanges,
@@ -193,7 +189,10 @@ public actor DeviceRecordingController {
         let change = try RecordingDeviceMetadataChange(
             id: .init(rawValue: UUID()),
             deviceID: deviceID,
-            revision: Self.nextRevision(after: latest?.revision, for: deviceID),
+            revision: RecordingDevicePolicyResolver.nextRevision(
+                after: latest?.revision,
+                for: deviceID,
+            ),
             changedAt: now(),
             changedByDeviceID: currentDevice.id,
             payload: .nickname(resolvedNickname),
@@ -482,7 +481,10 @@ public actor DeviceRecordingController {
         if existing?.status != status || checkInDue {
             checkIn = try RecordingDeviceCheckIn(
                 deviceID: currentDevice.id,
-                revision: Self.nextRevision(after: existing?.revision, for: currentDevice.id),
+                revision: RecordingDevicePolicyResolver.nextRevision(
+                    after: existing?.revision,
+                    for: currentDevice.id,
+                ),
                 lastSeenAt: checkInDate,
                 status: status,
             )
@@ -498,7 +500,7 @@ public actor DeviceRecordingController {
         let configuration = RecordingDeviceConfiguration(
             device: RecordingDevice(
                 profile: profile,
-                nicknameChange: Self.latestMetadata(
+                nicknameChange: RecordingDevicePolicyResolver.latestMetadata(
                     for: currentDevice.id,
                     field: .nickname,
                     in: snapshot.metadataChanges,
@@ -517,26 +519,10 @@ public actor DeviceRecordingController {
     private func configurationsLocked(
         includeRemoved: Bool,
     ) async throws -> [RecordingDeviceConfiguration] {
-        try await store.recordingDevices()
-            .filter { includeRemoved || $0.removedAt == nil || $0.id == currentDevice.id }
-            .map { device in
-                let isCurrent = device.id == currentDevice.id
-                return RecordingDeviceConfiguration(
-                    device: device,
-                    isCurrentDevice: isCurrent,
-                    localAutomaticRecordingEnabled: isCurrent
-                        ? automaticRecordingChoice.isEnabled
-                        : nil,
-                )
-            }
-            .sorted { lhs, rhs in
-                if lhs.isCurrentDevice { return true }
-                if rhs.isCurrentDevice { return false }
-                if lhs.device.lastSeenAt != rhs.device.lastSeenAt {
-                    return lhs.device.lastSeenAt > rhs.device.lastSeenAt
-                }
-                return lhs.id.storeURL.absoluteString < rhs.id.storeURL.absoluteString
-            }
+        try await policyResolver.configurations(
+            localAutomaticRecordingEnabled: automaticRecordingChoice.isEnabled,
+            includeRemoved: includeRemoved,
+        )
     }
 
     private func applyObservedChange() async {
@@ -581,31 +567,8 @@ public actor DeviceRecordingController {
         endExclusive()
     }
 
-    private func storeSnapshot() async throws -> StoreSnapshot {
-        try await store.readSnapshot {
-            async let generation = store.dataGeneration()
-            async let profiles = store.recordingDeviceProfiles()
-            async let metadataChanges = store.recordingDeviceMetadataChanges()
-            async let checkIns = store.recordingDeviceCheckIns()
-            async let removals = store.recordingDeviceRemovals()
-            let values = try await (generation, profiles, metadataChanges, checkIns, removals)
-            let currentProfile = values.1.first { $0.id == currentDevice.id }
-            let resetBarrier: Date? = if let currentProfile {
-                try await store.recordingDeviceResetBarrier(
-                    for: currentProfile.registrationGenerationID,
-                )
-            } else {
-                nil
-            }
-            return StoreSnapshot(
-                generation: values.0,
-                profiles: values.1,
-                metadataChanges: values.2,
-                checkIns: values.3,
-                removals: values.4,
-                currentDeviceResetBarrier: resetBarrier,
-            )
-        }
+    private func storeSnapshot() async throws -> RecordingDevicePolicySnapshot {
+        try await policyResolver.snapshot()
     }
 
     private func expectedProfile(
@@ -618,26 +581,6 @@ public actor DeviceRecordingController {
             registeredAt: registeredAt,
             registrationGenerationID: registrationGenerationID,
         )
-    }
-
-    private static func latestMetadata(
-        for deviceID: RecordingDeviceID,
-        field: RecordingDeviceMetadataField,
-        in changes: [RecordingDeviceMetadataChange],
-    ) -> RecordingDeviceMetadataChange? {
-        changes
-            .filter { $0.deviceID == deviceID && $0.field == field }
-            .max(by: RecordingDeviceMetadataChange.isOrderedBefore)
-    }
-
-    private static func nextRevision(
-        after revision: Int64?,
-        for deviceID: RecordingDeviceID,
-    ) throws -> Int64 {
-        guard let revision else { return 0 }
-        let (next, overflow) = revision.addingReportingOverflow(1)
-        guard !overflow else { throw RecordingPersistenceError.revisionExhausted(deviceID) }
-        return next
     }
 
     private func publishRuntimeState(_ state: RecordingDeviceRuntimeState) {
