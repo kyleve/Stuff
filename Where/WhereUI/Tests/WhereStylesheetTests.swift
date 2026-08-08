@@ -290,6 +290,9 @@ struct WhereStylesheetTests {
         #expect(timeline.ribbonTrack == Color.primary.opacity(0.07))
         #expect(timeline.ribbonBorder == Color.primary.opacity(0.12))
         #expect(timeline.ribbonBorderWidth == 1)
+        #expect(timeline.ribbonRegionSpacing == 8)
+        #expect(timeline.ribbonRegionLabelSpacing == 4)
+        #expect(timeline.separatesRibbonRegions == false)
         #expect(timeline.railLineWidth == 4)
         #expect(timeline.railToCardSpacing == 10)
         #expect(timeline.nodeSize == 42)
@@ -510,6 +513,16 @@ struct WhereStylesheetTests {
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
         #expect(resolved.card.regular.glow.radius == 0)
         #expect(resolved.card.compact.glow.radius == 0)
+    }
+
+    @MainActor
+    @Test func separatesRibbonRegionsWithoutColorDifferentiation() throws {
+        var context = BContext(traits: .system)
+        context.traitOverrides.accessibility = BAccessibility(
+            shouldDifferentiateWithoutColor: true,
+        )
+        let resolved = try context.stylesheets.get(WhereStylesheet.self)
+        #expect(resolved.timeline.separatesRibbonRegions)
     }
 
     @MainActor

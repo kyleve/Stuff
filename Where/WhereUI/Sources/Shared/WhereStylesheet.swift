@@ -44,6 +44,12 @@ struct WhereStylesheet: BStylesheet {
             timeline.stacksDayCount = true
         }
 
+        // Give every region a consistently labeled ribbon band when tint
+        // alone is not an acceptable differentiator.
+        if traits.accessibility.shouldDifferentiateWithoutColor {
+            timeline.separatesRibbonRegions = true
+        }
+
         // Reduce Transparency flattens the cards: drop the decorative rim-glow
         // layer (the translucent halo) on both card variants.
         if traits.accessibility.isReduceTransparencyEnabled {
@@ -1127,6 +1133,11 @@ extension WhereStylesheet {
         var ribbonTrack: Color
         var ribbonBorder: Color
         var ribbonBorderWidth: CGFloat
+        var ribbonRegionSpacing: CGFloat
+        var ribbonRegionLabelSpacing: CGFloat
+        /// Split the overview into labeled region bands instead of
+        /// relying on tint to distinguish a combined track.
+        var separatesRibbonRegions: Bool
         /// The route, marker, and space between the marker and row card.
         var railLineWidth: CGFloat
         var railToCardSpacing: CGFloat
@@ -1166,6 +1177,9 @@ extension WhereStylesheet {
             ribbonTrack: Color.primary.opacity(0.07),
             ribbonBorder: Color.primary.opacity(0.12),
             ribbonBorderWidth: 1,
+            ribbonRegionSpacing: 8,
+            ribbonRegionLabelSpacing: 4,
+            separatesRibbonRegions: false,
             railLineWidth: 4,
             railToCardSpacing: 10,
             nodeSize: 42,

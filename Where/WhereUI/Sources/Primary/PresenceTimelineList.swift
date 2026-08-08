@@ -2,6 +2,11 @@ import SnapshotKit
 import SwiftUI
 import WhereCore
 
+#if DEBUG
+    import BroadwayCore
+    import BroadwayUI
+#endif
+
 /// A chronological list of continuous stays (`RegionStint`s) for the selected
 /// year — "California, Jan 1 – Feb 3", "New York, Feb 3 – Mar 10", and so on.
 /// Hosted as the Timeline segment of the Your Year tab.
@@ -54,11 +59,26 @@ struct PresenceTimelineList: View {
 #if DEBUG
     extension PresenceTimelineList: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            whereSnapshot(name: "WithData", configurations: .screenDefaults) {
-                NavigationStack {
-                    PresenceTimelineList(report: PreviewSupport.loadedYearReportModel())
-                }
-            }
+            [
+                whereSnapshot(name: "WithData", configurations: .screenDefaults) {
+                    NavigationStack {
+                        PresenceTimelineList(report: PreviewSupport.loadedYearReportModel())
+                    }
+                },
+                whereSnapshot(
+                    name: "DifferentiateWithoutColor",
+                    configurations: .phoneLightDark,
+                ) {
+                    NavigationStack {
+                        PresenceTimelineList(report: PreviewSupport.loadedYearReportModel())
+                    }
+                    .bTraitOverrides { traits, overrides in
+                        var accessibility = traits.accessibility
+                        accessibility.shouldDifferentiateWithoutColor = true
+                        overrides.accessibility = accessibility
+                    }
+                },
+            ]
         }
     }
 

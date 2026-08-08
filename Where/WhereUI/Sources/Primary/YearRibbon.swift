@@ -14,6 +14,7 @@ struct YearRibbon: View {
 
     var body: some View {
         let timeline = stylesheet.timeline
+        let regions = Region.inCanonicalOrder(Set(days.flatMap(\.regions)))
         let monthStarts = (1 ... 12).compactMap { month in
             calendar.date(from: DateComponents(year: year, month: month, day: 1))
         }
@@ -33,48 +34,38 @@ struct YearRibbon: View {
                     }
                 }
 
-                GeometryReader { _ in
-                    ZStack(alignment: .leading) {
-                        Capsule()
-                            .fill(timeline.ribbonTrack)
-
-                        Canvas { context, size in
-                            let daysInYear = calendar.dayCount(ofYear: year)
-                            for day in days {
-                                let date = day.startOfDay(in: calendar)
-                                guard let ordinal = calendar.ordinality(
-                                    of: .day,
-                                    in: .year,
-                                    for: date,
-                                ) else { continue }
-
-                                let regions = Region.inCanonicalOrder(day.regions)
-                                for (lane, region) in regions.enumerated() {
-                                    let rect = YearRibbonLayout.segmentRect(
-                                        ordinal: ordinal,
-                                        daysInYear: daysInYear,
-                                        size: size,
-                                        lane: lane,
-                                        laneCount: regions.count,
-                                    )
-                                    context.fill(
-                                        Path(rect),
-                                        with: .color(regionStyles.style(for: region).tint),
-                                    )
+                if timeline.separatesRibbonRegions {
+                    VStack(spacing: timeline.ribbonRegionSpacing) {
+                        ForEach(regions, id: \.self) { region in
+                            VStack(
+                                alignment: .leading,
+                                spacing: timeline.ribbonRegionLabelSpacing,
+                            ) {
+                                let style = regionStyles.style(for: region)
+                                Label {
+                                    Text(region.localizedName)
+                                } icon: {
+                                    Text(style.emoji)
                                 }
+                                .font(.caption)
+
+                                YearRibbonBand(
+                                    days: days,
+                                    year: year,
+                                    calendar: calendar,
+                                    isolatedRegion: region,
+                                )
                             }
                         }
                     }
-                    .clipShape(.capsule)
-                    .overlay {
-                        Capsule()
-                            .stroke(
-                                timeline.ribbonBorder,
-                                lineWidth: timeline.ribbonBorderWidth,
-                            )
-                    }
+                } else {
+                    YearRibbonBand(
+                        days: days,
+                        year: year,
+                        calendar: calendar,
+                        isolatedRegion: nil,
+                    )
                 }
-                .frame(height: timeline.ribbonHeight)
             }
             .accessibilityHidden(true)
         }
