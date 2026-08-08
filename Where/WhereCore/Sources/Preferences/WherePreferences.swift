@@ -38,6 +38,14 @@ public final class WherePreferences {
         set { store.set(newValue, forKey: Keys.wantsTracking.rawValue) }
     }
 
+    /// Whether Locations cards render recorded GPS fixes inside their region
+    /// outlines. Defaults to `true` so the visualization is visible until the
+    /// user explicitly turns it off.
+    public var showsRecordedLocationDots: Bool {
+        get { store.object(forKey: Keys.showsRecordedLocationDots.rawValue) as? Bool ?? true }
+        set { store.set(newValue, forKey: Keys.showsRecordedLocationDots.rawValue) }
+    }
+
     /// Whether the daily "log before the day ends" reminder is enabled. Defaults
     /// to `true` so the safety net is active out of the box.
     public var remindersEnabled: Bool {
@@ -148,6 +156,7 @@ public final class WherePreferences {
     private enum Keys: String, CaseIterable {
         case hasOnboarded = "where.hasOnboarded"
         case wantsTracking = "where.wantsBackgroundTracking"
+        case showsRecordedLocationDots = "where.showsRecordedLocationDots"
         case remindersEnabled = "where.remindersEnabled"
         case reminderHour = "where.reminderHour"
         case reminderMinute = "where.reminderMinute"

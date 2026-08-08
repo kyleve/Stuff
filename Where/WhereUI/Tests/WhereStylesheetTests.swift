@@ -181,6 +181,15 @@ struct WhereStylesheetTests {
         #expect(card.dayCount == .standard)
         #expect(card.dayCount.revealDelay == .milliseconds(500))
         #expect(card.dayCount.animation == .easeOut(duration: 0.3))
+        #expect(card.constellation == .init(
+            gridResolution: 48,
+            maximumPointCount: 96,
+            coreDiameter: 2.5,
+            coreOpacity: 0.92,
+            coreWhiteMix: 0.72,
+            haloRadius: 6,
+            haloOpacity: 0.32,
+        ))
     }
 
     /// The roll carries the count so it knows which way to spin the digits; the
@@ -521,6 +530,8 @@ struct WhereStylesheetTests {
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
         #expect(resolved.card.regular.glow.radius == 0)
         #expect(resolved.card.compact.glow.radius == 0)
+        #expect(resolved.card.constellation.haloOpacity == 0)
+        #expect(resolved.card.constellation.coreOpacity == 0.92)
     }
 
     @MainActor

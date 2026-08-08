@@ -124,6 +124,10 @@ struct LocationsView: View {
                                 yearLength: report.daysInSelectedYear,
                                 year: report.selectedYear,
                                 tilt: tilt,
+                                recordedPoints: report.primaryRegionLocations?
+                                    .pointsByRegion[item.region] ?? [],
+                                showsRecordedPoints: report.showsRecordedLocationDots,
+                                recordedPointsID: report.primaryRegionLocations?.id,
                             )
                         }
                         // Plain so the card's interactive Liquid Glass owns
@@ -290,6 +294,11 @@ private struct ResolveToolbarLabel: View {
             }
             whereSnapshot(name: "ElsewhereOnly", configurations: .phoneLightDark) {
                 LocationsView(report: PreviewSupport.elsewhereOnlyYearReportModel())
+            }
+            whereSnapshot(name: "DotsHidden", configurations: .phoneLightDark) {
+                LocationsView(
+                    report: PreviewSupport.loadedYearReportModelWithLocationDotsHidden(),
+                )
             }
         }
     }

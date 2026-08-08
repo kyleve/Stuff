@@ -5317,6 +5317,28 @@
         }
       }
     },
+    "settings.appearance.locationDots.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show recorded GPS locations as glowing dots on the maps in Locations."
+          }
+        }
+      }
+    },
+    "settings.appearance.locationDots.toggle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GPS dots"
+          }
+        }
+      }
+    },
     "settings.attachments.row" : {
       "comment" : "Row title for the attachments (evidence) screen in the Settings Data group.",
       "extractionState" : "manual",
@@ -5847,6 +5869,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "issue, alerts, notification, badge, resolve"
+          }
+        }
+      }
+    },
+    "settings.keywords.locationDots" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "gps, locations, dots, map, cards, glow, constellation"
           }
         }
       }
