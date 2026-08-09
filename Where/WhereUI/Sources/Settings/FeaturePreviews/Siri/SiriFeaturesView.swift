@@ -2,8 +2,7 @@ import SnapshotKit
 import SwiftUI
 
 /// A visual catalog of every user-facing App Intent Where ships to Siri and
-/// Shortcuts. The dialogue uses the selected report once it has enough history;
-/// browsing the catalog never changes user data.
+/// Shortcuts, plus the tracked-region results it indexes into Spotlight.
 struct SiriFeaturesView: View {
     let focus: SettingsFocus?
     let presentation: FeatureDiscoveryPresentation
@@ -28,12 +27,12 @@ struct SiriFeaturesView: View {
 
                     Section {
                         ForEach(
-                            Array(Item.allCases.enumerated()),
+                            SiriIntentFeature.allCases.enumerated(),
                             id: \.element,
                         ) { index, feature in
                             let personalized = presentation.siriExample(for: feature)
                             SiriIntentCard(
-                                title: feature.title,
+                                title: feature.item.title,
                                 systemImage: feature.systemImage,
                                 request: personalized?.request ?? feature.request,
                                 response: personalized?.response ?? feature.response,
@@ -46,15 +45,26 @@ struct SiriFeaturesView: View {
                                 trailing: 0,
                             ))
                             .listRowSeparator(.hidden)
-                            .settingsRow(feature, restingBackground: .clear)
+                            .settingsRow(feature.item, restingBackground: .clear)
                             .staggeredReveal(order: index + 1)
                         }
                     } footer: {
+                        Text(String(localized: .settingsExploreSiriFooter))
+                            .staggeredReveal(order: SiriIntentFeature.allCases.count + 1)
+                    }
+
+                    Section {
+                        FeatureSpotlightPreview(example: presentation.spotlightExample)
+                            .listRowBackground(Color.clear)
+                            .listRowInsets(.init())
+                            .settingsRow(Item.spotlight, restingBackground: .clear)
+                            .staggeredReveal(order: SiriIntentFeature.allCases.count + 1)
+                    } footer: {
                         VStack(alignment: .leading, spacing: stylesheet.spacing.medium) {
-                            Text(String(localized: .settingsExploreSiriFooter))
-                            Text(String(localized: .settingsExploreSiriDataFooter))
+                            Text(String(localized: .settingsExploreSpotlightFooter))
+                            FeatureDiscoveryDataFooter()
                         }
-                        .staggeredReveal(order: Item.allCases.count + 1)
+                        .staggeredReveal(order: SiriIntentFeature.allCases.count + 2)
                     }
                 }
                 .scrollContentBackground(.hidden)
@@ -78,6 +88,7 @@ extension SiriFeaturesView: SettingsSection {
         case recentActivity
         case logDay
         case logTrip
+        case spotlight
 
         var title: String {
             switch self {
@@ -87,44 +98,12 @@ extension SiriFeaturesView: SettingsSection {
                 case .recentActivity: String(localized: .settingsExploreSiriRecentTitle)
                 case .logDay: String(localized: .settingsExploreSiriLogDayTitle)
                 case .logTrip: String(localized: .settingsExploreSiriLogTripTitle)
+                case .spotlight: String(localized: .settingsExploreSpotlightTitle)
             }
         }
 
         var keywords: [String] {
             splitKeywords(String(localized: .settingsKeywordsSiri))
-        }
-
-        var systemImage: String {
-            switch self {
-                case .todayRegions: "location.fill"
-                case .daysInRegion: "calendar"
-                case .regionOnDate: "calendar.badge.clock"
-                case .recentActivity: "sparkles"
-                case .logDay: "mappin.and.ellipse"
-                case .logTrip: "airplane"
-            }
-        }
-
-        var request: String {
-            switch self {
-                case .todayRegions: String(localized: .settingsExploreSiriTodayRequest)
-                case .daysInRegion: String(localized: .settingsExploreSiriDaysRequest)
-                case .regionOnDate: String(localized: .settingsExploreSiriDateRequest)
-                case .recentActivity: String(localized: .settingsExploreSiriRecentRequest)
-                case .logDay: String(localized: .settingsExploreSiriLogDayRequest)
-                case .logTrip: String(localized: .settingsExploreSiriLogTripRequest)
-            }
-        }
-
-        var response: String {
-            switch self {
-                case .todayRegions: String(localized: .settingsExploreSiriTodayResponse)
-                case .daysInRegion: String(localized: .settingsExploreSiriDaysResponse)
-                case .regionOnDate: String(localized: .settingsExploreSiriDateResponse)
-                case .recentActivity: String(localized: .settingsExploreSiriRecentResponse)
-                case .logDay: String(localized: .settingsExploreSiriLogDayResponse)
-                case .logTrip: String(localized: .settingsExploreSiriLogTripResponse)
-            }
         }
     }
 }
@@ -156,7 +135,7 @@ extension SiriFeaturesView: SettingsSection {
     extension SiriFeaturesView: WhereFlyoverProviding {
         static let flyoverData = WhereFlyoverData.snapshots(
             SiriFeaturesView.self,
-            title: "Siri & Shortcuts",
+            title: "Siri, Shortcuts & Spotlight",
         )
     }
 #endif

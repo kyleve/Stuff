@@ -55,7 +55,7 @@ struct WidgetFeaturesView: View {
                         VStack(alignment: .leading, spacing: stylesheet.spacing.medium) {
                             Text(String(localized: .settingsExploreWidgetsLockFooter))
                                 .staggeredReveal(order: 2)
-                            Text(String(localized: .settingsExploreWidgetsDataFooter))
+                            FeatureDiscoveryDataFooter()
                                 .staggeredReveal(order: 3)
                         }
                     }

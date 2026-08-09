@@ -6077,6 +6077,17 @@
         }
       }
     },
+    "settings.explore.dataFooter" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where uses your data here when there’s enough to make these examples relevant. Browsing this screen never changes it."
+          }
+        }
+      }
+    },
     "settings.explore.header" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6108,17 +6119,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "You ask, “%1$@” Siri responds, “%2$@”"
-          }
-        }
-      }
-    },
-    "settings.explore.siri.dataFooter" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Where uses your data here when there’s enough to make these examples relevant. Browsing this screen never changes it."
           }
         }
       }
@@ -6382,7 +6382,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Siri & Shortcuts"
+            "value" : "Siri, Shortcuts & Spotlight"
           }
         }
       }
@@ -6393,7 +6393,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ask about where you’ve been, or log it hands-free."
+            "value" : "Ask, automate, or search for where you’ve been."
           }
         }
       }
@@ -6404,7 +6404,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Siri & Shortcuts"
+            "value" : "Siri, Shortcuts & Spotlight"
           }
         }
       }
@@ -6442,13 +6442,71 @@
         }
       }
     },
-    "settings.explore.widgets.dataFooter" : {
+    "settings.explore.spotlight.footer" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Where uses your data here when there’s enough to make these previews relevant. Browsing this screen never changes it."
+            "value" : "Search for one of your tracked regions in Spotlight to jump straight to its day count."
+          }
+        }
+      }
+    },
+    "settings.explore.spotlight.previewLabel" : {
+      "comment" : "Accessibility description for the miniature Spotlight result. Arguments are the query, result title, and result subtitle.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spotlight search for %1$@. Result: %2$@, %3$@."
+          }
+        }
+      }
+    },
+    "settings.explore.spotlight.result.generic" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Where to see your total"
+          }
+        }
+      }
+    },
+    "settings.explore.spotlight.result.personalized" : {
+      "comment" : "Spotlight result subtitle. Arguments are a localized day count and year.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ in %2$@"
+          }
+        }
+      }
+    },
+    "settings.explore.spotlight.result.title" : {
+      "comment" : "Spotlight result title. Argument is a localized region name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Days in %@"
+          }
+        }
+      }
+    },
+    "settings.explore.spotlight.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Find a Region in Spotlight"
           }
         }
       }
