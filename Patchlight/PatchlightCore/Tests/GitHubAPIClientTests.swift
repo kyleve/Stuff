@@ -200,6 +200,43 @@ struct GitHubAPIClientTests {
             try await client.viewer()
         }
     }
+
+    @Test func repositoryConfigurationComesOnlyFromTheBaseRevision() async throws {
+        let base = String(repeating: "a", count: 40)
+        let head = String(repeating: "b", count: 40)
+        let configBlob = String(repeating: "c", count: 40)
+        let transport = RoutingHTTPTransport { request in
+            switch request.url.path {
+                case "/repositories/7": return repositoryResponse()
+                case "/repos/acme/widget/pulls/19":
+                    return pullRequestResponse(base: base, head: head, changedFiles: 0)
+                case "/repos/acme/widget/contents/.patchlight.json":
+                    #expect(URLComponents(url: request.url, resolvingAgainstBaseURL: false)?
+                        .queryItems?.first?.value == base)
+                    return .json("{\"type\":\"file\",\"sha\":\"\(configBlob)\"}")
+                case "/repos/acme/widget/git/blobs/\(configBlob)":
+                    return PatchlightHTTPResponse(
+                        statusCode: 200,
+                        headers: [:],
+                        body: Data("""
+                        {"version":1,"review":{"alwaysReview":["Sources/Auth.swift"],
+                        "generated":[],"mechanical":[],"tests":[]},
+                        "snapshots":{"include":[],"exclude":[]}}
+                        """.utf8),
+                    )
+                default: return .json("{\"message\":\"unexpected\"}", statusCode: 404)
+            }
+        }
+        let client = makeClient(transport: transport)
+
+        let workspace = try await client.workspace(for: PatchlightCoreTestSupport.pullRequestID)
+
+        guard case let .loaded(configuration) = workspace.repositoryConfiguration else {
+            Issue.record("Expected a base-revision configuration")
+            return
+        }
+        #expect(configuration.review.alwaysReview == ["Sources/Auth.swift"])
+    }
 }
 
 private actor RequestCounter {

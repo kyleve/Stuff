@@ -15,6 +15,8 @@ struct PatchlightDiffCollectionView: UIViewRepresentable {
     let headOID: GitObjectID
     let mode: DiffRendererMode
     let threads: [ReviewThread]
+    let hunkPlans: [HunkReviewPlan]
+    let reviewDepth: ReviewDepth
     let onSelectAnchor: (DiffAnchor) -> Void
     let onReachedEnd: () -> Void
 
@@ -49,11 +51,17 @@ struct PatchlightDiffCollectionView: UIViewRepresentable {
             DiffThreadCell.self,
             forCellWithReuseIdentifier: DiffThreadCell.reuseIdentifier,
         )
+        collectionView.register(
+            DiffHiddenHunkCell.self,
+            forCellWithReuseIdentifier: DiffHiddenHunkCell.reuseIdentifier,
+        )
         context.coordinator.update(
             file: file,
             headOID: headOID,
             mode: mode,
             threads: threads,
+            hunkPlans: hunkPlans,
+            reviewDepth: reviewDepth,
             collectionView: collectionView,
         )
         return collectionView
@@ -67,6 +75,8 @@ struct PatchlightDiffCollectionView: UIViewRepresentable {
             headOID: headOID,
             mode: mode,
             threads: threads,
+            hunkPlans: hunkPlans,
+            reviewDepth: reviewDepth,
             collectionView: collectionView,
         )
     }
@@ -76,6 +86,11 @@ struct PatchlightDiffCollectionView: UIViewRepresentable {
         private var identity: Identity?
         private var file: DiffFile?
         private var headOID: GitObjectID?
+        private var mode = DiffRendererMode.unified
+        private var threads: [ReviewThread] = []
+        private var hunkPlans: [HunkReviewPlan] = []
+        private var reviewDepth = ReviewDepth.everything
+        private var expandedHunks = Set<DiffHunk.ID>()
         private var didReachEnd = false
         var onSelectAnchor: (DiffAnchor) -> Void
         var onReachedEnd: () -> Void
@@ -97,15 +112,28 @@ struct PatchlightDiffCollectionView: UIViewRepresentable {
             headOID: GitObjectID,
             mode: DiffRendererMode,
             threads: [ReviewThread],
+            hunkPlans: [HunkReviewPlan],
+            reviewDepth: ReviewDepth,
             collectionView: UICollectionView,
         ) {
-            let identity = Identity(file: file, headOID: headOID, mode: mode, threads: threads)
+            let identity = Identity(
+                file: file,
+                headOID: headOID,
+                mode: mode,
+                threads: threads,
+                hunkPlans: hunkPlans,
+                reviewDepth: reviewDepth,
+            )
             guard self.identity != identity else { return }
             self.identity = identity
             self.file = file
             self.headOID = headOID
+            self.mode = mode
+            self.threads = threads
+            self.hunkPlans = hunkPlans
+            self.reviewDepth = reviewDepth
             didReachEnd = false
-            rows = DiffRowBuilder.rows(file: file, mode: mode, threads: threads)
+            rebuildRows()
             collectionView.reloadData()
         }
 
@@ -154,18 +182,31 @@ struct PatchlightDiffCollectionView: UIViewRepresentable {
                     ) as! DiffThreadCell
                     cell.configure(thread: thread)
                     return cell
+                case let .hidden(hunk, assessment):
+                    let cell = collectionView.dequeueReusableCell(
+                        withReuseIdentifier: DiffHiddenHunkCell.reuseIdentifier,
+                        for: indexPath,
+                    ) as! DiffHiddenHunkCell
+                    cell.configure(hunk: hunk, assessment: assessment)
+                    return cell
             }
         }
 
         func collectionView(
-            _: UICollectionView,
+            _ collectionView: UICollectionView,
             didSelectItemAt indexPath: IndexPath,
         ) {
             guard let file, let headOID else { return }
+            if case let .hidden(hunk, _) = rows[indexPath.item] {
+                expandedHunks.insert(hunk.id)
+                rebuildRows()
+                collectionView.reloadData()
+                return
+            }
             let line: DiffLine? = switch rows[indexPath.item] {
                 case let .unified(value): value
                 case let .split(base, head): head ?? base
-                case .hunk, .thread: nil
+                case .hunk, .thread, .hidden: nil
             }
             guard let line,
                   let hunk = file.hunks
@@ -202,6 +243,20 @@ struct PatchlightDiffCollectionView: UIViewRepresentable {
             let headOID: GitObjectID
             let mode: DiffRendererMode
             let threads: [ReviewThread]
+            let hunkPlans: [HunkReviewPlan]
+            let reviewDepth: ReviewDepth
+        }
+
+        private func rebuildRows() {
+            guard let file else { return }
+            rows = DiffRowBuilder.rows(
+                file: file,
+                mode: mode,
+                threads: threads,
+                hunkPlans: hunkPlans,
+                reviewDepth: reviewDepth,
+                expandedHunks: expandedHunks,
+            )
         }
     }
 }
@@ -253,12 +308,18 @@ struct PatchlightDiffCollectionView: UIViewRepresentable {
                 DiffThreadCell.self,
                 forCellWithReuseIdentifier: DiffThreadCell.reuseIdentifier,
             )
+            collectionView.register(
+                DiffHiddenHunkCell.self,
+                forCellWithReuseIdentifier: DiffHiddenHunkCell.reuseIdentifier,
+            )
             collectionView.dataSource = coordinator
             coordinator.update(
                 file: file,
                 headOID: GitObjectID(rawValue: String(repeating: "0", count: 40)),
                 mode: mode,
                 threads: [],
+                hunkPlans: [],
+                reviewDepth: .everything,
                 collectionView: collectionView,
             )
             collectionView.layoutIfNeeded()
@@ -275,6 +336,7 @@ private enum DiffRenderedRow {
     case unified(DiffLine)
     case split(base: DiffLine?, head: DiffLine?)
     case thread(ReviewThread)
+    case hidden(DiffHunk, ReviewAssessment)
 }
 
 private enum DiffRowBuilder {
@@ -282,9 +344,19 @@ private enum DiffRowBuilder {
         file: DiffFile,
         mode: DiffRendererMode,
         threads: [ReviewThread],
+        hunkPlans: [HunkReviewPlan],
+        reviewDepth: ReviewDepth,
+        expandedHunks: Set<DiffHunk.ID>,
     ) -> [DiffRenderedRow] {
         var result: [DiffRenderedRow] = []
         for hunk in file.hunks {
+            if let plan = hunkPlans.first(where: { $0.hunk.id == hunk.id }),
+               plan.assessment.minimumDepth > reviewDepth,
+               !expandedHunks.contains(hunk.id)
+            {
+                result.append(.hidden(hunk, plan.assessment))
+                continue
+            }
             result.append(.hunk(hunk.header))
             switch mode {
                 case .unified:
@@ -362,6 +434,45 @@ private enum DiffRowBuilder {
             }
         }
         return rows
+    }
+}
+
+private final class DiffHiddenHunkCell: UICollectionViewCell {
+    static let reuseIdentifier = "DiffHiddenHunkCell"
+    private let label = UILabel()
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        label.numberOfLines = 0
+        label.font = .preferredFont(forTextStyle: .callout)
+        label.textColor = .secondaryLabel
+        label.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(label)
+        NSLayoutConstraint.activate([
+            label.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
+            label.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
+            label.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 12),
+            label.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -12),
+        ])
+        contentView.backgroundColor = .secondarySystemBackground
+    }
+
+    @available(*, unavailable)
+    required init?(coder _: NSCoder) {
+        nil
+    }
+
+    func configure(hunk: DiffHunk, assessment: ReviewAssessment) {
+        let changed = hunk.lines.count(where: {
+            $0.kind == .addition || $0.kind == .deletion
+        })
+        label.text = String(
+            localized: "hiddenHunkPlaceholder",
+            defaultValue: "\(changed) lower-priority changed lines hidden. Select to expand this hunk.",
+        )
+        accessibilityLabel = label.text
+        accessibilityHint = assessment.evidence.joined(separator: ". ")
+        accessibilityTraits = .button
     }
 }
 

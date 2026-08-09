@@ -94,12 +94,24 @@ public final class PatchlightAppModel {
         case failed(String)
     }
 
+    public enum SnapshotState {
+        case none
+        case loading(String)
+        case ready(SnapshotImagePair)
+        case failed(String, message: String)
+    }
+
     public private(set) var accountState: AccountState = .signedOut
     public private(set) var workspaceState: WorkspaceState = .none
     public private(set) var repositoryState: RepositoryState = .none
     public private(set) var reviewState: ReviewState = .none
     public private(set) var submissionState: SubmissionState = .idle
     public private(set) var immediateWriteState: ImmediateWriteState = .idle
+    public private(set) var reviewPlan: DeterministicReviewPlan?
+    public private(set) var repositorySettings: PatchlightRepositorySettings?
+    public private(set) var corrections: [ReviewCorrection] = []
+    public private(set) var viewedDepths: [ViewedFileDepth] = []
+    public private(set) var snapshotState: SnapshotState = .none
 
     @ObservationIgnored private let dependencies: PatchlightApplicationDependencies
     @ObservationIgnored private let credentials: GitHubCredentialManager
@@ -172,6 +184,11 @@ public final class PatchlightAppModel {
             reviewState = .none
             submissionState = .idle
             immediateWriteState = .idle
+            reviewPlan = nil
+            repositorySettings = nil
+            corrections = []
+            viewedDepths = []
+            snapshotState = .none
         } catch {
             accountState = .failed(previous: dashboardContent, message: error.localizedDescription)
         }
@@ -229,6 +246,14 @@ public final class PatchlightAppModel {
         reviewState = .none
         submissionState = .idle
         immediateWriteState = .idle
+        reviewPlan = nil
+        repositorySettings = nil
+        corrections = []
+        viewedDepths = []
+        snapshotState = .none
+        if let world {
+            Task { await world.snapshots.finishWorkspace() }
+        }
     }
 
     public func refreshWorkspace() async {
@@ -253,12 +278,143 @@ public final class PatchlightAppModel {
             )
             async let drafts = world.reviews.drafts(for: workspace.summary.id)
             reviewState = try await .ready(conversation, drafts: drafts)
+            await refreshPolicy()
         } catch {
             reviewState = .failed(
                 cached: previous,
                 drafts: existingDrafts,
                 message: error.localizedDescription,
             )
+        }
+    }
+
+    public func refreshPolicy() async {
+        guard let workspace = workspaceContent?.workspace, let world else { return }
+        do {
+            async let loadedCorrections = world.scope.accountStore.corrections(
+                for: workspace.summary.id,
+                headOID: workspace.summary.headOID,
+            )
+            async let loadedSettings = world.scope.accountStore.repositorySettings(
+                for: workspace.summary.id.repository,
+            )
+            async let loadedViewedDepths = world.reviews.viewedDepths(
+                for: workspace.summary.id,
+            )
+            let (corrections, settings, viewedDepths) = try await (
+                loadedCorrections,
+                loadedSettings,
+                loadedViewedDepths,
+            )
+            self.corrections = corrections
+            self.viewedDepths = viewedDepths
+            repositorySettings = settings
+            reviewPlan = DeterministicReviewAnalyzer.analyze(
+                workspace: workspace,
+                localRules: settings.overrides.review,
+                localSnapshotRules: settings.overrides.snapshots,
+                manualSnapshotPaths: settings.overrides.manualSnapshotPaths,
+                threadPaths: Set(conversationRead?.value.threads.map(\.path) ?? []),
+                draftPaths: Set(reviewDrafts.compactMap { $0.anchor?.path }),
+                corrections: corrections,
+            )
+        } catch {
+            submissionState = .failed(error.localizedDescription)
+        }
+    }
+
+    public func setCorrection(
+        _ kind: ReviewCorrectionKind,
+        path: String,
+        hunkID: DiffHunk.ID?,
+    ) async {
+        guard let workspace = workspaceContent?.workspace, let world else { return }
+        do {
+            try await world.scope.accountStore.removeCorrections(
+                for: workspace.summary.id,
+                headOID: workspace.summary.headOID,
+                path: path,
+                hunkID: hunkID,
+            )
+            try await world.scope.accountStore.saveCorrection(ReviewCorrection(
+                id: UUID(),
+                pullRequest: workspace.summary.id,
+                headOID: workspace.summary.headOID,
+                path: path,
+                hunkID: hunkID,
+                kind: kind,
+            ))
+            await refreshPolicy()
+        } catch {
+            submissionState = .failed(error.localizedDescription)
+        }
+    }
+
+    public func clearCorrection(path: String, hunkID: DiffHunk.ID?) async {
+        guard let workspace = workspaceContent?.workspace, let world else { return }
+        do {
+            try await world.scope.accountStore.removeCorrections(
+                for: workspace.summary.id,
+                headOID: workspace.summary.headOID,
+                path: path,
+                hunkID: hunkID,
+            )
+            await refreshPolicy()
+        } catch {
+            submissionState = .failed(error.localizedDescription)
+        }
+    }
+
+    public func moveToSnapshots(path: String) async {
+        guard let workspace = workspaceContent?.workspace,
+              let world,
+              let current = repositorySettings
+        else { return }
+        var paths = current.overrides.manualSnapshotPaths
+        paths.insert(path)
+        let settings = PatchlightRepositorySettings(
+            repository: workspace.summary.id.repository,
+            aiEnabled: current.aiEnabled,
+            imageAIEnabled: current.imageAIEnabled,
+            overrides: PatchlightLocalRepositoryOverrides(
+                review: current.overrides.review,
+                snapshots: current.overrides.snapshots,
+                manualSnapshotPaths: paths,
+            ),
+        )
+        do {
+            try await world.scope.accountStore.saveRepositorySettings(settings)
+            repositorySettings = settings
+            await refreshPolicy()
+        } catch {
+            submissionState = .failed(error.localizedDescription)
+        }
+    }
+
+    public func loadSnapshot(_ file: DiffFile) async {
+        guard let workspace = workspaceContent?.workspace, let world else { return }
+        snapshotState = .loading(file.path)
+        do {
+            snapshotState = try await .ready(world.snapshots.load(
+                file: file,
+                repository: workspace.summary.id.repository,
+            ))
+        } catch {
+            snapshotState = .failed(file.path, message: error.localizedDescription)
+        }
+    }
+
+    public func postSnapshotAnnotation(
+        _ annotation: SnapshotAnnotationV1,
+        body: String,
+    ) async {
+        do {
+            let marker = try annotation.marker()
+            let visible = body.trimmingCharacters(in: .whitespacesAndNewlines)
+            let combined = visible.isEmpty ? marker : "\(visible)\n\n\(marker)"
+            await postFileComment(combined, path: annotation.path)
+        } catch {
+            immediateWriteState = .failed(error.localizedDescription)
         }
     }
 
@@ -467,6 +623,7 @@ public final class PatchlightAppModel {
                 headOID: workspace.summary.headOID,
                 in: PullRequestRoute(summary: workspace.summary),
             )
+            await refreshPolicy()
         } catch {
             immediateWriteState = .failed(error.localizedDescription)
         }
@@ -535,6 +692,16 @@ public final class PatchlightAppModel {
             .caseInsensitiveCompare(viewerLogin ?? "") != .orderedSame
     }
 
+    public func hasUnreadRevealedChanges(path: String, at depth: ReviewDepth) -> Bool {
+        guard let workspace = workspaceContent?.workspace else { return false }
+        guard let viewed = viewedDepths.first(where: {
+            $0.path == path && $0.headOID == workspace.summary.headOID
+        }) else {
+            return true
+        }
+        return viewed.depth < depth
+    }
+
     private func authorize() async {
         defer { authorizationTask = nil }
         do {
@@ -575,6 +742,11 @@ public final class PatchlightAppModel {
                 writer: reviewClient,
                 store: scope.accountStore,
             ),
+            snapshots: SnapshotWorkspaceCoordinator(
+                github: github,
+                readCache: scope.readCache,
+                contentCache: scope.cache,
+            ),
         )
     }
 
@@ -605,5 +777,6 @@ public final class PatchlightAppModel {
         let scope: PatchlightScope
         let reads: GitHubReadCoordinator
         let reviews: PatchlightReviewCoordinator
+        let snapshots: SnapshotWorkspaceCoordinator
     }
 }

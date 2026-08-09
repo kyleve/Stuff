@@ -207,12 +207,16 @@ public actor GitHubAPIClient: GitHubReading {
             ))
         }
 
-        return PullRequestWorkspace(
+        return try await PullRequestWorkspace(
             summary: summary,
             bodyMarkdown: pull.body,
             baseOID: baseOID,
             files: files,
             isFileListComplete: pull.changedFiles <= 3000 && files.count >= pull.changedFiles,
+            repositoryConfiguration: repositoryConfiguration(
+                repository: repository,
+                baseOID: baseOID,
+            ),
         )
     }
 
@@ -265,22 +269,38 @@ public actor GitHubAPIClient: GitHubReading {
             }
         }
 
+        let baseBlob: ResolvedBlob
+        let headBlob: ResolvedBlob
         do {
-            let basePath = wire.previousFilename ?? wire.filename
-            let baseBlob = try await resolvedBlob(
+            baseBlob = try await resolvedBlob(
                 repository: repository,
-                path: basePath,
+                path: wire.previousFilename ?? wire.filename,
                 commitOID: baseOID,
                 knownOID: initialBaseOID,
                 absent: status == .added,
             )
-            let headBlob = try await resolvedBlob(
+            headBlob = try await resolvedBlob(
                 repository: repository,
                 path: wire.filename,
                 commitOID: headOID,
                 knownOID: initialHeadOID,
                 absent: status == .removed,
             )
+        } catch {
+            return DiffFile(
+                path: wire.filename,
+                previousPath: wire.previousFilename,
+                status: status,
+                additions: wire.additions,
+                deletions: wire.deletions,
+                baseBlobOID: initialBaseOID,
+                headBlobOID: initialHeadOID,
+                availability: .unavailable(reason: error.localizedDescription),
+                hunks: [],
+            )
+        }
+
+        do {
             let hunks = try fallbackDiff.diff(
                 base: baseBlob.data,
                 head: headBlob.data,
@@ -312,11 +332,13 @@ public actor GitHubAPIClient: GitHubReading {
                 status: status,
                 additions: wire.additions,
                 deletions: wire.deletions,
-                baseBlobOID: initialBaseOID,
-                headBlobOID: initialHeadOID,
+                baseBlobOID: baseBlob.oid,
+                headBlobOID: headBlob.oid,
                 availability: availability,
                 hunks: [],
             )
+        } catch is CancellationError {
+            throw CancellationError()
         } catch {
             return DiffFile(
                 path: wire.filename,
@@ -324,8 +346,8 @@ public actor GitHubAPIClient: GitHubReading {
                 status: status,
                 additions: wire.additions,
                 deletions: wire.deletions,
-                baseBlobOID: initialBaseOID,
-                headBlobOID: initialHeadOID,
+                baseBlobOID: baseBlob.oid,
+                headBlobOID: headBlob.oid,
                 availability: .unavailable(reason: error.localizedDescription),
                 hunks: [],
             )
@@ -362,6 +384,32 @@ public actor GitHubAPIClient: GitHubReading {
             accept: "application/vnd.github.raw+json",
         )
         return response.body
+    }
+
+    private func repositoryConfiguration(
+        repository: RepositorySummary,
+        baseOID: GitObjectID,
+    ) async throws -> RepositoryConfigurationState {
+        do {
+            let metadata: ContentMetadataWire = try await get(
+                path: repositoryPath(repository) + ["contents", ".patchlight.json"],
+                query: [URLQueryItem(name: "ref", value: baseOID.rawValue)],
+            )
+            guard metadata.kind == "file" else {
+                return .invalid(
+                    "The base revision's .patchlight.json is not a regular file; Patchlight is using built-in policy.",
+                )
+            }
+            let oid = try GitObjectID(validating: metadata.sha)
+            let data = try await rawBlob(repository: repository, oid: oid)
+            return try .loaded(PatchlightRepositoryConfigurationV1.decode(data))
+        } catch GitHubAPIError.notFound {
+            return .absent
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            return .invalid(error.localizedDescription)
+        }
     }
 
     private func resolveRepository(_ id: RepositoryID) async throws -> RepositorySummary {

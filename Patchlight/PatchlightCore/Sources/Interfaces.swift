@@ -188,6 +188,7 @@ public struct PullRequestWorkspace: Hashable, Codable, Sendable {
     public let baseOID: GitObjectID
     public let files: [DiffFile]
     public let isFileListComplete: Bool
+    public let repositoryConfiguration: RepositoryConfigurationState
 
     public init(
         summary: PullRequestSummary,
@@ -195,12 +196,14 @@ public struct PullRequestWorkspace: Hashable, Codable, Sendable {
         baseOID: GitObjectID,
         files: [DiffFile],
         isFileListComplete: Bool,
+        repositoryConfiguration: RepositoryConfigurationState,
     ) {
         self.summary = summary
         self.bodyMarkdown = bodyMarkdown
         self.baseOID = baseOID
         self.files = files
         self.isFileListComplete = isFileListComplete
+        self.repositoryConfiguration = repositoryConfiguration
     }
 }
 

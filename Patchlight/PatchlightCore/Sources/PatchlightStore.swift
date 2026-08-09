@@ -37,6 +37,22 @@ struct StoredViewedDepth {
     let depthCode: Int
 }
 
+struct StoredCorrection {
+    let id: UUID
+    let pullRequestKey: String
+    let headOID: String
+    let path: String
+    let hunkID: String?
+    let correctionCode: String
+}
+
+struct StoredRepositorySettings {
+    let repositoryKey: String
+    let aiEnabled: Bool
+    let imageAIEnabled: Bool
+    let localOverridesCiphertext: Data?
+}
+
 protocol CacheIndexing: Sendable {
     func cacheEntries() async throws -> [CacheIndexEntry]
     func upsertCacheEntry(_ entry: CacheIndexEntry) async throws
@@ -195,6 +211,110 @@ public actor PatchlightStore: CacheIndexing {
                 path: $0.path,
                 headOID: $0.headOID,
                 depthCode: $0.depthCode,
+            )
+        }
+    }
+
+    func upsertCorrection(_ correction: StoredCorrection) throws {
+        let id = correction.id
+        var descriptor = FetchDescriptor<PatchlightSchemaV1.CorrectionRecord>(
+            predicate: #Predicate { $0.id == id },
+        )
+        descriptor.fetchLimit = 1
+        if let record = try modelContext.fetch(descriptor).first {
+            record.pullRequestKey = correction.pullRequestKey
+            record.headOID = correction.headOID
+            record.path = correction.path
+            record.hunkID = correction.hunkID
+            record.correctionCode = correction.correctionCode
+        } else {
+            modelContext.insert(PatchlightSchemaV1.CorrectionRecord(
+                id: correction.id,
+                pullRequestKey: correction.pullRequestKey,
+                headOID: correction.headOID,
+                path: correction.path,
+                hunkID: correction.hunkID,
+                correctionCode: correction.correctionCode,
+            ))
+        }
+        try modelContext.save()
+    }
+
+    func corrections(pullRequestKey: String, headOID: String) throws -> [StoredCorrection] {
+        let pullRequest = pullRequestKey
+        let head = headOID
+        let descriptor = FetchDescriptor<PatchlightSchemaV1.CorrectionRecord>(
+            predicate: #Predicate {
+                $0.pullRequestKey == pullRequest && $0.headOID == head
+            },
+        )
+        return try modelContext.fetch(descriptor).map {
+            StoredCorrection(
+                id: $0.id,
+                pullRequestKey: $0.pullRequestKey,
+                headOID: $0.headOID,
+                path: $0.path,
+                hunkID: $0.hunkID,
+                correctionCode: $0.correctionCode,
+            )
+        }
+    }
+
+    func removeCorrections(
+        pullRequestKey: String,
+        headOID: String,
+        path: String,
+        hunkID: String?,
+    ) throws {
+        let pullRequest = pullRequestKey
+        let head = headOID
+        let filePath = path
+        let hunk = hunkID
+        try modelContext.delete(
+            model: PatchlightSchemaV1.CorrectionRecord.self,
+            where: #Predicate {
+                $0.pullRequestKey == pullRequest &&
+                    $0.headOID == head &&
+                    $0.path == filePath &&
+                    $0.hunkID == hunk
+            },
+        )
+        try modelContext.save()
+    }
+
+    func upsertRepositorySettings(_ settings: StoredRepositorySettings) throws {
+        let key = settings.repositoryKey
+        var descriptor = FetchDescriptor<PatchlightSchemaV1.RepositorySettingsRecord>(
+            predicate: #Predicate { $0.repositoryKey == key },
+        )
+        descriptor.fetchLimit = 1
+        if let record = try modelContext.fetch(descriptor).first {
+            record.aiEnabled = settings.aiEnabled
+            record.imageAIEnabled = settings.imageAIEnabled
+            record.localOverridesCiphertext = settings.localOverridesCiphertext
+        } else {
+            modelContext.insert(PatchlightSchemaV1.RepositorySettingsRecord(
+                repositoryKey: key,
+                aiEnabled: settings.aiEnabled,
+                imageAIEnabled: settings.imageAIEnabled,
+                localOverridesCiphertext: settings.localOverridesCiphertext,
+            ))
+        }
+        try modelContext.save()
+    }
+
+    func repositorySettings(repositoryKey: String) throws -> StoredRepositorySettings? {
+        let key = repositoryKey
+        var descriptor = FetchDescriptor<PatchlightSchemaV1.RepositorySettingsRecord>(
+            predicate: #Predicate { $0.repositoryKey == key },
+        )
+        descriptor.fetchLimit = 1
+        return try modelContext.fetch(descriptor).first.map {
+            StoredRepositorySettings(
+                repositoryKey: $0.repositoryKey,
+                aiEnabled: $0.aiEnabled,
+                imageAIEnabled: $0.imageAIEnabled,
+                localOverridesCiphertext: $0.localOverridesCiphertext,
             )
         }
     }

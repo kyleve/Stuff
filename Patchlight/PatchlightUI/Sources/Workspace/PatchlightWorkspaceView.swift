@@ -42,9 +42,12 @@ struct PatchlightWorkspaceView: View {
     @AppStorage("Patchlight.diffLayoutPreference") private var storedLayout = LayoutPreference
         .automatic.rawValue
     @AppStorage("Patchlight.explicitViewedOnly") private var explicitViewedOnly = false
+    @AppStorage("Patchlight.reviewDepth") private var storedReviewDepth = ReviewDepth.balanced
+        .rawValue
     @State private var selectedDraftAnchor: DiffAnchor?
     @State private var reanchoringDraft: ReviewDraft?
     @State private var fileCommentPath: String?
+    @State private var showsHiddenChanges = false
     @State private var showsReviewComposer = false
 
     private var workspace: PullRequestWorkspace {
@@ -52,11 +55,34 @@ struct PatchlightWorkspaceView: View {
     }
 
     private var snapshotFiles: [DiffFile] {
-        workspace.files.filter { $0.path.lowercased().hasSuffix(".png") }
+        reviewFilePlans.filter(\.isSnapshot).map(\.file)
     }
 
     private var codeFiles: [DiffFile] {
-        workspace.files.filter { !$0.path.lowercased().hasSuffix(".png") }
+        visibleCodePlans.map(\.file)
+    }
+
+    private var reviewDepth: ReviewDepth {
+        ReviewDepth(rawValue: storedReviewDepth) ?? .balanced
+    }
+
+    private var reviewFilePlans: [FileReviewPlan] {
+        model.reviewPlan?.files ?? workspace.files.map {
+            FileReviewPlan(
+                file: $0,
+                minimumDepth: .critical,
+                hunks: [],
+                isSnapshot: $0.path.lowercased().hasSuffix(".png"),
+            )
+        }
+    }
+
+    private var visibleCodePlans: [FileReviewPlan] {
+        reviewFilePlans.filter { !$0.isSnapshot && $0.minimumDepth <= reviewDepth }
+    }
+
+    private var hiddenCodePlans: [FileReviewPlan] {
+        reviewFilePlans.filter { !$0.isSnapshot && $0.minimumDepth > reviewDepth }
     }
 
     var body: some View {
@@ -75,20 +101,23 @@ struct PatchlightWorkspaceView: View {
                         .tag(Selection.snapshots)
                 }
                 Section(String(localized: .files)) {
-                    ForEach(codeFiles) { file in
-                        Label {
-                            HStack {
-                                Text(file.path)
-                                    .lineLimit(1)
-                                Spacer()
-                                Text("+\(file.additions) −\(file.deletions)")
-                                    .font(.caption.monospacedDigit())
-                                    .foregroundStyle(.secondary)
+                    ForEach(visibleCodePlans) { plan in
+                        fileRow(plan)
+                    }
+                }
+                if !hiddenCodePlans.isEmpty {
+                    Section {
+                        DisclosureGroup(isExpanded: $showsHiddenChanges) {
+                            ForEach(hiddenCodePlans) { plan in
+                                fileRow(plan)
                             }
-                        } icon: {
-                            Image(systemName: symbol(for: file.status))
+                        } label: {
+                            Label(
+                                String(localized: "hiddenChanges", defaultValue: "Hidden Changes"),
+                                systemImage: "eye.slash",
+                            )
+                            .badge(hiddenCodePlans.count)
                         }
-                        .tag(Selection.file(file.path))
                     }
                 }
             }
@@ -132,7 +161,7 @@ struct PatchlightWorkspaceView: View {
                                         defaultValue: "Mark File Viewed",
                                     )) {
                                         Task {
-                                            await model.markViewed(path: path, depth: .everything)
+                                            await model.markViewed(path: path, depth: reviewDepth)
                                         }
                                     }
                                 }
@@ -161,21 +190,28 @@ struct PatchlightWorkspaceView: View {
                 }
         }
         .safeAreaInset(edge: .top) {
-            if !workspace.isFileListComplete {
-                Label(
-                    String(localized: .fileListIncomplete),
-                    systemImage: "exclamationmark.triangle",
-                )
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal)
-                .padding(.vertical, 10)
-                .background(Color.orange.opacity(0.14))
-            } else if let reason = content.fallbackReason {
-                Label(reason.message, systemImage: "icloud.slash")
+            VStack(spacing: 0) {
+                attentionControl
+                if let warning = model.reviewPlan?.configurationWarning {
+                    Label(warning, systemImage: "exclamationmark.triangle")
+                        .patchlightWorkspaceStatus(color: .orange)
+                }
+                if !workspace.isFileListComplete {
+                    Label(
+                        String(localized: .fileListIncomplete),
+                        systemImage: "exclamationmark.triangle",
+                    )
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal)
                     .padding(.vertical, 10)
                     .background(Color.orange.opacity(0.14))
+                } else if let reason = content.fallbackReason {
+                    Label(reason.message, systemImage: "icloud.slash")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal)
+                        .padding(.vertical, 10)
+                        .background(Color.orange.opacity(0.14))
+                }
             }
         }
         .safeAreaInset(edge: .bottom) { submissionStatus }
@@ -204,7 +240,7 @@ struct PatchlightWorkspaceView: View {
             case .snapshots:
                 snapshots
             case let .file(path):
-                if let file = codeFiles.first(where: { $0.path == path }) {
+                if let file = reviewFilePlans.first(where: { $0.file.path == path })?.file {
                     fileDetail(file)
                 } else {
                     ContentUnavailableView(
@@ -256,15 +292,7 @@ struct PatchlightWorkspaceView: View {
                 systemImage: "photo.on.rectangle",
             )
         } else {
-            List(snapshotFiles) { file in
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(file.path)
-                    Text("+\(file.additions) −\(file.deletions)")
-                        .font(.caption.monospacedDigit())
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .listStyle(.plain)
+            PatchlightSnapshotWorkspaceView(files: snapshotFiles, model: model)
         }
     }
 
@@ -284,6 +312,8 @@ struct PatchlightWorkspaceView: View {
                         headOID: workspace.summary.headOID,
                         mode: mode,
                         threads: threads(for: file),
+                        hunkPlans: filePlan(for: file)?.hunks ?? [],
+                        reviewDepth: reviewDepth,
                         onSelectAnchor: { anchor in
                             if let draft = reanchoringDraft {
                                 reanchoringDraft = nil
@@ -294,7 +324,7 @@ struct PatchlightWorkspaceView: View {
                         },
                         onReachedEnd: {
                             guard !explicitViewedOnly else { return }
-                            Task { await model.markViewed(path: file.path, depth: .everything) }
+                            Task { await model.markViewed(path: file.path, depth: reviewDepth) }
                         },
                     )
                 }
@@ -327,6 +357,101 @@ struct PatchlightWorkspaceView: View {
                     .buttonStyle(.borderedProminent)
             }
         }
+    }
+
+    private var attentionControl: some View {
+        HStack(spacing: 12) {
+            Button {
+                storedReviewDepth = max(ReviewDepth.critical.rawValue, storedReviewDepth - 1)
+            } label: {
+                Image(systemName: "minus")
+            }
+            .keyboardShortcut("[", modifiers: .command)
+            .disabled(reviewDepth == .critical)
+            Slider(
+                value: Binding(
+                    get: { Double(storedReviewDepth) },
+                    set: { storedReviewDepth = Int($0.rounded()) },
+                ),
+                in: Double(ReviewDepth.critical.rawValue) ...
+                    Double(ReviewDepth.everything.rawValue),
+                step: 1,
+            )
+            .accessibilityLabel(String(localized: "reviewDepth", defaultValue: "Review Depth"))
+            .accessibilityValue(reviewDepthTitle)
+            Text(reviewDepthTitle)
+                .font(.headline)
+                .frame(minWidth: 92, alignment: .leading)
+            Button {
+                storedReviewDepth = min(ReviewDepth.everything.rawValue, storedReviewDepth + 1)
+            } label: {
+                Image(systemName: "plus")
+            }
+            .keyboardShortcut("]", modifiers: .command)
+            .disabled(reviewDepth == .everything)
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 9)
+        .background(.bar)
+    }
+
+    private var reviewDepthTitle: String {
+        switch reviewDepth {
+            case .critical: String(localized: "critical", defaultValue: "Critical")
+            case .focused: String(localized: "focused", defaultValue: "Focused")
+            case .balanced: String(localized: "balanced", defaultValue: "Balanced")
+            case .thorough: String(localized: "thorough", defaultValue: "Thorough")
+            case .everything: String(localized: "everything", defaultValue: "Everything")
+        }
+    }
+
+    private func fileRow(_ plan: FileReviewPlan) -> some View {
+        Label {
+            HStack {
+                Text(plan.file.path)
+                    .lineLimit(1)
+                if model.hasUnreadRevealedChanges(path: plan.file.path, at: reviewDepth) {
+                    Circle()
+                        .fill(.tint)
+                        .frame(width: 7, height: 7)
+                        .accessibilityLabel(String(
+                            localized: "unreadAtDepth",
+                            defaultValue: "Unread at this depth",
+                        ))
+                }
+                Spacer()
+                Text("+\(plan.file.additions) −\(plan.file.deletions)")
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+        } icon: {
+            Image(systemName: symbol(for: plan.file.status))
+        }
+        .tag(Selection.file(plan.file.path))
+        .contextMenu {
+            Button(String(localized: "alwaysShow", defaultValue: "Always Show")) {
+                Task {
+                    await model.setCorrection(.alwaysShow, path: plan.file.path, hunkID: nil)
+                }
+            }
+            Button(String(localized: "markMechanical", defaultValue: "Mark Mechanical")) {
+                Task {
+                    await model.setCorrection(.mechanical, path: plan.file.path, hunkID: nil)
+                }
+            }
+            Button(String(localized: "clearCorrection", defaultValue: "Clear Correction")) {
+                Task { await model.clearCorrection(path: plan.file.path, hunkID: nil) }
+            }
+            if plan.file.path.lowercased().hasSuffix(".png") {
+                Button(String(localized: "moveToSnapshots", defaultValue: "Move to Snapshots")) {
+                    Task { await model.moveToSnapshots(path: plan.file.path) }
+                }
+            }
+        }
+    }
+
+    private func filePlan(for file: DiffFile) -> FileReviewPlan? {
+        reviewFilePlans.first { $0.file.path == file.path }
     }
 
     @ViewBuilder
@@ -404,7 +529,17 @@ struct PatchlightWorkspaceView: View {
                             ) {
                                 Task { await model.removeDraft(result.draft.id) }
                             }
-                            .accessibilityLabel("Discard \(result.draft.anchor?.path ?? "draft")")
+                            .accessibilityLabel(String(
+                                format: String(
+                                    localized: "discardDraftFormat",
+                                    defaultValue: "Discard %1$@",
+                                ),
+                                locale: .current,
+                                result.draft.anchor?.path ?? String(
+                                    localized: "draft",
+                                    defaultValue: "Draft",
+                                ),
+                            ))
                         }
                     }
                 }

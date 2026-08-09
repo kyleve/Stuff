@@ -149,6 +149,7 @@ struct DraftAnchorMapperTests {
             baseOID: PatchlightCoreTestSupport.objectID("e"),
             files: files,
             isFileListComplete: true,
+            repositoryConfiguration: .absent,
         )
     }
 }

@@ -23,6 +23,17 @@
         }
       }
     },
+    "added" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Added"
+          }
+        }
+      }
+    },
     "addition" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -30,6 +41,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Added line"
+          }
+        }
+      }
+    },
+    "alwaysShow" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Always Show"
+          }
+        }
+      }
+    },
+    "annotationTag" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Annotation Tag"
           }
         }
       }
@@ -78,6 +111,17 @@
         }
       }
     },
+    "balanced" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Balanced"
+          }
+        }
+      }
+    },
     "base" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -122,6 +166,28 @@
         }
       }
     },
+    "changedFraction" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Changed"
+          }
+        }
+      }
+    },
+    "changedPixels" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Changed Pixels"
+          }
+        }
+      }
+    },
     "checks" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -129,6 +195,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Checks"
+          }
+        }
+      }
+    },
+    "clearCorrection" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear Correction"
           }
         }
       }
@@ -254,6 +331,17 @@
         }
       }
     },
+    "copied" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copied"
+          }
+        }
+      }
+    },
     "copyCode" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -309,6 +397,17 @@
         }
       }
     },
+    "couldNotLoadSnapshot" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could Not Load Snapshot"
+          }
+        }
+      }
+    },
     "couldNotOpenPatchlight" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -316,6 +415,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Patchlight Couldn’t Open"
+          }
+        }
+      }
+    },
+    "critical" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Critical"
+          }
+        }
+      }
+    },
+    "deleted" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deleted"
           }
         }
       }
@@ -397,6 +518,17 @@
         }
       }
     },
+    "discardDraftFormat" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Discard %1$@"
+          }
+        }
+      }
+    },
     "draft" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -426,6 +558,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Draft Comments"
+          }
+        }
+      }
+    },
+    "everything" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Everything"
+          }
+        }
+      }
+    },
+    "expectedChange" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Expected Change"
           }
         }
       }
@@ -507,6 +661,39 @@
         }
       }
     },
+    "fit" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fit"
+          }
+        }
+      }
+    },
+    "focused" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Focused"
+          }
+        }
+      }
+    },
+    "galleryDirection" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gallery Direction"
+          }
+        }
+      }
+    },
     "githubConnected" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -584,6 +771,28 @@
         }
       }
     },
+    "headOpacity" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Head Opacity"
+          }
+        }
+      }
+    },
+    "heatmap" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Heatmap"
+          }
+        }
+      }
+    },
     "hiddenChanges" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -591,6 +800,39 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Hidden Changes"
+          }
+        }
+      }
+    },
+    "hiddenHunkPlaceholder" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld lower-priority changed lines hidden. Select to expand this hunk."
+          }
+        }
+      }
+    },
+    "horizontal" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Horizontal"
+          }
+        }
+      }
+    },
+    "imageNotPresent" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Image Not Present"
           }
         }
       }
@@ -672,6 +914,28 @@
         }
       }
     },
+    "loadingSnapshot" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading snapshot…"
+          }
+        }
+      }
+    },
+    "malformedSnapshotAnnotationsFormat" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld snapshot region markers are malformed; their comments remain visible in Conversation."
+          }
+        }
+      }
+    },
     "markFileViewed" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -679,6 +943,50 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Mark File Viewed"
+          }
+        }
+      }
+    },
+    "markMechanical" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark Mechanical"
+          }
+        }
+      }
+    },
+    "maximumDelta" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Maximum Channel Delta"
+          }
+        }
+      }
+    },
+    "modified" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Modified"
+          }
+        }
+      }
+    },
+    "moveToSnapshots" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Move to Snapshots"
           }
         }
       }
@@ -701,6 +1009,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "New Conversation Comment"
+          }
+        }
+      }
+    },
+    "nit" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nit"
           }
         }
       }
@@ -760,6 +1079,17 @@
         }
       }
     },
+    "noTag" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Tag"
+          }
+        }
+      }
+    },
     "noTextChanges" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -767,6 +1097,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No Text Changes"
+          }
+        }
+      }
+    },
+    "oneHundredPercent" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "100%"
+          }
+        }
+      }
+    },
+    "opacityOverlay" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opacity Overlay"
           }
         }
       }
@@ -822,6 +1174,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Outdated"
+          }
+        }
+      }
+    },
+    "outdatedSnapshotAnnotationsFormat" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld snapshot annotations target older blobs and are shown as outdated, not overlaid."
           }
         }
       }
@@ -888,6 +1251,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Preparing Patchlight"
+          }
+        }
+      }
+    },
+    "problem" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Problem"
+          }
+        }
+      }
+    },
+    "question" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Question"
           }
         }
       }
@@ -965,6 +1350,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Close and reopen Patchlight to try again."
+          }
+        }
+      }
+    },
+    "renamed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Renamed"
           }
         }
       }
@@ -1057,6 +1453,17 @@
         }
       }
     },
+    "reviewDepth" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Review Depth"
+          }
+        }
+      }
+    },
     "reviewRequested" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1101,6 +1508,17 @@
         }
       }
     },
+    "root" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Root"
+          }
+        }
+      }
+    },
     "saveDraft" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1119,6 +1537,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Search repositories"
+          }
+        }
+      }
+    },
+    "selectSnapshot" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select a Snapshot"
           }
         }
       }
@@ -1178,6 +1607,17 @@
         }
       }
     },
+    "sideBySide" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Side by Side"
+          }
+        }
+      }
+    },
     "signOutGitHub" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1196,6 +1636,61 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Connect one GitHub.com account to find requested reviews, your own pull requests, and every accessible repository."
+          }
+        }
+      }
+    },
+    "snapshotAnnotation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Snapshot Annotation"
+          }
+        }
+      }
+    },
+    "snapshotAnnotationIsVisible" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This sends a normal visible GitHub file comment with an interoperable Patchlight region marker."
+          }
+        }
+      }
+    },
+    "snapshotDimensionMismatchFormat" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Base is %1$lld×%2$lld; head is %3$lld×%4$lld. Wipe, overlay, and heatmap require matching dimensions."
+          }
+        }
+      }
+    },
+    "snapshotGallery" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Snapshot Gallery"
+          }
+        }
+      }
+    },
+    "snapshotLoadFailureFormat" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@: %2$@"
           }
         }
       }
@@ -1277,6 +1772,17 @@
         }
       }
     },
+    "thorough" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thorough"
+          }
+        }
+      }
+    },
     "tryAgain" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1321,6 +1827,17 @@
         }
       }
     },
+    "unreadAtDepth" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unread at this depth"
+          }
+        }
+      }
+    },
     "unresolve" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1328,6 +1845,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Unresolve"
+          }
+        }
+      }
+    },
+    "vertical" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vertical"
           }
         }
       }
@@ -1354,6 +1882,28 @@
         }
       }
     },
+    "wipe" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wipe"
+          }
+        }
+      }
+    },
+    "wipePosition" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wipe Position"
+          }
+        }
+      }
+    },
     "writeUncertain" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1372,6 +1922,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Submission status is uncertain. Refresh before trying again."
+          }
+        }
+      }
+    },
+    "zoom" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zoom"
           }
         }
       }

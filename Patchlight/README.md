@@ -39,6 +39,19 @@ an ambiguous write; it refreshes and proves the result when possible, otherwise
 retains the draft and labels the status uncertain. A changed head freezes drafts
 until their anchors are uniquely remapped or explicitly resolved.
 
+Every retrieved hunk first passes through a deterministic attention policy. The
+five snapped depths run from Critical through Everything, preserve hard safety
+signals, and keep incomplete content visible. Optional base-revision
+`.patchlight.json` rules and encrypted local overrides can identify review,
+generated, mechanical, test, and snapshot paths; a configuration changed by the
+PR never governs its own review. Corrections are local to one head SHA.
+
+PNG snapshots route into a dedicated virtualized workspace with grouped
+browsing, synchronized zoom, side-by-side, wipe, opacity overlay, and a locally
+generated pixel heatmap. Region annotations post as ordinary visible GitHub
+file comments with the versioned `SnapshotAnnotationV1` marker, so matching
+blobs can render the region and older blobs remain visibly outdated.
+
 The GitHub-only build remains useful offline: successful dashboard, repository,
 and workspace reads are encrypted locally, stale data is visibly labeled, and
 authentication expiry preserves that data for reauthorization. The GitHub App

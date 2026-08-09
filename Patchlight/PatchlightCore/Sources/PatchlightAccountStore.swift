@@ -106,6 +106,99 @@ public actor PatchlightAccountStore {
             )
         }
     }
+
+    public func saveCorrection(_ correction: ReviewCorrection) async throws {
+        try await store.upsertCorrection(StoredCorrection(
+            id: correction.id,
+            pullRequestKey: correction.pullRequest.storageKey,
+            headOID: correction.headOID.rawValue,
+            path: correction.path,
+            hunkID: correction.hunkID?.rawValue,
+            correctionCode: correction.kind.rawValue,
+        ))
+    }
+
+    public func corrections(
+        for pullRequest: PullRequestID,
+        headOID: GitObjectID,
+    ) async throws -> [ReviewCorrection] {
+        try await store.corrections(
+            pullRequestKey: pullRequest.storageKey,
+            headOID: headOID.rawValue,
+        ).map { value in
+            guard let kind = ReviewCorrectionKind(rawValue: value.correctionCode) else {
+                throw PatchlightAccountStoreError.invalidCorrection
+            }
+            return ReviewCorrection(
+                id: value.id,
+                pullRequest: pullRequest,
+                headOID: headOID,
+                path: value.path,
+                hunkID: value.hunkID.map { DiffHunk.ID(rawValue: $0) },
+                kind: kind,
+            )
+        }
+    }
+
+    public func removeCorrections(
+        for pullRequest: PullRequestID,
+        headOID: GitObjectID,
+        path: String,
+        hunkID: DiffHunk.ID?,
+    ) async throws {
+        try await store.removeCorrections(
+            pullRequestKey: pullRequest.storageKey,
+            headOID: headOID.rawValue,
+            path: path,
+            hunkID: hunkID?.rawValue,
+        )
+    }
+
+    public func saveRepositorySettings(_ settings: PatchlightRepositorySettings) async throws {
+        let encoded = try JSONEncoder.patchlight.encode(settings.overrides)
+        try await store.upsertRepositorySettings(StoredRepositorySettings(
+            repositoryKey: String(settings.repository.rawValue),
+            aiEnabled: settings.aiEnabled,
+            imageAIEnabled: settings.imageAIEnabled,
+            localOverridesCiphertext: cipher.seal(encoded),
+        ))
+    }
+
+    public func repositorySettings(
+        for repository: RepositoryID,
+    ) async throws -> PatchlightRepositorySettings {
+        guard let stored = try await store.repositorySettings(
+            repositoryKey: String(repository.rawValue),
+        ) else {
+            return PatchlightRepositorySettings(
+                repository: repository,
+                aiEnabled: false,
+                imageAIEnabled: false,
+                overrides: .empty,
+            )
+        }
+        let overrides: PatchlightLocalRepositoryOverrides
+        if let payload = stored.localOverridesCiphertext {
+            do {
+                overrides = try JSONDecoder().decode(
+                    PatchlightLocalRepositoryOverrides.self,
+                    from: cipher.open(payload),
+                )
+            } catch let error as PatchlightVaultError {
+                throw error
+            } catch {
+                throw PatchlightAccountStoreError.invalidRepositorySettings
+            }
+        } else {
+            overrides = .empty
+        }
+        return PatchlightRepositorySettings(
+            repository: repository,
+            aiEnabled: stored.aiEnabled,
+            imageAIEnabled: stored.imageAIEnabled,
+            overrides: overrides,
+        )
+    }
 }
 
 public struct StoredConversation: Sendable {
@@ -145,6 +238,8 @@ public enum PatchlightAccountStoreError: LocalizedError, Equatable, Sendable {
     case invalidDraftText
     case invalidConversation
     case invalidViewedDepth
+    case invalidCorrection
+    case invalidRepositorySettings
 
     public var errorDescription: String? {
         switch self {
@@ -154,6 +249,10 @@ public enum PatchlightAccountStoreError: LocalizedError, Equatable, Sendable {
                 "An encrypted conversation snapshot is invalid."
             case .invalidViewedDepth:
                 "A stored viewed depth has an unknown wire code."
+            case .invalidCorrection:
+                "A stored review correction has an unknown wire code."
+            case .invalidRepositorySettings:
+                "Encrypted repository settings are invalid."
         }
     }
 }

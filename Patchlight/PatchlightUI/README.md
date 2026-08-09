@@ -26,6 +26,19 @@ Patchlight refreshes the head before submission and freezes stale anchors into
 unique-remap, re-anchor, file-level, or discard choices. Reaching a rendered
 file footer marks it viewed by default, with an explicit-only preference.
 
+The workspace exposes the five labeled Critical–Everything depths through a
+snapped accessible slider and keyboard commands. Fully hidden files remain in a
+collapsed Hidden Changes group, hidden hunks retain expandable placeholders,
+and increasing depth marks newly revealed work unread without silently
+unviewing the GitHub file. File menus provide per-head Always Show/Mechanical
+corrections and manual PNG routing.
+
+Snapshots use a virtualized path-grouped gallery plus a focused checkerboard
+canvas. Base/head, side-by-side, wipe, opacity overlay, heatmap, Fit, and 100%
+modes share zoom/pan; dimension mismatches disable invalid modes with an honest
+explanation. Dragging on a base or head image opens a tagged annotation composer
+that sends an interoperable visible file-level comment.
+
 Views receive immutable PatchlightCore values and an injected account scope.
 They never open SwiftData containers, resolve global credentials, or call raw
 provider/GitHub endpoints. Run `./test PatchlightUITests`; image references live

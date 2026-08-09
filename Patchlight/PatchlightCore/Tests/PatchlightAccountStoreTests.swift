@@ -65,4 +65,62 @@ struct PatchlightAccountStoreTests {
             .refreshedAt == refreshedAt)
         #expect(try await setup.scope.accountStore.viewedDepths(for: pullRequest) == [viewed])
     }
+
+    @Test func correctionsAreHeadScopedAndRepositoryOverridesRoundTripEncrypted() async throws {
+        let setup = try PatchlightCoreTestSupport.makeScope(name: #function)
+        let pullRequest = PatchlightCoreTestSupport.pullRequestID
+        let currentHead = PatchlightCoreTestSupport.objectID("c")
+        let correction = ReviewCorrection(
+            id: UUID(),
+            pullRequest: pullRequest,
+            headOID: currentHead,
+            path: "Sources/Generated.swift",
+            hunkID: DiffHunk.ID(rawValue: "hunk-1"),
+            kind: .mechanical,
+        )
+        let settings = PatchlightRepositorySettings(
+            repository: pullRequest.repository,
+            aiEnabled: true,
+            imageAIEnabled: false,
+            overrides: PatchlightLocalRepositoryOverrides(
+                review: PatchlightReviewRules(
+                    alwaysReview: ["Sources/Auth/**"],
+                    generated: ["Generated/**"],
+                    mechanical: [],
+                    tests: ["**/Tests/**"],
+                ),
+                snapshots: PatchlightSnapshotRules(
+                    include: ["VisualTests/**/*.png"],
+                    exclude: ["VisualTests/Fixtures/**"],
+                ),
+                manualSnapshotPaths: ["Assets/Golden.png"],
+            ),
+        )
+
+        try await setup.scope.accountStore.saveCorrection(correction)
+        try await setup.scope.accountStore.saveRepositorySettings(settings)
+
+        #expect(try await setup.scope.accountStore.corrections(
+            for: pullRequest,
+            headOID: currentHead,
+        ) == [correction])
+        #expect(try await setup.scope.accountStore.corrections(
+            for: pullRequest,
+            headOID: PatchlightCoreTestSupport.objectID("d"),
+        ).isEmpty)
+        #expect(try await setup.scope.accountStore.repositorySettings(
+            for: pullRequest.repository,
+        ) == settings)
+
+        try await setup.scope.accountStore.removeCorrections(
+            for: pullRequest,
+            headOID: currentHead,
+            path: correction.path,
+            hunkID: correction.hunkID,
+        )
+        #expect(try await setup.scope.accountStore.corrections(
+            for: pullRequest,
+            headOID: currentHead,
+        ).isEmpty)
+    }
 }

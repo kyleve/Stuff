@@ -28,6 +28,12 @@ The shipping foundation includes:
 - one-shot GitHub review/comment/thread/viewed mutations with ambiguous-write
   reconciliation and no automatic retry; and
 - stale-head draft remapping that accepts only a unique path/rename plus
-  context fingerprint and otherwise requires an explicit user decision.
+  context fingerprint and otherwise requires an explicit user decision;
+- `DeterministicReviewAnalyzer`, versioned `.patchlight.json` decoding, and
+  case-sensitive slash-normalized glob matching for the five-depth safety
+  policy, per-head corrections, and snapshot routing; and
+- `SnapshotWorkspaceCoordinator`, which loads exact base/head blob identities
+  through the protected encrypted cache and delegates authoritative local pixel
+  comparison and heatmap generation to shipping `ImageDiffKit`.
 
 No SwiftUI or UIKit belongs here. Run `./test PatchlightCoreTests`.

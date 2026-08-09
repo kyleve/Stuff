@@ -17,6 +17,10 @@ public struct ReadSnapshotKey: RawRepresentable, Hashable, Sendable {
     public static func repositoryPullRequests(_ repository: RepositoryID) -> ReadSnapshotKey {
         ReadSnapshotKey(rawValue: "repository:\(repository.rawValue):pull-requests")
     }
+
+    public static func blob(repository: RepositoryID, oid: GitObjectID) -> ReadSnapshotKey {
+        ReadSnapshotKey(rawValue: "blob:\(repository.rawValue):\(oid.rawValue)")
+    }
 }
 
 public struct StoredRead<Value: Sendable>: Sendable {

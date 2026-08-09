@@ -164,6 +164,7 @@ struct PatchlightReviewCoordinatorTests {
                 )],
             )],
             isFileListComplete: true,
+            repositoryConfiguration: .absent,
         )
     }
 
