@@ -23,6 +23,20 @@ struct EncryptedReadSnapshot {
     let etag: String?
 }
 
+struct EncryptedConversationRecord {
+    let pullRequestKey: String
+    let payloadCiphertext: Data
+    let refreshedAt: Date
+}
+
+struct StoredViewedDepth {
+    let key: String
+    let pullRequestKey: String
+    let path: String
+    let headOID: String
+    let depthCode: Int
+}
+
 protocol CacheIndexing: Sendable {
     func cacheEntries() async throws -> [CacheIndexEntry]
     func upsertCacheEntry(_ entry: CacheIndexEntry) async throws
@@ -110,6 +124,79 @@ public actor PatchlightStore: CacheIndexing {
             where: #Predicate { $0.id == draftID },
         )
         try modelContext.save()
+    }
+
+    func upsertConversation(_ conversation: EncryptedConversationRecord) throws {
+        let key = conversation.pullRequestKey
+        var descriptor = FetchDescriptor<PatchlightSchemaV1.ConversationRecord>(
+            predicate: #Predicate { $0.pullRequestKey == key },
+        )
+        descriptor.fetchLimit = 1
+        if let record = try modelContext.fetch(descriptor).first {
+            record.payloadCiphertext = conversation.payloadCiphertext
+            record.refreshedAt = conversation.refreshedAt
+        } else {
+            modelContext.insert(PatchlightSchemaV1.ConversationRecord(
+                pullRequestKey: key,
+                payloadCiphertext: conversation.payloadCiphertext,
+                refreshedAt: conversation.refreshedAt,
+            ))
+        }
+        try modelContext.save()
+    }
+
+    func conversation(pullRequestKey: String) throws -> EncryptedConversationRecord? {
+        let key = pullRequestKey
+        var descriptor = FetchDescriptor<PatchlightSchemaV1.ConversationRecord>(
+            predicate: #Predicate { $0.pullRequestKey == key },
+        )
+        descriptor.fetchLimit = 1
+        return try modelContext.fetch(descriptor).first.map {
+            EncryptedConversationRecord(
+                pullRequestKey: $0.pullRequestKey,
+                payloadCiphertext: $0.payloadCiphertext,
+                refreshedAt: $0.refreshedAt,
+            )
+        }
+    }
+
+    func upsertViewedDepth(_ viewed: StoredViewedDepth) throws {
+        let key = viewed.key
+        var descriptor = FetchDescriptor<PatchlightSchemaV1.ViewedDepthRecord>(
+            predicate: #Predicate { $0.key == key },
+        )
+        descriptor.fetchLimit = 1
+        if let record = try modelContext.fetch(descriptor).first {
+            record.pullRequestKey = viewed.pullRequestKey
+            record.path = viewed.path
+            record.headOID = viewed.headOID
+            record.depthCode = viewed.depthCode
+        } else {
+            modelContext.insert(PatchlightSchemaV1.ViewedDepthRecord(
+                key: viewed.key,
+                pullRequestKey: viewed.pullRequestKey,
+                path: viewed.path,
+                headOID: viewed.headOID,
+                depthCode: viewed.depthCode,
+            ))
+        }
+        try modelContext.save()
+    }
+
+    func viewedDepths(pullRequestKey: String) throws -> [StoredViewedDepth] {
+        let pullRequest = pullRequestKey
+        let descriptor = FetchDescriptor<PatchlightSchemaV1.ViewedDepthRecord>(
+            predicate: #Predicate { $0.pullRequestKey == pullRequest },
+        )
+        return try modelContext.fetch(descriptor).map {
+            StoredViewedDepth(
+                key: $0.key,
+                pullRequestKey: $0.pullRequestKey,
+                path: $0.path,
+                headOID: $0.headOID,
+                depthCode: $0.depthCode,
+            )
+        }
     }
 
     func cacheEntries() throws -> [CacheIndexEntry] {

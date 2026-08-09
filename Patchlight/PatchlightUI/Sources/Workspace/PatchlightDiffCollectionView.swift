@@ -12,10 +12,14 @@ public enum DiffRendererMode: Equatable, Sendable {
 /// reusable TextKit-backed cells never instantiate one SwiftUI view per line.
 struct PatchlightDiffCollectionView: UIViewRepresentable {
     let file: DiffFile
+    let headOID: GitObjectID
     let mode: DiffRendererMode
+    let threads: [ReviewThread]
+    let onSelectAnchor: (DiffAnchor) -> Void
+    let onReachedEnd: () -> Void
 
     func makeCoordinator() -> Coordinator {
-        Coordinator()
+        Coordinator(onSelectAnchor: onSelectAnchor, onReachedEnd: onReachedEnd)
     }
 
     func makeUIView(context: Context) -> UICollectionView {
@@ -28,6 +32,7 @@ struct PatchlightDiffCollectionView: UIViewRepresentable {
         collectionView.backgroundColor = .systemBackground
         collectionView.alwaysBounceVertical = true
         collectionView.dataSource = context.coordinator
+        collectionView.delegate = context.coordinator
         collectionView.register(
             DiffUnifiedCell.self,
             forCellWithReuseIdentifier: DiffUnifiedCell.reuseIdentifier,
@@ -40,27 +45,67 @@ struct PatchlightDiffCollectionView: UIViewRepresentable {
             DiffHunkCell.self,
             forCellWithReuseIdentifier: DiffHunkCell.reuseIdentifier,
         )
-        context.coordinator.update(file: file, mode: mode, collectionView: collectionView)
+        collectionView.register(
+            DiffThreadCell.self,
+            forCellWithReuseIdentifier: DiffThreadCell.reuseIdentifier,
+        )
+        context.coordinator.update(
+            file: file,
+            headOID: headOID,
+            mode: mode,
+            threads: threads,
+            collectionView: collectionView,
+        )
         return collectionView
     }
 
     func updateUIView(_ collectionView: UICollectionView, context: Context) {
-        context.coordinator.update(file: file, mode: mode, collectionView: collectionView)
+        context.coordinator.onSelectAnchor = onSelectAnchor
+        context.coordinator.onReachedEnd = onReachedEnd
+        context.coordinator.update(
+            file: file,
+            headOID: headOID,
+            mode: mode,
+            threads: threads,
+            collectionView: collectionView,
+        )
     }
 
-    final class Coordinator: NSObject, UICollectionViewDataSource {
+    final class Coordinator: NSObject, UICollectionViewDataSource, UICollectionViewDelegate {
         private var rows: [DiffRenderedRow] = []
         private var identity: Identity?
+        private var file: DiffFile?
+        private var headOID: GitObjectID?
+        private var didReachEnd = false
+        var onSelectAnchor: (DiffAnchor) -> Void
+        var onReachedEnd: () -> Void
         fileprivate private(set) var configuredCellCount = 0
         fileprivate var rowCount: Int {
             rows.count
         }
 
-        func update(file: DiffFile, mode: DiffRendererMode, collectionView: UICollectionView) {
-            let identity = Identity(file: file, mode: mode)
+        init(
+            onSelectAnchor: @escaping (DiffAnchor) -> Void,
+            onReachedEnd: @escaping () -> Void,
+        ) {
+            self.onSelectAnchor = onSelectAnchor
+            self.onReachedEnd = onReachedEnd
+        }
+
+        func update(
+            file: DiffFile,
+            headOID: GitObjectID,
+            mode: DiffRendererMode,
+            threads: [ReviewThread],
+            collectionView: UICollectionView,
+        ) {
+            let identity = Identity(file: file, headOID: headOID, mode: mode, threads: threads)
             guard self.identity != identity else { return }
             self.identity = identity
-            rows = DiffRowBuilder.rows(file: file, mode: mode)
+            self.file = file
+            self.headOID = headOID
+            didReachEnd = false
+            rows = DiffRowBuilder.rows(file: file, mode: mode, threads: threads)
             collectionView.reloadData()
         }
 
@@ -102,12 +147,61 @@ struct PatchlightDiffCollectionView: UIViewRepresentable {
                     ) as! DiffSplitCell
                     cell.configure(base: base, head: head)
                     return cell
+                case let .thread(thread):
+                    let cell = collectionView.dequeueReusableCell(
+                        withReuseIdentifier: DiffThreadCell.reuseIdentifier,
+                        for: indexPath,
+                    ) as! DiffThreadCell
+                    cell.configure(thread: thread)
+                    return cell
             }
+        }
+
+        func collectionView(
+            _: UICollectionView,
+            didSelectItemAt indexPath: IndexPath,
+        ) {
+            guard let file, let headOID else { return }
+            let line: DiffLine? = switch rows[indexPath.item] {
+                case let .unified(value): value
+                case let .split(base, head): head ?? base
+                case .hunk, .thread: nil
+            }
+            guard let line,
+                  let hunk = file.hunks
+                  .first(where: { $0.lines.contains(where: { $0.id == line.id }) }),
+                  let lineIndex = hunk.lines.firstIndex(where: { $0.id == line.id })
+            else { return }
+            let side: DiffSide = line.kind == .deletion ? .base : .head
+            onSelectAnchor(DiffAnchor(
+                path: file.path,
+                side: side,
+                commitOID: headOID,
+                blobOID: side == .base ? file.baseBlobOID : file.headBlobOID,
+                line: side == .base ? line.oldLine : line.newLine,
+                startLine: nil,
+                contextFingerprint: DraftAnchorMapper.fingerprint(
+                    lineIndex: lineIndex,
+                    in: hunk.lines,
+                ),
+            ))
+        }
+
+        func collectionView(
+            _: UICollectionView,
+            willDisplay _: UICollectionViewCell,
+            forItemAt indexPath: IndexPath,
+        ) {
+            guard !didReachEnd, indexPath.item == rows.count - 1 else { return }
+            didReachEnd = true
+            onReachedEnd()
         }
 
         private struct Identity: Equatable {
             let file: DiffFile
+            let headOID: GitObjectID
             let mode: DiffRendererMode
+            let threads: [ReviewThread]
         }
     }
 }
@@ -132,7 +226,10 @@ struct PatchlightDiffCollectionView: UIViewRepresentable {
             mode: DiffRendererMode,
             viewport: CGSize,
         ) -> PatchlightDiffRendererMeasurement {
-            let coordinator = PatchlightDiffCollectionView.Coordinator()
+            let coordinator = PatchlightDiffCollectionView.Coordinator(
+                onSelectAnchor: { _ in },
+                onReachedEnd: {},
+            )
             var configuration = UICollectionLayoutListConfiguration(appearance: .plain)
             configuration.showsSeparators = false
             let collectionView = UICollectionView(
@@ -152,8 +249,18 @@ struct PatchlightDiffCollectionView: UIViewRepresentable {
                 DiffHunkCell.self,
                 forCellWithReuseIdentifier: DiffHunkCell.reuseIdentifier,
             )
+            collectionView.register(
+                DiffThreadCell.self,
+                forCellWithReuseIdentifier: DiffThreadCell.reuseIdentifier,
+            )
             collectionView.dataSource = coordinator
-            coordinator.update(file: file, mode: mode, collectionView: collectionView)
+            coordinator.update(
+                file: file,
+                headOID: GitObjectID(rawValue: String(repeating: "0", count: 40)),
+                mode: mode,
+                threads: [],
+                collectionView: collectionView,
+            )
             collectionView.layoutIfNeeded()
             return PatchlightDiffRendererMeasurement(
                 rowCount: coordinator.rowCount,
@@ -167,16 +274,53 @@ private enum DiffRenderedRow {
     case hunk(String)
     case unified(DiffLine)
     case split(base: DiffLine?, head: DiffLine?)
+    case thread(ReviewThread)
 }
 
 private enum DiffRowBuilder {
-    static func rows(file: DiffFile, mode: DiffRendererMode) -> [DiffRenderedRow] {
-        file.hunks.flatMap { hunk in
+    static func rows(
+        file: DiffFile,
+        mode: DiffRendererMode,
+        threads: [ReviewThread],
+    ) -> [DiffRenderedRow] {
+        var result: [DiffRenderedRow] = []
+        for hunk in file.hunks {
+            result.append(.hunk(hunk.header))
             switch mode {
                 case .unified:
-                    [.hunk(hunk.header)] + hunk.lines.map(DiffRenderedRow.unified)
+                    for line in hunk.lines {
+                        result.append(.unified(line))
+                        result.append(contentsOf: matchingThreads(line: line, in: threads).map {
+                            .thread($0)
+                        })
+                    }
                 case .split:
-                    [.hunk(hunk.header)] + splitRows(hunk.lines)
+                    for row in splitRows(hunk.lines) {
+                        result.append(row)
+                        guard case let .split(base, head) = row else { continue }
+                        let matches: [ReviewThread] = [base, head].compactMap(\.self).flatMap {
+                            matchingThreads(line: $0, in: threads)
+                        }
+                        let unique = matches.reduce(into: [ReviewThread]()) { values, thread in
+                            if !values.contains(where: { $0.id == thread.id }) {
+                                values.append(thread)
+                            }
+                        }
+                        result.append(contentsOf: unique.map { .thread($0) })
+                    }
+            }
+        }
+        return result
+    }
+
+    private static func matchingThreads(
+        line: DiffLine,
+        in threads: [ReviewThread],
+    ) -> [ReviewThread] {
+        threads.filter { thread in
+            switch thread.side {
+                case .base: thread.line == line.oldLine
+                case .head, .none: thread.line == line.newLine
             }
         }
     }
@@ -218,6 +362,39 @@ private enum DiffRowBuilder {
             }
         }
         return rows
+    }
+}
+
+private final class DiffThreadCell: UICollectionViewCell {
+    static let reuseIdentifier = "DiffThreadCell"
+    private let label = UILabel()
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        label.numberOfLines = 0
+        label.font = .preferredFont(forTextStyle: .callout)
+        label.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(label)
+        NSLayoutConstraint.activate([
+            label.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 44),
+            label.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
+            label.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 10),
+            label.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -10),
+        ])
+        contentView.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.08)
+    }
+
+    @available(*, unavailable)
+    required init?(coder _: NSCoder) {
+        nil
+    }
+
+    func configure(thread: ReviewThread) {
+        let first = thread.comments.first
+        label.text = [first?.authorLogin, first?.bodyMarkdown]
+            .compactMap(\.self)
+            .joined(separator: ": ")
+        accessibilityLabel = label.text
     }
 }
 

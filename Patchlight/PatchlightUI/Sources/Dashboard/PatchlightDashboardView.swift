@@ -96,6 +96,24 @@ public struct PatchlightDashboardView: View {
                                 Label(String(localized: .refresh), systemImage: "arrow.clockwise")
                             }
                         }
+                        ToolbarItem(placement: .secondaryAction) {
+                            Menu {
+                                Button(
+                                    String(
+                                        localized: "signOutGitHub",
+                                        defaultValue: "Sign Out of GitHub",
+                                    ),
+                                    role: .destructive,
+                                ) {
+                                    Task { await model.signOut() }
+                                }
+                            } label: {
+                                Label(
+                                    String(localized: "account", defaultValue: "Account"),
+                                    systemImage: "person.crop.circle",
+                                )
+                            }
+                        }
                     }
                 }
         }

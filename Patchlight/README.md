@@ -32,6 +32,13 @@ lifecycle/Broadway root, onboarding, cached dashboard, repository browser,
 dedicated PR workspace, and the native virtualized diff renderer, plus Flyover,
 snapshot, Inspector, and Periscope developer surfaces.
 
+The workspace supports encrypted line/file drafts, issue and review discussion,
+inline thread replies and resolution, checks, batched review submission, and
+GitHub viewed state. Writes are always user initiated. Patchlight never retries
+an ambiguous write; it refreshes and proves the result when possible, otherwise
+retains the draft and labels the status uncertain. A changed head freezes drafts
+until their anchors are uniquely remapped or explicitly resolved.
+
 The GitHub-only build remains useful offline: successful dashboard, repository,
 and workspace reads are encrypted locally, stale data is visibly labeled, and
 authentication expiry preserves that data for reauthorization. The GitHub App

@@ -90,3 +90,23 @@ public enum GitObjectIDError: LocalizedError, Equatable, Sendable {
         "GitHub returned an invalid Git object ID."
     }
 }
+
+/// A GraphQL node identity used for review threads and reviews.
+public struct GitHubNodeID: RawRepresentable, Hashable, Codable, Sendable {
+    public let rawValue: String
+
+    public init(rawValue: String) {
+        precondition(!rawValue.isEmpty, "A GitHub node ID must not be empty")
+        self.rawValue = rawValue
+    }
+}
+
+/// A REST database identity used for comments and reply routes.
+public struct GitHubCommentID: RawRepresentable, Hashable, Codable, Sendable {
+    public let rawValue: Int64
+
+    public init(rawValue: Int64) {
+        precondition(rawValue > 0, "A GitHub comment ID must be positive")
+        self.rawValue = rawValue
+    }
+}

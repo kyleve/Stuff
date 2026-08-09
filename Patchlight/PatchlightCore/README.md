@@ -23,6 +23,11 @@ The shipping foundation includes:
 - local unified-patch parsing and a cancellable, bounded Myers fallback for
   omitted text patches; and
 - encrypted dashboard/repository/workspace snapshots with honest offline and
-  reauthorization fallback states.
+  reauthorization fallback states;
+- review conversations, checks, inline threads, and encrypted offline copies;
+- one-shot GitHub review/comment/thread/viewed mutations with ambiguous-write
+  reconciliation and no automatic retry; and
+- stale-head draft remapping that accepts only a unique path/rename plus
+  context fingerprint and otherwise requires an explicit user decision.
 
 No SwiftUI or UIKit belongs here. Run `./test PatchlightCoreTests`.

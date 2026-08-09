@@ -29,4 +29,40 @@ struct PatchlightAccountStoreTests {
         try await setup.scope.accountStore.removeDraft(draft.id)
         #expect(try await setup.scope.accountStore.drafts(for: draft.pullRequest).isEmpty)
     }
+
+    @Test func conversationAndViewedDepthRoundTripEncryptedRecords() async throws {
+        let setup = try PatchlightCoreTestSupport.makeScope(name: #function)
+        let pullRequest = PatchlightCoreTestSupport.pullRequestID
+        let route = PullRequestRoute(
+            id: pullRequest,
+            repository: RepositoryCoordinates(owner: "acme", name: "widget"),
+        )
+        let conversation = PullRequestConversation(
+            pullRequest: route,
+            headOID: PatchlightCoreTestSupport.objectID(),
+            issueComments: [],
+            reviews: [],
+            threads: [],
+            checks: [CheckSummary(name: "Tests", state: .success, detailsURL: nil)],
+        )
+        let refreshedAt = Date(timeIntervalSince1970: 100)
+        let viewed = ViewedFileDepth(
+            pullRequest: pullRequest,
+            path: "Sources/App.swift",
+            headOID: conversation.headOID,
+            depth: .balanced,
+        )
+
+        try await setup.scope.accountStore.saveConversation(
+            conversation,
+            refreshedAt: refreshedAt,
+        )
+        try await setup.scope.accountStore.saveViewedDepth(viewed)
+
+        #expect(try await setup.scope.accountStore.conversation(for: pullRequest)?
+            .value == conversation)
+        #expect(try await setup.scope.accountStore.conversation(for: pullRequest)?
+            .refreshedAt == refreshedAt)
+        #expect(try await setup.scope.accountStore.viewedDepths(for: pullRequest) == [viewed])
+    }
 }

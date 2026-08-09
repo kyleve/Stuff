@@ -18,6 +18,14 @@ while the dashboard is visible. Cached content carries its refresh time and
 failure reason instead of masquerading as live data. The snapshot matrix uses
 an iPad viewport; the shipping product has no iPhone destination in v1.
 
+The review loop renders issue discussion, reviews, checks, inline/outdated/
+resolved threads, and replies. Selecting a diff line creates an encrypted local
+draft; Submit Review batches those drafts with Comment, Approve, or Request
+Changes, while replies and conversation/file comments remain visibly immediate.
+Patchlight refreshes the head before submission and freezes stale anchors into
+unique-remap, re-anchor, file-level, or discard choices. Reaching a rendered
+file footer marks it viewed by default, with an explicit-only preference.
+
 Views receive immutable PatchlightCore values and an injected account scope.
 They never open SwiftData containers, resolve global credentials, or call raw
 provider/GitHub endpoints. Run `./test PatchlightUITests`; image references live

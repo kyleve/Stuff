@@ -41,6 +41,11 @@ struct PatchlightWorkspaceView: View {
     @State private var selection: Selection? = .overview
     @AppStorage("Patchlight.diffLayoutPreference") private var storedLayout = LayoutPreference
         .automatic.rawValue
+    @AppStorage("Patchlight.explicitViewedOnly") private var explicitViewedOnly = false
+    @State private var selectedDraftAnchor: DiffAnchor?
+    @State private var reanchoringDraft: ReviewDraft?
+    @State private var fileCommentPath: String?
+    @State private var showsReviewComposer = false
 
     private var workspace: PullRequestWorkspace {
         content.workspace
@@ -106,6 +111,52 @@ struct PatchlightWorkspaceView: View {
                             .pickerStyle(.segmented)
                             .frame(maxWidth: 300)
                         }
+                        ToolbarItem(placement: .secondaryAction) {
+                            Menu {
+                                Toggle(
+                                    String(
+                                        localized: "explicitViewedOnly",
+                                        defaultValue: "Mark Viewed Explicitly Only",
+                                    ),
+                                    isOn: $explicitViewedOnly,
+                                )
+                                if case let .file(path) = selection {
+                                    Button(String(
+                                        localized: "sendFileComment",
+                                        defaultValue: "Send File Comment",
+                                    )) {
+                                        fileCommentPath = path
+                                    }
+                                    Button(String(
+                                        localized: "markFileViewed",
+                                        defaultValue: "Mark File Viewed",
+                                    )) {
+                                        Task {
+                                            await model.markViewed(path: path, depth: .everything)
+                                        }
+                                    }
+                                }
+                            } label: {
+                                Label(
+                                    String(
+                                        localized: "viewedBehavior",
+                                        defaultValue: "Viewed Behavior",
+                                    ),
+                                    systemImage: "eye",
+                                )
+                            }
+                        }
+                    }
+                    ToolbarItem(placement: .primaryAction) {
+                        Button {
+                            showsReviewComposer = true
+                        } label: {
+                            Label(
+                                String(localized: "submitReview", defaultValue: "Submit Review"),
+                                systemImage: "checkmark.bubble",
+                            )
+                        }
+                        .badge(model.reviewDrafts.count)
                     }
                 }
         }
@@ -127,6 +178,20 @@ struct PatchlightWorkspaceView: View {
                     .background(Color.orange.opacity(0.14))
             }
         }
+        .safeAreaInset(edge: .bottom) { submissionStatus }
+        .sheet(isPresented: draftEditorPresented) {
+            if let selectedDraftAnchor {
+                PatchlightDraftEditor(anchor: selectedDraftAnchor, model: model)
+            }
+        }
+        .sheet(isPresented: $showsReviewComposer) {
+            PatchlightReviewComposer(model: model)
+        }
+        .sheet(isPresented: fileCommentPresented) {
+            if let fileCommentPath {
+                PatchlightFileCommentComposer(path: fileCommentPath, model: model)
+            }
+        }
     }
 
     @ViewBuilder
@@ -135,11 +200,7 @@ struct PatchlightWorkspaceView: View {
             case .overview:
                 overview
             case .conversation:
-                ContentUnavailableView(
-                    String(localized: .conversation),
-                    systemImage: "bubble.left.and.bubble.right",
-                    description: Text(String(localized: .conversationLoadsNextStage)),
-                )
+                PatchlightConversationView(model: model)
             case .snapshots:
                 snapshots
             case let .file(path):
@@ -218,7 +279,24 @@ struct PatchlightWorkspaceView: View {
                         case .unified: .unified
                         case .split: .split
                     }
-                    PatchlightDiffCollectionView(file: file, mode: mode)
+                    PatchlightDiffCollectionView(
+                        file: file,
+                        headOID: workspace.summary.headOID,
+                        mode: mode,
+                        threads: threads(for: file),
+                        onSelectAnchor: { anchor in
+                            if let draft = reanchoringDraft {
+                                reanchoringDraft = nil
+                                Task { await model.reanchorDraft(draft, to: anchor) }
+                            } else {
+                                selectedDraftAnchor = anchor
+                            }
+                        },
+                        onReachedEnd: {
+                            guard !explicitViewedOnly else { return }
+                            Task { await model.markViewed(path: file.path, depth: .everything) }
+                        },
+                    )
                 }
             case .complete:
                 ContentUnavailableView(String(localized: .noTextChanges), systemImage: "equal")
@@ -249,6 +327,129 @@ struct PatchlightWorkspaceView: View {
                     .buttonStyle(.borderedProminent)
             }
         }
+    }
+
+    @ViewBuilder
+    private var submissionStatus: some View {
+        switch model.submissionState {
+            case .idle:
+                EmptyView()
+            case .submitting:
+                HStack {
+                    ProgressView()
+                    Text(String(localized: "submittingReview", defaultValue: "Submitting review…"))
+                }
+                .patchlightWorkspaceStatus(color: .blue)
+            case let .sent(reconciled):
+                Label(
+                    reconciled
+                        ? String(
+                            localized: "reconciledSubmission",
+                            defaultValue: "GitHub confirmed the review after reconciliation.",
+                        )
+                        : String(localized: "reviewSubmitted", defaultValue: "Review submitted."),
+                    systemImage: "checkmark.circle",
+                )
+                .patchlightWorkspaceStatus(color: .green)
+            case let .uncertain(requestID):
+                VStack(alignment: .leading, spacing: 6) {
+                    Label(
+                        requestID.map { "Submission status is uncertain (request \($0))." }
+                            ?? String(
+                                localized: "reviewUncertain",
+                                defaultValue: "Submission status is uncertain.",
+                            ),
+                        systemImage: "questionmark.circle",
+                    )
+                    Text(String(
+                        localized: "uncertainNoRetry",
+                        defaultValue: "Patchlight did not retry. Refresh and reconcile before submitting again.",
+                    ))
+                    .font(.caption)
+                    Button(String(localized: .refresh)) { Task { await model.refreshReview() } }
+                }
+                .patchlightWorkspaceStatus(color: .orange)
+            case let .staleHead(results):
+                VStack(alignment: .leading, spacing: 8) {
+                    Label(
+                        String(
+                            localized: "headChanged",
+                            defaultValue: "The pull request head changed. Draft submission is frozen.",
+                        ),
+                        systemImage: "arrow.triangle.2.circlepath",
+                    )
+                    Text(staleSummary(results))
+                        .font(.caption)
+                    HStack {
+                        Button(String(
+                            localized: "applyUniqueMatches",
+                            defaultValue: "Apply Unique Matches",
+                        )) {
+                            Task { await model.applyUniqueDraftRemappings() }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        ForEach(unresolvedDrafts(results)) { result in
+                            Button(String(localized: "reanchor", defaultValue: "Re-anchor")) {
+                                reanchoringDraft = result.draft
+                            }
+                            Button(String(
+                                localized: "convertToFileLevel",
+                                defaultValue: "Convert to File Level",
+                            )) {
+                                Task { await model.convertDraftToFileLevel(result.draft) }
+                            }
+                            Button(
+                                String(localized: "discard", defaultValue: "Discard"),
+                                role: .destructive,
+                            ) {
+                                Task { await model.removeDraft(result.draft.id) }
+                            }
+                            .accessibilityLabel("Discard \(result.draft.anchor?.path ?? "draft")")
+                        }
+                    }
+                }
+                .patchlightWorkspaceStatus(color: .orange)
+            case let .failed(message):
+                Label(message, systemImage: "exclamationmark.triangle")
+                    .patchlightWorkspaceStatus(color: .red)
+        }
+    }
+
+    private func staleSummary(_ results: [DraftAnchorMapper.Result]) -> String {
+        let remapped = results.count(where: {
+            if case .remapped = $0.resolution { true } else { false }
+        })
+        let unresolved = results.count - remapped
+        return "\(remapped) uniquely matched; \(unresolved) require re-anchoring, file-level conversion, or discard."
+    }
+
+    private func unresolvedDrafts(
+        _ results: [DraftAnchorMapper.Result],
+    ) -> [DraftAnchorMapper.Result] {
+        results.filter {
+            switch $0.resolution {
+                case .ambiguous, .deleted: true
+                case .current, .remapped: false
+            }
+        }
+    }
+
+    private func threads(for file: DiffFile) -> [ReviewThread] {
+        model.conversationRead?.value.threads.filter { $0.path == file.path } ?? []
+    }
+
+    private var draftEditorPresented: Binding<Bool> {
+        Binding(
+            get: { selectedDraftAnchor != nil },
+            set: { if !$0 { selectedDraftAnchor = nil } },
+        )
+    }
+
+    private var fileCommentPresented: Binding<Bool> {
+        Binding(
+            get: { fileCommentPath != nil },
+            set: { if !$0 { fileCommentPath = nil } },
+        )
     }
 
     private func markdown(_ source: String) -> Text {
@@ -282,5 +483,14 @@ struct PatchlightWorkspaceView: View {
             case .renamed: "arrow.right.square"
             case .copied: "doc.on.doc"
         }
+    }
+}
+
+extension View {
+    fileprivate func patchlightWorkspaceStatus(color: Color) -> some View {
+        padding(.horizontal)
+            .padding(.vertical, 10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(color.opacity(0.12))
     }
 }

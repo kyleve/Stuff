@@ -1,6 +1,28 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "account" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Account"
+          }
+        }
+      }
+    },
+    "addReviewDraft" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Review Draft"
+          }
+        }
+      }
+    },
     "addition" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -8,6 +30,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Added line"
+          }
+        }
+      }
+    },
+    "applyUniqueMatches" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apply Unique Matches"
+          }
+        }
+      }
+    },
+    "approve" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Approve"
           }
         }
       }
@@ -74,6 +118,50 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Cancel"
+          }
+        }
+      }
+    },
+    "checks" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Checks"
+          }
+        }
+      }
+    },
+    "comment" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comment"
+          }
+        }
+      }
+    },
+    "commentBody" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comment body"
+          }
+        }
+      }
+    },
+    "commentSent" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comment sent."
           }
         }
       }
@@ -155,6 +243,17 @@
         }
       }
     },
+    "convertToFileLevel" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Convert to File Level"
+          }
+        }
+      }
+    },
     "copyCode" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -173,6 +272,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Couldn’t Connect to GitHub"
+          }
+        }
+      }
+    },
+    "couldNotLoadConversation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could Not Load Conversation"
           }
         }
       }
@@ -276,6 +386,17 @@
         }
       }
     },
+    "discard" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Discard"
+          }
+        }
+      }
+    },
     "draft" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -283,6 +404,72 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Draft"
+          }
+        }
+      }
+    },
+    "draftComment" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Draft comment"
+          }
+        }
+      }
+    },
+    "draftComments" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Draft Comments"
+          }
+        }
+      }
+    },
+    "explicitViewedOnly" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark Viewed Explicitly Only"
+          }
+        }
+      }
+    },
+    "file" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "File"
+          }
+        }
+      }
+    },
+    "fileComment" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "File Comment"
+          }
+        }
+      }
+    },
+    "fileLevel" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "File level"
           }
         }
       }
@@ -386,6 +573,17 @@
         }
       }
     },
+    "headChanged" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The pull request head changed. Draft submission is frozen."
+          }
+        }
+      }
+    },
     "hiddenChanges" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -430,6 +628,28 @@
         }
       }
     },
+    "line" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Line"
+          }
+        }
+      }
+    },
+    "loadingConversation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading conversation…"
+          }
+        }
+      }
+    },
     "loadingGitHub" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -452,6 +672,17 @@
         }
       }
     },
+    "markFileViewed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark File Viewed"
+          }
+        }
+      }
+    },
     "myOpenPullRequests" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -459,6 +690,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "My Open PRs"
+          }
+        }
+      }
+    },
+    "newConversationComment" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New Conversation Comment"
+          }
+        }
+      }
+    },
+    "noDraftComments" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No line or file drafts."
           }
         }
       }
@@ -562,6 +815,17 @@
         }
       }
     },
+    "outdated" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Outdated"
+          }
+        }
+      }
+    },
     "overview" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -569,6 +833,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Overview"
+          }
+        }
+      }
+    },
+    "ownPullRequestReviewLimitation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GitHub does not allow approving or requesting changes on your own pull request."
           }
         }
       }
@@ -595,6 +870,17 @@
         }
       }
     },
+    "postsImmediately" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This posts immediately and is not part of the review batch."
+          }
+        }
+      }
+    },
     "preparingPatchlight" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -606,6 +892,17 @@
         }
       }
     },
+    "reanchor" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Re-anchor"
+          }
+        }
+      }
+    },
     "reauthorizationKeepsDrafts" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -613,6 +910,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Reconnect GitHub to refresh or submit. Your encrypted drafts remain on this device."
+          }
+        }
+      }
+    },
+    "reconciledSubmission" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GitHub confirmed the write after reconciliation."
           }
         }
       }
@@ -661,6 +969,28 @@
         }
       }
     },
+    "replyBody" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reply body"
+          }
+        }
+      }
+    },
+    "replyPostsImmediately" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Replies post immediately."
+          }
+        }
+      }
+    },
     "repositories" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -668,6 +998,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Repositories"
+          }
+        }
+      }
+    },
+    "requestChanges" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Request Changes"
           }
         }
       }
@@ -683,6 +1024,39 @@
         }
       }
     },
+    "resolve" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resolve"
+          }
+        }
+      }
+    },
+    "resolved" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resolved"
+          }
+        }
+      }
+    },
+    "reviewAction" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Review Action"
+          }
+        }
+      }
+    },
     "reviewRequested" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -694,6 +1068,50 @@
         }
       }
     },
+    "reviewSubmitted" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Review submitted."
+          }
+        }
+      }
+    },
+    "reviewSummary" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Review Summary"
+          }
+        }
+      }
+    },
+    "reviewUncertain" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Submission status is uncertain."
+          }
+        }
+      }
+    },
+    "saveDraft" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save Draft"
+          }
+        }
+      }
+    },
     "searchRepositories" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -701,6 +1119,72 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Search repositories"
+          }
+        }
+      }
+    },
+    "send" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Send"
+          }
+        }
+      }
+    },
+    "sendComment" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Send Comment"
+          }
+        }
+      }
+    },
+    "sendFileComment" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Send File Comment"
+          }
+        }
+      }
+    },
+    "sendReply" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Send Reply"
+          }
+        }
+      }
+    },
+    "sending" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sending…"
+          }
+        }
+      }
+    },
+    "signOutGitHub" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign Out of GitHub"
           }
         }
       }
@@ -738,6 +1222,39 @@
         }
       }
     },
+    "submit" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Submit"
+          }
+        }
+      }
+    },
+    "submitReview" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Submit Review"
+          }
+        }
+      }
+    },
+    "submittingReview" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Submitting review…"
+          }
+        }
+      }
+    },
     "teamDiscoveryUnavailable" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -771,6 +1288,17 @@
         }
       }
     },
+    "uncertainNoRetry" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Patchlight did not retry. Refresh and reconcile before submitting again."
+          }
+        }
+      }
+    },
     "undecodableFile" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -793,6 +1321,28 @@
         }
       }
     },
+    "unresolve" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unresolve"
+          }
+        }
+      }
+    },
+    "viewedBehavior" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Viewed Behavior"
+          }
+        }
+      }
+    },
     "waitingForGitHub" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -800,6 +1350,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Waiting for GitHub authorization…"
+          }
+        }
+      }
+    },
+    "writeUncertain" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Submission status is uncertain. Refresh before trying again."
+          }
+        }
+      }
+    },
+    "writeUncertainRequest" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Submission status is uncertain. Refresh before trying again."
           }
         }
       }

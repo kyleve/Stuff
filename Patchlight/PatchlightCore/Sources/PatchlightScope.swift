@@ -115,7 +115,8 @@ public actor PatchlightScope {
 
     /// Cryptographic purge is ordered: cancel work, delete the vault key, then
     /// remove the now-unreadable account database/cache and GitHub credentials.
-    public func signOut(removingGitHubCredentials removeCredentials: @Sendable () throws -> Void)
+    public func signOut(removingGitHubCredentials removeCredentials: @Sendable () async throws
+        -> Void)
         async throws
     {
         switch state {
@@ -139,7 +140,7 @@ public actor PatchlightScope {
             if FileManager.default.fileExists(atPath: rootURL.path) {
                 try FileManager.default.removeItem(at: rootURL)
             }
-            try removeCredentials()
+            try await removeCredentials()
             state = .signedOut
         } catch {
             // The key is already gone: cryptographic purge succeeded even when

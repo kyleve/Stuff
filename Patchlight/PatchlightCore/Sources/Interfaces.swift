@@ -216,6 +216,165 @@ public protocol GitHubReading: Sendable {
     func blob(repository: RepositoryID, oid: GitObjectID, path: String) async throws -> Data
 }
 
+public struct PullRequestRoute: Hashable, Codable, Sendable {
+    public let id: PullRequestID
+    public let repository: RepositoryCoordinates
+
+    public init(id: PullRequestID, repository: RepositoryCoordinates) {
+        self.id = id
+        self.repository = repository
+    }
+
+    public init(summary: PullRequestSummary) {
+        self.init(id: summary.id, repository: summary.repository)
+    }
+}
+
+public enum ConversationCommentKind: String, Codable, Sendable {
+    case issue = "I"
+    case review = "V"
+    case reply = "R"
+}
+
+public struct ConversationComment: Identifiable, Hashable, Codable, Sendable {
+    public let id: GitHubNodeID
+    public let databaseID: GitHubCommentID?
+    public let authorLogin: String
+    public let bodyMarkdown: String
+    public let createdAt: Date
+    public let kind: ConversationCommentKind
+
+    public init(
+        id: GitHubNodeID,
+        databaseID: GitHubCommentID?,
+        authorLogin: String,
+        bodyMarkdown: String,
+        createdAt: Date,
+        kind: ConversationCommentKind,
+    ) {
+        self.id = id
+        self.databaseID = databaseID
+        self.authorLogin = authorLogin
+        self.bodyMarkdown = bodyMarkdown
+        self.createdAt = createdAt
+        self.kind = kind
+    }
+}
+
+public enum PullRequestReviewState: String, Codable, Sendable {
+    case approved = "A"
+    case changesRequested = "R"
+    case commented = "C"
+    case dismissed = "D"
+    case pending = "P"
+}
+
+public struct PullRequestReview: Identifiable, Hashable, Codable, Sendable {
+    public let id: GitHubNodeID
+    public let authorLogin: String
+    public let bodyMarkdown: String
+    public let state: PullRequestReviewState
+    public let submittedAt: Date?
+
+    public init(
+        id: GitHubNodeID,
+        authorLogin: String,
+        bodyMarkdown: String,
+        state: PullRequestReviewState,
+        submittedAt: Date?,
+    ) {
+        self.id = id
+        self.authorLogin = authorLogin
+        self.bodyMarkdown = bodyMarkdown
+        self.state = state
+        self.submittedAt = submittedAt
+    }
+}
+
+public struct ReviewThread: Identifiable, Hashable, Codable, Sendable {
+    public let id: GitHubNodeID
+    public let path: String
+    public let line: Int?
+    public let side: DiffSide?
+    public let isOutdated: Bool
+    public let isResolved: Bool
+    public let canResolve: Bool
+    public let comments: [ConversationComment]
+
+    public init(
+        id: GitHubNodeID,
+        path: String,
+        line: Int?,
+        side: DiffSide?,
+        isOutdated: Bool,
+        isResolved: Bool,
+        canResolve: Bool,
+        comments: [ConversationComment],
+    ) {
+        self.id = id
+        self.path = path
+        self.line = line
+        self.side = side
+        self.isOutdated = isOutdated
+        self.isResolved = isResolved
+        self.canResolve = canResolve
+        self.comments = comments
+    }
+}
+
+public enum CheckState: String, Codable, Sendable {
+    case pending = "P"
+    case success = "S"
+    case failure = "F"
+    case neutral = "N"
+    case skipped = "K"
+}
+
+public struct CheckSummary: Identifiable, Hashable, Codable, Sendable {
+    public var id: String {
+        name
+    }
+
+    public let name: String
+    public let state: CheckState
+    public let detailsURL: URL?
+
+    public init(name: String, state: CheckState, detailsURL: URL?) {
+        self.name = name
+        self.state = state
+        self.detailsURL = detailsURL
+    }
+}
+
+public struct PullRequestConversation: Hashable, Codable, Sendable {
+    public let pullRequest: PullRequestRoute
+    public let headOID: GitObjectID
+    public let issueComments: [ConversationComment]
+    public let reviews: [PullRequestReview]
+    public let threads: [ReviewThread]
+    public let checks: [CheckSummary]
+
+    public init(
+        pullRequest: PullRequestRoute,
+        headOID: GitObjectID,
+        issueComments: [ConversationComment],
+        reviews: [PullRequestReview],
+        threads: [ReviewThread],
+        checks: [CheckSummary],
+    ) {
+        self.pullRequest = pullRequest
+        self.headOID = headOID
+        self.issueComments = issueComments
+        self.reviews = reviews
+        self.threads = threads
+        self.checks = checks
+    }
+}
+
+public protocol GitHubReviewReading: Sendable {
+    func conversation(for pullRequest: PullRequestRoute) async throws -> PullRequestConversation
+}
+
 public enum ReviewEvent: String, Codable, Sendable {
     case comment = "COMMENT"
     case approve = "APPROVE"
@@ -245,14 +404,14 @@ public struct ReviewDraft: Identifiable, Hashable, Codable, Sendable {
 }
 
 public struct ReviewSubmission: Hashable, Codable, Sendable {
-    public let pullRequest: PullRequestID
+    public let pullRequest: PullRequestRoute
     public let headOID: GitObjectID
     public let event: ReviewEvent
     public let summary: String?
     public let drafts: [ReviewDraft]
 
     public init(
-        pullRequest: PullRequestID,
+        pullRequest: PullRequestRoute,
         headOID: GitObjectID,
         event: ReviewEvent,
         summary: String?,
@@ -266,11 +425,56 @@ public struct ReviewSubmission: Hashable, Codable, Sendable {
     }
 }
 
+public struct ReviewWriteReceipt: Hashable, Codable, Sendable {
+    public let nodeID: GitHubNodeID?
+    public let requestID: String?
+
+    public init(nodeID: GitHubNodeID?, requestID: String?) {
+        self.nodeID = nodeID
+        self.requestID = requestID
+    }
+}
+
+public enum GitHubReviewWriteError: LocalizedError, Equatable, Sendable {
+    case submissionStatusUncertain(requestID: String?)
+    case staleHead(expected: GitObjectID, actual: GitObjectID)
+    case invalidAnchor(UUID)
+
+    public var errorDescription: String? {
+        switch self {
+            case let .submissionStatusUncertain(requestID):
+                requestID
+                    .map {
+                        "Submission status is uncertain (GitHub request \($0)). Refresh before trying again."
+                    }
+                    ?? "Submission status is uncertain. Refresh before trying again."
+            case let .staleHead(expected, actual):
+                "The pull request changed from \(expected.rawValue.prefix(8)) to \(actual.rawValue.prefix(8)). Re-anchor drafts before submitting."
+            case let .invalidAnchor(id):
+                "Draft \(id) no longer has a GitHub-compatible line anchor."
+        }
+    }
+}
+
 public protocol GitHubReviewWriting: Sendable {
-    func submit(_ review: ReviewSubmission) async throws
-    func reply(to threadID: String, body: String) async throws
-    func setThread(_ threadID: String, resolved: Bool) async throws
-    func markFile(_ path: String, viewed: Bool, in pullRequest: PullRequestID) async throws
+    func submit(_ review: ReviewSubmission) async throws -> ReviewWriteReceipt
+    func postConversationComment(
+        _ body: String,
+        in pullRequest: PullRequestRoute,
+    ) async throws -> ReviewWriteReceipt
+    func postFileComment(
+        _ body: String,
+        path: String,
+        headOID: GitObjectID,
+        in pullRequest: PullRequestRoute,
+    ) async throws -> ReviewWriteReceipt
+    func reply(
+        to commentID: GitHubCommentID,
+        body: String,
+        in pullRequest: PullRequestRoute,
+    ) async throws -> ReviewWriteReceipt
+    func setThread(_ threadID: GitHubNodeID, resolved: Bool) async throws
+    func markFile(_ path: String, viewed: Bool, in pullRequest: PullRequestRoute) async throws
 }
 
 public struct ReviewAnalysisRequest: Hashable, Codable, Sendable {

@@ -47,13 +47,114 @@ public actor PatchlightAccountStore {
     public func removeDraft(_ id: UUID) async throws {
         try await store.removeDraft(id: id)
     }
+
+    public func saveConversation(
+        _ conversation: PullRequestConversation,
+        refreshedAt: Date,
+    ) async throws {
+        let payload = try JSONEncoder.patchlight.encode(conversation)
+        try await store.upsertConversation(EncryptedConversationRecord(
+            pullRequestKey: conversation.pullRequest.id.storageKey,
+            payloadCiphertext: cipher.seal(payload),
+            refreshedAt: refreshedAt,
+        ))
+    }
+
+    public func conversation(
+        for pullRequest: PullRequestID,
+    ) async throws -> StoredConversation? {
+        guard let record = try await store.conversation(
+            pullRequestKey: pullRequest.storageKey,
+        ) else {
+            return nil
+        }
+        do {
+            return try StoredConversation(
+                value: JSONDecoder().decode(
+                    PullRequestConversation.self,
+                    from: cipher.open(record.payloadCiphertext),
+                ),
+                refreshedAt: record.refreshedAt,
+            )
+        } catch let error as PatchlightVaultError {
+            throw error
+        } catch {
+            throw PatchlightAccountStoreError.invalidConversation
+        }
+    }
+
+    public func saveViewedDepth(_ viewed: ViewedFileDepth) async throws {
+        try await store.upsertViewedDepth(StoredViewedDepth(
+            key: viewed.storageKey,
+            pullRequestKey: viewed.pullRequest.storageKey,
+            path: viewed.path,
+            headOID: viewed.headOID.rawValue,
+            depthCode: viewed.depth.rawValue,
+        ))
+    }
+
+    public func viewedDepths(for pullRequest: PullRequestID) async throws -> [ViewedFileDepth] {
+        try await store.viewedDepths(pullRequestKey: pullRequest.storageKey).map { value in
+            guard let depth = ReviewDepth(rawValue: value.depthCode) else {
+                throw PatchlightAccountStoreError.invalidViewedDepth
+            }
+            return ViewedFileDepth(
+                pullRequest: pullRequest,
+                path: value.path,
+                headOID: GitObjectID(rawValue: value.headOID),
+                depth: depth,
+            )
+        }
+    }
+}
+
+public struct StoredConversation: Sendable {
+    public let value: PullRequestConversation
+    public let refreshedAt: Date
+
+    public init(value: PullRequestConversation, refreshedAt: Date) {
+        self.value = value
+        self.refreshedAt = refreshedAt
+    }
+}
+
+public struct ViewedFileDepth: Hashable, Codable, Sendable {
+    public let pullRequest: PullRequestID
+    public let path: String
+    public let headOID: GitObjectID
+    public let depth: ReviewDepth
+
+    public init(
+        pullRequest: PullRequestID,
+        path: String,
+        headOID: GitObjectID,
+        depth: ReviewDepth,
+    ) {
+        self.pullRequest = pullRequest
+        self.path = path
+        self.headOID = headOID
+        self.depth = depth
+    }
+
+    fileprivate var storageKey: String {
+        "\(pullRequest.storageKey):\(path)"
+    }
 }
 
 public enum PatchlightAccountStoreError: LocalizedError, Equatable, Sendable {
     case invalidDraftText
+    case invalidConversation
+    case invalidViewedDepth
 
     public var errorDescription: String? {
-        "An encrypted draft does not contain valid text."
+        switch self {
+            case .invalidDraftText:
+                "An encrypted draft does not contain valid text."
+            case .invalidConversation:
+                "An encrypted conversation snapshot is invalid."
+            case .invalidViewedDepth:
+                "A stored viewed depth has an unknown wire code."
+        }
     }
 }
 
