@@ -173,16 +173,29 @@ a long review, or to pick up a dependency:
 
 ## Review comments
 
-- **Don't act on review comments the user hasn't pointed you at.** Summarize
-  what's there and ask which to take on; reading them to write that summary is
-  expected.
+Two modes — don't mix them up:
+
+**Exploring (user has not asked you to act):** read open review threads, summarize
+what's there, and ask which to take on. Do not change code or post replies yet.
+
+**Addressing (user pointed you at comments — e.g. "PTAL", "address review",
+"fix the feedback"):** for each comment you fix in code, **also reply on GitHub**
+in that thread. A code change without a reply is an incomplete handoff — the
+reviewer cannot tell their note was seen.
+
+When addressing:
+
 - **One commit per review issue** — each distinct piece of feedback gets its
   own commit, unless several items fit together logically or address similar
   issues (then one commit for the group is fine). Either way, fixes stay
-  bisectable and the reply can name the commit that resolved it.
-- When a commit resolves one, reply to it naming the commit.
-- Anything deliberately not addressed gets filed in the area's
-  [`TODOs.md`](../../../TODOs.md) — never dropped.
+  bisectable.
+- **Reply on every thread you fixed** — after pushing, reply naming the commit
+  that resolved it (short summary of what changed). Use `gh` or
+  `ManagePullRequest` `post_comment` with `in_reply_to` for review threads.
+- **Reply on threads you declined** — say why, or that it was filed in the
+  area's [`TODOs.md`](../../../TODOs.md). Never drop feedback silently.
+- Anything deliberately deferred gets filed in `TODOs.md` and the reply links
+  to that item.
 
 ## CI
 
