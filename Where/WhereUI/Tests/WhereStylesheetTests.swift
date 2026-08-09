@@ -441,6 +441,7 @@ struct WhereStylesheetTests {
             maxWidth: 680,
             padding: 16,
             contentSpacing: 12,
+            rowVerticalInset: 6,
         ))
         #expect(featureDiscovery.backgroundPattern == .init(
             contourSpacing: 30,

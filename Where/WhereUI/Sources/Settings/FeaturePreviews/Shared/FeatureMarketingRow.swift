@@ -14,12 +14,13 @@ private struct FeatureMarketingRowModifier: ViewModifier {
     @Environment(\.stylesheet) private var stylesheet
 
     func body(content: Content) -> some View {
+        let style = stylesheet.featureDiscovery.marketingPanel
         content
             .listRowBackground(Color.clear)
             .listRowInsets(.init(
-                top: stylesheet.featureDiscovery.cardRowVerticalInset,
+                top: style.rowVerticalInset,
                 leading: 0,
-                bottom: stylesheet.featureDiscovery.cardRowVerticalInset,
+                bottom: style.rowVerticalInset,
                 trailing: 0,
             ))
             .listRowSeparator(.hidden)

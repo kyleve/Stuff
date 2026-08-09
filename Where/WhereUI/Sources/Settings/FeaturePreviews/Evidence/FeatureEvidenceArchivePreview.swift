@@ -17,8 +17,9 @@ struct FeatureEvidenceArchivePreview: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
+        let panelStyle = stylesheet.featureDiscovery.marketingPanel
         FeatureMarketingPanel {
-            VStack(alignment: .leading, spacing: stylesheet.featureDiscovery.cardSpacing) {
+            VStack(alignment: .leading, spacing: panelStyle.contentSpacing) {
                 Label(
                     String(localized: .settingsExploreEvidenceArchiveTitle),
                     systemImage: "archivebox",

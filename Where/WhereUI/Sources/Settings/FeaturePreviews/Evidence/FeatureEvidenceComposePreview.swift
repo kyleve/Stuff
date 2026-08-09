@@ -8,8 +8,9 @@ struct FeatureEvidenceComposePreview: View {
     @Environment(\.stylesheet) private var stylesheet
 
     var body: some View {
+        let panelStyle = stylesheet.featureDiscovery.marketingPanel
         FeatureMarketingPanel {
-            VStack(alignment: .leading, spacing: stylesheet.featureDiscovery.cardSpacing) {
+            VStack(alignment: .leading, spacing: panelStyle.contentSpacing) {
                 Label(
                     String(localized: .settingsExploreEvidenceComposeTitle),
                     systemImage: "checkmark.circle",
