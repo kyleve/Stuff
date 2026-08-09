@@ -1,0 +1,33 @@
+{
+  "module": "RemoteDeviceRemoval.tla",
+  "cases": [
+    {
+      "name": "broken",
+      "config": "Broken.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant RemovalDominatesAdvisoryState is violated."
+    },
+    {
+      "name": "critical-reachability",
+      "config": "CurrentReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant CriticalScenarioNotReached is violated."
+    },
+    {
+      "name": "reordered-cutoff-reachability",
+      "config": "CurrentReorderedCutoffReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant EarlierCutoffNeverArrivesLate is violated."
+    },
+    {
+      "name": "current",
+      "config": "Current.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "current-multiple",
+      "config": "CurrentMultiple.cfg",
+      "expect": "pass"
+    }
+  ]
+}
