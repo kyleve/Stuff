@@ -37,6 +37,7 @@ public actor PatchlightAccountWork {
 public actor PatchlightScope {
     public nonisolated let accountID: PatchlightAccountID
     public nonisolated let accountStore: PatchlightAccountStore
+    public nonisolated let readCache: PatchlightReadCache
     public nonisolated let cache: EncryptedContentCache
     public nonisolated let work: PatchlightAccountWork
 
@@ -53,6 +54,7 @@ public actor PatchlightScope {
     private init(
         accountID: PatchlightAccountID,
         accountStore: PatchlightAccountStore,
+        readCache: PatchlightReadCache,
         cache: EncryptedContentCache,
         work: PatchlightAccountWork,
         rootURL: URL,
@@ -60,6 +62,7 @@ public actor PatchlightScope {
     ) {
         self.accountID = accountID
         self.accountStore = accountStore
+        self.readCache = readCache
         self.cache = cache
         self.work = work
         self.rootURL = rootURL
@@ -102,6 +105,7 @@ public actor PatchlightScope {
         return PatchlightScope(
             accountID: accountID,
             accountStore: PatchlightAccountStore(store: store, cipher: cipher),
+            readCache: PatchlightReadCache(store: store, cipher: cipher),
             cache: cache,
             work: PatchlightAccountWork(),
             rootURL: accountRoot,

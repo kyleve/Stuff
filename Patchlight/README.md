@@ -24,13 +24,20 @@ Patchlight/
 └── Patchlight/       thin @main host and process-runtime selection
 ```
 
-`PatchlightCore` currently establishes the typed IDs/diff/review boundaries,
-the stable `SnapshotAnnotationV1` marker, explicit local-only SwiftData v1
-schema, encrypted draft persistence, account vault, and encrypted
-content-addressed LRU. `PatchlightUI` establishes the lifecycle/Broadway root,
-iPad split-view dashboard shell, localized onboarding surface, SnapshotKit
-matrix, Flyover catalog, and DEBUG Inspector runtime. GitHub transport and the
-full review workspace build on those seams in the following delivery stages.
+`PatchlightCore` owns the typed IDs/diff/review boundaries, stable
+`SnapshotAnnotationV1` marker, explicit local-only SwiftData v1 schema,
+encrypted persistence/cache, GitHub device authentication, API pagination,
+patch parsing, and bounded local Myers fallback. `PatchlightUI` owns the
+lifecycle/Broadway root, onboarding, cached dashboard, repository browser,
+dedicated PR workspace, and the native virtualized diff renderer, plus Flyover,
+snapshot, Inspector, and Periscope developer surfaces.
+
+The GitHub-only build remains useful offline: successful dashboard, repository,
+and workspace reads are encrypted locally, stale data is visibly labeled, and
+authentication expiry preserves that data for reauthorization. The GitHub App
+client ID and slug are non-secret build settings (`PATCHLIGHT_GITHUB_CLIENT_ID`
+and `PATCHLIGHT_GITHUB_APP_SLUG`); the owner supplies them for a distributable
+build.
 
 ## Security and persistence
 

@@ -15,6 +15,7 @@ enum PatchlightSchemaV1: VersionedSchema {
             CorrectionRecord.self,
             RepositorySettingsRecord.self,
             CacheIndexRecord.self,
+            ReadSnapshotRecord.self,
         ]
     }
 
@@ -167,6 +168,21 @@ enum PatchlightSchemaV1: VersionedSchema {
             self.objectKey = objectKey
             self.byteCount = byteCount
             self.lastAccessed = lastAccessed
+        }
+    }
+
+    @Model
+    final class ReadSnapshotRecord {
+        @Attribute(.unique) var key: String
+        var payloadCiphertext: Data
+        var refreshedAt: Date
+        var etag: String?
+
+        init(key: String, payloadCiphertext: Data, refreshedAt: Date, etag: String?) {
+            self.key = key
+            self.payloadCiphertext = payloadCiphertext
+            self.refreshedAt = refreshedAt
+            self.etag = etag
         }
     }
 }

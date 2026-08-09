@@ -1,5 +1,5 @@
 import Foundation
-import PatchlightCore
+@_spi(Testing) import PatchlightCore
 @_spi(Testing) import StuffCore
 
 enum PatchlightCoreTestSupport {
@@ -35,5 +35,75 @@ enum PatchlightCoreTestSupport {
 
     static func objectID(_ character: Character = "a") -> GitObjectID {
         GitObjectID(rawValue: String(repeating: String(character), count: 40))
+    }
+}
+
+actor ScriptedHTTPTransport: PatchlightHTTPTransport {
+    enum Failure: Error {
+        case exhausted
+    }
+
+    private var responses: [Result<PatchlightHTTPResponse, any Error>]
+    private(set) var requests: [PatchlightHTTPRequest] = []
+
+    init(_ responses: [Result<PatchlightHTTPResponse, any Error>]) {
+        self.responses = responses
+    }
+
+    func send(_ request: PatchlightHTTPRequest) async throws -> PatchlightHTTPResponse {
+        requests.append(request)
+        guard !responses.isEmpty else { throw Failure.exhausted }
+        return try responses.removeFirst().get()
+    }
+
+    func capturedRequests() -> [PatchlightHTTPRequest] {
+        requests
+    }
+}
+
+actor ImmediateSleeper: PatchlightSleeping {
+    private(set) var durations: [Duration] = []
+
+    func sleep(for duration: Duration) async throws {
+        try Task.checkCancellation()
+        durations.append(duration)
+    }
+
+    func capturedDurations() -> [Duration] {
+        durations
+    }
+}
+
+actor RoutingHTTPTransport: PatchlightHTTPTransport {
+    typealias Handler = @Sendable (PatchlightHTTPRequest) async throws -> PatchlightHTTPResponse
+
+    private let handler: Handler
+    private(set) var requests: [PatchlightHTTPRequest] = []
+
+    init(handler: @escaping Handler) {
+        self.handler = handler
+    }
+
+    func send(_ request: PatchlightHTTPRequest) async throws -> PatchlightHTTPResponse {
+        requests.append(request)
+        return try await handler(request)
+    }
+
+    func capturedRequests() -> [PatchlightHTTPRequest] {
+        requests
+    }
+}
+
+extension PatchlightHTTPResponse {
+    static func json(
+        _ body: String,
+        statusCode: Int = 200,
+        headers: [String: String] = [:],
+    ) -> Self {
+        PatchlightHTTPResponse(
+            statusCode: statusCode,
+            headers: headers,
+            body: Data(body.utf8),
+        )
     }
 }

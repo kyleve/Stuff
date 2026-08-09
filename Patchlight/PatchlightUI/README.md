@@ -5,10 +5,18 @@ Broadway-styled SwiftUI app surfaces, UIKit bridges, lifecycle composition,
 Flyover/preview fixtures, SnapshotKit matrices, and DEBUG Inspector/Periscope
 tooling.
 
-The current root establishes an iPad/Catalyst `NavigationSplitView` with Review
-Requested, My Open PRs, and Repositories destinations and a localized GitHub
-onboarding entry. The snapshot matrix intentionally uses an iPad viewport; the
-shipping product has no iPhone destination in v1.
+The root provides the complete GitHub device-flow experience and an
+iPad/Catalyst `NavigationSplitView` with Review Requested, My Open PRs, and
+installation-grouped searchable Repositories destinations. A dedicated PR
+workspace presents Overview, Conversation, Snapshots, and changed files. Text
+patches render through a viewport-lazy `UICollectionView` bridge with reusable
+TextKit cells and adaptive unified/split modes; unavailable binary, oversized,
+or undecodable content stays explicit and links to GitHub.
+
+Reads refresh on launch, foreground, manual action, and every five minutes only
+while the dashboard is visible. Cached content carries its refresh time and
+failure reason instead of masquerading as live data. The snapshot matrix uses
+an iPad viewport; the shipping product has no iPhone destination in v1.
 
 Views receive immutable PatchlightCore values and an injected account scope.
 They never open SwiftData containers, resolve global credentials, or call raw

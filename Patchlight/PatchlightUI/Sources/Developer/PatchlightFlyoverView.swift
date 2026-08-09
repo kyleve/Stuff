@@ -37,7 +37,10 @@
                                     id: FlyoverVariantID("intro"),
                                     title: "Introduction",
                                 ) {
-                                    PatchlightOnboardingView().patchlightBroadwayRoot()
+                                    PatchlightOnboardingView(
+                                        model: PatchlightAppModel(dependencies: .preview),
+                                    )
+                                    .patchlightBroadwayRoot()
                                 },
                             ],
                         ),

@@ -122,6 +122,59 @@ public enum DiffContentAvailability: Hashable, Codable, Sendable {
     case tooLarge(baseBytes: Int?, headBytes: Int?)
     case undecodable
     case unavailable(reason: String)
+
+    private enum Code: String, Codable {
+        case complete = "C"
+        case binary = "B"
+        case tooLarge = "L"
+        case undecodable = "U"
+        case unavailable = "X"
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case code = "c"
+        case baseBytes = "b"
+        case headBytes = "h"
+        case reason = "r"
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        switch try container.decode(Code.self, forKey: .code) {
+            case .complete:
+                self = .complete
+            case .binary:
+                self = .binary
+            case .tooLarge:
+                self = try .tooLarge(
+                    baseBytes: container.decodeIfPresent(Int.self, forKey: .baseBytes),
+                    headBytes: container.decodeIfPresent(Int.self, forKey: .headBytes),
+                )
+            case .undecodable:
+                self = .undecodable
+            case .unavailable:
+                self = try .unavailable(reason: container.decode(String.self, forKey: .reason))
+        }
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        switch self {
+            case .complete:
+                try container.encode(Code.complete, forKey: .code)
+            case .binary:
+                try container.encode(Code.binary, forKey: .code)
+            case let .tooLarge(baseBytes, headBytes):
+                try container.encode(Code.tooLarge, forKey: .code)
+                try container.encodeIfPresent(baseBytes, forKey: .baseBytes)
+                try container.encodeIfPresent(headBytes, forKey: .headBytes)
+            case .undecodable:
+                try container.encode(Code.undecodable, forKey: .code)
+            case let .unavailable(reason):
+                try container.encode(Code.unavailable, forKey: .code)
+                try container.encode(reason, forKey: .reason)
+        }
+    }
 }
 
 public struct DiffFile: Identifiable, Hashable, Codable, Sendable {

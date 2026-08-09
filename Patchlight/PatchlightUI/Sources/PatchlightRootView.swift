@@ -19,7 +19,10 @@ public struct PatchlightRootView: View {
     /// Preview/test convenience; the app runtime constructs and starts its own runner.
     @MainActor
     public init() {
-        launcher = PatchlightLaunch.makeLauncher(reason: .userForeground)
+        launcher = PatchlightLaunch.makeLauncher(
+            reason: .userForeground,
+            dependencies: .preview,
+        )
         drivesLauncher = true
     }
 
@@ -30,8 +33,8 @@ public struct PatchlightRootView: View {
             animation: .easeInOut(duration: 0.2),
             splash: { _ in PatchlightLaunchSplashView() },
             failure: { PatchlightLaunchFailureView(failure: $0) },
-        ) { _ in
-            PatchlightDashboardView()
+        ) { session in
+            PatchlightDashboardView(model: session.model)
         }
         .patchlightBroadwayRoot()
         .task {

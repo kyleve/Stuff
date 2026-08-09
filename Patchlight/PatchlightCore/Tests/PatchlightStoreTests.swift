@@ -5,7 +5,7 @@ import Testing
 struct PatchlightStoreTests {
     @Test func v1ContainerOpensInMemoryAndExposesEveryInspectorModel() throws {
         _ = try PatchlightStore.make(storage: .inMemory)
-        #expect(PatchlightStore.inspectorModelTypes.count == 7)
+        #expect(PatchlightStore.inspectorModelTypes.count == 8)
     }
 
     @Test func v1OnDiskContainerReopensThroughTheMigrationPlan() throws {

@@ -194,6 +194,8 @@ let project = Project(
                 "CFBundleShortVersionString": .string("1.0"),
                 "CFBundleVersion": .string("1"),
                 "LSApplicationCategoryType": .string("public.app-category.developer-tools"),
+                "PatchlightGitHubAppSlug": .string("$(PATCHLIGHT_GITHUB_APP_SLUG)"),
+                "PatchlightGitHubClientID": .string("$(PATCHLIGHT_GITHUB_CLIENT_ID)"),
                 "UIApplicationSupportsIndirectInputEvents": .boolean(true),
                 "UILaunchScreen": .dictionary([:]),
             ]),
@@ -210,6 +212,8 @@ let project = Project(
                     "Patchlight/Patchlight/Patchlight-Catalyst.entitlements",
                 "SUPPORTS_MACCATALYST": "YES",
                 "TARGETED_DEVICE_FAMILY": "2",
+                "PATCHLIGHT_GITHUB_APP_SLUG": "",
+                "PATCHLIGHT_GITHUB_CLIENT_ID": "",
             ]),
         ),
         .target(

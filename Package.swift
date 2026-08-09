@@ -84,6 +84,7 @@ let package = Package(
                 .target(name: "PeriscopeTools"),
                 .target(name: "PeriscopeUI"),
                 .target(name: "SnapshotKit"),
+                .target(name: "StuffCore"),
             ],
             path: "Patchlight/PatchlightUI/Sources",
             resources: [

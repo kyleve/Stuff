@@ -1,6 +1,72 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "addition" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Added line"
+          }
+        }
+      }
+    },
+    "automatic" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatic"
+          }
+        }
+      }
+    },
+    "backToDashboard" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Back to Dashboard"
+          }
+        }
+      }
+    },
+    "base" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Base"
+          }
+        }
+      }
+    },
+    "beginDeviceSignIn" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Begin Device Sign-In"
+          }
+        }
+      }
+    },
+    "binaryFile" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GitHub did not provide a text patch and the exact blobs contain binary data."
+          }
+        }
+      }
+    },
     "cancel" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -45,6 +111,94 @@
         }
       }
     },
+    "contextLine" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Context line"
+          }
+        }
+      }
+    },
+    "continueAction" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continue"
+          }
+        }
+      }
+    },
+    "conversation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conversation"
+          }
+        }
+      }
+    },
+    "conversationLoadsNextStage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The read-only file workspace is ready. Review threads and replies arrive in the review-write stage."
+          }
+        }
+      }
+    },
+    "copyCode" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy Code"
+          }
+        }
+      }
+    },
+    "couldNotConnectGitHub" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t Connect to GitHub"
+          }
+        }
+      }
+    },
+    "couldNotLoadGitHub" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t Load GitHub"
+          }
+        }
+      }
+    },
+    "couldNotLoadPullRequest" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t Load Pull Request"
+          }
+        }
+      }
+    },
     "couldNotOpenPatchlight" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -56,6 +210,28 @@
         }
       }
     },
+    "deletion" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deleted line"
+          }
+        }
+      }
+    },
+    "deviceFlowCanCancel" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You can cancel here without changing your GitHub account."
+          }
+        }
+      }
+    },
     "deviceFlowComingNext" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -63,6 +239,116 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Device Sign-In Is Being Wired"
+          }
+        }
+      }
+    },
+    "diffLayout" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diff Layout"
+          }
+        }
+      }
+    },
+    "diffMetadata" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diff metadata"
+          }
+        }
+      }
+    },
+    "directRequest" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Direct"
+          }
+        }
+      }
+    },
+    "draft" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Draft"
+          }
+        }
+      }
+    },
+    "fileListIncomplete" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GitHub returned only part of this pull request’s file list. Every retrieved file remains visible."
+          }
+        }
+      }
+    },
+    "fileTooLargeForLocalDiff" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The exact base and head blobs are too large for the bounded local diff (%lld / %lld bytes)."
+          }
+        }
+      }
+    },
+    "files" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Files"
+          }
+        }
+      }
+    },
+    "githubConnected" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GitHub Connected"
+          }
+        }
+      }
+    },
+    "githubConnectedDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Patchlight loaded your installations and review inbox."
+          }
+        }
+      }
+    },
+    "githubDeviceCode" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GitHub device code"
           }
         }
       }
@@ -89,6 +375,50 @@
         }
       }
     },
+    "head" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Head"
+          }
+        }
+      }
+    },
+    "hiddenChanges" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hidden Changes"
+          }
+        }
+      }
+    },
+    "installGitHubApp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Install GitHub App"
+          }
+        }
+      }
+    },
+    "installPatchlightDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Install Patchlight’s GitHub App on the accounts and repositories you want to review."
+          }
+        }
+      }
+    },
     "knowWhereToLook" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -100,6 +430,28 @@
         }
       }
     },
+    "loadingGitHub" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading GitHub…"
+          }
+        }
+      }
+    },
+    "loadingPullRequest" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading pull request…"
+          }
+        }
+      }
+    },
     "myOpenPullRequests" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -107,6 +459,127 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "My Open PRs"
+          }
+        }
+      }
+    },
+    "noOpenPullRequests" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Open Pull Requests"
+          }
+        }
+      }
+    },
+    "noRepositories" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Accessible Repositories"
+          }
+        }
+      }
+    },
+    "noReviewRequests" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Reviews Need You"
+          }
+        }
+      }
+    },
+    "noSnapshots" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Snapshot Changes"
+          }
+        }
+      }
+    },
+    "noTextChanges" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Text Changes"
+          }
+        }
+      }
+    },
+    "openGitHub" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open GitHub"
+          }
+        }
+      }
+    },
+    "openGitHubDevice" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter This Code on GitHub"
+          }
+        }
+      }
+    },
+    "openOnGitHub" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open on GitHub"
+          }
+        }
+      }
+    },
+    "openPullRequestHint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opens the dedicated Patchlight review workspace."
+          }
+        }
+      }
+    },
+    "overview" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Overview"
+          }
+        }
+      }
+    },
+    "patchUnavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This file cannot be rendered as text."
           }
         }
       }
@@ -133,6 +606,50 @@
         }
       }
     },
+    "reauthorizationKeepsDrafts" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reconnect GitHub to refresh or submit. Your encrypted drafts remain on this device."
+          }
+        }
+      }
+    },
+    "reconnectGitHub" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reconnect GitHub"
+          }
+        }
+      }
+    },
+    "refresh" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Refresh"
+          }
+        }
+      }
+    },
+    "refreshing" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Refreshing GitHub"
+          }
+        }
+      }
+    },
     "relaunchToTryAgain" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -155,6 +672,17 @@
         }
       }
     },
+    "requestingDeviceCode" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Requesting a device code…"
+          }
+        }
+      }
+    },
     "reviewRequested" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -166,6 +694,17 @@
         }
       }
     },
+    "searchRepositories" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search repositories"
+          }
+        }
+      }
+    },
     "signedOutDescription" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -173,6 +712,94 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Connect one GitHub.com account to find requested reviews, your own pull requests, and every accessible repository."
+          }
+        }
+      }
+    },
+    "snapshots" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Snapshots"
+          }
+        }
+      }
+    },
+    "split" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Split"
+          }
+        }
+      }
+    },
+    "teamDiscoveryUnavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Team discovery is unavailable because this organization withheld Members permission."
+          }
+        }
+      }
+    },
+    "teamRequest" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Team"
+          }
+        }
+      }
+    },
+    "tryAgain" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Try Again"
+          }
+        }
+      }
+    },
+    "undecodableFile" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The exact blobs are not valid UTF-8 text."
+          }
+        }
+      }
+    },
+    "unified" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unified"
+          }
+        }
+      }
+    },
+    "waitingForGitHub" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting for GitHub authorization…"
           }
         }
       }

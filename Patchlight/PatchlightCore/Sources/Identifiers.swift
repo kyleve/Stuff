@@ -10,6 +10,16 @@ public struct PatchlightAccountID: RawRepresentable, Hashable, Codable, Sendable
     }
 }
 
+/// A GitHub App installation visible to the signed-in user.
+public struct GitHubInstallationID: RawRepresentable, Hashable, Codable, Sendable {
+    public let rawValue: Int64
+
+    public init(rawValue: Int64) {
+        precondition(rawValue > 0, "A GitHub installation ID must be positive")
+        self.rawValue = rawValue
+    }
+}
+
 /// A GitHub repository identity that remains stable across display-name reuse.
 public struct RepositoryID: Hashable, Codable, Sendable {
     public let rawValue: Int64
@@ -17,6 +27,23 @@ public struct RepositoryID: Hashable, Codable, Sendable {
     public init(rawValue: Int64) {
         precondition(rawValue > 0, "A repository ID must be positive")
         self.rawValue = rawValue
+    }
+}
+
+/// The rename-sensitive coordinates used only when constructing GitHub routes.
+public struct RepositoryCoordinates: Hashable, Codable, Sendable {
+    public let owner: String
+    public let name: String
+
+    public init(owner: String, name: String) {
+        precondition(!owner.isEmpty, "A repository owner must not be empty")
+        precondition(!name.isEmpty, "A repository name must not be empty")
+        self.owner = owner
+        self.name = name
+    }
+
+    public var displayName: String {
+        "\(owner)/\(name)"
     }
 }
 

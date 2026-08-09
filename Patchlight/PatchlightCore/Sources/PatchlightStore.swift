@@ -16,6 +16,13 @@ struct CacheIndexEntry {
     let lastAccessed: Date
 }
 
+struct EncryptedReadSnapshot {
+    let key: String
+    let payloadCiphertext: Data
+    let refreshedAt: Date
+    let etag: String?
+}
+
 protocol CacheIndexing: Sendable {
     func cacheEntries() async throws -> [CacheIndexEntry]
     func upsertCacheEntry(_ entry: CacheIndexEntry) async throws
@@ -144,5 +151,42 @@ public actor PatchlightStore: CacheIndexing {
             where: #Predicate { $0.objectKey == key },
         )
         try modelContext.save()
+    }
+
+    func upsertReadSnapshot(_ snapshot: EncryptedReadSnapshot) throws {
+        let key = snapshot.key
+        var descriptor = FetchDescriptor<PatchlightSchemaV1.ReadSnapshotRecord>(
+            predicate: #Predicate { $0.key == key },
+        )
+        descriptor.fetchLimit = 1
+        if let record = try modelContext.fetch(descriptor).first {
+            record.payloadCiphertext = snapshot.payloadCiphertext
+            record.refreshedAt = snapshot.refreshedAt
+            record.etag = snapshot.etag
+        } else {
+            modelContext.insert(PatchlightSchemaV1.ReadSnapshotRecord(
+                key: snapshot.key,
+                payloadCiphertext: snapshot.payloadCiphertext,
+                refreshedAt: snapshot.refreshedAt,
+                etag: snapshot.etag,
+            ))
+        }
+        try modelContext.save()
+    }
+
+    func readSnapshot(key: String) throws -> EncryptedReadSnapshot? {
+        let snapshotKey = key
+        var descriptor = FetchDescriptor<PatchlightSchemaV1.ReadSnapshotRecord>(
+            predicate: #Predicate { $0.key == snapshotKey },
+        )
+        descriptor.fetchLimit = 1
+        return try modelContext.fetch(descriptor).first.map {
+            EncryptedReadSnapshot(
+                key: $0.key,
+                payloadCiphertext: $0.payloadCiphertext,
+                refreshedAt: $0.refreshedAt,
+                etag: $0.etag,
+            )
+        }
     }
 }
