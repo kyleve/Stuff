@@ -6,11 +6,11 @@ presents results as interactive snippet cards.
 
 Intents are thin adapters. They resolve a process-cached `WhereServices`
 through the `@Dependency`-injected `IntentServices` handoff (owned by the
-app's `AppDelegate` and registered with `AppDependencyManager`; the launch
+app's `AppDelegate` and registered with `AppDependencyManager`. The launch.
 installs a stack built with
 [`WhereServices.forIntents(sharingStoreOf:)`](../WhereCore/Sources/WhereServices+Intents.swift)
 over the same `SwiftDataStore` it opened, and an intent that fires earlier
-waits for that install rather than opening its own store; no GPS started via
+waits for that install rather than opening its own store. No GPS started via.
 `WhereCore`'s `IdleLocationSource`), do their read/write through the existing
 collaborators
 (`reports`, `recentActivity`, `journal`) using a Gregorian calendar
@@ -44,13 +44,13 @@ Query intents return a dialog (for voice-only Siri) plus a snippet card. The
 day-count card is an interactive `SnippetIntent` (`DaysInRegionSnippetIntent`):
 it hosts a `Button(intent:)` that runs `LogDayIntent` and reloads the card with
 the updated total. The presentational card bodies live in `WhereUI`
-(`Sources/Intents/`, Broadway-styled, with `#Preview`s); the interactive
+(`Sources/Intents/`, Broadway-styled, with `#Preview`s). The interactive.
 wrapper that wires the button to an intent lives here, since `WhereUI` can't
 depend on `WhereIntents`.
 
 ## Spotlight
 
-`RegionEntity` conforms to `IndexedEntity`; the user's **tracked** regions are
+`RegionEntity` conforms to `IndexedEntity`. The user's **tracked** regions are.
 indexed into Spotlight (`RegionSpotlightIndexer.indexRegions()`, called at app
 launch, re-run picks up changes) so a search for a region name surfaces Where and
 its day-count query.
@@ -58,18 +58,18 @@ its day-count query.
 ## Shared types
 
 - `RegionEntity` (+ `RegionEntityQuery`) — the region parameter every intent
-  operates on, the Spotlight-indexable entity, and the reload-safe parameter of
-  the interactive snippet. It's an `AppEntity` (not an `AppEnum`) so its
-  per-instance `displayRepresentation` can read `Region.localizedName` at
-  runtime — App Intents requires an `AppEnum`'s `caseDisplayRepresentations` to
-  be compile-time-constant literals, which would force restating RegionKit's
-  region names here. `entities(for:)` resolves **any available** region by id
-  (so "days in Texas" answers even when untracked), while `suggestedEntities()`
-  and the Spotlight index surface the user's **tracked** set (via
-  `WhereServices.trackedRegions()`).
+operates on, the Spotlight-indexable entity, and the reload-safe parameter of
+the interactive snippet. It's an `AppEntity` (not an `AppEnum`) so its
+per-instance `displayRepresentation` can read `Region.localizedName` at
+runtime — App Intents requires an `AppEnum`'s `caseDisplayRepresentations` to
+be compile-time-constant literals, which would force restating RegionKit's
+region names here. `entities(for:)` resolves **any available** region by id
+(so "days in Texas" answers even when untracked), while `suggestedEntities()`
+and the Spotlight index surface the user's **tracked** set (via
+`WhereServices.trackedRegions()`).
 - `ActivityWindowAppEnum` — mirrors `RecentActivityWindow` (24h / week / month /
-  year so far). An enum is fine here because these display names have no
-  RegionKit-owned source.
+year so far). An enum is fine here because these display names have no
+RegionKit-owned source.
 
 ## Timing
 
@@ -83,17 +83,17 @@ slow-by-nature intents (the on-device model summary) get the slack.
 ## Localization
 
 - **Static App Intents metadata** — intent titles, parameter titles, and the
-  enum/entity type & case display names — are `LocalizedStringResource` string
-  literals. App Intents extracts and localizes these through the app's own App
-  Intents string table; the framework requires them to be compile-time
-  constants, so they can't be routed through this module's `Bundle.module`
-  catalog.
+enum/entity type & case display names — are `LocalizedStringResource` string
+literals. App Intents extracts and localizes these through the app's own App
+Intents string table. The framework requires them to be compile-time.
+constants, so they can't be routed through this module's `Bundle.module`
+catalog.
 - **Runtime dialog copy** (the spoken/`IntentDialog` results) resolves through
-  this module's [`Resources/Localizable.xcstrings`](Sources/Resources/Localizable.xcstrings)
-  via `IntentStrings`, which composes the catalog's generated symbols,
-  interpolating dynamic values.
+this module's [`Resources/Localizable.xcstrings`](Sources/Resources/Localizable.xcstrings)
+via `IntentStrings`, which composes the catalog's generated symbols,
+interpolating dynamic values.
 - **Region names** always come from `RegionKit`'s `Region.localizedName` — never
-  restated here.
+restated here.
 
 ## Installation
 

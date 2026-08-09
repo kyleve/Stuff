@@ -1,7 +1,9 @@
 # Store perform serialization
 
-Confirmatory model for [`SwiftDataStore.perform`](../../WhereCore/Sources/Persistence/SwiftDataStore.swift):
-at most one outermost transaction, nested same-task reuse, FIFO waiters.
+Confirmatory model for [`SwiftDataStore.perform`](../../WhereCore/Sources/Persistence/SwiftDataStore.swift).
+At most one outermost transaction runs at a time.
+Nested same-task calls reuse the transaction.
+Waiters proceed in FIFO order.
 
 ## Correspondence
 

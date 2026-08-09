@@ -1,10 +1,11 @@
 # Launch lifecycle (narrow slice)
 
-Models the undetermined → foreground promotion path in
+This model covers the undetermined → foreground promotion path in
 [`LifecycleRunner`](../../../Shared/LifecycleKit/Sources/LifecycleRunner.swift)
-and [`RootView`](../../WhereUI/Sources/RootView.swift): a headless drive runs
-background-safe trunk steps, `enterForeground()` promotes the reason, and the
-re-drive skips memoized steps while running foreground-only work.
+and [`RootView`](../../WhereUI/Sources/RootView.swift).
+A headless drive runs background-safe trunk steps.
+`enterForeground()` promotes the reason.
+The re-drive skips memoized steps while running foreground-only work.
 
 ## Correspondence
 
@@ -16,9 +17,9 @@ re-drive skips memoized steps while running foreground-only work.
 | `driveActive` | at most one in-flight `drive()` task |
 | `EnterForeground` | `LifecycleRunner.enterForeground()` |
 
-Background steps stand in for `sync-auth` and `reconcile-tracking`; the
-foreground step stands in for `capture-today`. Gates, detached fan-out, and
-teardown are out of scope for this narrow slice.
+Background steps stand in for `sync-auth` and `reconcile-tracking`.
+The foreground step stands in for `capture-today`.
+Gates, detached fan-out, and teardown are out of scope for this narrow slice.
 
 ## Properties
 

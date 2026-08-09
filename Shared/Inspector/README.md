@@ -2,19 +2,19 @@
 
 Inspector is a reusable SwiftUI developer runtime for inspecting and deleting an
 application's persisted state. An app explicitly configures the resources it
-owns; Inspector discovers nothing globally and imports no app code.
+owns. Inspector discovers nothing globally and imports no app code.
 
 The root `InspectorView` uses an adaptive `NavigationSplitView` with three
 sections:
 
 - **Files** — lazy directory browsing, hidden items, search, sorting, metadata,
-  Quick Look, and confirmed recursive deletion.
+Quick Look, and confirmed recursive deletion.
 - **User Defaults** — persistent-domain values only. Existing strings, booleans,
-  integers, floating-point values, dates, and URLs can be edited without
-  changing type. Arrays, dictionaries, and data are read-only. Any value can be
-  deleted.
+integers, floating-point values, dates, and URLs can be edited without
+changing type. Arrays, dictionaries, and data are read-only. Any value can be
+deleted.
 - **SwiftData** — generic schema discovery, paged tables, row detail,
-  relationship browsing, row/entity deletion, and supported whole-store erase.
+relationship browsing, row/entity deletion, and supported whole-store erase.
 
 It is intended for DEBUG-only boot modes. The host app selects its runtime
 before launch and gives Inspector a dedicated `InspectorModeController`, so the
@@ -26,15 +26,15 @@ process can finish them before any runtime opens SwiftData.
 
 ```swift
 InspectorView(
-    configuration: InspectorConfiguration,
-    modeController: InspectorModeController
+configuration: InspectorConfiguration,
+modeController: InspectorModeController
 )
 
 InspectorConfiguration(
-    title: String,
-    fileContainers: [InspectorConfiguration.FileContainer],
-    defaultsDomains: [InspectorConfiguration.DefaultsDomain],
-    swiftDataSources: [InspectorConfiguration.SwiftDataSource]
+title: String,
+fileContainers: [InspectorConfiguration.FileContainer],
+defaultsDomains: [InspectorConfiguration.DefaultsDomain],
+swiftDataSources: [InspectorConfiguration.SwiftDataSource]
 )
 ```
 
@@ -48,42 +48,42 @@ store's crash-replay journals:
 
 ```swift
 let configuration = InspectorConfiguration(
-    title: "Inspector",
-    fileContainers: [
-        .init(
-            id: .init(rawValue: "documents"),
-            title: "Documents",
-            rootURL: documentsURL
-        ),
-    ],
-    defaultsDomains: [
-        .init(
-            id: .init(rawValue: "application"),
-            title: "Application",
-            userDefaults: .standard,
-            persistentDomainName: bundleIdentifier
-        ),
-    ],
-    swiftDataSources: [
-        .init(
-            id: .init(rawValue: "primary"),
-            title: "SwiftData",
-            storageRootURL: applicationSupportURL,
-            storeURL: AppStore.inspectorStoreURL,
-            recoveryStorageURLs: AppStore.inspectorRecoveryStorageURLs,
-            modelTypes: AppStore.inspectorModelTypes,
-            makeContainer: { try AppStore.makeContainer() }
-        ),
-    ]
+title: "Inspector",
+fileContainers: [
+.init(
+id:.init(rawValue: "documents"),
+title: "Documents",
+rootURL: documentsURL
+),
+],
+defaultsDomains: [
+.init(
+id:.init(rawValue: "application"),
+title: "Application",
+userDefaults:.standard,
+persistentDomainName: bundleIdentifier
+),
+],
+swiftDataSources: [
+.init(
+id:.init(rawValue: "primary"),
+title: "SwiftData",
+storageRootURL: applicationSupportURL,
+storeURL: AppStore.inspectorStoreURL,
+recoveryStorageURLs: AppStore.inspectorRecoveryStorageURLs,
+modelTypes: AppStore.inspectorModelTypes,
+makeContainer: { try AppStore.makeContainer() }
+),
+]
 )
 
 let modeController = InspectorModeController(
-    applicationIdentifier: bundleIdentifier
+applicationIdentifier: bundleIdentifier
 )
 
 InspectorView(
-    configuration: configuration,
-    modeController: modeController
+configuration: configuration,
+modeController: modeController
 )
 ```
 
@@ -120,9 +120,9 @@ SwiftData mutations run on the same actor as reads. That actor owns the
 `ModelContainer`, creates every `ModelContext`, explicitly saves deletions, and
 returns only `Sendable` value snapshots and `PersistentIdentifier`s. A complete
 erase calls `ModelContainer.erase()`, removes the source's exact
-`recoveryStorageURLs`, and reopens through the source factory; raw SQLite
+`recoveryStorageURLs`, and reopens through the source factory. Raw SQLite.
 deletion remains unavailable for an open store and throughout the generic file
-browser. Cancellation is honored before an erase starts; once destructive work
+browser. Cancellation is honored before an erase starts. Once destructive work.
 begins, cleanup and reopening run to completion.
 
 Every configured SwiftData source remains in the sidebar when its container

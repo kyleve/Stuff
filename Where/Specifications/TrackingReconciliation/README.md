@@ -28,7 +28,7 @@ invalidate the result until this mapping is checked again.
 
 The source entry points represented are `WhereSession.startTracking()`, `stopTracking()`, and
 `setRecordingEnabled(_:)`. Launch, foreground, authorization observation, and CloudKit-change
-reconciliation also enter the controller's exclusive lane, but do not change local consent; the
+reconciliation also enter the controller's exclusive lane, but do not change local consent. The.
 model permits them to delay a command without representing their choice-neutral work. Onboarding
 registration happens before an active session can submit these commands and is outside this
 protocol.
@@ -43,18 +43,18 @@ orders emissions and ignores an update whose sequence is no newer than the last 
 
 - `TypeOK` checks every model variable.
 - `CurrentIntentIsImmediate` requires the sidecar choice to match the latest submitted command,
-  including while permission or a Core transition is suspended.
+including while permission or a Core transition is suspended.
 - `CorrectAtQuiescence` requires sidecar and controller intent to equal the latest command, and the
-  ingestor and UI state to equal that intent gated by authorization.
+ingestor and UI state to equal that intent gated by authorization.
 - `EventuallySettled` requires those facts to converge after the finite command list is submitted.
 - `StalePermissionNotObserved` is deliberately violated by the reachability check, proving that TLC
-  explored the branch where an older enable completes after a newer command.
+explored the branch where an older enable completes after a newer command.
 - Candidate configurations check deadlock freedom. The explicit quiescent stutter action models a
-  live process after this finite protocol has settled.
+live process after this finite protocol has settled.
 
 Weak fairness assumes each configured command is eventually submitted, permission requests return,
 and an admitted Core transition eventually completes. These correspond to the runtime progress
-guarantees needed only for `EventuallySettled`; the safety invariants do not depend on fairness.
+guarantees needed only for `EventuallySettled`. The safety invariants do not depend on fairness.
 
 ## Bounds and exclusions
 

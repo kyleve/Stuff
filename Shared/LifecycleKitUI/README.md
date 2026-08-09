@@ -4,7 +4,7 @@ The SwiftUI layer for [LifecycleKit](../LifecycleKit): the container that
 renders a `LifecycleRunner`'s observable `phase`, the gate-view registry, and
 the environment proxy nested views use to reach the runner. The engine itself
 (steps, plans, the runner) lives in LifecycleKit and knows nothing about
-views; this module owns everything rendered.
+views. This module owns everything rendered.
 
 ## Quick start
 
@@ -13,22 +13,22 @@ import LifecycleKit
 import LifecycleKitUI
 
 LifecycleContainer(
-    runner,                                   // LifecycleRunner<WhereSession>
-    splash: { context in
-        // The running step's context is handed in so a splash can show a
-        // caption/progress; Where's own splash ignores it and self-manages.
-        MySplashView(status: context?.message)
-    },
-    failure: { failure in
-        LifecycleFailureView(failure: failure)   // terminal — no retry
-    },
-    gates: {
-        GateView(for: OnboardingGate.self) { handle, session in
-            OnboardingView(gate: handle, session: session)
-        }
-    },
+runner, // LifecycleRunner<WhereSession>
+splash: { context in
+// The running step's context is handed in so a splash can show a
+// caption/progress. Where's own splash ignores it and self-manages.
+MySplashView(status: context?.message)
+},
+failure: { failure in
+LifecycleFailureView(failure: failure) // terminal — no retry
+},
+gates: {
+GateView(for: OnboardingGate.self) { handle, session in
+OnboardingView(gate: handle, session: session)
+}
+},
 ) { session in
-    MainTabs(session: session)                // non-optional: .ready carries it
+MainTabs(session: session) // non-optional:.ready carries it
 }
 ```
 
@@ -43,24 +43,24 @@ LifecycleContainer(
 | `.ready(value)` | `content(value)` |
 
 - **`content` receives the launch's output.** `.ready` carries the trunk's
-  final value, so the app surface cannot be built without the proof the
-  launch produced — no optional re-reads from shared state.
+final value, so the app surface cannot be built without the proof the
+launch produced — no optional re-reads from shared state.
 - **Gate views are registered by gate type**, which statically recovers the
-  gate's `Value`: the view gets `(LifecycleGateHandle, Value)` and resolves
-  the handle (`complete()` / `fail(_:)`) to resume the trunk. A parked gate
-  with no registration is logged and failed with `MissingGateViewError`, so
-  the launch lands on the (terminal) failure surface — visible and named —
-  instead of an indefinite splash; debug and release behave identically.
+gate's `Value`: the view gets `(LifecycleGateHandle, Value)` and resolves
+the handle (`complete()` / `fail(_:)`) to resume the trunk. A parked gate
+with no registration is logged and failed with `MissingGateViewError`, so
+the launch lands on the (terminal) failure surface — visible and named —
+instead of an indefinite splash. Debug and release behave identically.
 - **Headless launches render nothing.** When `reason.buildsNoViewTree` (a
-  `.background` relaunch, or `.undetermined` before promotion) the container
-  renders `EmptyView()` — even at `.ready` — so `content` is never built for
-  a launch nobody sees.
+`.background` relaunch, or `.undetermined` before promotion) the container
+renders `EmptyView()` — even at `.ready` — so `content` is never built for
+a launch nobody sees.
 - **Surface transitions animate on identity.** The phase's surface identity
-  collapses `launching`/`running` into one splash surface, so a step
-  advancing never re-triggers the transition; reaching a gate, `.failed`, or
-  `.ready` animates with the caller-supplied `transition`/`animation`.
-  Launch surfaces sit above `content` so a leaving splash plays its removal
-  transition over the entering app.
+collapses `launching`/`running` into one splash surface, so a step
+advancing never re-triggers the transition. Reaching a gate, `.failed`, or.
+`.ready` animates with the caller-supplied `transition`/`animation`.
+Launch surfaces sit above `content` so a leaving splash plays its removal
+transition over the entering app.
 
 ## Holding the splash on a fast launch
 
@@ -72,8 +72,8 @@ as the runner is ready). The hold is per-appearance, so a reset relaunch (or
 the return from a gate) gets its own minimum:
 
 ```swift
-LifecycleContainer(runner, minimumSplashDuration: .seconds(1)) { session in
-    MainTabs(session: session)
+LifecycleContainer(runner, minimumSplashDuration:.seconds(1)) { session in
+MainTabs(session: session)
 }
 ```
 
@@ -86,7 +86,7 @@ value — beneath the splash that's still covering it — so the destination's
 `.task`s and first layout happen *during* the hold instead of in the frame the
 reveal animation starts. It stays gated on the launch's output either way
 (that value is only readable from `.ready`), so nothing is built speculatively:
-the hold just stops being a stall and starts being a warm-up.
+the hold stops being a stall and starts being a warm-up.
 
 ## Reaching the runner from nested views
 

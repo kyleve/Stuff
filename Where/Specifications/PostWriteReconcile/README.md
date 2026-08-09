@@ -1,8 +1,8 @@
 # Post-write reconcile
 
-Models the intended contract in [`DayJournal.reconcileAfterDayDataChange()`](../../WhereCore/Sources/Journal/DayJournal.swift):
-commit, then full fan-out (invalidate → reminders → issue alerts → widgets), then
-`changes()` readers observe applied side effects.
+This model covers the intended contract in [`DayJournal.reconcileAfterDayDataChange()`](../../WhereCore/Sources/Journal/DayJournal.swift).
+The order is: commit, then full fan-out (invalidate → reminders → issue alerts → widgets).
+Then `changes()` readers observe applied side effects.
 
 ## Correspondence
 
@@ -30,11 +30,11 @@ Swift guards: [`DayJournalTests.addManualDayReconcilesAndPublishes`](../../Where
 [`WhereServicesTests.redundantGPSSamplesSkipRepublishingButNewRegionsStillPublish`](../../WhereCore/Tests/WhereServicesTests.swift).
 
 Single-sample ingest routes through `reconcileIssueState()` plus
-`publishAfterIngest(of:)` (skips redundant widget rebuilds); bulk ingest uses
-full `reconcileAfterDayDataChange()`.
+`publishAfterIngest(of:)` (skips redundant widget rebuilds).
+Bulk ingest uses full `reconcileAfterDayDataChange()`.
 
 Out of model until routed: `DailySummaryReconciler`, `setPrimaryRegions` (see
-[`Where/TODOs.md`](../../TODOs.md) with links here). Dismiss/restore uses
-widget-less `reconcileIssueState()` by design.
+[`Where/TODOs.md`](../../TODOs.md) with links here).
+Dismiss/restore uses widget-less `reconcileIssueState()` by design.
 
 Run: `./tla-check PostWriteReconcile`

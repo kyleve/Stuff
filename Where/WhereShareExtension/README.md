@@ -12,30 +12,29 @@ straight into the shared App Group SwiftData store the app reads.
 
 ```
 Host app Share sheet
-    └─▶ ShareViewController (principal class)
-            └─▶ SharedItemLoader           (extract bytes from NSItemProviders)
-            └─▶ ShareEvidenceView + Model  (SwiftUI compose sheet)
-                    └─▶ SwiftDataStore.perform { write(evidence:blob:) }
-                            └─▶ App Group store (group.com.stuff.where)
+└─▶ ShareViewController (principal class)
+└─▶ SharedItemLoader (extract bytes from NSItemProviders)
+└─▶ ShareEvidenceView + Model (SwiftUI compose sheet)
+└─▶ SwiftDataStore.perform { write(evidence:blob:) }
+└─▶ App Group store (group.com.stuff.where)
 ```
 
 - **`SharedItemLoader`** takes one attachment per `NSItemProvider` that yields
-  bytes (so a multi-item share — the activation rule allows up to 20 — keeps them
-  all), preferring the most preview-friendly representation each registered:
-  PDF → image → concrete file (`.pkpass`, `.eml`, …) → text → URL (kept as its
-  string). A share with nothing loadable still composes as a metadata-only note,
-  with whatever reason the provider gave logged as a warning. The whole load is
-  one Periscope span, since it's what the wait between tapping Share and seeing
-  the compose form is spent on.
+bytes (so a multi-item share — the activation rule allows up to 20 — keeps them
+all), preferring the most preview-friendly representation each registered:
+PDF → image → concrete file (`.pkpass`, `.eml`, …) → text → URL (kept as its
+string). A share with nothing loadable still composes as a metadata-only note,
+with whatever reason the provider gave logged as a warning. The whole load is
+one Periscope span, since it's what the wait between tapping Share and seeing
+the compose form is spent on.
 - **`ShareEvidenceModel`** holds the editable fields, classifies each attachment
-  with [`EvidenceContentType.classify`](../WhereCore/Sources/Evidence/EvidenceContentType+Classify.swift),
-  and persists one `Evidence` per attachment (all sharing the form's
-  kind/date/note) in a single transaction.
-- **`ShareEvidenceView`** is the compose form; kind names/symbols reuse
-  WhereUI's public `EvidenceKind` presentation helpers so they read identically
-  to the in-app "Add evidence" sheet. Extension-only chrome resolves through
-  this target's own catalog via its generated symbols
-  (`String(localized: .shareTitle)`).
+with [`EvidenceContentType.classify`](../WhereCore/Sources/Evidence/EvidenceContentType+Classify.swift),
+and persists one `Evidence` per attachment (all sharing the form's
+kind/date/note) in a single transaction.
+- **`ShareEvidenceView`** is the compose form. Kind names/symbols reuseWhereUI's public `EvidenceKind` presentation helpers so they read identically
+to the in-app "Add evidence" sheet. Extension-only chrome resolves through
+this target's own catalog via its generated symbols
+(`String(localized:.shareTitle)`).
 
 ## Why write to the store directly
 
@@ -62,11 +61,11 @@ entitlement so both processes open the same SwiftData store.
 ## Limitations
 
 - **No test bundle.** The build-and-write path is exercised indirectly by
-  **WhereCore** store tests and the **WhereUI** compose model; the loader and
-  view controller are thin glue over system APIs.
+**WhereCore** store tests and the **WhereUI** compose model. The loader and.
+view controller are thin glue over system APIs.
 - **In-app refresh is on the next foreground, not mid-scroll.** The app observes
-  `.NSPersistentStoreRemoteChange` for its on-disk store (both `.localOnly` debug
-  and `.cloudKit` release builds), so an extension write refreshes badges/lists
-  when the app is next active — no relaunch needed. It won't repaint while the
-  app is suspended behind the share sheet; Core Data delivers the change when the
-  app resumes.
+`.NSPersistentStoreRemoteChange` for its on-disk store (both `.localOnly` debug
+and `.cloudKit` release builds), so an extension write refreshes badges/lists
+when the app is next active — no relaunch needed. It won't repaint while the
+app is suspended behind the share sheet. Core Data delivers the change when the.
+app resumes.

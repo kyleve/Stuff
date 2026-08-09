@@ -5,7 +5,7 @@ today's region presence and year-to-date day counts per region.
 
 Widgets never open the SwiftData store. The app publishes a single aggregated
 [`WidgetSnapshot`](../WhereCore/Sources/Widgets/WidgetDataReader.swift) JSON file
-into the shared App Group (`group.com.stuff.where`); this extension reads it via
+into the shared App Group (`group.com.stuff.where`). This extension reads it via.
 [`WidgetSnapshotStore`](../WhereCore/Sources/Widgets/WidgetSnapshotStore.swift).
 All rendering lives in [`WhereUI`](../WhereUI/) — this target only wires
 WidgetKit configuration, the timeline provider, and family-specific layout.
@@ -21,9 +21,9 @@ WidgetKit configuration, the timeline provider, and family-specific layout.
 
 ```
 Where app (WidgetSnapshotPublisher)
-    └─▶ WidgetSnapshotStore.write (App Group JSON)
-            └─▶ WhereWidgetProvider.loadEntry (widget extension read)
-                    └─▶ WhereUI widget views
+└─▶ WidgetSnapshotStore.write (App Group JSON)
+└─▶ WhereWidgetProvider.loadEntry (widget extension read)
+└─▶ WhereUI widget views
 ```
 
 The app refreshes the snapshot after each committed store write and calls
@@ -34,10 +34,10 @@ app never wakes.
 ## Localization
 
 - **In-widget copy** — resolved from [`WhereUI`](../WhereUI/)'s
-  `Localizable.xcstrings` (shared views and `WhereFormat`).
+`Localizable.xcstrings` (shared views and `WhereFormat`).
 - **Widget gallery name/description** — resolved from this extension's
-  [`Resources/Localizable.xcstrings`](Resources/Localizable.xcstrings) via its
-  generated symbols (`String(localized: .widgetGalleryTodayName)`).
+[`Resources/Localizable.xcstrings`](Resources/Localizable.xcstrings) via its
+generated symbols (`String(localized:.widgetGalleryTodayName)`).
 
 ## Installation
 
@@ -56,8 +56,7 @@ using `WhereWidgetEntry.sample` and the fixtures in
 ## Limitations
 
 - After midnight, the timeline reloads but may still show yesterday's snapshot
-  until the app republishes — a known product trade-off (stale data beats empty).
-- There is no dedicated widget test bundle; timeline logic is covered indirectly
-  via **WhereCore** store tests and **WhereUI** widget view hosting tests.
+until the app republishes — a known product trade-off (stale data beats empty).
+- There is no dedicated widget test bundle. Timeline logic is covered indirectlyvia **WhereCore** store tests and **WhereUI** widget view hosting tests.
 - Cross-process publish → read integration is not exercised in CI (see
-  [`AGENTS.md`](AGENTS.md)).
+[`AGENTS.md`](AGENTS.md)).

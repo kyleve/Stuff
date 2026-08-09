@@ -19,8 +19,7 @@ filtering, or rejoin identity rotation invalidate the result until this correspo
 | `publishedRemovals` | Immutable [`RecordingDeviceRemoval`](../../WhereCore/Sources/Devices/RecordingDeviceRemoval.swift) tombstones available to CloudKit |
 | `readerRemovals` / `targetRemovals` | Independently imported tombstones at a history-reading replica and the removed installation |
 | `publishedAdvisories` / `readerAdvisories` | Separately synced `RecordingDeviceProfile`, target-owned `RecordingDeviceCheckIn`, and append-only `RecordingDeviceMetadataChange` rows |
-| `readerLastOldEvent` | A deliberately broken whole-device/LWW design used only by the negative control; current production never derives removal from arrival order |
-| `readerSamples` | Old-identity GPS samples that may sync before or after any device row |
+| `readerLastOldEvent`| A deliberately broken whole-device/LWW design used only by the negative control. Current production never derives removal from arrival order || `readerSamples` | Old-identity GPS samples that may sync before or after any device row |
 | `VisibleOldSamples` | [`LocationHistoryReader`](../../WhereCore/Sources/Devices/LocationHistoryReader.swift) applying `RecordingDeviceRemovalFilter.visibleSamples` on every user-facing read |
 | `targetNotification` | The `WhereStore.changes()` ping forwarded after a CloudKit remote import |
 | `reading` | [`DeviceRecordingController.applyObservedChange()`](../../WhereCore/Sources/Devices/DeviceRecordingController.swift) entering its exclusive lane and taking a generation-pinned policy snapshot |
@@ -34,7 +33,7 @@ The modeled entry points are remote import delivery into the store, the controll
 the explicit rejoin launch path. Removal creation, advisory publication, sample delivery, and
 delivery to each replica are independent actions, so TLC explores their arbitrary interleavings.
 Duplicate CloudKit materialization is abstracted as set insertion after the production store's
-identity-based canonicalization; malformed or conflicting immutable rows fail closed and are not
+identity-based canonicalization. Malformed or conflicting immutable rows fail closed and are not.
 modeled as valid protocol events.
 
 The target path is split where production suspends: notification admission, snapshot resolution,
@@ -47,18 +46,18 @@ No fairness assumption claims that CloudKit eventually delivers a tombstone.
 
 - `TypeOK` checks every model variable.
 - `RemovalDominatesAdvisoryState` requires a delivered append-only tombstone to remain effective
-  after profile, check-in, or metadata arrivals.
+after profile, check-in, or metadata arrivals.
 - `HistoryHonorsEarliestCutoff` requires every visible old-identity sample to precede the earliest
-  tombstone currently delivered to that reader.
+tombstone currently delivered to that reader.
 - `RemovedIdentityNeverRestarts` requires the old physical recorder to remain Off after revocation.
 - `RejoinCannotReviveRemovedIdentity` requires rejoin to occur only after retirement and durable
-  backlog clearing, without deleting the old tombstone or restarting the old recorder.
+backlog clearing, without deleting the old tombstone or restarting the old recorder.
 - `DistinctIdentityRecording` permits the new identity to record only while the old identity stays
-  stopped.
+stopped.
 - `DeliveredRemovalEventuallyStops` and `DeliveredRemovalEventuallyRetires` require a target that
-  has received any tombstone eventually to revoke GPS and finish clearing its old backlog.
+has received any tombstone eventually to revoke GPS and finish clearing its old backlog.
 - The two reachability controls prove TLC exercised a late advisory plus an at/after-cutoff sample
-  through rejoin, and the order where a later cutoff arrives before the earliest cutoff.
+through rejoin, and the order where a later cutoff arrives before the earliest cutoff.
 
 Current configurations check deadlock freedom. The explicit quiescent stutter action represents a
 live app after this finite scenario has delivered all bounded events and enabled the rejoined
@@ -73,7 +72,7 @@ once a reader has the tombstone, samples whose recorded timestamp is greater tha
 earliest `removedAt` are hidden.
 
 This is not a causal-time guarantee. If the removed device's clock is behind the remover, a sample
-captured causally after removal can carry a timestamp before the cutoff and remain visible; if its
+captured causally after removal can carry a timestamp before the cutoff and remain visible. If its.
 clock is ahead, a causally earlier sample can be hidden. The result therefore assumes the devices'
 wall clocks are comparable enough for `removedAt` to be the desired privacy boundary. A protocol
 requiring causal precision would need a server/causal boundary that production does not have.
@@ -87,7 +86,7 @@ The old identity initially records and has a nonempty retry backlog. The checker
 | `Current.cfg` | `0...2` | `{1}` | 22,631 generated / 4,888 distinct states, depth 19 |
 | `CurrentMultiple.cfg` | `0...3` | `{1, 2}` | 678,105 generated / 113,648 distinct states, depth 23 |
 
-Each configuration includes one profile, check-in, and metadata event; every event and every sample
+Each configuration includes one profile, check-in, and metadata event. Every event and every sample.
 timestamp is delivered at most once per replica. Set insertion represents idempotent duplicate
 delivery. The model includes one removed identity, one distinct rejoin identity, two reader/target
 replicas, a successful target policy read, and a successful backlog clear.
@@ -95,7 +94,7 @@ replicas, a successful target policy read, and a successful backlog clear.
 Unbounded devices/events, CloudKit non-delivery, corrupt/conflicting rows, store or outbox failure,
 data-generation rotation, reset/import pause, authorization changes, process termination, and UI
 caching are excluded. Production's fail-closed error paths and generation protocol have separate
-tests/specifications; this model does not supply evidence for them.
+tests/specifications. This model does not supply evidence for them.
 
 ## Controls and deterministic guards
 

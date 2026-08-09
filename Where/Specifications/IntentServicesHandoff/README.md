@@ -1,9 +1,10 @@
 # IntentServices handoff
 
-Models [`IntentServices`](../../WhereIntents/Sources/IntentServices.swift): the App Intents
-stack must never self-open a store; at most one installed stack is authoritative;
-parked intents resume exactly once; `clear()` forces later callers to park until
-the next `install(_:)`.
+This model covers [`IntentServices`](../../WhereIntents/Sources/IntentServices.swift).
+The App Intents stack must never self-open a store.
+At most one installed stack is authoritative.
+Parked intents resume exactly once.
+`clear()` forces later callers to park until the next `install(_:)`.
 
 ## Correspondence
 

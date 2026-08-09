@@ -30,7 +30,7 @@ target, see [`AGENTS.md`](AGENTS.md).
 ## Launch, briefly
 
 `AppDelegate.init` makes one boot-time selection. In release this is always
-`RegularApplicationRuntime`; in DEBUG a dedicated UserDefaults suite can select
+`RegularApplicationRuntime`. In DEBUG a dedicated UserDefaults suite can select.
 `WhereInspectorApplicationRuntime` for the next process. Every later callback
 and root-view request uses protocol dispatch, so no feature or lifecycle code
 switches on a mode. Before that selection, DEBUG boot completes any store-family
@@ -44,7 +44,7 @@ callback is guaranteed to run. It registers the App Intents dependency, starts
 logging, and builds a [`LifecycleKit`](../../Shared/LifecycleKit) runner with
 the reason `.undetermined`, since the UIScene lifecycle can't yet distinguish a
 user tap from a headless wake. The runner drives the background-safe launch
-steps immediately and builds no view tree; when a scene actually activates,
+steps immediately and builds no view tree. When a scene actually activates,.
 `RootView` promotes the launch to `.userForeground` and the remaining steps run.
 
 The Inspector runtime returns its standalone `InspectorView` and starts none of
@@ -57,7 +57,7 @@ with its error and a confirmed action that deletes only its configured store
 family and Periscope crash-journal directory before removing the source from the
 current Inspector session and scheduling one pre-runtime cleanup pass for the
 next process. Its exit control selects the regular runtime for the next manual
-relaunch; neither runtime swaps live.
+relaunch. Neither runtime swaps live.
 
 ## Build & run
 
@@ -72,7 +72,7 @@ The app target owns `iCloud.com.stuff.where`, the Push Notifications
 entitlement, and the remote-notification background mode. Widgets and the share
 extension intentionally have only the App Group entitlement: they write/read
 local shared artifacts, while the app's single SwiftData container owns
-CloudKit mirroring. Debug uses `.localOnly`; exercise sync with a Release-signed
+CloudKit mirroring. Debug uses `.localOnly`. Exercise sync with a Release-signed.
 build or use `./Where/install --cloudkit`. Release always selects `.cloudKit`.
 The installer compiles the validation choice into that Debug app, so manual,
 background, and CloudKit-push relaunches keep using CloudKit until another build
@@ -81,26 +81,26 @@ is installed without `--cloudkit`.
 Before shipping a schema change:
 
 1. Run `./Where/install --cloudkit` (or install a Release build) against the
-   Development CloudKit environment and open the store so SwiftData initializes
-   the additive schema.
+Development CloudKit environment and open the store so SwiftData initializes
+the additive schema.
 2. Inspect the new fields/record types in CloudKit Console, then deploy that
-   schema to Production before distributing the build.
+schema to Production before distributing the build.
 3. On two devices signed into the same iCloud account, open Settings → Devices
-   and verify both generic hardware profiles arrive; rename one and verify the
-   nickname syncs.
+and verify both generic hardware profiles arrive. Rename one and verify the.
+nickname syncs.
 4. On each device, toggle only its own Automatic Recording switch. Verify the
-   local device starts or stops and its advisory status later updates on the
-   other device without changing that other installation's switch.
+local device starts or stops and its advisory status later updates on the
+other device without changing that other installation's switch.
 5. Remove the secondary device from the carried device. Verify its earlier
-   history remains visible, locations at and after the removal disappear, and
-   the secondary device stops when it next syncs. Rejoin it and verify it gets
-   a new identity with recording Off until explicitly enabled there.
+history remains visible, locations at and after the removal disappear, and
+the secondary device stops when it next syncs. Rejoin it and verify it gets
+a new identity with recording Off until explicitly enabled there.
 6. Export a backup, then exercise Merge and Replace. Verify names and removals
-   round-trip, neither strategy changes this installation's recording choice,
-   and Replace discards pending pre-import locations before recording resumes.
+round-trip, neither strategy changes this installation's recording choice,
+and Replace discards pending pre-import locations before recording resumes.
 
 On a fresh install, onboarding recommends automatic recording On for an iPhone
 only when no other device recently reported recording, and Off for an
 iPad/other device or explicit rejoin, then requires the user to confirm. Existing
 installations created before that choice was introduced revisit only the final
-recording page once; enabling is the only path that asks for location access.
+recording page once. Enabling is the only path that asks for location access.

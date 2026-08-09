@@ -10,8 +10,7 @@ The implementation is payload-agnostic and has no logging knowledge.
 ```swift
 import JournalKit
 
-// Writing (synchronous, any thread; ~microseconds per append):
-let journal = try Journal(
+// Writing (synchronous, any thread. ~microseconds per append):let journal = try Journal(
     directory: journalDirectory,
     configuration: Journal.Configuration(maximumByteCount: 8 * 1024 * 1024),
 )

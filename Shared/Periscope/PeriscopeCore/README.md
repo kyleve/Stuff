@@ -10,7 +10,7 @@ queryable on device.
 PeriscopeCore owns the model and the machinery: events, levels, scopes,
 links, tags, spans, attachments, the sink pipeline (OSLog + SwiftData
 built-in), ambient event sources, and the store. SwiftUI integration lives in
-[`PeriscopeUI`](../PeriscopeUI); the on-device viewer, tracer, toast, and
+[`PeriscopeUI`](../PeriscopeUI). The on-device viewer, tracer, toast, and.
 inspect mode live in [`PeriscopeTools`](../PeriscopeTools).
 
 ## Vocabulary
@@ -42,20 +42,20 @@ Define events, derive loggers, log:
 import PeriscopeCore
 
 struct PhotoLogs: LogEvent {
-    var photoID: String
-    var message: String { "Uploaded \(photoID)" }
+var photoID: String
+var message: String { "Uploaded \(photoID)" }
 }
 
-let root = Log<AppLogs>()                  // records into Periscope.shared
-let photos = root(PhotoLogs.self)          // typed child scope
-let album = photos(for: album.id)          // child scope keyed by an entity
+let root = Log<AppLogs>() // records into Periscope.shared
+let photos = root(PhotoLogs.self) // typed child scope
+let album = photos(for: album.id) // child scope keyed by an entity
 
-album { PhotoLogs(photoID: photo.id) }     // structured event
-album.warning("thumbnail cache miss")      // freeform, any Log can
+album { PhotoLogs(photoID: photo.id) } // structured event
+album.warning("thumbnail cache miss") // freeform, any Log can
 photos(for: album.id) { PhotoLogs(photoID: photo.id) } // derive + emit in one call
 
-let joined = album + screenLog             // link model + UI contexts
-let tagged = joined.tagged(.paymentID, payment.id)  // stamps every event
+let joined = album + screenLog // link model + UI contexts
+let tagged = joined.tagged(.paymentID, payment.id) // stamps every event
 ```
 
 Wire persistence at startup:
@@ -64,8 +64,8 @@ Wire persistence at startup:
 // `attributes` is how the app names its own build — Periscope sits below the
 // app modules, so it can't read the build stamp itself. See
 // `LogSessionAttributeKey` for the well-known keys.
-let session = LogSession.current(attributes: BuildInfo.current(bundle: .main).logSessionAttributes)
-let store = try await PeriscopeStore.make(storage: .onDisk, session: session)
+let session = LogSession.current(attributes: BuildInfo.current(bundle:.main).logSessionAttributes)
+let store = try await PeriscopeStore.make(storage:.onDisk, session: session)
 Periscope.shared.add(sink: store)
 Periscope.shared.startDefaultAmbientSources()
 ```
@@ -73,81 +73,81 @@ Periscope.shared.startDefaultAmbientSources()
 ## Public API
 
 - **Events** — `LogEvent` (`Codable & Sendable`; `eventName`, `eventVersion`,
-  `level`, `message`), the built-in freeform `Message`, and the extensible
-  `LogLevel` struct (`name` + `severity`; standard ladder `debug…fault`,
-  custom levels slot between).
+`level`, `message`), the built-in freeform `Message`, and the extensible
+`LogLevel` struct (`name` + `severity`. Standard ladder `debug…fault`,.
+custom levels slot between).
 - **Loggers** — `Log<Event>`: derive typed children (`log(PhotoLogs.self)`),
-  entity children (`log(for: id)`), link contexts (`+` / `linked(with:)`),
-  tag (`tagged(_:_:)`), and emit (trailing closure, level conveniences,
-  `attachments:`). Scope IDs are deterministic (parent + name), so the same
-  path is the same scope in any process or launch.
+entity children (`log(for: id)`), link contexts (`+` / `linked(with:)`),
+tag (`tagged(_:_:)`), and emit (trailing closure, level conveniences,
+`attachments:`). Scope IDs are deterministic (parent + name), so the same
+path is the same scope in any process or launch.
 - **Propagation** — `log.withContext { … }` binds the context to a
-  `@TaskLocal`; `Log<E>.current` reads it anywhere in the async call tree.
-  `LogContextProviding` gives classes a derived per-instance `.log`.
+`@TaskLocal`. `Log<E>.current` reads it anywhere in the async call tree.
+`LogContextProviding` gives classes a derived per-instance `.log`.
 - **Spans** — `log.measure(.token) { … }` (sync/async) emits paired
-  `SpanBegan`/`SpanEnded` events with the exit derived automatically
-  (return → `.success`, throw → `.failure`, `CancellationError` →
-  `.cancelled`), and an optional `budget:` fires a `SpanOverdue` warning
-  while the closure hangs past it. Names resolve against `Event.SpanName`
-  (defaults to `String`); declare a `SpanName` enum on the event type for
-  compiler-checked tokens — the recommended style for structured events.
-  Open-ended flows use `begin(for:lifetime:relaunch:)`/`end(for:exit:)`.
-  Every span provably ends: bounded spans expire past
-  their budget (watchdog, `.expired`), re-begins supersede the open span
-  (`.superseded`), and a relaunch closes `endsWithProcess` spans the dead
-  process left open (`.orphaned`, duration unknowable). Durations use
-  `ContinuousClock`; spans mirror to `OSSignposter`.
+`SpanBegan`/`SpanEnded` events with the exit derived automatically
+(return → `.success`, throw → `.failure`, `CancellationError` →
+`.cancelled`), and an optional `budget:` fires a `SpanOverdue` warning
+while the closure hangs past it. Names resolve against `Event.SpanName`
+(defaults to `String`). Declare a `SpanName` enum on the event type for.
+compiler-checked tokens — the recommended style for structured events.
+Open-ended flows use `begin(for:lifetime:relaunch:)`/`end(for:exit:)`.
+Every span provably ends: bounded spans expire past
+their budget (watchdog, `.expired`), re-begins supersede the open span
+(`.superseded`), and a relaunch closes `endsWithProcess` spans the dead
+process left open (`.orphaned`, duration unknowable). Durations use
+`ContinuousClock`. Spans mirror to `OSSignposter`.
 - **Attachments** — `LogAttachment` (+ `.error`, `.json`, `.image`
-  conveniences) rides along with any event; blobs persist externally and
-  load on demand.
+conveniences) rides along with any event. Blobs persist externally and.
+load on demand.
 - **System** — `Periscope`: the recorder and `LogSink` pipeline (OSLog sink
-  built in; `add(sink:)` returns a `SinkToken` that `remove(_:)` detaches —
-  see [Detaching a sink](#detaching-a-sink)), level floors (`minimumLevel`,
-  `setMinimumLevel(_:forSubtree:)`),
-  flush threshold, bounded drop policy with synthetic `DroppedEvents`,
-  redaction hook, recent buffer + `liveRecords()` stream, ambient
-  sources (`startAmbientSource`, `startDefaultAmbientSources`,
-  `stopAmbientSources`), and the `isInspectModeEnabled` flag behind
-  PeriscopeTools' log view mode.
+built in. `add(sink:)` returns a `SinkToken` that `remove(_:)` detaches —.
+see [Detaching a sink](#detaching-a-sink)), level floors (`minimumLevel`,
+`setMinimumLevel(_:forSubtree:)`),
+flush threshold, bounded drop policy with synthetic `DroppedEvents`,
+redaction hook, recent buffer + `liveRecords()` stream, ambient
+sources (`startAmbientSource`, `startDefaultAmbientSources`,
+`stopAmbientSources`), and the `isInspectModeEnabled` flag behind
+PeriscopeTools' log view mode.
 - **Ambient state** — `AmbientEventSource`s report what the system is doing
-  (`NetworkPathAmbientSource`, thermal, low-power, lifecycle, memory
-  warnings, accessibility). Each `AmbientEvent` carries its state as named
-  fields (`[String: AmbientValue]` — a plain JSON object in the payload,
-  e.g. `["status": "satisfied", "voiceover": false]`) and declares its
-  `reporting`: a `.state` event is a lasting condition, an `.occurrence` a
-  momentary one (a memory warning). The pipeline folds the `.state` events
-  into an `AmbientSnapshot` and stamps it on **every** record — so any error
-  joins to the connectivity, thermal state, and power mode at that moment
-  without a timestamp hunt.
+(`NetworkPathAmbientSource`, thermal, low-power, lifecycle, memory
+warnings, accessibility). Each `AmbientEvent` carries its state as named
+fields (`[String: AmbientValue]` — a plain JSON object in the payload,
+for example `["status": "satisfied", "voiceover": false]`) and declares its
+`reporting`: a `.state` event is a lasting condition, an `.occurrence` a
+momentary one (a memory warning). The pipeline folds the `.state` events
+into an `AmbientSnapshot` and stamps it on **every** record — so any error
+joins to the connectivity, thermal state, and power mode at that moment
+without a timestamp hunt.
 - **Session attributes** — `LogSession.current(attributes:)` takes
-  `[LogSessionAttributeKey: String]`, the build facts only the app can name:
-  `.commit` / `.commitStatus`, `.configuration`, `.optimizationLevel`,
-  `.compilationMode`. The optimization level is the load-bearing one — a
-  span duration from an `-Onone` build says nothing about the shipping app,
-  and the configuration alone can't answer it (a `Debug` configuration can
-  be compiled `-O`).
+`[LogSessionAttributeKey: String]`, the build facts only the app can name:
+`.commit` / `.commitStatus`, `.configuration`, `.optimizationLevel`,
+`.compilationMode`. The optimization level is the load-bearing one — a
+span duration from an `-Onone` build says nothing about the shipping app,
+and the configuration alone can't answer it (a `Debug` configuration can
+be compiled `-O`).
 - **Store** — `PeriscopeStore` (`@ModelActor` `LogSink`): sessions
-  (`LogSession`, plus `currentSession` for this launch),
-  `events(matching: LogQuery)` (time range, level floor,
-  event name, session, scope/subtree, tags (AND), search, an incremental
-  `afterSequence` cursor, paging), `events(inSpan:)`,
-  `attachments(forEvent:)`, `ambientSnapshot(for:)` /
-  `ambientSnapshots()`, retention
-  (`pruneEvents(olderThan:/keepingNewest:)`), and a `changes()` signal.
-  `makeContainer(storage:)`, `inspectorModelTypes`, `inspectorStoreURL`, and
-  `inspectorRecoveryStorageURLs` expose the narrow schema adapter a standalone
-  Inspector runtime needs without starting a logging session or exposing the
-  internal SwiftData model classes. The recovery URLs include the crash
-  journals that would otherwise replay deleted history into a fresh store.
-  Periscope storage is always local-only; its model configurations disable
-  CloudKit explicitly even when the host application has iCloud entitlements.
+(`LogSession`, plus `currentSession` for this launch),
+`events(matching: LogQuery)` (time range, level floor,
+event name, session, scope/subtree, tags (AND), search, an incremental
+`afterSequence` cursor, paging), `events(inSpan:)`,
+`attachments(forEvent:)`, `ambientSnapshot(for:)` /
+`ambientSnapshots()`, retention
+(`pruneEvents(olderThan:/keepingNewest:)`), and a `changes()` signal.
+`makeContainer(storage:)`, `inspectorModelTypes`, `inspectorStoreURL`, and
+`inspectorRecoveryStorageURLs` expose the narrow schema adapter a standalone
+Inspector runtime needs without starting a logging session or exposing the
+internal SwiftData model classes. The recovery URLs include the crash
+journals that would otherwise replay deleted history into a fresh store.
+Periscope storage is always local-only. Its model configurations disable.
+CloudKit explicitly even when the host application has iCloud entitlements.
 
 ## How it works
 
 Log call sites never block: records append to a lock-guarded pending queue
 and a background drain task delivers ordered batches to each sink (scope
 definitions always precede the records referencing them). Error-and-above
-events trigger an automatic flush; queue overflow drops oldest and reports
+events trigger an automatic flush. Queue overflow drops oldest and reports.
 the gap (scope definitions and span began/ended pairs are exempt). Event payloads persist as JSON keyed by `eventName` + `eventVersion`
 so old rows outlive their Swift types — `StoredLogEvent.decode(_:)` recovers
 the type, and tooling degrades to raw JSON when it can't.
@@ -181,7 +181,7 @@ on-disk store sink for an in-memory one, and exiting swaps back.
 ([JournalKit](../../JournalKit)) beside the database, and once the store is
 added as a sink, every record appends to it *synchronously* at emit
 (microseconds — a page-cache write that survives the process dying by any
-means; fault-level records `F_FULLFSYNC` for kernel-panic coverage). The
+means. Fault-level records `F_FULLFSYNC` for kernel-panic coverage). The.
 journal does **not** yet cover the whole process lifetime: it opens with the
 store, and `PeriscopeStore.make` is `async`, so records emitted between
 process launch and `add(sink:)` — early launch steps, ambient start-up
@@ -200,15 +200,14 @@ their own sessions and leave recovery to the app's next launch.
 ## Contracts & limitations
 
 - Messages mirror to OSLog as `.public` — keep PII out of messages, or scrub
-  via the redaction hook. The hook may transform any record but cannot
-  suppress span began/ended records (a stripped copy records instead —
-  pairs never split); silence spans with level floors.
-- One database for every logging system in the process; scopes and types
-  make it easy to split later.
+via the redaction hook. The hook may transform any record but cannot
+suppress span began/ended records (a stripped copy records instead —
+pairs never split). Silence spans with level floors.
+- One database for every logging system in the process. Scopes and typesmake it easy to split later.
 - `LogContextProviding` caches one small entry per logging instance, evicted
-  automatically when the instance deallocates (a tracker hangs off the
-  instance via the ObjC runtime). Instance numbers (`#1`, `#2`, …) are never
-  reused within a run, so persisted identities stay unambiguous.
+automatically when the instance deallocates (a tracker hangs off the
+instance via the ObjC runtime). Instance numbers (`#1`, `#2`, …) are never
+reused within a run, so persisted identities stay unambiguous.
 
 ## Testing
 

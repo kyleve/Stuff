@@ -7,7 +7,7 @@ can carry local controls for switching variants or changing the state it
 displays. Selecting a card opens a full-screen live inspector.
 
 Flyover owns presentation, not app discovery or data. The host supplies a typed
-catalog and should build its screen content from an isolated in-memory world.
+catalog and must build its screen content from an isolated in-memory world.
 Flyover never opens a store, persists preferences, or resolves app globals.
 Its chrome resolves through Broadway's trait-aware `FlyoverStylesheet`.
 
@@ -17,8 +17,8 @@ Add the local product to a UI target:
 
 ```swift
 .target(
-    name: "YourUI",
-    dependencies: [.target(name: "Flyover")],
+name: "YourUI",
+dependencies: [.target(name: "Flyover")],
 )
 ```
 
@@ -29,47 +29,47 @@ import Flyover
 import SwiftUI
 
 enum Screen: Hashable {
-    case home
-    case details
+case home
+case details
 }
 
 let catalog = FlyoverCatalog(
-    groups: [
-        FlyoverGroup(
-            id: FlyoverGroupID("main"),
-            title: "Main flow",
-            root: Screen.home,
-            screens: [
-                FlyoverScreen(
-                    id: .home,
-                    title: "Home",
-                    variants: [
-                        FlyoverVariant(
-                            id: FlyoverVariantID("default"),
-                            title: "Default",
-                        ) {
-                            HomeView()
-                        },
-                    ],
-                ),
-                FlyoverScreen(
-                    id: .details,
-                    title: "Details",
-                    variants: [
-                        FlyoverVariant(
-                            id: FlyoverVariantID("default"),
-                            title: "Default",
-                        ) {
-                            DetailsView()
-                        },
-                    ],
-                ),
-            ],
-        ),
-    ],
-    transitions: [
-        FlyoverTransition(from: Screen.home, to: .details, kind: .push),
-    ],
+groups: [
+FlyoverGroup(
+id: FlyoverGroupID("main"),
+title: "Main flow",
+root: Screen.home,
+screens: [
+FlyoverScreen(
+id:.home,
+title: "Home",
+variants: [
+FlyoverVariant(
+id: FlyoverVariantID("default"),
+title: "Default",
+) {
+HomeView()
+},
+],
+),
+FlyoverScreen(
+id:.details,
+title: "Details",
+variants: [
+FlyoverVariant(
+id: FlyoverVariantID("default"),
+title: "Default",
+) {
+DetailsView()
+},
+],
+),
+],
+),
+],
+transitions: [
+FlyoverTransition(from: Screen.home, to:.details, kind:.push),
+],
 )
 
 FlyoverView(catalog: catalog)
@@ -80,19 +80,19 @@ FlyoverView(catalog: catalog)
 - `FlyoverCatalog` owns groups and forward transitions.
 - `FlyoverGroup` gives a cluster a title and graph root.
 - `FlyoverScreen` owns a viewport, optional grid override, navigation
-  containment, variants, controls, and reset action. Screens receive an isolated
-  `NavigationStack` by default so titles, toolbars, and destinations render with
-  the frame; use `.none` only for content that owns its navigation root or is not
-  a screen, such as a widget.
+containment, variants, controls, and reset action. Screens receive an isolated
+`NavigationStack` by default so titles, toolbars, and destinations render with
+the frame. Use `.none` only for content that owns its navigation root or is not.
+a screen, such as a widget.
 - `FlyoverVariant` stores lazy overview and focused content builders. The common
-  initializer supplies the same builder to both; a second initializer allows
-  an optimized overview and fully interactive focused view. Existing
-  `SnapshotCase` content can be adapted directly.
+initializer supplies the same builder to both. A second initializer allows.
+an optimized overview and fully interactive focused view. Existing
+`SnapshotCase` content can be adapted directly.
 - `FlyoverTransition` records a `.push` or `.modal` edge. Incoming edges produce
-  inferred Back or Dismiss cues.
+inferred Back or Dismiss cues.
 - `FlyoverControl` supplies standard toggle, picker, slider, stepper, and action
-  factories. The custom-controls view builder on `FlyoverScreen` handles richer
-  typed controls without widening Flyover's model.
+factories. The custom-controls view builder on `FlyoverScreen` handles richer
+typed controls without widening Flyover's model.
 
 Catalog validation reports duplicate group and screen IDs, duplicate variant
 and control IDs within a screen, missing group roots, dangling route endpoints,
@@ -106,7 +106,7 @@ orientation, color scheme, Dynamic Type, contrast, layout direction, and bold
 text. These settings are kept only for the current Flyover session and are
 applied to screen content through SnapshotKit's trait renderer. On compact
 widths, the bar scrolls horizontally so every control remains reachable.
-Flyover seeds its own Broadway root for chrome; registered screen content keeps
+Flyover seeds its own Broadway root for chrome. Registered screen content keeps.
 the isolated styling environment supplied by its host app.
 
 Overview content deliberately ignores hit testing so dozens of embedded
@@ -114,7 +114,7 @@ navigation stacks cannot compete with the canvas. Its controls stay live. Open a
 card's inspector for native scrolling, navigation, buttons, and forms.
 The canvas live-loads the six visible frames nearest its viewport center and
 unloads them as they leave that set. Other cards remain lightweight
-placeholders; requesting one manually replaces automatic loading with that
+placeholders. Requesting one manually replaces automatic loading with that.
 single pinned preview until it is paused. Opening the focused inspector unloads
 the underlying canvas previews. Variant builders are deferred and serialized,
 with a render opportunity between builds, so expensive preview-model
@@ -136,10 +136,10 @@ error content.
 
 Present Flyover outside the app's ambient `NavigationStack`, such as from a
 `fullScreenCover`. SwiftUI can promote navigation titles and toolbar items from
-several nested screen stacks into an ancestor stack; a separate presentation
+several nested screen stacks into an ancestor stack. A separate presentation.
 domain keeps that chrome local to each frame.
 
-Registration is explicit in version one. Apps should colocate each screen's
+Registration is explicit in version one. Apps must colocate each screen's
 typed registration and outgoing routes beside the represented view, then keep
 their central catalog limited to grouping and assembly. Swift macros cannot
 discover all conformers or navigation destinations across a module, and a
