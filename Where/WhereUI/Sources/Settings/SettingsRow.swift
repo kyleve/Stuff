@@ -21,8 +21,14 @@ extension View {
     /// scroll to it and flash it. Applies `.id(SettingsFocus(item))` (the scroll
     /// address) and a flash background driven by `\.settingsHighlight`. Taking
     /// `some SettingsItem` means a row can't be tagged with a non-item value.
-    func settingsRow(_ item: some SettingsItem) -> some View {
-        modifier(SettingsRowModifier(focus: SettingsFocus(item)))
+    func settingsRow(
+        _ item: some SettingsItem,
+        restingBackground: SettingsRowRestingBackground = .grouped,
+    ) -> some View {
+        modifier(SettingsRowModifier(
+            focus: SettingsFocus(item),
+            restingBackground: restingBackground,
+        ))
     }
 
     /// Tags this row only when it is the canonical search result for a setting.
@@ -38,12 +44,25 @@ extension View {
     }
 }
 
+enum SettingsRowRestingBackground: Equatable {
+    case grouped
+    case clear
+
+    var color: Color {
+        switch self {
+            case .grouped: Color(.secondarySystemGroupedBackground)
+            case .clear: .clear
+        }
+    }
+}
+
 /// Applies the scroll id + flash background for a tagged settings row. The flash
 /// tint (accent) and the restored grouped-row background (a system role) stay
 /// inline here, not in the stylesheet, per the "no adaptive/accent colors in the
 /// sheet" rule.
 struct SettingsRowModifier: ViewModifier {
     let focus: SettingsFocus
+    let restingBackground: SettingsRowRestingBackground
 
     @Environment(\.settingsHighlight) private var highlight
 
@@ -55,12 +74,19 @@ struct SettingsRowModifier: ViewModifier {
         content
             .id(focus)
             .listRowBackground(background)
+            .overlay {
+                if restingBackground == .clear {
+                    Color.accentColor
+                        .opacity(isHighlighted ? 0.25 : 0)
+                        .allowsHitTesting(false)
+                }
+            }
     }
 
     private var background: some View {
-        // A solid fill (not `.clear`) so the row keeps its normal grouped
-        // appearance when not highlighted; only the tint animates in and out.
-        isHighlighted ? Color.accentColor.opacity(0.25) : Color(.secondarySystemGroupedBackground)
+        // Ordinary settings rows keep the system grouped fill; marketing rows
+        // opt into clear so their page background can show through.
+        isHighlighted ? Color.accentColor.opacity(0.25) : restingBackground.color
     }
 }
 

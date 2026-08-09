@@ -95,6 +95,8 @@
                 CardDesignerStudioView.flyoverData,
                 AppIconView.flyoverData,
                 VisibleYearSettingsView.flyoverData,
+                SiriFeaturesView.flyoverData,
+                WidgetFeaturesView.flyoverData,
                 DataSettingsView.flyoverData,
                 AboutSettingsView.flyoverData,
                 LicenseView.flyoverData,

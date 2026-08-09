@@ -27,6 +27,7 @@ struct WhereStylesheet: BStylesheet {
     var launch = LaunchStyle.standard
     var typography = Typography.standard
     var settings = SettingsStyle.standard
+    var featureDiscovery = FeatureDiscoveryStyle.standard
     var passportCard = PassportCardStyle.standard
     var developerOverlay = DeveloperOverlayStyle.standard
 
@@ -42,6 +43,7 @@ struct WhereStylesheet: BStylesheet {
         if traits.contentSizeCategory.isAccessibilitySize {
             calendar.day.minHeight = 56
             timeline.row.stacksDayCount = true
+            featureDiscovery.siri.bubble.indent = 0
         }
 
         // Give every region a consistently labeled ribbon band when tint
@@ -69,6 +71,7 @@ struct WhereStylesheet: BStylesheet {
         // dark glass without changing its hue or saturation on touch.
         if traits.mode == .dark {
             card.securityPrint = .dark
+            featureDiscovery.siri.accent = Color(white: 0.42)
         }
     }
 
@@ -1317,11 +1320,49 @@ extension WhereStylesheet {
         var reducedReveal: Animation
         /// One-shot fade for incidental appearance (e.g. the launch caption).
         var captionFade: Animation
+        /// The reusable staged entrance used by marketing-style screens.
+        var staggeredReveal: StaggeredReveal
+
+        struct StaggeredReveal: Equatable {
+            var animation: Animation
+            var verticalOffset: CGFloat
+            var delay: TimeInterval
+
+            func presentation(
+                isRevealed: Bool,
+                motionIsStatic: Bool,
+                order: Int,
+            ) -> Presentation {
+                guard !motionIsStatic else { return .visible }
+                return Presentation(
+                    opacity: isRevealed ? 1 : 0,
+                    verticalOffset: isRevealed ? 0 : verticalOffset,
+                    animation: animation.delay(Double(max(0, order)) * delay),
+                )
+            }
+
+            struct Presentation: Equatable {
+                var opacity: Double
+                var verticalOffset: CGFloat
+                var animation: Animation?
+
+                static let visible = Presentation(
+                    opacity: 1,
+                    verticalOffset: 0,
+                    animation: nil,
+                )
+            }
+        }
 
         static let standard = Motion(
             reveal: .easeIn(duration: 0.16),
             reducedReveal: .easeInOut(duration: 0.2),
             captionFade: .easeOut(duration: 0.3),
+            staggeredReveal: StaggeredReveal(
+                animation: .easeOut(duration: 0.35),
+                verticalOffset: 16,
+                delay: 0.08,
+            ),
         )
     }
 }
@@ -1377,6 +1418,167 @@ extension WhereStylesheet {
             flashAnimation: .easeInOut(duration: 0.4),
             flashDuration: .seconds(1),
             scrollSettleDelay: .milliseconds(350),
+        )
+    }
+}
+
+// MARK: - Feature discovery
+
+extension WhereStylesheet {
+    /// Appearance for the Siri conversation cards and the miniature widget
+    /// surfaces in Settings' feature explorer.
+    struct FeatureDiscoveryStyle: Equatable {
+        var marketingHeader: MarketingHeader
+        var backgroundPattern: BackgroundPattern
+        var siri: Siri
+        var widgets: Widgets
+
+        struct MarketingHeader: Equatable {
+            var badgeSize: CGFloat
+            var symbolPointSize: CGFloat
+            var badgeTintOpacity: Double
+            var contentMaxWidth: CGFloat
+            var spacing: CGFloat
+            var verticalPadding: CGFloat
+        }
+
+        struct BackgroundPattern: Equatable {
+            var contourSpacing: CGFloat
+            var primaryDistortion: CGFloat
+            var secondaryDistortion: CGFloat
+            var horizontalScale: CGFloat
+            var centerXRatio: CGFloat
+            var centerYRatio: CGFloat
+            var phaseStep: CGFloat
+            var lineWidth: CGFloat
+            var opacity: Double
+        }
+
+        struct Siri: Equatable {
+            var card: Card
+            var bubble: Bubble
+            var speakerIcon: SpeakerIcon
+            var accent: Color
+
+            struct Card: Equatable {
+                var cornerRadius: CGFloat
+                var maxWidth: CGFloat
+                var padding: CGFloat
+                var spacing: CGFloat
+                var rowVerticalInset: CGFloat
+            }
+
+            struct Bubble: Equatable {
+                var cornerRadius: CGFloat
+                var horizontalPadding: CGFloat
+                var verticalPadding: CGFloat
+                var indent: CGFloat
+            }
+
+            struct SpeakerIcon: Equatable {
+                var containerSize: CGFloat
+                var symbolPointSize: CGFloat
+            }
+        }
+
+        struct Widgets: Equatable {
+            var device: Device
+            var frame: Frame
+            var wallpapers: Wallpapers
+            var lockWidgetHeight: CGFloat
+
+            struct Device: Equatable {
+                var cornerRadius: CGFloat
+                var contentMaxWidth: CGFloat
+                var regularContentWidth: CGFloat
+                var dynamicTypeLimit: DynamicTypeSize
+                var padding: CGFloat
+                var spacing: CGFloat
+            }
+
+            struct Frame: Equatable {
+                var cornerRadius: CGFloat
+                var padding: CGFloat
+            }
+
+            struct Wallpapers: Equatable {
+                var home: Gradient
+                var lock: Gradient
+
+                struct Gradient: Equatable {
+                    var top: Color
+                    var bottom: Color
+                }
+            }
+
+            func contentWidth(in containerWidth: CGFloat) -> CGFloat {
+                let availableWidth = max(0, containerWidth - device.padding * 2)
+                if availableWidth > device.contentMaxWidth {
+                    return device.regularContentWidth
+                }
+                return min(availableWidth, device.contentMaxWidth)
+            }
+        }
+
+        static let standard = FeatureDiscoveryStyle(
+            marketingHeader: MarketingHeader(
+                badgeSize: 76,
+                symbolPointSize: 34,
+                badgeTintOpacity: 0.14,
+                contentMaxWidth: 560,
+                spacing: 14,
+                verticalPadding: 24,
+            ),
+            backgroundPattern: BackgroundPattern(
+                contourSpacing: 30,
+                primaryDistortion: 13,
+                secondaryDistortion: 6,
+                horizontalScale: 1.22,
+                centerXRatio: 0.18,
+                centerYRatio: 0.46,
+                phaseStep: 0.31,
+                lineWidth: 0.9,
+                opacity: 0.12,
+            ),
+            siri: Siri(
+                card: Siri.Card(
+                    cornerRadius: 20,
+                    maxWidth: 680,
+                    padding: 16,
+                    spacing: 12,
+                    rowVerticalInset: 6,
+                ),
+                bubble: Siri.Bubble(
+                    cornerRadius: 16,
+                    horizontalPadding: 12,
+                    verticalPadding: 10,
+                    indent: 34,
+                ),
+                speakerIcon: Siri.SpeakerIcon(
+                    containerSize: 28,
+                    symbolPointSize: 12,
+                ),
+                accent: Color(white: 0.28),
+            ),
+            widgets: Widgets(
+                device: Widgets.Device(
+                    cornerRadius: 28,
+                    contentMaxWidth: 560,
+                    regularContentWidth: 320,
+                    dynamicTypeLimit: .xLarge,
+                    padding: 14,
+                    spacing: 12,
+                ),
+                frame: Widgets.Frame(
+                    cornerRadius: 18,
+                    padding: 12,
+                ),
+                wallpapers: Widgets.Wallpapers(
+                    home: Widgets.Wallpapers.Gradient(top: .indigo, bottom: .cyan),
+                    lock: Widgets.Wallpapers.Gradient(top: .purple, bottom: .blue),
+                ),
+                lockWidgetHeight: 76,
+            ),
         )
     }
 }

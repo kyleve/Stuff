@@ -57,6 +57,13 @@ struct SettingsSearchTests {
         #expect(results.contains { $0.destination == .about })
     }
 
+    @Test func matchesFeatureExplorersOnTheirPlatformKeywords() {
+        let automation = SettingsCatalog.results(matching: "automation")
+        let accessory = SettingsCatalog.results(matching: "accessory")
+        #expect(automation.contains { $0.destination == .siri })
+        #expect(accessory.contains { $0.destination == .widgets })
+    }
+
     @Test func focusedRouteCarriesTheResultsDestinationAndFocus() throws {
         let result = try #require(SettingsCatalog.results.first)
         let route = SettingsRoute(result)

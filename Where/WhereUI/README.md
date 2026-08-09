@@ -24,8 +24,16 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   `MainTabs`, the Liquid Glass tab bar over three tabs — Locations, Your Year,
   Settings. Elsewhere is an entry card on Locations, Resolve a Locations toolbar
   button, and the data screens (attachments, logged days, regions) sit in the
-  Settings "Data" group. Backup and destructive data management share one Data
-  drill-in. Both Data and About lead with the same full-width passport-style
+  Settings "Data" group. The **Explore Features** group demonstrates all six
+  Siri/Shortcuts intents as example conversations and renders every supported
+  widget family on miniature Home Screen and Lock Screen surfaces. Both use a
+  shared marketing header, quiet patterned backdrop, and staged entrance that
+  resolves immediately for Reduce Motion and snapshot capture. Once the selected
+  report has 14 recorded days, both galleries personalize themselves with its
+  real regions, counts, and dates; sparse reports keep the illustrative Siri copy
+  and empty widget state.
+  Backup and destructive data management share one Data drill-in. Both Data and
+  About lead with the same full-width passport-style
   privacy statement on a passport-navy, tilt-reflective surface: location
   history stays on the user's devices and in their private iCloud account,
   never on Where-operated servers. `AboutSettingsView` is the last Settings block —

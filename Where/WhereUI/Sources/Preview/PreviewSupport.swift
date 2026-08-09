@@ -706,5 +706,18 @@
                 ],
             )
         }
+
+        /// Personalized feature-gallery content over the same pinned report and
+        /// clock used by the rest of the WhereUI snapshot catalog.
+        @MainActor
+        static func featureDiscoveryPresentation() -> FeatureDiscoveryPresentation {
+            let model = loadedYearReportModel()
+            return FeatureDiscoveryPresentation(
+                report: model.report,
+                selectedYear: model.selectedYear,
+                referenceDate: model.referenceDate,
+                calendar: model.calendar,
+            )
+        }
     }
 #endif
