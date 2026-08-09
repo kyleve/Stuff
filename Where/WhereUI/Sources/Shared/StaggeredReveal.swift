@@ -1,3 +1,4 @@
+import SnapshotKit
 import SwiftUI
 
 extension EnvironmentValues {
@@ -62,3 +63,26 @@ private struct StaggeredRevealModifier: ViewModifier {
             .animation(presentation.animation, value: isRevealed)
     }
 }
+
+#if DEBUG
+    #Preview("Static") {
+        StaggeredRevealScope {
+            VStack(alignment: .leading) {
+                Label(
+                    String(localized: .settingsExploreSiriTitle),
+                    systemImage: "waveform",
+                )
+                .staggeredReveal(order: 0)
+
+                Label(
+                    String(localized: .settingsExploreWidgetsTitle),
+                    systemImage: "rectangle.3.group",
+                )
+                .staggeredReveal(order: 1)
+            }
+            .padding()
+        }
+        .environment(\.isCapturingSnapshot, true)
+        .whereBroadwayRoot()
+    }
+#endif
