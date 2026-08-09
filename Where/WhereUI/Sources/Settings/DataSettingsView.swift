@@ -134,7 +134,6 @@ extension DataSettingsView: SettingsSection {
             whereSnapshot(
                 name: "Default",
                 configurations: .fullContentScreenDefaults,
-                measurementReadiness: .immediate,
             ) {
                 NavigationStack {
                     DataSettingsView(
