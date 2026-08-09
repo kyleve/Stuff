@@ -11,7 +11,7 @@ struct WherePreferencesTests {
         let preferences = preferences()
 
         #expect(preferences.hasOnboarded == false)
-        #expect(preferences.wantsTracking)
+        #expect(preferences.showsRecordedLocationDots)
         #expect(preferences.remindersEnabled)
         #expect(preferences.reminderTime == .defaultEvening)
         #expect(preferences.summaryEnabled)
@@ -36,7 +36,7 @@ struct WherePreferencesTests {
     @Test func resetRestoresEveryDefaultAndClearsLocationCounts() {
         let preferences = preferences()
         preferences.hasOnboarded = true
-        preferences.wantsTracking = false
+        preferences.showsRecordedLocationDots = false
         preferences.remindersEnabled = false
         preferences.reminderTime = ReminderTime(hour: 9, minute: 15)
         preferences.summaryEnabled = false
@@ -48,7 +48,7 @@ struct WherePreferencesTests {
         preferences.reset()
 
         #expect(preferences.hasOnboarded == false)
-        #expect(preferences.wantsTracking)
+        #expect(preferences.showsRecordedLocationDots)
         #expect(preferences.remindersEnabled)
         #expect(preferences.reminderTime == .defaultEvening)
         #expect(preferences.summaryEnabled)

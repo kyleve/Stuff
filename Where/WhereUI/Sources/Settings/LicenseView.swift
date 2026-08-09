@@ -57,7 +57,7 @@ struct LicenseView: View {
 #if DEBUG
     extension LicenseView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            whereSnapshot(name: "Default", configurations: .screenDefaults) {
+            whereSnapshot(name: "Default", configurations: .fullContentScreenDefaults) {
                 NavigationStack {
                     LicenseView(
                         credit: PreviewSupport.sampleCredit(
@@ -66,7 +66,7 @@ struct LicenseView: View {
                     )
                 }
             }
-            whereSnapshot(name: "NoNotice", configurations: .phoneLightDark) {
+            whereSnapshot(name: "NoNotice", configurations: .fullContentPhoneLightDark) {
                 // The generator refuses to emit a credit without notice text, so
                 // this is the state a hand-edited report would reach — worth an
                 // image because it is the one case that renders no notice at all.

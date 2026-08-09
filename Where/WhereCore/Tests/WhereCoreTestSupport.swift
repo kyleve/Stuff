@@ -1,4 +1,24 @@
 import Foundation
+@testable import WhereCore
+
+extension BackupCoordinator {
+    /// Test convenience that completes the onboarding-only acknowledgment after a successful
+    /// import, matching the production onboarding flow while keeping individual backup tests
+    /// focused on archive behavior.
+    func importAndAcknowledgeBackup(
+        from url: URL,
+        strategy: ImportStrategy,
+        onProgress: @Sendable (Double) -> Void = { _ in },
+    ) async throws -> ImportSummary {
+        let summary = try await importBackup(
+            from: url,
+            strategy: strategy,
+            onProgress: onProgress,
+        )
+        try await acknowledgeOnboardingImport()
+        return summary
+    }
+}
 
 enum WhereCoreTestSupport {
     static let pacific = TimeZone(identifier: "America/Los_Angeles")!
@@ -32,5 +52,53 @@ final class MutableClock: @unchecked Sendable {
 
     func advance(by interval: TimeInterval) {
         lock.withLock { current += interval }
+    }
+}
+
+/// Deterministic durable-location sidecar shared by controller/service lifecycle tests.
+actor ScriptedLocationOutbox: LocationOutbox {
+    enum Failure: Error {
+        case load
+        case clear
+    }
+
+    private var entries: [LocationOutboxEntry]
+    private var failsToLoad: Bool
+    private var failsToClear: Bool
+
+    init(
+        _ samples: [LocationSample] = [],
+        failsToLoad: Bool = false,
+        failsToClear: Bool = false,
+    ) {
+        entries = samples.map { LocationOutboxEntry(sample: $0, dataGenerationID: .initial) }
+        self.failsToLoad = failsToLoad
+        self.failsToClear = failsToClear
+    }
+
+    func load() async throws -> [LocationOutboxEntry] {
+        guard !failsToLoad else { throw Failure.load }
+        return entries
+    }
+
+    func save(_ entries: [LocationOutboxEntry]) async throws {
+        self.entries = entries
+    }
+
+    func clear() async throws {
+        guard !failsToClear else { throw Failure.clear }
+        entries.removeAll()
+    }
+
+    func setFailsToClear(_ value: Bool) {
+        failsToClear = value
+    }
+
+    func setFailsToLoad(_ value: Bool) {
+        failsToLoad = value
+    }
+
+    var persistedSamples: [LocationSample] {
+        entries.map(\.sample)
     }
 }

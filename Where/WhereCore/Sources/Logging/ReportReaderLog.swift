@@ -14,6 +14,8 @@ struct ReportReaderLog: LogEvent {
     enum SpanName: Hashable {
         /// The workhorse: a year's samples + manual days, aggregated.
         case yearReport
+        /// A report plus its primary-region recorded locations from one read.
+        case yearReportDetails
         /// The single-read bundle a data-issue scan needs.
         case dataIssueReads
         /// A year of coordinates inside one region, grouped by day.

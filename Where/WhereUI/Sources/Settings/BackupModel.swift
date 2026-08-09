@@ -3,52 +3,43 @@ import Observation
 import PeriscopeCore
 import WhereCore
 
-/// View-scoped model for the Settings backup section: export/import progress and
-/// the error alert. Owned as `@State` by `SettingsView`, so it's created when the
+/// View-scoped model for the Settings backup section: export progress and the
+/// error alert. Backup import is an onboarding-only recovery path. Owned as `@State` by
+/// `SettingsView`, so it's created when the
 /// Settings tab is first shown and torn down with it — nothing here needs to
 /// outlive the screen that drives it.
 @MainActor
 @Observable
 public final class BackupModel {
-    /// Where a backup export/import is in its lifecycle, so the UI can show a
+    /// Where a backup export is in its lifecycle, so the UI can show a
     /// spinner and disable the relevant row while work is in flight.
     public enum BackupState: Equatable {
         case idle
         case exporting
-        case importing
     }
 
     public private(set) var backupState: BackupState = .idle
 
-    /// Fraction (`0...1`) of the in-flight export/import that has completed, for
+    /// Fraction (`0...1`) of the in-flight export that has completed, for
     /// a determinate progress bar. Reset to `0` whenever neither is running.
     public private(set) var backupProgress: Double = 0
 
-    /// Last backup failure, surfaced as an alert. Mutable so the alert binding
-    /// can clear it on dismiss.
-    public var backupError: String?
+    private var presentedError: String?
+
+    /// Last backup failure, surfaced as an alert.
+    public var backupError: String? {
+        presentedError
+    }
 
     /// Drives the backup-error alert. Reads `true` while `backupError` holds a
     /// message and clears it when dismissed, so the view can bind straight to it
-    /// (`$backup.isShowingBackupError`). `backupError` stays the single source of
-    /// truth.
+    /// (`$backup.isShowingBackupError`).
     public var isShowingBackupError: Bool {
         get { backupError != nil }
-        set { if !newValue { backupError = nil } }
-    }
-
-    /// Summary of the most recent successful import, surfaced as a confirmation
-    /// alert. Owned here (not on the view) so the acknowledgment survives the
-    /// backup screen being popped mid-import — mirroring `backupError`. Set by
-    /// `importBackup`; the alert binding clears it on dismiss.
-    public private(set) var lastImportSummary: BackupCoordinator.ImportSummary?
-
-    /// Drives the import-success alert. Reads `true` while `lastImportSummary`
-    /// holds a value and clears it when dismissed, so the view can bind straight
-    /// to it (`$backup.isShowingImportSuccess`).
-    public var isShowingImportSuccess: Bool {
-        get { lastImportSummary != nil }
-        set { if !newValue { lastImportSummary = nil } }
+        set {
+            guard !newValue else { return }
+            presentedError = nil
+        }
     }
 
     private let services: WhereServices
@@ -64,11 +55,11 @@ public final class BackupModel {
     /// reclaims the previous export's directory when the next export starts.
     ///
     /// Progress is streamed to `backupProgress` so the caller can show a
-    /// determinate "Exporting…" bar, using the same ordered-stream marshaling as
-    /// `importBackup` (see there for why).
+    /// determinate "Exporting…" bar.
     public func exportBackup() async -> URL? {
         backupState = .exporting
         backupProgress = 0
+        presentedError = nil
         defer {
             backupState = .idle
             backupProgress = 0
@@ -90,7 +81,7 @@ public final class BackupModel {
             return url
         } catch {
             continuation.finish()
-            backupError = error.localizedDescription
+            presentBackupError(error)
             Self.logger { .exportFailed(description: error.localizedDescription) }
             return nil
         }
@@ -103,54 +94,8 @@ public final class BackupModel {
         await services.backup.discardExport()
     }
 
-    /// Import a backup file with the chosen merge/replace strategy. Returns the
-    /// import summary on success, or `nil` on failure (with `backupError` set).
-    /// The committed import pings the store-change signal, so the scene's
-    /// `YearReportModel` re-pulls the report + badge count — no inline refresh here.
-    public func importBackup(
-        from url: URL,
-        strategy: BackupCoordinator.ImportStrategy,
-    ) async -> BackupCoordinator.ImportSummary? {
-        backupState = .importing
-        backupProgress = 0
-        defer {
-            backupState = .idle
-            backupProgress = 0
-        }
-
-        // The backup coordinator reports progress from its own executor; funnel
-        // it through an ordered stream and apply it on the main actor so SwiftUI
-        // sees in-order, hop-free updates.
-        let (progress, continuation) = AsyncStream<Double>.makeStream()
-        let observer = Task { @MainActor [weak self] in
-            for await fraction in progress {
-                self?.backupProgress = fraction
-            }
-        }
-        defer { observer.cancel() }
-
-        do {
-            let summary = try await services.backup.importBackup(from: url, strategy: strategy) {
-                continuation.yield($0)
-            }
-            continuation.finish()
-            await observer.value
-            Self.logger {
-                .imported(
-                    sampleCount: summary.sampleCount,
-                    evidenceCount: summary.evidenceCount,
-                    manualDayCount: summary.manualDayCount,
-                    dismissedIssueCount: summary.dismissedIssueCount,
-                    trackedRegionCount: summary.trackedRegionCount,
-                )
-            }
-            lastImportSummary = summary
-            return summary
-        } catch {
-            continuation.finish()
-            backupError = error.localizedDescription
-            Self.logger { .importFailed(description: error.localizedDescription) }
-            return nil
-        }
+    /// Surface an export error through the model's single presentation state.
+    public func presentBackupError(_ error: any Error) {
+        presentedError = error.localizedDescription
     }
 }

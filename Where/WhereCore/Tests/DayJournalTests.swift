@@ -99,6 +99,8 @@ struct DayJournalTests {
             issueAlerts: issueAlerts,
             issueScanner: scanner,
             widgets: widgets,
+            currentDeviceID: CurrentRecordingDevice.preview.id,
+            now: now,
         )
         return Harness(
             journal: journal,

@@ -91,6 +91,24 @@ struct WhereFormatTests {
         )
     }
 
+    @Test func backupCleanupMessagePreservesSummaryAndSafeRecoveryGuidance() {
+        let summary = BackupCoordinator.ImportSummary(
+            sampleCount: 3,
+            evidenceCount: 2,
+            manualDayCount: 5,
+            dismissedIssueCount: 4,
+            trackedRegionCount: 6,
+            recordingDeviceCount: 2,
+            recordingDeviceRemovalCount: 7,
+        )
+
+        let message = WhereFormat.backupImportCleanupMessage(summary)
+
+        #expect(message.contains("Imported 3 location samples"))
+        #expect(message.contains("Close and reopen Where"))
+        #expect(message.contains("Do not import this backup again."))
+    }
+
     @Test func yearTitlesFormatGroupingFree() {
         #expect(WhereFormat.evidenceListTitle(year: 2026) == "Evidence · 2026")
         #expect(WhereFormat.loggedDaysTitle(year: 2026) == "Logged Days · 2026")

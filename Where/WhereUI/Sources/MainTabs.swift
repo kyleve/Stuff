@@ -26,12 +26,12 @@ struct MainTabs: View {
     @Environment(\.scenePhase) private var scenePhase
 
     /// Build the scene's report model from the coordinator's service layer.
-    /// `initialReport` / `selectedYear` are the preview/test seam threaded from
+    /// `initialDetails` / `selectedYear` are the preview/test seam threaded from
     /// `WhereModel`; both are nil / the current year in the app.
-    init(session: WhereSession, initialReport: YearReport?, selectedYear: Int) {
+    init(session: WhereSession, initialDetails: YearReportDetails?, selectedYear: Int) {
         _report = State(initialValue: YearReportModel(
             services: session.services,
-            report: initialReport,
+            details: initialDetails,
             selectedYear: selectedYear,
             preferences: session.preferences,
             now: session.now,
@@ -91,7 +91,7 @@ struct MainTabs: View {
         var body: some View {
             MainTabs(
                 session: session,
-                initialReport: PreviewSupport.sampleReport(),
+                initialDetails: PreviewSupport.sampleYearReportDetails(),
                 selectedYear: PreviewSupport.year,
             )
             .environment(session)

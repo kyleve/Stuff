@@ -85,7 +85,7 @@
             let session = WhereSession(scope: scope, now: now)
             let model = WhereModel(
                 services: services,
-                report: PreviewSupport.sampleReport(),
+                details: PreviewSupport.sampleYearReportDetails(),
                 selectedYear: PreviewSupport.year,
                 preferences: preferences,
                 logSystem: logSystem,
@@ -93,7 +93,7 @@
             )
             let report = YearReportModel(
                 services: services,
-                report: PreviewSupport.sampleReport(),
+                details: PreviewSupport.sampleYearReportDetails(),
                 selectedYear: PreviewSupport.year,
                 preferences: preferences,
                 now: now,

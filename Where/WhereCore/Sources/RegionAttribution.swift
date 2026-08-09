@@ -19,6 +19,30 @@ protocol RegionAttributionReconciling: RegionAttributing {
 /// the tracked *set* actually changes, so reacting to every `changes()` ping
 /// stays cheap on the GPS hot path (a fetch + a set compare).
 final class RegionAttribution: RegionAttributionReconciling {
+    /// Serializes the background observer with explicit full-fan-out reconciliations. Actor
+    /// isolation alone would still be reentrant across the store read, so ownership is handed
+    /// directly to one waiter at a time.
+    private actor ReconciliationGate {
+        private var isOccupied = false
+        private var waiters: [CheckedContinuation<Void, Never>] = []
+
+        func acquire() async {
+            if isOccupied {
+                await withCheckedContinuation { waiters.append($0) }
+            } else {
+                isOccupied = true
+            }
+        }
+
+        func release() {
+            if waiters.isEmpty {
+                isOccupied = false
+            } else {
+                waiters.removeFirst().resume()
+            }
+        }
+    }
+
     private struct State {
         var attributor: RegionAttributor
         var trackedIDs: Set<String>
@@ -28,24 +52,31 @@ final class RegionAttribution: RegionAttributionReconciling {
 
     private let store: any WhereStore
     private let state: OSAllocatedUnfairLock<State>
+    private let reconciliationGate = ReconciliationGate()
     /// Set once in `init` and only cancelled in `deinit`, so there's no
     /// concurrent access to guard.
     private nonisolated(unsafe) var observer: Task<Void, Never>?
 
     /// - Parameters:
-    ///   - store: the source of tracked regions and the `changes()` signal.
+    ///   - store: the source of tracked regions.
+    ///   - changes: the committed-data signal this live attribution observes.
     ///   - initial: the attributor for the tracked set as of construction (built
     ///     by ``WhereServices/make(store:locationSource:)`` after reading the
     ///     store, so there's no flash of the wrong set at launch).
     ///   - trackedIDs: the region ids `initial` was built from.
-    init(store: any WhereStore, initial: RegionAttributor, trackedIDs: Set<String>) {
+    init(
+        store: any WhereStore,
+        changes: AsyncStream<Void>,
+        initial: RegionAttributor,
+        trackedIDs: Set<String>,
+    ) {
         self.store = store
         state = OSAllocatedUnfairLock(initialState: State(
             attributor: initial,
             trackedIDs: trackedIDs,
         ))
         observer = Task { [weak self] in
-            for await _ in store.changes() {
+            for await _ in changes {
                 await self?.reconcile()
             }
         }
@@ -73,9 +104,15 @@ final class RegionAttribution: RegionAttributionReconciling {
 
     /// Re-read the tracked regions and rebuild the attributor when the set
     /// changed. Cheap when nothing changed (a fetch + a set compare); the file
-    /// parse runs only on an actual change. Serialized by the single observer
-    /// task; also exposed so callers/tests can reconcile deterministically.
+    /// parse runs only on an actual change. Serialized across the background
+    /// observer and explicit full-fan-out callers.
     func reconcile() async {
+        await reconciliationGate.acquire()
+        await reconcileExclusively()
+        await reconciliationGate.release()
+    }
+
+    private func reconcileExclusively() async {
         let tracked: Set<Region>
         do {
             tracked = try await store.trackedRegions()

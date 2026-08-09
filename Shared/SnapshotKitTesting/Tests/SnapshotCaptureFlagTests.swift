@@ -21,7 +21,7 @@ struct SnapshotCaptureFlagTests {
         try waitFor { hostKeyWindow() != nil }
         let host = UIHostingController(rootView: CaptureFlagProbeView())
         host.view.frame = CGRect(x: 0, y: 0, width: 100, height: 100)
-        let image = await renderSnapshotImage(
+        let image = try await renderSnapshotImage(
             of: host,
             named: "capture-flag-probe",
             safeAreaInsets: .zero,

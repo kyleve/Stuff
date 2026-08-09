@@ -108,6 +108,9 @@ public struct LocationSample: Identifiable, Hashable, Codable, Sendable {
     public let coordinate: Coordinate
     public let horizontalAccuracy: Double
     public let source: SampleSource
+    /// Installation that produced an automatic GPS sample. Nil for legacy
+    /// samples and user-asserted/manual data.
+    public let recordingDeviceID: RecordingDeviceID?
 
     public init(
         id: UUID = UUID(),
@@ -115,11 +118,27 @@ public struct LocationSample: Identifiable, Hashable, Codable, Sendable {
         coordinate: Coordinate,
         horizontalAccuracy: Double,
         source: SampleSource,
+        recordingDeviceID: RecordingDeviceID? = nil,
     ) {
         self.id = id
         self.timestamp = timestamp
         self.coordinate = coordinate
         self.horizontalAccuracy = horizontalAccuracy
         self.source = source
+        self.recordingDeviceID = recordingDeviceID
+    }
+
+    /// Stamp an automatic sample with the installation that received it.
+    /// User-asserted samples intentionally remain device-agnostic.
+    func recorded(by deviceID: RecordingDeviceID) -> LocationSample {
+        guard source.isGPS else { return self }
+        return LocationSample(
+            id: id,
+            timestamp: timestamp,
+            coordinate: coordinate,
+            horizontalAccuracy: horizontalAccuracy,
+            source: source,
+            recordingDeviceID: deviceID,
+        )
     }
 }

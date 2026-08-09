@@ -25,6 +25,8 @@ during reset: once quiesce completes, no sample persist may land after teardown.
 
 Swift guard: [`LocationIngestorTests.quiesceStopsPersistingFurtherSamples`](../../WhereCore/Tests/LocationIngestorTests.swift).
 
-Exclusions: outbox save failure and retry eviction (see [`Where/TODOs.md`](../../TODOs.md)).
+Outbox save failure is covered by
+`LocationIngestorTests.failedOutboxWriteStopsRecordingWithTheSampleStillInMemory`. Retry eviction
+remains excluded from this model (see [`Where/TODOs.md`](../../TODOs.md)).
 
 Run: `./tla-check IngestorQuiesce`

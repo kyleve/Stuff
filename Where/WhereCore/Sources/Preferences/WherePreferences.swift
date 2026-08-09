@@ -1,8 +1,8 @@
 import Foundation
 import RegionKit
 
-/// The app's persisted user intent — onboarding completion, background-tracking
-/// intent, and the reminder / daily-summary schedules — plus small pieces of UI
+/// The app's persisted user intent — onboarding completion and the reminder /
+/// daily-summary schedules — plus small pieces of UI
 /// continuity state, behind a `KeyValueStore` so production uses `UserDefaults`
 /// and tests use an in-memory double.
 ///
@@ -31,11 +31,12 @@ public final class WherePreferences {
         set { store.set(newValue, forKey: Keys.hasOnboarded.rawValue) }
     }
 
-    /// Persisted intent to track in the background. Defaults to `true` so that,
-    /// once the user grants Always, tracking resumes automatically every launch.
-    public var wantsTracking: Bool {
-        get { store.object(forKey: Keys.wantsTracking.rawValue) as? Bool ?? true }
-        set { store.set(newValue, forKey: Keys.wantsTracking.rawValue) }
+    /// Whether Locations cards render recorded GPS fixes inside their region
+    /// outlines. Defaults to `true` so the visualization is visible until the
+    /// user explicitly turns it off.
+    public var showsRecordedLocationDots: Bool {
+        get { store.object(forKey: Keys.showsRecordedLocationDots.rawValue) as? Bool ?? true }
+        set { store.set(newValue, forKey: Keys.showsRecordedLocationDots.rawValue) }
     }
 
     /// Whether the daily "log before the day ends" reminder is enabled. Defaults
@@ -131,8 +132,8 @@ public final class WherePreferences {
     }
 
     /// Clear every persisted preference so the next launch behaves like a fresh
-    /// install: onboarding shows again, background tracking returns to its
-    /// default intent, reminder/summary schedules revert to defaults, and UI
+    /// install: onboarding shows again, reminder/summary schedules revert to
+    /// defaults, and UI
     /// continuity snapshots are forgotten.
     /// Removing the keys (rather than writing `false`/`0`) lets the
     /// default-valued getters report first-install state again.
@@ -147,7 +148,7 @@ public final class WherePreferences {
     /// sync — adding a case is all it takes to have it reset.
     private enum Keys: String, CaseIterable {
         case hasOnboarded = "where.hasOnboarded"
-        case wantsTracking = "where.wantsBackgroundTracking"
+        case showsRecordedLocationDots = "where.showsRecordedLocationDots"
         case remindersEnabled = "where.remindersEnabled"
         case reminderHour = "where.reminderHour"
         case reminderMinute = "where.reminderMinute"

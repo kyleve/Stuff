@@ -12,13 +12,27 @@ enum OnboardingViewLog: LogEvent {
     case backupRestoreFailed(description: String)
     case photoScanFailed(description: String)
     case photoImportFailed(description: String)
+    case backupRestoreCleanupFailed(description: String)
     /// The user declined (or is restricted from) location access at the
     /// onboarding ask. Expected, not a failure: tracking stays
     /// intended-but-inactive and Settings offers the route to grant it.
     case locationPermissionDenied
+    /// The non-backed-up installation sidecar could not be persisted, so the
+    /// app cannot safely register a stable recording identity.
+    case installationContextWriteFailed(description: String)
+    /// Backup exclusion failed and the unsafe sidecar could not be removed either.
+    case installationContextSecurityCleanupFailed(
+        exclusionDescription: String,
+        cleanupDescription: String,
+    )
+    /// A crash left an atomically written replacement that could not decode; the older
+    /// authoritative context remains usable and the corrupt pending copy was removed.
+    case discardedCorruptInstallationContextPending
     /// Opening the user's store failed, so onboarding can't hand the launch a
     /// world to run in. Fails the gate, landing on the failure surface.
     case scopeCreationFailed(description: String)
+    /// The stable device registration or selected recording command could not be persisted.
+    case recordingConfigurationFailed(description: String)
     /// Building the demo world failed. Recoverable: the intro comes back with
     /// an alert, and every other way forward still works.
     case demoBuildFailed(description: String)
@@ -28,10 +42,12 @@ enum OnboardingViewLog: LogEvent {
     var level: LogLevel {
         switch self {
             case .regionCommitFailed, .backupRestoreFailed, .photoScanFailed,
-                 .photoImportFailed, .demoBuildFailed:
-                .warning
+                 .photoImportFailed, .demoBuildFailed,
+                 .discardedCorruptInstallationContextPending: .warning
             case .locationPermissionDenied: .info
-            case .scopeCreationFailed: .error
+            case .installationContextWriteFailed, .installationContextSecurityCleanupFailed,
+                 .scopeCreationFailed,
+                 .recordingConfigurationFailed, .backupRestoreCleanupFailed: .error
         }
     }
 
@@ -45,10 +61,21 @@ enum OnboardingViewLog: LogEvent {
                 "Onboarding photo metadata scan failed: \(description)"
             case let .photoImportFailed(description):
                 "Onboarding photo history import failed: \(description)"
+            case let .backupRestoreCleanupFailed(description):
+                "Onboarding backup restore committed but recording cleanup failed: \(description)"
             case .locationPermissionDenied:
                 "Location access declined during onboarding"
+            case let .installationContextWriteFailed(description):
+                "Failed to persist the installation recording context: \(description)"
+            case let .installationContextSecurityCleanupFailed(exclusion, cleanup):
+                "Failed to exclude the installation recording context from backup "
+                    + "(\(exclusion)) and failed to remove it safely (\(cleanup))"
+            case .discardedCorruptInstallationContextPending:
+                "Discarded a corrupt pending installation recording context"
             case let .scopeCreationFailed(description):
                 "Failed to open the store during onboarding: \(description)"
+            case let .recordingConfigurationFailed(description):
+                "Failed to apply the onboarding recording choice: \(description)"
             case let .demoBuildFailed(description):
                 "Failed to build the demo world: \(description)"
         }

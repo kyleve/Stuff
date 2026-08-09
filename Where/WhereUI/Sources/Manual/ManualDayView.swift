@@ -512,7 +512,7 @@ extension ManualDayView {
         }
 
         static var snapshots: [SnapshotCase] {
-            whereSnapshot(name: "Add", configurations: .screenDefaults) {
+            whereSnapshot(name: "Add", configurations: .fullContentScreenDefaults) {
                 NavigationStack {
                     ManualDayView(
                         report: PreviewSupport.loadedYearReportModel(),
@@ -521,7 +521,7 @@ extension ManualDayView {
                     )
                 }
             }
-            whereSnapshot(name: "AddWithCancel", configurations: .phoneLightDark) {
+            whereSnapshot(name: "AddWithCancel", configurations: .fullContentPhoneLightDark) {
                 NavigationStack {
                     ManualDayView(
                         report: PreviewSupport.loadedYearReportModel(),
@@ -530,7 +530,7 @@ extension ManualDayView {
                     )
                 }
             }
-            whereSnapshot(name: "EditPlain", configurations: .phoneLightDark) {
+            whereSnapshot(name: "EditPlain", configurations: .fullContentPhoneLightDark) {
                 NavigationStack {
                     ManualDayView(
                         report: PreviewSupport.loadedYearReportModel(),
@@ -543,7 +543,7 @@ extension ManualDayView {
                     )
                 }
             }
-            whereSnapshot(name: "EditAuthoritative", configurations: .phoneLightDark) {
+            whereSnapshot(name: "EditAuthoritative", configurations: .fullContentPhoneLightDark) {
                 NavigationStack {
                     ManualDayView(
                         report: PreviewSupport.loadedYearReportModel(),

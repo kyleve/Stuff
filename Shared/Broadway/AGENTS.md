@@ -22,12 +22,6 @@ bundles in [`Project.swift`](../../Project.swift) (the shared `unitTests` helper
 
 ## Invariants an agent can't re-derive
 
-- **`BContext` owns a cached `BStylesheets`.** Mutating `baseTraits`,
-  `traitOverrides`, or `themes` must refresh that cache (the `didSet`s do);
-  `stylesheets` is `@EquatableIgnored`, so it stays out of `BContext` equality.
-- **`BRootViewController` defers setup** — child creation, trait observation,
-  and context are wired on `viewIsAppearing`, so `context` is `nil` before the
-  controller enters a valid hierarchy.
 - **Broadway's hosted bundles (`BroadwayCoreTests`, `BroadwayUITests`) run in
   the shared `StuffTestHost`** via `TestHostSupport`
   (`show`, `hostKeyWindow`). The host stamps its window with
@@ -37,7 +31,7 @@ bundles in [`Project.swift`](../../Project.swift) (the shared `unitTests` helper
 
 ## Testing
 
-`BroadwayCoreTests` and `BroadwayUITests` run in `StuffTestHost` and link
-`TestHostSupport`; `BroadwayCatalogTests` is currently hosted by the
+Run `./test BroadwayCoreTests`, `./test BroadwayUITests`, or
+`./test BroadwayCatalogTests`. The Catalog bundle is currently hosted by the
 **BroadwayCatalog** app itself — a deviation from the shared-host convention,
 tracked in [`TODOs.md`](TODOs.md). 1:1 test files per the root rules.

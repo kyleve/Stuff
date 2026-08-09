@@ -118,7 +118,7 @@ struct ElsewhereView: View {
 #if DEBUG
     extension ElsewhereView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            whereSnapshot(name: "Loaded", configurations: .screenDefaults) {
+            whereSnapshot(name: "Loaded", configurations: .fullContentScreenDefaults) {
                 NavigationStack {
                     ElsewhereView(report: PreviewSupport.loadedYearReportModel())
                 }

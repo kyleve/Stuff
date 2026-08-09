@@ -34,6 +34,7 @@ enum LocationIngestorLog: LogEvent {
     case foregroundCaptureReadFailed(description: String)
     case capturedForegroundFix
     case persistFailed(sampleID: String, description: String)
+    case retryBacklogPersistenceFailed(description: String)
     case retryQueueAtCapacity(capacity: Int)
     case retryStillFailing(sampleID: String, description: String)
     case drainedBacklog(sampleCount: Int, dayCount: Int)
@@ -47,7 +48,7 @@ enum LocationIngestorLog: LogEvent {
                 .info
             case .todayIntervalUnavailable, .foregroundCaptureReadFailed, .retryQueueAtCapacity:
                 .warning
-            case .persistFailed, .retryStillFailing:
+            case .persistFailed, .retryBacklogPersistenceFailed, .retryStillFailing:
                 .error
         }
     }
@@ -70,6 +71,8 @@ enum LocationIngestorLog: LogEvent {
                 "Captured one-shot foreground location for today"
             case let .persistFailed(sampleID, description):
                 "Failed to persist GPS sample \(sampleID): \(description)"
+            case let .retryBacklogPersistenceFailed(description):
+                "Failed to durably persist the GPS retry backlog; stopping recording: \(description)"
             case let .retryQueueAtCapacity(capacity):
                 "Retry queue at capacity (\(capacity)); dropping oldest queued GPS sample"
             case let .retryStillFailing(sampleID, description):
@@ -85,7 +88,7 @@ enum LocationIngestorLog: LogEvent {
                 WhereStoreID.sample(sampleID)
             case .monitoringStarted, .monitoringStopped, .restoredBacklog, .quiesced,
                  .todayIntervalUnavailable, .foregroundCaptureReadFailed, .capturedForegroundFix,
-                 .retryQueueAtCapacity, .drainedBacklog:
+                 .retryBacklogPersistenceFailed, .retryQueueAtCapacity, .drainedBacklog:
                 nil
         }
     }

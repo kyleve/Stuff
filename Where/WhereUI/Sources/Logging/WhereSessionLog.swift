@@ -24,6 +24,7 @@ enum WhereSessionLog: LogEvent {
     case permissionGranted(status: String)
     case trackingEnabled
     case stoppedBackgroundTracking
+    case recordingReconcileFailed(description: String)
     case remindersUnauthorized
     case summaryUnauthorized
     case issueAlertsUnauthorized
@@ -35,7 +36,8 @@ enum WhereSessionLog: LogEvent {
     var level: LogLevel {
         switch self {
             case .whenInUseOnly, .locationAccessDenied, .remindersUnauthorized,
-                 .summaryUnauthorized, .issueAlertsUnauthorized, .regionStylesLoadFailed:
+                 .summaryUnauthorized, .issueAlertsUnauthorized, .regionStylesLoadFailed,
+                 .recordingReconcileFailed:
                 .warning
             case .backgroundTrackingStarted, .backgroundTrackingStopped, .permissionGranted,
                  .trackingEnabled, .stoppedBackgroundTracking, .erasedSession:
@@ -59,6 +61,8 @@ enum WhereSessionLog: LogEvent {
                 "Tracking enabled with background authorization"
             case .stoppedBackgroundTracking:
                 "Stopped background tracking"
+            case let .recordingReconcileFailed(description):
+                "Failed to reconcile device recording policy: \(description)"
             case .remindersUnauthorized:
                 "Logging reminders enabled but notifications not authorized"
             case .summaryUnauthorized:

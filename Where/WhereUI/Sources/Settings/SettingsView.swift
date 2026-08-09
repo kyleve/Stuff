@@ -5,15 +5,15 @@ import WhereCore
 
 /// Settings tab: an iOS-Settings-style top-level list of icon rows that drill
 /// into grouped sub-screens — a Data group at the top (attachments, logged days,
-/// regions), then location, alerts, appearance, report year, data management,
-/// and About — plus a search field that filters individual settings and
+/// regions), then devices, alerts, appearance, report year, data management,
+/// feature discovery, and About — plus a search field that filters individual settings and
 /// deep-links to the screen — and the row — containing each.
 ///
 /// The top level owns nothing but navigation; behavior lives in the sub-screens
-/// (`LocationSettingsView`, `AlertsSettingsView`, …). The scene's report model and
+/// (`DevicesSettingsView`, `AlertsSettingsView`, …). The scene's report model and
 /// the two view-scoped editing models (backup, reminders) are owned here and
-/// handed down; the `WhereSession` coordinator (location) and `WhereModel` (reset)
-/// come from the environment via the sub-screens.
+/// handed down; the `WhereSession` coordinator (recording/location) and
+/// `WhereModel` (reset) come from the environment via the sub-screens.
 struct SettingsView: View {
     let report: YearReportModel
     @State private var backup: BackupModel
@@ -75,6 +75,10 @@ struct SettingsView: View {
                             Section {
                                 ForEach(destinations, id: \.self) { destination in
                                     groupNavigationRow(destination)
+                                }
+                            } header: {
+                                if let headerTitle = section.headerTitle {
+                                    Text(headerTitle)
                                 }
                             }
                         }
@@ -157,7 +161,8 @@ struct SettingsView: View {
         switch destination {
             case .regions:
                 showRegions = true
-            case .attachments, .loggedDays, .location, .alerts, .appearance, .year, .data, .about:
+            case .attachments, .loggedDays, .devices, .alerts, .appearance, .year, .siri,
+                 .widgets, .shareEvidence, .insightsAccuracy, .personalization, .data, .about:
                 assertionFailure("\(destination) is a push destination, not a sheet")
         }
     }
@@ -183,14 +188,15 @@ struct SettingsView: View {
     /// for groups without a meaningful one-line summary.
     private func subtitle(for destination: SettingsDestination) -> String? {
         switch destination {
-            case .location:
+            case .devices:
                 LocationStatusRow.statusTitle(
                     status: session.authorizationStatus,
                     isTracking: session.isTracking,
                 )
             case .year:
                 report.selectedYear.formatted(.number.grouping(.never))
-            case .attachments, .loggedDays, .regions, .alerts, .appearance, .data, .about:
+            case .attachments, .loggedDays, .regions, .alerts, .appearance, .siri, .widgets,
+                 .shareEvidence, .insightsAccuracy, .personalization, .data, .about:
                 nil
         }
     }
@@ -220,8 +226,8 @@ struct SettingsView: View {
                 EvidenceListView(report: report)
             case .loggedDays:
                 LoggedDaysView(report: report)
-            case .location:
-                LocationSettingsView(focus: route.focus)
+            case .devices:
+                DevicesSettingsView(session: session, focus: route.focus)
             case .regions:
                 // Regions is presented as a sheet (`isSheet`), so it's never
                 // routed here; this arm only keeps the switch exhaustive.
@@ -229,9 +235,33 @@ struct SettingsView: View {
             case .alerts:
                 AlertsSettingsView(report: report, reminders: reminders, focus: route.focus)
             case .appearance:
-                AppearanceSettingsView(focus: route.focus)
+                AppearanceSettingsView(report: report, focus: route.focus)
             case .year:
                 VisibleYearSettingsView(report: report, focus: route.focus)
+            case .siri:
+                SiriFeaturesView(
+                    focus: route.focus,
+                    presentation: featureDiscoveryPresentation,
+                )
+            case .widgets:
+                WidgetFeaturesView(
+                    focus: route.focus,
+                    presentation: featureDiscoveryPresentation,
+                )
+            case .shareEvidence:
+                ShareEvidenceFeaturesView(
+                    report: report,
+                    focus: route.focus,
+                    presentation: featureDiscoveryPresentation,
+                )
+            case .insightsAccuracy:
+                InsightsAccuracyFeaturesView(
+                    report: report,
+                    focus: route.focus,
+                    presentation: featureDiscoveryPresentation,
+                )
+            case .personalization:
+                PersonalizationFeaturesView(report: report, focus: route.focus)
             case .data:
                 DataSettingsView(report: report, backup: backup, focus: route.focus)
             case .about:
@@ -246,6 +276,15 @@ struct SettingsView: View {
         guard let totals = report.report?.totals else { return [] }
         return Set(totals.filter { $0.key != .other && $0.value > 0 }.map(\.key))
     }
+
+    private var featureDiscoveryPresentation: FeatureDiscoveryPresentation {
+        FeatureDiscoveryPresentation(
+            report: report.report,
+            selectedYear: report.selectedYear,
+            referenceDate: report.referenceDate,
+            calendar: report.calendar,
+        )
+    }
 }
 
 #if DEBUG
@@ -255,8 +294,11 @@ struct SettingsView: View {
         static var snapshots: [SnapshotCase] {
             whereSnapshot(
                 name: "Default",
-                configurations: .screenDefaults + [
-                    SnapshotConfiguration(layoutDirection: .rightToLeft, device: .iPhone),
+                configurations: .fullContentScreenDefaults + [
+                    SnapshotConfiguration(
+                        layoutDirection: .rightToLeft,
+                        device: .iPhoneFullContent,
+                    ),
                 ],
             ) {
                 SettingsView(report: PreviewSupport.loadedYearReportModel())
@@ -265,7 +307,7 @@ struct SettingsView: View {
             }
             // Demo mode: the exit section on top, and the groups that would
             // reach past the demo (backup, erase/reset, app icon) gone.
-            whereSnapshot(name: "DemoMode", configurations: .phoneLightDark) {
+            whereSnapshot(name: "DemoMode", configurations: .fullContentPhoneLightDark) {
                 SettingsView(report: PreviewSupport.loadedYearReportModel())
                     .environment(PreviewSupport.loadedModel())
                     .environment(PreviewSupport.loadedSession())
@@ -289,10 +331,15 @@ struct SettingsView: View {
                 .push(to: EvidenceListView.flyoverID),
                 .push(to: LoggedDaysView.flyoverID),
                 .modal(to: RegionsSettingsView.flyoverID),
-                .push(to: LocationSettingsView.flyoverID),
+                .push(to: DevicesSettingsView.flyoverID),
                 .push(to: AlertsSettingsView.flyoverID),
                 .push(to: AppearanceSettingsView.flyoverID),
                 .push(to: VisibleYearSettingsView.flyoverID),
+                .push(to: SiriFeaturesView.flyoverID),
+                .push(to: WidgetFeaturesView.flyoverID),
+                .push(to: ShareEvidenceFeaturesView.flyoverID),
+                .push(to: InsightsAccuracyFeaturesView.flyoverID),
+                .push(to: PersonalizationFeaturesView.flyoverID),
                 .push(to: DataSettingsView.flyoverID),
                 .push(to: AboutSettingsView.flyoverID),
             ],
