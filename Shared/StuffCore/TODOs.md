@@ -9,6 +9,6 @@ here.
 # Open issues
 
 ## P2s (Nice to have)
-- test [quick-win]: The `version` test is tautological. Replace it once there is real API to assert against. (audit 2026-07-26)
+- test [quick-win]: The `version` test is tautological — `#expect(StuffCore.version == 1)` (`Tests/StuffCoreTests.swift:5-7`). Replace it once there is real API to assert against. (audit 2026-07-26; re-verified 2026-08-09)
 
 # Completed issues
