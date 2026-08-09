@@ -26,7 +26,10 @@ struct SiriIntentCard: View {
         }
         .padding(style.siri.card.padding)
         .frame(maxWidth: style.siri.card.maxWidth, alignment: .leading)
-        .background(.background, in: .rect(cornerRadius: style.siri.card.cornerRadius))
+        .background(
+            Color(.secondarySystemGroupedBackground),
+            in: .rect(cornerRadius: style.siri.card.cornerRadius),
+        )
         .frame(maxWidth: .infinity)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(String(localized: .settingsExploreSiriCardAccessibilityLabel(title)))

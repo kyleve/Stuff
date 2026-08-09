@@ -17,7 +17,7 @@ struct FeatureMarketingPanel<Content: View>: View {
                 alignment: .leading,
             )
             .background(
-                .background,
+                Color(.secondarySystemGroupedBackground),
                 in: .rect(cornerRadius: style.cornerRadius),
             )
             .frame(maxWidth: .infinity)
