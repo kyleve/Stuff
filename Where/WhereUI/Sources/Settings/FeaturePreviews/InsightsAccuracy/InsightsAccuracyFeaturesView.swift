@@ -31,13 +31,16 @@ struct InsightsAccuracyFeaturesView: View {
                             .featureMarketingRow(order: 1)
                             .settingsRow(Item.recentActivity, restingBackground: .clear)
 
-                        Button(action: showRecentActivity) {
-                            actionLabel(
-                                String(localized: .settingsExploreInsightsOpenActivity),
-                                systemImage: "sparkles",
-                            )
+                        FeatureMarketingPanel {
+                            Button(action: showRecentActivity) {
+                                actionLabel(
+                                    String(localized: .settingsExploreInsightsOpenActivity),
+                                    systemImage: "sparkles",
+                                )
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         }
-                        .staggeredReveal(order: 2)
+                        .featureMarketingRow(order: 2)
                     }
 
                     Section {
@@ -46,13 +49,16 @@ struct InsightsAccuracyFeaturesView: View {
                             .settingsRow(Item.dataAccuracy, restingBackground: .clear)
 
                         if report.dataIssueCount > 0 {
-                            Button(action: showResolution) {
-                                actionLabel(
-                                    String(localized: .settingsExploreInsightsOpenResolve),
-                                    systemImage: "checklist",
-                                )
+                            FeatureMarketingPanel {
+                                Button(action: showResolution) {
+                                    actionLabel(
+                                        String(localized: .settingsExploreInsightsOpenResolve),
+                                        systemImage: "checklist",
+                                    )
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
                             }
-                            .staggeredReveal(order: 4)
+                            .featureMarketingRow(order: 4)
                         }
                     } footer: {
                         VStack(alignment: .leading, spacing: stylesheet.spacing.medium) {
