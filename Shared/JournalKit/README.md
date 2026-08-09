@@ -1,9 +1,9 @@
 # JournalKit
 
-An append-only, crash-durable journal of opaque `Data` entries — the
-write-ahead net for anything that must survive the process dying
-mid-flight. Periscope uses it as its log journal; the implementation is
-payload-agnostic and has no logging knowledge.
+An append-only, crash-durable journal of opaque `Data` entries.
+It is the write-ahead net for anything that must survive the process dying mid-flight.
+Periscope uses it as its log journal.
+The implementation is payload-agnostic and has no logging knowledge.
 
 ## Quick start
 
@@ -32,7 +32,7 @@ try JournalRecovery.remove(directory: journalDirectory)
   Verified empirically by the SIGKILL harness in
   [`Shared/Periscope/Prototypes/JournalBenchmark`](../Periscope/Prototypes/JournalBenchmark).
 - **`.full`**: `F_FULLFSYNC` before returning — survives kernel panics and
-  power loss. Milliseconds; reserve for entries that warrant it.
+  power loss. Milliseconds. Reserve for entries that warrant it.
 
 ## How it works
 
@@ -55,10 +55,10 @@ recovery never throws over it.
 ## Contracts & limitations
 
 - Entry ordering across concurrent appenders is append order (writers
-  serialize on an internal lock); per-writer order is preserved. Any
+  serialize on an internal lock). Per-writer order is preserved. Any
   cross-entry semantics — sequencing, deduplication, schemas — belong to
   the caller's payloads.
-- One `Journal` instance per directory at a time; reopening continues after
+- One `Journal` instance per directory at a time. Reopening continues after
   the existing segments rather than overwriting them.
-- CRC-32 catches torn and corrupt entries; it is integrity checking, not
+- CRC-32 catches torn and corrupt entries. It is integrity checking, not
   authentication.

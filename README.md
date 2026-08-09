@@ -6,16 +6,16 @@ Random apps and stuff.
 
 - Xcode 27+ (a full Xcode.app, not just the Command Line Tools)
 - iOS 26.0+
-- [mise](https://mise.jdx.dev) — pins Tuist, SwiftFormat, and Ruby;
-  installed for you by `./ide --bootstrap` (see below)
+- [mise](https://mise.jdx.dev) — pins Tuist, SwiftFormat, and Ruby.
+  `./ide --bootstrap` installs it (see below).
 
 ## Getting started
 
-On a fresh machine, run the one-shot bootstrap. It checks that Xcode is
-installed and selected, installs `mise` if missing (via its official
-installer — no Homebrew required), installs the pinned tools (Tuist,
-SwiftFormat, Ruby), then sets Git hooks, runs `sync-agents --install`, and
-generates the Xcode project:
+On a fresh machine, run the one-shot bootstrap.
+It checks that Xcode is installed and selected.
+If `mise` is missing, it installs it via the official installer (no Homebrew required).
+It installs the pinned tools (Tuist, SwiftFormat, Ruby).
+Then it sets Git hooks, runs `sync-agents --install`, and generates the Xcode project:
 
 ```bash
 # One-shot setup for a new laptop (add -i to fetch Tuist package deps,
@@ -24,11 +24,11 @@ generates the Xcode project:
 ```
 
 When bootstrap installs `mise`, it also adds `mise activate` to your shell rc
-(zsh/bash) so `mise` and the pinned tools are on `PATH` in new terminals —
-restart your shell (or `source ~/.zshrc`) afterwards. On other shells, add
-activation manually per the [mise docs](https://mise.jdx.dev/getting-started.html).
+(zsh/bash) so `mise` and the pinned tools are on `PATH` in new terminals.
+Restart your shell (or `source ~/.zshrc`) afterwards.
+On other shells, add activation manually per the [mise docs](https://mise.jdx.dev/getting-started.html).
 
-On subsequent runs (mise already installed), just regenerate:
+If `mise` is already installed, regenerate the project:
 
 ```bash
 # Generate the Xcode project (also sets Git hooks and runs sync-agents --install)
@@ -38,15 +38,16 @@ On subsequent runs (mise already installed), just regenerate:
 ./ide -i
 ```
 
-`./ide` without `--bootstrap` fails fast if `mise` isn't found, pointing you
-back at `./ide --bootstrap`. If you'd rather manage `mise` yourself,
-`brew install mise` (or the [official installer](https://mise.jdx.dev))
-followed by `mise install` works too.
+If you run `./ide` without `--bootstrap` and `mise` is not found, the script fails fast.
+It points you back at `./ide --bootstrap`.
+If you manage `mise` yourself, run `brew install mise` (or the [official installer](https://mise.jdx.dev)).
+Then run `mise install`.
 
-Run tests with `./test` (or open the generated workspace in Xcode). With no
-arguments it runs only the bundles your changes affect, against the simulator
-this checkout owns — which `./simulator` creates on its first run and boots on
-every one — and streams progress while it goes:
+Run tests with `./test` (or open the generated workspace in Xcode).
+With no arguments it runs only the bundles your changes affect.
+It uses the simulator this checkout owns.
+`./simulator` creates that device on its first run and boots it on every run.
+It streams progress while it goes:
 
 ```bash
 ./test                  # just what your change affects
@@ -56,28 +57,28 @@ every one — and streams progress while it goes:
 ./test --everything     # both, as CI runs it
 ```
 
-See `./test --help` for the rest, including `--timings` and `--review` for
-reading a snapshot run.
+See `./test --help` for the rest.
+It includes `--timings` and `--review` for reading a snapshot run.
 
-Every checkout — a second clone, a worktree — gets a device of its own, so two
-runs on one machine never fight over booting, installing to, or erasing the
-same simulator. `./simulator --list` shows them with their owning checkouts and
-`./simulator --prune` (`--dry-run` to preview) cleans up after a checkout you
-deleted; see `./simulator --help`.
+Every checkout gets its own simulator.
+That includes a second clone or a worktree.
+Two runs on one machine never fight over booting, installing to, or erasing the same simulator.
+Run `./simulator --list` to show them with their owning checkouts.
+Run `./simulator --prune` (`--dry-run` to preview) to clean up after a checkout you deleted.
+See `./simulator --help`.
 
 Codex-managed worktrees use the checked-in local environment at
-`.codex/environments/environment.toml`. Setup fetches `origin/main` and warns
-without changing the checkout when its `HEAD` does not contain the latest main.
-The **Update to latest main** toolbar action safely fast-forwards a checkout
-directly behind main and refuses divergent feature history. On macOS the
-environment also runs `./ide --bootstrap --no-open`, offers project generation,
-affected tests, and format lint actions, and removes only that checkout's
-simulator on cleanup. `.worktreeinclude` copies the gitignored
-`.mise.local.toml` signing override from the source checkout into each new
-managed worktree.
+`.codex/environments/environment.toml`.
+Setup fetches `origin/main`.
+It warns without changing the checkout when its `HEAD` does not contain the latest main.
+The **Update to latest main** toolbar action safely fast-forwards a checkout directly behind main.
+It refuses divergent feature history.
+On macOS the environment also runs `./ide --bootstrap --no-open`.
+It offers project generation, affected tests, and format lint actions.
+It removes only that checkout's simulator on cleanup.
+`.worktreeinclude` copies the gitignored `.mise.local.toml` signing override from the source checkout into each new managed worktree.
 
-Where's production architecture is checked with Bumper Bowling through the
-root Swift package:
+Where's production architecture is checked with Bumper Bowling through the root Swift package:
 
 ```bash
 swift run bumper config .
@@ -85,30 +86,41 @@ swift run bumper test .
 swift run bumper lint . --timings
 ```
 
-The executable configuration is in [`BumperBowling.swift`](BumperBowling.swift);
-the enforced invariants and repair guidance are cataloged in
-[`.bumper/RULES.md`](.bumper/RULES.md).
+The executable configuration is in [`BumperBowling.swift`](BumperBowling.swift).
+The enforced invariants and repair guidance are cataloged in [`.bumper/RULES.md`](.bumper/RULES.md).
 
-To see where build and test time goes, run `./profile` — it prints the slowest build phases, the slowest tests (per bundle), and any slow type-check sites. It only reports, it never fails; see `./profile --help` for flags (`--build-only`/`--tests-only`, `--no-snapshots`, `--device`/`--os`, `--top`, thresholds).
+Run `./profile` to see where build and test time goes.
+It prints the slowest build phases, the slowest tests (per bundle), and any slow type-check sites.
+It only reports.
+It never fails.
+See `./profile --help` for flags (`--build-only`/`--tests-only`, `--no-snapshots`, `--device`/`--os`, `--top`, thresholds).
 
-To hunt down flaky tests, run `./flaky` — it runs the whole suite several times, then tight-loops (in isolation) any test that ever failed, and records the tests that both pass and fail (with flake counts) in [`FLAKY_TESTS.md`](FLAKY_TESTS.md). Like `./profile` it's report-only; see `./flaky --help` for flags (`--suite-runs`, `--iterations`, `--device`/`--os`, `--no-update`, `--top`).
+Run `./flaky` to hunt down flaky tests.
+It runs the whole suite several times.
+It tight-loops (in isolation) any test that ever failed.
+It records the tests that both pass and fail (with flake counts) in [`FLAKY_TESTS.md`](FLAKY_TESTS.md).
+Like `./profile` it is report-only.
+See `./flaky --help` for flags (`--suite-runs`, `--iterations`, `--device`/`--os`, `--no-update`, `--top`).
 
-The `./ide` script sets `core.hooksPath` to `.githooks`. The pre-commit hook
-formats staged Swift with SwiftFormat and runs `./sync-agents --git-add` so
-generated Claude files stay in sync with `AGENTS.md`.
+The `./ide` script sets `core.hooksPath` to `.githooks`.
+The pre-commit hook formats staged Swift with SwiftFormat.
+It runs `./sync-agents --git-add` so generated Claude files stay in sync with `AGENTS.md`.
 
 ## Signing for on-device builds
 
-The checked-in project intentionally has **no** development team, so building
-to a simulator works for everyone and nothing machine-specific lands in Git.
-To build to a physical device you need to supply your Apple Developer Team ID.
+The checked-in project intentionally has **no** development team.
+Building to a simulator works for everyone.
+Nothing machine-specific lands in Git.
+To build to a physical device you must supply your Apple Developer Team ID.
 
-`Project.swift` reads it from the `TUIST_DEVELOPMENT_TEAM` environment variable
-and, when present, stamps it into the generated project as `DEVELOPMENT_TEAM`.
-The value lives in `.mise.local.toml` — a local, **gitignored** mise config —
-so `mise exec -- tuist generate` (i.e. `./ide`) picks it up automatically and
-your team survives every regeneration. No team set (CI, fresh clones) means no
-`DEVELOPMENT_TEAM` is written and Xcode behaves as before.
+`Project.swift` reads it from the `TUIST_DEVELOPMENT_TEAM` environment variable.
+When present, it stamps it into the generated project as `DEVELOPMENT_TEAM`.
+The value lives in `.mise.local.toml`.
+That file is a local, **gitignored** mise config.
+`mise exec -- tuist generate` (i.e. `./ide`) picks it up automatically.
+Your team survives every regeneration.
+If no team is set (CI, fresh clones), no `DEVELOPMENT_TEAM` is written.
+Xcode behaves as before.
 
 Set it once:
 
@@ -166,7 +178,7 @@ The Where module bundles offline region polygons under
 US state boundaries come from
 [eric.clst.org/tech/usgeojson](https://eric.clst.org/tech/usgeojson/)
 (`gz_2010_us_040_00_5m.json`), converted from the
-[US Census Bureau Cartographic Boundary Files](https://www.census.gov/geographies/mapping-files/time-series/geo/cartographic-boundary.html);
+[US Census Bureau Cartographic Boundary Files](https://www.census.gov/geographies/mapping-files/time-series/geo/cartographic-boundary.html).
 US Government works are in the public domain. See
 [`Where/RegionKit/README.md`](Where/RegionKit/README.md) for per-file
 provenance.
