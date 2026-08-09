@@ -1,6 +1,6 @@
 ---
 name: github-workflow
-description: Opens and maintains pull requests, handles review feedback, checks CI, and posts as the user via gh. Use when committing for push, opening or updating a PR after plan execution, responding to review comments, or diagnosing CI failures.
+description: Opens and maintains pull requests, handles review feedback, checks CI, and posts as the user via gh or ManagePullRequest. Use when committing for push, opening or updating a PR after plan execution, responding to review comments, or diagnosing CI failures.
 ---
 
 GitHub workflow for this repo. Read root [`AGENTS.md`](../../../AGENTS.md) first for
@@ -8,13 +8,29 @@ always-on commit and test invariants — this skill assumes those.
 
 ## Prerequisites
 
-- Use the `gh` CLI for all GitHub interaction — PRs, issues, checks, releases,
-  review comments.
+- **Never commit on `main`.** Branch first and keep every commit for one piece
+  of work on that one branch.
 - Validate in proportion to risk. Pure documentation or comment-only changes
   may skip checks that cannot exercise them; record skipped checks in the PR.
   Never push a known-red tree.
-- **Never commit on `main`.** Branch first and keep every commit for one piece
-  of work on that one branch.
+
+## Tools
+
+| Job | Tool |
+|-----|------|
+| Read PRs, checks, comments, issues | `gh` |
+| Create or update a PR | `ManagePullRequest` when available; otherwise `gh pr create` / `gh pr edit` |
+| Reply on a review thread | `ManagePullRequest` `post_comment` with `in_reply_to`, or `gh api` |
+| Resolve a review thread | `ManagePullRequest` `resolve_comment` when asked |
+
+Cloud agents: use `ManagePullRequest` for create/update/reply — not `gh pr
+create` / `gh pr edit`. Local sessions may use `gh` throughout.
+
+**Unsolicited top-level PR comments** (not review replies) still need an
+explicit user request. **Review feedback is different:** when the user asks you
+to address comments (`PTAL`, `address review`, `fix the feedback`), that
+authorizes replies on the threads you fix, decline, or defer — see
+[Review comments](#review-comments).
 
 ## Branch, push, and plan handoff
 
@@ -28,6 +44,9 @@ always-on commit and test invariants — this skill assumes those.
   steps verified), push the branch and **open a ready-for-review PR** before
   handing back — or update the existing PR if one is already open. Never leave
   finished plan work local-only, unpushed, or without a PR the user can review.
+- **Any finished task on a feature branch** follows the same push habit; open or
+  update the PR when the branch carries reviewable work, not only after formal
+  plans.
 
 ## Opening a PR
 

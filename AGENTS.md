@@ -537,7 +537,8 @@ management (`./simulator` resolves a UDID — never pass a device name to
 Load the [`github-workflow`](.agents/skills/github-workflow/SKILL.md) skill
 for PRs, pushes, review feedback, CI, and posting as the user. Always-on: use
 `gh`; open PRs ready-for-review; mark AI-posted comments. **Plan-driven work
-ends with push + PR** before handing back.
+ends with push + PR** before handing back. **Addressing review feedback
+includes GitHub replies** on the threads you touch — not code-only fixes.
 
 ## Codex worktree specific instructions
 
