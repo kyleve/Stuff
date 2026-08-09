@@ -142,11 +142,16 @@ private struct YearModePicker: View {
             whereSnapshot(
                 name: "Loaded",
                 configurations: .fullContentScreenDefaults,
+                measurementReadiness: .immediate,
                 settle: .settledAtLeast(minDuration: 1.0),
             ) {
                 YearView(report: PreviewSupport.loadedYearReportModel())
             }
-            whereSnapshot(name: "Empty", configurations: .fullContentPhoneLightDark) {
+            whereSnapshot(
+                name: "Empty",
+                configurations: .fullContentPhoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
                 YearView(report: PreviewSupport.emptyYearReportModel())
             }
         }

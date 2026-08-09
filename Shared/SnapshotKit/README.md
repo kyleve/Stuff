@@ -55,6 +55,12 @@ capture + comparison pipeline lives in the sibling
   `.settledAtLeast(minDuration:)` is `.settled` with a raised minimum window,
   for async appearance work that starts quiet and lands after the default floor
   (the iOS 26 glass toolbar/tab bar material adaptation).
+  Intrinsic/full-content cases also have a `measurementReadiness` axis. Its
+  default, `.sameAsCapture`, preserves the existing behavior for content whose
+  loaded state changes its height. Deterministically sized fixtures may use
+  `.immediate` to skip the sizing probe's settle while retaining the final
+  capture's `.settled` or `.settledAtLeast` policy; `.settled` decouples ordinary
+  sizing quiescence from a raised final-capture floor.
   An optional `onReadyToSnapshot` hook runs in the capture pipeline after the
   content has settled and just before the image is taken — the deterministic
   point to focus a field or trigger a presented state; its effects are settled
