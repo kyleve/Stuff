@@ -60,8 +60,10 @@ struct SettingsSearchTests {
     @Test func matchesFeatureExplorersOnTheirPlatformKeywords() {
         let automation = SettingsCatalog.results(matching: "automation")
         let accessory = SettingsCatalog.results(matching: "accessory")
+        let boardingPass = SettingsCatalog.results(matching: "boarding pass")
         #expect(automation.contains { $0.destination == .siri })
         #expect(accessory.contains { $0.destination == .widgets })
+        #expect(boardingPass.contains { $0.destination == .shareEvidence })
     }
 
     @Test func focusedRouteCarriesTheResultsDestinationAndFocus() throws {

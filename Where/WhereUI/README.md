@@ -27,7 +27,9 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   Settings "Data" group. The **Explore Features** group demonstrates all six
   Siri/Shortcuts intent as an example conversation, demonstrates tracked-region
   results in Spotlight, and renders every supported
-  widget family on miniature Home Screen and Lock Screen surfaces. Both use a
+  widget family on miniature Home Screen and Lock Screen surfaces. A Share &
+  Evidence walkthrough also reveals the system Share-sheet extension and links
+  into the saved attachment archive. These galleries use a
   shared marketing header, quiet patterned backdrop, and staged entrance that
   resolves immediately for Reduce Motion and snapshot capture. Once the selected
   report has 14 recorded days, both galleries personalize themselves with its

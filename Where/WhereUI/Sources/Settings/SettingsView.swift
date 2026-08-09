@@ -162,7 +162,7 @@ struct SettingsView: View {
             case .regions:
                 showRegions = true
             case .attachments, .loggedDays, .devices, .alerts, .appearance, .year, .siri,
-                 .widgets, .data, .about:
+                 .widgets, .shareEvidence, .data, .about:
                 assertionFailure("\(destination) is a push destination, not a sheet")
         }
     }
@@ -196,7 +196,7 @@ struct SettingsView: View {
             case .year:
                 report.selectedYear.formatted(.number.grouping(.never))
             case .attachments, .loggedDays, .regions, .alerts, .appearance, .siri, .widgets,
-                 .data, .about:
+                 .shareEvidence, .data, .about:
                 nil
         }
     }
@@ -245,6 +245,12 @@ struct SettingsView: View {
                 )
             case .widgets:
                 WidgetFeaturesView(
+                    focus: route.focus,
+                    presentation: featureDiscoveryPresentation,
+                )
+            case .shareEvidence:
+                ShareEvidenceFeaturesView(
+                    report: report,
                     focus: route.focus,
                     presentation: featureDiscoveryPresentation,
                 )
