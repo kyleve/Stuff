@@ -4,6 +4,20 @@ import Testing
 @testable import WhereCore
 
 struct BackupServiceTests {
+    private struct UpgradeVerificationConfiguration: Decodable {
+        let backupPath: String
+        let samplesCount: Int
+        let evidenceCount: Int
+        let manualDaysCount: Int
+        let dismissedIssuesCount: Int
+        let trackedRegionsCount: Int
+        let primaryRegionsCount: Int
+        let deviceProfilesCount: Int
+        let deviceChangesCount: Int
+        let deviceRemovalsCount: Int
+        let assetsCount: Int
+    }
+
     private static let calendar = WhereCoreTestSupport.calendar()
 
     private static let exportDate = Date(timeIntervalSince1970: 1_700_000_000)
@@ -13,6 +27,39 @@ struct BackupServiceTests {
     private static let recordingDeviceID = RecordingDeviceID(
         rawValue: UUID(uuidString: "CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC")!,
     )
+
+    @Test(
+        .disabled(
+            if: ProcessInfo.processInfo.environment["WHERE_BACKUP_VERIFICATION_CONFIG"] == nil,
+            "Run through the upgrade-where-backup skill.",
+        ),
+    )
+    func upgradedBackupDecodesAndLoadsAssets() throws {
+        let configurationPath = try #require(
+            ProcessInfo.processInfo.environment["WHERE_BACKUP_VERIFICATION_CONFIG"],
+        )
+        let configuration = try JSONDecoder().decode(
+            UpgradeVerificationConfiguration.self,
+            from: Data(contentsOf: URL(fileURLWithPath: configurationPath)),
+        )
+        let result = try BackupService().readArchive(
+            at: URL(fileURLWithPath: configuration.backupPath),
+        )
+
+        #expect(result.archive.formatVersion == BackupArchive.currentFormatVersion)
+        #expect(result.archive.samples.count == configuration.samplesCount)
+        #expect(result.archive.evidence.count == configuration.evidenceCount)
+        #expect(result.archive.manualDays.count == configuration.manualDaysCount)
+        #expect(result.archive.dismissedIssues.count == configuration.dismissedIssuesCount)
+        #expect(result.archive.trackedRegions.count == configuration.trackedRegionsCount)
+        #expect(result.archive.primaryRegions.count == configuration.primaryRegionsCount)
+        #expect(result.archive.recordingDeviceProfiles.count == configuration.deviceProfilesCount)
+        #expect(result.archive.recordingDeviceMetadataChanges.count == configuration
+            .deviceChangesCount)
+        #expect(result.archive.recordingDeviceRemovals.count == configuration.deviceRemovalsCount)
+        #expect(result.archive.assets.count == configuration.assetsCount)
+        #expect(result.blobs.count == configuration.assetsCount)
+    }
 
     private static func sampleFixtures() -> [LocationSample] {
         [
