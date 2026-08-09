@@ -1429,6 +1429,7 @@ extension WhereStylesheet {
     /// surfaces in Settings' feature explorer.
     struct FeatureDiscoveryStyle: Equatable {
         var marketingHeader: MarketingHeader
+        var marketingPanel: MarketingPanel
         var backgroundPattern: BackgroundPattern
         var siri: Siri
         var widgets: Widgets
@@ -1440,6 +1441,13 @@ extension WhereStylesheet {
             var contentMaxWidth: CGFloat
             var spacing: CGFloat
             var verticalPadding: CGFloat
+        }
+
+        struct MarketingPanel: Equatable {
+            var cornerRadius: CGFloat
+            var maxWidth: CGFloat
+            var padding: CGFloat
+            var contentSpacing: CGFloat
         }
 
         struct BackgroundPattern: Equatable {
@@ -1528,6 +1536,12 @@ extension WhereStylesheet {
                 contentMaxWidth: 560,
                 spacing: 14,
                 verticalPadding: 24,
+            ),
+            marketingPanel: MarketingPanel(
+                cornerRadius: 20,
+                maxWidth: 680,
+                padding: 16,
+                contentSpacing: 12,
             ),
             backgroundPattern: BackgroundPattern(
                 contourSpacing: 30,

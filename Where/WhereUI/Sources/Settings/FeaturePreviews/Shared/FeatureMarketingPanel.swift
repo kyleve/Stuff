@@ -9,15 +9,16 @@ struct FeatureMarketingPanel<Content: View>: View {
     @Environment(\.stylesheet) private var stylesheet
 
     var body: some View {
+        let style = stylesheet.featureDiscovery.marketingPanel
         content
-            .padding(stylesheet.featureDiscovery.cardPadding)
+            .padding(style.padding)
             .frame(
-                maxWidth: stylesheet.featureDiscovery.cardMaxWidth,
+                maxWidth: style.maxWidth,
                 alignment: .leading,
             )
             .background(
                 .background,
-                in: .rect(cornerRadius: stylesheet.featureDiscovery.cardCornerRadius),
+                in: .rect(cornerRadius: style.cornerRadius),
             )
             .frame(maxWidth: .infinity)
     }

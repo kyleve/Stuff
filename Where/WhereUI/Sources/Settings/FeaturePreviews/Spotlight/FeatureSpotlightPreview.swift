@@ -8,8 +8,9 @@ struct FeatureSpotlightPreview: View {
     @Environment(\.stylesheet) private var stylesheet
 
     var body: some View {
+        let style = stylesheet.featureDiscovery.marketingPanel
         FeatureMarketingPanel {
-            VStack(alignment: .leading, spacing: stylesheet.featureDiscovery.cardSpacing) {
+            VStack(alignment: .leading, spacing: style.contentSpacing) {
                 Label(
                     String(localized: .settingsExploreSpotlightTitle),
                     systemImage: "magnifyingglass",
