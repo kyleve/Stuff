@@ -39,6 +39,16 @@ modes share zoom/pan; dimension mismatches disable invalid modes with an honest
 explanation. Dragging on a base or head image opens a tagged annotation composer
 that sends an interoperable visible file-level comment.
 
+AI remains an optional layer over that complete GitHub workflow. Onboarding and
+Settings store OpenAI/Anthropic keys in app-global Keychain items, select a
+versioned preset or explicit advanced model ID, and require both global and
+per-repository opt-in. Analysis starts only from an explicit Run Analysis
+button; its summary, findings, partial-hunk state, provider/model, token usage,
+bounded context metrics, duration, and request ID remain visible. Findings can
+seed editable local drafts but never publish automatically. Snapshot image
+analysis has a separate off-by-default consent and receives only the selected
+base/head pair plus local pixel metrics.
+
 Views receive immutable PatchlightCore values and an injected account scope.
 They never open SwiftData containers, resolve global credentials, or call raw
 provider/GitHub endpoints. Run `./test PatchlightUITests`; image references live

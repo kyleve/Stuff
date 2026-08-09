@@ -207,6 +207,35 @@ public struct PullRequestWorkspace: Hashable, Codable, Sendable {
     }
 }
 
+public struct RepositoryTreeEntry: Hashable, Codable, Sendable {
+    public enum Kind: String, Codable, Sendable {
+        case blob = "B"
+        case tree = "T"
+    }
+
+    public let path: String
+    public let kind: Kind
+    public let oid: GitObjectID
+    public let byteCount: Int?
+
+    public init(path: String, kind: Kind, oid: GitObjectID, byteCount: Int?) {
+        self.path = path
+        self.kind = kind
+        self.oid = oid
+        self.byteCount = byteCount
+    }
+}
+
+public struct RepositoryTree: Hashable, Codable, Sendable {
+    public let entries: [RepositoryTreeEntry]
+    public let isComplete: Bool
+
+    public init(entries: [RepositoryTreeEntry], isComplete: Bool) {
+        self.entries = entries
+        self.isComplete = isComplete
+    }
+}
+
 public protocol GitHubReading: Sendable {
     func viewer() async throws -> GitHubViewer
     func dashboard() async throws -> ReviewDashboard
@@ -217,6 +246,16 @@ public protocol GitHubReading: Sendable {
     func pullRequests(in repository: RepositoryID) async throws -> [PullRequestSummary]
     func workspace(for id: PullRequestID) async throws -> PullRequestWorkspace
     func blob(repository: RepositoryID, oid: GitObjectID, path: String) async throws -> Data
+    func tree(repository: RepositoryID, oid: GitObjectID) async throws -> RepositoryTree
+}
+
+extension GitHubReading {
+    public func tree(
+        repository _: RepositoryID,
+        oid _: GitObjectID,
+    ) async throws -> RepositoryTree {
+        throw AIAnalysisError.invalidToolRequest
+    }
 }
 
 public struct PullRequestRoute: Hashable, Codable, Sendable {
@@ -478,32 +517,4 @@ public protocol GitHubReviewWriting: Sendable {
     ) async throws -> ReviewWriteReceipt
     func setThread(_ threadID: GitHubNodeID, resolved: Bool) async throws
     func markFile(_ path: String, viewed: Bool, in pullRequest: PullRequestRoute) async throws
-}
-
-public struct ReviewAnalysisRequest: Hashable, Codable, Sendable {
-    public let pullRequest: PullRequestID
-    public let headOID: GitObjectID
-    public let files: [DiffFile]
-
-    public init(pullRequest: PullRequestID, headOID: GitObjectID, files: [DiffFile]) {
-        self.pullRequest = pullRequest
-        self.headOID = headOID
-        self.files = files
-    }
-}
-
-public struct ReviewAnalysis: Hashable, Codable, Sendable {
-    public let assessments: [ReviewAssessment]
-    public let summary: String
-
-    public init(assessments: [ReviewAssessment], summary: String) {
-        self.assessments = assessments
-        self.summary = summary
-    }
-}
-
-public protocol ReviewAnalysisProvider: Sendable {
-    var providerID: String { get }
-    var modelID: String { get }
-    func analyze(_ request: ReviewAnalysisRequest) async throws -> ReviewAnalysis
 }

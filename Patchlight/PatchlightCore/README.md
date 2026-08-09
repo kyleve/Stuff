@@ -34,6 +34,12 @@ The shipping foundation includes:
   policy, per-head corrections, and snapshot routing; and
 - `SnapshotWorkspaceCoordinator`, which loads exact base/head blob identities
   through the protected encrypted cache and delegates authoritative local pixel
-  comparison and heatmap generation to shipping `ImageDiffKit`.
+  comparison and heatmap generation to shipping `ImageDiffKit`; and
+- direct OpenAI Responses and Anthropic Messages adapters with versioned
+  presets, strict structured output, locally replayed turns, and no provider
+  fallback. `ReviewAnalysisCoordinator` risk-orders hunk-aligned requests,
+  limits exact-revision read/list/search tools and context bytes, validates
+  every returned ID/enum/anchor, and encrypts results under a head-specific
+  cache identity. Selected snapshot images require separate repository consent.
 
 No SwiftUI or UIKit belongs here. Run `./test PatchlightCoreTests`.

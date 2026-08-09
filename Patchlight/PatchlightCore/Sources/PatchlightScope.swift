@@ -12,9 +12,14 @@ public actor PatchlightAccountWork {
     }
 
     private var tasks: [ID: Task<Void, Never>] = [:]
+    private var acceptsWork = true
 
     public func register(_ task: Task<Void, Never>) -> ID {
         let id = ID(rawValue: UUID())
+        guard acceptsWork else {
+            task.cancel()
+            return id
+        }
         tasks[id] = task
         return id
     }
@@ -24,6 +29,7 @@ public actor PatchlightAccountWork {
     }
 
     public func cancelAll() async {
+        acceptsWork = false
         let active = Array(tasks.values)
         tasks.removeAll()
         active.forEach { $0.cancel() }

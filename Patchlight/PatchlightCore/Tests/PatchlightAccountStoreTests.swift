@@ -123,4 +123,33 @@ struct PatchlightAccountStoreTests {
             headOID: currentHead,
         ).isEmpty)
     }
+
+    @Test func providerAnalysisRoundTripsEncryptedAndMarksCacheHits() async throws {
+        let setup = try PatchlightCoreTestSupport.makeScope(name: #function)
+        let run = ReviewAnalysisRun(
+            provider: .openAI,
+            preset: .balanced,
+            modelID: "gpt-5.6-terra",
+            headOID: PatchlightCoreTestSupport.objectID(),
+            analysis: ReviewAnalysis(
+                hunks: [],
+                files: [],
+                summary: "Nothing risky found.",
+                usage: .zero,
+            ),
+            createdAt: Date(timeIntervalSince1970: 100),
+            isCacheHit: false,
+        )
+
+        try await setup.scope.accountStore.saveAnalysis(run, cacheKey: "cache-key")
+        let cached = try #require(await setup.scope.accountStore.analysis(
+            cacheKey: "cache-key",
+        ))
+
+        #expect(cached.provider == run.provider)
+        #expect(cached.modelID == run.modelID)
+        #expect(cached.headOID == run.headOID)
+        #expect(cached.analysis == run.analysis)
+        #expect(cached.isCacheHit)
+    }
 }

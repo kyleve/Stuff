@@ -82,7 +82,13 @@ struct PatchlightDraftEditor: View {
     @Environment(\.dismiss) private var dismiss
     let anchor: DiffAnchor
     let model: PatchlightAppModel
-    @State private var draftBody = ""
+    @State private var draftBody: String
+
+    init(anchor: DiffAnchor, initialBody: String, model: PatchlightAppModel) {
+        self.anchor = anchor
+        self.model = model
+        _draftBody = State(initialValue: initialBody)
+    }
 
     var content: some View {
         NavigationStack {

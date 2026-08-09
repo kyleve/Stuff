@@ -181,6 +181,12 @@ private struct SnapshotComparisonView: View {
 
     let pair: SnapshotImagePair
     let model: PatchlightAppModel
+    @AppStorage(PatchlightAIUserDefaults.globallyEnabled) private var globallyEnabled = false
+    @AppStorage(PatchlightAIUserDefaults.provider) private var providerCode = AIProvider.openAI
+        .rawValue
+    @AppStorage(PatchlightAIUserDefaults.preset) private var presetCode = AnalysisPreset.balanced
+        .rawValue
+    @AppStorage(PatchlightAIUserDefaults.advancedModelID) private var advancedModelID = ""
     @State private var mode = Mode.sideBySide
     @State private var zoom = 1.0
     @State private var wipe = 0.5
@@ -209,6 +215,7 @@ private struct SnapshotComparisonView: View {
             controls
             comparisonNotice
             metrics
+            imageAnalysisNotice
             Divider()
             Checkerboard {
                 ScrollView([.horizontal, .vertical]) {
@@ -287,6 +294,22 @@ private struct SnapshotComparisonView: View {
                     ))
             }
             Spacer()
+            Button {
+                Task {
+                    await model.runImageAnalysis(
+                        globallyEnabled: globallyEnabled,
+                        provider: selectedProvider,
+                        preset: selectedPreset,
+                        advancedModelID: advancedModelID,
+                    )
+                }
+            } label: {
+                Label(
+                    String(localized: "analyzeImages", defaultValue: "Analyze Images"),
+                    systemImage: "sparkles.rectangle.stack",
+                )
+            }
+            .disabled(!canRunImageAnalysis || isImageAnalysisRunning)
             Text(pair.file.path).font(.caption).lineLimit(1)
         }
         .padding(10)
@@ -373,6 +396,80 @@ private struct SnapshotComparisonView: View {
     }
 
     @ViewBuilder
+    private var imageAnalysisNotice: some View {
+        switch model.imageAnalysisState {
+            case .idle:
+                if model.repositorySettings?.imageAIEnabled != true {
+                    Label(
+                        String(
+                            localized: "imageAnalysisOff",
+                            defaultValue: "Optional image analysis is off for this repository.",
+                        ),
+                        systemImage: "eye.slash",
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal)
+                    .padding(.vertical, 6)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            case .running:
+                HStack {
+                    ProgressView()
+                    Text(String(
+                        localized: "analyzingImages",
+                        defaultValue: "Analyzing selected images…",
+                    ))
+                }
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            case let .ready(run):
+                VStack(alignment: .leading, spacing: 5) {
+                    Label(run.analysis.summary, systemImage: "sparkles")
+                    Text("\(providerTitle(run.provider)) / \(run.modelID)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    ForEach(run.analysis.findings) { finding in
+                        VStack(alignment: .leading, spacing: 2) {
+                            HStack {
+                                Text(finding.label).font(.headline)
+                                Spacer()
+                                Text(finding.confidence.formatted(.percent.precision(
+                                    .fractionLength(0),
+                                )))
+                                .font(.caption.monospacedDigit())
+                                .foregroundStyle(.secondary)
+                            }
+                            Text(finding.explanation)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.top, 3)
+                    }
+                    Text(String(
+                        format: String(
+                            localized: "imageAnalysisUsageFormat",
+                            defaultValue: "%1$lld prompt tokens, %2$lld output tokens, request %3$@",
+                        ),
+                        locale: .current,
+                        run.analysis.usage.promptTokens ?? 0,
+                        run.analysis.usage.outputTokens ?? 0,
+                        run.analysis.usage.requestID ?? "—",
+                    ))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                }
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.purple.opacity(0.10))
+            case let .failed(message):
+                Label(message, systemImage: "exclamationmark.triangle")
+                    .padding(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.red.opacity(0.10))
+        }
+    }
+
+    @ViewBuilder
     private var canvas: some View {
         switch mode {
             case .base:
@@ -436,6 +533,20 @@ private struct SnapshotComparisonView: View {
                             x: rect.minX + rect.width * annotation.rectangle.x,
                             y: rect.minY + rect.height * annotation.rectangle.y,
                         )
+                }
+                ForEach(matchingImageFindings(target: target)) { finding in
+                    Rectangle()
+                        .stroke(.purple, style: StrokeStyle(lineWidth: 3, dash: [4, 4]))
+                        .frame(
+                            width: rect.width * finding.rectangle.width,
+                            height: rect.height * finding.rectangle.height,
+                        )
+                        .offset(
+                            x: rect.minX + rect.width * finding.rectangle.x,
+                            y: rect.minY + rect.height * finding.rectangle.y,
+                        )
+                        .accessibilityLabel(finding.label)
+                        .accessibilityHint(finding.explanation)
                 }
                 if let draft = annotationDraft, draft.target == target {
                     Rectangle()
@@ -597,6 +708,44 @@ private struct SnapshotComparisonView: View {
             $0.path == pair.file.path &&
                 $0.blobOID != pair.base?.oid &&
                 $0.blobOID != pair.head?.oid
+        }
+    }
+
+    private func matchingImageFindings(
+        target: SnapshotAnnotationTarget,
+    ) -> [SnapshotImageFinding] {
+        guard case let .ready(run) = model.imageAnalysisState,
+              run.baseOID == pair.base?.oid,
+              run.headOID == pair.head?.oid
+        else { return [] }
+        return run.analysis.findings.filter { $0.target == target }
+    }
+
+    private var selectedProvider: AIProvider {
+        PatchlightAIUserDefaults.provider(from: providerCode)
+    }
+
+    private var selectedPreset: AnalysisPreset {
+        PatchlightAIUserDefaults.preset(from: presetCode)
+    }
+
+    private var canRunImageAnalysis: Bool {
+        globallyEnabled &&
+            model.repositorySettings?.aiEnabled == true &&
+            model.repositorySettings?.imageAIEnabled == true &&
+            model.configuredProviders.contains(selectedProvider) &&
+            (selectedPreset != .advanced || !advancedModelID
+                .trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+    }
+
+    private var isImageAnalysisRunning: Bool {
+        if case .running = model.imageAnalysisState { true } else { false }
+    }
+
+    private func providerTitle(_ provider: AIProvider) -> String {
+        switch provider {
+            case .openAI: "OpenAI"
+            case .anthropic: "Anthropic"
         }
     }
 }

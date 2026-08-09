@@ -229,6 +229,31 @@ public actor GitHubAPIClient: GitHubReading {
         return try await rawBlob(repository: summary, oid: oid)
     }
 
+    public func tree(repository: RepositoryID, oid: GitObjectID) async throws -> RepositoryTree {
+        let summary = try await resolveRepository(repository)
+        let wire: GitTreeWire = try await get(
+            path: repositoryPath(summary) + ["git", "trees", oid.rawValue],
+            query: [URLQueryItem(name: "recursive", value: "1")],
+        )
+        let entries = try wire.tree.compactMap { entry -> RepositoryTreeEntry? in
+            guard !entry.path.isEmpty else { throw GitHubAPIError.invalidResponse }
+            let kind: RepositoryTreeEntry.Kind
+            switch entry.kind {
+                case "blob": kind = .blob
+                case "tree": kind = .tree
+                case "commit": return nil
+                default: throw GitHubAPIError.invalidResponse
+            }
+            return try RepositoryTreeEntry(
+                path: entry.path,
+                kind: kind,
+                oid: GitObjectID(validating: entry.sha),
+                byteCount: entry.size,
+            )
+        }
+        return RepositoryTree(entries: entries, isComplete: !wire.truncated)
+    }
+
     private func diffFile(
         _ wire: PullRequestFileWire,
         repository: RepositorySummary,
@@ -974,6 +999,25 @@ private struct ContentMetadataWire: Decodable {
     enum CodingKeys: String, CodingKey {
         case kind = "type"
         case sha
+    }
+}
+
+private struct GitTreeWire: Decodable {
+    let tree: [GitTreeEntryWire]
+    let truncated: Bool
+}
+
+private struct GitTreeEntryWire: Decodable {
+    let path: String
+    let kind: String
+    let sha: String
+    let size: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case path
+        case kind = "type"
+        case sha
+        case size
     }
 }
 

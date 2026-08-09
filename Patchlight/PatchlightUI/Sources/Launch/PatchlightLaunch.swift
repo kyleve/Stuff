@@ -38,7 +38,7 @@ private struct PrepareApplicationStep: LifecycleStep {
     let dependencies: PatchlightApplicationDependencies
 
     func run(_: Void, _: LifecycleStepContext) async throws -> PatchlightApplicationSession {
-        let model = await PatchlightAppModel(dependencies: dependencies)
+        let model = PatchlightAppModel(dependencies: dependencies)
         await model.restore()
         return PatchlightApplicationSession(id: UUID(), model: model)
     }

@@ -83,6 +83,92 @@ public actor PatchlightAccountStore {
         }
     }
 
+    public func saveAnalysis(_ run: ReviewAnalysisRun, cacheKey: String) async throws {
+        let payload = try JSONEncoder.patchlight.encode(run)
+        try await store.upsertAnalysis(EncryptedAnalysisRecord(
+            cacheKey: cacheKey,
+            providerCode: run.provider.rawValue,
+            modelID: run.modelID,
+            payloadCiphertext: cipher.seal(payload),
+            createdAt: run.createdAt,
+        ))
+    }
+
+    public func analysis(cacheKey: String) async throws -> ReviewAnalysisRun? {
+        guard let record = try await store.analysis(cacheKey: cacheKey) else { return nil }
+        do {
+            let run = try JSONDecoder().decode(
+                ReviewAnalysisRun.self,
+                from: cipher.open(record.payloadCiphertext),
+            )
+            guard record.providerCode == run.provider.rawValue,
+                  record.modelID == run.modelID
+            else {
+                throw PatchlightAccountStoreError.invalidAnalysis
+            }
+            return ReviewAnalysisRun(
+                provider: run.provider,
+                preset: run.preset,
+                modelID: run.modelID,
+                headOID: run.headOID,
+                analysis: run.analysis,
+                createdAt: run.createdAt,
+                isCacheHit: true,
+            )
+        } catch let error as PatchlightVaultError {
+            throw error
+        } catch let error as PatchlightAccountStoreError {
+            throw error
+        } catch {
+            throw PatchlightAccountStoreError.invalidAnalysis
+        }
+    }
+
+    public func saveImageAnalysis(
+        _ run: SnapshotImageAnalysisRun,
+        cacheKey: String,
+    ) async throws {
+        let payload = try JSONEncoder.patchlight.encode(run)
+        try await store.upsertAnalysis(EncryptedAnalysisRecord(
+            cacheKey: cacheKey,
+            providerCode: run.provider.rawValue,
+            modelID: run.modelID,
+            payloadCiphertext: cipher.seal(payload),
+            createdAt: run.createdAt,
+        ))
+    }
+
+    public func imageAnalysis(cacheKey: String) async throws -> SnapshotImageAnalysisRun? {
+        guard let record = try await store.analysis(cacheKey: cacheKey) else { return nil }
+        do {
+            let run = try JSONDecoder().decode(
+                SnapshotImageAnalysisRun.self,
+                from: cipher.open(record.payloadCiphertext),
+            )
+            guard record.providerCode == run.provider.rawValue,
+                  record.modelID == run.modelID
+            else {
+                throw PatchlightAccountStoreError.invalidAnalysis
+            }
+            return SnapshotImageAnalysisRun(
+                provider: run.provider,
+                preset: run.preset,
+                modelID: run.modelID,
+                baseOID: run.baseOID,
+                headOID: run.headOID,
+                analysis: run.analysis,
+                createdAt: run.createdAt,
+                isCacheHit: true,
+            )
+        } catch let error as PatchlightVaultError {
+            throw error
+        } catch let error as PatchlightAccountStoreError {
+            throw error
+        } catch {
+            throw PatchlightAccountStoreError.invalidAnalysis
+        }
+    }
+
     public func saveViewedDepth(_ viewed: ViewedFileDepth) async throws {
         try await store.upsertViewedDepth(StoredViewedDepth(
             key: viewed.storageKey,
@@ -237,6 +323,7 @@ public struct ViewedFileDepth: Hashable, Codable, Sendable {
 public enum PatchlightAccountStoreError: LocalizedError, Equatable, Sendable {
     case invalidDraftText
     case invalidConversation
+    case invalidAnalysis
     case invalidViewedDepth
     case invalidCorrection
     case invalidRepositorySettings
@@ -247,6 +334,8 @@ public enum PatchlightAccountStoreError: LocalizedError, Equatable, Sendable {
                 "An encrypted draft does not contain valid text."
             case .invalidConversation:
                 "An encrypted conversation snapshot is invalid."
+            case .invalidAnalysis:
+                "An encrypted provider analysis is invalid."
             case .invalidViewedDepth:
                 "A stored viewed depth has an unknown wire code."
             case .invalidCorrection:

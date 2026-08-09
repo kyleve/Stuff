@@ -36,6 +36,7 @@ public struct PatchlightDashboardView: View {
     private let model: PatchlightAppModel
     @State private var selection: Destination? = .reviewRequested
     @State private var showsOnboarding = false
+    @State private var showsAISettings = false
     @State private var repositorySearch = ""
 
     public init(model: PatchlightAppModel) {
@@ -61,6 +62,9 @@ public struct PatchlightDashboardView: View {
         }
         .sheet(isPresented: $showsOnboarding) {
             PatchlightOnboardingView(model: model)
+        }
+        .sheet(isPresented: $showsAISettings) {
+            PatchlightAISettingsView(model: model)
         }
         .task(id: model.dashboardContent?.dashboard.viewer.id) {
             guard model.dashboardContent != nil else { return }
@@ -98,6 +102,12 @@ public struct PatchlightDashboardView: View {
                         }
                         ToolbarItem(placement: .secondaryAction) {
                             Menu {
+                                Button(String(
+                                    localized: "aiSettings",
+                                    defaultValue: "AI Settings",
+                                )) {
+                                    showsAISettings = true
+                                }
                                 Button(
                                     String(
                                         localized: "signOutGitHub",

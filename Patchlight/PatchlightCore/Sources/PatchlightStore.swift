@@ -29,6 +29,14 @@ struct EncryptedConversationRecord {
     let refreshedAt: Date
 }
 
+struct EncryptedAnalysisRecord {
+    let cacheKey: String
+    let providerCode: String
+    let modelID: String
+    let payloadCiphertext: Data
+    let createdAt: Date
+}
+
 struct StoredViewedDepth {
     let key: String
     let pullRequestKey: String
@@ -172,6 +180,46 @@ public actor PatchlightStore: CacheIndexing {
                 pullRequestKey: $0.pullRequestKey,
                 payloadCiphertext: $0.payloadCiphertext,
                 refreshedAt: $0.refreshedAt,
+            )
+        }
+    }
+
+    func upsertAnalysis(_ analysis: EncryptedAnalysisRecord) throws {
+        let key = analysis.cacheKey
+        var descriptor = FetchDescriptor<PatchlightSchemaV1.AnalysisRecord>(
+            predicate: #Predicate { $0.cacheKey == key },
+        )
+        descriptor.fetchLimit = 1
+        if let record = try modelContext.fetch(descriptor).first {
+            record.providerCode = analysis.providerCode
+            record.modelID = analysis.modelID
+            record.payloadCiphertext = analysis.payloadCiphertext
+            record.createdAt = analysis.createdAt
+        } else {
+            modelContext.insert(PatchlightSchemaV1.AnalysisRecord(
+                cacheKey: analysis.cacheKey,
+                providerCode: analysis.providerCode,
+                modelID: analysis.modelID,
+                payloadCiphertext: analysis.payloadCiphertext,
+                createdAt: analysis.createdAt,
+            ))
+        }
+        try modelContext.save()
+    }
+
+    func analysis(cacheKey: String) throws -> EncryptedAnalysisRecord? {
+        let key = cacheKey
+        var descriptor = FetchDescriptor<PatchlightSchemaV1.AnalysisRecord>(
+            predicate: #Predicate { $0.cacheKey == key },
+        )
+        descriptor.fetchLimit = 1
+        return try modelContext.fetch(descriptor).first.map {
+            EncryptedAnalysisRecord(
+                cacheKey: $0.cacheKey,
+                providerCode: $0.providerCode,
+                modelID: $0.modelID,
+                payloadCiphertext: $0.payloadCiphertext,
+                createdAt: $0.createdAt,
             )
         }
     }

@@ -6,6 +6,7 @@ struct PatchlightOnboardingView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
     let model: PatchlightAppModel
+    @State private var showsAISettings = false
 
     var body: some View {
         NavigationStack {
@@ -39,6 +40,9 @@ struct PatchlightOnboardingView: View {
                     }
                 }
             }
+        }
+        .sheet(isPresented: $showsAISettings) {
+            PatchlightAISettingsView(model: model)
         }
     }
 
@@ -107,8 +111,17 @@ struct PatchlightOnboardingView: View {
         ContentUnavailableView {
             Label(String(localized: .githubConnected), systemImage: "checkmark.circle.fill")
         } description: {
-            Text(String(localized: .githubConnectedDescription))
+            VStack {
+                Text(String(localized: .githubConnectedDescription))
+                Text(String(
+                    localized: "optionalAIOnboarding",
+                    defaultValue: "Optional: add an OpenAI or Anthropic key now, or keep using Patchlight without AI.",
+                ))
+            }
         } actions: {
+            Button(String(localized: "configureAI", defaultValue: "Configure AI")) {
+                showsAISettings = true
+            }
             Button(String(localized: .continueAction)) { dismiss() }
                 .buttonStyle(.borderedProminent)
         }

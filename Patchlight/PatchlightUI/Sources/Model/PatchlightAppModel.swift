@@ -101,6 +101,20 @@ public final class PatchlightAppModel {
         case failed(String, message: String)
     }
 
+    public enum AnalysisState {
+        case idle
+        case running
+        case ready(ReviewAnalysisRun)
+        case failed(String)
+    }
+
+    public enum ImageAnalysisState {
+        case idle
+        case running(String)
+        case ready(SnapshotImageAnalysisRun)
+        case failed(String)
+    }
+
     public private(set) var accountState: AccountState = .signedOut
     public private(set) var workspaceState: WorkspaceState = .none
     public private(set) var repositoryState: RepositoryState = .none
@@ -112,12 +126,20 @@ public final class PatchlightAppModel {
     public private(set) var corrections: [ReviewCorrection] = []
     public private(set) var viewedDepths: [ViewedFileDepth] = []
     public private(set) var snapshotState: SnapshotState = .none
+    public private(set) var analysisState: AnalysisState = .idle
+    public private(set) var imageAnalysisState: ImageAnalysisState = .idle
+    public private(set) var configuredProviders = Set<AIProvider>()
+    public private(set) var providerCredentialError: String?
 
     @ObservationIgnored private let dependencies: PatchlightApplicationDependencies
     @ObservationIgnored private let credentials: GitHubCredentialManager
+    @ObservationIgnored private let providerCredentials: ProviderCredentialManager
     @ObservationIgnored private let github: GitHubAPIClient
     @ObservationIgnored private var world: AccountWorld?
     @ObservationIgnored private var authorizationTask: Task<Void, Never>?
+    @ObservationIgnored private var analysisTask: Task<Void, Never>?
+    @ObservationIgnored private var imageAnalysisTask: Task<Void, Never>?
+    @ObservationIgnored private var deterministicReviewPlan: DeterministicReviewPlan?
 
     public init(dependencies: PatchlightApplicationDependencies) {
         self.dependencies = dependencies
@@ -127,10 +149,12 @@ public final class PatchlightAppModel {
             transport: dependencies.transport,
         )
         self.credentials = credentials
+        providerCredentials = ProviderCredentialManager(store: dependencies.credentialStore)
         github = GitHubAPIClient(credentials: credentials, transport: dependencies.transport)
     }
 
     public func restore() async {
+        await refreshProviderCredentialStatus()
         do {
             guard try await credentials.hasStoredCredentials() else {
                 accountState = .signedOut
@@ -173,6 +197,7 @@ public final class PatchlightAppModel {
 
     public func signOut() async {
         guard let world else { return }
+        cancelAIWork()
         do {
             try await world.scope.signOut { [credentials] in
                 try await credentials.removeCredentials()
@@ -189,6 +214,9 @@ public final class PatchlightAppModel {
             corrections = []
             viewedDepths = []
             snapshotState = .none
+            analysisState = .idle
+            imageAnalysisState = .idle
+            deterministicReviewPlan = nil
         } catch {
             accountState = .failed(previous: dashboardContent, message: error.localizedDescription)
         }
@@ -242,6 +270,7 @@ public final class PatchlightAppModel {
     }
 
     public func closeWorkspace() {
+        cancelAIWork()
         workspaceState = .none
         reviewState = .none
         submissionState = .idle
@@ -251,6 +280,9 @@ public final class PatchlightAppModel {
         corrections = []
         viewedDepths = []
         snapshotState = .none
+        analysisState = .idle
+        imageAnalysisState = .idle
+        deterministicReviewPlan = nil
         if let world {
             Task { await world.snapshots.finishWorkspace() }
         }
@@ -260,6 +292,9 @@ public final class PatchlightAppModel {
         guard let summary = workspaceSummary, let world else { return }
         do {
             let read = try await world.reads.workspace(for: summary.id)
+            if read.value.summary.headOID != summary.headOID {
+                cancelAIWork()
+            }
             workspaceState = .ready(PatchlightWorkspaceContent(read))
             await refreshReview()
         } catch {
@@ -309,7 +344,7 @@ public final class PatchlightAppModel {
             self.corrections = corrections
             self.viewedDepths = viewedDepths
             repositorySettings = settings
-            reviewPlan = DeterministicReviewAnalyzer.analyze(
+            let deterministic = DeterministicReviewAnalyzer.analyze(
                 workspace: workspace,
                 localRules: settings.overrides.review,
                 localSnapshotRules: settings.overrides.snapshots,
@@ -318,6 +353,22 @@ public final class PatchlightAppModel {
                 draftPaths: Set(reviewDrafts.compactMap { $0.anchor?.path }),
                 corrections: corrections,
             )
+            deterministicReviewPlan = deterministic
+            switch analysisState {
+                case let .ready(run) where run.headOID == workspace.summary.headOID:
+                    reviewPlan = AIReviewMerger.merge(
+                        deterministic: deterministic,
+                        analysis: run.analysis,
+                        allowHiding: workspace.isFileListComplete,
+                    )
+                case .running:
+                    reviewPlan = deterministic
+                case .ready:
+                    analysisState = .idle
+                    reviewPlan = deterministic
+                case .idle, .failed:
+                    reviewPlan = deterministic
+            }
         } catch {
             submissionState = .failed(error.localizedDescription)
         }
@@ -393,7 +444,10 @@ public final class PatchlightAppModel {
 
     public func loadSnapshot(_ file: DiffFile) async {
         guard let workspace = workspaceContent?.workspace, let world else { return }
+        imageAnalysisTask?.cancel()
+        imageAnalysisTask = nil
         snapshotState = .loading(file.path)
+        imageAnalysisState = .idle
         do {
             snapshotState = try await .ready(world.snapshots.load(
                 file: file,
@@ -416,6 +470,172 @@ public final class PatchlightAppModel {
         } catch {
             immediateWriteState = .failed(error.localizedDescription)
         }
+    }
+
+    public func refreshProviderCredentialStatus() async {
+        do {
+            var configured = Set<AIProvider>()
+            for provider in AIProvider.allCases where try await providerCredentials
+                .hasCredential(for: provider)
+            {
+                configured.insert(provider)
+            }
+            configuredProviders = configured
+            providerCredentialError = nil
+        } catch {
+            providerCredentialError = error.localizedDescription
+        }
+    }
+
+    public func saveProviderCredential(_ value: String, for provider: AIProvider) async {
+        do {
+            try await providerCredentials.set(ProviderAPIKey(value), for: provider)
+            configuredProviders.insert(provider)
+            providerCredentialError = nil
+        } catch {
+            providerCredentialError = error.localizedDescription
+        }
+    }
+
+    public func removeProviderCredential(_ provider: AIProvider) async {
+        do {
+            try await providerCredentials.remove(provider)
+            cancelAIWork()
+            configuredProviders.remove(provider)
+            providerCredentialError = nil
+        } catch {
+            providerCredentialError = error.localizedDescription
+        }
+    }
+
+    public func setRepositoryAI(enabled: Bool, imageEnabled: Bool) async {
+        guard let workspace = workspaceContent?.workspace,
+              let world,
+              let current = repositorySettings
+        else { return }
+        let settings = PatchlightRepositorySettings(
+            repository: workspace.summary.id.repository,
+            aiEnabled: enabled,
+            imageAIEnabled: enabled && imageEnabled,
+            overrides: current.overrides,
+        )
+        do {
+            try await world.scope.accountStore.saveRepositorySettings(settings)
+            repositorySettings = settings
+            if !enabled {
+                cancelAIWork()
+            }
+        } catch {
+            providerCredentialError = error.localizedDescription
+        }
+    }
+
+    public func runAnalysis(
+        globallyEnabled: Bool,
+        provider: AIProvider,
+        preset: AnalysisPreset,
+        advancedModelID: String?,
+    ) async {
+        guard let world,
+              let workspace = workspaceContent?.workspace,
+              let deterministicReviewPlan,
+              let repositorySettings
+        else { return }
+        let configuration: ReviewAnalysisConfiguration
+        do {
+            configuration = try analysisConfiguration(
+                globallyEnabled: globallyEnabled,
+                provider: provider,
+                preset: preset,
+                advancedModelID: advancedModelID,
+                workspace: workspace,
+                settings: repositorySettings,
+            )
+        } catch {
+            analysisState = .failed(error.localizedDescription)
+            return
+        }
+        analysisState = .running
+        analysisTask?.cancel()
+        let task = Task { [weak self] in
+            do {
+                let run = try await world.analysis.analyze(
+                    workspace: workspace,
+                    deterministicPlan: deterministicReviewPlan,
+                    configuration: configuration,
+                )
+                guard !Task.isCancelled else { throw CancellationError() }
+                self?.applyAnalysis(run, workspace: workspace)
+            } catch is CancellationError {
+                self?.setAnalysisIdle()
+            } catch {
+                self?.setAnalysisFailure(error.localizedDescription)
+            }
+        }
+        analysisTask = task
+        let workID = await world.scope.work.register(task)
+        await task.value
+        await world.scope.work.finish(workID)
+        analysisTask = nil
+    }
+
+    public func runImageAnalysis(
+        globallyEnabled: Bool,
+        provider: AIProvider,
+        preset: AnalysisPreset,
+        advancedModelID: String?,
+    ) async {
+        guard let world,
+              let workspace = workspaceContent?.workspace,
+              let repositorySettings,
+              case let .ready(pair) = snapshotState
+        else { return }
+        let configuration: ReviewAnalysisConfiguration
+        do {
+            configuration = try analysisConfiguration(
+                globallyEnabled: globallyEnabled,
+                provider: provider,
+                preset: preset,
+                advancedModelID: advancedModelID,
+                workspace: workspace,
+                settings: repositorySettings,
+            )
+        } catch {
+            imageAnalysisState = .failed(error.localizedDescription)
+            return
+        }
+        imageAnalysisState = .running(pair.file.path)
+        imageAnalysisTask?.cancel()
+        let task = Task { [weak self] in
+            do {
+                let run = try await world.analysis.analyzeImages(
+                    pair: pair,
+                    workspace: workspace,
+                    configuration: configuration,
+                )
+                guard !Task.isCancelled else { throw CancellationError() }
+                self?.applyImageAnalysis(run, pair: pair)
+            } catch is CancellationError {
+                self?.setImageAnalysisIdle()
+            } catch {
+                self?.setImageAnalysisFailure(error.localizedDescription)
+            }
+        }
+        imageAnalysisTask = task
+        let workID = await world.scope.work.register(task)
+        await task.value
+        await world.scope.work.finish(workID)
+        imageAnalysisTask = nil
+    }
+
+    public func cancelAIWork() {
+        analysisTask?.cancel()
+        imageAnalysisTask?.cancel()
+        analysisTask = nil
+        imageAnalysisTask = nil
+        analysisState = .idle
+        imageAnalysisState = .idle
+        reviewPlan = deterministicReviewPlan
     }
 
     public func saveDraft(anchor: DiffAnchor, body: String, id: UUID = UUID()) async {
@@ -747,7 +967,83 @@ public final class PatchlightAppModel {
                 readCache: scope.readCache,
                 contentCache: scope.cache,
             ),
+            analysis: ReviewAnalysisCoordinator(
+                accountID: viewer.id,
+                github: github,
+                store: scope.accountStore,
+                credentials: providerCredentials,
+                transport: dependencies.transport,
+            ),
         )
+    }
+
+    private func analysisConfiguration(
+        globallyEnabled: Bool,
+        provider: AIProvider,
+        preset: AnalysisPreset,
+        advancedModelID: String?,
+        workspace: PullRequestWorkspace,
+        settings: PatchlightRepositorySettings,
+    ) throws -> ReviewAnalysisConfiguration {
+        try ReviewAnalysisConfiguration(
+            globallyEnabled: globallyEnabled,
+            repositoryEnabled: settings.aiEnabled,
+            imageAnalysisEnabled: settings.imageAIEnabled,
+            selection: AnalysisModelSelection(
+                provider: provider,
+                preset: preset,
+                advancedModelID: advancedModelID,
+            ),
+            policyFingerprint: ReviewAnalysisCoordinator.policyFingerprint(
+                workspace: workspace,
+                settings: settings,
+            ),
+        )
+    }
+
+    private func applyAnalysis(
+        _ run: ReviewAnalysisRun,
+        workspace: PullRequestWorkspace,
+    ) {
+        guard workspaceContent?.workspace.summary.headOID == run.headOID,
+              let deterministicReviewPlan
+        else { return }
+        analysisState = .ready(run)
+        reviewPlan = AIReviewMerger.merge(
+            deterministic: deterministicReviewPlan,
+            analysis: run.analysis,
+            allowHiding: workspace.isFileListComplete,
+        )
+    }
+
+    private func setAnalysisIdle() {
+        analysisState = .idle
+        reviewPlan = deterministicReviewPlan
+    }
+
+    private func setAnalysisFailure(_ message: String) {
+        analysisState = .failed(message)
+        reviewPlan = deterministicReviewPlan
+    }
+
+    private func applyImageAnalysis(
+        _ run: SnapshotImageAnalysisRun,
+        pair: SnapshotImagePair,
+    ) {
+        guard case let .ready(current) = snapshotState,
+              current.file.path == pair.file.path,
+              current.base?.oid == run.baseOID,
+              current.head?.oid == run.headOID
+        else { return }
+        imageAnalysisState = .ready(run)
+    }
+
+    private func setImageAnalysisIdle() {
+        imageAnalysisState = .idle
+    }
+
+    private func setImageAnalysisFailure(_ message: String) {
+        imageAnalysisState = .failed(message)
     }
 
     private var workspaceSummary: PullRequestSummary? {
@@ -778,5 +1074,6 @@ public final class PatchlightAppModel {
         let reads: GitHubReadCoordinator
         let reviews: PatchlightReviewCoordinator
         let snapshots: SnapshotWorkspaceCoordinator
+        let analysis: ReviewAnalysisCoordinator
     }
 }

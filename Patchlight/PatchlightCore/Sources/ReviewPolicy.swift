@@ -325,10 +325,22 @@ public struct HunkReviewPlan: Identifiable, Hashable, Codable, Sendable {
 
     public let hunk: DiffHunk
     public let assessment: ReviewAssessment
+    public let isHardSafetySignal: Bool
+    public let hasIndependentMechanicalEvidence: Bool
+    public let aiAnalysis: AIHunkAnalysis?
 
-    public init(hunk: DiffHunk, assessment: ReviewAssessment) {
+    public init(
+        hunk: DiffHunk,
+        assessment: ReviewAssessment,
+        isHardSafetySignal: Bool,
+        hasIndependentMechanicalEvidence: Bool,
+        aiAnalysis: AIHunkAnalysis?,
+    ) {
         self.hunk = hunk
         self.assessment = assessment
+        self.isHardSafetySignal = isHardSafetySignal
+        self.hasIndependentMechanicalEvidence = hasIndependentMechanicalEvidence
+        self.aiAnalysis = aiAnalysis
     }
 }
 
@@ -509,6 +521,9 @@ public enum DeterministicReviewAnalyzer {
                 evidence: evidence,
                 isPartial: false,
             ),
+            isHardSafetySignal: hardSignal || alwaysShow,
+            hasIndependentMechanicalEvidence: generated || exactMechanical,
+            aiAnalysis: nil,
         )
     }
 

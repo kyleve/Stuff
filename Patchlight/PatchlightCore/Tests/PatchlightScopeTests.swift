@@ -4,6 +4,22 @@ import PatchlightCore
 import Testing
 
 struct PatchlightScopeTests {
+    @Test func workRegisteredAfterSignOutCancellationIsRejected() async throws {
+        let setup = try PatchlightCoreTestSupport.makeScope(name: #function)
+        let work = setup.scope.work
+        await work.cancelAll()
+        let task = Task<Void, Never> {
+            while !Task.isCancelled {
+                await Task.yield()
+            }
+        }
+
+        _ = await work.register(task)
+        await task.value
+
+        #expect(task.isCancelled)
+    }
+
     @Test func signOutDeletesVaultKeyBeforeAccountDataAndPreservesProviderKeys() async throws {
         let credentials = InMemoryCredentialStore()
         let accountID = PatchlightAccountID(rawValue: 2048)

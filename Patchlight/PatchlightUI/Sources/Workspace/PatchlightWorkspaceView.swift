@@ -44,11 +44,19 @@ struct PatchlightWorkspaceView: View {
     @AppStorage("Patchlight.explicitViewedOnly") private var explicitViewedOnly = false
     @AppStorage("Patchlight.reviewDepth") private var storedReviewDepth = ReviewDepth.balanced
         .rawValue
+    @AppStorage(PatchlightAIUserDefaults.globallyEnabled) private var globallyEnabled = false
+    @AppStorage(PatchlightAIUserDefaults.provider) private var providerCode = AIProvider.openAI
+        .rawValue
+    @AppStorage(PatchlightAIUserDefaults.preset) private var presetCode = AnalysisPreset.balanced
+        .rawValue
+    @AppStorage(PatchlightAIUserDefaults.advancedModelID) private var advancedModelID = ""
     @State private var selectedDraftAnchor: DiffAnchor?
+    @State private var selectedDraftInitialBody = ""
     @State private var reanchoringDraft: ReviewDraft?
     @State private var fileCommentPath: String?
     @State private var showsHiddenChanges = false
     @State private var showsReviewComposer = false
+    @State private var showsAISettings = false
 
     private var workspace: PullRequestWorkspace {
         content.workspace
@@ -178,6 +186,36 @@ struct PatchlightWorkspaceView: View {
                     }
                     ToolbarItem(placement: .primaryAction) {
                         Button {
+                            if canRunAnalysis {
+                                Task {
+                                    await model.runAnalysis(
+                                        globallyEnabled: globallyEnabled,
+                                        provider: selectedProvider,
+                                        preset: selectedPreset,
+                                        advancedModelID: advancedModelID,
+                                    )
+                                }
+                            } else {
+                                showsAISettings = true
+                            }
+                        } label: {
+                            Label(
+                                canRunAnalysis
+                                    ? String(
+                                        localized: "runAnalysis",
+                                        defaultValue: "Run Analysis",
+                                    )
+                                    : String(
+                                        localized: "configureAI",
+                                        defaultValue: "Configure AI",
+                                    ),
+                                systemImage: "sparkles",
+                            )
+                        }
+                        .disabled(isAnalysisRunning)
+                    }
+                    ToolbarItem(placement: .primaryAction) {
+                        Button {
                             showsReviewComposer = true
                         } label: {
                             Label(
@@ -214,10 +252,19 @@ struct PatchlightWorkspaceView: View {
                 }
             }
         }
-        .safeAreaInset(edge: .bottom) { submissionStatus }
+        .safeAreaInset(edge: .bottom) {
+            VStack(spacing: 0) {
+                analysisStatus
+                submissionStatus
+            }
+        }
         .sheet(isPresented: draftEditorPresented) {
             if let selectedDraftAnchor {
-                PatchlightDraftEditor(anchor: selectedDraftAnchor, model: model)
+                PatchlightDraftEditor(
+                    anchor: selectedDraftAnchor,
+                    initialBody: selectedDraftInitialBody,
+                    model: model,
+                )
             }
         }
         .sheet(isPresented: $showsReviewComposer) {
@@ -227,6 +274,9 @@ struct PatchlightWorkspaceView: View {
             if let fileCommentPath {
                 PatchlightFileCommentComposer(path: fileCommentPath, model: model)
             }
+        }
+        .sheet(isPresented: $showsAISettings) {
+            PatchlightAISettingsView(model: model)
         }
     }
 
@@ -272,6 +322,7 @@ struct PatchlightWorkspaceView: View {
                         .textSelection(.enabled)
                 }
                 Divider()
+                analysisOverview
                 LabeledContent(String(localized: .files), value: "\(workspace.files.count)")
                 LabeledContent(
                     String(localized: .snapshots),
@@ -319,6 +370,7 @@ struct PatchlightWorkspaceView: View {
                                 reanchoringDraft = nil
                                 Task { await model.reanchorDraft(draft, to: anchor) }
                             } else {
+                                selectedDraftInitialBody = ""
                                 selectedDraftAnchor = anchor
                             }
                         },
@@ -419,6 +471,15 @@ struct PatchlightWorkspaceView: View {
                             defaultValue: "Unread at this depth",
                         ))
                 }
+                if plan.hunks.contains(where: \.assessment.isPartial) {
+                    Text(String(localized: "partialAnalysis", defaultValue: "Partial"))
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                        .accessibilityLabel(String(
+                            localized: "partialAnalysisBadge",
+                            defaultValue: "Partial analysis",
+                        ))
+                }
                 Spacer()
                 Text("+\(plan.file.additions) −\(plan.file.deletions)")
                     .font(.caption.monospacedDigit())
@@ -452,6 +513,192 @@ struct PatchlightWorkspaceView: View {
 
     private func filePlan(for file: DiffFile) -> FileReviewPlan? {
         reviewFilePlans.first { $0.file.path == file.path }
+    }
+
+    @ViewBuilder
+    private var analysisOverview: some View {
+        if case let .ready(run) = model.analysisState {
+            GroupBox {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(run.analysis.summary)
+                        .textSelection(.enabled)
+                    Divider()
+                    LabeledContent(
+                        String(localized: "providerAndModel", defaultValue: "Provider / Model"),
+                        value: "\(providerTitle(run.provider)) / \(run.modelID)",
+                    )
+                    if run.isCacheHit {
+                        Label(
+                            String(
+                                localized: "cachedAnalysis",
+                                defaultValue: "Encrypted Cache Hit",
+                            ),
+                            systemImage: "externaldrive.badge.checkmark",
+                        )
+                        .foregroundStyle(.secondary)
+                    }
+                    analysisUsage(run.analysis.usage)
+                    let findings = run.analysis.hunks.flatMap(\.findings)
+                    if !findings.isEmpty {
+                        Divider()
+                        Text(String(localized: "aiFindings", defaultValue: "AI Findings"))
+                            .font(.headline)
+                        ForEach(findings) { finding in
+                            HStack(alignment: .top) {
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(finding.title).font(.headline)
+                                    Text(finding.body).foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                if let draft = suggestedDraft(for: finding) {
+                                    Button(String(
+                                        localized: "createDraft",
+                                        defaultValue: "Create Draft",
+                                    )) {
+                                        selectedDraftInitialBody = draft.body
+                                        selectedDraftAnchor = draft.anchor
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            } label: {
+                Label(
+                    String(localized: "analysis", defaultValue: "Analysis"),
+                    systemImage: "sparkles",
+                )
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func analysisUsage(_ usage: AnalysisUsage) -> some View {
+        if let promptTokens = usage.promptTokens {
+            LabeledContent(
+                String(localized: "promptTokens", defaultValue: "Prompt Tokens"),
+                value: promptTokens.formatted(),
+            )
+        }
+        if let cachedTokens = usage.cachedPromptTokens {
+            LabeledContent(
+                String(localized: "cachedPromptTokens", defaultValue: "Cached Prompt Tokens"),
+                value: cachedTokens.formatted(),
+            )
+        }
+        if let outputTokens = usage.outputTokens {
+            LabeledContent(
+                String(localized: "outputTokens", defaultValue: "Output Tokens"),
+                value: outputTokens.formatted(),
+            )
+        }
+        if let reasoningTokens = usage.reasoningTokens {
+            LabeledContent(
+                String(localized: "reasoningTokens", defaultValue: "Reasoning Tokens"),
+                value: reasoningTokens.formatted(),
+            )
+        }
+        LabeledContent(
+            String(localized: "providerCalls", defaultValue: "Provider Calls"),
+            value: usage.providerCalls.formatted(),
+        )
+        LabeledContent(
+            String(localized: "toolContext", defaultValue: "Tool Context"),
+            value: String(
+                format: String(
+                    localized: "toolContextFormat",
+                    defaultValue: "%1$lld calls, %2$lld files, %3$@",
+                ),
+                locale: .current,
+                usage.toolCalls,
+                usage.filesRetrieved,
+                ByteCountFormatter.string(
+                    fromByteCount: Int64(usage.bytesRetrieved),
+                    countStyle: .file,
+                ),
+            ),
+        )
+        LabeledContent(
+            String(localized: "duration", defaultValue: "Duration"),
+            value: Duration.milliseconds(usage.durationMilliseconds)
+                .formatted(.units(allowed: [.seconds, .milliseconds], width: .abbreviated)),
+        )
+        if let requestID = usage.requestID {
+            LabeledContent(
+                String(localized: "requestID", defaultValue: "Request ID"),
+                value: requestID,
+            )
+        }
+    }
+
+    @ViewBuilder
+    private var analysisStatus: some View {
+        switch model.analysisState {
+            case .idle:
+                EmptyView()
+            case .running:
+                HStack {
+                    ProgressView()
+                    Text(String(localized: "analyzingReview", defaultValue: "Analyzing review…"))
+                }
+                .patchlightWorkspaceStatus(color: .blue)
+            case let .ready(run):
+                Label(
+                    run.isCacheHit
+                        ? String(
+                            localized: "loadedCachedAnalysis",
+                            defaultValue: "Loaded cached analysis",
+                        )
+                        : String(localized: "analysisComplete", defaultValue: "Analysis complete"),
+                    systemImage: run.isCacheHit ? "externaldrive.badge.checkmark" : "sparkles",
+                )
+                .patchlightWorkspaceStatus(color: .green)
+            case let .failed(message):
+                Label(message, systemImage: "exclamationmark.triangle")
+                    .patchlightWorkspaceStatus(color: .red)
+        }
+    }
+
+    private func suggestedDraft(for finding: AIReviewFinding) -> SuggestedAnalysisDraft? {
+        guard let filePlan = reviewFilePlans.first(where: { plan in
+            plan.hunks.contains { $0.id == finding.hunkID }
+        }),
+            let hunk = filePlan.hunks.first(where: { $0.id == finding.hunkID })?.hunk
+        else { return nil }
+        let lineIndex = finding.line.flatMap { line in
+            hunk.lines.firstIndex {
+                switch finding.side {
+                    case .base: $0.oldLine == line
+                    case .head: $0.newLine == line
+                    case nil: false
+                }
+            }
+        }
+        let line = lineIndex.map { hunk.lines[$0] }
+        let side = finding.side ?? .head
+        let anchor = DiffAnchor(
+            path: filePlan.file.path,
+            side: side,
+            commitOID: workspace.summary.headOID,
+            blobOID: side == .base ? filePlan.file.baseBlobOID : filePlan.file.headBlobOID,
+            line: side == .base ? line?.oldLine : line?.newLine,
+            startLine: nil,
+            contextFingerprint: lineIndex.map {
+                DraftAnchorMapper.fingerprint(lineIndex: $0, in: hunk.lines)
+            } ?? hunk.id.rawValue,
+        )
+        return SuggestedAnalysisDraft(
+            anchor: anchor,
+            body: "\(finding.title)\n\n\(finding.body)",
+        )
+    }
+
+    private func providerTitle(_ provider: AIProvider) -> String {
+        switch provider {
+            case .openAI: "OpenAI"
+            case .anthropic: "Anthropic"
+        }
     }
 
     @ViewBuilder
@@ -576,7 +823,12 @@ struct PatchlightWorkspaceView: View {
     private var draftEditorPresented: Binding<Bool> {
         Binding(
             get: { selectedDraftAnchor != nil },
-            set: { if !$0 { selectedDraftAnchor = nil } },
+            set: {
+                if !$0 {
+                    selectedDraftAnchor = nil
+                    selectedDraftInitialBody = ""
+                }
+            },
         )
     }
 
@@ -604,6 +856,26 @@ struct PatchlightWorkspaceView: View {
         }
     }
 
+    private var selectedProvider: AIProvider {
+        PatchlightAIUserDefaults.provider(from: providerCode)
+    }
+
+    private var selectedPreset: AnalysisPreset {
+        PatchlightAIUserDefaults.preset(from: presetCode)
+    }
+
+    private var canRunAnalysis: Bool {
+        globallyEnabled &&
+            model.repositorySettings?.aiEnabled == true &&
+            model.configuredProviders.contains(selectedProvider) &&
+            (selectedPreset != .advanced || !advancedModelID
+                .trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+    }
+
+    private var isAnalysisRunning: Bool {
+        if case .running = model.analysisState { true } else { false }
+    }
+
     private var githubFilesURL: URL? {
         URL(
             string: "https://github.com/\(workspace.summary.repository.displayName)/pull/\(workspace.summary.id.number)/files",
@@ -619,6 +891,11 @@ struct PatchlightWorkspaceView: View {
             case .copied: "doc.on.doc"
         }
     }
+}
+
+private struct SuggestedAnalysisDraft {
+    let anchor: DiffAnchor
+    let body: String
 }
 
 extension View {

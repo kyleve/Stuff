@@ -45,6 +45,61 @@
         }
       }
     },
+    "advanced" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Advanced"
+          }
+        }
+      }
+    },
+    "aiFindings" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI Findings"
+          }
+        }
+      }
+    },
+    "aiPrivacySummary" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Analysis is optional and runs only when you choose Run Analysis. Patchlight sends selected diffs and bounded exact-revision context directly to the selected provider, never to a Patchlight backend."
+          }
+        }
+      }
+    },
+    "aiSettings" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI Settings"
+          }
+        }
+      }
+    },
+    "allowImageAnalysis" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Allow Selected Snapshot Images"
+          }
+        }
+      }
+    },
     "alwaysShow" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -56,6 +111,83 @@
         }
       }
     },
+    "analysis" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Analysis"
+          }
+        }
+      }
+    },
+    "analysisComplete" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Analysis complete"
+          }
+        }
+      }
+    },
+    "analysisPreset" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preset"
+          }
+        }
+      }
+    },
+    "analysisProvider" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Provider"
+          }
+        }
+      }
+    },
+    "analyzeImages" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Analyze Images"
+          }
+        }
+      }
+    },
+    "analyzingImages" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Analyzing selected images…"
+          }
+        }
+      }
+    },
+    "analyzingReview" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Analyzing review…"
+          }
+        }
+      }
+    },
     "annotationTag" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -63,6 +195,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Annotation Tag"
+          }
+        }
+      }
+    },
+    "apiKey" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API key"
           }
         }
       }
@@ -155,6 +298,28 @@
         }
       }
     },
+    "cachedAnalysis" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Encrypted Cache Hit"
+          }
+        }
+      }
+    },
+    "cachedPromptTokens" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cached Prompt Tokens"
+          }
+        }
+      }
+    },
     "cancel" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -239,6 +404,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Comment sent."
+          }
+        }
+      }
+    },
+    "configureAI" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Configure AI"
           }
         }
       }
@@ -419,6 +595,17 @@
         }
       }
     },
+    "createDraft" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Create Draft"
+          }
+        }
+      }
+    },
     "critical" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -426,6 +613,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Critical"
+          }
+        }
+      }
+    },
+    "currentRepository" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Current Repository"
+          }
+        }
+      }
+    },
+    "deep" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deep"
           }
         }
       }
@@ -529,6 +738,17 @@
         }
       }
     },
+    "done" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Done"
+          }
+        }
+      }
+    },
     "draft" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -562,6 +782,39 @@
         }
       }
     },
+    "duration" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Duration"
+          }
+        }
+      }
+    },
+    "enableAIAnalysis" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enable AI Analysis"
+          }
+        }
+      }
+    },
+    "enableForRepository" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enable for This Repository"
+          }
+        }
+      }
+    },
     "everything" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -584,6 +837,17 @@
         }
       }
     },
+    "explicitModelID" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Explicit model ID"
+          }
+        }
+      }
+    },
     "explicitViewedOnly" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -591,6 +855,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Mark Viewed Explicitly Only"
+          }
+        }
+      }
+    },
+    "fast" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fast"
           }
         }
       }
@@ -826,6 +1101,39 @@
         }
       }
     },
+    "imageAIConsentSummary" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Image consent is separate and off by default. Only the base/head images currently selected in the snapshot workspace and local pixel metrics are sent."
+          }
+        }
+      }
+    },
+    "imageAnalysisOff" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Optional image analysis is off for this repository."
+          }
+        }
+      }
+    },
+    "imageAnalysisUsageFormat" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld prompt tokens, %2$lld output tokens, request %3$@"
+          }
+        }
+      }
+    },
     "imageNotPresent" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -859,6 +1167,17 @@
         }
       }
     },
+    "keyStored" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Key Stored"
+          }
+        }
+      }
+    },
     "knowWhereToLook" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -877,6 +1196,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Line"
+          }
+        }
+      }
+    },
+    "loadedCachedAnalysis" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loaded cached analysis"
           }
         }
       }
@@ -1035,6 +1365,17 @@
         }
       }
     },
+    "noKeyStored" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No key stored"
+          }
+        }
+      }
+    },
     "noOpenPullRequests" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1167,6 +1508,17 @@
         }
       }
     },
+    "optionalAIOnboarding" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Optional: add an OpenAI or Anthropic key now, or keep using Patchlight without AI."
+          }
+        }
+      }
+    },
     "outdated" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1189,6 +1541,17 @@
         }
       }
     },
+    "outputTokens" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Output Tokens"
+          }
+        }
+      }
+    },
     "overview" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1207,6 +1570,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "GitHub does not allow approving or requesting changes on your own pull request."
+          }
+        }
+      }
+    },
+    "partialAnalysis" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Partial"
+          }
+        }
+      }
+    },
+    "partialAnalysisBadge" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Partial analysis"
           }
         }
       }
@@ -1266,6 +1651,50 @@
         }
       }
     },
+    "promptTokens" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prompt Tokens"
+          }
+        }
+      }
+    },
+    "providerAndModel" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Provider / Model"
+          }
+        }
+      }
+    },
+    "providerCalls" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Provider Calls"
+          }
+        }
+      }
+    },
+    "providerKeyStorageSummary" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stored in this device's Keychain. Removing a provider key is independent of GitHub sign-out."
+          }
+        }
+      }
+    },
     "question" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1284,6 +1713,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Re-anchor"
+          }
+        }
+      }
+    },
+    "reasoningTokens" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reasoning Tokens"
           }
         }
       }
@@ -1354,6 +1794,17 @@
         }
       }
     },
+    "remove" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove"
+          }
+        }
+      }
+    },
     "renamed" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1405,6 +1856,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Request Changes"
+          }
+        }
+      }
+    },
+    "requestID" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Request ID"
           }
         }
       }
@@ -1515,6 +1977,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Root"
+          }
+        }
+      }
+    },
+    "runAnalysis" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Run Analysis"
+          }
+        }
+      }
+    },
+    "save" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save"
           }
         }
       }
@@ -1779,6 +2263,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Thorough"
+          }
+        }
+      }
+    },
+    "toolContext" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tool Context"
+          }
+        }
+      }
+    },
+    "toolContextFormat" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld calls, %2$lld files, %3$@"
           }
         }
       }

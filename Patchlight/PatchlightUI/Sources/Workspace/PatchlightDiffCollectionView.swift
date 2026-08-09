@@ -154,12 +154,12 @@ struct PatchlightDiffCollectionView: UIViewRepresentable {
         ) -> UICollectionViewCell {
             configuredCellCount += 1
             switch rows[indexPath.item] {
-                case let .hunk(header):
+                case let .hunk(header, isPartial):
                     let cell = collectionView.dequeueReusableCell(
                         withReuseIdentifier: DiffHunkCell.reuseIdentifier,
                         for: indexPath,
                     ) as! DiffHunkCell
-                    cell.configure(header: header)
+                    cell.configure(header: header, isPartial: isPartial)
                     return cell
                 case let .unified(line):
                     let cell = collectionView.dequeueReusableCell(
@@ -332,7 +332,7 @@ struct PatchlightDiffCollectionView: UIViewRepresentable {
 #endif
 
 private enum DiffRenderedRow {
-    case hunk(String)
+    case hunk(String, isPartial: Bool)
     case unified(DiffLine)
     case split(base: DiffLine?, head: DiffLine?)
     case thread(ReviewThread)
@@ -357,7 +357,8 @@ private enum DiffRowBuilder {
                 result.append(.hidden(hunk, plan.assessment))
                 continue
             }
-            result.append(.hunk(hunk.header))
+            let plan = hunkPlans.first { $0.hunk.id == hunk.id }
+            result.append(.hunk(hunk.header, isPartial: plan?.assessment.isPartial == true))
             switch mode {
                 case .unified:
                     for line in hunk.lines {
@@ -511,20 +512,27 @@ private final class DiffThreadCell: UICollectionViewCell {
 
 private final class DiffHunkCell: UICollectionViewCell {
     static let reuseIdentifier = "DiffHunkCell"
-    private let label = UILabel()
+    private let headerLabel = UILabel()
+    private let partialLabel = UILabel()
 
     override init(frame: CGRect) {
         super.init(frame: frame)
-        label.font = .monospacedSystemFont(ofSize: 12, weight: .semibold)
-        label.textColor = .secondaryLabel
-        label.numberOfLines = 0
-        label.translatesAutoresizingMaskIntoConstraints = false
-        contentView.addSubview(label)
+        headerLabel.font = .monospacedSystemFont(ofSize: 12, weight: .semibold)
+        headerLabel.textColor = .secondaryLabel
+        headerLabel.numberOfLines = 0
+        partialLabel.font = .preferredFont(forTextStyle: .caption2)
+        partialLabel.textColor = .systemPurple
+        partialLabel.setContentCompressionResistancePriority(.required, for: .horizontal)
+        let stack = UIStackView(arrangedSubviews: [headerLabel, partialLabel])
+        stack.alignment = .center
+        stack.spacing = 10
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(stack)
         NSLayoutConstraint.activate([
-            label.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 12),
-            label.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -12),
-            label.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 8),
-            label.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -8),
+            stack.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 12),
+            stack.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -12),
+            stack.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 8),
+            stack.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -8),
         ])
         contentView.backgroundColor = .tertiarySystemFill
     }
@@ -534,9 +542,12 @@ private final class DiffHunkCell: UICollectionViewCell {
         nil
     }
 
-    func configure(header: String) {
-        label.text = header
-        accessibilityLabel = header
+    func configure(header: String, isPartial: Bool) {
+        let partial = String(localized: "partialAnalysisBadge", defaultValue: "Partial analysis")
+        headerLabel.text = header
+        partialLabel.text = partial
+        partialLabel.isHidden = !isPartial
+        accessibilityLabel = isPartial ? "\(header), \(partial)" : header
     }
 }
 

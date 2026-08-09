@@ -184,6 +184,39 @@ struct GitHubAPIClientTests {
         #expect(workspace.files.first?.availability == .complete)
     }
 
+    @Test func repositoryTreesAreExactRecursiveAndExcludeSubmoduleTraversal() async throws {
+        let treeOID = String(repeating: "a", count: 40)
+        let blobOID = String(repeating: "b", count: 40)
+        let directoryOID = String(repeating: "c", count: 40)
+        let submoduleOID = String(repeating: "d", count: 40)
+        let transport = RoutingHTTPTransport { request in
+            switch request.url.path {
+                case "/repositories/7": return repositoryResponse()
+                case "/repos/acme/widget/git/trees/\(treeOID)":
+                    #expect(URLComponents(url: request.url, resolvingAgainstBaseURL: false)?
+                        .queryItems == [URLQueryItem(name: "recursive", value: "1")])
+                    return .json("""
+                    {"truncated":false,"tree":[
+                      {"path":"Sources/App.swift","type":"blob","sha":"\(blobOID)","size":42},
+                      {"path":"Sources","type":"tree","sha":"\(directoryOID)"},
+                      {"path":"Vendor/Dependency","type":"commit","sha":"\(submoduleOID)"}
+                    ]}
+                    """)
+                default: return .json("{\"message\":\"unexpected\"}", statusCode: 404)
+            }
+        }
+        let client = makeClient(transport: transport)
+
+        let tree = try await client.tree(
+            repository: PatchlightCoreTestSupport.repositoryID,
+            oid: GitObjectID(rawValue: treeOID),
+        )
+
+        #expect(tree.isComplete)
+        #expect(tree.entries.map(\.path) == ["Sources/App.swift", "Sources"])
+        #expect(tree.entries.first?.byteCount == 42)
+    }
+
     @Test func rateLimitsCarryTheServerResetTime() async {
         let transport = RoutingHTTPTransport { _ in
             .json(

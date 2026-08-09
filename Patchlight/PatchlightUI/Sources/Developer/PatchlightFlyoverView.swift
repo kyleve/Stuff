@@ -25,7 +25,7 @@
                                     id: FlyoverVariantID("signed-out"),
                                     title: "Signed out",
                                 ) {
-                                    PatchlightDashboardView().patchlightBroadwayRoot()
+                                    AnyView(PatchlightDashboardView().patchlightBroadwayRoot())
                                 },
                             ],
                         ),
@@ -37,10 +37,10 @@
                                     id: FlyoverVariantID("intro"),
                                     title: "Introduction",
                                 ) {
-                                    PatchlightOnboardingView(
+                                    AnyView(PatchlightOnboardingView(
                                         model: PatchlightAppModel(dependencies: .preview),
                                     )
-                                    .patchlightBroadwayRoot()
+                                    .patchlightBroadwayRoot())
                                 },
                             ],
                         ),
