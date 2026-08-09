@@ -98,6 +98,7 @@
                 SiriFeaturesView.flyoverData,
                 WidgetFeaturesView.flyoverData,
                 ShareEvidenceFeaturesView.flyoverData,
+                InsightsAccuracyFeaturesView.flyoverData,
                 DataSettingsView.flyoverData,
                 AboutSettingsView.flyoverData,
                 LicenseView.flyoverData,

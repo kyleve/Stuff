@@ -6264,6 +6264,195 @@
         }
       }
     },
+    "settings.explore.insights.abruptChanges" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrupt changes"
+          }
+        }
+      }
+    },
+    "settings.explore.insights.accuracy.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Catch and Correct Issues"
+          }
+        }
+      }
+    },
+    "settings.explore.insights.activity.generic" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn your recent location history into a concise narrative of where you’ve been."
+          }
+        }
+      }
+    },
+    "settings.explore.insights.activity.personalized" : {
+      "comment" : "Activity preview using real data. Arguments are the logged-day count and localized region list.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your latest %1$lld logged days include %2$@."
+          }
+        }
+      }
+    },
+    "settings.explore.insights.activity.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recent Activity Summary"
+          }
+        }
+      }
+    },
+    "settings.explore.insights.allClear" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your selected year is all clear"
+          }
+        }
+      }
+    },
+    "settings.explore.insights.borderDrift" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Border drift"
+          }
+        }
+      }
+    },
+    "settings.explore.insights.flightDays" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flight days"
+          }
+        }
+      }
+    },
+    "settings.explore.insights.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recent Activity runs only when you ask. Where surfaces Resolve when it finds a gap, drift, abrupt change, or flight-day anomaly."
+          }
+        }
+      }
+    },
+    "settings.explore.insights.issueCount" : {
+      "comment" : "Current number of data issues found in the selected year.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld issues ready to review"
+          }
+        }
+      }
+    },
+    "settings.explore.insights.missingDays" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Missing days"
+          }
+        }
+      }
+    },
+    "settings.explore.insights.onDevice" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Generated privately on this device"
+          }
+        }
+      }
+    },
+    "settings.explore.insights.openActivity" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Recent Activity"
+          }
+        }
+      }
+    },
+    "settings.explore.insights.openResolve" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Resolve"
+          }
+        }
+      }
+    },
+    "settings.explore.insights.row" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Insights & Accuracy"
+          }
+        }
+      }
+    },
+    "settings.explore.insights.tagline" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "See the story in your travels—and catch gaps before they become questions."
+          }
+        }
+      }
+    },
+    "settings.explore.insights.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Insights & Accuracy"
+          }
+        }
+      }
+    },
     "settings.explore.siri.card.accessibility.label" : {
       "comment" : "Accessibility label for one Siri feature card. The argument is the feature title.",
       "extractionState" : "manual",
@@ -7026,6 +7215,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "backup, import, restore, load, archive"
+          }
+        }
+      }
+    },
+    "settings.keywords.insightsFeatures" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI, Apple Intelligence, summary, recent activity, issue, resolve, missing day, drift, border, flight, accuracy"
           }
         }
       }

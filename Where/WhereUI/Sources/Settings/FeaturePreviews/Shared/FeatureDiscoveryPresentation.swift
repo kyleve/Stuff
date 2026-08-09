@@ -16,6 +16,10 @@ struct FeatureDiscoveryPresentation {
         let resultSubtitle: String
     }
 
+    struct ActivityExample: Equatable {
+        let summary: String
+    }
+
     /// Two weeks of recorded days is enough to make counts, recent activity,
     /// and widget totals representative rather than incidental.
     static let minimumLoggedDayCount = 14
@@ -24,6 +28,7 @@ struct FeatureDiscoveryPresentation {
     let widgetSnapshot: WidgetSnapshot
     let lockScreenDate: Date
     let spotlightExample: SpotlightExample
+    let activityExample: ActivityExample
 
     private let siriExamples: [SiriIntentFeature: SiriExample]
 
@@ -68,6 +73,9 @@ struct FeatureDiscoveryPresentation {
                 )),
                 resultSubtitle: String(localized: .settingsExploreSpotlightResultGeneric),
             )
+            activityExample = ActivityExample(
+                summary: String(localized: .settingsExploreInsightsActivityGeneric),
+            )
             siriExamples = [:]
             return
         }
@@ -89,6 +97,7 @@ struct FeatureDiscoveryPresentation {
             calendar: calendar,
         )
         spotlightExample = Self.spotlightExample(report: report)
+        activityExample = Self.activityExample(relevantDays: relevantDays)
         siriExamples = Self.siriExamples(
             report: report,
             relevantDays: relevantDays,
@@ -96,6 +105,22 @@ struct FeatureDiscoveryPresentation {
             referenceDate: referenceDate,
             calendar: calendar,
         )
+    }
+
+    private static func activityExample(relevantDays: [DayPresence]) -> ActivityExample {
+        let recentDays = relevantDays.suffix(minimumLoggedDayCount)
+        let regions = Set(recentDays.flatMap(\.regions))
+        guard !regions.isEmpty else {
+            return ActivityExample(
+                summary: String(localized: .settingsExploreInsightsActivityGeneric),
+            )
+        }
+        return ActivityExample(summary: String(
+            localized: .settingsExploreInsightsActivityPersonalized(
+                minimumLoggedDayCount,
+                regionList(regions),
+            ),
+        ))
     }
 
     private static func spotlightExample(report: YearReport) -> SpotlightExample {
