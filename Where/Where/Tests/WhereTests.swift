@@ -25,6 +25,20 @@ struct WhereAppTests {
     }
 
     #if DEBUG
+        @Test func ordinaryDebugBuildUsesLocalOnlyStorageAcrossRelaunches() {
+            #expect(
+                RegularApplicationRuntime.storeStorage(forCloudKitValidationBuild: false)
+                    == .localOnly,
+            )
+        }
+
+        @Test func cloudKitValidationBuildUsesCloudKitStorageAcrossRelaunches() {
+            #expect(
+                RegularApplicationRuntime.storeStorage(forCloudKitValidationBuild: true)
+                    == .cloudKit,
+            )
+        }
+
         @Test func selectingInspectorConstructsOnlyInspectorRuntime() throws {
             let fixture = try ModeFixture()
             defer { fixture.cleanup() }

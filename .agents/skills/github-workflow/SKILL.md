@@ -20,8 +20,8 @@ always-on commit and test invariants — this skill assumes those.
 
 - **Multi-step work lands one commit per step**, so history stays bisectable and
   can land piecewise — including pure-groundwork steps, which say so in the body.
-- **Commit when asked, or when working through a plan.** If it's unclear whether
-  a commit is wanted, make the change and ask rather than committing silently.
+- **Commit completed work eagerly.** Once a coherent change is verified, commit
+  it unless the user explicitly asks to keep it uncommitted.
 - Push each commit as it lands once a PR is open.
 - **When working through a plan, open a PR once the plan is complete** — push
   the branch and open it ready-for-review rather than leaving finished work

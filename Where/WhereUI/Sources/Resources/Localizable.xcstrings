@@ -139,6 +139,54 @@
         }
       }
     },
+    "backup.importCleanup.message" : {
+      "comment" : "Message shown after backup data committed but recording cleanup failed. The placeholder is the preserved import summary.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Your backup data was imported successfully. Where couldn't finish recording cleanup, so automatic recording remains off. Close and reopen Where. Do not import this backup again.\n\n%@"
+          }
+        }
+      }
+    },
+    "backup.importCleanup.title" : {
+      "comment" : "Title shown when a backup import committed but recording cleanup still requires an app relaunch.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Backup imported; cleanup incomplete"
+          }
+        }
+      }
+    },
+    "backup.importSetup.message" : {
+      "comment" : "Terminal launch message after an onboarding backup committed but setup of the new installation failed. The placeholder is the preserved import summary.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Your backup data was imported successfully, but Where couldn't finish setting up this device. Close and reopen Where; setup will retry automatically. Do not import this backup again.\n\n%@"
+          }
+        }
+      }
+    },
+    "backup.importSetup.title" : {
+      "comment" : "Terminal launch title after an onboarding backup committed but setup of the new installation failed.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Backup imported; setup incomplete"
+          }
+        }
+      }
+    },
     "calendar.day.accessibility" : {
       "comment" : "Accessibility label for a calendar day, including the day of the week and the names of the regions that day.",
       "extractionState" : "manual",
@@ -2167,6 +2215,17 @@
         }
       }
     },
+    "common.retry" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retry"
+          }
+        }
+      }
+    },
     "common.save" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2461,6 +2520,39 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tool unavailable"
+          }
+        }
+      }
+    },
+    "device.removed.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatic recording has stopped. Rejoin to create a new device identity and choose whether this device should record."
+          }
+        }
+      }
+    },
+    "device.removed.rejoin" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rejoin This Device"
+          }
+        }
+      }
+    },
+    "device.removed.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This device was removed from Where"
           }
         }
       }
@@ -2863,6 +2955,30 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Getting things ready…"
+          }
+        }
+      }
+    },
+    "launch.resetCleanup.message" : {
+      "comment" : "Terminal launch message after synced data was erased but local post-commit cleanup failed.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Your synced data was erased, but Where couldn't finish local cleanup. Automatic recording remains off. Close and reopen Where. If Settings appears, retry Erase All Data & Reset; if onboarding appears, finish setup."
+          }
+        }
+      }
+    },
+    "launch.resetCleanup.title" : {
+      "comment" : "Terminal launch title after reset committed but local cleanup failed.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Data erased; cleanup incomplete"
           }
         }
       }
@@ -3433,37 +3549,14 @@
         }
       }
     },
-    "onboarding.enableLocation" : {
-      "comment" : "Button text to prompt the user to enable location services.",
-      "extractionState" : "manual",
-      "isCommentAutoGenerated" : true,
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Enable Location"
-          }
-        }
-      }
-    },
-    "onboarding.location.description" : {
+    "onboarding.installationSecurityError" : {
+      "comment" : "Launch failure shown when Where cannot prove that the device-local recording identity is excluded from backup and also cannot remove it safely.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Where uses background location to log the regions you pass through. You can change this anytime in Settings."
-          }
-        }
-      }
-    },
-    "onboarding.location.title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Turn on location"
+            "value" : "Where couldn't secure this device's recording identity. Close and reopen Where, then try again."
           }
         }
       }
@@ -3475,19 +3568,6 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Next"
-          }
-        }
-      }
-    },
-    "onboarding.notNow" : {
-      "comment" : "Button title for skipping the onboarding flow.",
-      "extractionState" : "manual",
-      "isCommentAutoGenerated" : true,
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Not Now"
           }
         }
       }
@@ -3514,6 +3594,94 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Private by design"
+          }
+        }
+      }
+    },
+    "onboarding.recording.checking" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Checking your other devices…"
+          }
+        }
+      }
+    },
+    "onboarding.recording.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Where should record automatically only on devices you usually carry. You can change this later in Devices."
+          }
+        }
+      }
+    },
+    "onboarding.recording.other.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Record on this device?"
+          }
+        }
+      }
+    },
+    "onboarding.recording.phone.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Record on this iPhone?"
+          }
+        }
+      }
+    },
+    "onboarding.recording.recent" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Another device was recording recently"
+          }
+        }
+      }
+    },
+    "onboarding.recording.recommendation.off" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Off is recommended for devices you may leave behind."
+          }
+        }
+      }
+    },
+    "onboarding.recording.recommendation.on" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "On is recommended because your iPhone usually travels with you."
+          }
+        }
+      }
+    },
+    "onboarding.recording.tablet.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Record on this iPad?"
           }
         }
       }
@@ -3549,6 +3717,18 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Couldn't restore backup"
+          }
+        }
+      }
+    },
+    "onboarding.restoreMergeRecommended" : {
+      "comment" : "Recommended non-destructive backup strategy shown during onboarding.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Merge (Recommended)"
           }
         }
       }
@@ -5351,6 +5531,18 @@
         }
       }
     },
+    "settings.backup.cleanupRequired" : {
+      "comment" : "Settings footer while a committed backup import still needs its post-commit cleanup retried.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "A previous backup finished importing, but recording cleanup still needs attention. Finish cleanup before importing another backup."
+          }
+        }
+      }
+    },
     "settings.backup.errorTitle" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5423,7 +5615,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Merge keeps everything already on this device and adds the file's records. Replace erases this device first, then restores only what's in the file."
+            "value" : "Merge keeps the data already synced to your devices and adds the file's records. Replace restores the file's history and settings, retains device identities for safe syncing, and turns automatic recording off until you re-enable it. Offline devices receive the changes when they reconnect."
           }
         }
       }
@@ -5494,6 +5686,30 @@
         }
       }
     },
+    "settings.backup.retryCleanup" : {
+      "comment" : "Button that retries only cleanup after a backup import already committed.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Retry Backup Cleanup"
+          }
+        }
+      }
+    },
+    "settings.backup.retryingCleanup" : {
+      "comment" : "Progress label while retrying only cleanup after a backup import already committed.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Finishing Backup Cleanup…"
+          }
+        }
+      }
+    },
     "settings.backup.share" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5533,7 +5749,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This removes every sample, manual day, and piece of evidence in %@. It can't be undone."
+            "value" : "This removes every sample, manual day, and piece of evidence in %@ across all synced devices, including offline devices when they next connect. It can't be undone."
           }
         }
       }
@@ -5603,6 +5819,249 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Demo mode"
+          }
+        }
+      }
+    },
+    "settings.devices.automaticRecording" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatic Recording"
+          }
+        }
+      }
+    },
+    "settings.devices.current.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This device applies changes immediately. Always location access is required for background recording."
+          }
+        }
+      }
+    },
+    "settings.devices.error.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t Update Devices"
+          }
+        }
+      }
+    },
+    "settings.devices.grant" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grant location access"
+          }
+        }
+      }
+    },
+    "settings.devices.keywords.name" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "device, name, nickname, iphone, ipad"
+          }
+        }
+      }
+    },
+    "settings.devices.keywords.recording" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "location, gps, tracking, background, automatic, device, travel"
+          }
+        }
+      }
+    },
+    "settings.devices.lastActive" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last Active"
+          }
+        }
+      }
+    },
+    "settings.devices.loadFailed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Devices Unavailable"
+          }
+        }
+      }
+    },
+    "settings.devices.name" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Device Name"
+          }
+        }
+      }
+    },
+    "settings.devices.remote.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recording choices are local to each device. Remove this device to stop it when it next syncs and hide later automatic locations."
+          }
+        }
+      }
+    },
+    "settings.devices.remove" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove from Where"
+          }
+        }
+      }
+    },
+    "settings.devices.remove.confirm.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatic recording stops when that device reconnects. Earlier history stays visible. Use Apple Lost Mode or remote erase for a missing device."
+          }
+        }
+      }
+    },
+    "settings.devices.remove.confirm.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove this device from Where?"
+          }
+        }
+      }
+    },
+    "settings.devices.status" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Status"
+          }
+        }
+      }
+    },
+    "settings.devices.status.off" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Off"
+          }
+        }
+      }
+    },
+    "settings.devices.status.pending" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting for Device"
+          }
+        }
+      }
+    },
+    "settings.devices.status.permissionRequired" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Location Access Needed"
+          }
+        }
+      }
+    },
+    "settings.devices.status.recording" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recording"
+          }
+        }
+      }
+    },
+    "settings.devices.status.syncing" : {
+      "comment" : "Status shown while a device profile has synced but its recording policy is still arriving.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Syncing Recording Setting"
+          }
+        }
+      }
+    },
+    "settings.devices.status.unavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unavailable"
+          }
+        }
+      }
+    },
+    "settings.devices.thisDevice" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This Device"
+          }
+        }
+      }
+    },
+    "settings.devices.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Devices"
           }
         }
       }
@@ -5939,17 +6398,6 @@
         }
       }
     },
-    "settings.keywords.tracking" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "location, gps, tracking, background, permission"
-          }
-        }
-      }
-    },
     "settings.keywords.year" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5957,50 +6405,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "year, report, calendar"
-          }
-        }
-      }
-    },
-    "settings.location.footer" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Where watches for visits and big moves to figure out which region you're in. It needs Always access and a little patience."
-          }
-        }
-      }
-    },
-    "settings.location.grant" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Grant location access"
-          }
-        }
-      }
-    },
-    "settings.location.header" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Location"
-          }
-        }
-      }
-    },
-    "settings.location.toggle" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Track in the background"
           }
         }
       }
@@ -6233,7 +6637,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "This erases every sample, manual day, and piece of evidence on this device and returns you to first-run setup. It can't be undone."
+            "value" : "This erases every synced sample, manual day, and piece of evidence across all your devices, stops automatic recording on every known device, then returns this device to first-run setup. Offline devices discard pending fixes and receive the changes when they reconnect. It can't be undone."
           }
         }
       }

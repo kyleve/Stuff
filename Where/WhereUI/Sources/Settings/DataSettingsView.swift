@@ -107,14 +107,12 @@ extension DataSettingsView: SettingsSection {
 
     enum Item: SettingsItem {
         case exportBackup
-        case importBackup
         case eraseYear
         case resetApp
 
         var title: String {
             switch self {
                 case .exportBackup: String(localized: .settingsBackupExport)
-                case .importBackup: String(localized: .settingsBackupImport)
                 case .eraseYear: String(localized: .settingsEraseYearTitle)
                 case .resetApp: String(localized: .settingsResetErase)
             }
@@ -123,7 +121,6 @@ extension DataSettingsView: SettingsSection {
         var keywords: [String] {
             switch self {
                 case .exportBackup: splitKeywords(String(localized: .settingsKeywordsExport))
-                case .importBackup: splitKeywords(String(localized: .settingsKeywordsImport))
                 case .eraseYear: splitKeywords(String(localized: .settingsKeywordsEraseYear))
                 case .resetApp: splitKeywords(String(localized: .settingsKeywordsReset))
             }

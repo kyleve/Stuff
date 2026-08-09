@@ -104,6 +104,9 @@ public actor RecentActivitySummarizer {
     private let calendar: Calendar
     private let now: @Sendable () -> Date
     private let segmentLimit: Int
+    private var history: LocationHistoryReader {
+        LocationHistoryReader(store: store)
+    }
 
     private static let logger = WhereLog.recentActivity(RecentActivitySummarizerLog.self)
 
@@ -130,7 +133,7 @@ public actor RecentActivitySummarizer {
     /// model, or a generation error.
     public func summary(for window: RecentActivityWindow) async throws -> RecentActivitySummary {
         let interval = window.interval(now: now(), calendar: calendar)
-        let samples = try await store.samples(in: interval)
+        let samples = try await history.samples(in: interval)
         guard !samples.isEmpty else {
             Self.logger { .skippedNoSamples }
             return .empty

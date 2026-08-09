@@ -31,7 +31,7 @@ is not a `WhereScope` and must never construct regular app services.
 | Layer | Where | Owns |
 |-------|-------|------|
 | **Domain / services** | `WhereCore` (`WhereServices` collaborators) | Rules, detection, aggregation, persistence, side effects. Unit-test here. |
-| **View model** | `WhereUI` (`WhereModel`, the `WhereSession` coordinator, the scoped `YearReportModel` / `ResolveModel` / `BackupModel` / `RemindersSettingsModel`) | Lifecycle wiring, observable mirrors of service output, UI intent methods. |
+| **View model** | `WhereUI` (`WhereModel`, the `WhereSession` coordinator, the scoped `YearReportModel` / `ResolveModel` / `BackupModel` / `RemindersSettingsModel` / `DevicesSettingsModel`) | Lifecycle wiring, observable mirrors of service output, UI intent methods. |
 | **Views** | `WhereUI` (`*View`) | Layout, navigation, localized copy, bindings. Never store I/O, detection, or cache/throttle policy. |
 
 When in doubt: if the behavior would still be correct without SwiftUI, it
@@ -67,6 +67,12 @@ Rules the code enforces and agents must preserve:
   `CoreLocationSource` in production, `ScriptedLocationSource` in
   tests/previews. The one-shot `requestCurrentLocation()` returns `nil` rather
   than throwing when no fix is available.
+- **Automatic recording consent is installation-local.** Stamp automatic GPS samples with their
+  `RecordingDeviceID` and route user-facing reads through `LocationHistoryReader`. Sync profiles,
+  nickname events, advisory check-ins, and global removal tombstones, but never another device's
+  recording toggle. Keep consent beside the backup-excluded installation identity; phone
+  onboarding recommends On only when no other active device recently reported recording, while
+  tablet/other and explicit rejoins recommend Off.
 - **Manual entries carry a `ManualEntryAudit`**; `DayJournal`'s write methods
   take an explicit `audit:` (no default). An additive backfill can't downgrade
   an authoritative row's regions, but the newer audit always wins.
@@ -119,10 +125,9 @@ slow.
   `WhereServices`, the `WherePreferences` driving it, and the durable log store
   they record into. Created whole; `WhereSession` is built from one, so a
   surface can't read one world's store against another's preferences.
-- **Nothing opens until the user picks a world.** The trunk is rooted at the
-  onboarding gate, so an install that never onboards creates no store file,
-  contacts no CloudKit, and opens no log store. Guard:
-  `WhereLaunchTests.firstRunForegroundLaunchParksOnTheOnboardingGateBeforeOpeningAnything`.
+- **Onboarding may prepare the real store only for recording-authority discovery.** Retain that
+  exact store for scope resolution; do not construct services, expose App Intents, start GPS, or
+  open the log store until the user finishes choosing a world.
 - **At most one scope is active and log-routing at a time.** Logging out — a
   reset, or leaving a demo — releases and tears down the scope; logging back in
   builds a fresh one. Flyover is the narrow exception to "one open world": it
@@ -132,8 +137,9 @@ slow.
   `WhereResetTests.loggingOutReleasesTheScopeBeforeTheNextLoginOpensOne`.
   `WhereFlyoverWorldTests.buildsASeededSiblingWithoutActivatingIt`.
 - **The onboarding gate declares `modes: .all`,** not the `.foreground`
-  default: parking a headless launch is the point. A background wake needs the
-  permission this flow asks for, so `isNeeded` is false by then.
+  default: parking a headless launch is the point. Keep recording confirmation
+  in the backup-excluded installation sidecar, so restoring backed-up
+  `hasOnboarded` onto another device parks at the final choice page.
 - **A gate carries no value,** so a choice made *at* it reaches `resolve-scope`
   through `WhereModel` — the one step that reads model state rather than the
   trunk.

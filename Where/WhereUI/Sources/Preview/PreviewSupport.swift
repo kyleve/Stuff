@@ -115,6 +115,43 @@
             WhereSession(services: previewServices(), preferences: previewPreferences())
         }
 
+        /// Current + left-behind device rows for the Devices screen.
+        public static func recordingDeviceConfigurations() -> [RecordingDeviceConfiguration] {
+            let remoteID = RecordingDeviceID(
+                rawValue: UUID(uuidString: "00000000-0000-0000-0000-000000000002")!,
+            )
+            return [
+                RecordingDeviceConfiguration(
+                    device: RecordingDevice(
+                        id: InstallationRecordingContext.testing.currentDevice.id,
+                        systemName: "iPhone",
+                        nickname: "My iPhone",
+                        kind: .phone,
+                        registeredAt: referenceNow.addingTimeInterval(-90 * 24 * 60 * 60),
+                        lastSeenAt: referenceNow,
+                        removedAt: nil,
+                        status: .recording,
+                    ),
+                    isCurrentDevice: true,
+                    localAutomaticRecordingEnabled: true,
+                ),
+                RecordingDeviceConfiguration(
+                    device: RecordingDevice(
+                        id: remoteID,
+                        systemName: "iPad",
+                        nickname: "Home iPad",
+                        kind: .tablet,
+                        registeredAt: referenceNow.addingTimeInterval(-60 * 24 * 60 * 60),
+                        lastSeenAt: referenceNow.addingTimeInterval(-2 * 24 * 60 * 60),
+                        removedAt: nil,
+                        status: .off,
+                    ),
+                    isCurrentDevice: false,
+                    localAutomaticRecordingEnabled: nil,
+                ),
+            ]
+        }
+
         // MARK: - Settings models (reminders / backup sub-screens)
 
         /// A reminders/summary editing model over in-memory services, for the
