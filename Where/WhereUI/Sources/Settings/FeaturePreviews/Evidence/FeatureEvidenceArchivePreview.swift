@@ -67,7 +67,7 @@ struct FeatureEvidenceArchivePreview: View {
 
     private func archiveIcon(_ kind: EvidenceKind) -> some View {
         Image(systemName: kind.symbolName)
-            .font(.title2)
+            .font(.system(size: 22))
             .foregroundStyle(.indigo)
             .frame(width: 44, height: 44)
             .background(.indigo.opacity(0.12), in: .rect(cornerRadius: 12))

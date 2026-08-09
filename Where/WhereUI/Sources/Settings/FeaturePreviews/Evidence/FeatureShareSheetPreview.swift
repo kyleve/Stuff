@@ -64,6 +64,7 @@ struct FeatureShareSheetPreview: View {
                 } icon: {
                     AppIconImage(name: "AppIconClassic", size: 44)
                 }
+                .padding(.horizontal, stylesheet.spacing.small)
             }
         }
         .accessibilityElement(children: .combine)
@@ -88,7 +89,7 @@ struct FeatureShareSheetPreview: View {
 
     private func sourceIcon(_ systemImage: String) -> some View {
         Image(systemName: systemImage)
-            .font(.title2)
+            .font(.system(size: 22))
             .frame(width: 44, height: 44)
             .background(.quaternary, in: .rect(cornerRadius: 12))
     }

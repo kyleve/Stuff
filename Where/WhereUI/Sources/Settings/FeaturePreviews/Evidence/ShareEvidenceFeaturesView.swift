@@ -65,16 +65,20 @@ struct ShareEvidenceFeaturesView: View {
                         FeatureEvidenceArchivePreview(content: archiveContent)
                             .featureMarketingRow(order: 3)
                             .settingsRow(Item.archive, restingBackground: .clear)
-                        NavigationLink(value: Route.archive) {
-                            Label {
-                                Text(String(localized: .settingsExploreEvidenceOpenArchive))
-                                    .foregroundStyle(.primary)
-                            } icon: {
-                                Image(systemName: "paperclip")
-                                    .foregroundStyle(SettingsDestination.shareEvidence.iconColor)
+                        FeatureMarketingPanel {
+                            NavigationLink(value: Route.archive) {
+                                Label {
+                                    Text(String(localized: .settingsExploreEvidenceOpenArchive))
+                                        .foregroundStyle(.primary)
+                                } icon: {
+                                    Image(systemName: "paperclip")
+                                        .foregroundStyle(SettingsDestination.shareEvidence
+                                            .iconColor)
+                                }
                             }
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         }
-                        .staggeredReveal(order: 4)
+                        .featureMarketingRow(order: 4)
                     } footer: {
                         VStack(alignment: .leading, spacing: stylesheet.spacing.medium) {
                             Text(String(localized: .settingsExploreEvidenceFooter))
