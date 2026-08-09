@@ -1448,6 +1448,7 @@ extension WhereStylesheet {
             var maxWidth: CGFloat
             var padding: CGFloat
             var contentSpacing: CGFloat
+            var rowVerticalInset: CGFloat
         }
 
         struct BackgroundPattern: Equatable {
@@ -1542,6 +1543,7 @@ extension WhereStylesheet {
                 maxWidth: 680,
                 padding: 16,
                 contentSpacing: 12,
+                rowVerticalInset: 6,
             ),
             backgroundPattern: BackgroundPattern(
                 contourSpacing: 30,

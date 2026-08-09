@@ -97,6 +97,7 @@
                 VisibleYearSettingsView.flyoverData,
                 SiriFeaturesView.flyoverData,
                 WidgetFeaturesView.flyoverData,
+                ShareEvidenceFeaturesView.flyoverData,
                 DataSettingsView.flyoverData,
                 AboutSettingsView.flyoverData,
                 LicenseView.flyoverData,

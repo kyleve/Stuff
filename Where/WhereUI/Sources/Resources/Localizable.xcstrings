@@ -6088,6 +6088,171 @@
         }
       }
     },
+    "settings.explore.evidence.archive.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep It with Your History"
+          }
+        }
+      }
+    },
+    "settings.explore.evidence.attachmentReady" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Attachment ready to save"
+          }
+        }
+      }
+    },
+    "settings.explore.evidence.compose.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confirm the Details"
+          }
+        }
+      }
+    },
+    "settings.explore.evidence.fallback" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your saved evidence couldn’t be loaded, so this card uses an example."
+          }
+        }
+      }
+    },
+    "settings.explore.evidence.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "From Mail, Photos, Files, or Wallet, open the Share sheet and choose Where. You can also add evidence from the attachment archive."
+          }
+        }
+      }
+    },
+    "settings.explore.evidence.openArchive" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Attachments"
+          }
+        }
+      }
+    },
+    "settings.explore.evidence.row" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Share & Evidence"
+          }
+        }
+      }
+    },
+    "settings.explore.evidence.share.action" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where"
+          }
+        }
+      }
+    },
+    "settings.explore.evidence.share.actionSubtitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save as travel evidence"
+          }
+        }
+      }
+    },
+    "settings.explore.evidence.share.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Share from Another App"
+          }
+        }
+      }
+    },
+    "settings.explore.evidence.source.pass" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pass"
+          }
+        }
+      }
+    },
+    "settings.explore.evidence.source.photo" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Photo"
+          }
+        }
+      }
+    },
+    "settings.explore.evidence.source.receipt" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Receipt"
+          }
+        }
+      }
+    },
+    "settings.explore.evidence.tagline" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep the passes, receipts, and photos that support your travel history."
+          }
+        }
+      }
+    },
+    "settings.explore.evidence.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save Travel Evidence"
+          }
+        }
+      }
+    },
     "settings.explore.header" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6817,6 +6982,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "erase, delete, clear, year, data"
+          }
+        }
+      }
+    },
+    "settings.keywords.evidenceFeatures" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "share, Share sheet, boarding pass, receipt, photo, Wallet, attachment, evidence"
           }
         }
       }
