@@ -19,11 +19,12 @@ public struct BackupArchive: Codable, Sendable, Hashable {
     ///
     /// v3 adds sample provenance, immutable installation profiles, nickname changes, and archive
     /// tombstones. v4 expands device kinds, groups metadata edit payloads, and renames the
-    /// profile's registration-generation key. There's no in-app decode fallback for an older
-    /// archive — it is reshaped out of band by
+    /// profile's registration-generation key. v5 adds `.photo` to the persisted
+    /// `SampleSource` vocabulary. There's no in-app decode fallback for an older archive — it is
+    /// reshaped out of band by
     /// `Tools/upgrade-backup.rb`, matching the module's no-migration-on-read rule (see
     /// `AGENTS.md`).
-    public static let currentFormatVersion = 4
+    public static let currentFormatVersion = 5
 
     public let formatVersion: Int
     public let exportedAt: Date

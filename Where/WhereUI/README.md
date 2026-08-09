@@ -115,7 +115,8 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   `OnboardingGate` and handed its `LifecycleGateHandle`. The gate roots the
   trunk, so there is no session behind it: a paged intro,
   then picking up to five primary US regions (map or searchable list) and
-  giving each a look, then verifying this installation's automatic-recording
+  giving each a look, an optional metadata-only Photos scan that previews and
+  edits the current year's inferred timeline, then verifying this installation's automatic-recording
   choice. The final page opens the real store in a dormant state to inspect recent synced advisory
   status before any services, App Intents, or GPS are active. A phone recommends On only when no
   other installation recently reported recording; tablets, other devices, and explicit rejoins
@@ -123,7 +124,9 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   inherit the backed-up onboarding flag but not the installation sidecar, so it
   skips straight to that final page. Finishing logs in to the real scope — the
   app promotes that same store into its one real scope — and commits the picks as the tracked-region set +
-  appearances before resolving the gate. The intro also offers **Restore from
+  appearances and the approved photo history before resolving the gate. The
+  Photos scan reads no image data, thumbnails, captions, or filenames and
+  saves nothing until final confirmation. The intro also offers **Restore from
   a backup**, which skips the manual pick/customize steps, verifies this
   installation's recording choice, then opens the store and imports the backup
   after asking whether to **Merge** (recommended, preserving existing data) or

@@ -4,8 +4,14 @@ import PeriscopeCore
 /// flow continues and the user isn't stranded — so they log at `.warning`;
 /// only a scope that can't be created is fatal to the launch.
 enum OnboardingViewLog: LogEvent {
+    enum SpanName: Hashable {
+        case photoScan
+    }
+
     case regionCommitFailed(description: String)
     case backupRestoreFailed(description: String)
+    case photoScanFailed(description: String)
+    case photoImportFailed(description: String)
     case backupRestoreCleanupFailed(description: String)
     /// The user declined (or is restricted from) location access at the
     /// onboarding ask. Expected, not a failure: tracking stays
@@ -35,7 +41,8 @@ enum OnboardingViewLog: LogEvent {
 
     var level: LogLevel {
         switch self {
-            case .regionCommitFailed, .backupRestoreFailed, .demoBuildFailed,
+            case .regionCommitFailed, .backupRestoreFailed, .photoScanFailed,
+                 .photoImportFailed, .demoBuildFailed,
                  .discardedCorruptInstallationContextPending: .warning
             case .locationPermissionDenied: .info
             case .installationContextWriteFailed, .installationContextSecurityCleanupFailed,
@@ -50,6 +57,10 @@ enum OnboardingViewLog: LogEvent {
                 "Failed to commit onboarding region picks: \(description)"
             case let .backupRestoreFailed(description):
                 "Onboarding backup restore failed: \(description)"
+            case let .photoScanFailed(description):
+                "Onboarding photo metadata scan failed: \(description)"
+            case let .photoImportFailed(description):
+                "Onboarding photo history import failed: \(description)"
             case let .backupRestoreCleanupFailed(description):
                 "Onboarding backup restore committed but recording cleanup failed: \(description)"
             case .locationPermissionDenied:

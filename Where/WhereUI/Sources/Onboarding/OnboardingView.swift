@@ -68,6 +68,7 @@ public struct OnboardingView: View {
                 case .intro: introScreen
                 case .pickRegions: pickRegions
                 case .customize: customize
+                case .photos: photos
                 case .location: location
             }
         }
@@ -230,9 +231,20 @@ public struct OnboardingView: View {
             RegionCustomizeView(
                 model: flow.selection,
                 onBack: { flow.phase = .pickRegions },
-                onFinish: { flow.phase = .location },
+                onFinish: { flow.phase = .photos },
             )
         }
+    }
+
+    // MARK: - Photo history
+
+    private var photos: some View {
+        OnboardingPhotoImportView(
+            model: flow.photoImport,
+            onScan: { flow.scanPhotos(using: model) },
+            onImport: flow.approvePhotoHistory,
+            onSkip: flow.skipPhotoHistory,
+        )
     }
 
     // MARK: - Location

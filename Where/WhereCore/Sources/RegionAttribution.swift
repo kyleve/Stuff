@@ -3,6 +3,12 @@ import os
 import PeriscopeCore
 import RegionKit
 
+/// A live attributor that can deterministically catch up with its backing
+/// store before a dependent operation continues.
+protocol RegionAttributionReconciling: RegionAttributing {
+    func reconcile() async
+}
+
 /// A live, swappable `RegionAttributing` derived from the store's tracked
 /// regions. A reference type so every `WhereServices` collaborator that holds it
 /// sees a rebuild the moment the tracked set changes — a local edit or a remote
@@ -12,7 +18,7 @@ import RegionKit
 /// snapshot. Rebuilding (re-parsing the per-region GeoJSON) happens only when
 /// the tracked *set* actually changes, so reacting to every `changes()` ping
 /// stays cheap on the GPS hot path (a fetch + a set compare).
-final class RegionAttribution: RegionAttributing {
+final class RegionAttribution: RegionAttributionReconciling {
     /// Serializes the background observer with explicit full-fan-out reconciliations. Actor
     /// isolation alone would still be reentrant across the store read, so ownership is handed
     /// directly to one waiter at a time.

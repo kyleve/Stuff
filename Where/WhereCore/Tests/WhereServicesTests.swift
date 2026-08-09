@@ -87,6 +87,23 @@ struct WhereServicesTests {
         #expect(report.totals[.other] == 1)
     }
 
+    @Test func settingPrimaryRegionsWaitsForLiveAttribution() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let recorder = ReconcileRecorder()
+        let attributor = RecordingLiveAttributor(recorder: recorder)
+        let services = WhereServices(
+            store: store,
+            locationSource: ScriptedLocationSource(),
+            attributor: attributor,
+        )
+
+        try await services.setPrimaryRegions([
+            PrimaryRegion(region: .california, appearance: nil, order: 0),
+        ])
+
+        #expect(await recorder.count == 1)
+    }
+
     private static var pacificCalendar: Calendar {
         WhereCoreTestSupport.calendar()
     }
@@ -1630,6 +1647,34 @@ struct WhereServicesTests {
         clock.advance(by: 24 * 60 * 60)
         await services.widgets.refreshIfStale()
         #expect(await refresher.publishCount == 3)
+    }
+}
+
+private actor ReconcileRecorder {
+    private(set) var count = 0
+
+    func record() {
+        count += 1
+    }
+}
+
+private struct RecordingLiveAttributor: RegionAttributionReconciling {
+    let recorder: ReconcileRecorder
+
+    func reconcile() async {
+        await recorder.record()
+    }
+
+    func region(at coordinate: Coordinate) -> Region {
+        RegionAttributor.shared.region(at: coordinate)
+    }
+
+    func distanceToBoundary(of region: Region, from coordinate: Coordinate) -> Double? {
+        RegionAttributor.shared.distanceToBoundary(of: region, from: coordinate)
+    }
+
+    var loadedRegions: [Region] {
+        RegionAttributor.shared.loadedRegions
     }
 }
 

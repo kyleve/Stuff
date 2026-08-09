@@ -124,6 +124,11 @@ struct EvidenceKindTests {
 }
 
 struct SampleSourceTests {
+    @Test func photo_roundTripsThroughCodable() throws {
+        let data = try JSONEncoder().encode(SampleSource.photo)
+        #expect(try JSONDecoder().decode(SampleSource.self, from: data) == .photo)
+    }
+
     @Test func evidenceImplied_roundTripsThroughCodable() throws {
         let evidenceId = UUID()
         let original = SampleSource.evidenceImplied(id: evidenceId, kind: .boardingPass)

@@ -201,6 +201,9 @@ let project = Project(
                 "NSLocationAlwaysAndWhenInUseUsageDescription": .string(
                     "Where checks your location in the background so it can log which region you're in each day.",
                 ),
+                "NSPhotoLibraryUsageDescription": .string(
+                    "Where reads photo locations and dates to build a history you review before importing.",
+                ),
             ]),
             sources: ["Where/Where/Sources/**"],
             resources: ["Where/Where/Resources/**"],

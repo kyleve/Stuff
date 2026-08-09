@@ -1,9 +1,10 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# Reshapes a legacy Where backup into the current v4 manifest. The automatic-recording feature
+# Reshapes a legacy Where backup into the current v5 manifest. The automatic-recording feature
 # was not shipped in v1 or v2, so upgrading adds the recording tables empty; it never invents an
-# installation or recording consent. v4 expands device kinds and groups metadata edit payloads.
+# installation or recording consent. v4 expands device kinds and groups metadata edit payloads;
+# v5 adds `photo` to the valid sample-source vocabulary without reshaping older samples.
 
 require "json"
 require "tmpdir"
@@ -12,7 +13,7 @@ require "time"
 require "set"
 
 MANIFEST_NAME = "manifest.json"
-CURRENT_FORMAT_VERSION = 4
+CURRENT_FORMAT_VERSION = 5
 SUPPORTED_SOURCE_FORMAT_VERSIONS = (1..CURRENT_FORMAT_VERSION).freeze
 
 REGION_MAP = {
@@ -192,6 +193,8 @@ def upgrade_manifest(manifest)
   manifest.delete("recordingDevices")
   manifest.delete("recordingDeviceCheckIns")
   manifest.delete("recordingPolicyChanges")
+  # v5 adds `photo` as a valid sample-source case. Existing source values need
+  # no reshape, so the final version declaration is sufficient.
   manifest["formatVersion"] = CURRENT_FORMAT_VERSION
   warnings.uniq.each { |message| warn "warning: #{message}" }
   manifest

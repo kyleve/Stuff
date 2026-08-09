@@ -78,6 +78,13 @@ struct BackupServiceTests {
                 horizontalAccuracy: 10,
                 source: .evidenceImplied(id: evidenceWithBlobId, kind: .boardingPass),
             ),
+            LocationSample(
+                id: UUID(uuidString: "33333333-3333-3333-3333-333333333333")!,
+                timestamp: Date(timeIntervalSince1970: 1_700_200_000),
+                coordinate: Coordinate(latitude: 41.8781, longitude: -87.6298),
+                horizontalAccuracy: 8,
+                source: .photo,
+            ),
         ]
     }
 
@@ -239,12 +246,12 @@ struct BackupServiceTests {
     }
 
     @Test func unsupportedFormatIsRejectedBeforeItsMissingCurrentFieldsAreDecoded() {
-        let legacyManifest = Data(#"{"formatVersion":5}"#.utf8)
+        let futureManifest = Data(#"{"formatVersion":6}"#.utf8)
 
         do {
-            _ = try BackupService.decodeManifest(legacyManifest)
-            Issue.record("Expected the legacy backup format to be rejected.")
-        } catch BackupService.BackupError.unsupportedFormatVersion(5) {
+            _ = try BackupService.decodeManifest(futureManifest)
+            Issue.record("Expected the future backup format to be rejected.")
+        } catch BackupService.BackupError.unsupportedFormatVersion(6) {
             // Expected: the version envelope was decoded before the strict current shape.
         } catch {
             Issue.record("Unexpected error: \(error)")

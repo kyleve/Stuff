@@ -12,6 +12,7 @@ final class OnboardingFlowModel {
         case intro
         case pickRegions
         case customize
+        case photos
         case location
     }
 
@@ -27,6 +28,7 @@ final class OnboardingFlowModel {
     var phase: Phase
     var page = 0
     var selection = PrimaryRegionSelectionModel()
+    var photoImport = OnboardingPhotoImportModel()
     var recordingEnabled: Bool
     var deviceDiscovery = DeviceDiscovery.idle
     var isFinishing = false
@@ -34,6 +36,8 @@ final class OnboardingFlowModel {
     var intro = OnboardingIntroState()
     var showImporter = false
     var showRestoreStrategyDialog = false
+
+    private var pendingPhotoDraft: PhotoHistoryDraft?
 
     private static let demoBuildDisplayTime = Duration.seconds(2)
     private static let logger = WhereLog.session(OnboardingViewLog.self)
@@ -77,6 +81,32 @@ final class OnboardingFlowModel {
         } catch {
             deviceDiscovery = .failed(error.localizedDescription)
         }
+    }
+
+    func scanPhotos(using model: WhereModel) {
+        photoImport.beginScan()
+        Task {
+            var calendar = Calendar(identifier: .gregorian)
+            calendar.timeZone = .current
+            await photoImport.scan(
+                library: model.photoLibrary,
+                year: WhereModel.currentYear,
+                regions: selection.selectedRegions,
+                calendar: calendar,
+                now: Date(),
+            )
+        }
+    }
+
+    func approvePhotoHistory() {
+        guard let draft = photoImport.beginImport() else { return }
+        pendingPhotoDraft = draft
+        phase = .location
+    }
+
+    func skipPhotoHistory() {
+        pendingPhotoDraft = nil
+        phase = .location
     }
 
     func finish(using model: WhereModel) {
@@ -123,6 +153,26 @@ final class OnboardingFlowModel {
                 guard await importBackup(readyImport, into: scope, using: model) else { return }
             }
 
+            if selection.hasSelection {
+                do {
+                    try await selection.commit(using: scope)
+                } catch {
+                    Self.logger(attachments: [.error(error, name: "commit-error")]) {
+                        .regionCommitFailed(description: error.localizedDescription)
+                    }
+                    if pendingPhotoDraft != nil {
+                        photoImport.importFailed(error)
+                        isFinishing = false
+                        phase = .photos
+                        return
+                    }
+                }
+            }
+
+            if let pendingPhotoDraft {
+                guard await importPhotoHistory(pendingPhotoDraft, into: scope) else { return }
+            }
+
             do {
                 try await configureRecording(in: scope)
             } catch {
@@ -138,16 +188,6 @@ final class OnboardingFlowModel {
                     gate.fail(error)
                 }
                 return
-            }
-
-            if selection.hasSelection {
-                do {
-                    try await selection.commit(using: scope)
-                } catch {
-                    Self.logger(attachments: [.error(error, name: "commit-error")]) {
-                        .regionCommitFailed(description: error.localizedDescription)
-                    }
-                }
             }
             if !model.hasOnboarded {
                 model.completeOnboarding()
@@ -286,5 +326,39 @@ final class OnboardingFlowModel {
         } catch {
             Self.logger { .locationPermissionDenied }
         }
+    }
+
+    private func importPhotoHistory(
+        _ draft: PhotoHistoryDraft,
+        into scope: WhereScope,
+    ) async -> Bool {
+        do {
+            let sample = await scope.services.ingestor.currentLocation()
+            let location = sample.map {
+                CapturedLocation(
+                    coordinate: $0.coordinate,
+                    horizontalAccuracy: $0.horizontalAccuracy,
+                    timestamp: $0.timestamp,
+                )
+            }
+            let history = draft.approvedImport(audit: ManualEntryAudit(
+                recordedAt: Date(),
+                note: nil,
+                location: location,
+            ))
+            try await scope.services.journal.importPhotoHistory(history)
+            pendingPhotoDraft = nil
+            return true
+        } catch is CancellationError {
+            photoImport.importCancelled()
+        } catch {
+            photoImport.importFailed(error)
+            Self.logger(attachments: [.error(error, name: "photo-import-error")]) {
+                .photoImportFailed(description: error.localizedDescription)
+            }
+        }
+        isFinishing = false
+        phase = .photos
+        return false
     }
 }

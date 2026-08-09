@@ -18,6 +18,10 @@ Layering, localization, preview, and testing conventions live in the feature
 - Composition is the one exception: `WhereScope` and `WhereModel` decide which
   world the app is logged in to and assemble it. That's launch wiring, not
   domain logic — see [Scopes and the launch](../AGENTS.md#scopes-and-the-launch).
+- Onboarding's Photos step receives an injected `PhotoLocationLibrary`, keeps
+  the derived timeline provisional through review, and defers its approved
+  import until the final recording choice creates the real scope; skipping
+  must remain side-effect-free.
 - Keep `FileInstallationRecordingContextStore` as the UIKit/FileManager
   adapter for Core's installation-context protocol; resolve one instance at
   the app root and inject it into both `WhereModel` and `WhereBootstrap`.

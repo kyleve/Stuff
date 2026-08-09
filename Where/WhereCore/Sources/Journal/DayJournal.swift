@@ -108,6 +108,24 @@ public actor DayJournal {
         await reconcileAfterDayDataChange()
     }
 
+    /// Persist an approved photo-history draft as one transaction, including
+    /// any authoritative day corrections made in the preview. Re-importing is
+    /// idempotent because the planner gives every sample a deterministic id.
+    public func importPhotoHistory(_ history: PhotoHistoryImport) async throws {
+        guard !history.samples.isEmpty || !history.corrections.isEmpty else { return }
+        try await Self.logger.measure(.importPhotoHistory, budget: .seconds(5)) {
+            try await store.performInCurrentGeneration {
+                for sample in history.samples {
+                    try await store.add(sample: sample)
+                }
+                for correction in history.corrections {
+                    try await store.setManualDay(correction)
+                }
+            }
+        }
+        await reconcileAfterDayDataChange()
+    }
+
     // MARK: - Retroactive entry
 
     public func addManualSample(_ sample: LocationSample) async throws {

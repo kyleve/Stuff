@@ -64,6 +64,7 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
                 )
             },
             logSystem: .shared,
+            photoLibrary: PhotoKitLocationLibrary(),
         )
     }
 

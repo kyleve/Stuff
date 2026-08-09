@@ -44,6 +44,9 @@ one it belongs to rather than to a god-object:
   which surface and persist each region's picked `RegionAppearance` — color
   token, emoji, SF Symbol — and pick order alongside the synced rows) — one row
   per region, defaulting to the four until the user chooses in the onboarding /
+  Settings region picker. `setPrimaryRegions(_:)` also waits for the live
+  attributor to rebuild before returning, so a following write cannot publish
+  against the previous region set.
   Settings region picker. Recording identity and synced status are split into
   immutable profiles, append-only nickname events and removal tombstones, and target-owned
   advisory check-ins rather than one mutable device row. Recording consent stays local.
@@ -63,8 +66,9 @@ one it belongs to rather than to a god-object:
 - **`DayJournal`** — the user-sourced writes: manual-day overlays
   (`addManualDay` / `overrideDay` / `addManualDays`), clears
   (`clearManualDay` / `clearYear` / `eraseAllData`), evidence, and issue
-  dismissals. Each write commits, then awaits its reminder reconcile + widget
-  publish so the next reader sees a fully-applied change.
+  dismissals, and approved photo-history imports. Each write commits, then
+  awaits its reminder reconcile + widget publish so the next reader sees a
+  fully-applied change.
 
 - **`DemoDataBuilder`** — writes the dataset the app's demo mode runs on into a
   given `WhereServices`: a plausible current year of living in New York with
@@ -110,6 +114,14 @@ one it belongs to rather than to a god-object:
   the current installation's `RecordingDeviceID`. Every durable retry entry
   also carries the data generation that authorized it, so a pre-reset fix can be
   discarded but never written into the replacement generation.
+- **`PhotoLocationLibrary` / `PhotoHistoryPlanner`** — the metadata-only seam
+  and pure planner for onboarding's optional current-year Photos backfill. The
+  app adapter supplies capture date, added date, coordinate, accuracy, source,
+  and hidden state only; the planner applies the best-effort device-capture
+  policy, tags accepted samples as `.photo`, gives them deterministic IDs for
+  repeat-import deduplication, and keeps corrections provisional until one
+  `DayJournal.importPhotoHistory(_:)` transaction. Approved corrections carry
+  a `ManualEntryAudit` stamped when the user imports the draft.
 - **`LocationOutbox`** — a backup-excluded, JournalKit-backed sidecar for samples
   SwiftData could not commit. It appends complete bounded queue snapshots, so a
   crash-torn final write falls back to the preceding intact state; Reset and

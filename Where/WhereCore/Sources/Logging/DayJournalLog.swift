@@ -14,6 +14,8 @@ enum DayJournalLog: LogEvent {
     enum SpanName: Hashable {
         /// A bulk sample load in one transaction (fixtures, future imports).
         case ingestBatch
+        /// A photo-history batch plus its approved day corrections.
+        case importPhotoHistory
         /// A date-range manual-day backfill in one transaction.
         case backfillDays
         /// A multi-day overlay clear in one transaction.

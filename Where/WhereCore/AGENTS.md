@@ -47,8 +47,9 @@ internal shape.
 - **Primary regions *are* the tracked-region set.** `primaryRegions()` /
   `setPrimaryRegions(_:)` read/write the same `SDTrackedRegion` rows as
   `trackedRegions()` — picking scopes GPS attribution *and* carries each
-  region's `RegionAppearance` + pick order. `RegionAppearance` is data
-  (WhereCore); the token→`Color` mapping is presentation (WhereUI).
+  region's `RegionAppearance` + pick order. Await the live-attributor reconcile
+  before `setPrimaryRegions(_:)` returns. `RegionAppearance` is data (WhereCore);
+  the token→`Color` mapping is presentation (WhereUI).
 - **Export backups from one `readSnapshot` and keep restorable user data
   lossless.** Add persisted user-data shapes end-to-end and cover both import
   strategies, but export no target-owned recording check-ins and ignore any in
@@ -108,6 +109,11 @@ internal shape.
   `ScriptedLocationSource` in tests/previews; `requestCurrentLocation()`
   returns `nil`, never throws, and backs
   `LocationIngestor.captureTodayIfNeeded(now:)`.
+- **Photo import is metadata-only and provisional.** `PhotoLocationLibrary`
+  may expose only capture/added dates, coordinate/accuracy, asset source, and
+  hidden state; `PhotoHistoryPlanner` keeps its draft in memory and
+  `DayJournal.importPhotoHistory(_:)` commits approved `.photo` samples plus
+  audited corrections in one transaction.
 - **`DeviceRecordingController` owns this installation's local recording choice and physical GPS
   state.** Serialize mutations across awaits, fail closed when the current identity is removed,
   stamp every ingested GPS sample with the current installation id, and apply
