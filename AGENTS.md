@@ -341,6 +341,12 @@ scope and invariants on top rather than restating these.
   only where a generic can't reach (a non-generic environment value, a
   heterogeneous container). Examples: `LaunchStepID`,
   `WherePreferences.Keys`, `StoreURL`.
+- **Keep domain values typed through API and helper boundaries.** Accept the
+  strongest existing domain type (`Region`, `CalendarDay`, a nested `ID`) and
+  unwrap its `rawValue` / storage key only at the persistence, wire, or system
+  boundary that requires the primitive. When no domain type exists and a raw
+  scalar is unavoidable, give it a role-specific label (`sampleID`,
+  `evidenceID`), never an ambiguous `id`.
 - **Avoid parameter defaults on Core/store APIs.** Prefer explicit call-site
   arguments so new behavior isn't silently opted into. Reserve defaults for
   SwiftUI convenience inits and obvious zero values (`[]`, `.zero`) where
@@ -529,14 +535,16 @@ management (`./simulator` resolves a UDID — never pass a device name to
   can land piecewise — including pure-groundwork steps, which say so in the body.
 - **Commit completed work eagerly.** Once a coherent change is verified, commit
   it without waiting for a separate request; never hand back a finished task
-  with task-related changes left local and uncommitted. Honor an explicit
-  request to keep work uncommitted.
+  with task-related changes left local, unpushed, or uncommitted. Honor an
+  explicit request to keep work uncommitted.
 
 ### GitHub
 
 Load the [`github-workflow`](.agents/skills/github-workflow/SKILL.md) skill
 for PRs, pushes, review feedback, CI, and posting as the user. Always-on: use
-`gh`; open PRs ready-for-review; mark AI-posted comments.
+`gh`; open PRs ready-for-review; mark AI-posted comments. **Plan-driven work
+ends with push + PR** before handing back. **Addressing review feedback
+includes GitHub replies** on the threads you touch — not code-only fixes.
 
 ## Codex worktree specific instructions
 

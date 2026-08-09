@@ -251,8 +251,8 @@ struct BackupCoordinatorTests {
         let source = try Self.makeHarness()
         let texas = try #require(Region(rawValue: "us-TX"))
         try await source.store.perform {
-            try await source.store.setTrackedRegion(true, id: Region.california.rawValue)
-            try await source.store.setTrackedRegion(true, id: texas.rawValue)
+            try await source.store.setTrackedRegion(true, region: .california)
+            try await source.store.setTrackedRegion(true, region: texas)
         }
         let url = try await source.coordinator.exportBackup()
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
@@ -360,14 +360,14 @@ struct BackupCoordinatorTests {
         let source = try Self.makeHarness()
         let texas = try #require(Region(rawValue: "us-TX"))
         try await source.store.perform {
-            try await source.store.setTrackedRegion(true, id: texas.rawValue)
+            try await source.store.setTrackedRegion(true, region: texas)
         }
         let url = try await source.coordinator.exportBackup()
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
 
         let destination = try Self.makeHarness()
         try await destination.store.perform {
-            try await destination.store.setTrackedRegion(true, id: Region.california.rawValue)
+            try await destination.store.setTrackedRegion(true, region: .california)
         }
         _ = try await destination.coordinator.importAndAcknowledgeBackup(
             from: url,
