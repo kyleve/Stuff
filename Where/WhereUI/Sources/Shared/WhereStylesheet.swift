@@ -43,7 +43,7 @@ struct WhereStylesheet: BStylesheet {
         if traits.contentSizeCategory.isAccessibilitySize {
             calendar.day.minHeight = 56
             timeline.row.stacksDayCount = true
-            featureDiscovery.bubbleIndent = 0
+            featureDiscovery.siri.bubble.indent = 0
         }
 
         // Give every region a consistently labeled ribbon band when tint
@@ -71,7 +71,7 @@ struct WhereStylesheet: BStylesheet {
         // dark glass without changing its hue or saturation on touch.
         if traits.mode == .dark {
             card.securityPrint = .dark
-            featureDiscovery.conversationAccent = Color(white: 0.42)
+            featureDiscovery.siri.accent = Color(white: 0.42)
         }
     }
 
@@ -1430,30 +1430,8 @@ extension WhereStylesheet {
     struct FeatureDiscoveryStyle: Equatable {
         var marketingHeader: MarketingHeader
         var backgroundPattern: BackgroundPattern
-        var cardCornerRadius: CGFloat
-        var cardMaxWidth: CGFloat
-        var cardPadding: CGFloat
-        var cardSpacing: CGFloat
-        var cardRowVerticalInset: CGFloat
-        var bubbleCornerRadius: CGFloat
-        var bubbleHorizontalPadding: CGFloat
-        var bubbleVerticalPadding: CGFloat
-        var bubbleIndent: CGFloat
-        var speakerIconSize: CGFloat
-        var conversationAccent: Color
-        var deviceCornerRadius: CGFloat
-        var widgetContentMaxWidth: CGFloat
-        var regularWidgetContentWidth: CGFloat
-        var widgetDynamicTypeLimit: DynamicTypeSize
-        var devicePadding: CGFloat
-        var deviceSpacing: CGFloat
-        var lockWidgetHeight: CGFloat
-        var widgetCornerRadius: CGFloat
-        var widgetPadding: CGFloat
-        var homeWallpaperTop: Color
-        var homeWallpaperBottom: Color
-        var lockWallpaperTop: Color
-        var lockWallpaperBottom: Color
+        var siri: Siri
+        var widgets: Widgets
 
         struct MarketingHeader: Equatable {
             var badgeSize: CGFloat
@@ -1476,6 +1454,72 @@ extension WhereStylesheet {
             var opacity: Double
         }
 
+        struct Siri: Equatable {
+            var card: Card
+            var bubble: Bubble
+            var speakerIcon: SpeakerIcon
+            var accent: Color
+
+            struct Card: Equatable {
+                var cornerRadius: CGFloat
+                var maxWidth: CGFloat
+                var padding: CGFloat
+                var spacing: CGFloat
+                var rowVerticalInset: CGFloat
+            }
+
+            struct Bubble: Equatable {
+                var cornerRadius: CGFloat
+                var horizontalPadding: CGFloat
+                var verticalPadding: CGFloat
+                var indent: CGFloat
+            }
+
+            struct SpeakerIcon: Equatable {
+                var containerSize: CGFloat
+                var symbolPointSize: CGFloat
+            }
+        }
+
+        struct Widgets: Equatable {
+            var device: Device
+            var frame: Frame
+            var wallpapers: Wallpapers
+            var lockWidgetHeight: CGFloat
+
+            struct Device: Equatable {
+                var cornerRadius: CGFloat
+                var contentMaxWidth: CGFloat
+                var regularContentWidth: CGFloat
+                var dynamicTypeLimit: DynamicTypeSize
+                var padding: CGFloat
+                var spacing: CGFloat
+            }
+
+            struct Frame: Equatable {
+                var cornerRadius: CGFloat
+                var padding: CGFloat
+            }
+
+            struct Wallpapers: Equatable {
+                var home: Gradient
+                var lock: Gradient
+
+                struct Gradient: Equatable {
+                    var top: Color
+                    var bottom: Color
+                }
+            }
+
+            func contentWidth(in containerWidth: CGFloat) -> CGFloat {
+                let availableWidth = max(0, containerWidth - device.padding * 2)
+                if availableWidth > device.contentMaxWidth {
+                    return device.regularContentWidth
+                }
+                return min(availableWidth, device.contentMaxWidth)
+            }
+        }
+
         static let standard = FeatureDiscoveryStyle(
             marketingHeader: MarketingHeader(
                 badgeSize: 76,
@@ -1496,39 +1540,46 @@ extension WhereStylesheet {
                 lineWidth: 0.9,
                 opacity: 0.12,
             ),
-            cardCornerRadius: 20,
-            cardMaxWidth: 680,
-            cardPadding: 16,
-            cardSpacing: 12,
-            cardRowVerticalInset: 6,
-            bubbleCornerRadius: 16,
-            bubbleHorizontalPadding: 12,
-            bubbleVerticalPadding: 10,
-            bubbleIndent: 34,
-            speakerIconSize: 28,
-            conversationAccent: Color(white: 0.28),
-            deviceCornerRadius: 28,
-            widgetContentMaxWidth: 560,
-            regularWidgetContentWidth: 320,
-            widgetDynamicTypeLimit: .xLarge,
-            devicePadding: 14,
-            deviceSpacing: 12,
-            lockWidgetHeight: 76,
-            widgetCornerRadius: 18,
-            widgetPadding: 12,
-            homeWallpaperTop: .indigo,
-            homeWallpaperBottom: .cyan,
-            lockWallpaperTop: .purple,
-            lockWallpaperBottom: .blue,
+            siri: Siri(
+                card: Siri.Card(
+                    cornerRadius: 20,
+                    maxWidth: 680,
+                    padding: 16,
+                    spacing: 12,
+                    rowVerticalInset: 6,
+                ),
+                bubble: Siri.Bubble(
+                    cornerRadius: 16,
+                    horizontalPadding: 12,
+                    verticalPadding: 10,
+                    indent: 34,
+                ),
+                speakerIcon: Siri.SpeakerIcon(
+                    containerSize: 28,
+                    symbolPointSize: 12,
+                ),
+                accent: Color(white: 0.28),
+            ),
+            widgets: Widgets(
+                device: Widgets.Device(
+                    cornerRadius: 28,
+                    contentMaxWidth: 560,
+                    regularContentWidth: 320,
+                    dynamicTypeLimit: .xLarge,
+                    padding: 14,
+                    spacing: 12,
+                ),
+                frame: Widgets.Frame(
+                    cornerRadius: 18,
+                    padding: 12,
+                ),
+                wallpapers: Widgets.Wallpapers(
+                    home: Widgets.Wallpapers.Gradient(top: .indigo, bottom: .cyan),
+                    lock: Widgets.Wallpapers.Gradient(top: .purple, bottom: .blue),
+                ),
+                lockWidgetHeight: 76,
+            ),
         )
-
-        func widgetContentWidth(in containerWidth: CGFloat) -> CGFloat {
-            let availableWidth = max(0, containerWidth - devicePadding * 2)
-            if availableWidth > widgetContentMaxWidth {
-                return regularWidgetContentWidth
-            }
-            return min(availableWidth, widgetContentMaxWidth)
-        }
     }
 }
 

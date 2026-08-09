@@ -2,44 +2,44 @@ import SwiftUI
 import WhereCore
 
 /// A miniature Home Screen displaying every supported home-screen widget size.
-struct FeatureHomeScreenPreview: View {
+struct FeatureHomeScreenExample: View {
     let snapshot: WidgetSnapshot
 
     @Environment(\.stylesheet) private var stylesheet
 
     var body: some View {
         let style = stylesheet.featureDiscovery
-        VStack(spacing: style.deviceSpacing) {
-            HStack(spacing: style.deviceSpacing) {
-                WidgetPreviewFrame(surface: .homeScreen) {
+        VStack(spacing: style.widgets.device.spacing) {
+            HStack(spacing: style.widgets.device.spacing) {
+                WidgetExampleFrame(surface: .homeScreen) {
                     TodayWidgetView(snapshot: snapshot)
                 }
                 .aspectRatio(1, contentMode: .fit)
 
-                WidgetPreviewFrame(surface: .homeScreen) {
+                WidgetExampleFrame(surface: .homeScreen) {
                     YearTotalsWidgetView(snapshot: snapshot)
                 }
                 .aspectRatio(1, contentMode: .fit)
             }
 
-            WidgetPreviewFrame(surface: .homeScreen) {
+            WidgetExampleFrame(surface: .homeScreen) {
                 YearTotalsWidgetView(snapshot: snapshot, maxRows: 5)
             }
             .aspectRatio(2, contentMode: .fit)
         }
-        .dynamicTypeSize(...style.widgetDynamicTypeLimit)
+        .dynamicTypeSize(...style.widgets.device.dynamicTypeLimit)
         .containerRelativeFrame(.horizontal) { length, _ in
-            style.widgetContentWidth(in: length)
+            style.widgets.contentWidth(in: length)
         }
-        .padding(style.devicePadding)
+        .padding(style.widgets.device.padding)
         .frame(maxWidth: .infinity)
         .background(
             LinearGradient(
-                colors: [style.homeWallpaperTop, style.homeWallpaperBottom],
+                colors: [style.widgets.wallpapers.home.top, style.widgets.wallpapers.home.bottom],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing,
             ),
-            in: .rect(cornerRadius: style.deviceCornerRadius),
+            in: .rect(cornerRadius: style.widgets.device.cornerRadius),
         )
         .accessibilityElement(children: .contain)
         .accessibilityLabel(String(localized: .settingsExploreWidgetsHomePreviewLabel))
@@ -48,7 +48,7 @@ struct FeatureHomeScreenPreview: View {
 
 #if DEBUG
     #Preview {
-        FeatureHomeScreenPreview(snapshot: PreviewSupport.sampleWidgetSnapshot())
+        FeatureHomeScreenExample(snapshot: PreviewSupport.sampleWidgetSnapshot())
             .padding()
             .whereBroadwayRoot()
     }

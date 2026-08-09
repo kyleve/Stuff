@@ -26,7 +26,7 @@ struct WidgetFeaturesView: View {
                     .staggeredReveal(order: 0)
 
                     Section {
-                        FeatureHomeScreenPreview(snapshot: presentation.widgetSnapshot)
+                        FeatureHomeScreenExample(snapshot: presentation.widgetSnapshot)
                             .listRowInsets(.init())
                             .listRowBackground(Color.clear)
                             .settingsRow(Item.homeScreen, restingBackground: .clear)
@@ -40,7 +40,7 @@ struct WidgetFeaturesView: View {
                     }
 
                     Section {
-                        FeatureLockScreenPreview(
+                        FeatureLockScreenExample(
                             date: presentation.lockScreenDate,
                             snapshot: presentation.widgetSnapshot,
                         )

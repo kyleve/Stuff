@@ -12,23 +12,28 @@ struct SiriIntentCard: View {
 
     var body: some View {
         let style = stylesheet.featureDiscovery
-        VStack(alignment: .leading, spacing: style.cardSpacing) {
+        VStack(alignment: .leading, spacing: style.siri.card.spacing) {
             Label {
                 Text(title)
                     .foregroundStyle(.primary)
             } icon: {
                 Image(systemName: systemImage)
-                    .foregroundStyle(style.conversationAccent)
+                    .foregroundStyle(style.siri.accent)
             }
             .font(.headline)
             SiriChatBubble(speaker: .user, text: request)
             SiriChatBubble(speaker: .siri, text: response)
         }
-        .padding(style.cardPadding)
-        .frame(maxWidth: style.cardMaxWidth, alignment: .leading)
-        .background(.background, in: .rect(cornerRadius: style.cardCornerRadius))
+        .padding(style.siri.card.padding)
+        .frame(maxWidth: style.siri.card.maxWidth, alignment: .leading)
+        .background(.background, in: .rect(cornerRadius: style.siri.card.cornerRadius))
         .frame(maxWidth: .infinity)
-        .accessibilityElement(children: .contain)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(String(localized: .settingsExploreSiriCardAccessibilityLabel(title)))
+        .accessibilityValue(String(localized: .settingsExploreSiriCardAccessibilityValue(
+            request,
+            response,
+        )))
     }
 }
 

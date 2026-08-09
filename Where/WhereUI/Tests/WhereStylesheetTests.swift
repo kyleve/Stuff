@@ -447,32 +447,41 @@ struct WhereStylesheetTests {
             lineWidth: 0.9,
             opacity: 0.12,
         ))
-        #expect(featureDiscovery.cardCornerRadius == 20)
-        #expect(featureDiscovery.cardMaxWidth == 680)
-        #expect(featureDiscovery.cardPadding == 16)
-        #expect(featureDiscovery.cardSpacing == 12)
-        #expect(featureDiscovery.cardRowVerticalInset == 6)
-        #expect(featureDiscovery.bubbleCornerRadius == 16)
-        #expect(featureDiscovery.bubbleHorizontalPadding == 12)
-        #expect(featureDiscovery.bubbleVerticalPadding == 10)
-        #expect(featureDiscovery.bubbleIndent == 34)
-        #expect(featureDiscovery.speakerIconSize == 28)
-        #expect(featureDiscovery.conversationAccent == Color(white: 0.28))
-        #expect(featureDiscovery.deviceCornerRadius == 28)
-        #expect(featureDiscovery.widgetContentMaxWidth == 560)
-        #expect(featureDiscovery.regularWidgetContentWidth == 320)
-        #expect(featureDiscovery.widgetDynamicTypeLimit == .xLarge)
-        #expect(featureDiscovery.devicePadding == 14)
-        #expect(featureDiscovery.deviceSpacing == 12)
-        #expect(featureDiscovery.lockWidgetHeight == 76)
-        #expect(featureDiscovery.widgetCornerRadius == 18)
-        #expect(featureDiscovery.widgetPadding == 12)
-        #expect(featureDiscovery.homeWallpaperTop == .indigo)
-        #expect(featureDiscovery.homeWallpaperBottom == .cyan)
-        #expect(featureDiscovery.lockWallpaperTop == .purple)
-        #expect(featureDiscovery.lockWallpaperBottom == .blue)
-        #expect(featureDiscovery.widgetContentWidth(in: 402) == 374)
-        #expect(featureDiscovery.widgetContentWidth(in: 834) == 320)
+        #expect(featureDiscovery.siri == .init(
+            card: .init(
+                cornerRadius: 20,
+                maxWidth: 680,
+                padding: 16,
+                spacing: 12,
+                rowVerticalInset: 6,
+            ),
+            bubble: .init(
+                cornerRadius: 16,
+                horizontalPadding: 12,
+                verticalPadding: 10,
+                indent: 34,
+            ),
+            speakerIcon: .init(containerSize: 28, symbolPointSize: 12),
+            accent: Color(white: 0.28),
+        ))
+        #expect(featureDiscovery.widgets == .init(
+            device: .init(
+                cornerRadius: 28,
+                contentMaxWidth: 560,
+                regularContentWidth: 320,
+                dynamicTypeLimit: .xLarge,
+                padding: 14,
+                spacing: 12,
+            ),
+            frame: .init(cornerRadius: 18, padding: 12),
+            wallpapers: .init(
+                home: .init(top: .indigo, bottom: .cyan),
+                lock: .init(top: .purple, bottom: .blue),
+            ),
+            lockWidgetHeight: 76,
+        ))
+        #expect(featureDiscovery.widgets.contentWidth(in: 402) == 374)
+        #expect(featureDiscovery.widgets.contentWidth(in: 834) == 320)
     }
 
     @Test func passportCardStyle() {
@@ -589,8 +598,8 @@ struct WhereStylesheetTests {
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
         #expect(resolved.calendar.day.minHeight == 56)
         #expect(resolved.timeline.row.stacksDayCount)
-        #expect(resolved.featureDiscovery.bubbleIndent == 0)
-        #expect(resolved.featureDiscovery.widgetContentWidth(in: 834) == 320)
+        #expect(resolved.featureDiscovery.siri.bubble.indent == 0)
+        #expect(resolved.featureDiscovery.widgets.contentWidth(in: 834) == 320)
     }
 
     @MainActor
@@ -630,7 +639,7 @@ struct WhereStylesheetTests {
         context.traitOverrides.mode = .dark
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
         #expect(resolved.card.securityPrint == .dark)
-        #expect(resolved.featureDiscovery.conversationAccent == Color(white: 0.42))
+        #expect(resolved.featureDiscovery.siri.accent == Color(white: 0.42))
         #expect(resolved.card.securityPrint.backgroundBlendMode == .luminosity)
         #expect(resolved.card.securityPrint.tint(.red) == Color.red.mix(
             with: .white,

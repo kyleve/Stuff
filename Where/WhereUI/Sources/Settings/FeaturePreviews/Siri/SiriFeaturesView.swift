@@ -40,9 +40,9 @@ struct SiriFeaturesView: View {
                             )
                             .listRowBackground(Color.clear)
                             .listRowInsets(.init(
-                                top: style.cardRowVerticalInset,
+                                top: style.siri.card.rowVerticalInset,
                                 leading: 0,
-                                bottom: style.cardRowVerticalInset,
+                                bottom: style.siri.card.rowVerticalInset,
                                 trailing: 0,
                             ))
                             .listRowSeparator(.hidden)

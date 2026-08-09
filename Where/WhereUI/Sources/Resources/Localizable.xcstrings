@@ -6088,14 +6088,26 @@
         }
       }
     },
-    "settings.explore.siri.bubble.accessibility" : {
-      "comment" : "Accessibility label for an example Siri conversation bubble. The first argument is the speaker and the second is the message.",
+    "settings.explore.siri.card.accessibility.label" : {
+      "comment" : "Accessibility label for one Siri feature card. The argument is the feature title.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$@: %2$@"
+            "value" : "Ask Siri about %@"
+          }
+        }
+      }
+    },
+    "settings.explore.siri.card.accessibility.value" : {
+      "comment" : "Accessibility value for one Siri feature card. The first argument is the user's request and the second is Siri's response.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You ask, “%1$@” Siri responds, “%2$@”"
           }
         }
       }
@@ -6298,24 +6310,13 @@
         }
       }
     },
-    "settings.explore.siri.personalized.recent.request" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Summarize my recent activity."
-          }
-        }
-      }
-    },
     "settings.explore.siri.personalized.recent.response" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your latest %1$@ logged days include %2$@."
+            "value" : "Your past week includes %@."
           }
         }
       }
@@ -6386,17 +6387,6 @@
         }
       }
     },
-    "settings.explore.siri.speaker" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Siri"
-          }
-        }
-      }
-    },
     "settings.explore.siri.tagline" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6448,17 +6438,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Today’s Regions"
-          }
-        }
-      }
-    },
-    "settings.explore.siri.user.speaker" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "You"
           }
         }
       }

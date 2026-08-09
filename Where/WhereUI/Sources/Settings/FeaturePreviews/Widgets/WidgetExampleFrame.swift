@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// A rounded surface separating an actual widget from a miniature system screen.
-struct WidgetPreviewFrame<Content: View>: View {
+struct WidgetExampleFrame<Content: View>: View {
     enum Surface {
         case homeScreen
         case lockScreen
@@ -14,10 +14,12 @@ struct WidgetPreviewFrame<Content: View>: View {
 
     var body: some View {
         content
-            .padding(stylesheet.featureDiscovery.widgetPadding)
+            .padding(stylesheet.featureDiscovery.widgets.frame.padding)
             .background(
                 material,
-                in: .rect(cornerRadius: stylesheet.featureDiscovery.widgetCornerRadius),
+                in: .rect(
+                    cornerRadius: stylesheet.featureDiscovery.widgets.frame.cornerRadius,
+                ),
             )
     }
 
@@ -33,7 +35,7 @@ struct WidgetPreviewFrame<Content: View>: View {
 
 #if DEBUG
     #Preview {
-        WidgetPreviewFrame(surface: .homeScreen) {
+        WidgetExampleFrame(surface: .homeScreen) {
             TodayWidgetView(snapshot: PreviewSupport.sampleWidgetSnapshot())
         }
         .aspectRatio(1, contentMode: .fit)

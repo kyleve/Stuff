@@ -78,6 +78,7 @@ struct FeatureDiscoveryPresentation {
             report: report,
             relevantDays: relevantDays,
             referenceDay: referenceDay,
+            referenceDate: referenceDate,
             calendar: calendar,
         )
     }
@@ -90,6 +91,7 @@ struct FeatureDiscoveryPresentation {
         report: YearReport,
         relevantDays: [DayPresence],
         referenceDay: CalendarDay,
+        referenceDate: Date,
         calendar: Calendar,
     ) -> [SiriFeaturesView.Item: SiriExample] {
         var examples: [SiriFeaturesView.Item: SiriExample] = [:]
@@ -135,13 +137,19 @@ struct FeatureDiscoveryPresentation {
             )
         }
 
-        let recentDays = relevantDays.suffix(Self.minimumLoggedDayCount)
+        let recentInterval = RecentActivityWindow.week.interval(
+            now: referenceDate,
+            calendar: calendar,
+        )
+        let recentStartDay = CalendarDay(from: recentInterval.start, in: calendar)
+        let recentDays = relevantDays.filter {
+            $0.day >= recentStartDay && $0.day <= referenceDay
+        }
         let recentRegions = Set(recentDays.flatMap(\.regions))
         if !recentRegions.isEmpty {
             examples[.recentActivity] = SiriExample(
-                request: String(localized: .settingsExploreSiriPersonalizedRecentRequest),
+                request: String(localized: .settingsExploreSiriRecentRequest),
                 response: String(localized: .settingsExploreSiriPersonalizedRecentResponse(
-                    Self.minimumLoggedDayCount.formatted(),
                     regionList(recentRegions),
                 )),
             )
