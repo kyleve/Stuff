@@ -6,8 +6,9 @@ does the target eventually stop once it receives the tombstone, does every user-
 read hide that identity's GPS samples at and after the earliest delivered cutoff regardless of
 arrival order, and can a later rejoin activate only a distinct identity?
 
-The model represents the protocol on `codex/multi-device-recording` at `d837bd58`. It is evidence
-for the finite bounds and assumptions below, not proof that the Swift implementation is correct.
+The model represents the production behavior merged by [PR #160](https://github.com/kyleve/Stuff/pull/160)
+at squash commit `60421db7`. It is evidence for the finite bounds and assumptions below, not proof
+that the Swift implementation is correct.
 Changes to removal persistence, CloudKit import notification, recording reconciliation, history
 filtering, or rejoin identity rotation invalidate the result until this correspondence is checked.
 
