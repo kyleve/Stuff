@@ -27,11 +27,13 @@ struct FeatureLockScreenPreview: View {
                     TodayCircularAccessoryView(snapshot: snapshot)
                 }
                 .aspectRatio(1, contentMode: .fit)
+                .frame(height: style.lockWidgetHeight)
 
                 WidgetPreviewFrame(surface: .lockScreen) {
                     YearTotalsRectangularAccessoryView(snapshot: snapshot)
                 }
                 .aspectRatio(2, contentMode: .fit)
+                .frame(height: style.lockWidgetHeight)
             }
         }
         .foregroundStyle(.white)

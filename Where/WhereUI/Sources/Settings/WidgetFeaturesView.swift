@@ -100,6 +100,31 @@ extension WidgetFeaturesView: SettingsSection {
                     presentation: PreviewSupport.featureDiscoveryPresentation(),
                 )
             }
+            whereSnapshot(name: "TwoRegions", configurations: .fullContentPhoneLightDark) {
+                WidgetFeaturesView(
+                    focus: nil,
+                    presentation: twoRegionPresentation,
+                )
+            }
+        }
+
+        private static var twoRegionPresentation: FeatureDiscoveryPresentation {
+            var calendar = Calendar(identifier: .gregorian)
+            calendar.timeZone = TimeZone(identifier: "America/Los_Angeles")!
+            let report = PreviewSupport.sampleReport()
+            return FeatureDiscoveryPresentation(
+                report: YearReport(
+                    year: report.year,
+                    days: report.days,
+                    totals: [
+                        .newYork: 121,
+                        .california: 104,
+                    ],
+                ),
+                selectedYear: report.year,
+                referenceDate: PreviewSupport.referenceNow,
+                calendar: calendar,
+            )
         }
     }
 

@@ -1447,6 +1447,7 @@ extension WhereStylesheet {
         var widgetDynamicTypeLimit: DynamicTypeSize
         var devicePadding: CGFloat
         var deviceSpacing: CGFloat
+        var lockWidgetHeight: CGFloat
         var widgetCornerRadius: CGFloat
         var widgetPadding: CGFloat
         var homeWallpaperTop: Color
@@ -1512,6 +1513,7 @@ extension WhereStylesheet {
             widgetDynamicTypeLimit: .xLarge,
             devicePadding: 14,
             deviceSpacing: 12,
+            lockWidgetHeight: 76,
             widgetCornerRadius: 18,
             widgetPadding: 12,
             homeWallpaperTop: .indigo,

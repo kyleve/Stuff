@@ -464,6 +464,7 @@ struct WhereStylesheetTests {
         #expect(featureDiscovery.widgetDynamicTypeLimit == .xLarge)
         #expect(featureDiscovery.devicePadding == 14)
         #expect(featureDiscovery.deviceSpacing == 12)
+        #expect(featureDiscovery.lockWidgetHeight == 76)
         #expect(featureDiscovery.widgetCornerRadius == 18)
         #expect(featureDiscovery.widgetPadding == 12)
         #expect(featureDiscovery.homeWallpaperTop == .indigo)
