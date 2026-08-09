@@ -72,14 +72,55 @@ branch.
 - **Testing** — exact commands with pass counts; for skipped checks, state
   **what** and **why**.
 
-#### Exemplars
+#### Common PR shapes
 
-Read merged PRs for shape, not to copy wholesale:
+Use the tier table above. **Do not open merged PRs for examples** unless a
+shape below is genuinely unclear.
 
-- Large refactor: #116, #150
-- Large feature: #160
-- Medium with review notes: #196, #206
-- Docs-only with skip rationale: #167, #145
+##### Small fix
+
+- **Summary:** 2–4 end-state bullets.
+- **Testing:** commands run + pass counts.
+- Drop **Why** and **Review focus** unless something subtle needs calling out.
+
+##### Feature or behavior change
+
+- **Summary**, **Why**, **Review focus**, **Testing**.
+- **Why:** user-visible problem or gap; link a prior PR when building on one.
+- **Review focus:** edge cases, incomplete migrations, assumptions about `main`.
+
+##### Large feature
+
+- Everything in *Feature or behavior change*, plus **Product behavior** and/or
+  **Architecture**.
+- **Product behavior:** what the user sees — onboarding, settings, failure
+  modes, edge cases.
+- **Architecture:** key types, invariants, ownership; group by subsystem with
+  bold labels.
+- **Rollout / follow-ups** when ship order or a follow-on PR matters.
+
+##### Refactor or migration
+
+- **Problem** (or **Summary**), **Changes**, **Design decisions**, **Review
+  focus**, **Testing**.
+- **Changes:** deep walkthrough — what moved, what was deleted, what the
+  compiler now enforces.
+- **Design decisions:** explicit choices and rejected alternatives.
+- **Backlog reconciliation** when the branch touched `TODOs.md` or
+  `MODULE_AUDIT.md`.
+
+##### Docs, skills, or repo tooling
+
+- **Summary**, **Why** (if non-obvious), **Testing** / **Verification**.
+- State skipped checks explicitly (`./test` not run because Markdown-only).
+- **Review focus** only when the boundary between moved and retained guidance
+  matters.
+
+##### Stacked PR
+
+- **Summary**, **Testing**, **Stack** (position, base-PR link, what this slice
+  adds).
+- Do not repeat the full feature write-up — point at the stack head for that.
 
 #### Template hygiene
 
