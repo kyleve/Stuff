@@ -1,17 +1,18 @@
 import Foundation
 import RegionKit
 import Testing
-import WhereCore
+@testable import WhereCore
 
 struct BackupServiceTests {
     private static let calendar = WhereCoreTestSupport.calendar()
 
-    // Whole-second timestamps so the `.iso8601` date strategy (no
-    // fractional seconds) round-trips exactly.
     private static let exportDate = Date(timeIntervalSince1970: 1_700_000_000)
     private static let evidenceWithBlobId =
         UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")!
     private static let evidenceNoBlobId = UUID(uuidString: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB")!
+    private static let recordingDeviceID = RecordingDeviceID(
+        rawValue: UUID(uuidString: "CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC")!,
+    )
 
     private static func sampleFixtures() -> [LocationSample] {
         [
@@ -21,6 +22,7 @@ struct BackupServiceTests {
                 coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
                 horizontalAccuracy: 5,
                 source: .gpsVisit,
+                recordingDeviceID: recordingDeviceID,
             ),
             LocationSample(
                 id: UUID(uuidString: "22222222-2222-2222-2222-222222222222")!,
@@ -30,6 +32,62 @@ struct BackupServiceTests {
                 source: .evidenceImplied(id: evidenceWithBlobId, kind: .boardingPass),
             ),
         ]
+    }
+
+    private static let recordingMetadataID = RecordingDeviceMetadataChange.ID(
+        rawValue: UUID(uuidString: "EEEEEEEE-EEEE-EEEE-EEEE-EEEEEEEEEEEE")!,
+    )
+
+    private static func recordingDeviceProfileFixtures() -> [RecordingDeviceProfile] {
+        [
+            RecordingDeviceProfile(
+                id: recordingDeviceID,
+                systemName: "iPad",
+                kind: .tablet,
+                registeredAt: exportDate,
+                registrationGenerationID: .initial,
+            ),
+        ]
+    }
+
+    private static func recordingDeviceMetadataFixtures() -> [RecordingDeviceMetadataChange] {
+        [
+            RecordingDeviceMetadataChange(
+                id: recordingMetadataID,
+                deviceID: recordingDeviceID,
+                revision: 0,
+                changedAt: exportDate,
+                changedByDeviceID: recordingDeviceID,
+                payload: .nickname("Travel iPad"),
+            ),
+        ]
+    }
+
+    private static func recordingDeviceCheckInFixtures() -> [RecordingDeviceCheckIn] {
+        [
+            RecordingDeviceCheckIn(
+                deviceID: recordingDeviceID,
+                revision: 0,
+                lastSeenAt: exportDate,
+                status: .recording,
+            ),
+        ]
+    }
+
+    private static func archive() -> BackupArchive {
+        BackupArchive(
+            exportedAt: exportDate,
+            samples: [],
+            evidence: [],
+            manualDays: [],
+            dismissedIssues: [],
+            trackedRegions: [],
+            primaryRegions: [],
+            recordingDeviceProfiles: recordingDeviceProfileFixtures(),
+            recordingDeviceMetadataChanges: [],
+            recordingDeviceRemovals: [],
+            assets: [],
+        )
     }
 
     private static func evidenceFixtures() -> [Evidence] {
@@ -84,12 +142,23 @@ struct BackupServiceTests {
         let blobs: [UUID: Data] = [Self.evidenceWithBlobId: Data("boarding-pass-pdf".utf8)]
 
         let dismissedIssues = Self.dismissedIssueFixtures()
+        let recordingDeviceProfiles = Self.recordingDeviceProfileFixtures()
+        let recordingDeviceMetadataChanges = Self.recordingDeviceMetadataFixtures()
+        let deviceArchive = RecordingDeviceRemoval(
+            id: .init(rawValue: UUID()),
+            deviceID: Self.recordingDeviceID,
+            removedAt: Self.exportDate,
+            removedByDeviceID: Self.recordingDeviceID,
+        )
 
         let url = try service.makeArchiveFile(
             samples: samples,
             evidence: evidence,
             manualDays: manualDays,
             dismissedIssues: dismissedIssues,
+            recordingDeviceProfiles: recordingDeviceProfiles,
+            recordingDeviceMetadataChanges: recordingDeviceMetadataChanges,
+            recordingDeviceRemovals: [deviceArchive],
             blobs: blobs,
             exportedAt: Self.exportDate,
         )
@@ -107,9 +176,93 @@ struct BackupServiceTests {
         #expect(result.archive.manualDays == manualDays)
         // Dismissals round-trip verbatim, id and timestamp.
         #expect(result.archive.dismissedIssues == dismissedIssues)
+        #expect(result.archive.recordingDeviceProfiles == recordingDeviceProfiles)
+        #expect(result.archive.recordingDeviceMetadataChanges == recordingDeviceMetadataChanges)
+        #expect(result.archive.recordingDeviceRemovals == [deviceArchive])
+        let encodedManifest = try #require(String(
+            data: BackupService.makeEncoder().encode(result.archive),
+            encoding: .utf8,
+        ))
+        #expect(encodedManifest.contains("\"isEnabled\"") == false)
+        #expect(encodedManifest.contains("\"registrationGenerationID\""))
+        #expect(encodedManifest.contains("00000000-0000-0000-0000-0000000000E0"))
         // Only the evidence with bytes gets an asset; the other is metadata-only.
         #expect(result.archive.assets.map(\.evidenceId) == [Self.evidenceWithBlobId])
         #expect(result.blobs == blobs)
+    }
+
+    @Test func unsupportedFormatIsRejectedBeforeItsMissingCurrentFieldsAreDecoded() {
+        let legacyManifest = Data(#"{"formatVersion":5}"#.utf8)
+
+        do {
+            _ = try BackupService.decodeManifest(legacyManifest)
+            Issue.record("Expected the legacy backup format to be rejected.")
+        } catch BackupService.BackupError.unsupportedFormatVersion(5) {
+            // Expected: the version envelope was decoded before the strict current shape.
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+    }
+
+    @Test func currentFormatDoesNotSilentlyBackfillAMissingProfileGeneration() throws {
+        let data = try BackupService.makeEncoder().encode(
+            Self.archive(),
+        )
+        var manifest = try #require(
+            JSONSerialization.jsonObject(with: data) as? [String: Any],
+        )
+        let profiles = try #require(
+            manifest["recordingDeviceProfiles"] as? [[String: Any]],
+        )
+        manifest["recordingDeviceProfiles"] = profiles.map { profile in
+            var profile = profile
+            profile.removeValue(forKey: "registrationGenerationID")
+            return profile
+        }
+
+        do {
+            _ = try BackupService.decodeManifest(
+                JSONSerialization.data(withJSONObject: manifest),
+            )
+            Issue.record("Expected the missing registration generation to be rejected.")
+        } catch let DecodingError.keyNotFound(key, _) {
+            #expect(key.stringValue == "registrationGenerationID")
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+    }
+
+    @Test func decoderRejectsANegativeMetadataRevisionFromABackup() throws {
+        let archive = BackupArchive(
+            exportedAt: Self.exportDate,
+            samples: [],
+            evidence: [],
+            manualDays: [],
+            dismissedIssues: [],
+            trackedRegions: [],
+            primaryRegions: [],
+            recordingDeviceProfiles: Self.recordingDeviceProfileFixtures(),
+            recordingDeviceMetadataChanges: Self.recordingDeviceMetadataFixtures(),
+            recordingDeviceRemovals: [],
+            assets: [],
+        )
+        var json = try #require(String(
+            data: BackupService.makeEncoder().encode(archive),
+            encoding: .utf8,
+        ))
+        let revision = try #require(json.range(of: "\"revision\" : 0"))
+        json.replaceSubrange(revision, with: "\"revision\" : -1")
+        do {
+            _ = try BackupService.makeDecoder().decode(
+                BackupArchive.self,
+                from: Data(json.utf8),
+            )
+            Issue.record("Expected the negative metadata revision to be rejected.")
+        } catch DecodingError.dataCorrupted {
+            // Expected.
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
     }
 
     @Test func archiveNameIsDateAndTimeStamped() throws {
@@ -118,6 +271,9 @@ struct BackupServiceTests {
             samples: [],
             evidence: [],
             manualDays: [],
+            recordingDeviceProfiles: [],
+            recordingDeviceMetadataChanges: [],
+            recordingDeviceRemovals: [],
             blobs: [:],
             exportedAt: Self.exportDate,
         )
@@ -146,6 +302,9 @@ struct BackupServiceTests {
             samples: [],
             evidence: [],
             manualDays: manualDays,
+            recordingDeviceProfiles: [],
+            recordingDeviceMetadataChanges: [],
+            recordingDeviceRemovals: [],
             blobs: [:],
             exportedAt: Self.exportDate,
         )
@@ -164,6 +323,9 @@ struct BackupServiceTests {
             evidence: [],
             manualDays: [],
             trackedRegions: [.california, texas],
+            recordingDeviceProfiles: [],
+            recordingDeviceMetadataChanges: [],
+            recordingDeviceRemovals: [],
             blobs: [:],
             exportedAt: Self.exportDate,
         )
@@ -194,6 +356,9 @@ struct BackupServiceTests {
             manualDays: [],
             trackedRegions: primary.map(\.region),
             primaryRegions: primary,
+            recordingDeviceProfiles: [],
+            recordingDeviceMetadataChanges: [],
+            recordingDeviceRemovals: [],
             blobs: [:],
             exportedAt: Self.exportDate,
         )
@@ -228,6 +393,9 @@ struct BackupServiceTests {
             samples: [],
             evidence: [],
             manualDays: manualDays,
+            recordingDeviceProfiles: [],
+            recordingDeviceMetadataChanges: [],
+            recordingDeviceRemovals: [],
             blobs: [:],
             exportedAt: Self.exportDate,
         )
@@ -258,22 +426,20 @@ struct BackupServiceTests {
                 ),
                 PrimaryRegion(region: .newYork, appearance: nil, order: 1),
             ],
+            recordingDeviceProfiles: Self.recordingDeviceProfileFixtures(),
+            recordingDeviceMetadataChanges: Self.recordingDeviceMetadataFixtures(),
+            recordingDeviceRemovals: [],
             assets: [BackupAssetEntry(
                 evidenceId: Self.evidenceWithBlobId,
                 filename: "assets/\(Self.evidenceWithBlobId.uuidString)",
             )],
         )
 
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        let data = try encoder.encode(archive)
-
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        let decoded = try decoder.decode(BackupArchive.self, from: data)
+        let data = try BackupService.makeEncoder().encode(archive)
+        let decoded = try BackupService.makeDecoder().decode(BackupArchive.self, from: data)
 
         #expect(decoded == archive)
-        #expect(decoded.formatVersion == 2)
+        #expect(decoded.formatVersion == BackupArchive.currentFormatVersion)
     }
 
     @Test func readingAFileThatIsNotAZipThrows() throws {
@@ -285,6 +451,31 @@ struct BackupServiceTests {
 
         #expect(throws: (any Error).self) {
             _ = try service.readArchive(at: bogus)
+        }
+    }
+
+    @Test func loadingADeclaredAssetThrowsWhenItsFileIsMissing() throws {
+        let extractDirectory = FileManager.default.temporaryDirectory.appending(
+            path: "where-missing-backup-asset-\(UUID().uuidString)",
+            directoryHint: .isDirectory,
+        )
+        try FileManager.default.createDirectory(
+            at: extractDirectory,
+            withIntermediateDirectories: true,
+        )
+        defer { try? FileManager.default.removeItem(at: extractDirectory) }
+        let entry = BackupAssetEntry(
+            evidenceId: Self.evidenceWithBlobId,
+            filename: "assets/\(Self.evidenceWithBlobId.uuidString)",
+        )
+
+        do {
+            _ = try BackupService.loadAssets([entry], from: extractDirectory)
+            Issue.record("Expected a missing manifest-declared asset to throw.")
+        } catch let error as CocoaError {
+            #expect(error.code == .fileReadNoSuchFile)
+        } catch {
+            Issue.record("Unexpected error: \(error)")
         }
     }
 }

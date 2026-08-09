@@ -58,7 +58,7 @@ The executables in the repo root are the dev scripts — `ide`, `test`,
 hand-rolling its job: `test` is the only way tests should be run (see [Running
 tests](#running-tests)), and `icons`, `attribution`, and `simulator` in particular own state that is
 easy to corrupt by hand — `./simulator` owns a per-checkout device (see the
-[`running-tests`](../.agents/skills/running-tests/SKILL.md) skill).
+[`running-tests`](.agents/skills/running-tests/SKILL.md) skill).
 
 ### Managing app icons
 
@@ -183,9 +183,9 @@ triage). **Always-on** rules every edit must honor stay in `AGENTS.md` or
 
 ### Never double-link a product WhereUI already carries
 
-A target that depends on **WhereUI** must not also list any of WhereUI's own
-dependencies (WhereCore, Broadway, LifecycleKit/LifecycleKitUI, Periscope,
-SnapshotKit, Inspector, …) in `extraPackageProducts` — reach them
+A target that depends on **WhereUI** must not also list one of WhereUI's own
+statically absorbed dependencies (WhereCore, Broadway, LifecycleKitUI,
+Periscope, SnapshotKit, Inspector, …) in `extraPackageProducts` — reach it
 transitively. A second copy splits the module's type metadata across the WhereUI
 boundary and every type-keyed lookup (SwiftUI `EnvironmentKey`s,
 `UITraitBridgedEnvironmentKey` bridging such as SnapshotKit's
@@ -197,13 +197,14 @@ isolated `./test WhereUITests` run. Guard:
 `WhereStylesheetTests.resolvesTraitAwareTokensFromTheBroadwayRoot` fails if a
 duplicate copy answers.
 
-**Nothing in this project is a dynamic framework** — the local package is
-handed to Xcode's own SPM integration, which links every product statically
-into each consumer, so "WhereUI carries its dependencies" means *statically
-embeds them into whatever links WhereUI*, and a double-link lands two copies
-in one image. The guard test is the authority on whether a given duplication
-is harmful — measured symbol-coalescing detail and the correction history:
-PR #145.
+**Exception:** `WhereUITests` names `LifecycleKit` because its test sources use
+those public types directly and Xcode 27 beta 4 emits that product as a shared
+package framework in this graph; copying it transitively through `WhereUI` does
+not put it on the test bundle's link command. This links the same generated
+framework rather than another static copy. Re-measure on a toolchain change.
+
+The guard test is the authority on whether a given duplication is harmful —
+measured symbol-coalescing detail and the correction history: PR #145.
 
 ## Deployment
 
@@ -273,7 +274,7 @@ A few files outside the module pair carry *state* rather than rules:
   it touches, up to root. Read that file before adding an item, and have a new
   area's file link to it rather than copying the header. Anything deliberately
   deferred is filed rather than dropped (see the
-  [`github-workflow`](../.agents/skills/github-workflow/SKILL.md) skill), and a completed
+  [`github-workflow`](.agents/skills/github-workflow/SKILL.md) skill), and a completed
   item moves to "Completed issues" — never deleted.
 - **`INBOX.md`** — the root drop-box for raw, unverified human notes. Agents
   **read from it and promote out of it**; they never file new items there
@@ -501,7 +502,9 @@ flag is needed there.
 ## Running tests
 
 **Use [`./test`](test)** — the only way to run tests. Never hand-roll `tuist
-test` or `xcodebuild`. **Validate in proportion to risk:** run
+test` or `xcodebuild`. It runs the host-side backup-upgrader regression before
+selecting an iOS bundle, so tool-only changes remain covered by the same entry
+point. **Validate in proportion to risk:** run
 `./swiftformat --lint` when the changed files are in its scope, and run the
 narrowest applicable `./test` tier for code, build, tooling, or behavior
 changes. Pure documentation or comment-only changes may skip checks that
@@ -509,7 +512,7 @@ cannot exercise them; record skipped checks in the commit or PR validation.
 Semantic changes to configuration, scripts, generator inputs, executable
 examples, or app-rendered copy are not documentation-only.
 
-Load the [`running-tests`](../.agents/skills/running-tests/SKILL.md) skill for
+Load the [`running-tests`](.agents/skills/running-tests/SKILL.md) skill for
 test tiers, snapshot opt-in, why not `tuist test`, and per-checkout simulator
 management (`./simulator` resolves a UDID — never pass a device name to
 `simctl`).
@@ -520,16 +523,18 @@ management (`./simulator` resolves a UDID — never pass a device name to
   every commit for one piece of work on that one branch.
 - **Validate in proportion to risk.** Follow [Running tests](#running-tests),
   never commit a known-red tree, and load the
-  [`running-tests`](../.agents/skills/running-tests/SKILL.md) skill to choose
+  [`running-tests`](.agents/skills/running-tests/SKILL.md) skill to choose
   the applicable checks.
 - **Multi-step work lands one commit per step**, so history stays bisectable and
   can land piecewise — including pure-groundwork steps, which say so in the body.
-- **Commit when asked, or when working through a plan.** If it's unclear whether
-  a commit is wanted, make the change and ask rather than committing silently.
+- **Commit completed work eagerly.** Once a coherent change is verified, commit
+  it without waiting for a separate request; never hand back a finished task
+  with task-related changes left local and uncommitted. Honor an explicit
+  request to keep work uncommitted.
 
 ### GitHub
 
-Load the [`github-workflow`](../.agents/skills/github-workflow/SKILL.md) skill
+Load the [`github-workflow`](.agents/skills/github-workflow/SKILL.md) skill
 for PRs, pushes, review feedback, CI, and posting as the user. Always-on: use
 `gh`; open PRs ready-for-review; mark AI-posted comments.
 
@@ -609,5 +614,5 @@ being written off as untestable from a cloud agent.
 ### Full build & test (macOS only)
 
 Matches CI `.github/workflows/ci.yml` — see the
-[`running-tests`](../.agents/skills/running-tests/SKILL.md) skill for simulator
+[`running-tests`](.agents/skills/running-tests/SKILL.md) skill for simulator
 setup and the full validation recipe.

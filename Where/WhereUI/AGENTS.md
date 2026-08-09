@@ -4,8 +4,10 @@ WhereUI is the SwiftUI layer of the Where feature: the screens, the shared
 components and widget views, and the `@Observable` view models that
 orchestrate `WhereCore` for them (`WhereModel`, the `WhereSession`
 coordinator, and the scoped `YearReportModel` / `ResolveModel` /
-`BackupModel` / `RemindersSettingsModel`). Layering, localization, preview,
-and testing conventions live in the feature [`Where/AGENTS.md`](../AGENTS.md)
+`BackupModel` / `RemindersSettingsModel` / `DevicesSettingsModel` / `OnboardingFlowModel` /
+`OnboardingImportRecoveryModel`).
+Layering, localization, preview, and testing conventions live in the feature
+[`Where/AGENTS.md`](../AGENTS.md)
 — read that and the root [`AGENTS.md`](../../AGENTS.md) first.
 
 ## Scope & dependencies
@@ -16,6 +18,22 @@ and testing conventions live in the feature [`Where/AGENTS.md`](../AGENTS.md)
 - Composition is the one exception: `WhereScope` and `WhereModel` decide which
   world the app is logged in to and assemble it. That's launch wiring, not
   domain logic — see [Scopes and the launch](../AGENTS.md#scopes-and-the-launch).
+- Keep `FileInstallationRecordingContextStore` as the UIKit/FileManager
+  adapter for Core's installation-context protocol; resolve one instance at
+  the app root and inject it into both `WhereModel` and `WhereBootstrap`.
+- Persist the installation identity, recording choice with its current-On timestamp, stable
+  profile/policy IDs and timestamps, two-phase backup-import recovery, and the independent
+  terminal onboarding-import tombstone together in the excluded-from-backup sidecar; never infer
+  confirmation from backed-up preferences or migrate it from `UserDefaults`. Persist an explicit
+  changed choice when onboarding retries after a later failure.
+- Retire the installation sidecar with an atomic directory rename before
+  cleanup; retain the proposed replacement behind `ResetCleanupError` until
+  tombstone deletion succeeds (`InstallationRecordingContextStoreTests`).
+- Reconcile every pending import after scope resolution but before session handoff or recording;
+  reconcile onboarding imports before offering Restore, acknowledge their preference independently
+  of cleanup, and retain the marker through any failure (`WhereLaunchTests`).
+- Keep backup import onboarding-only; Settings exports archives but never starts or resumes an
+  import (`BackupModelTests`).
 - The DEBUG developer accordion may only latch or clear
   `InspectorModeController` for the next launch. It must not host a live
   SwiftData inspector or switch the current runtime.

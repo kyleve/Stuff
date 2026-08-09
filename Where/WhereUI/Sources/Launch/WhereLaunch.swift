@@ -43,14 +43,17 @@ public enum LaunchStepID: String, Sendable {
     /// Republish the widget snapshot from whatever is already on disk.
     case widgetSnapshot = "widget-snapshot"
 
-    /// Reset teardown: stop GPS, wipe the store, and drop the session.
+    /// Reset teardown: pause GPS, erase synced user data, remove old device identities,
+    /// discard pending fixes, and drop the session.
     case eraseData = "erase-data"
-    /// Reset teardown: clear the persisted preferences that gate the relaunch
-    /// (onboarding flag, tracking intent, reminder/summary schedules).
+    /// Reset teardown: clear the installation context and persisted preferences
+    /// that gate the relaunch (onboarding flag and reminder/summary schedules).
     case resetPreferences = "reset-preferences"
     /// Demo teardown: drop the demo world and hand the real one its durable
     /// log sink back.
     case exitDemo = "exit-demo"
+    /// Retire a removed local identity, then re-drive onboarding with a fresh identity.
+    case rejoinDevice = "rejoin-device"
 }
 
 /// Assembles the Where app's cold-launch plan and the `LifecycleRunner` that
@@ -194,6 +197,12 @@ public enum WhereLaunch {
     {
         LaunchPlan(ExitDemoStep(model: model).measured())
     }
+
+    public static func rejoinPlan(for model: WhereModel)
+        -> LaunchPlan<LaunchStepID, WhereSession, Void>
+    {
+        LaunchPlan(RejoinDeviceStep(model: model).measured())
+    }
 }
 
 /// Assembles the outside-world pieces a real `WhereScope` is built from: the
@@ -214,6 +223,10 @@ public protocol WhereScopeAssembling {
     /// Open the store and assemble the services over it. The app process's
     /// **one** store open.
     func makeServices() async throws -> WhereServices
+
+    /// Open and retain the real store while onboarding remains dormant, then read synced device
+    /// status without constructing services or activating location/App Intents.
+    func discoverRecordingDevices() async throws -> [RecordingDevice]
 
     /// Open the durable log store the scope's records persist to, or `nil` for
     /// an assembly with no durable logging — previews and tests, which log
@@ -236,9 +249,21 @@ public protocol WhereScopeAssembling {
 public final class WhereBootstrap: WhereScopeAssembling {
     private static let logger = WhereLog.root(WhereLaunchLog.self)
 
+    private let installationContextStore: any InstallationRecordingContextStoring
+    private let storeStorage: SwiftDataStore.Storage
+    private let locationOutbox: any LocationOutbox
     private var locationSource: CoreLocationSource?
+    private var preparedStore: SwiftDataStore?
 
-    public init() {}
+    public init(
+        installationContextStore: any InstallationRecordingContextStoring,
+        storeStorage: SwiftDataStore.Storage,
+        locationOutbox: any LocationOutbox,
+    ) {
+        self.installationContextStore = installationContextStore
+        self.storeStorage = storeStorage
+        self.locationOutbox = locationOutbox
+    }
 
     /// Install the `CLLocationManager` + delegate right away, without touching
     /// the store. Idempotent.
@@ -267,12 +292,16 @@ public final class WhereBootstrap: WhereScopeAssembling {
         let source = locationSource ?? CoreLocationSource()
         locationSource = nil
         do {
-            let store = try await Task.detached(priority: .userInitiated) {
-                try SwiftDataStore.make()
-            }.value
+            let installationContext = try installationContextStore.resolve()
+            precondition(
+                installationContext.automaticRecordingEnabled != nil,
+                "A real scope cannot open before this installation confirms recording.",
+            )
+            let store = try await prepareStore()
             let services = try await WhereServices.make(
                 store: store,
                 locationSource: source,
+                installationContext: installationContext,
                 // The real world's seams, named here because this is the only
                 // place that wants them: the demo scope builds the same stack
                 // out of no-ops, and every test and preview gets no-ops by
@@ -281,7 +310,8 @@ public final class WhereBootstrap: WhereScopeAssembling {
                 summaryScheduler: UserNotificationDailySummaryScheduler(),
                 issueAlertScheduler: UserNotificationDataIssueAlertScheduler(),
                 widgetRefresher: WidgetCenterTimelineRefresher(),
-                locationOutbox: FileLocationOutbox.applicationSupport(),
+                locationOutbox: locationOutbox,
+                importRecoveryPersistence: installationContextStore,
             )
             Self.logger { .servicesAssembled }
             return services
@@ -291,6 +321,26 @@ public final class WhereBootstrap: WhereScopeAssembling {
             }
             throw error
         }
+    }
+
+    public func discoverRecordingDevices() async throws -> [RecordingDevice] {
+        let readiness = CloudKitImportReadiness()
+        if storeStorage == .cloudKit { readiness.start() }
+        let store = try await prepareStore()
+        if storeStorage == .cloudKit, await readiness.waitForImport() == false {
+            throw CloudKitImportReadiness.Timeout()
+        }
+        return try await store.recordingDevices()
+    }
+
+    private func prepareStore() async throws -> SwiftDataStore {
+        if let preparedStore { return preparedStore }
+        let storeStorage = storeStorage
+        let store = try await Task.detached(priority: .userInitiated) {
+            try SwiftDataStore.make(storage: storeStorage)
+        }.value
+        preparedStore = store
+        return store
     }
 
     /// Open the app's durable log store: `Periscope.store` on disk, plus this
@@ -306,9 +356,8 @@ public final class WhereBootstrap: WhereScopeAssembling {
         )
     }
 
-    /// Where a real scope's log store belongs, mirroring
-    /// `SwiftDataStore.Storage.default`'s test-runner guard: under a test host
-    /// it must stay in memory. A suite that logs in would otherwise write its
+    /// Where a real scope's log store belongs. Under a test host it must stay
+    /// in memory. A suite that logs in would otherwise write its
     /// records into the user's `Periscope.store`, and opening that from a test
     /// host's sandbox neither succeeds nor fails promptly — it stalls the
     /// bundle instead of failing it.

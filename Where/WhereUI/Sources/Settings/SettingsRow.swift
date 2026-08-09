@@ -30,6 +30,18 @@ extension View {
             restingBackground: restingBackground,
         ))
     }
+
+    /// Tags this row only when it is the canonical search result for a setting.
+    /// Repeated device sections render the same labels, but search must have one
+    /// stable scroll destination rather than several views sharing one id.
+    @ViewBuilder
+    func settingsRow(_ item: some SettingsItem, when isSearchTarget: Bool) -> some View {
+        if isSearchTarget {
+            settingsRow(item)
+        } else {
+            self
+        }
+    }
 }
 
 enum SettingsRowRestingBackground: Equatable {
@@ -85,6 +97,7 @@ struct SettingsRowModifier: ViewModifier {
 /// appearance so returning to the screen doesn't re-flash.
 struct SettingsFocusScope<Content: View>: View {
     let focus: SettingsFocus?
+    let isReady: Bool
     let content: Content
 
     @State private var highlighted: SettingsFocus?
@@ -92,8 +105,13 @@ struct SettingsFocusScope<Content: View>: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.stylesheet) private var stylesheet
 
-    init(focus: SettingsFocus?, @ViewBuilder content: () -> Content) {
+    init(
+        focus: SettingsFocus?,
+        revealWhen isReady: Bool = true,
+        @ViewBuilder content: () -> Content,
+    ) {
         self.focus = focus
+        self.isReady = isReady
         self.content = content()
     }
 
@@ -101,8 +119,8 @@ struct SettingsFocusScope<Content: View>: View {
         ScrollViewReader { proxy in
             content
                 .environment(\.settingsHighlight, highlighted)
-                .task {
-                    guard !didReveal else { return }
+                .task(id: isReady) {
+                    guard isReady, !didReveal else { return }
                     didReveal = true
                     await reveal(using: proxy)
                 }
@@ -130,13 +148,15 @@ struct SettingsFocusScope<Content: View>: View {
 
 #if DEBUG
     #Preview {
-        SettingsFocusScope(focus: SettingsFocus(LocationSettingsView.Item.tracking)) {
+        SettingsFocusScope(
+            focus: SettingsFocus(DevicesSettingsView.Item.automaticRecording),
+        ) {
             List {
                 Label(
-                    String(localized: .settingsLocationToggle),
+                    String(localized: .settingsDevicesAutomaticRecording),
                     systemImage: "location.fill",
                 )
-                .settingsRow(LocationSettingsView.Item.tracking)
+                .settingsRow(DevicesSettingsView.Item.automaticRecording)
             }
         }
         .whereBroadwayRoot()

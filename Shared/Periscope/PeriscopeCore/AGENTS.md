@@ -78,6 +78,9 @@ the build system, formatting, and global conventions. Read that first.
   sessions but skip ingest (ingest deletes journals; an extension launch must
   not eat the live app's). Concurrently live processes sharing one on-disk
   store is unsupported; see [`TODOs.md`](../TODOs.md).
+- **Periscope storage is local-only.** Every on-disk `ModelConfiguration`
+  explicitly sets `cloudKitDatabase: .none`; a host app's iCloud entitlement
+  must never opt the logging schema into CloudKit implicitly.
 - **Payloads persist as versioned JSON** (`eventName` + `eventVersion`) — an
   event shape change must not require a SwiftData migration. While the app is
   pre-release, shape changes need no decode tolerance either: the store is

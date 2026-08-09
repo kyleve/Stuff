@@ -65,3 +65,42 @@ The target is declared in [`Project.swift`](../../Project.swift). Generate and
 open the workspace with `./ide`, or install to a connected iPhone from the
 command line with [`./Where/install`](../install) (macOS only, needs a signing
 team — see [`Where/AGENTS.md`](../AGENTS.md#installing-to-a-device)).
+
+## CloudKit rollout and device validation
+
+The app target owns `iCloud.com.stuff.where`, the Push Notifications
+entitlement, and the remote-notification background mode. Widgets and the share
+extension intentionally have only the App Group entitlement: they write/read
+local shared artifacts, while the app's single SwiftData container owns
+CloudKit mirroring. Debug uses `.localOnly`; exercise sync with a Release-signed
+build or use `./Where/install --cloudkit`. Release always selects `.cloudKit`.
+The installer compiles the validation choice into that Debug app, so manual,
+background, and CloudKit-push relaunches keep using CloudKit until another build
+is installed without `--cloudkit`.
+
+Before shipping a schema change:
+
+1. Run `./Where/install --cloudkit` (or install a Release build) against the
+   Development CloudKit environment and open the store so SwiftData initializes
+   the additive schema.
+2. Inspect the new fields/record types in CloudKit Console, then deploy that
+   schema to Production before distributing the build.
+3. On two devices signed into the same iCloud account, open Settings → Devices
+   and verify both generic hardware profiles arrive; rename one and verify the
+   nickname syncs.
+4. On each device, toggle only its own Automatic Recording switch. Verify the
+   local device starts or stops and its advisory status later updates on the
+   other device without changing that other installation's switch.
+5. Remove the secondary device from the carried device. Verify its earlier
+   history remains visible, locations at and after the removal disappear, and
+   the secondary device stops when it next syncs. Rejoin it and verify it gets
+   a new identity with recording Off until explicitly enabled there.
+6. Export a backup, then exercise Merge and Replace. Verify names and removals
+   round-trip, neither strategy changes this installation's recording choice,
+   and Replace discards pending pre-import locations before recording resumes.
+
+On a fresh install, onboarding recommends automatic recording On for an iPhone
+only when no other device recently reported recording, and Off for an
+iPad/other device or explicit rejoin, then requires the user to confirm. Existing
+installations created before that choice was introduced revisit only the final
+recording page once; enabling is the only path that asks for location access.

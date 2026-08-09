@@ -7,7 +7,7 @@ import SwiftUI
 enum SettingsDestination: Hashable, CaseIterable {
     case attachments
     case loggedDays
-    case location
+    case devices
     case regions
     case alerts
     case appearance
@@ -23,7 +23,7 @@ enum SettingsDestination: Hashable, CaseIterable {
         switch self {
             case .attachments: String(localized: .settingsAttachmentsRow)
             case .loggedDays: String(localized: .settingsLoggedDaysRow)
-            case .location: String(localized: .settingsLocationHeader)
+            case .devices: String(localized: .settingsDevicesTitle)
             case .regions: String(localized: .settingsRegionsSection)
             case .alerts: String(localized: .settingsAlertsGroup)
             case .appearance: String(localized: .settingsAppearanceGroup)
@@ -40,7 +40,7 @@ enum SettingsDestination: Hashable, CaseIterable {
         switch self {
             case .attachments: "paperclip"
             case .loggedDays: "calendar.badge.plus"
-            case .location: "location.fill"
+            case .devices: "iphone.and.arrow.forward"
             case .regions: "map.fill"
             case .alerts: "bell.badge"
             case .appearance: "paintbrush.fill"
@@ -59,7 +59,7 @@ enum SettingsDestination: Hashable, CaseIterable {
         switch self {
             case .attachments: .indigo
             case .loggedDays: .mint
-            case .location: .blue
+            case .devices: .blue
             case .regions: .green
             case .alerts: .red
             case .appearance: .purple
@@ -80,7 +80,7 @@ enum SettingsDestination: Hashable, CaseIterable {
     var isAvailableInDemoMode: Bool {
         switch self {
             case .data, .appearance: false
-            case .attachments, .loggedDays, .location, .regions, .alerts, .year, .siri, .widgets,
+            case .attachments, .loggedDays, .devices, .regions, .alerts, .year, .siri, .widgets,
                  .about:
                 true
         }
@@ -92,7 +92,7 @@ enum SettingsDestination: Hashable, CaseIterable {
     var isSheet: Bool {
         switch self {
             case .regions: true
-            case .attachments, .loggedDays, .location, .alerts, .appearance, .year, .siri, .widgets,
+            case .attachments, .loggedDays, .devices, .alerts, .appearance, .year, .siri, .widgets,
                  .data, .about:
                 false
         }
@@ -117,7 +117,7 @@ enum SettingsListSection: CaseIterable {
     var destinations: [SettingsDestination] {
         switch self {
             case .userData: [.attachments, .loggedDays, .regions]
-            case .tracking: [.location]
+            case .tracking: [.devices]
             case .notifications: [.alerts]
             case .display: [.appearance, .year]
             case .exploreFeatures: [.siri, .widgets]
@@ -135,7 +135,7 @@ enum SettingsListSection: CaseIterable {
 }
 
 /// A per-screen setting identity. Conformers are small, screen-local enums (e.g.
-/// `LocationSettingsView.Item`) that also carry their own localized search text,
+/// `DevicesSettingsView.Item`) that also carry their own localized search text,
 /// so the search index is *derived* from the cases and can't drift from them.
 protocol SettingsItem: Hashable, CaseIterable {
     /// The setting's localized name, matched by search and shown in results.
@@ -229,7 +229,7 @@ enum SettingsCatalog {
     static let results: [SettingsSearchResult] =
         EvidenceListView.searchResults
             + LoggedDaysView.searchResults
-            + LocationSettingsView.searchResults
+            + DevicesSettingsView.searchResults
             + RegionsSettingsView.searchResults
             + AlertsSettingsView.searchResults
             + AppearanceSettingsView.searchResults
