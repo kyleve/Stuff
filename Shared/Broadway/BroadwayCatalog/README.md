@@ -1,7 +1,7 @@
 # BroadwayCatalog
 
-A showcase app for BroadwayUI components — the living catalog for the Broadway
-design system.
+A showcase app for BroadwayUI components.
+It is the living catalog for the Broadway design system.
 
 ## Structure
 
@@ -10,7 +10,8 @@ design system.
 
 ## Build & run
 
-Declared as a Tuist `.app` target (`com.stuff.broadway.catalog`, iPhone/iPad) in
-[`Project.swift`](../../../Project.swift). Generate the project with
-`./ide --no-open`, then build/run the `BroadwayCatalog` scheme. Tests:
-`./test BroadwayCatalogTests`.
+`BroadwayCatalog` is a Tuist `.app` target (`com.stuff.broadway.catalog`, iPhone/iPad).
+It is declared in [`Project.swift`](../../../Project.swift).
+Regenerate the project with `./ide --no-open`.
+Then build or run the `BroadwayCatalog` scheme.
+Run tests with `./test BroadwayCatalogTests`.

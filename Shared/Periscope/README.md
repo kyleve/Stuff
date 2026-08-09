@@ -1,19 +1,21 @@
 # Periscope
 
-Periscope is a typed, hierarchical observability stack: structured `Codable`
-log events emitted through typed loggers (`Log<Event>`) arranged in a scope
-tree, timed with spans, persisted to SwiftData so days of history stay
-queryable on device, and browsable from inside the app.
+Periscope is a typed, hierarchical observability stack.
+It emits structured `Codable` log events through typed loggers (`Log<Event>`).
+Loggers are arranged in a scope tree.
+It times work with spans.
+It persists to SwiftData so days of history stay queryable on device.
+It is browsable from inside the app.
 
-Each module has its own `README.md` with the narrative and API — this file is
-just the map.
+Each module has its own `README.md` with the narrative and API.
+This file is the map.
 
 ## Modules
 
 - **PeriscopeCore** ([PeriscopeCore/](PeriscopeCore/)) — the model and the
   machinery: events, levels, scopes, links, tags, spans, attachments, the sink
   pipeline (OSLog + SwiftData), ambient event sources, the crash journal, and
-  the store. Foundation-level; no SwiftUI.
+  the store. Foundation-level. No SwiftUI.
 - **PeriscopeUI** ([PeriscopeUI/](PeriscopeUI/)) — the SwiftUI integration: the
   `logContext` modifier and environment accessors that flow log scopes down a
   view hierarchy. Depends on PeriscopeCore.
@@ -23,18 +25,18 @@ just the map.
   and Broadway for styling.
 
 Durability underneath the store comes from
-[`JournalKit`](../JournalKit), the generic append-only crash-durable journal —
-deliberately payload-agnostic, so it knows nothing about log semantics.
+[`JournalKit`](../JournalKit), the generic append-only crash-durable journal.
+It is deliberately payload-agnostic, so it knows nothing about log semantics.
 
 [`Prototypes/JournalBenchmark`](Prototypes/JournalBenchmark) is a standalone
-macOS benchmark harness that informed the journal design. It ships in no target
-and no CI job.
+macOS benchmark harness that informed the journal design.
+It ships in no target and no CI job.
 
 ## Build & test
 
-Libraries are declared in the root [`Package.swift`](../../Package.swift);
-their hosted test bundles in [`Project.swift`](../../Project.swift). Run e.g.
-`./test PeriscopeCoreTests`, `./test PeriscopeUITests`, or
+Libraries are declared in the root [`Package.swift`](../../Package.swift).
+Their hosted test bundles are in [`Project.swift`](../../Project.swift).
+Run `./test PeriscopeCoreTests`, `./test PeriscopeUITests`, or
 `./test PeriscopeToolsTests`.
 
 ## Open work
