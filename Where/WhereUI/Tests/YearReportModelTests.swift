@@ -62,6 +62,41 @@ struct YearReportModelTests {
         #expect(reloaded.showsRecordedLocationDots == false)
     }
 
+    @Test func activationDiagnosticsDistinguishFreshAndRetainedReports() throws {
+        let services = try makeServices()
+        let fresh = YearReportModel(
+            services: services,
+            selectedYear: 2026,
+            preferences: makePreferences(),
+        )
+
+        #expect(fresh.activationStartedEvent(trigger: .initialAppearance) == .activationStarted(
+            year: 2026,
+            trigger: "initial-appearance",
+            isFirstActivation: true,
+            hadReport: false,
+        ))
+        #expect(fresh.activationStartedEvent(trigger: .foregroundReturn) == .activationStarted(
+            year: 2026,
+            trigger: "foreground-return",
+            isFirstActivation: false,
+            hadReport: false,
+        ))
+
+        let preloaded = YearReportModel(
+            services: services,
+            details: Self.details(YearReport(year: 2026, days: [], totals: [:])),
+            selectedYear: 2026,
+            preferences: makePreferences(),
+        )
+        #expect(preloaded.activationStartedEvent(trigger: .initialAppearance) == .activationStarted(
+            year: 2026,
+            trigger: "initial-appearance",
+            isFirstActivation: true,
+            hadReport: true,
+        ))
+    }
+
     // MARK: - Year load / stale fetches / save errors
 
     @Test func staleYearFetchDoesNotOverwriteNewerSelection() async throws {
@@ -424,7 +459,7 @@ struct YearReportModelTests {
             preferences: makePreferences(),
             now: { now },
         )
-        await report.activate()
+        await report.activate(trigger: .initialAppearance)
         #expect(report.report?.days.count == 1)
         #expect(report.loadState == .loaded)
 
@@ -458,7 +493,7 @@ struct YearReportModelTests {
             preferences: makePreferences(),
             now: { now },
         )
-        await report.activate()
+        await report.activate(trigger: .initialAppearance)
         #expect(report.report?.days.count == 0)
         report.deactivate()
 
@@ -468,7 +503,7 @@ struct YearReportModelTests {
             preferences: makePreferences(),
             now: { now },
         )
-        await probe.activate()
+        await probe.activate(trigger: .initialAppearance)
 
         try await services.journal.addManualDay(
             date: date(year: 2026, month: 1, day: 1),
@@ -501,7 +536,7 @@ struct YearReportModelTests {
             preferences: makePreferences(),
             now: { now },
         )
-        await report.activate()
+        await report.activate(trigger: .initialAppearance)
         #expect(report.report?.days.count == 0)
         report.deactivate()
 
@@ -514,7 +549,7 @@ struct YearReportModelTests {
         #expect(report.report?.days.count == 0)
 
         // Foregrounding re-subscribes and pulls the gap.
-        await report.activate()
+        await report.activate(trigger: .foregroundReturn)
         #expect(report.report?.days.count == 1)
     }
 
@@ -535,7 +570,7 @@ struct YearReportModelTests {
             preferences: makePreferences(),
         )
 
-        await report.activate()
+        await report.activate(trigger: .initialAppearance)
 
         #expect(report.evidenceDayKeys == [Self.cday(2026, 3, 4)])
     }
@@ -581,7 +616,7 @@ struct YearReportModelTests {
             selectedYear: 2026,
             preferences: makePreferences(),
         )
-        await report.activate()
+        await report.activate(trigger: .initialAppearance)
         #expect(report.evidenceDayKeys == [Self.cday(2026, 5, 2)])
 
         await report.select(year: 2025)

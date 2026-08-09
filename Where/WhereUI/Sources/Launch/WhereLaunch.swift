@@ -74,6 +74,19 @@ public enum LaunchStepID: String, Sendable {
 /// skipped node can't leave a hole in the data flow.
 @MainActor
 public enum WhereLaunch {
+    /// Which scene callback observed the app entering the foreground.
+    enum ForegroundTrigger {
+        case initialAppearance
+        case sceneBecameActive
+
+        var logValue: String {
+            switch self {
+                case .initialAppearance: "initial-appearance"
+                case .sceneBecameActive: "scene-became-active"
+            }
+        }
+    }
+
     private static let logger = WhereLog.root(WhereLaunchLog.self)
 
     /// Start the built-in ambient sources (network path, thermal state, low
@@ -131,6 +144,60 @@ public enum WhereLaunch {
         // trace in logs.
         DetachedFailureReporter.observe(runner)
         return runner
+    }
+
+    /// Promote the launch for a visible scene and record what the runner had
+    /// completed before that scene arrived. A prior `.ready` phase is the direct
+    /// signature of a process that finished its headless drive before foregrounding.
+    static func enterForeground(
+        _ runner: LifecycleRunner<WhereSession>,
+        trigger: ForegroundTrigger,
+    ) async {
+        let event = foregroundEnteredEvent(for: runner, trigger: trigger)
+        await runner.enterForeground()
+        logger { event }
+    }
+
+    /// Snapshot the pre-promotion runner state before `enterForeground()` can
+    /// replace both values. Kept separate so its diagnostic contract is testable
+    /// without sharing the process-global log pipeline.
+    static func foregroundEnteredEvent(
+        for runner: LifecycleRunner<WhereSession>,
+        trigger: ForegroundTrigger,
+    ) -> WhereLaunchLog {
+        .foregroundEntered(
+            trigger: trigger.logValue,
+            previousReason: diagnosticName(for: runner.reason),
+            previousPhase: diagnosticName(for: runner.phase),
+        )
+    }
+
+    private static func diagnosticName(for reason: LifecycleReason) -> String {
+        switch reason {
+            case .userForeground:
+                "user-foreground"
+            case let .background(cause):
+                switch cause {
+                    case .location: "background-location"
+                    case .remoteNotification: "background-remote-notification"
+                    case .backgroundTask: "background-task"
+                    case .other: "background-other"
+                }
+            case .undetermined:
+                "undetermined"
+        }
+    }
+
+    private static func diagnosticName(
+        for phase: LifecycleRunner<WhereSession>.Phase,
+    ) -> String {
+        switch phase {
+            case .launching: "launching"
+            case .running: "running"
+            case .awaitingGate: "awaiting-gate"
+            case .failed: "failed"
+            case .ready: "ready"
+        }
     }
 
     /// The typed launch plan. The trunk mirrors the imperative

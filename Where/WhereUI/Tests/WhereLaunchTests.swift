@@ -218,11 +218,21 @@ struct WhereLaunchTests {
         #expect(launcher.reason.buildsNoViewTree)
         #expect(model.session?.isTracking == true)
         #expect(try await store.allSamples().isEmpty)
+        #expect(
+            WhereLaunch.foregroundEnteredEvent(
+                for: launcher,
+                trigger: .sceneBecameActive,
+            ) == .foregroundEntered(
+                trigger: "scene-became-active",
+                previousReason: "undetermined",
+                previousPhase: "ready",
+            ),
+        )
 
         // A scene activates → promote. The re-drive skips the already-completed
         // background steps and runs the now-applicable foreground-only
         // capture-today, which logs today's fix.
-        await launcher.enterForeground()
+        await WhereLaunch.enterForeground(launcher, trigger: .sceneBecameActive)
         #expect(launcher.phase.isReady)
         #expect(launcher.reason == .userForeground)
         try await waitUntilAsync { await (try? store.allSamples().count) == 1 }

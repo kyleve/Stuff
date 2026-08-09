@@ -56,7 +56,7 @@
                 preferences: scope.preferences,
                 now: now,
             )
-            await report.activate()
+            await report.activate(trigger: .initialAppearance)
 
             return WhereFlyoverWorld(
                 scope: scope,

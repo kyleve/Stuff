@@ -68,7 +68,7 @@ struct PrimaryRegionLocationsTests {
         )
 
         try await services.journal.ingest(first)
-        await report.activate()
+        await report.activate(trigger: .initialAppearance)
         defer { report.deactivate() }
         let initialReport = try #require(report.report)
         let initialLocations = try #require(report.primaryRegionLocations)

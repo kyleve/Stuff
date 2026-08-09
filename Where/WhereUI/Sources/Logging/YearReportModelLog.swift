@@ -4,7 +4,7 @@ import WhereCore
 /// Structured events for `YearReportModel`. The affected year rides on
 /// `externalID`. A successful load is `.info`; read failures that leave a
 /// degraded UI state are `.warning`.
-enum YearReportModelLog: LogEvent {
+enum YearReportModelLog: LogEvent, Equatable {
     /// Names the model's timed span.
     ///
     /// Only the composed pass is timed: the report read, the evidence-day fetch,
@@ -18,6 +18,7 @@ enum YearReportModelLog: LogEvent {
         case sceneRefresh
     }
 
+    case activationStarted(year: Int, trigger: String, isFirstActivation: Bool, hadReport: Bool)
     case selectedYear(year: Int)
     case reportLoaded(year: Int, dayCount: Int)
     case reportLoadFailed(year: Int, description: String)
@@ -32,7 +33,7 @@ enum YearReportModelLog: LogEvent {
 
     var level: LogLevel {
         switch self {
-            case .selectedYear, .reportLoaded: .info
+            case .activationStarted, .selectedYear, .reportLoaded: .info
             case .reportLoadFailed, .evidenceDayKeysLoadFailed, .dataIssueScanFailed,
                  .clearYearFailed, .locationsLoadFailed, .dayLocationsLoadFailed,
                  .representativeCoordinatesLoadFailed:
@@ -42,6 +43,10 @@ enum YearReportModelLog: LogEvent {
 
     var message: String {
         switch self {
+            case let .activationStarted(year, trigger, isFirstActivation, hadReport):
+                "Year report activation started for \(year)"
+                    + " (trigger: \(trigger), first: \(isFirstActivation),"
+                    + " had report: \(hadReport))"
             case let .selectedYear(year):
                 "Selected year \(year)"
             case let .reportLoaded(year, dayCount):
@@ -65,7 +70,8 @@ enum YearReportModelLog: LogEvent {
 
     var externalID: String? {
         switch self {
-            case let .selectedYear(year), let .reportLoaded(year, _),
+            case let .activationStarted(year, _, _, _), let .selectedYear(year),
+                 let .reportLoaded(year, _),
                  let .reportLoadFailed(year, _), let .evidenceDayKeysLoadFailed(year, _),
                  let .clearYearFailed(year, _), let .locationsLoadFailed(_, year, _),
                  let .representativeCoordinatesLoadFailed(year, _):

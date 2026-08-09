@@ -2,7 +2,7 @@ import PeriscopeCore
 
 /// Structured events for the app launch sequence (`WhereLaunch` /
 /// `WhereBootstrap`), including the process-global log-store bootstrap.
-enum WhereLaunchLog: LogEvent {
+enum WhereLaunchLog: LogEvent, Equatable {
     /// Names the launch spans — one budgeted span per measured launch or
     /// teardown step (see `MeasuredStep`), plus the two log-store chores the
     /// bootstrap runs off the critical path.
@@ -30,6 +30,9 @@ enum WhereLaunchLog: LogEvent {
     }
 
     case runnerCreated(reason: String)
+    /// A scene asked the runner to enter the foreground. The previous phase says
+    /// whether a headless drive had already reached `.ready` before UI appeared.
+    case foregroundEntered(trigger: String, previousReason: String, previousPhase: String)
     case servicesAssembled
     /// Assembling the service layer (store open + `WhereServices.make`) failed;
     /// the `resolve-scope` step surfaces it and the launch parks in `.failed`.
@@ -60,7 +63,8 @@ enum WhereLaunchLog: LogEvent {
 
     var level: LogLevel {
         switch self {
-            case .runnerCreated, .servicesAssembled, .loggingStoreReady, .historyPruned:
+            case .runnerCreated, .foregroundEntered, .servicesAssembled, .loggingStoreReady,
+                 .historyPruned:
                 .info
             // The store is still usable when pruning fails (degraded-but-handled),
             // unlike an outright open failure. A detached-step failure is the
@@ -77,6 +81,9 @@ enum WhereLaunchLog: LogEvent {
         switch self {
             case let .runnerCreated(reason):
                 "Lifecycle runner created (reason: \(reason))"
+            case let .foregroundEntered(trigger, previousReason, previousPhase):
+                "Entered foreground (trigger: \(trigger), previous reason: \(previousReason),"
+                    + " previous phase: \(previousPhase))"
             case .servicesAssembled:
                 "WhereServices assembled"
             case let .servicesAssemblyFailed(description):

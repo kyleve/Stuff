@@ -13,7 +13,7 @@ import WhereCore
 /// logged-in lifetime — a `YearReportModel` is created by `MainTabs` only once the
 /// real UI is on screen (the launch's `.ready` state) and torn down with it. It
 /// owns the store's data-change subscription, started on scene `.active`
-/// (`activate()`) and cancelled on background (`deactivate()`), so a headless
+/// (`activate(trigger:)`) and cancelled on background (`deactivate()`), so a headless
 /// background relaunch never drives a `refresh()` no UI consumes.
 ///
 /// `services` / `preferences` / `now` / `calendar` are exposed so the
@@ -23,6 +23,21 @@ import WhereCore
 @MainActor
 @Observable
 public final class YearReportModel {
+    /// Why the scene is activating its report model. Kept typed at the API
+    /// boundary while the corresponding persisted log payload uses a stable
+    /// explicit string.
+    public enum ActivationTrigger: Sendable {
+        case initialAppearance
+        case foregroundReturn
+
+        var logValue: String {
+            switch self {
+                case .initialAppearance: "initial-appearance"
+                case .foregroundReturn: "foreground-return"
+            }
+        }
+    }
+
     /// Where the current year's data is in its load lifecycle.
     public enum LoadState: Equatable {
         case idle
@@ -131,6 +146,10 @@ public final class YearReportModel {
     /// `nonisolated(unsafe)` so `deinit` can cancel it; every other access is on
     /// the main actor, and `deinit` runs with no other live references.
     @ObservationIgnored private nonisolated(unsafe) var dataChangeTask: Task<Void, Never>?
+
+    /// Distinguishes a newly constructed scene model's first pull from later
+    /// foreground refreshes in diagnostics. Main-actor isolated with the model.
+    private var hasActivated = false
 
     private static let logger = WhereLog.session(YearReportModelLog.self)
 
@@ -262,14 +281,30 @@ public final class YearReportModel {
     /// Start observing committed writes and pull fresh data. Called by `MainTabs`
     /// when the scene becomes active. Safe to call repeatedly — the subscription
     /// is set up at most once until `deactivate()`.
-    public func activate() async {
+    public func activate(trigger: ActivationTrigger) async {
+        let event = activationStartedEvent(trigger: trigger)
+        Self.logger { event }
         observeDataChanges()
         await refreshAll(forceDataIssueCount: false)
     }
 
+    /// Snapshot the facts that exist before an activation changes presentation
+    /// state. Split from emission so the diagnostic contract is deterministic to
+    /// test without attaching a suite to the process-global logging facade.
+    func activationStartedEvent(trigger: ActivationTrigger) -> YearReportModelLog {
+        let event = YearReportModelLog.activationStarted(
+            year: selectedYear,
+            trigger: trigger.logValue,
+            isFirstActivation: !hasActivated,
+            hadReport: report != nil,
+        )
+        hasActivated = true
+        return event
+    }
+
     /// Stop observing committed writes. Called by `MainTabs` when the scene goes
     /// to the background, so a backgrounded scene drives no refreshes; the next
-    /// `activate()` re-subscribes and pulls (covering the background→foreground
+    /// `activate(trigger:)` re-subscribes and pulls (covering the background→foreground
     /// gap).
     public func deactivate() {
         dataChangeTask?.cancel()

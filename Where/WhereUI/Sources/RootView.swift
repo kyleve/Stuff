@@ -219,14 +219,14 @@ public struct RootView: View {
             // entire (possibly slow) headless drive instead of the splash.
             .task {
                 if scenePhase == .active {
-                    await launcher.enterForeground()
+                    await WhereLaunch.enterForeground(launcher, trigger: .initialAppearance)
                 }
                 await launcher.run()
             }
             .onChange(of: scenePhase) { _, newPhase in
                 guard newPhase == .active else { return }
                 Task {
-                    await launcher.enterForeground()
+                    await WhereLaunch.enterForeground(launcher, trigger: .sceneBecameActive)
                     await model.session?.appBecameActive()
                 }
             }

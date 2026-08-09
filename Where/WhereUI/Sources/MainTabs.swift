@@ -68,11 +68,11 @@ struct MainTabs: View {
         // Subscribe + pull once the scene is on screen, and again whenever it
         // returns to the foreground; cancel the subscription on background so a
         // backgrounded scene drives no refreshes.
-        .task { await report.activate() }
+        .task { await report.activate(trigger: .initialAppearance) }
         .onChange(of: scenePhase) { _, newPhase in
             switch newPhase {
                 case .active:
-                    Task { await report.activate() }
+                    Task { await report.activate(trigger: .foregroundReturn) }
                 case .background:
                     report.deactivate()
                 case .inactive:
