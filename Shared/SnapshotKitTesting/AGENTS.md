@@ -120,6 +120,10 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
   fixed-point passes fails the assertion and skips comparison/recording; never
   bless the last arbitrary height. Guard:
   `LargeViewCaptureTests.rejectsNonConvergingBoundedScrollMeasurement`.
+- **Immediate measurement never shortens final capture settling.** It skips
+  only the intrinsic-sizing probe's settle for synchronously sized fixtures;
+  the final `.settled` / `.settledAtLeast` policy still runs. Guards:
+  `AsyncContentCaptureTests`.
 - **A settle phase costs its floor, not its passes.** Measured over all 260
   references with `SNAPSHOT_TIMING=1`: 192 captures sit at 0.25-0.35s, the
   `minDuration` floor plus a pass or two, and the floor accounts for ~70s of
