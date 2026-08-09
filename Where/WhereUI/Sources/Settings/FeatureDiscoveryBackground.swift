@@ -15,6 +15,7 @@ struct FeatureDiscoveryBackground: View {
             }
             .foregroundStyle(.secondary)
         }
+        .ignoresSafeArea()
         .accessibilityHidden(true)
     }
 
