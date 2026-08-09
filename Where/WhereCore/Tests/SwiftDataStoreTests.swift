@@ -446,7 +446,91 @@ struct SwiftDataStoreTests {
         #expect(try #require(generationRow.toValue()).parentIDs == [.initial])
     }
 
-    @Test func lateRowsFromASupersededGenerationCannotRepopulateAnySyncedUserData() async throws {
+    @Test func legacyRowsWithoutGenerationIDsBelongToTheInitialGeneration() async throws {
+        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
+        let date = Date(timeIntervalSinceReferenceDate: 100)
+        let deviceID = RecordingDeviceID(rawValue: UUID())
+        let sample = LocationSample(
+            timestamp: date,
+            coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
+            horizontalAccuracy: 5,
+            source: .gpsVisit,
+            recordingDeviceID: deviceID,
+        )
+        let evidence = Evidence(
+            kind: .boardingPass,
+            capturedAt: date,
+            region: .california,
+            contentType: .pdf,
+        )
+        let manualDay = DayPresence(
+            date: date,
+            in: Self.calendar,
+            regions: [.california],
+        )
+        let dismissal = DismissedIssue(
+            id: .borderDrift(day: manualDay.day),
+            dismissedAt: date,
+        )
+        let texas = try #require(Region(rawValue: "us-TX"))
+        let metadata = try RecordingDeviceMetadataChange(
+            id: .init(rawValue: UUID()),
+            deviceID: deviceID,
+            revision: 0,
+            changedAt: date,
+            changedByDeviceID: deviceID,
+            payload: .nickname("Home iPad"),
+        )
+        let checkIn = RecordingDeviceCheckIn(
+            deviceID: deviceID,
+            revision: 0,
+            lastSeenAt: date,
+            status: .recording,
+        )
+        let context = ModelContext(container)
+        let sampleRow = SDLocationSample(value: sample, generationID: .initial)
+        sampleRow.generationID = nil
+        context.insert(sampleRow)
+        let evidenceRow = SDEvidence(value: evidence, blob: nil, generationID: .initial)
+        evidenceRow.generationID = nil
+        context.insert(evidenceRow)
+        let manualDayRow = SDManualDay(value: manualDay, generationID: .initial)
+        manualDayRow.generationID = nil
+        context.insert(manualDayRow)
+        let dismissalRow = SDDismissedIssue(
+            key: dismissal.id.storeURL.absoluteString,
+            dismissedAt: dismissal.dismissedAt,
+            generationID: .initial,
+        )
+        dismissalRow.generationID = nil
+        context.insert(dismissalRow)
+        let regionRow = SDTrackedRegion(regionID: texas.rawValue, generationID: .initial)
+        regionRow.generationID = nil
+        context.insert(regionRow)
+        let metadataRow = SDRecordingDeviceMetadataChange(value: metadata, generationID: .initial)
+        metadataRow.generationID = nil
+        context.insert(metadataRow)
+        let checkInRow = SDRecordingDeviceCheckIn(value: checkIn, generationID: .initial)
+        checkInRow.generationID = nil
+        context.insert(checkInRow)
+        try context.save()
+
+        let store = SwiftDataStore(modelContainer: container)
+        let interval = DateInterval(start: date.addingTimeInterval(-1), duration: 2)
+        #expect(try await store.allSamples() == [sample])
+        #expect(try await store.samples(in: interval) == [sample])
+        #expect(try await store.allEvidence() == [evidence])
+        #expect(try await store.evidence(in: interval) == [evidence])
+        #expect(try await store.allManualDays() == [manualDay])
+        #expect(try await store.manualDays(in: manualDay.day ... manualDay.day) == [manualDay])
+        #expect(try await store.allDismissedIssues() == [dismissal])
+        #expect(try await store.dismissedIssueIDs() == [dismissal.id])
+        #expect(try await store.trackedRegions() == [texas])
+        #expect(try await store.recordingDeviceMetadataChanges() == [metadata])
+        #expect(try await store.recordingDeviceCheckIns() == [checkIn])
+    }
+
+    @Test func lateLegacyRowsCannotRepopulateAnySyncedUserData() async throws {
         let container = try SwiftDataStore.makeContainer(storage: .inMemory)
         let store = SwiftDataStore(modelContainer: container)
         let deviceID = try RecordingDeviceID(
@@ -514,34 +598,56 @@ struct SwiftDataStoreTests {
         // afterward. Remote CloudKit writes do not pass through WhereStore's mutation methods,
         // so insert the old-generation records at the SwiftData boundary just as an import does.
         let remoteContext = ModelContext(container)
-        remoteContext.insert(SDLocationSample(value: sample, generationID: .initial))
-        remoteContext.insert(SDEvidence(
+        let sampleRow = SDLocationSample(value: sample, generationID: .initial)
+        sampleRow.generationID = nil
+        remoteContext.insert(sampleRow)
+        let evidenceRow = SDEvidence(
             value: evidence,
             blob: Data("old".utf8),
             generationID: .initial,
-        ))
-        remoteContext.insert(SDManualDay(value: manualDay, generationID: .initial))
-        remoteContext.insert(SDDismissedIssue(
+        )
+        evidenceRow.generationID = nil
+        remoteContext.insert(evidenceRow)
+        let manualDayRow = SDManualDay(value: manualDay, generationID: .initial)
+        manualDayRow.generationID = nil
+        remoteContext.insert(manualDayRow)
+        let dismissalRow = SDDismissedIssue(
             key: dismissal.id.storeURL.absoluteString,
             dismissedAt: dismissal.dismissedAt,
             generationID: .initial,
-        ))
-        remoteContext.insert(SDTrackedRegion(regionID: "us-TX", generationID: .initial))
-        remoteContext.insert(SDRecordingDeviceMetadataChange(
+        )
+        dismissalRow.generationID = nil
+        remoteContext.insert(dismissalRow)
+        let trackedRegionRow = SDTrackedRegion(regionID: "us-TX", generationID: .initial)
+        trackedRegionRow.generationID = nil
+        remoteContext.insert(trackedRegionRow)
+        let metadataRow = SDRecordingDeviceMetadataChange(
             value: metadata,
             generationID: .initial,
-        ))
-        remoteContext.insert(SDRecordingDeviceCheckIn(value: checkIn, generationID: .initial))
+        )
+        metadataRow.generationID = nil
+        remoteContext.insert(metadataRow)
+        let checkInRow = SDRecordingDeviceCheckIn(value: checkIn, generationID: .initial)
+        checkInRow.generationID = nil
+        remoteContext.insert(checkInRow)
         try remoteContext.save()
 
         let reader = SwiftDataStore(modelContainer: container)
+        let interval = DateInterval(start: date.addingTimeInterval(-1), duration: 2)
         #expect(try await reader.dataGeneration() == generation)
         #expect(try await reader.allSamples().isEmpty)
+        #expect(try await reader.samples(in: interval).isEmpty)
         #expect(try await reader.allEvidence().isEmpty)
+        #expect(try await reader.evidence(in: interval).isEmpty)
         #expect(try await reader.evidenceBlob(for: evidence.id) == nil)
         #expect(try await reader.allManualDays().isEmpty)
+        #expect(try await reader.manualDays(in: manualDay.day ... manualDay.day).isEmpty)
         #expect(try await reader.allDismissedIssues().isEmpty)
+        #expect(try await reader.dismissedIssueIDs().isEmpty)
         #expect(try await reader.trackedRegions() == SwiftDataStore.defaultTrackedRegions)
+        #expect(try await reader.primaryRegions().map(\.region) == Region.inCanonicalOrder(
+            SwiftDataStore.defaultTrackedRegions,
+        ))
         #expect(try await reader.recordingDeviceProfiles() == [profile])
         #expect(try await reader.recordingDeviceMetadataChanges().isEmpty)
         #expect(try await reader.recordingDeviceCheckIns().isEmpty)
@@ -572,6 +678,94 @@ struct SwiftDataStoreTests {
             }
         }
         #expect(try await store.allSamples().isEmpty)
+    }
+
+    @Test func generationRotationDeletesOnlyCurrentRowsAcrossEveryScopedTable() async throws {
+        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
+        let store = SwiftDataStore(modelContainer: container)
+        let current = try await store.perform {
+            try await store.rotateDataGeneration(
+                reason: .accountReset,
+                changedBy: Self.generationWriterID,
+                at: Date(timeIntervalSinceReferenceDate: 100),
+            )
+        }
+        let context = ModelContext(container)
+
+        let staleSample = SDLocationSample()
+        staleSample.generationID = WhereDataGenerationID.initial.rawValue
+        let currentSample = SDLocationSample()
+        currentSample.generationID = current.id.rawValue
+        context.insert(staleSample)
+        context.insert(currentSample)
+
+        let staleEvidence = SDEvidence()
+        staleEvidence.generationID = WhereDataGenerationID.initial.rawValue
+        let currentEvidence = SDEvidence()
+        currentEvidence.generationID = current.id.rawValue
+        context.insert(staleEvidence)
+        context.insert(currentEvidence)
+
+        let staleManualDay = SDManualDay()
+        staleManualDay.generationID = WhereDataGenerationID.initial.rawValue
+        let currentManualDay = SDManualDay()
+        currentManualDay.generationID = current.id.rawValue
+        context.insert(staleManualDay)
+        context.insert(currentManualDay)
+
+        let staleDismissal = SDDismissedIssue()
+        staleDismissal.generationID = WhereDataGenerationID.initial.rawValue
+        let currentDismissal = SDDismissedIssue()
+        currentDismissal.generationID = current.id.rawValue
+        context.insert(staleDismissal)
+        context.insert(currentDismissal)
+
+        let staleRegion = SDTrackedRegion()
+        staleRegion.generationID = WhereDataGenerationID.initial.rawValue
+        let currentRegion = SDTrackedRegion()
+        currentRegion.generationID = current.id.rawValue
+        context.insert(staleRegion)
+        context.insert(currentRegion)
+
+        let staleMetadata = SDRecordingDeviceMetadataChange()
+        staleMetadata.generationID = WhereDataGenerationID.initial.rawValue
+        let currentMetadata = SDRecordingDeviceMetadataChange()
+        currentMetadata.generationID = current.id.rawValue
+        context.insert(staleMetadata)
+        context.insert(currentMetadata)
+
+        let staleCheckIn = SDRecordingDeviceCheckIn()
+        staleCheckIn.generationID = WhereDataGenerationID.initial.rawValue
+        let currentCheckIn = SDRecordingDeviceCheckIn()
+        currentCheckIn.generationID = current.id.rawValue
+        context.insert(staleCheckIn)
+        context.insert(currentCheckIn)
+        try context.save()
+
+        _ = try await store.perform {
+            try await store.rotateDataGeneration(
+                reason: .accountReset,
+                changedBy: Self.generationWriterID,
+                at: Date(timeIntervalSinceReferenceDate: 200),
+            )
+        }
+
+        let inspectionContext = ModelContext(container)
+        let initialID = WhereDataGenerationID.initial.rawValue
+        #expect(try inspectionContext.fetch(FetchDescriptor<SDLocationSample>())
+            .map(\.generationID) == [initialID])
+        #expect(try inspectionContext.fetch(FetchDescriptor<SDEvidence>())
+            .map(\.generationID) == [initialID])
+        #expect(try inspectionContext.fetch(FetchDescriptor<SDManualDay>())
+            .map(\.generationID) == [initialID])
+        #expect(try inspectionContext.fetch(FetchDescriptor<SDDismissedIssue>())
+            .map(\.generationID) == [initialID])
+        #expect(try inspectionContext.fetch(FetchDescriptor<SDTrackedRegion>())
+            .map(\.generationID) == [initialID])
+        #expect(try inspectionContext.fetch(FetchDescriptor<SDRecordingDeviceMetadataChange>())
+            .map(\.generationID) == [initialID])
+        #expect(try inspectionContext.fetch(FetchDescriptor<SDRecordingDeviceCheckIn>())
+            .map(\.generationID) == [initialID])
     }
 
     @Test func generationRotationClampsABackwardClockToItsParentBoundary() async throws {
