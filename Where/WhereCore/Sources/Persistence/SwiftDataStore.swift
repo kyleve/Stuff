@@ -13,23 +13,24 @@ private enum GenerationScopedFetch {
         sortBy: [SortDescriptor<SDLocationSample>] = [],
     ) -> FetchDescriptor<SDLocationSample> {
         let membership = GenerationMembership(generationID)
-        let id = membership.id
+        let storedGenerationID = membership.storedID
         let includesLegacy = membership.includesLegacy
         return descriptor(predicate: #Predicate {
-            $0.generationID == id || (includesLegacy && $0.generationID == nil)
+            $0.generationID == storedGenerationID ||
+                (includesLegacy && $0.generationID == nil)
         }, sortBy: sortBy)
     }
 
     static func samples(
         belongingTo generationID: WhereDataGenerationID,
-        id: UUID,
+        sampleID: UUID,
     ) -> FetchDescriptor<SDLocationSample> {
         let membership = GenerationMembership(generationID)
-        let generationID = membership.id
+        let storedGenerationID = membership.storedID
         let includesLegacy = membership.includesLegacy
         return descriptor(predicate: #Predicate {
-            ($0.generationID == generationID || (includesLegacy && $0.generationID == nil)) &&
-                $0.id == id
+            ($0.generationID == storedGenerationID ||
+                (includesLegacy && $0.generationID == nil)) && $0.id == sampleID
         })
     }
 
@@ -39,12 +40,14 @@ private enum GenerationScopedFetch {
         sortBy: [SortDescriptor<SDLocationSample>] = [],
     ) -> FetchDescriptor<SDLocationSample> {
         let membership = GenerationMembership(generationID)
-        let generationID = membership.id
+        let storedGenerationID = membership.storedID
         let includesLegacy = membership.includesLegacy
         let start = interval.start
         let end = interval.end
         return descriptor(predicate: #Predicate {
-            if $0.generationID == generationID || (includesLegacy && $0.generationID == nil) {
+            if $0.generationID == storedGenerationID ||
+                (includesLegacy && $0.generationID == nil)
+            {
                 if let timestamp = $0.timestamp {
                     timestamp >= start && timestamp < end
                 } else {
@@ -61,23 +64,24 @@ private enum GenerationScopedFetch {
         sortBy: [SortDescriptor<SDEvidence>] = [],
     ) -> FetchDescriptor<SDEvidence> {
         let membership = GenerationMembership(generationID)
-        let id = membership.id
+        let storedGenerationID = membership.storedID
         let includesLegacy = membership.includesLegacy
         return descriptor(predicate: #Predicate {
-            $0.generationID == id || (includesLegacy && $0.generationID == nil)
+            $0.generationID == storedGenerationID ||
+                (includesLegacy && $0.generationID == nil)
         }, sortBy: sortBy)
     }
 
     static func evidence(
         belongingTo generationID: WhereDataGenerationID,
-        id: UUID,
+        evidenceID: UUID,
     ) -> FetchDescriptor<SDEvidence> {
         let membership = GenerationMembership(generationID)
-        let generationID = membership.id
+        let storedGenerationID = membership.storedID
         let includesLegacy = membership.includesLegacy
         return descriptor(predicate: #Predicate {
-            ($0.generationID == generationID || (includesLegacy && $0.generationID == nil)) &&
-                $0.id == id
+            ($0.generationID == storedGenerationID ||
+                (includesLegacy && $0.generationID == nil)) && $0.id == evidenceID
         })
     }
 
@@ -87,12 +91,14 @@ private enum GenerationScopedFetch {
         sortBy: [SortDescriptor<SDEvidence>] = [],
     ) -> FetchDescriptor<SDEvidence> {
         let membership = GenerationMembership(generationID)
-        let generationID = membership.id
+        let storedGenerationID = membership.storedID
         let includesLegacy = membership.includesLegacy
         let start = interval.start
         let end = interval.end
         return descriptor(predicate: #Predicate {
-            if $0.generationID == generationID || (includesLegacy && $0.generationID == nil) {
+            if $0.generationID == storedGenerationID ||
+                (includesLegacy && $0.generationID == nil)
+            {
                 if let capturedAt = $0.capturedAt {
                     capturedAt >= start && capturedAt < end
                 } else {
@@ -109,38 +115,43 @@ private enum GenerationScopedFetch {
         sortBy: [SortDescriptor<SDManualDay>] = [],
     ) -> FetchDescriptor<SDManualDay> {
         let membership = GenerationMembership(generationID)
-        let id = membership.id
+        let storedGenerationID = membership.storedID
         let includesLegacy = membership.includesLegacy
         return descriptor(predicate: #Predicate {
-            $0.generationID == id || (includesLegacy && $0.generationID == nil)
+            $0.generationID == storedGenerationID ||
+                (includesLegacy && $0.generationID == nil)
         }, sortBy: sortBy)
     }
 
     static func manualDays(
         belongingTo generationID: WhereDataGenerationID,
-        dayKey: String,
+        day: CalendarDay,
     ) -> FetchDescriptor<SDManualDay> {
         let membership = GenerationMembership(generationID)
-        let generationID = membership.id
+        let storedGenerationID = membership.storedID
         let includesLegacy = membership.includesLegacy
+        let dayKey = day.description
         return descriptor(predicate: #Predicate {
-            ($0.generationID == generationID || (includesLegacy && $0.generationID == nil)) &&
+            ($0.generationID == storedGenerationID ||
+                (includesLegacy && $0.generationID == nil)) &&
                 $0.dayKey == dayKey
         })
     }
 
     static func manualDays(
         belongingTo generationID: WhereDataGenerationID,
-        in range: ClosedRange<String>,
+        in range: ClosedRange<CalendarDay>,
         sortBy: [SortDescriptor<SDManualDay>] = [],
     ) -> FetchDescriptor<SDManualDay> {
         let membership = GenerationMembership(generationID)
-        let generationID = membership.id
+        let storedGenerationID = membership.storedID
         let includesLegacy = membership.includesLegacy
-        let low = range.lowerBound
-        let high = range.upperBound
+        let low = range.lowerBound.description
+        let high = range.upperBound.description
         return descriptor(predicate: #Predicate {
-            if $0.generationID == generationID || (includesLegacy && $0.generationID == nil) {
+            if $0.generationID == storedGenerationID ||
+                (includesLegacy && $0.generationID == nil)
+            {
                 if let dayKey = $0.dayKey {
                     dayKey >= low && dayKey <= high
                 } else {
@@ -157,22 +168,25 @@ private enum GenerationScopedFetch {
         sortBy: [SortDescriptor<SDDismissedIssue>] = [],
     ) -> FetchDescriptor<SDDismissedIssue> {
         let membership = GenerationMembership(generationID)
-        let id = membership.id
+        let storedGenerationID = membership.storedID
         let includesLegacy = membership.includesLegacy
         return descriptor(predicate: #Predicate {
-            $0.generationID == id || (includesLegacy && $0.generationID == nil)
+            $0.generationID == storedGenerationID ||
+                (includesLegacy && $0.generationID == nil)
         }, sortBy: sortBy)
     }
 
     static func dismissedIssues(
         belongingTo generationID: WhereDataGenerationID,
-        key: String,
+        issueID: DataIssueID,
     ) -> FetchDescriptor<SDDismissedIssue> {
         let membership = GenerationMembership(generationID)
-        let id = membership.id
+        let storedGenerationID = membership.storedID
         let includesLegacy = membership.includesLegacy
+        let key = issueID.storeURL.absoluteString
         return descriptor(predicate: #Predicate {
-            ($0.generationID == id || (includesLegacy && $0.generationID == nil)) && $0.key == key
+            ($0.generationID == storedGenerationID ||
+                (includesLegacy && $0.generationID == nil)) && $0.key == key
         })
     }
 
@@ -180,22 +194,25 @@ private enum GenerationScopedFetch {
         belongingTo generationID: WhereDataGenerationID,
     ) -> FetchDescriptor<SDTrackedRegion> {
         let membership = GenerationMembership(generationID)
-        let id = membership.id
+        let storedGenerationID = membership.storedID
         let includesLegacy = membership.includesLegacy
         return descriptor(predicate: #Predicate {
-            $0.generationID == id || (includesLegacy && $0.generationID == nil)
+            $0.generationID == storedGenerationID ||
+                (includesLegacy && $0.generationID == nil)
         })
     }
 
     static func trackedRegions(
         belongingTo generationID: WhereDataGenerationID,
-        regionID: String,
+        region: Region,
     ) -> FetchDescriptor<SDTrackedRegion> {
         let membership = GenerationMembership(generationID)
-        let id = membership.id
+        let storedGenerationID = membership.storedID
         let includesLegacy = membership.includesLegacy
+        let regionID = region.rawValue
         return descriptor(predicate: #Predicate {
-            ($0.generationID == id || (includesLegacy && $0.generationID == nil)) &&
+            ($0.generationID == storedGenerationID ||
+                (includesLegacy && $0.generationID == nil)) &&
                 $0.regionID == regionID
         })
     }
@@ -205,23 +222,25 @@ private enum GenerationScopedFetch {
         sortBy: [SortDescriptor<SDRecordingDeviceMetadataChange>] = [],
     ) -> FetchDescriptor<SDRecordingDeviceMetadataChange> {
         let membership = GenerationMembership(generationID)
-        let id = membership.id
+        let storedGenerationID = membership.storedID
         let includesLegacy = membership.includesLegacy
         return descriptor(predicate: #Predicate {
-            $0.generationID == id || (includesLegacy && $0.generationID == nil)
+            $0.generationID == storedGenerationID ||
+                (includesLegacy && $0.generationID == nil)
         }, sortBy: sortBy)
     }
 
     static func metadataChanges(
         belongingTo generationID: WhereDataGenerationID,
-        id: UUID,
+        changeID: RecordingDeviceMetadataChange.ID,
     ) -> FetchDescriptor<SDRecordingDeviceMetadataChange> {
         let membership = GenerationMembership(generationID)
-        let generationID = membership.id
+        let storedGenerationID = membership.storedID
         let includesLegacy = membership.includesLegacy
+        let storedChangeID = changeID.rawValue
         return descriptor(predicate: #Predicate {
-            ($0.generationID == generationID || (includesLegacy && $0.generationID == nil)) &&
-                $0.id == id
+            ($0.generationID == storedGenerationID ||
+                (includesLegacy && $0.generationID == nil)) && $0.id == storedChangeID
         })
     }
 
@@ -230,23 +249,26 @@ private enum GenerationScopedFetch {
         sortBy: [SortDescriptor<SDRecordingDeviceCheckIn>] = [],
     ) -> FetchDescriptor<SDRecordingDeviceCheckIn> {
         let membership = GenerationMembership(generationID)
-        let id = membership.id
+        let storedGenerationID = membership.storedID
         let includesLegacy = membership.includesLegacy
         return descriptor(predicate: #Predicate {
-            $0.generationID == id || (includesLegacy && $0.generationID == nil)
+            $0.generationID == storedGenerationID ||
+                (includesLegacy && $0.generationID == nil)
         }, sortBy: sortBy)
     }
 
     static func checkIns(
         belongingTo generationID: WhereDataGenerationID,
-        deviceID: UUID,
+        deviceID: RecordingDeviceID,
     ) -> FetchDescriptor<SDRecordingDeviceCheckIn> {
         let membership = GenerationMembership(generationID)
-        let id = membership.id
+        let storedGenerationID = membership.storedID
         let includesLegacy = membership.includesLegacy
+        let storedDeviceID = deviceID.rawValue
         return descriptor(predicate: #Predicate {
-            ($0.generationID == id || (includesLegacy && $0.generationID == nil)) &&
-                $0.deviceID == deviceID
+            ($0.generationID == storedGenerationID ||
+                (includesLegacy && $0.generationID == nil)) &&
+                $0.deviceID == storedDeviceID
         })
     }
 
@@ -260,11 +282,11 @@ private enum GenerationScopedFetch {
     }
 
     private struct GenerationMembership {
-        let id: UUID?
+        let storedID: UUID?
         let includesLegacy: Bool
 
         init(_ generationID: WhereDataGenerationID) {
-            id = generationID.rawValue
+            storedID = generationID.rawValue
             includesLegacy = generationID == .initial
         }
     }
@@ -1147,10 +1169,9 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     public func add(sample: LocationSample) async throws {
         let context = mutationContext()
         let generationID = mutationGenerationID()
-        let id = sample.id
         let existing = try context.fetch(GenerationScopedFetch.samples(
             belongingTo: generationID,
-            id: id,
+            sampleID: sample.id,
         ))
         if let canonical = existing.first {
             canonical.update(from: sample, generationID: generationID)
@@ -1312,10 +1333,10 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     ) async throws {
         let context = mutationContext()
         let generationID = mutationGenerationID()
-        let id = change.id.rawValue
+        let storedChangeID = change.id.rawValue
         let existing = try context.fetch(GenerationScopedFetch.metadataChanges(
             belongingTo: generationID,
-            id: id,
+            changeID: change.id,
         ))
         guard !existing.isEmpty else {
             context.insert(SDRecordingDeviceMetadataChange(
@@ -1325,7 +1346,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             return
         }
         guard existing.allSatisfy({ $0.toValue() == change }) else {
-            throw RecordingPersistenceError.conflictingImmutableRecord(id: id)
+            throw RecordingPersistenceError.conflictingImmutableRecord(id: storedChangeID)
         }
         for duplicate in existing.dropFirst() {
             context.delete(duplicate)
@@ -1354,10 +1375,9 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     public func setRecordingDeviceCheckIn(_ checkIn: RecordingDeviceCheckIn) async throws {
         let context = mutationContext()
         let generationID = mutationGenerationID()
-        let deviceID = checkIn.deviceID.rawValue
         let existing = try context.fetch(GenerationScopedFetch.checkIns(
             belongingTo: generationID,
-            deviceID: deviceID,
+            deviceID: checkIn.deviceID,
         ))
         guard let canonical = existing.first else {
             context.insert(SDRecordingDeviceCheckIn(value: checkIn, generationID: generationID))
@@ -1439,10 +1459,9 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     public func write(evidence: Evidence, blob: Data?) async throws {
         let context = mutationContext()
         let generationID = mutationGenerationID()
-        let id = evidence.id
         let matchingRecords = try context.fetch(GenerationScopedFetch.evidence(
             belongingTo: generationID,
-            id: id,
+            evidenceID: evidence.id,
         ))
         if let existing = matchingRecords.first {
             // Treat `blob == nil` as "no change" so a metadata-only edit
@@ -1497,7 +1516,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         let generationID = try readGenerationID(in: context)
         let descriptor = GenerationScopedFetch.evidence(
             belongingTo: generationID,
-            id: id,
+            evidenceID: id,
         )
         // Blobs live in external storage, so this is a file read behind a fetch
         // — the one evidence read whose cost scales with the attachment.
@@ -1511,7 +1530,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         let generationID = mutationGenerationID()
         let descriptor = GenerationScopedFetch.evidence(
             belongingTo: generationID,
-            id: id,
+            evidenceID: id,
         )
         guard let record = try context.fetch(descriptor).first else { return }
         record.blob = blob
@@ -1526,7 +1545,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         let generationID = mutationGenerationID()
         let descriptor = GenerationScopedFetch.evidence(
             belongingTo: generationID,
-            id: id,
+            evidenceID: id,
         )
         guard let record = try context.fetch(descriptor).first else { return }
         record.blob = nil
@@ -1535,10 +1554,9 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     public func setManualDay(_ day: DayPresence) async throws {
         let context = mutationContext()
         let generationID = mutationGenerationID()
-        let key = day.day.description
         let existing = try context.fetch(GenerationScopedFetch.manualDays(
             belongingTo: generationID,
-            dayKey: key,
+            day: day.day,
         ))
         if let canonical = existing.first {
             canonical.update(
@@ -1577,10 +1595,9 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     public func clearManualDay(_ day: CalendarDay) async throws {
         let context = mutationContext()
         let generationID = mutationGenerationID()
-        let key = day.description
         let descriptor = GenerationScopedFetch.manualDays(
             belongingTo: generationID,
-            dayKey: key,
+            day: day,
         )
         for record in try context.fetch(descriptor) {
             context.delete(record)
@@ -1590,13 +1607,9 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     public func manualDays(in dayRange: ClosedRange<CalendarDay>) async throws -> [DayPresence] {
         let context = readContext()
         let generationID = try readGenerationID(in: context)
-        // ISO `YYYY-MM-DD` sorts lexicographically, so a string range is a
-        // correct inclusive day range.
-        let low = dayRange.lowerBound.description
-        let high = dayRange.upperBound.description
         let descriptor = GenerationScopedFetch.manualDays(
             belongingTo: generationID,
-            in: low ... high,
+            in: dayRange,
             sortBy: [SortDescriptor(\.dayKey)],
         )
         return try Self.logger.measure(.fetchManualDays) {
@@ -1642,11 +1655,9 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         for record in evidences {
             context.delete(record)
         }
-        let low = dayRange.lowerBound.description
-        let high = dayRange.upperBound.description
         let manuals = try context.fetch(GenerationScopedFetch.manualDays(
             belongingTo: generationID,
-            in: low ... high,
+            in: dayRange,
         ))
         for record in manuals {
             context.delete(record)
@@ -1687,7 +1698,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         let key = id.storeURL.absoluteString
         let descriptor = GenerationScopedFetch.dismissedIssues(
             belongingTo: generationID,
-            key: key,
+            issueID: id,
         )
         let existing = try context.fetch(descriptor)
         if dismissed {
@@ -1710,7 +1721,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         let key = issue.id.storeURL.absoluteString
         let descriptor = GenerationScopedFetch.dismissedIssues(
             belongingTo: generationID,
-            key: key,
+            issueID: issue.id,
         )
         if let record = try context.fetch(descriptor).first {
             record.dismissedAt = issue.dismissedAt
@@ -1759,12 +1770,12 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         return resolved
     }
 
-    public func setTrackedRegion(_ tracked: Bool, id: String) async throws {
+    public func setTrackedRegion(_ tracked: Bool, region: Region) async throws {
         let context = mutationContext()
         let generationID = mutationGenerationID()
         let descriptor = GenerationScopedFetch.trackedRegions(
             belongingTo: generationID,
-            regionID: id,
+            region: region,
         )
         let existing = try context.fetch(descriptor)
         if tracked {
@@ -1776,7 +1787,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
                 }
                 return
             }
-            context.insert(SDTrackedRegion(regionID: id, generationID: generationID))
+            context.insert(SDTrackedRegion(regionID: region.rawValue, generationID: generationID))
         } else {
             // TODO: Untracking deletes the row, which drops the region from the
             // attributor's load set — so re-aggregating a past year would
@@ -1856,10 +1867,9 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         // collapsing any accidental duplicate rows to one (CloudKit can't
         // enforce uniqueness).
         for entry in regions {
-            let id = entry.region.rawValue
             let existing = try context.fetch(GenerationScopedFetch.trackedRegions(
                 belongingTo: generationID,
-                regionID: id,
+                region: entry.region,
             ))
             let row: SDTrackedRegion
             if let first = existing.first {
@@ -1868,7 +1878,10 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
                 }
                 row = first
             } else {
-                row = SDTrackedRegion(regionID: id, generationID: generationID)
+                row = SDTrackedRegion(
+                    regionID: entry.region.rawValue,
+                    generationID: generationID,
+                )
                 context.insert(row)
             }
             row.apply(appearance: entry.appearance, order: entry.order)

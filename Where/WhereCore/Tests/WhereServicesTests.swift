@@ -52,7 +52,7 @@ struct WhereServicesTests {
         let store = try SwiftDataStore.inMemory()
         // Track only California.
         try await store.perform {
-            try await store.setTrackedRegion(true, id: Region.california.rawValue)
+            try await store.setTrackedRegion(true, region: .california)
         }
         let services = try await WhereServices.make(
             store: store,
