@@ -18,6 +18,14 @@ public struct PatchlightApplicationSession: Identifiable, Sendable {
 
 @MainActor
 public enum PatchlightLaunch {
+    /// Patchlight v1 has no headless runtime, so its application launcher must
+    /// build a view tree from the first drive.
+    public static func makeApplicationLauncher(
+        dependencies: PatchlightApplicationDependencies,
+    ) -> LifecycleRunner<PatchlightApplicationSession> {
+        makeLauncher(reason: .userForeground, dependencies: dependencies)
+    }
+
     public static func makeLauncher(
         reason: LifecycleReason,
         dependencies: PatchlightApplicationDependencies,

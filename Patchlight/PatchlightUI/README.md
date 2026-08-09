@@ -5,6 +5,10 @@ Broadway-styled SwiftUI app surfaces, UIKit bridges, lifecycle composition,
 Flyover/preview fixtures, SnapshotKit matrices, and DEBUG Inspector/Periscope
 tooling.
 
+`PatchlightLaunch.makeApplicationLauncher` is the foreground-only composition
+entry point for the regular v1 host. The generic reason-taking launcher remains
+available for previews and future explicitly modeled lifecycle modes.
+
 The root provides the complete GitHub device-flow experience and an
 iPad/Catalyst `NavigationSplitView` with Review Requested, My Open PRs, and
 installation-grouped searchable Repositories destinations. A dedicated PR
@@ -12,6 +16,10 @@ workspace presents Overview, Conversation, Snapshots, and changed files. Text
 patches render through a viewport-lazy `UICollectionView` bridge with reusable
 TextKit cells and adaptive unified/split modes; unavailable binary, oversized,
 or undecodable content stays explicit and links to GitHub.
+
+Both supported platforms use native navigation toolbars and sidebar list
+styling. Catalyst uses compact sidebar geometry and inherits the user's system
+accent color; iPad retains touch-sized rows.
 
 Dashboard rows identify why a review is actionable: new activity, direct or
 team request, unresolved discussion, pending or failed checks, requested

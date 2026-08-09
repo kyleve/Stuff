@@ -83,49 +83,59 @@ public struct PatchlightDashboardView: View {
                     Label(destination.title, systemImage: destination.symbol)
                         .badge(badgeCount(for: destination))
                         .tag(destination)
-                        .frame(minHeight: stylesheet.sidebar.minimumRowHeight)
                 }
             }
+            .listStyle(.sidebar)
+            .environment(\.defaultMinListRowHeight, stylesheet.sidebar.minimumRowHeight)
             .navigationTitle(String(localized: .patchlightTitle))
-            .navigationSplitViewColumnWidth(ideal: stylesheet.sidebar.idealWidth)
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationSplitViewColumnWidth(
+                min: stylesheet.sidebar.dashboardWidth.minimum,
+                ideal: stylesheet.sidebar.dashboardWidth.ideal,
+                max: stylesheet.sidebar.dashboardWidth.maximum,
+            )
         } detail: {
             dashboardDetail
                 .navigationTitle((selection ?? .reviewRequested).title)
+                .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
-                    if model.dashboardContent != nil {
-                        ToolbarItem(placement: .primaryAction) {
-                            Button {
-                                Task { await model.refreshDashboard() }
-                            } label: {
-                                Label(String(localized: .refresh), systemImage: "arrow.clockwise")
-                            }
-                        }
-                        ToolbarItem(placement: .secondaryAction) {
-                            Menu {
-                                Button(String(
-                                    localized: "settings",
-                                    defaultValue: "Settings",
-                                )) {
-                                    showsAISettings = true
-                                }
-                                Button(
-                                    String(
-                                        localized: "signOutGitHub",
-                                        defaultValue: "Sign Out of GitHub",
-                                    ),
-                                    role: .destructive,
-                                ) {
-                                    Task { await model.signOut() }
-                                }
-                            } label: {
-                                Label(
-                                    String(localized: "account", defaultValue: "Account"),
-                                    systemImage: "person.crop.circle",
-                                )
-                            }
-                        }
-                    }
+                    dashboardToolbar
                 }
+        }
+    }
+
+    @ToolbarContentBuilder
+    private var dashboardToolbar: some ToolbarContent {
+        if model.dashboardContent != nil {
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                Button {
+                    Task { await model.refreshDashboard() }
+                } label: {
+                    Label(String(localized: .refresh), systemImage: "arrow.clockwise")
+                }
+                Menu {
+                    Button(String(
+                        localized: "settings",
+                        defaultValue: "Settings",
+                    )) {
+                        showsAISettings = true
+                    }
+                    Button(
+                        String(
+                            localized: "signOutGitHub",
+                            defaultValue: "Sign Out of GitHub",
+                        ),
+                        role: .destructive,
+                    ) {
+                        Task { await model.signOut() }
+                    }
+                } label: {
+                    Label(
+                        String(localized: "account", defaultValue: "Account"),
+                        systemImage: "person.crop.circle",
+                    )
+                }
+            }
         }
     }
 

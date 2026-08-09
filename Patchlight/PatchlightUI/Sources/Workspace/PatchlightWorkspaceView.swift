@@ -39,25 +39,26 @@ struct PatchlightWorkspaceView: View {
 
     let content: PatchlightWorkspaceContent
     let model: PatchlightAppModel
+    @Environment(\.patchlightStylesheet) private var stylesheet
     @State private var selection: Selection? = .overview
-    @AppStorage("Patchlight.diffLayoutPreference") private var storedLayout = LayoutPreference
-        .automatic.rawValue
-    @AppStorage("Patchlight.explicitViewedOnly") private var explicitViewedOnly = false
-    @AppStorage("Patchlight.reviewDepth") private var storedReviewDepth = ReviewDepth.balanced
-        .rawValue
     @AppStorage(PatchlightAIUserDefaults.globallyEnabled) private var globallyEnabled = false
     @AppStorage(PatchlightAIUserDefaults.provider) private var providerCode = AIProvider.openAI
         .rawValue
     @AppStorage(PatchlightAIUserDefaults.preset) private var presetCode = AnalysisPreset.balanced
         .rawValue
     @AppStorage(PatchlightAIUserDefaults.advancedModelID) private var advancedModelID = ""
+    @AppStorage("Patchlight.diffLayoutPreference") private var storedLayout = LayoutPreference
+        .automatic.rawValue
+    @AppStorage("Patchlight.explicitViewedOnly") private var explicitViewedOnly = false
+    @AppStorage("Patchlight.reviewDepth") private var storedReviewDepth = ReviewDepth.balanced
+        .rawValue
     @State private var selectedDraftAnchor: DiffAnchor?
     @State private var selectedDraftInitialBody = ""
     @State private var reanchoringDraft: ReviewDraft?
     @State private var fileCommentPath: String?
     @State private var showsHiddenChanges = false
-    @State private var showsReviewComposer = false
     @State private var showsAISettings = false
+    @State private var showsReviewComposer = false
 
     init(content: PatchlightWorkspaceContent, model: PatchlightAppModel) {
         self.content = content
@@ -150,144 +151,27 @@ struct PatchlightWorkspaceView: View {
                 }
             }
             .navigationTitle("#\(workspace.summary.id.number)")
-            .navigationSplitViewColumnWidth(min: 260, ideal: 330, max: 440)
+            .navigationBarTitleDisplayMode(.inline)
+            .listStyle(.sidebar)
+            .environment(\.defaultMinListRowHeight, stylesheet.sidebar.minimumRowHeight)
+            .navigationSplitViewColumnWidth(
+                min: stylesheet.sidebar.workspaceWidth.minimum,
+                ideal: stylesheet.sidebar.workspaceWidth.ideal,
+                max: stylesheet.sidebar.workspaceWidth.maximum,
+            )
         } detail: {
             selectedDetail
                 .navigationTitle(detailTitle)
+                .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button(String(localized: .backToDashboard)) { model.closeWorkspace() }
-                    }
-                    if case .file = selection {
-                        ToolbarItem(placement: .primaryAction) {
-                            Picker(selection: $storedLayout) {
-                                ForEach(LayoutPreference.allCases) { preference in
-                                    Text(preference.title).tag(preference.rawValue)
-                                }
-                            } label: {
-                                Label(
-                                    (LayoutPreference(rawValue: storedLayout) ?? .automatic).title,
-                                    systemImage: "rectangle.split.2x1",
-                                )
-                            }
-                            .pickerStyle(.menu)
-                        }
-                        ToolbarItem(placement: .secondaryAction) {
-                            Menu {
-                                Toggle(
-                                    String(
-                                        localized: "explicitViewedOnly",
-                                        defaultValue: "Mark Viewed Explicitly Only",
-                                    ),
-                                    isOn: $explicitViewedOnly,
-                                )
-                                if case let .file(path) = selection {
-                                    Button(String(
-                                        localized: "sendFileComment",
-                                        defaultValue: "Send File Comment",
-                                    )) {
-                                        fileCommentPath = path
-                                    }
-                                    Button(String(
-                                        localized: "markFileViewed",
-                                        defaultValue: "Mark File Viewed",
-                                    )) {
-                                        Task {
-                                            await model.markViewed(path: path, depth: reviewDepth)
-                                        }
-                                    }
-                                }
-                            } label: {
-                                Label(
-                                    String(
-                                        localized: "viewedBehavior",
-                                        defaultValue: "Viewed Behavior",
-                                    ),
-                                    systemImage: "eye",
-                                )
-                            }
-                        }
-                    }
-                    ToolbarItem(placement: .secondaryAction) {
-                        Button {
-                            Task { await model.refreshWorkspace() }
-                        } label: {
-                            Label(String(localized: .refresh), systemImage: "arrow.clockwise")
-                        }
-                    }
-                    ToolbarItem(placement: .primaryAction) {
-                        Button {
-                            if canRunAnalysis {
-                                Task {
-                                    await model.runAnalysis(
-                                        globallyEnabled: globallyEnabled,
-                                        provider: selectedProvider,
-                                        preset: selectedPreset,
-                                        advancedModelID: advancedModelID,
-                                    )
-                                }
-                            } else {
-                                showsAISettings = true
-                            }
-                        } label: {
-                            Label(
-                                canRunAnalysis
-                                    ? String(
-                                        localized: "runAnalysis",
-                                        defaultValue: "Run Analysis",
-                                    )
-                                    : String(
-                                        localized: "configureAI",
-                                        defaultValue: "Configure AI",
-                                    ),
-                                systemImage: "sparkles",
-                            )
-                        }
-                        .disabled(isAnalysisRunning)
-                    }
-                    ToolbarItem(placement: .primaryAction) {
-                        Button {
-                            showsReviewComposer = true
-                        } label: {
-                            Label(
-                                String(localized: "submitReview", defaultValue: "Submit Review"),
-                                systemImage: "checkmark.bubble",
-                            )
-                        }
-                        .badge(model.reviewDrafts.count)
-                    }
+                    workspaceToolbar
                 }
-        }
-        .safeAreaInset(edge: .top) {
-            VStack(spacing: 0) {
-                attentionControl
-                if let warning = model.reviewPlan?.configurationWarning {
-                    Label(warning, systemImage: "exclamationmark.triangle")
-                        .patchlightWorkspaceStatus(color: .orange)
+                .safeAreaInset(edge: .top) {
+                    workspaceHeader
                 }
-                if !workspace.isFileListComplete {
-                    Label(
-                        String(localized: .fileListIncomplete),
-                        systemImage: "exclamationmark.triangle",
-                    )
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal)
-                    .padding(.vertical, 10)
-                    .background(Color.orange.opacity(0.14))
-                } else if let reason = content.fallbackReason {
-                    Label(reason.message, systemImage: "icloud.slash")
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal)
-                        .padding(.vertical, 10)
-                        .background(Color.orange.opacity(0.14))
+                .safeAreaInset(edge: .bottom) {
+                    workspaceFooter
                 }
-            }
-        }
-        .safeAreaInset(edge: .bottom) {
-            VStack(spacing: 0) {
-                analysisStatus
-                submissionStatus
-            }
         }
         .sheet(isPresented: draftEditorPresented) {
             if let selectedDraftAnchor {
@@ -298,9 +182,6 @@ struct PatchlightWorkspaceView: View {
                 )
             }
         }
-        .sheet(isPresented: $showsReviewComposer) {
-            PatchlightReviewComposer(model: model)
-        }
         .sheet(isPresented: fileCommentPresented) {
             if let fileCommentPath {
                 PatchlightFileCommentComposer(path: fileCommentPath, model: model)
@@ -308,6 +189,156 @@ struct PatchlightWorkspaceView: View {
         }
         .sheet(isPresented: $showsAISettings) {
             PatchlightAISettingsView(model: model)
+        }
+        .sheet(isPresented: $showsReviewComposer) {
+            PatchlightReviewComposer(model: model)
+        }
+    }
+
+    @ToolbarContentBuilder
+    private var workspaceToolbar: some ToolbarContent {
+        ToolbarItem(placement: .topBarLeading) {
+            Button(String(localized: .backToDashboard)) { model.closeWorkspace() }
+        }
+        ToolbarItemGroup(placement: .topBarTrailing) {
+            Button {
+                Task { await model.refreshWorkspace() }
+            } label: {
+                Label(String(localized: .refresh), systemImage: "arrow.clockwise")
+            }
+            Button {
+                runOrConfigureAnalysis()
+            } label: {
+                Label(analysisButtonTitle, systemImage: "sparkles")
+            }
+            .disabled(isAnalysisRunning)
+            Button {
+                showsReviewComposer = true
+            } label: {
+                Label(
+                    String(localized: "submitReview", defaultValue: "Submit Review"),
+                    systemImage: "checkmark.bubble",
+                )
+            }
+            .badge(model.reviewDrafts.count)
+        }
+        if case .file = selection {
+            ToolbarItem(placement: .topBarTrailing) {
+                Picker(selection: $storedLayout) {
+                    ForEach(LayoutPreference.allCases) { preference in
+                        Text(preference.title).tag(preference.rawValue)
+                    }
+                } label: {
+                    Label(
+                        (LayoutPreference(rawValue: storedLayout) ?? .automatic).title,
+                        systemImage: "rectangle.split.2x1",
+                    )
+                }
+                .pickerStyle(.menu)
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Toggle(
+                        String(
+                            localized: "explicitViewedOnly",
+                            defaultValue: "Mark Viewed Explicitly Only",
+                        ),
+                        isOn: $explicitViewedOnly,
+                    )
+                    if case let .file(path) = selection {
+                        Button(String(
+                            localized: "sendFileComment",
+                            defaultValue: "Send File Comment",
+                        )) {
+                            fileCommentPath = path
+                        }
+                        Button(String(
+                            localized: "markFileViewed",
+                            defaultValue: "Mark File Viewed",
+                        )) {
+                            Task {
+                                await model.markViewed(path: path, depth: reviewDepth)
+                            }
+                        }
+                    }
+                } label: {
+                    Label(
+                        String(
+                            localized: "viewedBehavior",
+                            defaultValue: "Viewed Behavior",
+                        ),
+                        systemImage: "eye",
+                    )
+                }
+            }
+        }
+    }
+
+    private var workspaceHeader: some View {
+        VStack(spacing: 0) {
+            attentionControl
+            if let warning = model.reviewPlan?.configurationWarning {
+                Label(warning, systemImage: "exclamationmark.triangle")
+                    .patchlightWorkspaceStatus(color: .orange)
+            }
+            if !workspace.isFileListComplete {
+                Label(
+                    String(localized: .fileListIncomplete),
+                    systemImage: "exclamationmark.triangle",
+                )
+                .patchlightWorkspaceStatus(color: .orange)
+            } else if let reason = content.fallbackReason {
+                Label(reason.message, systemImage: "icloud.slash")
+                    .patchlightWorkspaceStatus(color: .orange)
+            }
+        }
+    }
+
+    private var workspaceFooter: some View {
+        VStack(spacing: 0) {
+            analysisStatus
+            submissionStatus
+        }
+    }
+
+    private var selectedProvider: AIProvider {
+        PatchlightAIUserDefaults.provider(from: providerCode)
+    }
+
+    private var selectedPreset: AnalysisPreset {
+        PatchlightAIUserDefaults.preset(from: presetCode)
+    }
+
+    private var canRunAnalysis: Bool {
+        globallyEnabled &&
+            model.repositorySettings?.aiEnabled == true &&
+            model.configuredProviders.contains(selectedProvider) &&
+            (selectedPreset != .advanced || !advancedModelID
+                .trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+    }
+
+    private var isAnalysisRunning: Bool {
+        if case .running = model.analysisState { true } else { false }
+    }
+
+    private var analysisButtonTitle: String {
+        canRunAnalysis
+            ? String(localized: "runAnalysis", defaultValue: "Run Analysis")
+            : String(localized: "configureAI", defaultValue: "Configure AI")
+    }
+
+    private func runOrConfigureAnalysis() {
+        if canRunAnalysis {
+            Task {
+                await model.runAnalysis(
+                    globallyEnabled: globallyEnabled,
+                    provider: selectedProvider,
+                    preset: selectedPreset,
+                    advancedModelID: advancedModelID,
+                )
+            }
+        } else {
+            showsAISettings = true
         }
     }
 
@@ -336,7 +367,7 @@ struct PatchlightWorkspaceView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 Text(workspace.summary.title)
-                    .font(.largeTitle.bold())
+                    .font(.title.bold())
                 HStack {
                     Label(workspace.summary.authorLogin, systemImage: "person")
                     Text(workspace.summary.repository.displayName)
@@ -479,6 +510,9 @@ struct PatchlightWorkspaceView: View {
         .padding(.horizontal)
         .padding(.vertical, 9)
         .background(.bar)
+        #if targetEnvironment(macCatalyst)
+            .controlSize(.small)
+        #endif
     }
 
     private var reviewDepthTitle: String {
@@ -523,6 +557,7 @@ struct PatchlightWorkspaceView: View {
             Image(systemName: symbol(for: plan.file.status))
         }
         .tag(Selection.file(plan.file.path))
+        .help(plan.file.path)
         .contextMenu {
             Button(String(localized: "alwaysShow", defaultValue: "Always Show")) {
                 Task {
@@ -904,26 +939,6 @@ struct PatchlightWorkspaceView: View {
             case .snapshots: String(localized: .snapshots)
             case let .file(path): path
         }
-    }
-
-    private var selectedProvider: AIProvider {
-        PatchlightAIUserDefaults.provider(from: providerCode)
-    }
-
-    private var selectedPreset: AnalysisPreset {
-        PatchlightAIUserDefaults.preset(from: presetCode)
-    }
-
-    private var canRunAnalysis: Bool {
-        globallyEnabled &&
-            model.repositorySettings?.aiEnabled == true &&
-            model.configuredProviders.contains(selectedProvider) &&
-            (selectedPreset != .advanced || !advancedModelID
-                .trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-    }
-
-    private var isAnalysisRunning: Bool {
-        if case .running = model.analysisState { true } else { false }
     }
 
     private var githubFilesURL: URL? {

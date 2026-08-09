@@ -13,5 +13,8 @@ Lifecycle composition creates or receives one account scope and injects it
 down; views never re-resolve it. DEBUG Inspector/Flyover/Periscope worlds stay
 isolated from production persistence.
 
+Keep navigation chrome in native toolbars and sidebar lists. Catalyst inherits
+the system accent and uses compact rows; iPad keeps touch-sized rows.
+
 Tests: `PatchlightUITests`; images: `PatchlightUISnapshotTests` in
 `StuffSnapshotTests`.

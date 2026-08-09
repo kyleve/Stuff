@@ -207,13 +207,16 @@ let project = Project(
             ],
             settings: .settings(base: [
                 "ASSETCATALOG_COMPILER_APPICON_NAME": "",
-                "ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME": "AccentColor",
+                "ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME": "",
+                "CODE_SIGN_ENTITLEMENTS": "Patchlight/Patchlight/Patchlight.entitlements",
                 "CODE_SIGN_ENTITLEMENTS[sdk=macosx*]":
                     "Patchlight/Patchlight/Patchlight-Catalyst.entitlements",
+                "CODE_SIGN_IDENTITY[sdk=macosx*]": "Apple Development",
+                "CODE_SIGN_STYLE": "Automatic",
                 "SUPPORTS_MACCATALYST": "YES",
                 "TARGETED_DEVICE_FAMILY": "2",
-                "PATCHLIGHT_GITHUB_APP_SLUG": "",
-                "PATCHLIGHT_GITHUB_CLIENT_ID": "",
+                "PATCHLIGHT_GITHUB_APP_SLUG": "patchlight-dev-app",
+                "PATCHLIGHT_GITHUB_CLIENT_ID": "Iv23lib0J7NMOpYus9JA",
             ]),
         ),
         .target(

@@ -6,8 +6,7 @@ import UIKit
 /// The shipping Patchlight process and its one lifecycle runner.
 @MainActor
 final class RegularApplicationRuntime: PatchlightApplicationRuntime {
-    private let launcher = PatchlightLaunch.makeLauncher(
-        reason: .undetermined,
+    private let launcher = PatchlightLaunch.makeApplicationLauncher(
         dependencies: .production(bundle: .main),
     )
 

@@ -493,12 +493,17 @@ private final class DiffThreadCell: UICollectionViewCell {
             label.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 10),
             label.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -10),
         ])
-        contentView.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.08)
+        updateBackgroundColor()
     }
 
     @available(*, unavailable)
     required init?(coder _: NSCoder) {
         nil
+    }
+
+    override func tintColorDidChange() {
+        super.tintColorDidChange()
+        updateBackgroundColor()
     }
 
     func configure(thread: ReviewThread) {
@@ -507,6 +512,10 @@ private final class DiffThreadCell: UICollectionViewCell {
             .compactMap(\.self)
             .joined(separator: ": ")
         accessibilityLabel = label.text
+    }
+
+    private func updateBackgroundColor() {
+        contentView.backgroundColor = tintColor.withAlphaComponent(0.08)
     }
 }
 

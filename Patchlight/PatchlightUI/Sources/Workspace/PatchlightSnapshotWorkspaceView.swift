@@ -15,6 +15,7 @@ struct PatchlightSnapshotWorkspaceView: View {
 
     let files: [DiffFile]
     let model: PatchlightAppModel
+    @Environment(\.patchlightStylesheet) private var stylesheet
     @State private var galleryAxis = GalleryAxis.vertical
 
     var body: some View {
@@ -39,7 +40,11 @@ struct PatchlightSnapshotWorkspaceView: View {
             .padding(10)
             if galleryAxis == .vertical {
                 HStack(spacing: 0) {
-                    verticalGallery.frame(minWidth: 260, idealWidth: 330, maxWidth: 420)
+                    verticalGallery.frame(
+                        minWidth: stylesheet.sidebar.workspaceWidth.minimum,
+                        idealWidth: stylesheet.sidebar.workspaceWidth.ideal,
+                        maxWidth: stylesheet.sidebar.workspaceWidth.maximum,
+                    )
                     Divider()
                     focusedWorkspace
                 }
@@ -49,7 +54,7 @@ struct PatchlightSnapshotWorkspaceView: View {
                 focusedWorkspace
             }
         }
-        .background(Color(uiColor: .systemBackground))
+        .background(.background)
         .task(id: files.first?.path) {
             guard case .none = model.snapshotState, let first = files.first else { return }
             await model.loadSnapshot(first)
@@ -67,6 +72,7 @@ struct PatchlightSnapshotWorkspaceView: View {
             }
         }
         .listStyle(.sidebar)
+        .environment(\.defaultMinListRowHeight, stylesheet.sidebar.minimumRowHeight)
         .accessibilityLabel(String(localized: "snapshotGallery", defaultValue: "Snapshot Gallery"))
     }
 
@@ -103,6 +109,7 @@ struct PatchlightSnapshotWorkspaceView: View {
         .buttonStyle(.plain)
         .padding(.vertical, 5)
         .contentShape(.rect)
+        .help(file.path)
     }
 
     @ViewBuilder
@@ -239,7 +246,7 @@ private struct SnapshotComparisonView: View {
                 }
             }
         }
-        .background(Color(uiColor: .systemBackground))
+        .background(.background)
         .navigationTitle(pair.file.path)
         .sheet(item: $annotationDraft) { draft in
             SnapshotAnnotationComposer(draft: draft, model: model)

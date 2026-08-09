@@ -33,8 +33,21 @@ extension PatchlightStylesheet {
     }
 
     struct Sidebar: Equatable {
-        var idealWidth: CGFloat = 300
-        var minimumRowHeight: CGFloat = 44
+        #if targetEnvironment(macCatalyst)
+            var dashboardWidth = Width(minimum: 210, ideal: 240, maximum: 300)
+            var workspaceWidth = Width(minimum: 240, ideal: 280, maximum: 360)
+            var minimumRowHeight: CGFloat = 30
+        #else
+            var dashboardWidth = Width(minimum: 260, ideal: 300, maximum: 360)
+            var workspaceWidth = Width(minimum: 260, ideal: 330, maximum: 440)
+            var minimumRowHeight: CGFloat = 44
+        #endif
+
+        struct Width: Equatable {
+            var minimum: CGFloat
+            var ideal: CGFloat
+            var maximum: CGFloat
+        }
     }
 
     struct EmptyState: Equatable {
