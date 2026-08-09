@@ -89,7 +89,7 @@ The executable configuration is in [`BumperBowling.swift`](BumperBowling.swift);
 the enforced invariants and repair guidance are cataloged in
 [`.bumper/RULES.md`](.bumper/RULES.md).
 
-To see where build and test time goes, run `./profile` — it prints the slowest build phases, the slowest tests (per bundle), and any slow type-check sites. It only reports, it never fails; see `./profile --help` for flags (`--build-only`/`--tests-only`, `--no-snapshots`, `--device`/`--os`, `--top`, thresholds).
+To see where build and test time goes, run `./profile` — it prints setup/build/test walls, the slowest build phases and tests, slow type-check sites, and per-phase snapshot capture costs. The default reuses unit-build products for the snapshot build; `--ci-shape` instead gives each scheme cold DerivedData like its independent CI job. It only reports, it never fails on slow numbers; see `./profile --help` for the remaining scope, destination, and threshold flags.
 
 To hunt down flaky tests, run `./flaky` — it runs the whole suite several times, then tight-loops (in isolation) any test that ever failed, and records the tests that both pass and fail (with flake counts) in [`FLAKY_TESTS.md`](FLAKY_TESTS.md). Like `./profile` it's report-only; see `./flaky --help` for flags (`--suite-runs`, `--iterations`, `--device`/`--os`, `--no-update`, `--top`).
 
