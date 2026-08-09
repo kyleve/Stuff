@@ -1,19 +1,14 @@
 # BroadwayCatalog – Module Shape
 
-The catalog **app** — a showcase of BroadwayUI components. Depends on
-**BroadwayUI**. Entry point `BroadwayApp.swift` (`@main`). See
-[`README.md`](README.md).
+BroadwayCatalog is the catalog **app**. It showcases BroadwayUI components. It depends on **BroadwayUI**. Entry point: `BroadwayApp.swift` (`@main`). See [`README.md`](README.md).
 
-Complements the root [`AGENTS.md`](../../../AGENTS.md) and the group
-[`../AGENTS.md`](../AGENTS.md). Read those first.
+Read the root [`AGENTS.md`](../../../AGENTS.md) and the group [`../AGENTS.md`](../AGENTS.md) first.
 
 ## Scope
 
-- App-specific views live here, not in BroadwayUI. Resources bundle via the
-  `Resources/**` glob in [`Project.swift`](../../../Project.swift).
-- Declared as a Tuist `.app` target (`com.stuff.broadway.catalog`),
-  iPhone/iPad destinations.
+- **Put app-specific views here, not in BroadwayUI.** Resources bundle through the `Resources/**` glob in [`Project.swift`](../../../Project.swift).
+- **Declare a Tuist `.app` target** (`com.stuff.broadway.catalog`) for iPhone and iPad destinations.
 
-Tests: `BroadwayCatalogTests` (`./test BroadwayCatalogTests`), currently
-hosted by this app itself — a deviation from the shared-`StuffTestHost`
-convention, tracked in [`../TODOs.md`](../TODOs.md).
+## Testing
+
+Run `BroadwayCatalogTests` (`./test BroadwayCatalogTests`). This app currently hosts its own tests. That deviates from the shared-`StuffTestHost` convention. Track it in [`../TODOs.md`](../TODOs.md).

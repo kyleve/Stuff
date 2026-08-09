@@ -1,32 +1,16 @@
 # BroadwayUI – Module Shape
 
-UIKit + SwiftUI components that own and propagate a `BContext` down the view
-hierarchy — `BRootViewController` (UIKit root container + trait observation),
-`BRootView` / `.broadwayRoot(themes:)` (the SwiftUI-native root), and
-`BTraitOverridesViewController` (scoped overrides). Depends on **BroadwayCore**.
-See [`README.md`](README.md).
+BroadwayUI provides UIKit and SwiftUI components that own and propagate a `BContext` down the view hierarchy. Key types: `BRootViewController` (UIKit root container and trait observation), `BRootView` / `.broadwayRoot(themes:)` (SwiftUI-native root), and `BTraitOverridesViewController` (scoped overrides). It depends on **BroadwayCore**. See [`README.md`](README.md).
 
-Complements the root [`AGENTS.md`](../../../AGENTS.md) and the group
-[`../AGENTS.md`](../AGENTS.md). Read those first.
+Read the root [`AGENTS.md`](../../../AGENTS.md) and the group [`../AGENTS.md`](../AGENTS.md) first.
 
 ## Scope & invariants
 
-- **Shared components only** — app-specific views belong in BroadwayCatalog.
-- **`BRootViewController` defers setup** until it enters a valid hierarchy
-  (`viewIsAppearing`); `context` is `nil` before then, and the controller
-  publishes the context to descendants through `traitOverrides.bContext`.
-- **`BRootView` has no `BTraitsObserver`** — SwiftUI re-evaluates `body` on
-  color-scheme / Dynamic Type changes, and a `.task` mirrors
-  `BAccessibility.changes()` into state; both rebuild the injected `BContext`.
-  Context-building lives in `BRootContext.make(...)` so the trait mapping is
-  testable without a host.
-- **`\.bContext` prefers a synchronous SwiftUI value, and mirrors to UIKit.**
-  `BContext+SwiftUI` stores a SwiftUI-set context (via `BRootView` /
-  `broadwayRoot` / `bTraitOverrides`) in a pure-SwiftUI `EnvironmentKey` — read
-  synchronously, no `UITraitCollection` round-trip or first-frame lag — *and*
-  mirrors it into the UIKit trait system so it also reaches nested UIKit views.
-  With none set, it falls back to the UIKit trait-bridged value (so a
-  `BRootViewController`-set context still reaches SwiftUI).
+- **Keep shared components here only.** Put app-specific views in BroadwayCatalog.
+- **Defer `BRootViewController` setup** until the controller enters a valid hierarchy (`viewIsAppearing`). Before then, `context` is `nil`. The controller publishes context to descendants through `traitOverrides.bContext`.
+- **Do not add `BTraitsObserver` to `BRootView`.** SwiftUI re-evaluates `body` on color-scheme and Dynamic Type changes. A `.task` mirrors `BAccessibility.changes()` into state. Both rebuild the injected `BContext`. Context-building lives in `BRootContext.make(...)` so the trait mapping is testable without a host.
+- **Make `\.bContext` prefer a synchronous SwiftUI value, and mirror to UIKit.** `BContext+SwiftUI` stores a SwiftUI-set context (through `BRootView`, `broadwayRoot`, or `bTraitOverrides`) in a pure-SwiftUI `EnvironmentKey`. Read it synchronously. Do not round-trip through `UITraitCollection`. Do not accept first-frame lag. Mirror the value into the UIKit trait system so nested UIKit views receive it. If none is set, fall back to the UIKit trait-bridged value. Then a `BRootViewController`-set context still reaches SwiftUI.
 
-Tests: `BroadwayUITests` in `StuffTestHost`, linking `TestHostSupport`
-(`./test BroadwayUITests`).
+## Testing
+
+Run `BroadwayUITests` in `StuffTestHost`, linking `TestHostSupport` (`./test BroadwayUITests`).
