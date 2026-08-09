@@ -207,10 +207,10 @@ public protocol WhereStore: Sendable {
     /// (in canonical order, with no stored appearance).
     func primaryRegions() async throws -> [PrimaryRegion]
 
-    /// Add (`tracked == true`) or remove (`false`) a single tracked region by
-    /// its `Region.rawValue`. Per-region so two devices adding different regions
+    /// Add (`tracked == true`) or remove (`false`) a single tracked region.
+    /// Per-region so two devices adding different regions
     /// both survive a sync. Must run inside `perform { ... }`.
-    func setTrackedRegion(_ tracked: Bool, id: String) async throws
+    func setTrackedRegion(_ tracked: Bool, region: Region) async throws
 
     /// Replace the entire primary set with `regions`: upsert a row per entry
     /// (storing its `appearance` — cleared when `nil` — and pick `order`) and
@@ -283,7 +283,7 @@ extension WhereStore {
 
     /// Default: a no-op. `SwiftDataStore` overrides this to persist rows; test
     /// fakes that don't exercise tracked-region persistence inherit the no-op.
-    public func setTrackedRegion(_: Bool, id _: String) async throws {}
+    public func setTrackedRegion(_: Bool, region _: Region) async throws {}
 
     /// Default: a no-op. `SwiftDataStore` overrides this to replace the persisted
     /// rows; test fakes that don't exercise persistence inherit the no-op.

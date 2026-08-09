@@ -341,6 +341,12 @@ scope and invariants on top rather than restating these.
   only where a generic can't reach (a non-generic environment value, a
   heterogeneous container). Examples: `LaunchStepID`,
   `WherePreferences.Keys`, `StoreURL`.
+- **Keep domain values typed through API and helper boundaries.** Accept the
+  strongest existing domain type (`Region`, `CalendarDay`, a nested `ID`) and
+  unwrap its `rawValue` / storage key only at the persistence, wire, or system
+  boundary that requires the primitive. When no domain type exists and a raw
+  scalar is unavoidable, give it a role-specific label (`sampleID`,
+  `evidenceID`), never an ambiguous `id`.
 - **Avoid parameter defaults on Core/store APIs.** Prefer explicit call-site
   arguments so new behavior isn't silently opted into. Reserve defaults for
   SwiftUI convenience inits and obvious zero values (`[]`, `.zero`) where
