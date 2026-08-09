@@ -6453,6 +6453,149 @@
         }
       }
     },
+    "settings.explore.personalization.calendar" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calendar"
+          }
+        }
+      }
+    },
+    "settings.explore.personalization.cards" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cards"
+          }
+        }
+      }
+    },
+    "settings.explore.personalization.currentIcon" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Current app icon"
+          }
+        }
+      }
+    },
+    "settings.explore.personalization.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Region looks stay consistent across cards, calendars, widgets, and Siri. Your app icon is a device setting."
+          }
+        }
+      }
+    },
+    "settings.explore.personalization.icon.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose Your App Icon"
+          }
+        }
+      }
+    },
+    "settings.explore.personalization.iconUnavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "App icon preview unavailable"
+          }
+        }
+      }
+    },
+    "settings.explore.personalization.openIcon" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose App Icon"
+          }
+        }
+      }
+    },
+    "settings.explore.personalization.openRegions" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Customize Regions"
+          }
+        }
+      }
+    },
+    "settings.explore.personalization.regions.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Style Your Places"
+          }
+        }
+      }
+    },
+    "settings.explore.personalization.row" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Make It Yours"
+          }
+        }
+      }
+    },
+    "settings.explore.personalization.tagline" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Give your places a signature look—and choose the Where icon that feels like you."
+          }
+        }
+      }
+    },
+    "settings.explore.personalization.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Make It Yours"
+          }
+        }
+      }
+    },
+    "settings.explore.personalization.widgets" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Widgets"
+          }
+        }
+      }
+    },
     "settings.explore.siri.card.accessibility.label" : {
       "comment" : "Accessibility label for one Siri feature card. The argument is the feature title.",
       "extractionState" : "manual",
@@ -7259,6 +7402,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "logged days, manual, override, entry, backfill"
+          }
+        }
+      }
+    },
+    "settings.keywords.personalizationFeatures" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "customize, personalization, appearance, color, emoji, symbol, region style, app icon, theme"
           }
         }
       }

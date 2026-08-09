@@ -156,6 +156,11 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   `whereBroadwayRoot(regionStyles:)` — from `WhereSession`'s live resolver in the
   app, the `WidgetSnapshot` in the widget process, and services in App Intents —
   falling back to a deterministic default from `RegionAppearanceCatalog`.
+- **Feature discovery galleries** — Settings markets Siri/Spotlight, widgets,
+  evidence, private insights, data accuracy, and personalization with shared
+  patterned chrome and Reduce Motion-aware staged reveals. The examples reuse
+  already-loaded user data when it is representative and link to the existing
+  feature surfaces for any action.
 - **`whereBroadwayRoot()`** — seeds the Broadway design-system context so
   descendants resolve the `WhereStylesheet` tokens (see [Design
   system](#design-system)). Applied by `RootView` and by each widget.
