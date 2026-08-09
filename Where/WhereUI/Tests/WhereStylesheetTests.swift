@@ -437,13 +437,15 @@ struct WhereStylesheetTests {
             verticalPadding: 24,
         ))
         #expect(featureDiscovery.backgroundPattern == .init(
-            motifSpacing: 190,
-            motifRadius: 68,
-            petalCount: 8,
-            petalWidthRatio: 0.36,
-            lineWidth: 0.75,
-            primaryOpacity: 0.035,
-            secondaryOpacity: 0.018,
+            contourSpacing: 30,
+            primaryDistortion: 13,
+            secondaryDistortion: 6,
+            horizontalScale: 1.22,
+            centerXRatio: 0.18,
+            centerYRatio: 0.46,
+            phaseStep: 0.31,
+            lineWidth: 0.9,
+            opacity: 0.12,
         ))
         #expect(featureDiscovery.cardCornerRadius == 20)
         #expect(featureDiscovery.cardMaxWidth == 680)

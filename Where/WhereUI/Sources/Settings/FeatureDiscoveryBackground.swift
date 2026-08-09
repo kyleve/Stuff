@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// A quiet, oversized petal print for feature-marketing screens. It takes its
-/// visual cue from Where's security-print cards without sharing their renderer
-/// or component-specific appearance values.
+/// A quiet topographic security-print field for feature-marketing screens. Its
+/// irregular concentric contours take their visual cue from Where's location
+/// cards while owning a renderer and appearance values for this larger canvas.
 struct FeatureDiscoveryBackground: View {
     @Environment(\.stylesheet) private var stylesheet
 
@@ -11,69 +11,59 @@ struct FeatureDiscoveryBackground: View {
         ZStack {
             Color(.systemGroupedBackground)
             Canvas { context, size in
-                let columns = Int(ceil(size.width / pattern.motifSpacing)) + 2
-                let rows = Int(ceil(size.height / pattern.motifSpacing)) + 2
-                for row in -1 ..< rows {
-                    for column in -1 ..< columns {
-                        let offset = row.isMultiple(of: 2) ? 0 : pattern.motifSpacing / 2
-                        let center = CGPoint(
-                            x: CGFloat(column) * pattern.motifSpacing + offset,
-                            y: CGFloat(row) * pattern.motifSpacing,
-                        )
-                        drawMotif(
-                            in: &context,
-                            center: center,
-                            radius: pattern.motifRadius,
-                            petalCount: pattern.petalCount,
-                            petalWidthRatio: pattern.petalWidthRatio,
-                            lineWidth: pattern.lineWidth,
-                            opacity: pattern.primaryOpacity,
-                        )
-                        drawMotif(
-                            in: &context,
-                            center: center,
-                            radius: pattern.motifRadius * 0.62,
-                            petalCount: pattern.petalCount,
-                            petalWidthRatio: pattern.petalWidthRatio,
-                            lineWidth: pattern.lineWidth,
-                            opacity: pattern.secondaryOpacity,
-                            rotation: .pi / Double(pattern.petalCount),
-                        )
-                    }
-                }
+                drawContours(in: &context, size: size, style: pattern)
             }
             .foregroundStyle(.secondary)
         }
         .accessibilityHidden(true)
     }
 
-    private func drawMotif(
+    private func drawContours(
         in context: inout GraphicsContext,
-        center: CGPoint,
-        radius: CGFloat,
-        petalCount: Int,
-        petalWidthRatio: CGFloat,
-        lineWidth: CGFloat,
-        opacity: Double,
-        rotation: Double = 0,
+        size: CGSize,
+        style: WhereStylesheet.FeatureDiscoveryStyle.BackgroundPattern,
     ) {
-        for petal in 0 ..< petalCount {
-            context.drawLayer { layer in
-                layer.translateBy(x: center.x, y: center.y)
-                layer.rotate(by: .radians(
-                    Double(petal) * 2 * .pi / Double(petalCount) + rotation,
-                ))
-                layer.opacity = opacity
-                let rect = CGRect(
-                    x: -radius * petalWidthRatio / 2,
-                    y: -radius,
-                    width: radius * petalWidthRatio,
-                    height: radius * 2,
-                )
+        let center = CGPoint(
+            x: size.width * style.centerXRatio,
+            y: size.height * style.centerYRatio,
+        )
+        let furthestCorner = [
+            CGPoint.zero,
+            CGPoint(x: size.width, y: 0),
+            CGPoint(x: 0, y: size.height),
+            CGPoint(x: size.width, y: size.height),
+        ]
+        .map { hypot(($0.x - center.x) / style.horizontalScale, $0.y - center.y) }
+        .max() ?? 0
+        let ringCount = Int(ceil(furthestCorner / style.contourSpacing)) + 2
+        let segmentCount = 144
+
+        context.drawLayer { layer in
+            layer.opacity = style.opacity
+            for ring in 1 ... max(1, ringCount) {
+                let radius = CGFloat(ring) * style.contourSpacing
+                let phase = CGFloat(ring) * style.phaseStep
+                var path = Path()
+                for segment in 0 ... segmentCount {
+                    let angle = CGFloat(segment) * 2 * .pi / CGFloat(segmentCount)
+                    let distortion = sin(angle * 3 + phase) * style.primaryDistortion
+                        + sin(angle * 7 - phase * 0.7) * style.secondaryDistortion
+                    let contourRadius = radius + distortion
+                    let point = CGPoint(
+                        x: center.x + cos(angle) * contourRadius * style.horizontalScale,
+                        y: center.y + sin(angle) * contourRadius,
+                    )
+                    if segment == 0 {
+                        path.move(to: point)
+                    } else {
+                        path.addLine(to: point)
+                    }
+                }
+                path.closeSubpath()
                 layer.stroke(
-                    Path(ellipseIn: rect),
+                    path,
                     with: .foreground,
-                    lineWidth: lineWidth,
+                    lineWidth: style.lineWidth,
                 )
             }
         }

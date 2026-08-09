@@ -1464,13 +1464,15 @@ extension WhereStylesheet {
         }
 
         struct BackgroundPattern: Equatable {
-            var motifSpacing: CGFloat
-            var motifRadius: CGFloat
-            var petalCount: Int
-            var petalWidthRatio: CGFloat
+            var contourSpacing: CGFloat
+            var primaryDistortion: CGFloat
+            var secondaryDistortion: CGFloat
+            var horizontalScale: CGFloat
+            var centerXRatio: CGFloat
+            var centerYRatio: CGFloat
+            var phaseStep: CGFloat
             var lineWidth: CGFloat
-            var primaryOpacity: Double
-            var secondaryOpacity: Double
+            var opacity: Double
         }
 
         static let standard = FeatureDiscoveryStyle(
@@ -1483,13 +1485,15 @@ extension WhereStylesheet {
                 verticalPadding: 24,
             ),
             backgroundPattern: BackgroundPattern(
-                motifSpacing: 190,
-                motifRadius: 68,
-                petalCount: 8,
-                petalWidthRatio: 0.36,
-                lineWidth: 0.75,
-                primaryOpacity: 0.035,
-                secondaryOpacity: 0.018,
+                contourSpacing: 30,
+                primaryDistortion: 13,
+                secondaryDistortion: 6,
+                horizontalScale: 1.22,
+                centerXRatio: 0.18,
+                centerYRatio: 0.46,
+                phaseStep: 0.31,
+                lineWidth: 0.9,
+                opacity: 0.12,
             ),
             cardCornerRadius: 20,
             cardMaxWidth: 680,
