@@ -30,20 +30,68 @@ always-on commit and test invariants — this skill assumes those.
 ## Opening a PR
 
 - **Open PRs ready-for-review, not draft.**
-- Check for a PR template (`.github/PULL_REQUEST_TEMPLATE.md` or similar) and
-  use it for the body.
-- Describe the **end state**, not a changelog of the conversation.
-- **Explain what the diff doesn't show** — motivation, trade-offs, or follow-ups
-  that aren't obvious from the code alone.
+- Start from [`.github/PULL_REQUEST_TEMPLATE.md`](../../../.github/PULL_REQUEST_TEMPLATE.md)
+  and follow [Writing the PR body](#writing-the-pr-body) below.
 - **Flag lines that warrant extra scrutiny** — leave a PR review comment on
   anything a reviewer should look at closely (subtle behavior changes,
   incomplete migrations, assumptions about `main`).
 
+### Writing the PR body
+
+Squash merges on `main` use **PR title → commit subject** and **PR body → commit
+body** — the body is what `git show` reads months later. Write for someone
+bisecting or reconstructing *why*, not for the conversation that produced the
+branch.
+
+- **Title:** imperative, describes the merged end state (reads well as
+  `Title (#NNN)` on `main`).
+- **End state, not a changelog:** describe what the repo looks like after merge,
+  not commit-by-commit or chat-by-chat progress.
+- **Explain what the diff doesn't show** — motivation, rejected alternatives,
+  trade-offs, follow-ups that aren't obvious from the code alone.
+
+#### Pick a tier
+
+| Tier | When | Keep | Add when warranted |
+|------|------|------|--------------------|
+| Small | Obvious fix, 1–2 modules, no design choices | Summary, Testing | — |
+| Medium | Behavior change, new UI slice, docs/skill extraction | Summary, Why, Review focus, Testing | Skip rationale for doc-only work |
+| Large | Architecture, multi-module migration, new protocol | Summary or Problem + Changes, Why, Design decisions, Review focus, Testing | Product behavior, Architecture, Rollout / follow-ups, Stack; situational sections (prototype round, backlog reconciliation) |
+
+#### Section semantics
+
+- **Summary** — end-state bullets (add/keep/preserve/migrate/remove); not a
+  commit log.
+- **Why / Problem** — what was wrong or missing before; link prior PRs when
+  building on them.
+- **Changes / Architecture / Product behavior** — deep walkthrough for large
+  PRs; group by subsystem with bold labels.
+- **Design decisions / Trade-offs** — explicit choices and what was rejected.
+- **Review focus** — subtle behavior, incomplete migrations, assumptions about
+  `main`; prefer inline review comments for specific lines.
+- **Testing** — exact commands with pass counts; for skipped checks, state
+  **what** and **why**.
+
+#### Exemplars
+
+Read merged PRs for shape, not to copy wholesale:
+
+- Large refactor: #116, #150
+- Large feature: #160
+- Medium with review notes: #196, #206
+- Docs-only with skip rationale: #167, #145
+
+#### Template hygiene
+
+- Populate every section you keep; **delete unused section headers** and stub
+  bullets before opening or updating the PR — empty headers pollute the squash
+  commit body.
+- Refresh the title/body once the branch outgrows them; fold into any human
+  edits rather than overwriting them.
+
 ## Keeping a PR current
 
 - Push each commit as it lands.
-- Refresh the title/body once the branch outgrows them — fold into any human
-  edits rather than overwriting them.
 
 ## Merging main and other branches
 
