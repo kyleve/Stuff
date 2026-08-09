@@ -111,7 +111,11 @@ extension SiriFeaturesView: SettingsSection {
 #if DEBUG
     extension SiriFeaturesView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            whereSnapshot(name: "Default", configurations: .fullContentScreenDefaults) {
+            whereSnapshot(
+                name: "Default",
+                configurations: .fullContentScreenDefaults,
+                measurementReadiness: .immediate,
+            ) {
                 SiriFeaturesView(
                     focus: nil,
                     presentation: PreviewSupport.featureDiscoveryPresentation(),
