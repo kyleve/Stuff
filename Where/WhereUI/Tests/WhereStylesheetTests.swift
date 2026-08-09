@@ -436,6 +436,12 @@ struct WhereStylesheetTests {
             spacing: 14,
             verticalPadding: 24,
         ))
+        #expect(featureDiscovery.marketingPanel == .init(
+            cornerRadius: 20,
+            maxWidth: 680,
+            padding: 16,
+            contentSpacing: 12,
+        ))
         #expect(featureDiscovery.backgroundPattern == .init(
             contourSpacing: 30,
             primaryDistortion: 13,

@@ -25,7 +25,8 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   Settings. Elsewhere is an entry card on Locations, Resolve a Locations toolbar
   button, and the data screens (attachments, logged days, regions) sit in the
   Settings "Data" group. The **Explore Features** group demonstrates all six
-  Siri/Shortcuts intents as example conversations and renders every supported
+  Siri/Shortcuts intent as an example conversation, demonstrates tracked-region
+  results in Spotlight, and renders every supported
   widget family on miniature Home Screen and Lock Screen surfaces. Both use a
   shared marketing header, quiet patterned backdrop, and staged entrance that
   resolves immediately for Reduce Motion and snapshot capture. Once the selected

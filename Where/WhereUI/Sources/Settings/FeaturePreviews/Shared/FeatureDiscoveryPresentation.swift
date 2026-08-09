@@ -10,6 +10,12 @@ struct FeatureDiscoveryPresentation {
         let response: String
     }
 
+    struct SpotlightExample: Equatable {
+        let query: String
+        let resultTitle: String
+        let resultSubtitle: String
+    }
+
     /// Two weeks of recorded days is enough to make counts, recent activity,
     /// and widget totals representative rather than incidental.
     static let minimumLoggedDayCount = 14
@@ -17,8 +23,9 @@ struct FeatureDiscoveryPresentation {
     let usesUserData: Bool
     let widgetSnapshot: WidgetSnapshot
     let lockScreenDate: Date
+    let spotlightExample: SpotlightExample
 
-    private let siriExamples: [SiriFeaturesView.Item: SiriExample]
+    private let siriExamples: [SiriIntentFeature: SiriExample]
 
     init(
         report: YearReport?,
@@ -54,6 +61,13 @@ struct FeatureDiscoveryPresentation {
                 totals: [:],
             )
             lockScreenDate = fallbackDate
+            spotlightExample = SpotlightExample(
+                query: Region.california.localizedName,
+                resultTitle: String(localized: .settingsExploreSpotlightResultTitle(
+                    Region.california.localizedName,
+                )),
+                resultSubtitle: String(localized: .settingsExploreSpotlightResultGeneric),
+            )
             siriExamples = [:]
             return
         }
@@ -74,6 +88,7 @@ struct FeatureDiscoveryPresentation {
             clockFrom: referenceDate,
             calendar: calendar,
         )
+        spotlightExample = Self.spotlightExample(report: report)
         siriExamples = Self.siriExamples(
             report: report,
             relevantDays: relevantDays,
@@ -83,7 +98,29 @@ struct FeatureDiscoveryPresentation {
         )
     }
 
-    func siriExample(for item: SiriFeaturesView.Item) -> SiriExample? {
+    private static func spotlightExample(report: YearReport) -> SpotlightExample {
+        guard let region = RegionRanking(report: report).primary.first else {
+            return SpotlightExample(
+                query: Region.california.localizedName,
+                resultTitle: String(localized: .settingsExploreSpotlightResultTitle(
+                    Region.california.localizedName,
+                )),
+                resultSubtitle: String(localized: .settingsExploreSpotlightResultGeneric),
+            )
+        }
+        return SpotlightExample(
+            query: region.region.localizedName,
+            resultTitle: String(localized: .settingsExploreSpotlightResultTitle(
+                region.region.localizedName,
+            )),
+            resultSubtitle: String(localized: .settingsExploreSpotlightResultPersonalized(
+                WhereFormat.dayCount(region.days),
+                WhereFormat.yearText(report.year),
+            )),
+        )
+    }
+
+    func siriExample(for item: SiriIntentFeature) -> SiriExample? {
         siriExamples[item]
     }
 
@@ -93,8 +130,8 @@ struct FeatureDiscoveryPresentation {
         referenceDay: CalendarDay,
         referenceDate: Date,
         calendar: Calendar,
-    ) -> [SiriFeaturesView.Item: SiriExample] {
-        var examples: [SiriFeaturesView.Item: SiriExample] = [:]
+    ) -> [SiriIntentFeature: SiriExample] {
+        var examples: [SiriIntentFeature: SiriExample] = [:]
 
         if report.year == referenceDay.year {
             let regions = relevantDays.first { $0.day == referenceDay }?.regions ?? []

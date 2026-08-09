@@ -40,8 +40,8 @@ struct FeatureMarketingHeader: View {
 #if DEBUG
     #Preview {
         FeatureMarketingHeader(
-            title: "Siri & Shortcuts",
-            tagline: "Ask about where you’ve been, or log it hands-free.",
+            title: "Siri, Shortcuts & Spotlight",
+            tagline: "Ask, automate, or search for where you’ve been.",
             systemImage: "waveform",
             tint: .pink,
         )
