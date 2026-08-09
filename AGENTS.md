@@ -507,8 +507,11 @@ flag is needed there.
 
 ## Running tests
 
-**Use [`./test`](test)** — the only way to run tests. Never hand-roll `tuist
-test` or `xcodebuild`. It runs the host-side backup-upgrader regression before
+**Use [`./test`](test)** — the only way to run the iOS bundles. Never hand-roll
+`tuist test` or `xcodebuild` for them. The one exception is the native-macOS
+**Ledger-macOS-Tests** scheme, which `./test` does not know how to run at all;
+the [`running-tests`](.agents/skills/running-tests/SKILL.md) skill carries its
+invocation. Closing that gap is filed in [`TODOs.md`](TODOs.md). It runs the host-side backup-upgrader regression before
 selecting an iOS bundle, so tool-only changes remain covered by the same entry
 point. **Validate in proportion to risk:** run
 `./swiftformat --lint` when the changed files are in its scope, and run the

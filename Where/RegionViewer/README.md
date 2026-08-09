@@ -14,9 +14,13 @@ The same screen as the in-app **developer overlay → Region map** entry:
   - **Attribution** — the simplified polygons `RegionAttributor` actually loads
     and uses to attribute coordinates today (California, New York, and the
     simplified Canada / EU outlines; exterior rings only).
-  - **Source** — every feature decoded straight from the bundled GeoJSON files
-    (all US-state features in `us-states.geojson`, plus Canada and the EU) at
-    full authored fidelity.
+  - **Source** — every feature decoded straight from the bundled per-region
+    GeoJSON files at full authored fidelity. `RegionGeometryCatalog`'s
+    `buildSourceOutlines()` walks `RegionCatalog.shared.entries` and decodes each
+    region's own file under `RegionKit/Sources/Resources/regions/`, so this mode
+    shows exactly what ships. (The monolithic `us-states.geojson` under
+    `RegionKit/Tools/source/` is a build-time input to the extraction tooling —
+    never bundled, never read at runtime.)
 - `MapPolygon` overlays tinted by `RegionStyle` for known regions and a stable
   per-title color for unmapped source features.
 - A camera framed to the shown geometry, and a filterable legend that narrows

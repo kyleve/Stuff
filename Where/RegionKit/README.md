@@ -158,6 +158,12 @@ Everything downstream (`RegionStyle`, region pickers, the App Intents
 
 Swift Testing in [`Tests/`](Tests), hosted in `StuffTestHost` (so
 `Bundle.module` resolves the GeoJSON at runtime). Attribution, geometry
-(point-in-polygon, bounding box, longitude span), GeoJSON decoding, and the
-geometry catalog are covered here; internal types (`GeoJSON`, `GeoPolygon`,
-`RegionPolygons`) are reached via `@testable import RegionKit`.
+(point-in-polygon, bounding box, longitude span), and the geometry catalog are
+covered here; internal types (`GeoJSON`, `GeoPolygon`, `RegionPolygons`) are
+reached via `@testable import RegionKit`.
+
+**GeoJSON *decoding* is not covered** — there is no `GeoJSONTests.swift`, so the
+unsupported-geometry throw and the malformed-coordinate drop are unexercised, and
+`RegionCatalog`'s degrade-to-empty-catalog path is asserted only at the log-event
+level. Filed in [`Where/TODOs.md`](../TODOs.md); this paragraph goes away when it
+closes.
