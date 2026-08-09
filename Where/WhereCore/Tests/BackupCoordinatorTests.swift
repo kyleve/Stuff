@@ -3,16 +3,16 @@ import RegionKit
 import Testing
 @testable import WhereCore
 
-/// Covers export/import round-trips and the post-import `onImport` hook the
+/// Covers export/import round-trips and the post-commit lifecycle hook the
 /// coordinator invokes once new data lands.
 struct BackupCoordinatorTests {
     private struct Harness {
         let coordinator: BackupCoordinator
         let store: SwiftDataStore
-        let onImport: HookSpy
+        let didCommit: HookSpy
     }
 
-    /// Records how many times the coordinator invoked its `onImport` hook, so a
+    /// Records how many times the coordinator invoked its commit hook, so a
     /// test can assert an import triggers the (composition-root-supplied)
     /// badge / notification / widget reconcile exactly once.
     private actor HookSpy {
@@ -22,14 +22,59 @@ struct BackupCoordinatorTests {
         }
     }
 
+    private struct CleanupFailure: Error {}
+
+    private actor CleanupSpy {
+        private var shouldFail = true
+        private(set) var count = 0
+
+        func run() throws {
+            count += 1
+            if shouldFail { throw CleanupFailure() }
+        }
+
+        func allowSuccess() {
+            shouldFail = false
+        }
+    }
+
+    private actor RecoveryPersistenceSpy: BackupImportRecoveryPersisting {
+        private(set) var recovery: BackupCoordinator.DurableImportRecovery?
+
+        init(_ recovery: BackupCoordinator.DurableImportRecovery? = nil) {
+            self.recovery = recovery
+        }
+
+        func loadBackupImportRecovery() -> BackupCoordinator.DurableImportRecovery? {
+            recovery
+        }
+
+        func saveBackupImportRecovery(
+            _ recovery: BackupCoordinator.DurableImportRecovery?,
+        ) {
+            self.recovery = recovery
+        }
+
+        func recordOnboardingImportCompletion(
+            _: BackupCoordinator.OnboardingImportCompletion,
+        ) {}
+    }
+
     private static func makeHarness() throws -> Harness {
         let store = try SwiftDataStore.inMemory()
         let hook = HookSpy()
         let coordinator = BackupCoordinator(
             store: store,
-            onImport: { await hook.run() },
+            currentDeviceID: recordingDeviceID,
+            now: { Date(timeIntervalSinceReferenceDate: 1000) },
+            importLifecycle: .init(
+                prepare: { _ in },
+                didCommit: { _ in await hook.run() },
+                didRollBack: { _ in },
+            ),
+            importRecoveryPersistence: NoopBackupImportRecoveryPersistence(),
         )
-        return Harness(coordinator: coordinator, store: store, onImport: hook)
+        return Harness(coordinator: coordinator, store: store, didCommit: hook)
     }
 
     private static let evidence = Evidence(
@@ -46,9 +91,11 @@ struct BackupCoordinatorTests {
         id: .borderDrift(day: CalendarDay(year: 2026, month: 4, day: 1)),
         dismissedAt: Date(timeIntervalSince1970: 1_700_000_000),
     )
-
+    private static let recordingDeviceID = RecordingDeviceID(
+        rawValue: UUID(uuidString: "EEEEEEEE-EEEE-EEEE-EEEE-EEEEEEEEEEEE")!,
+    )
     private static let plannedStay = PlannedStayRecord(
-        id: UUID(uuidString: "DDDDDDDD-DDDD-DDDD-DDDD-DDDDDDDDDDDD")!,
+        id: UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")!,
         value: PlannedStay(
             region: .newYork,
             through: CalendarDay(year: 2026, month: 9, day: 1),
@@ -56,8 +103,8 @@ struct BackupCoordinatorTests {
         updatedAt: Date(timeIntervalSince1970: 1_700_000_000),
     )
 
-    /// Seed all four tables (sample, evidence + blob, manual day, dismissed
-    /// issue) directly into a store so backup tests don't depend on the journal.
+    /// Seed every persisted domain directly into a store so backup tests don't
+    /// depend on the journal or recording controller.
     private static func seed(_ store: SwiftDataStore) async throws {
         try await store.perform {
             try await store.add(sample: sample(at: "2026-03-15T12:00:00-07:00"))
@@ -69,10 +116,41 @@ struct BackupCoordinatorTests {
             ))
             try await store.restoreDismissedIssue(dismissal)
             try await store.restorePlannedStayRecord(plannedStay)
+            try await store.addRecordingDeviceProfile(RecordingDeviceProfile(
+                id: recordingDeviceID,
+                systemName: "iPad",
+                kind: .tablet,
+                registeredAt: dismissal.dismissedAt,
+                registrationGenerationID: .initial,
+            ))
+            try await store.addRecordingDeviceMetadataChange(RecordingDeviceMetadataChange(
+                id: .init(
+                    rawValue: UUID(uuidString: "DDDDDDDD-DDDD-DDDD-DDDD-DDDDDDDDDDDD")!,
+                ),
+                deviceID: recordingDeviceID,
+                revision: 0,
+                changedAt: dismissal.dismissedAt,
+                changedByDeviceID: recordingDeviceID,
+                payload: .nickname("Travel iPad"),
+            ))
+            try await store.setRecordingDeviceCheckIn(RecordingDeviceCheckIn(
+                deviceID: recordingDeviceID,
+                revision: 0,
+                lastSeenAt: dismissal.dismissedAt,
+                status: .recording,
+            ))
+            try await store.addRecordingDeviceRemoval(RecordingDeviceRemoval(
+                id: .init(
+                    rawValue: UUID(uuidString: "FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF")!,
+                ),
+                deviceID: recordingDeviceID,
+                removedAt: dismissal.dismissedAt,
+                removedByDeviceID: recordingDeviceID,
+            ))
         }
     }
 
-    @Test func exportThenMergeImportReproducesEveryTable() async throws {
+    @Test func exportThenMergeImportReproducesRestorableTables() async throws {
         let source = try Self.makeHarness()
         try await Self.seed(source.store)
 
@@ -80,12 +158,17 @@ struct BackupCoordinatorTests {
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
 
         let destination = try Self.makeHarness()
-        let summary = try await destination.coordinator.importBackup(from: url, strategy: .merge)
+        let summary = try await destination.coordinator.importAndAcknowledgeBackup(
+            from: url,
+            strategy: .merge,
+        )
 
         #expect(summary.sampleCount == 1)
         #expect(summary.evidenceCount == 1)
         #expect(summary.manualDayCount == 1)
         #expect(summary.dismissedIssueCount == 1)
+        #expect(summary.recordingDeviceCount == 1)
+        #expect(summary.recordingDeviceRemovalCount == 1)
 
         #expect(try await destination.store.allSamples() == source.store.allSamples())
         #expect(try await destination.store.allEvidence() == source.store.allEvidence())
@@ -95,9 +178,18 @@ struct BackupCoordinatorTests {
             .allDismissedIssues())
         #expect(try await destination.store.allDismissedIssues() == [Self.dismissal])
         #expect(try await destination.store.plannedStayRecords() == [Self.plannedStay])
+        #expect(try await destination.store.recordingDeviceProfiles() == source.store
+            .recordingDeviceProfiles())
+        #expect(try await destination.store.recordingDeviceMetadataChanges() == source.store
+            .recordingDeviceMetadataChanges())
+        // Check-ins are live advisory status from a particular installation. A backup cannot
+        // safely reproduce that status on another installation.
+        #expect(try await destination.store.recordingDeviceCheckIns().isEmpty)
+        #expect(try await destination.store.recordingDeviceRemovals() == source.store
+            .recordingDeviceRemovals())
         #expect(try await destination.store.evidenceBlob(for: Self.evidence.id) == Self.blob)
-        // An import that lands new data runs the post-import hook once.
-        #expect(await destination.onImport.count == 1)
+        // An import that lands new data runs the post-commit hook once.
+        #expect(await destination.didCommit.count == 1)
     }
 
     @Test func mergeImportKeepsPreexistingRows() async throws {
@@ -110,7 +202,10 @@ struct BackupCoordinatorTests {
         let preexisting = Self.sample(at: "2026-01-01T09:00:00-08:00")
         try await destination.store.perform { try await destination.store.add(sample: preexisting) }
 
-        _ = try await destination.coordinator.importBackup(from: url, strategy: .merge)
+        _ = try await destination.coordinator.importAndAcknowledgeBackup(
+            from: url,
+            strategy: .merge,
+        )
 
         let ids = try await destination.store.allSamples().map(\.id)
         #expect(ids.contains(preexisting.id))
@@ -124,6 +219,7 @@ struct BackupCoordinatorTests {
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
 
         let destination = try Self.makeHarness()
+        let previouslyRemovedDeviceID = RecordingDeviceID(rawValue: UUID())
         try await destination.store.perform {
             try await destination.store.add(sample: Self.sample(at: "2026-01-01T09:00:00-08:00"))
             try await destination.store.setManualDay(DayPresence(
@@ -132,34 +228,50 @@ struct BackupCoordinatorTests {
                 regions: [.canada],
             ))
             // A preexisting dismissal that the file doesn't contain must be wiped
-            // by `.replace` so the device mirrors the file exactly.
+            // by `.replace` so synced user data mirrors the file.
             try await destination.store.restoreDismissedIssue(DismissedIssue(
                 id: .missingDays(start: CalendarDay(year: 2026, month: 1, day: 2)),
                 dismissedAt: Date(timeIntervalSince1970: 1),
             ))
+            try await destination.store.addRecordingDeviceRemoval(RecordingDeviceRemoval(
+                id: .init(rawValue: UUID()),
+                deviceID: previouslyRemovedDeviceID,
+                removedAt: Date(timeIntervalSinceReferenceDate: 500),
+                removedByDeviceID: Self.recordingDeviceID,
+            ))
         }
 
-        _ = try await destination.coordinator.importBackup(from: url, strategy: .replace)
+        _ = try await destination.coordinator.importAndAcknowledgeBackup(
+            from: url,
+            strategy: .replace,
+        )
 
         #expect(try await destination.store.allSamples() == source.store.allSamples())
         #expect(try await destination.store.allManualDays() == source.store.allManualDays())
         #expect(try await destination.store.allDismissedIssues() == source.store
             .allDismissedIssues())
         #expect(try await destination.store.allDismissedIssues() == [Self.dismissal])
+        #expect(try await Set(destination.store.recordingDeviceRemovals().map(\.deviceID)) == [
+            Self.recordingDeviceID,
+            previouslyRemovedDeviceID,
+        ])
     }
 
     @Test func replaceImportRestoresTheArchivesTrackedRegions() async throws {
         let source = try Self.makeHarness()
         let texas = try #require(Region(rawValue: "us-TX"))
         try await source.store.perform {
-            try await source.store.setTrackedRegion(true, id: Region.california.rawValue)
-            try await source.store.setTrackedRegion(true, id: texas.rawValue)
+            try await source.store.setTrackedRegion(true, region: .california)
+            try await source.store.setTrackedRegion(true, region: texas)
         }
         let url = try await source.coordinator.exportBackup()
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
 
         let destination = try Self.makeHarness()
-        let summary = try await destination.coordinator.importBackup(from: url, strategy: .replace)
+        let summary = try await destination.coordinator.importAndAcknowledgeBackup(
+            from: url,
+            strategy: .replace,
+        )
 
         #expect(summary.trackedRegionCount == 2)
         #expect(try await destination.store.trackedRegions() == [.california, texas])
@@ -177,7 +289,10 @@ struct BackupCoordinatorTests {
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
 
         let destination = try Self.makeHarness()
-        _ = try await destination.coordinator.importBackup(from: url, strategy: .replace)
+        _ = try await destination.coordinator.importAndAcknowledgeBackup(
+            from: url,
+            strategy: .replace,
+        )
 
         let restored = try await destination.store.primaryRegions()
         #expect(restored.map(\.region) == [.california])
@@ -203,7 +318,10 @@ struct BackupCoordinatorTests {
                 PrimaryRegion(region: .california, appearance: caLook, order: 0),
             ])
         }
-        _ = try await destination.coordinator.importBackup(from: url, strategy: .merge)
+        _ = try await destination.coordinator.importAndAcknowledgeBackup(
+            from: url,
+            strategy: .merge,
+        )
 
         let restored = try await destination.store.primaryRegions()
         #expect(restored.map(\.region) == [.california])
@@ -235,7 +353,10 @@ struct BackupCoordinatorTests {
                 PrimaryRegion(region: .california, appearance: deviceCALook, order: 0),
             ])
         }
-        _ = try await destination.coordinator.importBackup(from: url, strategy: .merge)
+        _ = try await destination.coordinator.importAndAcknowledgeBackup(
+            from: url,
+            strategy: .merge,
+        )
 
         let restored = try await destination.store.primaryRegions()
         // Existing region stays first; archive's look wins on overlap; the
@@ -249,39 +370,217 @@ struct BackupCoordinatorTests {
         let source = try Self.makeHarness()
         let texas = try #require(Region(rawValue: "us-TX"))
         try await source.store.perform {
-            try await source.store.setTrackedRegion(true, id: texas.rawValue)
+            try await source.store.setTrackedRegion(true, region: texas)
         }
         let url = try await source.coordinator.exportBackup()
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
 
         let destination = try Self.makeHarness()
         try await destination.store.perform {
-            try await destination.store.setTrackedRegion(true, id: Region.california.rawValue)
+            try await destination.store.setTrackedRegion(true, region: .california)
         }
-        _ = try await destination.coordinator.importBackup(from: url, strategy: .merge)
+        _ = try await destination.coordinator.importAndAcknowledgeBackup(
+            from: url,
+            strategy: .merge,
+        )
 
         // Merge unions the archive's set into the device's existing selection.
         #expect(try await destination.store.trackedRegions() == [.california, texas])
     }
 
     /// Regression guard: an import rewrites day data, so the coordinator must
-    /// invoke its `onImport` hook once new data lands — the composition root
+    /// invoke its commit hook once new data lands — the composition root
     /// wires that hook to the badge / notification / widget reconcile, so
     /// skipping it leaves the home-screen badge and issues alert stuck at their
     /// pre-import values (the "badge stuck at 157 after replace import" bug).
     /// The end-to-end badge recount is asserted in `WhereServicesTests`.
-    @Test func replaceImportInvokesTheOnImportHook() async throws {
+    @Test func replaceImportInvokesTheCommitHook() async throws {
         let source = try Self.makeHarness()
         try await Self.seed(source.store)
         let url = try await source.coordinator.exportBackup()
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
 
         let destination = try Self.makeHarness()
-        #expect(await destination.onImport.count == 0)
+        #expect(await destination.didCommit.count == 0)
 
-        _ = try await destination.coordinator.importBackup(from: url, strategy: .replace)
+        _ = try await destination.coordinator.importAndAcknowledgeBackup(
+            from: url,
+            strategy: .replace,
+        )
 
-        #expect(await destination.onImport.count == 1)
+        #expect(await destination.didCommit.count == 1)
+    }
+
+    @Test func committedCleanupFailureBlocksReimportUntilCleanupRetrySucceeds() async throws {
+        let source = try Self.makeHarness()
+        let url = try await source.coordinator.exportBackup()
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        let store = try SwiftDataStore.inMemory()
+        let cleanup = CleanupSpy()
+        let coordinator = BackupCoordinator(
+            store: store,
+            currentDeviceID: Self.recordingDeviceID,
+            now: { Date(timeIntervalSinceReferenceDate: 1000) },
+            importLifecycle: .init(
+                prepare: { _ in },
+                didCommit: { _ in try await cleanup.run() },
+                didRollBack: { _ in },
+            ),
+            importRecoveryPersistence: NoopBackupImportRecoveryPersistence(),
+        )
+
+        let committedError = await #expect(
+            throws: BackupCoordinator.CommittedImportCleanupError.self,
+        ) {
+            try await coordinator.importAndAcknowledgeBackup(from: url, strategy: .merge)
+        }
+        let summary = try #require(committedError?.summary)
+        #expect(try await coordinator.importRecoveryState() == .cleanupRequired(summary))
+
+        let recoveryError = await #expect(
+            throws: BackupCoordinator.ImportRecoveryRequiredError.self,
+        ) {
+            try await coordinator.importAndAcknowledgeBackup(from: url, strategy: .merge)
+        }
+        #expect(recoveryError?.summary == summary)
+        #expect(await cleanup.count == 1)
+
+        await #expect(throws: BackupCoordinator.CommittedImportCleanupError.self) {
+            try await coordinator.retryImportCleanup()
+        }
+        #expect(try await coordinator.importRecoveryState() == .cleanupRequired(summary))
+        #expect(await cleanup.count == 2)
+
+        await cleanup.allowSuccess()
+        try await coordinator.retryImportCleanup()
+
+        #expect(
+            try await coordinator.importRecoveryState()
+                == .onboardingAcknowledgementRequired(summary),
+        )
+        try await coordinator.acknowledgeOnboardingImport()
+        #expect(try await coordinator.importRecoveryState() == .ready)
+        #expect(await cleanup.count == 3)
+    }
+
+    @Test func recreatedCoordinatorHydratesAndGatesCommittedCleanup() async throws {
+        let source = try Self.makeHarness()
+        let url = try await source.coordinator.exportBackup()
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        let store = try SwiftDataStore.inMemory()
+        let cleanup = CleanupSpy()
+        let persistence = RecoveryPersistenceSpy()
+        func makeCoordinator() -> BackupCoordinator {
+            BackupCoordinator(
+                store: store,
+                currentDeviceID: Self.recordingDeviceID,
+                now: { Date(timeIntervalSinceReferenceDate: 1000) },
+                importLifecycle: .init(
+                    prepare: { _ in },
+                    didCommit: { _ in try await cleanup.run() },
+                    didRollBack: { _ in },
+                ),
+                importRecoveryPersistence: persistence,
+            )
+        }
+
+        let first = makeCoordinator()
+        let committedError = await #expect(
+            throws: BackupCoordinator.CommittedImportCleanupError.self,
+        ) {
+            try await first.importAndAcknowledgeBackup(from: url, strategy: .merge)
+        }
+        let summary = try #require(committedError?.summary)
+
+        let recreated = makeCoordinator()
+        #expect(try await recreated.importRecoveryState() == .cleanupRequired(summary))
+        await #expect(throws: BackupCoordinator.ImportRecoveryRequiredError.self) {
+            try await recreated.importAndAcknowledgeBackup(from: url, strategy: .replace)
+        }
+
+        await cleanup.allowSuccess()
+        try await recreated.retryImportCleanup()
+
+        #expect(
+            try await recreated.importRecoveryState()
+                == .onboardingAcknowledgementRequired(summary),
+        )
+        try await recreated.acknowledgeOnboardingImport()
+        #expect(try await recreated.importRecoveryState() == .ready)
+        #expect(await persistence.recovery == nil)
+    }
+
+    @Test func concurrentImportCannotPassReadyWhileTheFirstImportFinishesCleanup() async throws {
+        let source = try Self.makeHarness()
+        let url = try await source.coordinator.exportBackup()
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        let secondSample = Self.sample(at: "2026-08-03T10:00:00-07:00")
+        let secondURL = try BackupService().makeArchiveFile(
+            samples: [secondSample],
+            evidence: [],
+            manualDays: [],
+            recordingDeviceProfiles: [],
+            recordingDeviceMetadataChanges: [],
+            recordingDeviceRemovals: [],
+            plannedStayRecords: [],
+            blobs: [:],
+        )
+        defer { try? FileManager.default.removeItem(at: secondURL.deletingLastPathComponent()) }
+
+        let prepare = HookSpy()
+        let (didCommitStarted, didCommitStartedContinuation) = AsyncStream.makeStream(of: Void.self)
+        let (releaseDidCommit, releaseDidCommitContinuation) = AsyncStream.makeStream(of: Void.self)
+        let destinationStore = try SwiftDataStore.inMemory()
+        let coordinator = BackupCoordinator(
+            store: destinationStore,
+            currentDeviceID: Self.recordingDeviceID,
+            now: { Date(timeIntervalSinceReferenceDate: 1000) },
+            importLifecycle: .init(
+                prepare: { _ in await prepare.run() },
+                didCommit: { _ in
+                    didCommitStartedContinuation.yield()
+                    for await _ in releaseDidCommit {
+                        break
+                    }
+                    throw CleanupFailure()
+                },
+                didRollBack: { _ in },
+            ),
+            importRecoveryPersistence: NoopBackupImportRecoveryPersistence(),
+        )
+        let firstImport = Task {
+            do {
+                _ = try await coordinator.importAndAcknowledgeBackup(from: url, strategy: .merge)
+                return false
+            } catch is BackupCoordinator.CommittedImportCleanupError {
+                return true
+            } catch {
+                return false
+            }
+        }
+        var didCommitStartedIterator = didCommitStarted.makeAsyncIterator()
+        _ = await didCommitStartedIterator.next()
+
+        let secondError = await #expect(
+            throws: BackupCoordinator.ImportRecoveryRequiredError.self,
+        ) {
+            try await coordinator.importAndAcknowledgeBackup(from: secondURL, strategy: .merge)
+        }
+        #expect(secondError?.summary.sampleCount == 0)
+        #expect(await prepare.count == 1)
+        #expect(try await destinationStore.allSamples().isEmpty)
+
+        releaseDidCommitContinuation.yield()
+        releaseDidCommitContinuation.finish()
+        #expect(await firstImport.value)
+        switch try await coordinator.importRecoveryState() {
+            case .cleanupRequired:
+                break
+            case .ready, .onboardingAcknowledgementRequired:
+                Issue.record("The first committed import must retain its cleanup recovery gate.")
+        }
     }
 
     /// The coordinator owns the export staging directory's lifecycle: starting a
@@ -341,7 +640,7 @@ struct BackupCoordinatorTests {
         let destination = try Self.makeHarness()
         let recorder = ProgressRecorder()
         _ = try await destination.coordinator
-            .importBackup(from: url, strategy: .replace) { fraction in
+            .importAndAcknowledgeBackup(from: url, strategy: .replace) { fraction in
                 recorder.record(fraction)
             }
 

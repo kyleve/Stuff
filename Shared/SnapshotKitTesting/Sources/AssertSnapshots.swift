@@ -107,29 +107,41 @@ public func assertSnapshots(
             case .fixed:
                 .fixed
             case let .intrinsic(maxWidth):
-                .intrinsic(width: maxWidth ?? UIScreen.main.bounds.width)
-            case let .fullContent(width):
+                .intrinsic(
+                    width: maxWidth ?? UIScreen.main.bounds.width,
+                    minimumHeight: 0,
+                )
+            case let .fullContent(width, minimumHeight):
                 // Same measured-height pipeline as `.intrinsic`: a `ScrollView`
                 // measured under the unbounded proposal reports its content
                 // height (guarded by `LargeViewCaptureTests`), so the capture
                 // renders the whole scrollable content.
-                .intrinsic(width: width)
+                .intrinsic(
+                    width: width,
+                    minimumHeight: minimumHeight ?? 0,
+                )
         }
         let identifier = fullSnapshotIdentifier(caseName: name, configuration: configuration)
         let timing = SnapshotCaptureTiming(
             identifier: identifier,
             isEnabled: SnapshotCaptureTiming.isEnabledByEnvironment,
         )
-        let capture = await renderSnapshotCapture(
-            of: hostingController,
-            named: identifier,
-            sizing: sizing,
-            safeAreaInsets: configuration.device.safeAreaInsets.uiEdgeInsets,
-            isAccessibility: configuration.snapshotType == .accessibility,
-            settle: settle,
-            onReadyToSnapshot: onReadyToSnapshot,
-            timing: timing,
-        )
+        let capture: SnapshotCapture
+        do {
+            capture = try await renderSnapshotCapture(
+                of: hostingController,
+                named: identifier,
+                sizing: sizing,
+                safeAreaInsets: configuration.device.safeAreaInsets.uiEdgeInsets,
+                isAccessibility: configuration.snapshotType == .accessibility,
+                settle: settle,
+                onReadyToSnapshot: onReadyToSnapshot,
+                timing: timing,
+            )
+        } catch {
+            Issue.record(error)
+            continue
+        }
         // Before the verdict, so a reviewer gets the shape of the delta on the
         // same run that reports the failure. Reads the reference from disk; the
         // byte-equality check short-circuits when the capture is deterministic.
@@ -311,8 +323,9 @@ private func makeHostingController(
         case let .intrinsic(maxWidth):
             let width = maxWidth ?? UIScreen.main.bounds.width
             hostingController.view.frame = CGRect(x: 0, y: 0, width: width, height: 1)
-        case let .fullContent(width):
-            hostingController.view.frame = CGRect(x: 0, y: 0, width: width, height: 1)
+        case let .fullContent(width, minimumHeight):
+            let height = minimumHeight ?? 1
+            hostingController.view.frame = CGRect(x: 0, y: 0, width: width, height: height)
     }
 
     return hostingController

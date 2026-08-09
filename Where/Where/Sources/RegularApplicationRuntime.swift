@@ -14,24 +14,58 @@ import WhereUI
 /// runner that make up the shipping application.
 @MainActor
 final class RegularApplicationRuntime: WhereApplicationRuntime {
-    let model = WhereModel(
-        preferences: WherePreferences(store: UserDefaults.standard),
-        makeBootstrap: { WhereBootstrap() },
-        logSystem: .shared,
-    )
+    let model: WhereModel
 
     let intentServices = IntentServices()
     private(set) var launcher: LifecycleRunner<WhereSession>!
 
     #if DEBUG
+        /// Compiled into Debug device builds created by `Where/install --cloudkit`, so every
+        /// foreground, background, and CloudKit-push relaunch uses the same store mode.
+        static let isCloudKitValidationBuild: Bool = {
+            #if WHERE_CLOUDKIT_VALIDATION
+                true
+            #else
+                false
+            #endif
+        }()
+
         private let inspectorModeController: InspectorModeController?
 
         init(inspectorModeController: InspectorModeController? = nil) {
             self.inspectorModeController = inspectorModeController
+            model = Self.makeModel(storeStorage: Self.storeStorage(
+                forCloudKitValidationBuild: Self.isCloudKitValidationBuild,
+            ))
+        }
+
+        static func storeStorage(
+            forCloudKitValidationBuild validatesCloudKit: Bool,
+        ) -> SwiftDataStore.Storage {
+            validatesCloudKit ? .cloudKit : .localOnly
         }
     #else
-        init() {}
+        init() {
+            model = Self.makeModel(storeStorage: .cloudKit)
+        }
     #endif
+
+    private static func makeModel(storeStorage: SwiftDataStore.Storage) -> WhereModel {
+        let installationContextStore = FileInstallationRecordingContextStore()
+        let locationOutbox = FileLocationOutbox.applicationSupport()
+        return WhereModel(
+            preferences: WherePreferences(store: UserDefaults.standard),
+            installationContextStore: installationContextStore,
+            makeBootstrap: {
+                WhereBootstrap(
+                    installationContextStore: $0,
+                    storeStorage: storeStorage,
+                    locationOutbox: locationOutbox,
+                )
+            },
+            logSystem: .shared,
+        )
+    }
 
     func didFinishLaunching(
         application _: UIApplication,

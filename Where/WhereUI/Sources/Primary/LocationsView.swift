@@ -124,6 +124,10 @@ struct LocationsView: View {
                                 yearLength: report.daysInSelectedYear,
                                 year: report.selectedYear,
                                 tilt: tilt,
+                                recordedPoints: report.primaryRegionLocations?
+                                    .pointsByRegion[item.region] ?? [],
+                                showsRecordedPoints: report.showsRecordedLocationDots,
+                                recordedPointsID: report.primaryRegionLocations?.id,
                             )
                         }
                         // Plain so the card's interactive Liquid Glass owns
@@ -196,10 +200,19 @@ struct LocationsView: View {
         // so a covering sheet cannot consume their baseline behind itself.
         .task(id: dayCountReconciliationID) {
             let reconciliation = dayCountReconciliationID
+            guard reconciliation.isVisible else { return }
+            do {
+                try await Task.sleep(for: stylesheet.card.dayCount.revealDelay)
+            } catch is CancellationError {
+                return
+            } catch {
+                assertionFailure("Unexpected day-count reveal delay failure: \(error)")
+                return
+            }
             dayCountPresentation.reconcile(
                 reconciliation.counts,
                 in: reconciliation.year,
-                isVisible: reconciliation.isVisible,
+                isVisible: true,
             )
         }
         .sensoryFeedback(
@@ -285,7 +298,7 @@ private struct ResolveToolbarLabel: View {
         static var snapshots: [SnapshotCase] {
             whereSnapshot(
                 name: "Loaded",
-                configurations: .screenDefaults,
+                configurations: .fullContentScreenDefaults,
                 settle: .settledAtLeast(minDuration: 1.0),
             ) {
                 LocationsView(report: PreviewSupport.loadedYearReportModel())
@@ -299,11 +312,16 @@ private struct ResolveToolbarLabel: View {
             whereSnapshot(name: "Empty", configurations: .phoneLightDark) {
                 LocationsView(report: PreviewSupport.emptyYearReportModel())
             }
-            whereSnapshot(name: "MissingDays", configurations: .phoneLightDark) {
+            whereSnapshot(name: "MissingDays", configurations: .fullContentPhoneLightDark) {
                 LocationsView(report: PreviewSupport.missingDaysYearReportModel())
             }
             whereSnapshot(name: "ElsewhereOnly", configurations: .phoneLightDark) {
                 LocationsView(report: PreviewSupport.elsewhereOnlyYearReportModel())
+            }
+            whereSnapshot(name: "DotsHidden", configurations: .fullContentPhoneLightDark) {
+                LocationsView(
+                    report: PreviewSupport.loadedYearReportModelWithLocationDotsHidden(),
+                )
             }
         }
 

@@ -309,7 +309,11 @@ struct AppIconImage: View {
 #if DEBUG
     extension AppIconView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            whereSnapshot(name: "Default", configurations: .screenDefaults, settle: .immediate) {
+            whereSnapshot(
+                name: "Default",
+                configurations: .fullContentScreenDefaults,
+                settle: .immediate,
+            ) {
                 NavigationStack { AppIconView(model: .preview()) }
             }
         }

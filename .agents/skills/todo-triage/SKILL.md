@@ -32,7 +32,7 @@ comes last.
    `AGENTS.md` when its architecture, public API, or a documented behavior
    changed; the root `AGENTS.md` when a global rule, a target, or the build/test
    flow did. Run `./sync-agents` afterwards if any `AGENTS.md` changed.
-6. **Open a PR** ready-for-review — follow the
+6. **Push the branch and open a PR** ready-for-review — follow the
    [`github-workflow`](../github-workflow/SKILL.md) skill, describing the end
    state: what moved in the backlog, what the audit now says, and what you
    verified rather than assumed.
@@ -89,8 +89,9 @@ symbol or file involved: the most common defect in this backlog is the same issu
 filed twice in two files with different wording. If it exists, sharpen the
 existing entry instead of adding a second one.
 
-Deferred PR feedback is filed the same way, and the reply to that comment links
-to where it landed.
+Deferred PR feedback is filed the same way; when the user asked you to address
+review comments, reply on the thread per [`github-workflow`](../github-workflow/SKILL.md)
+and link to where the item landed.
 
 ## Closing an item
 

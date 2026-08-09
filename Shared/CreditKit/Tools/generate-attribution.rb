@@ -17,7 +17,9 @@
 #       { "type": "swiftPackageManager", "manifest": "Package.swift",
 #         "resolved": "Package.resolved", "shippedFrom": ["WhereUI"] },
 #       { "type": "agentSkills", "kind": "developmentTool",
-#         "manifest": ".agents/external-skills.json" }
+#         "manifest": ".agents/external-skills.json" },
+#       { "type": "developmentTools", "kind": "developmentTool",
+#         "manifest": ".agents/development-tools.json" }
 #     ]
 #   }
 #
@@ -37,6 +39,10 @@
 #   - `agentSkills` — a `./sync-agents` external-skills manifest of
 #     `name -> { repo, ref }`. These are not in the binary, but the repository
 #     makes copies of them, which is what their licenses ask us to attribute.
+#   - `developmentTools` — a manifest of pinned GitHub-hosted tooling the
+#     repository depends on but does not link as an SPM package (e.g. TLA+/TLC
+#     via `./tla-check`). Entries may carry an optional `version` for display;
+#     otherwise the pinned ref's short prefix is used.
 #
 # Each credit carries its notice **inline**, read at the pinned revision, so one
 # decode yields everything needed to discharge the attribution and there is no
@@ -199,18 +205,26 @@ def swift_package_manager_credits(source)
   end
 end
 
-def agent_skills_credits(source)
+def manifest_credits(source, source_type)
   kind = source.fetch("kind")
-  read_json(source.fetch("manifest"), "agentSkills").map do |name, entry|
+  read_json(source.fetch("manifest"), source_type).map do |name, entry|
     ref = entry.fetch("ref")
     credit(
       name: name,
       kind: kind,
-      version: ref[0, 12],
+      version: entry["version"] || ref[0, 12],
       slug: entry.fetch("repo"),
       ref: ref,
     )
   end
+end
+
+def agent_skills_credits(source)
+  manifest_credits(source, "agentSkills")
+end
+
+def development_tools_credits(source)
+  manifest_credits(source, "developmentTools")
 end
 
 SOURCE_TYPES = {
@@ -221,6 +235,10 @@ SOURCE_TYPES = {
   "agentSkills" => {
     required: %w[manifest kind],
     generate: method(:agent_skills_credits),
+  },
+  "developmentTools" => {
+    required: %w[manifest kind],
+    generate: method(:development_tools_credits),
   },
 }.freeze
 
@@ -287,7 +305,8 @@ end
 #
 # Runs entirely offline, which is the whole reason it can gate CI: every field
 # it compares is derived from `Package.swift`, `Package.resolved`, and the skills
-# manifest. It can't re-read a notice, but it doesn't need to — a notice is
+# and development-tools manifests. It can't re-read a notice, but it doesn't need
+# to — a notice is
 # fetched at the pinned revision, so a matching revision means matching text by
 # construction, and the notice being *present* is checked here directly.
 def check_report(credits, output_path)

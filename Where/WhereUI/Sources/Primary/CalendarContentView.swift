@@ -554,23 +554,23 @@ private struct DayCell: View {
 #if DEBUG
     extension CalendarContentView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            whereSnapshot(name: "WithData", configurations: .screenDefaults) {
+            whereSnapshot(name: "WithData", configurations: .fullContentScreenDefaults) {
                 NavigationStack {
                     CalendarContentView(report: PreviewSupport.loadedYearReportModel())
                 }
             }
-            whereSnapshot(name: "Empty", configurations: .phoneLightDark) {
+            whereSnapshot(name: "Empty", configurations: .fullContentPhoneLightDark) {
                 NavigationStack {
                     CalendarContentView(report: PreviewSupport.emptyYearReportModel())
                 }
             }
-            whereSnapshot(name: "MissingDays", configurations: .phoneLightDark) {
+            whereSnapshot(name: "MissingDays", configurations: .fullContentPhoneLightDark) {
                 NavigationStack {
                     CalendarContentView(report: PreviewSupport.missingDaysYearReportModel())
                 }
             }
             // The Locations tab's zoom destination: one region's days only.
-            whereSnapshot(name: "Focused", configurations: .phoneLightDark) {
+            whereSnapshot(name: "Focused", configurations: .fullContentPhoneLightDark) {
                 NavigationStack {
                     CalendarContentView(
                         focusedRegion: .california,
@@ -578,39 +578,13 @@ private struct DayCell: View {
                     )
                 }
             }
-            whereSnapshot(name: "FocusedPlannedStay", configurations: .phoneLightDark) {
+            whereSnapshot(name: "FocusedPlannedStay", configurations: .fullContentPhoneLightDark) {
                 NavigationStack {
                     CalendarContentView(
                         focusedRegion: .newYork,
                         report: PreviewSupport.plannedStayYearReportModel(),
                     )
                 }
-            }
-            whereSnapshot(
-                name: "FocusedPlannedStayFullContent",
-                configurations: [
-                    SnapshotConfiguration(device: .fullContent(name: "fullHeight", width: 402)),
-                ],
-            ) {
-                CalendarContentView(
-                    focusedRegion: .newYork,
-                    report: PreviewSupport.plannedStayYearReportModel(),
-                )
-                .background(Color(.systemBackground))
-            }
-            // The shown months in one image. The full-content frame measures the
-            // scroll view's content height, so every lazy month materializes and
-            // nothing scrolls — which needs the chrome-free view, since a
-            // `NavigationStack` around it defeats content measurement (see
-            // `Frame.fullContent`).
-            whereSnapshot(
-                name: "FullContent",
-                configurations: [
-                    SnapshotConfiguration(device: .fullContent(name: "fullHeight", width: 402)),
-                ],
-            ) {
-                CalendarContentView(report: PreviewSupport.loadedYearReportModel())
-                    .background(Color(.systemBackground))
             }
         }
     }

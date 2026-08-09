@@ -69,8 +69,36 @@ public final class YearReportModel {
     /// re-fires), never persisted.
     private var manualScanToken = 0
 
+    private struct LoadedYear {
+        let details: YearReportDetails
+        let primaryRegionLocations: PrimaryRegionLocations
+
+        init(details: YearReportDetails, previous: LoadedYear?) {
+            self.details = details
+            let updatedLocations = PrimaryRegionLocations(details: details)
+            if
+                let previous,
+                previous.primaryRegionLocations.pointsByRegion == updatedLocations.pointsByRegion
+            {
+                primaryRegionLocations = previous.primaryRegionLocations
+            } else {
+                primaryRegionLocations = updatedLocations
+            }
+        }
+    }
+
     public private(set) var selectedYear: Int
-    public private(set) var report: YearReport?
+    private var loadedYear: LoadedYear?
+
+    public var report: YearReport? {
+        loadedYear?.details.report
+    }
+
+    /// Recorded GPS points derived from the same store snapshot as `report`.
+    var primaryRegionLocations: PrimaryRegionLocations? {
+        loadedYear?.primaryRegionLocations
+    }
+
     public private(set) var loadState: LoadState = .idle
 
     /// Start-of-day keys for days in the selected year that carry at least one
@@ -91,15 +119,15 @@ public final class YearReportModel {
     let services: WhereServices
     /// Persisted user intent. Exposed for the same reason as `services`.
     let preferences: WherePreferences
+    /// Synced planned-stay state and pure forecast projections for the
+    /// Locations surfaces.
+    let forecasts: LocationForecastModel
     /// The model's notion of "now", forwarded for calendar / missing-day math.
     let now: @Sendable () -> Date
 
     /// Gregorian calendar in the current time zone — matches the day keys the
     /// aggregator produces in `report.days`, so the missing-day math lines up.
     let calendar: Calendar
-    /// Synced planned-stay state and pure forecast projections for the
-    /// Locations surfaces.
-    let forecasts: LocationForecastModel
 
     /// Long-lived subscription to `services.dataChangeUpdates()` while the scene
     /// is active. `@ObservationIgnored` (plumbing, not UI state) and
@@ -117,6 +145,11 @@ public final class YearReportModel {
     /// of sync with the badge count.
     private var driftThresholdStorage: DriftThreshold
 
+    /// Observed mirror of the persisted Locations-card GPS-dot preference.
+    /// `WherePreferences` is intentionally a plain wrapper, so the shared scene
+    /// model publishes this value to both the Appearance toggle and Locations.
+    private var showsRecordedLocationDotsStorage: Bool
+
     /// Observed mirror of the Locations tab's forecast-visibility preference.
     /// `WherePreferences` is intentionally not observable, so Settings writes
     /// through this property to update the mounted Locations tab immediately.
@@ -125,6 +158,17 @@ public final class YearReportModel {
             guard oldValue != showsLocationForecastsOnLocationsTab else { return }
             preferences.showsLocationForecastsOnLocationsTab =
                 showsLocationForecastsOnLocationsTab
+        }
+    }
+
+    /// Whether Locations cards render their recorded GPS constellations.
+    /// Writes persist synchronously and update the visible cards immediately.
+    var showsRecordedLocationDots: Bool {
+        get { showsRecordedLocationDotsStorage }
+        set {
+            guard newValue != showsRecordedLocationDotsStorage else { return }
+            showsRecordedLocationDotsStorage = newValue
+            preferences.showsRecordedLocationDots = newValue
         }
     }
 
@@ -199,30 +243,33 @@ public final class YearReportModel {
         calendar.dayCount(ofYear: selectedYear)
     }
 
-    /// Build a report model over an already-assembled service layer. `report` is
-    /// the preview/test seam: a non-nil value lands `loadState` at `.loaded` so
-    /// `#Preview`s render content synchronously without driving `activate()`.
+    /// Build a report model over an already-assembled service layer. `details`
+    /// is the preview/test seam: a non-nil value lands `loadState` at `.loaded`
+    /// so `#Preview`s render the same complete snapshot production loads.
     public init(
         services: WhereServices,
-        report: YearReport? = nil,
+        details: YearReportDetails? = nil,
         selectedYear: Int = WhereModel.currentYear,
         preferences: WherePreferences,
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
         self.services = services
-        self.report = report
+        if let details {
+            loadedYear = LoadedYear(details: details, previous: nil)
+        }
         self.selectedYear = selectedYear
         self.preferences = preferences
         self.now = now
-        showsLocationForecastsOnLocationsTab =
-            preferences.showsLocationForecastsOnLocationsTab
         driftThresholdStorage = DriftThreshold(rawValue: preferences.driftThresholdMeters)
             ?? .default
+        showsRecordedLocationDotsStorage = preferences.showsRecordedLocationDots
+        showsLocationForecastsOnLocationsTab =
+            preferences.showsLocationForecastsOnLocationsTab
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = .current
         self.calendar = calendar
         forecasts = LocationForecastModel(services: services, calendar: calendar, now: now)
-        loadState = report == nil ? .idle : .loaded
+        loadState = details == nil ? .idle : .loaded
     }
 
     deinit {
@@ -269,7 +316,7 @@ public final class YearReportModel {
         selectedYear = year
         // Drop the previous year's report so views fall back to their loading
         // state instead of rendering stale data under the new year's label.
-        report = nil
+        loadedYear = nil
         // Clear the previous year's evidence markers too, so the calendar can't
         // briefly badge the new year's days with the old year's evidence.
         evidenceDayKeys = []
@@ -284,9 +331,9 @@ public final class YearReportModel {
     func refreshAll(forceDataIssueCount: Bool) async {
         await Self.logger.measure(.sceneRefresh, budget: .seconds(3)) {
             await refresh()
+            await forecasts.refresh()
             await refreshEvidenceDayKeys()
             await refreshDataIssueCount(force: forceDataIssueCount)
-            await forecasts.refresh()
         }
     }
 
@@ -352,8 +399,8 @@ public final class YearReportModel {
 
     public func refresh() async {
         // Capture the year this fetch is for; the model is reentrant while
-        // awaiting `yearReport`, so a rapid second `select(year:)` could install
-        // a stale report under the newer year's label.
+        // awaiting `yearReportDetails`, so a rapid second `select(year:)` could
+        // install a stale report under the newer year's label.
         let requestedYear = selectedYear
         // Only surface the loading state when there's nothing on screen yet — an
         // initial load or a year switch (which nils `report` first). A background
@@ -361,14 +408,17 @@ public final class YearReportModel {
         // equality guards below make an unrelated commit a no-op.
         if report == nil { loadState = .loading }
         do {
-            let report = try await services.reports.yearReport(for: requestedYear)
+            let details = try await services.reports.yearReportDetails(
+                for: requestedYear,
+                primaryRegionCount: RegionRanking.primaryCount,
+            )
             guard requestedYear == selectedYear else { return }
-            let changed = self.report != report
-            if changed { self.report = report }
+            let changed = loadedYear?.details != details
+            if changed { loadedYear = LoadedYear(details: details, previous: loadedYear) }
             if loadState != .loaded { loadState = .loaded }
             if changed {
                 Self.logger {
-                    .reportLoaded(year: requestedYear, dayCount: report.days.count)
+                    .reportLoaded(year: requestedYear, dayCount: details.report.days.count)
                 }
             }
         } catch {

@@ -112,9 +112,14 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
   re-running the probe. Guard:
   `SnapshotKitTestingTests.LargeViewCaptureTests`.
 - **Full-content sizing includes UIKit-backed SwiftUI containers.** When a
-  root-filling scroll view such as `Form` reports only its viewport through
-  `sizeThatFits`, use its content size. Guard:
+  full-width scroll view such as `Form` reports only its viewport through
+  `sizeThatFits`, use its content size plus surrounding chrome; device presets
+  retain their normal viewport height as the minimum. Guard:
   `SnapshotKitTestingTests.LargeViewCaptureTests`.
+- **Intrinsic height must converge before comparison.** Exhausting the bounded
+  fixed-point passes fails the assertion and skips comparison/recording; never
+  bless the last arbitrary height. Guard:
+  `LargeViewCaptureTests.rejectsNonConvergingBoundedScrollMeasurement`.
 - **A settle phase costs its floor, not its passes.** Measured over all 260
   references with `SNAPSHOT_TIMING=1`: 192 captures sit at 0.25-0.35s, the
   `minDuration` floor plus a pass or two, and the floor accounts for ~70s of

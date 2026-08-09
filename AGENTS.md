@@ -16,7 +16,9 @@ Roughly, this file covers:
 - **Writing code** — [Per-module docs](#per-module-docs) (and the module layout),
   [Repo-level docs](#repo-level-docs), and [Conventions](#conventions)
   (including [Modeling state](#modeling-state) and
-  [Composition](#composition-create-once-inject-down)).
+  [Composition](#composition-create-once-inject-down)); load the
+  [`building-ui`](.agents/skills/building-ui/SKILL.md) skill for SwiftUI/UIKit
+  construction, Broadway styling, accessibility, previews, and snapshots.
 - **Working** — [Working in this repo](#working-in-this-repo): commits;
   [GitHub](#github) and [running tests](#running-tests) load their skills when
   needed.
@@ -56,7 +58,7 @@ The executables in the repo root are the dev scripts — `ide`, `test`,
 hand-rolling its job: `test` is the only way tests should be run (see [Running
 tests](#running-tests)), and `icons`, `attribution`, and `simulator` in particular own state that is
 easy to corrupt by hand — `./simulator` owns a per-checkout device (see the
-[`running-tests`](../.agents/skills/running-tests/SKILL.md) skill).
+[`running-tests`](.agents/skills/running-tests/SKILL.md) skill).
 
 ### Managing app icons
 
@@ -99,17 +101,18 @@ over a build setting Xcode didn't export.
 
 An app ships an **attribution report** — every third-party work it is built
 with, license notices inline. **Re-run `./attribution` and commit the result
-whenever you add or bump a package or an agent skill**; `./attribution
---check` fails CI if you forget (offline, sub-second — an app's own tests
-can't do this job, since a test bundle can't read `Package.swift`).
+whenever you add or bump a package, an agent skill, or a development tool**;
+`./attribution --check` fails CI if you forget (offline, sub-second — an app's
+own tests can't do this job, since a test bundle can't read `Package.swift`).
 
 - [`Shared/CreditKit`](Shared/CreditKit/AGENTS.md) owns the types and the
   reporting tool and holds **no credits of its own**; each app declares its
   sources in an `attribution-sources.json` and ships the report in its own
   resources (for Where, `Where/Where/Resources/attribution.json`).
 - The report derives from `.product(name:package:)` links (pinned by
-  `Package.resolved`) and `.agents/external-skills.json`, notices read at the
-  pinned revision — so tooling-only packages correctly aren't credited.
+  `Package.resolved`), `.agents/external-skills.json`, and
+  `.agents/development-tools.json`, notices read at the pinned revision — so
+  tooling-only packages correctly aren't credited.
 - **Kind is derived, not declared**: anything reachable from `shippedFrom`'s
   target closure is a library, any other linked package a development tool —
   linking is not shipping, and a UI must keep the two apart.
@@ -150,7 +153,9 @@ by `./sync-agents`.
 `.agents/skills/.gitignore` excludes those fetched copies, so anything else
 under `.agents/skills/` is **repo-owned** and committed. External skills are
 also an **attribution** input — after adding or updating one, re-run
-`./attribution` (see [Attribution](#attribution)).
+`./attribution` (see [Attribution](#attribution)). The same applies to
+`.agents/development-tools.json` when pinned verification or other non-SPM
+tooling changes.
 
 **`.agents/skills/` is the real home; edit the source, never the
 `.claude/skills/` mirror**, and run `./sync-agents` after adding or editing a
@@ -174,12 +179,13 @@ triage). **Always-on** rules every edit must honor stay in `AGENTS.md` or
 - **Image snapshots are the exception: one bundle per module, one shared scheme.** Each module owning image references has its own `*SnapshotTests` target over its `SnapshotTests/` folder, all listed in the single shared **StuffSnapshotTests** scheme and its dedicated CI `snapshot` job — slow and LFS-backed, so deliberately **out of** `Stuff-iOS-Tests`. References under any `__Snapshots__/` directory are Git LFS (`.gitattributes`; the CI job checks out with `lfs: true`). Framework halves: `Shared/SnapshotKit` (shippable matrix + previews) and `Shared/SnapshotKitTesting` (test-only pipeline, whose own regression bundle **SnapshotKitTestingTests** pixel-probes without LFS and runs in `Stuff-iOS-Tests`).
 - **A new image suite gets a target, not a scheme.** Add the `*SnapshotTests` target, list only `SnapshotKitTesting` in `extraPackageProducts`, and add it to the `StuffSnapshotTests` scheme's build and test lists — never a scheme or CI job of its own. An image bundle links only what its module needs (the Periscope and Inspector suites don't build against WhereUI at all); references follow the sources automatically via `#filePath`.
 - **Separate snapshot bundles are safe because each `.xctest` gets its own `StuffTestHost` process** (measured on Xcode 27 — `ProcessInfo.processIdentifier` probes; details in the snapshot-bundle comment in [`Project.swift`](Project.swift)). Each bundle statically embeds its own copy of `SnapshotKitTesting`'s capture state, and two copies in one process would corrupt each other. Tripwire: if a toolchain ever shares one host process across bundles, re-measure before adding another image bundle.
+- **Snapshots containing scrolling content use full-content intrinsic height.** Any image snapshot whose rendered subject contains a `ScrollView`, `List`, `Form`, or equivalent UIKit-backed scrolling container uses SnapshotKit's full-content device presets, which keep the normal device viewport as their minimum height and grow to fit taller content; fixed-height device frames are reserved for subjects without scrolling content. Preserve production navigation, tab, sheet, search, and toolbar chrome when intrinsic measurement converges; an intentionally bounded/greedy container instead snapshots its shared scrolling child directly, never snapshot-only production layout (see `SnapshotConfiguration.Frame.fullContent`).
 
 ### Never double-link a product WhereUI already carries
 
-A target that depends on **WhereUI** must not also list any of WhereUI's own
-dependencies (WhereCore, Broadway, LifecycleKit/LifecycleKitUI, Periscope,
-SnapshotKit, Inspector, …) in `extraPackageProducts` — reach them
+A target that depends on **WhereUI** must not also list one of WhereUI's own
+statically absorbed dependencies (WhereCore, Broadway, LifecycleKitUI,
+Periscope, SnapshotKit, Inspector, …) in `extraPackageProducts` — reach it
 transitively. A second copy splits the module's type metadata across the WhereUI
 boundary and every type-keyed lookup (SwiftUI `EnvironmentKey`s,
 `UITraitBridgedEnvironmentKey` bridging such as SnapshotKit's
@@ -191,13 +197,14 @@ isolated `./test WhereUITests` run. Guard:
 `WhereStylesheetTests.resolvesTraitAwareTokensFromTheBroadwayRoot` fails if a
 duplicate copy answers.
 
-**Nothing in this project is a dynamic framework** — the local package is
-handed to Xcode's own SPM integration, which links every product statically
-into each consumer, so "WhereUI carries its dependencies" means *statically
-embeds them into whatever links WhereUI*, and a double-link lands two copies
-in one image. The guard test is the authority on whether a given duplication
-is harmful — measured symbol-coalescing detail and the correction history:
-PR #145.
+**Exception:** `WhereUITests` names `LifecycleKit` because its test sources use
+those public types directly and Xcode 27 beta 4 emits that product as a shared
+package framework in this graph; copying it transitively through `WhereUI` does
+not put it on the test bundle's link command. This links the same generated
+framework rather than another static copy. Re-measure on a toolchain change.
+
+The guard test is the authority on whether a given duplication is harmful —
+measured symbol-coalescing detail and the correction history: PR #145.
 
 ## Deployment
 
@@ -267,7 +274,7 @@ A few files outside the module pair carry *state* rather than rules:
   it touches, up to root. Read that file before adding an item, and have a new
   area's file link to it rather than copying the header. Anything deliberately
   deferred is filed rather than dropped (see the
-  [`github-workflow`](../.agents/skills/github-workflow/SKILL.md) skill), and a completed
+  [`github-workflow`](.agents/skills/github-workflow/SKILL.md) skill), and a completed
   item moves to "Completed issues" — never deleted.
 - **`INBOX.md`** — the root drop-box for raw, unverified human notes. Agents
   **read from it and promote out of it**; they never file new items there
@@ -334,6 +341,12 @@ scope and invariants on top rather than restating these.
   only where a generic can't reach (a non-generic environment value, a
   heterogeneous container). Examples: `LaunchStepID`,
   `WherePreferences.Keys`, `StoreURL`.
+- **Keep domain values typed through API and helper boundaries.** Accept the
+  strongest existing domain type (`Region`, `CalendarDay`, a nested `ID`) and
+  unwrap its `rawValue` / storage key only at the persistence, wire, or system
+  boundary that requires the primitive. When no domain type exists and a raw
+  scalar is unavoidable, give it a role-specific label (`sampleID`,
+  `evidenceID`), never an ambiguous `id`.
 - **Avoid parameter defaults on Core/store APIs.** Prefer explicit call-site
   arguments so new behavior isn't silently opted into. Reserve defaults for
   SwiftUI convenience inits and obvious zero values (`[]`, `.zero`) where
@@ -387,49 +400,13 @@ scope and invariants on top rather than restating these.
   the data instead (see the no-in-app-migration rule in
   [`Where/WhereCore/AGENTS.md`](Where/WhereCore/AGENTS.md)).
 
-### SwiftUI, UIKit, and lifetime
+### UI construction
 
-- Don't build closure-based `Binding(get:set:)` values in SwiftUI views; bind
-  directly to observable state (`$model.foo`). For a derived binding (e.g.
-  mapping an optional error to the `Bool` an `.alert` wants), expose a computed
-  `get`/`set` on the `@Observable` model and bind to that, keeping the
-  underlying value the single source of truth.
-- **Host child view controllers with direct frame math, not Auto Layout.** When
-  a `UIViewController` embeds a child (e.g. a `UIHostingController` bridging
-  SwiftUI in an app extension), add it and set `child.view.frame = view.bounds`
-  in `viewWillLayoutSubviews()` rather than pinning four edge constraints. For a
-  full-bleed single child it's simpler, cheaper, and keeps the layout in one
-  obvious place (see `WhereShareExtension`'s `ShareViewController`).
-- **Observe with a target/selector, not a retained token; every `start` has
-  a `stop`.** Register via `addObserver(_:selector:name:object:)` with `self`
-  so teardown is one `removeObserver(self)`, and a restart
-  removes-before-re-adding (see `NotificationAmbientSource`). Never
-  block-based `addObserver(forName:)` — dropping its token makes the
-  observation unremovable and immortalizes everything the block captured.
-  Any `start…`-style observation API gets a paired `stop()`.
-
-### Architecture and reuse
-
-- **Core behavior belongs in the model/controller layer, not in views.**
-  Persistence, domain rules, detection, and side effects live in the feature's
-  core module (for Where: `WhereCore` collaborators on `WhereServices`). UI
-  modules hold view models that *orchestrate* those services for SwiftUI
-  (`WhereSession` mirrors output and exposes intent methods) and views that
-  *render* and *route* — not reimplement rules, cache policy, or store I/O.
-  When adding behavior, default to Core (+ view-model glue if the UI needs a
-  trigger or observable mirror); push logic into a `View` only for presentation.
-  See [`Where/AGENTS.md`](Where/AGENTS.md#layering).
-- **Reuse before you duplicate.** Before adding a new view / form / component
-  (or any type), look for an existing one covering the same concept and *extend*
-  it — a new mode or parameter, or a shared subview — rather than forking a
-  near-copy. Two screens that differ only in a few sections (e.g. *add* vs.
-  *edit* of the same thing) should be **one view with a mode**, not parallel
-  files; shared chrome (a save-error alert, a region-toggle section, an audit
-  block) becomes a shared subview, not copy-paste. If a planned addition would
-  substantially overlap existing UI and consolidating vs. forking isn't clearly
-  right, **flag it and align before building** rather than shipping the
-  duplicate. (This is the reflex behind `ManualDayView`'s add/edit modes and the
-  shared `ManualEntryAuditSection`.)
+Load the [`building-ui`](.agents/skills/building-ui/SKILL.md) skill when
+creating, changing, or reviewing a SwiftUI/UIKit surface. It owns the general
+view/model boundary, reuse, binding, Broadway stylesheet, layout,
+accessibility, localization, UIKit-bridge, preview, and image-snapshot
+procedures; module `AGENTS.md` files add only their local seams and invariants.
 
 ### Repo hygiene
 
@@ -531,7 +508,9 @@ flag is needed there.
 ## Running tests
 
 **Use [`./test`](test)** — the only way to run tests. Never hand-roll `tuist
-test` or `xcodebuild`. **Validate in proportion to risk:** run
+test` or `xcodebuild`. It runs the host-side backup-upgrader regression before
+selecting an iOS bundle, so tool-only changes remain covered by the same entry
+point. **Validate in proportion to risk:** run
 `./swiftformat --lint` when the changed files are in its scope, and run the
 narrowest applicable `./test` tier for code, build, tooling, or behavior
 changes. Pure documentation or comment-only changes may skip checks that
@@ -539,7 +518,7 @@ cannot exercise them; record skipped checks in the commit or PR validation.
 Semantic changes to configuration, scripts, generator inputs, executable
 examples, or app-rendered copy are not documentation-only.
 
-Load the [`running-tests`](../.agents/skills/running-tests/SKILL.md) skill for
+Load the [`running-tests`](.agents/skills/running-tests/SKILL.md) skill for
 test tiers, snapshot opt-in, why not `tuist test`, and per-checkout simulator
 management (`./simulator` resolves a UDID — never pass a device name to
 `simctl`).
@@ -550,18 +529,22 @@ management (`./simulator` resolves a UDID — never pass a device name to
   every commit for one piece of work on that one branch.
 - **Validate in proportion to risk.** Follow [Running tests](#running-tests),
   never commit a known-red tree, and load the
-  [`running-tests`](../.agents/skills/running-tests/SKILL.md) skill to choose
+  [`running-tests`](.agents/skills/running-tests/SKILL.md) skill to choose
   the applicable checks.
 - **Multi-step work lands one commit per step**, so history stays bisectable and
   can land piecewise — including pure-groundwork steps, which say so in the body.
-- **Commit when asked, or when working through a plan.** If it's unclear whether
-  a commit is wanted, make the change and ask rather than committing silently.
+- **Commit completed work eagerly.** Once a coherent change is verified, commit
+  it without waiting for a separate request; never hand back a finished task
+  with task-related changes left local, unpushed, or uncommitted. Honor an
+  explicit request to keep work uncommitted.
 
 ### GitHub
 
-Load the [`github-workflow`](../.agents/skills/github-workflow/SKILL.md) skill
+Load the [`github-workflow`](.agents/skills/github-workflow/SKILL.md) skill
 for PRs, pushes, review feedback, CI, and posting as the user. Always-on: use
-`gh`; open PRs ready-for-review; mark AI-posted comments.
+`gh`; open PRs ready-for-review; mark AI-posted comments. **Plan-driven work
+ends with push + PR** before handing back. **Addressing review feedback
+includes GitHub replies** on the threads you touch — not code-only fixes.
 
 ## Codex worktree specific instructions
 
@@ -639,5 +622,5 @@ being written off as untestable from a cloud agent.
 ### Full build & test (macOS only)
 
 Matches CI `.github/workflows/ci.yml` — see the
-[`running-tests`](../.agents/skills/running-tests/SKILL.md) skill for simulator
+[`running-tests`](.agents/skills/running-tests/SKILL.md) skill for simulator
 setup and the full validation recipe.

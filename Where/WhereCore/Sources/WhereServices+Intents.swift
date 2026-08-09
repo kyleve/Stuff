@@ -1,11 +1,8 @@
 import Foundation
 
 extension WhereServices {
-    /// Assemble the App Intents stack (Siri, Spotlight, Shortcuts — executing
-    /// in the app's own process) over the **same store, live attribution,
-    /// aggregation calendar, and clock `base` already holds** — only the
-    /// location source differs (``IdleLocationSource``, so resolving an
-    /// intent never starts GPS).
+    /// Hand App Intents (Siri, Spotlight, Shortcuts — executing in the app's own process) the
+    /// exact assembled stack the app already owns.
     ///
     /// This is the *only* way an intents stack is built, and it is
     /// deliberately synchronous and non-throwing: deriving from an assembled
@@ -18,22 +15,12 @@ extension WhereServices {
     /// intent write pings the same `changes()` signal the running UI
     /// refreshes from.
     ///
-    /// The notification and widget seams come from `base` for the same reason
-    /// the attributor does: a stack derived from the demo world is built out of
-    /// no-ops, and minting real ones here would let a demo intent post a real
-    /// notification or reload the user's widgets.
+    /// Sharing the value also shares its actor references, especially the one
+    /// `DeviceRecordingController` that owns this installation's check-in. Rebuilding a nominally
+    /// GPS-free stack would create a second controller capable of acknowledging `.recording`
+    /// through an idle source and racing the app's real authority.
     public static func forIntents(sharingStoreOf base: WhereServices) -> WhereServices {
-        WhereServices(
-            store: base.store,
-            locationSource: IdleLocationSource(),
-            attributor: base.attributor,
-            aggregator: base.aggregator,
-            reminderScheduler: base.reminderScheduler,
-            summaryScheduler: base.summaryScheduler,
-            issueAlertScheduler: base.issueAlertScheduler,
-            widgetRefresher: base.widgetRefresher,
-            now: base.now,
-        )
+        base
     }
 
     /// Test seam: wraps an in-memory `store` in the same GPS-free service
@@ -49,10 +36,12 @@ extension WhereServices {
         try await make(
             store: store,
             locationSource: IdleLocationSource(),
+            installationContext: .testing,
             reminderScheduler: NoopLoggingReminderScheduler(),
             summaryScheduler: NoopDailySummaryScheduler(),
             issueAlertScheduler: NoopDataIssueAlertScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
+            importRecoveryPersistence: NoopBackupImportRecoveryPersistence(),
             now: now,
         )
     }

@@ -1,0 +1,16 @@
+{
+  "module": "ScopeExclusivity.tla",
+  "cases": [
+    {
+      "name": "broken",
+      "config": "Broken.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant NoOverlappingRealContainers is violated."
+    },
+    {
+      "name": "current",
+      "config": "Current.cfg",
+      "expect": "pass"
+    }
+  ]
+}

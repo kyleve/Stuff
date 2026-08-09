@@ -151,7 +151,7 @@ private let whereStoreMutatingMethods: Set<String> = [
 private let storeTransactionBoundaryRule = Rules.files(
     "where.store_transaction_boundary",
     severity: .error,
-    summary: "WhereStore mutations occur inside the transaction owned by store.perform.",
+    summary: "WhereStore mutations occur inside a transaction helper on store.",
 ) { file in
     functionCalls()
         .filter { match in
@@ -162,28 +162,28 @@ private let storeTransactionBoundaryRule = Rules.files(
             else {
                 return false
             }
-            return !isInsideStorePerform(match.node)
+            return !isInsideStoreTransaction(match.node)
         }
         .matches(in: file)
         .map { match in
             match.failure(
-                message: "WhereStore mutation occurs outside store.perform.",
+                message: "WhereStore mutation occurs outside a store transaction.",
                 evidence: ViolationEvidence(
                     observed: match.node.calledExpression.trimmedDescription,
-                    expectation: "call the mutation from inside store.perform { ... }",
+                    expectation: "call the mutation inside store.perform { ... } or store.performInCurrentGeneration { ... }",
                 ),
             )
         }
 }
 
-private func isInsideStorePerform(_ node: FunctionCallExprSyntax) -> Bool {
+private func isInsideStoreTransaction(_ node: FunctionCallExprSyntax) -> Bool {
     var ancestor = Syntax(node).parent
     while let current = ancestor {
         if
             let call = current.as(FunctionCallExprSyntax.self),
             let access = call.calledExpression.as(MemberAccessExprSyntax.self),
             ["store", "self.store"].contains(access.base?.trimmedDescription),
-            access.declName.baseName.text == "perform"
+            ["perform", "performInCurrentGeneration"].contains(access.declName.baseName.text)
         {
             return true
         }

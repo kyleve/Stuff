@@ -31,7 +31,7 @@ is not a `WhereScope` and must never construct regular app services.
 | Layer | Where | Owns |
 |-------|-------|------|
 | **Domain / services** | `WhereCore` (`WhereServices` collaborators) | Rules, detection, aggregation, persistence, side effects. Unit-test here. |
-| **View model** | `WhereUI` (`WhereModel`, the `WhereSession` coordinator, the scoped `YearReportModel` / `ResolveModel` / `BackupModel` / `RemindersSettingsModel`) | Lifecycle wiring, observable mirrors of service output, UI intent methods. |
+| **View model** | `WhereUI` (`WhereModel`, the `WhereSession` coordinator, the scoped `YearReportModel` / `ResolveModel` / `BackupModel` / `RemindersSettingsModel` / `DevicesSettingsModel`) | Lifecycle wiring, observable mirrors of service output, UI intent methods. |
 | **Views** | `WhereUI` (`*View`) | Layout, navigation, localized copy, bindings. Never store I/O, detection, or cache/throttle policy. |
 
 When in doubt: if the behavior would still be correct without SwiftUI, it
@@ -67,6 +67,12 @@ Rules the code enforces and agents must preserve:
   `CoreLocationSource` in production, `ScriptedLocationSource` in
   tests/previews. The one-shot `requestCurrentLocation()` returns `nil` rather
   than throwing when no fix is available.
+- **Automatic recording consent is installation-local.** Stamp automatic GPS samples with their
+  `RecordingDeviceID` and route user-facing reads through `LocationHistoryReader`. Sync profiles,
+  nickname events, advisory check-ins, and global removal tombstones, but never another device's
+  recording toggle. Keep consent beside the backup-excluded installation identity; phone
+  onboarding recommends On only when no other active device recently reported recording, while
+  tablet/other and explicit rejoins recommend Off.
 - **Manual entries carry a `ManualEntryAudit`**; `DayJournal`'s write methods
   take an explicit `audit:` (no default). An additive backfill can't downgrade
   an authoritative row's regions, but the newer audit always wins.
@@ -119,10 +125,9 @@ slow.
   `WhereServices`, the `WherePreferences` driving it, and the durable log store
   they record into. Created whole; `WhereSession` is built from one, so a
   surface can't read one world's store against another's preferences.
-- **Nothing opens until the user picks a world.** The trunk is rooted at the
-  onboarding gate, so an install that never onboards creates no store file,
-  contacts no CloudKit, and opens no log store. Guard:
-  `WhereLaunchTests.firstRunForegroundLaunchParksOnTheOnboardingGateBeforeOpeningAnything`.
+- **Onboarding may prepare the real store only for recording-authority discovery.** Retain that
+  exact store for scope resolution; do not construct services, expose App Intents, start GPS, or
+  open the log store until the user finishes choosing a world.
 - **At most one scope is active and log-routing at a time.** Logging out — a
   reset, or leaving a demo — releases and tears down the scope; logging back in
   builds a fresh one. Flyover is the narrow exception to "one open world": it
@@ -132,8 +137,9 @@ slow.
   `WhereResetTests.loggingOutReleasesTheScopeBeforeTheNextLoginOpensOne`.
   `WhereFlyoverWorldTests.buildsASeededSiblingWithoutActivatingIt`.
 - **The onboarding gate declares `modes: .all`,** not the `.foreground`
-  default: parking a headless launch is the point. A background wake needs the
-  permission this flow asks for, so `isNeeded` is false by then.
+  default: parking a headless launch is the point. Keep recording confirmation
+  in the backup-excluded installation sidecar, so restoring backed-up
+  `hasOnboarded` onto another device parks at the final choice page.
 - **A gate carries no value,** so a choice made *at* it reaches `resolve-scope`
   through `WhereModel` — the one step that reads model state rather than the
   trunk.
@@ -188,6 +194,7 @@ typed-route list (`SettingsSearch.swift`; every switch is exhaustive), so a
 new drill-in is a set of compile errors to fill in; About stays the last
 block and the demo-mode exit the first.
 
+The Data and About screens lead with the shared privacy passport statement.
 The About screen renders three live sources — the generated attribution
 report (`WhereCore.AppAttribution`), `RegionDataSource`, and `BuildInfo` —
 never a list hard-coded in the view. A missing report or unstamped build
@@ -217,7 +224,7 @@ English literal in `Text` / `errorDescription`.
   the *source* literal instead. Catalogs stay byte-identical to Xcode's own
   serialization (root [Formatting](../AGENTS.md#formatting)).
 
-## Dates & presentation
+## Dates
 
 - **A logical day is a `CalendarDay` (Y-M-D), not a `Date`** — see
   [`WhereCore/AGENTS.md`](WhereCore/AGENTS.md). Never persist a day as an
@@ -232,34 +239,16 @@ English literal in `Text` / `errorDescription`.
   hardcoded day/weekday counts (`Calendar.dayCount(ofYear:)`).
 - **Core layout APIs throw on failure**; views surface
   `ContentUnavailableView` + log, never `!`.
-- Appearance tokens live in `WhereStylesheet`
-  ([`WhereUI/AGENTS.md`](WhereUI/AGENTS.md)); shared date-range copy in
-  `DateRangeFormatting`; numbers and dates use `FormatStyle`, not string
-  interpolation. Expensive layout computes once into state, not per `body`
-  pass. Sharing uses `ShareLink` / `Transferable`.
+- Shared date-range copy lives in `DateRangeFormatting`; WhereUI composition
+  and value formatting go through `WhereFormat`.
 
-## SwiftUI views & previews
+## UI construction
 
-Every previewable component in `WhereUI` (any `View`, `Widget`, or
-`WidgetBundle`) **must** ship at least one `#Preview` in the same file,
-wrapped in `#if DEBUG` at the bottom, built from
-[`PreviewSupport`](WhereUI/Sources/Preview/PreviewSupport.swift) fixtures —
-synchronous, in-memory, never disk/CloudKit/CoreLocation. Cover empty,
-loaded, and distinct edge states, not just the happy path.
-
-- **Animate transitions between distinct states** — `.transition` on each
-  `switch` arm plus `.animation(_:value:)`; hidden means *out of the tree*,
-  not opacity zero.
-- **A displayed value that can change under the user morphs, too** — a
-  `.contentTransition` needs a paired `.animation(_:value:)` or it silently
-  hard-cuts, and the transition and its animation are one stylesheet token
-  (see `CardStyles.DayCountStyle`).
-- **Derive UI dimensions; don't repeat them** — measure real chrome via a
-  preference key / `onGeometryChange` (see `DeveloperTabBarInset`), scale
-  controls with `@ScaledMetric`, prefer semantic font styles.
-- **Custom full-screen surfaces must work under VoiceOver** — the `.isModal`
-  trait plus `.screenChanged` across the modal boundary (see
-  `DeveloperOverlay`).
+Load the repo [`building-ui`](../.agents/skills/building-ui/SKILL.md) skill for
+view/model placement, reuse, Broadway styling, layout, accessibility,
+localization, previews, and image coverage. WhereUI previews use
+[`PreviewSupport`](WhereUI/Sources/Preview/PreviewSupport.swift): synchronous,
+in-memory fixtures that never touch disk, CloudKit, or CoreLocation.
 
 ## Adding things
 
@@ -285,6 +274,10 @@ surfaces survive at near-Release speed. Options: `./Where/install --help`.
 
 Root [testing conventions](../AGENTS.md#testing) apply. What's specific here:
 
+- **Formal protocol specs** live under [`Specifications/`](Specifications/); run
+  them locally with [`./tla-check`](../tla-check) (opt-in, not CI). Each folder
+  holds a `.tla` model, TLC configs, a `manifest.json`, and a README tying the
+  model to production code and cited Swift tests.
 - Test bundles run in `StuffTestHost` via the `unitTests` helper in
   `Project.swift` and link `TestHostSupport` (`show(_:perform:)`, `waitFor`).
 - Use `ScriptedLocationSource` and `SwiftDataStore.inMemory()` — never

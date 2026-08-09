@@ -43,6 +43,15 @@ final class AccessibilitySnapshotViewController: UIViewController {
     /// annotations. Must be called while the view is in the hierarchy. Rendering
     /// failures surface loudly rather than producing a blank image.
     func parseAccessibility() {
+        // AccessibilitySnapshot temporarily moves the contained view into its
+        // renderer. Suspend controller containment around that move, then
+        // restore it before the annotated wrapper is captured.
+        content.willMove(toParent: nil)
+        content.removeFromParent()
+        defer {
+            addChild(content)
+            content.didMove(toParent: self)
+        }
         do {
             try snapshotView.parseAccessibility()
         } catch let ImageRenderingError.containedViewExceedsMaximumSize(viewSize, maximumSize) {

@@ -21,8 +21,10 @@ conventions.
   build scripts, or macros without revisiting the API and build-cost tradeoff.
 - Present Flyover outside an ambient `NavigationStack`; use a separate
   presentation domain such as `fullScreenCover`.
-- Route Flyover appearance through `FlyoverStylesheet`; keep fixed tokens in
-  property defaults and trait-derived adjustments in `init(context:)`.
+- Route Flyover appearance through `FlyoverStylesheet`; `FlyoverView` seeds its
+  Broadway root so the tool renders independently of its host. Follow the repo
+  [`building-ui`](../../.agents/skills/building-ui/SKILL.md) skill for the
+  general stylesheet, layout, accessibility, preview, and snapshot rules.
 - Overview screen content is inert. Native interaction is enabled only in the
   focused inspector; per-frame controls remain interactive in both modes.
 - Every screen receives a `NavigationStack` by default so its navigation chrome

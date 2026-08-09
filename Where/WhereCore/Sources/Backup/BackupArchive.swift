@@ -6,23 +6,25 @@ import RegionKit
 /// `.zip`; evidence blob bytes live alongside it under `assets/` and are
 /// linked back to their records by `BackupAssetEntry`.
 ///
-/// The arrays mirror the SwiftData tables exactly (`SDLocationSample` /
+/// The arrays represent the persisted collections (`SDLocationSample` /
 /// `SDEvidence` / `SDManualDay` / `SDDismissedIssue` / `SDTrackedRegion`) via
-/// their value-type representations, so an export captures everything and an
-/// import can upsert it back row-for-row.
+/// their value-type representations, plus installation profiles, nickname events, the
+/// device-removal tombstones, and planned-stay revisions. Target-owned check-ins and local
+/// recording consent are
+/// intentionally excluded because a backup cannot restore proof of local physical state.
 public struct BackupArchive: Codable, Sendable, Hashable {
     /// Bumped whenever the archive's on-disk shape changes in a way older
     /// readers can't understand, so an importer can refuse a file it doesn't
     /// know how to read instead of silently dropping data (see
     /// `BackupService.readArchive`, which rejects any other version).
     ///
-    /// v2 adds `primaryRegions` (each tracked region's picked appearance + pick
-    /// order); v3 adds `plannedStayRecords`. There's no in-app decode fallback
-    /// for an older archive — it's
-    /// reshaped out of band by `Tools/upgrade-backup.rb` (which synthesizes
-    /// `primaryRegions` from `trackedRegions`), matching the module's
-    /// no-migration-on-read rule (see `AGENTS.md`).
-    public static let currentFormatVersion = 3
+    /// v3 adds sample provenance, immutable installation profiles, nickname changes, and archive
+    /// tombstones. v4 expands device kinds, groups metadata edit payloads, and renames the
+    /// profile's registration-generation key; v5 adds `plannedStayRecords`. There's no in-app
+    /// decode fallback for an older archive — it is reshaped out of band by
+    /// `Tools/upgrade-backup.rb`, matching the module's no-migration-on-read rule (see
+    /// `AGENTS.md`).
+    public static let currentFormatVersion = 5
 
     public let formatVersion: Int
     public let exportedAt: Date
@@ -41,6 +43,12 @@ public struct BackupArchive: Codable, Sendable, Hashable {
     /// brings back the *look*, not just the region set. Import restores from
     /// this; `trackedRegions` is the derived id list.
     public let primaryRegions: [PrimaryRegion]
+    /// Immutable installation profiles.
+    public let recordingDeviceProfiles: [RecordingDeviceProfile]
+    /// Full append-only nickname history.
+    public let recordingDeviceMetadataChanges: [RecordingDeviceMetadataChange]
+    /// Irreversible installation-removal tombstones.
+    public let recordingDeviceRemovals: [RecordingDeviceRemoval]
     /// Revisions of the synced planned-stay register, including its clearing
     /// tombstone, so restore cannot resurrect an older active stay.
     public let plannedStayRecords: [PlannedStayRecord]
@@ -57,7 +65,10 @@ public struct BackupArchive: Codable, Sendable, Hashable {
         dismissedIssues: [DismissedIssue],
         trackedRegions: [Region],
         primaryRegions: [PrimaryRegion],
-        plannedStayRecords: [PlannedStayRecord] = [],
+        recordingDeviceProfiles: [RecordingDeviceProfile],
+        recordingDeviceMetadataChanges: [RecordingDeviceMetadataChange],
+        recordingDeviceRemovals: [RecordingDeviceRemoval],
+        plannedStayRecords: [PlannedStayRecord],
         assets: [BackupAssetEntry],
     ) {
         self.formatVersion = formatVersion
@@ -68,6 +79,9 @@ public struct BackupArchive: Codable, Sendable, Hashable {
         self.dismissedIssues = dismissedIssues
         self.trackedRegions = trackedRegions
         self.primaryRegions = primaryRegions
+        self.recordingDeviceProfiles = recordingDeviceProfiles
+        self.recordingDeviceMetadataChanges = recordingDeviceMetadataChanges
+        self.recordingDeviceRemovals = recordingDeviceRemovals
         self.plannedStayRecords = plannedStayRecords
         self.assets = assets
     }

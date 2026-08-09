@@ -139,6 +139,8 @@ Periscope.shared.startDefaultAmbientSources()
   Inspector runtime needs without starting a logging session or exposing the
   internal SwiftData model classes. The recovery URLs include the crash
   journals that would otherwise replay deleted history into a fresh store.
+  Periscope storage is always local-only; its model configurations disable
+  CloudKit explicitly even when the host application has iCloud entitlements.
 
 ## How it works
 

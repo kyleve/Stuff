@@ -100,6 +100,38 @@ enum WhereFormat {
         ))
     }
 
+    static func settingsBackupImportedMessage(
+        _ summary: BackupCoordinator.ImportSummary,
+    ) -> String {
+        settingsBackupImportedMessage(
+            samples: summary.sampleCount,
+            evidence: summary.evidenceCount,
+            manualDays: summary.manualDayCount,
+            dismissedIssues: summary.dismissedIssueCount,
+            trackedRegions: summary.trackedRegionCount,
+        )
+    }
+
+    /// A committed import is not retryable: pair its preserved summary with
+    /// recovery guidance that cannot be mistaken for a rolled-back failure.
+    static func backupImportCleanupMessage(
+        _ summary: BackupCoordinator.ImportSummary,
+    ) -> String {
+        String(localized: .backupImportCleanupMessage(
+            settingsBackupImportedMessage(summary),
+        ))
+    }
+
+    /// A later onboarding step cannot roll back an import that already committed. Preserve the
+    /// summary while directing the user to resume setup instead of applying the archive again.
+    static func backupImportSetupMessage(
+        _ summary: BackupCoordinator.ImportSummary,
+    ) -> String {
+        String(localized: .backupImportSetupMessage(
+            settingsBackupImportedMessage(summary),
+        ))
+    }
+
     /// Result of a manual "Find issues now" scan — the current unresolved count,
     /// worded as present state (0 / 1 / many explicit, no catalog plural rule).
     static func settingsFindIssuesResult(count: Int) -> String {

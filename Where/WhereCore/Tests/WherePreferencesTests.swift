@@ -11,7 +11,7 @@ struct WherePreferencesTests {
         let preferences = preferences()
 
         #expect(preferences.hasOnboarded == false)
-        #expect(preferences.wantsTracking)
+        #expect(preferences.showsRecordedLocationDots)
         #expect(preferences.showsLocationForecastsOnLocationsTab)
         #expect(preferences.remindersEnabled)
         #expect(preferences.reminderTime == .defaultEvening)
@@ -20,14 +20,6 @@ struct WherePreferencesTests {
         #expect(preferences.issueAlertsEnabled)
         #expect(preferences.driftThresholdMeters == DriftThreshold.default.rawValue)
         #expect(preferences.lastSeenLocationDayCounts(in: 2026) == nil)
-    }
-
-    @Test func locationForecastVisibilityPersists() {
-        let preferences = preferences()
-
-        preferences.showsLocationForecastsOnLocationsTab = false
-
-        #expect(preferences.showsLocationForecastsOnLocationsTab == false)
     }
 
     @Test func locationDayCountsRoundTripIndependentlyByYear() {
@@ -45,7 +37,7 @@ struct WherePreferencesTests {
     @Test func resetRestoresEveryDefaultAndClearsLocationCounts() {
         let preferences = preferences()
         preferences.hasOnboarded = true
-        preferences.wantsTracking = false
+        preferences.showsRecordedLocationDots = false
         preferences.showsLocationForecastsOnLocationsTab = false
         preferences.remindersEnabled = false
         preferences.reminderTime = ReminderTime(hour: 9, minute: 15)
@@ -58,7 +50,7 @@ struct WherePreferencesTests {
         preferences.reset()
 
         #expect(preferences.hasOnboarded == false)
-        #expect(preferences.wantsTracking)
+        #expect(preferences.showsRecordedLocationDots)
         #expect(preferences.showsLocationForecastsOnLocationsTab)
         #expect(preferences.remindersEnabled)
         #expect(preferences.reminderTime == .defaultEvening)

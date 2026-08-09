@@ -106,6 +106,7 @@ public actor PeriscopeStore: LogSink {
             "Periscope",
             schema: schema,
             isStoredInMemoryOnly: storage == .inMemory,
+            cloudKitDatabase: .none,
         )
     }
 
@@ -147,7 +148,11 @@ public actor PeriscopeStore: LogSink {
         session: LogSession,
     ) async throws -> PeriscopeStore {
         let schema = Schema(PeriscopeSchema.models)
-        let configuration = ModelConfiguration(schema: schema, url: databaseURL)
+        let configuration = ModelConfiguration(
+            schema: schema,
+            url: databaseURL,
+            cloudKitDatabase: .none,
+        )
         let container = try ModelContainer(for: schema, configurations: [configuration])
         let store = PeriscopeStore(modelContainer: container)
         await store.ingestRecoveredJournals()
