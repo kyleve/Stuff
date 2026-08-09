@@ -29,7 +29,9 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   results in Spotlight, and renders every supported
   widget family on miniature Home Screen and Lock Screen surfaces. A Share &
   Evidence walkthrough also reveals the system Share-sheet extension and links
-  into the saved attachment archive. These galleries use a
+  into the saved attachment archive. Insights & Accuracy introduces the private
+  on-device activity narrative and the automatic issue detectors without
+  running either merely to render the gallery. These galleries use a
   shared marketing header, quiet patterned backdrop, and staged entrance that
   resolves immediately for Reduce Motion and snapshot capture. Once the selected
   report has 14 recorded days, both galleries personalize themselves with its

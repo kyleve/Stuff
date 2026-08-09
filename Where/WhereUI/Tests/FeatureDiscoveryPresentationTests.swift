@@ -26,6 +26,8 @@ struct FeatureDiscoveryPresentationTests {
         #expect(presentation.widgetSnapshot.dayRegions.isEmpty)
         #expect(presentation.siriExample(for: .daysInRegion) == nil)
         #expect(presentation.spotlightExample.query == Region.california.localizedName)
+        #expect(presentation.activityExample
+            .summary == String(localized: .settingsExploreInsightsActivityGeneric))
     }
 
     @Test func twoWeeksPersonalizesContent() throws {
@@ -58,6 +60,8 @@ struct FeatureDiscoveryPresentationTests {
         #expect(recentExample.response.contains(Region.california.localizedName))
         #expect(presentation.spotlightExample.query == Region.california.localizedName)
         #expect(presentation.spotlightExample.resultSubtitle.contains("14"))
+        #expect(presentation.activityExample.summary.contains("14"))
+        #expect(presentation.activityExample.summary.contains(Region.california.localizedName))
     }
 
     @Test func recentActivityUsesTheIntentsPastWeekWindow() throws {

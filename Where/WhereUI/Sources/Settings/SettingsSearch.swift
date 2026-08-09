@@ -15,6 +15,7 @@ enum SettingsDestination: Hashable, CaseIterable {
     case siri
     case widgets
     case shareEvidence
+    case insightsAccuracy
     case data
     case about
 
@@ -32,6 +33,7 @@ enum SettingsDestination: Hashable, CaseIterable {
             case .siri: String(localized: .settingsExploreSiriRow)
             case .widgets: String(localized: .settingsExploreWidgetsRow)
             case .shareEvidence: String(localized: .settingsExploreEvidenceRow)
+            case .insightsAccuracy: String(localized: .settingsExploreInsightsRow)
             case .data: String(localized: .settingsDataHeader)
             case .about: String(localized: .settingsAboutHeader)
         }
@@ -50,6 +52,7 @@ enum SettingsDestination: Hashable, CaseIterable {
             case .siri: "waveform"
             case .widgets: "widget.small"
             case .shareEvidence: "square.and.arrow.down.fill"
+            case .insightsAccuracy: "sparkles"
             case .data: "externaldrive.fill"
             case .about: "info"
         }
@@ -70,6 +73,7 @@ enum SettingsDestination: Hashable, CaseIterable {
             case .siri: .pink
             case .widgets: .cyan
             case .shareEvidence: .indigo
+            case .insightsAccuracy: .orange
             case .data: .teal
             case .about: .brown
         }
@@ -85,7 +89,7 @@ enum SettingsDestination: Hashable, CaseIterable {
         switch self {
             case .data, .appearance: false
             case .attachments, .loggedDays, .devices, .regions, .alerts, .year, .siri, .widgets,
-                 .shareEvidence, .about:
+                 .shareEvidence, .insightsAccuracy, .about:
                 true
         }
     }
@@ -97,7 +101,7 @@ enum SettingsDestination: Hashable, CaseIterable {
         switch self {
             case .regions: true
             case .attachments, .loggedDays, .devices, .alerts, .appearance, .year, .siri, .widgets,
-                 .shareEvidence, .data, .about:
+                 .shareEvidence, .insightsAccuracy, .data, .about:
                 false
         }
     }
@@ -124,7 +128,7 @@ enum SettingsListSection: CaseIterable {
             case .tracking: [.devices]
             case .notifications: [.alerts]
             case .display: [.appearance, .year]
-            case .exploreFeatures: [.siri, .widgets, .shareEvidence]
+            case .exploreFeatures: [.siri, .widgets, .shareEvidence, .insightsAccuracy]
             case .storage: [.data]
             case .about: [.about]
         }
@@ -241,6 +245,7 @@ enum SettingsCatalog {
             + SiriFeaturesView.searchResults
             + WidgetFeaturesView.searchResults
             + ShareEvidenceFeaturesView.searchResults
+            + InsightsAccuracyFeaturesView.searchResults
             + DataSettingsView.searchResults
             + AboutSettingsView.searchResults
 
