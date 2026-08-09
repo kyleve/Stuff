@@ -173,6 +173,42 @@ shape below is genuinely unclear.
 
 - Push each commit as it lands.
 
+## Maintaining stacked PRs
+
+Treat a stack as one dependency chain even when the requested PR is near its
+base: a conflict or failing integration in one slice can block every PR above
+it.
+
+- Start by inspecting the whole graph with `gh stack view --short`, then read
+  every PR's base, head SHA, mergeability, merge-state status, and checks. Find
+  the first broken slice; do not assume the PR the user noticed owns the fault.
+- Rebase from that first affected branch through the stack with `gh stack
+  rebase --no-trunk --upstack`. This rewrites upstack branches, so obtain user
+  authorization before doing it unless their request already explicitly covers
+  repairing or updating the full stack.
+- Resolve conflicts on the slice that introduced the affected code. Preserve
+  both downstack fixes and the slice's intended addition; do not accept one
+  side wholesale merely to finish the rebase. Re-record snapshot references
+  when both sides contain intentional visual changes.
+- After each slice rebases, search it for logical conflicts such as references
+  to renamed stylesheet tokens or APIs. Put the compatibility fix and its tests
+  on the earliest slice that owns the affected code, commit it there, then
+  continue rebasing the remaining upstack branches. Do not bury fixes for a
+  lower PR in the stack head.
+- Validate focused behavior while repairing individual slices, then run the
+  complete affected test and lint set at the stack tip. The tip contains every
+  slice and is the final integration proof.
+- Push the complete rewritten chain with `gh stack push`, then re-read every PR
+  and verify its base branch, remote head SHA, and `mergeable` value. Return the
+  checkout to the branch the user was reviewing when practical.
+
+GitHub commonly reports an otherwise mergeable upstack PR as `BLOCKED` while
+its parent PR or required checks are pending. Distinguish that expected
+downstack dependency from `CONFLICTING` / `DIRTY`, failed checks, or an
+unexpected base before reporting the repair complete. Cancelled superseded
+workflow runs immediately after a stacked force-push are also expected; assess
+the newest run for each head SHA.
+
 ## Merging main and other branches
 
 When bringing `main` or another branch into yours — because CI failed, before
