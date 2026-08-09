@@ -45,13 +45,16 @@ struct PersonalizationFeaturesView: View {
                             .featureMarketingRow(order: 1)
                             .settingsRow(Item.regions, restingBackground: .clear)
 
-                        Button(action: showRegions) {
-                            actionLabel(
-                                String(localized: .settingsExplorePersonalizationOpenRegions),
-                                systemImage: "paintpalette",
-                            )
+                        FeatureMarketingPanel {
+                            Button(action: showRegions) {
+                                actionLabel(
+                                    String(localized: .settingsExplorePersonalizationOpenRegions),
+                                    systemImage: "paintpalette",
+                                )
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         }
-                        .staggeredReveal(order: 2)
+                        .featureMarketingRow(order: 2)
                     }
 
                     Section {
@@ -60,13 +63,16 @@ struct PersonalizationFeaturesView: View {
                             .settingsRow(Item.appIcon, restingBackground: .clear)
 
                         if !isInDemoMode {
-                            Button(action: showAppIcons) {
-                                actionLabel(
-                                    String(localized: .settingsExplorePersonalizationOpenIcon),
-                                    systemImage: "app.badge",
-                                )
+                            FeatureMarketingPanel {
+                                Button(action: showAppIcons) {
+                                    actionLabel(
+                                        String(localized: .settingsExplorePersonalizationOpenIcon),
+                                        systemImage: "app.badge",
+                                    )
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
                             }
-                            .staggeredReveal(order: 4)
+                            .featureMarketingRow(order: 4)
                         }
                     } footer: {
                         VStack(alignment: .leading, spacing: stylesheet.spacing.medium) {

@@ -55,14 +55,12 @@ struct FeatureRegionStylePreview: View {
 
     private func surface(_ title: String, systemImage: String) -> some View {
         VStack(spacing: stylesheet.spacing.small) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(style.tint.gradient)
-                Image(systemName: systemImage)
-                    .font(.title2)
-                    .foregroundStyle(.white)
-            }
-            .frame(height: 58)
+            Image(systemName: systemImage)
+                .font(.system(size: 32, weight: .semibold))
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(style.tint.gradient)
+                .frame(height: 58)
+                .accessibilityHidden(true)
 
             HStack(spacing: stylesheet.spacing.small) {
                 Text(style.emoji)
