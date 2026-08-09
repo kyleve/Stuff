@@ -1,6 +1,6 @@
 ---
 name: github-workflow
-description: Opens and maintains pull requests, handles review feedback, checks CI, and posts as the user via gh. Use when committing for push, opening or updating a PR, responding to review comments, or diagnosing CI failures.
+description: Opens and maintains pull requests, handles review feedback, checks CI, and posts as the user via gh. Use when committing for push, opening or updating a PR after plan execution, responding to review comments, or diagnosing CI failures.
 ---
 
 GitHub workflow for this repo. Read root [`AGENTS.md`](../../../AGENTS.md) first for
@@ -16,20 +16,25 @@ always-on commit and test invariants — this skill assumes those.
 - **Never commit on `main`.** Branch first and keep every commit for one piece
   of work on that one branch.
 
-## Branch and push
+## Branch, push, and plan handoff
 
 - **Multi-step work lands one commit per step**, so history stays bisectable and
   can land piecewise — including pure-groundwork steps, which say so in the body.
 - **Commit completed work eagerly.** Once a coherent change is verified, commit
   it unless the user explicitly asks to keep it uncommitted.
-- Push each commit as it lands once a PR is open.
-- **When working through a plan, open a PR once the plan is complete** — push
-  the branch and open it ready-for-review rather than leaving finished work
-  local-only.
+- **Push the branch as commits land** — do not accumulate unpushed work or wait
+  for the user to ask.
+- **Plan-driven work finishes with a PR.** After executing an approved plan (all
+  steps verified), push the branch and **open a ready-for-review PR** before
+  handing back — or update the existing PR if one is already open. Never leave
+  finished plan work local-only, unpushed, or without a PR the user can review.
 
 ## Opening a PR
 
 - **Open PRs ready-for-review, not draft.**
+- **Default after plan execution:** if the branch has no PR yet, open one before
+  handing back; if a PR exists, push and refresh the body when the work outgrew
+  it.
 - Start from [`.github/PULL_REQUEST_TEMPLATE.md`](../../../.github/PULL_REQUEST_TEMPLATE.md)
   and follow [Writing the PR body](#writing-the-pr-body) below.
 - **Flag lines that warrant extra scrutiny** — leave a PR review comment on
@@ -59,7 +64,7 @@ branch.
 | Tier | When | Keep | Add when warranted |
 |------|------|------|--------------------|
 | Small | Obvious fix, 1–2 modules, no design choices | Summary, Testing | — |
-| Medium | Behavior change, new UI slice, docs/skill extraction | Summary, Why, Review focus, Testing | User-facing / Internal split in Summary when mixed |
+| Medium | Behavior change, new UI slice, docs/skill extraction | Summary, Why, Review focus, Testing | User-facing / Internal split in Summary when mixed; skip rationale for doc-only work |
 | Large | Architecture, multi-module migration, new protocol | Summary or Problem + Changes, Why, Design decisions, Review focus, Testing | Product behavior, Architecture, ⚠️ Breaking changes, Compatibility, Rollout / follow-ups, Stack; situational sections (prototype round, backlog reconciliation) |
 
 #### Section semantics

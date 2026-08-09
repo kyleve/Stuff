@@ -529,14 +529,15 @@ management (`./simulator` resolves a UDID — never pass a device name to
   can land piecewise — including pure-groundwork steps, which say so in the body.
 - **Commit completed work eagerly.** Once a coherent change is verified, commit
   it without waiting for a separate request; never hand back a finished task
-  with task-related changes left local and uncommitted. Honor an explicit
-  request to keep work uncommitted.
+  with task-related changes left local, unpushed, or uncommitted. Honor an
+  explicit request to keep work uncommitted.
 
 ### GitHub
 
 Load the [`github-workflow`](.agents/skills/github-workflow/SKILL.md) skill
 for PRs, pushes, review feedback, CI, and posting as the user. Always-on: use
-`gh`; open PRs ready-for-review; mark AI-posted comments.
+`gh`; open PRs ready-for-review; mark AI-posted comments. **Plan-driven work
+ends with push + PR** before handing back.
 
 ## Codex worktree specific instructions
 
