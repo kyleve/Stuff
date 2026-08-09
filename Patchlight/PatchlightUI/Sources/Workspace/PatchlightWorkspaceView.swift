@@ -1,8 +1,9 @@
 import PatchlightCore
+import SnapshotKit
 import SwiftUI
 
 struct PatchlightWorkspaceView: View {
-    private enum Selection: Hashable, Identifiable {
+    fileprivate enum Selection: Hashable, Identifiable {
         case overview
         case conversation
         case snapshots
@@ -57,6 +58,25 @@ struct PatchlightWorkspaceView: View {
     @State private var showsHiddenChanges = false
     @State private var showsReviewComposer = false
     @State private var showsAISettings = false
+
+    init(content: PatchlightWorkspaceContent, model: PatchlightAppModel) {
+        self.content = content
+        self.model = model
+    }
+
+    #if DEBUG
+        fileprivate init(
+            content: PatchlightWorkspaceContent,
+            model: PatchlightAppModel,
+            fixtureSelection: Selection,
+            showsHiddenChanges: Bool = false,
+        ) {
+            self.content = content
+            self.model = model
+            _selection = State(initialValue: fixtureSelection)
+            _showsHiddenChanges = State(initialValue: showsHiddenChanges)
+        }
+    #endif
 
     private var workspace: PullRequestWorkspace {
         content.workspace
@@ -140,13 +160,17 @@ struct PatchlightWorkspaceView: View {
                     }
                     if case .file = selection {
                         ToolbarItem(placement: .primaryAction) {
-                            Picker(String(localized: .diffLayout), selection: $storedLayout) {
+                            Picker(selection: $storedLayout) {
                                 ForEach(LayoutPreference.allCases) { preference in
                                     Text(preference.title).tag(preference.rawValue)
                                 }
+                            } label: {
+                                Label(
+                                    (LayoutPreference(rawValue: storedLayout) ?? .automatic).title,
+                                    systemImage: "rectangle.split.2x1",
+                                )
                             }
-                            .pickerStyle(.segmented)
-                            .frame(maxWidth: 300)
+                            .pickerStyle(.menu)
                         }
                         ToolbarItem(placement: .secondaryAction) {
                             Menu {
@@ -182,6 +206,13 @@ struct PatchlightWorkspaceView: View {
                                     systemImage: "eye",
                                 )
                             }
+                        }
+                    }
+                    ToolbarItem(placement: .secondaryAction) {
+                        Button {
+                            Task { await model.refreshWorkspace() }
+                        } label: {
+                            Label(String(localized: .refresh), systemImage: "arrow.clockwise")
                         }
                     }
                     ToolbarItem(placement: .primaryAction) {
@@ -352,16 +383,10 @@ struct PatchlightWorkspaceView: View {
         switch file.availability {
             case .complete where !file.hunks.isEmpty:
                 GeometryReader { proxy in
-                    let preference = LayoutPreference(rawValue: storedLayout) ?? .automatic
-                    let mode: DiffRendererMode = switch preference {
-                        case .automatic: proxy.size.width >= 1000 ? .split : .unified
-                        case .unified: .unified
-                        case .split: .split
-                    }
                     PatchlightDiffCollectionView(
                         file: file,
                         headOID: workspace.summary.headOID,
-                        mode: mode,
+                        mode: rendererMode(width: proxy.size.width),
                         threads: threads(for: file),
                         hunkPlans: filePlan(for: file)?.hunks ?? [],
                         reviewDepth: reviewDepth,
@@ -408,6 +433,15 @@ struct PatchlightWorkspaceView: View {
                 Link(String(localized: .openOnGitHub), destination: url)
                     .buttonStyle(.borderedProminent)
             }
+        }
+    }
+
+    private func rendererMode(width: CGFloat) -> DiffRendererMode {
+        let preference = LayoutPreference(rawValue: storedLayout) ?? .automatic
+        return switch preference {
+            case .automatic: width >= 1000 ? .split : .unified
+            case .unified: .unified
+            case .split: .split
         }
     }
 
@@ -726,11 +760,19 @@ struct PatchlightWorkspaceView: View {
             case let .uncertain(requestID):
                 VStack(alignment: .leading, spacing: 6) {
                     Label(
-                        requestID.map { "Submission status is uncertain (request \($0))." }
-                            ?? String(
-                                localized: "reviewUncertain",
-                                defaultValue: "Submission status is uncertain.",
-                            ),
+                        requestID.map { requestID in
+                            String(
+                                format: String(
+                                    localized: "reviewUncertainRequest",
+                                    defaultValue: "Submission status is uncertain (request %1$@).",
+                                ),
+                                locale: .current,
+                                requestID,
+                            )
+                        } ?? String(
+                            localized: "reviewUncertain",
+                            defaultValue: "Submission status is uncertain.",
+                        ),
                         systemImage: "questionmark.circle",
                     )
                     Text(String(
@@ -802,7 +844,15 @@ struct PatchlightWorkspaceView: View {
             if case .remapped = $0.resolution { true } else { false }
         })
         let unresolved = results.count - remapped
-        return "\(remapped) uniquely matched; \(unresolved) require re-anchoring, file-level conversion, or discard."
+        return String(
+            format: String(
+                localized: "staleDraftSummaryFormat",
+                defaultValue: "%1$lld uniquely matched; %2$lld require re-anchoring, file-level conversion, or discard.",
+            ),
+            locale: .current,
+            remapped,
+            unresolved,
+        )
     }
 
     private func unresolvedDrafts(
@@ -906,3 +956,95 @@ extension View {
             .background(color.opacity(0.12))
     }
 }
+
+#if DEBUG
+    @_spi(Testing)
+    @MainActor
+    public enum PatchlightWorkspaceSnapshots: SnapshotProviding {
+        public static var snapshots: [SnapshotCase] {
+            SnapshotCase(
+                name: "UnifiedDiff",
+                configurations: [SnapshotConfiguration(device: .iPadFullContent)],
+                settle: .immediate,
+            ) {
+                workspace(selection: .file(riskPath))
+            }
+            SnapshotCase(
+                name: "SplitDiff",
+                configurations: [SnapshotConfiguration(device: catalystFrame)],
+                settle: .immediate,
+            ) {
+                workspace(selection: .file(riskPath))
+            }
+            SnapshotCase(
+                name: "HiddenChanges",
+                configurations: [SnapshotConfiguration(device: .iPadFullContent)],
+                settle: .immediate,
+            ) {
+                workspace(selection: .overview, showsHiddenChanges: true)
+            }
+            SnapshotCase(
+                name: "ConversationThreads",
+                configurations: [
+                    SnapshotConfiguration(device: .iPadFullContent),
+                    SnapshotConfiguration(colorScheme: .dark, device: .iPadFullContent),
+                ],
+                settle: .immediate,
+            ) {
+                workspace(selection: .conversation)
+            }
+            SnapshotCase(
+                name: "StaleDrafts",
+                configurations: [SnapshotConfiguration(device: catalystFrame)],
+                settle: .immediate,
+            ) {
+                workspace(
+                    selection: .file(riskPath),
+                    submission: .staleHead(PatchlightVisualFixtures.staleResults),
+                )
+            }
+            SnapshotCase(
+                name: "SubmitReview",
+                configurations: [
+                    SnapshotConfiguration(device: .iPadFullContent),
+                    SnapshotConfiguration(
+                        dynamicType: .accessibility3,
+                        device: .iPadFullContent,
+                    ),
+                ],
+                settle: .immediate,
+            ) {
+                PatchlightReviewComposer(model: PatchlightVisualFixtures.workspaceModel())
+                    .patchlightBroadwayRoot()
+            }
+        }
+
+        private static var catalystFrame: SnapshotConfiguration.Frame {
+            .fullContent(name: "Catalyst", width: 1440, minimumHeight: 900)
+        }
+
+        private static var riskPath: String {
+            guard let path = PatchlightVisualFixtures.workspace.files
+                .first(where: { !$0.path.hasSuffix(".png") })?.path
+            else {
+                preconditionFailure("The workspace fixture must contain a text diff")
+            }
+            return path
+        }
+
+        private static func workspace(
+            selection: PatchlightWorkspaceView.Selection,
+            showsHiddenChanges: Bool = false,
+            submission: PatchlightAppModel.SubmissionState = .idle,
+        ) -> some View {
+            PatchlightWorkspaceView(
+                content: PatchlightVisualFixtures.workspaceContent,
+                model: PatchlightVisualFixtures.workspaceModel(submission: submission),
+                fixtureSelection: selection,
+                showsHiddenChanges: showsHiddenChanges,
+            )
+            .patchlightBroadwayRoot()
+            .environment(\.horizontalSizeClass, .regular)
+        }
+    }
+#endif

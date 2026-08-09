@@ -115,6 +115,33 @@ public final class PatchlightAppModel {
         case failed(String)
     }
 
+    public enum CacheOperationState {
+        case idle
+        case updating
+        case updated(CacheCapacity)
+        case cleared
+        case failed(String)
+    }
+
+    #if DEBUG
+        /// A coherent, read-only product state used by previews and image snapshots.
+        @_spi(Testing)
+        public enum FixtureState {
+            case account(AccountState)
+            case workspace(
+                dashboard: PatchlightDashboardContent,
+                content: PatchlightWorkspaceContent,
+                review: ReviewState,
+                submission: SubmissionState,
+                immediateWrite: ImmediateWriteState,
+                reviewPlan: DeterministicReviewPlan,
+                settings: PatchlightRepositorySettings,
+                snapshot: SnapshotState,
+                imageAnalysis: ImageAnalysisState,
+            )
+        }
+    #endif
+
     public private(set) var accountState: AccountState = .signedOut
     public private(set) var workspaceState: WorkspaceState = .none
     public private(set) var repositoryState: RepositoryState = .none
@@ -130,6 +157,7 @@ public final class PatchlightAppModel {
     public private(set) var imageAnalysisState: ImageAnalysisState = .idle
     public private(set) var configuredProviders = Set<AIProvider>()
     public private(set) var providerCredentialError: String?
+    public private(set) var cacheOperationState: CacheOperationState = .idle
 
     @ObservationIgnored private let dependencies: PatchlightApplicationDependencies
     @ObservationIgnored private let credentials: GitHubCredentialManager
@@ -152,6 +180,58 @@ public final class PatchlightAppModel {
         providerCredentials = ProviderCredentialManager(store: dependencies.credentialStore)
         github = GitHubAPIClient(credentials: credentials, transport: dependencies.transport)
     }
+
+    #if DEBUG
+        @_spi(Testing)
+        public func installFixture(_ fixture: FixtureState) {
+            authorizationTask?.cancel()
+            cancelAIWork()
+            world = nil
+            repositoryState = .none
+            corrections = []
+            viewedDepths = []
+            configuredProviders = []
+            providerCredentialError = nil
+            cacheOperationState = .idle
+
+            switch fixture {
+                case let .account(state):
+                    accountState = state
+                    workspaceState = .none
+                    reviewState = .none
+                    submissionState = .idle
+                    immediateWriteState = .idle
+                    reviewPlan = nil
+                    repositorySettings = nil
+                    snapshotState = .none
+                    analysisState = .idle
+                    imageAnalysisState = .idle
+                    deterministicReviewPlan = nil
+                case let .workspace(
+                dashboard,
+                content,
+                review,
+                submission,
+                immediateWrite,
+                plan,
+                settings,
+                snapshot,
+                imageAnalysis,
+            ):
+                    accountState = .ready(dashboard)
+                    workspaceState = .ready(content)
+                    reviewState = review
+                    submissionState = submission
+                    immediateWriteState = immediateWrite
+                    reviewPlan = plan
+                    repositorySettings = settings
+                    snapshotState = snapshot
+                    analysisState = .idle
+                    imageAnalysisState = imageAnalysis
+                    deterministicReviewPlan = plan
+            }
+        }
+    #endif
 
     public func restore() async {
         await refreshProviderCredentialStatus()
@@ -216,6 +296,7 @@ public final class PatchlightAppModel {
             snapshotState = .none
             analysisState = .idle
             imageAnalysisState = .idle
+            cacheOperationState = .idle
             deterministicReviewPlan = nil
         } catch {
             accountState = .failed(previous: dashboardContent, message: error.localizedDescription)
@@ -259,6 +340,18 @@ public final class PatchlightAppModel {
     public func openRepository(_ repository: RepositorySummary) async {
         guard let world else { return }
         repositoryState = .loading(repository)
+        do {
+            repositoryState = try await .ready(
+                repository,
+                world.reads.pullRequests(in: repository.id),
+            )
+        } catch {
+            repositoryState = .failed(repository, message: error.localizedDescription)
+        }
+    }
+
+    public func refreshRepository() async {
+        guard let repository = repositorySummary, let world else { return }
         do {
             repositoryState = try await .ready(
                 repository,
@@ -505,6 +598,28 @@ public final class PatchlightAppModel {
             providerCredentialError = nil
         } catch {
             providerCredentialError = error.localizedDescription
+        }
+    }
+
+    public func setCacheCapacity(_ capacity: CacheCapacity) async {
+        guard let world else { return }
+        cacheOperationState = .updating
+        do {
+            try await world.scope.cache.setCapacity(capacity)
+            cacheOperationState = .updated(capacity)
+        } catch {
+            cacheOperationState = .failed(error.localizedDescription)
+        }
+    }
+
+    public func clearCache() async {
+        guard let world else { return }
+        cacheOperationState = .updating
+        do {
+            try await world.scope.cache.clear()
+            cacheOperationState = .cleared
+        } catch {
+            cacheOperationState = .failed(error.localizedDescription)
         }
     }
 
@@ -849,14 +964,26 @@ public final class PatchlightAppModel {
         }
     }
 
-    public func runVisibleDashboardRefreshLoop() async {
+    public func refreshVisibleContent() async {
+        if workspaceSummary != nil {
+            await refreshWorkspace()
+        } else if repositorySummary != nil {
+            async let dashboard: Void = refreshDashboard()
+            async let repository: Void = refreshRepository()
+            _ = await (dashboard, repository)
+        } else {
+            await refreshDashboard()
+        }
+    }
+
+    public func runVisibleRefreshLoop() async {
         while !Task.isCancelled {
             do {
                 try await Task.sleep(for: .seconds(300))
             } catch {
                 return
             }
-            await refreshDashboard()
+            await refreshVisibleContent()
         }
     }
 
@@ -876,6 +1003,10 @@ public final class PatchlightAppModel {
 
     public var githubAppInstallationURL: URL? {
         dependencies.githubConfiguration.installationURL
+    }
+
+    public var canManageCache: Bool {
+        world != nil
     }
 
     public var workspaceContent: PatchlightWorkspaceContent? {
@@ -1050,6 +1181,13 @@ public final class PatchlightAppModel {
         switch workspaceState {
             case let .loading(summary), let .failed(summary, _): summary
             case let .ready(content): content.workspace.summary
+            case .none: nil
+        }
+    }
+
+    private var repositorySummary: RepositorySummary? {
+        switch repositoryState {
+            case let .loading(summary), let .ready(summary, _), let .failed(summary, _): summary
             case .none: nil
         }
     }

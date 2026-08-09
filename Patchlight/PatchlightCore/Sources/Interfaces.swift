@@ -117,6 +117,34 @@ public enum ReviewRequestSource: Hashable, Codable, Sendable {
     }
 }
 
+/// The deterministic inbox group used before any PR-level AI analysis runs.
+/// Raw values are stable persistence codes, not user-facing copy.
+public enum ReviewActionability: String, Codable, Sendable {
+    case newActivity = "N"
+    case directRequest = "D"
+    case teamRequest = "T"
+    case unresolvedThreads = "U"
+    case pendingChecks = "P"
+    case draft = "R"
+    case failedChecks = "F"
+    case changesRequested = "C"
+    case waiting = "W"
+
+    var priority: Int {
+        switch self {
+            case .newActivity: 0
+            case .directRequest: 1
+            case .teamRequest: 2
+            case .unresolvedThreads: 3
+            case .pendingChecks: 4
+            case .draft: 5
+            case .failedChecks: 6
+            case .changesRequested: 7
+            case .waiting: 8
+        }
+    }
+}
+
 public struct PullRequestSummary: Identifiable, Hashable, Codable, Sendable {
     public let id: PullRequestID
     public let repository: RepositoryCoordinates
@@ -124,8 +152,10 @@ public struct PullRequestSummary: Identifiable, Hashable, Codable, Sendable {
     public let authorLogin: String
     public let isDraft: Bool
     public let headOID: GitObjectID
+    public let createdAt: Date
     public let updatedAt: Date
     public let reviewRequestSource: ReviewRequestSource?
+    public let actionability: ReviewActionability
 
     public init(
         id: PullRequestID,
@@ -134,8 +164,10 @@ public struct PullRequestSummary: Identifiable, Hashable, Codable, Sendable {
         authorLogin: String,
         isDraft: Bool,
         headOID: GitObjectID,
+        createdAt: Date,
         updatedAt: Date,
         reviewRequestSource: ReviewRequestSource?,
+        actionability: ReviewActionability,
     ) {
         self.id = id
         self.repository = repository
@@ -143,8 +175,10 @@ public struct PullRequestSummary: Identifiable, Hashable, Codable, Sendable {
         self.authorLogin = authorLogin
         self.isDraft = isDraft
         self.headOID = headOID
+        self.createdAt = createdAt
         self.updatedAt = updatedAt
         self.reviewRequestSource = reviewRequestSource
+        self.actionability = actionability
     }
 }
 

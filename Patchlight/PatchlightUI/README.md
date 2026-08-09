@@ -13,10 +13,17 @@ patches render through a viewport-lazy `UICollectionView` bridge with reusable
 TextKit cells and adaptive unified/split modes; unavailable binary, oversized,
 or undecodable content stays explicit and links to GitHub.
 
+Dashboard rows identify why a review is actionable: new activity, direct or
+team request, unresolved discussion, pending or failed checks, requested
+changes, drafts, or a waiting state. The ordering is deterministic and remains
+fully useful when AI is disabled.
+
 Reads refresh on launch, foreground, manual action, and every five minutes only
-while the dashboard is visible. Cached content carries its refresh time and
-failure reason instead of masquerading as live data. The snapshot matrix uses
-an iPad viewport; the shipping product has no iPhone destination in v1.
+while a dashboard, repository, or PR surface is visible. Manual refresh targets
+that visible surface, including the conversation attached to an open PR. Cached
+content carries its refresh time and failure reason instead of masquerading as
+live data. The snapshot matrix uses an iPad viewport; the shipping product has
+no iPhone destination in v1.
 
 The review loop renders issue discussion, reviews, checks, inline/outdated/
 resolved threads, and replies. Selecting a diff line creates an encrypted local
@@ -49,7 +56,16 @@ seed editable local drafts but never publish automatically. Snapshot image
 analysis has a separate off-by-default consent and receives only the selected
 base/head pair plus local pixel metrics.
 
+Settings exposes the encrypted cache's 1/5/10/20 GB capacities and an explicit
+Clear Cache action. Cache operations preserve objects pinned by the open
+workspace and report success or failure instead of presenting an optimistic
+state.
+
 Views receive immutable PatchlightCore values and an injected account scope.
 They never open SwiftData containers, resolve global credentials, or call raw
 provider/GitHub endpoints. Run `./test PatchlightUITests`; image references live
 under `SnapshotTests/__Snapshots__` and run through the shared snapshot scheme.
+The acceptance matrix exercises onboarding, empty/loaded/error dashboards,
+unified and split diffs, hidden and stale changes, review submission, every
+snapshot comparison mode, annotations, and dimension mismatch in representative
+light/dark, Dynamic Type, increased-contrast, and RTL configurations.

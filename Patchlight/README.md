@@ -32,6 +32,11 @@ lifecycle/Broadway root, onboarding, cached dashboard, repository browser,
 dedicated PR workspace, and the native virtualized diff renderer, plus Flyover,
 snapshot, Inspector, and Periscope developer surfaces.
 
+The dashboard ranks without AI. New commits or replies lead, followed by unseen
+direct requests, unseen team requests, unresolved threads, pending checks, and
+waiting states. Relevant activity and PR age provide stable tie-breaks, and
+rows name the signal that put a review in front of the user.
+
 The workspace supports encrypted line/file drafts, issue and review discussion,
 inline thread replies and resolution, checks, batched review submission, and
 GitHub viewed state. Writes are always user initiated. Patchlight never retries
@@ -68,8 +73,9 @@ and AI payloads are encrypted before disk. SwiftData records never leave their
 
 The cache defaults to 5 GB and offers 1/5/10/20 GB capacities. It is
 content-addressed and LRU-evicted, but objects used by the open workspace are
-protected. The account vault is excluded from backup and files are written
-atomically.
+protected. Settings can resize or clear it without removing protected open
+workspace objects. The account vault is excluded from backup and files are
+written atomically.
 
 Explicit GitHub sign-out cancels account work, deletes the account vault key
 first, then removes account files and GitHub credentials. OpenAI and Anthropic
@@ -81,4 +87,7 @@ Generate with `./ide --no-open`. Narrow checks are `./test PatchlightCoreTests`
 and `./test PatchlightUITests`; image coverage is in the shared
 `StuffSnapshotTests` scheme. The `Patchlight-Catalyst` shared scheme is built in
 CI with `platform=macOS,variant=Mac Catalyst` because an iOS simulator build
-does not prove Catalyst compilation.
+does not prove Catalyst compilation. The Patchlight visual matrix covers
+onboarding, dashboard states, unified/split review, drafts and threads, and the
+complete snapshot workspace across representative color, contrast, Dynamic
+Type, and layout-direction configurations.

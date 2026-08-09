@@ -1,4 +1,5 @@
 import PatchlightCore
+import SnapshotKit
 import SwiftUI
 import UIKit
 
@@ -48,6 +49,7 @@ struct PatchlightSnapshotWorkspaceView: View {
                 focusedWorkspace
             }
         }
+        .background(Color(uiColor: .systemBackground))
         .task(id: files.first?.path) {
             guard case .none = model.snapshotState, let first = files.first else { return }
             await model.loadSnapshot(first)
@@ -166,7 +168,7 @@ private struct SnapshotPathGroup {
 }
 
 private struct SnapshotComparisonView: View {
-    private enum Mode: String, CaseIterable, Identifiable {
+    fileprivate enum Mode: String, CaseIterable, Identifiable {
         case base
         case head
         case sideBySide
@@ -192,6 +194,18 @@ private struct SnapshotComparisonView: View {
     @State private var wipe = 0.5
     @State private var opacity = 0.5
     @State private var annotationDraft: SnapshotAnnotationDraft?
+
+    init(
+        pair: SnapshotImagePair,
+        model: PatchlightAppModel,
+        initialMode: Mode = .sideBySide,
+        initialAnnotationDraft: SnapshotAnnotationDraft? = nil,
+    ) {
+        self.pair = pair
+        self.model = model
+        _mode = State(initialValue: initialMode)
+        _annotationDraft = State(initialValue: initialAnnotationDraft)
+    }
 
     private var baseImage: UIImage? {
         pair.base.flatMap { UIImage(data: $0.data) }
@@ -225,6 +239,7 @@ private struct SnapshotComparisonView: View {
                 }
             }
         }
+        .background(Color(uiColor: .systemBackground))
         .navigationTitle(pair.file.path)
         .sheet(item: $annotationDraft) { draft in
             SnapshotAnnotationComposer(draft: draft, model: model)
@@ -884,3 +899,120 @@ private struct Checkerboard<Content: View>: View {
         }
     }
 }
+
+#if DEBUG
+    @_spi(Testing)
+    @MainActor
+    public enum PatchlightSnapshotWorkspaceSnapshots: SnapshotProviding {
+        public static var snapshots: [SnapshotCase] {
+            SnapshotCase(
+                name: "Gallery",
+                configurations: [
+                    SnapshotConfiguration(device: catalystFrame),
+                    SnapshotConfiguration(
+                        colorScheme: .dark,
+                        layoutDirection: .rightToLeft,
+                        device: catalystFrame,
+                    ),
+                ],
+                settle: .immediate,
+            ) {
+                let pair = PatchlightVisualFixtures.snapshotPair
+                PatchlightSnapshotWorkspaceView(
+                    files: PatchlightVisualFixtures.workspace.files.filter {
+                        $0.path.hasSuffix(".png")
+                    },
+                    model: PatchlightVisualFixtures.workspaceModel(snapshot: .ready(pair)),
+                )
+                .patchlightBroadwayRoot()
+            }
+            comparisonCase(name: "Base", mode: .base)
+            comparisonCase(name: "Head", mode: .head)
+            comparisonCase(name: "SideBySide", mode: .sideBySide)
+            comparisonCase(name: "Wipe", mode: .wipe)
+            comparisonCase(name: "OpacityOverlay", mode: .overlay)
+            comparisonCase(name: "Heatmap", mode: .heatmap)
+            SnapshotCase(
+                name: "AnnotationRegion",
+                configurations: [SnapshotConfiguration(device: catalystFrame)],
+                settle: .immediate,
+            ) {
+                let pair = PatchlightVisualFixtures.snapshotPair
+                SnapshotComparisonView(
+                    pair: pair,
+                    model: PatchlightVisualFixtures.workspaceModel(snapshot: .ready(pair)),
+                    initialMode: .head,
+                )
+                .patchlightBroadwayRoot()
+            }
+            SnapshotCase(
+                name: "AnnotationComposer",
+                configurations: [
+                    SnapshotConfiguration(device: .iPadFullContent),
+                    SnapshotConfiguration(contrast: .increased, device: .iPadFullContent),
+                ],
+                settle: .immediate,
+            ) {
+                SnapshotAnnotationComposer(
+                    draft: annotationDraft,
+                    model: PatchlightVisualFixtures.workspaceModel(),
+                )
+                .patchlightBroadwayRoot()
+            }
+            SnapshotCase(
+                name: "DimensionMismatch",
+                configurations: [SnapshotConfiguration(device: catalystFrame)],
+                settle: .immediate,
+            ) {
+                let pair = PatchlightVisualFixtures.mismatchedSnapshotPair
+                SnapshotComparisonView(
+                    pair: pair,
+                    model: PatchlightVisualFixtures.workspaceModel(snapshot: .ready(pair)),
+                )
+                .patchlightBroadwayRoot()
+            }
+        }
+
+        private static func comparisonCase(
+            name: String,
+            mode: SnapshotComparisonView.Mode,
+        ) -> SnapshotCase {
+            SnapshotCase(
+                name: name,
+                configurations: [SnapshotConfiguration(device: catalystFrame)],
+                settle: .immediate,
+            ) {
+                let pair = PatchlightVisualFixtures.snapshotPair
+                SnapshotComparisonView(
+                    pair: pair,
+                    model: PatchlightVisualFixtures.workspaceModel(snapshot: .ready(pair)),
+                    initialMode: mode,
+                )
+                .patchlightBroadwayRoot()
+            }
+        }
+
+        private static var catalystFrame: SnapshotConfiguration.Frame {
+            .fullContent(name: "Catalyst", width: 1280, minimumHeight: 900)
+        }
+
+        private static var annotationDraft: SnapshotAnnotationDraft {
+            SnapshotAnnotationDraft(
+                path: PatchlightVisualFixtures.snapshotPair.file.path,
+                target: .head,
+                blobOID: PatchlightVisualFixtures.snapshotHeadOID,
+                rectangle: normalizedRectangle,
+                sourceWidth: 640,
+                sourceHeight: 420,
+            )
+        }
+
+        private static var normalizedRectangle: NormalizedRectangle {
+            do {
+                return try NormalizedRectangle(x: 0.58, y: 0.16, width: 0.25, height: 0.22)
+            } catch {
+                preconditionFailure("The annotation snapshot rectangle must be valid: \(error)")
+            }
+        }
+    }
+#endif

@@ -68,11 +68,11 @@ public struct PatchlightDashboardView: View {
         }
         .task(id: model.dashboardContent?.dashboard.viewer.id) {
             guard model.dashboardContent != nil else { return }
-            await model.runVisibleDashboardRefreshLoop()
+            await model.runVisibleRefreshLoop()
         }
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active, model.dashboardContent != nil else { return }
-            Task { await model.refreshDashboard() }
+            Task { await model.refreshVisibleContent() }
         }
     }
 
@@ -103,8 +103,8 @@ public struct PatchlightDashboardView: View {
                         ToolbarItem(placement: .secondaryAction) {
                             Menu {
                                 Button(String(
-                                    localized: "aiSettings",
-                                    defaultValue: "AI Settings",
+                                    localized: "settings",
+                                    defaultValue: "Settings",
                                 )) {
                                     showsAISettings = true
                                 }
@@ -417,9 +417,23 @@ public struct PatchlightDashboardView: View {
 }
 
 private struct PullRequestRow: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let pullRequest: PullRequestSummary
 
     var body: some View {
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                accessibilityContent
+            } else {
+                standardContent
+            }
+        }
+        .contentShape(.rect)
+        .padding(.vertical, 4)
+        .accessibilityElement(children: .combine)
+    }
+
+    private var standardContent: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline) {
                 Text(pullRequest.title)
@@ -432,31 +446,87 @@ private struct PullRequestRow: View {
             HStack(spacing: 8) {
                 Text(pullRequest.repository.displayName)
                 Text(pullRequest.authorLogin)
-                if pullRequest.isDraft {
-                    Text(String(localized: .draft))
-                        .patchlightBadge(color: .secondary)
-                }
-                switch pullRequest.reviewRequestSource {
-                    case .direct:
-                        Text(String(localized: .directRequest))
-                            .patchlightBadge(color: .blue)
-                    case let .team(organization, slug):
-                        Text("\(organization)/\(slug)")
-                            .patchlightBadge(color: .purple)
-                    case .teamDiscoveryUnavailable:
-                        Text(String(localized: .teamRequest))
-                            .patchlightBadge(color: .orange)
-                    case .none:
-                        EmptyView()
-                }
+                draftBadge
+                requestBadge
+                actionabilityBadge
                 Spacer()
                 Text(pullRequest.updatedAt, style: .relative)
             }
             .font(.caption)
             .foregroundStyle(.secondary)
         }
-        .contentShape(.rect)
-        .padding(.vertical, 4)
+    }
+
+    private var accessibilityContent: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(pullRequest.title)
+                .font(.headline)
+            Text("#\(pullRequest.id.number)")
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(.secondary)
+            Text(pullRequest.repository.displayName)
+            Text(pullRequest.authorLogin)
+            draftBadge
+            requestBadge
+            actionabilityBadge
+            Text(pullRequest.updatedAt, style: .relative)
+        }
+        .font(.caption)
+        .foregroundStyle(.secondary)
+    }
+
+    @ViewBuilder
+    private var draftBadge: some View {
+        if pullRequest.isDraft {
+            Text(String(localized: .draft))
+                .patchlightBadge(color: .secondary)
+        }
+    }
+
+    @ViewBuilder
+    private var requestBadge: some View {
+        switch pullRequest.reviewRequestSource {
+            case .direct:
+                Text(String(localized: .directRequest))
+                    .patchlightBadge(color: .blue)
+            case let .team(organization, slug):
+                Text("\(organization)/\(slug)")
+                    .patchlightBadge(color: .purple)
+            case .teamDiscoveryUnavailable:
+                Text(String(localized: .teamRequest))
+                    .patchlightBadge(color: .orange)
+            case .none:
+                EmptyView()
+        }
+    }
+
+    @ViewBuilder
+    private var actionabilityBadge: some View {
+        switch pullRequest.actionability {
+            case .newActivity:
+                Text(String(localized: "newActivity", defaultValue: "New activity"))
+                    .patchlightBadge(color: .green)
+            case .unresolvedThreads:
+                Text(String(
+                    localized: "unresolvedThreads",
+                    defaultValue: "Unresolved threads",
+                ))
+                .patchlightBadge(color: .orange)
+            case .pendingChecks:
+                Text(String(localized: "pendingChecks", defaultValue: "Checks pending"))
+                    .patchlightBadge(color: .blue)
+            case .failedChecks:
+                Text(String(localized: "failedChecks", defaultValue: "Checks failed"))
+                    .patchlightBadge(color: .red)
+            case .changesRequested:
+                Text(String(
+                    localized: "changesRequested",
+                    defaultValue: "Changes requested",
+                ))
+                .patchlightBadge(color: .orange)
+            case .directRequest, .teamRequest, .draft, .waiting:
+                EmptyView()
+        }
     }
 }
 
@@ -487,13 +557,59 @@ extension View {
             SnapshotCase(
                 name: "SignedOut",
                 configurations: SnapshotConfiguration.combinations(
-                    devices: [.iPad],
+                    devices: [.iPadFullContent],
                     colorSchemes: [.light, .dark],
                 ),
                 settle: .immediate,
             ) {
-                PatchlightDashboardView()
+                PatchlightDashboardView(model: PatchlightVisualFixtures.dashboardModel(.signedOut))
                     .patchlightBroadwayRoot()
+                    .environment(\.horizontalSizeClass, .regular)
+            }
+            SnapshotCase(
+                name: "Empty",
+                configurations: [SnapshotConfiguration(device: .iPadFullContent)],
+                settle: .immediate,
+            ) {
+                PatchlightDashboardView(model: PatchlightVisualFixtures.dashboardModel(
+                    .ready(PatchlightVisualFixtures.emptyDashboardContent),
+                ))
+                .patchlightBroadwayRoot()
+                .environment(\.horizontalSizeClass, .regular)
+            }
+            SnapshotCase(
+                name: "Loaded",
+                configurations: [
+                    SnapshotConfiguration(device: .iPadFullContent),
+                    SnapshotConfiguration(colorScheme: .dark, device: .iPadFullContent),
+                    SnapshotConfiguration(
+                        dynamicType: .accessibility3,
+                        device: .iPadFullContent,
+                    ),
+                    SnapshotConfiguration(contrast: .increased, device: .iPadFullContent),
+                    SnapshotConfiguration(
+                        layoutDirection: .rightToLeft,
+                        device: .iPadFullContent,
+                    ),
+                ],
+                settle: .immediate,
+            ) {
+                PatchlightDashboardView(model: PatchlightVisualFixtures.dashboardModel(
+                    .ready(PatchlightVisualFixtures.dashboardContent),
+                ))
+                .patchlightBroadwayRoot()
+                .environment(\.horizontalSizeClass, .regular)
+            }
+            SnapshotCase(
+                name: "Error",
+                configurations: [SnapshotConfiguration(device: .iPadFullContent)],
+                settle: .immediate,
+            ) {
+                PatchlightDashboardView(model: PatchlightVisualFixtures.dashboardModel(
+                    .failed(previous: nil, message: "GitHub is temporarily unavailable."),
+                ))
+                .patchlightBroadwayRoot()
+                .environment(\.horizontalSizeClass, .regular)
             }
         }
     }

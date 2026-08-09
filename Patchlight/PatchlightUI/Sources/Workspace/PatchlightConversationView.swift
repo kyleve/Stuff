@@ -163,8 +163,12 @@ struct PatchlightConversationView: View {
     private func uncertainMessage(_ requestID: String?) -> String {
         if let requestID {
             return String(
-                localized: "writeUncertainRequest",
-                defaultValue: "Submission status is uncertain (request \(requestID)). Refresh before trying again.",
+                format: String(
+                    localized: "writeUncertainRequest",
+                    defaultValue: "Submission status is uncertain (request %1$@). Refresh before trying again.",
+                ),
+                locale: .current,
+                requestID,
             )
         }
         return String(
@@ -206,7 +210,7 @@ private struct CommentCard: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
-                markdown(comment.bodyMarkdown)
+                markdown(visibleCommentBody(comment.bodyMarkdown))
                     .textSelection(.enabled)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -319,7 +323,29 @@ private struct ThreadCard: View {
 }
 
 private func markdown(_ source: String) -> Text {
-    (try? AttributedString(markdown: source)).map(Text.init) ?? Text(source)
+    do {
+        return try Text(AttributedString(markdown: source))
+    } catch {
+        return Text(source)
+    }
+}
+
+private func visibleCommentBody(_ source: String) -> String {
+    guard let prefix = source.range(of: SnapshotAnnotationV1.markerPrefix) else { return source }
+    do {
+        guard try SnapshotAnnotationV1.parseMarker(in: source) != nil,
+              let suffix = source[prefix.upperBound...].range(of: " -->")
+        else { return source }
+        var visible = source
+        visible.removeSubrange(prefix.lowerBound ..< suffix.upperBound)
+        let trimmed = visible.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty
+            ? String(localized: "snapshotAnnotation", defaultValue: "Snapshot Annotation")
+            : trimmed
+    } catch {
+        // Malformed v1 and unknown markers remain ordinary visible comment text.
+        return source
+    }
 }
 
 extension View {

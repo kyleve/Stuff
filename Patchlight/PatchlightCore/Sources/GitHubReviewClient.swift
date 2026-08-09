@@ -301,10 +301,17 @@ public actor GitHubReviewClient: GitHubReviewReading, GitHubReviewWriting {
     }
 
     private func receipt(_ response: PatchlightHTTPResponse) throws -> ReviewWriteReceipt {
-        let nodeID = try? decode(NodeReceiptWire.self, from: response.body).nodeID
-            .map(GitHubNodeID.init(rawValue:))
+        let nodeID: GitHubNodeID?
+        do {
+            nodeID = try decode(NodeReceiptWire.self, from: response.body).nodeID
+                .map(GitHubNodeID.init(rawValue:))
+        } catch {
+            // A 2xx status and request ID prove the write; some GitHub write
+            // endpoints omit the optional GraphQL node identifier.
+            nodeID = nil
+        }
         return ReviewWriteReceipt(
-            nodeID: nodeID ?? nil,
+            nodeID: nodeID,
             requestID: response.header("x-github-request-id"),
         )
     }
@@ -351,7 +358,12 @@ public actor GitHubReviewClient: GitHubReviewReading, GitHubReviewWriting {
     }
 
     private static func apiError(_ response: PatchlightHTTPResponse) -> GitHubAPIError {
-        let message = (try? JSONDecoder().decode(APIErrorWire.self, from: response.body).message)
+        let message: String?
+        do {
+            message = try JSONDecoder().decode(APIErrorWire.self, from: response.body).message
+        } catch {
+            message = nil
+        }
         switch response.statusCode {
             case 401: return .authenticationExpired
             case 403: return .permissionDenied(message)

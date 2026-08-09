@@ -298,6 +298,61 @@
         }
       }
     },
+    "cacheCleared" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cache cleared"
+          }
+        }
+      }
+    },
+    "cacheProtectedSummary" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Repository blobs and snapshots are encrypted and excluded from backup. Clearing preserves objects used by the open workspace."
+          }
+        }
+      }
+    },
+    "cacheSize" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cache Size"
+          }
+        }
+      }
+    },
+    "cacheSizeFormat" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld GB"
+          }
+        }
+      }
+    },
+    "cacheUpdatedFormat" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cache limit set to %1$@"
+          }
+        }
+      }
+    },
     "cachedAnalysis" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -353,6 +408,17 @@
         }
       }
     },
+    "changesRequested" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Changes requested"
+          }
+        }
+      }
+    },
     "checks" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -360,6 +426,39 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Checks"
+          }
+        }
+      }
+    },
+    "clearCache" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear Cache"
+          }
+        }
+      }
+    },
+    "clearCacheAction" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear Cache"
+          }
+        }
+      }
+    },
+    "clearCacheConfirmation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear downloaded repository blobs and snapshots?"
           }
         }
       }
@@ -859,6 +958,17 @@
         }
       }
     },
+    "failedChecks" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Checks failed"
+          }
+        }
+      }
+    },
     "fast" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1019,7 +1129,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Repository contents are read-only. Review and issue permissions are used only when you explicitly send."
+            "value" : "Patchlight requests Metadata read, Contents read, Pull Requests write, Issues write, Checks read, Commit Statuses read, and organization Members read. Team discovery is unavailable when Members access is withheld; review and issue writes occur only when you explicitly send."
           }
         }
       }
@@ -1332,6 +1442,17 @@
         }
       }
     },
+    "newActivity" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New activity"
+          }
+        }
+      }
+    },
     "newConversationComment" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1614,6 +1735,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Patchlight"
+          }
+        }
+      }
+    },
+    "pendingChecks" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Checks pending"
           }
         }
       }
@@ -1970,6 +2102,17 @@
         }
       }
     },
+    "reviewUncertainRequest" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Submission status is uncertain (request %1$@)."
+          }
+        }
+      }
+    },
     "root" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2091,6 +2234,17 @@
         }
       }
     },
+    "settings" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Settings"
+          }
+        }
+      }
+    },
     "sideBySide" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2201,6 +2355,28 @@
         }
       }
     },
+    "staleDraftSummaryFormat" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld uniquely matched; %2$lld require re-anchoring, file-level conversion, or discard."
+          }
+        }
+      }
+    },
+    "storage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Storage"
+          }
+        }
+      }
+    },
     "submit" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2252,6 +2428,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Team"
+          }
+        }
+      }
+    },
+    "tenMinutesRemaining" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "10 minutes remaining"
           }
         }
       }
@@ -2355,6 +2542,28 @@
         }
       }
     },
+    "unresolvedThreads" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unresolved threads"
+          }
+        }
+      }
+    },
+    "updatingCache" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Updating cache…"
+          }
+        }
+      }
+    },
     "vertical" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2427,7 +2636,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Submission status is uncertain. Refresh before trying again."
+            "value" : "Submission status is uncertain (request %1$@). Refresh before trying again."
           }
         }
       }

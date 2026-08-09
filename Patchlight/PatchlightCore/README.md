@@ -20,10 +20,14 @@ The shipping foundation includes:
   DEBUG-only fine-grained PAT seam;
 - fixed-host GitHub transport, installation/repository/direct/team/self-PR
   discovery, pagination, ETags, rate-limit and partial-response handling;
+- deterministic dashboard actionability that compares the latest head and
+  activity against the prior encrypted snapshot, then stably orders direct and
+  team requests, unresolved threads, checks, and waiting states without AI;
 - local unified-patch parsing and a cancellable, bounded Myers fallback for
   omitted text patches; and
 - encrypted dashboard/repository/workspace snapshots with honest offline and
-  reauthorization fallback states;
+  reauthorization fallback states, including live repair after a cached
+  dashboard becomes undecodable;
 - review conversations, checks, inline threads, and encrypted offline copies;
 - one-shot GitHub review/comment/thread/viewed mutations with ambiguous-write
   reconciliation and no automatic retry; and

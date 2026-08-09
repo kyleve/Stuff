@@ -2,6 +2,10 @@ import Foundation
 import PatchlightCore
 import StuffCore
 
+enum PatchlightSettingsDefaults {
+    static let cacheCapacity = "Patchlight.cache.capacityGB"
+}
+
 /// Process-owned inputs from the thin app host. Account-scoped resources are
 /// still created only after GitHub identifies the signed-in user.
 public struct PatchlightApplicationDependencies: Sendable {
@@ -29,12 +33,16 @@ public struct PatchlightApplicationDependencies: Sendable {
         let clientID = bundle
             .object(forInfoDictionaryKey: "PatchlightGitHubClientID") as? String ?? ""
         let appSlug = bundle.object(forInfoDictionaryKey: "PatchlightGitHubAppSlug") as? String ?? ""
+        let cacheCapacity = CacheCapacity(
+            rawValue: UserDefaults.standard
+                .integer(forKey: PatchlightSettingsDefaults.cacheCapacity),
+        ) ?? .default
         return PatchlightApplicationDependencies(
             githubConfiguration: GitHubAppConfiguration(clientID: clientID, appSlug: appSlug),
             credentialStore: SystemCredentialStore(service: "com.stuff.patchlight"),
             transport: URLSessionPatchlightHTTPTransport(),
             accountsRootURL: PatchlightScope.defaultRootURL,
-            cacheCapacity: .fiveGB,
+            cacheCapacity: cacheCapacity,
         )
     }
 

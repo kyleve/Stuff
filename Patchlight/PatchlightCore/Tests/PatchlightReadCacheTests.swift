@@ -46,6 +46,33 @@ struct PatchlightReadCacheTests {
         #expect(cached.fallbackReason?.code == .reauthorizationRequired)
         #expect(FileManager.default.fileExists(atPath: setup.root.path))
     }
+
+    @Test func liveDashboardRepairsAnInvalidEncryptedSnapshot() async throws {
+        let setup = try PatchlightCoreTestSupport.makeScope(name: "repair-read-cache")
+        defer { try? FileManager.default.removeItem(at: setup.root) }
+        try await setup.scope.readCache.save(
+            "not-a-dashboard",
+            key: .dashboard,
+            refreshedAt: Date(timeIntervalSince1970: 1000),
+            etag: nil,
+        )
+        let dashboard = sampleDashboard()
+        let coordinator = GitHubReadCoordinator(
+            github: SwitchingGitHubReader(dashboard: dashboard),
+            cache: setup.scope.readCache,
+            now: { Date(timeIntervalSince1970: 4000) },
+        )
+
+        let live = try await coordinator.dashboard()
+        let repaired = try await setup.scope.readCache.load(
+            ReviewDashboard.self,
+            key: .dashboard,
+        )
+
+        #expect(live.value == dashboard)
+        #expect(live.source == .live)
+        #expect(repaired?.value == dashboard)
+    }
 }
 
 private actor SwitchingGitHubReader: GitHubReading {

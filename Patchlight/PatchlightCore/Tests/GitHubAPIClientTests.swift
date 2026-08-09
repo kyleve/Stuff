@@ -96,6 +96,7 @@ struct GitHubAPIClientTests {
 
         #expect(dashboard.reviewRequests.count == 1)
         #expect(dashboard.reviewRequests.first?.reviewRequestSource == .direct)
+        #expect(dashboard.reviewRequests.first?.actionability == .unresolvedThreads)
         #expect(dashboard.ownPullRequests.first?.isDraft == true)
         #expect(dashboard.warnings.contains {
             $0.code == .teamDiscoveryUnavailable && $0.context == "acme"
@@ -316,7 +317,10 @@ private func graphQLDashboardResponse(
           "data":{"search":{
             "nodes":[{
               "number":3,"title":"Requested","isDraft":false,"headRefOid":"\(oid)",
-              "updatedAt":"2026-08-08T20:00:00Z","author":{"login":"author"},
+              "createdAt":"2026-08-01T20:00:00Z","updatedAt":"2026-08-08T20:00:00Z",
+              "reviewDecision":"REVIEW_REQUIRED","author":{"login":"author"},
+              "reviewThreads":{"nodes":[{"isResolved":false}],"pageInfo":{"hasNextPage":false,"endCursor":null}},
+              "commits":{"nodes":[{"commit":{"statusCheckRollup":{"state":"PENDING"}}}]},
               "repository":{"databaseId":7,"name":"widget","owner":{"login":"acme"}}
             }],
             "pageInfo":{"hasNextPage":false,"endCursor":null}
@@ -329,7 +333,9 @@ private func graphQLDashboardResponse(
     {"data":{"viewer":{"pullRequests":{
       "nodes":[{
         "number":4,"title":"Mine","isDraft":true,"headRefOid":"\(oid)",
-        "updatedAt":"2026-08-08T19:00:00Z","author":{"login":"reviewer"},
+        "createdAt":"2026-08-01T19:00:00Z","updatedAt":"2026-08-08T19:00:00Z",
+        "reviewDecision":null,"reviewThreads":{"nodes":[],"pageInfo":{"hasNextPage":false,"endCursor":null}},"commits":{"nodes":[]},
+        "author":{"login":"reviewer"},
         "repository":{"databaseId":7,"name":"widget","owner":{"login":"acme"}}
       }],
       "pageInfo":{"hasNextPage":false,"endCursor":null}

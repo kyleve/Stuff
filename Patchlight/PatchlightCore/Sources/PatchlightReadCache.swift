@@ -129,6 +129,17 @@ public struct CachedRead<Value: Sendable>: Sendable {
     }
 }
 
+public enum GitHubReadCoordinatorError: LocalizedError, Sendable {
+    case refreshAndCacheUnavailable(refresh: String, cache: String)
+
+    public var errorDescription: String? {
+        switch self {
+            case let .refreshAndCacheUnavailable(refresh, cache):
+                "GitHub refresh failed (\(refresh)); the encrypted cached inbox is also unavailable (\(cache))."
+        }
+    }
+}
+
 /// Refreshes GitHub reads and falls back to encrypted local DTOs without ever
 /// turning a failed refresh into a fresh-looking success.
 public actor GitHubReadCoordinator {
@@ -159,12 +170,50 @@ public actor GitHubReadCoordinator {
     #endif
 
     public func dashboard() async throws -> CachedRead<ReviewDashboard> {
-        let github = github
-        return try await refresh(
-            key: .dashboard,
-            type: ReviewDashboard.self,
-            operation: { try await github.dashboard() },
-        )
+        let previous: StoredRead<ReviewDashboard>?
+        let cacheLoadFailure: String?
+        do {
+            previous = try await cache.load(ReviewDashboard.self, key: .dashboard)
+            cacheLoadFailure = nil
+        } catch {
+            // A live refresh can repair an invalid cache entry, so cache damage
+            // must not prevent the network request from running.
+            previous = nil
+            cacheLoadFailure = error.localizedDescription
+        }
+        do {
+            let current = try await github.dashboard()
+            let value = ReviewDashboardRanker.rank(current, previous: previous?.value)
+            let refreshedAt = now()
+            try await cache.save(
+                value,
+                key: .dashboard,
+                refreshedAt: refreshedAt,
+                etag: nil,
+            )
+            return CachedRead(
+                value: value,
+                source: .live,
+                refreshedAt: refreshedAt,
+                fallbackReason: nil,
+            )
+        } catch {
+            guard let previous else {
+                if let cacheLoadFailure {
+                    throw GitHubReadCoordinatorError.refreshAndCacheUnavailable(
+                        refresh: error.localizedDescription,
+                        cache: cacheLoadFailure,
+                    )
+                }
+                throw error
+            }
+            return CachedRead(
+                value: previous.value,
+                source: .cache,
+                refreshedAt: previous.refreshedAt,
+                fallbackReason: Self.fallbackReason(for: error),
+            )
+        }
     }
 
     public func workspace(

@@ -25,12 +25,42 @@ struct PatchlightAISettingsView: View {
     @AppStorage(PatchlightAIUserDefaults.preset) private var presetCode = AnalysisPreset.balanced
         .rawValue
     @AppStorage(PatchlightAIUserDefaults.advancedModelID) private var advancedModelID = ""
+    @AppStorage(PatchlightSettingsDefaults.cacheCapacity) private var cacheCapacityRaw =
+        CacheCapacity.default.rawValue
     @State private var openAIKey = ""
     @State private var anthropicKey = ""
+    @State private var confirmsCacheClear = false
 
     var body: some View {
         NavigationStack {
             Form {
+                if model.canManageCache {
+                    Section {
+                        Picker(
+                            String(localized: "cacheSize", defaultValue: "Cache Size"),
+                            selection: $cacheCapacityRaw,
+                        ) {
+                            ForEach(CacheCapacity.allCases, id: \.rawValue) { capacity in
+                                Text(cacheCapacityTitle(capacity)).tag(capacity.rawValue)
+                            }
+                        }
+                        Button(
+                            String(localized: "clearCache", defaultValue: "Clear Cache"),
+                            role: .destructive,
+                        ) {
+                            confirmsCacheClear = true
+                        }
+                        cacheOperationStatus
+                    } header: {
+                        Text(String(localized: "storage", defaultValue: "Storage"))
+                    } footer: {
+                        Text(String(
+                            localized: "cacheProtectedSummary",
+                            defaultValue: "Repository blobs and snapshots are encrypted and excluded from backup. Clearing preserves objects used by the open workspace.",
+                        ))
+                    }
+                }
+
                 Section {
                     Toggle(
                         String(localized: "enableAIAnalysis", defaultValue: "Enable AI Analysis"),
@@ -146,7 +176,7 @@ struct PatchlightAISettingsView: View {
                     }
                 }
             }
-            .navigationTitle(String(localized: "aiSettings", defaultValue: "AI Settings"))
+            .navigationTitle(String(localized: "settings", defaultValue: "Settings"))
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button(String(localized: "done", defaultValue: "Done")) { dismiss() }
@@ -156,11 +186,72 @@ struct PatchlightAISettingsView: View {
             .onChange(of: globallyEnabled) { _, enabled in
                 if !enabled { model.cancelAIWork() }
             }
+            .onChange(of: cacheCapacityRaw) { _, rawValue in
+                guard let capacity = CacheCapacity(rawValue: rawValue) else { return }
+                Task { await model.setCacheCapacity(capacity) }
+            }
+            .confirmationDialog(
+                String(
+                    localized: "clearCacheConfirmation",
+                    defaultValue: "Clear downloaded repository blobs and snapshots?",
+                ),
+                isPresented: $confirmsCacheClear,
+            ) {
+                Button(
+                    String(localized: "clearCacheAction", defaultValue: "Clear Cache"),
+                    role: .destructive,
+                ) {
+                    Task { await model.clearCache() }
+                }
+            }
         }
     }
 
     private var selectedPreset: AnalysisPreset {
         PatchlightAIUserDefaults.preset(from: presetCode)
+    }
+
+    @ViewBuilder
+    private var cacheOperationStatus: some View {
+        switch model.cacheOperationState {
+            case .idle:
+                EmptyView()
+            case .updating:
+                HStack {
+                    ProgressView()
+                    Text(String(localized: "updatingCache", defaultValue: "Updating cache…"))
+                }
+            case let .updated(capacity):
+                Label(
+                    String(
+                        format: String(
+                            localized: "cacheUpdatedFormat",
+                            defaultValue: "Cache limit set to %1$@",
+                        ),
+                        locale: .current,
+                        cacheCapacityTitle(capacity),
+                    ),
+                    systemImage: "checkmark.circle",
+                )
+                .foregroundStyle(.green)
+            case .cleared:
+                Label(
+                    String(localized: "cacheCleared", defaultValue: "Cache cleared"),
+                    systemImage: "checkmark.circle",
+                )
+                .foregroundStyle(.green)
+            case let .failed(message):
+                Label(message, systemImage: "exclamationmark.triangle")
+                    .foregroundStyle(.red)
+        }
+    }
+
+    private func cacheCapacityTitle(_ capacity: CacheCapacity) -> String {
+        String(
+            format: String(localized: "cacheSizeFormat", defaultValue: "%lld GB"),
+            locale: .current,
+            capacity.rawValue,
+        )
     }
 
     private func providerKeySection(

@@ -10,8 +10,10 @@ struct InterfacesTests {
             authorLogin: "solo",
             isDraft: true,
             headOID: PatchlightCoreTestSupport.objectID(),
+            createdAt: .distantPast,
             updatedAt: .distantPast,
             reviewRequestSource: nil,
+            actionability: .draft,
         )
         #expect(summary.isDraft)
     }

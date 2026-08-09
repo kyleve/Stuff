@@ -1,37 +1,42 @@
 import PatchlightCore
+import SnapshotKit
 import SwiftUI
 import UIKit
 
 struct PatchlightOnboardingView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.isCapturingSnapshot) private var isCapturingSnapshot
     @Environment(\.openURL) private var openURL
     let model: PatchlightAppModel
     @State private var showsAISettings = false
 
     var body: some View {
         NavigationStack {
-            Group {
-                switch model.accountState {
-                    case .signedOut:
-                        introduction
-                    case let .connecting(authorization):
-                        if let authorization {
-                            deviceCode(authorization)
-                        } else {
-                            ProgressView(String(localized: .requestingDeviceCode))
-                        }
-                    case .loading:
-                        ProgressView(String(localized: .loadingGitHub))
-                    case .ready:
-                        completed
-                    case .reauthorization:
-                        introduction
-                    case let .failed(_, message):
-                        failure(message)
+            ScrollView {
+                Group {
+                    switch model.accountState {
+                        case .signedOut:
+                            introduction
+                        case let .connecting(authorization):
+                            if let authorization {
+                                deviceCode(authorization)
+                            } else {
+                                ProgressView(String(localized: .requestingDeviceCode))
+                            }
+                        case .loading:
+                            ProgressView(String(localized: .loadingGitHub))
+                        case .ready:
+                            completed
+                        case .reauthorization:
+                            introduction
+                        case let .failed(_, message):
+                            failure(message)
+                    }
                 }
+                .padding(40)
+                .frame(maxWidth: 680, minHeight: 500)
+                .frame(maxWidth: .infinity)
             }
-            .padding(40)
-            .frame(maxWidth: 680, minHeight: 500)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(String(localized: .cancel)) {
@@ -81,13 +86,23 @@ struct PatchlightOnboardingView: View {
                 .textSelection(.enabled)
                 .accessibilityLabel(String(localized: .githubDeviceCode))
                 .accessibilityValue(authorization.userCode)
-            TimelineView(.periodic(from: .now, by: 1)) { context in
-                Text(
-                    timerInterval: context.date ... max(context.date, authorization.expiresAt),
-                    countsDown: true,
-                )
-                .font(.caption.monospacedDigit())
-                .foregroundStyle(.secondary)
+            if isCapturingSnapshot {
+                Text(verbatim: "10:00")
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+                    .accessibilityLabel(String(
+                        localized: "tenMinutesRemaining",
+                        defaultValue: "10 minutes remaining",
+                    ))
+            } else {
+                TimelineView(.periodic(from: .now, by: 1)) { context in
+                    Text(
+                        timerInterval: context.date ... max(context.date, authorization.expiresAt),
+                        countsDown: true,
+                    )
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+                }
             }
             HStack {
                 Button(String(localized: .copyCode)) {
@@ -99,7 +114,12 @@ struct PatchlightOnboardingView: View {
                 }
                 .buttonStyle(.borderedProminent)
             }
-            ProgressView(String(localized: .waitingForGitHub))
+            if isCapturingSnapshot {
+                Label(String(localized: .waitingForGitHub), systemImage: "progress.indicator")
+                    .foregroundStyle(.secondary)
+            } else {
+                ProgressView(String(localized: .waitingForGitHub))
+            }
             Text(String(localized: .deviceFlowCanCancel))
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -142,7 +162,49 @@ struct PatchlightOnboardingView: View {
     }
 }
 
-#Preview {
-    PatchlightOnboardingView(model: PatchlightAppModel(dependencies: .preview))
-        .patchlightBroadwayRoot()
-}
+#if DEBUG
+    @_spi(Testing)
+    @MainActor
+    public enum PatchlightOnboardingSnapshots: SnapshotProviding {
+        public static var snapshots: [SnapshotCase] {
+            SnapshotCase(
+                name: "Introduction",
+                configurations: [
+                    SnapshotConfiguration(device: .iPadFullContent),
+                    SnapshotConfiguration(colorScheme: .dark, device: .iPadFullContent),
+                ],
+                settle: .immediate,
+            ) {
+                PatchlightOnboardingView(model: PatchlightVisualFixtures.dashboardModel(.signedOut))
+                    .patchlightBroadwayRoot()
+            }
+            SnapshotCase(
+                name: "DeviceCode",
+                configurations: [SnapshotConfiguration(device: .iPadFullContent)],
+                settle: .immediate,
+            ) {
+                PatchlightOnboardingView(model: PatchlightVisualFixtures.dashboardModel(
+                    .connecting(deviceAuthorization),
+                ))
+                .patchlightBroadwayRoot()
+            }
+        }
+
+        private static var deviceAuthorization: GitHubDeviceAuthorization {
+            guard let url = URL(string: "https://github.com/login/device") else {
+                preconditionFailure("GitHub's device authorization URL must be valid")
+            }
+            return GitHubDeviceAuthorization(
+                deviceCode: "visual-fixture-device-code",
+                userCode: "PL42-LOOK",
+                verificationURL: url,
+                expiresAt: Date.now.addingTimeInterval(600),
+                pollingInterval: .seconds(5),
+            )
+        }
+    }
+
+    #Preview {
+        PatchlightOnboardingSnapshots.snapshotPreviews
+    }
+#endif

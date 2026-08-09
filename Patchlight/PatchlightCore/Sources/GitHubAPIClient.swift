@@ -534,8 +534,10 @@ public actor GitHubAPIClient: GitHubReading {
             authorLogin: wire.author?.login ?? "[deleted]",
             isDraft: wire.isDraft,
             headOID: GitObjectID(validating: wire.headRefOID),
+            createdAt: wire.createdAt ?? wire.updatedAt,
             updatedAt: wire.updatedAt,
             reviewRequestSource: source,
+            actionability: wire.actionability,
         )
     }
 
@@ -554,8 +556,10 @@ public actor GitHubAPIClient: GitHubReading {
             authorLogin: wire.user?.login ?? "[deleted]",
             isDraft: wire.draft,
             headOID: GitObjectID(validating: wire.head.sha),
+            createdAt: wire.createdAt ?? wire.updatedAt,
             updatedAt: wire.updatedAt,
             reviewRequestSource: source,
+            actionability: wire.draft ? .draft : .waiting,
         )
     }
 
@@ -748,7 +752,14 @@ public actor GitHubAPIClient: GitHubReading {
     }
 
     private static func apiError(_ response: PatchlightHTTPResponse) -> GitHubAPIError {
-        let message = (try? JSONDecoder().decode(APIMessageWire.self, from: response.body).message)
+        let message: String?
+        do {
+            message = try JSONDecoder().decode(APIMessageWire.self, from: response.body).message
+        } catch {
+            // HTTP status remains the authoritative failure when GitHub omits
+            // its optional human-readable error envelope.
+            message = nil
+        }
         switch response.statusCode {
             case 401:
                 return .authenticationExpired
@@ -771,9 +782,16 @@ public actor GitHubAPIClient: GitHubReading {
       search(query: $query, type: ISSUE, first: 100, after: $cursor) {
         nodes {
           ... on PullRequest {
-            number title isDraft headRefOid updatedAt
+            number title isDraft headRefOid createdAt updatedAt reviewDecision
             author { login }
             repository { databaseId name owner { login } }
+            reviewThreads(first: 100) {
+              nodes { isResolved }
+              pageInfo { hasNextPage }
+            }
+            commits(last: 1) {
+              nodes { commit { statusCheckRollup { state } } }
+            }
           }
         }
         pageInfo { hasNextPage endCursor }
@@ -787,9 +805,16 @@ public actor GitHubAPIClient: GitHubReading {
         pullRequests(first: 100, after: $cursor, states: OPEN,
           orderBy: {field: UPDATED_AT, direction: DESC}) {
           nodes {
-            number title isDraft headRefOid updatedAt
+            number title isDraft headRefOid createdAt updatedAt reviewDecision
             author { login }
             repository { databaseId name owner { login } }
+            reviewThreads(first: 100) {
+              nodes { isResolved }
+              pageInfo { hasNextPage }
+            }
+            commits(last: 1) {
+              nodes { commit { statusCheckRollup { state } } }
+            }
           }
           pageInfo { hasNextPage endCursor }
         }
@@ -940,6 +965,7 @@ private struct PullRequestRESTWire: Decodable {
     let body: String?
     let user: LoginWire?
     let draft: Bool
+    let createdAt: Date?
     let updatedAt: Date
     let head: PullRefWire
     let base: PullRefWire
@@ -951,6 +977,7 @@ private struct PullRequestRESTWire: Decodable {
         case body
         case user
         case draft
+        case createdAt = "created_at"
         case updatedAt = "updated_at"
         case head
         case base
@@ -1075,19 +1102,69 @@ private struct PullRequestNodeWire: Decodable {
     let title: String
     let isDraft: Bool
     let headRefOID: String
+    let createdAt: Date?
     let updatedAt: Date
+    let reviewDecision: String?
     let author: LoginWire?
     let repository: GraphQLRepositoryWire
+    let reviewThreads: ReviewThreadSummaryConnectionWire?
+    let commits: CommitSummaryConnectionWire?
+
+    var actionability: ReviewActionability {
+        if isDraft { return .draft }
+        if reviewThreads?.nodes.contains(where: { !$0.isResolved }) == true ||
+            reviewThreads?.pageInfo.hasNextPage == true
+        {
+            return .unresolvedThreads
+        }
+        switch commits?.nodes.last?.commit.statusCheckRollup?.state {
+            case "PENDING", "EXPECTED": return .pendingChecks
+            case "FAILURE", "ERROR": return .failedChecks
+            case "SUCCESS", nil: break
+            default: break
+        }
+        if reviewDecision == "CHANGES_REQUESTED" { return .changesRequested }
+        return .waiting
+    }
 
     enum CodingKeys: String, CodingKey {
         case number
         case title
         case isDraft
         case headRefOID = "headRefOid"
+        case createdAt
         case updatedAt
+        case reviewDecision
         case author
         case repository
+        case reviewThreads
+        case commits
     }
+}
+
+private struct ReviewThreadSummaryConnectionWire: Decodable {
+    let nodes: [ReviewThreadSummaryWire]
+    let pageInfo: PageInfoWire
+}
+
+private struct ReviewThreadSummaryWire: Decodable {
+    let isResolved: Bool
+}
+
+private struct CommitSummaryConnectionWire: Decodable {
+    let nodes: [CommitSummaryNodeWire]
+}
+
+private struct CommitSummaryNodeWire: Decodable {
+    let commit: CommitSummaryWire
+}
+
+private struct CommitSummaryWire: Decodable {
+    let statusCheckRollup: CheckRollupSummaryWire?
+}
+
+private struct CheckRollupSummaryWire: Decodable {
+    let state: String
 }
 
 private struct GraphQLRepositoryWire: Decodable {
