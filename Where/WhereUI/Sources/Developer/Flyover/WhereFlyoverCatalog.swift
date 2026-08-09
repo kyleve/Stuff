@@ -99,6 +99,7 @@
                 WidgetFeaturesView.flyoverData,
                 ShareEvidenceFeaturesView.flyoverData,
                 InsightsAccuracyFeaturesView.flyoverData,
+                PersonalizationFeaturesView.flyoverData,
                 DataSettingsView.flyoverData,
                 AboutSettingsView.flyoverData,
                 LicenseView.flyoverData,

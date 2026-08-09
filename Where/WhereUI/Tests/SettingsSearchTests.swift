@@ -62,10 +62,12 @@ struct SettingsSearchTests {
         let accessory = SettingsCatalog.results(matching: "accessory")
         let boardingPass = SettingsCatalog.results(matching: "boarding pass")
         let drift = SettingsCatalog.results(matching: "drift")
+        let emoji = SettingsCatalog.results(matching: "emoji")
         #expect(automation.contains { $0.destination == .siri })
         #expect(accessory.contains { $0.destination == .widgets })
         #expect(boardingPass.contains { $0.destination == .shareEvidence })
         #expect(drift.contains { $0.destination == .insightsAccuracy })
+        #expect(emoji.contains { $0.destination == .personalization })
     }
 
     @Test func focusedRouteCarriesTheResultsDestinationAndFocus() throws {
