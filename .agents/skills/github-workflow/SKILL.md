@@ -43,8 +43,12 @@ body** — the body is what `git show` reads months later. Write for someone
 bisecting or reconstructing *why*, not for the conversation that produced the
 branch.
 
-- **Title:** imperative, describes the merged end state (reads well as
-  `Title (#NNN)` on `main`).
+- **Title:** prefer `type(scope): imperative description` when it fits — the squash
+  commit subject on `main`. Use the same **types** and **scopes** as
+  [`TODOs.md`](../../../TODOs.md) (`feat`, `fix`, `refactor`, `docs`, …;
+  `WhereUI`, `WhereCore`, `Periscope`, …). Prose titles are fine for
+  cross-cutting work that doesn't have one scope (`Add demo mode…`). Branch
+  commits stay bisectable narrative; only the PR title needs this shape.
 - **End state, not a changelog:** describe what the repo looks like after merge,
   not commit-by-commit or chat-by-chat progress.
 - **Explain what the diff doesn't show** — motivation, rejected alternatives,
@@ -55,18 +59,24 @@ branch.
 | Tier | When | Keep | Add when warranted |
 |------|------|------|--------------------|
 | Small | Obvious fix, 1–2 modules, no design choices | Summary, Testing | — |
-| Medium | Behavior change, new UI slice, docs/skill extraction | Summary, Why, Review focus, Testing | Skip rationale for doc-only work |
-| Large | Architecture, multi-module migration, new protocol | Summary or Problem + Changes, Why, Design decisions, Review focus, Testing | Product behavior, Architecture, Rollout / follow-ups, Stack; situational sections (prototype round, backlog reconciliation) |
+| Medium | Behavior change, new UI slice, docs/skill extraction | Summary, Why, Review focus, Testing | User-facing / Internal split in Summary when mixed |
+| Large | Architecture, multi-module migration, new protocol | Summary or Problem + Changes, Why, Design decisions, Review focus, Testing | Product behavior, Architecture, ⚠️ Breaking changes, Compatibility, Rollout / follow-ups, Stack; situational sections (prototype round, backlog reconciliation) |
 
 #### Section semantics
 
 - **Summary** — end-state bullets (add/keep/preserve/migrate/remove); not a
-  commit log.
+  commit log. When a PR mixes user-visible and internal work, prefix bullets
+  with **User-facing:** or **Internal:** so `git log` readers can scan quickly.
 - **Why / Problem** — what was wrong or missing before; link prior PRs when
   building on them.
 - **Changes / Architecture / Product behavior** — deep walkthrough for large
   PRs; group by subsystem with bold labels.
 - **Design decisions / Trade-offs** — explicit choices and what was rejected.
+- **⚠️ Breaking changes** — wire-format, persistence, backup, CloudKit schema,
+  or API breaks; what existing data/installs lose or must do. Delete the section
+  when there are none.
+- **Compatibility** — how old data, backups, or parallel installs behave through
+  the change; required upgrade order. Delete when N/A.
 - **Review focus** — subtle behavior, incomplete migrations, assumptions about
   `main`; prefer inline review comments for specific lines.
 - **Testing** — exact commands with pass counts; for skipped checks, state
@@ -86,6 +96,7 @@ shape below is genuinely unclear.
 ##### Feature or behavior change
 
 - **Summary**, **Why**, **Review focus**, **Testing**.
+- **Summary:** prefix **User-facing:** / **Internal:** when the PR ships both.
 - **Why:** user-visible problem or gap; link a prior PR when building on one.
 - **Review focus:** edge cases, incomplete migrations, assumptions about `main`.
 
@@ -97,6 +108,8 @@ shape below is genuinely unclear.
   modes, edge cases.
 - **Architecture:** key types, invariants, ownership; group by subsystem with
   bold labels.
+- **⚠️ Breaking changes** and **Compatibility** when persistence, backups,
+  CloudKit, or wire formats are involved.
 - **Rollout / follow-ups** when ship order or a follow-on PR matters.
 
 ##### Refactor or migration
@@ -106,6 +119,8 @@ shape below is genuinely unclear.
 - **Changes:** deep walkthrough — what moved, what was deleted, what the
   compiler now enforces.
 - **Design decisions:** explicit choices and rejected alternatives.
+- **⚠️ Breaking changes** / **Compatibility** when stored shapes or backup
+  restore behavior changes.
 - **Backlog reconciliation** when the branch touched `TODOs.md` or
   `MODULE_AUDIT.md`.
 
