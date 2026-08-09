@@ -53,8 +53,8 @@ generating; plain `./ide` fails fast pointing at it.
 
 The executables in the repo root are the dev scripts — `ide`, `test`,
 `swiftformat`, `sync-agents`, `profile`, `icons`, `flaky`, `simulator`,
-`worktree`, `xcstrings`, `attribution`, `codex-watchdog` — and each takes
-`--help`. Reach for one rather than
+`worktree`, `xcstrings`, `attribution`, `codex-watchdog`, `tla-check` — and each
+takes `--help`. Reach for one rather than
 hand-rolling its job: `test` is the only way tests should be run (see [Running
 tests](#running-tests)), and `icons`, `attribution`, and `simulator` in particular own state that is
 easy to corrupt by hand — `./simulator` owns a per-checkout device (see the
@@ -507,8 +507,11 @@ flag is needed there.
 
 ## Running tests
 
-**Use [`./test`](test)** — the only way to run tests. Never hand-roll `tuist
-test` or `xcodebuild`. It runs the host-side backup-upgrader regression before
+**Use [`./test`](test)** — the only way to run the iOS bundles. Never hand-roll
+`tuist test` or `xcodebuild` for them. The one exception is the native-macOS
+**Ledger-macOS-Tests** scheme, which `./test` does not know how to run at all;
+the [`running-tests`](.agents/skills/running-tests/SKILL.md) skill carries its
+invocation. Closing that gap is filed in [`TODOs.md`](TODOs.md). It runs the host-side backup-upgrader regression before
 selecting an iOS bundle, so tool-only changes remain covered by the same entry
 point. **Validate in proportion to risk:** run
 `./swiftformat --lint` when the changed files are in its scope, and run the
@@ -612,6 +615,11 @@ external agent skills, which are gitignored and so absent from a bare checkout.
 - **Tuist** — `tuist test`, `tuist build`, and `./ide` (which generates the
   Xcode project)
 - iOS Simulator, and running the **Where** app
+- **Anything needing a Swift toolchain** — the VM ships none, so `swift run
+  bumper` (the architecture lint) and `./xcstrings` (a `#!/usr/bin/swift`
+  script) both fail here even though neither needs Xcode. Diagnostic signature
+  for the latter: ``mise ERROR "./xcstrings" couldn't exec process: No such file
+  or directory``.
 - Anything else needing Xcode
 
 These are limits of the **VM**, not of cloud agents generally: a remote-control

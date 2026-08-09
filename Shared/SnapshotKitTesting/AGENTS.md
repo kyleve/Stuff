@@ -120,8 +120,11 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
   fixed-point passes fails the assertion and skips comparison/recording; never
   bless the last arbitrary height. Guard:
   `LargeViewCaptureTests.rejectsNonConvergingBoundedScrollMeasurement`.
-- **A settle phase costs its floor, not its passes.** Measured over all 260
-  references with `SNAPSHOT_TIMING=1`: 192 captures sit at 0.25-0.35s, the
+- **A settle phase costs its floor, not its passes.** Measured 2026-07-28 with
+  `SNAPSHOT_TIMING=1` over the **260** references of the time — the suite holds
+  **361** as of 2026-08-09, so re-measure before acting on the split below;
+  the *conclusion* (the floor dominates) is what to rely on, not the seconds.
+  Then: 192 captures sat at 0.25-0.35s, the
   `minDuration` floor plus a pass or two, and the floor accounts for ~70s of
   the ~84s of settle time. The render passes themselves are ~14s across the
   whole suite. So making passes cheaper is worth ~11% and removing floors is
@@ -148,8 +151,9 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
 - **Quiescence can't replace the pixel digest.** `SNAPSHOT_SETTLE` selects
   `pixel` (default), `quiescence` (a `beforeWaiting` run-loop observer plus a
   recursive `needsLayout`/`needsDisplay`/`animationKeys` walk), or `both`, which
-  runs them together and reports disagreements. Run in `both` mode over all 260
-  references: 226 settle phases, 134 with some disagreement, and **8 where
+  runs them together and reports disagreements. Run in `both` mode (2026-07-28)
+  over the 260 references of the time — 361 today, so the counts below are that
+  run's, not current: 226 settle phases, 134 with some disagreement, and **8 where
   quiescence declared settled *earlier* than the digest** — every one a
   `Loaded_*` case whose content arrives late. That is the one dangerous
   direction (it would capture a frame no reference recorded), and it is what
