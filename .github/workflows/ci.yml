@@ -36,6 +36,12 @@ jobs:
       # catalog lint does.
       - name: Attribution report check
         run: ./attribution --check
+      # The assignment is explicit so a CI run is reproducible. Discovery keeps
+      # it from becoming a place where a newly added suite can disappear.
+      - name: Snapshot shard configuration
+        run: |
+          python3 -m unittest discover -s Tools/Tests -p 'test_snapshot_shards.py'
+          ./snapshot-shards check
 
   architecture:
     name: Bumper Bowling
@@ -118,9 +124,13 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
-  snapshot:
-    name: Snapshot Tests (iOS)
+  snapshot_shards:
+    name: Snapshot Tests (iOS, ${{ matrix.shard }}/2)
     needs: format
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
     # Same image as the `test` job: references are only reproducible against one
     # renderer, so the snapshot job must not lag the toolchain the rest of CI
     # (and every local run) uses.
@@ -129,7 +139,7 @@ jobs:
     # longer run.
     timeout-minutes: 60
     env:
-      TEST_WORKDIR: ${{ github.workspace }}/test-output
+      TEST_WORKDIR: ${{ github.workspace }}/test-output-${{ matrix.shard }}
     steps:
       # Reference images live in Git LFS (see .gitattributes), so fetch them —
       # without this the images arrive as pointer files and every comparison fails.
@@ -139,12 +149,13 @@ jobs:
       - uses: jdx/mise-action@v3
       # `--snapshots` is the standalone `StuffSnapshotTests` scheme, which is
       # where the SNAPSHOT_EXPECTED_* / TZ pins live and which gathers every
-      # module's image bundle — so this stays one invocation as more modules opt
-      # in. `--review` describes any capture that differs from its reference
-      # (pixel count, max channel delta, changed region), which is the difference
-      # between a diagnosable failure and "does not match reference".
+      # module's image bundle. The checked-in shard maps suites to this isolated
+      # runner; each invocation itself remains serial. `--review` describes any
+      # capture that differs from its reference (pixel count, max channel delta,
+      # changed region), which is the difference between a diagnosable failure
+      # and "does not match reference".
       #
-      # Deliberately NOT parallel. xcodebuild's `-parallel-testing-enabled` /
+      # Deliberately NOT parallel within this runner. xcodebuild's `-parallel-testing-enabled` /
       # `-parallelize-tests-among-destinations` distribute XCTest *classes*, and
       # every test here is Swift Testing, which presents none — so it lands
       # everything on one worker and Swift Testing's own in-process parallelism
@@ -152,8 +163,19 @@ jobs:
       # other's images (verified: 24+ spurious mismatches, and 1.2–3x SLOWER than
       # serial). See `SnapshotCaptureLock` and the sharding note in
       # Shared/SnapshotKitTesting/AGENTS.md.
-      - name: Snapshot Tests (iOS)
-        run: ./test --snapshots --shared --os 27.0 --review
+      - name: Snapshot Tests (iOS, ${{ matrix.shard }}/2)
+        run: >-
+          ./test --snapshots --snapshot-shard ${{ matrix.shard }}/2
+          --shared --os 27.0 --review
+          --timing-report "$TEST_WORKDIR/snapshot-suite-durations.json"
+      - name: Upload snapshot timings
+        if: ${{ success() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: snapshot-timings-${{ matrix.shard }}
+          path: ${{ env.TEST_WORKDIR }}/snapshot-suite-durations.json
+          if-no-files-found: error
+          retention-days: 30
       - name: Collect snapshot diagnostics
         if: ${{ failure() }}
         run: |
@@ -166,10 +188,28 @@ jobs:
         if: ${{ failure() }}
         uses: actions/upload-artifact@v4
         with:
-          name: snapshot-diagnostics-ios
+          name: snapshot-diagnostics-ios-${{ matrix.shard }}
           path: diagnostics
           if-no-files-found: warn
           retention-days: 7
+
+  snapshot:
+    # Preserve the required check name while making it represent both matrix
+    # children. `always()` ensures a failed or cancelled child still produces
+    # the aggregate result instead of leaving branch protection pending.
+    name: Snapshot Tests (iOS)
+    needs: snapshot_shards
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require both snapshot shards
+        env:
+          SHARD_RESULT: ${{ needs.snapshot_shards.result }}
+        run: |
+          if [ "$SHARD_RESULT" != success ]; then
+            echo "Snapshot shard matrix result: $SHARD_RESULT"
+            exit 1
+          fi
 
   test-macos:
     name: Build & Test (macOS)

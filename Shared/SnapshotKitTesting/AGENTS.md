@@ -138,7 +138,7 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
 
 ## Three things measured and rejected — don't re-derive them
 
-- **Sharding the suite across simulators is 2.7x slower, and wrong.** Measured
+- **Sharding the suite across simulators on one Mac is 2.7x slower, and wrong.** Measured
   2026-07-28 on a 10-core / 24 GB machine: the serial suite runs in **142s**
   (twice, 142.2 and 142.1); the same suite split into four duration-balanced
   slices across four booted simulators, each its own process with its own
@@ -147,7 +147,10 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
   interleaving that sank the earlier in-process attempt, but they don't fix the
   real constraint: every shard contends for one render server, so
   `drawHierarchy` slows down enough to push captures past their settle budget.
-  The bar for keeping it was a 30% win. Don't reach for
+  The bar for keeping it was a 30% win. CI's two shards are different: each
+  stays serial on its own runner and render server, with membership owned by
+  `.github/snapshot-shards.json`; never reproduce that topology concurrently
+  on one developer Mac. Don't reach for
   `-parallel-testing-enabled` either — it distributes XCTest *classes*, and
   Swift Testing presents none, so it lands everything on one worker and lets
   Swift Testing's own parallelism interleave captures in a single host process
