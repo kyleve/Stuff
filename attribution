@@ -23,6 +23,7 @@ GENERATOR="Shared/CreditKit/Tools/generate-attribution.rb"
 
 # One entry per app that ships a report.
 CONFIGS=(
+    "Patchlight/Patchlight/attribution-sources.json"
     "Where/Where/attribution-sources.json"
 )
 

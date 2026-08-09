@@ -8,7 +8,7 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
 
 ## Scope & dependencies
 
-- Depends on `SnapshotKit`, `TestHostSupport`, `SnapshotTesting`
+- Depends on `ImageDiffKit`, `SnapshotKit`, `TestHostSupport`, `SnapshotTesting`
   (swift-snapshot-testing), and `AccessibilitySnapshot` (cashapp). It links the
   comparison engine + XCTest/Testing, so it is **only** consumed by test
   bundles via `extraPackageProducts` — the per-module image bundles
@@ -30,6 +30,9 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
   copies split; mechanism: PR #145.
 - Re-exports `SnapshotKit` and `SnapshotTesting` so consumers need one import.
 - Library target in [`Package.swift`](../../Package.swift).
+- Keep `SnapshotReferenceComparison` and the `SNAPSHOT_DIFF` JSON shape stable
+  while delegating pixel work to `ImageDiffKit`; Patchlight links only the
+  shipping engine.
 
 ## Invariants an agent can't re-derive
 

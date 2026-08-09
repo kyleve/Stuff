@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import StuffCore
 
 /// The root of the Ledger model tree. Resolves a Cursor session token
 /// (auto-detected from the local Cursor app, or pasted and kept in the
@@ -114,7 +115,7 @@ public final class LedgerServices {
 
     @ObservationIgnored private var configuration: LedgerConfiguration
     @ObservationIgnored private let configStore: LedgerConfigStore
-    @ObservationIgnored private let keychain: any KeychainStore
+    @ObservationIgnored private let credentialStore: any CredentialStore
     @ObservationIgnored private let tokenSource: any SessionTokenSource
     @ObservationIgnored private let provider: any DashboardProvider
     @ObservationIgnored private let loginItem: LoginItemController
@@ -135,10 +136,16 @@ public final class LedgerServices {
     @ObservationIgnored private var lastModelFetch: Date?
     @ObservationIgnored private var cachedModelCycle: Date?
 
+    /// These values are the legacy Keychain identity shipped by Ledger before
+    /// credential storage moved to StuffCore. Keep both stable so upgrades read
+    /// the already-installed token rather than creating a second item.
+    private static let credentialService = "com.stuff.ledger"
+    private static let sessionTokenCredentialKey = CredentialKey("session-token")
+
     public convenience init() {
         self.init(
             configStore: .applicationSupport(),
-            keychain: SystemKeychainStore(),
+            credentialStore: SystemCredentialStore(service: Self.credentialService),
             tokenSource: CursorLocalTokenSource(),
             provider: CursorDashboardAPI(),
             loginItem: LoginItemController(),
@@ -149,7 +156,7 @@ public final class LedgerServices {
     @_spi(Testing)
     public init(
         configStore: LedgerConfigStore,
-        keychain: any KeychainStore,
+        credentialStore: any CredentialStore,
         tokenSource: any SessionTokenSource,
         provider: any DashboardProvider,
         loginItem: LoginItemController,
@@ -158,7 +165,7 @@ public final class LedgerServices {
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
         self.configStore = configStore
-        self.keychain = keychain
+        self.credentialStore = credentialStore
         self.tokenSource = tokenSource
         self.provider = provider
         self.loginItem = loginItem
@@ -409,8 +416,14 @@ public final class LedgerServices {
 
     private func manualToken() -> String? {
         do {
-            let value = try keychain.read()
-            return (value?.isEmpty ?? true) ? nil : value
+            guard let data = try credentialStore.data(for: Self.sessionTokenCredentialKey) else {
+                return nil
+            }
+            guard let value = String(data: data, encoding: .utf8) else {
+                Self.logger.error("The pasted token in the Keychain is not valid UTF-8")
+                return nil
+            }
+            return value.isEmpty ? nil : value
         } catch {
             Self.logger.error("Couldn't read the pasted token: \(error.localizedDescription)")
             return nil
@@ -419,13 +432,18 @@ public final class LedgerServices {
 
     /// Stores (or clears, for an empty string) a pasted session token.
     public func setManualToken(_ token: String) throws {
-        try keychain.write(token)
+        let trimmed = token.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            try credentialStore.remove(Self.sessionTokenCredentialKey)
+        } else {
+            try credentialStore.set(Data(trimmed.utf8), for: Self.sessionTokenCredentialKey)
+        }
         refreshTokenStatus()
     }
 
     /// Removes any pasted token (falling back to auto-detection).
     public func clearManualToken() throws {
-        try keychain.remove()
+        try credentialStore.remove(Self.sessionTokenCredentialKey)
         refreshTokenStatus()
     }
 

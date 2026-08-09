@@ -1,5 +1,5 @@
 import Foundation
-import UIKit
+import ImageDiffKit
 
 /// How much a capture differs from its reference, in terms a reviewer can act on.
 ///
@@ -96,88 +96,44 @@ import UIKit
         return .referenceMissing(referenceURL)
     }
     guard capturedPNG != referencePNG else { return .identicalBytes }
-    guard let captured = UIImage(data: capturedPNG)?.cgImage else {
-        return .incomparable(reason: "the capture could not be decoded")
-    }
-    guard let reference = UIImage(data: referencePNG)?.cgImage else {
-        return .incomparable(reason: "the reference at \(referenceURL.path) could not be decoded")
-    }
-    guard captured.width == reference.width, captured.height == reference.height else {
-        return .incomparable(
-            reason: """
-            sizes differ — reference is \(reference.width)x\(reference.height)px, \
-            capture is \(captured.width)x\(captured.height)px
-            """,
+    do {
+        let result = try ImageDiffEngine().compare(
+            base: referencePNG,
+            head: capturedPNG,
+            options: .exact,
         )
-    }
-    guard let capturedPixels = normalizedPixels(of: captured),
-          let referencePixels = normalizedPixels(of: reference)
-    else {
-        return .incomparable(reason: "pixels could not be read for comparison")
-    }
-    return .differs(magnitude(
-        capturedPixels,
-        referencePixels,
-        width: captured.width,
-        height: captured.height,
-    ))
-}
-
-/// Both images redrawn into one known 8-bit RGBA layout, so a comparison never
-/// depends on whatever colour space or byte order each PNG happened to carry.
-private func normalizedPixels(of image: CGImage) -> [UInt8]? {
-    let bytesPerPixel = 4
-    let width = image.width
-    let height = image.height
-    var pixels = [UInt8](repeating: 0, count: width * height * bytesPerPixel)
-    guard let context = CGContext(
-        data: &pixels,
-        width: width,
-        height: height,
-        bitsPerComponent: 8,
-        bytesPerRow: width * bytesPerPixel,
-        space: CGColorSpaceCreateDeviceRGB(),
-        bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue,
-    ) else { return nil }
-    context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
-    return pixels
-}
-
-private func magnitude(
-    _ captured: [UInt8],
-    _ reference: [UInt8],
-    width: Int,
-    height: Int,
-) -> SnapshotDiffMagnitude {
-    var differing = 0
-    var maxDelta = 0
-    var minX = width, minY = height, maxX = -1, maxY = -1
-    for y in 0 ..< height {
-        let row = y * width * 4
-        for x in 0 ..< width {
-            let index = row + x * 4
-            let deltaR = abs(Int(captured[index]) - Int(reference[index]))
-            let deltaG = abs(Int(captured[index + 1]) - Int(reference[index + 1]))
-            let deltaB = abs(Int(captured[index + 2]) - Int(reference[index + 2]))
-            let delta = max(deltaR, max(deltaG, deltaB))
-            guard delta > 0 else { continue }
-            differing += 1
-            maxDelta = max(maxDelta, delta)
-            minX = min(minX, x)
-            maxX = max(maxX, x)
-            minY = min(minY, y)
-            maxY = max(maxY, y)
+        switch result {
+            case let .dimensionMismatch(reference, capture):
+                return .incomparable(
+                    reason: """
+                    sizes differ — reference is \(reference.width)x\(reference.height)px, \
+                    capture is \(capture.width)x\(capture.height)px
+                    """,
+                )
+            case let .comparable(metrics, _):
+                return .differs(SnapshotDiffMagnitude(
+                    differingPixels: metrics.changedPixels,
+                    totalPixels: metrics.dimensions.pixelCount,
+                    maxChannelDelta: Int(metrics.maximumChannelDelta),
+                    changedRegion: metrics.changedBounds ?? .zero,
+                ))
         }
+    } catch let error as ImageDiffError {
+        switch error {
+            case .undecodable(.head):
+                return .incomparable(reason: "the capture could not be decoded")
+            case .undecodable(.base):
+                return .incomparable(
+                    reason: "the reference at \(referenceURL.path) could not be decoded",
+                )
+            case .pixelNormalizationFailed:
+                return .incomparable(reason: "pixels could not be read for comparison")
+            case .heatmapEncodingFailed:
+                return .incomparable(reason: error.localizedDescription)
+        }
+    } catch {
+        return .incomparable(reason: error.localizedDescription)
     }
-    let region = maxX < 0
-        ? CGRect.zero
-        : CGRect(x: minX, y: minY, width: maxX - minX + 1, height: maxY - minY + 1)
-    return SnapshotDiffMagnitude(
-        differingPixels: differing,
-        totalPixels: width * height,
-        maxChannelDelta: maxDelta,
-        changedRegion: region,
-    )
 }
 
 /// Emits one `SNAPSHOT_DIFF` line per capture whose bytes don't match its

@@ -1,0 +1,182 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "cancel" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel"
+          }
+        }
+      }
+    },
+    "connectGitHub" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect GitHub"
+          }
+        }
+      }
+    },
+    "connectGitHubHint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Starts GitHub's secure device sign-in flow."
+          }
+        }
+      }
+    },
+    "connectToGitHub" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect to GitHub"
+          }
+        }
+      }
+    },
+    "couldNotOpenPatchlight" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Patchlight Couldn’t Open"
+          }
+        }
+      }
+    },
+    "deviceFlowComingNext" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Device Sign-In Is Being Wired"
+          }
+        }
+      }
+    },
+    "githubOnboardingDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Patchlight reviews pull requests using your GitHub App installation. Your drafts and cached code stay encrypted on this device."
+          }
+        }
+      }
+    },
+    "githubPermissionsSummary" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Repository contents are read-only. Review and issue permissions are used only when you explicitly send."
+          }
+        }
+      }
+    },
+    "knowWhereToLook" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Know Where to Look"
+          }
+        }
+      }
+    },
+    "myOpenPullRequests" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "My Open PRs"
+          }
+        }
+      }
+    },
+    "patchlightTitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Patchlight"
+          }
+        }
+      }
+    },
+    "preparingPatchlight" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preparing Patchlight"
+          }
+        }
+      }
+    },
+    "relaunchToTryAgain" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close and reopen Patchlight to try again."
+          }
+        }
+      }
+    },
+    "repositories" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Repositories"
+          }
+        }
+      }
+    },
+    "reviewRequested" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Review Requested"
+          }
+        }
+      }
+    },
+    "signedOutDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect one GitHub.com account to find requested reviews, your own pull requests, and every accessible repository."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

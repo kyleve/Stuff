@@ -20,6 +20,18 @@ extension ComponentShape {
     static let whereHostLayer = ComponentShape {
         MayUse(.foundation, .swiftUI, .uiKit)
     }
+
+    static let patchlightCoreLayer = ComponentShape {
+        MayUse(.foundation, .persistence)
+    }
+
+    static let patchlightPresentationLayer = ComponentShape {
+        MayUse(.foundation, .swiftUI, .uiKit)
+    }
+
+    static let patchlightHostLayer = ComponentShape {
+        MayUse(.foundation, .swiftUI, .uiKit)
+    }
 }
 
 extension AssertionShape {

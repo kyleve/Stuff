@@ -3,6 +3,9 @@ import ProjectDescription
 let destinations: Destinations = [.iPhone, .iPad]
 let deployment: DeploymentTargets = .iOS("26.0")
 
+/// Patchlight ships on iPad and Mac Catalyst, never iPhone in v1.
+let patchlightDestinations: Destinations = [.iPad, .macCatalyst]
+
 /// The Ledger menu bar app is the only native-macOS target; everything else
 /// stays on the shared iOS destinations above.
 let macDeployment: DeploymentTargets = .macOS("26.0")
@@ -181,6 +184,35 @@ let project = Project(
     settings: projectSettings,
     targets: [
         .target(
+            name: "Patchlight",
+            destinations: patchlightDestinations,
+            product: .app,
+            bundleId: "com.stuff.patchlight",
+            deploymentTargets: deployment,
+            infoPlist: .extendingDefault(with: [
+                "CFBundleDisplayName": .string("Patchlight"),
+                "CFBundleShortVersionString": .string("1.0"),
+                "CFBundleVersion": .string("1"),
+                "LSApplicationCategoryType": .string("public.app-category.developer-tools"),
+                "UIApplicationSupportsIndirectInputEvents": .boolean(true),
+                "UILaunchScreen": .dictionary([:]),
+            ]),
+            sources: ["Patchlight/Patchlight/Sources/**"],
+            resources: ["Patchlight/Patchlight/Resources/**"],
+            dependencies: [
+                .package(product: "LifecycleKit"),
+                .package(product: "PatchlightUI"),
+            ],
+            settings: .settings(base: [
+                "ASSETCATALOG_COMPILER_APPICON_NAME": "",
+                "ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME": "AccentColor",
+                "CODE_SIGN_ENTITLEMENTS[sdk=macosx*]":
+                    "Patchlight/Patchlight/Patchlight-Catalyst.entitlements",
+                "SUPPORTS_MACCATALYST": "YES",
+                "TARGETED_DEVICE_FAMILY": "2",
+            ]),
+        ),
+        .target(
             name: "Where",
             destinations: destinations,
             product: .app,
@@ -352,6 +384,7 @@ let project = Project(
             sources: ["Ledger/Ledger/Sources/**"],
             dependencies: [
                 .package(product: "LedgerCore"),
+                .package(product: "StuffCore"),
             ],
             // Ledger ships no asset catalog (menu-bar icon is an SF Symbol), so
             // clear the asset-catalog name settings the compiler otherwise
@@ -373,6 +406,7 @@ let project = Project(
             sources: ["Ledger/LedgerCore/Tests/**"],
             dependencies: [
                 .package(product: "LedgerCore"),
+                .package(product: "StuffCore"),
             ],
         ),
         .target(
@@ -440,6 +474,19 @@ let project = Project(
             sources: ["Shared/StuffCore/Tests/**"],
         ),
         unitTests(
+            name: "PatchlightCoreTests",
+            bundleIdSuffix: "patchlightcore",
+            productDependency: "PatchlightCore",
+            sources: ["Patchlight/PatchlightCore/Tests/**"],
+            extraPackageProducts: ["StuffCore"],
+        ),
+        unitTests(
+            name: "PatchlightUITests",
+            bundleIdSuffix: "patchlightui",
+            productDependency: "PatchlightUI",
+            sources: ["Patchlight/PatchlightUI/Tests/**"],
+        ),
+        unitTests(
             name: "CreditKitTests",
             bundleIdSuffix: "creditkit",
             productDependency: "CreditKit",
@@ -505,6 +552,12 @@ let project = Project(
             bundleIdSuffix: "snapshotkit",
             productDependency: "SnapshotKit",
             sources: ["Shared/SnapshotKit/Tests/**"],
+        ),
+        unitTests(
+            name: "ImageDiffKitTests",
+            bundleIdSuffix: "imagediffkit",
+            productDependency: "ImageDiffKit",
+            sources: ["Shared/ImageDiffKit/Tests/**"],
         ),
         // The capture/compare pipeline's own regression tests. They render
         // through `renderSnapshotImage` (so they need the `StuffTestHost` key
@@ -631,6 +684,14 @@ let project = Project(
             extraPackageProducts: ["SnapshotKitTesting"],
             environmentVariables: snapshotEnvironment,
         ),
+        unitTests(
+            name: "PatchlightUISnapshotTests",
+            bundleIdSuffix: "patchlightui.snapshot",
+            productDependency: "PatchlightUI",
+            sources: ["Patchlight/PatchlightUI/SnapshotTests/**"],
+            extraPackageProducts: ["SnapshotKitTesting"],
+            environmentVariables: snapshotEnvironment,
+        ),
         .target(
             name: "BroadwayCatalog",
             destinations: destinations,
@@ -691,6 +752,17 @@ let project = Project(
             runAction: .runAction(executable: "RegionViewer"),
         ),
         .scheme(
+            name: "Patchlight",
+            shared: true,
+            buildAction: .buildAction(targets: ["Patchlight"]),
+            runAction: .runAction(executable: "Patchlight"),
+        ),
+        .scheme(
+            name: "Patchlight-Catalyst",
+            shared: true,
+            buildAction: .buildAction(targets: ["Patchlight"]),
+        ),
+        .scheme(
             name: "Ledger",
             shared: true,
             buildAction: .buildAction(targets: ["Ledger"]),
@@ -714,9 +786,12 @@ let project = Project(
             shared: true,
             buildAction: .buildAction(targets: [
                 "Where",
+                "Patchlight",
                 "RegionViewer",
                 "StuffTestHost",
                 "StuffCoreTests",
+                "PatchlightCoreTests",
+                "PatchlightUITests",
                 "CreditKitTests",
                 "LifecycleKitTests",
                 "LifecycleKitUITests",
@@ -727,6 +802,7 @@ let project = Project(
                 "InspectorTests",
                 "FlyoverTests",
                 "SnapshotKitTests",
+                "ImageDiffKitTests",
                 "SnapshotKitTestingTests",
                 "RegionKitTests",
                 "WhereCoreTests",
@@ -741,6 +817,8 @@ let project = Project(
             testAction: .targets(
                 [
                     "StuffCoreTests",
+                    "PatchlightCoreTests",
+                    "PatchlightUITests",
                     "CreditKitTests",
                     "LifecycleKitTests",
                     "LifecycleKitUITests",
@@ -751,6 +829,7 @@ let project = Project(
                     "InspectorTests",
                     "FlyoverTests",
                     "SnapshotKitTests",
+                    "ImageDiffKitTests",
                     "SnapshotKitTestingTests",
                     "RegionKitTests",
                     "WhereCoreTests",
@@ -766,6 +845,8 @@ let project = Project(
         ),
         testScheme(name: "LedgerCoreTests"),
         testScheme(name: "StuffCoreTests"),
+        testScheme(name: "PatchlightCoreTests"),
+        testScheme(name: "PatchlightUITests"),
         testScheme(name: "CreditKitTests"),
         testScheme(name: "LifecycleKitTests"),
         testScheme(name: "LifecycleKitUITests"),
@@ -776,6 +857,7 @@ let project = Project(
         testScheme(name: "InspectorTests"),
         testScheme(name: "FlyoverTests"),
         testScheme(name: "SnapshotKitTests"),
+        testScheme(name: "ImageDiffKitTests"),
         testScheme(name: "SnapshotKitTestingTests"),
         testScheme(name: "RegionKitTests"),
         testScheme(name: "WhereCoreTests"),
@@ -798,6 +880,7 @@ let project = Project(
                 "FlyoverSnapshotTests",
                 "PeriscopeToolsSnapshotTests",
                 "InspectorSnapshotTests",
+                "PatchlightUISnapshotTests",
             ]),
             testAction: .targets(
                 [
@@ -805,6 +888,7 @@ let project = Project(
                     "FlyoverSnapshotTests",
                     "PeriscopeToolsSnapshotTests",
                     "InspectorSnapshotTests",
+                    "PatchlightUISnapshotTests",
                 ],
                 arguments: .arguments(environmentVariables: snapshotEnvironment),
             ),

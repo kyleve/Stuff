@@ -50,5 +50,5 @@ build system, formatting, and global conventions. Read that first.
 
 The app target has no test bundle of its own — logic is tested in
 `LedgerCoreTests`. `PreviewSupport` (DEBUG) builds sessions from
-`ScriptedDashboardProvider` + `StubTokenSource` + `InMemoryKeychainStore`, so
+`ScriptedDashboardProvider` + `StubTokenSource` + `InMemoryCredentialStore`, so
 previews never hit the network, the Keychain, or Cursor's local state.

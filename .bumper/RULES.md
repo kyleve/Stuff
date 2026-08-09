@@ -1,4 +1,4 @@
-# Where Architecture Rules
+# Product Architecture Rules
 
 `BumperBowling.swift` turns the module boundaries already documented in
 `Where/**/AGENTS.md` into source-level checks. It scans production sources only;
@@ -30,6 +30,19 @@ expand the allow-list merely to make a new import pass.
 Delete or reshape a boundary only when the corresponding module architecture
 changes in its `AGENTS.md`, `Package.swift`, or `Project.swift`; update the
 documentation and executable rule in the same change.
+
+Patchlight adds a second downward graph:
+
+| Component | Allowed Patchlight dependencies | Framework capabilities |
+| --- | --- | --- |
+| `PatchlightCore` | none | Foundation, persistence |
+| `PatchlightUI` | `PatchlightCore` | Foundation, SwiftUI, UIKit |
+| `Patchlight` host | `PatchlightUI` | Foundation, SwiftUI, UIKit |
+
+The Core capability gate makes its no-SwiftUI/UIKit contract executable, while
+the host boundary prevents composition code from bypassing PatchlightUI to
+reach domain/persistence internals. Mutation coverage lives in
+`PatchlightArchitectureTests`.
 
 ## Graph integrity
 

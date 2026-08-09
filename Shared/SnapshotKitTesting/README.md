@@ -13,6 +13,11 @@ it is **only** linked by `*SnapshotTests` bundles — never a shipping app. It
 re-exports `SnapshotKit` and `SnapshotTesting`, so a test author needs a single
 `import SnapshotKitTesting`.
 
+Actionable pixel-difference metrics delegate to the shipping
+[`ImageDiffKit`](../ImageDiffKit) engine. SnapshotKitTesting preserves its SPI
+wrapper and `SNAPSHOT_DIFF` report wire format; applications never link this
+test-only target to get image comparison.
+
 ## What's in the box
 
 - **`assertSnapshots(of:)`** — the matrix runner: given a `SnapshotProviding`

@@ -11,7 +11,7 @@ per-type detail.
 ```
 LedgerServices ── LedgerSettings (refresh interval)
        ├────────── SessionTokenSource ── CursorLocalTokenSource (state.vscdb, read-only)
-       ├────────── KeychainStore (a pasted token override)
+       ├────────── StuffCore.CredentialStore (a pasted token override)
        ├────────── DashboardProvider ── CursorDashboardAPI (usage-summary, get-filtered-usage-events)
        └────────── LoginItemController (SMAppService)
 ```
@@ -94,7 +94,7 @@ Swift Testing in [`Tests/`](Tests), hostless on macOS (`tuist test
 LedgerCoreTests -- -destination 'platform=macOS'`). Shared fixtures live in
 [`LedgerCoreTestSupport.swift`](Tests/LedgerCoreTestSupport.swift). The network,
 token-source, and Keychain seams use the module's `@_spi(Testing)` DEBUG doubles
-(`ScriptedDashboardProvider`, `StubTokenSource`, `InMemoryKeychainStore`); the
+(`ScriptedDashboardProvider`, `StubTokenSource`, `InMemoryCredentialStore`); the
 `CursorLocalTokenSource` suite builds a throwaway SQLite file, and other
 filesystem tests use unique temp directories — never the user's real state,
 Application Support, or Keychain.

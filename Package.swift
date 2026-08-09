@@ -12,6 +12,8 @@ let package = Package(
         .library(name: "StuffCore", targets: ["StuffCore"]),
         .library(name: "CreditKit", targets: ["CreditKit"]),
         .library(name: "LedgerCore", targets: ["LedgerCore"]),
+        .library(name: "PatchlightCore", targets: ["PatchlightCore"]),
+        .library(name: "PatchlightUI", targets: ["PatchlightUI"]),
         .library(name: "LifecycleKit", targets: ["LifecycleKit"]),
         .library(name: "LifecycleKitUI", targets: ["LifecycleKitUI"]),
         .library(name: "JournalKit", targets: ["JournalKit"]),
@@ -21,6 +23,7 @@ let package = Package(
         .library(name: "Inspector", targets: ["Inspector"]),
         .library(name: "Flyover", targets: ["Flyover"]),
         .library(name: "SnapshotKit", targets: ["SnapshotKit"]),
+        .library(name: "ImageDiffKit", targets: ["ImageDiffKit"]),
         .library(name: "SnapshotKitTesting", targets: ["SnapshotKitTesting"]),
         .library(name: "TestHostSupport", targets: ["TestHostSupport"]),
         .library(name: "RegionKit", targets: ["RegionKit"]),
@@ -55,8 +58,37 @@ let package = Package(
             name: "LedgerCore",
             dependencies: [
                 .target(name: "PeriscopeCore"),
+                .target(name: "StuffCore"),
             ],
             path: "Ledger/LedgerCore/Sources",
+        ),
+        .target(
+            name: "PatchlightCore",
+            dependencies: [
+                .target(name: "ImageDiffKit"),
+                .target(name: "StuffCore"),
+            ],
+            path: "Patchlight/PatchlightCore/Sources",
+        ),
+        .target(
+            name: "PatchlightUI",
+            dependencies: [
+                .target(name: "BroadwayCore"),
+                .target(name: "BroadwayUI"),
+                .target(name: "Flyover"),
+                .target(name: "Inspector"),
+                .target(name: "LifecycleKit"),
+                .target(name: "LifecycleKitUI"),
+                .target(name: "PatchlightCore"),
+                .target(name: "PeriscopeCore"),
+                .target(name: "PeriscopeTools"),
+                .target(name: "PeriscopeUI"),
+                .target(name: "SnapshotKit"),
+            ],
+            path: "Patchlight/PatchlightUI/Sources",
+            resources: [
+                .process("Resources"),
+            ],
         ),
         .target(
             name: "LifecycleKit",
@@ -118,8 +150,13 @@ let package = Package(
             path: "Shared/SnapshotKit/Sources",
         ),
         .target(
+            name: "ImageDiffKit",
+            path: "Shared/ImageDiffKit/Sources",
+        ),
+        .target(
             name: "SnapshotKitTesting",
             dependencies: [
+                .target(name: "ImageDiffKit"),
                 .target(name: "SnapshotKit"),
                 .target(name: "TestHostSupport"),
                 .product(name: "SnapshotTesting", package: "swift-snapshot-testing"),

@@ -46,7 +46,9 @@ auto-token", surfaced as `LoadError.missingCredentials`.
   `github_bugbot`, …) into a friendly `displayName` + `badges` (effort/speed/mode).
 - `UsageSummary`, `UsageEvent`/`UsageEventsPage`, `SpendSnapshot` — the wire + view models
   (cents are integers).
-- `KeychainStore` / `SystemKeychainStore` — a pasted token's storage.
+- StuffCore's `CredentialStore` / `SystemCredentialStore` — a pasted token's
+  binary storage, retaining Ledger's original `com.stuff.ledger` /
+  `session-token` Keychain identity.
 - `LedgerSettings` / `LedgerConfiguration` / `LedgerConfigStore` — the persisted
   refresh interval (no secrets).
 - `LoginItemController` — launch-at-login via `SMAppService`.
@@ -96,7 +98,8 @@ Swift Testing in [`Tests/`](Tests), hostless on macOS (`tuist test
 LedgerCoreTests -- -destination 'platform=macOS'`). Shared fixtures live in
 [`LedgerCoreTestSupport.swift`](Tests/LedgerCoreTestSupport.swift). The network,
 token source, and Keychain are behind protocol seams, so `ScriptedDashboardProvider`,
-`StubTokenSource`, and `InMemoryKeychainStore` (all `@_spi(Testing)`, DEBUG-only)
+`StubTokenSource`, and StuffCore's `InMemoryCredentialStore` (`@_spi(Testing)`,
+DEBUG-only)
 drive the suites without real HTTP, `state.vscdb`, or Keychain access. The
 `CursorLocalTokenSource` suite builds a throwaway SQLite file to exercise the
 real reader.

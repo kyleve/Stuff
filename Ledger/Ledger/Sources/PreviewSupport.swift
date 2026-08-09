@@ -1,6 +1,7 @@
 #if DEBUG
     import Foundation
     @_spi(Testing) import LedgerCore
+    @_spi(Testing) import StuffCore
 
     /// Preview fixtures. Sessions are backed by a stub token source and a
     /// scripted dashboard provider — they never read the real Cursor state,
@@ -46,7 +47,7 @@
             try? store.save(LedgerConfiguration(refreshInterval: 900))
             let services = LedgerServices(
                 configStore: store,
-                keychain: InMemoryKeychainStore(),
+                credentialStore: InMemoryCredentialStore(),
                 tokenSource: StubTokenSource(token: autoToken),
                 provider: provider,
                 loginItem: LoginItemController(),

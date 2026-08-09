@@ -208,3 +208,21 @@ jobs:
           path: diagnostics
           if-no-files-found: warn
           retention-days: 7
+
+  catalyst:
+    name: Build (Mac Catalyst)
+    needs: format
+    runs-on: xcode-27
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v3
+      # The iOS test destination cannot prove UIKit/SwiftUI and entitlements
+      # compile for Catalyst, so Patchlight has a dedicated aggregate build.
+      - name: Build Patchlight for Mac Catalyst
+        run: >-
+          mise exec -- tuist xcodebuild build
+          -workspace Stuff.xcworkspace
+          -scheme Patchlight-Catalyst
+          -destination 'platform=macOS,variant=Mac Catalyst'
+          CODE_SIGNING_ALLOWED=NO

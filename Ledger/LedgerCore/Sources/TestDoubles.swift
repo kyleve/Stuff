@@ -71,37 +71,6 @@
         }
     }
 
-    /// An in-memory ``KeychainStore`` — the real Keychain needs a signed,
-    /// entitled host that hostless test processes and previews don't have.
-    @_spi(Testing)
-    public final class InMemoryKeychainStore: KeychainStore, @unchecked Sendable {
-        private let lock = NSLock()
-        private var secret: String?
-        /// When set, `read`/`write`/`remove` throw it — exercises the error path.
-        private let failure: KeychainError?
-
-        public init(secret: String? = nil, failure: KeychainError? = nil) {
-            self.secret = secret
-            self.failure = failure
-        }
-
-        public func read() throws -> String? {
-            if let failure { throw failure }
-            return lock.withLock { secret }
-        }
-
-        public func write(_ secret: String) throws {
-            if let failure { throw failure }
-            let trimmed = secret.trimmingCharacters(in: .whitespacesAndNewlines)
-            lock.withLock { self.secret = trimmed.isEmpty ? nil : trimmed }
-        }
-
-        public func remove() throws {
-            if let failure { throw failure }
-            lock.withLock { secret = nil }
-        }
-    }
-
     extension UsageSummary {
         /// A minimal summary for previews/tests.
         public static func fixture(

@@ -1,5 +1,6 @@
 import Foundation
 @_spi(Testing) import LedgerCore
+@_spi(Testing) import StuffCore
 import Testing
 
 @MainActor
@@ -16,7 +17,9 @@ struct LedgerServicesTests {
         let store = LedgerConfigStore(directory: directory)
         return LedgerServices(
             configStore: store,
-            keychain: InMemoryKeychainStore(secret: manualToken),
+            credentialStore: InMemoryCredentialStore(values: manualToken.map {
+                [CredentialKey("session-token"): Data($0.utf8)]
+            } ?? [:]),
             tokenSource: tokenSource ?? StubTokenSource(token: autoToken),
             provider: provider,
             loginItem: LoginItemController(backend: LoginItemRecorder()),

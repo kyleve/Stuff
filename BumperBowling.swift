@@ -11,6 +11,12 @@ enum WhereComponent: String, ComponentKey {
     case regionViewer
 }
 
+enum PatchlightComponent: String, ComponentKey {
+    case core
+    case ui
+    case host
+}
+
 let bumper = BumperProject {
     Included {
         "Where/RegionKit/Sources"
@@ -21,6 +27,9 @@ let bumper = BumperProject {
         "Where/WhereWidgets/Sources"
         "Where/WhereShareExtension/Sources"
         "Where/RegionViewer/Sources"
+        "Patchlight/PatchlightCore/Sources"
+        "Patchlight/PatchlightUI/Sources"
+        "Patchlight/Patchlight/Sources"
     }
 
     Excluded {
@@ -87,6 +96,28 @@ let bumper = BumperProject {
             Modules("RegionViewer")
             MayDependOn(.regionKit, .whereCore, .whereUI)
             Applies(.whereHostLayer)
+        }
+    }
+
+    Architecture(PatchlightComponent.self) {
+        Component(.core) {
+            Owns("Patchlight/PatchlightCore/Sources")
+            Modules("PatchlightCore")
+            Applies(.patchlightCoreLayer)
+        }
+
+        Component(.ui) {
+            Owns("Patchlight/PatchlightUI/Sources")
+            Modules("PatchlightUI")
+            MayDependOn(.core)
+            Applies(.patchlightPresentationLayer)
+        }
+
+        Component(.host) {
+            Owns("Patchlight/Patchlight/Sources")
+            Modules("Patchlight")
+            MayDependOn(.ui)
+            Applies(.patchlightHostLayer)
         }
     }
 
