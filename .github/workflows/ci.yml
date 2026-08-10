@@ -193,24 +193,6 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
-  snapshot:
-    # Preserve the required check name while making it represent both matrix
-    # children. `always()` ensures a failed or cancelled child still produces
-    # the aggregate result instead of leaving branch protection pending.
-    name: Snapshot Tests (iOS)
-    needs: snapshot_shards
-    if: ${{ always() }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Require both snapshot shards
-        env:
-          SHARD_RESULT: ${{ needs.snapshot_shards.result }}
-        run: |
-          if [ "$SHARD_RESULT" != success ]; then
-            echo "Snapshot shard matrix result: $SHARD_RESULT"
-            exit 1
-          fi
-
   test-macos:
     name: Build & Test (macOS)
     needs: format
