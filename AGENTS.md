@@ -226,7 +226,9 @@ targets and the native-macOS **Ledger** app, which is why the package declares
 both platforms. To get the app onto a connected iPhone without the Xcode UI, use
 [`./Where/install`](Where/install) — macOS-only, and it needs a signing team
 configured once via `./ide --team-id` (see
-[`Where/AGENTS.md`](Where/AGENTS.md#installing-to-a-device)).
+[`Where/AGENTS.md`](Where/AGENTS.md#installing-to-a-device)); `--dry-run`
+describes the build/device plan without signing, querying, installing, or
+launching.
 [`./Ledger/install`](Ledger/install) is the equivalent for Ledger: it builds a
 Release and installs it to `/Applications` (ad-hoc signed, no team needed).
 

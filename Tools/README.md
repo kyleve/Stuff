@@ -40,6 +40,9 @@ packages are credited as development tools.
 - `./icons` validates complete app-catalog, preview-catalog, and manifest outputs
   before a same-filesystem transaction replaces anything. A failed commit rolls
   every target back, and `--dry-run` performs validation without staging files.
+- `./Where/install` keeps signing, build, exact physical-device selection,
+  installation, and launch as typed steps. It decodes `devicectl`'s current
+  properties schema and offers a no-signing, no-device-query `--dry-run`.
 
 ## Why `test` uses raw xcodebuild
 

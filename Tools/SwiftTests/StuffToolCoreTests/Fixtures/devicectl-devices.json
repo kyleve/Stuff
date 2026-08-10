@@ -1,0 +1,49 @@
+{
+  "result": {
+    "devices": [{
+      "identifier": "DEVICE-A",
+      "properties": {
+        "hardware": {
+          "platform": "iOS",
+          "reality": "physical",
+          "udid": "UDID-A"
+        },
+        "connection": { "state": "disconnected" },
+        "state": { "name": "Kai's iPhone" }
+      }
+    }, {
+      "identifier": "DEVICE-B",
+      "properties": {
+        "hardware": {
+          "platform": "iPadOS",
+          "reality": "physical",
+          "udid": "UDID-B"
+        },
+        "connection": { "state": "connected" },
+        "state": { "name": "Test iPad" }
+      }
+    }, {
+      "identifier": "SIMULATOR",
+      "properties": {
+        "hardware": {
+          "platform": "iOS",
+          "reality": "simulated",
+          "udid": "SIM-UDID"
+        },
+        "connection": { "state": "connected" },
+        "state": { "name": "iPhone Simulator" }
+      }
+    }, {
+      "identifier": "MAC",
+      "properties": {
+        "hardware": {
+          "platform": "macOS",
+          "reality": "physical",
+          "udid": "MAC-UDID"
+        },
+        "connection": { "state": "connected" },
+        "state": { "name": "Mac" }
+      }
+    }]
+  }
+}

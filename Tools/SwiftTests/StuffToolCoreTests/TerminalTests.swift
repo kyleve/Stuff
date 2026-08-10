@@ -20,5 +20,7 @@ struct TerminalTests {
 
         #expect(await base.standardOutputText.isEmpty)
         #expect(await base.standardErrorText == "booting\n")
+        #expect(await terminal.isInputInteractive() == false)
+        #expect(try await terminal.readLine(prompt: "continue") == nil)
     }
 }

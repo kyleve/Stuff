@@ -263,7 +263,8 @@ in-memory fixtures that never touch disk, CloudKit, or CoreLocation.
 `./Where/install` builds, signs, and installs the app onto a connected iPhone
 from the CLI — macOS-only, one-time `./ide --team-id <id>` setup. It defaults
 to Debug with compiler optimizations forced on, so DEBUG-only developer
-surfaces survive at near-Release speed. Options: `./Where/install --help`.
+surfaces survive at near-Release speed. Use `--dry-run` for a non-signing,
+non-device-mutating plan; options: `./Where/install --help`.
 
 ## Testing
 

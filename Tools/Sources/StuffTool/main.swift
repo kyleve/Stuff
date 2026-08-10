@@ -12,6 +12,7 @@ struct StuffTool: AsyncParsableCommand {
             ProfileCommand.self,
             SimulatorCommand.self,
             TestCommand.self,
+            WhereInstallCommand.self,
             XCStringsCommand.self,
         ],
     )

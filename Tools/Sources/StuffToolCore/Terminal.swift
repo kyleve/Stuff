@@ -9,11 +9,21 @@ public enum TerminalStream: Equatable, Sendable {
 public protocol Terminal: Sendable {
     func write(_ bytes: [UInt8], to stream: TerminalStream) async throws
     func isInteractive() async -> Bool
+    func isInputInteractive() async -> Bool
+    func readLine(prompt: String) async throws -> String?
 }
 
 extension Terminal {
     public func write(_ text: String, to stream: TerminalStream) async throws {
         try await write(Array(text.utf8), to: stream)
+    }
+
+    public func isInputInteractive() -> Bool {
+        false
+    }
+
+    public func readLine(prompt _: String) -> String? {
+        nil
     }
 }
 
@@ -33,6 +43,15 @@ public actor StandardTerminal: Terminal {
     public func isInteractive() -> Bool {
         isatty(STDOUT_FILENO) != 0
     }
+
+    public func isInputInteractive() -> Bool {
+        isatty(STDIN_FILENO) != 0
+    }
+
+    public func readLine(prompt: String) throws -> String? {
+        try FileHandle.standardOutput.write(contentsOf: Data(prompt.utf8))
+        return Swift.readLine(strippingNewline: true)
+    }
 }
 
 /// For nested commands whose stdout is a machine-readable return value.
@@ -50,5 +69,13 @@ public struct StandardErrorOnlyTerminal: Terminal {
 
     public func isInteractive() async -> Bool {
         await base.isInteractive()
+    }
+
+    public func isInputInteractive() async -> Bool {
+        await base.isInputInteractive()
+    }
+
+    public func readLine(prompt: String) async throws -> String? {
+        try await base.readLine(prompt: prompt)
     }
 }

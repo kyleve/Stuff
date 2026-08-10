@@ -69,7 +69,8 @@ relaunch; neither runtime swaps live.
 The target is declared in [`Project.swift`](../../Project.swift). Generate and
 open the workspace with `./ide`, or install to a connected iPhone from the
 command line with [`./Where/install`](../install) (macOS only, needs a signing
-team — see [`Where/AGENTS.md`](../AGENTS.md#installing-to-a-device)).
+team — see [`Where/AGENTS.md`](../AGENTS.md#installing-to-a-device)); its
+`--dry-run` plans the operation without signing or touching a device.
 
 ## CloudKit rollout and device validation
 
