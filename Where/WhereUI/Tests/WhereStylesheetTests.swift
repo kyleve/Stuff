@@ -91,6 +91,7 @@ struct WhereStylesheetTests {
             nameRelief: .init(
                 highlightOpacity: 0.52,
                 shadowOpacity: 0.38,
+                exteriorOpacity: 0.18,
                 depth: 1.4,
                 blurRadius: 0.8,
                 travel: 0.75,

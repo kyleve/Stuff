@@ -116,6 +116,7 @@
                     nameRelief: .init(
                         highlightOpacity: \(number(card.sheen.nameRelief.highlightOpacity)),
                         shadowOpacity: \(number(card.sheen.nameRelief.shadowOpacity)),
+                        exteriorOpacity: \(number(card.sheen.nameRelief.exteriorOpacity)),
                         depth: \(number(card.sheen.nameRelief.depth)),
                         blurRadius: \(number(card.sheen.nameRelief.blurRadius)),
                         travel: \(number(card.sheen.nameRelief.travel)),

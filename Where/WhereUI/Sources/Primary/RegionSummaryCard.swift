@@ -138,6 +138,12 @@ struct RegionSummaryCard: View {
             regionPath: regionPaths?.stamp ?? Path(),
             regionShape: card.regionShape,
         )
+        .tiltRelief(
+            tilt: tilt,
+            staticRoll: card.sheen.staticPose.roll,
+            staticPitch: card.sheen.staticPose.pitch,
+            style: card.sheen.nameRelief,
+        )
     }
 
     /// A faint, region-tinted "security print" behind the content: a guilloché
@@ -260,7 +266,6 @@ struct RegionSummaryCard: View {
                             tilt: tilt,
                             staticRoll: card.sheen.staticPose.roll,
                             staticPitch: card.sheen.staticPose.pitch,
-                            tint: style.tint,
                             style: card.sheen.nameRelief,
                         )
                     if let caption {

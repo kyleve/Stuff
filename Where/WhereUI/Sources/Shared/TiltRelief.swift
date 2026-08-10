@@ -1,13 +1,12 @@
 import SwiftUI
 
-/// Adds a raised-ink light and shade to content without making its parent
-/// observe device motion. The lightweight modified subtree alone invalidates
-/// as the shared tilt provider publishes new samples.
+/// Presses content into its surface with paired inset light and shade plus a
+/// restrained exterior edge. The lightweight modified subtree alone observes
+/// device motion, so its parent does not invalidate for every sensor sample.
 struct TiltRelief: ViewModifier {
     var tilt: TiltProvider?
     var staticRoll: Double
     var staticPitch: Double
-    var tint: Color
     var style: WhereStylesheet.CardStyle.Sheen.NameRelief
 
     @MotionIsStatic private var motionIsStatic
@@ -20,53 +19,50 @@ struct TiltRelief: ViewModifier {
             motionIsStatic: motionIsStatic,
         )
         let direction = state.lightDirection(travel: style.travel)
+        let offset = CGSize(
+            width: direction.width * style.depth,
+            height: direction.height * style.depth,
+        )
         content
-            .foregroundStyle(
-                tint
-                    .shadow(.inner(
-                        color: .white.opacity(style.highlightOpacity),
-                        radius: style.blurRadius,
-                        x: -direction.width * style.depth,
-                        y: -direction.height * style.depth,
-                    ))
-                    .shadow(.inner(
-                        color: .black.opacity(style.shadowOpacity),
-                        radius: style.blurRadius,
-                        x: direction.width * style.depth,
-                        y: direction.height * style.depth,
-                    )),
-            )
+            .overlay {
+                TiltInsetShadow(
+                    subject: content,
+                    highlightColor: .white.opacity(style.highlightOpacity),
+                    shadowColor: .black.opacity(style.shadowOpacity),
+                    radius: style.blurRadius,
+                    highlightOffset: offset,
+                    shadowOffset: CGSize(width: -offset.width, height: -offset.height),
+                )
+            }
             .compositingGroup()
             .shadow(
-                color: .white.opacity(style.highlightOpacity),
+                color: .white.opacity(style.highlightOpacity * style.exteriorOpacity),
                 radius: style.blurRadius,
-                x: -direction.width * style.depth,
-                y: -direction.height * style.depth,
+                x: offset.width,
+                y: offset.height,
             )
             .shadow(
-                color: .black.opacity(style.shadowOpacity),
+                color: .black.opacity(style.shadowOpacity * style.exteriorOpacity),
                 radius: style.blurRadius,
-                x: direction.width * style.depth,
-                y: direction.height * style.depth,
+                x: -offset.width,
+                y: -offset.height,
             )
     }
 }
 
 extension View {
-    /// Render this content as tilt-reactive raised ink using the same authored
+    /// Render this content as tilt-reactive pressed ink using the same authored
     /// fallback pose as the containing card's sheen.
     func tiltRelief(
         tilt: TiltProvider?,
         staticRoll: Double,
         staticPitch: Double,
-        tint: Color,
         style: WhereStylesheet.CardStyle.Sheen.NameRelief,
     ) -> some View {
         modifier(TiltRelief(
             tilt: tilt,
             staticRoll: staticRoll,
             staticPitch: staticPitch,
-            tint: tint,
             style: style,
         ))
     }
@@ -81,7 +77,6 @@ extension View {
                 tilt: nil,
                 staticRoll: 0.3,
                 staticPitch: -0.2,
-                tint: .indigo,
                 style: WhereStylesheet.default.card.regular.sheen.nameRelief,
             )
             .padding()

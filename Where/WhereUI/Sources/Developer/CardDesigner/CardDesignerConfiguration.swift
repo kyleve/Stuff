@@ -6,7 +6,7 @@
     /// It contains presentation only: count animation and RegionKit cache policy
     /// remain owned by the production stylesheet and path cache.
     struct CardDesignerConfiguration: Codable, Equatable {
-        static let currentSchemaVersion = 2
+        static let currentSchemaVersion = 3
         static let standard = CardDesignerConfiguration(styles: .standard)
 
         var schemaVersion = currentSchemaVersion
@@ -569,6 +569,7 @@
             struct NameRelief: Codable, Equatable {
                 var highlightOpacity: Double
                 var shadowOpacity: Double
+                var exteriorOpacity: Double
                 var depth: CGFloat
                 var blurRadius: CGFloat
                 var travel: Double
@@ -576,6 +577,7 @@
                 init(_ style: WhereStylesheet.CardStyle.Sheen.NameRelief) {
                     highlightOpacity = style.highlightOpacity
                     shadowOpacity = style.shadowOpacity
+                    exteriorOpacity = style.exteriorOpacity
                     depth = style.depth
                     blurRadius = style.blurRadius
                     travel = style.travel
@@ -585,6 +587,7 @@
                     .init(
                         highlightOpacity: highlightOpacity,
                         shadowOpacity: shadowOpacity,
+                        exteriorOpacity: exteriorOpacity,
                         depth: depth,
                         blurRadius: blurRadius,
                         travel: travel,

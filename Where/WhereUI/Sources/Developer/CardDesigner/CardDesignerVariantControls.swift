@@ -214,6 +214,12 @@
                             range: 0 ... 1,
                             step: 0.01,
                         )
+                        CardDesignerDoubleControl(
+                            title: .cardDesignerExteriorOpacity,
+                            value: $card.sheen.nameRelief.exteriorOpacity,
+                            range: 0 ... 1,
+                            step: 0.01,
+                        )
                         CardDesignerCGFloatControl(
                             title: .cardDesignerDepth,
                             value: $card.sheen.nameRelief.depth,

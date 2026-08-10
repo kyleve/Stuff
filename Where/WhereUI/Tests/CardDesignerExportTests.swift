@@ -17,6 +17,7 @@
             #expect(first.contains("backgroundBlendMode: .luminosity"))
             #expect(first.contains("spectralRim: .init("))
             #expect(first.contains("nameRelief: .init("))
+            #expect(first.contains("exteriorOpacity: 0.18"))
         }
 
         @Test func swiftExportReflectsEditedValues() {

@@ -36,7 +36,7 @@
             defer { store.removePersistentDomain(forName: suite) }
             let key = "card-designer"
             var oldConfiguration = CardDesignerConfiguration.standard
-            oldConfiguration.schemaVersion = 1
+            oldConfiguration.schemaVersion = CardDesignerConfiguration.currentSchemaVersion - 1
             try store.set(JSONEncoder().encode(oldConfiguration), forKey: key)
 
             let model = CardDesignerModel(store: store, key: key)

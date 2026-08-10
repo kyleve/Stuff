@@ -881,6 +881,17 @@
         }
       }
     },
+    "cardDesigner.exteriorOpacity" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exterior Shadow Opacity"
+          }
+        }
+      }
+    },
     "cardDesigner.fallbackWatermarkSize" : {
       "extractionState" : "manual",
       "localizations" : {
