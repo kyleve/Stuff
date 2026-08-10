@@ -88,6 +88,28 @@ reveal animation starts. It stays gated on the launch's output either way
 (that value is only readable from `.ready`), so nothing is built speculatively:
 the hold just stops being a stall and starts being a warm-up.
 
+By default, an already-`.ready` container reveals immediately because SwiftUI
+never displayed a splash for the minimum to hold. An app that must always show
+the splash before its first visible main-UI reveal can opt in:
+
+```swift
+LifecycleContainer(
+    runner,
+    minimumSplashDuration: .milliseconds(800),
+    readyRevealPolicy: .splashBeforeFirstReveal,
+) { session in
+    MainTabs(session: session)
+}
+```
+
+This covers the background-launch edge case where the runner is already ready,
+foreground promotion starts and finishes, and SwiftUI observes only the final
+`.ready` state. The first visible ready presentation establishes the hold in
+that case. A rendered splash keeps its original deadline, so reaching `.ready`
+does not start a second hold. Headless phases remain viewless, gate and failure
+surfaces are unaffected, and once content is revealed an ordinary foreground
+resume does not replay the forced splash.
+
 ## Reaching the runner from nested views
 
 `LifecycleContainer` publishes a `LifecycleProxy` under

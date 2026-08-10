@@ -72,6 +72,9 @@ Layering, localization, preview, and testing conventions live in the feature
   project, simplify, or spatially reduce artwork in a card's `body`.
 - Keep Locations-card points on `YearReportModel`'s loaded
   `YearReportDetails`.
+- Keep `RootView` opted into LifecycleKitUI's first-ready splash policy: the
+  first foreground-visible `MainTabs` reveal gets the stylesheet minimum even
+  when headless promotion coalesces, while warm resumes never replay it.
 - Continuous/looping motion (repeat-forever pulses, `TimelineView(.animation)`,
   typewriter reveals) must consult the shared `@MotionIsStatic` helper
   ([`Sources/Shared/MotionIsStatic.swift`](Sources/Shared/MotionIsStatic.swift))

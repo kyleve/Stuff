@@ -16,9 +16,11 @@ import SwiftUI
 /// `LifecycleContainer` renders the splash / onboarding UI while the
 /// `LifecycleRunner` runs, then the `TabView` (the real "logged-in" UI — the
 /// launch *destination*, not a step) once it reaches `.ready`, built from the
-/// session the launch's trunk produced. The model is built at launch (so
-/// CoreLocation is wired for background relaunch) and shared down through the
-/// environment.
+/// session the launch's trunk produced. The first visible ready reveal is
+/// always covered by the splash minimum, including after a headless launch
+/// whose foreground drive coalesces between renders. The model is built at
+/// launch (so CoreLocation is wired for background relaunch) and shared down
+/// through the environment.
 public struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -112,6 +114,7 @@ public struct RootView: View {
                 transition: revealTransition,
                 animation: revealAnimation,
                 minimumSplashDuration: stylesheet.launch.minimumSplashDuration,
+                readyRevealPolicy: .splashBeforeFirstReveal,
                 splash: { _ in LaunchSplashView() },
                 failure: { WhereLifecycleFailureView(failure: $0) },
                 gates: {

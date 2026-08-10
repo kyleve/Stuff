@@ -93,6 +93,52 @@ struct LifecycleContainerTests {
         #expect(!splashShown)
     }
 
+    @Test func splashBeforeFirstRevealCoversAlreadyReadyContent() async throws {
+        var content = false
+        var splashShown = false
+        let runner = await makeReadyRunner()
+        #expect(runner.phase.isReady)
+
+        let container = LifecycleContainer(
+            runner,
+            minimumSplashDuration: .seconds(60),
+            readyRevealPolicy: .splashBeforeFirstReveal,
+            splash: { _ in ProbeView { splashShown = true } },
+            failure: { _ in EmptyView() },
+        ) { _ in
+            ProbeView { content = true }
+        }
+        try show(UIHostingController(rootView: container)) { _ in
+            try waitFor { content && splashShown }
+        }
+
+        // Ready content warms beneath the covering splash.
+        #expect(content)
+        #expect(splashShown)
+    }
+
+    @Test func zeroMinimumDoesNotForceAFirstRevealSplash() async throws {
+        var content = false
+        var splashShown = false
+        let runner = await makeReadyRunner()
+
+        let container = LifecycleContainer(
+            runner,
+            minimumSplashDuration: .zero,
+            readyRevealPolicy: .splashBeforeFirstReveal,
+            splash: { _ in ProbeView { splashShown = true } },
+            failure: { _ in EmptyView() },
+        ) { _ in
+            ProbeView { content = true }
+        }
+        try show(UIHostingController(rootView: container)) { _ in
+            try waitFor { content }
+        }
+
+        #expect(content)
+        #expect(splashShown == false)
+    }
+
     @Test func aCoveringSurfaceHidesTheContentBeneathIt() {
         // `content` is built as soon as the launch produces its value — including
         // while a surface still covers it, so the hold warms it up — which means
@@ -165,7 +211,7 @@ struct LifecycleContainerTests {
         await task.value
     }
 
-    @Test func backgroundLaunchShowsNothing() async throws {
+    @Test func splashBeforeFirstRevealKeepsBackgroundReadyHeadless() async throws {
         var content = false
         var splash = false
         let runner = await makeReadyRunner(reason: .background(.location))
@@ -173,6 +219,8 @@ struct LifecycleContainerTests {
 
         let container = LifecycleContainer(
             runner,
+            minimumSplashDuration: .seconds(60),
+            readyRevealPolicy: .splashBeforeFirstReveal,
             splash: { _ in ProbeView { splash = true } },
         ) { _ in
             ProbeView { content = true }
@@ -203,8 +251,9 @@ struct LifecycleContainerTests {
         }
     }
 
-    @Test func backgroundReadyThenEnterForegroundShowsContent() async throws {
+    @Test func promotedBackgroundReadyForcesTheFirstRevealSplash() async throws {
         var content = false
+        var splash = false
         let runner = await makeReadyRunner(reason: .background(.location))
         #expect(runner.reason.buildsNoViewTree)
 
@@ -212,13 +261,19 @@ struct LifecycleContainerTests {
         #expect(!runner.reason.buildsNoViewTree)
         #expect(runner.phase.isReady)
 
-        let container = LifecycleContainer(runner) { _ in
+        let container = LifecycleContainer(
+            runner,
+            minimumSplashDuration: .seconds(60),
+            readyRevealPolicy: .splashBeforeFirstReveal,
+            splash: { _ in ProbeView { splash = true } },
+        ) { _ in
             ProbeView { content = true }
         }
         try show(UIHostingController(rootView: container)) { _ in
-            try waitFor { content }
+            try waitFor { content && splash }
         }
         #expect(content)
+        #expect(splash)
     }
 
     @Test func awaitingGateShowsTheRegisteredGateViewWithTheTrunkValue() async throws {
