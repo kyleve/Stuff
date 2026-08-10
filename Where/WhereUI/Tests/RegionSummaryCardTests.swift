@@ -6,7 +6,7 @@ import Testing
 
 @MainActor
 struct RegionSummaryCardTests {
-    @Test func artworkLoadIDChangesWithDesignerControls() throws {
+    @Test func artworkLoadIDSeparatesStaticArtworkFromPointRefreshes() throws {
         let recordedPointsID = try #require(
             PreviewSupport.loadedYearReportModel().primaryRegionLocations?.id,
         )
@@ -48,11 +48,23 @@ struct RegionSummaryCardTests {
             showsRecordedPoints: false,
             recordedPointsID: recordedPointsID,
         )
+        let differentRegion = RegionArtworkLoadID(
+            region: .california,
+            variant: .regular,
+            isEnabled: true,
+            showsRecordedPoints: true,
+            recordedPointsID: recordedPointsID,
+        )
 
         #expect(disabled != enabled)
         #expect(enabled != compact)
         #expect(enabled != refreshed)
         #expect(enabled != pointsHidden)
+        #expect(disabled.staticArtworkID != enabled.staticArtworkID)
+        #expect(enabled.staticArtworkID != compact.staticArtworkID)
+        #expect(enabled.staticArtworkID != differentRegion.staticArtworkID)
+        #expect(enabled.staticArtworkID == refreshed.staticArtworkID)
+        #expect(enabled.staticArtworkID == pointsHidden.staticArtworkID)
     }
 
     /// A region card's count can change with the card on screen, which runs an
