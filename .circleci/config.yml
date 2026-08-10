@@ -4,7 +4,7 @@ executors:
   m4-pro:
     macos:
       xcode: "27.0"
-    resource_class: m4pro.medium
+    resource_class: m4pro.large
     shell: /bin/bash --login -eo pipefail
 
 commands:
