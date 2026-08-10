@@ -18,7 +18,6 @@ struct TestRunPlanTests {
             scope: .bundles,
             bundles: ["CoreTests", "UISnapshotTests"],
             only: ["CoreTests/Suite", "UISnapshotTests/OtherSuite"],
-            snapshotShardIdentifiers: [],
             graph: graph,
         )
 
@@ -37,19 +36,18 @@ struct TestRunPlanTests {
         ])
     }
 
-    @Test func snapshotShardCreatesOnlySnapshotFilters() throws {
+    @Test func snapshotScopeRunsTheWholeSnapshotScheme() throws {
         let plan = try TestRunPlan(
             scope: .snapshots,
             bundles: [],
             only: [],
-            snapshotShardIdentifiers: ["UISnapshotTests/Suite"],
             graph: graph,
         )
 
         #expect(plan.schemes == [
             TestSchemePlan(
                 name: "StuffSnapshotTests",
-                filters: ["-only-testing:UISnapshotTests/Suite"],
+                filters: [],
             ),
         ])
         #expect(plan.includesSnapshots)
@@ -61,7 +59,6 @@ struct TestRunPlanTests {
                 scope: .bundles,
                 bundles: ["MissingTests"],
                 only: [],
-                snapshotShardIdentifiers: [],
                 graph: graph,
             )
         }

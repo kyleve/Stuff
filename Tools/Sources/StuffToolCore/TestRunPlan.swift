@@ -38,7 +38,6 @@ public struct TestRunPlan: Equatable, Sendable {
         scope: TestScope,
         bundles: [String],
         only: [String],
-        snapshotShardIdentifiers: [String],
         graph: RepositoryGraph?,
     ) throws {
         var schemeFilters: [String: [String]] = [:]
@@ -80,10 +79,6 @@ public struct TestRunPlan: Equatable, Sendable {
                 }
             case .only:
                 break
-        }
-
-        for identifier in snapshotShardIdentifiers {
-            addFilter(identifier, to: RepositoryGraph.snapshotScheme)
         }
 
         for identifier in only {

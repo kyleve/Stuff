@@ -16,16 +16,12 @@ struct TestCommandTests {
             "--os",
             "27.1",
             "--shared",
-            "--snapshot-shard",
-            "2/2",
             "--timings",
             "--review",
             "--heartbeat",
             "3.5",
             "--status-file",
             "status.txt",
-            "--timing-report",
-            "timings.json",
         ])
         try command.validate()
 
@@ -38,12 +34,10 @@ struct TestCommandTests {
             device: "iPhone 17 Pro",
             os: "27.1",
             sharedSimulator: true,
-            snapshotShard: "2/2",
             timings: true,
             review: true,
             heartbeat: 3.5,
             statusFile: "status.txt",
-            timingReport: "timings.json",
         ))
     }
 
@@ -67,21 +61,6 @@ struct TestCommandTests {
             _ = try TestCommand.parse(["--record", "sometimes"])
         }
         #expect(throws: (any Error).self) {
-            _ = try TestCommand.parse(["--snapshot-shard", "3/4"])
-        }
-        #expect(throws: (any Error).self) {
-            _ = try TestCommand.parse(["--snapshot-shard", "1/2"])
-        }
-        #expect(throws: (any Error).self) {
-            _ = try TestCommand.parse([
-                "--snapshots",
-                "--snapshot-shard",
-                "1/2",
-                "--only",
-                "WhereUISnapshotTests/Suite",
-            ])
-        }
-        #expect(throws: (any Error).self) {
             _ = try TestCommand.parse(["--all", "--everything"])
         }
         #expect(throws: (any Error).self) {
@@ -101,6 +80,12 @@ struct TestCommandTests {
         }
         #expect(throws: (any Error).self) {
             _ = try TestCommand.parse(["--only"])
+        }
+        #expect(throws: (any Error).self) {
+            _ = try TestCommand.parse(["--snapshot-shard", "1/2"])
+        }
+        #expect(throws: (any Error).self) {
+            _ = try TestCommand.parse(["--timing-report", "timings.json"])
         }
     }
 }

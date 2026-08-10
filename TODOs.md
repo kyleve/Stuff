@@ -130,8 +130,8 @@ inbox rather than here.
   Xcode/device work shares typed process, graph, xcresult, simulator, and device
   infrastructure with hermetic tests. ShellCheck gates the bootstrap shell that
   remains. The final embedded Python moved into tested `Tools/tla_check.py`, and
-  the retained attribution, agent-sync, region-generator, snapshot-shard, and
-  backup-upgrader implementations now have direct fixture coverage rather than
+  the retained attribution, agent-sync, region-generator, and backup-upgrader
+  implementations now have direct fixture coverage rather than
   being rewritten for language purity. (human 2026-07-28, closed 2026-08-10)
 - refactor(Scripts) [needs-design]: The affected-bundle selector regex-parsed
   `Project.swift`, so a formatting change could silently under-select tests.

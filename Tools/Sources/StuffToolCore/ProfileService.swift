@@ -66,7 +66,6 @@ public struct ProfileService: Sendable {
         let snapshotTestLog: URL
         let snapshotResultBundle: URL
         let snapshotTestsJSON: URL
-        let snapshotSuiteReport: URL
         let snapshotTimings: URL
     }
 
@@ -390,23 +389,6 @@ public struct ProfileService: Sendable {
                 ) {
                     catalogs.append(catalog)
                 }
-                let shardReport = try await runForwarding(
-                    CommandInvocation(
-                        executable: repository.appending(path: "snapshot-shards").path,
-                        arguments: [
-                            "report",
-                            "--xcresult",
-                            paths.snapshotResultBundle.path,
-                            "--output",
-                            paths.snapshotSuiteReport.path,
-                        ],
-                        workingDirectory: repository,
-                        captureOutput: false,
-                    ),
-                )
-                guard shardReport.succeeded else {
-                    throw ProfileServiceFailure.exitCode(shardReport.exitCode)
-                }
                 try await printSnapshotTimingReport(paths: paths)
             }
 
@@ -473,7 +455,6 @@ public struct ProfileService: Sendable {
                 directoryHint: .isDirectory,
             ),
             snapshotTestsJSON: work.appending(path: "snapshot-tests.json"),
-            snapshotSuiteReport: work.appending(path: "snapshot-suite-durations.json"),
             snapshotTimings: work.appending(path: "snapshot-timings.jsonl"),
         )
     }

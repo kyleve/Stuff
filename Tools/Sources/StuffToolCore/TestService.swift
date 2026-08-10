@@ -12,12 +12,10 @@ public struct TestRequest: Equatable, Sendable {
     public let device: String
     public let os: String
     public let sharedSimulator: Bool
-    public let snapshotShard: String?
     public let timings: Bool
     public let review: Bool
     public let heartbeat: TimeInterval
     public let statusFile: String?
-    public let timingReport: String?
 
     public init(
         scope: TestScope,
@@ -30,12 +28,10 @@ public struct TestRequest: Equatable, Sendable {
         device: String = "iPhone 17",
         os: String = "27.0",
         sharedSimulator: Bool = false,
-        snapshotShard: String? = nil,
         timings: Bool = false,
         review: Bool = false,
         heartbeat: TimeInterval = 15,
         statusFile: String? = nil,
-        timingReport: String? = nil,
     ) {
         self.scope = scope
         self.bundles = bundles
@@ -47,12 +43,10 @@ public struct TestRequest: Equatable, Sendable {
         self.device = device
         self.os = os
         self.sharedSimulator = sharedSimulator
-        self.snapshotShard = snapshotShard
         self.timings = timings
         self.review = review
         self.heartbeat = heartbeat
         self.statusFile = statusFile
-        self.timingReport = timingReport
     }
 }
 
@@ -161,21 +155,16 @@ public struct TestService: Sendable {
             )
         }
 
-        let shardIdentifiers = try await snapshotShardIdentifiers(request.snapshotShard)
         let plan: TestRunPlan
         do {
             plan = try TestRunPlan(
                 scope: request.scope,
                 bundles: bundles,
                 only: request.only,
-                snapshotShardIdentifiers: shardIdentifiers,
                 graph: graph,
             )
         } catch let failure as TestRunPlanFailure {
             throw TestServiceFailure.message(failure.description)
-        }
-        if request.timingReport != nil, plan.includesSnapshots == false {
-            throw TestServiceFailure.message("--timing-report requires a snapshot test scope")
         }
         if plan.includesSnapshots {
             try await requireHydratedSnapshotReferences()
@@ -287,13 +276,6 @@ public struct TestService: Sendable {
             }
         }
 
-        if let reportPath = request.timingReport {
-            overallStatus = try await writeTimingReport(
-                to: resolveUserPath(reportPath),
-                resultBundles: resultBundles,
-                currentStatus: overallStatus,
-            )
-        }
         if overallStatus != 0 {
             try await printFailures(resultBundles: resultBundles)
         }
@@ -444,23 +426,6 @@ public struct TestService: Sendable {
         } catch {
             throw TestServiceFailure.message("could not read the Tuist graph: \(error)")
         }
-    }
-
-    private func snapshotShardIdentifiers(_ shard: String?) async throws -> [String] {
-        guard let shard else { return [] }
-        let number = String(shard.prefix(while: { $0 != "/" }))
-        let result = try await runner.run(
-            CommandInvocation(
-                executable: repository.appending(path: "snapshot-shards").path,
-                arguments: ["list", number],
-                workingDirectory: repository,
-            ),
-        )
-        guard result.succeeded else {
-            try await terminal.write(result.standardError, to: .standardError)
-            throw TestServiceFailure.exitCode(result.exitCode)
-        }
-        return lines(in: result.standardOutputText)
     }
 
     private func generateProject(in workDirectory: URL) async throws {
@@ -639,34 +604,6 @@ public struct TestService: Sendable {
             .prefix(6)
             .map { String(format: "%02x", $0) }
             .joined()
-    }
-
-    private func writeTimingReport(
-        to output: URL,
-        resultBundles: [URL],
-        currentStatus: Int32,
-    ) async throws -> Int32 {
-        let available = resultBundles.filter { fileSystem.kind(of: $0) == .directory }
-        guard available.isEmpty == false else {
-            try await terminal.write(
-                "error: no result bundle is available for --timing-report\n",
-                to: .standardError,
-            )
-            return currentStatus == 0 ? 1 : currentStatus
-        }
-        let arguments = ["report"] + available.flatMap { ["--xcresult", $0.path] } + [
-            "--output",
-            output.path,
-        ]
-        let result = try await runForwarding(
-            CommandInvocation(
-                executable: repository.appending(path: "snapshot-shards").path,
-                arguments: arguments,
-                workingDirectory: repository,
-                captureOutput: false,
-            ),
-        )
-        return result.succeeded || currentStatus != 0 ? currentStatus : result.exitCode
     }
 
     private func printFailures(resultBundles: [URL]) async throws {

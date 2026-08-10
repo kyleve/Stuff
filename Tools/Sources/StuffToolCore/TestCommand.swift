@@ -49,9 +49,6 @@ public struct TestCommand: AsyncParsableCommand {
     @Flag(help: "Use an existing shared simulator instead of this checkout's device.")
     var shared = false
 
-    @Option(name: .customLong("snapshot-shard"), help: "Snapshot shard: 1/2 or 2/2.")
-    var snapshotShard: String?
-
     @Flag(help: "Print per-phase snapshot capture timings.")
     var timings = false
 
@@ -63,12 +60,6 @@ public struct TestCommand: AsyncParsableCommand {
 
     @Option(name: .customLong("status-file"), help: "Write the latest progress line here.")
     var statusFile: String?
-
-    @Option(
-        name: .customLong("timing-report"),
-        help: "Write versioned per-suite snapshot durations here.",
-    )
-    var timingReport: String?
 
     public init() {}
 
@@ -82,9 +73,6 @@ public struct TestCommand: AsyncParsableCommand {
         guard statusFile?.isEmpty != true else {
             throw ValidationError("--status-file requires a path")
         }
-        guard timingReport?.isEmpty != true else {
-            throw ValidationError("--timing-report requires a path")
-        }
         let scopes = [all, snapshots, everything].count(where: { $0 })
         guard scopes <= 1 else {
             throw ValidationError("choose only one of --all, --snapshots, or --everything")
@@ -93,19 +81,6 @@ public struct TestCommand: AsyncParsableCommand {
             throw ValidationError(
                 "--record must be all, failed, missing or never (got '\(record)')",
             )
-        }
-        if let snapshotShard {
-            guard ["1/2", "2/2"].contains(snapshotShard) else {
-                throw ValidationError(
-                    "--snapshot-shard must be 1/2 or 2/2 (got '\(snapshotShard)')",
-                )
-            }
-            guard snapshots else {
-                throw ValidationError("--snapshot-shard requires --snapshots")
-            }
-            guard only.isEmpty else {
-                throw ValidationError("--snapshot-shard cannot be combined with --only")
-            }
         }
         guard heartbeat.isFinite, heartbeat > 0 else {
             throw ValidationError("--heartbeat must be greater than zero")
@@ -124,12 +99,10 @@ public struct TestCommand: AsyncParsableCommand {
             device: device,
             os: os,
             sharedSimulator: shared,
-            snapshotShard: snapshotShard,
             timings: timings,
             review: review,
             heartbeat: heartbeat,
             statusFile: statusFile,
-            timingReport: timingReport,
         )
     }
 
