@@ -45,14 +45,20 @@ struct SnapshotCaptureTimingTests {
     @Test func asyncAndSyncPhasesBothRecord() async throws {
         let timing = SnapshotCaptureTiming(identifier: "mixed", isEnabled: true)
         timing.measure(.host) { spin(for: .milliseconds(10)) }
-        await timing.measure(.hook) { try? await Task.sleep(for: .milliseconds(20)) }
+        await timing.measure(.measurementHook) { try? await Task.sleep(for: .milliseconds(20)) }
 
         let line = try decodedLine(from: timing)
-        #expect(line.phases.keys.sorted() == ["hook", "host"])
+        #expect(line.phases.keys.sorted() == ["host", "measurementHook"])
     }
 
     @Test func settlePassesAccumulateAndCaptureShapeIsReported() throws {
-        let timing = SnapshotCaptureTiming(identifier: "shape", isEnabled: true)
+        let timing = SnapshotCaptureTiming(
+            identifier: "shape",
+            isEnabled: true,
+            sizing: .intrinsic(width: 390, minimumHeight: 844),
+            measurementReadiness: .immediate,
+            captureSettle: .settledAtLeast(minDuration: 1),
+        )
         timing.addSettlePasses(4)
         timing.addSettlePasses(3)
         timing.recordCaptureShape(tiles: 2, pixels: 1_234_567)
@@ -61,6 +67,9 @@ struct SnapshotCaptureTimingTests {
         #expect(line.settlePasses == 7)
         #expect(line.tiles == 2)
         #expect(line.pixels == 1_234_567)
+        #expect(line.sizing == "intrinsic")
+        #expect(line.measurementReadiness == "immediate")
+        #expect(line.captureSettle == "settledAtLeast(1.0)")
     }
 
     @Test func unmeasuredPhasesAreAbsentRatherThanZero() throws {
@@ -93,6 +102,9 @@ struct SnapshotCaptureTimingTests {
     /// so decoding it independently is what actually pins the format.
     private struct Line: Decodable {
         let id: String
+        let sizing: String
+        let measurementReadiness: String
+        let captureSettle: String
         let phases: [String: Double]
         let settlePasses: Int
         let tiles: Int

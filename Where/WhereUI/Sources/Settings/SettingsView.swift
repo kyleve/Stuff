@@ -258,7 +258,6 @@ struct SettingsView: View {
                 InsightsAccuracyFeaturesView(
                     report: report,
                     focus: route.focus,
-                    presentation: featureDiscoveryPresentation,
                 )
             case .personalization:
                 PersonalizationFeaturesView(report: report, focus: route.focus)
@@ -300,6 +299,7 @@ struct SettingsView: View {
                         device: .iPhoneFullContent,
                     ),
                 ],
+                measurementReadiness: .immediate,
             ) {
                 SettingsView(report: PreviewSupport.loadedYearReportModel())
                     .environment(PreviewSupport.loadedModel())
@@ -307,7 +307,11 @@ struct SettingsView: View {
             }
             // Demo mode: the exit section on top, and the groups that would
             // reach past the demo (backup, erase/reset, app icon) gone.
-            whereSnapshot(name: "DemoMode", configurations: .fullContentPhoneLightDark) {
+            whereSnapshot(
+                name: "DemoMode",
+                configurations: .fullContentPhoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
                 SettingsView(report: PreviewSupport.loadedYearReportModel())
                     .environment(PreviewSupport.loadedModel())
                     .environment(PreviewSupport.loadedSession())

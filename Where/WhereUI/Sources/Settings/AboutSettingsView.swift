@@ -236,7 +236,11 @@ extension AboutSettingsView: SettingsSection {
         /// and attributed, so the interesting cases are what each missing piece
         /// renders as.
         static var snapshots: [SnapshotCase] {
-            whereSnapshot(name: "Default", configurations: .fullContentScreenDefaults) {
+            whereSnapshot(
+                name: "Default",
+                configurations: .fullContentScreenDefaults,
+                measurementReadiness: .immediate,
+            ) {
                 NavigationStack {
                     AboutSettingsView(
                         focus: nil,
@@ -245,7 +249,11 @@ extension AboutSettingsView: SettingsSection {
                     )
                 }
             }
-            whereSnapshot(name: "DirtyTree", configurations: .fullContentPhoneLightDark) {
+            whereSnapshot(
+                name: "DirtyTree",
+                configurations: .fullContentPhoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
                 NavigationStack {
                     AboutSettingsView(
                         focus: nil,
@@ -254,7 +262,11 @@ extension AboutSettingsView: SettingsSection {
                     )
                 }
             }
-            whereSnapshot(name: "Unattributed", configurations: .fullContentPhoneLightDark) {
+            whereSnapshot(
+                name: "Unattributed",
+                configurations: .fullContentPhoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
                 // What a bundle outside the app target shows: honest unknowns and
                 // an explicit "no report" rather than blank rows and empty sections.
                 NavigationStack {
@@ -265,7 +277,11 @@ extension AboutSettingsView: SettingsSection {
                     )
                 }
             }
-            whereSnapshot(name: "LibrariesOnly", configurations: .fullContentPhoneLightDark) {
+            whereSnapshot(
+                name: "LibrariesOnly",
+                configurations: .fullContentPhoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
                 // A real report that credits nothing of one kind. Pinned as an
                 // image because the failure mode is purely visual: a header and
                 // footer over no rows, promising a list that isn't there.

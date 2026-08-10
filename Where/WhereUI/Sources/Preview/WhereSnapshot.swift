@@ -16,6 +16,7 @@
     public func whereSnapshot(
         name: String,
         configurations: [SnapshotConfiguration],
+        measurementReadiness: SnapshotMeasurementReadiness = .sameAsCapture,
         settle: SnapshotSettle = .settled,
         onReadyToSnapshot: (@MainActor () async -> Void)? = nil,
         @ViewBuilder content: @escaping @MainActor () -> some View,
@@ -23,6 +24,7 @@
         SnapshotCase(
             name: name,
             configurations: configurations,
+            measurementReadiness: measurementReadiness,
             settle: settle,
             onReadyToSnapshot: onReadyToSnapshot,
         ) {

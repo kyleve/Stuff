@@ -16,7 +16,7 @@ public struct WhereRoot: LogEvent {
 /// Every logger derives from one `"Where"` root `Log` and emits into the
 /// process-wide Periscope system (``Periscope/shared``). Collaborators that
 /// belong together sit under a shared group scope (``location``, ``reminders``,
-/// ``backup``, ``widgets``, ``session``, ``evidence``, ``recentActivity``);
+/// ``backup``, ``widgets``, ``session``, ``evidence``);
 /// everything else hangs directly off ``root``. A collaborator derives its own
 /// typed leaf — `WhereLog.location(LocationIngestorLog.self)` — so its events
 /// carry a structured payload the log viewer can decode, and the loggers form a
@@ -45,8 +45,6 @@ public enum WhereLog {
     public static let session = group(.session)
     /// Evidence capture/list/detail view models.
     public static let evidence = group(.evidence)
-    /// On-device recent-activity summarization.
-    public static let recentActivity = group(.recentActivity)
     /// The read/derive path everything else consumes: year reports, calendar
     /// layout, and the data-issue scan. Mostly a span subtree — these
     /// collaborators throw their failures rather than logging them, so what's
@@ -66,7 +64,6 @@ public enum WhereLog {
         case widgets
         case session
         case evidence
-        case recentActivity
         case reporting
     }
 }

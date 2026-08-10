@@ -37,15 +37,6 @@ struct WhereShortcuts: AppShortcutsProvider {
             systemImageName: "calendar.badge.clock",
         )
         AppShortcut(
-            intent: RecentActivitySummaryIntent(),
-            phrases: [
-                "Summarize my recent activity in \(.applicationName)",
-                "Where have I been in \(.applicationName)",
-            ],
-            shortTitle: "Recent Activity",
-            systemImageName: "sparkles",
-        )
-        AppShortcut(
             intent: LogDayIntent(),
             phrases: [
                 "Log a day in \(.applicationName)",

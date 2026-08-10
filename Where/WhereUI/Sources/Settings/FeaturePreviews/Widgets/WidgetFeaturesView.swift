@@ -94,13 +94,21 @@ extension WidgetFeaturesView: SettingsSection {
 #if DEBUG
     extension WidgetFeaturesView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            whereSnapshot(name: "Default", configurations: .fullContentScreenDefaults) {
+            whereSnapshot(
+                name: "Default",
+                configurations: .fullContentScreenDefaults,
+                measurementReadiness: .immediate,
+            ) {
                 WidgetFeaturesView(
                     focus: nil,
                     presentation: PreviewSupport.featureDiscoveryPresentation(),
                 )
             }
-            whereSnapshot(name: "TwoRegions", configurations: .fullContentPhoneLightDark) {
+            whereSnapshot(
+                name: "TwoRegions",
+                configurations: .fullContentPhoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
                 WidgetFeaturesView(
                     focus: nil,
                     presentation: twoRegionPresentation,

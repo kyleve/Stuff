@@ -12,8 +12,7 @@ installs a stack built with
 over the same `SwiftDataStore` it opened, and an intent that fires earlier
 waits for that install rather than opening its own store; no GPS started via
 `WhereCore`'s `IdleLocationSource`), do their read/write through the existing
-collaborators
-(`reports`, `recentActivity`, `journal`) using a Gregorian calendar
+collaborators (`reports`, `journal`) using a Gregorian calendar
 (`Calendar.whereIntents`, matching the domain's aggregation so year/day math
 lines up), and render with [`WhereUI`](../WhereUI/) snippet views. The
 `AppShortcutsProvider` that gives Siri its spoken phrases lives in the **Where**
@@ -29,7 +28,6 @@ always discovers it.
 | `DaysInRegionIntent` | "How many days in California this year?" | `ReportReader.yearReport` → `totals[region]` |
 | `RegionOnDateIntent` | "What region was I in on June 3?" | `yearReport.days` for that day |
 | `TodayRegionsIntent` | "Where am I today?" | `WidgetSnapshotStore` fast path, `yearReport` fallback |
-| `RecentActivitySummaryIntent` | "Summarize where I've been this week." | `RecentActivitySummarizer.summary(for:)` |
 
 ### Action (write)
 
@@ -67,18 +65,13 @@ its day-count query.
   (so "days in Texas" answers even when untracked), while `suggestedEntities()`
   and the Spotlight index surface the user's **tracked** set (via
   `WhereServices.trackedRegions()`).
-- `ActivityWindowAppEnum` — mirrors `RecentActivityWindow` (24h / week / month /
-  year so far). An enum is fine here because these display names have no
-  RegionKit-owned source.
-
 ## Timing
 
 Every intent's work is one budgeted Periscope span named after the intent
 (`perform(days-in-region)`), so a Siri answer that felt slow can be attributed
 to the read, the write, or the wait itself: `IntentServices.current()` spans only
 the path where it actually parks for the app's launch to install the services
-stack. Budgets live on `WhereIntentsLog.IntentName` beside the name, and the
-slow-by-nature intents (the on-device model summary) get the slack.
+stack. Budgets live on `WhereIntentsLog.IntentName` beside the name.
 
 ## Localization
 
