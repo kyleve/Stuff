@@ -7,7 +7,7 @@ images.
 
 It links the snapshot-comparison engine
 ([swift-snapshot-testing](https://github.com/pointfreeco/swift-snapshot-testing))
-and the accessibility parser
+and AccessibilitySnapshot's parser plus SwiftUI annotation renderer
 ([AccessibilitySnapshot](https://github.com/cashapp/AccessibilitySnapshot)), so
 it is **only** linked by `*SnapshotTests` bundles — never a shipping app. It
 re-exports `SnapshotKit` and `SnapshotTesting`, so a test author needs a single
@@ -48,7 +48,16 @@ re-exports `SnapshotKit` and `SnapshotTesting`, so a test author needs a single
   `.settledAtLeast(minDuration:)` raises the loop's minimum window for async
   appearance work that starts quiet and lands after the default floor (the
   iOS 26 glass toolbar/tab bar material adaptation); `.immediate` skips the
-  loop for content that's fully renderable after a layout pass. A case's
+  loop for content that's fully renderable after a layout pass. Intrinsic and
+  full-content cases can independently set `measurementReadiness: .immediate`
+  when their fixture's height is synchronous: only the sizing probe skips its
+  settle, while the final capture still pays the case's declared `settle` and
+  can observe async visual changes. Keep the default `.sameAsCapture` when an
+  async load can change ideal height. Such a case may instead provide
+  `onReadyToMeasure`, which runs while the intrinsic probe is hosted and laid
+  out, before its settle and size resolution. The hook must cooperate with
+  cancellation, is bounded by the effective settle ceiling, and is rejected
+  for fixed sizing. A case's
   optional `onReadyToSnapshot` hook runs after that settle and before the
   accessibility parse / capture — the deterministic point to focus a field or
   trigger a presented state — and its effects are settled again before the
@@ -61,8 +70,8 @@ re-exports `SnapshotKit` and `SnapshotTesting`, so a test author needs a single
   starved CI machine) keeps waiting instead of failing falsely, giving up at a
   hard cap several budgets out.
 - **Accessibility captures** — for `.accessibility` configurations, content is
-  wrapped so the image is annotated with the VoiceOver reading order, labels,
-  traits, and activation points.
+  wrapped in AccessibilitySnapshot's SwiftUI renderer so the image is annotated
+  with the VoiceOver reading order, labels, traits, and activation points.
 - **`\.isCapturingSnapshot`** — the pipeline overrides `SnapshotCaptureTrait`
   on every captured controller, so SwiftUI content reads the SnapshotKit
   environment flag as `true` and can freeze never-settling motion
@@ -130,14 +139,21 @@ default plain output.
 
 `./test --snapshots --timings` sets `SNAPSHOT_TIMING` and prints a per-phase
 breakdown — `settle`, `tileStitch`, `compare`, `pngRoundTrip`, `host`,
-`accessibilityParse`, `hook`, `intrinsicMeasure`, `drain` — plus the settle pass
-distribution and the slowest individual captures. Reach for it before optimizing
+`accessibilityParse`, `hook`, `measurementHook`, `intrinsicMeasure`, `drain` — plus the settle pass
+distribution, sizing/readiness/capture-settle metadata, and the slowest
+individual captures. Reach for it before optimizing
 anything here: it is what showed that `drainInFlightAnimations` was burning a
 flat second on every image, and that the settle *floor* rather than its render
 passes is what the remaining time buys.
 
 `SNAPSHOT_SETTLE` selects the stability mechanism (`pixel`, `quiescence`,
 `both`); see [`AGENTS.md`](AGENTS.md) for why `pixel` is the only safe default.
+
+`SNAPSHOT_SETTLE_TIMEOUT_MULTIPLIER` scales the maximum observed-motion and
+readiness-hook ceilings from 1× through 4×. It does not change minimum floors,
+the quiet-window proof, render cadence, or image tolerances, so stable captures
+finish at the same point. Local runs leave it unset (1×); snapshot CI explicitly
+uses 2×. `./test` forwards it into the hosted test process.
 
 ## Requirements
 

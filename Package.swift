@@ -24,6 +24,7 @@ let package = Package(
         .library(name: "SnapshotKitTesting", targets: ["SnapshotKitTesting"]),
         .library(name: "TestHostSupport", targets: ["TestHostSupport"]),
         .library(name: "RegionKit", targets: ["RegionKit"]),
+        .library(name: "WhereCrashReporting", targets: ["WhereCrashReporting"]),
         .library(name: "WhereCore", targets: ["WhereCore"]),
         .library(name: "WhereUI", targets: ["WhereUI"]),
         .library(name: "WhereIntents", targets: ["WhereIntents"]),
@@ -36,6 +37,8 @@ let package = Package(
             branch: "main",
         ),
         .package(url: "https://github.com/weichsel/ZIPFoundation", from: "0.9.20"),
+        .package(url: "https://github.com/bitdriftlabs/capture-ios.git", from: "0.23.11"),
+        .package(url: "https://github.com/getsentry/sentry-cocoa", from: "9.25.0"),
         // Snapshot-testing engine + accessibility parser. Consumed only by the
         // test-only `SnapshotKitTesting` target (never a shipping app). See
         // Shared/SnapshotKitTesting.
@@ -123,11 +126,12 @@ let package = Package(
                 .target(name: "SnapshotKit"),
                 .target(name: "TestHostSupport"),
                 .product(name: "SnapshotTesting", package: "swift-snapshot-testing"),
-                // Only `AccessibilitySnapshotCore` is imported; the umbrella
-                // product additionally pulls in the XCTest-facing half, widening
-                // the statically embedded closure of every consuming test bundle
-                // for no benefit.
+                // Keep the focused Core + SwiftUI renderer products: the
+                // umbrella additionally pulls in AccessibilitySnapshot's own
+                // SnapshotTesting integration, widening every consuming test
+                // bundle's statically embedded closure for no benefit.
                 .product(name: "AccessibilitySnapshotCore", package: "AccessibilitySnapshot"),
+                .product(name: "AccessibilitySnapshotPreviews", package: "AccessibilitySnapshot"),
             ],
             path: "Shared/SnapshotKitTesting/Sources",
         ),
@@ -144,6 +148,14 @@ let package = Package(
             resources: [
                 .process("Resources"),
             ],
+        ),
+        .target(
+            name: "WhereCrashReporting",
+            dependencies: [
+                .product(name: "Capture", package: "capture-ios"),
+                .product(name: "Sentry", package: "sentry-cocoa"),
+            ],
+            path: "Where/WhereCrashReporting/Sources",
         ),
         .target(
             name: "WhereCore",

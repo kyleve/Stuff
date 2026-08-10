@@ -90,8 +90,12 @@ build system, formatting, and global conventions. Read that first.
 
 ## Testing
 
-Swift Testing in [`Tests/`](Tests), hostless on macOS (`tuist test
-LedgerCoreTests -- -destination 'platform=macOS'`). Shared fixtures live in
+Swift Testing in [`Tests/`](Tests), hostless on macOS. Run it through the
+scheme, not the bundle — `tuist test Ledger-macOS-Tests --no-selective-testing
+-- -destination 'platform=macOS'`, as the
+[`running-tests`](../../.agents/skills/running-tests/SKILL.md) skill spells out.
+This is the repo's one sanctioned `tuist test`: `./test` covers only the iOS
+bundles and cannot run this one. Shared fixtures live in
 [`LedgerCoreTestSupport.swift`](Tests/LedgerCoreTestSupport.swift). The network,
 token-source, and Keychain seams use the module's `@_spi(Testing)` DEBUG doubles
 (`ScriptedDashboardProvider`, `StubTokenSource`, `InMemoryKeychainStore`); the

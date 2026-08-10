@@ -9,8 +9,9 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
 ## Scope & dependencies
 
 - Depends on `SnapshotKit`, `TestHostSupport`, `SnapshotTesting`
-  (swift-snapshot-testing), and `AccessibilitySnapshot` (cashapp). It links the
-  comparison engine + XCTest/Testing, so it is **only** consumed by test
+  (swift-snapshot-testing), and AccessibilitySnapshot's focused Core + Previews
+  products (cashapp). It links the comparison engine + XCTest/Testing and the
+  SwiftUI accessibility renderer, so it is **only** consumed by test
   bundles via `extraPackageProducts` — the per-module image bundles
   (`WhereUISnapshotTests`, `PeriscopeToolsSnapshotTests`,
   `InspectorSnapshotTests`, gathered into the `StuffSnapshotTests`
@@ -37,6 +38,10 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
   accessibility) flow through `renderSnapshotImage(...)`; its `async` is
   load-bearing — a synchronous `Snapshotting` pullback could never settle
   `.task`-driven content.
+- **Accessibility annotations use AccessibilitySnapshot's SwiftUI renderer.**
+  Keep the focused `AccessibilitySnapshotCore` +
+  `AccessibilitySnapshotPreviews` products; the umbrella also links the
+  upstream SnapshotTesting integration that this module replaces.
 - **The compare sees on-disk bytes.** Every capture round-trips through PNG
   encoding before comparison; removing it re-opens the wide-gamut vs. sRGB
   flake (see `renderSnapshotImage`'s doc).
@@ -75,10 +80,12 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
 - **The runner fails fast, once, on setup problems** (a simulator that doesn't
   match the `SNAPSHOT_EXPECTED_*` pins, two variants sharing one reference
   name) — one clear issue, never hundreds of pixel diffs.
-- **An unsettled capture is a failure, not a silent fallback.** Don't "fix" a
-  settle timeout by widening the budget — freeze the motion behind
-  `\.isCapturingSnapshot`, or use `.settledAtLeast` only for genuinely slow
-  (not endless) content.
+- **An unsettled capture is a failure, not a silent fallback.** Freeze endless
+  motion behind `\.isCapturingSnapshot`, and use deterministic readiness or
+  `.settledAtLeast` for finite work. The explicit CI multiplier may scale only
+  maximum settle/hook ceilings; never the floor, quiet proof, cadence, or image
+  tolerance. Guards: `SnapshotSettleTimeoutPolicyTests` and
+  `SnapshotRenderingSupportTests`.
 - **A settled capture is not a ready capture.** The loop proves the pixels
   stopped changing, not that the content the case meant to show ever arrived —
   a loading placeholder is perfectly pixel-stable, so a gap between phases of
@@ -90,6 +97,11 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
   completion signal from `onReadyToSnapshot` (`root.LoggedIn`). Both incidents,
   and how each was found, are ledgered in
   [`Where/TODOs.md`](../../Where/TODOs.md).
+- **Height-changing readiness runs before measurement.** Intrinsic/full-content
+  cases await `onReadyToMeasure` only after the sizing probe is hosted and laid
+  out, then settle and resolve height. The hook is bounded by the effective
+  settle ceiling, must cooperate with cancellation, and is rejected for fixed
+  sizing. Guards: `PreMeasureHookTests` and `SnapshotMeasurementHookTests`.
 - **`.timedOut` requires observed motion; starvation is `.starved`.** A
   change-free settle loop keeps running until it can prove stability (a
   starved machine can fit fewer passes than stability needs), and only a hard
@@ -120,8 +132,15 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
   fixed-point passes fails the assertion and skips comparison/recording; never
   bless the last arbitrary height. Guard:
   `LargeViewCaptureTests.rejectsNonConvergingBoundedScrollMeasurement`.
-- **A settle phase costs its floor, not its passes.** Measured over all 260
-  references with `SNAPSHOT_TIMING=1`: 192 captures sit at 0.25-0.35s, the
+- **Immediate measurement never shortens final capture settling.** It skips
+  only the intrinsic-sizing probe's settle for synchronously sized fixtures;
+  the final `.settled` / `.settledAtLeast` policy still runs. Guards:
+  `AsyncContentCaptureTests`.
+- **A settle phase costs its floor, not its passes.** Measured 2026-07-28 with
+  `SNAPSHOT_TIMING=1` over the **260** references of the time — the suite holds
+  **381** as of 2026-08-09, so re-measure before acting on the split below;
+  the *conclusion* (the floor dominates) is what to rely on, not the seconds.
+  Then: 192 captures sat at 0.25-0.35s, the
   `minDuration` floor plus a pass or two, and the floor accounts for ~70s of
   the ~84s of settle time. The render passes themselves are ~14s across the
   whole suite. So making passes cheaper is worth ~11% and removing floors is
@@ -131,7 +150,7 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
 
 ## Three things measured and rejected — don't re-derive them
 
-- **Sharding the suite across simulators is 2.7x slower, and wrong.** Measured
+- **Sharding the suite across simulators on one Mac is 2.7x slower, and wrong.** Measured
   2026-07-28 on a 10-core / 24 GB machine: the serial suite runs in **142s**
   (twice, 142.2 and 142.1); the same suite split into four duration-balanced
   slices across four booted simulators, each its own process with its own
@@ -140,7 +159,10 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
   interleaving that sank the earlier in-process attempt, but they don't fix the
   real constraint: every shard contends for one render server, so
   `drawHierarchy` slows down enough to push captures past their settle budget.
-  The bar for keeping it was a 30% win. Don't reach for
+  The bar for keeping it was a 30% win. CI's two shards are different: each
+  stays serial on its own runner and render server, with membership owned by
+  `.github/snapshot-shards.json`; never reproduce that topology concurrently
+  on one developer Mac. Don't reach for
   `-parallel-testing-enabled` either — it distributes XCTest *classes*, and
   Swift Testing presents none, so it lands everything on one worker and lets
   Swift Testing's own parallelism interleave captures in a single host process
@@ -148,8 +170,9 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
 - **Quiescence can't replace the pixel digest.** `SNAPSHOT_SETTLE` selects
   `pixel` (default), `quiescence` (a `beforeWaiting` run-loop observer plus a
   recursive `needsLayout`/`needsDisplay`/`animationKeys` walk), or `both`, which
-  runs them together and reports disagreements. Run in `both` mode over all 260
-  references: 226 settle phases, 134 with some disagreement, and **8 where
+  runs them together and reports disagreements. Run in `both` mode (2026-07-28)
+  over the 260 references of the time — 361 today, so the counts below are that
+  run's, not current: 226 settle phases, 134 with some disagreement, and **8 where
   quiescence declared settled *earlier* than the digest** — every one a
   `Loaded_*` case whose content arrives late. That is the one dangerous
   direction (it would capture a frame no reference recorded), and it is what

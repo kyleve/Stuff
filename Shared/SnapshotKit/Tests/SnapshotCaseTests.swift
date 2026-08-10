@@ -14,6 +14,36 @@ struct SnapshotCaseTests {
         #expect(snapshotCase.settle == .settled)
     }
 
+    @Test func measurementReadinessDefaultsToCaptureSettle() {
+        let snapshotCase = SnapshotCase(name: "States", configurations: []) { Color.red }
+        #expect(snapshotCase.measurementReadiness == .sameAsCapture)
+    }
+
+    @Test func measurementReadinessStoresTheDeclaredPolicy() {
+        let snapshotCase = SnapshotCase(
+            name: "States",
+            configurations: [],
+            measurementReadiness: .immediate,
+        ) { Color.red }
+        #expect(snapshotCase.measurementReadiness == .immediate)
+    }
+
+    @Test func onReadyToMeasureDefaultsToNil() {
+        let snapshotCase = SnapshotCase(name: "States", configurations: []) { Color.red }
+        #expect(snapshotCase.onReadyToMeasure == nil)
+    }
+
+    @Test func onReadyToMeasureStoresTheDeclaredHook() async {
+        var hookRan = false
+        let snapshotCase = SnapshotCase(
+            name: "States",
+            configurations: [],
+            onReadyToMeasure: { hookRan = true },
+        ) { Color.red }
+        await snapshotCase.onReadyToMeasure?()
+        #expect(hookRan)
+    }
+
     @Test func settleStoresTheDeclaredMode() {
         let snapshotCase = SnapshotCase(name: "States", configurations: [], settle: .immediate) {
             Color.red

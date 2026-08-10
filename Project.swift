@@ -219,6 +219,7 @@ let project = Project(
             dependencies: [
                 .package(product: "LifecycleKit"),
                 .package(product: "RegionKit"),
+                .package(product: "WhereCrashReporting"),
                 .package(product: "WhereCore"),
                 .package(product: "WhereUI"),
                 .package(product: "WhereIntents"),
@@ -444,6 +445,12 @@ let project = Project(
             bundleIdSuffix: "creditkit",
             productDependency: "CreditKit",
             sources: ["Shared/CreditKit/Tests/**"],
+        ),
+        unitTests(
+            name: "WhereCrashReportingTests",
+            bundleIdSuffix: "wherecrashreporting",
+            productDependency: "WhereCrashReporting",
+            sources: ["Where/WhereCrashReporting/Tests/**"],
         ),
         unitTests(
             name: "LifecycleKitTests",
@@ -718,6 +725,7 @@ let project = Project(
                 "StuffTestHost",
                 "StuffCoreTests",
                 "CreditKitTests",
+                "WhereCrashReportingTests",
                 "LifecycleKitTests",
                 "LifecycleKitUITests",
                 "JournalKitTests",
@@ -742,6 +750,7 @@ let project = Project(
                 [
                     "StuffCoreTests",
                     "CreditKitTests",
+                    "WhereCrashReportingTests",
                     "LifecycleKitTests",
                     "LifecycleKitUITests",
                     "JournalKitTests",
@@ -767,6 +776,7 @@ let project = Project(
         testScheme(name: "LedgerCoreTests"),
         testScheme(name: "StuffCoreTests"),
         testScheme(name: "CreditKitTests"),
+        testScheme(name: "WhereCrashReportingTests"),
         testScheme(name: "LifecycleKitTests"),
         testScheme(name: "LifecycleKitUITests"),
         testScheme(name: "JournalKitTests"),
@@ -781,10 +791,11 @@ let project = Project(
         testScheme(name: "WhereCoreTests"),
         testScheme(name: "WhereTests"),
         testScheme(name: "WhereUITests"),
-        // Every image-snapshot bundle, in one scheme, so CI runs them all in
-        // the single `snapshot` job. A new module's image suite gets its own
-        // `*SnapshotTests` target above and joins the lists here — it must not
-        // get a scheme (or CI job) of its own.
+        // Every image-snapshot bundle, in one scheme, so CI can duration-shard
+        // its suites across isolated runners without duplicating schemes. A
+        // new module's image suite gets its own `*SnapshotTests` target above
+        // and joins the lists here — it must not get a scheme (or CI job) of
+        // its own.
         //
         // The environment pins (see `snapshotEnvironment`) are why this scheme
         // exists rather than folding the bundles into `Stuff-iOS-Tests`. They

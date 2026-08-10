@@ -49,6 +49,10 @@ layering, and the domain rules this target merely starts up.
   the `LifecycleRunner` (whose synchronous `initializePrerequisites` installs
   the `CLLocationManager` in time to receive the queued event) and hands it to
   `RootView` through `WhereApp`. Don't move this wiring into a view.
+- **Start crash reporting before forwarding launch to the selected runtime.**
+  `AppDelegate.didFinishLaunching` starts every `WhereCrashReporting` conformer
+  for both regular and Inspector boots; keep performance tracing opt-in rather
+  than enabling it as part of crash-reporting setup.
 - **The regular runtime owns exactly one of each shared thing** — one
   `FileInstallationRecordingContextStore`, one `WhereModel`, one
   `IntentServices`, one launcher — created here and injected down, per

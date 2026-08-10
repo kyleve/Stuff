@@ -156,6 +156,10 @@ module-owned stylesheets.
   do not scatter `isCapturingSnapshot` checks through product views.
 - Keep generic capture mechanics in SnapshotKit/SnapshotKitTesting and
   consumer-specific root wrapping in the UI module.
+- For intrinsic/full-content cases whose fixture has a synchronous final
+  height, set `measurementReadiness: .immediate` to avoid paying a redundant
+  sizing settle. Keep `.sameAsCapture` when async work can change height, and
+  never weaken the case's final `settle` to optimize measurement.
 - Review every changed reference for content, navigation/tool/search chrome,
   background, safe areas, Dynamic Type, and accessibility annotations. Give a
   deliberately chrome-free capture an explicit production background instead
