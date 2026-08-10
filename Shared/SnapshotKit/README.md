@@ -61,6 +61,10 @@ capture + comparison pipeline lives in the sibling
   `.immediate` to skip the sizing probe's settle while retaining the final
   capture's `.settled` or `.settledAtLeast` policy; `.settled` decouples ordinary
   sizing quiescence from a raised final-capture floor.
+  When async content changes ideal height, `onReadyToMeasure` can instead await
+  a deterministic completion signal after the intrinsic probe is hosted and
+  laid out but before it settles and measures. The hook is invalid for fixed
+  sizing and is bounded by the capture's effective settle ceiling.
   An optional `onReadyToSnapshot` hook runs in the capture pipeline after the
   content has settled and just before the image is taken — the deterministic
   point to focus a field or trigger a presented state; its effects are settled
@@ -125,7 +129,7 @@ assertSnapshots(of: MyBadge.self)
   preview cutsheet** — VoiceOver-annotated captures need the test-only library
   and can't render in a plain Preview. They still run as snapshot tests. The
   cutsheet also cannot reproduce the capture pipeline's UIKit-backed
-  `List`/`Form` height measurement, safe-area override, ready hook, or
+  `List`/`Form` height measurement, safe-area override, ready hooks, or
   tile-and-stitch pass, so CI's rendered dimensions remain authoritative.
 - The Where app wraps content in its Broadway design-system root via a
   `whereSnapshot(...)` adapter in `WhereUI`; SnapshotKit itself stays

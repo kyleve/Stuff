@@ -25,6 +25,15 @@ struct FlyoverCanvasView<ScreenID: Hashable>: View {
         } else {
             renderPlan.liveScreenIDs
         }
+        let expectedPreviewLoads: Set<FlyoverPreviewReadiness<ScreenID>.LoadKey> = if model
+            .hasAppliedInitialCanvasZoom
+        {
+            Set(catalog.screens.compactMap { screen in
+                liveScreenIDs.contains(screen.id) ? model.previewLoadKey(for: screen) : nil
+            })
+        } else {
+            []
+        }
 
         GeometryReader { proxy in
             ScrollView([.horizontal, .vertical]) {
@@ -80,6 +89,9 @@ struct FlyoverCanvasView<ScreenID: Hashable>: View {
             }
             .task {
                 applyInitialWidthFit(layout: layout, in: proxy.size)
+            }
+            .task(id: expectedPreviewLoads) {
+                model.previewReadiness.expect(expectedPreviewLoads)
             }
         }
     }
