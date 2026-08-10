@@ -39,8 +39,8 @@ public enum SnapshotMeasurementReadiness: Equatable, Sendable {
 /// variants inside a `#Preview` — the same matrix, traits, and content the
 /// snapshot tests capture. Test-only capture mechanics are documented on
 /// ``previewConfigurations``.
-/// Accessibility variants are excluded from that preview (see
-/// ``previewConfigurations``); they only render as tests.
+/// Accessibility variants are excluded from that preview because their
+/// annotation renderer is test-only (see ``previewConfigurations``).
 public struct SnapshotCase: Identifiable {
     /// The case name — groups a component's variants and prefixes their
     /// reference-image identifiers.
@@ -89,9 +89,9 @@ public struct SnapshotCase: Identifiable {
         contentFactory = { AnyView(content()) }
     }
 
-    /// The configurations that can render in a plain SwiftUI preview. Accessibility
-    /// captures need the test-only library's VoiceOver parser, so they're dropped
-    /// from the cutsheet (they still run as snapshot tests). The cutsheet also
+    /// The configurations that can render without linking test-only dependencies.
+    /// Accessibility annotations belong to `SnapshotKitTesting`, so those variants
+    /// are dropped from the cutsheet (they still run as snapshot tests). The cutsheet also
     /// cannot perform the capture pipeline's UIKit-backed `List`/`Form`
     /// measurement, safe-area override, async ready hook, or tile-and-stitch;
     /// full-content preview height is therefore an approximation while the test

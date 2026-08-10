@@ -7,7 +7,7 @@ images.
 
 It links the snapshot-comparison engine
 ([swift-snapshot-testing](https://github.com/pointfreeco/swift-snapshot-testing))
-and the accessibility parser
+and AccessibilitySnapshot's parser plus SwiftUI annotation renderer
 ([AccessibilitySnapshot](https://github.com/cashapp/AccessibilitySnapshot)), so
 it is **only** linked by `*SnapshotTests` bundles — never a shipping app. It
 re-exports `SnapshotKit` and `SnapshotTesting`, so a test author needs a single
@@ -66,8 +66,8 @@ re-exports `SnapshotKit` and `SnapshotTesting`, so a test author needs a single
   starved CI machine) keeps waiting instead of failing falsely, giving up at a
   hard cap several budgets out.
 - **Accessibility captures** — for `.accessibility` configurations, content is
-  wrapped so the image is annotated with the VoiceOver reading order, labels,
-  traits, and activation points.
+  wrapped in AccessibilitySnapshot's SwiftUI renderer so the image is annotated
+  with the VoiceOver reading order, labels, traits, and activation points.
 - **`\.isCapturingSnapshot`** — the pipeline overrides `SnapshotCaptureTrait`
   on every captured controller, so SwiftUI content reads the SnapshotKit
   environment flag as `true` and can freeze never-settling motion

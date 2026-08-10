@@ -9,8 +9,9 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
 ## Scope & dependencies
 
 - Depends on `SnapshotKit`, `TestHostSupport`, `SnapshotTesting`
-  (swift-snapshot-testing), and `AccessibilitySnapshot` (cashapp). It links the
-  comparison engine + XCTest/Testing, so it is **only** consumed by test
+  (swift-snapshot-testing), and AccessibilitySnapshot's focused Core + Previews
+  products (cashapp). It links the comparison engine + XCTest/Testing and the
+  SwiftUI accessibility renderer, so it is **only** consumed by test
   bundles via `extraPackageProducts` — the per-module image bundles
   (`WhereUISnapshotTests`, `PeriscopeToolsSnapshotTests`,
   `InspectorSnapshotTests`, gathered into the `StuffSnapshotTests`
@@ -37,6 +38,10 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
   accessibility) flow through `renderSnapshotImage(...)`; its `async` is
   load-bearing — a synchronous `Snapshotting` pullback could never settle
   `.task`-driven content.
+- **Accessibility annotations use AccessibilitySnapshot's SwiftUI renderer.**
+  Keep the focused `AccessibilitySnapshotCore` +
+  `AccessibilitySnapshotPreviews` products; the umbrella also links the
+  upstream SnapshotTesting integration that this module replaces.
 - **The compare sees on-disk bytes.** Every capture round-trips through PNG
   encoding before comparison; removing it re-opens the wide-gamut vs. sRGB
   flake (see `renderSnapshotImage`'s doc).
