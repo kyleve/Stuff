@@ -66,10 +66,17 @@ def discover_catalog(root: Path = ROOT) -> list[str]:
         for source in swift_files:
             suite = source.stem
             text = source.read_text()
-            if not re.search(rf"\b(?:struct|class)\s+{re.escape(suite)}\b", text):
+            declared_suites = re.findall(
+                r"^(?:(?:private|fileprivate|internal|package|public|final)\s+)*"
+                r"(?:struct|class|actor|enum)\s+(\w+Tests)\b",
+                text,
+                re.MULTILINE,
+            )
+            if declared_suites != [suite]:
+                found = ", ".join(declared_suites) if declared_suites else "none"
                 raise ShardError(
-                    f"{source.relative_to(root)} must declare suite {suite}; "
-                    "snapshot sharding uses one same-named suite per source file"
+                    f"{source.relative_to(root)} must declare exactly one top-level "
+                    f"*Tests suite named {suite}; found {found}"
                 )
             catalog.append(f"{bundle}/{suite}")
     return sorted(catalog)

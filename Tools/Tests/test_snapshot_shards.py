@@ -26,6 +26,7 @@ class SnapshotShardsTests(unittest.TestCase):
             sources.mkdir(parents=True)
             (sources / "CardSnapshotTests.swift").write_text(
                 "struct CardSnapshotTests {}\n"
+                "final class SnapshotAlbum {}\n"
             )
 
             self.assertEqual(
@@ -46,7 +47,29 @@ class SnapshotShardsTests(unittest.TestCase):
             sources.mkdir(parents=True)
             (sources / "CardSnapshotTests.swift").write_text("struct OtherTests {}\n")
 
-            with self.assertRaisesRegex(snapshot_shards.ShardError, "must declare suite"):
+            with self.assertRaisesRegex(snapshot_shards.ShardError, "exactly one top-level"):
+                snapshot_shards.discover_catalog(root)
+
+    def test_discovery_rejects_an_additional_suite_in_the_same_file(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "Project.swift").write_text(
+                '        unitTests(\n'
+                '            name: "FeatureSnapshotTests",\n'
+                '            sources: ["Feature/SnapshotTests/**"],\n'
+                '        ),\n'
+            )
+            sources = root / "Feature" / "SnapshotTests"
+            sources.mkdir(parents=True)
+            (sources / "CardSnapshotTests.swift").write_text(
+                "struct CardSnapshotTests {}\n"
+                "struct ExtraSnapshotTests {}\n"
+            )
+
+            with self.assertRaisesRegex(
+                snapshot_shards.ShardError,
+                "found CardSnapshotTests, ExtraSnapshotTests",
+            ):
                 snapshot_shards.discover_catalog(root)
 
     def test_validation_reports_missing_duplicate_unknown_and_empty_assignments(self):
