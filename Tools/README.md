@@ -21,6 +21,13 @@ updates. Update dependencies explicitly with `swift package resolve
 --package-path Tools`, then regenerate the app attribution report because these
 packages are credited as development tools.
 
+## Migrated commands
+
+- `./xcstrings` owns byte-identical String Catalog normalization.
+- `./simulator` owns typed `simctl` decoding, checkout identity, registry
+  provenance, bounded locking, boot waiting, and exact-target deletion. Unowned
+  devices are reported but never deleted automatically.
+
 ## Structure
 
 - `Sources/StuffTool` is the executable composition root.

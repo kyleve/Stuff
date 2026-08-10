@@ -62,8 +62,8 @@ reading a snapshot run.
 Every checkout — a second clone, a worktree — gets a device of its own, so two
 runs on one machine never fight over booting, installing to, or erasing the
 same simulator. `./simulator --list` shows them with their owning checkouts and
-`./simulator --prune` (`--dry-run` to preview) cleans up after a checkout you
-deleted; see `./simulator --help`.
+`./simulator --prune` cleans up after a checkout you deleted. Prune, delete,
+and recreate operations accept `--dry-run`; see `./simulator --help`.
 
 Codex-managed worktrees use the checked-in local environment at
 `.codex/environments/environment.toml`. Setup fetches `origin/main` and warns
