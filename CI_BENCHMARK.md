@@ -33,9 +33,10 @@ the metadata gate instead of running snapshots against a different toolchain.
 | Depot `depot-macos-26` | Disqualified before installation | Depot's [current macOS 26 image](https://depot.dev/blog/now-available-macos-26-github-actions) lists Xcode 26.x only. No Depot app was installed and no trial was started. |
 | Cirrus | Unavailable | [Cirrus Labs](https://cirruslabs.org/) says Cirrus CI shut down on June 1, 2026, and Cirrus Runners is not accepting new customers. |
 
-The canonical workflow already runs its two duration-balanced snapshot shards
-as separate `xcode-27` matrix jobs, so moving the shards to independent
-standard runners is not an unclaimed optimization.
+At the time of this benchmark, the canonical workflow ran two duration-balanced
+snapshot shards as separate `xcode-27` matrix jobs. PR #237 later moved the
+suite to one serial CircleCI M4 Pro job: the faster runner made duplicated
+setup/build compute a worse trade-off than the remaining critical-path saving.
 
 The smoke job took 15m58s end to end. Its snapshot step took 15m07s, split
 approximately into 6m40s of test-harness pre-build work, 3m46s building, and

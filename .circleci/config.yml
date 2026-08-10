@@ -187,56 +187,24 @@ jobs:
           test_workdir: test-output-ios
           artifact_name: test-ios
 
-  snapshot-1:
+  snapshot:
     executor: m4-pro
     environment:
       SNAPSHOT_SETTLE_TIMEOUT_MULTIPLIER: "2"
     steps:
       - prepare:
           hydrate_snapshots: true
-          test_workdir: test-output-snapshot-1
+          test_workdir: test-output-snapshots
       - run_with_timeout:
           seconds: 3600
           command: >-
-            ./test --snapshots --snapshot-shard 1/2 --shared --os 27.0
-            --review --timings
-            --timing-report "$TEST_WORKDIR/snapshot-suite-durations.json"
+            ./test --snapshots --shared --os 27.0 --review --timings
       - export_test_results:
-          test_workdir: test-output-snapshot-1
-          output_directory: test-results-snapshot-1
-      - store_artifacts:
-          path: test-output-snapshot-1/snapshot-suite-durations.json
-          destination: snapshot-1/snapshot-suite-durations.json
-          when: on_success
+          test_workdir: test-output-snapshots
+          output_directory: test-results-snapshots
       - collect_diagnostics:
-          test_workdir: test-output-snapshot-1
-          artifact_name: snapshot-1
-          include_snapshot_images: true
-
-  snapshot-2:
-    executor: m4-pro
-    environment:
-      SNAPSHOT_SETTLE_TIMEOUT_MULTIPLIER: "2"
-    steps:
-      - prepare:
-          hydrate_snapshots: true
-          test_workdir: test-output-snapshot-2
-      - run_with_timeout:
-          seconds: 3600
-          command: >-
-            ./test --snapshots --snapshot-shard 2/2 --shared --os 27.0
-            --review --timings
-            --timing-report "$TEST_WORKDIR/snapshot-suite-durations.json"
-      - export_test_results:
-          test_workdir: test-output-snapshot-2
-          output_directory: test-results-snapshot-2
-      - store_artifacts:
-          path: test-output-snapshot-2/snapshot-suite-durations.json
-          destination: snapshot-2/snapshot-suite-durations.json
-          when: on_success
-      - collect_diagnostics:
-          test_workdir: test-output-snapshot-2
-          artifact_name: snapshot-2
+          test_workdir: test-output-snapshots
+          artifact_name: snapshots
           include_snapshot_images: true
 
 workflows:
@@ -248,7 +216,5 @@ workflows:
     jobs:
       - test-ios:
           name: Build & Test (iOS)
-      - snapshot-1:
-          name: Snapshot Tests (iOS, 1/2)
-      - snapshot-2:
-          name: Snapshot Tests (iOS, 2/2)
+      - snapshot:
+          name: Snapshot Tests (iOS)
