@@ -5,14 +5,15 @@ import SnapshotKit
 ///
 /// The cases are the pipeline's own steps in the order they run, so a timing
 /// line reads as a walk through `renderSnapshotImage`. `settle`-shaped work
-/// appears under three separate keys rather than one: the intrinsic-sizing
-/// probe runs its own settle before the capture's, and a case's
-/// `onReadyToSnapshot` hook is followed by a second one, so folding all three
-/// together would hide which of them a slow case is actually paying for.
+/// appears under separate keys rather than one: the intrinsic-sizing probe,
+/// its deterministic readiness hook, the final settle, and a case's
+/// `onReadyToSnapshot` hook each answer different performance questions.
 @_spi(Testing) public enum SnapshotCapturePhase: String, Sendable, CaseIterable {
     /// Hosting and settling the throwaway probe that measures `.intrinsic` /
     /// `.fullContent` content. Zero for `.fixed` sizing, which is most captures.
     case intrinsicMeasure
+    /// A deterministic readiness hook run while the intrinsic probe is hosted.
+    case measurementHook
     /// Attaching the capture wrapper to the host root and laying it out — the
     /// real UIKit appearance transition, so SwiftUI `onAppear` / `.task` start.
     case host

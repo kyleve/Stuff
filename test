@@ -580,6 +580,52 @@ add_scheme() {
     SCHEMES+=("$candidate")
 }
 
+require_hydrated_snapshot_references() {
+    local reference lfs_files_json
+    local pointers=()
+
+    if ! command -v git-lfs >/dev/null 2>&1; then
+        echo "error: snapshot tests require git-lfs; run ./ide --bootstrap." >&2
+        exit 1
+    fi
+
+    # One stable JSON inventory avoids starting `git-lfs` once per reference —
+    # hundreds of subprocesses and a multi-second tax on every snapshot run.
+    # `checkout` distinguishes hydrated full objects from pointer text.
+    lfs_files_json="$WORKDIR/lfs-files.json"
+    if ! git lfs ls-files --json >"$lfs_files_json"; then
+        echo "error: could not inspect Git LFS snapshot references." >&2
+        exit 1
+    fi
+    while IFS= read -r reference; do
+        [ -n "$reference" ] && pointers+=("$reference")
+    done < <(LFS_FILES_JSON="$lfs_files_json" python3 - <<'PY'
+import json, os, pathlib
+
+inventory = json.loads(pathlib.Path(os.environ['LFS_FILES_JSON']).read_text())
+for item in inventory['files']:
+    name = item['name']
+    if '/__Snapshots__/' in name and name.endswith('.png') and not item['checkout']:
+        print(name)
+PY
+)
+
+    if [ "${#pointers[@]}" -eq 0 ]; then
+        return
+    fi
+
+    echo "error: ${#pointers[@]} snapshot reference(s) are Git LFS pointer files, not PNGs." >&2
+    echo "       Snapshot comparisons would be incomplete or incomparable." >&2
+    echo "       Hydrate this checkout, then retry:" >&2
+    echo "         git lfs pull" >&2
+    echo "       First unresolved references:" >&2
+    printf '         %s\n' "${pointers[@]:0:5}" >&2
+    if [ "${#pointers[@]}" -gt 5 ]; then
+        echo "         … and $((${#pointers[@]} - 5)) more" >&2
+    fi
+    exit 1
+}
+
 case "$SCOPE" in
     all) add_scheme "$UNIT_SCHEME" ;;
     snapshots) add_scheme "$SNAPSHOT_SCHEME" ;;
@@ -666,11 +712,16 @@ if [ "${#SCHEMES[@]}" -eq 0 ]; then
     exit 1
 fi
 
+has_snapshot_scheme=false
+for scheme in "${SCHEMES[@]}"; do
+    [ "$scheme" = "$SNAPSHOT_SCHEME" ] && has_snapshot_scheme=true
+done
+
+if [ "$has_snapshot_scheme" = true ]; then
+    require_hydrated_snapshot_references
+fi
+
 if [ -n "$TIMING_REPORT" ]; then
-    has_snapshot_scheme=false
-    for scheme in "${SCHEMES[@]}"; do
-        [ "$scheme" = "$SNAPSHOT_SCHEME" ] && has_snapshot_scheme=true
-    done
     if [ "$has_snapshot_scheme" != true ]; then
         echo "error: --timing-report requires a snapshot test scope" >&2
         exit 1
@@ -697,6 +748,8 @@ RUN_ENV=()
 [ -n "$RECORD" ] && RUN_ENV+=("TEST_RUNNER_SNAPSHOT_RECORD=$RECORD")
 [ "$TIMINGS" = true ] && RUN_ENV+=("TEST_RUNNER_SNAPSHOT_TIMING=1")
 [ "$REVIEW" = true ] && RUN_ENV+=("TEST_RUNNER_SNAPSHOT_DIFF=1")
+[ -n "${SNAPSHOT_SETTLE_TIMEOUT_MULTIPLIER:-}" ] \
+    && RUN_ENV+=("TEST_RUNNER_SNAPSHOT_SETTLE_TIMEOUT_MULTIPLIER=$SNAPSHOT_SETTLE_TIMEOUT_MULTIPLIER")
 
 # SwiftPM's generated `Bundle.module` accessors honor
 # PACKAGE_RESOURCE_BUNDLE_PATH as their first lookup candidate (DEBUG-only,
