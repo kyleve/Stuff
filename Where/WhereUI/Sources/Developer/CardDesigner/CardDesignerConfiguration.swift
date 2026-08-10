@@ -6,7 +6,7 @@
     /// It contains presentation only: count animation and RegionKit cache policy
     /// remain owned by the production stylesheet and path cache.
     struct CardDesignerConfiguration: Codable, Equatable {
-        static let currentSchemaVersion = 1
+        static let currentSchemaVersion = 2
         static let standard = CardDesignerConfiguration(styles: .standard)
 
         var schemaVersion = currentSchemaVersion
@@ -518,12 +518,16 @@
             var staticGlintIntensity: Double
             var staticRoll: Double
             var staticPitch: Double
+            var spectralRim: SpectralRim
+            var nameRelief: NameRelief
 
             init(_ style: WhereStylesheet.CardStyle.Sheen) {
                 intensity = style.intensity
                 staticGlintIntensity = style.staticGlintIntensity
                 staticRoll = style.staticPose.roll
                 staticPitch = style.staticPose.pitch
+                spectralRim = SpectralRim(style.spectralRim)
+                nameRelief = NameRelief(style.nameRelief)
             }
 
             var style: WhereStylesheet.CardStyle.Sheen {
@@ -531,7 +535,61 @@
                     intensity: intensity,
                     staticGlintIntensity: staticGlintIntensity,
                     staticPose: .init(roll: staticRoll, pitch: staticPitch),
+                    spectralRim: spectralRim.style,
+                    nameRelief: nameRelief.style,
                 )
+            }
+
+            struct SpectralRim: Codable, Equatable {
+                var opacity: Double
+                var lineWidth: CGFloat
+                var blurRadius: CGFloat
+                var inset: CGFloat
+                var travel: Double
+
+                init(_ style: WhereStylesheet.CardStyle.Sheen.SpectralRim) {
+                    opacity = style.opacity
+                    lineWidth = style.lineWidth
+                    blurRadius = style.blurRadius
+                    inset = style.inset
+                    travel = style.travel
+                }
+
+                var style: WhereStylesheet.CardStyle.Sheen.SpectralRim {
+                    .init(
+                        opacity: opacity,
+                        lineWidth: lineWidth,
+                        blurRadius: blurRadius,
+                        inset: inset,
+                        travel: travel,
+                    )
+                }
+            }
+
+            struct NameRelief: Codable, Equatable {
+                var highlightOpacity: Double
+                var shadowOpacity: Double
+                var depth: CGFloat
+                var blurRadius: CGFloat
+                var travel: Double
+
+                init(_ style: WhereStylesheet.CardStyle.Sheen.NameRelief) {
+                    highlightOpacity = style.highlightOpacity
+                    shadowOpacity = style.shadowOpacity
+                    depth = style.depth
+                    blurRadius = style.blurRadius
+                    travel = style.travel
+                }
+
+                var style: WhereStylesheet.CardStyle.Sheen.NameRelief {
+                    .init(
+                        highlightOpacity: highlightOpacity,
+                        shadowOpacity: shadowOpacity,
+                        depth: depth,
+                        blurRadius: blurRadius,
+                        travel: travel,
+                    )
+                }
             }
         }
 

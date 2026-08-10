@@ -28,6 +28,8 @@
             configuration.regular.cornerRadius = 33
             configuration.compact.regionNameTypography.sizeMode = .fixed
             configuration.compact.regionNameTypography.fixedSize = 19
+            configuration.regular.sheen.spectralRim.opacity = 0.9
+            configuration.regular.sheen.nameRelief.depth = 2
             configuration.shared.darkSecurityPrint.blendMode = .softLight
 
             let data = try JSONEncoder().encode(configuration)

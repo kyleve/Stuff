@@ -25,8 +25,8 @@ public final class TiltProvider {
     /// Forward/back tilt, roughly `-1...1`. Zero when flat or unavailable.
     public private(set) var pitch: Double = 0
     /// Whether device motion has delivered a value since the latest `start()`.
-    /// Internal because only WhereUI's sheen renderer needs to distinguish a
-    /// real flat-device zero from the pre-sample/unavailable state.
+    /// Internal because only WhereUI's tilt-finish renderers need to distinguish
+    /// a real flat-device zero from the pre-sample/unavailable state.
     private(set) var hasLiveSample = false
 
     @ObservationIgnored private let motionManager = CMMotionManager()

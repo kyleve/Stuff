@@ -169,6 +169,70 @@
                         range: -1 ... 1,
                         step: 0.05,
                     )
+                    DisclosureGroup(String(localized: .cardDesignerSpectralRim)) {
+                        CardDesignerDoubleControl(
+                            title: .cardDesignerOpacity,
+                            value: $card.sheen.spectralRim.opacity,
+                            range: 0 ... 1,
+                            step: 0.01,
+                        )
+                        CardDesignerCGFloatControl(
+                            title: .cardDesignerLineWidth,
+                            value: $card.sheen.spectralRim.lineWidth,
+                            range: 0 ... 8,
+                            step: 0.25,
+                        )
+                        CardDesignerCGFloatControl(
+                            title: .cardDesignerBlur,
+                            value: $card.sheen.spectralRim.blurRadius,
+                            range: 0 ... 12,
+                            step: 0.25,
+                        )
+                        CardDesignerCGFloatControl(
+                            title: .cardDesignerInset,
+                            value: $card.sheen.spectralRim.inset,
+                            range: 0 ... 16,
+                            step: 0.5,
+                        )
+                        CardDesignerDoubleControl(
+                            title: .cardDesignerTravel,
+                            value: $card.sheen.spectralRim.travel,
+                            range: 0 ... 2,
+                            step: 0.05,
+                        )
+                    }
+                    DisclosureGroup(String(localized: .cardDesignerNameRelief)) {
+                        CardDesignerDoubleControl(
+                            title: .cardDesignerHighlightOpacity,
+                            value: $card.sheen.nameRelief.highlightOpacity,
+                            range: 0 ... 1,
+                            step: 0.01,
+                        )
+                        CardDesignerDoubleControl(
+                            title: .cardDesignerShadowOpacity,
+                            value: $card.sheen.nameRelief.shadowOpacity,
+                            range: 0 ... 1,
+                            step: 0.01,
+                        )
+                        CardDesignerCGFloatControl(
+                            title: .cardDesignerDepth,
+                            value: $card.sheen.nameRelief.depth,
+                            range: 0 ... 6,
+                            step: 0.1,
+                        )
+                        CardDesignerCGFloatControl(
+                            title: .cardDesignerBlur,
+                            value: $card.sheen.nameRelief.blurRadius,
+                            range: 0 ... 6,
+                            step: 0.1,
+                        )
+                        CardDesignerDoubleControl(
+                            title: .cardDesignerTravel,
+                            value: $card.sheen.nameRelief.travel,
+                            range: 0 ... 2,
+                            step: 0.05,
+                        )
+                    }
                 } header: {
                     CardDesignerSectionHeader(title: .cardDesignerSheen, reset: { reset(.sheen) })
                 }

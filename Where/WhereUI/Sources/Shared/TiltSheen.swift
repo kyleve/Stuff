@@ -1,16 +1,17 @@
 import SwiftUI
 
-/// A color-neutral sheen overlay — a grayscale luminance wash plus a soft
-/// specular glint — that slides with the device's tilt, the way light catches a
-/// coated card. Soft-light compositing preserves the card's underlying region
-/// hue, then the result is clipped to the card's shape and made non-interactive.
+/// A coated-card finish — a grayscale luminance wash, a soft specular glint,
+/// and an optional inset spectral rim — that slides with the device's tilt.
+/// Soft-light compositing keeps the broad reflection color-neutral while the
+/// narrow foil edge adds color without repainting the underlying region hue.
+/// The result is clipped to the card's shape and made non-interactive.
 ///
 /// This modifier is deliberately the observation boundary for `TiltProvider`:
 /// only the lightweight overlay invalidates at the sensor's 60 Hz cadence, not
 /// the card and its Canvas artwork beneath it. A caller also supplies the
 /// deterministic pose used when motion must stay static, so Reduce Motion and
 /// snapshot capture never depend on a live sensor reading.
-struct TiltSheen<ClipShape: Shape>: ViewModifier {
+struct TiltSheen<ClipShape: InsettableShape>: ViewModifier {
     var tilt: TiltProvider?
     var staticRoll: Double
     var staticPitch: Double
@@ -19,6 +20,7 @@ struct TiltSheen<ClipShape: Shape>: ViewModifier {
     var intensity: Double = 1
     /// White-glint strength when `usesStaticPose`, `0...1`.
     var staticGlintIntensity: Double = 1
+    var spectralRim: WhereStylesheet.CardStyle.Sheen.SpectralRim = .none
 
     @MotionIsStatic private var motionIsStatic
 
@@ -31,30 +33,26 @@ struct TiltSheen<ClipShape: Shape>: ViewModifier {
         }
     }
 
-    /// Tilt actually used to place the highlight. Static-motion contexts use
-    /// the caller's deterministic pose so the sheen stays put.
-    private var activeRoll: Double {
-        usesStaticPose ? staticRoll.clamped : (tilt?.roll ?? staticRoll).clamped
-    }
-
-    private var activePitch: Double {
-        usesStaticPose ? staticPitch.clamped : (tilt?.pitch ?? staticPitch).clamped
-    }
-
-    private var usesStaticPose: Bool {
-        motionIsStatic || tilt?.hasLiveSample != true
+    private var effectState: TiltEffectState {
+        TiltEffectState(
+            tilt: tilt,
+            staticRoll: staticRoll,
+            staticPitch: staticPitch,
+            motionIsStatic: motionIsStatic,
+        )
     }
 
     private var glintIntensity: Double {
-        usesStaticPose ? staticGlintIntensity : intensity
+        effectState.usesStaticPose ? staticGlintIntensity : intensity
     }
 
     private var sheen: some View {
         GeometryReader { proxy in
+            let state = effectState
             let diagonal = max(proxy.size.width, proxy.size.height)
             let glint = UnitPoint(
-                x: 0.5 + activeRoll * 0.55,
-                y: 0.5 - activePitch * 0.55,
+                x: 0.5 + state.roll * 0.55,
+                y: 0.5 - state.pitch * 0.55,
             )
 
             ZStack {
@@ -62,8 +60,8 @@ struct TiltSheen<ClipShape: Shape>: ViewModifier {
                 // rolls, preserving the region tint beneath it.
                 LinearGradient(
                     colors: Self.luminanceStops,
-                    startPoint: UnitPoint(x: activeRoll * 0.3, y: 0),
-                    endPoint: UnitPoint(x: 1 + activeRoll * 0.3, y: 1),
+                    startPoint: UnitPoint(x: state.roll * 0.3, y: 0),
+                    endPoint: UnitPoint(x: 1 + state.roll * 0.3, y: 1),
                 )
                 .opacity(0.28 * intensity)
                 .blendMode(.softLight)
@@ -79,7 +77,38 @@ struct TiltSheen<ClipShape: Shape>: ViewModifier {
                     endRadius: diagonal * 0.75,
                 )
                 .blendMode(.softLight)
+
+                spectralEdge(state: state)
             }
+        }
+    }
+
+    private func spectralEdge(state: TiltEffectState) -> some View {
+        let direction = state.lightDirection(travel: spectralRim.travel)
+        let center = UnitPoint(
+            x: 0.5 + direction.width * 0.24,
+            y: 0.5 + direction.height * 0.24,
+        )
+        let angle = Angle.degrees(direction.width * 48 + direction.height * 32)
+        let gradient = AngularGradient(
+            colors: Self.spectralStops,
+            center: center,
+            angle: angle,
+        )
+
+        return ZStack {
+            shape
+                .inset(by: spectralRim.inset)
+                .strokeBorder(gradient, lineWidth: spectralRim.lineWidth * 3)
+                .blur(radius: spectralRim.blurRadius)
+                .opacity(spectralRim.opacity * 0.42)
+                .blendMode(.plusLighter)
+
+            shape
+                .inset(by: spectralRim.inset)
+                .strokeBorder(gradient, lineWidth: spectralRim.lineWidth)
+                .opacity(spectralRim.opacity)
+                .blendMode(.plusLighter)
         }
     }
 
@@ -88,20 +117,27 @@ struct TiltSheen<ClipShape: Shape>: ViewModifier {
     private static var luminanceStops: [Color] {
         [.white, .gray, .black, .gray, .white]
     }
+
+    /// A foil-like spectrum with a repeated magenta endpoint so rotating the
+    /// angular gradient has no visible seam.
+    private static var spectralStops: [Color] {
+        [.pink, .purple, .cyan, .mint, .yellow, .orange, .pink]
+    }
 }
 
 extension View {
-    /// Overlay a tilt-reactive grayscale sheen clipped to `shape`. Pass the same
-    /// shape used for the card's `glassEffect` so the sheen lines up. The
-    /// provider is observed inside the modifier to keep its frequent updates
-    /// from invalidating the view that owns the card.
+    /// Overlay a tilt-reactive coated finish clipped to `shape`. Pass the same
+    /// shape used for the card's `glassEffect` so the sheen and optional inset
+    /// rim line up. The provider is observed inside the modifier to keep its
+    /// frequent updates from invalidating the view that owns the card.
     func tiltSheen(
         tilt: TiltProvider?,
         staticRoll: Double,
         staticPitch: Double,
-        in shape: some Shape,
+        in shape: some InsettableShape,
         intensity: Double = 1,
         staticGlintIntensity: Double = 1,
+        spectralRim: WhereStylesheet.CardStyle.Sheen.SpectralRim = .none,
     ) -> some View {
         modifier(TiltSheen(
             tilt: tilt,
@@ -110,15 +146,8 @@ extension View {
             shape: shape,
             intensity: intensity,
             staticGlintIntensity: staticGlintIntensity,
+            spectralRim: spectralRim,
         ))
-    }
-}
-
-extension Double {
-    /// Clamped to `-1...1` so out-of-range gravity readings can't fling the
-    /// glint off the card.
-    fileprivate var clamped: Double {
-        min(1, max(-1, self))
     }
 }
 

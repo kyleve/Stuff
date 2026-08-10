@@ -20,7 +20,7 @@
             let shared = try #require(object["shared"] as? [String: Any])
             let dark = try #require(shared["darkSecurityPrint"] as? [String: Any])
 
-            #expect(object["schemaVersion"] as? Int == 1)
+            #expect(object["schemaVersion"] as? Int == 2)
             #expect(regular["cornerRadius"] as? Double == 31.25)
             #expect(regular["padding"] == nil)
             #expect(object["compact"] == nil)

@@ -57,6 +57,7 @@ struct WhereStylesheet: BStylesheet {
         if traits.accessibility.isReduceTransparencyEnabled {
             card.regular.glow.radius = 0
             card.compact.glow.radius = 0
+            card.regular.sheen.spectralRim.blurRadius = 0
             card.constellation.haloOpacity = 0
         }
 
@@ -505,10 +506,48 @@ extension WhereStylesheet {
             /// dimensional light without fading toward white.
             var staticGlintIntensity: Double
             var staticPose: Pose
+            /// An inset holographic edge that shifts around the card with the
+            /// same virtual light as the broad luminance sheen.
+            var spectralRim: SpectralRim
+            /// Paired light and shade that make the region name read as raised
+            /// ink, with its apparent depth following the device tilt.
+            var nameRelief: NameRelief
 
             struct Pose: Equatable {
                 var roll: Double
                 var pitch: Double
+            }
+
+            struct SpectralRim: Equatable {
+                var opacity: Double
+                var lineWidth: CGFloat
+                var blurRadius: CGFloat
+                var inset: CGFloat
+                var travel: Double
+
+                static let none = SpectralRim(
+                    opacity: 0,
+                    lineWidth: 0,
+                    blurRadius: 0,
+                    inset: 0,
+                    travel: 0,
+                )
+            }
+
+            struct NameRelief: Equatable {
+                var highlightOpacity: Double
+                var shadowOpacity: Double
+                var depth: CGFloat
+                var blurRadius: CGFloat
+                var travel: Double
+
+                static let none = NameRelief(
+                    highlightOpacity: 0,
+                    shadowOpacity: 0,
+                    depth: 0,
+                    blurRadius: 0,
+                    travel: 0,
+                )
             }
         }
 
@@ -717,6 +756,20 @@ extension WhereStylesheet {
                     // A phone held upright: the glint sits near the lower edge
                     // instead of washing out the card's central content.
                     staticPose: .init(roll: 0, pitch: -1),
+                    spectralRim: .init(
+                        opacity: 0.72,
+                        lineWidth: 1.5,
+                        blurRadius: 2.5,
+                        inset: 2,
+                        travel: 0.85,
+                    ),
+                    nameRelief: .init(
+                        highlightOpacity: 0.52,
+                        shadowOpacity: 0.38,
+                        depth: 1.4,
+                        blurRadius: 0.8,
+                        travel: 0.75,
+                    ),
                 ),
                 rosette: CardStyle.Rosette(
                     wobble: 2,
@@ -757,6 +810,8 @@ extension WhereStylesheet {
                     staticGlintIntensity: 0.5,
                     // Preserve the compact card's existing neutral treatment.
                     staticPose: .init(roll: 0, pitch: 0),
+                    spectralRim: .none,
+                    nameRelief: .none,
                 ),
                 rosette: CardStyle.Rosette(
                     wobble: 2,

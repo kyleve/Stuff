@@ -31,6 +31,20 @@
             #expect(model.persistenceError != nil)
         }
 
+        @Test func olderSchemaSurfacesAnErrorAndUsesDefaults() throws {
+            let (store, suite) = try isolatedStore()
+            defer { store.removePersistentDomain(forName: suite) }
+            let key = "card-designer"
+            var oldConfiguration = CardDesignerConfiguration.standard
+            oldConfiguration.schemaVersion = 1
+            try store.set(JSONEncoder().encode(oldConfiguration), forKey: key)
+
+            let model = CardDesignerModel(store: store, key: key)
+
+            #expect(model.configuration == .standard)
+            #expect(model.persistenceError != nil)
+        }
+
         @Test func resetAllReplacesCorruptPersistenceWithDefaults() throws {
             let (store, suite) = try isolatedStore()
             defer { store.removePersistentDomain(forName: suite) }

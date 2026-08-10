@@ -606,6 +606,17 @@
         }
       }
     },
+    "cardDesigner.blur" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Blur"
+          }
+        }
+      }
+    },
     "cardDesigner.card" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -778,6 +789,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Days: %lld"
+          }
+        }
+      }
+    },
+    "cardDesigner.depth" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Depth"
           }
         }
       }
@@ -1079,6 +1101,17 @@
         }
       }
     },
+    "cardDesigner.highlightOpacity" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Highlight Opacity"
+          }
+        }
+      }
+    },
     "cardDesigner.innerRing" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1218,6 +1251,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Name Opacity"
+          }
+        }
+      }
+    },
+    "cardDesigner.nameRelief" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Raised Name"
           }
         }
       }
@@ -1563,6 +1607,17 @@
         }
       }
     },
+    "cardDesigner.shadowOpacity" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shadow Opacity"
+          }
+        }
+      }
+    },
     "cardDesigner.shadows" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1691,6 +1746,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Spacing Fraction"
+          }
+        }
+      }
+    },
+    "cardDesigner.spectralRim" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spectral Rim"
           }
         }
       }
@@ -1955,6 +2021,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tracking"
+          }
+        }
+      }
+    },
+    "cardDesigner.travel" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tilt Travel"
           }
         }
       }

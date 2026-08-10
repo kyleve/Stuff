@@ -106,6 +106,20 @@
                     staticGlintIntensity: \(number(card.sheen.staticGlintIntensity)),
                     staticPose: .init(roll: \(number(card.sheen.staticRoll)), pitch: \(number(card
                             .sheen.staticPitch))),
+                    spectralRim: .init(
+                        opacity: \(number(card.sheen.spectralRim.opacity)),
+                        lineWidth: \(number(card.sheen.spectralRim.lineWidth)),
+                        blurRadius: \(number(card.sheen.spectralRim.blurRadius)),
+                        inset: \(number(card.sheen.spectralRim.inset)),
+                        travel: \(number(card.sheen.spectralRim.travel)),
+                    ),
+                    nameRelief: .init(
+                        highlightOpacity: \(number(card.sheen.nameRelief.highlightOpacity)),
+                        shadowOpacity: \(number(card.sheen.nameRelief.shadowOpacity)),
+                        depth: \(number(card.sheen.nameRelief.depth)),
+                        blurRadius: \(number(card.sheen.nameRelief.blurRadius)),
+                        travel: \(number(card.sheen.nameRelief.travel)),
+                    ),
                 ),
                 rosette: .init(
                     wobble: \(number(card.rosette.wobble)),

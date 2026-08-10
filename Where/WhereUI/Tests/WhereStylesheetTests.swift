@@ -81,6 +81,20 @@ struct WhereStylesheetTests {
             intensity: 1,
             staticGlintIntensity: 0.25,
             staticPose: .init(roll: 0, pitch: -1),
+            spectralRim: .init(
+                opacity: 0.72,
+                lineWidth: 1.5,
+                blurRadius: 2.5,
+                inset: 2,
+                travel: 0.85,
+            ),
+            nameRelief: .init(
+                highlightOpacity: 0.52,
+                shadowOpacity: 0.38,
+                depth: 1.4,
+                blurRadius: 0.8,
+                travel: 0.75,
+            ),
         ))
         #expect(card.rosette == .init(
             wobble: 2,
@@ -122,6 +136,8 @@ struct WhereStylesheetTests {
             intensity: 0.5,
             staticGlintIntensity: 0.5,
             staticPose: .init(roll: 0, pitch: 0),
+            spectralRim: .none,
+            nameRelief: .none,
         ))
         #expect(card.rosette == .init(
             wobble: 2,
@@ -616,6 +632,8 @@ struct WhereStylesheetTests {
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
         #expect(resolved.card.regular.glow.radius == 0)
         #expect(resolved.card.compact.glow.radius == 0)
+        #expect(resolved.card.regular.sheen.spectralRim.blurRadius == 0)
+        #expect(resolved.card.regular.sheen.spectralRim.lineWidth == 1.5)
         #expect(resolved.card.constellation.haloOpacity == 0)
         #expect(resolved.card.constellation.coreOpacity == 0.92)
     }

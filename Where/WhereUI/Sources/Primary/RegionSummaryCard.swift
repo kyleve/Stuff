@@ -256,6 +256,12 @@ struct RegionSummaryCard: View {
                         .minimumScaleFactor(0.7)
                         .foregroundStyle(style.tint)
                         .opacity(cardStyles.nameOpacity)
+                        .tiltRelief(
+                            tilt: tilt,
+                            staticRoll: card.sheen.staticPose.roll,
+                            staticPitch: card.sheen.staticPose.pitch,
+                            style: card.sheen.nameRelief,
+                        )
                     if let caption {
                         Text(caption)
                             .font(.caption2.weight(.semibold))
@@ -318,6 +324,7 @@ struct RegionSummaryCard: View {
             in: cardShape,
             intensity: card.sheen.intensity,
             staticGlintIntensity: card.sheen.staticGlintIntensity,
+            spectralRim: card.sheen.spectralRim,
         )
         .clipShape(cardShape)
         // Make the whole card a single hit target — without this only the

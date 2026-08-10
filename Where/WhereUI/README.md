@@ -283,10 +283,15 @@ altering the recorded data. Security-print layers use normal compositing in
 light mode and Screen in dark mode, so the same tinted details darken pale glass
 but lighten dark glass. Reduce Transparency removes the constellation halos
 while retaining the crisp centers.
-Live tilt is observed only by the sheen overlay, so its 60 Hz updates do not
-invalidate the card's text or Canvas artwork. The card adds no standalone edge
-stroke; its containing Liquid Glass surface owns the subtle outer border so
-direct and production rendering do not diverge.
+Live tilt is observed only by the lightweight finish layers, so its 60 Hz
+updates do not invalidate the card's Canvas artwork or non-reactive content.
+Regular Locations cards pair the grayscale face sheen with a restrained,
+inset-only spectral rim and a raised-light treatment on the region name; both
+follow the same virtual light direction. Compact cards retain the quieter
+grayscale finish. The containing Liquid Glass surface still owns the outer
+border, while the spectral line remains clipped inside the card edge. Reduce
+Motion and snapshot capture render the finish at the stylesheet's deterministic
+static pose.
 
 DEBUG builds include Card Designer Studio under Settings → Appearance. It
 edits a versioned, persisted draft of the regular, compact, and shared card

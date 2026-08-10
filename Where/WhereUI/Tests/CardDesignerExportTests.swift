@@ -15,16 +15,20 @@
             #expect(first.contains("let lightCardStyles"))
             #expect(first.contains("let darkCardStyles"))
             #expect(first.contains("backgroundBlendMode: .luminosity"))
+            #expect(first.contains("spectralRim: .init("))
+            #expect(first.contains("nameRelief: .init("))
         }
 
         @Test func swiftExportReflectsEditedValues() {
             var configuration = CardDesignerConfiguration.standard
             configuration.regular.cornerRadius = 31.25
+            configuration.regular.sheen.nameRelief.depth = 2.2
             configuration.shared.darkSecurityPrint.whiteMix = 0.4
 
             let source = CardDesignerSwiftExporter.source(for: configuration)
 
             #expect(source.contains("cornerRadius: 31.25"))
+            #expect(source.contains("depth: 2.2"))
             #expect(source.contains("whiteMix: 0.4"))
         }
 
