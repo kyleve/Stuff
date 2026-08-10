@@ -246,6 +246,9 @@ workflows:
       (pipeline.event.name == "pull_request" and
       pipeline.event.github.pull_request.base.ref == "main")
     jobs:
-      - test-ios
-      - snapshot-1
-      - snapshot-2
+      - test-ios:
+          name: Build & Test (iOS)
+      - snapshot-1:
+          name: Snapshot Tests (iOS, 1/2)
+      - snapshot-2:
+          name: Snapshot Tests (iOS, 2/2)
