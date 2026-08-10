@@ -70,8 +70,6 @@ struct PresenceTimelineList: View {
                     .padding(.horizontal, stylesheet.spacing.xxLarge)
                     .padding(.top, stylesheet.spacing.large)
                     .padding(.bottom, stylesheet.spacing.large)
-                    .frame(maxWidth: .infinity)
-                    .background(Color(.systemBackground))
                 }
             }
             .defaultScrollAnchor(.bottom, for: .initialOffset)
