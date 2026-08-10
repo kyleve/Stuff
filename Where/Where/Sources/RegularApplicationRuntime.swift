@@ -20,6 +20,16 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
     private(set) var launcher: LifecycleRunner<WhereSession>!
 
     #if DEBUG
+        /// Compiled into Debug device builds created by `Where/install --cloudkit`, so every
+        /// foreground, background, and CloudKit-push relaunch uses the same store mode.
+        static let isCloudKitValidationBuild: Bool = {
+            #if WHERE_CLOUDKIT_VALIDATION
+                true
+            #else
+                false
+            #endif
+        }()
+
         private let inspectorModeController: InspectorModeController?
 
         init(
@@ -31,35 +41,47 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
             intentServices = IntentServices(
                 appGroupIdentifier: buildEnvironment.appGroupIdentifier,
             )
-            model = WhereModel(
-                preferences: WherePreferences(store: UserDefaults.standard),
-                makeBootstrap: {
-                    WhereBootstrap(
-                        storage: buildEnvironment.storage,
-                        widgetRefresher: buildEnvironment.makeWidgetRefresher(),
-                    )
-                },
-                logSystem: .shared,
+            model = Self.makeModel(
+                buildEnvironment: buildEnvironment,
+                storeStorage: buildEnvironment.storage(
+                    forCloudKitValidationBuild: Self.isCloudKitValidationBuild,
+                ),
             )
         }
+
     #else
         init(buildEnvironment: WhereBuildEnvironment) {
             self.buildEnvironment = buildEnvironment
             intentServices = IntentServices(
                 appGroupIdentifier: buildEnvironment.appGroupIdentifier,
             )
-            model = WhereModel(
-                preferences: WherePreferences(store: UserDefaults.standard),
-                makeBootstrap: {
-                    WhereBootstrap(
-                        storage: buildEnvironment.storage,
-                        widgetRefresher: buildEnvironment.makeWidgetRefresher(),
-                    )
-                },
-                logSystem: .shared,
+            model = Self.makeModel(
+                buildEnvironment: buildEnvironment,
+                storeStorage: buildEnvironment.storage,
             )
         }
     #endif
+
+    private static func makeModel(
+        buildEnvironment: WhereBuildEnvironment,
+        storeStorage: SwiftDataStore.Storage,
+    ) -> WhereModel {
+        let installationContextStore = FileInstallationRecordingContextStore()
+        let locationOutbox = FileLocationOutbox.applicationSupport()
+        return WhereModel(
+            preferences: WherePreferences(store: UserDefaults.standard),
+            installationContextStore: installationContextStore,
+            makeBootstrap: {
+                WhereBootstrap(
+                    installationContextStore: $0,
+                    storeStorage: storeStorage,
+                    widgetRefresher: buildEnvironment.makeWidgetRefresher(),
+                    locationOutbox: locationOutbox,
+                )
+            },
+            logSystem: .shared,
+        )
+    }
 
     func didFinishLaunching(
         application _: UIApplication,

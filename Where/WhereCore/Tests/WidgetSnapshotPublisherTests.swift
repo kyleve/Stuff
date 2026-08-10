@@ -1,5 +1,6 @@
 import Foundation
 import RegionKit
+import SwiftData
 import Testing
 @testable import WhereCore
 
@@ -48,6 +49,59 @@ struct WidgetSnapshotPublisherTests {
         let (publisher, _, refresher) = try Self.makePublisher(now: { now })
         await publisher.publish()
         #expect(await refresher.publishCount == 1)
+    }
+
+    @Test func incompleteDestructiveGenerationReplacesSensitiveSnapshotWithEmptyState(
+    ) async throws {
+        let now = WhereCoreTestSupport.iso("2026-03-15T12:00:00-07:00")
+        let container = try SwiftDataStore.makeContainer(storage: .inMemory)
+        let store = SwiftDataStore(modelContainer: container)
+        let aggregator = DayAggregator(
+            calendar: WhereCoreTestSupport.calendar(),
+            timeZone: WhereCoreTestSupport.pacific,
+        )
+        let reader = WidgetDataReader(
+            store: store,
+            aggregator: aggregator,
+            attributor: RegionAttributor.shared,
+        )
+        let refresher = SpyRefresher()
+        let publisher = WidgetSnapshotPublisher(
+            widgetReader: reader,
+            widgetRefresher: refresher,
+            attributor: RegionAttributor.shared,
+            calendar: WhereCoreTestSupport.calendar(),
+            now: { now },
+        )
+        try await store.perform {
+            try await store.add(sample: LocationSample(
+                timestamp: now,
+                coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
+                horizontalAccuracy: 5,
+                source: .gpsSignificantChange,
+            ))
+        }
+        await publisher.publish()
+        #expect(await refresher.lastSnapshot?.dayRegions == [.california])
+
+        // CloudKit can deliver a later destructive event before its parent. Once the store
+        // knows that history may have been erased, the widget must stop showing the prior data.
+        let remoteContext = ModelContext(container)
+        remoteContext.insert(SDWhereDataGeneration(value: WhereDataGeneration(
+            id: WhereDataGenerationID(rawValue: UUID()),
+            parentIDs: [.initial],
+            revision: 2,
+            changedAt: now.addingTimeInterval(1),
+            changedByDeviceID: RecordingDeviceID(rawValue: UUID()),
+            reason: .accountReset,
+        )))
+        try remoteContext.save()
+
+        await publisher.publish()
+
+        #expect(await refresher.publishCount == 2)
+        #expect(await refresher.lastSnapshot?.dayRegions.isEmpty == true)
+        #expect(await refresher.lastSnapshot?.totals.isEmpty == true)
     }
 
     @Test func refreshIfStaleSkipsWhenFresh() async throws {

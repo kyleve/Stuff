@@ -21,8 +21,38 @@ extension View {
     /// scroll to it and flash it. Applies `.id(SettingsFocus(item))` (the scroll
     /// address) and a flash background driven by `\.settingsHighlight`. Taking
     /// `some SettingsItem` means a row can't be tagged with a non-item value.
-    func settingsRow(_ item: some SettingsItem) -> some View {
-        modifier(SettingsRowModifier(focus: SettingsFocus(item)))
+    func settingsRow(
+        _ item: some SettingsItem,
+        restingBackground: SettingsRowRestingBackground = .grouped,
+    ) -> some View {
+        modifier(SettingsRowModifier(
+            focus: SettingsFocus(item),
+            restingBackground: restingBackground,
+        ))
+    }
+
+    /// Tags this row only when it is the canonical search result for a setting.
+    /// Repeated device sections render the same labels, but search must have one
+    /// stable scroll destination rather than several views sharing one id.
+    @ViewBuilder
+    func settingsRow(_ item: some SettingsItem, when isSearchTarget: Bool) -> some View {
+        if isSearchTarget {
+            settingsRow(item)
+        } else {
+            self
+        }
+    }
+}
+
+enum SettingsRowRestingBackground: Equatable {
+    case grouped
+    case clear
+
+    var color: Color {
+        switch self {
+            case .grouped: Color(.secondarySystemGroupedBackground)
+            case .clear: .clear
+        }
     }
 }
 
@@ -32,6 +62,7 @@ extension View {
 /// sheet" rule.
 struct SettingsRowModifier: ViewModifier {
     let focus: SettingsFocus
+    let restingBackground: SettingsRowRestingBackground
 
     @Environment(\.settingsHighlight) private var highlight
 
@@ -43,12 +74,19 @@ struct SettingsRowModifier: ViewModifier {
         content
             .id(focus)
             .listRowBackground(background)
+            .overlay {
+                if restingBackground == .clear {
+                    Color.accentColor
+                        .opacity(isHighlighted ? 0.25 : 0)
+                        .allowsHitTesting(false)
+                }
+            }
     }
 
     private var background: some View {
-        // A solid fill (not `.clear`) so the row keeps its normal grouped
-        // appearance when not highlighted; only the tint animates in and out.
-        isHighlighted ? Color.accentColor.opacity(0.25) : Color(.secondarySystemGroupedBackground)
+        // Ordinary settings rows keep the system grouped fill; marketing rows
+        // opt into clear so their page background can show through.
+        isHighlighted ? Color.accentColor.opacity(0.25) : restingBackground.color
     }
 }
 
@@ -59,6 +97,7 @@ struct SettingsRowModifier: ViewModifier {
 /// appearance so returning to the screen doesn't re-flash.
 struct SettingsFocusScope<Content: View>: View {
     let focus: SettingsFocus?
+    let isReady: Bool
     let content: Content
 
     @State private var highlighted: SettingsFocus?
@@ -66,8 +105,13 @@ struct SettingsFocusScope<Content: View>: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.stylesheet) private var stylesheet
 
-    init(focus: SettingsFocus?, @ViewBuilder content: () -> Content) {
+    init(
+        focus: SettingsFocus?,
+        revealWhen isReady: Bool = true,
+        @ViewBuilder content: () -> Content,
+    ) {
         self.focus = focus
+        self.isReady = isReady
         self.content = content()
     }
 
@@ -75,8 +119,8 @@ struct SettingsFocusScope<Content: View>: View {
         ScrollViewReader { proxy in
             content
                 .environment(\.settingsHighlight, highlighted)
-                .task {
-                    guard !didReveal else { return }
+                .task(id: isReady) {
+                    guard isReady, !didReveal else { return }
                     didReveal = true
                     await reveal(using: proxy)
                 }
@@ -104,13 +148,15 @@ struct SettingsFocusScope<Content: View>: View {
 
 #if DEBUG
     #Preview {
-        SettingsFocusScope(focus: SettingsFocus(LocationSettingsView.Item.tracking)) {
+        SettingsFocusScope(
+            focus: SettingsFocus(DevicesSettingsView.Item.automaticRecording),
+        ) {
             List {
                 Label(
-                    String(localized: .settingsLocationToggle),
+                    String(localized: .settingsDevicesAutomaticRecording),
                     systemImage: "location.fill",
                 )
-                .settingsRow(LocationSettingsView.Item.tracking)
+                .settingsRow(DevicesSettingsView.Item.automaticRecording)
             }
         }
         .whereBroadwayRoot()

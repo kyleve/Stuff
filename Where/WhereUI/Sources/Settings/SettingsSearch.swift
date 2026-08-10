@@ -7,11 +7,16 @@ import SwiftUI
 enum SettingsDestination: Hashable, CaseIterable {
     case attachments
     case loggedDays
-    case location
+    case devices
     case regions
     case alerts
     case appearance
     case year
+    case siri
+    case widgets
+    case shareEvidence
+    case insightsAccuracy
+    case personalization
     case data
     case about
 
@@ -21,11 +26,16 @@ enum SettingsDestination: Hashable, CaseIterable {
         switch self {
             case .attachments: String(localized: .settingsAttachmentsRow)
             case .loggedDays: String(localized: .settingsLoggedDaysRow)
-            case .location: String(localized: .settingsLocationHeader)
+            case .devices: String(localized: .settingsDevicesTitle)
             case .regions: String(localized: .settingsRegionsSection)
             case .alerts: String(localized: .settingsAlertsGroup)
             case .appearance: String(localized: .settingsAppearanceGroup)
             case .year: String(localized: .settingsYearHeader)
+            case .siri: String(localized: .settingsExploreSiriRow)
+            case .widgets: String(localized: .settingsExploreWidgetsRow)
+            case .shareEvidence: String(localized: .settingsExploreEvidenceRow)
+            case .insightsAccuracy: String(localized: .settingsExploreInsightsRow)
+            case .personalization: String(localized: .settingsExplorePersonalizationRow)
             case .data: String(localized: .settingsDataHeader)
             case .about: String(localized: .settingsAboutHeader)
         }
@@ -36,11 +46,16 @@ enum SettingsDestination: Hashable, CaseIterable {
         switch self {
             case .attachments: "paperclip"
             case .loggedDays: "calendar.badge.plus"
-            case .location: "location.fill"
+            case .devices: "iphone.and.arrow.forward"
             case .regions: "map.fill"
             case .alerts: "bell.badge"
             case .appearance: "paintbrush.fill"
             case .year: "calendar"
+            case .siri: "waveform"
+            case .widgets: "widget.small"
+            case .shareEvidence: "square.and.arrow.down.fill"
+            case .insightsAccuracy: "sparkles"
+            case .personalization: "paintpalette.fill"
             case .data: "externaldrive.fill"
             case .about: "info"
         }
@@ -53,11 +68,16 @@ enum SettingsDestination: Hashable, CaseIterable {
         switch self {
             case .attachments: .indigo
             case .loggedDays: .mint
-            case .location: .blue
+            case .devices: .blue
             case .regions: .green
             case .alerts: .red
             case .appearance: .purple
             case .year: .orange
+            case .siri: .pink
+            case .widgets: .cyan
+            case .shareEvidence: .indigo
+            case .insightsAccuracy: .orange
+            case .personalization: .purple
             case .data: .teal
             case .about: .brown
         }
@@ -67,12 +87,14 @@ enum SettingsDestination: Hashable, CaseIterable {
     ///
     /// The two that aren't would each reach past the demo and touch the device:
     /// **data** backs up, restores, erases, and resets, while **appearance**
-    /// exists solely to set an alternate app icon, which outlives the process.
-    /// A demo leaves no trace, so it doesn't offer the ways to leave one.
+    /// includes setting an alternate app icon, which outlives the process. A
+    /// demo leaves no trace, so it doesn't offer the ways to leave one.
     var isAvailableInDemoMode: Bool {
         switch self {
             case .data, .appearance: false
-            case .attachments, .loggedDays, .location, .regions, .alerts, .year, .about: true
+            case .attachments, .loggedDays, .devices, .regions, .alerts, .year, .siri, .widgets,
+                 .shareEvidence, .insightsAccuracy, .personalization, .about:
+                true
         }
     }
 
@@ -82,7 +104,8 @@ enum SettingsDestination: Hashable, CaseIterable {
     var isSheet: Bool {
         switch self {
             case .regions: true
-            case .attachments, .loggedDays, .location, .alerts, .appearance, .year, .data, .about:
+            case .attachments, .loggedDays, .devices, .alerts, .appearance, .year, .siri, .widgets,
+                 .shareEvidence, .insightsAccuracy, .personalization, .data, .about:
                 false
         }
     }
@@ -97,6 +120,7 @@ enum SettingsListSection: CaseIterable {
     case tracking
     case notifications
     case display
+    case exploreFeatures
     case storage
     /// Last on purpose: About is reference material, so it sits below everything
     /// actionable, where iOS Settings puts its own.
@@ -105,17 +129,26 @@ enum SettingsListSection: CaseIterable {
     var destinations: [SettingsDestination] {
         switch self {
             case .userData: [.attachments, .loggedDays, .regions]
-            case .tracking: [.location]
+            case .tracking: [.devices]
             case .notifications: [.alerts]
             case .display: [.appearance, .year]
+            case .exploreFeatures:
+                [.siri, .widgets, .shareEvidence, .insightsAccuracy, .personalization]
             case .storage: [.data]
             case .about: [.about]
+        }
+    }
+
+    var headerTitle: String? {
+        switch self {
+            case .exploreFeatures: String(localized: .settingsExploreHeader)
+            case .userData, .tracking, .notifications, .display, .storage, .about: nil
         }
     }
 }
 
 /// A per-screen setting identity. Conformers are small, screen-local enums (e.g.
-/// `LocationSettingsView.Item`) that also carry their own localized search text,
+/// `DevicesSettingsView.Item`) that also carry their own localized search text,
 /// so the search index is *derived* from the cases and can't drift from them.
 protocol SettingsItem: Hashable, CaseIterable {
     /// The setting's localized name, matched by search and shown in results.
@@ -162,8 +195,8 @@ struct SettingsSearchResult: Identifiable {
 
     /// Case-insensitive match on the title or any keyword.
     func matches(_ query: String) -> Bool {
-        if title.localizedCaseInsensitiveContains(query) { return true }
-        return keywords.contains { $0.localizedCaseInsensitiveContains(query) }
+        if title.localizedStandardContains(query) { return true }
+        return keywords.contains { $0.localizedStandardContains(query) }
     }
 }
 
@@ -209,11 +242,16 @@ enum SettingsCatalog {
     static let results: [SettingsSearchResult] =
         EvidenceListView.searchResults
             + LoggedDaysView.searchResults
-            + LocationSettingsView.searchResults
+            + DevicesSettingsView.searchResults
             + RegionsSettingsView.searchResults
             + AlertsSettingsView.searchResults
             + AppearanceSettingsView.searchResults
             + VisibleYearSettingsView.searchResults
+            + SiriFeaturesView.searchResults
+            + WidgetFeaturesView.searchResults
+            + ShareEvidenceFeaturesView.searchResults
+            + InsightsAccuracyFeaturesView.searchResults
+            + PersonalizationFeaturesView.searchResults
             + DataSettingsView.searchResults
             + AboutSettingsView.searchResults
 

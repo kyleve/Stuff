@@ -18,12 +18,20 @@ struct WhereBuildEnvironment: Equatable {
     let isRunningTests: Bool
 
     var storage: SwiftDataStore.Storage {
+        storage(forCloudKitValidationBuild: false)
+    }
+
+    func storage(
+        forCloudKitValidationBuild validatesCloudKit: Bool,
+    ) -> SwiftDataStore.Storage {
         if isRunningTests {
             return .inMemory
         }
         switch audience {
             case .development:
-                return .localOnly(appGroupIdentifier: appGroupIdentifier)
+                return validatesCloudKit
+                    ? .cloudKit(appGroupIdentifier: appGroupIdentifier)
+                    : .localOnly(appGroupIdentifier: appGroupIdentifier)
             case .beta, .appStore:
                 return .cloudKit(appGroupIdentifier: appGroupIdentifier)
         }

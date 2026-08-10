@@ -41,14 +41,22 @@ enum SwiftDataStoreLog: LogEvent {
     case ignoredUnknownPrimaryRegions(ids: [String])
     /// Dropped a record that failed to materialize into a domain value.
     case droppedCorruptRecord(type: String)
+    /// Chose a deterministic value when CloudKit delivered conflicting rows for an immutable id.
+    case resolvedConflictingImmutableRecords(type: String, id: String, count: Int)
+    /// Persistent history could not distinguish a local save from an external import; the
+    /// observer fails open and performs the remote reconciliation rather than miss new data.
+    case remoteChangeClassificationFailed(description: String)
 
     static let eventName = "SwiftDataStore"
 
     var level: LogLevel {
         switch self {
             case .openedInMemory, .openedOnDisk: .info
-            case .ignoredUnknownTrackedRegions, .ignoredUnknownPrimaryRegions: .warning
-            case .droppedCorruptRecord: .fault
+            case .ignoredUnknownTrackedRegions,
+                 .ignoredUnknownPrimaryRegions,
+                 .remoteChangeClassificationFailed:
+                .warning
+            case .droppedCorruptRecord, .resolvedConflictingImmutableRecords: .fault
         }
     }
 
@@ -64,6 +72,10 @@ enum SwiftDataStoreLog: LogEvent {
                 "Ignored \(ids.count) unknown primary-region id(s): \(ids.joined(separator: ", "))"
             case let .droppedCorruptRecord(type):
                 "Dropped corrupt SwiftData record of type \(type)"
+            case let .resolvedConflictingImmutableRecords(type, id, count):
+                "Resolved \(count) conflicting immutable \(type) records for id \(id)"
+            case let .remoteChangeClassificationFailed(description):
+                "Could not classify persistent-store change; reconciling defensively: \(description)"
         }
     }
 }

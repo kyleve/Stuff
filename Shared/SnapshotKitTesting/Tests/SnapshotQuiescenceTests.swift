@@ -55,22 +55,20 @@ struct SnapshotQuiescenceTests {
         #expect(counter.idleCount == afterStop)
     }
 
-    @Test func restartingReplacesRatherThanDoublesTheObserver() async {
+    @Test func restartingReplacesRatherThanDoublesTheObserver() throws {
         let counter = RunLoopIdleCounter()
         counter.start()
+        let firstObserver = try #require(counter.registeredObserver)
+        let runLoop = CFRunLoopGetMain()
+        #expect(CFRunLoopContainsObserver(runLoop, firstObserver, .commonModes))
+
         counter.start()
+        let replacementObserver = try #require(counter.registeredObserver)
         defer { counter.stop() }
-        try? await Task.sleep(for: .milliseconds(50))
-        let single = RunLoopIdleCounter()
-        single.start()
-        defer { single.stop() }
-        try? await Task.sleep(for: .milliseconds(50))
-        // A doubled observer would count each idle twice. Compare growth rates
-        // over the same window rather than absolute counts, which depend on how
-        // many times the loop happened to sleep.
-        let restarted = counter.idleCount
-        let baseline = single.idleCount
-        #expect(restarted < baseline * 3)
+
+        #expect(firstObserver !== replacementObserver)
+        #expect(CFRunLoopContainsObserver(runLoop, firstObserver, .commonModes) == false)
+        #expect(CFRunLoopContainsObserver(runLoop, replacementObserver, .commonModes))
     }
 
     @Test func pendingLayoutIsSeenAnywhereInTheSubtree() {

@@ -266,13 +266,21 @@ struct RegionCustomizeView: View {
 
     extension RegionCustomizeView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            whereSnapshot(name: "Editor", configurations: .phoneLightDark) {
+            whereSnapshot(
+                name: "Editor",
+                configurations: .fullContentPhoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
                 NavigationStack {
                     RegionCustomizeView(model: PreviewSupport.primaryRegionSelectionModel())
                 }
             }
 
-            whereSnapshot(name: "NeutralEditor", configurations: .phoneLightDark) {
+            whereSnapshot(
+                name: "NeutralEditor",
+                configurations: .fullContentPhoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
                 NavigationStack {
                     RegionCustomizeView(model: neutralPreviewModel())
                 }

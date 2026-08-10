@@ -2,8 +2,8 @@
 
 SnapshotKit is the generic, shippable half of a small snapshot-testing
 framework. It owns the *appearance matrix* that drives both SwiftUI previews and
-image snapshot tests, so what you see in an Xcode Preview is exactly what CI
-asserts against.
+image snapshot tests, so previews and CI share configurations, traits, and
+content.
 
 It deliberately imports **only** SwiftUI / Foundation / UIKit — never the
 snapshot-comparison engine — so any UI module can depend on it (including in
@@ -21,15 +21,28 @@ capture + comparison pipeline lives in the sibling
   Frames come in three sizing strategies: fixed device viewports (`.iPhone`,
   `.iPad`), the intrinsic `.component` frame, and `.fullContent(name:width:)` —
   fixed width, height measured from the settled content, so the whole
-  scrollable content renders in one image with nothing scrolling. Wrap
-  *content*, not chrome: a greedy container with pinned chrome
-  (`NavigationStack`) has no content-derived ideal height and collapses the
-  measurement to just that chrome. A frame also carries `safeAreaInsets`
-  (default zero, keeping images device-independent); the `.iPhoneNotched`
-  preset simulates real device chrome (Dynamic Island top 47pt, home-indicator
-  bottom 34pt) for cases that must prove layout under it.
-- **`combinations(...)` + presets** (`.componentDefaults`, `.screenDefaults`) —
-  expand a terse declaration into the full matrix.
+  scrollable content renders in one image with nothing scrolling. Full-width
+  scrolling descendants drive the measured height while preserving surrounding
+  navigation, tab, sheet, search, and toolbar chrome. An intentionally bounded
+  or greedy production container that cannot converge should expose and
+  snapshot its shared scrolling child directly, without snapshot-only layout
+  behavior. The iPhone/iPad
+  full-content presets retain their normal viewport height as a minimum and
+  grow when content is taller; custom full-content frames shrink-wrap unless
+  given a minimum. A frame also carries `safeAreaInsets` (default zero, keeping
+  images device-independent); the `.iPhoneNotched` preset simulates real device
+  chrome (Dynamic Island top 47pt, home-indicator bottom 34pt) for cases that
+  must prove layout under it.
+- **`combinations(...)` + presets** (`.componentDefaults`, `.screenDefaults`,
+  `.fullContentScreenDefaults`) — expand a terse declaration into the full
+  matrix.
+- **Full-content frames** (`.iPhoneFullContent`, `.iPadFullContent`, and
+  `.fullContent(name:width:)`) — capture the settled intrinsic height of
+  scrolling content, including UIKit-backed SwiftUI `List` and `Form`
+  containers, including when they are nested under production screen chrome.
+  Device presets render at least one normal viewport tall, then expand to show
+  content that would otherwise scroll; fixed-height device frames are for
+  non-scrolling subjects.
 - **`SnapshotProviding`** — a type declares its variants via
   `static var snapshots: [SnapshotCase]`.
 - **`SnapshotCase`** — a named group of configurations plus a lazy content
@@ -42,6 +55,12 @@ capture + comparison pipeline lives in the sibling
   `.settledAtLeast(minDuration:)` is `.settled` with a raised minimum window,
   for async appearance work that starts quiet and lands after the default floor
   (the iOS 26 glass toolbar/tab bar material adaptation).
+  Intrinsic/full-content cases also have a `measurementReadiness` axis. Its
+  default, `.sameAsCapture`, preserves the existing behavior for content whose
+  loaded state changes its height. Deterministically sized fixtures may use
+  `.immediate` to skip the sizing probe's settle while retaining the final
+  capture's `.settled` or `.settledAtLeast` policy; `.settled` decouples ordinary
+  sizing quiescence from a raised final-capture floor.
   An optional `onReadyToSnapshot` hook runs in the capture pipeline after the
   content has settled and just before the image is taken — the deterministic
   point to focus a field or trigger a presented state; its effects are settled
@@ -104,7 +123,10 @@ assertSnapshots(of: MyBadge.self)
 
 - Accessibility (`.accessibility`) configurations are **filtered out of the
   preview cutsheet** — VoiceOver-annotated captures need the test-only library
-  and can't render in a plain Preview. They still run as snapshot tests.
+  and can't render in a plain Preview. They still run as snapshot tests. The
+  cutsheet also cannot reproduce the capture pipeline's UIKit-backed
+  `List`/`Form` height measurement, safe-area override, ready hook, or
+  tile-and-stitch pass, so CI's rendered dimensions remain authoritative.
 - The Where app wraps content in its Broadway design-system root via a
   `whereSnapshot(...)` adapter in `WhereUI`; SnapshotKit itself stays
   design-system-agnostic.

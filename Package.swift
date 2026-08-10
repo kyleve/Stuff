@@ -6,10 +6,12 @@ let package = Package(
     defaultLocalization: "en",
     platforms: [
         .iOS(.v26),
+        .macOS(.v26),
     ],
     products: [
         .library(name: "StuffCore", targets: ["StuffCore"]),
         .library(name: "CreditKit", targets: ["CreditKit"]),
+        .library(name: "LedgerCore", targets: ["LedgerCore"]),
         .library(name: "LifecycleKit", targets: ["LifecycleKit"]),
         .library(name: "LifecycleKitUI", targets: ["LifecycleKitUI"]),
         .library(name: "JournalKit", targets: ["JournalKit"]),
@@ -22,6 +24,7 @@ let package = Package(
         .library(name: "SnapshotKitTesting", targets: ["SnapshotKitTesting"]),
         .library(name: "TestHostSupport", targets: ["TestHostSupport"]),
         .library(name: "RegionKit", targets: ["RegionKit"]),
+        .library(name: "WhereCrashReporting", targets: ["WhereCrashReporting"]),
         .library(name: "WhereCore", targets: ["WhereCore"]),
         .library(name: "WhereUI", targets: ["WhereUI"]),
         .library(name: "WhereIntents", targets: ["WhereIntents"]),
@@ -34,6 +37,8 @@ let package = Package(
             branch: "main",
         ),
         .package(url: "https://github.com/weichsel/ZIPFoundation", from: "0.9.20"),
+        .package(url: "https://github.com/bitdriftlabs/capture-ios.git", from: "0.23.11"),
+        .package(url: "https://github.com/getsentry/sentry-cocoa", from: "9.25.0"),
         // Snapshot-testing engine + accessibility parser. Consumed only by the
         // test-only `SnapshotKitTesting` target (never a shipping app). See
         // Shared/SnapshotKitTesting.
@@ -48,6 +53,13 @@ let package = Package(
         .target(
             name: "CreditKit",
             path: "Shared/CreditKit/Sources",
+        ),
+        .target(
+            name: "LedgerCore",
+            dependencies: [
+                .target(name: "PeriscopeCore"),
+            ],
+            path: "Ledger/LedgerCore/Sources",
         ),
         .target(
             name: "LifecycleKit",
@@ -137,9 +149,18 @@ let package = Package(
             ],
         ),
         .target(
+            name: "WhereCrashReporting",
+            dependencies: [
+                .product(name: "Capture", package: "capture-ios"),
+                .product(name: "Sentry", package: "sentry-cocoa"),
+            ],
+            path: "Where/WhereCrashReporting/Sources",
+        ),
+        .target(
             name: "WhereCore",
             dependencies: [
                 .target(name: "CreditKit"),
+                .target(name: "JournalKit"),
                 .target(name: "PeriscopeCore"),
                 .target(name: "RegionKit"),
                 .product(name: "ZIPFoundation", package: "ZIPFoundation"),

@@ -145,7 +145,7 @@ private struct DayRow: View {
 #if DEBUG
     extension RegionDaysView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            whereSnapshot(name: "WithData", configurations: .screenDefaults) {
+            whereSnapshot(name: "WithData", configurations: .fullContentScreenDefaults) {
                 NavigationStack {
                     RegionDaysView(
                         region: .other,

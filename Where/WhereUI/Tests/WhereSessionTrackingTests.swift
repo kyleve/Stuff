@@ -3,11 +3,12 @@ import RegionKit
 import TestHostSupport
 import Testing
 @_spi(Testing) import WhereCore
-import WhereUI
+@_spi(Testing) @testable import WhereUI
 
 /// Covers the launch-time reconciliation that fixes the "toggle is always off"
 /// and "Grant does nothing" bugs: tracking and the authorization indicator must
-/// reflect real authorization + persisted intent, not just the last tap.
+/// reflect real authorization plus the installation-local recording choice,
+/// not just the last tap.
 @MainActor
 struct WhereSessionTrackingTests {
     private func makeSession(
@@ -21,19 +22,41 @@ struct WhereSessionTrackingTests {
     private func makeSessionAndStore(
         status: LocationAuthorizationStatus,
         preferences: WherePreferences,
+        store: SwiftDataStore? = nil,
+        installationContext: InstallationRecordingContext = .testing,
+        installationContextStore: InMemoryInstallationRecordingContextStore? = nil,
     ) throws -> (WhereSession, ScriptedLocationSource, SwiftDataStore) {
-        let store = try SwiftDataStore.inMemory()
+        let store = try store ?? SwiftDataStore.inMemory()
         let source = ScriptedLocationSource(authorizationStatus: status)
+        let resolvedContext = try installationContextStore?.resolve() ?? installationContext
         let services = WhereServices(
             store: store,
             locationSource: source,
+            installationContext: resolvedContext,
             reminderScheduler: NoopLoggingReminderScheduler(),
             summaryScheduler: NoopDailySummaryScheduler(),
             issueAlertScheduler: NoopDataIssueAlertScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
-        let session = WhereSession(services: services, preferences: preferences)
+        let contextStore = installationContextStore
+            ?? InMemoryInstallationRecordingContextStore(context: resolvedContext)
+        let session = WhereSession(
+            scope: .fake(services: services, preferences: preferences, logSystem: .shared),
+            installationContextStore: contextStore,
+        )
         return (session, source, store)
+    }
+
+    private func installationContext(
+        initialRecordingEnabled: Bool,
+    ) -> InstallationRecordingContext {
+        guard initialRecordingEnabled == false else { return .testing }
+        return InstallationRecordingContext(
+            currentDevice: InstallationRecordingContext.testing.currentDevice,
+            registeredAt: InstallationRecordingContext.testing.registeredAt,
+            recordingChoice: .off,
+            isRejoining: false,
+        )
     }
 
     /// A one-shot fix stamped "now", so it lands on today's calendar day
@@ -73,18 +96,63 @@ struct WhereSessionTrackingTests {
 
     @Test func stoppingTrackingPersistsAcrossLaunches() async throws {
         let preferences = makePreferences()
-        let (session, _) = try makeSession(status: .always, preferences: preferences)
+        let contextStore = InMemoryInstallationRecordingContextStore(context: .testing)
+        let (session, _, store) = try makeSessionAndStore(
+            status: .always,
+            preferences: preferences,
+            installationContextStore: contextStore,
+        )
         await session.start()
         #expect(session.isTracking)
 
         await session.stopTracking()
         #expect(!session.isTracking)
 
-        // A fresh session sharing the same preferences should stay paused even
-        // though authorization is still Always.
-        let (relaunched, _) = try makeSession(status: .always, preferences: preferences)
+        // A fresh session sharing the same store should stay paused even though
+        // authorization is still Always.
+        let (relaunched, _, _) = try makeSessionAndStore(
+            status: .always,
+            preferences: preferences,
+            store: store,
+            installationContextStore: contextStore,
+        )
         await relaunched.start()
         #expect(!relaunched.isTracking)
+    }
+
+    @Test func offWinsWhileAnEarlierEnableWaitsForPermission() async throws {
+        let source = SuspendedPermissionLocationSource()
+        let services = try WhereServices(
+            store: SwiftDataStore.inMemory(),
+            locationSource: source,
+            installationContext: installationContext(initialRecordingEnabled: false),
+        )
+        let preferences = makePreferences()
+        let contextStore = InMemoryInstallationRecordingContextStore(
+            context: installationContext(initialRecordingEnabled: false),
+        )
+        let session = WhereSession(
+            scope: .fake(services: services, preferences: preferences, logSystem: .shared),
+            installationContextStore: contextStore,
+        )
+        await session.start()
+
+        let enabling = Task {
+            try await session.setRecordingEnabled(true)
+        }
+        await waitUntil { source.isAwaitingPermission }
+
+        try await session.setRecordingEnabled(false)
+        source.resolvePermission(as: .always)
+        try await enabling.value
+
+        let current = try #require(
+            try await session.recordingDevices()
+                .first(where: { $0.id == session.currentRecordingDeviceID }),
+        )
+        #expect(current.localAutomaticRecordingEnabled == false)
+        #expect(current.device.status == .off)
+        #expect(session.isTracking == false)
     }
 
     @Test func grantingLaterStartsTrackingViaLiveUpdates() async throws {
@@ -101,6 +169,64 @@ struct WhereSessionTrackingTests {
         await waitUntil { session.isTracking }
         #expect(session.authorizationStatus == .always)
         #expect(session.isTracking)
+    }
+
+    @Test func remoteRemovalStopsThisDevice() async throws {
+        let remoteChanges = ScriptedStoreRemoteChangeSource()
+        let store = try SwiftDataStore.inMemory(remoteChangeSource: remoteChanges)
+        let source = TrackingLocationSource()
+        let now = Date(timeIntervalSinceReferenceDate: 1000)
+        let services = WhereServices(
+            store: store,
+            locationSource: source,
+            installationContext: .testing,
+            now: { now },
+        )
+        let preferences = makePreferences()
+        let session = WhereSession(services: services, preferences: preferences)
+        await session.start()
+
+        #expect(session.isTracking)
+        #expect(source.isMonitoring)
+
+        let removalID = try RecordingDeviceRemoval.ID(rawValue: #require(
+            UUID(uuidString: "EEEEEEEE-EEEE-EEEE-EEEE-EEEEEEEEEEEE"),
+        ))
+        try await store.simulateRemoteRecordingImport(
+            profiles: [],
+            metadataChanges: [],
+            checkIns: [],
+            removals: [
+                RecordingDeviceRemoval(
+                    id: removalID,
+                    deviceID: InstallationRecordingContext.testing.currentDevice.id,
+                    removedAt: now.addingTimeInterval(1),
+                    removedByDeviceID: RecordingDeviceID(
+                        rawValue: #require(UUID(
+                            uuidString: "FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF",
+                        )),
+                    ),
+                ),
+            ],
+        )
+
+        // Saving the imported row is not enough; the session must be responding
+        // to the store's remote-import notification path.
+        #expect(session.isTracking)
+        #expect(source.isMonitoring)
+
+        remoteChanges.yield()
+
+        await waitUntil {
+            session.isTracking == false && source.isMonitoring == false
+        }
+        let current = try #require(
+            try await store.recordingDevices()
+                .first(where: { $0.id == session.currentRecordingDeviceID }),
+        )
+        #expect(source.startCount == 1)
+        #expect(source.stopCount == 1)
+        #expect(current.removedAt == now.addingTimeInterval(1))
     }
 
     @Test func foregroundLogsTodayWhenWantedAndAuthorized() async throws {
@@ -123,6 +249,7 @@ struct WhereSessionTrackingTests {
             preferences: makePreferences(),
         )
         // The user turned tracking off; opening the app must not silently log.
+        await session.start()
         await session.stopTracking()
         source.setNextRequestedLocation(todayFix())
 
@@ -184,5 +311,112 @@ struct WhereSessionTrackingTests {
             try? await Task.sleep(for: .milliseconds(5))
         }
         #expect(await predicate(), "condition was not met before timeout")
+    }
+}
+
+/// Location source whose counters prove reconciliation reached the physical
+/// monitoring seam rather than only changing `WhereSession.isTracking`.
+private final class TrackingLocationSource: LocationSource, @unchecked Sendable {
+    let sampleStream: AsyncStream<LocationSample>
+
+    var authorizationUpdates: AsyncStream<LocationAuthorizationStatus> {
+        AsyncStream { $0.finish() }
+    }
+
+    private let sampleContinuation: AsyncStream<LocationSample>.Continuation
+    private let lock = NSLock()
+    private var _isMonitoring = false
+    private var _startCount = 0
+    private var _stopCount = 0
+
+    init() {
+        (sampleStream, sampleContinuation) = AsyncStream.makeStream(
+            of: LocationSample.self,
+            bufferingPolicy: .bufferingNewest(1),
+        )
+    }
+
+    deinit {
+        sampleContinuation.finish()
+    }
+
+    var isMonitoring: Bool {
+        lock.withLock { _isMonitoring }
+    }
+
+    var startCount: Int {
+        lock.withLock { _startCount }
+    }
+
+    var stopCount: Int {
+        lock.withLock { _stopCount }
+    }
+
+    func start() async {
+        lock.withLock {
+            _isMonitoring = true
+            _startCount += 1
+        }
+    }
+
+    func stop() async {
+        lock.withLock {
+            _isMonitoring = false
+            _stopCount += 1
+        }
+    }
+
+    func requestCurrentLocation() async -> LocationSample? {
+        nil
+    }
+
+    func currentAuthorization() async -> LocationAuthorizationStatus {
+        .always
+    }
+
+    func requestPermission() async throws {}
+}
+
+/// Permission seam that parks until the test resolves it, matching the
+/// suspension point of Core Location's real system prompt.
+private final class SuspendedPermissionLocationSource: LocationSource, @unchecked Sendable {
+    let sampleStream = AsyncStream<LocationSample> { _ in }
+
+    var authorizationUpdates: AsyncStream<LocationAuthorizationStatus> {
+        AsyncStream { _ in }
+    }
+
+    private let lock = NSLock()
+    private var status = LocationAuthorizationStatus.notDetermined
+    private var permissionContinuation: CheckedContinuation<Void, Never>?
+
+    var isAwaitingPermission: Bool {
+        lock.withLock { permissionContinuation != nil }
+    }
+
+    func start() async {}
+    func stop() async {}
+
+    func requestCurrentLocation() async -> LocationSample? {
+        nil
+    }
+
+    func currentAuthorization() async -> LocationAuthorizationStatus {
+        lock.withLock { status }
+    }
+
+    func requestPermission() async throws {
+        await withCheckedContinuation { continuation in
+            lock.withLock { permissionContinuation = continuation }
+        }
+    }
+
+    func resolvePermission(as status: LocationAuthorizationStatus) {
+        let continuation = lock.withLock {
+            self.status = status
+            defer { permissionContinuation = nil }
+            return permissionContinuation
+        }
+        continuation?.resume()
     }
 }

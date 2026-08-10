@@ -5,17 +5,17 @@ let whereProjectRules = RuleSet {
     Rules.constructionOwnership(
         "WhereServices",
         allowed: whereServicesConstructionScope,
-        id: "where.services_composition_ownership"
+        id: "where.services_composition_ownership",
     )
     Rules.constructionOwnership(
         "CoreLocationSource",
         allowed: .files(["Where/WhereUI/Sources/Launch/WhereLaunch.swift"]),
-        id: "where.live_location_source_ownership"
+        id: "where.live_location_source_ownership",
     )
     Rules.singleNominalSpelling(
         suffix: "Log",
         owner: whereLoggingScope,
-        id: "where.logging_type_ownership"
+        id: "where.logging_type_ownership",
     )
     productionStoreOpeningRule
     checkedConcurrencyBoundaryRule
@@ -46,7 +46,7 @@ private let productionStoreOpeningPaths: Set<RelativeFilePath> = [
 private let productionStoreOpeningRule = Rules.files(
     "where.production_store_opening",
     severity: .error,
-    summary: "Production SwiftData stores open only at the app and share-extension composition roots."
+    summary: "Production SwiftData stores open only at the app and share-extension composition roots.",
 ) { file in
     functionCalls()
         .filter { match in
@@ -59,8 +59,8 @@ private let productionStoreOpeningRule = Rules.files(
                 message: "SwiftDataStore.make is called outside a process composition root.",
                 evidence: ViolationEvidence(
                     observed: "SwiftDataStore.make in \(file.path.rawValue)",
-                    expectation: "open the production store in WhereLaunch or ShareEvidenceModel"
-                )
+                    expectation: "open the production store in WhereLaunch or ShareEvidenceModel",
+                ),
             )
         }
 }
@@ -76,7 +76,7 @@ private let documentedUnsafeConcurrencyPaths: Set<RelativeFilePath> = [
 private let checkedConcurrencyBoundaryRule = Rules.files(
     "where.checked_concurrency_boundaries",
     severity: .error,
-    summary: "Unchecked concurrency escape hatches stay inside documented lifecycle boundaries."
+    summary: "Unchecked concurrency escape hatches stay inside documented lifecycle boundaries.",
 ) { file in
     let preconcurrencyFailures = SyntaxQuery<AttributeSyntax>()
         .filter { match in
@@ -88,8 +88,8 @@ private let checkedConcurrencyBoundaryRule = Rules.files(
                 message: "Production code uses an @preconcurrency escape hatch.",
                 evidence: ViolationEvidence(
                     observed: match.node.trimmedDescription,
-                    expectation: "use checked Swift concurrency"
-                )
+                    expectation: "use checked Swift concurrency",
+                ),
             )
         }
 
@@ -105,8 +105,8 @@ private let checkedConcurrencyBoundaryRule = Rules.files(
                 message: "nonisolated(unsafe) is outside a documented lifecycle boundary.",
                 evidence: ViolationEvidence(
                     observed: match.node.trimmedDescription,
-                    expectation: "checked isolation or a documented existing boundary"
-                )
+                    expectation: "checked isolation or a documented existing boundary",
+                ),
             )
         }
 
@@ -116,7 +116,7 @@ private let checkedConcurrencyBoundaryRule = Rules.files(
 private let gregorianCalendarRule = Rules.files(
     "where.gregorian_calendar",
     severity: .error,
-    summary: "Where day and year calculations do not use the device's potentially non-Gregorian current calendar."
+    summary: "Where day and year calculations do not use the device's potentially non-Gregorian current calendar.",
 ) { file in
     SyntaxQuery<MemberAccessExprSyntax>()
         .filter { match in
@@ -129,8 +129,8 @@ private let gregorianCalendarRule = Rules.files(
                 message: "Where uses Calendar.current instead of an explicit Gregorian calendar.",
                 evidence: ViolationEvidence(
                     observed: match.node.trimmedDescription,
-                    expectation: "an injected Gregorian calendar or Calendar.whereIntents"
-                )
+                    expectation: "an injected Gregorian calendar or Calendar.whereIntents",
+                ),
             )
         }
 }
@@ -151,7 +151,7 @@ private let whereStoreMutatingMethods: Set<String> = [
 private let storeTransactionBoundaryRule = Rules.files(
     "where.store_transaction_boundary",
     severity: .error,
-    summary: "WhereStore mutations occur inside the transaction owned by store.perform."
+    summary: "WhereStore mutations occur inside a transaction helper on store.",
 ) { file in
     functionCalls()
         .filter { match in
@@ -162,28 +162,28 @@ private let storeTransactionBoundaryRule = Rules.files(
             else {
                 return false
             }
-            return !isInsideStorePerform(match.node)
+            return !isInsideStoreTransaction(match.node)
         }
         .matches(in: file)
         .map { match in
             match.failure(
-                message: "WhereStore mutation occurs outside store.perform.",
+                message: "WhereStore mutation occurs outside a store transaction.",
                 evidence: ViolationEvidence(
                     observed: match.node.calledExpression.trimmedDescription,
-                    expectation: "call the mutation from inside store.perform { ... }"
-                )
+                    expectation: "call the mutation inside store.perform { ... } or store.performInCurrentGeneration { ... }",
+                ),
             )
         }
 }
 
-private func isInsideStorePerform(_ node: FunctionCallExprSyntax) -> Bool {
+private func isInsideStoreTransaction(_ node: FunctionCallExprSyntax) -> Bool {
     var ancestor = Syntax(node).parent
     while let current = ancestor {
         if
             let call = current.as(FunctionCallExprSyntax.self),
             let access = call.calledExpression.as(MemberAccessExprSyntax.self),
             ["store", "self.store"].contains(access.base?.trimmedDescription),
-            access.declName.baseName.text == "perform"
+            ["perform", "performInCurrentGeneration"].contains(access.declName.baseName.text)
         {
             return true
         }
@@ -195,7 +195,7 @@ private func isInsideStorePerform(_ node: FunctionCallExprSyntax) -> Bool {
 private let appShortcutsProviderOwnershipRule = Rules.files(
     "where.app_shortcuts_provider_ownership",
     severity: .error,
-    summary: "AppShortcutsProvider conformances live in the Where app target."
+    summary: "AppShortcutsProvider conformances live in the Where app target.",
 ) { file in
     guard file.component.rawValue != WhereComponent.app.rawValue else { return [] }
     return SyntaxQuery<InheritedTypeSyntax>()
@@ -206,8 +206,8 @@ private let appShortcutsProviderOwnershipRule = Rules.files(
                 message: "AppShortcutsProvider conformance is outside the Where app target.",
                 evidence: ViolationEvidence(
                     observed: file.path.rawValue,
-                    expectation: "a source owned by the Where app component"
-                )
+                    expectation: "a source owned by the Where app component",
+                ),
             )
         }
 }
@@ -215,7 +215,7 @@ private let appShortcutsProviderOwnershipRule = Rules.files(
 private let loggingFacadeRule = Rules.files(
     "where.logging_facade",
     severity: .error,
-    summary: "Where production logging goes through its typed Periscope facades."
+    summary: "Where production logging goes through its typed Periscope facades.",
 ) { file in
     let rawLoggingImports = SyntaxQuery<ImportDeclSyntax>()
         .filter { $0.node.path.trimmedDescription == "OSLog" }
@@ -225,8 +225,8 @@ private let loggingFacadeRule = Rules.files(
                 message: "Where production code imports OSLog directly.",
                 evidence: ViolationEvidence(
                     observed: "import OSLog",
-                    expectation: "WhereLog or RegionLog"
-                )
+                    expectation: "WhereLog or RegionLog",
+                ),
             )
         }
 
@@ -238,8 +238,8 @@ private let loggingFacadeRule = Rules.files(
                 message: "Where production code prints directly.",
                 evidence: ViolationEvidence(
                     observed: "print",
-                    expectation: "a typed WhereLog or RegionLog event"
-                )
+                    expectation: "a typed WhereLog or RegionLog event",
+                ),
             )
         }
 
@@ -254,7 +254,7 @@ private let previewCoverageRule = Rules.files(
     "where.preview_coverage",
     severity: .error,
     summary: "Every WhereUI or widget source file declaring a previewable component includes a #Preview.",
-    scope: previewScope
+    scope: previewScope,
 ) { file in
     let previewableDeclarations = SyntaxQuery<StructDeclSyntax>()
         .filter { match in
@@ -283,8 +283,8 @@ private let previewCoverageRule = Rules.files(
             message: "\(match.node.name.text) has no #Preview in its source file.",
             evidence: ViolationEvidence(
                 observed: file.path.rawValue,
-                expectation: "at least one #Preview in the same file"
-            )
+                expectation: "at least one #Preview in the same file",
+            ),
         )
     }
 }

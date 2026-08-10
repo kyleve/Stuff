@@ -168,7 +168,7 @@
 
     extension CardDesignerStudioView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            whereSnapshot(name: "Default", configurations: .phoneLightDark) {
+            whereSnapshot(name: "Default", configurations: .fullContentPhoneLightDark) {
                 NavigationStack {
                     CardDesignerStudioView(
                         model: CardDesignerModel(configuration: .standard),

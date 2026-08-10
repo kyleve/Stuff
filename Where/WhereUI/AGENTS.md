@@ -4,8 +4,10 @@ WhereUI is the SwiftUI layer of the Where feature: the screens, the shared
 components and widget views, and the `@Observable` view models that
 orchestrate `WhereCore` for them (`WhereModel`, the `WhereSession`
 coordinator, and the scoped `YearReportModel` / `ResolveModel` /
-`BackupModel` / `RemindersSettingsModel`). Layering, localization, preview,
-and testing conventions live in the feature [`Where/AGENTS.md`](../AGENTS.md)
+`BackupModel` / `RemindersSettingsModel` / `DevicesSettingsModel` / `OnboardingFlowModel` /
+`OnboardingImportRecoveryModel`).
+Layering, localization, preview, and testing conventions live in the feature
+[`Where/AGENTS.md`](../AGENTS.md)
 — read that and the root [`AGENTS.md`](../../AGENTS.md) first.
 
 ## Scope & dependencies
@@ -19,6 +21,22 @@ and testing conventions live in the feature [`Where/AGENTS.md`](../AGENTS.md)
 - The app injects its configured primary icon name at `RootView`; icon-picker
   code treats every manifest entry as an asset and derives primary versus
   alternate status from that injected name.
+- Keep `FileInstallationRecordingContextStore` as the UIKit/FileManager
+  adapter for Core's installation-context protocol; resolve one instance at
+  the app root and inject it into both `WhereModel` and `WhereBootstrap`.
+- Persist the installation identity, recording choice with its current-On timestamp, stable
+  profile/policy IDs and timestamps, two-phase backup-import recovery, and the independent
+  terminal onboarding-import tombstone together in the excluded-from-backup sidecar; never infer
+  confirmation from backed-up preferences or migrate it from `UserDefaults`. Persist an explicit
+  changed choice when onboarding retries after a later failure.
+- Retire the installation sidecar with an atomic directory rename before
+  cleanup; retain the proposed replacement behind `ResetCleanupError` until
+  tombstone deletion succeeds (`InstallationRecordingContextStoreTests`).
+- Reconcile every pending import after scope resolution but before session handoff or recording;
+  reconcile onboarding imports before offering Restore, acknowledge their preference independently
+  of cleanup, and retain the marker through any failure (`WhereLaunchTests`).
+- Keep backup import onboarding-only; Settings exports archives but never starts or resumes an
+  import (`BackupModelTests`).
 - The DEBUG developer accordion may only latch or clear
   `InspectorModeController` for the next launch. It must not host a live
   SwiftData inspector or switch the current runtime.
@@ -52,8 +70,11 @@ and testing conventions live in the feature [`Where/AGENTS.md`](../AGENTS.md)
   `RegionOutlinePathCache`: RegionKit owns the cached source outlines and its
   stateless simplifier, while WhereUI chooses full/medium/small/micro
   tolerances and caches the resulting SwiftUI `Path`s; use the small path for
-  the stamp and the micro path for the repeated border, and never project or
-  simplify a boundary in a card's `body`.
+  the stamp and the micro path for the repeated border. Project Locations-card
+  GPS points through the cache's shared `RegionArtworkProjection`, and never
+  project, simplify, or spatially reduce artwork in a card's `body`.
+- Keep Locations-card points on `YearReportModel`'s loaded
+  `YearReportDetails`.
 - Continuous/looping motion (repeat-forever pulses, `TimelineView(.animation)`,
   typewriter reveals) must consult the shared `@MotionIsStatic` helper
   ([`Sources/Shared/MotionIsStatic.swift`](Sources/Shared/MotionIsStatic.swift))
@@ -70,42 +91,29 @@ and testing conventions live in the feature [`Where/AGENTS.md`](../AGENTS.md)
   renders relative to *today*, so no reference containing one is stable across
   days. Views don't read `\.isCapturingSnapshot` to branch themselves; capture
   handling stays inside the shared component.
+- Reconcile `LocationDayCountPresentationModel` only from the visible primary
+  card surface after its stylesheet-owned reveal delay; another tab, covering
+  sheet, or pushed destination must cancel the delay and leave its persisted
+  baseline untouched so returning can animate and haptically signal the change.
 
 ## Design system — `WhereStylesheet`
 
-All appearance tokens — geometry, fonts, colors, motion — live in
-`WhereStylesheet`
-([`Sources/Shared/WhereStylesheet.swift`](Sources/Shared/WhereStylesheet.swift)),
-a Broadway `BStylesheet` read via `@Environment(\.stylesheet)`; off the
-`View` tree (layout helpers, tests) use `WhereStylesheet.default`. How to
-consume and extend it — per-component style groups, variant subscripts, the
-`RegionStyle` resolver — is in [`README.md`](README.md#design-system). The
-rules:
+Follow the repo [`building-ui`](../../.agents/skills/building-ui/SKILL.md)
+skill for token ownership, variants, trait derivation, layout, accessibility,
+and rendering coverage. Where's sheet is
+[`WhereStylesheet`](Sources/Shared/WhereStylesheet.swift), read through
+`@Environment(\.stylesheet)` and defaulted to `WhereStylesheet.default` off the
+view tree; [`README.md`](README.md#design-system) documents its live API and
+worked examples.
 
-- **Never hardcode appearance in a view** or collect constants into a flat
-  grab-bag; a new value lands on the owning component's style group, or on a
-  shared scale (`Spacing`, `Size`, `Palette`, `Typography`, `Motion`) only
-  when genuinely cross-component.
-- **Never borrow another component's style** — a component defines its own
-  group rather than reading a value off someone else's.
-- **Resolve a variant once** (a `Variant` enum + `subscript`, see
-  `CardStyles`) — don't branch `compact ? … : …` through a body.
-- **Don't bake trait-derived values into the defaults** — `.standard` /
-  property defaults hold the fixed set; the reactive slice applies only in
-  `init(context:)`, so a default/system context reproduces
-  `WhereStylesheet.default`.
-- **Derive accessibility settings in the sheet, not the view** — vend one
-  resolved token, and a *single* token when a setting changes more than one
-  value (`CardStyles.DayCountStyle` pairs the morph with its animation).
-  Exception: the `motion` group keeps full-motion values a view picks between
+- The `motion` group keeps full-motion values a view picks between
   (`motion.reducedReveal` over `motion.reveal`), because the launch reveal's
   fallback swaps an `AnyTransition`, which isn't `Equatable` and can't be a
   token.
 - **Per-region tints stay in `RegionStyle`**, resolved via
   `@Environment(\.regionStyles)` and seeded by
   `whereBroadwayRoot(regionStyles:)` — no global accessor or hardcoded
-  per-region look in a view. Adaptive system roles (`.secondary`) and
-  `.accentColor` stay inline.
+  per-region look in a view.
 - `WhereThemes` is deliberately empty — the seam a future app-wide theme
   plugs into.
 - The DEBUG card designer may override only presentation values already owned
@@ -127,17 +135,10 @@ frames share one `WhereFlyoverWorld`; synthetic preview models are reserved for
 states the seeded demo cannot express.
 
 Screens, widgets, and app-flow surfaces are pinned as matrixed image
-snapshots under [`SnapshotTests/`](SnapshotTests) — those, not hosting smoke
-tests, own "does this screen render". They build as this module's
-`WhereUISnapshotTests` bundle, run from the shared `StuffSnapshotTests`
-scheme and its CI job, deliberately outside `Stuff-iOS-Tests` (root
-[`AGENTS.md`](../../AGENTS.md#targets)). **Each view declares its matrix
-once, in its own source file**, via a `SnapshotProviding` conformance under
-`#if DEBUG` whose `#Preview` renders `Self.snapshotPreviews` — one
-declaration drives both the Xcode cutsheet and the image tests (helpers in
-[`Sources/Preview/WhereSnapshot.swift`](Sources/Preview/WhereSnapshot.swift));
-suites are one `FooSnapshotTests` per view. To re-record a reference, delete
-the PNG under `SnapshotTests/__Snapshots__/` (LFS-tracked) and run the scheme
-— the suites record `.missing`, and a recording run fails by design. Bulk
-re-records forward `TEST_RUNNER_SNAPSHOT_RECORD=failed` (see the
-[SnapshotKitTesting README](../../Shared/SnapshotKitTesting/README.md#recording)).
+snapshots under [`SnapshotTests/`](SnapshotTests), built as this module's
+`WhereUISnapshotTests` bundle in the shared `StuffSnapshotTests` scheme and CI
+job, deliberately outside `Stuff-iOS-Tests` (root
+[`AGENTS.md`](../../AGENTS.md#targets)). Declarations use the helpers in
+[`Sources/Preview/WhereSnapshot.swift`](Sources/Preview/WhereSnapshot.swift);
+follow `building-ui` for authoring and the repo `running-tests` skill for
+recording/reviewing references.

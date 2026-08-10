@@ -1,0 +1,37 @@
+{
+  "module": "TrackingReconciliation.tla",
+  "cases": [
+    {
+      "name": "broken",
+      "config": "Broken.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant CorrectAtQuiescence is violated."
+    },
+    {
+      "name": "stale-reachability",
+      "config": "CurrentStaleReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant StalePermissionNotObserved is violated."
+    },
+    {
+      "name": "current",
+      "config": "Current.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "current-denied",
+      "config": "CurrentDenied.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "current-repeated",
+      "config": "CurrentRepeated.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "current-reversed",
+      "config": "CurrentReversed.cfg",
+      "expect": "pass"
+    }
+  ]
+}

@@ -30,6 +30,7 @@ OPTIMIZE=true   # force compiler optimizations on regardless of configuration
 DEVICE=""       # name, UDID, or identifier; empty = auto-pick the sole device
 LAUNCH=true
 ASSUME_YES=false
+CLOUDKIT=false
 
 usage() {
     cat <<'USAGE'
@@ -47,12 +48,15 @@ Options:
   --optimize               Force compiler optimizations on (default)
   --no-optimize            Build without forcing optimizations (use the
                            configuration's own optimization level)
+  --cloudkit               Build Debug against CloudKit instead of its normal
+                           local-only store (persists across every relaunch)
   --no-launch              Install only; don't launch the app afterwards
   -y, --yes                Skip the "unlock your device" confirmation prompt
   -h, --help               Show this help
 
 Examples:
   ./Where/install
+  ./Where/install --cloudkit
   ./Where/install --device "Kai's iPhone"
   ./Where/install --configuration Beta
   ./Where/install --configuration Release
@@ -75,6 +79,7 @@ while [ $# -gt 0 ]; do
         --configuration) shift; require_value --configuration "${1:-}"; CONFIGURATION="$1" ;;
         --optimize) OPTIMIZE=true ;;
         --no-optimize) OPTIMIZE=false ;;
+        --cloudkit) CLOUDKIT=true ;;
         --no-launch) LAUNCH=false ;;
         -y|--yes) ASSUME_YES=true ;;
         -h|--help) usage; exit 0 ;;
@@ -145,6 +150,14 @@ if [ "$OPTIMIZE" = true ]; then
     OPTIMIZATION_OVERRIDES=(SWIFT_OPTIMIZATION_LEVEL=-O GCC_OPTIMIZATION_LEVEL=s)
 fi
 
+# CloudKit validation is a property of the installed Debug binary, not its first
+# process invocation. iOS does not preserve custom argv for later foreground,
+# background, or push-driven relaunches, while this compilation condition does.
+CLOUDKIT_OVERRIDES=()
+if [ "$CLOUDKIT" = true ]; then
+    CLOUDKIT_OVERRIDES=("SWIFT_ACTIVE_COMPILATION_CONDITIONS=\$(inherited) WHERE_CLOUDKIT_VALIDATION")
+fi
+
 # Build + sign for a generic iOS device. -allowProvisioningUpdates lets xcodebuild
 # create/download the profiles for the app and its extensions (App Groups,
 # location) instead of requiring them to exist already.
@@ -156,7 +169,8 @@ mise exec -- xcodebuild build \
     -destination 'generic/platform=iOS' \
     -derivedDataPath "$DERIVED" \
     -allowProvisioningUpdates \
-    ${OPTIMIZATION_OVERRIDES[@]+"${OPTIMIZATION_OVERRIDES[@]}"}
+    ${OPTIMIZATION_OVERRIDES[@]+"${OPTIMIZATION_OVERRIDES[@]}"} \
+    ${CLOUDKIT_OVERRIDES[@]+"${CLOUDKIT_OVERRIDES[@]}"}
 
 APP="$DERIVED/Build/Products/$CONFIGURATION-iphoneos/Where.app"
 if [ ! -d "$APP" ]; then
@@ -250,7 +264,11 @@ echo "==> installing to device"
 xcrun devicectl device install app --device "$DEVICE_UDID" "$APP"
 
 if [ "$LAUNCH" = true ]; then
-    echo "==> launching $BUNDLE_ID"
+    if [ "$CLOUDKIT" = true ]; then
+        echo "==> launching $BUNDLE_ID with CloudKit validation enabled"
+    else
+        echo "==> launching $BUNDLE_ID"
+    fi
     xcrun devicectl device process launch \
         --device "$DEVICE_UDID" \
         --terminate-existing \

@@ -43,6 +43,18 @@ struct RegionSummaryCard: View {
     /// other caller leaves it `nil` and gets the resolved look.
     var styleOverride: RegionStyle?
 
+    /// Raw recorded fixes for the region's selected year. Locations cards pass
+    /// these in; every other card keeps the empty zero-value treatment.
+    var recordedPoints: [RegionDayPoint] = []
+
+    /// Whether the card renders `recordedPoints`. Locations binds this to the
+    /// user's Appearance preference so hiding dots leaves the raw data intact.
+    var showsRecordedPoints = true
+
+    /// Identity of the loaded recorded-point snapshot. Locations supplies it to
+    /// restart projection only when the underlying point content changes.
+    var recordedPointsID: PrimaryRegionLocations.ID?
+
     /// Loaded once per regular card from the root-owned UI path cache. The large
     /// watermark uses medium fidelity, the stamp uses small, and the repeated
     /// border uses micro.
@@ -102,6 +114,8 @@ struct RegionSummaryCard: View {
             region: regionDays.region,
             variant: variant,
             isEnabled: card.regionShape != nil,
+            showsRecordedPoints: showsRecordedPoints,
+            recordedPointsID: recordedPointsID,
         )
     }
 
@@ -138,42 +152,15 @@ struct RegionSummaryCard: View {
         let rosette = card.rosette
         let rosetteFill = cardStyles.rosetteFill
         return ZStack {
-            Canvas { context, size in
-                func drawRosette(center: CGPoint, spacing: CGFloat, opacity: Double) {
-                    let ringCount = Int(max(size.width, size.height) / spacing)
-                    for ring in 1 ... max(1, ringCount) {
-                        let angle = Double(ring) * 0.55
-                        let ringCenter = CGPoint(
-                            x: center.x + CGFloat(cos(angle)) * rosette.wobble,
-                            y: center.y + CGFloat(sin(angle)) * rosette.wobble,
-                        )
-                        let radius = CGFloat(ring) * spacing
-                        let rect = CGRect(
-                            x: ringCenter.x - radius,
-                            y: ringCenter.y - radius,
-                            width: radius * 2,
-                            height: radius * 2,
-                        )
-                        context.stroke(
-                            Path(ellipseIn: rect),
-                            with: .color(tint.opacity(opacity)),
-                            lineWidth: rosette.lineWidth,
-                        )
-                    }
-                }
-                // A bold rosette behind the stamp, plus a smaller, fainter one
-                // in the opposite corner for denser, layered security print.
-                drawRosette(
-                    center: CGPoint(x: size.width * 0.8, y: size.height * 0.5),
-                    spacing: rosette.primaryRingSpacing,
-                    opacity: rosetteFill.primary,
-                )
-                drawRosette(
-                    center: CGPoint(x: size.width * 0.12, y: size.height * 0.22),
-                    spacing: rosette.secondaryRingSpacing,
-                    opacity: rosetteFill.secondary,
-                )
-            }
+            SecurityPrintRosette(
+                tint: tint,
+                wobble: rosette.wobble,
+                lineWidth: rosette.lineWidth,
+                primaryRingSpacing: rosette.primaryRingSpacing,
+                secondaryRingSpacing: rosette.secondaryRingSpacing,
+                primaryOpacity: rosetteFill.primary,
+                secondaryOpacity: rosetteFill.secondary,
+            )
 
             if
                 let regionShape = card.regionShape,
@@ -197,6 +184,8 @@ struct RegionSummaryCard: View {
                     path: regionPath,
                     tint: tint,
                     style: regionShape.watermark,
+                    constellationPoints: regionPaths?.constellation ?? [],
+                    constellationStyle: cardStyles.constellation,
                 )
             } else {
                 Image(systemName: style.symbolName)
@@ -228,13 +217,30 @@ struct RegionSummaryCard: View {
             for: regionDays.region,
             resolution: .micro,
         )
-        let (watermarkPath, stampPath, microprintPath) = await (watermark, stamp, microprint)
+        let visibleRecordedPoints = showsRecordedPoints ? recordedPoints : []
+        async let projectedPoints = regionOutlinePathCache.projectedPoints(
+            for: regionDays.region,
+            points: visibleRecordedPoints,
+        )
+        let (watermarkPath, stampPath, microprintPath, projected) = await (
+            watermark,
+            stamp,
+            microprint,
+            projectedPoints,
+        )
+        guard Task.isCancelled == false else { return }
+        let constellation = cardStyles.constellation
         let loaded = RegionArtworkPaths(
             watermark: watermarkPath,
             stamp: stampPath,
             microprint: microprintPath,
+            constellation: RegionLocationConstellationLayout.selectedPoints(
+                from: projected,
+                inside: watermarkPath,
+                gridResolution: constellation.gridResolution,
+                maximumCount: constellation.maximumPointCount,
+            ),
         )
-        guard !Task.isCancelled else { return }
         regionPaths = loaded
     }
 
@@ -338,12 +344,14 @@ struct RegionSummaryCard: View {
     }
 }
 
-/// Restarts cached artwork loading when a designer switches either card variant
-/// or the outline layer without first changing the previewed region.
+/// Restarts cached artwork loading when a designer changes the outline treatment
+/// or the user changes GPS-dot visibility without changing the card's region.
 struct RegionArtworkLoadID: Equatable {
     let region: Region
     let variant: WhereStylesheet.CardStyle.Variant
     let isEnabled: Bool
+    let showsRecordedPoints: Bool
+    let recordedPointsID: PrimaryRegionLocations.ID?
 }
 
 /// A circular rubber-stamp impression — double ring, centered region glyph and
@@ -421,6 +429,7 @@ private struct RegionArtworkPaths {
     let watermark: Path
     let stamp: Path
     let microprint: Path
+    let constellation: [RegionLocationConstellationLayout.Point]
 }
 
 /// Lays out `text` along the upper arc of a circle of the given `radius`,

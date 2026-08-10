@@ -70,6 +70,13 @@ extension [SnapshotConfiguration] {
         defaults(devices: [.iPhone, .iPad])
     }
 
+    /// The default full-screen trait matrix at iPhone and iPad viewport sizes,
+    /// with each frame growing beyond its device height when settled content is
+    /// taller.
+    public static var fullContentScreenDefaults: Self {
+        defaults(devices: [.iPhoneFullContent, .iPadFullContent])
+    }
+
     private static func defaults(devices: [SnapshotConfiguration.Frame]) -> Self {
         SnapshotConfiguration.combinations(devices: devices)
             + SnapshotConfiguration.combinations(devices: devices, colorSchemes: [.dark])

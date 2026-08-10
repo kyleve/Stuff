@@ -35,8 +35,7 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
   past today is still shown until the app republishes — intentional.
 - In-widget strings come from WhereUI (shared views + `WhereFormat`); the
   gallery name/description resolve through this extension's own generated
-  catalog symbols (`String(localized: .widgetGalleryTodayName)`). Widgets ship
-  `#Preview` timelines like any other WhereUI view.
+  catalog symbols (`String(localized: .widgetGalleryTodayName)`).
 - **Seed the Broadway root via WhereUI's `whereBroadwayRoot()`** (applied in each
   widget's `StaticConfiguration` content) so the shared WhereUI views resolve
   trait-aware `@Environment(\.stylesheet)` tokens instead of `.default`. Never

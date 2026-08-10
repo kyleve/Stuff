@@ -16,6 +16,7 @@
     public func whereSnapshot(
         name: String,
         configurations: [SnapshotConfiguration],
+        measurementReadiness: SnapshotMeasurementReadiness = .sameAsCapture,
         settle: SnapshotSettle = .settled,
         onReadyToSnapshot: (@MainActor () async -> Void)? = nil,
         @ViewBuilder content: @escaping @MainActor () -> some View,
@@ -23,6 +24,7 @@
         SnapshotCase(
             name: name,
             configurations: configurations,
+            measurementReadiness: measurementReadiness,
             settle: settle,
             onReadyToSnapshot: onReadyToSnapshot,
         ) {
@@ -36,6 +38,15 @@
         /// the full ``screenDefaults``).
         static var phoneLightDark: Self {
             SnapshotConfiguration.combinations(devices: [.iPhone], colorSchemes: [.light, .dark])
+        }
+
+        /// Light + dark at an intrinsic-height iPhone-width frame — the compact
+        /// matrix for extra states on a full-content screen.
+        static var fullContentPhoneLightDark: Self {
+            SnapshotConfiguration.combinations(
+                devices: [.iPhoneFullContent],
+                colorSchemes: [.light, .dark],
+            )
         }
 
         /// Light + dark at the component frame — the compact matrix for the extra

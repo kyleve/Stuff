@@ -4,9 +4,9 @@ import SnapshotKit
 import SwiftUI
 import WhereCore
 
-/// Settings drill-in for what the app *is* rather than what it does: which build
-/// is running, the third-party work it is built with, and where its bundled
-/// region boundaries came from.
+/// Settings drill-in for what the app *is* rather than what it does: its privacy
+/// promise, which build is running, the third-party work it is built with, and
+/// where its bundled region boundaries came from.
 ///
 /// Every fact here is vended by whoever owns it — `BuildInfo` and the generated
 /// attribution report from `WhereCore`, `RegionDataSource` from `RegionKit` — so
@@ -44,10 +44,16 @@ struct AboutSettingsView: View {
     var body: some View {
         SettingsFocusScope(focus: focus) {
             Form {
+                PrivacyPassportCard()
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
                 versionSection
                 dependenciesSection
                 developmentToolsSection
                 dataSourcesSection
+                AboutOpenSourceFooter()
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
             }
         }
         .navigationTitle(String(localized: .settingsAboutHeader))
@@ -230,7 +236,11 @@ extension AboutSettingsView: SettingsSection {
         /// and attributed, so the interesting cases are what each missing piece
         /// renders as.
         static var snapshots: [SnapshotCase] {
-            whereSnapshot(name: "Default", configurations: .screenDefaults) {
+            whereSnapshot(
+                name: "Default",
+                configurations: .fullContentScreenDefaults,
+                measurementReadiness: .immediate,
+            ) {
                 NavigationStack {
                     AboutSettingsView(
                         focus: nil,
@@ -239,7 +249,11 @@ extension AboutSettingsView: SettingsSection {
                     )
                 }
             }
-            whereSnapshot(name: "DirtyTree", configurations: .phoneLightDark) {
+            whereSnapshot(
+                name: "DirtyTree",
+                configurations: .fullContentPhoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
                 NavigationStack {
                     AboutSettingsView(
                         focus: nil,
@@ -248,7 +262,11 @@ extension AboutSettingsView: SettingsSection {
                     )
                 }
             }
-            whereSnapshot(name: "Unattributed", configurations: .phoneLightDark) {
+            whereSnapshot(
+                name: "Unattributed",
+                configurations: .fullContentPhoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
                 // What a bundle outside the app target shows: honest unknowns and
                 // an explicit "no report" rather than blank rows and empty sections.
                 NavigationStack {
@@ -259,7 +277,11 @@ extension AboutSettingsView: SettingsSection {
                     )
                 }
             }
-            whereSnapshot(name: "LibrariesOnly", configurations: .phoneLightDark) {
+            whereSnapshot(
+                name: "LibrariesOnly",
+                configurations: .fullContentPhoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
                 // A real report that credits nothing of one kind. Pinned as an
                 // image because the failure mode is purely visual: a header and
                 // footer over no rows, promising a list that isn't there.

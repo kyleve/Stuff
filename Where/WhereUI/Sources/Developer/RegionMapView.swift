@@ -89,48 +89,14 @@ public struct RegionMapView: View {
     }
 
     private func legend(for loaded: [RegionOutline]) -> some View {
-        List {
-            Section {
-                if selectedTitle != nil {
-                    Button(String(localized: .regionMapShowAll)) { select(nil) }
-                }
-                ForEach(legendGroups(for: loaded)) { group in
-                    Button {
-                        select(group.title == selectedTitle ? nil : group.title)
-                    } label: {
-                        legendRow(group)
-                    }
-                    .tint(.primary)
-                }
-            } header: {
-                Text(String(localized: .regionMapLegendHeader))
-            } footer: {
-                Text(WhereFormat.regionMapKindFooter(kind))
-            }
-        }
+        RegionMapLegend(
+            kind: kind,
+            groups: legendGroups(for: loaded),
+            selectedTitle: selectedTitle,
+            color: { color(forTitle: $0.title, region: $0.region) },
+            onSelect: select,
+        )
         .frame(height: stylesheet.regionMap.height)
-    }
-
-    private func legendRow(_ group: LegendGroup) -> some View {
-        HStack(spacing: stylesheet.spacing.large) {
-            Circle()
-                .fill(color(forTitle: group.title, region: group.region))
-                // Developer legend swatch — a fixed dev-tool size, not a themed token.
-                .frame(width: 12, height: 12)
-                .accessibilityHidden(true)
-            Text(group.title)
-            Spacer()
-            if group.outlineCount > 1 {
-                Text("\(group.outlineCount)")
-                    .foregroundStyle(.secondary)
-                    .accessibilityHidden(true)
-            }
-            if group.title == selectedTitle {
-                Image(systemName: "checkmark")
-                    .foregroundStyle(.tint)
-            }
-        }
-        .contentShape(.rect)
     }
 
     // MARK: - Data
@@ -171,15 +137,15 @@ public struct RegionMapView: View {
 
     /// One legend entry per feature title, in first-seen order, carrying
     /// how many sub-polygons it drew (a MultiPolygon yields several).
-    private func legendGroups(for loaded: [RegionOutline]) -> [LegendGroup] {
-        var groups: [LegendGroup] = []
+    private func legendGroups(for loaded: [RegionOutline]) -> [RegionMapLegendGroup] {
+        var groups: [RegionMapLegendGroup] = []
         var indexByTitle: [String: Int] = [:]
         for outline in loaded {
             if let index = indexByTitle[outline.title] {
                 groups[index].outlineCount += 1
             } else {
                 indexByTitle[outline.title] = groups.count
-                groups.append(LegendGroup(
+                groups.append(RegionMapLegendGroup(
                     title: outline.title,
                     region: outline.region,
                     outlineCount: 1,
@@ -355,23 +321,33 @@ private struct SnapshotMapStandIn: View {
     }
 }
 
-/// One feature in the legend: its title, the `Region` it maps to (if any,
-/// for the swatch color), and how many sub-polygons it contributed.
-private struct LegendGroup: Identifiable {
-    let title: String
-    let region: Region?
-    var outlineCount: Int
-
-    var id: String {
-        title
-    }
-}
-
 #if DEBUG
     extension RegionMapView: SnapshotProviding {
         public static var snapshots: [SnapshotCase] {
-            whereSnapshot(name: "Default", configurations: .phoneLightDark) {
-                NavigationStack { RegionMapView() }
+            // The production screen intentionally bounds this list beneath the
+            // map. Capture the shared scrollable content itself so every feature
+            // is visible without teaching the production split layout a
+            // snapshot-only sizing mode.
+            whereSnapshot(name: "Default", configurations: .fullContentPhoneLightDark) {
+                RegionMapLegend(
+                    kind: .attribution,
+                    groups: snapshotLegendGroups,
+                    selectedTitle: nil,
+                    color: { group in
+                        group.region.map { RegionStyle.fallbackStyle(for: $0).tint } ?? .gray
+                    },
+                    onSelect: { _ in },
+                )
+            }
+        }
+
+        private static var snapshotLegendGroups: [RegionMapLegendGroup] {
+            RegionCatalog.shared.all.enumerated().map { index, region in
+                RegionMapLegendGroup(
+                    title: region.localizedName,
+                    region: region,
+                    outlineCount: index.isMultiple(of: 10) ? 2 : 1,
+                )
             }
         }
     }

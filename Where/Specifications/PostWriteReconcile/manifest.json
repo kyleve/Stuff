@@ -1,0 +1,16 @@
+{
+  "module": "PostWriteReconcile.tla",
+  "cases": [
+    {
+      "name": "broken",
+      "config": "Broken.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant BrokenNoEarlyPing is violated."
+    },
+    {
+      "name": "current",
+      "config": "Current.cfg",
+      "expect": "pass"
+    }
+  ]
+}

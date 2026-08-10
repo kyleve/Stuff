@@ -3,7 +3,7 @@ import LifecycleKitUI
 import PeriscopeUI
 import SnapshotKit
 import SwiftUI
-import WhereCore
+@_spi(Testing) import WhereCore
 #if DEBUG
     import Inspector
     import PeriscopeCore
@@ -88,12 +88,18 @@ public struct RootView: View {
         // Mirrors the app root's wiring (see `AppDelegate`). Nothing here
         // attaches a sink unless a scope is actually resolved, which a preview
         // or the hosted UI test never gets to.
+        let installationContextStore = InMemoryInstallationRecordingContextStore(
+            context: .testing,
+        )
         let model = WhereModel(
             preferences: WherePreferences(store: UserDefaults.standard),
+            installationContextStore: installationContextStore,
             makeBootstrap: {
                 WhereBootstrap(
-                    storage: .inMemory,
+                    installationContextStore: $0,
+                    storeStorage: .inMemory,
                     widgetRefresher: NoopWidgetTimelineRefresher(),
+                    locationOutbox: NoOpLocationOutbox(),
                 )
             },
             logSystem: .shared,
@@ -114,13 +120,17 @@ public struct RootView: View {
                 animation: revealAnimation,
                 minimumSplashDuration: stylesheet.launch.minimumSplashDuration,
                 splash: { _ in LaunchSplashView() },
-                failure: { LifecycleFailureView(failure: $0) },
+                failure: { WhereLifecycleFailureView(failure: $0) },
                 gates: {
                     // The gate roots the trunk, so there is no session (and no
                     // open store) behind it yet — onboarding builds the scope
                     // it commits regions with, through the model.
                     GateView(for: OnboardingGate.self) { handle, _ in
-                        OnboardingView(gate: handle)
+                        OnboardingView(
+                            gate: handle,
+                            installationContext: model.installationRecordingContext,
+                            startsAtRecordingChoice: model.hasOnboarded,
+                        )
                     }
                 },
             ) { session in
@@ -131,12 +141,16 @@ public struct RootView: View {
                 // monotonic `id` (never reused within the process) rather than
                 // its address, so a rebuilt session can't collide with a freed
                 // one and skip the rebuild.
-                MainTabs(
-                    session: session,
-                    initialReport: model.initialReport,
-                    selectedYear: model.initialSelectedYear,
-                )
-                .id(session.id)
+                if session.isCurrentDeviceRemoved {
+                    RemovedDeviceView(model: model, session: session)
+                } else {
+                    MainTabs(
+                        session: session,
+                        initialDetails: model.initialYearDetails,
+                        selectedYear: model.initialSelectedYear,
+                    )
+                    .id(session.id)
+                }
             }
             // Extend the app content's safe area by the floating HUD's footprint so
             // scroll views behind the non-modal window inset and their last rows
@@ -295,7 +309,7 @@ public struct RootView: View {
             let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
             whereSnapshot(
                 name: "LoggedIn",
-                configurations: .phoneLightDark,
+                configurations: .fullContentPhoneLightDark,
                 settle: .settledAtLeast(minDuration: 1.5),
                 onReadyToSnapshot: { await launcher.run() },
             ) {

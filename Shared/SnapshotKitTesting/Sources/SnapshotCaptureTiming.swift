@@ -1,4 +1,5 @@
 import Foundation
+import SnapshotKit
 
 /// A phase of a single image capture, as attributed by ``SnapshotCaptureTiming``.
 ///
@@ -72,6 +73,9 @@ import Foundation
 
     private let identifier: String
     private let isEnabled: Bool
+    private let sizing: String
+    private let measurementReadiness: String
+    private let captureSettle: String
     private let clock = ContinuousClock()
     private let start: ContinuousClock.Instant
     private var durations: [SnapshotCapturePhase: TimeInterval] = [:]
@@ -79,9 +83,18 @@ import Foundation
     private var tiles = 0
     private var pixels = 0
 
-    public init(identifier: String, isEnabled: Bool) {
+    public init(
+        identifier: String,
+        isEnabled: Bool,
+        sizing: SnapshotSizing = .fixed,
+        measurementReadiness: SnapshotMeasurementReadiness = .sameAsCapture,
+        captureSettle: SnapshotSettle = .settled,
+    ) {
         self.identifier = identifier
         self.isEnabled = isEnabled
+        self.sizing = sizing.timingDescription
+        self.measurementReadiness = measurementReadiness.timingDescription
+        self.captureSettle = captureSettle.timingDescription
         start = clock.now
     }
 
@@ -150,6 +163,9 @@ import Foundation
         guard isEnabled else { return nil }
         let payload = SnapshotCaptureTimingLine(
             id: identifier,
+            sizing: sizing,
+            measurementReadiness: measurementReadiness,
+            captureSettle: captureSettle,
             phases: durations.reduce(into: [:]) { $0[$1.key.rawValue] = rounded($1.value) },
             settlePasses: settlePasses,
             tiles: tiles,
@@ -188,11 +204,51 @@ import Foundation
 /// a diagnostic format read by `./test --timings`, not a persisted one.
 private struct SnapshotCaptureTimingLine: Encodable {
     let id: String
+    let sizing: String
+    let measurementReadiness: String
+    let captureSettle: String
     let phases: [String: Double]
     let settlePasses: Int
     let tiles: Int
     let pixels: Int
     let total: Double
+}
+
+extension SnapshotSizing {
+    fileprivate var timingDescription: String {
+        switch self {
+            case .fixed:
+                "fixed"
+            case .intrinsic:
+                "intrinsic"
+        }
+    }
+}
+
+extension SnapshotMeasurementReadiness {
+    fileprivate var timingDescription: String {
+        switch self {
+            case .sameAsCapture:
+                "sameAsCapture"
+            case .immediate:
+                "immediate"
+            case .settled:
+                "settled"
+        }
+    }
+}
+
+extension SnapshotSettle {
+    fileprivate var timingDescription: String {
+        switch self {
+            case .settled:
+                "settled"
+            case let .settledAtLeast(minDuration):
+                "settledAtLeast(\(minDuration))"
+            case .immediate:
+                "immediate"
+        }
+    }
 }
 
 extension JSONEncoder {

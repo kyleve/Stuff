@@ -15,6 +15,7 @@ struct RegionAttributionTests {
         let illinois = try #require(Region(rawValue: "us-IL"))
         let attribution = RegionAttribution(
             store: store,
+            changes: store.changes(),
             initial: RegionAttributor(for: [.california]),
             trackedIDs: [Region.california.rawValue],
         )
@@ -25,7 +26,7 @@ struct RegionAttributionTests {
         // Switch the tracked set to Illinois. The commit pings `changes()` (the
         // observer reconciles); reconcile again for a deterministic assertion.
         try await store.perform {
-            try await store.setTrackedRegion(true, id: illinois.rawValue)
+            try await store.setTrackedRegion(true, region: illinois)
         }
         await attribution.reconcile()
 
@@ -39,6 +40,7 @@ struct RegionAttributionTests {
         let store = try SwiftDataStore.inMemory()
         let attribution = RegionAttribution(
             store: store,
+            changes: store.changes(),
             initial: RegionAttributor(for: Array(SwiftDataStore.defaultTrackedRegions)),
             trackedIDs: Set(SwiftDataStore.defaultTrackedRegions.map(\.rawValue)),
         )

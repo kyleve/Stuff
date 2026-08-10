@@ -19,7 +19,7 @@ target, see [`AGENTS.md`](AGENTS.md).
 | File | Role |
 |------|------|
 | `Sources/WhereApp.swift` | `@main` `App`. One `WindowGroup` rendering the selected runtime's type-erased root. |
-| `Sources/AppDelegate.swift` | The boot router. Selects one `WhereApplicationRuntime` in its initializer and forwards lifecycle callbacks. |
+| `Sources/AppDelegate.swift` | The boot router. Starts each crash reporter, selects one `WhereApplicationRuntime` in its initializer, and forwards lifecycle callbacks. |
 | `Sources/WhereBuildEnvironment.swift` | Validates the host-only audience condition and maps the generated Info.plist values to storage, App Group, widget refresh, and primary-icon dependencies. |
 | `Sources/RegularApplicationRuntime.swift` | Owns the app's single `WhereModel`, `IntentServices`, and `LifecycleRunner`; starts logging, installs the App Intents handoff, and indexes Spotlight. |
 | `Sources/WhereInspectorApplicationRuntime.swift` | DEBUG-only alternate runtime. Configures the standalone Inspector without constructing regular app systems. |
@@ -48,6 +48,11 @@ user tap from a headless wake. The runner drives the background-safe launch
 steps immediately and builds no view tree; when a scene actually activates,
 `RootView` promotes the launch to `.userForeground` and the remaining steps run.
 
+Before either the regular or Inspector runtime receives that callback, the app
+starts its Sentry and Bitdrift `WhereCrashReporting` implementations. Sentry SDK
+diagnostic output is enabled only in Debug builds; performance tracing is not
+enabled by the crash-reporting setup.
+
 The Inspector runtime returns its standalone `InspectorView` and starts none of
 the model, launch, CoreLocation, notification, Periscope pipeline, App Intents,
 or Spotlight systems. It opens Where and Periscope containers only through
@@ -71,3 +76,44 @@ only those host targets receive the matching `WHERE_*` compiler condition.
 Generate the workspace with `./ide --no-open`, or install to a connected iPhone
 from the command line with [`./Where/install`](../install) (macOS only, needs a
 signing team — see [`Where/AGENTS.md`](../AGENTS.md#installing-to-a-device)).
+
+## CloudKit rollout and device validation
+
+The app target owns `iCloud.com.stuff.where`, the Push Notifications
+entitlement, and the remote-notification background mode. Widgets and the share
+extension intentionally have only the App Group entitlement: they write/read
+local shared artifacts, while the app's single SwiftData container owns
+CloudKit mirroring. Development uses `.localOnly`; exercise sync with
+`./Where/install --cloudkit`, which keeps the isolated Development bundle and
+App Group while selecting `.cloudKit`. Beta and App Store always select
+`.cloudKit` with the production App Group. The installer compiles the
+validation choice into that Development app, so manual, background, and
+CloudKit-push relaunches keep using CloudKit until another build is installed
+without `--cloudkit`.
+
+Before shipping a schema change:
+
+1. Run `./Where/install --cloudkit` (or install a Release build) against the
+   Development CloudKit environment and open the store so SwiftData initializes
+   the additive schema.
+2. Inspect the new fields/record types in CloudKit Console, then deploy that
+   schema to Production before distributing the build.
+3. On two devices signed into the same iCloud account, open Settings → Devices
+   and verify both generic hardware profiles arrive; rename one and verify the
+   nickname syncs.
+4. On each device, toggle only its own Automatic Recording switch. Verify the
+   local device starts or stops and its advisory status later updates on the
+   other device without changing that other installation's switch.
+5. Remove the secondary device from the carried device. Verify its earlier
+   history remains visible, locations at and after the removal disappear, and
+   the secondary device stops when it next syncs. Rejoin it and verify it gets
+   a new identity with recording Off until explicitly enabled there.
+6. Export a backup, then exercise Merge and Replace. Verify names and removals
+   round-trip, neither strategy changes this installation's recording choice,
+   and Replace discards pending pre-import locations before recording resumes.
+
+On a fresh install, onboarding recommends automatic recording On for an iPhone
+only when no other device recently reported recording, and Off for an
+iPad/other device or explicit rejoin, then requires the user to confirm. Existing
+installations created before that choice was introduced revisit only the final
+recording page once; enabling is the only path that asks for location access.

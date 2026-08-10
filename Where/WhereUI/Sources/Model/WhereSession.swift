@@ -39,9 +39,27 @@ public final class WhereSession {
     /// gets a new token, so the scene can't fail to rebuild on a collision.
     public let id: SessionID
 
-    /// Whether background GPS ingestion is currently attached. Reflects reality
-    /// (authorization + the user's intent), not just the last button tap.
-    public private(set) var isTracking = false
+    /// The current installation's locally applied recording state. One value carries the
+    /// resolved policy, physical status, and durable acknowledgement together; `.unavailable`
+    /// means Core failed closed because it could not prove that agreement.
+    public private(set) var recordingRuntimeState: RecordingDeviceRuntimeState = .unavailable
+
+    /// Whether background GPS ingestion is currently attached. Derived from the applied state,
+    /// so it cannot drift from the configuration Core durably acknowledged.
+    public var isTracking: Bool {
+        guard case let .applied(configuration) = recordingRuntimeState else { return false }
+        return configuration.device.status == .recording
+    }
+
+    public var isCurrentDeviceRemoved: Bool {
+        if case .removed = recordingRuntimeState { true } else { false }
+    }
+
+    /// Stable installation identity used by the Devices settings screen to mark
+    /// the current row and prevent archiving it.
+    public var currentRecordingDeviceID: RecordingDeviceID {
+        services.recording.currentDevice.id
+    }
 
     /// The latest known location authorization status, kept live via
     /// `LocationIngestor.authorizationUpdates()`.
@@ -56,6 +74,7 @@ public final class WhereSession {
     /// `MainTabs` / the tabs can build their scoped models from the injected
     /// coordinator.
     let services: WhereServices
+    private let installationContextStore: any InstallationRecordingContextStoring
 
     /// The persisted user intent (tracking, reminder/summary schedules) the
     /// coordinator applies at launch/foreground. Owned by `WhereModel` and shared
@@ -75,6 +94,10 @@ public final class WhereSession {
     /// definition runs with no other live references, so there is no concurrent
     /// access to race.
     @ObservationIgnored private nonisolated(unsafe) var authorizationTask: Task<Void, Never>?
+
+    /// Mirrors only successfully applied current-device configurations emitted by Core.
+    @ObservationIgnored private nonisolated(unsafe) var recordingConfigurationTask:
+        Task<Void, Never>?
 
     /// Observes `dataChangeUpdates()` to keep ``regionStyles`` in sync with the
     /// store's picked region appearances. Same `nonisolated(unsafe)` rationale as
@@ -102,12 +125,19 @@ public final class WhereSession {
     private var warnedSummaryUnauthorized = false
     private var warnedIssueAlertsUnauthorized = false
 
-    /// Persisted user intent to track in the background. Effective tracking is
-    /// this AND `.always` authorization; we default to `true` so that, once the
-    /// user grants Always, tracking resumes automatically on every launch.
-    private var wantsTracking: Bool {
-        get { preferences.wantsTracking }
-        set { preferences.wantsTracking = newValue }
+    /// Whether this session has performed its explicit, idempotent registration operation.
+    private var didRegisterRecordingDevice = false
+    /// Orders local recording intents across permission prompts; a newer Off must not be
+    /// overwritten when an earlier On resumes after the prompt.
+    private var recordingIntentSequence: UInt64 = 0
+    /// Last controller-ordered runtime emission applied to presentation state.
+    private var lastRecordingRuntimeSequence: UInt64?
+
+    /// Latest resolved desired policy for this installation, available only after Core applies
+    /// and acknowledges it. This gates foreground capture without a second mutable mirror.
+    private var recordingEnabled: Bool {
+        guard case let .applied(configuration) = recordingRuntimeState else { return false }
+        return configuration.localAutomaticRecordingEnabled == true
     }
 
     /// A process-unique session identity. A typed token rather than a raw `Int`
@@ -129,11 +159,28 @@ public final class WhereSession {
     /// Build a coordinator over the scope the app is logged in to. The
     /// designated initializer: taking the whole scope is what guarantees the
     /// services and the preferences a session reads belong to the same world.
-    init(scope: WhereScope, now: @escaping @Sendable () -> Date = { Date() }) {
+    init(
+        scope: WhereScope,
+        installationContextStore: (any InstallationRecordingContextStoring)? = nil,
+        now: @escaping @Sendable () -> Date = { Date() },
+    ) {
         id = Self.mintID()
         services = scope.services
         preferences = scope.preferences
         self.now = now
+        if let installationContextStore {
+            self.installationContextStore = installationContextStore
+        } else {
+            let registeredAt = now()
+            self.installationContextStore = InMemoryInstallationRecordingContextStore(
+                context: InstallationRecordingContext(
+                    currentDevice: scope.services.recording.currentDevice,
+                    registeredAt: registeredAt,
+                    recordingChoice: .on(enabledAt: registeredAt),
+                    isRejoining: false,
+                ),
+            )
+        }
     }
 
     /// Build a coordinator over a loose service layer, wrapping it in a scope.
@@ -166,6 +213,7 @@ public final class WhereSession {
     /// until the next status change resumes it.
     deinit {
         authorizationTask?.cancel()
+        recordingConfigurationTask?.cancel()
         regionStyleTask?.cancel()
     }
 
@@ -180,6 +228,7 @@ public final class WhereSession {
     public func start() async {
         await syncAuthorization()
         observeAuthorizationChanges()
+        observeRecordingConfigurationChanges()
         await seedRegionStyles()
         observeRegionStyleChanges()
         await reconcileTracking()
@@ -287,11 +336,25 @@ public final class WhereSession {
     /// another device reloads ``regionStyles``. Idempotent.
     func observeRegionStyleChanges() {
         guard regionStyleTask == nil else { return }
-        let services = services
+        let updates = services.dataChangeUpdates()
         regionStyleTask = Task { @MainActor [weak self] in
-            for await _ in services.dataChangeUpdates() {
+            for await _ in updates {
                 guard let self else { break }
                 await seedRegionStyles()
+            }
+        }
+    }
+
+    /// Observe Core's focused policy reconciliation output. The controller emits only after
+    /// physical GPS state and its target-owned advisory check-in agree, so this mirror never has
+    /// to infer state from an arbitrary store-change notification.
+    private func observeRecordingConfigurationChanges() {
+        guard recordingConfigurationTask == nil else { return }
+        let updates = services.recording.runtimeUpdates()
+        recordingConfigurationTask = Task { @MainActor [weak self] in
+            for await update in updates {
+                guard let self else { break }
+                applyRecordingRuntimeUpdate(update)
             }
         }
     }
@@ -300,28 +363,66 @@ public final class WhereSession {
     /// current authorization. Tracking only runs with Always authorization. A
     /// launch step (see `WhereLaunch.plan(for:)`).
     func reconcileTracking() async {
+        observeRecordingConfigurationChanges()
         let wasTracking = isTracking
-        if wantsTracking, authorizationStatus.allowsBackgroundTracking {
-            await services.ingestor.start()
-            isTracking = true
-            if !wasTracking { Self.logger { .backgroundTrackingStarted } }
-        } else {
-            await services.ingestor.stop()
-            isTracking = false
-            if wasTracking { Self.logger { .backgroundTrackingStopped } }
+        do {
+            await services.recording.startMonitoringChanges()
+            if didRegisterRecordingDevice {
+                _ = try await services.recording.reconcile(
+                    authorization: authorizationStatus,
+                )
+            } else {
+                _ = try await services.recording.register(
+                    authorization: authorizationStatus,
+                )
+                didRegisterRecordingDevice = true
+            }
+            await synchronizeRecordingRuntimeState()
+            if isTracking, !wasTracking {
+                Self.logger { .backgroundTrackingStarted }
+            } else if !isTracking, wasTracking {
+                Self.logger { .backgroundTrackingStopped }
+            }
+        } catch {
+            // Core fails closed and stops its source. Keep the UI mirror equally honest.
+            didRegisterRecordingDevice = false
+            await synchronizeRecordingRuntimeState()
+            Self.logger(attachments: [.error(error, name: "recording-reconcile-error")]) {
+                .recordingReconcileFailed(description: error.localizedDescription)
+            }
+        }
+    }
+
+    private func synchronizeRecordingRuntimeState() async {
+        guard let update = await services.recording.currentRuntimeUpdate() else { return }
+        applyRecordingRuntimeUpdate(update)
+    }
+
+    private func applyRecordingRuntimeUpdate(_ update: RecordingDeviceRuntimeUpdate) {
+        if let lastRecordingRuntimeSequence,
+           update.sequence <= lastRecordingRuntimeSequence
+        {
+            return
+        }
+        lastRecordingRuntimeSequence = update.sequence
+        recordingRuntimeState = update.state
+        if case .unavailable = update.state {
+            didRegisterRecordingDevice = false
+        } else if case .removed = update.state {
+            didRegisterRecordingDevice = false
         }
     }
 
     /// Fill in today with a one-shot GPS fix if the day has no GPS sample yet,
     /// so opening the app on a fresh morning doesn't leave the calendar blank
-    /// until passive tracking next fires. Gated on the user's tracking intent
+    /// until passive tracking next fires. Gated on the resolved recording policy
     /// and a usable authorization (When-In-Use is enough for a foreground fix —
     /// notably the only way When-In-Use users get any data). The ingestor is
     /// non-blocking and reconciles widgets / reminders + pings the read signal
     /// on persist. A launch step (see `WhereLaunch.plan(for:)`); also runs on
     /// every foreground.
     func captureTodayIfNeeded() async {
-        guard wantsTracking, authorizationStatus.allowsForegroundFix else { return }
+        guard recordingEnabled, authorizationStatus.allowsForegroundFix else { return }
         await services.ingestor.captureTodayIfNeeded(now: now())
     }
 
@@ -350,25 +451,78 @@ public final class WhereSession {
     /// When-In-Use is granted the indicator guides the user to Settings; on a
     /// hard denial the Settings alert is surfaced.
     public func startTracking() async {
-        wantsTracking = true
         do {
-            try await services.ingestor.requestPermission()
-            permissionDenied = false
+            try await setRecordingEnabled(true)
         } catch {
-            permissionDenied = true
-        }
-        await syncAuthorization()
-        await reconcileTracking()
-        if authorizationStatus.allowsBackgroundTracking {
-            Self.logger { .trackingEnabled }
+            Self.logger(attachments: [.error(error, name: "recording-enable-error")]) {
+                .recordingReconcileFailed(description: error.localizedDescription)
+            }
         }
     }
 
     public func stopTracking() async {
-        wantsTracking = false
-        await services.ingestor.stop()
-        isTracking = false
-        Self.logger { .stoppedBackgroundTracking }
+        do {
+            try await setRecordingEnabled(false)
+        } catch {
+            Self.logger(attachments: [.error(error, name: "recording-disable-error")]) {
+                .recordingReconcileFailed(description: error.localizedDescription)
+            }
+        }
+    }
+
+    /// Current synced device list. Registration is an explicit launch operation.
+    public func recordingDevices() async throws -> [RecordingDeviceConfiguration] {
+        try await services.recording.devices()
+    }
+
+    /// Persist and apply this installation's local recording choice.
+    public func setRecordingEnabled(_ enabled: Bool) async throws {
+        let (sequence, overflow) = recordingIntentSequence.addingReportingOverflow(1)
+        precondition(!overflow, "Recording intent sequence exhausted UInt64.")
+        recordingIntentSequence = sequence
+        try installationContextStore.setAutomaticRecordingEnabled(enabled)
+
+        var permissionRequestFailed = false
+        if enabled {
+            do {
+                try await services.ingestor.requestPermission()
+            } catch {
+                permissionRequestFailed = true
+            }
+            await syncAuthorization()
+        }
+        guard sequence == recordingIntentSequence else { return }
+        let configuration = try await services.recording.setAutomaticRecordingEnabled(
+            enabled,
+            authorization: authorizationStatus,
+        )
+        await synchronizeRecordingRuntimeState()
+        permissionDenied = enabled && permissionRequestFailed
+        if configuration.localAutomaticRecordingEnabled == true, isTracking {
+            Self.logger { .trackingEnabled }
+        } else if configuration.localAutomaticRecordingEnabled == false {
+            Self.logger { .stoppedBackgroundTracking }
+        }
+    }
+
+    public func renameRecordingDevice(
+        _ deviceID: RecordingDeviceID,
+        to nickname: String,
+    ) async throws {
+        _ = try await services.recording.rename(deviceID, to: nickname)
+    }
+
+    public func removeRecordingDevice(
+        _ deviceID: RecordingDeviceID,
+    ) async throws {
+        _ = try await services.recording.remove(deviceID)
+    }
+
+    func prepareDeviceRejoin() async throws {
+        authorizationTask?.cancel()
+        recordingConfigurationTask?.cancel()
+        regionStyleTask?.cancel()
+        try await services.recording.retireForRejoin()
     }
 
     /// Push the persisted reminder intent to the reminder reconciler and warn if
@@ -439,29 +593,44 @@ public final class WhereSession {
         }
     }
 
-    /// Erase all persisted data and reset the coordinator's observable state to a
+    /// Erase synced user data and reset the coordinator's observable state to a
     /// clean slate. A thin pass-through to `WhereServices.reset()`, which owns
-    /// *what* gets cleared (GPS stop + store wipe + reminder/badge reconcile +
-    /// empty widget snapshot); the coordinator only mirrors the outcome. The
+    /// *what* gets cleared (device identities + user-data transaction + pending
+    /// fixes + derived-state reconciliation); the coordinator only mirrors the outcome. The
     /// scene's `YearReportModel` is torn down and rebuilt by the relaunch, so no
     /// report/issue state needs clearing here. The data half of the reset/erase
     /// teardown (see `WhereLaunch.resetPlan(for:)`); throws on persistence failure
     /// so the reset step parks the launcher in `.failed` rather than silently
     /// half-erasing.
     public func eraseSession() async throws {
-        try await services.reset()
-        isTracking = false
-        Self.logger { .erasedSession }
-    }
+        let authorizationObserver = authorizationTask
+        let dataObserver = regionStyleTask
+        authorizationTask = nil
+        regionStyleTask = nil
+        authorizationObserver?.cancel()
+        dataObserver?.cancel()
+        await authorizationObserver?.value
+        await dataObserver?.value
 
-    /// Drives the background-tracking `Toggle`. Reads the live `isTracking`
-    /// state; assigning kicks off the matching async start/stop so the view can
-    /// bind straight to it (`$session.trackingEnabled`) instead of building a
-    /// closure-based `Binding`. `isTracking` stays the single source of truth.
-    public var trackingEnabled: Bool {
-        get { isTracking }
-        set {
-            Task { newValue ? await startTracking() : await stopTracking() }
+        do {
+            try await services.reset()
+        } catch let error as WhereServices.ResetCleanupError {
+            // Synced erasure already committed. Keep the old installation context available to
+            // a later cleanup retry, but never revive this session's observers or recording: the
+            // teardown step must release the scope and App Intents before surfacing the terminal
+            // partial-success state.
+            recordingRuntimeState = .unavailable
+            throw error
+        } catch {
+            // The data transaction rolled back. This session remains valid for an explicit retry,
+            // so restore its live observers along with Core's operation gate.
+            recordingRuntimeState = .unavailable
+            await reconcileTracking()
+            observeAuthorizationChanges()
+            observeRegionStyleChanges()
+            throw error
         }
+        recordingRuntimeState = .unavailable
+        Self.logger { .erasedSession }
     }
 }

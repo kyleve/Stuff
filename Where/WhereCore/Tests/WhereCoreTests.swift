@@ -23,7 +23,7 @@ struct YearReportTests {
     }
 }
 
-struct StorageConfigurationTests {
+struct SwiftDataStoreFactoryTests {
     @Test func make_inMemory_roundTripsASample() async throws {
         let store = try SwiftDataStore.make(storage: .inMemory)
         let sample = LocationSample(
@@ -52,23 +52,29 @@ struct StorageConfigurationTests {
 
 struct SDLocationSampleTests {
     @Test func missingSourceRawReturnsNil() {
-        let record = SDLocationSample(value: LocationSample(
-            timestamp: Date(timeIntervalSince1970: 1_700_000_000),
-            coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
-            horizontalAccuracy: 0,
-            source: .manual,
-        ))
+        let record = SDLocationSample(
+            value: LocationSample(
+                timestamp: Date(timeIntervalSince1970: 1_700_000_000),
+                coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
+                horizontalAccuracy: 0,
+                source: .manual,
+            ),
+            generationID: .initial,
+        )
         record.sourceRaw = nil
         #expect(record.toValue() == nil)
     }
 
     @Test func corruptSourceRawReturnsNil() {
-        let record = SDLocationSample(value: LocationSample(
-            timestamp: Date(timeIntervalSince1970: 1_700_000_000),
-            coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
-            horizontalAccuracy: 0,
-            source: .manual,
-        ))
+        let record = SDLocationSample(
+            value: LocationSample(
+                timestamp: Date(timeIntervalSince1970: 1_700_000_000),
+                coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
+                horizontalAccuracy: 0,
+                source: .manual,
+            ),
+            generationID: .initial,
+        )
         record.sourceRaw = "not-a-real-source"
         #expect(record.toValue() == nil)
     }

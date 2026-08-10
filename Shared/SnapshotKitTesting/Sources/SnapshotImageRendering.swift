@@ -25,8 +25,27 @@ public enum SnapshotSizing: Sendable {
     case fixed
     /// Size to fit the content at a fixed width, measured *after* the content is
     /// in the window and settled (so async `.task` loads are included, not a
-    /// placeholder).
-    case intrinsic(width: CGFloat)
+    /// placeholder), while retaining the requested minimum height.
+    case intrinsic(width: CGFloat, minimumHeight: CGFloat)
+}
+
+/// A capture failure that callers can report without comparing or recording an
+/// invalid image.
+public enum SnapshotRenderingError: Error, Equatable, Sendable {
+    /// Full-content measurement did not reach a stable height within the
+    /// bounded fixed-point pass budget.
+    case intrinsicHeightDidNotConverge(name: String, measuredHeights: [CGFloat])
+}
+
+extension SnapshotRenderingError: LocalizedError {
+    public var errorDescription: String? {
+        switch self {
+            case let .intrinsicHeightDidNotConverge(name, measuredHeights):
+                let heights = measuredHeights.map { String(format: "%.1f", $0) }
+                    .joined(separator: ", ")
+                return "Snapshot \(name) intrinsic height did not converge: \(heights)."
+        }
+    }
 }
 
 /// Renders a view controller to an image on the fixed CI simulator.
@@ -50,6 +69,8 @@ public enum SnapshotSizing: Sendable {
 /// effects are settled again (with the same `settle` mode) so they're committed
 /// in the image. For `.intrinsic` sizing the content is measured *before* the
 /// hook runs, so a hook must not change the content's ideal size.
+/// `measurementReadiness` controls only the settle before intrinsic sizing; it
+/// never shortens the final capture settle.
 ///
 /// `async` is load-bearing, not a convenience: the settle phase must *suspend*
 /// (freeing the main actor) for SwiftUI `.task`-driven content to load — see
@@ -83,15 +104,17 @@ public func renderSnapshotImage(
     sizing: SnapshotSizing = .fixed,
     safeAreaInsets: UIEdgeInsets? = .zero,
     isAccessibility: Bool = false,
+    measurementReadiness: SnapshotMeasurementReadiness = .sameAsCapture,
     settle: SnapshotSettle = .settled,
     onReadyToSnapshot: (@MainActor () async -> Void)? = nil,
-) async -> UIImage {
-    await renderSnapshotCapture(
+) async throws -> UIImage {
+    try await renderSnapshotCapture(
         of: viewController,
         named: name,
         sizing: sizing,
         safeAreaInsets: safeAreaInsets,
         isAccessibility: isAccessibility,
+        measurementReadiness: measurementReadiness,
         settle: settle,
         onReadyToSnapshot: onReadyToSnapshot,
         timing: SnapshotCaptureTiming(identifier: name, isEnabled: false),
@@ -121,17 +144,19 @@ public func renderSnapshotImage(
     sizing: SnapshotSizing,
     safeAreaInsets: UIEdgeInsets?,
     isAccessibility: Bool,
+    measurementReadiness: SnapshotMeasurementReadiness,
     settle: SnapshotSettle,
     onReadyToSnapshot: (@MainActor () async -> Void)?,
     timing: SnapshotCaptureTiming,
-) async -> SnapshotCapture {
-    await SnapshotCaptureLock.withLock {
-        await renderSnapshotImageLocked(
+) async throws -> SnapshotCapture {
+    try await SnapshotCaptureLock.withLock {
+        try await renderSnapshotImageLocked(
             of: viewController,
             named: name,
             sizing: sizing,
             safeAreaInsets: safeAreaInsets,
             isAccessibility: isAccessibility,
+            measurementReadiness: measurementReadiness,
             settle: settle,
             onReadyToSnapshot: onReadyToSnapshot,
             timing: timing,
@@ -149,11 +174,12 @@ private func renderSnapshotImageLocked(
     sizing: SnapshotSizing,
     safeAreaInsets: UIEdgeInsets?,
     isAccessibility: Bool,
+    measurementReadiness: SnapshotMeasurementReadiness,
     settle: SnapshotSettle,
     onReadyToSnapshot: (@MainActor () async -> Void)?,
     timing: SnapshotCaptureTiming,
-) async -> SnapshotCapture {
-    func capture() async -> SnapshotCapture {
+) async throws -> SnapshotCapture {
+    func capture() async throws -> SnapshotCapture {
         // `hostKeyWindow()` is the specific window `StuffTestHost` stamps with
         // `isMainTestHostWindow` — the guaranteed root window we set up, not
         // merely whatever window happens to be key. So this is stable regardless
@@ -179,12 +205,12 @@ private func renderSnapshotImageLocked(
         // surfaces it to SwiftUI as `\.isCapturingSnapshot`.
         viewController.traitOverrides[SnapshotCaptureTrait.self] = true
 
-        await timing.measure(.intrinsicMeasure) {
-            await resolveContentSize(
+        try await timing.measure(.intrinsicMeasure) {
+            try await resolveContentSize(
                 of: viewController,
                 named: name,
                 sizing: sizing,
-                settle: settle,
+                settle: measurementReadiness.resolvedSettle(captureSettle: settle),
                 hostedIn: hostRoot,
                 window: window,
                 timing: timing,
@@ -279,13 +305,26 @@ private func renderSnapshotImageLocked(
     }
 
     if let safeAreaInsets {
-        return await swizzle(
+        return try await swizzle(
             safeAreaInsets: safeAreaInsets,
             for: viewController,
             operation: capture,
         )
     }
-    return await capture()
+    return try await capture()
+}
+
+extension SnapshotMeasurementReadiness {
+    fileprivate func resolvedSettle(captureSettle: SnapshotSettle) -> SnapshotSettle {
+        switch self {
+            case .sameAsCapture:
+                captureSettle
+            case .immediate:
+                .immediate
+            case .settled:
+                .settled
+        }
+    }
 }
 
 /// Adds `child` (sized to its view's current frame) into the appeared host root
@@ -311,7 +350,10 @@ private func removeChildAfterCapture(_ child: UIViewController) {
 /// appearance lifecycle driven (so SwiftUI `.task` loads and finite time-based
 /// reveals run), lets it settle, then measures `sizeThatFits` and pins the frame —
 /// so a content-loading component is sized to its loaded content rather than an
-/// empty placeholder. `.fixed` sizing leaves the frame untouched.
+/// empty placeholder. The result never falls below the requested minimum
+/// height. UIKit-backed SwiftUI containers such as `Form` report their viewport
+/// rather than their ideal height, so a full-width scroll descendant's content
+/// size is used when it is taller. `.fixed` sizing leaves the frame untouched.
 ///
 /// The measurement iterates to a fixed point: a lazy container (`LazyVStack` in
 /// a `ScrollView`) reports an *estimated* content height until its rows
@@ -335,8 +377,8 @@ private func resolveContentSize(
     hostedIn hostRoot: UIViewController,
     window: UIWindow,
     timing: SnapshotCaptureTiming,
-) async {
-    guard case let .intrinsic(width) = sizing else { return }
+) async throws {
+    guard case let .intrinsic(width, minimumHeight) = sizing else { return }
 
     let probeHeight = max(window.bounds.height, 1)
     viewController.view.frame = CGRect(x: 0, y: 0, width: width, height: probeHeight)
@@ -359,16 +401,29 @@ private func resolveContentSize(
         if !measured.height.isFinite || measured.height <= 0 {
             measured.height = 1
         }
+        if let scrollContentHeight = viewController.view.fullScrollContentHeight,
+           scrollContentHeight > measured.height
+        {
+            measured.height = scrollContentHeight
+        }
+        measured.height = max(measured.height, minimumHeight)
         return measured
     }
 
     var measured = measureContent()
+    var measuredHeights = [measured.height]
+    var didConverge = false
     for _ in 0 ..< 10 {
         viewController.view.frame = CGRect(origin: .zero, size: measured)
         probeWrapper.view.frame.size = measured
         CATransaction.performWithoutAnimation(probeWrapper.view.layoutIfNeeded)
         let remeasured = measureContent()
-        if abs(remeasured.height - measured.height) < 0.5 { break }
+        measuredHeights.append(remeasured.height)
+        if abs(remeasured.height - measured.height) < 0.5 {
+            measured = remeasured
+            didConverge = true
+            break
+        }
         measured = remeasured
     }
 
@@ -378,6 +433,44 @@ private func resolveContentSize(
     viewController.removeFromParent()
     removeChildAfterCapture(probeWrapper)
 
+    guard didConverge else {
+        throw SnapshotRenderingError.intrinsicHeightDidNotConverge(
+            name: name,
+            measuredHeights: measuredHeights,
+        )
+    }
+
     viewController.view.frame = CGRect(origin: .zero, size: measured)
     CATransaction.performWithoutAnimation(viewController.view.layoutIfNeeded)
+}
+
+extension UIView {
+    /// The root height required to show a full-width scrolling descendant's
+    /// complete content while preserving the chrome around its viewport.
+    ///
+    /// `Form` and `List` are backed by UIKit scroll views whose hosting view
+    /// answers `sizeThatFits` with only the current viewport. Restricting the
+    /// fallback to full-width scrolling content avoids expanding an intentionally
+    /// narrow nested scroller inside an otherwise intrinsic component.
+    fileprivate var fullScrollContentHeight: CGFloat? {
+        descendants
+            .compactMap { view -> CGFloat? in
+                guard let scrollView = view as? UIScrollView else { return nil }
+                let visibleFrame = scrollView.convert(scrollView.bounds, to: self)
+                guard visibleFrame.width >= bounds.width - 1,
+                      visibleFrame.height > 0,
+                      scrollView.contentSize.height.isFinite,
+                      scrollView.contentSize.height > 0
+                else { return nil }
+                let chromeHeight = max(bounds.height - visibleFrame.height, 0)
+                let insetHeight = scrollView.adjustedContentInset.top
+                    + scrollView.adjustedContentInset.bottom
+                return scrollView.contentSize.height + insetHeight + chromeHeight
+            }
+            .max()
+    }
+
+    private var descendants: [UIView] {
+        subviews + subviews.flatMap(\.descendants)
+    }
 }

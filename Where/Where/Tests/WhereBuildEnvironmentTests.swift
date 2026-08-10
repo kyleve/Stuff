@@ -31,4 +31,15 @@ struct WhereBuildEnvironmentTests {
 
         #expect(environment.storage == .inMemory)
     }
+
+    @Test func cloudKitValidationBuildUsesTheDevelopmentAppGroup() {
+        let environment = WhereBuildEnvironment.current(
+            infoDictionary: infoDictionary,
+            processEnvironment: [:],
+        )
+
+        #expect(environment.storage(forCloudKitValidationBuild: true) == .cloudKit(
+            appGroupIdentifier: "group.com.stuff.where.development",
+        ))
+    }
 }
