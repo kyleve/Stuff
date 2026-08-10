@@ -69,6 +69,8 @@ extension SnapshotRenderingError: LocalizedError {
 /// effects are settled again (with the same `settle` mode) so they're committed
 /// in the image. For `.intrinsic` sizing the content is measured *before* the
 /// hook runs, so a hook must not change the content's ideal size.
+/// `measurementReadiness` controls only the settle before intrinsic sizing; it
+/// never shortens the final capture settle.
 ///
 /// `async` is load-bearing, not a convenience: the settle phase must *suspend*
 /// (freeing the main actor) for SwiftUI `.task`-driven content to load — see
@@ -102,6 +104,7 @@ public func renderSnapshotImage(
     sizing: SnapshotSizing = .fixed,
     safeAreaInsets: UIEdgeInsets? = .zero,
     isAccessibility: Bool = false,
+    measurementReadiness: SnapshotMeasurementReadiness = .sameAsCapture,
     settle: SnapshotSettle = .settled,
     onReadyToSnapshot: (@MainActor () async -> Void)? = nil,
 ) async throws -> UIImage {
@@ -111,6 +114,7 @@ public func renderSnapshotImage(
         sizing: sizing,
         safeAreaInsets: safeAreaInsets,
         isAccessibility: isAccessibility,
+        measurementReadiness: measurementReadiness,
         settle: settle,
         onReadyToSnapshot: onReadyToSnapshot,
         timing: SnapshotCaptureTiming(identifier: name, isEnabled: false),
@@ -140,6 +144,7 @@ public func renderSnapshotImage(
     sizing: SnapshotSizing,
     safeAreaInsets: UIEdgeInsets?,
     isAccessibility: Bool,
+    measurementReadiness: SnapshotMeasurementReadiness,
     settle: SnapshotSettle,
     onReadyToSnapshot: (@MainActor () async -> Void)?,
     timing: SnapshotCaptureTiming,
@@ -151,6 +156,7 @@ public func renderSnapshotImage(
             sizing: sizing,
             safeAreaInsets: safeAreaInsets,
             isAccessibility: isAccessibility,
+            measurementReadiness: measurementReadiness,
             settle: settle,
             onReadyToSnapshot: onReadyToSnapshot,
             timing: timing,
@@ -168,6 +174,7 @@ private func renderSnapshotImageLocked(
     sizing: SnapshotSizing,
     safeAreaInsets: UIEdgeInsets?,
     isAccessibility: Bool,
+    measurementReadiness: SnapshotMeasurementReadiness,
     settle: SnapshotSettle,
     onReadyToSnapshot: (@MainActor () async -> Void)?,
     timing: SnapshotCaptureTiming,
@@ -203,7 +210,7 @@ private func renderSnapshotImageLocked(
                 of: viewController,
                 named: name,
                 sizing: sizing,
-                settle: settle,
+                settle: measurementReadiness.resolvedSettle(captureSettle: settle),
                 hostedIn: hostRoot,
                 window: window,
                 timing: timing,
@@ -305,6 +312,19 @@ private func renderSnapshotImageLocked(
         )
     }
     return try await capture()
+}
+
+extension SnapshotMeasurementReadiness {
+    fileprivate func resolvedSettle(captureSettle: SnapshotSettle) -> SnapshotSettle {
+        switch self {
+            case .sameAsCapture:
+                captureSettle
+            case .immediate:
+                .immediate
+            case .settled:
+                .settled
+        }
+    }
 }
 
 /// Adds `child` (sized to its view's current frame) into the appeared host root

@@ -781,10 +781,11 @@ let project = Project(
         testScheme(name: "WhereCoreTests"),
         testScheme(name: "WhereTests"),
         testScheme(name: "WhereUITests"),
-        // Every image-snapshot bundle, in one scheme, so CI runs them all in
-        // the single `snapshot` job. A new module's image suite gets its own
-        // `*SnapshotTests` target above and joins the lists here — it must not
-        // get a scheme (or CI job) of its own.
+        // Every image-snapshot bundle, in one scheme, so CI can duration-shard
+        // its suites across isolated runners without duplicating schemes. A
+        // new module's image suite gets its own `*SnapshotTests` target above
+        // and joins the lists here — it must not get a scheme (or CI job) of
+        // its own.
         //
         // The environment pins (see `snapshotEnvironment`) are why this scheme
         // exists rather than folding the bundles into `Stuff-iOS-Tests`. They

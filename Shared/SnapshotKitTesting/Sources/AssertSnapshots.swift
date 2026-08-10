@@ -45,6 +45,7 @@ public func assertSnapshots(
             of: snapshotCase.content,
             named: snapshotCase.name,
             configurations: snapshotCase.configurations,
+            measurementReadiness: snapshotCase.measurementReadiness,
             settle: snapshotCase.settle,
             onReadyToSnapshot: snapshotCase.onReadyToSnapshot,
             record: record,
@@ -64,6 +65,7 @@ public func assertSnapshots(
     of view: some View,
     named name: String,
     configurations: [SnapshotConfiguration],
+    measurementReadiness: SnapshotMeasurementReadiness = .sameAsCapture,
     settle: SnapshotSettle = .settled,
     onReadyToSnapshot: (@MainActor () async -> Void)? = nil,
     record: SnapshotTestingConfiguration.Record? = nil,
@@ -125,6 +127,9 @@ public func assertSnapshots(
         let timing = SnapshotCaptureTiming(
             identifier: identifier,
             isEnabled: SnapshotCaptureTiming.isEnabledByEnvironment,
+            sizing: sizing,
+            measurementReadiness: measurementReadiness,
+            captureSettle: settle,
         )
         let capture: SnapshotCapture
         do {
@@ -134,6 +139,7 @@ public func assertSnapshots(
                 sizing: sizing,
                 safeAreaInsets: configuration.device.safeAreaInsets.uiEdgeInsets,
                 isAccessibility: configuration.snapshotType == .accessibility,
+                measurementReadiness: measurementReadiness,
                 settle: settle,
                 onReadyToSnapshot: onReadyToSnapshot,
                 timing: timing,
