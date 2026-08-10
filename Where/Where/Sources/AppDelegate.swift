@@ -1,4 +1,5 @@
 import UIKit
+import WhereCrashReporting
 #if DEBUG
     import Inspector
 #endif
@@ -8,8 +9,18 @@ import UIKit
 @MainActor
 final class AppDelegate: NSObject, UIApplicationDelegate {
     let runtime: any WhereApplicationRuntime
+    private let crashReporters: [any WhereCrashReporting]
 
     override init() {
+        crashReporters = [
+            SentryCrashReporter(
+                dsn: "https://b6d0c35a9bf66d188439e9a6e2022733@o4511883510677504.ingest.us.sentry.io/4511883519983616",
+                debug: Self.sentryDebugLoggingEnabled,
+            ),
+            BitdriftCrashReporter(
+                apiKey: "GiBBMbsJNDqIM9c5450IEHoYFLt025SQo5kN2Vj6evk3GyILRVl1MWRBWUFLcGso9Qw=",
+            ),
+        ]
         #if DEBUG
             guard let applicationIdentifier = Bundle.main.bundleIdentifier else {
                 preconditionFailure("Where has no bundle identifier")
@@ -35,6 +46,16 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
 
     init(runtime: any WhereApplicationRuntime) {
         self.runtime = runtime
+        crashReporters = []
+        super.init()
+    }
+
+    init(
+        runtime: any WhereApplicationRuntime,
+        crashReporters: [any WhereCrashReporting],
+    ) {
+        self.runtime = runtime
+        self.crashReporters = crashReporters
         super.init()
     }
 
@@ -60,6 +81,17 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         _ application: UIApplication,
         didFinishLaunchingWithOptions options: [UIApplication.LaunchOptionsKey: Any]? = nil,
     ) -> Bool {
-        runtime.didFinishLaunching(application: application, options: options)
+        for crashReporter in crashReporters {
+            crashReporter.start()
+        }
+        return runtime.didFinishLaunching(application: application, options: options)
+    }
+
+    private static var sentryDebugLoggingEnabled: Bool {
+        #if DEBUG
+            true
+        #else
+            false
+        #endif
     }
 }
