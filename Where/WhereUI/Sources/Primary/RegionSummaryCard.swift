@@ -55,9 +55,10 @@ struct RegionSummaryCard: View {
     /// restart projection only when the underlying point content changes.
     var recordedPointsID: PrimaryRegionLocations.ID?
 
-    /// Loaded once per regular card from the root-owned UI path cache. The large
-    /// watermark uses medium fidelity, the stamp uses small, and the repeated
-    /// border uses micro.
+    /// Loaded from the root-owned UI path cache. The large watermark uses
+    /// medium fidelity, the stamp uses small, and the repeated border uses
+    /// micro. Point-only refreshes retain the previous value until its updated
+    /// constellation is ready, so the static artwork never blinks out.
     @State private var regionPaths: RegionArtworkPaths?
 
     @Environment(\.stylesheet) private var stylesheet
@@ -184,7 +185,9 @@ struct RegionSummaryCard: View {
                     path: regionPath,
                     tint: tint,
                     style: regionShape.watermark,
-                    constellationPoints: regionPaths?.constellation ?? [],
+                    constellationPoints: showsRecordedPoints
+                        ? regionPaths?.constellation ?? []
+                        : [],
                     constellationStyle: cardStyles.constellation,
                 )
             } else {
@@ -203,7 +206,10 @@ struct RegionSummaryCard: View {
     }
 
     private func loadRegionOutlines() async {
-        regionPaths = nil
+        let staticArtworkID = regionArtworkLoadID.staticArtworkID
+        if regionPaths?.staticArtworkID != staticArtworkID {
+            regionPaths = nil
+        }
         guard card.regionShape != nil, let regionOutlinePathCache else { return }
         async let watermark = regionOutlinePathCache.path(
             for: regionDays.region,
@@ -231,6 +237,7 @@ struct RegionSummaryCard: View {
         guard Task.isCancelled == false else { return }
         let constellation = cardStyles.constellation
         let loaded = RegionArtworkPaths(
+            staticArtworkID: staticArtworkID,
             watermark: watermarkPath,
             stamp: stampPath,
             microprint: microprintPath,
@@ -347,11 +354,25 @@ struct RegionSummaryCard: View {
 /// Restarts cached artwork loading when a designer changes the outline treatment
 /// or the user changes GPS-dot visibility without changing the card's region.
 struct RegionArtworkLoadID: Equatable {
+    struct StaticArtworkID: Equatable {
+        let region: Region
+        let variant: WhereStylesheet.CardStyle.Variant
+        let isEnabled: Bool
+    }
+
     let region: Region
     let variant: WhereStylesheet.CardStyle.Variant
     let isEnabled: Bool
     let showsRecordedPoints: Bool
     let recordedPointsID: PrimaryRegionLocations.ID?
+
+    var staticArtworkID: StaticArtworkID {
+        StaticArtworkID(
+            region: region,
+            variant: variant,
+            isEnabled: isEnabled,
+        )
+    }
 }
 
 /// A circular rubber-stamp impression — double ring, centered region glyph and
@@ -424,8 +445,9 @@ private struct EntryStamp: View {
     }
 }
 
-/// The three cached render artifacts a regular card consumes together.
+/// The cached render artifacts a regular card consumes together.
 private struct RegionArtworkPaths {
+    let staticArtworkID: RegionArtworkLoadID.StaticArtworkID
     let watermark: Path
     let stamp: Path
     let microprint: Path
