@@ -89,13 +89,30 @@ public struct WhereInstallService: Sendable {
             return 0
         }
 
-        let team = try await runner.run(
+        let teamLookup = try await runner.run(
             CommandInvocation(
                 executable: "mise",
-                arguments: ["exec", "--", "printenv", "TUIST_DEVELOPMENT_TEAM"],
+                arguments: [
+                    "exec",
+                    "--",
+                    "sh",
+                    "-c",
+                    #"printf "%s" "${TUIST_DEVELOPMENT_TEAM:-}""#,
+                ],
                 workingDirectory: repository,
             ),
-        ).standardOutputText.trimmingCharacters(in: .whitespacesAndNewlines)
+            outputHandler: { stream, bytes in
+                if stream == .standardError {
+                    try await terminal.write(bytes, to: .standardError)
+                }
+            },
+        )
+        guard teamLookup.succeeded else {
+            throw WhereInstallFailure.exitCode(teamLookup.exitCode)
+        }
+        let team = teamLookup.standardOutputText.trimmingCharacters(
+            in: .whitespacesAndNewlines,
+        )
         guard team.isEmpty == false else {
             throw WhereInstallFailure.message("""
             no Apple Developer team configured — a device build can't be signed.
@@ -178,9 +195,11 @@ public struct WhereInstallService: Sendable {
                 "Make sure \"\(selected.name)\" is unlocked and trusts this Mac.\n",
                 to: .standardOutput,
             )
-            _ = try await terminal.readLine(
+            guard try await terminal.readLine(
                 prompt: "Press Enter to install, or Ctrl-C to cancel... ",
-            )
+            ) != nil else {
+                throw WhereInstallFailure.exitCode(1)
+            }
         }
 
         try await terminal.write("==> installing to device\n", to: .standardOutput)
