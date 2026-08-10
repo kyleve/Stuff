@@ -1,0 +1,8 @@
+{
+  "devices": {
+    "com.apple.CoreSimulator.SimRuntime.iOS-27-0": [
+      {"name":"iPhone 17","udid":"FIRST","state":"Shutdown"},
+      {"name":"iPhone 17","udid":"SECOND","state":"Booted"}
+    ]
+  }
+}

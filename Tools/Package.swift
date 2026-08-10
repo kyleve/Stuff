@@ -40,6 +40,7 @@ let package = Package(
             name: "StuffToolCoreTests",
             dependencies: ["StuffToolCore"],
             path: "SwiftTests/StuffToolCoreTests",
+            resources: [.copy("Fixtures")],
         ),
     ],
 )

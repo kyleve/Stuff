@@ -6,8 +6,8 @@ description: Runs the test suite via ./test, picks the right tier, and manages t
 How to run tests in this repo. Read root [`AGENTS.md`](../../../AGENTS.md) for
 always-on rules: **use [`./test`](../../../test)** — never hand-roll `tuist test`
 or `xcodebuild`; validate in proportion to the change.
-Canonical flag list: `./test --help`. Rationale for `./test` over alternatives:
-header comment in [`test`](../../../test).
+Canonical flag list: `./test --help`. The raw-xcodebuild rationale and affected
+bundle graph are documented in [`Tools/README.md`](../../../Tools/README.md).
 
 ## Documentation-only changes
 

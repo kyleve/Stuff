@@ -4,16 +4,7 @@ import Testing
 
 struct SimulatorModelsTests {
     @Test func decodesDevicesAndSelectsTheFirstAmbiguousMatch() throws {
-        let data = Data("""
-        {
-          "devices": {
-            "com.apple.CoreSimulator.SimRuntime.iOS-27-0": [
-              {"name":"iPhone 17","udid":"FIRST","state":"Shutdown"},
-              {"name":"iPhone 17","udid":"SECOND","state":"Booted"}
-            ]
-          }
-        }
-        """.utf8)
+        let data = try fixtureData("simctl-devices", extension: "json")
 
         let list = try JSONDecoder().decode(SimctlDeviceList.self, from: data)
         let matches = list.devices(

@@ -1,0 +1,10 @@
+{
+  "testNodes": [{
+    "nodeType":"Unit test bundle","name":"WhereCoreTests","children":[{
+      "nodeType":"Test Suite","name":"CalendarDayTests","children":[
+        {"nodeType":"Test Case","name":"works()","result":"Passed"},
+        {"nodeType":"Test Case","name":"fails()","result":"Failed"}
+      ]
+    }]
+  }]
+}

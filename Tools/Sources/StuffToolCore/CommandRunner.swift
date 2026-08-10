@@ -32,6 +32,8 @@ public struct CommandInvocation: Equatable, Sendable {
     public let environment: [String: String]
     public let workingDirectory: URL?
     public let standardInput: [UInt8]
+    public let captureOutput: Bool
+    public let mergeStandardError: Bool
 
     public init(
         executable: String,
@@ -39,12 +41,16 @@ public struct CommandInvocation: Equatable, Sendable {
         environment: [String: String] = [:],
         workingDirectory: URL? = nil,
         standardInput: [UInt8] = [],
+        captureOutput: Bool = true,
+        mergeStandardError: Bool = false,
     ) {
         self.executable = executable
         self.arguments = arguments
         self.environment = environment
         self.workingDirectory = workingDirectory
         self.standardInput = standardInput
+        self.captureOutput = captureOutput
+        self.mergeStandardError = mergeStandardError
     }
 }
 
@@ -70,6 +76,14 @@ public struct CommandRunner: CommandRunning {
         let platformOptions = configuredPlatformOptions
         let teardownSequence = platformOptions.teardownSequence
         let capturedOutput = CapturedCommandOutput()
+        if invocation.mergeStandardError {
+            return try await runCombined(
+                invocation,
+                environment: environment,
+                platformOptions: platformOptions,
+                outputHandler: outputHandler,
+            )
+        }
         let result = try await Subprocess.run(
             .name(invocation.executable),
             arguments: Arguments(invocation.arguments),
@@ -88,7 +102,9 @@ public struct CommandRunner: CommandRunning {
                         group.addTask {
                             for try await buffer in execution.standardOutput {
                                 let bytes = buffer.withUnsafeBytes { Array($0) }
-                                await capturedOutput.append(bytes, to: .standardOutput)
+                                if invocation.captureOutput {
+                                    await capturedOutput.append(bytes, to: .standardOutput)
+                                }
                                 do {
                                     try await outputHandler?(.standardOutput, bytes)
                                 } catch {
@@ -100,7 +116,9 @@ public struct CommandRunner: CommandRunning {
                         group.addTask {
                             for try await buffer in execution.standardError {
                                 let bytes = buffer.withUnsafeBytes { Array($0) }
-                                await capturedOutput.append(bytes, to: .standardError)
+                                if invocation.captureOutput {
+                                    await capturedOutput.append(bytes, to: .standardError)
+                                }
                                 do {
                                     try await outputHandler?(.standardError, bytes)
                                 } catch {
@@ -129,6 +147,59 @@ public struct CommandRunner: CommandRunning {
             terminationStatus: result.terminationStatus,
             standardOutput: output.standardOutput,
             standardError: output.standardError,
+        )
+    }
+
+    private func runCombined(
+        _ invocation: CommandInvocation,
+        environment: [Environment.Key: String?],
+        platformOptions: PlatformOptions,
+        outputHandler: CommandOutputHandler?,
+    ) async throws -> CommandResult {
+        let teardownSequence = platformOptions.teardownSequence
+        let capturedOutput = CapturedCommandOutput()
+        let result = try await Subprocess.run(
+            .name(invocation.executable),
+            arguments: Arguments(invocation.arguments),
+            environment: invocation.environment.isEmpty
+                ? .inherit
+                : .inherit.updating(environment),
+            workingDirectory: invocation.workingDirectory.map { .init($0.path) },
+            platformOptions: platformOptions,
+            input: .array(invocation.standardInput),
+            output: .sequence,
+            error: .combinedWithOutput,
+        ) { execution in
+            do {
+                try await withTaskCancellationHandler {
+                    for try await buffer in execution.standardOutput {
+                        let bytes = buffer.withUnsafeBytes { Array($0) }
+                        if invocation.captureOutput {
+                            await capturedOutput.append(bytes, to: .standardOutput)
+                        }
+                        do {
+                            try await outputHandler?(.standardOutput, bytes)
+                        } catch {
+                            await execution.teardown(using: [])
+                            throw error
+                        }
+                    }
+                } onCancel: {
+                    Task {
+                        await execution.teardown(using: teardownSequence)
+                    }
+                }
+            } catch {
+                await execution.teardown(using: [])
+                throw error
+            }
+        }
+        try Task.checkCancellation()
+        let output = await capturedOutput.value
+        return CommandResult(
+            terminationStatus: result.terminationStatus,
+            standardOutput: output.standardOutput,
+            standardError: [],
         )
     }
 }

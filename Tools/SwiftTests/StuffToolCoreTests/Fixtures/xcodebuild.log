@@ -1,0 +1,8 @@
+◇ Test run started.
+◇ Suite ExampleSuite started.
+◇ Test first() started.
+SNAPSHOT_TIMING {"id":"one"}
+✔ Test first() passed after 0.1 seconds.
+◇ Test second() started.
+✘ Test second() failed after 0.1 seconds with 1 issue.
+** TEST FAILED **

@@ -1,0 +1,10 @@
+{
+  "products": [
+    {"name":"Core","targets":["Core"]},
+    {"name":"UI","targets":["UI"]}
+  ],
+  "targets": [
+    {"name":"Core","path":"Core/Sources","dependencies":[]},
+    {"name":"UI","path":"UI/Sources","dependencies":[{"target":["Core",null]}]}
+  ]
+}

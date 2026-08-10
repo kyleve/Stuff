@@ -1,6 +1,7 @@
 import Foundation
 import StuffToolCore
 import Subprocess
+import Testing
 
 actor FakeCommandRunner: CommandRunning {
     private var responses: [CommandResult]
@@ -62,6 +63,10 @@ actor MemoryTerminal: Terminal {
         }
     }
 
+    func isInteractive() -> Bool {
+        false
+    }
+
     var standardOutputText: String {
         String(decoding: standardOutput, as: UTF8.self)
     }
@@ -73,9 +78,16 @@ actor MemoryTerminal: Terminal {
 
 actor ImmediateClock: ToolClock {
     private(set) var sleeps: [Duration] = []
+    private var time: TimeInterval = 0
 
     func sleep(for duration: Duration) {
         sleeps.append(duration)
+        let components = duration.components
+        time += Double(components.seconds) + Double(components.attoseconds) / 1e18
+    }
+
+    func now() -> TimeInterval {
+        time
     }
 }
 
@@ -96,4 +108,15 @@ func makeTemporaryDirectory() throws -> URL {
 
 func removeTemporaryDirectory(_ directory: URL) {
     try? FileManager.default.removeItem(at: directory)
+}
+
+func fixtureData(_ name: String, extension fileExtension: String) throws -> Data {
+    let url = try #require(
+        Bundle.module.url(
+            forResource: name,
+            withExtension: fileExtension,
+            subdirectory: "Fixtures",
+        ),
+    )
+    return try Data(contentsOf: url)
 }

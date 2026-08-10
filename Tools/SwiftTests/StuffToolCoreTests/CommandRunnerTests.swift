@@ -45,6 +45,38 @@ struct CommandRunnerTests {
         #expect(result.standardOutput == [255])
     }
 
+    @Test func mergesStreamsInChildWriteOrderWithoutRetainingOutput() async throws {
+        let recorder = OutputRecorder()
+        let result = try await CommandRunner().run(
+            CommandInvocation(
+                executable: "/bin/sh",
+                arguments: ["-c", "printf out; printf err >&2; printf end"],
+                captureOutput: false,
+                mergeStandardError: true,
+            ),
+            outputHandler: { stream, bytes in
+                await recorder.record(stream, bytes: bytes)
+            },
+        )
+
+        #expect(result.succeeded)
+        #expect(result.standardOutput.isEmpty)
+        #expect(result.standardError.isEmpty)
+        #expect(await String(decoding: recorder.standardOutput, as: UTF8.self) == "outerrend")
+    }
+
+    @Test func reportsChildSignals() async throws {
+        let result = try await CommandRunner().run(
+            CommandInvocation(
+                executable: "/bin/sh",
+                arguments: ["-c", "kill -TERM $$"],
+            ),
+        )
+
+        #expect(result.terminationStatus == .signaled(15))
+        #expect(result.exitCode == 143)
+    }
+
     @Test func outputHandlerFailureTerminatesTheChild() async {
         do {
             _ = try await CommandRunner().run(

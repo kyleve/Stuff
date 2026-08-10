@@ -21,6 +21,16 @@ public struct CommandResult: Equatable, Sendable {
         terminationStatus.isSuccess
     }
 
+    /// The shell-compatible status used by the public compatibility shims.
+    public var exitCode: Int32 {
+        switch terminationStatus {
+            case let .exited(code):
+                code
+            case let .signaled(signal):
+                128 + signal
+        }
+    }
+
     public var standardOutputText: String {
         String(decoding: standardOutput, as: UTF8.self)
     }

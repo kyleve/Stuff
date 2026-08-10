@@ -1,0 +1,44 @@
+{
+  "projects": [
+    "/repo",
+    {
+      "schemes": [
+        {
+          "name": "Stuff-iOS-Tests",
+          "testAction": {
+            "targets": [
+              {"target":{"name":"CoreTests"}},
+              {"target":{"name":"CatalogTests"}}
+            ]
+          }
+        },
+        {
+          "name": "StuffSnapshotTests",
+          "testAction": {
+            "targets": [
+              {"target":{"name":"UISnapshotTests"}}
+            ]
+          }
+        }
+      ],
+      "targets": {
+        "CoreTests": {
+          "dependencies": [{"package":{"product":"Core"}}],
+          "sources": [{"path":"/repo/Core/Tests/CoreTests.swift"}]
+        },
+        "UISnapshotTests": {
+          "dependencies": [{"package":{"product":"UI"}}],
+          "sources": [{"path":"/repo/UI/SnapshotTests/UISnapshotTests.swift"}]
+        },
+        "CatalogTests": {
+          "dependencies": [{"target":{"name":"Catalog"}}],
+          "sources": [{"path":"/repo/App/Tests/CatalogTests.swift"}]
+        },
+        "Catalog": {
+          "dependencies": [{"package":{"product":"UI"}}],
+          "sources": [{"path":"/repo/App/Sources/App.swift"}]
+        }
+      }
+    }
+  ]
+}

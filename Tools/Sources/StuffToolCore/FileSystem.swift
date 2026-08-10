@@ -13,6 +13,7 @@ public protocol FileSystem: Sendable {
     func removeItem(at url: URL) throws
     func read(_ url: URL) throws -> Data
     func write(_ data: Data, to url: URL, atomically: Bool) throws
+    func setPosixPermissions(_ permissions: Int, at url: URL) throws
 }
 
 public struct FoundationFileSystem: FileSystem {
@@ -53,5 +54,12 @@ public struct FoundationFileSystem: FileSystem {
 
     public func write(_ data: Data, to url: URL, atomically: Bool) throws {
         try data.write(to: url, options: atomically ? .atomic : [])
+    }
+
+    public func setPosixPermissions(_ permissions: Int, at url: URL) throws {
+        try FileManager.default.setAttributes(
+            [.posixPermissions: permissions],
+            ofItemAtPath: url.path,
+        )
     }
 }

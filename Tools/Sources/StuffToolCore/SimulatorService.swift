@@ -1,6 +1,10 @@
 import CryptoKit
 import Foundation
 
+public protocol SimulatorResolving: Sendable {
+    func resolve(device: String, os: String, shared: Bool) async throws -> String
+}
+
 public enum SimulatorMode: String, Equatable, Sendable {
     case resolve
     case list
@@ -87,7 +91,8 @@ public struct SimulatorService: Sendable {
         self.processID = processID
     }
 
-    public func run(_ request: SimulatorRequest) async throws {
+    @discardableResult
+    public func run(_ request: SimulatorRequest) async throws -> String? {
         try validate(request)
         let checkout = try await checkoutURL()
         let identity = makeIdentity(request: request, checkout: checkout)
@@ -102,15 +107,18 @@ public struct SimulatorService: Sendable {
         switch request.mode {
             case .list:
                 try await list(registry: registry)
+                return nil
             case .prune:
                 try await prune(registry: registry, dryRun: request.dryRun)
+                return nil
             case .delete:
-                try await withLock(identity: identity) { _ in
+                return try await withLock(identity: identity) { _ in
                     try await deleteOwned(
                         identity: identity,
                         registry: registry,
                         dryRun: request.dryRun,
                     )
+                    return nil
                 }
             case .recreate:
                 if request.dryRun {
@@ -119,11 +127,11 @@ public struct SimulatorService: Sendable {
                         "==> Would create and \(request.boot ? "boot" : "resolve") \(identity.ownedName)\n",
                         to: .standardError,
                     )
-                    return
+                    return nil
                 }
-                try await withLock(identity: identity) { lock in
+                return try await withLock(identity: identity) { lock in
                     try await deleteOwned(identity: identity, registry: registry, dryRun: false)
-                    try await resolveOwned(
+                    return try await resolveOwned(
                         request: request,
                         identity: identity,
                         registry: registry,
@@ -132,9 +140,9 @@ public struct SimulatorService: Sendable {
                 }
             case .resolve:
                 if request.shared {
-                    try await resolveShared(request: request, identity: identity)
+                    return try await resolveShared(request: request, identity: identity)
                 } else {
-                    try await withLock(identity: identity) { lock in
+                    return try await withLock(identity: identity) { lock in
                         try await resolveOwned(
                             request: request,
                             identity: identity,
@@ -219,8 +227,8 @@ public struct SimulatorService: Sendable {
 
     private func withLock(
         identity: Identity,
-        operation: (inout DirectoryLock) async throws -> Void,
-    ) async throws {
+        operation: (inout DirectoryLock) async throws -> String?,
+    ) async throws -> String? {
         var lock = DirectoryLock(
             directory: temporaryDirectory.appending(
                 path: "stuff-simulator-\(identity.hash).lock",
@@ -236,15 +244,19 @@ public struct SimulatorService: Sendable {
         )
         try await lock.acquire()
         do {
-            try await operation(&lock)
+            let result = try await operation(&lock)
             try lock.release()
+            return result
         } catch {
             try? lock.release()
             throw error
         }
     }
 
-    private func resolveShared(request: SimulatorRequest, identity: Identity) async throws {
+    private func resolveShared(
+        request: SimulatorRequest,
+        identity: Identity,
+    ) async throws -> String {
         let devices = try await deviceList(availableOnly: true)
             .devices(runtime: identity.runtimeKey, named: request.device)
         guard case let .selected(udid, ambiguousCount) = SimulatorSelection.select(devices) else {
@@ -256,7 +268,7 @@ public struct SimulatorService: Sendable {
             try await runDiagnostic(["simctl", "list", "devices", "available"])
             throw SimulatorFailure.reported
         }
-        try await finishResolution(
+        return try await finishResolution(
             request: request,
             name: request.device,
             udid: udid,
@@ -269,7 +281,7 @@ public struct SimulatorService: Sendable {
         identity: Identity,
         registry: SimulatorRegistry,
         lock: inout DirectoryLock,
-    ) async throws {
+    ) async throws -> String {
         let devices = try await deviceList(availableOnly: true)
             .devices(runtime: identity.runtimeKey, named: identity.ownedName)
         let selection: SimulatorSelection = if devices.isEmpty {
@@ -291,7 +303,7 @@ public struct SimulatorService: Sendable {
             os: request.os,
         )
         try lock.release()
-        try await finishResolution(
+        return try await finishResolution(
             request: request,
             name: identity.ownedName,
             udid: udid,
@@ -304,7 +316,7 @@ public struct SimulatorService: Sendable {
         name: String,
         udid: String,
         ambiguousCount: Int,
-    ) async throws {
+    ) async throws -> String {
         if ambiguousCount > 1 {
             try await terminal.write(
                 "warning: several '\(name)' devices on iOS \(request.os); using \(udid)\n",
@@ -319,6 +331,7 @@ public struct SimulatorService: Sendable {
             try await runStreamingToStandardError(["simctl", "bootstatus", udid, "-b"])
         }
         try await terminal.write("\(udid)\n", to: .standardOutput)
+        return udid
     }
 
     private func createDevice(
@@ -604,5 +617,23 @@ public struct SimulatorService: Sendable {
             },
         )
         guard result.succeeded else { throw SimulatorFailure.reported }
+    }
+}
+
+extension SimulatorService: SimulatorResolving {
+    public func resolve(device: String, os: String, shared: Bool) async throws -> String {
+        guard let udid = try await run(
+            SimulatorRequest(
+                device: device,
+                os: os,
+                boot: true,
+                shared: shared,
+                dryRun: false,
+                mode: .resolve,
+            ),
+        ) else {
+            throw SimulatorFailure.message("simulator resolution returned no UDID")
+        }
+        return udid
     }
 }

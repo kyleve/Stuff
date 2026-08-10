@@ -63,7 +63,7 @@ public struct SimulatorCommand: AsyncParsableCommand {
                 temporaryDirectory: FileManager.default.temporaryDirectory,
                 processID: getpid(),
             )
-            try await service.run(
+            _ = try await service.run(
                 SimulatorRequest(
                     device: device,
                     os: os,
