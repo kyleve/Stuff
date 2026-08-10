@@ -3911,17 +3911,6 @@
         }
       }
     },
-    "primary.recentActivity" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Recent activity"
-          }
-        }
-      }
-    },
     "primary.timeline" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3929,292 +3918,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Timeline"
-          }
-        }
-      }
-    },
-    "recentActivity.empty.description.day" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No locations were recorded in the last 24 hours."
-          }
-        }
-      }
-    },
-    "recentActivity.empty.description.month" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No locations were recorded in the past month."
-          }
-        }
-      }
-    },
-    "recentActivity.empty.description.week" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No locations were recorded in the past week."
-          }
-        }
-      }
-    },
-    "recentActivity.empty.description.yearToDate" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No locations were recorded so far this year."
-          }
-        }
-      }
-    },
-    "recentActivity.empty.title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nothing tracked"
-          }
-        }
-      }
-    },
-    "recentActivity.failed.title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Couldn't summarize"
-          }
-        }
-      }
-    },
-    "recentActivity.footer.day" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "An on-device summary of where you've been in the last 24 hours. Your location never leaves your device."
-          }
-        }
-      }
-    },
-    "recentActivity.footer.month" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "An on-device summary of where you've been over the past month. Your location never leaves your device."
-          }
-        }
-      }
-    },
-    "recentActivity.footer.week" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "An on-device summary of where you've been over the past week. Your location never leaves your device."
-          }
-        }
-      }
-    },
-    "recentActivity.footer.yearToDate" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "An on-device summary of where you've been so far this year. Your location never leaves your device."
-          }
-        }
-      }
-    },
-    "recentActivity.loading" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Summarizing…"
-          }
-        }
-      }
-    },
-    "recentActivity.refresh" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Refresh"
-          }
-        }
-      }
-    },
-    "recentActivity.title.day" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Last 24 hours"
-          }
-        }
-      }
-    },
-    "recentActivity.title.month" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Past month"
-          }
-        }
-      }
-    },
-    "recentActivity.title.week" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Past week"
-          }
-        }
-      }
-    },
-    "recentActivity.title.yearToDate" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Year so far"
-          }
-        }
-      }
-    },
-    "recentActivity.unavailable.appleIntelligenceNotEnabled" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Turn on Apple Intelligence in Settings to generate summaries."
-          }
-        }
-      }
-    },
-    "recentActivity.unavailable.deviceNotEligible" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This device doesn't support on-device summaries."
-          }
-        }
-      }
-    },
-    "recentActivity.unavailable.modelNotReady" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The on-device model is still getting ready. Try again shortly."
-          }
-        }
-      }
-    },
-    "recentActivity.unavailable.title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Summaries unavailable"
-          }
-        }
-      }
-    },
-    "recentActivity.unavailable.unknown" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "On-device summaries aren't available right now."
-          }
-        }
-      }
-    },
-    "recentActivity.window.day" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "24 Hours"
-          }
-        }
-      }
-    },
-    "recentActivity.window.month" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Month"
-          }
-        }
-      }
-    },
-    "recentActivity.window.pickerLabel" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Summary range"
-          }
-        }
-      }
-    },
-    "recentActivity.window.week" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Week"
-          }
-        }
-      }
-    },
-    "recentActivity.window.yearToDate" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Year"
           }
         }
       }
@@ -6286,40 +5989,6 @@
         }
       }
     },
-    "settings.explore.insights.activity.generic" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Turn your recent location history into a concise narrative of where you’ve been."
-          }
-        }
-      }
-    },
-    "settings.explore.insights.activity.personalized" : {
-      "comment" : "Activity preview using real data. Arguments are the logged-day count and localized region list.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Your latest %1$lld logged days include %2$@."
-          }
-        }
-      }
-    },
-    "settings.explore.insights.activity.title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Recent Activity Summary"
-          }
-        }
-      }
-    },
     "settings.explore.insights.allClear" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6359,7 +6028,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Recent Activity runs only when you ask. Where surfaces Resolve when it finds a gap, drift, abrupt change, or flight-day anomaly."
+            "value" : "Where surfaces Resolve when it finds a gap, drift, abrupt change, or flight-day anomaly."
           }
         }
       }
@@ -6383,28 +6052,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Missing days"
-          }
-        }
-      }
-    },
-    "settings.explore.insights.onDevice" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Generated privately on this device"
-          }
-        }
-      }
-    },
-    "settings.explore.insights.openActivity" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Open Recent Activity"
           }
         }
       }
@@ -6437,7 +6084,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "See the story in your travels—and catch gaps before they become questions."
+            "value" : "Catch gaps, drift, and other issues before they affect your records."
           }
         }
       }
@@ -6807,17 +6454,6 @@
         }
       }
     },
-    "settings.explore.siri.personalized.recent.response" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Your past week includes %@."
-          }
-        }
-      }
-    },
     "settings.explore.siri.personalized.today.response.empty" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6836,39 +6472,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Today counts for %@."
-          }
-        }
-      }
-    },
-    "settings.explore.siri.recent.request" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Summarize where I’ve been this week."
-          }
-        }
-      }
-    },
-    "settings.explore.siri.recent.response" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "You spent most of the week in California, with a trip to New York."
-          }
-        }
-      }
-    },
-    "settings.explore.siri.recent.title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Recent Activity"
           }
         }
       }
@@ -7368,7 +6971,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "AI, Apple Intelligence, summary, recent activity, issue, resolve, missing day, drift, border, flight, accuracy"
+            "value" : "issue, resolve, missing day, drift, border, flight, accuracy"
           }
         }
       }

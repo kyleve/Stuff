@@ -258,7 +258,6 @@ struct SettingsView: View {
                 InsightsAccuracyFeaturesView(
                     report: report,
                     focus: route.focus,
-                    presentation: featureDiscoveryPresentation,
                 )
             case .personalization:
                 PersonalizationFeaturesView(report: report, focus: route.focus)

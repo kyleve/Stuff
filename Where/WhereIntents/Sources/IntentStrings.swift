@@ -44,33 +44,6 @@ enum IntentStrings {
         return String(localized: .dialogTodaySome(regionList(regions)))
     }
 
-    // MARK: Recent activity
-
-    static func recentActivity(
-        _ summary: RecentActivitySummary,
-        window: RecentActivityWindow,
-    ) -> String {
-        switch summary {
-            case let .summary(text):
-                text
-            case .empty:
-                String(localized: .dialogRecentActivityEmpty(windowPhrase(window)))
-        }
-    }
-
-    static func recentActivityUnavailable(_ reason: ActivitySummaryUnavailableReason) -> String {
-        switch reason {
-            case .deviceNotEligible:
-                String(localized: .dialogRecentActivityUnavailableDeviceNotEligible)
-            case .appleIntelligenceNotEnabled:
-                String(localized: .dialogRecentActivityUnavailableAppleIntelligenceNotEnabled)
-            case .modelNotReady:
-                String(localized: .dialogRecentActivityUnavailableModelNotReady)
-            case .unknown:
-                String(localized: .dialogRecentActivityUnavailableUnknown)
-        }
-    }
-
     // MARK: Logging (action intents)
 
     /// The note stamped on a manual entry made from an intent. Persisted with
@@ -117,17 +90,6 @@ enum IntentStrings {
         Region.inCanonicalOrder(regions)
             .map(\.localizedName)
             .formatted(.list(type: .and))
-    }
-
-    /// A natural-language phrase for a recent-activity window, for the empty
-    /// dialog ("Nothing was tracked in the past week.").
-    private static func windowPhrase(_ window: RecentActivityWindow) -> String {
-        switch window {
-            case .day: String(localized: .dialogWindowDay)
-            case .week: String(localized: .dialogWindowWeek)
-            case .month: String(localized: .dialogWindowMonth)
-            case .yearToDate: String(localized: .dialogWindowYearToDate)
-        }
     }
 
     /// Year without a grouping separator ("2026", not "2,026") — matching how
