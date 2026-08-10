@@ -1,5 +1,5 @@
 {
-  "originHash" : "1114ac3bd4db908c306567871898f863cc6a94df920ef638ca7ac2da7d98a89c",
+  "originHash" : "434317bff5c30f26405c7c079b864a7846ad67b3f96dd2d0366c4154d7c44f22",
   "pins" : [
     {
       "identity" : "accessibilitysnapshot",
@@ -17,6 +17,24 @@
       "state" : {
         "branch" : "main",
         "revision" : "8a0725ff6aa86727745c1547abfbc2930b3f08dc"
+      }
+    },
+    {
+      "identity" : "capture-ios",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/bitdriftlabs/capture-ios.git",
+      "state" : {
+        "revision" : "9fabf517a561196223265a29036f0d33feb614bc",
+        "version" : "0.23.11"
+      }
+    },
+    {
+      "identity" : "cocoalumberjack",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/CocoaLumberjack/CocoaLumberjack.git",
+      "state" : {
+        "revision" : "c5f2ed4d219866117e135cf648180dc7b66739d3",
+        "version" : "3.9.1"
       }
     },
     {
@@ -47,6 +65,15 @@
       }
     },
     {
+      "identity" : "swift-log",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-log",
+      "state" : {
+        "revision" : "3ffafb9722d5d918c614feb496c8789a3b59d222",
+        "version" : "1.15.0"
+      }
+    },
+    {
       "identity" : "swift-snapshot-testing",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/pointfreeco/swift-snapshot-testing",
@@ -62,6 +89,15 @@
       "state" : {
         "revision" : "79e4b74a295b6eb74a8b585e3a39d29e70c1dbd1",
         "version" : "603.0.2"
+      }
+    },
+    {
+      "identity" : "swiftybeaver",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/SwiftyBeaver/SwiftyBeaver.git",
+      "state" : {
+        "revision" : "8cba041db09596183331d123f337d0eb2e6e8e91",
+        "version" : "2.1.1"
       }
     },
     {

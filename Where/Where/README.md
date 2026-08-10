@@ -19,7 +19,7 @@ target, see [`AGENTS.md`](AGENTS.md).
 | File | Role |
 |------|------|
 | `Sources/WhereApp.swift` | `@main` `App`. One `WindowGroup` rendering the selected runtime's type-erased root. |
-| `Sources/AppDelegate.swift` | The boot router. Starts crash reporting, selects one `WhereApplicationRuntime` in its initializer, and forwards lifecycle callbacks. |
+| `Sources/AppDelegate.swift` | The boot router. Starts each crash reporter, selects one `WhereApplicationRuntime` in its initializer, and forwards lifecycle callbacks. |
 | `Sources/RegularApplicationRuntime.swift` | Owns the app's single `WhereModel`, `IntentServices`, and `LifecycleRunner`; starts logging, installs the App Intents handoff, and indexes Spotlight. |
 | `Sources/WhereInspectorApplicationRuntime.swift` | DEBUG-only alternate runtime. Configures the standalone Inspector without constructing regular app systems. |
 | `Sources/WhereApplicationRuntime.swift` | The class-bound launch/root-view protocol shared by both runtimes. |
@@ -48,8 +48,9 @@ steps immediately and builds no view tree; when a scene actually activates,
 `RootView` promotes the launch to `.userForeground` and the remaining steps run.
 
 Before either the regular or Inspector runtime receives that callback, the app
-starts `WhereCrashReporting`. Sentry SDK diagnostic output is enabled only in
-Debug builds; performance tracing is not enabled by the crash-only setup.
+starts its Sentry and Bitdrift `WhereCrashReporting` implementations. Sentry SDK
+diagnostic output is enabled only in Debug builds; performance tracing is not
+enabled by the crash-reporting setup.
 
 The Inspector runtime returns its standalone `InspectorView` and starts none of
 the model, launch, CoreLocation, notification, Periscope pipeline, App Intents,

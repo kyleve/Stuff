@@ -1,18 +1,23 @@
 # WhereCrashReporting
 
-The Where app's narrow adapter around the Sentry Apple SDK. The app delegate
-starts it once, before forwarding launch to the selected application runtime.
-The module enables crash reporting and SDK diagnostic output when requested;
-it does not opt the app into performance tracing.
+The Where app's vendor-neutral crash-reporting boundary. The app delegate
+constructs one `WhereCrashReporting` implementation per enabled service and
+starts each one before forwarding launch to the selected application runtime.
+The module currently adapts Sentry and Bitdrift Capture without exposing either
+SDK to the application target.
 
 ```swift
-WhereCrashReporting.start(dsn: publicDSN, debug: isDebugBuild)
+let reporters: [any WhereCrashReporting] = [
+    SentryCrashReporter(dsn: publicDSN, debug: isDebugBuild),
+    BitdriftCrashReporter(apiKey: bitdriftAPIKey),
+]
+reporters.forEach { $0.start() }
 ```
 
-The Sentry DSN is a public routing identifier, not an authentication secret.
-The app owns its value and passes it at the composition root so this module
-contains no environment-specific project configuration.
+The app owns the service-specific client configuration and passes it at the
+composition root, so this module contains no environment-specific project
+configuration. Sentry performance tracing remains disabled by this setup.
 
 Processes carrying Xcode's `XCTestConfigurationFilePath` environment value do
-not start Sentry, keeping automated test activity out of the production crash
-project.
+not start either process-global SDK, keeping automated test activity out of the
+production projects.

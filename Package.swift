@@ -37,6 +37,7 @@ let package = Package(
             branch: "main",
         ),
         .package(url: "https://github.com/weichsel/ZIPFoundation", from: "0.9.20"),
+        .package(url: "https://github.com/bitdriftlabs/capture-ios.git", from: "0.23.11"),
         .package(url: "https://github.com/getsentry/sentry-cocoa", from: "9.25.0"),
         // Snapshot-testing engine + accessibility parser. Consumed only by the
         // test-only `SnapshotKitTesting` target (never a shipping app). See
@@ -150,6 +151,7 @@ let package = Package(
         .target(
             name: "WhereCrashReporting",
             dependencies: [
+                .product(name: "Capture", package: "capture-ios"),
                 .product(name: "Sentry", package: "sentry-cocoa"),
             ],
             path: "Where/WhereCrashReporting/Sources",
