@@ -793,17 +793,6 @@
         }
       }
     },
-    "cardDesigner.depth" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Depth"
-          }
-        }
-      }
-    },
     "cardDesigner.design" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -877,39 +866,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Extent Width"
-          }
-        }
-      }
-    },
-    "cardDesigner.exteriorBlur" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Exterior Shadow Blur"
-          }
-        }
-      }
-    },
-    "cardDesigner.exteriorDepth" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Exterior Shadow Offset"
-          }
-        }
-      }
-    },
-    "cardDesigner.exteriorOpacity" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Exterior Shadow Opacity"
           }
         }
       }
@@ -1134,17 +1090,6 @@
         }
       }
     },
-    "cardDesigner.highlightOpacity" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Highlight Opacity"
-          }
-        }
-      }
-    },
     "cardDesigner.innerRing" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1284,17 +1229,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Name Opacity"
-          }
-        }
-      }
-    },
-    "cardDesigner.nameRelief" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Raised Name"
           }
         }
       }
@@ -1636,17 +1570,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "card cards design appearance rosette sheen stamp microprint"
-          }
-        }
-      }
-    },
-    "cardDesigner.shadowOpacity" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Shadow Opacity"
           }
         }
       }

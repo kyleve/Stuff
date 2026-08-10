@@ -113,16 +113,6 @@
                         inset: \(number(card.sheen.spectralRim.inset)),
                         travel: \(number(card.sheen.spectralRim.travel)),
                     ),
-                    nameRelief: .init(
-                        highlightOpacity: \(number(card.sheen.nameRelief.highlightOpacity)),
-                        shadowOpacity: \(number(card.sheen.nameRelief.shadowOpacity)),
-                        exteriorOpacity: \(number(card.sheen.nameRelief.exteriorOpacity)),
-                        depth: \(number(card.sheen.nameRelief.depth)),
-                        blurRadius: \(number(card.sheen.nameRelief.blurRadius)),
-                        exteriorDepth: \(number(card.sheen.nameRelief.exteriorDepth)),
-                        exteriorBlurRadius: \(number(card.sheen.nameRelief.exteriorBlurRadius)),
-                        travel: \(number(card.sheen.nameRelief.travel)),
-                    ),
                 ),
                 rosette: .init(
                     wobble: \(number(card.rosette.wobble)),

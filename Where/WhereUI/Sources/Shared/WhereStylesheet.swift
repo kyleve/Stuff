@@ -511,9 +511,6 @@ extension WhereStylesheet {
             /// An inset holographic edge that shifts around the card with the
             /// same virtual light as the broad luminance sheen.
             var spectralRim: SpectralRim
-            /// Paired inner and outer light and shade that press the region name
-            /// and entry stamp into the card as the virtual light follows tilt.
-            var nameRelief: NameRelief
 
             struct Pose: Equatable {
                 var roll: Double
@@ -532,28 +529,6 @@ extension WhereStylesheet {
                     lineWidth: 0,
                     blurRadius: 0,
                     inset: 0,
-                    travel: 0,
-                )
-            }
-
-            struct NameRelief: Equatable {
-                var highlightOpacity: Double
-                var shadowOpacity: Double
-                var exteriorOpacity: Double
-                var depth: CGFloat
-                var blurRadius: CGFloat
-                var exteriorDepth: CGFloat
-                var exteriorBlurRadius: CGFloat
-                var travel: Double
-
-                static let none = NameRelief(
-                    highlightOpacity: 0,
-                    shadowOpacity: 0,
-                    exteriorOpacity: 0,
-                    depth: 0,
-                    blurRadius: 0,
-                    exteriorDepth: 0,
-                    exteriorBlurRadius: 0,
                     travel: 0,
                 )
             }
@@ -765,21 +740,11 @@ extension WhereStylesheet {
                     // instead of washing out the card's central content.
                     staticPose: .init(roll: 0, pitch: -1),
                     spectralRim: .init(
-                        opacity: 0.86,
-                        lineWidth: 2,
-                        blurRadius: 3,
+                        opacity: 1,
+                        lineWidth: 2.75,
+                        blurRadius: 4,
                         inset: 2,
                         travel: 1.35,
-                    ),
-                    nameRelief: .init(
-                        highlightOpacity: 0.52,
-                        shadowOpacity: 0.38,
-                        exteriorOpacity: 0.18,
-                        depth: 1,
-                        blurRadius: 0.45,
-                        exteriorDepth: 1.35,
-                        exteriorBlurRadius: 1,
-                        travel: 0.75,
                     ),
                 ),
                 rosette: CardStyle.Rosette(
@@ -822,7 +787,6 @@ extension WhereStylesheet {
                     // Preserve the compact card's existing neutral treatment.
                     staticPose: .init(roll: 0, pitch: 0),
                     spectralRim: .none,
-                    nameRelief: .none,
                 ),
                 rosette: CardStyle.Rosette(
                     wobble: 2,

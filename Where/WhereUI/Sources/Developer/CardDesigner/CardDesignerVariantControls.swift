@@ -201,56 +201,6 @@
                             step: 0.05,
                         )
                     }
-                    DisclosureGroup(String(localized: .cardDesignerNameRelief)) {
-                        CardDesignerDoubleControl(
-                            title: .cardDesignerHighlightOpacity,
-                            value: $card.sheen.nameRelief.highlightOpacity,
-                            range: 0 ... 1,
-                            step: 0.01,
-                        )
-                        CardDesignerDoubleControl(
-                            title: .cardDesignerShadowOpacity,
-                            value: $card.sheen.nameRelief.shadowOpacity,
-                            range: 0 ... 1,
-                            step: 0.01,
-                        )
-                        CardDesignerDoubleControl(
-                            title: .cardDesignerExteriorOpacity,
-                            value: $card.sheen.nameRelief.exteriorOpacity,
-                            range: 0 ... 1,
-                            step: 0.01,
-                        )
-                        CardDesignerCGFloatControl(
-                            title: .cardDesignerDepth,
-                            value: $card.sheen.nameRelief.depth,
-                            range: 0 ... 6,
-                            step: 0.1,
-                        )
-                        CardDesignerCGFloatControl(
-                            title: .cardDesignerBlur,
-                            value: $card.sheen.nameRelief.blurRadius,
-                            range: 0 ... 6,
-                            step: 0.1,
-                        )
-                        CardDesignerCGFloatControl(
-                            title: .cardDesignerExteriorDepth,
-                            value: $card.sheen.nameRelief.exteriorDepth,
-                            range: 0 ... 6,
-                            step: 0.1,
-                        )
-                        CardDesignerCGFloatControl(
-                            title: .cardDesignerExteriorBlur,
-                            value: $card.sheen.nameRelief.exteriorBlurRadius,
-                            range: 0 ... 6,
-                            step: 0.1,
-                        )
-                        CardDesignerDoubleControl(
-                            title: .cardDesignerTravel,
-                            value: $card.sheen.nameRelief.travel,
-                            range: 0 ... 2,
-                            step: 0.05,
-                        )
-                    }
                 } header: {
                     CardDesignerSectionHeader(title: .cardDesignerSheen, reset: { reset(.sheen) })
                 }

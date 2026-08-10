@@ -6,7 +6,7 @@
     /// It contains presentation only: count animation and RegionKit cache policy
     /// remain owned by the production stylesheet and path cache.
     struct CardDesignerConfiguration: Codable, Equatable {
-        static let currentSchemaVersion = 4
+        static let currentSchemaVersion = 5
         static let standard = CardDesignerConfiguration(styles: .standard)
 
         var schemaVersion = currentSchemaVersion
@@ -519,7 +519,6 @@
             var staticRoll: Double
             var staticPitch: Double
             var spectralRim: SpectralRim
-            var nameRelief: NameRelief
 
             init(_ style: WhereStylesheet.CardStyle.Sheen) {
                 intensity = style.intensity
@@ -527,7 +526,6 @@
                 staticRoll = style.staticPose.roll
                 staticPitch = style.staticPose.pitch
                 spectralRim = SpectralRim(style.spectralRim)
-                nameRelief = NameRelief(style.nameRelief)
             }
 
             var style: WhereStylesheet.CardStyle.Sheen {
@@ -536,7 +534,6 @@
                     staticGlintIntensity: staticGlintIntensity,
                     staticPose: .init(roll: staticRoll, pitch: staticPitch),
                     spectralRim: spectralRim.style,
-                    nameRelief: nameRelief.style,
                 )
             }
 
@@ -561,41 +558,6 @@
                         lineWidth: lineWidth,
                         blurRadius: blurRadius,
                         inset: inset,
-                        travel: travel,
-                    )
-                }
-            }
-
-            struct NameRelief: Codable, Equatable {
-                var highlightOpacity: Double
-                var shadowOpacity: Double
-                var exteriorOpacity: Double
-                var depth: CGFloat
-                var blurRadius: CGFloat
-                var exteriorDepth: CGFloat
-                var exteriorBlurRadius: CGFloat
-                var travel: Double
-
-                init(_ style: WhereStylesheet.CardStyle.Sheen.NameRelief) {
-                    highlightOpacity = style.highlightOpacity
-                    shadowOpacity = style.shadowOpacity
-                    exteriorOpacity = style.exteriorOpacity
-                    depth = style.depth
-                    blurRadius = style.blurRadius
-                    exteriorDepth = style.exteriorDepth
-                    exteriorBlurRadius = style.exteriorBlurRadius
-                    travel = style.travel
-                }
-
-                var style: WhereStylesheet.CardStyle.Sheen.NameRelief {
-                    .init(
-                        highlightOpacity: highlightOpacity,
-                        shadowOpacity: shadowOpacity,
-                        exteriorOpacity: exteriorOpacity,
-                        depth: depth,
-                        blurRadius: blurRadius,
-                        exteriorDepth: exteriorDepth,
-                        exteriorBlurRadius: exteriorBlurRadius,
                         travel: travel,
                     )
                 }

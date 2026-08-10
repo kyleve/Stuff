@@ -29,10 +29,7 @@
             configuration.compact.regionNameTypography.sizeMode = .fixed
             configuration.compact.regionNameTypography.fixedSize = 19
             configuration.regular.sheen.spectralRim.opacity = 0.9
-            configuration.regular.sheen.nameRelief.depth = 2
-            configuration.regular.sheen.nameRelief.exteriorOpacity = 0.1
-            configuration.regular.sheen.nameRelief.exteriorDepth = 1.5
-            configuration.regular.sheen.nameRelief.exteriorBlurRadius = 0.9
+            configuration.regular.sheen.spectralRim.lineWidth = 3.25
             configuration.shared.darkSecurityPrint.blendMode = .softLight
 
             let data = try JSONEncoder().encode(configuration)
