@@ -1,4 +1,4 @@
-import LifecycleKit
+@_spi(Testing) @testable import LifecycleKit
 @testable import LifecycleKitUI
 import SwiftUI
 import TestHostSupport
@@ -253,27 +253,42 @@ struct LifecycleContainerTests {
 
     @Test func promotedBackgroundReadyForcesTheFirstRevealSplash() async throws {
         var content = false
-        var splash = false
+        var splashWasShown = false
+        var splashIsVisible = false
         let runner = await makeReadyRunner(reason: .background(.location))
         #expect(runner.reason.buildsNoViewTree)
-
-        await runner.enterForeground()
-        #expect(!runner.reason.buildsNoViewTree)
         #expect(runner.phase.isReady)
 
         let container = LifecycleContainer(
             runner,
-            minimumSplashDuration: .seconds(60),
+            minimumSplashDuration: .milliseconds(200),
             readyRevealPolicy: .splashBeforeFirstReveal,
-            splash: { _ in ProbeView { splash = true } },
+            splash: { _ in
+                ProbeView {
+                    splashWasShown = true
+                    splashIsVisible = true
+                }
+                .onDisappear { splashIsVisible = false }
+            },
         ) { _ in
             ProbeView { content = true }
         }
-        try show(UIHostingController(rootView: container)) { _ in
-            try waitFor { content && splash }
+        try await show(UIHostingController(rootView: container)) { _ in
+            // Mount the ready runner while it is still headless. Promotion must
+            // invalidate the container's readiness-and-visibility task ID; a
+            // readiness-only ID would remain `true` and never release the
+            // synthesized splash.
+            #expect(!renders { content || splashWasShown })
+
+            runner.promoteReasonToForegroundForTesting()
+            #expect(!runner.reason.buildsNoViewTree)
+            #expect(runner.phase.isReady)
+            try await waitUntil { content && splashIsVisible }
+            try await waitUntil { !splashIsVisible }
         }
         #expect(content)
-        #expect(splash)
+        #expect(splashWasShown)
+        #expect(!splashIsVisible)
     }
 
     @Test func awaitingGateShowsTheRegisteredGateViewWithTheTrunkValue() async throws {
