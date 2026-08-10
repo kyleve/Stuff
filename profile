@@ -11,6 +11,8 @@ set -euo pipefail
 # authoritative per-test durations straight out of each .xcresult via
 # xcresulttool. It then prints setup/build/test walls, the slowest build phases
 # and tests, per-bundle totals, and the snapshot pipeline's own phase metadata.
+# Its versioned per-suite snapshot report can be fed back to
+# `./snapshot-shards balance --report` without another test run.
 # `--ci-shape` gives the two schemes separate cold DerivedData, matching the
 # independent CI jobs; the default shares build products for quicker iteration.
 #
@@ -121,6 +123,7 @@ SNAPSHOT_BUILD_LOG="$WORKDIR/snapshot-build.log"
 SNAPSHOT_TEST_LOG="$WORKDIR/snapshot-test.log"
 SNAPSHOT_RESULT_BUNDLE="$WORKDIR/snapshot-tests.xcresult"
 SNAPSHOT_TESTS_JSON="$WORKDIR/snapshot-tests.json"
+SNAPSHOT_SUITE_REPORT="$WORKDIR/snapshot-suite-durations.json"
 SNAPSHOT_TIMINGS="$WORKDIR/snapshot-timings.jsonl"
 mkdir -p "$WORKDIR" && chmod 700 "$WORKDIR"
 
@@ -344,6 +347,9 @@ if [ "$DO_TESTS" = true ]; then
             exit "$snapshot_status"
         fi
         xcrun xcresulttool get test-results tests --path "$SNAPSHOT_RESULT_BUNDLE" >"$SNAPSHOT_TESTS_JSON"
+        ./snapshot-shards report \
+            --xcresult "$SNAPSHOT_RESULT_BUNDLE" \
+            --output "$SNAPSHOT_SUITE_REPORT"
         : >"$SNAPSHOT_TIMINGS"
         grep -o 'SNAPSHOT_TIMING {.*}' "$SNAPSHOT_TEST_LOG" 2>/dev/null \
             | sed 's/^SNAPSHOT_TIMING //' >>"$SNAPSHOT_TIMINGS" || true
