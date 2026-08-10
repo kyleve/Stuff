@@ -119,6 +119,8 @@
                         exteriorOpacity: \(number(card.sheen.nameRelief.exteriorOpacity)),
                         depth: \(number(card.sheen.nameRelief.depth)),
                         blurRadius: \(number(card.sheen.nameRelief.blurRadius)),
+                        exteriorDepth: \(number(card.sheen.nameRelief.exteriorDepth)),
+                        exteriorBlurRadius: \(number(card.sheen.nameRelief.exteriorBlurRadius)),
                         travel: \(number(card.sheen.nameRelief.travel)),
                     ),
                 ),

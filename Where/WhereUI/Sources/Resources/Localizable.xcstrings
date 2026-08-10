@@ -881,6 +881,28 @@
         }
       }
     },
+    "cardDesigner.exteriorBlur" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exterior Shadow Blur"
+          }
+        }
+      }
+    },
+    "cardDesigner.exteriorDepth" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exterior Shadow Offset"
+          }
+        }
+      }
+    },
     "cardDesigner.exteriorOpacity" : {
       "extractionState" : "manual",
       "localizations" : {

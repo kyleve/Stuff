@@ -19,9 +19,13 @@ struct TiltRelief: ViewModifier {
             motionIsStatic: motionIsStatic,
         )
         let direction = state.lightDirection(travel: style.travel)
-        let offset = CGSize(
+        let insetOffset = CGSize(
             width: direction.width * style.depth,
             height: direction.height * style.depth,
+        )
+        let exteriorOffset = CGSize(
+            width: direction.width * style.exteriorDepth,
+            height: direction.height * style.exteriorDepth,
         )
         content
             .overlay {
@@ -30,22 +34,22 @@ struct TiltRelief: ViewModifier {
                     highlightColor: .white.opacity(style.highlightOpacity),
                     shadowColor: .black.opacity(style.shadowOpacity),
                     radius: style.blurRadius,
-                    highlightOffset: offset,
-                    shadowOffset: CGSize(width: -offset.width, height: -offset.height),
+                    highlightOffset: insetOffset,
+                    shadowOffset: CGSize(width: -insetOffset.width, height: -insetOffset.height),
                 )
             }
             .compositingGroup()
             .shadow(
                 color: .white.opacity(style.highlightOpacity * style.exteriorOpacity),
-                radius: style.blurRadius,
-                x: offset.width,
-                y: offset.height,
+                radius: style.exteriorBlurRadius,
+                x: exteriorOffset.width,
+                y: exteriorOffset.height,
             )
             .shadow(
                 color: .black.opacity(style.shadowOpacity * style.exteriorOpacity),
-                radius: style.blurRadius,
-                x: -offset.width,
-                y: -offset.height,
+                radius: style.exteriorBlurRadius,
+                x: -exteriorOffset.width,
+                y: -exteriorOffset.height,
             )
     }
 }

@@ -232,6 +232,18 @@
                             range: 0 ... 6,
                             step: 0.1,
                         )
+                        CardDesignerCGFloatControl(
+                            title: .cardDesignerExteriorDepth,
+                            value: $card.sheen.nameRelief.exteriorDepth,
+                            range: 0 ... 6,
+                            step: 0.1,
+                        )
+                        CardDesignerCGFloatControl(
+                            title: .cardDesignerExteriorBlur,
+                            value: $card.sheen.nameRelief.exteriorBlurRadius,
+                            range: 0 ... 6,
+                            step: 0.1,
+                        )
                         CardDesignerDoubleControl(
                             title: .cardDesignerTravel,
                             value: $card.sheen.nameRelief.travel,

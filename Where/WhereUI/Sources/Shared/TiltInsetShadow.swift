@@ -49,3 +49,28 @@ struct TiltInsetShadow<Subject: View>: View {
         case subject
     }
 }
+
+#if DEBUG
+    #Preview {
+        let subject = HStack(spacing: 8) {
+            Image(systemName: "seal.fill")
+                .foregroundStyle(.orange)
+            Text("California")
+                .foregroundStyle(.indigo)
+        }
+        .font(.title.bold())
+
+        subject
+            .overlay {
+                TiltInsetShadow(
+                    subject: subject,
+                    highlightColor: .white.opacity(0.6),
+                    shadowColor: .black.opacity(0.4),
+                    radius: 0.45,
+                    highlightOffset: CGSize(width: 0, height: 1),
+                    shadowOffset: CGSize(width: 0, height: -1),
+                )
+            }
+            .padding()
+    }
+#endif

@@ -94,6 +94,8 @@ struct WhereStylesheetTests {
                 exteriorOpacity: 0.18,
                 depth: 1,
                 blurRadius: 0.45,
+                exteriorDepth: 1.35,
+                exteriorBlurRadius: 1,
                 travel: 0.75,
             ),
         ))

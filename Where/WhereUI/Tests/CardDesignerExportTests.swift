@@ -18,6 +18,8 @@
             #expect(first.contains("spectralRim: .init("))
             #expect(first.contains("nameRelief: .init("))
             #expect(first.contains("exteriorOpacity: 0.18"))
+            #expect(first.contains("exteriorDepth: 1.35"))
+            #expect(first.contains("exteriorBlurRadius: 1"))
         }
 
         @Test func swiftExportReflectsEditedValues() {

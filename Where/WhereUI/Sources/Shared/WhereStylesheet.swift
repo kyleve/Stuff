@@ -542,6 +542,8 @@ extension WhereStylesheet {
                 var exteriorOpacity: Double
                 var depth: CGFloat
                 var blurRadius: CGFloat
+                var exteriorDepth: CGFloat
+                var exteriorBlurRadius: CGFloat
                 var travel: Double
 
                 static let none = NameRelief(
@@ -550,6 +552,8 @@ extension WhereStylesheet {
                     exteriorOpacity: 0,
                     depth: 0,
                     blurRadius: 0,
+                    exteriorDepth: 0,
+                    exteriorBlurRadius: 0,
                     travel: 0,
                 )
             }
@@ -773,6 +777,8 @@ extension WhereStylesheet {
                         exteriorOpacity: 0.18,
                         depth: 1,
                         blurRadius: 0.45,
+                        exteriorDepth: 1.35,
+                        exteriorBlurRadius: 1,
                         travel: 0.75,
                     ),
                 ),
