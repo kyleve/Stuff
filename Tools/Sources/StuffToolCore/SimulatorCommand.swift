@@ -4,7 +4,7 @@ import Foundation
 
 public struct SimulatorCommand: AsyncParsableCommand {
     public static let configuration = CommandConfiguration(
-        commandName: "simulator",
+        commandName: "./simulator",
         abstract: "Resolve this checkout's iOS Simulator by UDID.",
         discussion: """
         Each checkout owns a separate device. Progress and warnings go to

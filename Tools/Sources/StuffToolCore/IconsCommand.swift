@@ -44,7 +44,7 @@ public enum IconsRequest: Equatable, Sendable {
 
 public struct IconsCommand: AsyncParsableCommand {
     public static let configuration = CommandConfiguration(
-        commandName: "icons",
+        commandName: "./icons",
         abstract: "Add, remove, or list selectable Where app icons.",
         discussion: """
         Keeps the app catalog, picker preview catalog, and AppIcons.json in

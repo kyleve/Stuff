@@ -9,7 +9,7 @@ public enum FlakyRelaunch: String, CaseIterable, ExpressibleByArgument, Sendable
 
 public struct FlakyCommand: AsyncParsableCommand {
     public static let configuration = CommandConfiguration(
-        commandName: "flaky",
+        commandName: "./flaky",
         abstract: "Detect flaky tests with suite runs and isolated repetitions.",
         discussion: """
         Builds once, repeatedly runs the complete scheme, then tight-loops every

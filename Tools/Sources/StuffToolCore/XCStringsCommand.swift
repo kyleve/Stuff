@@ -13,7 +13,7 @@ public struct XCStringsRequest: Equatable, Sendable {
 
 public struct XCStringsCommand: ParsableCommand {
     public static let configuration = CommandConfiguration(
-        commandName: "xcstrings",
+        commandName: "./xcstrings",
         abstract: "Rewrite String Catalogs using Xcode's serialization.",
         discussion: """
         With no paths, walks the repository for every .xcstrings catalog. This

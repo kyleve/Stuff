@@ -3,7 +3,7 @@ import Foundation
 
 public struct LedgerInstallCommand: AsyncParsableCommand {
     public static let configuration = CommandConfiguration(
-        commandName: "ledger-install",
+        commandName: "./Ledger/install",
         abstract: "Build Ledger in Release and install it to /Applications.",
         discussion: """
         Produces an ad-hoc-signed standalone app, safely stops only the installed

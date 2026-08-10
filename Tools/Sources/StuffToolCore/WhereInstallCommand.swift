@@ -3,7 +3,7 @@ import Foundation
 
 public struct WhereInstallCommand: AsyncParsableCommand {
     public static let configuration = CommandConfiguration(
-        commandName: "where-install",
+        commandName: "./Where/install",
         abstract: "Build, sign, install, and optionally launch Where on an iPhone.",
         discussion: """
         Uses xcodebuild and Apple's devicectl without opening Xcode. Debug builds

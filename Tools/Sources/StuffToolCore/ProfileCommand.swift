@@ -4,7 +4,7 @@ import Foundation
 
 public struct ProfileCommand: AsyncParsableCommand {
     public static let configuration = CommandConfiguration(
-        commandName: "profile",
+        commandName: "./profile",
         abstract: "Report clean-build and test timing hot spots.",
         discussion: """
         Runs a clean build-for-testing and the unit and snapshot test legs, then

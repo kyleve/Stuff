@@ -4,7 +4,7 @@ import Foundation
 
 public struct TestCommand: AsyncParsableCommand {
     public static let configuration = CommandConfiguration(
-        commandName: "test",
+        commandName: "./test",
         abstract: "Run Stuff's iOS tests through the repository-owned simulator.",
         discussion: """
         With no scope, runs the bundles affected by changes against origin/main,
