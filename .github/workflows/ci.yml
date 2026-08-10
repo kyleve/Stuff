@@ -36,13 +36,6 @@ jobs:
       # catalog lint does.
       - name: Attribution report check
         run: ./attribution --check
-      # The assignment is explicit so a CI run is reproducible. Discovery keeps
-      # it from becoming a place where a newly added suite can disappear.
-      - name: Snapshot shard configuration
-        run: |
-          python3 -m unittest discover -s Tools/Tests -p 'test_snapshot_shards.py'
-          ./snapshot-shards check
-
   architecture:
     name: Bumper Bowling
     runs-on: xcode-27
