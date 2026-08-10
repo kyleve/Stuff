@@ -48,7 +48,12 @@ re-exports `SnapshotKit` and `SnapshotTesting`, so a test author needs a single
   `.settledAtLeast(minDuration:)` raises the loop's minimum window for async
   appearance work that starts quiet and lands after the default floor (the
   iOS 26 glass toolbar/tab bar material adaptation); `.immediate` skips the
-  loop for content that's fully renderable after a layout pass. A case's
+  loop for content that's fully renderable after a layout pass. Intrinsic and
+  full-content cases can independently set `measurementReadiness: .immediate`
+  when their fixture's height is synchronous: only the sizing probe skips its
+  settle, while the final capture still pays the case's declared `settle` and
+  can observe async visual changes. Keep the default `.sameAsCapture` when an
+  async load can change ideal height. A case's
   optional `onReadyToSnapshot` hook runs after that settle and before the
   accessibility parse / capture — the deterministic point to focus a field or
   trigger a presented state — and its effects are settled again before the
@@ -131,7 +136,8 @@ default plain output.
 `./test --snapshots --timings` sets `SNAPSHOT_TIMING` and prints a per-phase
 breakdown — `settle`, `tileStitch`, `compare`, `pngRoundTrip`, `host`,
 `accessibilityParse`, `hook`, `intrinsicMeasure`, `drain` — plus the settle pass
-distribution and the slowest individual captures. Reach for it before optimizing
+distribution, sizing/readiness/capture-settle metadata, and the slowest
+individual captures. Reach for it before optimizing
 anything here: it is what showed that `drainInFlightAnimations` was burning a
 flat second on every image, and that the settle *floor* rather than its render
 passes is what the remaining time buys.

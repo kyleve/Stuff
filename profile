@@ -9,8 +9,12 @@ set -euo pipefail
 # `Stuff-iOS-Tests` scheme for the unit-test bundles, then the standalone
 # `StuffSnapshotTests` scheme for the image-snapshot suite — reading
 # authoritative per-test durations straight out of each .xcresult via
-# xcresulttool. It then prints the slowest build phases, the slowest tests,
-# and per-bundle totals, with both test legs folded into one report.
+# xcresulttool. It then prints setup/build/test walls, the slowest build phases
+# and tests, per-bundle totals, and the snapshot pipeline's own phase metadata.
+# Its versioned per-suite snapshot report can be fed back to
+# `./snapshot-shards balance --report` without another test run.
+# `--ci-shape` gives the two schemes separate cold DerivedData, matching the
+# independent CI jobs; the default shares build products for quicker iteration.
 #
 # The snapshot suite only runs via its own scheme: that scheme's test action
 # carries the SNAPSHOT_EXPECTED_* / TZ environment pins the image comparisons
@@ -40,6 +44,7 @@ TC_THRESHOLD=100       # milliseconds — slow type-check warn threshold
 DO_BUILD=true
 DO_TESTS=true
 DO_SNAPSHOTS=true
+CI_SHAPE=false
 
 usage() {
     cat <<'USAGE'
@@ -53,6 +58,8 @@ Options:
   --build-only              Only profile the build
   --tests-only              Only profile the tests
   --no-snapshots            Skip the StuffSnapshotTests leg (saves ~10-15 min)
+  --ci-shape                Use separate cold DerivedData for unit and snapshot
+                            jobs, matching CI topology (default shares products)
   --device NAME             Simulator device name (default: "iPhone 17")
   --os VERSION              Simulator iOS version (default: "27.0")
   --top N                   How many slowest tests to list (default: 15)
@@ -63,6 +70,7 @@ Options:
 Examples:
   ./profile
   ./profile --tests-only --no-snapshots --top 25 --test-threshold 0.2
+  ./profile --ci-shape
   ./profile --device 'iPhone 17 Pro' --os 27.0
 USAGE
 }
@@ -72,6 +80,7 @@ while [ $# -gt 0 ]; do
         --build-only) DO_TESTS=false ;;
         --tests-only) DO_BUILD=false ;;
         --no-snapshots) DO_SNAPSHOTS=false ;;
+        --ci-shape) CI_SHAPE=true ;;
         --device) shift; DEVICE="${1:?--device requires a value}" ;;
         --os) shift; OS="${1:?--os requires a value}" ;;
         --top) shift; TOP="${1:?--top requires a value}" ;;
@@ -93,7 +102,10 @@ SNAPSHOT_SCHEME="StuffSnapshotTests"
 # resolve to a same-named device on another runtime. `./simulator` hands back
 # the device this checkout owns (creating it the first time), so a run in
 # another checkout can't perturb these numbers by sharing it.
-DESTINATION="platform=iOS Simulator,id=$(./simulator --device "$DEVICE" --os "$OS")"
+SECONDS=0
+SIMULATOR_UDID="$(./simulator --device "$DEVICE" --os "$OS")"
+simulator_wall=$SECONDS
+DESTINATION="platform=iOS Simulator,id=$SIMULATOR_UDID"
 
 CHECKOUT_HASH="$(printf '%s' "$(pwd -P)" | shasum -a 256 | cut -c1-12)"
 # Keep profiling artifacts isolated just like the checkout-owned simulator:
@@ -101,6 +113,8 @@ CHECKOUT_HASH="$(printf '%s' "$(pwd -P)" | shasum -a 256 | cut -c1-12)"
 # logs, or result bundles. PROFILE_WORKDIR remains an explicit CI override.
 WORKDIR="${PROFILE_WORKDIR:-${TMPDIR:-/tmp}/where-profile-$CHECKOUT_HASH}"
 DERIVED="$WORKDIR/DerivedData"
+SNAPSHOT_DERIVED="$DERIVED"
+[ "$CI_SHAPE" = true ] && SNAPSHOT_DERIVED="$WORKDIR/SnapshotDerivedData"
 BUILD_LOG="$WORKDIR/build.log"
 TEST_LOG="$WORKDIR/test.log"
 RESULT_BUNDLE="$WORKDIR/tests.xcresult"
@@ -109,6 +123,8 @@ SNAPSHOT_BUILD_LOG="$WORKDIR/snapshot-build.log"
 SNAPSHOT_TEST_LOG="$WORKDIR/snapshot-test.log"
 SNAPSHOT_RESULT_BUNDLE="$WORKDIR/snapshot-tests.xcresult"
 SNAPSHOT_TESTS_JSON="$WORKDIR/snapshot-tests.json"
+SNAPSHOT_SUITE_REPORT="$WORKDIR/snapshot-suite-durations.json"
+SNAPSHOT_TIMINGS="$WORKDIR/snapshot-timings.jsonl"
 mkdir -p "$WORKDIR" && chmod 700 "$WORKDIR"
 
 rule() { printf '%s\n' "============================================================"; }
@@ -120,25 +136,50 @@ rule() { printf '%s\n' "========================================================
 tc_flags="\$(inherited) -Xfrontend -warn-long-function-bodies=$TC_THRESHOLD -Xfrontend -warn-long-expression-type-checking=$TC_THRESHOLD"
 
 echo "==> Regenerating project (tuist generate --no-open)"
+SECONDS=0
 mise exec -- tuist generate --no-open >/dev/null
+generation_wall=$SECONDS
 
 # Xcode does not expand the scheme's $(BUILT_PRODUCTS_DIR) environment value
 # for command-line test runs. Resolve the profiler's isolated build-products
 # directory and hand it to SwiftPM's Bundle.module accessors through the same
 # TEST_RUNNER_ override as ./test. See packageResourceEnvironment in
 # Project.swift for the hosted-test linking bug this works around.
-TEST_RUN_ENV=()
+UNIT_TEST_RUN_ENV=()
+SNAPSHOT_TEST_RUN_ENV=("TEST_RUNNER_SNAPSHOT_TIMING=1")
+SECONDS=0
 BUILT_PRODUCTS_DIR="$(xcodebuild -showBuildSettings \
     -workspace "$WORKSPACE" \
     -scheme "$SCHEME" \
     -destination "$DESTINATION" \
     -derivedDataPath "$DERIVED" 2>/dev/null \
     | awk -F' = ' '/ BUILT_PRODUCTS_DIR = /{print $2; exit}')"
+unit_build_settings_wall=$SECONDS
 if [ -n "$BUILT_PRODUCTS_DIR" ]; then
-    TEST_RUN_ENV+=("TEST_RUNNER_PACKAGE_RESOURCE_BUNDLE_PATH=$BUILT_PRODUCTS_DIR")
+    UNIT_TEST_RUN_ENV+=("TEST_RUNNER_PACKAGE_RESOURCE_BUNDLE_PATH=$BUILT_PRODUCTS_DIR")
 else
     echo "warning: could not resolve BUILT_PRODUCTS_DIR; package resource" \
         "bundle lookups will fall back to the linker's placement" >&2
+fi
+
+snapshot_build_settings_wall=0
+if [ "$DO_TESTS" = true ] && [ "$DO_SNAPSHOTS" = true ]; then
+    SECONDS=0
+    SNAPSHOT_BUILT_PRODUCTS_DIR="$(xcodebuild -showBuildSettings \
+        -workspace "$WORKSPACE" \
+        -scheme "$SNAPSHOT_SCHEME" \
+        -destination "$DESTINATION" \
+        -derivedDataPath "$SNAPSHOT_DERIVED" 2>/dev/null \
+        | awk -F' = ' '/ BUILT_PRODUCTS_DIR = /{print $2; exit}')"
+    snapshot_build_settings_wall=$SECONDS
+    if [ -n "$SNAPSHOT_BUILT_PRODUCTS_DIR" ]; then
+        SNAPSHOT_TEST_RUN_ENV+=(
+            "TEST_RUNNER_PACKAGE_RESOURCE_BUNDLE_PATH=$SNAPSHOT_BUILT_PRODUCTS_DIR"
+        )
+    else
+        echo "warning: could not resolve snapshot BUILT_PRODUCTS_DIR; package resource" \
+            "bundle lookups will fall back to the linker's placement" >&2
+    fi
 fi
 
 if [ "$DO_BUILD" = true ]; then
@@ -228,7 +269,7 @@ if [ "$DO_TESTS" = true ]; then
     rm -rf "$RESULT_BUNDLE"
     SECONDS=0
     set +e
-    env ${TEST_RUN_ENV[@]+"${TEST_RUN_ENV[@]}"} \
+    env ${UNIT_TEST_RUN_ENV[@]+"${UNIT_TEST_RUN_ENV[@]}"} \
         xcodebuild "$TEST_ACTION" \
         -workspace "$WORKSPACE" \
         -scheme "$SCHEME" \
@@ -250,18 +291,24 @@ if [ "$DO_TESTS" = true ]; then
 
     if [ "$DO_SNAPSHOTS" = true ]; then
         if [ "$DO_BUILD" = true ]; then
-            # Same DerivedData, destination, and flags as the clean unit build
-            # above, so this reuses all shared products while adding the four
-            # image-test bundles. Measure that incremental snapshot build so
-            # its cost remains visible in the complete profile.
-            echo "==> build-for-testing $SNAPSHOT_SCHEME (incremental, reuses the build above)"
+            if [ "$CI_SHAPE" = true ]; then
+                SNAPSHOT_BUILD_ACTION=(clean build-for-testing)
+                SNAPSHOT_BUILD_LABEL="cold, separate DerivedData matching CI"
+            else
+                # Same DerivedData, destination, and flags as the clean unit
+                # build above, so this reuses shared products while adding the
+                # image bundles.
+                SNAPSHOT_BUILD_ACTION=(build-for-testing)
+                SNAPSHOT_BUILD_LABEL="incremental, reuses the unit build"
+            fi
+            echo "==> ${SNAPSHOT_BUILD_ACTION[*]} $SNAPSHOT_SCHEME ($SNAPSHOT_BUILD_LABEL)"
             SECONDS=0
             set +e
-            xcodebuild build-for-testing \
+            xcodebuild "${SNAPSHOT_BUILD_ACTION[@]}" \
                 -workspace "$WORKSPACE" \
                 -scheme "$SNAPSHOT_SCHEME" \
                 -destination "$DESTINATION" \
-                -derivedDataPath "$DERIVED" \
+                -derivedDataPath "$SNAPSHOT_DERIVED" \
                 OTHER_SWIFT_FLAGS="$tc_flags" \
                 >"$SNAPSHOT_BUILD_LOG" 2>&1
             snapshot_build_status=$?
@@ -272,7 +319,7 @@ if [ "$DO_TESTS" = true ]; then
                 tail -n 30 "$SNAPSHOT_BUILD_LOG" >&2
                 exit "$snapshot_build_status"
             fi
-            echo "    incremental build: ${snapshot_build_wall}s"
+            echo "    snapshot build ($SNAPSHOT_BUILD_LABEL): ${snapshot_build_wall}s"
             SNAPSHOT_TEST_ACTION="test-without-building"
             echo "==> Running snapshot tests (test-without-building, $SNAPSHOT_SCHEME scheme — serial by design, ~10-15 min)"
         else
@@ -282,12 +329,12 @@ if [ "$DO_TESTS" = true ]; then
         rm -rf "$SNAPSHOT_RESULT_BUNDLE"
         SECONDS=0
         set +e
-        env ${TEST_RUN_ENV[@]+"${TEST_RUN_ENV[@]}"} \
+        env ${SNAPSHOT_TEST_RUN_ENV[@]+"${SNAPSHOT_TEST_RUN_ENV[@]}"} \
             xcodebuild "$SNAPSHOT_TEST_ACTION" \
             -workspace "$WORKSPACE" \
             -scheme "$SNAPSHOT_SCHEME" \
             -destination "$DESTINATION" \
-            -derivedDataPath "$DERIVED" \
+            -derivedDataPath "$SNAPSHOT_DERIVED" \
             -resultBundlePath "$SNAPSHOT_RESULT_BUNDLE" \
             >"$SNAPSHOT_TEST_LOG" 2>&1
         snapshot_status=$?
@@ -300,6 +347,58 @@ if [ "$DO_TESTS" = true ]; then
             exit "$snapshot_status"
         fi
         xcrun xcresulttool get test-results tests --path "$SNAPSHOT_RESULT_BUNDLE" >"$SNAPSHOT_TESTS_JSON"
+        ./snapshot-shards report \
+            --xcresult "$SNAPSHOT_RESULT_BUNDLE" \
+            --output "$SNAPSHOT_SUITE_REPORT"
+        : >"$SNAPSHOT_TIMINGS"
+        grep -o 'SNAPSHOT_TIMING {.*}' "$SNAPSHOT_TEST_LOG" 2>/dev/null \
+            | sed 's/^SNAPSHOT_TIMING //' >>"$SNAPSHOT_TIMINGS" || true
+        echo
+        rule
+        echo "SNAPSHOT CAPTURE PHASES"
+        rule
+        LINES="$SNAPSHOT_TIMINGS" python3 - <<'PY'
+import collections, json, os, sys
+
+rows = [json.loads(line) for line in open(os.environ['LINES']) if line.strip()]
+if not rows:
+    print('  (no timing lines found)')
+    sys.exit(0)
+
+grand = sum(row['total'] for row in rows)
+phases = collections.Counter()
+for row in rows:
+    phases.update(row['phases'])
+
+print(f'  {len(rows)} captures, {grand:.1f}s total, {grand / len(rows):.3f}s per image\n')
+print(f"  {'phase':20s} {'total':>9s} {'share':>7s} {'mean':>9s}")
+for phase, seconds in phases.most_common():
+    print(f'  {phase:20s} {seconds:8.2f}s {100 * seconds / grand:6.1f}% '
+          f'{seconds / len(rows):8.3f}s')
+
+def print_counts(title, key):
+    counts = collections.Counter(row.get(key, 'unknown') for row in rows)
+    print(f'\n  {title}:')
+    for value, count in sorted(counts.items(), key=lambda item: (-item[1], item[0])):
+        print(f'    {count:4d}  {value}')
+
+print_counts('sizing', 'sizing')
+print_counts('measurement readiness', 'measurementReadiness')
+print_counts('capture settle', 'captureSettle')
+
+print('\n  intrinsic measurement by readiness:')
+for readiness in sorted(set(row.get('measurementReadiness', 'unknown') for row in rows)):
+    selected = [row for row in rows if row.get('measurementReadiness', 'unknown') == readiness]
+    seconds = sum(row['phases'].get('intrinsicMeasure', 0) for row in selected)
+    print(f'    {seconds:8.2f}s  {readiness} ({len(selected)} captures)')
+
+passes = [row['settlePasses'] for row in rows]
+print(f'\n  settle passes: min {min(passes)}, max {max(passes)}, '
+      f'mean {sum(passes) / len(passes):.1f}')
+print('\n  slowest captures:')
+for row in sorted(rows, key=lambda row: -row['total'])[:8]:
+    print(f"    {row['total']:6.3f}s  {row['id']}")
+PY
         TEST_JSON_PATHS="$TESTS_JSON:$SNAPSHOT_TESTS_JSON"
         WALL_SUMMARY="$TEST_WALL_LABEL: ${test_wall}s (unit) + ${snapshot_wall}s (snapshot)"
     fi
@@ -374,5 +473,28 @@ PY
     set -e
     echo
 fi
+
+rule
+echo "PROFILE WALLS"
+rule
+echo "  simulator resolve/boot: ${simulator_wall}s"
+echo "  project generation: ${generation_wall}s"
+echo "  unit build settings: ${unit_build_settings_wall}s"
+if [ "$DO_TESTS" = true ] && [ "$DO_SNAPSHOTS" = true ]; then
+    echo "  snapshot build settings: ${snapshot_build_settings_wall}s"
+fi
+if [ "$DO_BUILD" = true ]; then
+    echo "  cold unit build: ${build_wall}s"
+fi
+if [ "$DO_TESTS" = true ]; then
+    echo "  unit $TEST_WALL_LABEL: ${test_wall}s"
+    if [ "$DO_SNAPSHOTS" = true ]; then
+        if [ "$DO_BUILD" = true ]; then
+            echo "  snapshot build ($SNAPSHOT_BUILD_LABEL): ${snapshot_build_wall}s"
+        fi
+        echo "  snapshot execution wall: ${snapshot_wall}s"
+    fi
+fi
+echo
 
 echo "Logs and result bundles: $WORKDIR"

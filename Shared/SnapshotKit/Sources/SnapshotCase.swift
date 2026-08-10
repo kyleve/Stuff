@@ -18,6 +18,20 @@ public enum SnapshotSettle: Equatable, Sendable {
     case immediate
 }
 
+/// When intrinsic/full-content sizing may measure a snapshot case.
+public enum SnapshotMeasurementReadiness: Equatable, Sendable {
+    /// Use the final capture's settle policy before measuring. The safe default
+    /// for content whose loaded state can change its ideal height.
+    case sameAsCapture
+    /// Measure after one task yield and layout pass, while leaving the final
+    /// capture's settle policy unchanged. Use for synchronously sized fixtures
+    /// whose visual state may still need time to settle before capture.
+    case immediate
+    /// Wait for ordinary quiescence before measuring, independently of a raised
+    /// minimum window used by the final capture.
+    case settled
+}
+
 /// A named group of snapshot variants for a component: the configurations to
 /// render, and the content to render under each.
 ///
@@ -35,6 +49,8 @@ public struct SnapshotCase: Identifiable {
     public let configurations: [SnapshotConfiguration]
     /// Whether the content needs the async settle loop before capture.
     public let settle: SnapshotSettle
+    /// When intrinsic/full-content sizing may measure the content.
+    public let measurementReadiness: SnapshotMeasurementReadiness
     /// Runs in the capture pipeline after the content has settled and before
     /// the image is taken — the deterministic point to focus a field or trigger
     /// a presented state. Its effects are settled again before capture. `nil`
@@ -60,12 +76,14 @@ public struct SnapshotCase: Identifiable {
     public init(
         name: String,
         configurations: [SnapshotConfiguration],
+        measurementReadiness: SnapshotMeasurementReadiness = .sameAsCapture,
         settle: SnapshotSettle = .settled,
         onReadyToSnapshot: (@MainActor () async -> Void)? = nil,
         @ViewBuilder content: @escaping @MainActor () -> some View,
     ) {
         self.name = name
         self.configurations = configurations
+        self.measurementReadiness = measurementReadiness
         self.settle = settle
         self.onReadyToSnapshot = onReadyToSnapshot
         contentFactory = { AnyView(content()) }

@@ -162,7 +162,11 @@ extension PersonalizationFeaturesView: SettingsSection {
 #if DEBUG
     extension PersonalizationFeaturesView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            whereSnapshot(name: "Default", configurations: .fullContentScreenDefaults) {
+            whereSnapshot(
+                name: "Default",
+                configurations: .fullContentScreenDefaults,
+                measurementReadiness: .immediate,
+            ) {
                 PersonalizationFeaturesView(
                     report: PreviewSupport.loadedYearReportModel(),
                     focus: nil,

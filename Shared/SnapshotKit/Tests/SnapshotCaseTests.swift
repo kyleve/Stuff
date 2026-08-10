@@ -14,6 +14,20 @@ struct SnapshotCaseTests {
         #expect(snapshotCase.settle == .settled)
     }
 
+    @Test func measurementReadinessDefaultsToCaptureSettle() {
+        let snapshotCase = SnapshotCase(name: "States", configurations: []) { Color.red }
+        #expect(snapshotCase.measurementReadiness == .sameAsCapture)
+    }
+
+    @Test func measurementReadinessStoresTheDeclaredPolicy() {
+        let snapshotCase = SnapshotCase(
+            name: "States",
+            configurations: [],
+            measurementReadiness: .immediate,
+        ) { Color.red }
+        #expect(snapshotCase.measurementReadiness == .immediate)
+    }
+
     @Test func settleStoresTheDeclaredMode() {
         let snapshotCase = SnapshotCase(name: "States", configurations: [], settle: .immediate) {
             Color.red
