@@ -1,5 +1,6 @@
 version: 2.1
 
+# Temporary PR probe for CircleCI's GitHub Checks integration.
 executors:
   m4-pro:
     macos:
