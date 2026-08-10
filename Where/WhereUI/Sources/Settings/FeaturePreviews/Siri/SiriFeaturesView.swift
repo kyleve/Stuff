@@ -85,7 +85,6 @@ extension SiriFeaturesView: SettingsSection {
         case todayRegions
         case daysInRegion
         case regionOnDate
-        case recentActivity
         case logDay
         case logTrip
         case spotlight
@@ -95,7 +94,6 @@ extension SiriFeaturesView: SettingsSection {
                 case .todayRegions: String(localized: .settingsExploreSiriTodayTitle)
                 case .daysInRegion: String(localized: .settingsExploreSiriDaysTitle)
                 case .regionOnDate: String(localized: .settingsExploreSiriDateTitle)
-                case .recentActivity: String(localized: .settingsExploreSiriRecentTitle)
                 case .logDay: String(localized: .settingsExploreSiriLogDayTitle)
                 case .logTrip: String(localized: .settingsExploreSiriLogTripTitle)
                 case .spotlight: String(localized: .settingsExploreSpotlightTitle)

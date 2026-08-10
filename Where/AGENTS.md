@@ -76,11 +76,6 @@ Rules the code enforces and agents must preserve:
 - **Manual entries carry a `ManualEntryAudit`**; `DayJournal`'s write methods
   take an explicit `audit:` (no default). An additive backfill can't downgrade
   an authoritative row's regions, but the newer audit always wins.
-- **`WhereServices.recentActivity`** (the on-demand Foundation Models
-  summarizer, behind `ActivitySummaryGenerating`) is distinct from
-  `WhereServices.summary` (the daily notification recap); model unavailability
-  surfaces as a typed reason, never a silent empty summary.
-
 ## Spans
 
 Anything plausibly expensive is measured — `logger.measure(.name, budget:)` on

@@ -219,6 +219,7 @@ let project = Project(
             dependencies: [
                 .package(product: "LifecycleKit"),
                 .package(product: "RegionKit"),
+                .package(product: "WhereCrashReporting"),
                 .package(product: "WhereCore"),
                 .package(product: "WhereUI"),
                 .package(product: "WhereIntents"),
@@ -444,6 +445,12 @@ let project = Project(
             bundleIdSuffix: "creditkit",
             productDependency: "CreditKit",
             sources: ["Shared/CreditKit/Tests/**"],
+        ),
+        unitTests(
+            name: "WhereCrashReportingTests",
+            bundleIdSuffix: "wherecrashreporting",
+            productDependency: "WhereCrashReporting",
+            sources: ["Where/WhereCrashReporting/Tests/**"],
         ),
         unitTests(
             name: "LifecycleKitTests",
@@ -718,6 +725,7 @@ let project = Project(
                 "StuffTestHost",
                 "StuffCoreTests",
                 "CreditKitTests",
+                "WhereCrashReportingTests",
                 "LifecycleKitTests",
                 "LifecycleKitUITests",
                 "JournalKitTests",
@@ -742,6 +750,7 @@ let project = Project(
                 [
                     "StuffCoreTests",
                     "CreditKitTests",
+                    "WhereCrashReportingTests",
                     "LifecycleKitTests",
                     "LifecycleKitUITests",
                     "JournalKitTests",
@@ -767,6 +776,7 @@ let project = Project(
         testScheme(name: "LedgerCoreTests"),
         testScheme(name: "StuffCoreTests"),
         testScheme(name: "CreditKitTests"),
+        testScheme(name: "WhereCrashReportingTests"),
         testScheme(name: "LifecycleKitTests"),
         testScheme(name: "LifecycleKitUITests"),
         testScheme(name: "JournalKitTests"),

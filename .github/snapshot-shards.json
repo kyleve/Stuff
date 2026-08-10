@@ -34,7 +34,6 @@
       "WhereUISnapshotTests/DayRelabelViewSnapshotTests",
       "WhereUISnapshotTests/OnboardingViewSnapshotTests",
       "WhereUISnapshotTests/PersonalizationFeaturesViewSnapshotTests",
-      "WhereUISnapshotTests/RecentActivitySummaryViewSnapshotTests",
       "WhereUISnapshotTests/RegionCustomizeViewSnapshotTests",
       "WhereUISnapshotTests/RegionDaysViewSnapshotTests",
       "WhereUISnapshotTests/ResolutionViewSnapshotTests",
