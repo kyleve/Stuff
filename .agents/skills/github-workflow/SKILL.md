@@ -26,6 +26,13 @@ always-on commit and test invariants — this skill assumes those.
 Cloud agents: use `ManagePullRequest` for create/update/reply — not `gh pr
 create` / `gh pr edit`. Local sessions may use `gh` throughout.
 
+On a local macOS session, a sandboxed `gh` command can report missing or
+invalid authentication because it cannot read the credential from Keychain.
+Before concluding that `gh` is unauthenticated or asking the user to log in,
+retry the command with sandbox escalation and a narrowly scoped `gh` prefix.
+If that succeeds, run the remaining GitHub commands for the task with the same
+escalation instead of repeating the sandboxed probe.
+
 **Unsolicited top-level PR comments** (not review replies) still need an
 explicit user request. **Review feedback is different:** when the user asks you
 to address comments (`PTAL`, `address review`, `fix the feedback`), that
