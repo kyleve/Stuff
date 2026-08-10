@@ -177,6 +177,9 @@ public struct TestService: Sendable {
         if request.timingReport != nil, plan.includesSnapshots == false {
             throw TestServiceFailure.message("--timing-report requires a snapshot test scope")
         }
+        if plan.includesSnapshots {
+            try await requireHydratedSnapshotReferences()
+        }
 
         if request.generate {
             try await generateProject(in: workDirectory)
@@ -486,6 +489,67 @@ public struct TestService: Sendable {
         }
     }
 
+    private func requireHydratedSnapshotReferences() async throws {
+        let version: CommandResult
+        do {
+            version = try await runner.run(
+                CommandInvocation(
+                    executable: "git-lfs",
+                    arguments: ["version"],
+                    workingDirectory: repository,
+                ),
+            )
+        } catch {
+            throw TestServiceFailure.message(
+                "snapshot tests require git-lfs; run ./ide --bootstrap.",
+            )
+        }
+        guard version.succeeded else {
+            throw TestServiceFailure.message(
+                "snapshot tests require git-lfs; run ./ide --bootstrap.",
+            )
+        }
+
+        let listing = try await runner.run(
+            CommandInvocation(
+                executable: "git",
+                arguments: ["lfs", "ls-files", "--json"],
+                workingDirectory: repository,
+            ),
+        )
+        guard listing.succeeded else {
+            throw TestServiceFailure.message(
+                "could not inspect Git LFS snapshot references.",
+            )
+        }
+        let inventory: GitLFSInventory
+        do {
+            inventory = try JSONDecoder().decode(
+                GitLFSInventory.self,
+                from: Data(listing.standardOutput),
+            )
+        } catch {
+            throw TestServiceFailure.message(
+                "could not inspect Git LFS snapshot references: \(error)",
+            )
+        }
+        let unresolved = inventory.unhydratedSnapshotReferences
+        guard unresolved.isEmpty else {
+            var lines = [
+                "\(unresolved.count) snapshot reference(s) are Git LFS pointer files, not PNGs.",
+                "       Snapshot comparisons would be incomplete or incomparable.",
+                "       Hydrate this checkout, then retry:",
+                "         git lfs pull",
+                "       First unresolved references:",
+            ]
+            lines.append(contentsOf: unresolved.prefix(5).map { "         \($0)" })
+            if unresolved.count > 5 {
+                lines.append("         … and \(unresolved.count - 5) more")
+            }
+            throw TestServiceFailure.message(lines.joined(separator: "\n"))
+        }
+    }
+
     private func builtProductsDirectory(
         scheme: String,
         destination: String,
@@ -560,6 +624,11 @@ public struct TestService: Sendable {
         }
         if request.review {
             result["TEST_RUNNER_SNAPSHOT_DIFF"] = "1"
+        }
+        if let multiplier = environment["SNAPSHOT_SETTLE_TIMEOUT_MULTIPLIER"],
+           multiplier.isEmpty == false
+        {
+            result["TEST_RUNNER_SNAPSHOT_SETTLE_TIMEOUT_MULTIPLIER"] = multiplier
         }
         return result
     }

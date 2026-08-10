@@ -32,7 +32,9 @@ packages are credited as development tools.
 - `./test` derives affected bundles from Tuist's JSON graph plus SwiftPM's
   package dump, then shares the simulator resolver and streams raw `xcodebuild`
   output through a directly tested progress reporter. A successful process that
-  matched zero tests is still a failed run.
+  matched zero tests is still a failed run. Snapshot scopes fail before project
+  generation when Git LFS references are not hydrated and forward the optional
+  CI settle-timeout multiplier.
 - `./profile` keeps clean-build, unit-test, and serial snapshot-test timing as
   separate legs. It reads typed xcresult test cases, parses Xcode's build-timing
   summary and type-check warnings, and can retain CI-shaped separate DerivedData.

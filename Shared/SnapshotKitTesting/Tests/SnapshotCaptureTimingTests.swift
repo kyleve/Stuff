@@ -45,10 +45,10 @@ struct SnapshotCaptureTimingTests {
     @Test func asyncAndSyncPhasesBothRecord() async throws {
         let timing = SnapshotCaptureTiming(identifier: "mixed", isEnabled: true)
         timing.measure(.host) { spin(for: .milliseconds(10)) }
-        await timing.measure(.hook) { try? await Task.sleep(for: .milliseconds(20)) }
+        await timing.measure(.measurementHook) { try? await Task.sleep(for: .milliseconds(20)) }
 
         let line = try decodedLine(from: timing)
-        #expect(line.phases.keys.sorted() == ["hook", "host"])
+        #expect(line.phases.keys.sorted() == ["host", "measurementHook"])
     }
 
     @Test func settlePassesAccumulateAndCaptureShapeIsReported() throws {

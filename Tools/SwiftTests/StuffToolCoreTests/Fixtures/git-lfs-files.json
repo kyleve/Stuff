@@ -1,0 +1,20 @@
+{
+  "files": [
+    {
+      "name": "Feature/SnapshotTests/__Snapshots__/CardTests/card.dark.png",
+      "checkout": false
+    },
+    {
+      "name": "Feature/SnapshotTests/__Snapshots__/CardTests/card.light.png",
+      "checkout": true
+    },
+    {
+      "name": "Feature/SnapshotTests/__Snapshots__/CardTests/notes.txt",
+      "checkout": false
+    },
+    {
+      "name": "Documentation/example.png",
+      "checkout": false
+    }
+  ]
+}
