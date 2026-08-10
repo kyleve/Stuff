@@ -40,12 +40,16 @@ jobs:
       # catalog lint does.
       - name: Attribution report check
         run: ./attribution --check
+      # Retained cross-platform implementations stay directly exercised without
+      # requiring Xcode, Java/TLC, networking, or the developer's filesystem.
+      - name: Retained tool tests
+        run: |
+          python3 -m unittest discover -s Tools/Tests -p 'test_*.py'
+          ruby -e 'Dir["Tools/Tests/*_test.rb"].sort.each { |file| require File.expand_path(file) }'
       # The assignment is explicit so a CI run is reproducible. Discovery keeps
       # it from becoming a place where a newly added suite can disappear.
       - name: Snapshot shard configuration
-        run: |
-          python3 -m unittest discover -s Tools/Tests -p 'test_snapshot_shards.py'
-          ./snapshot-shards check
+        run: ./snapshot-shards check
 
   architecture:
     name: Bumper Bowling

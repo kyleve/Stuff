@@ -104,6 +104,10 @@ version changes.
 The tool needs network and an authenticated `gh`. It is idempotent: re-running
 with nothing changed rewrites the same bytes.
 
+The retained-tool Minitest suite exercises package-target parsing, shipping
+reachability, source validation, and offline report comparison against temporary
+fixtures; run it with the Ruby test-loader command in `Tools/README.md`.
+
 ## How it works
 
 Each notice is read from the project's GitHub repository **at the pinned

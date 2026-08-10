@@ -54,3 +54,6 @@ report. Shared fixtures live in `CreditKitTestSupport.swift`; its
 `SampleReport.json` (a string constant on the `SampleReport` enum, not a
 fixture file) is a literal rather than an encoder round-trip so a Swift-side
 change that breaks the wire format fails a test.
+`Tools/Tests/generate_attribution_test.rb` separately covers package-manifest
+parsing, shipping reachability, source validation, and the offline report guard
+without network access.

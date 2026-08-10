@@ -41,14 +41,15 @@ require "open3"
 
 REPO_ROOT = File.expand_path("..", __FILE__)
 MARKER = "<!-- Generated from AGENTS.md — do not edit directly -->"
-SKILLS_DIR = File.join(REPO_ROOT, ".agents", "skills")
-CLAUDE_SKILLS_DIR = File.join(REPO_ROOT, ".claude", "skills")
-MANIFEST_PATH = File.join(REPO_ROOT, ".agents", "external-skills.json")
 
 EXCLUDED_DIRS = %w[Derived .build .git .cursor .claude].freeze
 
 class SyncAgents
-  def initialize
+  def initialize(repository_root: REPO_ROOT)
+    @repository_root = File.expand_path(repository_root)
+    @skills_directory = File.join(@repository_root, ".agents", "skills")
+    @claude_skills_directory = File.join(@repository_root, ".claude", "skills")
+    @manifest_path = File.join(@repository_root, ".agents", "external-skills.json")
     @changed_files = []
   end
 
@@ -66,8 +67,8 @@ class SyncAgents
     end
 
     sync_claude_md
-    sync_skills
     update_skills_gitignore
+    sync_skills
 
     stage_files if args.include?("--git-add") && !@changed_files.empty?
   end
@@ -96,18 +97,18 @@ class SyncAgents
   # --- Skills sync ---
 
   def sync_skills
-    if Dir.exist?(SKILLS_DIR)
-      FileUtils.mkdir_p(CLAUDE_SKILLS_DIR)
-      unless dirs_equal?(SKILLS_DIR, CLAUDE_SKILLS_DIR)
-        FileUtils.rm_rf(CLAUDE_SKILLS_DIR)
-        FileUtils.cp_r(SKILLS_DIR, CLAUDE_SKILLS_DIR)
+    if Dir.exist?(@skills_directory)
+      FileUtils.mkdir_p(@claude_skills_directory)
+      unless dirs_equal?(@skills_directory, @claude_skills_directory)
+        FileUtils.rm_rf(@claude_skills_directory)
+        FileUtils.cp_r(@skills_directory, @claude_skills_directory)
         puts "Synced .agents/skills/ → .claude/skills/"
-        @changed_files << CLAUDE_SKILLS_DIR
+        @changed_files << @claude_skills_directory
       end
-    elsif Dir.exist?(CLAUDE_SKILLS_DIR)
-      FileUtils.rm_rf(CLAUDE_SKILLS_DIR)
+    elsif Dir.exist?(@claude_skills_directory)
+      FileUtils.rm_rf(@claude_skills_directory)
       puts "Removed .claude/skills/"
-      @changed_files << CLAUDE_SKILLS_DIR
+      @changed_files << @claude_skills_directory
     end
   end
 
@@ -115,7 +116,7 @@ class SyncAgents
 
   def update_skills_gitignore
     manifest = load_manifest
-    gitignore_path = File.join(SKILLS_DIR, ".gitignore")
+    gitignore_path = File.join(@skills_directory, ".gitignore")
 
     if manifest.empty?
       remove_if_exists(gitignore_path) if File.exist?(gitignore_path)
@@ -153,9 +154,9 @@ class SyncAgents
         skill_src = File.join(tmpdir, name)
       end
 
-      dest = File.join(SKILLS_DIR, name)
+      dest = File.join(@skills_directory, name)
       FileUtils.rm_rf(dest)
-      FileUtils.mkdir_p(SKILLS_DIR)
+      FileUtils.mkdir_p(@skills_directory)
       FileUtils.cp_r(skill_src, dest)
       sha = head_sha(tmpdir)
       puts "Added #{name} from #{repo}@#{sha[0..7]}"
@@ -176,7 +177,7 @@ class SyncAgents
     end
 
     manifest.each do |name, entry|
-      dest = File.join(SKILLS_DIR, name)
+      dest = File.join(@skills_directory, name)
       if Dir.exist?(dest) && File.exist?(File.join(dest, "SKILL.md"))
         next
       end
@@ -194,7 +195,7 @@ class SyncAgents
           next
         end
 
-        FileUtils.mkdir_p(SKILLS_DIR)
+        FileUtils.mkdir_p(@skills_directory)
         FileUtils.cp_r(skill_src, dest)
         puts "Installed #{name} from #{repo}@#{ref}"
       end
@@ -230,7 +231,7 @@ class SyncAgents
           next
         end
 
-        dest = File.join(SKILLS_DIR, name)
+        dest = File.join(@skills_directory, name)
         FileUtils.rm_rf(dest)
         FileUtils.cp_r(skill_src, dest)
         entry["ref"] = sha
@@ -260,7 +261,7 @@ class SyncAgents
   end
 
   def find_files(name, exclude: [])
-    Dir.glob(File.join(REPO_ROOT, "**", name)).reject do |f|
+    Dir.glob(File.join(@repository_root, "**", name)).reject do |f|
       exclude.any? { |d| f.include?("/#{d}/") }
     end
   end
@@ -329,15 +330,15 @@ class SyncAgents
   end
 
   def load_manifest
-    return {} unless File.exist?(MANIFEST_PATH)
-    JSON.parse(File.read(MANIFEST_PATH))
+    return {} unless File.exist?(@manifest_path)
+    JSON.parse(File.read(@manifest_path))
   end
 
   def save_manifest(manifest)
-    FileUtils.mkdir_p(File.dirname(MANIFEST_PATH))
-    File.write(MANIFEST_PATH, JSON.pretty_generate(manifest) + "\n")
-    puts "Updated #{MANIFEST_PATH}"
+    FileUtils.mkdir_p(File.dirname(@manifest_path))
+    File.write(@manifest_path, JSON.pretty_generate(manifest) + "\n")
+    puts "Updated #{@manifest_path}"
   end
 end
 
-SyncAgents.new.run(ARGV)
+SyncAgents.new.run(ARGV) if __FILE__ == $PROGRAM_NAME

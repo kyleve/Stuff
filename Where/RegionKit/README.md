@@ -118,6 +118,10 @@ script):
 ruby Where/RegionKit/Tools/generate-regions.rb
 ```
 
+The retained-tool Minitest suite runs the generator against temporary geometry
+and output roots, checking ordering, metadata, stale-output cleanup, and
+byte-for-byte idempotence; use the Ruby test-loader command in `Tools/README.md`.
+
 ### Source data (not bundled)
 
 Each entry below is also expressed in code as a `RegionDataSource`, which is

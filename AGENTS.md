@@ -70,6 +70,11 @@ tests](#running-tests)), and `icons`, `attribution`, and `simulator` in particul
 easy to corrupt by hand — `./simulator` owns a per-checkout device (see the
 [`running-tests`](.agents/skills/running-tests/SKILL.md) skill).
 
+Retained Python and Ruby implementations are importable and directly tested
+under `Tools/Tests`; shell around them is bootstrap only. In particular,
+`tla-check` owns discovery and the pinned TLC download while
+`Tools/tla_check.py` owns manifest validation, TLC argv, and result policy.
+
 ### Managing app icons
 
 `./icons` is the single command for the Where app's alternate icons (see
@@ -627,6 +632,7 @@ external agent skills, which are gitignored and so absent from a bare checkout.
 | Format lint (CI `format` job equivalent) | `./swiftformat --lint` |
 | Shell lint | `./shellcheck` |
 | Agent file sync | `./sync-agents` or `./sync-agents --install` |
+| Retained tool tests | Python unittest discovery and Ruby Minitest loader from `Tools/README.md` |
 | Git LFS | `apt-get install git-lfs` — required by `.githooks/` |
 | Pre-commit hook | works — `mise exec --` no longer pulls in Tuist |
 

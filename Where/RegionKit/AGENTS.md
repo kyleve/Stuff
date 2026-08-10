@@ -76,3 +76,5 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
 
 Swift Testing in [`Tests/`](Tests) (`RegionKitTests`), hosted in
 `StuffTestHost`. Internal types are reached via `@testable import RegionKit`.
+`Tools/Tests/generate_regions_test.rb` separately exercises the data generator
+against a temporary source/output tree, including cleanup and idempotence.

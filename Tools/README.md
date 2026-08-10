@@ -13,6 +13,8 @@ graph, and tool-only dependencies stay out of shipping targets.
 
 ```bash
 swift test --package-path Tools
+python3 -m unittest discover -s Tools/Tests -p 'test_*.py'
+ruby -e 'Dir["Tools/Tests/*_test.rb"].sort.each { |file| require File.expand_path(file) }'
 Tools/run xcstrings --help
 ```
 
@@ -73,5 +75,8 @@ target closure that Tuist leaves with Xcode's SwiftPM integration.
 - `Sources/StuffToolCore` contains commands, typed external formats, and injected
   process/filesystem infrastructure.
 - `SwiftTests/StuffToolCoreTests` contains fast hermetic Swift Testing suites.
-- Existing Python and Ruby tools remain beside this package when they are
-  cross-platform or already have an appropriate tested implementation.
+- `tla_check.py` contains the importable TLA+ manifest/TLC runner behind the
+  bootstrap-only root launcher.
+- `Tests` covers retained Python and Ruby tools against temporary fixture
+  repositories; those tools remain in their existing language when they are
+  cross-platform or already have an appropriate structured implementation.

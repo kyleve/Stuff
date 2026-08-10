@@ -7,8 +7,6 @@ specs_root="$repo_root/Where/Specifications"
 tlc_version="1.7.4"
 tlc_sha256="936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88"
 tlc_url="https://github.com/tlaplus/tlaplus/releases/download/v${tlc_version}/tla2tools.jar"
-java_version="temurin-21.0.8+9.0.LTS"
-
 tool_root="$repo_root/.build/tla"
 jar_dir="$tool_root/v${tlc_version}"
 jar_path="$jar_dir/tla2tools.jar"
@@ -59,14 +57,6 @@ ensure_tools() {
     export MISE_CONFIG_DIR="$tool_root/mise/config"
 }
 
-run_java() {
-    if [[ -n "${TLA_JAVA:-}" ]]; then
-        "$TLA_JAVA" "$@"
-    else
-        mise --yes --no-config x "java@$java_version" -- java "$@"
-    fi
-}
-
 discover_specs() {
     find "$specs_root" -mindepth 2 -maxdepth 2 -name manifest.json -print \
         | while IFS= read -r manifest; do
@@ -98,21 +88,8 @@ run_spec() {
     local spec_dir="$specs_root/$spec_name"
     local manifest="$spec_dir/manifest.json"
     local run_dir logs_dir states_dir
-    local module_path module_file
 
     validate_spec_name "$spec_name"
-
-    module_path="$(python3 - "$manifest" <<'PY'
-import json, sys
-with open(sys.argv[1]) as f:
-    print(json.load(f)["module"])
-PY
-)"
-    module_file="$spec_dir/$module_path"
-    if [[ ! -f "$module_file" ]]; then
-        echo "error: $spec_name manifest module '$module_path' not found" >&2
-        exit 1
-    fi
 
     run_dir="$(mktemp -d "$runs_dir/${spec_name}.XXXXXX")"
     logs_dir="$run_dir/logs"
@@ -120,82 +97,8 @@ PY
     mkdir -p "$logs_dir" "$states_dir"
 
     echo "==> $spec_name"
-
-    python3 - "$manifest" "$spec_dir" "$module_file" "$logs_dir" "$states_dir" "$jar_path" <<'PY'
-import json
-import os
-import subprocess
-import sys
-
-manifest_path, spec_dir, module_file, logs_dir, states_dir, jar_path = sys.argv[1:7]
-
-with open(manifest_path) as f:
-    manifest = json.load(f)
-
-java_cmd = os.environ.get("TLA_JAVA")
-if java_cmd:
-    java_base = [java_cmd]
-else:
-    java_version = "temurin-21.0.8+9.0.LTS"
-    java_base = ["mise", "--yes", "--no-config", "x", f"java@{java_version}", "--", "java"]
-
-def run_tlc(config_path: str, metadir: str) -> tuple[int, str]:
-    os.makedirs(metadir, exist_ok=True)
-    cmd = java_base + [
-        "-XX:+UseParallelGC",
-        "-Xmx1g",
-        "-jar", jar_path,
-        "-cleanup",
-        "-difftrace",
-        "-metadir", metadir,
-        "-config", config_path,
-        module_file,
-    ]
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    output = result.stdout + result.stderr
-    return result.returncode, output
-
-for case in manifest["cases"]:
-    name = case["name"]
-    config_name = case["config"]
-    expect = case["expect"]
-    config_path = os.path.join(spec_dir, config_name)
-    log_path = os.path.join(logs_dir, f"{name}.log")
-    metadir = os.path.join(states_dir, name)
-
-    if not os.path.isfile(config_path):
-        print(f"error: {manifest_path}: case '{name}' config '{config_name}' not found", file=sys.stderr)
-        sys.exit(1)
-
-    status, output = run_tlc(config_path, metadir)
-    with open(log_path, "w") as log:
-        log.write(output)
-
-    if expect == "pass":
-        if status != 0:
-            print(f"  FAIL {name}: expected pass, TLC exited {status}; see {log_path}", file=sys.stderr)
-            print(output[-4000:], file=sys.stderr)
-            sys.exit(1)
-        if "Model checking completed. No error has been found." not in output:
-            print(f"  FAIL {name}: TLC did not report a clean check; see {log_path}", file=sys.stderr)
-            sys.exit(1)
-        print(f"  ok   {name} (pass)")
-    elif expect == "fail":
-        if status == 0:
-            print(f"  FAIL {name}: expected failure, TLC passed; see {log_path}", file=sys.stderr)
-            sys.exit(1)
-        needle = case.get("outputContains")
-        if needle and needle not in output:
-            print(f"  FAIL {name}: expected output to contain {needle!r}; see {log_path}", file=sys.stderr)
-            print(output[-4000:], file=sys.stderr)
-            sys.exit(1)
-        print(f"  ok   {name} (expected failure)")
-    else:
-        print(f"error: {manifest_path}: case '{name}' has unknown expect {expect!r}", file=sys.stderr)
-        sys.exit(1)
-
-print(f"  artifacts: {os.path.dirname(logs_dir)}")
-PY
+    python3 "$repo_root/Tools/tla_check.py" \
+        "$manifest" "$spec_dir" "$logs_dir" "$states_dir" "$jar_path"
 }
 
 main() {
