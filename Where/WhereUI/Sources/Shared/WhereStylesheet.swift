@@ -511,8 +511,8 @@ extension WhereStylesheet {
             /// An inset holographic edge that shifts around the card with the
             /// same virtual light as the broad luminance sheen.
             var spectralRim: SpectralRim
-            /// Paired light and shade that make the region name read as raised
-            /// ink, with its apparent depth following the device tilt.
+            /// Paired inner and outer light and shade that make the region name
+            /// read as raised ink, with its apparent depth following device tilt.
             var nameRelief: NameRelief
 
             struct Pose: Equatable {
@@ -759,11 +759,11 @@ extension WhereStylesheet {
                     // instead of washing out the card's central content.
                     staticPose: .init(roll: 0, pitch: -1),
                     spectralRim: .init(
-                        opacity: 0.72,
-                        lineWidth: 1.5,
-                        blurRadius: 2.5,
+                        opacity: 0.86,
+                        lineWidth: 2,
+                        blurRadius: 3,
                         inset: 2,
-                        travel: 0.85,
+                        travel: 1.35,
                     ),
                     nameRelief: .init(
                         highlightOpacity: 0.52,

@@ -82,11 +82,11 @@ struct WhereStylesheetTests {
             staticGlintIntensity: 0.25,
             staticPose: .init(roll: 0, pitch: -1),
             spectralRim: .init(
-                opacity: 0.72,
-                lineWidth: 1.5,
-                blurRadius: 2.5,
+                opacity: 0.86,
+                lineWidth: 2,
+                blurRadius: 3,
                 inset: 2,
-                travel: 0.85,
+                travel: 1.35,
             ),
             nameRelief: .init(
                 highlightOpacity: 0.52,
@@ -635,7 +635,7 @@ struct WhereStylesheetTests {
         #expect(resolved.card.regular.glow.radius == 0)
         #expect(resolved.card.compact.glow.radius == 0)
         #expect(resolved.card.regular.sheen.spectralRim.blurRadius == 0)
-        #expect(resolved.card.regular.sheen.spectralRim.lineWidth == 1.5)
+        #expect(resolved.card.regular.sheen.spectralRim.lineWidth == 2)
         #expect(resolved.card.constellation.haloOpacity == 0)
         #expect(resolved.card.constellation.coreOpacity == 0.92)
     }

@@ -86,30 +86,61 @@ struct TiltSheen<ClipShape: InsettableShape>: ViewModifier {
     private func spectralEdge(state: TiltEffectState) -> some View {
         let direction = state.lightDirection(travel: spectralRim.travel)
         let center = UnitPoint(
-            x: 0.5 + direction.width * 0.24,
-            y: 0.5 + direction.height * 0.24,
+            x: 0.5 + direction.width * 0.58,
+            y: 0.5 + direction.height * 0.58,
         )
-        let angle = Angle.degrees(direction.width * 48 + direction.height * 32)
-        let gradient = AngularGradient(
+        let angle = Angle.degrees(direction.width * 160 + direction.height * 110)
+        let spectralGradient = AngularGradient(
             colors: Self.spectralStops,
             center: center,
             angle: angle,
+        )
+        let highlightPoints = Self.highlightPoints(direction: direction)
+        let directionalHighlight = LinearGradient(
+            stops: [
+                .init(color: .clear, location: 0),
+                .init(color: .clear, location: 0.58),
+                .init(color: .white, location: 1),
+            ],
+            startPoint: highlightPoints.start,
+            endPoint: highlightPoints.end,
         )
 
         return ZStack {
             shape
                 .inset(by: spectralRim.inset)
-                .strokeBorder(gradient, lineWidth: spectralRim.lineWidth * 3)
+                .strokeBorder(spectralGradient, lineWidth: spectralRim.lineWidth * 3)
                 .blur(radius: spectralRim.blurRadius)
                 .opacity(spectralRim.opacity * 0.42)
                 .blendMode(.plusLighter)
 
             shape
                 .inset(by: spectralRim.inset)
-                .strokeBorder(gradient, lineWidth: spectralRim.lineWidth)
+                .strokeBorder(spectralGradient, lineWidth: spectralRim.lineWidth)
                 .opacity(spectralRim.opacity)
                 .blendMode(.plusLighter)
+
+            // A concentrated reflection crosses the light-facing edge. The
+            // full spectrum still supplies the foil color, while this moving
+            // peak makes small changes in device pose legible.
+            shape
+                .inset(by: spectralRim.inset)
+                .strokeBorder(directionalHighlight, lineWidth: spectralRim.lineWidth * 1.4)
+                .blur(radius: spectralRim.blurRadius * 0.35)
+                .opacity(spectralRim.opacity * 0.82)
+                .blendMode(.plusLighter)
         }
+    }
+
+    private static func highlightPoints(direction: CGSize) -> (start: UnitPoint, end: UnitPoint) {
+        let magnitude = hypot(direction.width, direction.height)
+        let unit = magnitude > 0.01
+            ? CGSize(width: direction.width / magnitude, height: direction.height / magnitude)
+            : CGSize(width: 0, height: 1)
+        return (
+            start: UnitPoint(x: 0.5 - unit.width * 0.7, y: 0.5 - unit.height * 0.7),
+            end: UnitPoint(x: 0.5 + unit.width * 0.7, y: 0.5 + unit.height * 0.7),
+        )
     }
 
     /// Alternating grayscale tones create changing light without introducing a

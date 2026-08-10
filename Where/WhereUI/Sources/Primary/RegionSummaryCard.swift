@@ -260,6 +260,7 @@ struct RegionSummaryCard: View {
                             tilt: tilt,
                             staticRoll: card.sheen.staticPose.roll,
                             staticPitch: card.sheen.staticPose.pitch,
+                            tint: style.tint,
                             style: card.sheen.nameRelief,
                         )
                     if let caption {

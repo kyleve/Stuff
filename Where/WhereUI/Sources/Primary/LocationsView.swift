@@ -288,6 +288,15 @@ private struct ResolveToolbarLabel: View {
                 LocationsView(report: PreviewSupport.loadedYearReportModel())
             }
             whereSnapshot(
+                name: "LoadedReverseTilt",
+                configurations: .fullContentPhoneLightDark,
+                measurementReadiness: .immediate,
+                settle: .settledAtLeast(minDuration: 1.0),
+            ) {
+                LocationsView(report: PreviewSupport.loadedYearReportModel())
+                    .environment(\.cardDesignerConfiguration, reverseTiltConfiguration)
+            }
+            whereSnapshot(
                 name: "Empty",
                 configurations: .phoneLightDark,
                 measurementReadiness: .immediate,
@@ -317,6 +326,12 @@ private struct ResolveToolbarLabel: View {
                     report: PreviewSupport.loadedYearReportModelWithLocationDotsHidden(),
                 )
             }
+        }
+
+        private static var reverseTiltConfiguration: CardDesignerConfiguration {
+            var configuration = CardDesignerConfiguration.standard
+            configuration.regular.sheen.staticPitch = 1
+            return configuration
         }
     }
 
