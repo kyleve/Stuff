@@ -1,0 +1,8 @@
+#!/bin/sh
+set -eu
+
+file_list=$(mktemp "${TMPDIR:-/tmp}/stuff-shellcheck.XXXXXX")
+trap 'rm -f "$file_list"' EXIT HUP INT TERM
+
+git grep -Ilz -e '^#!.*\(ba\|z\|k\)\?sh\([[:space:]]\|$\)' > "$file_list"
+xargs -0 mise exec -- shellcheck -- < "$file_list"

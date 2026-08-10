@@ -21,6 +21,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: jdx/mise-action@v3
+      - name: Swift tools tests
+        run: swift test --package-path Tools
+      - name: ShellCheck
+        run: ./shellcheck
       - run: ./swiftformat --lint
       # Catalogs drift out of Xcode's serialization the moment one is written by
       # anything but Xcode, and the cost lands on whoever next builds in the IDE

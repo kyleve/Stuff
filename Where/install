@@ -90,7 +90,7 @@ done
 # Pre-flight: a device build must be signed by a real team. Read the value mise
 # injects (TUIST_DEVELOPMENT_TEAM from .mise.local.toml) and fail early with an
 # actionable hint rather than deep inside xcodebuild's signing phase.
-TEAM_ID="$(mise exec -- sh -c 'printf "%s" "${TUIST_DEVELOPMENT_TEAM:-}"')"
+TEAM_ID="$(mise exec -- printenv TUIST_DEVELOPMENT_TEAM 2>/dev/null || true)"
 if [ -z "$TEAM_ID" ]; then
     cat >&2 <<'EOF'
 error: no Apple Developer team configured — a device build can't be signed.

@@ -6,7 +6,7 @@ Random apps and stuff.
 
 - Xcode 27+ (a full Xcode.app, not just the Command Line Tools)
 - iOS 26.0+
-- [mise](https://mise.jdx.dev) — pins Tuist, SwiftFormat, and Ruby;
+- [mise](https://mise.jdx.dev) — pins Tuist, SwiftFormat, ShellCheck, and Ruby;
   installed for you by `./ide --bootstrap` (see below)
 
 ## Getting started
@@ -14,7 +14,7 @@ Random apps and stuff.
 On a fresh machine, run the one-shot bootstrap. It checks that Xcode is
 installed and selected, installs `mise` if missing (via its official
 installer — no Homebrew required), installs the pinned tools (Tuist,
-SwiftFormat, Ruby), then sets Git hooks, runs `sync-agents --install`, and
+SwiftFormat, ShellCheck, Ruby), then sets Git hooks, runs `sync-agents --install`, and
 generates the Xcode project:
 
 ```bash
@@ -132,17 +132,19 @@ TUIST_DEVELOPMENT_TEAM = "ABCDE12345"
 
 ```
 Package.swift       Local Swift package (StuffCore, LifecycleKit, WhereCore, WhereUI, TestHostSupport, …)
+Tools/Package.swift Independent macOS developer-command package (`stuff`)
 BumperBowling.swift Executable Where architecture policy
 .bumper/            Repo-owned Bumper shapes, rules, tests, and catalog
 Project.swift       Tuist manifest (Where app, StuffTestHost, test bundles → SPM)
 Tuist.swift         Tuist configuration
-.mise.toml          Pins the Tuist, SwiftFormat, and Ruby versions
+.mise.toml          Pins the Tuist, SwiftFormat, ShellCheck, and Ruby versions
 .mise.local.toml    Local mise overrides, gitignored (e.g. TUIST_DEVELOPMENT_TEAM)
 .swiftformat        SwiftFormat rules
 .codex/             Codex managed-worktree setup, cleanup, and actions
 .worktreeinclude    Ignored local files copied into Codex-managed worktrees
 ide                 Dev script – bootstrap (mise + tools), hooks, sync-agents, tuist generate
 swiftformat         Run SwiftFormat via mise (default: format `.`)
+shellcheck          Lint every tracked shell script via pinned ShellCheck
 sync-agents         Sync AGENTS.md → CLAUDE.md and .claude/skills/
 simulator           Resolve/create this checkout's simulator, boot it, print its UDID
 worktree            Check or safely fast-forward a checkout against origin/main

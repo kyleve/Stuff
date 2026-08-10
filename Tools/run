@@ -1,0 +1,11 @@
+#!/bin/sh
+set -eu
+
+tools_dir=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
+STUFF_REPOSITORY_ROOT=$(dirname -- "$tools_dir")
+export STUFF_REPOSITORY_ROOT
+exec xcrun swift run \
+    --package-path "$tools_dir" \
+    --disable-automatic-resolution \
+    --quiet \
+    stuff "$@"

@@ -29,8 +29,10 @@ Roughly, this file covers:
 |-------------|--------------|
 | Tuist       | `.mise.toml` |
 | SwiftFormat | `.mise.toml` |
+| ShellCheck  | `.mise.toml` |
 | Ruby        | `.mise.toml` |
 | Swift PM    | `Package.swift` (`swift-tools-version`) |
+| Host-side tools | `Tools/Package.swift` / `Tools/Package.resolved` |
 | Bumper Bowling | `Package.swift` / `Package.resolved` |
 
 
@@ -44,6 +46,13 @@ references the package via `Package.local(path: .relativeToRoot("."))`. The
 two manifests are the authoritative target catalog — it is deliberately not
 duplicated here.
 
+Host-side macOS commands live in the independent [`Tools/Package.swift`](Tools/Package.swift)
+package. Root command paths remain compatibility shims into its `stuff`
+executable; cross-platform Ruby/Python tools and bootstrap shell remain outside
+that package. Test it with `swift test --package-path Tools`; its local
+[`AGENTS.md`](Tools/AGENTS.md) owns the process, filesystem, and command-parity
+invariants.
+
 `./ide` regenerates the Xcode project *and* does the surrounding setup —
 external agent skills, `core.hooksPath` — so it's the way to regenerate, not
 `tuist generate` alone. Agents must always pass `--no-open` (see [Generating the
@@ -53,7 +62,8 @@ generating; plain `./ide` fails fast pointing at it.
 
 The executables in the repo root are the dev scripts — `ide`, `test`,
 `swiftformat`, `sync-agents`, `profile`, `icons`, `flaky`, `simulator`,
-`snapshot-shards`, `worktree`, `xcstrings`, `attribution`, `codex-watchdog`, `tla-check` — and each
+`snapshot-shards`, `worktree`, `xcstrings`, `attribution`, `shellcheck`,
+`codex-watchdog`, `tla-check` — and each
 takes `--help`. Reach for one rather than
 hand-rolling its job: `test` is the only way tests should be run (see [Running
 tests](#running-tests)), and `icons`, `attribution`, and `simulator` in particular own state that is
@@ -89,6 +99,8 @@ over a build setting Xcode didn't export.
 
 - **SwiftFormat** uses [`.swiftformat`](.swiftformat). Run `./swiftformat` to
   format the tree, or `./swiftformat --lint` to check only (as in CI).
+- **ShellCheck** is pinned in [`.mise.toml`](.mise.toml); `./shellcheck` discovers
+  and lints every tracked shell file by its shebang.
 - The pre-commit hook (enabled by `./ide` via `core.hooksPath`) formats staged
   `*.swift` files in place and re-stages them.
 - **String Catalogs are stored exactly as Xcode serializes them**, and
@@ -521,6 +533,9 @@ cannot exercise them; record skipped checks in the commit or PR validation.
 Semantic changes to configuration, scripts, generator inputs, executable
 examples, or app-rendered copy are not documentation-only.
 
+Changes under `Tools/Sources` also run `swift test --package-path Tools`; shell
+changes run `./shellcheck`.
+
 Load the [`running-tests`](.agents/skills/running-tests/SKILL.md) skill for
 test tiers, snapshot opt-in, why not `tuist test`, and per-checkout simulator
 management (`./simulator` resolves a UDID — never pass a device name to
@@ -604,8 +619,9 @@ external agent skills, which are gitignored and so absent from a bare checkout.
 
 | Check | Command |
 |-------|---------|
-| Install the pinned tools | `mise install` (Ruby + SwiftFormat; skips Tuist) |
+| Install the pinned tools | `mise install` (Ruby + SwiftFormat + ShellCheck; skips Tuist) |
 | Format lint (CI `format` job equivalent) | `./swiftformat --lint` |
+| Shell lint | `./shellcheck` |
 | Agent file sync | `./sync-agents` or `./sync-agents --install` |
 | Git LFS | `apt-get install git-lfs` — required by `.githooks/` |
 | Pre-commit hook | works — `mise exec --` no longer pulls in Tuist |
@@ -616,10 +632,9 @@ external agent skills, which are gitignored and so absent from a bare checkout.
   Xcode project)
 - iOS Simulator, and running the **Where** app
 - **Anything needing a Swift toolchain** — the VM ships none, so `swift run
-  bumper` (the architecture lint) and `./xcstrings` (a `#!/usr/bin/swift`
-  script) both fail here even though neither needs Xcode. Diagnostic signature
-  for the latter: ``mise ERROR "./xcstrings" couldn't exec process: No such file
-  or directory``.
+  bumper`, `swift test --package-path Tools`, and the Swift-backed command shims
+  such as `./xcstrings` all fail here even when the command itself does not need
+  Xcode. Diagnostic signature from the launcher: `xcrun: not found`.
 - Anything else needing Xcode
 
 These are limits of the **VM**, not of cloud agents generally: a remote-control

@@ -98,7 +98,7 @@ run_spec() {
     local spec_dir="$specs_root/$spec_name"
     local manifest="$spec_dir/manifest.json"
     local run_dir logs_dir states_dir
-    local module_path module_file case_count
+    local module_path module_file
 
     validate_spec_name "$spec_name"
 
@@ -118,13 +118,6 @@ PY
     logs_dir="$run_dir/logs"
     states_dir="$run_dir/states"
     mkdir -p "$logs_dir" "$states_dir"
-
-    case_count="$(python3 - "$manifest" <<'PY'
-import json, sys
-with open(sys.argv[1]) as f:
-    print(len(json.load(f)["cases"]))
-PY
-)"
 
     echo "==> $spec_name"
 

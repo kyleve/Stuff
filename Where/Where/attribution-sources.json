@@ -8,6 +8,12 @@
       "shippedFrom": ["WhereUI", "WhereIntents", "WhereCrashReporting"]
     },
     {
+      "type": "swiftPackageManager",
+      "manifest": "Tools/Package.swift",
+      "resolved": "Tools/Package.resolved",
+      "shippedFrom": []
+    },
+    {
       "type": "agentSkills",
       "kind": "developmentTool",
       "manifest": ".agents/external-skills.json"
