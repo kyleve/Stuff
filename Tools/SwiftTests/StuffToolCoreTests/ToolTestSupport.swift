@@ -79,6 +79,11 @@ actor MemoryTerminal: Terminal {
 actor ImmediateClock: ToolClock {
     private(set) var sleeps: [Duration] = []
     private var time: TimeInterval = 0
+    private let currentDate: Date
+
+    init(currentDate: Date = Date(timeIntervalSince1970: 0)) {
+        self.currentDate = currentDate
+    }
 
     func sleep(for duration: Duration) {
         sleeps.append(duration)
@@ -88,6 +93,10 @@ actor ImmediateClock: ToolClock {
 
     func now() -> TimeInterval {
         time
+    }
+
+    func date() -> Date {
+        currentDate
     }
 }
 

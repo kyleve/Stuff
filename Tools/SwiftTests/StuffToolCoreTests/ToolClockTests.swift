@@ -1,3 +1,4 @@
+import Foundation
 import StuffToolCore
 import Testing
 
@@ -16,5 +17,14 @@ struct ToolClockTests {
         } catch {
             Issue.record("unexpected error: \(error)")
         }
+    }
+
+    @Test func reportsWallTime() {
+        let before = Date()
+        let reported = ContinuousToolClock().date()
+        let after = Date()
+
+        #expect(reported >= before)
+        #expect(reported <= after)
     }
 }

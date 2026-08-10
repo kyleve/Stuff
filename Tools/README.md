@@ -34,6 +34,9 @@ packages are credited as development tools.
 - `./profile` keeps clean-build, unit-test, and serial snapshot-test timing as
   separate legs. It reads typed xcresult test cases, parses Xcode's build-timing
   summary and type-check warnings, and can retain CI-shaped separate DerivedData.
+- `./flaky` retains warm DerivedData while treating suite and isolated test
+  failures as report data. Typed xcresult aggregation identifies only tests that
+  both pass and fail; prerequisite and build failures still exit nonzero.
 
 ## Why `test` uses raw xcodebuild
 

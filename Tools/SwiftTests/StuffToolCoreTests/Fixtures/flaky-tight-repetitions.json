@@ -1,0 +1,21 @@
+{
+  "testNodes": [{
+    "nodeType": "Unit test bundle",
+    "name": "StuffCoreTests",
+    "children": [{
+      "nodeType": "Test Suite",
+      "name": "RaceTests",
+      "children": [{
+        "nodeType": "Test Case",
+        "name": "sometimesFails()",
+        "nodeIdentifier": "RaceTests/sometimesFails()/1",
+        "result": "Passed"
+      }, {
+        "nodeType": "Test Case",
+        "name": "sometimesFails()",
+        "nodeIdentifier": "RaceTests/sometimesFails()/2",
+        "result": "Failed"
+      }]
+    }]
+  }]
+}
