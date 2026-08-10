@@ -62,6 +62,12 @@ because they run serially on separate runners; `--snapshot-shard 1/2` and
 `2/2` exist for that topology, not same-machine parallelism. See
 [`Shared/SnapshotKitTesting/AGENTS.md`](../../../Shared/SnapshotKitTesting/AGENTS.md).
 
+Every snapshot scope preflights the tracked references before generating or
+building. If any are still Git LFS pointer text, `./test` fails with
+`git lfs pull` rather than producing misleading "incomparable" results.
+Codex-managed macOS setup hydrates them through `./ide --bootstrap --no-open`;
+run `git lfs pull` explicitly for a manually-created or interrupted checkout.
+
 ## Iterate faster
 
 After a green build:

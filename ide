@@ -150,6 +150,16 @@ EOF
     # Install the pinned tools (Tuist, SwiftFormat, Ruby) from .mise.toml.
     echo "==> mise install"
     "$MISE" install
+
+    # Codex may create a managed worktree with LFS smudging disabled, leaving
+    # snapshot references as pointer text even though git-lfs is installed.
+    # Bootstrap is already the networked, one-shot setup boundary, and all
+    # worktrees share the repository's LFS object cache, so hydrate the current
+    # checkout here deterministically. A failed download must fail setup: an
+    # apparently ready checkout with pointer-backed references cannot run or
+    # re-record snapshots honestly.
+    echo "==> git lfs pull"
+    git lfs pull
 fi
 
 MISE="$(find_mise)"

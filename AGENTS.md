@@ -557,8 +557,9 @@ idempotent and regenerate it through the ChatGPT desktop app's local environment
 editor when changing its schema.
 
 - macOS setup runs `./ide --bootstrap --no-open`; bootstrap trusts the new
-  checkout's `.mise.toml`, installs pinned tools, syncs agent files, and
-  generates without opening Xcode.
+  checkout's `.mise.toml`, installs pinned tools, hydrates every Git LFS object
+  referenced by the checkout, syncs agent files, and generates without opening
+  Xcode.
 - Linux setup delegates to [`.cursor/install.sh`](.cursor/install.sh), with the
   same platform limits documented below.
 - Setup first runs `./worktree --check-main`, which refreshes `origin/main` and

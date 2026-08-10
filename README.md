@@ -70,8 +70,9 @@ Codex-managed worktrees use the checked-in local environment at
 without changing the checkout when its `HEAD` does not contain the latest main.
 The **Update to latest main** toolbar action safely fast-forwards a checkout
 directly behind main and refuses divergent feature history. On macOS the
-environment also runs `./ide --bootstrap --no-open`, offers project generation,
-affected tests, and format lint actions, and removes only that checkout's
+environment also runs `./ide --bootstrap --no-open`, which hydrates the
+checkout's Git LFS snapshot references before generating the project; it offers
+affected tests and format lint actions, and removes only that checkout's
 simulator on cleanup. `.worktreeinclude` copies the gitignored
 `.mise.local.toml` signing override from the source checkout into each new
 managed worktree.
