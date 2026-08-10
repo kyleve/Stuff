@@ -71,8 +71,7 @@ Every intent's work is one budgeted Periscope span named after the intent
 (`perform(days-in-region)`), so a Siri answer that felt slow can be attributed
 to the read, the write, or the wait itself: `IntentServices.current()` spans only
 the path where it actually parks for the app's launch to install the services
-stack. Budgets live on `WhereIntentsLog.IntentName` beside the name, and the
-slow-by-nature intents (the on-device model summary) get the slack.
+stack. Budgets live on `WhereIntentsLog.IntentName` beside the name.
 
 ## Localization
 

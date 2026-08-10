@@ -119,7 +119,7 @@ one it belongs to rather than to a god-object:
   target-owned advisory check-ins, and global removal tombstones sync independently. Another
   installation can rename or remove a device identity, but cannot change its recording consent.
 - **`LocationHistoryReader`** — the shared removal-aware read boundary used by reports, widgets,
-  recent activity, and foreground capture checks. It hides a removed identity's GPS samples at
+  and foreground capture checks. It hides a removed identity's GPS samples at
   and after its earliest tombstone while keeping earlier raw storage, backups, legacy samples
   without provenance, and user-asserted samples lossless.
 
