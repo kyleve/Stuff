@@ -22,7 +22,7 @@ struct PreMeasureHookTests {
             safeAreaInsets: .zero,
             measurementReadiness: .immediate,
             onReadyToMeasure: {
-                while model.hostedTaskRan == false {
+                while model.hostedTaskRan == false, Task.isCancelled == false {
                     await Task.yield()
                 }
             },

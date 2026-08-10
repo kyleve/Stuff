@@ -161,6 +161,8 @@ public func assertSnapshots(
                 settleTimeoutPolicy: settleTimeoutPolicy,
                 timing: timing,
             )
+        } catch is CancellationError {
+            return
         } catch {
             Issue.record(error)
             continue
