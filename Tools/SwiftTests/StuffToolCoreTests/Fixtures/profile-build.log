@@ -1,0 +1,4 @@
+CompileSwiftSources (10 tasks) | 12.50 seconds
+CompileAssetCatalog (1 task) | 2.50 seconds
+/repo/Where/WhereCore/Sources/Slow.swift:10:5: warning: expression took 240ms to type-check (limit: 100ms)
+/repo/Shared/Broadway/Sources/Other.swift:2:1: warning: function body took 120ms to type-check (limit: 100ms)

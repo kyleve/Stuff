@@ -602,49 +602,14 @@ public struct TestService: Sendable {
 
     private func printFailures(resultBundles: [URL]) async throws {
         try await printSection("FAILURES")
+        let resultTool = XCResultTool(runner: runner, repository: repository)
         for resultURL in resultBundles where fileSystem.kind(of: resultURL) == .directory {
-            let result: CommandResult
+            let catalog: XCResultTestCatalog
             do {
-                result = try await runner.run(
-                    CommandInvocation(
-                        executable: "xcrun",
-                        arguments: [
-                            "xcresulttool",
-                            "get",
-                            "test-results",
-                            "tests",
-                            "--path",
-                            resultURL.path,
-                        ],
-                        workingDirectory: repository,
-                    ),
-                )
+                catalog = try await resultTool.testCatalog(at: resultURL)
             } catch {
                 try await terminal.write(
                     "warning: could not inspect \(resultURL.path): \(error)\n",
-                    to: .standardError,
-                )
-                continue
-            }
-            guard result.succeeded else {
-                try await terminal.write(
-                    "warning: xcresulttool could not inspect \(resultURL.path): " +
-                        result.standardErrorText.trimmingCharacters(in: .whitespacesAndNewlines) +
-                        "\n",
-                    to: .standardError,
-                )
-                continue
-            }
-            let catalog: XCResultTestCatalog
-            do {
-                catalog = try JSONDecoder().decode(
-                    XCResultTestCatalog.self,
-                    from: Data(result.standardOutput),
-                )
-            } catch {
-                try await terminal.write(
-                    "warning: xcresulttool returned unreadable test results for " +
-                        "\(resultURL.path): \(error)\n",
                     to: .standardError,
                 )
                 continue
@@ -743,23 +708,10 @@ public struct TestService: Sendable {
         _ invocation: CommandInvocation,
         logURL: URL,
     ) async throws -> CommandResult {
-        let writer = try CommandLogWriter(
-            url: logURL,
+        try await LoggedCommandRunner(
+            runner: runner,
             fileSystem: fileSystem,
-        )
-        do {
-            let result = try await runner.run(
-                invocation,
-                outputHandler: { _, bytes in
-                    try await writer.append(bytes)
-                },
-            )
-            try await writer.finish()
-            return result
-        } catch {
-            try? await writer.finish()
-            throw error
-        }
+        ).run(invocation, logURL: logURL)
     }
 
     private func runForwarding(_ invocation: CommandInvocation) async throws -> CommandResult {
@@ -783,26 +735,5 @@ public struct TestService: Sendable {
             return URL(filePath: path)
         }
         return URL(filePath: path, relativeTo: repository).standardizedFileURL
-    }
-}
-
-private actor CommandLogWriter {
-    private let handle: FileHandle
-    private var isOpen = true
-
-    init(url: URL, fileSystem: any FileSystem) throws {
-        try fileSystem.write(Data(), to: url, atomically: false)
-        handle = try FileHandle(forWritingTo: url)
-    }
-
-    func append(_ bytes: [UInt8]) throws {
-        guard isOpen else { return }
-        try handle.write(contentsOf: Data(bytes))
-    }
-
-    func finish() throws {
-        guard isOpen else { return }
-        try handle.close()
-        isOpen = false
     }
 }

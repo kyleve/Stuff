@@ -14,5 +14,21 @@ struct XCResultNodeTests {
                 rerunIdentifier: "WhereCoreTests/CalendarDayTests",
             ),
         ])
+        #expect(catalog.testCases == [
+            XCResultTestCase(
+                identifier: "WhereCoreTests/CalendarDayTests/works()",
+                bundle: "WhereCoreTests",
+                name: "works()",
+                result: "Passed",
+                durationInSeconds: 0.05,
+            ),
+            XCResultTestCase(
+                identifier: "WhereCoreTests/CalendarDayTests/fails()",
+                bundle: "WhereCoreTests",
+                name: "fails()",
+                result: "Failed",
+                durationInSeconds: 0.2,
+            ),
+        ])
     }
 }

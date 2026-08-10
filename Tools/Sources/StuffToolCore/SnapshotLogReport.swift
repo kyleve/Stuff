@@ -5,6 +5,9 @@ public struct SnapshotTimingRecord: Decodable, Equatable, Sendable {
     public let total: Double
     public let phases: [String: Double]
     public let settlePasses: Int
+    public let sizing: String?
+    public let measurementReadiness: String?
+    public let captureSettle: String?
 }
 
 public struct SnapshotDiffRecord: Decodable, Equatable, Sendable {
@@ -109,6 +112,68 @@ public struct SnapshotLogReport: Equatable, Sendable {
         return output
     }
 
+    public func profileTimingText() -> String {
+        guard timings.isEmpty == false else {
+            return "  (no timing lines found)\n"
+        }
+        let grand = timings.reduce(0) { $0 + $1.total }
+        var phaseTotals: [String: Double] = [:]
+        for row in timings {
+            for (phase, seconds) in row.phases {
+                phaseTotals[phase, default: 0] += seconds
+            }
+        }
+        var output = String(
+            format: "  %d captures, %.1fs total, %.3fs per image\n\n",
+            timings.count,
+            grand,
+            grand / Double(timings.count),
+        )
+        output += "  \(padded("phase", width: 20))     total   share      mean\n"
+        for (phase, seconds) in phaseTotals.sorted(by: { $0.value > $1.value }) {
+            let share = grand > 0 ? 100 * seconds / grand : 0
+            output += "  \(padded(phase, width: 20)) "
+            output += String(
+                format: "%8.2fs %6.1f%% %8.3fs\n",
+                seconds,
+                share,
+                seconds / Double(timings.count),
+            )
+        }
+        output += countText(title: "sizing", values: timings.map { $0.sizing ?? "unknown" })
+        output += countText(
+            title: "measurement readiness",
+            values: timings.map { $0.measurementReadiness ?? "unknown" },
+        )
+        output += countText(
+            title: "capture settle",
+            values: timings.map { $0.captureSettle ?? "unknown" },
+        )
+        output += "\n  intrinsic measurement by readiness:\n"
+        let readinessValues = Set(timings.map { $0.measurementReadiness ?? "unknown" }).sorted()
+        for readiness in readinessValues {
+            let selected = timings.filter { ($0.measurementReadiness ?? "unknown") == readiness }
+            let seconds = selected.reduce(0) { result, row in
+                result + row.phases["intrinsicMeasure", default: 0]
+            }
+            output += String(
+                format: "    %8.2fs  %@ (%d captures)\n",
+                seconds,
+                readiness,
+                selected.count,
+            )
+        }
+        let passes = timings.map(\.settlePasses)
+        let mean = Double(passes.reduce(0, +)) / Double(passes.count)
+        output += "\n  settle passes: min \(passes.min() ?? 0), max \(passes.max() ?? 0), "
+        output += String(format: "mean %.1f\n", mean)
+        output += "\n  slowest captures:\n"
+        for row in timings.sorted(by: { $0.total > $1.total }).prefix(8) {
+            output += String(format: "    %6.3fs  %@\n", row.total, row.id)
+        }
+        return output
+    }
+
     private static func payloads(prefix: String, in data: Data) -> [Data] {
         String(decoding: data, as: UTF8.self)
             .split(separator: "\n")
@@ -121,5 +186,20 @@ public struct SnapshotLogReport: Equatable, Sendable {
     private func padded(_ value: String, width: Int) -> String {
         guard value.count < width else { return value }
         return value + String(repeating: " ", count: width - value.count)
+    }
+
+    private func countText(title: String, values: [String]) -> String {
+        var counts: [String: Int] = [:]
+        for value in values {
+            counts[value, default: 0] += 1
+        }
+        var output = "\n  \(title):\n"
+        for (value, count) in counts.sorted(by: {
+            if $0.value == $1.value { return $0.key < $1.key }
+            return $0.value > $1.value
+        }) {
+            output += String(format: "    %4d  %@\n", count, value)
+        }
+        return output
     }
 }

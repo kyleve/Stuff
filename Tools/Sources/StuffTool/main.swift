@@ -7,6 +7,7 @@ struct StuffTool: AsyncParsableCommand {
         commandName: "stuff",
         abstract: "Run Stuff's repository developer tools.",
         subcommands: [
+            ProfileCommand.self,
             SimulatorCommand.self,
             TestCommand.self,
             XCStringsCommand.self,

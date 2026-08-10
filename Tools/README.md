@@ -31,6 +31,9 @@ packages are credited as development tools.
   package dump, then shares the simulator resolver and streams raw `xcodebuild`
   output through a directly tested progress reporter. A successful process that
   matched zero tests is still a failed run.
+- `./profile` keeps clean-build, unit-test, and serial snapshot-test timing as
+  separate legs. It reads typed xcresult test cases, parses Xcode's build-timing
+  summary and type-check warnings, and can retain CI-shaped separate DerivedData.
 
 ## Why `test` uses raw xcodebuild
 
@@ -41,6 +44,10 @@ paths. The raw invocation also sets `-collect-test-diagnostics never`; without
 that flag, a failing simulator test can spend ten minutes attempting to collect
 diagnostics before returning. Snapshot timing and difference reports likewise
 consume detail lines from the unformatted log.
+
+`./profile` also requires raw output because Tuist's formatter omits
+`-showBuildTimingSummary`; its per-test durations come from `xcresulttool`, not
+human-formatted log text.
 
 Affected-bundle selection does not parse `Project.swift`. Tuist's pinned
 `graph --format json` output is authoritative for schemes, targets, sources,
