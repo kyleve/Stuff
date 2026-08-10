@@ -87,4 +87,33 @@ struct TestProgressReporterTests {
             "warning: could not read progress counts",
         ))
     }
+
+    @Test func imageEventsDoNotRelabelACachedTestCounter() async throws {
+        let root = try makeTemporaryDirectory()
+        defer { removeTemporaryDirectory(root) }
+        let counts = root.appending(path: "counts.json")
+        try Data(#"{"tests":34,"images":0}"#.utf8).write(to: counts)
+        let terminal = MemoryTerminal()
+        let reporter = try TestProgressReporter(
+            scheme: "StuffSnapshotTests",
+            heartbeat: 0,
+            statusURL: nil,
+            countsURL: counts,
+            logURL: root.appending(path: "run.log"),
+            countImages: true,
+            terminal: terminal,
+            fileSystem: FoundationFileSystem(),
+            clock: ImmediateClock(),
+        )
+
+        try await reporter.start()
+        try await reporter.consume(
+            .standardOutput,
+            bytes: Array("SNAPSHOT_TIMING {\"id\":\"first\"}\n".utf8),
+        )
+        _ = try await reporter.finish()
+
+        #expect(await terminal.standardOutputText.contains("0/34 tests (0%)"))
+        #expect(await terminal.standardOutputText.contains("0/34 images") == false)
+    }
 }

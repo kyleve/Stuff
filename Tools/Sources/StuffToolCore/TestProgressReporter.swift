@@ -275,7 +275,7 @@ public actor TestProgressReporter {
         } else {
             done = tests
             total = expected.tests
-            unit = images > 0 ? "images" : "tests"
+            unit = "tests"
         }
         var parts = ["[\(elapsed(now: now))]"]
         if total > 0, done <= total {
@@ -285,7 +285,7 @@ public actor TestProgressReporter {
                 parts.append("~\(minutesAndSeconds(remaining)) left")
             }
         } else {
-            parts.append("\(images > 0 ? images : tests) \(unit)")
+            parts.append("\(done) \(unit)")
         }
         if suite.isEmpty == false { parts.append(suite) }
         if current.isEmpty == false { parts.append(current) }
