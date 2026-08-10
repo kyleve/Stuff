@@ -1,4 +1,5 @@
 import UIKit
+import WhereCrashReporting
 #if DEBUG
     import Inspector
 #endif
@@ -60,6 +61,18 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         _ application: UIApplication,
         didFinishLaunchingWithOptions options: [UIApplication.LaunchOptionsKey: Any]? = nil,
     ) -> Bool {
-        runtime.didFinishLaunching(application: application, options: options)
+        WhereCrashReporting.start(
+            dsn: "https://b6d0c35a9bf66d188439e9a6e2022733@o4511883510677504.ingest.us.sentry.io/4511883519983616",
+            debug: Self.sentryDebugLoggingEnabled,
+        )
+        return runtime.didFinishLaunching(application: application, options: options)
+    }
+
+    private static var sentryDebugLoggingEnabled: Bool {
+        #if DEBUG
+            true
+        #else
+            false
+        #endif
     }
 }
