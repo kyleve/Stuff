@@ -488,19 +488,6 @@
             return resolve
         }
 
-        // MARK: - Recent activity (24h summary sheet)
-
-        /// A recent-activity model forced into a chosen state (no generator run),
-        /// so the summary sheet's states drop straight into a `#Preview`.
-        @MainActor
-        public static func recentActivityModel(
-            state: RecentActivityModel.LoadState,
-        ) -> RecentActivityModel {
-            let model = RecentActivityModel(services: previewServices())
-            model.previewLoad(state)
-            return model
-        }
-
         // MARK: - Logged days (manual entries sheet)
 
         /// A believable set of manual day entries across the sample year — a mix

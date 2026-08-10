@@ -3,9 +3,8 @@
 The domain layer of the **Where** app: it ingests location, persists it, rolls
 it up into per-day and per-year region presence, finds the data-quality problems
 worth resolving, and drives the side effects that follow a change (reminders,
-widget snapshots, backups, on-device activity summaries). It is pure Swift +
-Foundation + SwiftData + CoreLocation + FoundationModels — **no SwiftUI or
-UIKit** — so all of it is unit-testable off-screen. It builds on
+widget snapshots, backups). It is pure Swift + Foundation + SwiftData +
+CoreLocation — **no SwiftUI or UIKit** — so all of it is unit-testable off-screen. It builds on
 [`RegionKit`](../RegionKit) for coordinate→region lookup and logs through
 [`Periscope`](../../Shared/Periscope) via the `WhereLog` facade.
 
@@ -120,7 +119,7 @@ one it belongs to rather than to a god-object:
   target-owned advisory check-ins, and global removal tombstones sync independently. Another
   installation can rename or remove a device identity, but cannot change its recording consent.
 - **`LocationHistoryReader`** — the shared removal-aware read boundary used by reports, widgets,
-  recent activity, and foreground capture checks. It hides a removed identity's GPS samples at
+  and foreground capture checks. It hides a removed identity's GPS samples at
   and after its earliest tombstone while keeping earlier raw storage, backups, legacy samples
   without provenance, and user-asserted samples lossless.
 
@@ -154,8 +153,6 @@ one it belongs to rather than to a god-object:
   sidecar tombstone before clearing recovery, so a cold launch can repair a preference write
   that did not reach disk without offering the same archive again.
   Check-ins are deliberately neither exported nor restored because they are live advisory status.
-- **`RecentActivitySummarizer`** — an on-device Foundation Models narrative over
-  a selectable look-back `RecentActivityWindow`.
 - **`InstallationRecordingContext`** — the device-local installation identity,
   explicitly confirmed local recording choice, and stable timestamp for recreating
   its immutable device profile idempotently.
@@ -270,9 +267,6 @@ rotates to a Reset child generation, and discards the retry queue only after com
   incomplete causal generation DAG fails closed instead of mixing old and new state.
 - **Failures surface.** Store methods are `async throws`; errors are logged via
   `WhereLog` and left observable — never swallowed into an empty default.
-- **Foundation Models may be unavailable.** `RecentActivitySummarizer` reports a
-  typed reason rather than a silently empty summary.
-
 ## Testing
 
 Swift Testing in [`Tests/`](Tests) (`WhereCoreTests`), hosted in `StuffTestHost`.

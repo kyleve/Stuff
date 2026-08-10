@@ -321,59 +321,6 @@ enum WhereFormat {
         }
     }
 
-    // MARK: Recent activity
-
-    static func recentActivityTitle(_ window: RecentActivityWindow) -> String {
-        switch window {
-            case .day: String(localized: .recentActivityTitleDay)
-            case .week: String(localized: .recentActivityTitleWeek)
-            case .month: String(localized: .recentActivityTitleMonth)
-            case .yearToDate: String(localized: .recentActivityTitleYearToDate)
-        }
-    }
-
-    static func recentActivityWindowLabel(_ window: RecentActivityWindow) -> String {
-        switch window {
-            case .day: String(localized: .recentActivityWindowDay)
-            case .week: String(localized: .recentActivityWindowWeek)
-            case .month: String(localized: .recentActivityWindowMonth)
-            case .yearToDate: String(localized: .recentActivityWindowYearToDate)
-        }
-    }
-
-    static func recentActivityFooter(_ window: RecentActivityWindow) -> String {
-        switch window {
-            case .day: String(localized: .recentActivityFooterDay)
-            case .week: String(localized: .recentActivityFooterWeek)
-            case .month: String(localized: .recentActivityFooterMonth)
-            case .yearToDate: String(localized: .recentActivityFooterYearToDate)
-        }
-    }
-
-    static func recentActivityEmptyDescription(_ window: RecentActivityWindow) -> String {
-        switch window {
-            case .day: String(localized: .recentActivityEmptyDescriptionDay)
-            case .week: String(localized: .recentActivityEmptyDescriptionWeek)
-            case .month: String(localized: .recentActivityEmptyDescriptionMonth)
-            case .yearToDate: String(localized: .recentActivityEmptyDescriptionYearToDate)
-        }
-    }
-
-    static func recentActivityUnavailableMessage(
-        _ reason: ActivitySummaryUnavailableReason,
-    ) -> String {
-        switch reason {
-            case .deviceNotEligible:
-                String(localized: .recentActivityUnavailableDeviceNotEligible)
-            case .appleIntelligenceNotEnabled:
-                String(localized: .recentActivityUnavailableAppleIntelligenceNotEnabled)
-            case .modelNotReady:
-                String(localized: .recentActivityUnavailableModelNotReady)
-            case .unknown:
-                String(localized: .recentActivityUnavailableUnknown)
-        }
-    }
-
     // MARK: About
 
     /// A build-metadata value, or a localized "Unknown" when the bundle doesn't
