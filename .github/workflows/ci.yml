@@ -45,7 +45,6 @@ jobs:
 
   architecture:
     name: Bumper Bowling
-    needs: format
     runs-on: xcode-27
     env:
       BUMPER_CACHE_DIR: .build/bumper-cache
@@ -75,7 +74,6 @@ jobs:
 
   test:
     name: Build & Test (iOS)
-    needs: format
     runs-on: xcode-27
     # A cold/stalled CoreSimulator has held this job for 3.5–5 hours on the
     # xcode-27 image (a ~10 minute run), so cap it rather than letting a stuck
@@ -126,7 +124,6 @@ jobs:
 
   snapshot_shards:
     name: Snapshot Tests (iOS, ${{ matrix.shard }}/2)
-    needs: format
     strategy:
       fail-fast: false
       matrix:
@@ -195,7 +192,6 @@ jobs:
 
   test-macos:
     name: Build & Test (macOS)
-    needs: format
     # Same image as the other jobs so every target builds against one toolchain.
     runs-on: xcode-27
     # The macOS-only Ledger scheme is self-contained and fast (no simulator, no
