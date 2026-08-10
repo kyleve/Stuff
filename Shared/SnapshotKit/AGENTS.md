@@ -57,8 +57,10 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
   subjects.
 - **Measurement readiness never replaces capture readiness.** Keep
   `measurementReadiness` at `.sameAsCapture` when async work can change ideal
-  height. Use `.immediate` only for synchronously sized fixtures; the case's
-  final `settle` remains independently load-bearing. Guards:
+  height, or await that work deterministically from `onReadyToMeasure` and use
+  `.settled` for the probe. Use `.immediate` only for synchronously sized
+  fixtures; the case's final `settle` remains independently load-bearing. A
+  measurement hook is intrinsic/full-content-only. Guards:
   `AsyncContentCaptureTests` and `LargeViewCaptureTests`.
 
 ## Testing

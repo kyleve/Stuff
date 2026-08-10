@@ -140,6 +140,10 @@ jobs:
     timeout-minutes: 60
     env:
       TEST_WORKDIR: ${{ github.workspace }}/test-output-${{ matrix.shard }}
+      # Hosted snapshot rendering is substantially slower on these shared
+      # runners. Scale only maximum settle/hook ceilings; successful captures
+      # still use the same floor and pixel-stability proof as local runs.
+      SNAPSHOT_SETTLE_TIMEOUT_MULTIPLIER: "2"
     steps:
       # Reference images live in Git LFS (see .gitattributes), so fetch them —
       # without this the images arrive as pointer files and every comparison fails.

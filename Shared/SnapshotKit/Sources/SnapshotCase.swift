@@ -51,6 +51,12 @@ public struct SnapshotCase: Identifiable {
     public let settle: SnapshotSettle
     /// When intrinsic/full-content sizing may measure the content.
     public let measurementReadiness: SnapshotMeasurementReadiness
+    /// Runs after intrinsic/full-content content is hosted and laid out, but
+    /// before it settles and is measured. Use it to await a deterministic
+    /// content-ready signal when the loaded state changes ideal height. `nil`
+    /// for synchronously measurable content; fixed-size configurations reject
+    /// a hook because they do not have a measurement phase.
+    public let onReadyToMeasure: (@MainActor () async -> Void)?
     /// Runs in the capture pipeline after the content has settled and before
     /// the image is taken — the deterministic point to focus a field or trigger
     /// a presented state. Its effects are settled again before capture. `nil`
@@ -77,6 +83,7 @@ public struct SnapshotCase: Identifiable {
         name: String,
         configurations: [SnapshotConfiguration],
         measurementReadiness: SnapshotMeasurementReadiness = .sameAsCapture,
+        onReadyToMeasure: (@MainActor () async -> Void)? = nil,
         settle: SnapshotSettle = .settled,
         onReadyToSnapshot: (@MainActor () async -> Void)? = nil,
         @ViewBuilder content: @escaping @MainActor () -> some View,
@@ -84,6 +91,7 @@ public struct SnapshotCase: Identifiable {
         self.name = name
         self.configurations = configurations
         self.measurementReadiness = measurementReadiness
+        self.onReadyToMeasure = onReadyToMeasure
         self.settle = settle
         self.onReadyToSnapshot = onReadyToSnapshot
         contentFactory = { AnyView(content()) }

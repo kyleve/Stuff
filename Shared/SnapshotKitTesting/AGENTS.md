@@ -75,10 +75,12 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
 - **The runner fails fast, once, on setup problems** (a simulator that doesn't
   match the `SNAPSHOT_EXPECTED_*` pins, two variants sharing one reference
   name) — one clear issue, never hundreds of pixel diffs.
-- **An unsettled capture is a failure, not a silent fallback.** Don't "fix" a
-  settle timeout by widening the budget — freeze the motion behind
-  `\.isCapturingSnapshot`, or use `.settledAtLeast` only for genuinely slow
-  (not endless) content.
+- **An unsettled capture is a failure, not a silent fallback.** Freeze endless
+  motion behind `\.isCapturingSnapshot`, and use deterministic readiness or
+  `.settledAtLeast` for finite work. The explicit CI multiplier may scale only
+  maximum settle/hook ceilings; never the floor, quiet proof, cadence, or image
+  tolerance. Guards: `SnapshotSettleTimeoutPolicyTests` and
+  `SnapshotRenderingSupportTests`.
 - **A settled capture is not a ready capture.** The loop proves the pixels
   stopped changing, not that the content the case meant to show ever arrived —
   a loading placeholder is perfectly pixel-stable, so a gap between phases of
@@ -90,6 +92,11 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
   completion signal from `onReadyToSnapshot` (`root.LoggedIn`). Both incidents,
   and how each was found, are ledgered in
   [`Where/TODOs.md`](../../Where/TODOs.md).
+- **Height-changing readiness runs before measurement.** Intrinsic/full-content
+  cases await `onReadyToMeasure` only after the sizing probe is hosted and laid
+  out, then settle and resolve height. The hook is bounded by the effective
+  settle ceiling, must cooperate with cancellation, and is rejected for fixed
+  sizing. Guards: `PreMeasureHookTests` and `SnapshotMeasurementHookTests`.
 - **`.timedOut` requires observed motion; starvation is `.starved`.** A
   change-free settle loop keeps running until it can prove stability (a
   starved machine can fit fewer passes than stability needs), and only a hard
