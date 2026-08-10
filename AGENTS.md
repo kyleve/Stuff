@@ -230,7 +230,8 @@ configured once via `./ide --team-id` (see
 describes the build/device plan without signing, querying, installing, or
 launching.
 [`./Ledger/install`](Ledger/install) is the equivalent for Ledger: it builds a
-Release and installs it to `/Applications` (ad-hoc signed, no team needed).
+Release and transactionally installs it to `/Applications` (ad-hoc signed, no
+team needed); `--dry-run` performs no build, process, replacement, or launch.
 
 ## Per-module docs
 

@@ -11,6 +11,7 @@ struct FileSystemTests {
         let file = directory.appending(path: "value")
         let copy = directory.appending(path: "copy")
         let moved = directory.appending(path: "moved")
+        let link = directory.appending(path: "link")
 
         #expect(fileSystem.kind(of: file) == .missing)
         try fileSystem.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -22,10 +23,12 @@ struct FileSystemTests {
         #expect(try fileSystem.read(file) == Data("value".utf8))
         try fileSystem.copyItem(at: file, to: copy)
         try fileSystem.moveItem(at: copy, to: moved)
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: moved)
         #expect(fileSystem.kind(of: copy) == .missing)
         #expect(try fileSystem.read(moved) == Data("value".utf8))
+        #expect(fileSystem.kind(of: link) == .symbolicLink)
         let contents = try fileSystem.contents(of: directory)
-        #expect(contents.map(\.lastPathComponent).sorted() == ["moved", "value"])
+        #expect(contents.map(\.lastPathComponent).sorted() == ["link", "moved", "value"])
         let permissions = try #require(
             FileManager.default.attributesOfItem(atPath: directory.path)[.posixPermissions] as? Int,
         )

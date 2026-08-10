@@ -1,0 +1,3 @@
+  101 /Applications/Ledger.app/Contents/MacOS/Ledger
+  202 /tmp/DerivedData/Build/Products/Release/Ledger.app/Contents/MacOS/Ledger
+  303 /Applications/Ledger.app/Contents/MacOS/LedgerHelper

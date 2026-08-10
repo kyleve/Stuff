@@ -4,6 +4,7 @@ public enum FileItemKind: Equatable, Sendable {
     case missing
     case file
     case directory
+    case symbolicLink
 }
 
 public protocol FileSystem: Sendable {
@@ -22,11 +23,16 @@ public struct FoundationFileSystem: FileSystem {
     public init() {}
 
     public func kind(of url: URL) -> FileItemKind {
-        var isDirectory = ObjCBool(false)
-        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) else {
+        guard let attributes = try? FileManager.default.attributesOfItem(atPath: url.path),
+              let type = attributes[.type] as? FileAttributeType
+        else {
             return .missing
         }
-        return isDirectory.boolValue ? .directory : .file
+        return switch type {
+            case .typeDirectory: .directory
+            case .typeSymbolicLink: .symbolicLink
+            default: .file
+        }
     }
 
     public func contents(of directory: URL) throws -> [URL] {

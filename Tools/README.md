@@ -43,6 +43,10 @@ packages are credited as development tools.
 - `./Where/install` keeps signing, build, exact physical-device selection,
   installation, and launch as typed steps. It decodes `devicectl`'s current
   properties schema and offers a no-signing, no-device-query `--dry-run`.
+- `./Ledger/install` validates the fixed destination and complete app shape,
+  terminates only the exact installed executable with bounded escalation, and
+  replaces it from `/Applications`-local staging with rollback. Its `--dry-run`
+  performs no build, process, filesystem, or launch operation.
 
 ## Why `test` uses raw xcodebuild
 

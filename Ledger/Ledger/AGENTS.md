@@ -16,6 +16,9 @@ build system, formatting, and global conventions. Read that first.
   file and driven by the `Ledger` / `Ledger-macOS-Tests` schemes.
 - No behavior lives here — persistence, networking, and domain rules are all in
   LedgerCore. This target renders `LoadState` and routes intents.
+- The root `Ledger/install` command owns standalone Release installation. It
+  validates and transactionally replaces `/Applications/Ledger.app`; use
+  `--dry-run` when reviewing the plan.
 
 ## Architecture
 

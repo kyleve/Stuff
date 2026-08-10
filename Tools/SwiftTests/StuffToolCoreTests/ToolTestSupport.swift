@@ -6,9 +6,14 @@ import Testing
 actor FakeCommandRunner: CommandRunning {
     private var responses: [CommandResult]
     private(set) var invocations: [CommandInvocation] = []
+    private let onRun: (@Sendable (Int, CommandInvocation) async throws -> Void)?
 
-    init(responses: [CommandResult]) {
+    init(
+        responses: [CommandResult],
+        onRun: (@Sendable (Int, CommandInvocation) async throws -> Void)? = nil,
+    ) {
         self.responses = responses
+        self.onRun = onRun
     }
 
     func run(
@@ -16,6 +21,7 @@ actor FakeCommandRunner: CommandRunning {
         outputHandler: CommandOutputHandler?,
     ) async throws -> CommandResult {
         invocations.append(invocation)
+        try await onRun?(invocations.count - 1, invocation)
         guard responses.isEmpty == false else {
             throw FakeCommandFailure.missingResponse(invocation)
         }

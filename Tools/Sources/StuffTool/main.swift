@@ -9,6 +9,7 @@ struct StuffTool: AsyncParsableCommand {
         subcommands: [
             FlakyCommand.self,
             IconsCommand.self,
+            LedgerInstallCommand.self,
             ProfileCommand.self,
             SimulatorCommand.self,
             TestCommand.self,
