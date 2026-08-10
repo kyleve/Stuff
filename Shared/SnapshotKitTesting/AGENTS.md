@@ -159,10 +159,9 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
   interleaving that sank the earlier in-process attempt, but they don't fix the
   real constraint: every shard contends for one render server, so
   `drawHierarchy` slows down enough to push captures past their settle budget.
-  The bar for keeping it was a 30% win. CI's two shards are different: each
-  stays serial on its own runner and render server, with membership owned by
-  `.github/snapshot-shards.json`; never reproduce that topology concurrently
-  on one developer Mac. Don't reach for
+  The bar for keeping it was a 30% win. Isolated CI runners avoid that
+  contention, but PR #237 retired their duplicated setup/build cost after the
+  M4 Pro migration made one serial job fast enough. Don't reach for
   `-parallel-testing-enabled` either — it distributes XCTest *classes*, and
   Swift Testing presents none, so it lands everything on one worker and lets
   Swift Testing's own parallelism interleave captures in a single host process
