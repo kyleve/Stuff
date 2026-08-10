@@ -126,10 +126,11 @@ assertSnapshots(of: MyBadge.self)
 ## Notes
 
 - Accessibility (`.accessibility`) configurations are **filtered out of the
-  preview cutsheet** — VoiceOver-annotated captures need the test-only library
-  and can't render in a plain Preview. They still run as snapshot tests. The
-  cutsheet also cannot reproduce the capture pipeline's UIKit-backed
-  `List`/`Form` height measurement, safe-area override, ready hooks, or
+  preview cutsheet** — Stuff keeps AccessibilitySnapshot's SwiftUI annotation
+  renderer in the test-only `SnapshotKitTesting` product instead of linking it
+  into every shipping UI module. They still run as snapshot tests. The cutsheet
+  also cannot reproduce the capture pipeline's UIKit-backed `List`/`Form`
+  height measurement, safe-area override, readiness hooks, or
   tile-and-stitch pass, so CI's rendered dimensions remain authoritative.
 - The Where app wraps content in its Broadway design-system root via a
   `whereSnapshot(...)` adapter in `WhereUI`; SnapshotKit itself stays

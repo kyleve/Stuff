@@ -126,11 +126,12 @@ let package = Package(
                 .target(name: "SnapshotKit"),
                 .target(name: "TestHostSupport"),
                 .product(name: "SnapshotTesting", package: "swift-snapshot-testing"),
-                // Only `AccessibilitySnapshotCore` is imported; the umbrella
-                // product additionally pulls in the XCTest-facing half, widening
-                // the statically embedded closure of every consuming test bundle
-                // for no benefit.
+                // Keep the focused Core + SwiftUI renderer products: the
+                // umbrella additionally pulls in AccessibilitySnapshot's own
+                // SnapshotTesting integration, widening every consuming test
+                // bundle's statically embedded closure for no benefit.
                 .product(name: "AccessibilitySnapshotCore", package: "AccessibilitySnapshot"),
+                .product(name: "AccessibilitySnapshotPreviews", package: "AccessibilitySnapshot"),
             ],
             path: "Shared/SnapshotKitTesting/Sources",
         ),
