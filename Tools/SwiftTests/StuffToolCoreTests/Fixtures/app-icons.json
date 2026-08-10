@@ -1,0 +1,16 @@
+{
+  "icons" : [
+    {
+      "id" : "classic",
+      "displayName" : "Classic",
+      "alternateIconName" : null,
+      "previewImageName" : "AppIconClassic"
+    },
+    {
+      "id" : "pride",
+      "displayName" : "Pride",
+      "alternateIconName" : "AppIconPride",
+      "previewImageName" : "AppIconPride"
+    }
+  ]
+}

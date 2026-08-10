@@ -75,7 +75,8 @@ easy to corrupt by hand — `./simulator` owns a per-checkout device (see the
 `./icons` is the single command for the Where app's alternate icons (see
 `./icons --help`). It keeps both asset catalogs and the picker's
 `AppIcons.json` manifest in sync — never hand-edit those or add icon Swift.
-Run `./ide --no-open` after adding one.
+Use `--dry-run` to validate an add or removal without changing files, and run
+`./ide --no-open` after adding one.
 
 ### Version and build metadata
 

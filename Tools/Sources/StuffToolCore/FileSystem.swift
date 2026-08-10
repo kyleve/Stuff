@@ -9,7 +9,9 @@ public enum FileItemKind: Equatable, Sendable {
 public protocol FileSystem: Sendable {
     func kind(of url: URL) -> FileItemKind
     func contents(of directory: URL) throws -> [URL]
+    func copyItem(at source: URL, to destination: URL) throws
     func createDirectory(at url: URL, withIntermediateDirectories: Bool) throws
+    func moveItem(at source: URL, to destination: URL) throws
     func removeItem(at url: URL) throws
     func read(_ url: URL) throws -> Data
     func write(_ data: Data, to url: URL, atomically: Bool) throws
@@ -34,6 +36,10 @@ public struct FoundationFileSystem: FileSystem {
         )
     }
 
+    public func copyItem(at source: URL, to destination: URL) throws {
+        try FileManager.default.copyItem(at: source, to: destination)
+    }
+
     public func createDirectory(
         at url: URL,
         withIntermediateDirectories: Bool,
@@ -42,6 +48,10 @@ public struct FoundationFileSystem: FileSystem {
             at: url,
             withIntermediateDirectories: withIntermediateDirectories,
         )
+    }
+
+    public func moveItem(at source: URL, to destination: URL) throws {
+        try FileManager.default.moveItem(at: source, to: destination)
     }
 
     public func removeItem(at url: URL) throws {

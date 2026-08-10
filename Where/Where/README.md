@@ -24,7 +24,7 @@ target, see [`AGENTS.md`](AGENTS.md).
 | `Sources/WhereInspectorApplicationRuntime.swift` | DEBUG-only alternate runtime. Configures the standalone Inspector without constructing regular app systems. |
 | `Sources/WhereApplicationRuntime.swift` | The class-bound launch/root-view protocol shared by both runtimes. |
 | `Sources/WhereShortcuts.swift` | The `AppShortcutsProvider` — the spoken phrases Siri, Spotlight, and the Shortcuts app offer for the `WhereIntents` intents. |
-| `Resources/AppIcon.xcassets` | The primary and alternate app icons. Generated and kept in sync by `./icons`; not hand-edited. |
+| `Resources/AppIcon.xcassets` | The primary and alternate app icons. Transactionally kept in sync by `./icons` (`--dry-run` validates); not hand-edited. |
 | `Tests/WhereTests.swift` | Smoke tests over the shell wiring, hosted by the app itself. |
 
 ## Launch, briefly

@@ -37,6 +37,9 @@ packages are credited as development tools.
 - `./flaky` retains warm DerivedData while treating suite and isolated test
   failures as report data. Typed xcresult aggregation identifies only tests that
   both pass and fail; prerequisite and build failures still exit nonzero.
+- `./icons` validates complete app-catalog, preview-catalog, and manifest outputs
+  before a same-filesystem transaction replaces anything. A failed commit rolls
+  every target back, and `--dry-run` performs validation without staging files.
 
 ## Why `test` uses raw xcodebuild
 

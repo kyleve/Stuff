@@ -129,3 +129,33 @@ func fixtureData(_ name: String, extension fileExtension: String) throws -> Data
     )
     return try Data(contentsOf: url)
 }
+
+func pngFixtureData(width: UInt32 = 1024, height: UInt32 = 1024) -> Data {
+    var bytes: [UInt8] = [
+        0x89,
+        0x50,
+        0x4E,
+        0x47,
+        0x0D,
+        0x0A,
+        0x1A,
+        0x0A,
+        0,
+        0,
+        0,
+        13,
+        0x49,
+        0x48,
+        0x44,
+        0x52,
+    ]
+    for value in [width, height] {
+        bytes += [
+            UInt8((value >> 24) & 0xFF),
+            UInt8((value >> 16) & 0xFF),
+            UInt8((value >> 8) & 0xFF),
+            UInt8(value & 0xFF),
+        ]
+    }
+    return Data(bytes)
+}

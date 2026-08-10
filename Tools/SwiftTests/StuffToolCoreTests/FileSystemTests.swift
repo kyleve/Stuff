@@ -9,6 +9,8 @@ struct FileSystemTests {
         let fileSystem = FoundationFileSystem()
         let directory = root.appending(path: "nested", directoryHint: .isDirectory)
         let file = directory.appending(path: "value")
+        let copy = directory.appending(path: "copy")
+        let moved = directory.appending(path: "moved")
 
         #expect(fileSystem.kind(of: file) == .missing)
         try fileSystem.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -18,9 +20,12 @@ struct FileSystemTests {
         #expect(fileSystem.kind(of: directory) == .directory)
         #expect(fileSystem.kind(of: file) == .file)
         #expect(try fileSystem.read(file) == Data("value".utf8))
+        try fileSystem.copyItem(at: file, to: copy)
+        try fileSystem.moveItem(at: copy, to: moved)
+        #expect(fileSystem.kind(of: copy) == .missing)
+        #expect(try fileSystem.read(moved) == Data("value".utf8))
         let contents = try fileSystem.contents(of: directory)
-        #expect(contents.count == 1)
-        #expect(contents[0].lastPathComponent == "value")
+        #expect(contents.map(\.lastPathComponent).sorted() == ["moved", "value"])
         let permissions = try #require(
             FileManager.default.attributesOfItem(atPath: directory.path)[.posixPermissions] as? Int,
         )
