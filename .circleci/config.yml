@@ -208,7 +208,7 @@ jobs:
           include_snapshot_images: true
 
 workflows:
-  ios-on-m4-pro:
+  "iOS CI":
     when: >-
       (pipeline.event.name == "push" and pipeline.git.branch == "main") or
       (pipeline.event.name == "pull_request" and
