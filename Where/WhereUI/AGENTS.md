@@ -115,8 +115,8 @@ worked examples.
   their component behavior. Resolve coordinated Reduce Motion variants in
   `init(context:)`; keep computed `AnyTransition` values on the owning style.
 - Treat `palette.brand` as Where's current-appearance paper/ink house palette;
-  keep user-selected region accents in `RegionStyle` and Settings' four icon
-  inks in `SettingsStyle.IconPalette`.
+  keep user-selected region accents in `RegionStyle` and Settings' per-section
+  icon colors on `SettingsDestination`.
 - **Per-region tints stay in `RegionStyle`**, resolved via
   `@Environment(\.regionStyles)` and seeded by
   `whereBroadwayRoot(theme:regionStyles:)` — no global accessor or hardcoded

@@ -83,7 +83,6 @@ struct WhereStylesheet: BStylesheet {
             card.securityPrint = .dark
             featureDiscovery.siri.accent = Color(white: 0.42)
             palette = .dark
-            settings.iconPalette = .dark
         }
     }
 
@@ -1566,10 +1565,11 @@ extension WhereStylesheet {
 // MARK: - Settings
 
 extension WhereStylesheet {
-    /// Appearance + motion for the Settings list, including the restrained
-    /// four-ink family used to distinguish its groups.
+    /// Appearance + motion for the Settings list. Geometry only — per-section
+    /// icon colors live on `SettingsDestination`, and the flash tint (accent) /
+    /// restored grouped-row background (a system role) / white-or-black glyph
+    /// stay inline, per the "no adaptive/accent colors in the sheet" rule.
     struct SettingsStyle: Equatable {
-        var iconPalette: IconPalette
         /// Edge of the colored rounded-square icon chip on each top-level row.
         var iconSize: CGFloat
         /// Corner radius of that chip (continuous corners for the squircle look).
@@ -1584,45 +1584,7 @@ extension WhereStylesheet {
         /// out and the scroll reliably lands on it.
         var scrollSettleDelay: Duration
 
-        struct IconPalette: Equatable {
-            var midnight: Color
-            var mineral: Color
-            var forest: Color
-            var oxblood: Color
-
-            subscript(_ tone: IconTone) -> Color {
-                switch tone {
-                    case .midnight: midnight
-                    case .mineral: mineral
-                    case .forest: forest
-                    case .oxblood: oxblood
-                }
-            }
-
-            static let standard = IconPalette(
-                midnight: Color(red: 0.07, green: 0.14, blue: 0.24),
-                mineral: Color(red: 0.28, green: 0.4, blue: 0.48),
-                forest: Color(red: 0.18, green: 0.34, blue: 0.27),
-                oxblood: Color(red: 0.42, green: 0.18, blue: 0.23),
-            )
-
-            static let dark = IconPalette(
-                midnight: Color(red: 0.31, green: 0.42, blue: 0.56),
-                mineral: Color(red: 0.38, green: 0.53, blue: 0.62),
-                forest: Color(red: 0.3, green: 0.49, blue: 0.39),
-                oxblood: Color(red: 0.58, green: 0.32, blue: 0.37),
-            )
-        }
-
-        enum IconTone: Equatable {
-            case midnight
-            case mineral
-            case forest
-            case oxblood
-        }
-
         static let standard = SettingsStyle(
-            iconPalette: .standard,
             iconSize: 29,
             iconCornerRadius: 7,
             iconSymbolSize: 15,

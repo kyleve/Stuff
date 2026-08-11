@@ -74,7 +74,7 @@ struct ShareEvidenceFeaturesView: View {
                                 } icon: {
                                     Image(systemSymbol: .paperclip)
                                         .foregroundStyle(SettingsDestination.shareEvidence
-                                            .iconColor(in: stylesheet))
+                                            .iconColor)
                                 }
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)

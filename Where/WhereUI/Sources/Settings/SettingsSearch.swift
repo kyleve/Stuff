@@ -88,10 +88,6 @@ enum SettingsDestination: Hashable, CaseIterable {
         }
     }
 
-    func iconColor(in stylesheet: WhereStylesheet) -> Color {
-        stylesheet.settings.iconPalette[iconTone]
-    }
-
     /// Whether the group is offered while the app is running on demo data.
     ///
     /// The two that aren't would each reach past the demo and touch the device:

@@ -505,7 +505,6 @@ struct WhereStylesheetTests {
 
     @Test func settingsStyle() {
         let settings = style.settings
-        #expect(settings.iconPalette == .standard)
         #expect(settings.iconSize == 29)
         #expect(settings.iconCornerRadius == 7)
         #expect(settings.iconSymbolSize == 15)
@@ -752,7 +751,6 @@ struct WhereStylesheetTests {
         #expect(resolved.card.securityPrint == .dark)
         #expect(resolved.featureDiscovery.siri.accent == Color(white: 0.42))
         #expect(resolved.palette == .dark)
-        #expect(resolved.settings.iconPalette == .dark)
         #expect(resolved.card.securityPrint.backgroundBlendMode == .luminosity)
         #expect(resolved.card.securityPrint.tint(.red) == Color.red.mix(
             with: .white,
