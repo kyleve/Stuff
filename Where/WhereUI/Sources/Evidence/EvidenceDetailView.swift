@@ -1,5 +1,6 @@
 import PeriscopeCore
 import SFSafeSymbols
+import SnapshotKit
 import SwiftUI
 import WhereCore
 
@@ -33,6 +34,7 @@ struct EvidenceDetailView: View {
             }
             .padding()
         }
+        .background(stylesheet.palette.brand.canvas)
         .navigationTitle(model.evidence.kind.displayName)
         .navigationBarTitleDisplayMode(.inline)
         .task {
@@ -45,14 +47,49 @@ struct EvidenceDetailView: View {
 
     private var header: some View {
         let evidence = model.evidence
-        return VStack(alignment: .leading, spacing: stylesheet.spacing.medium) {
-            Label(evidence.kind.displayName, systemSymbol: evidence.kind.symbol)
-                .font(.title3.weight(.semibold))
-            Text(evidence.capturedAt.formatted(date: .complete, time: .shortened))
-                .foregroundStyle(.secondary)
+        let archive = stylesheet.evidence.archive
+        return VStack(alignment: .leading, spacing: stylesheet.spacing.large) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: stylesheet.spacing.small) {
+                    Text(String(localized: .evidenceDetailRecordLabel))
+                        .font(archive.eyebrowFont)
+                        .tracking(1.6)
+                        .foregroundStyle(stylesheet.palette.brand.brass)
+                    Text(evidence.kind.displayName)
+                        .font(archive.titleFont)
+                        .foregroundStyle(stylesheet.palette.brand.ink)
+                }
+                Spacer(minLength: stylesheet.spacing.large)
+                WhereSeal(tint: stylesheet.palette.brand.brass)
+                    .overlay(alignment: .bottomTrailing) {
+                        Image(systemSymbol: evidence.kind.symbol)
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(stylesheet.palette.brand.ink)
+                            .frame(width: 22, height: 22)
+                            .background(stylesheet.palette.brand.raisedPaper, in: Circle())
+                            .overlay {
+                                Circle()
+                                    .stroke(
+                                        stylesheet.palette.brand.brass.opacity(0.45),
+                                        lineWidth: 0.75,
+                                    )
+                            }
+                    }
+                    .frame(width: archive.headerSealSize)
+                    .accessibilityHidden(true)
+            }
+
+            Divider()
+
+            metadataRow(
+                label: String(localized: .evidenceDetailCaptured),
+                value: evidence.capturedAt.formatted(date: .complete, time: .shortened),
+            )
             if let region = evidence.region {
-                Label(region.localizedName, systemSymbol: .mappinAndEllipse)
-                    .foregroundStyle(.secondary)
+                metadataRow(
+                    label: String(localized: .evidenceDetailRegion),
+                    value: region.localizedName,
+                )
             }
             if let note = evidence.note, !note.isEmpty {
                 VStack(alignment: .leading, spacing: stylesheet.spacing.xSmall) {
@@ -60,17 +97,48 @@ struct EvidenceDetailView: View {
                         .font(.subheadline.weight(.semibold))
                     Text(note)
                 }
-                .padding(.top, stylesheet.spacing.xSmall)
             }
         }
+        .padding(archive.padding)
+        .background(stylesheet.palette.brand.raisedPaper)
+        .clipShape(RoundedRectangle(cornerRadius: archive.cornerRadius))
+        .overlay {
+            RoundedRectangle(cornerRadius: archive.cornerRadius)
+                .stroke(
+                    stylesheet.palette.brand.brass.opacity(archive.borderOpacity),
+                    lineWidth: 0.75,
+                )
+        }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .contain)
+    }
+
+    private func metadataRow(label: String, value: String) -> some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(label)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text(value)
+                    .font(.subheadline.monospacedDigit())
+                    .multilineTextAlignment(.trailing)
+            }
+            VStack(alignment: .leading, spacing: stylesheet.spacing.xSmall) {
+                Text(label)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+                Text(value)
+                    .font(.subheadline.monospacedDigit())
+            }
+        }
     }
 
     @ViewBuilder
     private var preview: some View {
         switch model.blobState {
             case .idle, .loading:
-                ProgressView()
+                SystemActivityIndicator(tint: stylesheet.palette.brand.ink)
                     .frame(maxWidth: .infinity, minHeight: stylesheet.evidence.loadingMinHeight)
             case let .loaded(data):
                 if let data {
@@ -98,6 +166,42 @@ struct EvidenceDetailView: View {
         }
     }
 }
+
+#if DEBUG
+    extension EvidenceDetailView: SnapshotProviding {
+        static var snapshots: [SnapshotCase] {
+            [
+                whereSnapshot(
+                    name: "TextAttachment",
+                    configurations: .fullContentScreenDefaults + [
+                        SnapshotConfiguration(
+                            layoutDirection: .rightToLeft,
+                            device: .iPhoneFullContent,
+                        ),
+                    ],
+                    settle: .immediate,
+                ) {
+                    NavigationStack {
+                        EvidenceDetailView(model: PreviewSupport.evidenceDetailModel(
+                            kind: .email,
+                            contentType: .plainText,
+                            blob: Data("Confirmation: your flight SFO→JFK departs 8:15 AM.".utf8),
+                        ))
+                    }
+                },
+                whereSnapshot(name: "NoAttachment", configurations: .phoneLightDark) {
+                    NavigationStack {
+                        EvidenceDetailView(model: PreviewSupport.evidenceDetailModel(
+                            kind: .document,
+                            contentType: .other(nil),
+                            blob: nil,
+                        ))
+                    }
+                },
+            ]
+        }
+    }
+#endif
 
 #if DEBUG
     #Preview("Text") {

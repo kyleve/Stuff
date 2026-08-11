@@ -696,7 +696,7 @@
         /// A blank compose model over in-memory services.
         @MainActor
         public static func addEvidenceModel() -> AddEvidenceModel {
-            AddEvidenceModel(services: previewServices())
+            AddEvidenceModel(services: previewServices(), now: { referenceNow })
         }
 
         // MARK: - Models (app-level shell)

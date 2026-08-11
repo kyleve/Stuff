@@ -47,6 +47,11 @@ enum WhereFormat {
         String(localized: .locationsRecordedTitle(yearText(year)))
     }
 
+    /// The evidence archive's editorial year line, e.g. "2026, documented".
+    static func evidenceArchiveTitle(year: Int) -> String {
+        String(localized: .evidenceArchiveTitle(yearText(year)))
+    }
+
     /// A "37.77490, -122.41940"-style coordinate label. No catalog entry is
     /// needed; the number style is locale-driven, like `driftThresholdLabel`.
     static func auditCoordinate(latitude: Double, longitude: Double) -> String {
@@ -76,6 +81,10 @@ enum WhereFormat {
 
     static func elsewhereCardSubtitle(regions: Int) -> String {
         String(localized: .locationsElsewhereSubtitle(regions))
+    }
+
+    static func evidenceArchiveRecordCount(_ count: Int) -> String {
+        String(localized: .evidenceArchiveRecordCount(count))
     }
 
     static func missingBannerCompact(count: Int) -> String {

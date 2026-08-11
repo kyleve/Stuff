@@ -25,6 +25,7 @@ struct WhereStylesheet: BStylesheet {
     var regionMap = RegionMapStyle.standard
     var regionPicker = RegionPickerStyle.standard
     var evidence = EvidenceStyle.standard
+    var recordPreparation = RecordPreparationStyle.standard
     var elsewhereCard = ElsewhereCardStyle.standard
     var locationForecast = LocationForecastStyle.standard
     var palette = Palette.standard
@@ -1270,11 +1271,82 @@ extension WhereStylesheet {
         var pdfPreviewMinHeight: CGFloat
         /// Minimum height reserved for the attachment area while its bytes load.
         var loadingMinHeight: CGFloat
+        var archive: Archive
+        var compose: Compose
+
+        struct Archive: Equatable {
+            var cornerRadius: CGFloat
+            var padding: CGFloat
+            var rowSpacing: CGFloat
+            var indexWidth: CGFloat
+            var borderOpacity: Double
+            var headerSealSize: CGFloat
+            var eyebrowFont: Font
+            var titleFont: Font
+            var rowTitleFont: Font
+            var indexFont: Font
+        }
+
+        struct Compose: Equatable {
+            var sealSize: CGFloat
+            var eyebrowFont: Font
+            var titleFont: Font
+        }
 
         static let standard = EvidenceStyle(
             previewCornerRadius: 22,
             pdfPreviewMinHeight: 420,
             loadingMinHeight: 200,
+            archive: Archive(
+                cornerRadius: 16,
+                padding: 16,
+                rowSpacing: 12,
+                indexWidth: 30,
+                borderOpacity: 0.16,
+                headerSealSize: 48,
+                eyebrowFont: .caption2.weight(.semibold),
+                titleFont: .system(.title2, design: .serif).weight(.semibold),
+                rowTitleFont: .system(.headline, design: .serif).weight(.semibold),
+                indexFont: .caption2.weight(.semibold).monospacedDigit(),
+            ),
+            compose: Compose(
+                sealSize: 44,
+                eyebrowFont: .caption2.weight(.semibold),
+                titleFont: .system(.title3, design: .serif).weight(.semibold),
+            ),
+        )
+    }
+}
+
+// MARK: - Record preparation
+
+extension WhereStylesheet {
+    /// Style for composed-record preparation and its determinate export state.
+    struct RecordPreparationStyle: Equatable {
+        var cornerRadius: CGFloat
+        var padding: CGFloat
+        var sectionSpacing: CGFloat
+        var sealSize: CGFloat
+        var borderOpacity: Double
+        var eyebrowFont: Font
+        var titleFont: Font
+        var figureFont: Font
+        var statusFont: Font
+        var metadataLabelFont: Font
+        var metadataValueFont: Font
+
+        static let standard = RecordPreparationStyle(
+            cornerRadius: 22,
+            padding: 22,
+            sectionSpacing: 18,
+            sealSize: 58,
+            borderOpacity: 0.42,
+            eyebrowFont: .caption2.weight(.semibold),
+            titleFont: .system(.title2, design: .serif).weight(.semibold),
+            figureFont: .subheadline.weight(.semibold).monospacedDigit(),
+            statusFont: .headline,
+            metadataLabelFont: .caption.weight(.medium),
+            metadataValueFont: .subheadline,
         )
     }
 }
@@ -1994,20 +2066,20 @@ extension WhereStylesheet {
                 lineWidth: 0.75,
                 primaryRingSpacing: 10,
                 secondaryRingSpacing: 16,
-                primaryOpacity: 0.1,
-                secondaryOpacity: 0.06,
+                primaryOpacity: 0.06,
+                secondaryOpacity: 0.035,
             ),
             reflectiveSurface: ReflectiveSurface(
                 backgroundTop: Color(red: 0.07, green: 0.14, blue: 0.25),
                 backgroundBottom: Color(red: 0.025, green: 0.055, blue: 0.11),
                 accent: Color(red: 0.72, green: 0.56, blue: 0.27),
-                glowOpacity: 0.07,
-                intensity: 0.16,
-                staticGlintIntensity: 0.12,
+                glowOpacity: 0.035,
+                intensity: 0.1,
+                staticGlintIntensity: 0.06,
                 staticPose: .init(roll: 0.3, pitch: -0.15),
             ),
-            glassTintOpacity: 0.06,
-            accentGlow: Shadow(opacity: 0.1, radius: 5),
+            glassTintOpacity: 0.03,
+            accentGlow: Shadow(opacity: 0.05, radius: 4),
             liftShadow: Shadow(opacity: 0.1, radius: 9, offsetY: 4),
         )
     }

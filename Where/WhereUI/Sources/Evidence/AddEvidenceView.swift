@@ -1,6 +1,7 @@
 import PeriscopeCore
 import PhotosUI
 import SFSafeSymbols
+import SnapshotKit
 import SwiftUI
 import UniformTypeIdentifiers
 import WhereCore
@@ -36,6 +37,10 @@ struct AddEvidenceView: View {
 
         NavigationStack {
             Form {
+                Section {
+                    composeHeader
+                        .listRowBackground(stylesheet.palette.brand.raisedPaper)
+                }
                 attachmentSection
                 detailsSection
                 noteSection
@@ -81,6 +86,29 @@ struct AddEvidenceView: View {
             // events (attachment-pick / save). A no-op in release.
             .debugLogInspectable(WhereLog.evidence(AddEvidenceModelLog.self))
         }
+    }
+
+    private var composeHeader: some View {
+        let compose = stylesheet.evidence.compose
+        return HStack(alignment: .top, spacing: stylesheet.spacing.large) {
+            VStack(alignment: .leading, spacing: stylesheet.spacing.small) {
+                Text(String(localized: .evidenceFormDocumentLabel))
+                    .font(compose.eyebrowFont)
+                    .tracking(1.6)
+                    .foregroundStyle(stylesheet.palette.brand.brass)
+                Text(String(localized: .evidenceFormRecordTitle))
+                    .font(compose.titleFont)
+                    .foregroundStyle(stylesheet.palette.brand.ink)
+                Text(String(localized: .evidenceFormRecordDetail))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: stylesheet.spacing.medium)
+            WhereSeal(tint: stylesheet.palette.brand.brass)
+                .frame(width: compose.sealSize)
+        }
+        .accessibilityElement(children: .combine)
     }
 
     private var attachmentSection: some View {
@@ -210,8 +238,25 @@ struct AddEvidenceView: View {
 }
 
 #if DEBUG
+    extension AddEvidenceView: SnapshotProviding {
+        static var snapshots: [SnapshotCase] {
+            whereSnapshot(
+                name: "Compose",
+                configurations: .fullContentScreenDefaults + [
+                    SnapshotConfiguration(
+                        layoutDirection: .rightToLeft,
+                        device: .iPhoneFullContent,
+                    ),
+                ],
+                settle: .immediate,
+            ) {
+                AddEvidenceView(model: PreviewSupport.addEvidenceModel())
+            }
+        }
+    }
+
     #Preview {
-        AddEvidenceView(model: PreviewSupport.addEvidenceModel())
+        AddEvidenceView.snapshotPreviews
     }
 #endif
 

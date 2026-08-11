@@ -2856,6 +2856,66 @@
         }
       }
     },
+    "evidence.archive.documentLabel" : {
+      "comment" : "Tracked label on the evidence archive masthead.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "PRIVATE ARCHIVE"
+          }
+        }
+      }
+    },
+    "evidence.archive.recordCount" : {
+      "comment" : "Count of records in the evidence archive masthead.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "new",
+                  "value" : "%lld record"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "new",
+                  "value" : "%lld records"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "evidence.archive.title" : {
+      "comment" : "Editorial evidence archive title. The argument is an ungrouped year.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%@, documented"
+          }
+        }
+      }
+    },
+    "evidence.detail.captured" : {
+      "comment" : "Metadata label for when an evidence record was captured.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Captured"
+          }
+        }
+      }
+    },
     "evidence.detail.noAttachment" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2909,6 +2969,30 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Couldn't load this attachment."
+          }
+        }
+      }
+    },
+    "evidence.detail.recordLabel" : {
+      "comment" : "Tracked archival label above an evidence detail header.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "EVIDENCE RECORD"
+          }
+        }
+      }
+    },
+    "evidence.detail.region" : {
+      "comment" : "Metadata label for an evidence record's associated region.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Region"
           }
         }
       }
@@ -2996,6 +3080,18 @@
         }
       }
     },
+    "evidence.form.documentLabel" : {
+      "comment" : "Tracked archival label at the top of evidence compose.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "NEW ARCHIVE ENTRY"
+          }
+        }
+      }
+    },
     "evidence.form.kind" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3040,6 +3136,30 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Label"
+          }
+        }
+      }
+    },
+    "evidence.form.recordDetail" : {
+      "comment" : "Privacy reassurance in the evidence compose masthead.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Add supporting material to your private record."
+          }
+        }
+      }
+    },
+    "evidence.form.recordTitle" : {
+      "comment" : "Editorial title in the evidence compose masthead.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Compose evidence"
           }
         }
       }
@@ -5855,6 +5975,42 @@
         }
       }
     },
+    "settings.backup.coveredScope" : {
+      "comment" : "Metadata label for the scope included in a prepared private-record export.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Covered scope"
+          }
+        }
+      }
+    },
+    "settings.backup.coveredScopeValue" : {
+      "comment" : "Literal summary of what the complete Where backup contains.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "All recorded years, regions, evidence, and settings"
+          }
+        }
+      }
+    },
+    "settings.backup.documentTitle" : {
+      "comment" : "Title printed on the composed-record export preparation sheet.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Where Private Record"
+          }
+        }
+      }
+    },
     "settings.backup.errorTitle" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5895,6 +6051,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Export your whole history as a .zip you can email or save to Files, then import it on another device to restore everything."
+          }
+        }
+      }
+    },
+    "settings.backup.generated" : {
+      "comment" : "Metadata label for the creation date of a completed backup archive.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Generated"
           }
         }
       }
@@ -5983,6 +6151,42 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Merge"
+          }
+        }
+      }
+    },
+    "settings.backup.preparation.eyebrow" : {
+      "comment" : "Tracked document label at the top of backup preparation.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "PRIVATE ARCHIVE"
+          }
+        }
+      }
+    },
+    "settings.backup.preparation.title" : {
+      "comment" : "Navigation title of the branded backup preparation sheet.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Preparing record"
+          }
+        }
+      }
+    },
+    "settings.backup.ready" : {
+      "comment" : "Status on a completed backup record immediately before the native share sheet opens.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Ready to share"
           }
         }
       }
@@ -8079,6 +8283,54 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Your location history stays on your devices and in your private iCloud account. Where sends no data to anyone."
+          }
+        }
+      }
+    },
+    "settings.privacy.documentLabel" : {
+      "comment" : "Tracked label above the principal privacy statement.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "PRIVATE RECORD"
+          }
+        }
+      }
+    },
+    "settings.privacy.noServers" : {
+      "comment" : "Literal privacy claim: Where operates no server receiving the user's record.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "No Where servers"
+          }
+        }
+      }
+    },
+    "settings.privacy.onDevice" : {
+      "comment" : "Literal privacy claim identifying device-local storage.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "On device"
+          }
+        }
+      }
+    },
+    "settings.privacy.privateICloud" : {
+      "comment" : "Literal privacy claim identifying the user's private iCloud storage.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Private iCloud"
           }
         }
       }

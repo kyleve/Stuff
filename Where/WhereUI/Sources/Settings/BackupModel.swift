@@ -3,99 +3,153 @@ import Observation
 import PeriscopeCore
 import WhereCore
 
-/// View-scoped model for the Settings backup section: export progress and the
-/// error alert. Backup import is an onboarding-only recovery path. Owned as `@State` by
-/// `SettingsView`, so it's created when the
-/// Settings tab is first shown and torn down with it — nothing here needs to
-/// outlive the screen that drives it.
+/// The export seam consumed by ``BackupModel``. Production delegates to the
+/// scope's `BackupCoordinator`; tests use a conforming scripted exporter so
+/// progress, cancellation, and failure can be proved without timing.
+protocol BackupExporting: Sendable {
+    func exportBackup(onProgress: @Sendable (Double) -> Void) async throws -> URL
+    func discardExport() async
+}
+
+private struct WhereBackupExporter: BackupExporting {
+    let coordinator: BackupCoordinator
+
+    func exportBackup(onProgress: @Sendable (Double) -> Void) async throws -> URL {
+        try await coordinator.exportBackup(onProgress: onProgress)
+    }
+
+    func discardExport() async {
+        await coordinator.discardExport()
+    }
+}
+
+/// View-scoped owner of one backup-export operation and its complete public
+/// presentation state. Cancellation invalidates the operation before it can
+/// publish a ready URL, so a covered or dismissed sheet cannot emit a late
+/// success state or haptic.
 @MainActor
 @Observable
 public final class BackupModel {
-    /// Where a backup export is in its lifecycle, so the UI can show a
-    /// spinner and disable the relevant row while work is in flight.
-    public enum BackupState: Equatable {
+    public enum ExportState: Equatable {
         case idle
-        case exporting
+        case preparing(progress: Double)
+        case ready(URL)
+        case failed(message: String)
     }
 
-    public private(set) var backupState: BackupState = .idle
+    public private(set) var exportState = ExportState.idle
 
-    /// Fraction (`0...1`) of the in-flight export that has completed, for
-    /// a determinate progress bar. Reset to `0` whenever neither is running.
-    public private(set) var backupProgress: Double = 0
-
-    private var presentedError: String?
-
-    /// Last backup failure, surfaced as an alert.
-    public var backupError: String? {
-        presentedError
-    }
-
-    /// Drives the backup-error alert. Reads `true` while `backupError` holds a
-    /// message and clears it when dismissed, so the view can bind straight to it
-    /// (`$backup.isShowingBackupError`).
-    public var isShowingBackupError: Bool {
-        get { backupError != nil }
-        set {
-            guard !newValue else { return }
-            presentedError = nil
-        }
-    }
-
-    private let services: WhereServices
+    private let exporter: any BackupExporting
+    private var exportTask: Task<Void, Never>?
+    private var progressTask: Task<Void, Never>?
+    private var activeOperationID: UUID?
     private static let logger = WhereLog.session(BackupModelLog.self)
 
     public init(services: WhereServices) {
-        self.services = services
+        exporter = WhereBackupExporter(coordinator: services.backup)
     }
 
-    /// Build a backup `.zip` of the entire database and return its URL for the
-    /// share sheet, or `nil` if the export failed (in which case `backupError` is
-    /// set). The `BackupCoordinator` owns the temporary file's lifecycle — it
-    /// reclaims the previous export's directory when the next export starts.
-    ///
-    /// Progress is streamed to `backupProgress` so the caller can show a
-    /// determinate "Exporting…" bar.
-    public func exportBackup() async -> URL? {
-        backupState = .exporting
-        backupProgress = 0
-        presentedError = nil
-        defer {
-            backupState = .idle
-            backupProgress = 0
-        }
+    init(exporter: any BackupExporting) {
+        self.exporter = exporter
+    }
 
+    /// Start one export, returning the owned task so tests and non-View callers
+    /// can await the real operation. Repeated input while work is active joins
+    /// the existing task rather than starting overlapping coordinator exports.
+    @discardableResult
+    public func prepareExport() -> Task<Void, Never> {
+        if let exportTask { return exportTask }
+
+        let operationID = UUID()
+        activeOperationID = operationID
+        exportState = .preparing(progress: 0)
+        let task = Task { [weak self] in
+            guard let self else { return }
+            await performExport(operationID: operationID)
+        }
+        exportTask = task
+        return task
+    }
+
+    /// Cooperatively cancel the active export. Its underlying coordinator may
+    /// need to finish an opaque encode before observing cancellation, but all
+    /// presentation updates stop immediately and readiness is never published.
+    public func cancelExport() {
+        exportTask?.cancel()
+        progressTask?.cancel()
+    }
+
+    /// Return a terminal presentation to idle after its sheet is dismissed or
+    /// before the user explicitly retries. Active work must finish cancellation
+    /// first, so resetting can never make an overlapping export spellable.
+    public func resetExport() {
+        guard exportTask == nil else { return }
+        exportState = .idle
+    }
+
+    private func performExport(operationID: UUID) async {
         let (progress, continuation) = AsyncStream<Double>.makeStream()
         let observer = Task { @MainActor [weak self] in
             for await fraction in progress {
-                self?.backupProgress = fraction
+                guard !Task.isCancelled else { return }
+                self?.acceptProgress(fraction, operationID: operationID)
             }
         }
-        defer { observer.cancel() }
+        progressTask = observer
 
+        let result: Result<URL, any Error>
         do {
-            let url = try await services.backup.exportBackup { continuation.yield($0) }
-            continuation.finish()
-            await observer.value
-            Self.logger { .exported }
-            return url
+            result = try await .success(exporter.exportBackup { fraction in
+                continuation.yield(fraction)
+            })
         } catch {
-            continuation.finish()
-            presentBackupError(error)
-            Self.logger { .exportFailed(description: error.localizedDescription) }
-            return nil
+            result = .failure(error)
+        }
+        continuation.finish()
+
+        if Task.isCancelled {
+            observer.cancel()
+        }
+        await observer.value
+
+        guard activeOperationID == operationID else {
+            if case .success = result { await exporter.discardExport() }
+            return
+        }
+
+        progressTask = nil
+        exportTask = nil
+        activeOperationID = nil
+
+        if Task.isCancelled {
+            if case .success = result { await exporter.discardExport() }
+            exportState = .idle
+            return
+        }
+
+        switch result {
+            case let .success(url):
+                exportState = .ready(url)
+                Self.logger { .exported }
+            case let .failure(error) where error is CancellationError:
+                exportState = .idle
+            case let .failure(error):
+                exportState = .failed(message: error.localizedDescription)
+                Self.logger { .exportFailed(description: error.localizedDescription) }
         }
     }
 
-    /// Delete the most recent export's temp file now — for a caller that's done
-    /// offering it to share (e.g. its share affordance timed out). The
-    /// `BackupCoordinator` owns the file, so deletion routes through it.
-    public func discardExport() async {
-        await services.backup.discardExport()
+    private func acceptProgress(_ fraction: Double, operationID: UUID) {
+        guard activeOperationID == operationID,
+              exportTask?.isCancelled == false
+        else { return }
+        exportState = .preparing(progress: min(max(fraction, 0), 1))
     }
 
-    /// Surface an export error through the model's single presentation state.
-    public func presentBackupError(_ error: any Error) {
-        presentedError = error.localizedDescription
-    }
+    #if DEBUG
+        /// Force a final presentation state for previews and image snapshots.
+        func previewExport(_ state: ExportState) {
+            exportState = state
+        }
+    #endif
 }

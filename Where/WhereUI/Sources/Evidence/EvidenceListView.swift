@@ -1,4 +1,5 @@
 import SFSafeSymbols
+import SnapshotKit
 import SwiftUI
 import WhereCore
 
@@ -15,12 +16,15 @@ import WhereCore
 struct EvidenceListView: View {
     let report: YearReportModel
 
+    @Environment(\.stylesheet) private var stylesheet
     @State private var model: EvidenceListModel
     @State private var showingAdd = false
+    private let automaticallyLoads: Bool
 
     init(report: YearReportModel) {
         self.report = report
         _model = State(initialValue: EvidenceListModel(services: report.services))
+        automaticallyLoads = true
     }
 
     #if DEBUG
@@ -28,6 +32,7 @@ struct EvidenceListView: View {
         init(report: YearReportModel, model: EvidenceListModel) {
             self.report = report
             _model = State(initialValue: model)
+            automaticallyLoads = false
         }
     #endif
 
@@ -54,7 +59,10 @@ struct EvidenceListView: View {
             .navigationDestination(for: Evidence.self) { evidence in
                 EvidenceDetailView(evidence: evidence, report: report)
             }
-            .task(id: loadID) { await model.load(for: report.selectedYear) }
+            .task(id: loadID) {
+                guard automaticallyLoads else { return }
+                await model.load(for: report.selectedYear)
+            }
             .sheet(isPresented: $showingAdd, onDismiss: reloadAfterCompose) {
                 AddEvidenceView(report: report)
             }
@@ -92,16 +100,39 @@ struct EvidenceListView: View {
     }
 
     private func list(_ items: [Evidence]) -> some View {
-        List {
+        let entries = items.reversed().enumerated().map {
+            EvidenceArchiveEntry(index: $0.offset + 1, evidence: $0.element)
+        }
+        return List {
+            EvidenceArchiveHeader(
+                year: report.selectedYear,
+                recordCount: entries.count,
+            )
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
+            .listRowInsets(EdgeInsets(
+                top: stylesheet.spacing.large,
+                leading: stylesheet.spacing.xxLarge,
+                bottom: stylesheet.spacing.large,
+                trailing: stylesheet.spacing.xxLarge,
+            ))
+
             // Newest first reads best for a growing archive; the store returns
             // ascending by `capturedAt`.
-            ForEach(items.reversed()) { evidence in
-                NavigationLink(value: evidence) {
-                    EvidenceRow(evidence: evidence)
+            ForEach(entries) { entry in
+                NavigationLink(value: entry.evidence) {
+                    EvidenceRow(evidence: entry.evidence, recordIndex: entry.index)
                 }
+                .listRowBackground(stylesheet.palette.brand.raisedPaper)
+                .listRowSeparatorTint(
+                    stylesheet.palette.brand.brass
+                        .opacity(stylesheet.evidence.archive.borderOpacity),
+                )
             }
         }
         .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .background(stylesheet.palette.brand.canvas)
     }
 
     private var emptyState: some View {
@@ -112,6 +143,88 @@ struct EvidenceListView: View {
         } actions: {
             Button(String(localized: .evidenceAdd)) { showingAdd = true }
         }
+    }
+}
+
+private struct EvidenceArchiveEntry: Identifiable {
+    let index: Int
+    let evidence: Evidence
+
+    var id: UUID {
+        evidence.id
+    }
+}
+
+private struct EvidenceArchiveHeader: View {
+    let year: Int
+    let recordCount: Int
+
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.stylesheet) private var stylesheet
+
+    var body: some View {
+        let archive = stylesheet.evidence.archive
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: stylesheet.spacing.small) {
+                    HStack(alignment: .top) {
+                        documentLabel
+                        Spacer(minLength: stylesheet.spacing.medium)
+                        seal
+                    }
+                    title
+                    recordCountLabel
+                }
+            } else {
+                HStack(alignment: .top, spacing: stylesheet.spacing.large) {
+                    VStack(alignment: .leading, spacing: stylesheet.spacing.small) {
+                        documentLabel
+                        title
+                        recordCountLabel
+                    }
+                    Spacer(minLength: stylesheet.spacing.medium)
+                    seal
+                }
+            }
+        }
+        .padding(archive.padding)
+        .background(stylesheet.palette.brand.raisedPaper)
+        .clipShape(RoundedRectangle(cornerRadius: archive.cornerRadius))
+        .overlay {
+            RoundedRectangle(cornerRadius: archive.cornerRadius)
+                .stroke(
+                    stylesheet.palette.brand.brass.opacity(archive.borderOpacity),
+                    lineWidth: 0.75,
+                )
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private var documentLabel: some View {
+        Text(String(localized: .evidenceArchiveDocumentLabel))
+            .font(stylesheet.evidence.archive.eyebrowFont)
+            .tracking(1.6)
+            .foregroundStyle(stylesheet.palette.brand.brass)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var title: some View {
+        Text(WhereFormat.evidenceArchiveTitle(year: year))
+            .font(stylesheet.evidence.archive.titleFont)
+            .foregroundStyle(stylesheet.palette.brand.ink)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var recordCountLabel: some View {
+        Text(WhereFormat.evidenceArchiveRecordCount(recordCount))
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+    }
+
+    private var seal: some View {
+        WhereSeal(tint: stylesheet.palette.brand.brass)
+            .frame(width: stylesheet.evidence.archive.headerSealSize)
+            .accessibilityHidden(true)
     }
 }
 
@@ -140,30 +253,39 @@ extension EvidenceListView: SettingsSection {
 /// One evidence row: kind glyph, kind name, capture date, and a note snippet.
 private struct EvidenceRow: View {
     let evidence: Evidence
+    let recordIndex: Int
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.stylesheet) private var stylesheet
 
     var body: some View {
-        HStack(spacing: stylesheet.spacing.large) {
-            Image(systemSymbol: evidence.kind.symbol)
-                .font(.title3)
-                .foregroundStyle(.tint)
-                .frame(width: stylesheet.size.statusIconWidth)
-            VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
-                Text(evidence.kind.displayName)
-                    .font(.headline)
-                Text(evidence.capturedAt.formatted(date: .abbreviated, time: .shortened))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                if let note = evidence.note, !note.isEmpty {
-                    Text(note)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
+        let archive = stylesheet.evidence.archive
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: stylesheet.spacing.small) {
+                    HStack {
+                        index
+                        Rectangle()
+                            .fill(stylesheet.palette.brand.brass.opacity(archive.borderOpacity))
+                            .frame(height: 0.75)
+                            .accessibilityHidden(true)
+                        symbol
+                    }
+                    details
+                }
+            } else {
+                HStack(alignment: .top, spacing: archive.rowSpacing) {
+                    index
+                        .frame(width: archive.indexWidth, alignment: .leading)
+                    Rectangle()
+                        .fill(stylesheet.palette.brand.brass.opacity(archive.borderOpacity))
+                        .frame(width: 0.75)
+                        .accessibilityHidden(true)
+                    details
                 }
             }
         }
-        .padding(.vertical, stylesheet.spacing.xxSmall)
+        .padding(.vertical, stylesheet.spacing.small)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
             WhereFormat.evidenceRowAccessibility(kind: evidence.kind, date: evidence.capturedAt),
@@ -172,7 +294,89 @@ private struct EvidenceRow: View {
         // evidence-scope events. A no-op in release.
         .debugLogInspectable(WhereLog.evidence)
     }
+
+    private var index: some View {
+        Text(verbatim: String(format: "%02d", recordIndex))
+            .font(stylesheet.evidence.archive.indexFont)
+            .foregroundStyle(stylesheet.palette.brand.brass)
+            .fixedSize(horizontal: true, vertical: false)
+    }
+
+    private var symbol: some View {
+        Image(systemSymbol: evidence.kind.symbol)
+            .font(.subheadline)
+            .foregroundStyle(stylesheet.palette.brand.mineral)
+            .accessibilityHidden(true)
+    }
+
+    private var details: some View {
+        VStack(alignment: .leading, spacing: stylesheet.spacing.xSmall) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(evidence.kind.displayName)
+                    .font(stylesheet.evidence.archive.rowTitleFont)
+                if !dynamicTypeSize.isAccessibilitySize {
+                    Spacer(minLength: stylesheet.spacing.medium)
+                    symbol
+                }
+            }
+            Text(evidence.capturedAt.formatted(date: .abbreviated, time: .shortened))
+                .font(.subheadline.monospacedDigit())
+                .foregroundStyle(.secondary)
+            if let note = evidence.note, !note.isEmpty {
+                Text(note)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 2)
+            }
+        }
+    }
 }
+
+#if DEBUG
+    extension EvidenceListView: SnapshotProviding {
+        static var snapshots: [SnapshotCase] {
+            [
+                whereSnapshot(
+                    name: "Loaded",
+                    configurations: .fullContentScreenDefaults + [
+                        SnapshotConfiguration(
+                            layoutDirection: .rightToLeft,
+                            device: .iPhoneFullContent,
+                        ),
+                    ],
+                    settle: .immediate,
+                ) {
+                    NavigationStack {
+                        EvidenceListView(
+                            report: PreviewSupport.loadedYearReportModel(),
+                            model: PreviewSupport.evidenceListModel(
+                                state: .loaded(PreviewSupport.sampleEvidence()),
+                            ),
+                        )
+                    }
+                },
+                whereSnapshot(name: "Empty", configurations: .phoneLightDark) {
+                    NavigationStack {
+                        EvidenceListView(
+                            report: PreviewSupport.loadedYearReportModel(),
+                            model: PreviewSupport.evidenceListModel(state: .empty),
+                        )
+                    }
+                },
+                whereSnapshot(name: "Failed", configurations: .phoneLightDark) {
+                    NavigationStack {
+                        EvidenceListView(
+                            report: PreviewSupport.loadedYearReportModel(),
+                            model: PreviewSupport.evidenceListModel(
+                                state: .failed("The attachment index is unavailable."),
+                            ),
+                        )
+                    }
+                },
+            ]
+        }
+    }
+#endif
 
 #if DEBUG
     #Preview("Loaded") {

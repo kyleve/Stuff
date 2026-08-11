@@ -448,6 +448,23 @@ struct WhereStylesheetTests {
         #expect(evidence.previewCornerRadius == 22)
         #expect(evidence.pdfPreviewMinHeight == 420)
         #expect(evidence.loadingMinHeight == 200)
+        #expect(evidence.archive == .init(
+            cornerRadius: 16,
+            padding: 16,
+            rowSpacing: 12,
+            indexWidth: 30,
+            borderOpacity: 0.16,
+            headerSealSize: 48,
+            eyebrowFont: .caption2.weight(.semibold),
+            titleFont: .system(.title2, design: .serif).weight(.semibold),
+            rowTitleFont: .system(.headline, design: .serif).weight(.semibold),
+            indexFont: .caption2.weight(.semibold).monospacedDigit(),
+        ))
+        #expect(evidence.compose == .init(
+            sealSize: 44,
+            eyebrowFont: .caption2.weight(.semibold),
+            titleFont: .system(.title3, design: .serif).weight(.semibold),
+        ))
     }
 
     @Test func elsewhereCardStyle() {
@@ -549,6 +566,22 @@ struct WhereStylesheetTests {
             borderWidth: 0.75,
             actionHorizontalPadding: 18,
             actionVerticalPadding: 11,
+        ))
+    }
+
+    @Test func recordPreparationStyle() {
+        #expect(style.recordPreparation == .init(
+            cornerRadius: 22,
+            padding: 22,
+            sectionSpacing: 18,
+            sealSize: 58,
+            borderOpacity: 0.42,
+            eyebrowFont: .caption2.weight(.semibold),
+            titleFont: .system(.title2, design: .serif).weight(.semibold),
+            figureFont: .subheadline.weight(.semibold).monospacedDigit(),
+            statusFont: .headline,
+            metadataLabelFont: .caption.weight(.medium),
+            metadataValueFont: .subheadline,
         ))
     }
 
@@ -656,20 +689,20 @@ struct WhereStylesheetTests {
             lineWidth: 0.75,
             primaryRingSpacing: 10,
             secondaryRingSpacing: 16,
-            primaryOpacity: 0.1,
-            secondaryOpacity: 0.06,
+            primaryOpacity: 0.06,
+            secondaryOpacity: 0.035,
         ))
         #expect(source.reflectiveSurface == .init(
             backgroundTop: Color(red: 0.07, green: 0.14, blue: 0.25),
             backgroundBottom: Color(red: 0.025, green: 0.055, blue: 0.11),
             accent: Color(red: 0.72, green: 0.56, blue: 0.27),
-            glowOpacity: 0.07,
-            intensity: 0.16,
-            staticGlintIntensity: 0.12,
+            glowOpacity: 0.035,
+            intensity: 0.1,
+            staticGlintIntensity: 0.06,
             staticPose: .init(roll: 0.3, pitch: -0.15),
         ))
-        #expect(source.glassTintOpacity == 0.06)
-        #expect(source.accentGlow == .init(opacity: 0.1, radius: 5))
+        #expect(source.glassTintOpacity == 0.03)
+        #expect(source.accentGlow == .init(opacity: 0.05, radius: 4))
         #expect(source.liftShadow == .init(opacity: 0.1, radius: 9, offsetY: 4))
     }
 
