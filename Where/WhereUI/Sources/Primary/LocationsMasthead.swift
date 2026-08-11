@@ -7,6 +7,7 @@ struct LocationsMasthead: View {
     let recordedDayCount: Int
     let representedRegionCount: Int
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.stylesheet) private var stylesheet
 
     var body: some View {
@@ -34,18 +35,7 @@ struct LocationsMasthead: View {
                 .frame(width: style.ruleWidth, height: 1)
                 .accessibilityHidden(true)
 
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: stylesheet.spacing.xxxLarge) {
-                    folioFigure(
-                        value: recordedDayCount,
-                        label: String(localized: .locationsRecordedDays),
-                    )
-                    folioFigure(
-                        value: representedRegionCount,
-                        label: String(localized: .locationsRepresentedRegions),
-                    )
-                }
-
+            if dynamicTypeSize.isAccessibilitySize {
                 VStack(alignment: .leading, spacing: stylesheet.spacing.regular) {
                     folioFigure(
                         value: recordedDayCount,
@@ -56,20 +46,56 @@ struct LocationsMasthead: View {
                         label: String(localized: .locationsRepresentedRegions),
                     )
                 }
+            } else {
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: stylesheet.spacing.xxxLarge) {
+                        folioFigure(
+                            value: recordedDayCount,
+                            label: String(localized: .locationsRecordedDays),
+                        )
+                        folioFigure(
+                            value: representedRegionCount,
+                            label: String(localized: .locationsRepresentedRegions),
+                        )
+                    }
+
+                    VStack(alignment: .leading, spacing: stylesheet.spacing.regular) {
+                        folioFigure(
+                            value: recordedDayCount,
+                            label: String(localized: .locationsRecordedDays),
+                        )
+                        folioFigure(
+                            value: representedRegionCount,
+                            label: String(localized: .locationsRepresentedRegions),
+                        )
+                    }
+                }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
     }
 
+    @ViewBuilder
     private func folioFigure(value: Int, label: String) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: stylesheet.spacing.small) {
-            Text(value, format: .number)
-                .font(.title3.weight(.semibold).monospacedDigit())
-                .foregroundStyle(stylesheet.palette.brand.ink)
-            Text(label)
-                .font(stylesheet.locations.summaryFont)
-                .foregroundStyle(.secondary)
+        if dynamicTypeSize.isAccessibilitySize {
+            VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
+                Text(value, format: .number)
+                    .font(.title3.weight(.semibold).monospacedDigit())
+                    .foregroundStyle(stylesheet.palette.brand.ink)
+                Text(label)
+                    .font(stylesheet.locations.summaryFont)
+                    .foregroundStyle(.secondary)
+            }
+        } else {
+            HStack(alignment: .firstTextBaseline, spacing: stylesheet.spacing.small) {
+                Text(value, format: .number)
+                    .font(.title3.weight(.semibold).monospacedDigit())
+                    .foregroundStyle(stylesheet.palette.brand.ink)
+                Text(label)
+                    .font(stylesheet.locations.summaryFont)
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 }

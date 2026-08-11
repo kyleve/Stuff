@@ -88,6 +88,7 @@ struct PresenceTimelineList: View {
             }
             .defaultScrollAnchor(.bottom, for: .initialOffset)
             .id(report.selectedYear)
+            .background(stylesheet.palette.brand.canvas)
         }
     }
 }

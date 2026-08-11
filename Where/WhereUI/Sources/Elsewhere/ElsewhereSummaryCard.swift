@@ -10,6 +10,7 @@ struct ElsewhereSummaryCard: View {
     /// Number of secondary regions.
     let regionCount: Int
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.stylesheet) private var stylesheet
 
     private var style: WhereStylesheet.ElsewhereCardStyle {
@@ -17,25 +18,28 @@ struct ElsewhereSummaryCard: View {
     }
 
     var body: some View {
-        HStack(spacing: stylesheet.spacing.large) {
-            WhereSeal(tint: stylesheet.palette.brand.brass)
-                .frame(width: style.iconPointSize, height: style.iconPointSize)
-
-            VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
-                Text(String(localized: .secondaryTitle))
-                    .font(.system(.headline, design: .serif).weight(.semibold))
-                    .foregroundStyle(stylesheet.palette.brand.ink)
-                Text(WhereFormat.elsewhereCardSubtitle(regions: regionCount))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: stylesheet.spacing.medium) {
+                    HStack {
+                        seal
+                        Spacer(minLength: 0)
+                        chevron
+                    }
+                    title
+                    subtitle
+                }
+            } else {
+                HStack(spacing: stylesheet.spacing.large) {
+                    seal
+                    VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
+                        title
+                        subtitle
+                    }
+                    Spacer(minLength: 0)
+                    chevron
+                }
             }
-
-            Spacer(minLength: 0)
-
-            Image(systemSymbol: .chevronRight)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .accessibilityHidden(true)
         }
         .padding(style.padding)
         .frame(maxWidth: .infinity)
@@ -59,6 +63,32 @@ struct ElsewhereSummaryCard: View {
 
     private var cardShape: RoundedRectangle {
         RoundedRectangle(cornerRadius: style.cornerRadius, style: .continuous)
+    }
+
+    private var seal: some View {
+        WhereSeal(tint: stylesheet.palette.brand.brass)
+            .frame(width: style.iconPointSize, height: style.iconPointSize)
+    }
+
+    private var title: some View {
+        Text(String(localized: .secondaryTitle))
+            .font(.system(.headline, design: .serif).weight(.semibold))
+            .foregroundStyle(stylesheet.palette.brand.ink)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var subtitle: some View {
+        Text(WhereFormat.elsewhereCardSubtitle(regions: regionCount))
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var chevron: some View {
+        Image(systemName: "chevron.right")
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .accessibilityHidden(true)
     }
 }
 

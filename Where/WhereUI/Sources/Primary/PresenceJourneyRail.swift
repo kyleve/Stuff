@@ -1,9 +1,10 @@
 import SwiftUI
 
 /// The continuous route beside a timeline row: a region-tinted line passing
-/// through an emoji marker, trimmed at the first and last stops.
+/// through a precise region-symbol marker, trimmed at the first and last stops.
 struct PresenceJourneyRail: View {
     let tint: Color
+    let symbolName: String
     let emoji: String
     let isFirst: Bool
     let isLast: Bool
@@ -44,11 +45,20 @@ struct PresenceJourneyRail: View {
 
             ZStack {
                 Circle()
+                    .fill(stylesheet.palette.brand.raisedPaper)
+                Circle()
                     .fill(tint.opacity(rail.nodeFillOpacity))
                 Circle()
                     .stroke(tint, lineWidth: rail.nodeStrokeWidth)
+                Image(systemName: symbolName)
+                    .font(rail.nodeSymbolFont)
+                    .foregroundStyle(tint)
                 Text(emoji)
                     .font(rail.nodeEmojiFont)
+                    .offset(
+                        x: rail.charmOffset.width,
+                        y: rail.charmOffset.height,
+                    )
             }
             .frame(width: rail.nodeSize, height: rail.nodeSize)
         }
@@ -59,9 +69,15 @@ struct PresenceJourneyRail: View {
 
 #if DEBUG
     #Preview {
-        PresenceJourneyRail(tint: .orange, emoji: "🌴", isFirst: false, isLast: false)
-            .frame(height: 120)
-            .padding()
-            .whereBroadwayRoot()
+        PresenceJourneyRail(
+            tint: .orange,
+            symbolName: "sun.max.fill",
+            emoji: "🌴",
+            isFirst: false,
+            isLast: false,
+        )
+        .frame(height: 120)
+        .padding()
+        .whereBroadwayRoot()
     }
 #endif

@@ -3,10 +3,91 @@ import SnapshotKit
 import SwiftUI
 import WhereCore
 
-/// Your Year tab: the selected year's calendar and timeline for the same data.
-/// A floating Liquid Glass pill at the bottom (Photos-style) zooms between the
-/// calendar (month detail) and the timeline (year overview).
+/// Your Year tab: a composed annual cover that opens into the calendar/timeline
+/// ledger through Where's second identity-preserving zoom transition.
 struct YearView: View {
+    private struct LedgerTransitionID: Hashable {
+        let year: Int
+    }
+
+    let report: YearReportModel
+    private let initialMode: YearMode
+
+    @Namespace private var ledgerTransition
+
+    @Environment(\.stylesheet) private var stylesheet
+
+    init(report: YearReportModel, initialMode: YearMode = .calendar) {
+        self.report = report
+        self.initialMode = initialMode
+    }
+
+    var body: some View {
+        NavigationStack {
+            screen
+                .background(stylesheet.palette.brand.canvas.ignoresSafeArea())
+                .toolbarBackground(stylesheet.palette.brand.canvas, for: .navigationBar)
+                .toolbarBackground(.visible, for: .navigationBar)
+        }
+    }
+
+    @ViewBuilder
+    private var screen: some View {
+        if let yearReport = report.report {
+            let transitionID = LedgerTransitionID(year: report.selectedYear)
+            ScrollView {
+                NavigationLink {
+                    YearLedgerDetailView(report: report, initialMode: initialMode)
+                        .navigationTransition(
+                            .zoom(sourceID: transitionID, in: ledgerTransition),
+                        )
+                } label: {
+                    StaggeredRevealScope {
+                        YearLedgerCover(
+                            year: report.selectedYear,
+                            summary: YearLedgerSummary(report: yearReport),
+                            calendar: report.calendar,
+                        )
+                    }
+                    .id(report.selectedYear)
+                }
+                .buttonStyle(.plain)
+                .matchedTransitionSource(id: transitionID, in: ledgerTransition) { source in
+                    source.clipShape(
+                        RoundedRectangle(
+                            cornerRadius: stylesheet.year.cover.cornerRadius,
+                            style: .continuous,
+                        ),
+                    )
+                }
+                .accessibilityHint(String(localized: .yearLedgerOpenHint))
+            }
+            .contentMargins(
+                .horizontal,
+                stylesheet.locations.horizontalInset,
+                for: .scrollContent,
+            )
+            .contentMargins(.vertical, stylesheet.spacing.large, for: .scrollContent)
+            .scrollBounceBehavior(.basedOnSize)
+            .navigationBarTitleDisplayMode(.inline)
+        } else if case let .failed(error) = report.loadState {
+            ContentUnavailableView {
+                Label(
+                    String(localized: .commonLoadErrorTitle),
+                    systemImage: "exclamationmark.icloud",
+                )
+            } description: {
+                Text(error.message)
+            }
+        } else {
+            AppIconLoadingView(caption: String(localized: .primaryLoading))
+        }
+    }
+}
+
+/// The opened annual ledger. It retains functional native navigation chrome
+/// and the stable bottom lens selector while its content depth-dissolves.
+struct YearLedgerDetailView: View {
     let report: YearReportModel
 
     @State private var mode: YearMode
@@ -19,32 +100,25 @@ struct YearView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            Group {
-                switch mode {
-                    case .calendar:
-                        CalendarContentView(report: report)
-                            .transition(stylesheet.year.motion.contentTransition)
-                    case .timeline:
-                        PresenceTimelineList(report: report)
-                            .transition(stylesheet.year.motion.contentTransition)
-                }
+        Group {
+            switch mode {
+                case .calendar:
+                    CalendarContentView(report: report)
+                        .transition(stylesheet.year.motion.contentTransition)
+                case .timeline:
+                    PresenceTimelineList(report: report)
+                        .transition(stylesheet.year.motion.contentTransition)
             }
-            // The two representations share no stable cell identity, so a
-            // restrained depth dissolve preserves the chrome without inventing
-            // a noisy cell-by-cell morph.
-            .animation(stylesheet.year.motion.contentAnimation, value: mode)
-            .navigationTitle(WhereFormat.yearLedgerTitle(year: report.selectedYear))
-            .navigationBarTitleDisplayMode(.inline)
-            // Keep the bar background on at all times. The calendar auto-scrolls
-            // under the bar (so its scroll-edge material is showing) while the
-            // timeline starts at the top; without pinning it, switching between
-            // them animates that material in/out — reading as a toolbar fade.
-            .toolbarBackground(.visible, for: .navigationBar)
-            .safeAreaInset(edge: .bottom, alignment: .center) {
-                YearModePicker(mode: $mode)
-                    .padding(.bottom, stylesheet.spacing.xLarge)
-            }
+        }
+        .animation(stylesheet.year.motion.contentAnimation, value: mode)
+        .background(stylesheet.palette.brand.canvas.ignoresSafeArea())
+        .navigationTitle(WhereFormat.yearLedgerTitle(year: report.selectedYear))
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(stylesheet.palette.brand.canvas, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
+        .safeAreaInset(edge: .bottom, alignment: .center) {
+            YearModePicker(mode: $mode)
+                .padding(.bottom, stylesheet.spacing.xLarge)
         }
     }
 }

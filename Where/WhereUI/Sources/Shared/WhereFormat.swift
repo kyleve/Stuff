@@ -24,6 +24,24 @@ enum WhereFormat {
         String(localized: .yearLedgerTitle(yearText(year)))
     }
 
+    /// The branded annual-cover title, e.g. "Your 2026 Ledger".
+    static func yearLedgerCoverTitle(year: Int) -> String {
+        String(localized: .yearLedgerCoverTitle(yearText(year)))
+    }
+
+    /// The last day represented by the loaded report, formatted in the user's
+    /// locale and calendar before insertion into the ledger metadata line.
+    static func yearLedgerLatestRecord(day: CalendarDay, calendar: Calendar) -> String {
+        let date = day.startOfDay(in: calendar)
+        let formattedDate = date.formatted(Date.FormatStyle(
+            date: .abbreviated,
+            time: .omitted,
+            calendar: calendar,
+            timeZone: calendar.timeZone,
+        ))
+        return String(localized: .yearLedgerLatestRecord(formattedDate))
+    }
+
     /// The Locations folio masthead, e.g. "2026, recorded".
     static func locationsRecordedTitle(year: Int) -> String {
         String(localized: .locationsRecordedTitle(yearText(year)))

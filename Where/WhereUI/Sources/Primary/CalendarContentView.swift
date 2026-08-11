@@ -165,9 +165,11 @@ struct CalendarContentView: View {
                 }
             }
             .scrollTargetLayout()
-            .padding()
+            .padding(.horizontal, stylesheet.locations.horizontalInset)
+            .padding(.vertical, stylesheet.spacing.large)
         }
         .scrollPosition($scrollPosition)
+        .background(stylesheet.palette.brand.canvas)
         .task(id: report.selectedYear) {
             guard initiallyPositionedYear != report.selectedYear else { return }
             guard let initialMonthID else { return }
@@ -295,7 +297,7 @@ private struct MonthGridView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: calendar.month.sectionSpacing) {
             Text(monthName)
-                .font(.title.weight(.semibold))
+                .font(.system(.title2, design: .serif).weight(.semibold))
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             LazyVGrid(
@@ -329,13 +331,32 @@ private struct MonthGridView: View {
         .padding(calendar.month.padding)
         .foregroundStyle(card.foreground)
         .background {
-            // Past months use the plain card; the current one gets the accent
-            // card (bluer wash, text, and heavier border).
-            cardShape
-                .fill(card.fill)
-                .overlay {
-                    cardShape.strokeBorder(card.border, lineWidth: card.borderWidth)
+            let ruleSpacing = calendar.month.ruleSpacing
+            let ruleOpacity = calendar.month.ruleOpacity
+            let ruleTint = stylesheet.palette.brand.ink
+            ZStack {
+                cardShape.fill(stylesheet.palette.brand.raisedPaper)
+
+                Canvas { context, size in
+                    var y = ruleSpacing
+                    while y < size.height {
+                        var rule = Path()
+                        rule.move(to: CGPoint(x: 0, y: y))
+                        rule.addLine(to: CGPoint(x: size.width, y: y))
+                        context.stroke(
+                            rule,
+                            with: .color(ruleTint.opacity(ruleOpacity)),
+                            lineWidth: 0.5,
+                        )
+                        y += ruleSpacing
+                    }
                 }
+                .clipShape(cardShape)
+                .accessibilityHidden(true)
+
+                cardShape.fill(card.fill)
+                cardShape.strokeBorder(card.border, lineWidth: card.borderWidth)
+            }
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(monthName)
@@ -586,9 +607,10 @@ private struct DayCell: View {
                 }
                 .frame(
                     width: proxy.size.width + band.extendLeading + band.extendTrailing,
-                    height: proxy.size.height,
+                    height: calendar.regionBand.height,
                 )
                 .offset(x: -band.extendLeading)
+                .frame(maxHeight: .infinity, alignment: .bottom)
             }
         }
     }

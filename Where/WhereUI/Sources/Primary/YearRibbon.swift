@@ -29,10 +29,15 @@ struct YearRibbon: View {
             VStack(spacing: ribbon.monthLabelSpacing) {
                 HStack(spacing: 0) {
                     ForEach(monthStarts, id: \.self) { month in
-                        Text(month, format: .dateTime.month(.narrow))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity)
+                        VStack(spacing: 2) {
+                            Text(month, format: .dateTime.month(.narrow))
+                                .font(.caption2.monospacedDigit())
+                                .foregroundStyle(.secondary)
+                            Rectangle()
+                                .fill(stylesheet.palette.brand.ink.opacity(0.22))
+                                .frame(width: 0.5, height: 4)
+                        }
+                        .frame(maxWidth: .infinity)
                     }
                 }
 
@@ -44,10 +49,15 @@ struct YearRibbon: View {
                                 spacing: ribbon.regionLabelSpacing,
                             ) {
                                 let style = regionStyles.style(for: region)
-                                Label {
-                                    Text(region.localizedName)
-                                } icon: {
+                                let regionName = region == .other
+                                    ? String(localized: .secondaryTitle)
+                                    : region.localizedName
+                                HStack(spacing: stylesheet.spacing.small) {
+                                    Image(systemName: style.symbolName)
+                                        .foregroundStyle(style.tint)
+                                    Text(regionName)
                                     Text(style.emoji)
+                                        .font(.caption2)
                                 }
                                 .font(.caption)
 
@@ -74,8 +84,8 @@ struct YearRibbon: View {
         .padding(overview.padding)
         .background {
             ZStack {
-                RoundedRectangle(cornerRadius: overview.cornerRadius)
-                    .fill(.background)
+                RoundedRectangle(cornerRadius: overview.cornerRadius, style: .continuous)
+                    .fill(stylesheet.palette.brand.raisedPaper)
                 RoundedRectangle(cornerRadius: overview.cornerRadius)
                     .fill(overview.background)
             }

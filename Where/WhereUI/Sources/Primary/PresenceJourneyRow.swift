@@ -17,6 +17,9 @@ struct PresenceJourneyRow: View {
         let rail = timeline.rail
         let row = timeline.row
         let style = regionStyles.style(for: stint.region)
+        let regionName = stint.region == .other
+            ? String(localized: .secondaryTitle)
+            : stint.region.localizedName
         let dateRange = DateRangeFormatting.abbreviated(
             start: stint.start,
             end: stint.end,
@@ -25,31 +28,43 @@ struct PresenceJourneyRow: View {
         let countLayout = row.stacksDayCount
             ? AnyLayout(VStackLayout(alignment: .leading, spacing: row.labelSpacing))
             : AnyLayout(HStackLayout(alignment: .center, spacing: row.spacing))
-        let proportionalHeight = row.baseHeight
-            + row.yearScaleHeight * CGFloat(stint.dayCount) / CGFloat(daysInYear)
+        let durationFraction = daysInYear > 0
+            ? min(1, CGFloat(stint.dayCount) / CGFloat(daysInYear))
+            : 0
+        let proportionalHeight = row.baseHeight + row.yearScaleHeight * durationFraction
 
         HStack(spacing: rail.toCardSpacing) {
             Color.clear
                 .frame(width: rail.nodeSize)
 
-            countLayout {
-                VStack(alignment: .leading, spacing: row.labelSpacing) {
-                    Text(stint.region.localizedName)
-                        .font(.headline)
-                    Text(dateRange)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
+            VStack(alignment: .leading, spacing: row.spacing) {
+                countLayout {
+                    VStack(alignment: .leading, spacing: row.labelSpacing) {
+                        Text(regionName)
+                            .font(.system(.headline, design: .serif).weight(.semibold))
+                            .foregroundStyle(style.tint)
+                        Text(dateRange)
+                            .font(.subheadline.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
 
-                Text(WhereFormat.dayCount(stint.dayCount))
-                    .font(.subheadline.bold())
-                    .monospacedDigit()
-                    .padding(.horizontal, row.countHorizontalPadding)
-                    .padding(.vertical, row.countVerticalPadding)
-                    .background {
-                        Capsule()
-                            .fill(style.tint.opacity(row.countFillOpacity))
+                    Text(WhereFormat.dayCount(stint.dayCount))
+                        .font(.subheadline.weight(.semibold).monospacedDigit())
+                        .foregroundStyle(stylesheet.palette.brand.ink)
+                        .padding(.horizontal, row.countHorizontalPadding)
+                        .padding(.vertical, row.countVerticalPadding)
+                }
+
+                Capsule()
+                    .fill(stylesheet.palette.brand.ink.opacity(0.07))
+                    .frame(height: row.durationScaleHeight)
+                    .overlay(alignment: .leading) {
+                        GeometryReader { proxy in
+                            Capsule()
+                                .fill(style.tint)
+                                .frame(width: proxy.size.width * durationFraction)
+                        }
                     }
             }
             .frame(minHeight: proportionalHeight)
@@ -57,12 +72,12 @@ struct PresenceJourneyRow: View {
             .padding(.vertical, row.verticalPadding)
             .background {
                 RoundedRectangle(cornerRadius: row.cornerRadius)
-                    .fill(style.tint.opacity(row.fillOpacity))
+                    .fill(stylesheet.palette.brand.raisedPaper)
             }
             .overlay {
                 RoundedRectangle(cornerRadius: row.cornerRadius)
                     .stroke(
-                        style.tint.opacity(row.borderOpacity),
+                        stylesheet.palette.brand.ink.opacity(row.borderOpacity),
                         lineWidth: row.borderWidth,
                     )
             }
@@ -71,6 +86,7 @@ struct PresenceJourneyRow: View {
         .background(alignment: .leading) {
             PresenceJourneyRail(
                 tint: style.tint,
+                symbolName: style.symbolName,
                 emoji: style.emoji,
                 isFirst: isFirst,
                 isLast: isLast,
@@ -79,7 +95,7 @@ struct PresenceJourneyRow: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel(
             WhereFormat.timelineRowAccessibility(
-                region: stint.region.localizedName,
+                region: regionName,
                 range: dateRange,
                 days: stint.dayCount,
             ),

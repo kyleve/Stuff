@@ -260,9 +260,10 @@ struct WhereStylesheetTests {
         let calendar = style.calendar
         #expect(calendar.monthSpacing == 16)
         #expect(calendar.dotSize == 6)
-        #expect(calendar.regionBand.opacity == 0.16)
-        #expect(calendar.regionBand.cornerRadius == 14)
-        #expect(calendar.regionBand.continuationRadius == 3)
+        #expect(calendar.regionBand.opacity == 0.11)
+        #expect(calendar.regionBand.height == 10)
+        #expect(calendar.regionBand.cornerRadius == 5)
+        #expect(calendar.regionBand.continuationRadius == 1.5)
         #expect(calendar.regionBand.verticalInset == 4)
         #expect(calendar.regionBand.planned == .init(
             fillOpacity: 0.07,
@@ -293,19 +294,17 @@ struct WhereStylesheetTests {
         #expect(month.sectionSpacing == 8)
         #expect(month.gridSpacing == 6)
         #expect(month.padding == 16)
-        #expect(month.cornerRadius == 28)
-        #expect(month.plain.fill == Color.primary.opacity(0.03))
-        #expect(month.plain.border == Color.primary.opacity(0.12))
-        #expect(month.plain.borderWidth == 2)
+        #expect(month.cornerRadius == 14)
+        #expect(month.ruleSpacing == 32)
+        #expect(month.ruleOpacity == 0.028)
+        #expect(month.plain.fill == Color.primary.opacity(0.012))
+        #expect(month.plain.border == Color.primary.opacity(0.14))
+        #expect(month.plain.borderWidth == 0.75)
         #expect(month.plain.foreground == .primary)
-        #expect(month.current.fill == Color.accentColor.opacity(0.08))
-        #expect(month.current.border == Color.accentColor.opacity(0.7))
-        #expect(month.current.borderWidth == 3)
-        #expect(month.current.foreground == Color.primary.mix(
-            with: .accentColor,
-            by: 0.25,
-            in: .perceptual,
-        ))
+        #expect(month.current.fill == Color.primary.opacity(0.035))
+        #expect(month.current.border == Color.primary.opacity(0.32))
+        #expect(month.current.borderWidth == 1)
+        #expect(month.current.foreground == .primary)
         #expect(month.footerDividerSpacing == 8)
         #expect(month.footerSpacing == 4)
         #expect(month.footerRowSpacing == 6)
@@ -359,46 +358,49 @@ struct WhereStylesheetTests {
         let overview = timeline.overview
         #expect(overview.spacing == 12)
         #expect(overview.padding == 16)
-        #expect(overview.cornerRadius == 24)
-        #expect(overview.background == Color.primary.opacity(0.035))
-        #expect(overview.border == Color.primary.opacity(0.1))
-        #expect(overview.borderWidth == 1)
+        #expect(overview.cornerRadius == 14)
+        #expect(overview.background == Color.primary.opacity(0.012))
+        #expect(overview.border == Color.primary.opacity(0.14))
+        #expect(overview.borderWidth == 0.75)
         #expect(overview.yearFont == .system(.title2, design: .serif).bold())
         #expect(overview.pinsToViewport)
 
         let ribbon = timeline.ribbon
         #expect(ribbon.monthLabelSpacing == 6)
-        #expect(ribbon.height == 18)
-        #expect(ribbon.track == Color.primary.opacity(0.07))
-        #expect(ribbon.border == Color.primary.opacity(0.12))
-        #expect(ribbon.borderWidth == 1)
+        #expect(ribbon.height == 10)
+        #expect(ribbon.track == Color.primary.opacity(0.055))
+        #expect(ribbon.border == Color.primary.opacity(0.16))
+        #expect(ribbon.borderWidth == 0.75)
         #expect(ribbon.regionSpacing == 8)
         #expect(ribbon.regionLabelSpacing == 4)
         #expect(ribbon.separatesRegions == false)
 
         let rail = timeline.rail
-        #expect(rail.lineWidth == 4)
+        #expect(rail.lineWidth == 1.5)
         #expect(rail.toCardSpacing == 10)
-        #expect(rail.nodeSize == 42)
-        #expect(rail.nodeEmojiFont == .system(size: 20))
-        #expect(rail.nodeFillOpacity == 0.18)
-        #expect(rail.nodeStrokeWidth == 2)
+        #expect(rail.nodeSize == 28)
+        #expect(rail.nodeSymbolFont == .system(size: 12, weight: .semibold))
+        #expect(rail.nodeEmojiFont == .system(size: 9))
+        #expect(rail.charmOffset == CGSize(width: 9, height: 9))
+        #expect(rail.nodeFillOpacity == 0.07)
+        #expect(rail.nodeStrokeWidth == 1)
 
         let row = timeline.row
         #expect(row.spacing == 12)
         #expect(row.labelSpacing == 3)
-        #expect(row.gap == 8)
-        #expect(row.baseHeight == 64)
-        #expect(row.yearScaleHeight == 320)
+        #expect(row.gap == 6)
+        #expect(row.baseHeight == 68)
+        #expect(row.yearScaleHeight == 0)
         #expect(row.horizontalPadding == 14)
         #expect(row.verticalPadding == 12)
-        #expect(row.cornerRadius == 18)
-        #expect(row.fillOpacity == 0.09)
-        #expect(row.borderOpacity == 0.24)
-        #expect(row.borderWidth == 1)
-        #expect(row.countHorizontalPadding == 10)
-        #expect(row.countVerticalPadding == 6)
-        #expect(row.countFillOpacity == 0.16)
+        #expect(row.cornerRadius == 12)
+        #expect(row.fillOpacity == 0)
+        #expect(row.borderOpacity == 0.14)
+        #expect(row.borderWidth == 0.75)
+        #expect(row.countHorizontalPadding == 0)
+        #expect(row.countVerticalPadding == 0)
+        #expect(row.countFillOpacity == 0)
+        #expect(row.durationScaleHeight == 3)
         #expect(row.stacksDayCount == false)
 
         let planned = timeline.planned
@@ -528,6 +530,23 @@ struct WhereStylesheetTests {
     @Test func yearStyle() {
         #expect(style.year.motion == .standard)
         #expect(style.year.motion.contentAnimation == .smooth(duration: 0.36))
+        #expect(style.year.cover == .init(
+            cornerRadius: 28,
+            horizontalPadding: 26,
+            verticalPadding: 30,
+            minimumHeight: 570,
+            sealSize: 72,
+            titleFont: .system(.largeTitle, design: .serif).weight(.semibold),
+            eyebrowFont: .caption2.weight(.semibold),
+            figureNumberFont: .title2.weight(.semibold).monospacedDigit(),
+            figureEditorialFont: .system(.title2, design: .serif).weight(.semibold),
+            figureLabelFont: .caption.weight(.medium),
+            figureSpacing: 18,
+            borderOpacity: 0.32,
+            borderWidth: 0.75,
+            actionHorizontalPadding: 18,
+            actionVerticalPadding: 11,
+        ))
     }
 
     @Test func settingsStyle() {

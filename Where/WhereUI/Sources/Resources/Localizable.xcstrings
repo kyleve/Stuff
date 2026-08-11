@@ -8727,6 +8727,138 @@
         }
       }
     },
+    "year.ledger.cover.title" : {
+      "comment" : "Title on the annual ledger cover. The argument is a year without grouping separators.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Your %@ Ledger"
+          }
+        }
+      }
+    },
+    "year.ledger.empty.description" : {
+      "comment" : "Description on an empty annual ledger cover.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "The ledger is ready; recorded days will appear here as they arrive."
+          }
+        }
+      }
+    },
+    "year.ledger.empty.title" : {
+      "comment" : "Title on an empty annual ledger cover.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "No recorded days"
+          }
+        }
+      }
+    },
+    "year.ledger.includesElsewhere" : {
+      "comment" : "Small annual ledger note indicating that the region count is accompanied by days in Elsewhere.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Plus Elsewhere"
+          }
+        }
+      }
+    },
+    "year.ledger.latestRecord" : {
+      "comment" : "Annual ledger metadata line. The argument is the latest recorded date.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Latest record · %@"
+          }
+        }
+      }
+    },
+    "year.ledger.leadingRegion" : {
+      "comment" : "Label for the leading named region on the annual ledger cover.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Leading region"
+          }
+        }
+      }
+    },
+    "year.ledger.namedRegions" : {
+      "comment" : "Label for the number of non-Elsewhere regions on the annual ledger cover.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Named regions"
+          }
+        }
+      }
+    },
+    "year.ledger.open" : {
+      "comment" : "Action label printed on the annual ledger cover.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Open ledger"
+          }
+        }
+      }
+    },
+    "year.ledger.openHint" : {
+      "comment" : "Accessibility hint on the annual ledger cover navigation source.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Opens the calendar and timeline for this year."
+          }
+        }
+      }
+    },
+    "year.ledger.privateRecord" : {
+      "comment" : "Small provenance label on the annual ledger cover.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Private record"
+          }
+        }
+      }
+    },
+    "year.ledger.recordedDays" : {
+      "comment" : "Label for the distinct recorded-day figure on the annual ledger cover.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Recorded days"
+          }
+        }
+      }
+    },
     "year.ledger.title" : {
       "comment" : "Navigation title for the annual record. The argument is a year without grouping separators.",
       "extractionState" : "manual",

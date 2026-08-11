@@ -923,6 +923,8 @@ extension WhereStylesheet {
             var gridSpacing: CGFloat
             var padding: CGFloat
             var cornerRadius: CGFloat
+            var ruleSpacing: CGFloat
+            var ruleOpacity: Double
             /// Card treatment for a past month — the plain wash + rim.
             var plain: Card
             /// Card treatment for the current month — a bluer accent wash and a
@@ -998,6 +1000,8 @@ extension WhereStylesheet {
         struct RegionBand: Equatable {
             /// Opacity of the region tint — kept low so it sits behind the dots.
             var opacity: Double
+            /// Height of the narrow enamel register behind each occupied day.
+            var height: CGFloat
             /// Radius at a run's true start/end.
             var cornerRadius: CGFloat
             /// Radius at a week-boundary edge where the run continues.
@@ -1037,22 +1041,20 @@ extension WhereStylesheet {
                 sectionSpacing: 8,
                 gridSpacing: 6,
                 padding: 16,
-                cornerRadius: 28,
+                cornerRadius: 14,
+                ruleSpacing: 32,
+                ruleOpacity: 0.028,
                 plain: MonthStyle.Card(
-                    fill: Color.primary.opacity(0.03),
-                    border: Color.primary.opacity(0.12),
-                    borderWidth: 2,
+                    fill: Color.primary.opacity(0.012),
+                    border: Color.primary.opacity(0.14),
+                    borderWidth: 0.75,
                     foreground: .primary,
                 ),
                 current: MonthStyle.Card(
-                    fill: Color.accentColor.opacity(0.08),
-                    border: Color.accentColor.opacity(0.7),
-                    borderWidth: 3,
-                    foreground: Color.primary.mix(
-                        with: .accentColor,
-                        by: 0.25,
-                        in: .perceptual,
-                    ),
+                    fill: Color.primary.opacity(0.035),
+                    border: Color.primary.opacity(0.32),
+                    borderWidth: 1,
+                    foreground: .primary,
                 ),
                 footerDividerSpacing: 8,
                 footerSpacing: 4,
@@ -1061,9 +1063,10 @@ extension WhereStylesheet {
             ),
             dotSize: 6,
             regionBand: RegionBand(
-                opacity: 0.16,
-                cornerRadius: 14,
-                continuationRadius: 3,
+                opacity: 0.11,
+                height: 10,
+                cornerRadius: 5,
+                continuationRadius: 1.5,
                 verticalInset: 4,
                 planned: RegionBand.Planned(
                     fillOpacity: 0.07,
@@ -1318,7 +1321,9 @@ extension WhereStylesheet {
             var lineWidth: CGFloat
             var toCardSpacing: CGFloat
             var nodeSize: CGFloat
+            var nodeSymbolFont: Font
             var nodeEmojiFont: Font
+            var charmOffset: CGSize
             var nodeFillOpacity: Double
             var nodeStrokeWidth: CGFloat
         }
@@ -1341,6 +1346,7 @@ extension WhereStylesheet {
             var countHorizontalPadding: CGFloat
             var countVerticalPadding: CGFloat
             var countFillOpacity: Double
+            var durationScaleHeight: CGFloat
             /// Accessibility Dynamic Type stacks the count beneath the labels.
             var stacksDayCount: Bool
         }
@@ -1360,46 +1366,49 @@ extension WhereStylesheet {
             overview: Overview(
                 spacing: 12,
                 padding: 16,
-                cornerRadius: 24,
-                background: Color.primary.opacity(0.035),
-                border: Color.primary.opacity(0.1),
-                borderWidth: 1,
+                cornerRadius: 14,
+                background: Color.primary.opacity(0.012),
+                border: Color.primary.opacity(0.14),
+                borderWidth: 0.75,
                 yearFont: .system(.title2, design: .serif).bold(),
                 pinsToViewport: true,
             ),
             ribbon: Ribbon(
                 monthLabelSpacing: 6,
-                height: 18,
-                track: Color.primary.opacity(0.07),
-                border: Color.primary.opacity(0.12),
-                borderWidth: 1,
+                height: 10,
+                track: Color.primary.opacity(0.055),
+                border: Color.primary.opacity(0.16),
+                borderWidth: 0.75,
                 regionSpacing: 8,
                 regionLabelSpacing: 4,
                 separatesRegions: false,
             ),
             rail: Rail(
-                lineWidth: 4,
+                lineWidth: 1.5,
                 toCardSpacing: 10,
-                nodeSize: 42,
-                nodeEmojiFont: .system(size: 20),
-                nodeFillOpacity: 0.18,
-                nodeStrokeWidth: 2,
+                nodeSize: 28,
+                nodeSymbolFont: .system(size: 12, weight: .semibold),
+                nodeEmojiFont: .system(size: 9),
+                charmOffset: CGSize(width: 9, height: 9),
+                nodeFillOpacity: 0.07,
+                nodeStrokeWidth: 1,
             ),
             row: Row(
                 spacing: 12,
                 labelSpacing: 3,
-                gap: 8,
-                baseHeight: 64,
-                yearScaleHeight: 320,
+                gap: 6,
+                baseHeight: 68,
+                yearScaleHeight: 0,
                 horizontalPadding: 14,
                 verticalPadding: 12,
-                cornerRadius: 18,
-                fillOpacity: 0.09,
-                borderOpacity: 0.24,
-                borderWidth: 1,
-                countHorizontalPadding: 10,
-                countVerticalPadding: 6,
-                countFillOpacity: 0.16,
+                cornerRadius: 12,
+                fillOpacity: 0,
+                borderOpacity: 0.14,
+                borderWidth: 0.75,
+                countHorizontalPadding: 0,
+                countVerticalPadding: 0,
+                countFillOpacity: 0,
+                durationScaleHeight: 3,
                 stacksDayCount: false,
             ),
             planned: Planned(
@@ -1605,6 +1614,25 @@ extension WhereStylesheet {
     /// Motion for switching between the calendar and timeline lenses.
     struct YearStyle: Equatable {
         var motion: MotionMode
+        var cover: Cover
+
+        struct Cover: Equatable {
+            var cornerRadius: CGFloat
+            var horizontalPadding: CGFloat
+            var verticalPadding: CGFloat
+            var minimumHeight: CGFloat
+            var sealSize: CGFloat
+            var titleFont: Font
+            var eyebrowFont: Font
+            var figureNumberFont: Font
+            var figureEditorialFont: Font
+            var figureLabelFont: Font
+            var figureSpacing: CGFloat
+            var borderOpacity: Double
+            var borderWidth: CGFloat
+            var actionHorizontalPadding: CGFloat
+            var actionVerticalPadding: CGFloat
+        }
 
         enum MotionMode: Equatable {
             case standard
@@ -1627,7 +1655,26 @@ extension WhereStylesheet {
             }
         }
 
-        static let standard = YearStyle(motion: .standard)
+        static let standard = YearStyle(
+            motion: .standard,
+            cover: Cover(
+                cornerRadius: 28,
+                horizontalPadding: 26,
+                verticalPadding: 30,
+                minimumHeight: 570,
+                sealSize: 72,
+                titleFont: .system(.largeTitle, design: .serif).weight(.semibold),
+                eyebrowFont: .caption2.weight(.semibold),
+                figureNumberFont: .title2.weight(.semibold).monospacedDigit(),
+                figureEditorialFont: .system(.title2, design: .serif).weight(.semibold),
+                figureLabelFont: .caption.weight(.medium),
+                figureSpacing: 18,
+                borderOpacity: 0.32,
+                borderWidth: 0.75,
+                actionHorizontalPadding: 18,
+                actionVerticalPadding: 11,
+            ),
+        )
     }
 }
 
@@ -1998,7 +2045,7 @@ extension WhereStylesheet {
                 canvas: Color(red: 0.045, green: 0.052, blue: 0.065),
                 raisedPaper: Color(red: 0.085, green: 0.1, blue: 0.125),
                 ink: Color(red: 0.94, green: 0.91, blue: 0.84),
-                midnight: Color(red: 0.2, green: 0.3, blue: 0.43),
+                midnight: Color(red: 0.055, green: 0.105, blue: 0.18),
                 onMidnight: Color(red: 0.96, green: 0.94, blue: 0.89),
                 brass: Color(red: 0.7, green: 0.56, blue: 0.3),
                 oxblood: Color(red: 0.58, green: 0.32, blue: 0.37),

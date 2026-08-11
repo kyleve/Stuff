@@ -89,6 +89,20 @@ struct WhereFormatTests {
         #expect(WhereFormat.calendarTitle(year: 2026) == "Calendar · 2026")
         #expect(WhereFormat.settingsDataErase(year: 2026) == "Erase 2026 data")
         #expect(WhereFormat.yearLedgerTitle(year: 2026) == "2026 Ledger")
+        #expect(WhereFormat.yearLedgerCoverTitle(year: 2026) == "Your 2026 Ledger")
+        #expect(WhereFormat.locationsRecordedTitle(year: 2026) == "2026, recorded")
+    }
+
+    @Test func ledgerLatestRecordFormatsTheCalendarDay() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+
+        #expect(
+            WhereFormat.yearLedgerLatestRecord(
+                day: CalendarDay(year: 2026, month: 8, day: 2),
+                calendar: calendar,
+            ) == "Latest record · Aug 2, 2026",
+        )
     }
 
     @Test func calendarRegionTitleFormatsRegionAndGroupingFreeYear() {
