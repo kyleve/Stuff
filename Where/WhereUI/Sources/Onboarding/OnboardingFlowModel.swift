@@ -14,6 +14,25 @@ final class OnboardingFlowModel {
         case pickRegions
         case customize
         case location
+
+        fileprivate var order: Int {
+            switch self {
+                case .intro: 0
+                case .theme: 1
+                case .pickRegions: 2
+                case .customize: 3
+                case .location: 4
+            }
+        }
+    }
+
+    enum PhaseDirection: Equatable {
+        case forward
+        case backward
+
+        var isForward: Bool {
+            self == .forward
+        }
     }
 
     enum DeviceDiscovery: Equatable {
@@ -25,7 +44,8 @@ final class OnboardingFlowModel {
 
     let installationContext: InstallationRecordingContext
     let gate: LifecycleGateHandle
-    var phase: Phase
+    private(set) var phase: Phase
+    private(set) var phaseDirection = PhaseDirection.forward
     var page = 0
     var theme: WhereTheme
     var selection = PrimaryRegionSelectionModel()
@@ -63,7 +83,7 @@ final class OnboardingFlowModel {
             page += 1
         } else {
             discardPendingRestore()
-            phase = .theme
+            transition(to: .theme)
         }
     }
 
@@ -74,7 +94,13 @@ final class OnboardingFlowModel {
     }
 
     func continueAfterThemeSelection() {
-        phase = restoreSelection.readyImport == nil ? .pickRegions : .location
+        transition(to: restoreSelection.readyImport == nil ? .pickRegions : .location)
+    }
+
+    func transition(to newPhase: Phase) {
+        guard newPhase != phase else { return }
+        phaseDirection = newPhase.order > phase.order ? .forward : .backward
+        phase = newPhase
     }
 
     func discoverRecordingDevices(using model: WhereModel) async {
@@ -103,7 +129,7 @@ final class OnboardingFlowModel {
                 return
             }
             intro.activity = .restoringBackup
-            phase = .intro
+            transition(to: .intro)
         }
         isFinishing = true
         Task {
@@ -211,7 +237,7 @@ final class OnboardingFlowModel {
             return
         }
         restoreSelection.choose(strategy)
-        phase = .theme
+        transition(to: .theme)
     }
 
     func discardPendingRestore() {
@@ -279,7 +305,7 @@ final class OnboardingFlowModel {
             restoreSelection.discardUncommittedSelection()
             await model.endSession()
             intro.activity = .failed(.init(flow: .restoreBackup, error: error))
-            phase = .intro
+            transition(to: .intro)
             isFinishing = false
             Self.logger(attachments: [.error(error, name: "restore-error")]) {
                 .backupRestoreFailed(description: error.localizedDescription)

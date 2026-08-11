@@ -10,6 +10,7 @@ struct OnboardingFlowModelTests {
         let model = makeModel(startsAtRecordingChoice: true)
 
         #expect(model.phase == .location)
+        #expect(model.phaseDirection == .forward)
         #expect(model.recordingEnabled)
     }
 
@@ -28,6 +29,17 @@ struct OnboardingFlowModelTests {
         model.continueAfterThemeSelection()
 
         #expect(model.phase == .pickRegions)
+        #expect(model.phaseDirection == .forward)
+    }
+
+    @Test func phaseTransitionsOwnTheirNavigationDirection() {
+        let model = makeModel(startsAtRecordingChoice: false)
+
+        model.transition(to: .customize)
+        #expect(model.phaseDirection == .forward)
+
+        model.transition(to: .pickRegions)
+        #expect(model.phaseDirection == .backward)
     }
 
     @Test func restoredThemeSelectionContinuesToRecordingConfirmation() {

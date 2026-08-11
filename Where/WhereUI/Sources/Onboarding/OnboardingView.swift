@@ -69,17 +69,17 @@ public struct OnboardingView: View {
     public var body: some View {
         Group {
             switch flow.phase {
-                case .intro: introScreen.transition(stylesheet.onboarding.motion.transition)
+                case .intro: introScreen.transition(phaseTransition)
                 case .theme:
                     OnboardingThemeSelectionView(
                         selection: flow.theme,
                         onSelect: { flow.selectTheme($0, using: model) },
                         onContinue: flow.continueAfterThemeSelection,
                     )
-                    .transition(stylesheet.onboarding.motion.transition)
-                case .pickRegions: pickRegions.transition(stylesheet.onboarding.motion.transition)
-                case .customize: customize.transition(stylesheet.onboarding.motion.transition)
-                case .location: location.transition(stylesheet.onboarding.motion.transition)
+                    .transition(phaseTransition)
+                case .pickRegions: pickRegions.transition(phaseTransition)
+                case .customize: customize.transition(phaseTransition)
+                case .location: location.transition(phaseTransition)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -99,6 +99,10 @@ public struct OnboardingView: View {
         // Log View Mode: reveal an inspect badge for onboarding events (region
         // commit / backup restore). A no-op in release.
         .debugLogInspectable(WhereLog.session(OnboardingViewLog.self))
+    }
+
+    private var phaseTransition: AnyTransition {
+        stylesheet.onboarding.motion.transition(isForward: flow.phaseDirection.isForward)
     }
 
     // MARK: - Intro
@@ -125,19 +129,27 @@ public struct OnboardingView: View {
     }
 
     private var introPages: some View {
-        VStack(spacing: stylesheet.spacing.xxxLarge) {
-            TabView(selection: $flow.page) {
-                ForEach(pages.indices, id: \.self) { index in
-                    pageView(pages[index])
-                        .tag(index)
-                        .padding(.horizontal, stylesheet.spacing.xxxLarge)
-                }
-            }
-            .tabViewStyle(.page(indexDisplayMode: .always))
+        StaggeredRevealScope {
+            VStack(spacing: stylesheet.spacing.xxxLarge) {
+                OnboardingBrandMark()
+                    .padding(.top, stylesheet.spacing.xxxLarge)
+                    .staggeredReveal(order: 0)
 
-            introFooter
-                .padding(.horizontal, stylesheet.spacing.xxxLarge)
-                .padding(.bottom, stylesheet.spacing.xxxLarge)
+                TabView(selection: $flow.page) {
+                    ForEach(pages.indices, id: \.self) { index in
+                        pageView(pages[index])
+                            .tag(index)
+                            .padding(.horizontal, stylesheet.spacing.xxxLarge)
+                    }
+                }
+                .tabViewStyle(.page(indexDisplayMode: .always))
+                .staggeredReveal(order: 1)
+
+                introFooter
+                    .padding(.horizontal, stylesheet.spacing.xxxLarge)
+                    .padding(.bottom, stylesheet.spacing.xxxLarge)
+                    .staggeredReveal(order: 2)
+            }
         }
         .fileImporter(
             isPresented: $flow.showImporter,
@@ -176,32 +188,27 @@ public struct OnboardingView: View {
     }
 
     private func pageView(_ page: OnboardingPage) -> some View {
-        StaggeredRevealScope {
-            GeometryReader { geometry in
-                ScrollView {
-                    VStack(spacing: stylesheet.spacing.xxxLarge) {
-                        Spacer(minLength: 0)
-                        OnboardingBrandMark(systemSymbol: page.symbol)
-                            .staggeredReveal(order: 0)
-                        VStack(spacing: stylesheet.spacing.large) {
-                            Text(page.title)
-                                .font(stylesheet.typography.editorialTitle)
-                                .multilineTextAlignment(.center)
-                                .fixedSize(horizontal: false, vertical: true)
-                            Text(page.description)
-                                .font(.body)
-                                .foregroundStyle(.secondary)
-                                .multilineTextAlignment(.center)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                        .staggeredReveal(order: 1)
-                        Spacer(minLength: 0)
+        GeometryReader { geometry in
+            ScrollView {
+                VStack(spacing: stylesheet.spacing.xxxLarge) {
+                    Spacer(minLength: 0)
+                    VStack(spacing: stylesheet.spacing.large) {
+                        Text(page.title)
+                            .font(stylesheet.typography.editorialTitle)
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Text(page.description)
+                            .font(.body)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
-                    .frame(maxWidth: .infinity, minHeight: geometry.size.height)
+                    Spacer(minLength: 0)
                 }
-                .scrollIndicators(.hidden)
-                .scrollBounceBehavior(.basedOnSize)
+                .frame(maxWidth: .infinity, minHeight: geometry.size.height)
             }
+            .scrollIndicators(.hidden)
+            .scrollBounceBehavior(.basedOnSize)
         }
     }
 
@@ -238,8 +245,10 @@ public struct OnboardingView: View {
                 .navigationTitle(String(localized: .onboardingRegionsTitle))
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
-                        Button(String(localized: .onboardingNext)) { flow.phase = .customize }
-                            .disabled(!flow.selection.hasSelection)
+                        Button(String(localized: .onboardingNext)) {
+                            flow.transition(to: .customize)
+                        }
+                        .disabled(!flow.selection.hasSelection)
                     }
                 }
         }
@@ -251,8 +260,8 @@ public struct OnboardingView: View {
         NavigationStack {
             RegionCustomizeView(
                 model: flow.selection,
-                onBack: { flow.phase = .pickRegions },
-                onFinish: { flow.phase = .location },
+                onBack: { flow.transition(to: .pickRegions) },
+                onFinish: { flow.transition(to: .location) },
             )
         }
     }
@@ -264,10 +273,15 @@ public struct OnboardingView: View {
             ScrollView {
                 VStack(spacing: stylesheet.spacing.xxxLarge) {
                     Spacer(minLength: 0)
-                    Image(systemSymbol: deviceKind.systemSymbol)
-                        .font(stylesheet.typography.onboardingIcon)
-                        .foregroundStyle(stylesheet.palette.brand.ink)
-                        .accessibilityHidden(true)
+                    ZStack(alignment: .bottomTrailing) {
+                        OnboardingBrandMark()
+                        Image(systemSymbol: deviceKind.systemSymbol)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(stylesheet.palette.brand.ink)
+                            .padding(stylesheet.spacing.small)
+                            .background(stylesheet.palette.brand.raisedPaper, in: Circle())
+                    }
+                    .accessibilityHidden(true)
                     VStack(spacing: stylesheet.spacing.large) {
                         Text(recordingTitle)
                             .font(.largeTitle.bold())
@@ -422,26 +436,22 @@ final class OnboardingIntroState {
 /// list reads declaratively and stays easy to reorder.
 struct OnboardingPage: Identifiable {
     let id: String
-    let symbol: SFSymbol
     let title: String
     let description: String
 
     static let all: [OnboardingPage] = [
         OnboardingPage(
             id: "welcome",
-            symbol: .globeAmericasFill,
             title: String(localized: .onboardingWelcomeTitle),
             description: String(localized: .onboardingWelcomeDescription),
         ),
         OnboardingPage(
             id: "automatic",
-            symbol: .locationFillViewfinder,
             title: String(localized: .onboardingAutomaticTitle),
             description: String(localized: .onboardingAutomaticDescription),
         ),
         OnboardingPage(
             id: "privacy",
-            symbol: .lockShieldFill,
             title: String(localized: .onboardingPrivacyTitle),
             description: String(localized: .onboardingPrivacyDescription),
         ),

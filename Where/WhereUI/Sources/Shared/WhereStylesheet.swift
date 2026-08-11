@@ -1556,12 +1556,18 @@ extension WhereStylesheet {
         var captionDelay: Duration
         var revealAnimation: Animation
         var reducedRevealAnimation: Animation
+        var sealSize: CGFloat
+        var coverInset: CGFloat
+        var coverCornerRadius: CGFloat
 
         static let standard = LaunchStyle(
             minimumSplashDuration: .milliseconds(800),
             captionDelay: .milliseconds(1200),
             revealAnimation: .smooth(duration: 0.62),
             reducedRevealAnimation: .easeInOut(duration: 0.18),
+            sealSize: 132,
+            coverInset: 22,
+            coverCornerRadius: 28,
         )
     }
 }
@@ -1588,10 +1594,15 @@ extension WhereStylesheet {
                 }
             }
 
-            var transition: AnyTransition {
+            func transition(isForward: Bool) -> AnyTransition {
                 switch self {
                     case .standard:
-                        .opacity.combined(with: .scale(scale: 0.985))
+                        .asymmetric(
+                            insertion: .move(edge: isForward ? .trailing : .leading)
+                                .combined(with: .opacity),
+                            removal: .move(edge: isForward ? .leading : .trailing)
+                                .combined(with: .opacity),
+                        )
                     case .reduced:
                         .opacity
                 }
@@ -1599,7 +1610,7 @@ extension WhereStylesheet {
         }
 
         static let standard = OnboardingStyle(
-            brandMarkSize: 58,
+            brandMarkSize: 72,
             primaryButtonCornerRadius: 18,
             primaryButtonVerticalPadding: 14,
             primaryButtonPressedScale: 0.99,

@@ -23,6 +23,12 @@
       "displayName" : "Grand Tour",
       "alternateIconName" : "AppIconGrandTour",
       "previewImageName" : "AppIconGrandTour"
+    },
+    {
+      "id" : "original",
+      "displayName" : "Original",
+      "alternateIconName" : "AppIconOriginal",
+      "previewImageName" : "AppIconOriginal"
     }
   ]
 }

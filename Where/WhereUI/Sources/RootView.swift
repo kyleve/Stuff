@@ -244,16 +244,15 @@ public struct RootView: View {
     }
 
     /// How the launch splash gives way to the app once the runner is `.ready`:
-    /// the splash lifts a fraction and fades while the `TabView` stays put
-    /// beneath it (`insertion: .identity`). The small scale preserves the sense
-    /// of a physical cover giving way without the former explosive zoom.
+    /// the midnight cover lifts a fraction and fades while the `TabView` stays
+    /// put beneath it (`insertion: .identity`).
     private var revealTransition: AnyTransition {
         if reduceMotion {
             return .opacity
         }
         return .asymmetric(
             insertion: .identity,
-            removal: .scale(scale: 1.08).combined(with: .opacity),
+            removal: .offset(y: -14).combined(with: .opacity),
         )
     }
 

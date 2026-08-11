@@ -3271,6 +3271,18 @@
         }
       }
     },
+    "launch.timeAndPlace" : {
+      "comment" : "Tracked brand descriptor beneath the Where name on the launch cover.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "TIME & PLACE"
+          }
+        }
+      }
+    },
     "locationCard.estimatedDays" : {
       "comment" : "Compact label above a location card progress bar. The placeholder is an already-localized day count, for example '184 days'.",
       "extractionState" : "manual",

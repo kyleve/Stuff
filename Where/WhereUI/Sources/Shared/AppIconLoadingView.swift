@@ -1,18 +1,19 @@
 import SwiftUI
 
-/// A centered, full-area "working" state: the shared `AppIconActivityIndicator`
-/// (the user's selected app icon breathing gently) above a caption. The single
-/// loading treatment for whole-view waits — a first data load, an in-progress
-/// scan, a summary generating — so they share one look and one accessibility
-/// shape instead of each rebuilding a spinner-plus-label.
+/// A centered, full-area working state built from Where's stable seal, an
+/// honest system activity indicator, and a caption. It does not imply measured
+/// progress and contains no ambient or repeating brand animation.
 struct AppIconLoadingView: View {
     let caption: String
 
     @Environment(\.stylesheet) private var stylesheet
 
     var body: some View {
-        VStack(spacing: stylesheet.spacing.xxLarge) {
-            AppIconActivityIndicator()
+        VStack(spacing: stylesheet.spacing.xLarge) {
+            WhereSeal(tint: stylesheet.palette.brand.brass)
+                .frame(width: 72)
+                .accessibilityHidden(true)
+            SystemActivityIndicator(tint: stylesheet.palette.brand.ink)
             Text(caption)
                 .font(.callout)
                 .foregroundStyle(.secondary)

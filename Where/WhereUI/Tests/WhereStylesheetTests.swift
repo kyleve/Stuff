@@ -515,11 +515,14 @@ struct WhereStylesheetTests {
         #expect(launch.captionDelay == .milliseconds(1200))
         #expect(launch.revealAnimation == .smooth(duration: 0.62))
         #expect(launch.reducedRevealAnimation == .easeInOut(duration: 0.18))
+        #expect(launch.sealSize == 132)
+        #expect(launch.coverInset == 22)
+        #expect(launch.coverCornerRadius == 28)
     }
 
     @Test func onboardingStyle() {
         let onboarding = style.onboarding
-        #expect(onboarding.brandMarkSize == 58)
+        #expect(onboarding.brandMarkSize == 72)
         #expect(onboarding.primaryButtonCornerRadius == 18)
         #expect(onboarding.primaryButtonVerticalPadding == 14)
         #expect(onboarding.primaryButtonPressedScale == 0.99)

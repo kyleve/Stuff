@@ -24,6 +24,7 @@ usage() {
     cat <<'USAGE'
 Usage:
   ./icons --add <image.png> [--name <Name>] [--id <id>] [--dark <png>] [--tinted <png>]
+  ./icons --replace-primary <image.png> [--dark <png>] [--tinted <png>]
   ./icons --remove <name|id>
   ./icons --list
   ./icons --help
@@ -39,11 +40,15 @@ WhereUI preview catalog, and AppIcons.json in sync.
   --dark <png>    1024x1024 PNG for the dark appearance.
   --tinted <png>  1024x1024 PNG for the tinted (monochrome) appearance.
 
+--replace-primary replaces the artwork for the reserved Classic identity while
+keeping its stable manifest id and primary-icon status.
+
 The primary "Classic" icon (AppIcon / id "classic") is reserved: it can't be
 added or removed.
 
 Examples:
   ./icons --add art/ocean.png --name Ocean --dark art/ocean-dark.png
+  ./icons --replace-primary art/signature.png --dark art/signature-dark.png --tinted art/signature-tinted.png
   ./icons --remove ocean
   ./icons --list
 
@@ -71,6 +76,11 @@ while [ $# -gt 0 ]; do
             MODE="add"
             shift
             LIGHT="${1:?--add requires an image path}"
+            ;;
+        --replace-primary)
+            MODE="replace-primary"
+            shift
+            LIGHT="${1:?--replace-primary requires an image path}"
             ;;
         --remove)
             MODE="remove"
@@ -282,6 +292,89 @@ def do_add():
     print("Run `./ide --no-open` to regenerate so the new icon is compiled in.")
 
 
+def do_replace_primary():
+    light = os.environ["LIGHT"]
+    dark = os.environ.get("DARK") or ""
+    tinted = os.environ.get("TINTED") or ""
+    require_1024(light)
+    if dark:
+        require_1024(dark)
+    if tinted:
+        require_1024(tinted)
+
+    # Read before rebuilding the catalog folders so replacing in-place is safe.
+    with open(light, "rb") as source:
+        light_data = source.read()
+    if dark:
+        with open(dark, "rb") as source:
+            dark_data = source.read()
+    else:
+        dark_data = None
+    if tinted:
+        with open(tinted, "rb") as source:
+            tinted_data = source.read()
+    else:
+        tinted_data = None
+
+    data = load_manifest()
+    primary = next(
+        (
+            icon
+            for icon in data.get("icons", [])
+            if icon.get("id") == PRIMARY_ID and icon.get("alternateIconName") is None
+        ),
+        None,
+    )
+    if primary is None:
+        die(f'the manifest has no reserved primary icon with id "{PRIMARY_ID}"')
+
+    appiconset = os.path.join(APP_CATALOG, PRIMARY_SET + ".appiconset")
+    preview_set_name = primary["previewImageName"]
+    imageset = os.path.join(PREVIEW_CATALOG, preview_set_name + ".imageset")
+    for path in (appiconset, imageset):
+        if os.path.isdir(path):
+            shutil.rmtree(path)
+        os.makedirs(path)
+
+    app_images = [
+        {"filename": PRIMARY_SET + ".png", "idiom": "universal", "platform": "ios", "size": "1024x1024"},
+    ]
+    with open(os.path.join(appiconset, PRIMARY_SET + ".png"), "wb") as destination:
+        destination.write(light_data)
+    if dark:
+        app_images.append({
+            "appearances": [{"appearance": "luminosity", "value": "dark"}],
+            "filename": PRIMARY_SET + "-Dark.png", "idiom": "universal",
+            "platform": "ios", "size": "1024x1024",
+        })
+        with open(os.path.join(appiconset, PRIMARY_SET + "-Dark.png"), "wb") as destination:
+            destination.write(dark_data)
+    if tinted:
+        app_images.append({
+            "appearances": [{"appearance": "luminosity", "value": "tinted"}],
+            "filename": PRIMARY_SET + "-Tinted.png", "idiom": "universal",
+            "platform": "ios", "size": "1024x1024",
+        })
+        with open(os.path.join(appiconset, PRIMARY_SET + "-Tinted.png"), "wb") as destination:
+            destination.write(tinted_data)
+    write_contents(os.path.join(appiconset, "Contents.json"), app_images)
+
+    preview_images = [{"filename": preview_set_name + ".png", "idiom": "universal"}]
+    with open(os.path.join(imageset, preview_set_name + ".png"), "wb") as destination:
+        destination.write(light_data)
+    if dark:
+        preview_images.append({
+            "appearances": [{"appearance": "luminosity", "value": "dark"}],
+            "filename": preview_set_name + "-Dark.png", "idiom": "universal",
+        })
+        with open(os.path.join(imageset, preview_set_name + "-Dark.png"), "wb") as destination:
+            destination.write(dark_data)
+    write_contents(os.path.join(imageset, "Contents.json"), preview_images)
+
+    print('Replaced primary "Classic" artwork without changing its stable id.')
+    print("Run `./ide --no-open` to regenerate so the new artwork is compiled in.")
+
+
 def do_remove():
     target = os.environ["TARGET"]
     if target.lower() in (PRIMARY_ID, PRIMARY_SET.lower()):
@@ -326,6 +419,8 @@ if MODE == "list":
     do_list()
 elif MODE == "add":
     do_add()
+elif MODE == "replace-primary":
+    do_replace_primary()
 elif MODE == "remove":
     do_remove()
 else:
