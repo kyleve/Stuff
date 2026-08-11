@@ -257,15 +257,21 @@ and `CalendarStyle` (nested sub-parts). To add one:
 Reach for a shared group only for genuinely cross-component values: the
 generic point scale on `Spacing`, one-off element sizes on `Size`, app-wide
 colors not owned by a single component on `Palette`, the few bespoke display
-faces on `Typography`, and animation tokens on `Motion`.
+faces on `Typography`, and Where's physical timing cadence on `Motion`.
+Component styles own the animations and transitions those timings drive — for
+example, `OnboardingStyle` owns its phase transition and `YearStyle` owns the
+Calendar/Timeline depth dissolve. The house palette is a quiet paper, ink,
+midnight, brass, oxblood, forest, and mineral family resolved for the active
+appearance; region colors remain user-owned accent ink rather than app-global
+theme colors.
 
 ### Trait-aware tokens
 
 Most tokens are fixed; a slice derives from the `BContext` traits in
 `init(context:)` — read the live set off that initializer. Today it grows
 day-grid tap targets at accessibility Dynamic Type sizes, flattens the card
-glow under Reduce Transparency, and crossfades the cards' day count under
-Reduce Motion.
+glow under Reduce Transparency, and replaces spatial onboarding/year motion
+and rolling card counts with short crossfades under Reduce Motion.
 
 ### Per-region styling
 
@@ -299,7 +305,8 @@ altering the recorded data. Security-print layers use normal compositing in
 light mode and Screen in dark mode, so the same tinted details darken pale glass
 but lighten dark glass. Reduce Transparency removes the constellation halos
 while retaining the crisp centers.
-Live tilt is observed only by the sheen overlay, so its 60 Hz updates do not
+Live tilt is low-pass filtered to give the coated surface restrained material
+inertia, then observed only by the sheen overlay, so its 60 Hz updates do not
 invalidate the card's text or Canvas artwork. The card adds no standalone edge
 stroke; its containing Liquid Glass surface owns the subtle outer border so
 direct and production rendering do not diverge.

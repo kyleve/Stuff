@@ -19,6 +19,11 @@ enum WhereFormat {
         year.formatted(.number.grouping(.never))
     }
 
+    /// The annual record's editorial title, e.g. "2026 Ledger".
+    static func yearLedgerTitle(year: Int) -> String {
+        String(localized: .yearLedgerTitle(yearText(year)))
+    }
+
     /// A "37.77490, -122.41940"-style coordinate label. No catalog entry is
     /// needed; the number style is locale-driven, like `driftThresholdLabel`.
     static func auditCoordinate(latitude: Double, longitude: Double) -> String {

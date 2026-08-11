@@ -244,21 +244,23 @@ public struct RootView: View {
     }
 
     /// How the launch splash gives way to the app once the runner is `.ready`:
-    /// the splash scales up and fades while the `TabView` stays put beneath it
-    /// (`insertion: .identity`), reading as the icon zooming toward the viewer to
-    /// uncover the UI. Reduce Motion swaps this for a plain crossfade.
+    /// the splash lifts a fraction and fades while the `TabView` stays put
+    /// beneath it (`insertion: .identity`). The small scale preserves the sense
+    /// of a physical cover giving way without the former explosive zoom.
     private var revealTransition: AnyTransition {
         if reduceMotion {
             return .opacity
         }
         return .asymmetric(
             insertion: .identity,
-            removal: .scale(scale: 16).combined(with: .opacity),
+            removal: .scale(scale: 1.08).combined(with: .opacity),
         )
     }
 
     private var revealAnimation: Animation {
-        reduceMotion ? stylesheet.motion.reducedReveal : stylesheet.motion.reveal
+        reduceMotion
+            ? stylesheet.launch.reducedRevealAnimation
+            : stylesheet.launch.revealAnimation
     }
 
     #if DEBUG

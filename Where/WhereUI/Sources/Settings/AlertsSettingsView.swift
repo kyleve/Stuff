@@ -11,6 +11,7 @@ struct AlertsSettingsView: View {
     var focus: SettingsFocus?
 
     @Environment(\.openURL) private var openURL
+    @Environment(\.stylesheet) private var stylesheet
 
     // "Find issues now": a manual, force-past-the-throttle data-issue scan and
     // its result (issue count) shown until the next scan.
@@ -201,7 +202,7 @@ struct AlertsSettingsView: View {
         } footer: {
             Text(String(localized: .settingsFindIssuesFooter))
         }
-        .animation(.default, value: isScanningForIssues)
+        .animation(stylesheet.motion.settle, value: isScanningForIssues)
         // The shown count is for the current year at the current threshold;
         // drop it once either changes so it can't linger as a stale result.
         .onChange(of: report.selectedYear) { lastScanIssueCount = nil }

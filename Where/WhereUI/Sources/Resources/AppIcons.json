@@ -17,6 +17,12 @@
       "displayName" : "Solid",
       "alternateIconName" : "AppIconSolid",
       "previewImageName" : "AppIconSolid"
+    },
+    {
+      "id" : "grand-tour",
+      "displayName" : "Grand Tour",
+      "alternateIconName" : "AppIconGrandTour",
+      "previewImageName" : "AppIconGrandTour"
     }
   ]
 }

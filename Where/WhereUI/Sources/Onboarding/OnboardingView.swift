@@ -69,16 +69,17 @@ public struct OnboardingView: View {
     public var body: some View {
         Group {
             switch flow.phase {
-                case .intro: introScreen
+                case .intro: introScreen.transition(stylesheet.onboarding.motion.transition)
                 case .theme:
                     OnboardingThemeSelectionView(
                         selection: flow.theme,
                         onSelect: { flow.selectTheme($0, using: model) },
                         onContinue: flow.continueAfterThemeSelection,
                     )
-                case .pickRegions: pickRegions
-                case .customize: customize
-                case .location: location
+                    .transition(stylesheet.onboarding.motion.transition)
+                case .pickRegions: pickRegions.transition(stylesheet.onboarding.motion.transition)
+                case .customize: customize.transition(stylesheet.onboarding.motion.transition)
+                case .location: location.transition(stylesheet.onboarding.motion.transition)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -93,7 +94,7 @@ public struct OnboardingView: View {
             )
             .ignoresSafeArea(),
         )
-        .animation(stylesheet.motion.reducedReveal, value: flow.phase)
+        .animation(stylesheet.onboarding.motion.animation, value: flow.phase)
         .onDisappear { flow.discardPendingRestore() }
         // Log View Mode: reveal an inspect badge for onboarding events (region
         // commit / backup restore). A no-op in release.
@@ -175,35 +176,46 @@ public struct OnboardingView: View {
     }
 
     private func pageView(_ page: OnboardingPage) -> some View {
-        VStack(spacing: stylesheet.spacing.xxxLarge) {
-            Spacer(minLength: 0)
-            Image(systemSymbol: page.symbol)
-                .font(stylesheet.typography.onboardingIcon)
-                .foregroundStyle(Color.accentColor)
-                .accessibilityHidden(true)
-            VStack(spacing: stylesheet.spacing.large) {
-                Text(page.title)
-                    .font(.largeTitle.bold())
-                    .multilineTextAlignment(.center)
-                Text(page.description)
-                    .font(.body)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
+        StaggeredRevealScope {
+            GeometryReader { geometry in
+                ScrollView {
+                    VStack(spacing: stylesheet.spacing.xxxLarge) {
+                        Spacer(minLength: 0)
+                        OnboardingBrandMark(systemSymbol: page.symbol)
+                            .staggeredReveal(order: 0)
+                        VStack(spacing: stylesheet.spacing.large) {
+                            Text(page.title)
+                                .font(stylesheet.typography.editorialTitle)
+                                .multilineTextAlignment(.center)
+                                .fixedSize(horizontal: false, vertical: true)
+                            Text(page.description)
+                                .font(.body)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .staggeredReveal(order: 1)
+                        Spacer(minLength: 0)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: geometry.size.height)
+                }
+                .scrollIndicators(.hidden)
+                .scrollBounceBehavior(.basedOnSize)
             }
-            Spacer(minLength: 0)
         }
     }
 
     private var introFooter: some View {
         VStack(spacing: stylesheet.spacing.medium) {
             Button {
-                withAnimation { flow.advanceIntro(pageCount: pages.count) }
+                withAnimation(stylesheet.onboarding.motion.animation) {
+                    flow.advanceIntro(pageCount: pages.count)
+                }
             } label: {
                 Text(String(localized: .onboardingContinue))
                     .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
+            .buttonStyle(WeightedPrimaryButtonStyle())
 
             // Returning users can skip the manual setup by restoring a backup;
             // the restore's progress replaces the intro with the loading view.
@@ -254,7 +266,7 @@ public struct OnboardingView: View {
                     Spacer(minLength: 0)
                     Image(systemSymbol: deviceKind.systemSymbol)
                         .font(stylesheet.typography.onboardingIcon)
-                        .foregroundStyle(Color.accentColor)
+                        .foregroundStyle(stylesheet.palette.brand.ink)
                         .accessibilityHidden(true)
                     VStack(spacing: stylesheet.spacing.large) {
                         Text(recordingTitle)
@@ -302,8 +314,7 @@ public struct OnboardingView: View {
                             Text(String(localized: .onboardingContinue))
                                 .frame(maxWidth: .infinity)
                         }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.large)
+                        .buttonStyle(WeightedPrimaryButtonStyle())
                     }
                     .disabled(flow.isFinishing || flow.deviceDiscovery == .loading)
                 }

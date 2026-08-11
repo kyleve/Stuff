@@ -48,10 +48,10 @@ struct WhereStylesheetTests {
     @Test func regularCardStyle() {
         let card = style.card.regular
         #expect(style.card.estimatedProgressOpacity == 0.3)
-        #expect(card.cornerRadius == 28)
+        #expect(card.cornerRadius == 24)
         #expect(card.padding == 22)
         #expect(card.contentSpacing == 16)
-        #expect(card.progressBarHeight == 10)
+        #expect(card.progressBarHeight == 7)
         #expect(card.entryStamp == expectedEntryStamp(size: 88, showsArcText: true))
         #expect(card.regionNameTypography == .init(
             size: .fixed(38),
@@ -66,7 +66,7 @@ struct WhereStylesheetTests {
         #expect(card.heroNumberTypography == .init(
             size: .fixed(40),
             weight: .bold,
-            design: .rounded,
+            design: .default,
         ))
         #expect(card.dayUnitTypography == .init(
             size: .semantic(.title3),
@@ -81,26 +81,26 @@ struct WhereStylesheetTests {
                 center: CGPoint(x: 0.7, y: 0.57),
                 extent: CGSize(width: 0.72, height: 0.78),
                 scale: 0.88,
-                fillOpacity: 0.13,
-                stroke: .init(opacity: 0.28, width: 1.5),
+                fillOpacity: 0.09,
+                stroke: .init(opacity: 0.2, width: 1),
             ),
             stamp: .init(
                 center: CGPoint(x: 0.5, y: 0.5),
                 extent: CGSize(width: 0.78, height: 0.78),
                 scale: 0.88,
-                fillOpacity: 0.78,
+                fillOpacity: 0.68,
                 stroke: nil,
             ),
             securityBorder: .init(
                 inset: 9,
                 glyphSize: 8,
                 spacing: 11,
-                opacity: 0.22,
+                opacity: 0.16,
             ),
         ))
         #expect(card.sheen == .init(
-            intensity: 1,
-            staticGlintIntensity: 0.25,
+            intensity: 0.46,
+            staticGlintIntensity: 0.14,
             staticPose: .init(roll: 0, pitch: -1),
         ))
         #expect(card.rosette == .init(
@@ -109,8 +109,8 @@ struct WhereStylesheetTests {
             primaryRingSpacing: 13.5,
             secondaryRingSpacing: 9.5,
         ))
-        #expect(card.glow == .init(opacity: 0.75, radius: 12))
-        #expect(card.lift == .init(opacity: 0.6, radius: 34, offsetY: 18))
+        #expect(card.glow == .init(opacity: 0.2, radius: 7))
+        #expect(card.lift == .init(opacity: 0.14, radius: 22, offsetY: 12))
     }
 
     @Test func compactCardStyle() {
@@ -128,7 +128,7 @@ struct WhereStylesheetTests {
         #expect(card.heroNumberTypography == .init(
             size: .semantic(.title),
             weight: .bold,
-            design: .rounded,
+            design: .default,
         ))
         #expect(card.dayUnitTypography == .init(
             size: .semantic(.subheadline),
@@ -140,8 +140,8 @@ struct WhereStylesheetTests {
         #expect(card.watermarkOffset == CGSize(width: 12, height: 10))
         #expect(card.regionShape == nil)
         #expect(card.sheen == .init(
-            intensity: 0.5,
-            staticGlintIntensity: 0.5,
+            intensity: 0.28,
+            staticGlintIntensity: 0.16,
             staticPose: .init(roll: 0, pitch: 0),
         ))
         #expect(card.rosette == .init(
@@ -150,8 +150,8 @@ struct WhereStylesheetTests {
             primaryRingSpacing: 13,
             secondaryRingSpacing: 11,
         ))
-        #expect(card.glow == .init(opacity: 0.55, radius: 6))
-        #expect(card.lift == .init(opacity: 0.4, radius: 17, offsetY: 9))
+        #expect(card.glow == .init(opacity: 0.12, radius: 4))
+        #expect(card.lift == .init(opacity: 0.1, radius: 12, offsetY: 6))
     }
 
     @Test func cardVariantSubscriptSelectsTheMatchingSpec() {
@@ -193,15 +193,15 @@ struct WhereStylesheetTests {
     @Test func sharedCardStyle() {
         let card = style.card
         #expect(card.watermarkOpacity == 0.08)
-        #expect(card.glassTintOpacity == 0.18)
-        #expect(card.nameOpacity == 0.8)
-        #expect(card.rosetteFill == .init(primary: 0.12, secondary: 0.08))
+        #expect(card.glassTintOpacity == 0.1)
+        #expect(card.nameOpacity == 0.9)
+        #expect(card.rosetteFill == .init(primary: 0.08, secondary: 0.045))
         #expect(card.securityPrint == .standard)
         #expect(card.securityPrint.backgroundBlendMode == .normal)
         #expect(card.securityPrint.tint(.red) == .red)
         #expect(card.dayCount == .standard)
         #expect(card.dayCount.revealDelay == .milliseconds(500))
-        #expect(card.dayCount.animation == .easeOut(duration: 0.3))
+        #expect(card.dayCount.animation == .smooth(duration: 0.36))
         #expect(card.constellation == .init(
             gridResolution: 48,
             maximumPointCount: 96,
@@ -226,7 +226,7 @@ struct WhereStylesheetTests {
         #expect(reduced.morph == .crossFade)
         #expect(reduced.transition(days: 148) == .opacity)
         #expect(reduced.transition(days: 149) == reduced.transition(days: 148))
-        #expect(reduced.animation == .easeInOut(duration: 0.2))
+        #expect(reduced.animation == .easeInOut(duration: 0.18))
     }
 
     @Test func calendarStyle() {
@@ -430,19 +430,31 @@ struct WhereStylesheetTests {
 
     @Test func typographyFaces() {
         let typography = style.typography
-        #expect(typography.onboardingIcon == .system(size: 72))
+        #expect(typography.onboardingIcon == .system(size: 34, weight: .regular))
+        #expect(typography.editorialTitle == .system(.largeTitle, design: .serif).bold())
+        #expect(typography.instrumentNumber == .system(
+            .largeTitle,
+            design: .default,
+        ).bold().monospacedDigit())
         #expect(typography.widgetHeroRegion == .system(.headline, design: .serif).weight(.semibold))
-        #expect(typography.widgetTotalNumber == .system(.body, design: .rounded, weight: .bold))
+        #expect(typography.widgetTotalNumber == .system(
+            .body,
+            design: .default,
+            weight: .bold,
+        ).monospacedDigit())
     }
 
     @Test func motionAnimations() {
         let motion = style.motion
-        #expect(motion.reveal == .easeIn(duration: 0.16))
-        #expect(motion.reducedReveal == .easeInOut(duration: 0.2))
-        #expect(motion.captionFade == .easeOut(duration: 0.3))
-        #expect(motion.staggeredReveal.animation == .easeOut(duration: 0.35))
-        #expect(motion.staggeredReveal.verticalOffset == 16)
-        #expect(motion.staggeredReveal.delay == 0.08)
+        #expect(motion.response == .smooth(duration: 0.18))
+        #expect(motion.settle == .smooth(duration: 0.36))
+        #expect(motion.reveal == .easeOut(duration: 0.42))
+        #expect(motion.ceremonial == .smooth(duration: 0.62))
+        #expect(motion.reduced == .easeInOut(duration: 0.18))
+        #expect(motion.captionFade == .easeOut(duration: 0.28))
+        #expect(motion.staggeredReveal.animation == .easeOut(duration: 0.42))
+        #expect(motion.staggeredReveal.verticalOffset == 10)
+        #expect(motion.staggeredReveal.delay == 0.05)
 
         let hidden = motion.staggeredReveal.presentation(
             isRevealed: false,
@@ -450,8 +462,15 @@ struct WhereStylesheetTests {
             order: 2,
         )
         #expect(hidden.opacity == 0)
-        #expect(hidden.verticalOffset == 16)
-        #expect(hidden.animation == .easeOut(duration: 0.35).delay(0.16))
+        #expect(hidden.verticalOffset == 10)
+        #expect(hidden.animation == .easeOut(duration: 0.42).delay(0.1))
+
+        let capped = motion.staggeredReveal.presentation(
+            isRevealed: false,
+            motionIsStatic: false,
+            order: 8,
+        )
+        #expect(capped.animation == .easeOut(duration: 0.42).delay(0.1))
 
         let staticPresentation = motion.staggeredReveal.presentation(
             isRevealed: false,
@@ -465,10 +484,28 @@ struct WhereStylesheetTests {
         let launch = style.launch
         #expect(launch.minimumSplashDuration == .milliseconds(800))
         #expect(launch.captionDelay == .milliseconds(1200))
+        #expect(launch.revealAnimation == .smooth(duration: 0.62))
+        #expect(launch.reducedRevealAnimation == .easeInOut(duration: 0.18))
+    }
+
+    @Test func onboardingStyle() {
+        let onboarding = style.onboarding
+        #expect(onboarding.brandMarkSize == 58)
+        #expect(onboarding.primaryButtonCornerRadius == 18)
+        #expect(onboarding.primaryButtonVerticalPadding == 14)
+        #expect(onboarding.primaryButtonPressedScale == 0.99)
+        #expect(onboarding.motion == .standard)
+        #expect(onboarding.motion.animation == .smooth(duration: 0.4))
+    }
+
+    @Test func yearStyle() {
+        #expect(style.year.motion == .standard)
+        #expect(style.year.motion.contentAnimation == .smooth(duration: 0.36))
     }
 
     @Test func settingsStyle() {
         let settings = style.settings
+        #expect(settings.iconPalette == .standard)
         #expect(settings.iconSize == 29)
         #expect(settings.iconCornerRadius == 7)
         #expect(settings.iconSymbolSize == 15)
@@ -575,17 +612,17 @@ struct WhereStylesheetTests {
             secondaryOpacity: 0.06,
         ))
         #expect(source.reflectiveSurface == .init(
-            backgroundTop: Color(red: 0.08, green: 0.18, blue: 0.34),
-            backgroundBottom: Color(red: 0.02, green: 0.07, blue: 0.16),
-            accent: Color(red: 0.88, green: 0.72, blue: 0.32),
-            glowOpacity: 0.12,
-            intensity: 0.28,
-            staticGlintIntensity: 0.28,
+            backgroundTop: Color(red: 0.07, green: 0.14, blue: 0.25),
+            backgroundBottom: Color(red: 0.025, green: 0.055, blue: 0.11),
+            accent: Color(red: 0.72, green: 0.56, blue: 0.27),
+            glowOpacity: 0.07,
+            intensity: 0.16,
+            staticGlintIntensity: 0.12,
             staticPose: .init(roll: 0.3, pitch: -0.15),
         ))
         #expect(source.glassTintOpacity == 0.06)
-        #expect(source.accentGlow == .init(opacity: 0.18, radius: 7))
-        #expect(source.liftShadow == .init(opacity: 0.08, radius: 5, offsetY: 2))
+        #expect(source.accentGlow == .init(opacity: 0.1, radius: 5))
+        #expect(source.liftShadow == .init(opacity: 0.1, radius: 9, offsetY: 4))
     }
 
     @Test func developerOverlayStyle() {
@@ -632,14 +669,17 @@ struct WhereStylesheetTests {
 
     @Test func paletteColors() {
         let palette = style.palette
+        #expect(palette.brand == .standard)
         #expect(palette.primary.backgroundTop == Color(red: 0.07, green: 0.08, blue: 0.13))
         #expect(palette.primary.backgroundBottom == Color(red: 0.02, green: 0.02, blue: 0.05))
         #expect(palette.splash.background == Color(.systemBackground))
         #expect(palette.splash.vignetteCenter == Color(.secondarySystemBackground))
         #expect(palette.splash.vignetteEdge == Color(.systemBackground))
         #expect(palette.splash.iconGlow == .accentColor)
-        #expect(palette.onboarding.backgroundTop == Color(.systemBackground))
-        #expect(palette.onboarding.backgroundBottom == Color.accentColor.opacity(0.12))
+        #expect(palette.onboarding.backgroundTop == WhereStylesheet.Palette.Brand.standard
+            .raisedPaper)
+        #expect(palette.onboarding.backgroundBottom == WhereStylesheet.Palette.Brand.standard
+            .canvas)
     }
 
     @Test func elementSizes() {
@@ -696,6 +736,10 @@ struct WhereStylesheetTests {
         context.traitOverrides.accessibility = BAccessibility(isReduceMotionEnabled: true)
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
         #expect(resolved.card.dayCount == .reducedMotion)
+        #expect(resolved.onboarding.motion == .reduced)
+        #expect(resolved.onboarding.motion.animation == .easeInOut(duration: 0.18))
+        #expect(resolved.year.motion == .reduced)
+        #expect(resolved.year.motion.contentAnimation == .easeInOut(duration: 0.18))
         #expect(resolved.developerOverlay.menu.motion == .reduced)
         #expect(resolved.developerOverlay.menu.motion.usesSpatialMotion == false)
     }
@@ -707,6 +751,8 @@ struct WhereStylesheetTests {
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
         #expect(resolved.card.securityPrint == .dark)
         #expect(resolved.featureDiscovery.siri.accent == Color(white: 0.42))
+        #expect(resolved.palette == .dark)
+        #expect(resolved.settings.iconPalette == .dark)
         #expect(resolved.card.securityPrint.backgroundBlendMode == .luminosity)
         #expect(resolved.card.securityPrint.tint(.red) == Color.red.mix(
             with: .white,

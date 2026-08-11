@@ -25,6 +25,7 @@ enum DayRelabelReason: Hashable {
 /// the day was flagged.
 struct DayRelabelView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.stylesheet) private var stylesheet
 
     let day: DayPresence
     let report: YearReportModel
@@ -144,7 +145,7 @@ struct DayRelabelView: View {
                 Text(String(localized: .relabelResetFooter))
             }
         }
-        .animation(.default, value: pending)
+        .animation(stylesheet.motion.settle, value: pending)
     }
 
     /// A short callout explaining why the day was flagged, driven by the

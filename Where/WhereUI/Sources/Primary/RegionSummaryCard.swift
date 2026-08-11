@@ -325,6 +325,7 @@ struct RegionSummaryCard: View {
             HStack(alignment: .firstTextBaseline, spacing: stylesheet.spacing.small) {
                 Text(regionDays.days, format: .number)
                     .font(card.heroNumberTypography.font)
+                    .monospacedDigit()
                     .contentTransition(dayCount.transition(days: regionDays.days))
                     .foregroundStyle(style.tint)
                 Text(WhereFormat.dayUnit(regionDays.days))
@@ -396,7 +397,7 @@ struct RegionSummaryCard: View {
             radius: card.glow.radius,
         )
         .shadow(
-            color: style.tint.opacity(card.lift.opacity),
+            color: Color.black.opacity(card.lift.opacity),
             radius: card.lift.radius,
             y: card.lift.offsetY,
         )

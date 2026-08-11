@@ -109,10 +109,14 @@ and rendering coverage. Where's sheet is
 view tree; [`README.md`](README.md#design-system) documents its live API and
 worked examples.
 
-- The `motion` group keeps full-motion values a view picks between
-  (`motion.reducedReveal` over `motion.reveal`), because the launch reveal's
-  fallback swaps an `AnyTransition`, which isn't `Equatable` and can't be a
-  token.
+- Keep only the shared physical cadence (`response`, `settle`, `reveal`,
+  `ceremonial`, `reduced`) in `motion`; card, onboarding, year, Settings,
+  evidence, and launch styles own the animations and transitions that express
+  their component behavior. Resolve coordinated Reduce Motion variants in
+  `init(context:)`; keep computed `AnyTransition` values on the owning style.
+- Treat `palette.brand` as Where's current-appearance paper/ink house palette;
+  keep user-selected region accents in `RegionStyle` and Settings' four icon
+  inks in `SettingsStyle.IconPalette`.
 - **Per-region tints stay in `RegionStyle`**, resolved via
   `@Environment(\.regionStyles)` and seeded by
   `whereBroadwayRoot(theme:regionStyles:)` — no global accessor or hardcoded

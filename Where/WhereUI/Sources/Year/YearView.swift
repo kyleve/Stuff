@@ -24,13 +24,17 @@ struct YearView: View {
                 switch mode {
                     case .calendar:
                         CalendarContentView(report: report)
+                            .transition(stylesheet.year.motion.contentTransition)
                     case .timeline:
                         PresenceTimelineList(report: report)
+                            .transition(stylesheet.year.motion.contentTransition)
                 }
             }
-            // Crossfade between the two views rather than hard-cutting.
-            .animation(.default, value: mode)
-            .navigationTitle(mode.title)
+            // The two representations share no stable cell identity, so a
+            // restrained depth dissolve preserves the chrome without inventing
+            // a noisy cell-by-cell morph.
+            .animation(stylesheet.year.motion.contentAnimation, value: mode)
+            .navigationTitle(WhereFormat.yearLedgerTitle(year: report.selectedYear))
             .navigationBarTitleDisplayMode(.inline)
             // Keep the bar background on at all times. The calendar auto-scrolls
             // under the bar (so its scroll-edge material is showing) while the
@@ -94,12 +98,13 @@ private struct YearModePicker: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(String(localized: .yearSegmentPicker))
+        .sensoryFeedback(.selection, trigger: mode)
     }
 
     private func segment(_ candidate: YearMode) -> some View {
         let isSelected = candidate == mode
         return Button {
-            withAnimation(.snappy(duration: 0.28)) { mode = candidate }
+            withAnimation(stylesheet.motion.settle) { mode = candidate }
         } label: {
             Label(candidate.title, systemSymbol: candidate.systemSymbol)
                 .labelStyle(.titleAndIcon)

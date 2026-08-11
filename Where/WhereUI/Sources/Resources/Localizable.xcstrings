@@ -3446,9 +3446,21 @@
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "^[%lld region](inflect: true)"
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld region"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld regions"
+                }
+              }
+            }
           }
         }
       }
@@ -4244,7 +4256,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Where keeps a private passport of which regions you spend your days in — built for residency and day-count questions."
+            "value" : "Where quietly keeps the day counts that matter — stored on your devices and in your private iCloud."
           }
         }
       }
@@ -4257,7 +4269,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Where have you been?"
+            "value" : "A private record of where your time is spent."
           }
         }
       }
@@ -8663,6 +8675,18 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Days in %@"
+          }
+        }
+      }
+    },
+    "year.ledger.title" : {
+      "comment" : "Navigation title for the annual record. The argument is a year without grouping separators.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ Ledger"
           }
         }
       }

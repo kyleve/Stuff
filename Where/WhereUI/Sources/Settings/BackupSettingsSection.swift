@@ -12,6 +12,7 @@ struct BackupSettingsSection: View {
     /// Backup export: the ready-to-share archive built up-front, presented as
     /// soon as the background export finishes.
     @State private var presentedShareItem: BackupShareSheet.Item?
+    @State private var completedExports = 0
 
     var body: some View {
         @Bindable var backup = backup
@@ -28,6 +29,7 @@ struct BackupSettingsSection: View {
             } message: { message in
                 Text(message)
             }
+            .sensoryFeedback(.success, trigger: completedExports)
     }
 
     private var backupSection: some View {
@@ -77,6 +79,7 @@ struct BackupSettingsSection: View {
     private func runExport() {
         Task {
             if let url = await backup.exportBackup() {
+                completedExports += 1
                 presentedShareItem = BackupShareSheet.Item(url: url)
             }
         }

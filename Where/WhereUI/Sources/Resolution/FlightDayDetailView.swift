@@ -57,7 +57,7 @@ struct FlightDayDetailView: View {
             }
             form(payload)
         }
-        .animation(.default, value: applying)
+        .animation(stylesheet.motion.settle, value: applying)
     }
 
     private func form(_ payload: FlightPayload) -> some View {

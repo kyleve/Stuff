@@ -136,9 +136,7 @@ struct LocationsView: View {
                                 recordedPointsID: report.primaryRegionLocations?.id,
                             )
                         }
-                        // Plain so the card's interactive Liquid Glass owns
-                        // the press feel rather than the button adding its own.
-                        .buttonStyle(.plain)
+                        .buttonStyle(RegionCardButtonStyle())
                         // The card is the zoom source: tapping it expands the
                         // card into the pushed calendar (matched geometry). The
                         // configuration re-states the card's rounded shape and
@@ -179,7 +177,7 @@ struct LocationsView: View {
                         } label: {
                             ElsewhereSummaryCard(regionCount: report.ranking.secondary.count)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(RegionCardButtonStyle())
                     }
                 }
             }
@@ -288,6 +286,23 @@ struct LocationsView: View {
                 .buttonStyle(.borderedProminent)
             }
         }
+    }
+}
+
+/// The Locations surface's physical response: immediate, nearly imperceptible
+/// compression with no elastic overshoot. Navigation itself remains unhaptic.
+private struct RegionCardButtonStyle: ButtonStyle {
+    @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(reduceMotion || !configuration.isPressed ? 1 : 0.99)
+            .opacity(configuration.isPressed ? 0.98 : 1)
+            .animation(
+                reduceMotion ? stylesheet.motion.reduced : stylesheet.motion.response,
+                value: configuration.isPressed,
+            )
     }
 }
 

@@ -204,7 +204,7 @@ struct AppIconView: View {
     }
 
     /// The tappable preview icon. Tapping toggles light/dark, which crossfades
-    /// the art and background while this plays a quick scale-down-then-bounce.
+    /// the art and background while this plays a restrained press and settle.
     /// Keyed off `appearanceToggles` so the bounce only fires on a real tap, not
     /// when the panel first opens.
     private func previewIcon(for option: AppIconOption, size: CGFloat) -> some View {
@@ -213,8 +213,8 @@ struct AppIconView: View {
                 content.scaleEffect(scale)
             } keyframes: { _ in
                 KeyframeTrack {
-                    CubicKeyframe(0.82, duration: 0.12)
-                    SpringKeyframe(1.0, duration: 0.42, spring: .bouncy)
+                    CubicKeyframe(0.96, duration: 0.1)
+                    CubicKeyframe(1.0, duration: 0.26)
                 }
             }
     }
@@ -230,21 +230,21 @@ struct AppIconView: View {
                 if shouldDismiss {
                     dismissPreview()
                 } else {
-                    withAnimation(.snappy) { dragOffset = 0 }
+                    withAnimation(stylesheet.motion.settle) { dragOffset = 0 }
                 }
             }
     }
 
     private func select(_ option: AppIconOption) {
         previewMode = colorScheme
-        withAnimation(.snappy) {
+        withAnimation(stylesheet.motion.settle) {
             dragOffset = 0
             preview = option
         }
     }
 
     private func dismissPreview() {
-        withAnimation(.snappy) {
+        withAnimation(stylesheet.motion.settle) {
             preview = nil
             dragOffset = 0
         }
@@ -252,7 +252,7 @@ struct AppIconView: View {
 
     private func toggleAppearance() {
         appearanceToggles += 1
-        withAnimation(.easeInOut(duration: 0.3)) {
+        withAnimation(stylesheet.motion.settle) {
             previewMode = previewMode == .dark ? .light : .dark
         }
     }

@@ -20,6 +20,9 @@ import Observation
 @MainActor
 @Observable
 public final class TiltProvider {
+    /// A low-pass response that gives the reflective layer a small amount of
+    /// material inertia while remaining responsive to deliberate movement.
+    private static let response = 0.16
     /// Left/right tilt, roughly `-1...1`. Zero when flat or unavailable.
     public private(set) var roll: Double = 0
     /// Forward/back tilt, roughly `-1...1`. Zero when flat or unavailable.
@@ -51,8 +54,13 @@ public final class TiltProvider {
             // Delivered on the `.main` queue, so we're already on the main
             // actor; assume it to update observable state without a hop.
             MainActor.assumeIsolated {
-                self.roll = x
-                self.pitch = y
+                if self.hasLiveSample {
+                    self.roll += (x - self.roll) * Self.response
+                    self.pitch += (y - self.pitch) * Self.response
+                } else {
+                    self.roll = x
+                    self.pitch = y
+                }
                 self.hasLiveSample = true
             }
         }

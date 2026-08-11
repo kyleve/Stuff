@@ -88,6 +88,7 @@ struct WhereFormatTests {
     @Test func yearsAreFormattedWithoutGroupingSeparator() {
         #expect(WhereFormat.calendarTitle(year: 2026) == "Calendar · 2026")
         #expect(WhereFormat.settingsDataErase(year: 2026) == "Erase 2026 data")
+        #expect(WhereFormat.yearLedgerTitle(year: 2026) == "2026 Ledger")
     }
 
     @Test func calendarRegionTitleFormatsRegionAndGroupingFreeYear() {

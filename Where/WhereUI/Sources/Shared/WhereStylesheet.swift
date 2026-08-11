@@ -28,6 +28,8 @@ struct WhereStylesheet: BStylesheet {
     var palette = Palette.standard
     var motion = Motion.standard
     var launch = LaunchStyle.standard
+    var onboarding = OnboardingStyle.standard
+    var year = YearStyle.standard
     var typography = Typography.standard
     var settings = SettingsStyle.standard
     var featureDiscovery = FeatureDiscoveryStyle.standard
@@ -70,6 +72,8 @@ struct WhereStylesheet: BStylesheet {
         // crossfades to the new number instead.
         if traits.accessibility.isReduceMotionEnabled {
             card.dayCount = .reducedMotion
+            onboarding.motion = .reduced
+            year.motion = .reduced
             developerOverlay.menu.motion = .reduced
         }
 
@@ -78,6 +82,8 @@ struct WhereStylesheet: BStylesheet {
         if traits.mode == .dark {
             card.securityPrint = .dark
             featureDiscovery.siri.accent = Color(white: 0.42)
+            palette = .dark
+            settings.iconPalette = .dark
         }
     }
 
@@ -682,14 +688,14 @@ extension WhereStylesheet {
                 morph: .rollingDigits,
                 // Long enough for the digits to read as rolling, short enough
                 // that a card tapped mid-roll doesn't feel held up.
-                animation: .easeOut(duration: 0.3),
+                animation: .smooth(duration: 0.36),
             )
 
             /// The Reduce-Motion pairing.
             static let reducedMotion = DayCountStyle(
                 revealDelay: .milliseconds(500),
                 morph: .crossFade,
-                animation: .easeInOut(duration: 0.2),
+                animation: .easeInOut(duration: 0.18),
             )
         }
 
@@ -704,10 +710,10 @@ extension WhereStylesheet {
         /// `Shadow`/`Size` tokens and the card's inline `compact ? … : …` values.
         static let standard = CardStyles(
             regular: CardStyle(
-                cornerRadius: 28,
+                cornerRadius: 24,
                 padding: 22,
                 contentSpacing: 16,
-                progressBarHeight: 10,
+                progressBarHeight: 7,
                 entryStamp: .standard(size: 88, showsArcText: true),
                 // Fixed point size (not a Dynamic Type text style) for precise
                 // control against the entry stamp: the longest common headline
@@ -722,7 +728,7 @@ extension WhereStylesheet {
                 heroNumberTypography: .init(
                     size: .fixed(40),
                     weight: .bold,
-                    design: .rounded,
+                    design: .default,
                 ),
                 dayUnitTypography: .init(
                     size: .semantic(.title3),
@@ -736,26 +742,26 @@ extension WhereStylesheet {
                         center: CGPoint(x: 0.7, y: 0.57),
                         extent: CGSize(width: 0.72, height: 0.78),
                         scale: 0.88,
-                        fillOpacity: 0.13,
-                        stroke: .init(opacity: 0.28, width: 1.5),
+                        fillOpacity: 0.09,
+                        stroke: .init(opacity: 0.2, width: 1),
                     ),
                     stamp: .init(
                         center: CGPoint(x: 0.5, y: 0.5),
                         extent: CGSize(width: 0.78, height: 0.78),
                         scale: 0.88,
-                        fillOpacity: 0.78,
+                        fillOpacity: 0.68,
                         stroke: nil,
                     ),
                     securityBorder: .init(
                         inset: 9,
                         glyphSize: 8,
                         spacing: 11,
-                        opacity: 0.22,
+                        opacity: 0.16,
                     ),
                 ),
                 sheen: CardStyle.Sheen(
-                    intensity: 1,
-                    staticGlintIntensity: 0.25,
+                    intensity: 0.46,
+                    staticGlintIntensity: 0.14,
                     // A phone held upright: the glint sits near the lower edge
                     // instead of washing out the card's central content.
                     staticPose: .init(roll: 0, pitch: -1),
@@ -766,8 +772,8 @@ extension WhereStylesheet {
                     primaryRingSpacing: 13.5,
                     secondaryRingSpacing: 9.5,
                 ),
-                glow: CardStyle.Shadow(opacity: 0.75, radius: 12),
-                lift: CardStyle.Shadow(opacity: 0.6, radius: 34, offsetY: 18),
+                glow: CardStyle.Shadow(opacity: 0.2, radius: 7),
+                lift: CardStyle.Shadow(opacity: 0.14, radius: 22, offsetY: 12),
             ),
             compact: CardStyle(
                 cornerRadius: 22,
@@ -784,7 +790,7 @@ extension WhereStylesheet {
                 heroNumberTypography: .init(
                     size: .semantic(.title),
                     weight: .bold,
-                    design: .rounded,
+                    design: .default,
                 ),
                 dayUnitTypography: .init(
                     size: .semantic(.subheadline),
@@ -795,8 +801,8 @@ extension WhereStylesheet {
                 watermarkOffset: CGSize(width: 12, height: 10),
                 regionShape: nil,
                 sheen: CardStyle.Sheen(
-                    intensity: 0.5,
-                    staticGlintIntensity: 0.5,
+                    intensity: 0.28,
+                    staticGlintIntensity: 0.16,
                     // Preserve the compact card's existing neutral treatment.
                     staticPose: .init(roll: 0, pitch: 0),
                 ),
@@ -806,13 +812,13 @@ extension WhereStylesheet {
                     primaryRingSpacing: 13,
                     secondaryRingSpacing: 11,
                 ),
-                glow: CardStyle.Shadow(opacity: 0.55, radius: 6),
-                lift: CardStyle.Shadow(opacity: 0.4, radius: 17, offsetY: 9),
+                glow: CardStyle.Shadow(opacity: 0.12, radius: 4),
+                lift: CardStyle.Shadow(opacity: 0.1, radius: 12, offsetY: 6),
             ),
             watermarkOpacity: 0.08,
-            glassTintOpacity: 0.18,
-            nameOpacity: 0.8,
-            rosetteFill: RosetteFill(primary: 0.12, secondary: 0.08),
+            glassTintOpacity: 0.1,
+            nameOpacity: 0.9,
+            rosetteFill: RosetteFill(primary: 0.08, secondary: 0.045),
             securityPrint: .standard,
             dayCount: .standard,
             constellation: .standard,
@@ -1352,15 +1358,21 @@ extension WhereStylesheet {
     struct Typography: Equatable {
         /// The oversized SF Symbol at the top of each onboarding page.
         var onboardingIcon: Font
+        /// Editorial headline used for the first-run promise and ledger covers.
+        var editorialTitle: Font
+        /// Precise tabular figures used where counts are the primary content.
+        var instrumentNumber: Font
         /// The serif region name on the Today widget's single-region hero.
         var widgetHeroRegion: Font
         /// The rounded, bold day-count number on the Year Totals widget.
         var widgetTotalNumber: Font
 
         static let standard = Typography(
-            onboardingIcon: .system(size: 72),
+            onboardingIcon: .system(size: 34, weight: .regular),
+            editorialTitle: .system(.largeTitle, design: .serif).bold(),
+            instrumentNumber: .system(.largeTitle, design: .default).bold().monospacedDigit(),
             widgetHeroRegion: .system(.headline, design: .serif).weight(.semibold),
-            widgetTotalNumber: .system(.body, design: .rounded, weight: .bold),
+            widgetTotalNumber: .system(.body, design: .default, weight: .bold).monospacedDigit(),
         )
     }
 }
@@ -1390,15 +1402,15 @@ extension WhereStylesheet {
 // MARK: - Motion
 
 extension WhereStylesheet {
-    /// App-level animation tokens. Views still decide *when* to apply them and
-    /// honor Reduce Motion — they pick `reducedReveal` (a flatter crossfade) over
-    /// `reveal`, and skip `captionFade` entirely — so these carry the "full
-    /// motion" values.
+    /// The small timing vocabulary shared by components. A component owns the
+    /// transition these timings drive; this group only keeps the app's physical
+    /// cadence consistent.
     struct Motion: Equatable {
-        /// The launch splash → app reveal.
+        var response: Animation
+        var settle: Animation
         var reveal: Animation
-        /// The Reduce-Motion fallback for the reveal.
-        var reducedReveal: Animation
+        var ceremonial: Animation
+        var reduced: Animation
         /// One-shot fade for incidental appearance (e.g. the launch caption).
         var captionFade: Animation
         /// The reusable staged entrance used by marketing-style screens.
@@ -1418,7 +1430,7 @@ extension WhereStylesheet {
                 return Presentation(
                     opacity: isRevealed ? 1 : 0,
                     verticalOffset: isRevealed ? 0 : verticalOffset,
-                    animation: animation.delay(Double(max(0, order)) * delay),
+                    animation: animation.delay(Double(min(2, max(0, order))) * delay),
                 )
             }
 
@@ -1436,13 +1448,16 @@ extension WhereStylesheet {
         }
 
         static let standard = Motion(
-            reveal: .easeIn(duration: 0.16),
-            reducedReveal: .easeInOut(duration: 0.2),
-            captionFade: .easeOut(duration: 0.3),
+            response: .smooth(duration: 0.18),
+            settle: .smooth(duration: 0.36),
+            reveal: .easeOut(duration: 0.42),
+            ceremonial: .smooth(duration: 0.62),
+            reduced: .easeInOut(duration: 0.18),
+            captionFade: .easeOut(duration: 0.28),
             staggeredReveal: StaggeredReveal(
-                animation: .easeOut(duration: 0.35),
-                verticalOffset: 16,
-                delay: 0.08,
+                animation: .easeOut(duration: 0.42),
+                verticalOffset: 10,
+                delay: 0.05,
             ),
         )
     }
@@ -1462,22 +1477,99 @@ extension WhereStylesheet {
         /// How long the splash lingers before the "getting things ready" caption
         /// fades in, so a normal fast launch never flashes it.
         var captionDelay: Duration
+        var revealAnimation: Animation
+        var reducedRevealAnimation: Animation
 
         static let standard = LaunchStyle(
             minimumSplashDuration: .milliseconds(800),
             captionDelay: .milliseconds(1200),
+            revealAnimation: .smooth(duration: 0.62),
+            reducedRevealAnimation: .easeInOut(duration: 0.18),
         )
+    }
+}
+
+// MARK: - Onboarding
+
+extension WhereStylesheet {
+    /// The first-run flow's quiet document treatment and directional phase motion.
+    struct OnboardingStyle: Equatable {
+        var brandMarkSize: CGFloat
+        var primaryButtonCornerRadius: CGFloat
+        var primaryButtonVerticalPadding: CGFloat
+        var primaryButtonPressedScale: CGFloat
+        var motion: MotionMode
+
+        enum MotionMode: Equatable {
+            case standard
+            case reduced
+
+            var animation: Animation {
+                switch self {
+                    case .standard: .smooth(duration: 0.4)
+                    case .reduced: .easeInOut(duration: 0.18)
+                }
+            }
+
+            var transition: AnyTransition {
+                switch self {
+                    case .standard:
+                        .opacity.combined(with: .scale(scale: 0.985))
+                    case .reduced:
+                        .opacity
+                }
+            }
+        }
+
+        static let standard = OnboardingStyle(
+            brandMarkSize: 58,
+            primaryButtonCornerRadius: 18,
+            primaryButtonVerticalPadding: 14,
+            primaryButtonPressedScale: 0.99,
+            motion: .standard,
+        )
+    }
+}
+
+// MARK: - Year
+
+extension WhereStylesheet {
+    /// Motion for switching between the calendar and timeline lenses.
+    struct YearStyle: Equatable {
+        var motion: MotionMode
+
+        enum MotionMode: Equatable {
+            case standard
+            case reduced
+
+            var contentAnimation: Animation {
+                switch self {
+                    case .standard: .smooth(duration: 0.36)
+                    case .reduced: .easeInOut(duration: 0.18)
+                }
+            }
+
+            var contentTransition: AnyTransition {
+                switch self {
+                    case .standard:
+                        .opacity.combined(with: .scale(scale: 0.985))
+                    case .reduced:
+                        .opacity
+                }
+            }
+        }
+
+        static let standard = YearStyle(motion: .standard)
     }
 }
 
 // MARK: - Settings
 
 extension WhereStylesheet {
-    /// Appearance + motion for the Settings list. Geometry only — per-section
-    /// icon colors live on `SettingsDestination`, and the flash tint (accent) /
-    /// restored grouped-row background (a system role) / white-or-black glyph
-    /// stay inline, per the "no adaptive/accent colors in the sheet" rule.
+    /// Appearance + motion for the Settings list, including the restrained
+    /// four-ink family used to distinguish its groups.
     struct SettingsStyle: Equatable {
+        var iconPalette: IconPalette
         /// Edge of the colored rounded-square icon chip on each top-level row.
         var iconSize: CGFloat
         /// Corner radius of that chip (continuous corners for the squircle look).
@@ -1492,7 +1584,45 @@ extension WhereStylesheet {
         /// out and the scroll reliably lands on it.
         var scrollSettleDelay: Duration
 
+        struct IconPalette: Equatable {
+            var midnight: Color
+            var mineral: Color
+            var forest: Color
+            var oxblood: Color
+
+            subscript(_ tone: IconTone) -> Color {
+                switch tone {
+                    case .midnight: midnight
+                    case .mineral: mineral
+                    case .forest: forest
+                    case .oxblood: oxblood
+                }
+            }
+
+            static let standard = IconPalette(
+                midnight: Color(red: 0.07, green: 0.14, blue: 0.24),
+                mineral: Color(red: 0.28, green: 0.4, blue: 0.48),
+                forest: Color(red: 0.18, green: 0.34, blue: 0.27),
+                oxblood: Color(red: 0.42, green: 0.18, blue: 0.23),
+            )
+
+            static let dark = IconPalette(
+                midnight: Color(red: 0.31, green: 0.42, blue: 0.56),
+                mineral: Color(red: 0.38, green: 0.53, blue: 0.62),
+                forest: Color(red: 0.3, green: 0.49, blue: 0.39),
+                oxblood: Color(red: 0.58, green: 0.32, blue: 0.37),
+            )
+        }
+
+        enum IconTone: Equatable {
+            case midnight
+            case mineral
+            case forest
+            case oxblood
+        }
+
         static let standard = SettingsStyle(
+            iconPalette: .standard,
             iconSize: 29,
             iconCornerRadius: 7,
             iconSymbolSize: 15,
@@ -1779,17 +1909,17 @@ extension WhereStylesheet {
                 secondaryOpacity: 0.06,
             ),
             reflectiveSurface: ReflectiveSurface(
-                backgroundTop: Color(red: 0.08, green: 0.18, blue: 0.34),
-                backgroundBottom: Color(red: 0.02, green: 0.07, blue: 0.16),
-                accent: Color(red: 0.88, green: 0.72, blue: 0.32),
-                glowOpacity: 0.12,
-                intensity: 0.28,
-                staticGlintIntensity: 0.28,
+                backgroundTop: Color(red: 0.07, green: 0.14, blue: 0.25),
+                backgroundBottom: Color(red: 0.025, green: 0.055, blue: 0.11),
+                accent: Color(red: 0.72, green: 0.56, blue: 0.27),
+                glowOpacity: 0.07,
+                intensity: 0.16,
+                staticGlintIntensity: 0.12,
                 staticPose: .init(roll: 0.3, pitch: -0.15),
             ),
             glassTintOpacity: 0.06,
-            accentGlow: Shadow(opacity: 0.18, radius: 7),
-            liftShadow: Shadow(opacity: 0.08, radius: 5, offsetY: 2),
+            accentGlow: Shadow(opacity: 0.1, radius: 5),
+            liftShadow: Shadow(opacity: 0.1, radius: 9, offsetY: 4),
         )
     }
 }
@@ -1803,9 +1933,48 @@ extension WhereStylesheet {
     /// system roles like `.secondary` stay inline; `.accentColor` follows the
     /// app's tint.)
     struct Palette: Equatable {
+        var brand: Brand
         var primary: Primary
         var splash: Splash
         var onboarding: Onboarding
+
+        /// Current-appearance house colors. They are resolved by Broadway so
+        /// views consume semantic ink and paper roles rather than raw hues.
+        struct Brand: Equatable {
+            var canvas: Color
+            var raisedPaper: Color
+            var ink: Color
+            var midnight: Color
+            var onMidnight: Color
+            var brass: Color
+            var oxblood: Color
+            var forest: Color
+            var mineral: Color
+
+            static let standard = Brand(
+                canvas: Color(red: 0.965, green: 0.95, blue: 0.91),
+                raisedPaper: Color(red: 0.99, green: 0.98, blue: 0.95),
+                ink: Color(red: 0.08, green: 0.09, blue: 0.1),
+                midnight: Color(red: 0.055, green: 0.105, blue: 0.18),
+                onMidnight: Color(red: 0.99, green: 0.98, blue: 0.95),
+                brass: Color(red: 0.62, green: 0.46, blue: 0.2),
+                oxblood: Color(red: 0.42, green: 0.18, blue: 0.23),
+                forest: Color(red: 0.18, green: 0.34, blue: 0.27),
+                mineral: Color(red: 0.28, green: 0.4, blue: 0.48),
+            )
+
+            static let dark = Brand(
+                canvas: Color(red: 0.045, green: 0.052, blue: 0.065),
+                raisedPaper: Color(red: 0.085, green: 0.1, blue: 0.125),
+                ink: Color(red: 0.94, green: 0.91, blue: 0.84),
+                midnight: Color(red: 0.2, green: 0.3, blue: 0.43),
+                onMidnight: Color(red: 0.96, green: 0.94, blue: 0.89),
+                brass: Color(red: 0.7, green: 0.56, blue: 0.3),
+                oxblood: Color(red: 0.58, green: 0.32, blue: 0.37),
+                forest: Color(red: 0.3, green: 0.49, blue: 0.39),
+                mineral: Color(red: 0.38, green: 0.53, blue: 0.62),
+            )
+        }
 
         /// The Primary tab's deep "passport cover" backdrop (top → bottom).
         struct Primary: Equatable {
@@ -1831,6 +2000,7 @@ extension WhereStylesheet {
         }
 
         static let standard = Palette(
+            brand: .standard,
             primary: Primary(
                 backgroundTop: Color(red: 0.07, green: 0.08, blue: 0.13),
                 backgroundBottom: Color(red: 0.02, green: 0.02, blue: 0.05),
@@ -1846,8 +2016,26 @@ extension WhereStylesheet {
                 iconGlow: .accentColor,
             ),
             onboarding: Onboarding(
-                backgroundTop: Color(.systemBackground),
-                backgroundBottom: Color.accentColor.opacity(0.12),
+                backgroundTop: Brand.standard.raisedPaper,
+                backgroundBottom: Brand.standard.canvas,
+            ),
+        )
+
+        static let dark = Palette(
+            brand: .dark,
+            primary: Primary(
+                backgroundTop: Color(red: 0.055, green: 0.065, blue: 0.09),
+                backgroundBottom: Brand.dark.canvas,
+            ),
+            splash: Splash(
+                background: Brand.dark.canvas,
+                vignetteCenter: Brand.dark.raisedPaper,
+                vignetteEdge: Brand.dark.canvas,
+                iconGlow: Brand.dark.mineral,
+            ),
+            onboarding: Onboarding(
+                backgroundTop: Brand.dark.raisedPaper,
+                backgroundBottom: Brand.dark.canvas,
             ),
         )
     }

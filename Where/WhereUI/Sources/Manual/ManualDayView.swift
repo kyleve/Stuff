@@ -35,6 +35,7 @@ struct ManualDayView: View {
     let showsCancelButton: Bool
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.stylesheet) private var stylesheet
 
     /// Mode-specific editable state, each case carrying *exactly* the fields that
     /// mode needs — so add-only inputs (dates, span) can't be read in edit and
@@ -64,7 +65,7 @@ struct ManualDayView: View {
                 case let .edit(edit): editContent(edit)
             }
         }
-        .animation(.default, value: pending)
+        .animation(stylesheet.motion.settle, value: pending)
         .task { await loadGrouping() }
         .navigationTitle(navigationTitle)
         .navigationBarTitleDisplayMode(.inline)

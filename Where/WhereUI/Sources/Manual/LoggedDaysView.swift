@@ -144,7 +144,7 @@ struct LoggedDaysView: View {
                 list(matches)
             }
         }
-        .animation(.default, value: filter)
+        .animation(stylesheet.motion.settle, value: filter)
     }
 
     private var noMatchesState: some View {
