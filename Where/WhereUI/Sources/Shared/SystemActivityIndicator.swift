@@ -20,3 +20,11 @@ struct SystemActivityIndicator: View {
         }
     }
 }
+
+#if DEBUG
+    #Preview {
+        SystemActivityIndicator(tint: .blue)
+            .padding()
+            .whereBroadwayRoot()
+    }
+#endif
