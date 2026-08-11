@@ -5,7 +5,7 @@ import WhereCore
 /// The entry card at the bottom of the Locations tab that summarizes the
 /// regions outside your primary spots and links to the full ``ElsewhereView``.
 /// Shown only when there are secondary regions; the caller wraps it in the
-/// `NavigationLink`, so this is just the (glass) label.
+/// `NavigationLink`, so this is just the neutral folio label.
 struct ElsewhereSummaryCard: View {
     /// Number of secondary regions.
     let regionCount: Int
@@ -18,14 +18,13 @@ struct ElsewhereSummaryCard: View {
 
     var body: some View {
         HStack(spacing: stylesheet.spacing.large) {
-            Image(systemSymbol: .globeAmericasFill)
-                .font(.system(size: style.iconPointSize))
-                .foregroundStyle(.tint)
-                .accessibilityHidden(true)
+            WhereSeal(tint: stylesheet.palette.brand.brass)
+                .frame(width: style.iconPointSize, height: style.iconPointSize)
 
             VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
                 Text(String(localized: .secondaryTitle))
-                    .font(.headline)
+                    .font(.system(.headline, design: .serif).weight(.semibold))
+                    .foregroundStyle(stylesheet.palette.brand.ink)
                 Text(WhereFormat.elsewhereCardSubtitle(regions: regionCount))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -40,12 +39,26 @@ struct ElsewhereSummaryCard: View {
         }
         .padding(style.padding)
         .frame(maxWidth: .infinity)
-        .background(
-            .ultraThinMaterial,
-            in: RoundedRectangle(cornerRadius: style.cornerRadius, style: .continuous),
+        .background(stylesheet.palette.brand.raisedPaper, in: cardShape)
+        .overlay {
+            cardShape.strokeBorder(
+                stylesheet.palette.brand.ink.opacity(
+                    stylesheet.locations.surfaceBorderOpacity,
+                ),
+                lineWidth: stylesheet.locations.surfaceBorderWidth,
+            )
+        }
+        .shadow(
+            color: Color.black.opacity(0.06),
+            radius: 10,
+            y: 4,
         )
         .contentShape(.rect)
         .accessibilityElement(children: .combine)
+    }
+
+    private var cardShape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: style.cornerRadius, style: .continuous)
     }
 }
 

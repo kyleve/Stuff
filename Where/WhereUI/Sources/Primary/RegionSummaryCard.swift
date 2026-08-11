@@ -15,6 +15,11 @@ struct RegionSummaryCard: View {
         case themeSpecimen
     }
 
+    enum Prominence {
+        case featured
+        case standard
+    }
+
     let regionDays: RegionDays
     var caption: String?
     /// An optional reverse-geocoded "where" teaser (e.g. "Paris, France"),
@@ -28,6 +33,14 @@ struct RegionSummaryCard: View {
     var variant: WhereStylesheet.CardStyle.Variant = .regular
 
     var renderPurpose: RenderPurpose = .content
+
+    /// One-based rank printed as a small folio index on the Locations cards.
+    /// Compact cards leave it `nil`.
+    var recordIndex: Int?
+
+    /// The leading region gets a more spacious composition; the second remains
+    /// a quieter standard folio entry.
+    var prominence: Prominence = .standard
 
     /// When `true`, the card's Liquid Glass reacts to touch with the system's
     /// interactive press (scale + illumination), so a tappable card feels
@@ -131,6 +144,14 @@ struct RegionSummaryCard: View {
     private func fraction(for days: Int) -> Double {
         guard yearLength > 0 else { return 0 }
         return min(1, max(0, Double(days) / Double(yearLength)))
+    }
+
+    private var minimumHeight: CGFloat? {
+        guard variant == .regular else { return nil }
+        return switch prominence {
+            case .featured: stylesheet.locations.featuredMinimumHeight
+            case .standard: stylesheet.locations.standardMinimumHeight
+        }
     }
 
     private var regionArtworkLoadID: RegionArtworkLoadID {
@@ -290,6 +311,24 @@ struct RegionSummaryCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: card.contentSpacing) {
+            if let recordIndex {
+                HStack(spacing: stylesheet.spacing.medium) {
+                    Text(verbatim: String(format: "%02d", recordIndex))
+                        .font(stylesheet.locations.recordIndexFont)
+                        .foregroundStyle(stylesheet.palette.brand.brass)
+
+                    Rectangle()
+                        .fill(stylesheet.palette.brand.brass.opacity(0.6))
+                        .frame(width: 28, height: 0.75)
+
+                    Text(WhereFormat.yearText(year))
+                        .font(stylesheet.locations.recordLabelFont)
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                }
+                .accessibilityHidden(true)
+            }
+
             HStack(alignment: .top, spacing: stylesheet.spacing.large) {
                 VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
                     Text(regionDays.region.localizedName)
@@ -333,7 +372,7 @@ struct RegionSummaryCard: View {
                     .foregroundStyle(.secondary)
             }
 
-            VStack(alignment: .trailing, spacing: stylesheet.spacing.xxSmall) {
+            VStack(spacing: stylesheet.spacing.small) {
                 if let estimatedDays {
                     Text(WhereFormat.locationCardEstimatedDays(estimatedDays))
                         .font(.caption.weight(.semibold))
@@ -344,7 +383,7 @@ struct RegionSummaryCard: View {
                 }
 
                 Capsule()
-                    .fill(.quaternary)
+                    .fill(stylesheet.palette.brand.ink.opacity(0.08))
                     .frame(height: barHeight)
                     .overlay(alignment: .leading) {
                         GeometryReader { proxy in
@@ -363,6 +402,16 @@ struct RegionSummaryCard: View {
                         }
                     }
                     .frame(height: barHeight)
+
+                if variant == .regular {
+                    HStack {
+                        Text(WhereFormat.yearText(year))
+                        Spacer()
+                        Text(yearLength, format: .number)
+                    }
+                    .font(.caption2.monospacedDigit())
+                    .foregroundStyle(.tertiary)
+                }
             }
             .accessibilityHidden(true)
         }
@@ -372,11 +421,14 @@ struct RegionSummaryCard: View {
         .animation(dayCount.animation, value: regionDays.days)
         .animation(dayCount.animation, value: estimatedDays)
         .padding(card.padding)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, minHeight: minimumHeight, alignment: .leading)
         .background { stampPaper }
+        .background(stylesheet.palette.brand.raisedPaper, in: cardShape)
         .glassEffect(
-            .regular.tint(style.tint.opacity(cardStyles.glassTintOpacity))
-                .interactive(interactive),
+            .regular.tint(
+                stylesheet.palette.brand.raisedPaper.opacity(1 - cardStyles.glassTintOpacity),
+            )
+            .interactive(interactive),
             in: cardShape,
         )
         .tiltSheen(
@@ -388,12 +440,20 @@ struct RegionSummaryCard: View {
             staticGlintIntensity: card.sheen.staticGlintIntensity,
         )
         .clipShape(cardShape)
+        .overlay {
+            cardShape.strokeBorder(
+                stylesheet.palette.brand.ink.opacity(
+                    stylesheet.locations.surfaceBorderOpacity,
+                ),
+                lineWidth: stylesheet.locations.surfaceBorderWidth,
+            )
+        }
         // Make the whole card a single hit target — without this only the
         // opaque sub-views (text, stamp, bar) take taps, leaving dead gaps
         // (e.g. the bottom-right) when the card is wrapped in a Button/link.
         .contentShape(cardShape)
         .shadow(
-            color: style.tint.opacity(card.glow.opacity),
+            color: stylesheet.palette.brand.ink.opacity(card.glow.opacity),
             radius: card.glow.radius,
         )
         .shadow(

@@ -3465,6 +3465,54 @@
         }
       }
     },
+    "locations.folio.label" : {
+      "comment" : "Small editorial label above the Locations annual masthead.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Private folio"
+          }
+        }
+      }
+    },
+    "locations.recorded.days" : {
+      "comment" : "Label beside the count of distinct recorded days in the Locations masthead.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "recorded days"
+          }
+        }
+      }
+    },
+    "locations.recorded.title" : {
+      "comment" : "Locations folio masthead. The argument is a year without grouping separators.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%@, recorded"
+          }
+        }
+      }
+    },
+    "locations.represented.regions" : {
+      "comment" : "Label beside the count of regions represented in the Locations masthead.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "regions represented"
+          }
+        }
+      }
+    },
     "loggedDays.add" : {
       "extractionState" : "manual",
       "localizations" : {

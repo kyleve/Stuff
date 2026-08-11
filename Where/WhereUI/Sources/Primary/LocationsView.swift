@@ -10,6 +10,15 @@ import WhereCore
 /// at the bottom (only when there are secondary regions) and a Resolve button
 /// that appears — badged — only while there are data issues to fix.
 struct LocationsView: View {
+    private struct FolioEntry: Identifiable {
+        let rank: Int
+        let item: RegionDays
+
+        var id: Region {
+            item.region
+        }
+    }
+
     let report: YearReportModel
 
     @State private var showingResolution = false
@@ -27,7 +36,6 @@ struct LocationsView: View {
     @Namespace private var calendarTransition
 
     @Environment(\.stylesheet) private var stylesheet
-    @Environment(\.regionStyles) private var regionStyles
 
     private var dayCountReconciliationID: LocationDayCountPresentationModel.ReconciliationID {
         LocationDayCountPresentationModel.ReconciliationID(
@@ -35,6 +43,16 @@ struct LocationsView: View {
             year: report.selectedYear,
             isVisible: isCardSurfaceVisible && !showingResolution,
         )
+    }
+
+    private var folioEntries: [FolioEntry] {
+        report.ranking.primary.enumerated().map { offset, item in
+            FolioEntry(rank: offset + 1, item: item)
+        }
+    }
+
+    private var representedRegionCount: Int {
+        report.report?.totals.values.count(where: { $0 > 0 }) ?? 0
     }
 
     init(report: YearReportModel) {
@@ -48,7 +66,10 @@ struct LocationsView: View {
     var body: some View {
         NavigationStack {
             screen
+                .background(stylesheet.palette.brand.canvas.ignoresSafeArea())
                 .navigationBarTitleDisplayMode(.inline)
+                .toolbarBackground(stylesheet.palette.brand.canvas, for: .navigationBar)
+                .toolbarBackground(.visible, for: .navigationBar)
                 .toolbar {
                     // Resolve is a toolbar action here rather than its own tab:
                     // it appears (badged with the count) only while there are
@@ -112,80 +133,82 @@ struct LocationsView: View {
     }
 
     private var content: some View {
-        // `.defaultScrollAnchor(.center)` vertically centers a short list (one or
-        // two cards) rather than pinning it to the top, while a longer list still
-        // scrolls from the top.
         ScrollView {
-            GlassEffectContainer(spacing: stylesheet.spacing.xxLarge) {
-                VStack(spacing: stylesheet.spacing.xxLarge) {
-                    ForEach(report.ranking.primary) { item in
-                        let presentedItem = dayCountPresentation.presented(item)
-                        NavigationLink {
-                            calendarDestination(item.region)
-                        } label: {
-                            RegionSummaryCard(
-                                regionDays: presentedItem,
-                                interactive: true,
-                                yearLength: report.daysInSelectedYear,
-                                estimatedDays: estimatedDays(for: item.region),
-                                year: report.selectedYear,
-                                tilt: tilt,
-                                recordedPoints: report.primaryRegionLocations?
-                                    .pointsByRegion[item.region] ?? [],
-                                showsRecordedPoints: report.showsRecordedLocationDots,
-                                recordedPointsID: report.primaryRegionLocations?.id,
-                            )
-                        }
-                        .buttonStyle(RegionCardButtonStyle())
-                        // The card is the zoom source: tapping it expands the
-                        // card into the pushed calendar (matched geometry). The
-                        // configuration re-states the card's rounded shape and
-                        // its glow/lift shadows so the transition interpolates
-                        // them — without it, the zoom clips the source to a bare
-                        // rectangle and the card's soft shadow pops on/off.
-                        .matchedTransitionSource(
-                            id: item.region,
-                            in: calendarTransition,
-                        ) { source in
-                            let card = stylesheet.card.regular
-                            let tint = regionStyles.style(for: item.region).tint
-                            return source
-                                .clipShape(
-                                    RoundedRectangle(
-                                        cornerRadius: card.cornerRadius,
-                                        style: .continuous,
-                                    ),
-                                )
-                                .shadow(
-                                    color: tint.opacity(card.glow.opacity),
-                                    radius: card.glow.radius,
-                                )
-                                .shadow(
-                                    color: tint.opacity(card.lift.opacity),
-                                    radius: card.lift.radius,
-                                    y: card.lift.offsetY,
-                                )
-                        }
-                        .accessibilityHint(String(localized: .primaryCardCalendarHint))
-                    }
+            VStack(alignment: .leading, spacing: stylesheet.spacing.xxxLarge) {
+                LocationsMasthead(
+                    year: report.selectedYear,
+                    recordedDayCount: report.trackedDayCount,
+                    representedRegionCount: representedRegionCount,
+                )
 
-                    // Fold Elsewhere in at the bottom — only when there's
-                    // something in it — as an entry card into the full list.
-                    if !report.ranking.secondary.isEmpty {
-                        NavigationLink {
-                            ElsewhereView(report: report)
-                        } label: {
-                            ElsewhereSummaryCard(regionCount: report.ranking.secondary.count)
+                GlassEffectContainer(spacing: stylesheet.locations.cardSpacing) {
+                    VStack(spacing: stylesheet.locations.cardSpacing) {
+                        ForEach(folioEntries) { entry in
+                            let item = entry.item
+                            let presentedItem = dayCountPresentation.presented(item)
+                            NavigationLink {
+                                calendarDestination(item.region)
+                            } label: {
+                                RegionSummaryCard(
+                                    regionDays: presentedItem,
+                                    recordIndex: entry.rank,
+                                    prominence: entry.rank == 1 ? .featured : .standard,
+                                    interactive: true,
+                                    yearLength: report.daysInSelectedYear,
+                                    estimatedDays: estimatedDays(for: item.region),
+                                    year: report.selectedYear,
+                                    tilt: tilt,
+                                    recordedPoints: report.primaryRegionLocations?
+                                        .pointsByRegion[item.region] ?? [],
+                                    showsRecordedPoints: report.showsRecordedLocationDots,
+                                    recordedPointsID: report.primaryRegionLocations?.id,
+                                )
+                            }
+                            .buttonStyle(RegionCardButtonStyle())
+                            .matchedTransitionSource(
+                                id: item.region,
+                                in: calendarTransition,
+                            ) { source in
+                                let card = stylesheet.card.regular
+                                return source
+                                    .clipShape(
+                                        RoundedRectangle(
+                                            cornerRadius: card.cornerRadius,
+                                            style: .continuous,
+                                        ),
+                                    )
+                                    .shadow(
+                                        color: stylesheet.palette.brand.ink
+                                            .opacity(card.glow.opacity),
+                                        radius: card.glow.radius,
+                                    )
+                                    .shadow(
+                                        color: Color.black.opacity(card.lift.opacity),
+                                        radius: card.lift.radius,
+                                        y: card.lift.offsetY,
+                                    )
+                            }
+                            .accessibilityHint(String(localized: .primaryCardCalendarHint))
                         }
-                        .buttonStyle(RegionCardButtonStyle())
+
+                        if !report.ranking.secondary.isEmpty {
+                            NavigationLink {
+                                ElsewhereView(report: report)
+                            } label: {
+                                ElsewhereSummaryCard(regionCount: report.ranking.secondary.count)
+                            }
+                            .buttonStyle(RegionCardButtonStyle())
+                        }
                     }
                 }
             }
-            .padding()
+            .padding(.horizontal, stylesheet.locations.horizontalInset)
+            .padding(.top, stylesheet.locations.topInset)
+            .padding(.bottom, stylesheet.spacing.xxxLarge)
             .frame(maxWidth: .infinity)
         }
-        .defaultScrollAnchor(.center)
         .scrollBounceBehavior(.basedOnSize)
+        .background(stylesheet.palette.brand.canvas)
         .accessibilityIdentifier("where_root_title")
         .safeAreaInset(edge: .bottom) {
             if report.showsEstimatedTimeAndPlanning, !topForecasts.isEmpty {
@@ -255,10 +278,7 @@ struct LocationsView: View {
     /// destination: the tapped card expands into it via matched geometry, and the
     /// stack's back gesture collapses it again.
     private func calendarDestination(_ region: Region) -> some View {
-        CalendarContentView(focusedRegion: region, report: report)
-            .navigationTitle(
-                WhereFormat.calendarRegionTitle(region: region, year: report.selectedYear),
-            )
+        FocusedRegionCalendarView(region: region, report: report)
             .navigationBarTitleDisplayMode(.inline)
             .navigationTransition(.zoom(sourceID: region, in: calendarTransition))
     }

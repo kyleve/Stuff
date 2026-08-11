@@ -45,14 +45,41 @@ struct WhereStylesheetTests {
         #expect(style.spacing.xxxLarge == 20)
     }
 
+    @Test func signatureFolioFoundation() {
+        #expect(style.seal == .init(
+            outerRingWidth: 2,
+            innerRingWidth: 0.75,
+            innerRingInset: 7,
+            meridianWidth: 0.75,
+            meridianOpacity: 0.34,
+            letterScale: 0.42,
+            waypointScale: 0.075,
+            waypointOffset: CGSize(width: 0.23, height: -0.2),
+        ))
+
+        let locations = style.locations
+        #expect(locations.horizontalInset == 18)
+        #expect(locations.topInset == 18)
+        #expect(locations.mastheadSpacing == 12)
+        #expect(locations.titleFont == .system(
+            .largeTitle,
+            design: .serif,
+        ).weight(.semibold))
+        #expect(locations.cardSpacing == 18)
+        #expect(locations.featuredMinimumHeight == 300)
+        #expect(locations.standardMinimumHeight == 248)
+        #expect(locations.surfaceBorderOpacity == 0.12)
+        #expect(locations.surfaceBorderWidth == 0.75)
+    }
+
     @Test func regularCardStyle() {
         let card = style.card.regular
         #expect(style.card.estimatedProgressOpacity == 0.3)
-        #expect(card.cornerRadius == 24)
+        #expect(card.cornerRadius == 20)
         #expect(card.padding == 22)
         #expect(card.contentSpacing == 16)
-        #expect(card.progressBarHeight == 7)
-        #expect(card.entryStamp == expectedEntryStamp(size: 88, showsArcText: true))
+        #expect(card.progressBarHeight == 3)
+        #expect(card.entryStamp == expectedEntryStamp(size: 76, showsArcText: true))
         #expect(card.regionNameTypography == .init(
             size: .fixed(38),
             weight: .semibold,
@@ -81,8 +108,8 @@ struct WhereStylesheetTests {
                 center: CGPoint(x: 0.7, y: 0.57),
                 extent: CGSize(width: 0.72, height: 0.78),
                 scale: 0.88,
-                fillOpacity: 0.09,
-                stroke: .init(opacity: 0.2, width: 1),
+                fillOpacity: 0.065,
+                stroke: .init(opacity: 0.13, width: 0.75),
             ),
             stamp: .init(
                 center: CGPoint(x: 0.5, y: 0.5),
@@ -95,30 +122,30 @@ struct WhereStylesheetTests {
                 inset: 9,
                 glyphSize: 8,
                 spacing: 11,
-                opacity: 0.16,
+                opacity: 0.1,
             ),
         ))
         #expect(card.sheen == .init(
-            intensity: 0.46,
-            staticGlintIntensity: 0.14,
+            intensity: 0.24,
+            staticGlintIntensity: 0.07,
             staticPose: .init(roll: 0, pitch: -1),
         ))
         #expect(card.rosette == .init(
             wobble: 2,
-            lineWidth: 1,
+            lineWidth: 0.75,
             primaryRingSpacing: 13.5,
             secondaryRingSpacing: 9.5,
         ))
-        #expect(card.glow == .init(opacity: 0.2, radius: 7))
-        #expect(card.lift == .init(opacity: 0.14, radius: 22, offsetY: 12))
+        #expect(card.glow == .init(opacity: 0.04, radius: 3))
+        #expect(card.lift == .init(opacity: 0.11, radius: 18, offsetY: 8))
     }
 
     @Test func compactCardStyle() {
         let card = style.card.compact
-        #expect(card.cornerRadius == 22)
+        #expect(card.cornerRadius == 18)
         #expect(card.padding == 16)
         #expect(card.contentSpacing == 10)
-        #expect(card.progressBarHeight == 6)
+        #expect(card.progressBarHeight == 3)
         #expect(card.entryStamp == expectedEntryStamp(size: 52, showsArcText: false))
         #expect(card.regionNameTypography == .init(
             size: .semantic(.title3),
@@ -140,8 +167,8 @@ struct WhereStylesheetTests {
         #expect(card.watermarkOffset == CGSize(width: 12, height: 10))
         #expect(card.regionShape == nil)
         #expect(card.sheen == .init(
-            intensity: 0.28,
-            staticGlintIntensity: 0.16,
+            intensity: 0.16,
+            staticGlintIntensity: 0.06,
             staticPose: .init(roll: 0, pitch: 0),
         ))
         #expect(card.rosette == .init(
@@ -150,8 +177,8 @@ struct WhereStylesheetTests {
             primaryRingSpacing: 13,
             secondaryRingSpacing: 11,
         ))
-        #expect(card.glow == .init(opacity: 0.12, radius: 4))
-        #expect(card.lift == .init(opacity: 0.1, radius: 12, offsetY: 6))
+        #expect(card.glow == .init(opacity: 0.03, radius: 2))
+        #expect(card.lift == .init(opacity: 0.08, radius: 10, offsetY: 4))
     }
 
     @Test func cardVariantSubscriptSelectsTheMatchingSpec() {
@@ -192,10 +219,10 @@ struct WhereStylesheetTests {
 
     @Test func sharedCardStyle() {
         let card = style.card
-        #expect(card.watermarkOpacity == 0.08)
-        #expect(card.glassTintOpacity == 0.1)
+        #expect(card.watermarkOpacity == 0.06)
+        #expect(card.glassTintOpacity == 0.04)
         #expect(card.nameOpacity == 0.9)
-        #expect(card.rosetteFill == .init(primary: 0.08, secondary: 0.045))
+        #expect(card.rosetteFill == .init(primary: 0.055, secondary: 0.03))
         #expect(card.securityPrint == .standard)
         #expect(card.securityPrint.backgroundBlendMode == .normal)
         #expect(card.securityPrint.tint(.red) == .red)

@@ -24,6 +24,11 @@ enum WhereFormat {
         String(localized: .yearLedgerTitle(yearText(year)))
     }
 
+    /// The Locations folio masthead, e.g. "2026, recorded".
+    static func locationsRecordedTitle(year: Int) -> String {
+        String(localized: .locationsRecordedTitle(yearText(year)))
+    }
+
     /// A "37.77490, -122.41940"-style coordinate label. No catalog entry is
     /// needed; the number style is locale-driven, like `driftThresholdLabel`.
     static func auditCoordinate(latitude: Double, longitude: Double) -> String {

@@ -16,6 +16,8 @@ struct WhereStylesheet: BStylesheet {
     var theme = WhereTheme.standard
     var spacing = Spacing()
     var size = Size()
+    var seal = SealStyle.standard
+    var locations = LocationsStyle.standard
     var card = CardStyles.standard
     var calendar = CalendarStyle.standard
     var appIcon = AppIconStyle.standard
@@ -150,6 +152,73 @@ extension WhereStylesheet {
         /// (the "updating your data" line shown during a slow store open), kept
         /// clear of the home indicator.
         var launchCaptionBottomInset: CGFloat = 72
+    }
+}
+
+// MARK: - Brand seal
+
+extension WhereStylesheet {
+    /// Drawing proportions for the W-and-meridian mark shared by launch,
+    /// onboarding, annual records, privacy surfaces, and lightweight widgets.
+    struct SealStyle: Equatable {
+        var outerRingWidth: CGFloat
+        var innerRingWidth: CGFloat
+        var innerRingInset: CGFloat
+        var meridianWidth: CGFloat
+        var meridianOpacity: Double
+        var letterScale: CGFloat
+        var waypointScale: CGFloat
+        var waypointOffset: CGSize
+
+        static let standard = SealStyle(
+            outerRingWidth: 2,
+            innerRingWidth: 0.75,
+            innerRingInset: 7,
+            meridianWidth: 0.75,
+            meridianOpacity: 0.34,
+            letterScale: 0.42,
+            waypointScale: 0.075,
+            waypointOffset: CGSize(width: 0.23, height: -0.2),
+        )
+    }
+}
+
+// MARK: - Locations folio
+
+extension WhereStylesheet {
+    /// Editorial hierarchy for the Locations masthead and ranked folio stack.
+    struct LocationsStyle: Equatable {
+        var horizontalInset: CGFloat
+        var topInset: CGFloat
+        var mastheadSpacing: CGFloat
+        var titleFont: Font
+        var eyebrowFont: Font
+        var summaryFont: Font
+        var ruleWidth: CGFloat
+        var cardSpacing: CGFloat
+        var featuredMinimumHeight: CGFloat
+        var standardMinimumHeight: CGFloat
+        var recordIndexFont: Font
+        var recordLabelFont: Font
+        var surfaceBorderOpacity: Double
+        var surfaceBorderWidth: CGFloat
+
+        static let standard = LocationsStyle(
+            horizontalInset: 18,
+            topInset: 18,
+            mastheadSpacing: 12,
+            titleFont: .system(.largeTitle, design: .serif).weight(.semibold),
+            eyebrowFont: .caption2.weight(.semibold),
+            summaryFont: .subheadline,
+            ruleWidth: 44,
+            cardSpacing: 18,
+            featuredMinimumHeight: 300,
+            standardMinimumHeight: 248,
+            recordIndexFont: .caption.weight(.semibold).monospacedDigit(),
+            recordLabelFont: .caption2.weight(.semibold),
+            surfaceBorderOpacity: 0.12,
+            surfaceBorderWidth: 0.75,
+        )
     }
 }
 
@@ -709,11 +778,11 @@ extension WhereStylesheet {
         /// `Shadow`/`Size` tokens and the card's inline `compact ? … : …` values.
         static let standard = CardStyles(
             regular: CardStyle(
-                cornerRadius: 24,
+                cornerRadius: 20,
                 padding: 22,
                 contentSpacing: 16,
-                progressBarHeight: 7,
-                entryStamp: .standard(size: 88, showsArcText: true),
+                progressBarHeight: 3,
+                entryStamp: .standard(size: 76, showsArcText: true),
                 // Fixed point size (not a Dynamic Type text style) for precise
                 // control against the entry stamp: the longest common headline
                 // names ("California" / "New York") fit, and any over-long one
@@ -741,8 +810,8 @@ extension WhereStylesheet {
                         center: CGPoint(x: 0.7, y: 0.57),
                         extent: CGSize(width: 0.72, height: 0.78),
                         scale: 0.88,
-                        fillOpacity: 0.09,
-                        stroke: .init(opacity: 0.2, width: 1),
+                        fillOpacity: 0.065,
+                        stroke: .init(opacity: 0.13, width: 0.75),
                     ),
                     stamp: .init(
                         center: CGPoint(x: 0.5, y: 0.5),
@@ -755,30 +824,30 @@ extension WhereStylesheet {
                         inset: 9,
                         glyphSize: 8,
                         spacing: 11,
-                        opacity: 0.16,
+                        opacity: 0.1,
                     ),
                 ),
                 sheen: CardStyle.Sheen(
-                    intensity: 0.46,
-                    staticGlintIntensity: 0.14,
+                    intensity: 0.24,
+                    staticGlintIntensity: 0.07,
                     // A phone held upright: the glint sits near the lower edge
                     // instead of washing out the card's central content.
                     staticPose: .init(roll: 0, pitch: -1),
                 ),
                 rosette: CardStyle.Rosette(
                     wobble: 2,
-                    lineWidth: 1,
+                    lineWidth: 0.75,
                     primaryRingSpacing: 13.5,
                     secondaryRingSpacing: 9.5,
                 ),
-                glow: CardStyle.Shadow(opacity: 0.2, radius: 7),
-                lift: CardStyle.Shadow(opacity: 0.14, radius: 22, offsetY: 12),
+                glow: CardStyle.Shadow(opacity: 0.04, radius: 3),
+                lift: CardStyle.Shadow(opacity: 0.11, radius: 18, offsetY: 8),
             ),
             compact: CardStyle(
-                cornerRadius: 22,
+                cornerRadius: 18,
                 padding: 16,
                 contentSpacing: 10,
-                progressBarHeight: 6,
+                progressBarHeight: 3,
                 entryStamp: .standard(size: 52, showsArcText: false),
                 regionNameTypography: .init(
                     size: .semantic(.title3),
@@ -800,8 +869,8 @@ extension WhereStylesheet {
                 watermarkOffset: CGSize(width: 12, height: 10),
                 regionShape: nil,
                 sheen: CardStyle.Sheen(
-                    intensity: 0.28,
-                    staticGlintIntensity: 0.16,
+                    intensity: 0.16,
+                    staticGlintIntensity: 0.06,
                     // Preserve the compact card's existing neutral treatment.
                     staticPose: .init(roll: 0, pitch: 0),
                 ),
@@ -811,13 +880,13 @@ extension WhereStylesheet {
                     primaryRingSpacing: 13,
                     secondaryRingSpacing: 11,
                 ),
-                glow: CardStyle.Shadow(opacity: 0.12, radius: 4),
-                lift: CardStyle.Shadow(opacity: 0.1, radius: 12, offsetY: 6),
+                glow: CardStyle.Shadow(opacity: 0.03, radius: 2),
+                lift: CardStyle.Shadow(opacity: 0.08, radius: 10, offsetY: 4),
             ),
-            watermarkOpacity: 0.08,
-            glassTintOpacity: 0.1,
+            watermarkOpacity: 0.06,
+            glassTintOpacity: 0.04,
             nameOpacity: 0.9,
-            rosetteFill: RosetteFill(primary: 0.08, secondary: 0.045),
+            rosetteFill: RosetteFill(primary: 0.055, secondary: 0.03),
             securityPrint: .standard,
             dayCount: .standard,
             constellation: .standard,
