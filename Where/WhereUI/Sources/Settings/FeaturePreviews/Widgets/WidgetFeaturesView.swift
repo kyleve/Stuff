@@ -57,7 +57,7 @@ struct WidgetFeaturesView: View {
                             Text(String(localized: .settingsExploreWidgetsLockFooter))
                                 .staggeredReveal(order: 2)
                             FeatureDiscoveryDataFooter()
-                                .staggeredReveal(order: 3)
+                                .staggeredReveal(order: 2)
                         }
                     }
                 }

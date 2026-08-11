@@ -482,12 +482,46 @@ struct WhereStylesheetTests {
             .largeTitle,
             design: .default,
         ).bold().monospacedDigit())
-        #expect(typography.widgetHeroRegion == .system(.headline, design: .serif).weight(.semibold))
-        #expect(typography.widgetTotalNumber == .system(
-            .body,
-            design: .default,
-            weight: .bold,
-        ).monospacedDigit())
+    }
+
+    @Test func lightweightRecordStyles() {
+        #expect(style.homeWidget == .init(
+            headerSealSize: 20,
+            headerSpacing: 7,
+            contentSpacing: 10,
+            rowSpacing: 6,
+            routeMarkerSize: 22,
+            routeSymbolPointSize: 10,
+            ruleHeight: 1,
+            ruleOpacity: 0.34,
+            borderOpacity: 0.14,
+            eyebrowFont: .caption2.weight(.semibold),
+            dateFont: .caption2.weight(.medium).monospacedDigit(),
+            heroNameFont: .system(.title2, design: .serif).weight(.semibold),
+            rowNameFont: .system(.caption, design: .serif).weight(.semibold),
+            totalNumberFont: .system(
+                .body,
+                design: .default,
+                weight: .bold,
+            ).monospacedDigit(),
+            charmFont: .caption2,
+            stacksHeader: false,
+        ))
+        #expect(style.recordSnippet == .init(
+            cornerRadius: 18,
+            padding: 16,
+            contentSpacing: 12,
+            sealSize: 28,
+            routeMarkerSize: 28,
+            routeSymbolPointSize: 12,
+            borderOpacity: 0.16,
+            ruleOpacity: 0.22,
+            titleFont: .system(.title3, design: .serif).weight(.semibold),
+            numberFont: .system(.largeTitle, design: .default).bold().monospacedDigit(),
+            captionFont: .subheadline,
+            charmFont: .caption2,
+            stacksHero: false,
+        ))
     }
 
     @Test func motionAnimations() {
@@ -598,19 +632,20 @@ struct WhereStylesheetTests {
     @Test func featureDiscoveryStyle() {
         let featureDiscovery = style.featureDiscovery
         #expect(featureDiscovery.marketingHeader == .init(
-            badgeSize: 76,
-            symbolPointSize: 34,
-            badgeTintOpacity: 0.14,
+            sealSize: 76,
+            featureBadgeSize: 28,
+            featureSymbolPointSize: 13,
             contentMaxWidth: 560,
             spacing: 14,
             verticalPadding: 24,
         ))
         #expect(featureDiscovery.marketingPanel == .init(
-            cornerRadius: 20,
+            cornerRadius: 16,
             maxWidth: 680,
             padding: 16,
             contentSpacing: 12,
             rowVerticalInset: 6,
+            borderOpacity: 0.16,
         ))
         #expect(featureDiscovery.backgroundPattern == .init(
             contourSpacing: 30,
@@ -621,7 +656,7 @@ struct WhereStylesheetTests {
             centerYRatio: 0.46,
             phaseStep: 0.31,
             lineWidth: 0.9,
-            opacity: 0.12,
+            opacity: 0.08,
         ))
         #expect(featureDiscovery.estimatedTime == .init(
             timelineHeight: 18,
@@ -632,7 +667,7 @@ struct WhereStylesheetTests {
         ))
         #expect(featureDiscovery.siri == .init(
             card: .init(
-                cornerRadius: 20,
+                cornerRadius: 16,
                 maxWidth: 680,
                 padding: 16,
                 spacing: 12,
@@ -645,7 +680,7 @@ struct WhereStylesheetTests {
                 indent: 34,
             ),
             speakerIcon: .init(containerSize: 28, symbolPointSize: 12),
-            accent: Color(white: 0.28),
+            accent: WhereStylesheet.Palette.Brand.standard.mineral,
         ))
         #expect(featureDiscovery.widgets == .init(
             device: .init(
@@ -658,7 +693,10 @@ struct WhereStylesheetTests {
             ),
             frame: .init(cornerRadius: 18, padding: 12),
             wallpapers: .init(
-                home: .init(top: .indigo, bottom: .cyan),
+                home: .init(
+                    top: WhereStylesheet.Palette.Brand.standard.canvas,
+                    bottom: WhereStylesheet.Palette.Brand.standard.raisedPaper,
+                ),
                 lock: .init(top: .purple, bottom: .blue),
             ),
             lockWidgetHeight: 76,
@@ -787,6 +825,8 @@ struct WhereStylesheetTests {
         #expect(resolved.timeline.row.stacksDayCount)
         #expect(resolved.featureDiscovery.siri.bubble.indent == 0)
         #expect(resolved.featureDiscovery.widgets.contentWidth(in: 834) == 320)
+        #expect(resolved.homeWidget.stacksHeader)
+        #expect(resolved.recordSnippet.stacksHero)
     }
 
     @MainActor
@@ -798,6 +838,18 @@ struct WhereStylesheetTests {
         #expect(resolved.card.compact.glow.radius == 0)
         #expect(resolved.card.constellation.haloOpacity == 0)
         #expect(resolved.card.constellation.coreOpacity == 0.92)
+    }
+
+    @MainActor
+    @Test func strengthensDocumentRulesAtIncreasedContrast() throws {
+        var context = BContext(traits: .system)
+        context.traitOverrides.accessibility = BAccessibility(isDarkerSystemColorsEnabled: true)
+        let resolved = try context.stylesheets.get(WhereStylesheet.self)
+        #expect(resolved.homeWidget.borderOpacity == 0.3)
+        #expect(resolved.homeWidget.ruleOpacity == 0.56)
+        #expect(resolved.recordSnippet.borderOpacity == 0.32)
+        #expect(resolved.featureDiscovery.marketingPanel.borderOpacity == 0.32)
+        #expect(resolved.featureDiscovery.backgroundPattern.opacity == 0.18)
     }
 
     @MainActor
@@ -831,7 +883,11 @@ struct WhereStylesheetTests {
         context.traitOverrides.mode = .dark
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
         #expect(resolved.card.securityPrint == .dark)
-        #expect(resolved.featureDiscovery.siri.accent == Color(white: 0.42))
+        #expect(resolved.featureDiscovery.siri.accent == WhereStylesheet.Palette.Brand.dark.mineral)
+        #expect(resolved.featureDiscovery.widgets.wallpapers.home == .init(
+            top: WhereStylesheet.Palette.Brand.dark.canvas,
+            bottom: WhereStylesheet.Palette.Brand.dark.raisedPaper,
+        ))
         #expect(resolved.palette == .dark)
         #expect(resolved.card.securityPrint.backgroundBlendMode == .luminosity)
         #expect(resolved.card.securityPrint.tint(.red) == Color.red.mix(

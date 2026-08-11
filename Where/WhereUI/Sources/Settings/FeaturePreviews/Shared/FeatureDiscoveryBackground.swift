@@ -9,11 +9,11 @@ struct FeatureDiscoveryBackground: View {
     var body: some View {
         let pattern = stylesheet.featureDiscovery.backgroundPattern
         ZStack {
-            Color(.systemGroupedBackground)
+            stylesheet.palette.brand.canvas
             Canvas { context, size in
                 drawContours(in: &context, size: size, style: pattern)
             }
-            .foregroundStyle(.secondary)
+            .foregroundStyle(stylesheet.palette.brand.brass)
         }
         .ignoresSafeArea()
         .accessibilityHidden(true)

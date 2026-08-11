@@ -13,6 +13,7 @@ struct SiriIntentCard: View {
 
     var body: some View {
         let style = stylesheet.featureDiscovery
+        let brand = stylesheet.palette.brand
         VStack(alignment: .leading, spacing: style.siri.card.spacing) {
             Label {
                 Text(title)
@@ -21,16 +22,23 @@ struct SiriIntentCard: View {
                 Image(systemSymbol: systemSymbol)
                     .foregroundStyle(style.siri.accent)
             }
-            .font(.headline)
+            .font(.system(.headline, design: .serif).weight(.semibold))
             SiriChatBubble(speaker: .user, text: request)
             SiriChatBubble(speaker: .siri, text: response)
         }
         .padding(style.siri.card.padding)
         .frame(maxWidth: style.siri.card.maxWidth, alignment: .leading)
         .background(
-            Color(.secondarySystemGroupedBackground),
+            brand.raisedPaper,
             in: .rect(cornerRadius: style.siri.card.cornerRadius),
         )
+        .overlay {
+            RoundedRectangle(cornerRadius: style.siri.card.cornerRadius)
+                .stroke(
+                    brand.brass.opacity(style.marketingPanel.borderOpacity),
+                    lineWidth: 0.75,
+                )
+        }
         .frame(maxWidth: .infinity)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(String(localized: .settingsExploreSiriCardAccessibilityLabel(title)))

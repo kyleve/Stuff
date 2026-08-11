@@ -48,7 +48,7 @@ struct InsightsAccuracyFeaturesView: View {
                             Text(String(localized: .settingsExploreInsightsFooter))
                             FeatureDiscoveryDataFooter()
                         }
-                        .staggeredReveal(order: 3)
+                        .staggeredReveal(order: 2)
                     }
                 }
                 .scrollContentBackground(.hidden)

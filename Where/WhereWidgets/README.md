@@ -11,6 +11,9 @@ The device-local theme is independently published through `WidgetPresentationSto
 so an appearance change does not rebuild the data snapshot.
 All rendering lives in [`WhereUI`](../WhereUI/) — this target only wires
 WidgetKit configuration, the timeline provider, and family-specific layout.
+Home-screen families apply WhereUI's `whereWidgetBackground()` modifier for
+the active paper/midnight palette; lock-screen accessories retain WidgetKit's
+native monochrome containers.
 
 ## Widgets
 

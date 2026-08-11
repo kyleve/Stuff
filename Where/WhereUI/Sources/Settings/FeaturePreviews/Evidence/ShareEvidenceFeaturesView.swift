@@ -61,10 +61,10 @@ struct ShareEvidenceFeaturesView: View {
                             .featureMarketingRow(order: 1)
                             .settingsRow(Item.shareSheet, restingBackground: .clear)
                         FeatureEvidenceComposePreview(date: presentation.lockScreenDate)
-                            .featureMarketingRow(order: 2)
+                            .featureMarketingRow(order: 1)
                             .settingsRow(Item.compose, restingBackground: .clear)
                         FeatureEvidenceArchivePreview(content: archiveContent)
-                            .featureMarketingRow(order: 3)
+                            .featureMarketingRow(order: 2)
                             .settingsRow(Item.archive, restingBackground: .clear)
                         FeatureMarketingPanel {
                             NavigationLink(value: Route.archive) {
@@ -79,13 +79,13 @@ struct ShareEvidenceFeaturesView: View {
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
                         }
-                        .featureMarketingRow(order: 4)
+                        .featureMarketingRow(order: 2)
                     } footer: {
                         VStack(alignment: .leading, spacing: stylesheet.spacing.medium) {
                             Text(String(localized: .settingsExploreEvidenceFooter))
                             FeatureDiscoveryDataFooter()
                         }
-                        .staggeredReveal(order: 5)
+                        .staggeredReveal(order: 2)
                     }
                 }
                 .scrollContentBackground(.hidden)

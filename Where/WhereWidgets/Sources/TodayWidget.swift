@@ -47,14 +47,14 @@ private struct TodayWidgetContent: View {
                     .containerBackground(.clear, for: .widget)
             case .systemSmall:
                 TodayWidgetView(snapshot: entry.snapshot)
-                    .containerBackground(.background, for: .widget)
+                    .whereWidgetBackground()
             case .systemMedium, .systemLarge, .systemExtraLarge, .systemExtraLargePortrait,
                  .accessoryRectangular, .accessoryCorner:
                 TodayWidgetView(snapshot: entry.snapshot)
-                    .containerBackground(.background, for: .widget)
+                    .whereWidgetBackground()
             @unknown default:
                 TodayWidgetView(snapshot: entry.snapshot)
-                    .containerBackground(.background, for: .widget)
+                    .whereWidgetBackground()
         }
     }
 }

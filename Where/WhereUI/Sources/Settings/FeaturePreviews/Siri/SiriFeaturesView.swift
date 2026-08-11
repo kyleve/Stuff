@@ -27,10 +27,7 @@ struct SiriFeaturesView: View {
                     .staggeredReveal(order: 0)
 
                     Section {
-                        ForEach(
-                            SiriIntentFeature.allCases.enumerated(),
-                            id: \.element,
-                        ) { index, feature in
+                        ForEach(SiriIntentFeature.allCases, id: \.self) { feature in
                             let personalized = presentation.siriExample(for: feature)
                             SiriIntentCard(
                                 title: feature.item.title,
@@ -47,11 +44,11 @@ struct SiriFeaturesView: View {
                             ))
                             .listRowSeparator(.hidden)
                             .settingsRow(feature.item, restingBackground: .clear)
-                            .staggeredReveal(order: index + 1)
+                            .staggeredReveal(order: 1)
                         }
                     } footer: {
                         Text(String(localized: .settingsExploreSiriFooter))
-                            .staggeredReveal(order: SiriIntentFeature.allCases.count + 1)
+                            .staggeredReveal(order: 1)
                     }
 
                     Section {
@@ -59,13 +56,13 @@ struct SiriFeaturesView: View {
                             .listRowBackground(Color.clear)
                             .listRowInsets(.init())
                             .settingsRow(Item.spotlight, restingBackground: .clear)
-                            .staggeredReveal(order: SiriIntentFeature.allCases.count + 1)
+                            .staggeredReveal(order: 2)
                     } footer: {
                         VStack(alignment: .leading, spacing: stylesheet.spacing.medium) {
                             Text(String(localized: .settingsExploreSpotlightFooter))
                             FeatureDiscoveryDataFooter()
                         }
-                        .staggeredReveal(order: SiriIntentFeature.allCases.count + 2)
+                        .staggeredReveal(order: 2)
                     }
                 }
                 .scrollContentBackground(.hidden)

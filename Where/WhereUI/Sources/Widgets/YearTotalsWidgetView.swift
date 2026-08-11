@@ -27,14 +27,22 @@ public struct YearTotalsWidgetView: View {
     }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: stylesheet.spacing.small) {
-            Text(WhereFormat.widgetYearTitle(year: snapshot.year))
-                .font(.caption2.weight(.semibold))
-                .textCase(.uppercase)
-                .tracking(1)
-                .foregroundStyle(.secondary)
+        let style = stylesheet.homeWidget
+        VStack(alignment: .leading, spacing: style.contentSpacing) {
+            HStack(spacing: style.headerSpacing) {
+                WhereSeal(tint: stylesheet.palette.brand.brass)
+                    .frame(width: style.headerSealSize, height: style.headerSealSize)
+                Text(WhereFormat.widgetYearTitle(year: snapshot.year))
+                    .font(style.eyebrowFont)
+                    .textCase(.uppercase)
+                    .tracking(1)
+                    .foregroundStyle(stylesheet.palette.brand.ink)
+            }
 
-            Spacer(minLength: 0)
+            Rectangle()
+                .fill(stylesheet.palette.brand.brass.opacity(style.ruleOpacity))
+                .frame(height: style.ruleHeight)
+                .accessibilityHidden(true)
 
             if ranked.isEmpty {
                 emptyContent
@@ -51,34 +59,58 @@ public struct YearTotalsWidgetView: View {
     }
 
     private var rows: some View {
-        VStack(alignment: .leading, spacing: stylesheet.spacing.xSmall) {
+        VStack(alignment: .leading, spacing: stylesheet.homeWidget.rowSpacing) {
             ForEach(ranked) { entry in
+                let style = regionStyles.style(for: entry.region)
                 HStack(spacing: stylesheet.spacing.small) {
-                    Text(regionStyles.style(for: entry.region).emoji)
-                        .font(.caption)
-                        .accessibilityHidden(true)
+                    routeMarker(symbolName: style.symbolName, tint: style.tint)
                     Text(entry.region.localizedName)
-                        .font(.caption.weight(.medium))
+                        .font(stylesheet.homeWidget.rowNameFont)
                         .lineLimit(1)
-                        .minimumScaleFactor(0.7)
+                        .minimumScaleFactor(0.72)
+                    Text(style.emoji)
+                        .font(stylesheet.homeWidget.charmFont)
+                        .dynamicTypeSize(...DynamicTypeSize.large)
+                        .accessibilityHidden(true)
                     Spacer(minLength: stylesheet.spacing.small)
                     Text(entry.days, format: .number)
-                        .font(stylesheet.typography.widgetTotalNumber)
+                        .font(stylesheet.homeWidget.totalNumberFont)
                         .monospacedDigit()
-                        .foregroundStyle(regionStyles.style(for: entry.region).tint)
+                        .foregroundStyle(style.tint)
+                }
+                .padding(.bottom, stylesheet.spacing.xxSmall)
+                .overlay(alignment: .bottom) {
+                    Rectangle()
+                        .fill(style.tint.opacity(0.16))
+                        .frame(height: 0.5)
+                        .accessibilityHidden(true)
                 }
             }
         }
+    }
+
+    private func routeMarker(symbolName: String, tint: Color) -> some View {
+        let style = stylesheet.homeWidget
+        return Image(systemName: symbolName)
+            .font(.system(size: style.routeSymbolPointSize, weight: .semibold))
+            .foregroundStyle(tint)
+            .frame(width: style.routeMarkerSize, height: style.routeMarkerSize)
+            .background(tint.opacity(0.08), in: .circle)
+            .overlay {
+                Circle()
+                    .stroke(tint.opacity(0.24), lineWidth: 0.75)
+            }
+            .accessibilityHidden(true)
     }
 
     private var emptyContent: some View {
         VStack(alignment: .leading, spacing: stylesheet.spacing.xSmall) {
             Image(systemSymbol: .calendarBadgeExclamationmark)
                 .font(.title3)
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(stylesheet.palette.brand.mineral)
                 .accessibilityHidden(true)
             Text(String(localized: .widgetYearEmpty))
-                .font(.caption.weight(.medium))
+                .font(stylesheet.homeWidget.rowNameFont)
                 .foregroundStyle(.secondary)
         }
     }
@@ -87,7 +119,13 @@ public struct YearTotalsWidgetView: View {
 #if DEBUG
     extension YearTotalsWidgetView: SnapshotProviding {
         public static var snapshots: [SnapshotCase] {
-            whereSnapshot(name: "Ranked", configurations: .componentDefaults, settle: .immediate) {
+            whereSnapshot(
+                name: "Ranked",
+                configurations: .componentDefaults + SnapshotConfiguration.combinations(
+                    layoutDirections: [.rightToLeft],
+                ),
+                settle: .immediate,
+            ) {
                 YearTotalsWidgetView(snapshot: PreviewSupport.sampleWidgetSnapshot(
                     dayRegions: [.california],
                     totals: [

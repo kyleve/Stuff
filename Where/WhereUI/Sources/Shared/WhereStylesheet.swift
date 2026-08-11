@@ -26,6 +26,8 @@ struct WhereStylesheet: BStylesheet {
     var regionPicker = RegionPickerStyle.standard
     var evidence = EvidenceStyle.standard
     var recordPreparation = RecordPreparationStyle.standard
+    var homeWidget = HomeWidgetStyle.standard
+    var recordSnippet = RecordSnippetStyle.standard
     var elsewhereCard = ElsewhereCardStyle.standard
     var locationForecast = LocationForecastStyle.standard
     var palette = Palette.standard
@@ -54,6 +56,8 @@ struct WhereStylesheet: BStylesheet {
             timeline.overview.pinsToViewport = false
             timeline.row.stacksDayCount = true
             featureDiscovery.siri.bubble.indent = 0
+            homeWidget.stacksHeader = true
+            recordSnippet.stacksHero = true
         }
 
         // Give every region a consistently labeled ribbon band when tint
@@ -71,6 +75,14 @@ struct WhereStylesheet: BStylesheet {
             card.constellation.haloOpacity = 0
         }
 
+        if traits.accessibility.isDarkerSystemColorsEnabled {
+            homeWidget.borderOpacity = 0.3
+            homeWidget.ruleOpacity = 0.56
+            recordSnippet.borderOpacity = 0.32
+            featureDiscovery.marketingPanel.borderOpacity = 0.32
+            featureDiscovery.backgroundPattern.opacity = 0.18
+        }
+
         // Reduce Motion stops the cards' day count rolling its digits; it
         // crossfades to the new number instead.
         if traits.accessibility.isReduceMotionEnabled {
@@ -84,7 +96,11 @@ struct WhereStylesheet: BStylesheet {
         // dark glass without changing its hue or saturation on touch.
         if traits.mode == .dark {
             card.securityPrint = .dark
-            featureDiscovery.siri.accent = Color(white: 0.42)
+            featureDiscovery.siri.accent = Palette.Brand.dark.mineral
+            featureDiscovery.widgets.wallpapers.home = .init(
+                top: Palette.Brand.dark.canvas,
+                bottom: Palette.Brand.dark.raisedPaper,
+            )
             palette = .dark
         }
     }
@@ -1511,17 +1527,90 @@ extension WhereStylesheet {
         var editorialTitle: Font
         /// Precise tabular figures used where counts are the primary content.
         var instrumentNumber: Font
-        /// The serif region name on the Today widget's single-region hero.
-        var widgetHeroRegion: Font
-        /// The rounded, bold day-count number on the Year Totals widget.
-        var widgetTotalNumber: Font
-
         static let standard = Typography(
             onboardingIcon: .system(size: 34, weight: .regular),
             editorialTitle: .system(.largeTitle, design: .serif).bold(),
             instrumentNumber: .system(.largeTitle, design: .default).bold().monospacedDigit(),
-            widgetHeroRegion: .system(.headline, design: .serif).weight(.semibold),
-            widgetTotalNumber: .system(.body, design: .default, weight: .bold).monospacedDigit(),
+        )
+    }
+}
+
+// MARK: - Lightweight records
+
+extension WhereStylesheet {
+    /// The inexpensive paper record used by home-screen widgets. WidgetKit owns
+    /// the outer shape; these tokens keep the extension, snapshots, and Settings
+    /// examples on the same hierarchy without introducing card effects.
+    struct HomeWidgetStyle: Equatable {
+        var headerSealSize: CGFloat
+        var headerSpacing: CGFloat
+        var contentSpacing: CGFloat
+        var rowSpacing: CGFloat
+        var routeMarkerSize: CGFloat
+        var routeSymbolPointSize: CGFloat
+        var ruleHeight: CGFloat
+        var ruleOpacity: Double
+        var borderOpacity: Double
+        var eyebrowFont: Font
+        var dateFont: Font
+        var heroNameFont: Font
+        var rowNameFont: Font
+        var totalNumberFont: Font
+        var charmFont: Font
+        var stacksHeader: Bool
+
+        static let standard = HomeWidgetStyle(
+            headerSealSize: 20,
+            headerSpacing: 7,
+            contentSpacing: 10,
+            rowSpacing: 6,
+            routeMarkerSize: 22,
+            routeSymbolPointSize: 10,
+            ruleHeight: 1,
+            ruleOpacity: 0.34,
+            borderOpacity: 0.14,
+            eyebrowFont: .caption2.weight(.semibold),
+            dateFont: .caption2.weight(.medium).monospacedDigit(),
+            heroNameFont: .system(.title2, design: .serif).weight(.semibold),
+            rowNameFont: .system(.caption, design: .serif).weight(.semibold),
+            totalNumberFont: .system(.body, design: .default, weight: .bold).monospacedDigit(),
+            charmFont: .caption2,
+            stacksHeader: false,
+        )
+    }
+
+    /// A compact archival surface for Siri, Spotlight, and Shortcuts results.
+    /// It shares the house materials with widgets while owning roomier snippet
+    /// geometry and an accessibility restack.
+    struct RecordSnippetStyle: Equatable {
+        var cornerRadius: CGFloat
+        var padding: CGFloat
+        var contentSpacing: CGFloat
+        var sealSize: CGFloat
+        var routeMarkerSize: CGFloat
+        var routeSymbolPointSize: CGFloat
+        var borderOpacity: Double
+        var ruleOpacity: Double
+        var titleFont: Font
+        var numberFont: Font
+        var captionFont: Font
+        var charmFont: Font
+        var stacksHero: Bool
+
+        static let standard = RecordSnippetStyle(
+            cornerRadius: 18,
+            padding: 16,
+            contentSpacing: 12,
+            sealSize: 28,
+            routeMarkerSize: 28,
+            routeSymbolPointSize: 12,
+            borderOpacity: 0.16,
+            ruleOpacity: 0.22,
+            titleFont: .system(.title3, design: .serif).weight(.semibold),
+            numberFont: .system(.largeTitle, design: .default).bold().monospacedDigit(),
+            captionFont: .subheadline,
+            charmFont: .caption2,
+            stacksHero: false,
         )
     }
 }
@@ -1808,9 +1897,9 @@ extension WhereStylesheet {
         var widgets: Widgets
 
         struct MarketingHeader: Equatable {
-            var badgeSize: CGFloat
-            var symbolPointSize: CGFloat
-            var badgeTintOpacity: Double
+            var sealSize: CGFloat
+            var featureBadgeSize: CGFloat
+            var featureSymbolPointSize: CGFloat
             var contentMaxWidth: CGFloat
             var spacing: CGFloat
             var verticalPadding: CGFloat
@@ -1822,6 +1911,7 @@ extension WhereStylesheet {
             var padding: CGFloat
             var contentSpacing: CGFloat
             var rowVerticalInset: CGFloat
+            var borderOpacity: Double
         }
 
         struct BackgroundPattern: Equatable {
@@ -1912,19 +2002,20 @@ extension WhereStylesheet {
 
         static let standard = FeatureDiscoveryStyle(
             marketingHeader: MarketingHeader(
-                badgeSize: 76,
-                symbolPointSize: 34,
-                badgeTintOpacity: 0.14,
+                sealSize: 76,
+                featureBadgeSize: 28,
+                featureSymbolPointSize: 13,
                 contentMaxWidth: 560,
                 spacing: 14,
                 verticalPadding: 24,
             ),
             marketingPanel: MarketingPanel(
-                cornerRadius: 20,
+                cornerRadius: 16,
                 maxWidth: 680,
                 padding: 16,
                 contentSpacing: 12,
                 rowVerticalInset: 6,
+                borderOpacity: 0.16,
             ),
             backgroundPattern: BackgroundPattern(
                 contourSpacing: 30,
@@ -1935,7 +2026,7 @@ extension WhereStylesheet {
                 centerYRatio: 0.46,
                 phaseStep: 0.31,
                 lineWidth: 0.9,
-                opacity: 0.12,
+                opacity: 0.08,
             ),
             estimatedTime: EstimatedTime(
                 timelineHeight: 18,
@@ -1946,7 +2037,7 @@ extension WhereStylesheet {
             ),
             siri: Siri(
                 card: Siri.Card(
-                    cornerRadius: 20,
+                    cornerRadius: 16,
                     maxWidth: 680,
                     padding: 16,
                     spacing: 12,
@@ -1962,7 +2053,7 @@ extension WhereStylesheet {
                     containerSize: 28,
                     symbolPointSize: 12,
                 ),
-                accent: Color(white: 0.28),
+                accent: Palette.Brand.standard.mineral,
             ),
             widgets: Widgets(
                 device: Widgets.Device(
@@ -1978,7 +2069,10 @@ extension WhereStylesheet {
                     padding: 12,
                 ),
                 wallpapers: Widgets.Wallpapers(
-                    home: Widgets.Wallpapers.Gradient(top: .indigo, bottom: .cyan),
+                    home: Widgets.Wallpapers.Gradient(
+                        top: Palette.Brand.standard.canvas,
+                        bottom: Palette.Brand.standard.raisedPaper,
+                    ),
                     lock: Widgets.Wallpapers.Gradient(top: .purple, bottom: .blue),
                 ),
                 lockWidgetHeight: 76,

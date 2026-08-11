@@ -1,5 +1,6 @@
 import RegionKit
 import SFSafeSymbols
+import SnapshotKit
 import SwiftUI
 import WhereCore
 
@@ -18,10 +19,9 @@ public struct DaysInRegionSnapshot: Hashable, Sendable {
     }
 }
 
-/// A compact "days in a region" card for Siri / Spotlight / Shortcuts snippets:
-/// the region's emoji, the day count, and a "days in <region> · <year>" caption
-/// in the region's tint. Presentation only — the App Intents layer feeds it a
-/// `DaysInRegionSnapshot`.
+/// A compact archival record for Siri, Spotlight, and Shortcuts. The region
+/// name and tabular count lead, its symbol is the route marker, and the user's
+/// emoji remains a small personalization charm.
 public struct DaysInRegionSnippetView: View {
     private let snapshot: DaysInRegionSnapshot
 
@@ -37,28 +37,80 @@ public struct DaysInRegionSnippetView: View {
     }
 
     public var body: some View {
-        let style = regionStyles.style(for: region)
-        return HStack(spacing: stylesheet.spacing.medium) {
-            Text(style.emoji)
-                // Semantic Dynamic Type face, matching TodayWidgetView's hero
-                // emoji — no hardcoded point size.
-                .font(.largeTitle)
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: stylesheet.spacing.xSmall) {
-                Text(snapshot.dayCount, format: .number)
-                    .font(.system(.largeTitle, design: .rounded, weight: .bold))
-                    .foregroundStyle(style.tint)
-                    .contentTransition(.numericText())
-                Text(caption)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+        let component = stylesheet.recordSnippet
+        let regionStyle = regionStyles.style(for: region)
+        return VStack(alignment: .leading, spacing: component.contentSpacing) {
+            HStack(spacing: stylesheet.spacing.medium) {
+                WhereSeal(tint: stylesheet.palette.brand.brass)
+                    .frame(width: component.sealSize, height: component.sealSize)
+
+                Text(region.localizedName)
+                    .font(component.titleFont)
+                    .foregroundStyle(regionStyle.tint)
                     .lineLimit(2)
+
+                Spacer(minLength: 0)
+
+                routeMarker(style: regionStyle)
+                Text(regionStyle.emoji)
+                    .font(component.charmFont)
+                    .dynamicTypeSize(...DynamicTypeSize.large)
+                    .accessibilityHidden(true)
             }
-            Spacer(minLength: 0)
+
+            Rectangle()
+                .fill(regionStyle.tint.opacity(component.ruleOpacity))
+                .frame(height: 0.75)
+                .accessibilityHidden(true)
+
+            countRecord(tint: regionStyle.tint)
         }
-        .padding(stylesheet.spacing.medium)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .modifier(RecordSnippetSurface())
         .accessibilityElement(children: .combine)
+    }
+
+    @ViewBuilder private func countRecord(tint: Color) -> some View {
+        let component = stylesheet.recordSnippet
+        if component.stacksHero {
+            VStack(alignment: .leading, spacing: stylesheet.spacing.xSmall) {
+                count(tint: tint)
+                countCaption
+            }
+        } else {
+            HStack(alignment: .lastTextBaseline, spacing: stylesheet.spacing.medium) {
+                count(tint: tint)
+                countCaption
+                Spacer(minLength: 0)
+            }
+        }
+    }
+
+    private func count(tint: Color) -> some View {
+        Text(snapshot.dayCount, format: .number)
+            .font(stylesheet.recordSnippet.numberFont)
+            .foregroundStyle(tint)
+            .contentTransition(.numericText())
+    }
+
+    private var countCaption: some View {
+        Text(caption)
+            .font(stylesheet.recordSnippet.captionFont)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private func routeMarker(style: RegionStyle) -> some View {
+        let component = stylesheet.recordSnippet
+        return Image(systemName: style.symbolName)
+            .font(.system(size: component.routeSymbolPointSize, weight: .semibold))
+            .foregroundStyle(style.tint)
+            .frame(width: component.routeMarkerSize, height: component.routeMarkerSize)
+            .background(style.tint.opacity(0.08), in: .circle)
+            .overlay {
+                Circle()
+                    .stroke(style.tint.opacity(0.24), lineWidth: 0.75)
+            }
+            .accessibilityHidden(true)
     }
 
     private var caption: String {
@@ -109,20 +161,30 @@ public struct RegionsSnippetView: View {
     @Environment(\.regionStyles) private var regionStyles
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: stylesheet.spacing.small) {
-            Text(title)
-                .font(.caption.weight(.semibold))
-                .textCase(.uppercase)
-                .tracking(1)
-                .foregroundStyle(.secondary)
+        let component = stylesheet.recordSnippet
+        VStack(alignment: .leading, spacing: component.contentSpacing) {
+            HStack(spacing: stylesheet.spacing.medium) {
+                WhereSeal(tint: stylesheet.palette.brand.brass)
+                    .frame(width: component.sealSize, height: component.sealSize)
+                Text(title)
+                    .font(component.titleFont)
+                    .foregroundStyle(stylesheet.palette.brand.ink)
+                    .lineLimit(2)
+                Spacer(minLength: 0)
+            }
+
+            Rectangle()
+                .fill(stylesheet.palette.brand.brass.opacity(component.ruleOpacity))
+                .frame(height: 0.75)
+                .accessibilityHidden(true)
+
             if regions.isEmpty {
                 emptyState
             } else {
                 chips
             }
         }
-        .padding(stylesheet.spacing.medium)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .modifier(RecordSnippetSurface())
     }
 
     private var chips: some View {
@@ -130,15 +192,35 @@ public struct RegionsSnippetView: View {
             ForEach(regions, id: \.self) { region in
                 let style = regionStyles.style(for: region)
                 HStack(spacing: stylesheet.spacing.small) {
-                    Text(style.emoji)
-                        .accessibilityHidden(true)
+                    routeMarker(style: style)
                     Text(region.localizedName)
-                        .font(.headline)
+                        .font(stylesheet.recordSnippet.titleFont)
                         .foregroundStyle(style.tint)
+                        .lineLimit(2)
+                    Text(style.emoji)
+                        .font(stylesheet.recordSnippet.charmFont)
+                        .dynamicTypeSize(...DynamicTypeSize.large)
+                        .accessibilityHidden(true)
+                    Spacer(minLength: 0)
                 }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(region.localizedName)
             }
         }
-        .accessibilityElement(children: .combine)
+    }
+
+    private func routeMarker(style: RegionStyle) -> some View {
+        let component = stylesheet.recordSnippet
+        return Image(systemName: style.symbolName)
+            .font(.system(size: component.routeSymbolPointSize, weight: .semibold))
+            .foregroundStyle(style.tint)
+            .frame(width: component.routeMarkerSize, height: component.routeMarkerSize)
+            .background(style.tint.opacity(0.08), in: .circle)
+            .overlay {
+                Circle()
+                    .stroke(style.tint.opacity(0.24), lineWidth: 0.75)
+            }
+            .accessibilityHidden(true)
     }
 
     private var emptyState: some View {
@@ -147,9 +229,26 @@ public struct RegionsSnippetView: View {
                 .foregroundStyle(.tertiary)
                 .accessibilityHidden(true)
             Text(String(localized: .widgetTodayEmpty))
-                .font(.subheadline)
+                .font(stylesheet.recordSnippet.captionFont)
                 .foregroundStyle(.secondary)
         }
+    }
+}
+
+private struct RecordSnippetSurface: ViewModifier {
+    @Environment(\.stylesheet) private var stylesheet
+
+    func body(content: Content) -> some View {
+        let style = stylesheet.recordSnippet
+        let brand = stylesheet.palette.brand
+        content
+            .padding(style.padding)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(brand.raisedPaper, in: .rect(cornerRadius: style.cornerRadius))
+            .overlay {
+                RoundedRectangle(cornerRadius: style.cornerRadius)
+                    .stroke(brand.brass.opacity(style.borderOpacity), lineWidth: 0.75)
+            }
     }
 }
 
@@ -170,6 +269,47 @@ extension RegionsSnippetView {
 }
 
 #if DEBUG
+    extension DaysInRegionSnippetView: SnapshotProviding {
+        public static var snapshots: [SnapshotCase] {
+            whereSnapshot(
+                name: "Recorded",
+                configurations: .componentDefaults + SnapshotConfiguration.combinations(
+                    layoutDirections: [.rightToLeft],
+                ),
+                settle: .immediate,
+            ) {
+                DaysInRegionSnippetView(
+                    snapshot: DaysInRegionSnapshot(
+                        region: .california,
+                        year: PreviewSupport.year,
+                        dayCount: 132,
+                    ),
+                )
+            }
+        }
+    }
+
+    extension RegionsSnippetView: SnapshotProviding {
+        public static var snapshots: [SnapshotCase] {
+            whereSnapshot(
+                name: "Multiple",
+                configurations: .componentDefaults + SnapshotConfiguration.combinations(
+                    layoutDirections: [.rightToLeft],
+                ),
+                settle: .immediate,
+            ) {
+                RegionsSnippetView.today(regions: [.california, .newYork])
+            }
+            whereSnapshot(
+                name: "Empty",
+                configurations: .componentLightDark,
+                settle: .immediate,
+            ) {
+                RegionsSnippetView.onDate(PreviewSupport.referenceNow, regions: [])
+            }
+        }
+    }
+
     #Preview("Days in region") {
         DaysInRegionSnippetView(
             snapshot: DaysInRegionSnapshot(region: .california, year: 2026, dayCount: 132),

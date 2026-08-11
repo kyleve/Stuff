@@ -11,6 +11,7 @@ struct FeatureMarketingPanel<Content: View>: View {
 
     var body: some View {
         let style = stylesheet.featureDiscovery.marketingPanel
+        let brand = stylesheet.palette.brand
         content
             .padding(style.padding)
             .frame(
@@ -18,9 +19,13 @@ struct FeatureMarketingPanel<Content: View>: View {
                 alignment: .leading,
             )
             .background(
-                Color(.secondarySystemGroupedBackground),
+                brand.raisedPaper,
                 in: .rect(cornerRadius: style.cornerRadius),
             )
+            .overlay {
+                RoundedRectangle(cornerRadius: style.cornerRadius)
+                    .stroke(brand.brass.opacity(style.borderOpacity), lineWidth: 0.75)
+            }
             .frame(maxWidth: .infinity)
     }
 }

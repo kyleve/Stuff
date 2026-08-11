@@ -15,6 +15,7 @@ struct SiriChatBubble: View {
 
     var body: some View {
         let style = stylesheet.featureDiscovery
+        let brand = stylesheet.palette.brand
         HStack(alignment: .bottom, spacing: stylesheet.spacing.small) {
             if speaker == .user {
                 Spacer(minLength: style.siri.bubble.indent)
@@ -24,11 +25,11 @@ struct SiriChatBubble: View {
 
             Text(text)
                 .font(.subheadline)
-                .foregroundStyle(speaker == .user ? Color.white : Color.primary)
+                .foregroundStyle(speaker == .user ? brand.onMidnight : brand.ink)
                 .padding(.horizontal, style.siri.bubble.horizontalPadding)
                 .padding(.vertical, style.siri.bubble.verticalPadding)
                 .background(
-                    speaker == .user ? style.siri.accent : Color(.tertiarySystemFill),
+                    speaker == .user ? brand.midnight : brand.canvas,
                     in: .rect(cornerRadius: style.siri.bubble.cornerRadius),
                 )
 
@@ -43,12 +44,16 @@ struct SiriChatBubble: View {
         let style = stylesheet.featureDiscovery
         return Image(systemSymbol: .waveform)
             .font(.system(size: style.siri.speakerIcon.symbolPointSize, weight: .bold))
-            .foregroundStyle(.white)
+            .foregroundStyle(stylesheet.palette.brand.onMidnight)
             .frame(
                 width: style.siri.speakerIcon.containerSize,
                 height: style.siri.speakerIcon.containerSize,
             )
-            .background(style.siri.accent.gradient, in: .circle)
+            .background(stylesheet.palette.brand.midnight, in: .circle)
+            .overlay {
+                Circle()
+                    .stroke(style.siri.accent.opacity(0.6), lineWidth: 0.75)
+            }
             .fixedSize()
             .accessibilityHidden(true)
     }

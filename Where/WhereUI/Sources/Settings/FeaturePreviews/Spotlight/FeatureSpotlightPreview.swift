@@ -16,7 +16,8 @@ struct FeatureSpotlightPreview: View {
                     String(localized: .settingsExploreSpotlightTitle),
                     systemSymbol: .magnifyingglass,
                 )
-                .font(.headline)
+                .font(.system(.headline, design: .serif).weight(.semibold))
+                .foregroundStyle(stylesheet.palette.brand.ink)
 
                 Label {
                     Text(example.query)
@@ -28,14 +29,15 @@ struct FeatureSpotlightPreview: View {
                 .padding(.horizontal, stylesheet.spacing.medium)
                 .padding(.vertical, stylesheet.spacing.small)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(.quaternary, in: .capsule)
+                .background(stylesheet.palette.brand.canvas, in: .capsule)
 
                 HStack(spacing: stylesheet.spacing.medium) {
                     AppIconImage(name: "AppIconClassic", size: 44)
 
                     VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
                         Text(example.resultTitle)
-                            .font(.headline)
+                            .font(.system(.headline, design: .serif).weight(.semibold))
+                            .foregroundStyle(stylesheet.palette.brand.ink)
                         Text(example.resultSubtitle)
                             .font(.subheadline)
                             .foregroundStyle(.secondary)

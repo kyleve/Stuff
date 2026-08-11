@@ -43,26 +43,26 @@ private struct YearTotalsWidgetContent: View {
                     snapshot: entry.snapshot,
                     maxRows: 4,
                 )
-                .containerBackground(.background, for: .widget)
+                .whereWidgetBackground()
             case .systemMedium:
                 YearTotalsWidgetView(
                     snapshot: entry.snapshot,
                     maxRows: 5,
                 )
-                .containerBackground(.background, for: .widget)
+                .whereWidgetBackground()
             case .systemLarge, .systemExtraLarge, .systemExtraLargePortrait,
                  .accessoryCircular, .accessoryInline, .accessoryCorner:
                 YearTotalsWidgetView(
                     snapshot: entry.snapshot,
                     maxRows: 4,
                 )
-                .containerBackground(.background, for: .widget)
+                .whereWidgetBackground()
             @unknown default:
                 YearTotalsWidgetView(
                     snapshot: entry.snapshot,
                     maxRows: 4,
                 )
-                .containerBackground(.background, for: .widget)
+                .whereWidgetBackground()
         }
     }
 }

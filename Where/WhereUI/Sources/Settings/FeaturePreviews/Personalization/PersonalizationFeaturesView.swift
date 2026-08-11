@@ -55,12 +55,12 @@ struct PersonalizationFeaturesView: View {
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
                         }
-                        .featureMarketingRow(order: 2)
+                        .featureMarketingRow(order: 1)
                     }
 
                     Section {
                         FeatureAppIconPreview(model: iconModel)
-                            .featureMarketingRow(order: 3)
+                            .featureMarketingRow(order: 2)
                             .settingsRow(Item.appIcon, restingBackground: .clear)
 
                         if !isInDemoMode {
@@ -73,14 +73,14 @@ struct PersonalizationFeaturesView: View {
                                 }
                                 .frame(maxWidth: .infinity, alignment: .leading)
                             }
-                            .featureMarketingRow(order: 4)
+                            .featureMarketingRow(order: 2)
                         }
                     } footer: {
                         VStack(alignment: .leading, spacing: stylesheet.spacing.medium) {
                             Text(String(localized: .settingsExplorePersonalizationFooter))
                             FeatureDiscoveryDataFooter()
                         }
-                        .staggeredReveal(order: 5)
+                        .staggeredReveal(order: 2)
                     }
                 }
                 .scrollContentBackground(.hidden)

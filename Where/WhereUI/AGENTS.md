@@ -65,6 +65,9 @@ Layering, localization, preview, and testing conventions live in the feature
   [double-link rule](../../AGENTS.md#never-double-link-a-product-whereui-already-carries));
   that's why `whereBroadwayRoot()` lives here rather than being called as
   `broadwayRoot` at each site.
+- Keep home-widget container styling behind WhereUI's public
+  `whereWidgetBackground()` modifier; extensions consume the resolved palette
+  through that seam and keep lock-screen accessories system-monochrome.
 - Keep render-ready region geometry in the root-injected
   `RegionOutlinePathCache`: RegionKit owns the cached source outlines and its
   stateless simplifier, while WhereUI chooses full/medium/small/micro

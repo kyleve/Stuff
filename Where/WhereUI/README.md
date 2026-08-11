@@ -34,9 +34,9 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   while Estimated Time & Planning explains the live annual projection with a
   worked pace-and-plan calculation, planned stays, and why overlapping travel
   days do not sum neatly to one year.
-  These galleries use a shared marketing header, quiet patterned backdrop, and
-  staged entrance that resolves immediately for Reduce Motion and snapshot
-  capture. Once the selected report has 14 recorded days, the Siri, Spotlight,
+  These galleries use the W-and-meridian seal, warm folio surfaces, quiet
+  security-print contours, and a three-beat entrance that resolves immediately
+  for Reduce Motion and snapshot capture. Once the selected report has 14 recorded days, the Siri, Spotlight,
   widget, and evidence examples use its real regions, counts, and dates; sparse
   reports keep the illustrative Siri copy and empty widget state.
   Backup and destructive data management share one Data drill-in. Both Data and
@@ -160,7 +160,10 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   (`TodayInlineAccessoryView`, `TodayCircularAccessoryView`,
   `YearTotalsRectangularAccessoryView`). Each takes a `WidgetSnapshot` and
   exposes one explicit accessibility label/value pair rather than its visual
-  rows as separate elements.
+  rows as separate elements. Home widgets apply Where's active paper/midnight
+  stock through the public
+  `whereWidgetBackground()` modifier; lock-screen accessories stay in the
+  system's monochrome treatment.
 - **`RegionStyle` / `RegionStyleResolver`** — a region's typed `SFSymbol`, emoji, and
   tint, shared across cards, calendar dots, and timelines. Views resolve it from
   `@Environment(\.regionStyles)` (`regionStyles.style(for: region)`), seeded by
@@ -169,7 +172,7 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   falling back to a deterministic default from `RegionAppearanceCatalog`.
 - **Feature discovery galleries** — Settings markets Siri/Spotlight, widgets,
   evidence, private insights, data accuracy, and personalization with shared
-  patterned chrome and Reduce Motion-aware staged reveals. The examples reuse
+  editorial folio chrome and Reduce Motion-aware three-beat reveals. The examples reuse
   already-loaded user data when it is representative and link to the existing
   feature surfaces for any action.
 - **`whereBroadwayRoot()`** — seeds the selected `WhereTheme` and Broadway
@@ -226,6 +229,8 @@ read it with `@Environment(\.stylesheet)`; off the `View` tree (layout helpers,
 tests) code uses `WhereStylesheet.default`. The active sheet is seeded by
 `whereBroadwayRoot()` at the app root and in each Broadway-root-less consumer
 (WhereWidgets); with no root present, resolution falls back to `.default`.
+The widget extension also calls `whereWidgetBackground()`, a WhereUI-owned seam
+that consumes the resolved palette without exposing or double-linking Broadway.
 The rules for what may and may not live in the sheet are in
 [`AGENTS.md`](AGENTS.md#design-system--wherestylesheet).
 
@@ -269,9 +274,10 @@ theme colors.
 
 Most tokens are fixed; a slice derives from the `BContext` traits in
 `init(context:)` — read the live set off that initializer. Today it grows
-day-grid tap targets at accessibility Dynamic Type sizes, flattens the card
-glow under Reduce Transparency, and replaces spatial onboarding/year motion
-and rolling card counts with short crossfades under Reduce Motion.
+day-grid tap targets and restacks lightweight records at accessibility Dynamic
+Type sizes, strengthens document rules under increased contrast, flattens the
+card glow under Reduce Transparency, and replaces spatial onboarding/year
+motion and rolling card counts with short crossfades under Reduce Motion.
 
 ### Per-region styling
 

@@ -14,21 +14,31 @@ struct FeatureMarketingHeader: View {
     var body: some View {
         let style = stylesheet.featureDiscovery.marketingHeader
         VStack(spacing: style.spacing) {
-            Image(systemSymbol: systemSymbol)
-                .font(.system(size: style.symbolPointSize, weight: .semibold))
-                .foregroundStyle(tint)
-                .frame(width: style.badgeSize, height: style.badgeSize)
-                .background(tint.opacity(style.badgeTintOpacity), in: .circle)
-                .accessibilityHidden(true)
+            ZStack(alignment: .bottomTrailing) {
+                WhereSeal(tint: stylesheet.palette.brand.brass)
+                    .frame(width: style.sealSize, height: style.sealSize)
+
+                Image(systemSymbol: systemSymbol)
+                    .font(.system(size: style.featureSymbolPointSize, weight: .semibold))
+                    .foregroundStyle(tint)
+                    .frame(width: style.featureBadgeSize, height: style.featureBadgeSize)
+                    .background(stylesheet.palette.brand.raisedPaper, in: .circle)
+                    .overlay {
+                        Circle()
+                            .stroke(tint.opacity(0.38), lineWidth: 0.75)
+                    }
+            }
+            .accessibilityHidden(true)
 
             Text(title)
-                .font(.largeTitle.bold())
+                .font(stylesheet.typography.editorialTitle)
+                .foregroundStyle(stylesheet.palette.brand.ink)
                 .multilineTextAlignment(.center)
                 .accessibilityAddTraits(.isHeader)
 
             Text(tagline)
                 .font(.body)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(stylesheet.palette.brand.ink.opacity(0.7))
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
         }
