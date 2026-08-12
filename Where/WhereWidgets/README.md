@@ -29,7 +29,8 @@ Where app (WidgetSnapshotPublisher)
 The app refreshes the snapshot after each committed store write and calls
 `WidgetCenter.reloadAllTimelines()`. The provider also schedules a reload
 after the next local midnight so the timeline `date` stays current even if the
-app never wakes.
+app never wakes. The snapshot also carries the device-local `WhereTheme`; older
+snapshots decode as Standard, and Appearance changes force an immediate republish.
 
 ## Localization
 

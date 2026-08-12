@@ -728,10 +728,22 @@ struct WhereStylesheetEnvironmentTests {
             try waitFor { box.calendarDayMinHeight == 56 }
         }
     }
+
+    @Test func whereBroadwayRootSeedsThemeIdentity() throws {
+        let box = StylesheetProbeBox()
+        let host = UIHostingController(
+            rootView: StylesheetProbe(box: box)
+                .whereBroadwayRoot(theme: .alternate),
+        )
+        try show(host) { _ in
+            try waitFor { box.theme == .alternate }
+        }
+    }
 }
 
 private final class StylesheetProbeBox {
     var calendarDayMinHeight: CGFloat?
+    var theme: WhereTheme?
 }
 
 private struct StylesheetProbe: View {
@@ -743,6 +755,9 @@ private struct StylesheetProbe: View {
         Color.clear
             .onChange(of: stylesheet.calendar.day.minHeight, initial: true) { _, newValue in
                 box.calendarDayMinHeight = newValue
+            }
+            .onChange(of: stylesheet.theme, initial: true) { _, newValue in
+                box.theme = newValue
             }
     }
 }

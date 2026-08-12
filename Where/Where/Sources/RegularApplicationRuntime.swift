@@ -76,9 +76,13 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
 
         WhereLaunch.startAmbientLogging(on: .shared)
         model.onLoggedOut = { [intentServices] in await intentServices.clear() }
+        model.onThemeChanged = { [intentServices] in await intentServices.updateTheme($0) }
         let launcher = WhereLaunch
-            .makeLauncher(model: model, reason: .undetermined) { [intentServices] in
-                await intentServices.install(.forIntents(sharingStoreOf: $0))
+            .makeLauncher(model: model, reason: .undetermined) { [intentServices, model] in
+                await intentServices.install(
+                    .forIntents(sharingStoreOf: $0),
+                    theme: model.theme,
+                )
             }
         self.launcher = launcher
         Task { [launcher, model, intentServices] in

@@ -152,16 +152,16 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
 - **`RegionStyle` / `RegionStyleResolver`** — a region's symbol, emoji, and
   tint, shared across cards, calendar dots, and timelines. Views resolve it from
   `@Environment(\.regionStyles)` (`regionStyles.style(for: region)`), seeded by
-  `whereBroadwayRoot(regionStyles:)` — from `WhereSession`'s live resolver in the
-  app, the `WidgetSnapshot` in the widget process, and services in App Intents —
+  `whereBroadwayRoot(theme:regionStyles:)` — from `WhereSession`'s live resolver
+  in the app, the `WidgetSnapshot` in the widget process, and services in App Intents —
   falling back to a deterministic default from `RegionAppearanceCatalog`.
 - **Feature discovery galleries** — Settings markets Siri/Spotlight, widgets,
   evidence, private insights, data accuracy, and personalization with shared
   patterned chrome and Reduce Motion-aware staged reveals. The examples reuse
   already-loaded user data when it is representative and link to the existing
   feature surfaces for any action.
-- **`whereBroadwayRoot()`** — seeds the Broadway design-system context so
-  descendants resolve the `WhereStylesheet` tokens (see [Design
+- **`whereBroadwayRoot()`** — seeds the selected `WhereTheme` and Broadway
+  design-system context so descendants resolve the `WhereStylesheet` tokens (see [Design
   system](#design-system)). Applied by `RootView` and by each widget.
 - **`RegionMapView`** — the developer region-map tool (also hosted standalone by
   the RegionViewer Mac Catalyst app).
@@ -260,13 +260,18 @@ Reduce Motion.
 `RegionStyle` is data-driven and resolved through the environment: views read
 `@Environment(\.regionStyles)` (a `RegionStyleResolver`) and call
 `regionStyles.style(for: region)`. The resolver is seeded by
-`whereBroadwayRoot(regionStyles:)`: the app passes `WhereSession`'s live
+`whereBroadwayRoot(theme:regionStyles:)`: the app passes `WhereSession`'s live
 resolver (updated on launch + `changes()`), the widget process one built from
 its `WidgetSnapshot`, and App Intents snippets one from their services; the
 default empty resolver yields the fallback looks
 (`RegionAppearanceCatalog.defaultAppearance(for:)`) for previews and the
 region-map viewer. The catalog also owns the selectable color/emoji/symbol
 option lists the picker shows.
+
+`WhereTheme` is the device-local presentation identity. Standard and Alternate
+currently resolve through identical Liquid Glass tokens; onboarding previews
+before commit, Appearance Settings persists immediately, and widgets and
+snippets receive the same identity through their cross-process snapshots.
 
 Regular `RegionSummaryCard`s ask the root-owned `RegionOutlinePathCache` for a
 medium SwiftUI path for the large security-print watermark and a small path for

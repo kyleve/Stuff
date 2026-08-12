@@ -129,6 +129,8 @@ internal shape.
 - **Location-card history is non-authoritative preference state.** Keep its
   snapshots year-keyed by stable `Region` id, and clear them through
   `WherePreferences.reset()`; current report totals remain the source of truth.
+- **`WhereTheme` is device-local preference state, not backup/domain data.**
+  Preserve its stable raw values and make unknown or missing values Standard.
 - **`DemoDataBuilder` seeds through the ordinary write paths** (`DayJournal`,
   `setPrimaryRegions`) — no private door into the store, so a demo exercises
   the code a real user does. Its data is sized against the *elapsed* year, not

@@ -143,6 +143,11 @@ public final class WhereModel {
     /// composition root; the default no-op covers previews and tests.
     public var onLoggedOut: @MainActor () async -> Void = {}
 
+    /// Keeps widgets and App Intents synchronized with Appearance Settings.
+    public var onThemeChanged: @MainActor (WhereTheme) async -> Void = { _ in }
+
+    @ObservationIgnored private var themeChangeTask: Task<Void, Never>?
+
     /// The logging system every scope this model creates records into. Carried
     /// rather than reached for: the app hands down `Periscope.shared` from its
     /// composition root, while tests and previews pass a private system so
@@ -266,10 +271,18 @@ public final class WhereModel {
 
     /// Select and immediately persist a theme outside onboarding.
     public func selectTheme(_ newTheme: WhereTheme) {
-        if newTheme != theme {
-            theme = newTheme
-        }
+        guard newTheme != theme || preferences.theme != newTheme else { return }
+        theme = newTheme
         preferences.theme = newTheme
+        themeChangeTask?.cancel()
+        themeChangeTask = Task { [weak self] in
+            guard let self, !Task.isCancelled else { return }
+            if let session {
+                await session.publishTheme(newTheme)
+            }
+            guard !Task.isCancelled else { return }
+            await onThemeChanged(newTheme)
+        }
     }
 
     /// Reconcile a cold-launch onboarding import before the Restore UI can be presented.
@@ -565,11 +578,13 @@ public final class WhereModel {
             // though deleting its tombstone still needs a retry, so a relaunch cannot combine a
             // fresh unconfirmed identity with stale "already onboarded" preferences.
             preferences.reset()
+            themeChangeTask?.cancel()
             theme = preferences.theme
             Self.logger { .resetPreferences }
             throw error
         }
         preferences.reset()
+        themeChangeTask?.cancel()
         theme = preferences.theme
         Self.logger { .resetPreferences }
     }

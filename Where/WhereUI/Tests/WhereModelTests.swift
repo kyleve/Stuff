@@ -6,6 +6,29 @@ import Testing
 
 private struct WhereModelWaitTimeout: Error {}
 
+private actor ThemeChangeGate {
+    private(set) var isBlocked = false
+    private(set) var delivered: [WhereTheme] = []
+    private var continuation: CheckedContinuation<Void, Never>?
+
+    func receive(_ theme: WhereTheme) async {
+        if theme == .alternate {
+            isBlocked = true
+            await withCheckedContinuation { continuation in
+                self.continuation = continuation
+            }
+            guard !Task.isCancelled else { return }
+        }
+        delivered.append(theme)
+    }
+
+    func release() {
+        continuation?.resume()
+        continuation = nil
+        isBlocked = false
+    }
+}
+
 @MainActor
 private func waitForWhereModel(
     _ predicate: () -> Bool,
@@ -57,6 +80,29 @@ struct WhereModelTests {
         try model.resetPreferences()
         #expect(model.theme == .standard)
         #expect(preferences.theme == .standard)
+    }
+
+    @Test func repeatedThemeSelectionsCancelSupersededUpdates() async throws {
+        let model = try WhereModel(
+            services: makeServices(),
+            preferences: makePreferences(),
+            logSystem: .isolated(),
+        )
+        let gate = ThemeChangeGate()
+        model.onThemeChanged = { await gate.receive($0) }
+
+        model.selectTheme(.alternate)
+        while await !gate.isBlocked {
+            await Task.yield()
+        }
+        model.selectTheme(.standard)
+        await gate.release()
+        try await waitForWhereModel { model.theme == .standard }
+        while await gate.delivered.isEmpty {
+            await Task.yield()
+        }
+
+        #expect(await gate.delivered == [.standard])
     }
 
     @Test func lateLogStoreArrivalPublishesReadyState() async throws {

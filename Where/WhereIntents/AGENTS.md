@@ -35,6 +35,8 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
   `current()` (cancellation-aware) — there is deliberately no self-open
   fallback. A `LogDayIntent` write therefore pings the same `changes()`
   signal the running UI refreshes from.
+- **Resolve snippet services and `WhereTheme` together through
+  `IntentServices.currentContext()`** so a view never combines different handoff states.
 - **Every `perform()` wraps its work in `measureIntent(_:)`**, and each
   `WhereIntentsLog.IntentName` carries the budget for its own kind of work — so
   the span history reads per intent (`perform(days-in-region)`) and a slow Siri

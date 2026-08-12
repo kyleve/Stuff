@@ -139,7 +139,8 @@ one it belongs to rather than to a god-object:
   badge), `DailySummaryReconciler` (year-to-date recap),
   `DataIssueAlertReconciler` ("issues to resolve").
 - **`WidgetSnapshotPublisher`** — republishes the App Group snapshot the widgets
-  read, with a freshness policy.
+  read, with a freshness policy and the device-local `WhereTheme` needed to
+  seed the extension's presentation root.
 - **`BackupCoordinator`** — ZIP export/import via `ZIPFoundation`. Export pins
   tables and evidence blobs to one generation-consistent snapshot. Merge preserves queued locations
   and the installation-local recording choice. Replace writes the archive into a new child generation,
@@ -159,7 +160,7 @@ one it belongs to rather than to a god-object:
   `InstallationRecordingContextStoring` keeps the persistence adapter outside
   the domain value.
 - **`WherePreferences`** — persisted user intent (onboarding,
-  reminder / summary schedules, Locations-card GPS-dot visibility) plus the
+  reminder / summary schedules, presentation theme, Locations-card GPS-dot visibility) plus the
   year-keyed Location-card counts used for presentation continuity, behind a
   `KeyValueStore`. The store has no
   default: production names `UserDefaults.standard` and everything else names
