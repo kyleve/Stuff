@@ -115,6 +115,19 @@
             WhereSession(services: previewServices(), preferences: previewPreferences())
         }
 
+        /// A persisted warning generation for rendering the Settings banner without a view-only
+        /// flag. The production model reads the same `WherePreferences` registration.
+        @MainActor
+        static func recordingConfigurationWarningModel()
+            -> RecordingConfigurationWarningModel
+        {
+            let preferences = previewPreferences()
+            var registration = preferences.recordingConfigurationWarningRegistration
+            registration.register(isWarningConditionActive: true)
+            preferences.recordingConfigurationWarningRegistration = registration
+            return RecordingConfigurationWarningModel(preferences: preferences)
+        }
+
         /// Current + left-behind device rows for the Devices screen.
         public static func recordingDeviceConfigurations() -> [RecordingDeviceConfiguration] {
             let remoteID = RecordingDeviceID(
@@ -624,6 +637,39 @@
             preferences.hasOnboarded = true
             return WhereModel(
                 services: previewServices(),
+                details: sampleYearReportDetails(),
+                selectedYear: year,
+                preferences: preferences,
+                logSystem: logSystem,
+                now: { referenceNow },
+            )
+        }
+
+        /// Logged-in shell fixture whose current phone is the expected recorder but has both
+        /// automatic recording and Always location access disabled. Launch reconciliation drives
+        /// the real session and warning model before snapshot capture.
+        @MainActor
+        static func recordingConfigurationWarningAppModel() -> WhereModel {
+            let preferences = previewPreferences()
+            preferences.hasOnboarded = true
+            let context = InstallationRecordingContext(
+                currentDevice: InstallationRecordingContext.testing.currentDevice,
+                registeredAt: InstallationRecordingContext.testing.registeredAt,
+                recordingChoice: .off,
+                isRejoining: false,
+            )
+            let services = WhereServices(
+                store: try! SwiftDataStore.inMemory(),
+                locationSource: ScriptedLocationSource(authorizationStatus: .whenInUse),
+                installationContext: context,
+                reminderScheduler: NoopLoggingReminderScheduler(),
+                summaryScheduler: NoopDailySummaryScheduler(),
+                issueAlertScheduler: NoopDataIssueAlertScheduler(),
+                widgetRefresher: NoopWidgetTimelineRefresher(),
+                now: { referenceNow },
+            )
+            return WhereModel(
+                services: services,
                 details: sampleYearReportDetails(),
                 selectedYear: year,
                 preferences: preferences,

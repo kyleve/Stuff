@@ -350,6 +350,18 @@ struct SettingsView: View {
                     .environment(PreviewSupport.loadedSession())
                     .environment(\.isInDemoMode, true)
             }
+            whereSnapshot(
+                name: "RecordingConfigurationWarning",
+                configurations: .fullContentPhoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
+                SettingsView(
+                    report: PreviewSupport.loadedYearReportModel(),
+                    recordingWarning: PreviewSupport.recordingConfigurationWarningModel(),
+                )
+                .environment(PreviewSupport.loadedModel())
+                .environment(PreviewSupport.loadedSession())
+            }
         }
     }
 
