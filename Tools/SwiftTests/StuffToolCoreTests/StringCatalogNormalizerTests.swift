@@ -13,12 +13,12 @@ struct StringCatalogNormalizerTests {
             let offenders = try StringCatalogNormalizer().normalize(
                 [catalog],
                 lintOnly: true,
+                displayRoot: directory,
             ) { reports.append($0) }
 
             #expect(offenders == [catalog])
             #expect(try Data(contentsOf: catalog) == original)
-            #expect(reports.count == 1)
-            #expect(reports[0].hasPrefix("not normalized: "))
+            #expect(reports == ["not normalized: Localizable.xcstrings"])
         }
     }
 
@@ -30,6 +30,7 @@ struct StringCatalogNormalizerTests {
             let offenders = try StringCatalogNormalizer().normalize(
                 [catalog],
                 lintOnly: false,
+                displayRoot: directory,
             ) { _ in }
             let data = try Data(contentsOf: catalog)
             let decoded = try JSONSerialization.jsonObject(with: data) as? [String: Any]
@@ -37,6 +38,27 @@ struct StringCatalogNormalizerTests {
             #expect(offenders == [catalog])
             #expect(decoded?["sourceLanguage"] as? String == "en")
             #expect(data.last != 10)
+        }
+    }
+
+    @Test func reportsPathsRelativeToAnExplicitDisplayRoot() throws {
+        try withTemporaryDirectory { directory in
+            let repository = directory.appending(path: "repository", directoryHint: .isDirectory)
+            let catalog = repository.appending(path: "Sources/Localizable.xcstrings")
+            try FileManager.default.createDirectory(
+                at: catalog.deletingLastPathComponent(),
+                withIntermediateDirectories: true,
+            )
+            try Data("{\"sourceLanguage\":\"en\",\"strings\":{}}\n".utf8).write(to: catalog)
+            var reports: [String] = []
+
+            _ = try StringCatalogNormalizer().normalize(
+                [catalog],
+                lintOnly: true,
+                displayRoot: repository,
+            ) { reports.append($0) }
+
+            #expect(reports == ["not normalized: Sources/Localizable.xcstrings"])
         }
     }
 

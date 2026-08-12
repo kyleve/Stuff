@@ -28,14 +28,33 @@ extension Terminal {
 }
 
 public actor StandardTerminal: Terminal {
-    public init() {}
+    private let standardOutput: FileHandle
+    private let standardError: FileHandle
+    private let lineReader: @Sendable () -> String?
+
+    public init() {
+        standardOutput = FileHandle.standardOutput
+        standardError = FileHandle.standardError
+        lineReader = { Swift.readLine(strippingNewline: true) }
+    }
+
+    @_spi(Testing)
+    public init(
+        standardOutput: FileHandle,
+        standardError: FileHandle,
+        lineReader: @escaping @Sendable () -> String?,
+    ) {
+        self.standardOutput = standardOutput
+        self.standardError = standardError
+        self.lineReader = lineReader
+    }
 
     public func write(_ bytes: [UInt8], to stream: TerminalStream) throws {
         let handle = switch stream {
             case .standardOutput:
-                FileHandle.standardOutput
+                standardOutput
             case .standardError:
-                FileHandle.standardError
+                standardError
         }
         try handle.write(contentsOf: Data(bytes))
     }
@@ -49,8 +68,8 @@ public actor StandardTerminal: Terminal {
     }
 
     public func readLine(prompt: String) throws -> String? {
-        try FileHandle.standardOutput.write(contentsOf: Data(prompt.utf8))
-        return Swift.readLine(strippingNewline: true)
+        try standardError.write(contentsOf: Data(prompt.utf8))
+        return lineReader()
     }
 }
 

@@ -70,7 +70,7 @@ public struct DirectoryLock: Sendable {
                 try fileSystem.write(
                     Data("\(processID)\n".utf8),
                     to: directory.appending(path: "pid"),
-                    atomically: false,
+                    atomically: true,
                 )
                 held = true
                 return

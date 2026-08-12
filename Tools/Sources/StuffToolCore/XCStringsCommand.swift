@@ -47,7 +47,11 @@ public struct XCStringsCommand: ParsableCommand {
             ? normalizer.catalogs(under: repository)
             : request.paths
             .map { URL(fileURLWithPath: $0, relativeTo: workingDirectory).standardizedFileURL }
-        let offenders = try normalizer.normalize(targets, lintOnly: request.lint) { print($0) }
+        let offenders = try normalizer.normalize(
+            targets,
+            lintOnly: request.lint,
+            displayRoot: repository,
+        ) { print($0) }
 
         if offenders.isEmpty {
             let subject = targets.count == 1 ? "catalog already matches" : "catalogs already match"

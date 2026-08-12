@@ -144,7 +144,7 @@ struct LedgerInstallServiceTests {
                 }
             },
         )
-        let faulting = LedgerFaultingFileSystem(base: base, failingMove: 2)
+        let faulting = MoveFaultFileSystem(base: base, failingMove: 2)
         let service = makeService(
             runner: runner,
             fileSystem: faulting,
@@ -157,13 +157,66 @@ struct LedgerInstallServiceTests {
         do {
             _ = try await service.run(LedgerInstallRequest(openAfterInstall: false))
             Issue.record("expected injected replacement failure")
-        } catch is InjectedLedgerMoveFailure {
+        } catch is InjectedMoveFailure {
             // Expected.
         }
 
         #expect(try base.read(destination.appending(path: "Contents/marker")) == Data("old".utf8))
         #expect(base.kind(of: applications.appending(path: ".Ledger-install-probe")) == .missing)
         #expect(base.kind(of: temporary.appending(path: "Ledger-install-build-probe")) == .missing)
+    }
+
+    @Test func rollbackFailurePreservesTheInstalledAppBackupForRecovery() async throws {
+        let root = try makeTemporaryDirectory()
+        defer { removeTemporaryDirectory(root) }
+        let base = FoundationFileSystem()
+        let applications = root.appending(path: "Applications", directoryHint: .isDirectory)
+        let temporary = root.appending(path: "tmp", directoryHint: .isDirectory)
+        try base.createDirectory(at: applications, withIntermediateDirectories: true)
+        try base.createDirectory(at: temporary, withIntermediateDirectories: true)
+        let destination = applications.appending(path: "Ledger.app", directoryHint: .isDirectory)
+        try makeLedgerApp(destination, marker: "old", fileSystem: base)
+        let built = temporary.appending(
+            path: "Ledger-install-build-probe/Build/Products/Release/Ledger.app",
+            directoryHint: .isDirectory,
+        )
+        let runner = FakeCommandRunner(
+            responses: [.stub(), .stub(), .stub()],
+            onRun: { index, _ in
+                if index == 1 {
+                    try makeLedgerApp(built, marker: "new", fileSystem: base)
+                }
+            },
+        )
+        let transactionRoot = applications.appending(
+            path: ".Ledger-install-probe",
+            directoryHint: .isDirectory,
+        )
+        let faulting = MoveFaultFileSystem(base: base, failingMoves: [2, 3])
+        let service = makeService(
+            runner: runner,
+            fileSystem: faulting,
+            terminal: MemoryTerminal(),
+            root: root,
+            applications: applications,
+            temporary: temporary,
+        )
+
+        do {
+            _ = try await service.run(LedgerInstallRequest(openAfterInstall: false))
+            Issue.record("expected rollback failure")
+        } catch let failure as FileReplacementTransactionFailure {
+            #expect(failure.description.contains(transactionRoot.appending(path: "backup").path))
+        } catch {
+            Issue.record("unexpected error: \(error)")
+        }
+
+        #expect(base.kind(of: transactionRoot) == .directory)
+        #expect(base.kind(of: destination) == .missing)
+        #expect(
+            try base.read(transactionRoot.appending(path: "backup/0/Contents/marker")) ==
+                Data("old".utf8),
+        )
     }
 
     private func makeService(
@@ -216,54 +269,3 @@ private func makeLedgerApp(
         atomically: false,
     )
 }
-
-private final class LedgerFaultingFileSystem: FileSystem, @unchecked Sendable {
-    private let base: FoundationFileSystem
-    private let failingMove: Int
-    private var moveCount = 0
-
-    init(base: FoundationFileSystem, failingMove: Int) {
-        self.base = base
-        self.failingMove = failingMove
-    }
-
-    func kind(of url: URL) -> FileItemKind {
-        base.kind(of: url)
-    }
-
-    func contents(of directory: URL) throws -> [URL] {
-        try base.contents(of: directory)
-    }
-
-    func copyItem(at source: URL, to destination: URL) throws {
-        try base.copyItem(at: source, to: destination)
-    }
-
-    func createDirectory(at url: URL, withIntermediateDirectories: Bool) throws {
-        try base.createDirectory(at: url, withIntermediateDirectories: withIntermediateDirectories)
-    }
-
-    func moveItem(at source: URL, to destination: URL) throws {
-        moveCount += 1
-        if moveCount == failingMove { throw InjectedLedgerMoveFailure() }
-        try base.moveItem(at: source, to: destination)
-    }
-
-    func removeItem(at url: URL) throws {
-        try base.removeItem(at: url)
-    }
-
-    func read(_ url: URL) throws -> Data {
-        try base.read(url)
-    }
-
-    func write(_ data: Data, to url: URL, atomically: Bool) throws {
-        try base.write(data, to: url, atomically: atomically)
-    }
-
-    func setPosixPermissions(_ permissions: Int, at url: URL) throws {
-        try base.setPosixPermissions(permissions, at: url)
-    }
-}
-
-private struct InjectedLedgerMoveFailure: Error {}

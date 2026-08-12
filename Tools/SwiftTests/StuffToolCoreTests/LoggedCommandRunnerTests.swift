@@ -15,7 +15,15 @@ struct LoggedCommandRunnerTests {
             runner: runner,
             fileSystem: FoundationFileSystem(),
         ).run(
-            CommandInvocation(executable: "tool", captureOutput: false),
+            CommandInvocation(
+                executable: "tool",
+                arguments: [],
+                environment: [:],
+                workingDirectory: nil,
+                standardInput: [],
+                captureOutput: false,
+                mergeStandardError: false,
+            ),
             logURL: log,
         )
 

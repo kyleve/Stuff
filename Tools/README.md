@@ -23,6 +23,16 @@ updates. Update dependencies explicitly with `swift package resolve
 --package-path Tools`, then regenerate the app attribution report because these
 packages are credited as development tools.
 
+Every external command runs in its own process group. Cancellation and output
+failures tear down that entire group, including descendants left behind when
+their leader exits. The executable forwards HUP, INT, QUIT, PIPE, and TERM,
+waits a bounded interval for cleanup, and then preserves that signal's shell exit
+status; a repeated signal forces immediate group cleanup. A Dispatch-side final
+watchdog still exits if a synchronous terminal write has blocked Swift's executor.
+Processes that deliberately create a new session leave this ownership boundary.
+Terminal stop/resume job control is not yet bridged across the isolated session;
+the root `TODOs.md` tracks that remaining compatibility gap.
+
 ## Migrated commands
 
 - `./xcstrings` owns byte-identical String Catalog normalization.
@@ -43,14 +53,16 @@ packages are credited as development tools.
   both pass and fail; prerequisite and build failures still exit nonzero.
 - `./icons` validates complete app-catalog, preview-catalog, and manifest outputs
   before a same-filesystem transaction replaces anything. A failed commit rolls
-  every target back, and `--dry-run` performs validation without staging files.
+  every target back; if rollback itself fails, the command preserves and reports
+  the recovery directory. `--dry-run` performs validation without staging files.
 - `./Where/install` keeps signing, build, exact physical-device selection,
   installation, and launch as typed steps. It decodes `devicectl`'s current
   properties schema and offers a no-signing, no-device-query `--dry-run`.
 - `./Ledger/install` validates the fixed destination and complete app shape,
   terminates only the exact installed executable with bounded escalation, and
-  replaces it from `/Applications`-local staging with rollback. Its `--dry-run`
-  performs no build, process, filesystem, or launch operation.
+  replaces it from `/Applications`-local staging with rollback. A failed rollback
+  preserves and reports its recovery directory. Its `--dry-run` performs no
+  build, process, filesystem, or launch operation.
 
 ## Why `test` uses raw xcodebuild
 

@@ -99,7 +99,11 @@ public struct WhereInstallService: Sendable {
                     "-c",
                     #"printf "%s" "${TUIST_DEVELOPMENT_TEAM:-}""#,
                 ],
+                environment: [:],
                 workingDirectory: repository,
+                standardInput: [],
+                captureOutput: true,
+                mergeStandardError: false,
             ),
             outputHandler: { stream, bytes in
                 if stream == .standardError {
@@ -128,8 +132,11 @@ public struct WhereInstallService: Sendable {
             CommandInvocation(
                 executable: "mise",
                 arguments: ["exec", "--", "tuist", "generate", "--no-open"],
+                environment: [:],
                 workingDirectory: repository,
+                standardInput: [],
                 captureOutput: false,
+                mergeStandardError: false,
             ),
             outputHandler: { stream, bytes in
                 if stream == .standardError {
@@ -165,8 +172,11 @@ public struct WhereInstallService: Sendable {
                     "--json-output",
                     paths.devicesJSON.path,
                 ],
+                environment: [:],
                 workingDirectory: repository,
+                standardInput: [],
                 captureOutput: false,
+                mergeStandardError: false,
             ),
             outputHandler: { stream, bytes in
                 if stream == .standardError {
@@ -215,8 +225,11 @@ public struct WhereInstallService: Sendable {
                     selected.identifier,
                     app.path,
                 ],
+                environment: [:],
                 workingDirectory: repository,
+                standardInput: [],
                 captureOutput: false,
+                mergeStandardError: false,
             ),
         )
         guard install.succeeded else { throw WhereInstallFailure.exitCode(install.exitCode) }
@@ -240,8 +253,11 @@ public struct WhereInstallService: Sendable {
                         "--terminate-existing",
                         Self.bundleID,
                     ],
+                    environment: [:],
                     workingDirectory: repository,
+                    standardInput: [],
                     captureOutput: false,
+                    mergeStandardError: false,
                 ),
             )
             guard launch.succeeded else { throw WhereInstallFailure.exitCode(launch.exitCode) }
@@ -303,8 +319,11 @@ public struct WhereInstallService: Sendable {
         return CommandInvocation(
             executable: "mise",
             arguments: arguments,
+            environment: [:],
             workingDirectory: repository,
+            standardInput: [],
             captureOutput: false,
+            mergeStandardError: false,
         )
     }
 

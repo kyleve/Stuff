@@ -16,7 +16,7 @@ let package = Package(
         ),
         .package(
             url: "https://github.com/swiftlang/swift-subprocess",
-            .upToNextMinor(from: "0.5.0"),
+            exact: "1.0.0",
         ),
     ],
     targets: [
@@ -38,7 +38,7 @@ let package = Package(
         ),
         .testTarget(
             name: "StuffToolCoreTests",
-            dependencies: ["StuffToolCore"],
+            dependencies: ["StuffTool", "StuffToolCore"],
             path: "SwiftTests/StuffToolCoreTests",
             resources: [.copy("Fixtures")],
         ),

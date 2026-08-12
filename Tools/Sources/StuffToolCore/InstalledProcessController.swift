@@ -138,7 +138,11 @@ public struct InstalledProcessController: Sendable {
             CommandInvocation(
                 executable: "ps",
                 arguments: ["-ww", "-axo", "pid=,comm="],
+                environment: [:],
                 workingDirectory: repository,
+                standardInput: [],
+                captureOutput: true,
+                mergeStandardError: false,
             ),
         )
         guard result.succeeded else { throw InstalledProcessFailure.exitCode(result.exitCode) }
@@ -152,7 +156,11 @@ public struct InstalledProcessController: Sendable {
             CommandInvocation(
                 executable: "kill",
                 arguments: [signal, String(processID)],
+                environment: [:],
                 workingDirectory: repository,
+                standardInput: [],
+                captureOutput: true,
+                mergeStandardError: false,
             ),
         )
     }

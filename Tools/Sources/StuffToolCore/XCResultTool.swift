@@ -67,7 +67,11 @@ public struct XCResultTool: Sendable {
                     "--path",
                     resultBundle.path,
                 ],
+                environment: [:],
                 workingDirectory: repository,
+                standardInput: [],
+                captureOutput: true,
+                mergeStandardError: false,
             ),
         )
         guard result.succeeded else {

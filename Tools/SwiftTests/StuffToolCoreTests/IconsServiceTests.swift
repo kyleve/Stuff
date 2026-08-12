@@ -102,7 +102,7 @@ struct IconsServiceTests {
         try makeIconRepository(root, fileSystem: base)
         _ = try writeIconFixture(root, fileSystem: base)
         let original = try base.read(iconManifestURL(root))
-        let faulting = IconFaultingFileSystem(base: base, failingMove: 4)
+        let faulting = MoveFaultFileSystem(base: base, failingMove: 4)
         let service = IconsService(
             fileSystem: faulting,
             terminal: MemoryTerminal(),
@@ -117,7 +117,7 @@ struct IconsServiceTests {
                 ),
             )
             Issue.record("expected the injected commit failure")
-        } catch is InjectedIconMoveFailure {
+        } catch is InjectedMoveFailure {
             // Expected.
         }
 
@@ -131,6 +131,42 @@ struct IconsServiceTests {
         )) == .missing)
         #expect(base
             .kind(of: root.appending(path: ".stuff-icons-transaction-rollback")) == .missing)
+    }
+
+    @Test func rollbackFailurePreservesTheTransactionForManualRecovery() async throws {
+        let root = try makeTemporaryDirectory()
+        defer { removeTemporaryDirectory(root) }
+        let base = FoundationFileSystem()
+        try makeIconRepository(root, fileSystem: base)
+        _ = try writeIconFixture(root, fileSystem: base)
+        let original = try base.read(iconManifestURL(root))
+        let transactionRoot = root.appending(
+            path: ".stuff-icons-transaction-recovery",
+            directoryHint: .isDirectory,
+        )
+        let faulting = MoveFaultFileSystem(base: base, failingMoves: [4, 5])
+        let service = IconsService(
+            fileSystem: faulting,
+            terminal: MemoryTerminal(),
+            repository: root,
+            transactionIdentifier: { "recovery" },
+        )
+
+        do {
+            try await service.run(
+                .add(IconAddRequest(lightPath: "art/ocean.png", name: "Ocean")),
+            )
+            Issue.record("expected rollback failure")
+        } catch let failure as FileReplacementTransactionFailure {
+            #expect(failure.description.contains(transactionRoot.appending(path: "backup").path))
+        } catch {
+            Issue.record("unexpected error: \(error)")
+        }
+
+        #expect(base.kind(of: transactionRoot) == .directory)
+        #expect(
+            try base.read(transactionRoot.appending(path: "backup/2")) == original,
+        )
     }
 
     @Test func listPreservesTheLegacyAlignedOutput() async throws {
@@ -194,54 +230,3 @@ private func writeIconFixture(_ root: URL, fileSystem: FoundationFileSystem) thr
 private func iconManifestURL(_ root: URL) -> URL {
     root.appending(path: "Where/WhereUI/Sources/Resources/AppIcons.json")
 }
-
-private final class IconFaultingFileSystem: FileSystem, @unchecked Sendable {
-    private let base: FoundationFileSystem
-    private let failingMove: Int
-    private var moveCount = 0
-
-    init(base: FoundationFileSystem, failingMove: Int) {
-        self.base = base
-        self.failingMove = failingMove
-    }
-
-    func kind(of url: URL) -> FileItemKind {
-        base.kind(of: url)
-    }
-
-    func contents(of directory: URL) throws -> [URL] {
-        try base.contents(of: directory)
-    }
-
-    func copyItem(at source: URL, to destination: URL) throws {
-        try base.copyItem(at: source, to: destination)
-    }
-
-    func createDirectory(at url: URL, withIntermediateDirectories: Bool) throws {
-        try base.createDirectory(at: url, withIntermediateDirectories: withIntermediateDirectories)
-    }
-
-    func moveItem(at source: URL, to destination: URL) throws {
-        moveCount += 1
-        if moveCount == failingMove { throw InjectedIconMoveFailure() }
-        try base.moveItem(at: source, to: destination)
-    }
-
-    func removeItem(at url: URL) throws {
-        try base.removeItem(at: url)
-    }
-
-    func read(_ url: URL) throws -> Data {
-        try base.read(url)
-    }
-
-    func write(_ data: Data, to url: URL, atomically: Bool) throws {
-        try base.write(data, to: url, atomically: atomically)
-    }
-
-    func setPosixPermissions(_ permissions: Int, at url: URL) throws {
-        try base.setPosixPermissions(permissions, at: url)
-    }
-}
-
-private struct InjectedIconMoveFailure: Error {}

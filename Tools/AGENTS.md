@@ -10,8 +10,9 @@ remain in [`../AGENTS.md`](../AGENTS.md).
 
 - Keep the package independent of the app package so running a developer command
   does not resolve or build application dependencies.
-- `StuffToolCore` may import Foundation, ArgumentParser, and Subprocess. Keep the
-  `StuffTool` executable as a registration-only composition root.
+- `StuffToolCore` may import Foundation, Darwin, Dispatch, Synchronization,
+  ArgumentParser, and Subprocess. Keep the `StuffTool` executable limited to
+  command registration and process-wide signal supervision.
 - Preserve the root command shims as the public interface; command implementations
   must not assume the caller's current working directory is the repository root.
 - Keep retained Python and Ruby behavior importable without executing its CLI;

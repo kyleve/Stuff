@@ -47,7 +47,7 @@ struct FileReplacementTransactionTests {
         let stagedSecond = stage.appending(path: "second")
         try base.write(Data("first-new".utf8), to: stagedFirst, atomically: false)
         try base.write(Data("second-new".utf8), to: stagedSecond, atomically: false)
-        let faulting = FailingMoveFileSystem(base: base, failingMove: 4)
+        let faulting = MoveFaultFileSystem(base: base, failingMove: 4)
 
         #expect(throws: (any Error).self) {
             try FileReplacementTransaction(fileSystem: faulting).commit(
@@ -62,55 +62,36 @@ struct FileReplacementTransactionTests {
         #expect(try base.read(first) == Data("first-old".utf8))
         #expect(try base.read(second) == Data("second-old".utf8))
     }
-}
 
-private final class FailingMoveFileSystem: FileSystem, @unchecked Sendable {
-    private let base: FoundationFileSystem
-    private let failingMove: Int
-    private var moveCount = 0
+    @Test func preservesAndReportsBackupsWhenRollbackFails() throws {
+        let root = try makeTemporaryDirectory()
+        defer { removeTemporaryDirectory(root) }
+        let base = FoundationFileSystem()
+        let target = root.appending(path: "target")
+        let staged = root.appending(path: "staged")
+        let backup = root.appending(path: "backup", directoryHint: .isDirectory)
+        try base.write(Data("old".utf8), to: target, atomically: false)
+        try base.write(Data("new".utf8), to: staged, atomically: false)
+        let faulting = MoveFaultFileSystem(base: base, failingMoves: [2, 3])
 
-    init(base: FoundationFileSystem, failingMove: Int) {
-        self.base = base
-        self.failingMove = failingMove
-    }
+        do {
+            try FileReplacementTransaction(fileSystem: faulting).commit(
+                [FileReplacement(target: target, staged: staged)],
+                backupDirectory: backup,
+            )
+            Issue.record("expected rollback failure")
+        } catch let failure as FileReplacementTransactionFailure {
+            guard case let .rollbackFailed(_, _, recoveryDirectory) = failure else {
+                Issue.record("unexpected transaction failure: \(failure)")
+                return
+            }
+            #expect(recoveryDirectory == backup)
+            #expect(failure.description.contains(backup.path))
+        } catch {
+            Issue.record("unexpected error: \(error)")
+        }
 
-    func kind(of url: URL) -> FileItemKind {
-        base.kind(of: url)
-    }
-
-    func contents(of directory: URL) throws -> [URL] {
-        try base.contents(of: directory)
-    }
-
-    func copyItem(at source: URL, to destination: URL) throws {
-        try base.copyItem(at: source, to: destination)
-    }
-
-    func createDirectory(at url: URL, withIntermediateDirectories: Bool) throws {
-        try base.createDirectory(at: url, withIntermediateDirectories: withIntermediateDirectories)
-    }
-
-    func moveItem(at source: URL, to destination: URL) throws {
-        moveCount += 1
-        if moveCount == failingMove { throw InjectedMoveFailure() }
-        try base.moveItem(at: source, to: destination)
-    }
-
-    func removeItem(at url: URL) throws {
-        try base.removeItem(at: url)
-    }
-
-    func read(_ url: URL) throws -> Data {
-        try base.read(url)
-    }
-
-    func write(_ data: Data, to url: URL, atomically: Bool) throws {
-        try base.write(data, to: url, atomically: atomically)
-    }
-
-    func setPosixPermissions(_ permissions: Int, at url: URL) throws {
-        try base.setPosixPermissions(permissions, at: url)
+        #expect(base.kind(of: target) == .missing)
+        #expect(try base.read(backup.appending(path: "0")) == Data("old".utf8))
     }
 }
-
-private struct InjectedMoveFailure: Error {}

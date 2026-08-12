@@ -123,7 +123,7 @@ public struct FlakyCommand: AsyncParsableCommand {
             if case let .message(message) = failure {
                 try await terminal.write("error: \(message)\n", to: .standardError)
             }
-            throw ExitCode.failure
+            throw ExitCode(failure.exitStatus)
         } catch let failure as DirectoryLockFailure {
             try await terminal.write("error: \(failure)\n", to: .standardError)
             throw ExitCode.failure

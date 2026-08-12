@@ -104,8 +104,11 @@ public struct FlakyService: Sendable {
             CommandInvocation(
                 executable: "mise",
                 arguments: ["exec", "--", "tuist", "generate", "--no-open"],
+                environment: [:],
                 workingDirectory: repository,
+                standardInput: [],
                 captureOutput: false,
+                mergeStandardError: false,
             ),
             outputHandler: { stream, bytes in
                 if stream == .standardError {
@@ -374,6 +377,7 @@ public struct FlakyService: Sendable {
                 arguments: arguments,
                 environment: environment,
                 workingDirectory: repository,
+                standardInput: [],
                 captureOutput: false,
                 mergeStandardError: true,
             ),
@@ -400,7 +404,11 @@ public struct FlakyService: Sendable {
                     "-derivedDataPath",
                     derivedData.path,
                 ],
+                environment: [:],
                 workingDirectory: repository,
+                standardInput: [],
+                captureOutput: true,
+                mergeStandardError: false,
             ),
         )
         guard result.succeeded else { return nil }

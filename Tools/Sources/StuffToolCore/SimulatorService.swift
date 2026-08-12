@@ -40,12 +40,21 @@ public struct SimulatorRequest: Equatable, Sendable {
 
 public enum SimulatorFailure: Error, Equatable, CustomStringConvertible, Sendable {
     case message(String)
+    case exitCode(Int32)
     case reported
 
     public var description: String {
         switch self {
             case let .message(message): message
+            case let .exitCode(code): "simulator command exited with status \(code)"
             case .reported: "simulator command failed"
+        }
+    }
+
+    public var exitStatus: Int32 {
+        switch self {
+            case .message, .reported: 1
+            case let .exitCode(code): code
         }
     }
 }
@@ -112,11 +121,15 @@ public struct SimulatorService: Sendable {
                 try await prune(registry: registry, dryRun: request.dryRun)
                 return nil
             case .delete:
+                if request.dryRun {
+                    try await deleteOwned(identity: identity, registry: registry, dryRun: true)
+                    return nil
+                }
                 return try await withLock(identity: identity) { _ in
                     try await deleteOwned(
                         identity: identity,
                         registry: registry,
-                        dryRun: request.dryRun,
+                        dryRun: false,
                     )
                     return nil
                 }
@@ -178,7 +191,11 @@ public struct SimulatorService: Sendable {
             CommandInvocation(
                 executable: "git",
                 arguments: ["rev-parse", "--show-toplevel"],
+                environment: [:],
                 workingDirectory: repository,
+                standardInput: [],
+                captureOutput: true,
+                mergeStandardError: false,
             ),
         )
         let path = result.standardOutputText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -583,12 +600,16 @@ public struct SimulatorService: Sendable {
             CommandInvocation(
                 executable: "xcrun",
                 arguments: arguments,
+                environment: [:],
                 workingDirectory: repository,
+                standardInput: [],
+                captureOutput: true,
+                mergeStandardError: false,
             ),
         )
         guard result.succeeded else {
             try await terminal.write(result.standardError, to: .standardError)
-            throw SimulatorFailure.reported
+            throw SimulatorFailure.exitCode(result.exitCode)
         }
         return result
     }
@@ -598,7 +619,11 @@ public struct SimulatorService: Sendable {
             CommandInvocation(
                 executable: "xcrun",
                 arguments: arguments,
+                environment: [:],
                 workingDirectory: repository,
+                standardInput: [],
+                captureOutput: true,
+                mergeStandardError: false,
             ),
         )
         try await terminal.write(result.standardOutput, to: .standardError)
@@ -610,13 +635,17 @@ public struct SimulatorService: Sendable {
             CommandInvocation(
                 executable: "xcrun",
                 arguments: arguments,
+                environment: [:],
                 workingDirectory: repository,
+                standardInput: [],
+                captureOutput: true,
+                mergeStandardError: false,
             ),
             outputHandler: { _, bytes in
                 try await terminal.write(bytes, to: .standardError)
             },
         )
-        guard result.succeeded else { throw SimulatorFailure.reported }
+        guard result.succeeded else { throw SimulatorFailure.exitCode(result.exitCode) }
     }
 }
 

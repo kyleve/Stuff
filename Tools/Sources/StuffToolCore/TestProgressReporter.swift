@@ -268,7 +268,8 @@ public actor TestProgressReporter {
         let done: Int
         let total: Int
         let unit: String
-        if expected.images > 0, images > 0 {
+        let tracksImages = images > 0 && (expected.images > 0 || expected.tests == 0)
+        if tracksImages {
             done = images
             total = expected.images
             unit = "images"

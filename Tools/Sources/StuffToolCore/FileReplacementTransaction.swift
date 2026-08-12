@@ -11,12 +11,13 @@ public struct FileReplacement: Equatable, Sendable {
 }
 
 public enum FileReplacementTransactionFailure: Error, CustomStringConvertible, Sendable {
-    case rollbackFailed(commit: String, rollback: String)
+    case rollbackFailed(commit: String, rollback: String, recoveryDirectory: URL)
 
     public var description: String {
         switch self {
-            case let .rollbackFailed(commit, rollback):
-                "file commit failed (\(commit)); rollback also failed (\(rollback))"
+            case let .rollbackFailed(commit, rollback, recoveryDirectory):
+                "file commit failed (\(commit)); rollback also failed (\(rollback)); " +
+                    "remaining backups preserved at \(recoveryDirectory.path)"
         }
     }
 }
@@ -87,6 +88,7 @@ public struct FileReplacementTransaction: Sendable {
                 throw FileReplacementTransactionFailure.rollbackFailed(
                     commit: String(describing: commitError),
                     rollback: String(describing: error),
+                    recoveryDirectory: backupDirectory,
                 )
             }
             throw commitError

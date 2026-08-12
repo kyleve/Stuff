@@ -109,8 +109,11 @@ public struct TestService: Sendable {
                     "ruby",
                     "Where/Tools/Tests/upgrade_backup_test.rb",
                 ],
+                environment: [:],
                 workingDirectory: repository,
+                standardInput: [],
                 captureOutput: false,
+                mergeStandardError: false,
             ),
         )
         guard backupResult.succeeded else {
@@ -254,6 +257,7 @@ public struct TestService: Sendable {
                         ] + scheme.filters,
                         environment: runEnvironment,
                         workingDirectory: repository,
+                        standardInput: [],
                         captureOutput: false,
                         mergeStandardError: true,
                     ),
@@ -318,7 +322,11 @@ public struct TestService: Sendable {
             CommandInvocation(
                 executable: "git",
                 arguments: ["rev-parse", "--verify", "--quiet", baseReference],
+                environment: [:],
                 workingDirectory: repository,
+                standardInput: [],
+                captureOutput: true,
+                mergeStandardError: false,
             ),
         )
         let base: String
@@ -327,7 +335,11 @@ public struct TestService: Sendable {
                 CommandInvocation(
                     executable: "git",
                     arguments: ["merge-base", "HEAD", baseReference],
+                    environment: [:],
                     workingDirectory: repository,
+                    standardInput: [],
+                    captureOutput: true,
+                    mergeStandardError: false,
                 ),
             )
             guard mergeBase.succeeded else {
@@ -355,7 +367,11 @@ public struct TestService: Sendable {
                 CommandInvocation(
                     executable: "git",
                     arguments: arguments,
+                    environment: [:],
                     workingDirectory: repository,
+                    standardInput: [],
+                    captureOutput: true,
+                    mergeStandardError: false,
                 ),
             )
             guard result.succeeded else {
@@ -395,7 +411,11 @@ public struct TestService: Sendable {
                     "--output-path",
                     graphDirectory.path,
                 ],
+                environment: [:],
                 workingDirectory: repository,
+                standardInput: [],
+                captureOutput: true,
+                mergeStandardError: false,
             ),
         )
         guard graphResult.succeeded else {
@@ -408,7 +428,11 @@ public struct TestService: Sendable {
             CommandInvocation(
                 executable: "xcrun",
                 arguments: ["swift", "package", "dump-package"],
+                environment: [:],
                 workingDirectory: repository,
+                standardInput: [],
+                captureOutput: true,
+                mergeStandardError: false,
             ),
         )
         guard packageResult.succeeded else {
@@ -438,7 +462,9 @@ public struct TestService: Sendable {
             CommandInvocation(
                 executable: "mise",
                 arguments: ["exec", "--", "tuist", "generate", "--no-open"],
+                environment: [:],
                 workingDirectory: repository,
+                standardInput: [],
                 captureOutput: false,
                 mergeStandardError: true,
             ),
@@ -461,7 +487,11 @@ public struct TestService: Sendable {
                 CommandInvocation(
                     executable: "git-lfs",
                     arguments: ["version"],
+                    environment: [:],
                     workingDirectory: repository,
+                    standardInput: [],
+                    captureOutput: true,
+                    mergeStandardError: false,
                 ),
             )
         } catch {
@@ -479,7 +509,11 @@ public struct TestService: Sendable {
             CommandInvocation(
                 executable: "git",
                 arguments: ["lfs", "ls-files", "--json"],
+                environment: [:],
                 workingDirectory: repository,
+                standardInput: [],
+                captureOutput: true,
+                mergeStandardError: false,
             ),
         )
         guard listing.succeeded else {
@@ -531,7 +565,11 @@ public struct TestService: Sendable {
                     "-destination",
                     destination,
                 ],
+                environment: [:],
                 workingDirectory: repository,
+                standardInput: [],
+                captureOutput: true,
+                mergeStandardError: false,
             ),
         )
         guard result.succeeded else { return nil }
@@ -563,7 +601,9 @@ public struct TestService: Sendable {
                     "-destination",
                     destination,
                 ],
+                environment: [:],
                 workingDirectory: repository,
+                standardInput: [],
                 captureOutput: false,
                 mergeStandardError: true,
             ),

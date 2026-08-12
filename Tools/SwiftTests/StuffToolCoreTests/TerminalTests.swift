@@ -1,4 +1,5 @@
-import StuffToolCore
+import Foundation
+@_spi(Testing) import StuffToolCore
 import Testing
 
 struct TerminalTests {
@@ -22,5 +23,26 @@ struct TerminalTests {
         #expect(await base.standardErrorText == "booting\n")
         #expect(await terminal.isInputInteractive() == false)
         #expect(try await terminal.readLine(prompt: "continue") == nil)
+    }
+
+    @Test func standardTerminalWritesPromptsToStandardError() async throws {
+        let standardOutput = Pipe()
+        let standardError = Pipe()
+        let terminal = StandardTerminal(
+            standardOutput: standardOutput.fileHandleForWriting,
+            standardError: standardError.fileHandleForWriting,
+            lineReader: { "yes" },
+        )
+
+        let response = try await terminal.readLine(prompt: "Continue? ")
+        try standardOutput.fileHandleForWriting.close()
+        try standardError.fileHandleForWriting.close()
+
+        #expect(response == "yes")
+        #expect(standardOutput.fileHandleForReading.readDataToEndOfFile().isEmpty)
+        #expect(String(
+            decoding: standardError.fileHandleForReading.readDataToEndOfFile(),
+            as: UTF8.self,
+        ) == "Continue? ")
     }
 }

@@ -42,6 +42,66 @@ enum FakeCommandFailure: Error {
     case missingResponse(CommandInvocation)
 }
 
+struct InjectedMoveFailure: Error {}
+
+final class MoveFaultFileSystem: FileSystem, @unchecked Sendable {
+    private let base: FoundationFileSystem
+    private let failingMoves: Set<Int>
+    private let lock = NSLock()
+    private var moveCount = 0
+
+    init(base: FoundationFileSystem, failingMove: Int) {
+        self.base = base
+        failingMoves = [failingMove]
+    }
+
+    init(base: FoundationFileSystem, failingMoves: Set<Int>) {
+        self.base = base
+        self.failingMoves = failingMoves
+    }
+
+    func kind(of url: URL) -> FileItemKind {
+        base.kind(of: url)
+    }
+
+    func contents(of directory: URL) throws -> [URL] {
+        try base.contents(of: directory)
+    }
+
+    func copyItem(at source: URL, to destination: URL) throws {
+        try base.copyItem(at: source, to: destination)
+    }
+
+    func createDirectory(at url: URL, withIntermediateDirectories: Bool) throws {
+        try base.createDirectory(at: url, withIntermediateDirectories: withIntermediateDirectories)
+    }
+
+    func moveItem(at source: URL, to destination: URL) throws {
+        lock.lock()
+        moveCount += 1
+        let shouldFail = failingMoves.contains(moveCount)
+        lock.unlock()
+        if shouldFail { throw InjectedMoveFailure() }
+        try base.moveItem(at: source, to: destination)
+    }
+
+    func removeItem(at url: URL) throws {
+        try base.removeItem(at: url)
+    }
+
+    func read(_ url: URL) throws -> Data {
+        try base.read(url)
+    }
+
+    func write(_ data: Data, to url: URL, atomically: Bool) throws {
+        try base.write(data, to: url, atomically: atomically)
+    }
+
+    func setPosixPermissions(_ permissions: Int, at url: URL) throws {
+        try base.setPosixPermissions(permissions, at: url)
+    }
+}
+
 extension CommandResult {
     static func stub(
         exitCode: Int32 = 0,

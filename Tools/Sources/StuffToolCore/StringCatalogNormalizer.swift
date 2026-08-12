@@ -48,15 +48,18 @@ public struct StringCatalogNormalizer: Sendable {
     public func normalize(
         _ targets: [URL],
         lintOnly: Bool,
+        displayRoot: URL,
         report: (String) -> Void,
     ) throws -> [URL] {
         var offenders: [URL] = []
-        let root = FileManager.default.currentDirectoryPath + "/"
+        let rootPath = displayRoot.standardizedFileURL.path
+        let root = rootPath.hasSuffix("/") ? rootPath : rootPath + "/"
         for url in targets {
             let rewritten = try normalized(url)
             guard try rewritten != Data(contentsOf: url) else { continue }
             offenders.append(url)
-            let display = url.path.replacingOccurrences(of: root, with: "")
+            let path = url.standardizedFileURL.path
+            let display = path.hasPrefix(root) ? String(path.dropFirst(root.count)) : path
             if lintOnly {
                 report("not normalized: \(display)")
             } else {

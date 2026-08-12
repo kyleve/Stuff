@@ -136,7 +136,12 @@ public struct IconsService: Sendable {
         }
 
         let transactionRoot = try makeTransactionRoot()
-        defer { try? fileSystem.removeItem(at: transactionRoot) }
+        var preserveTransactionRootForRecovery = false
+        defer {
+            if preserveTransactionRootForRecovery == false {
+                try? fileSystem.removeItem(at: transactionRoot)
+            }
+        }
         let stage = transactionRoot.appending(path: "stage", directoryHint: .isDirectory)
         let stagedApp = stage.appending(path: "app", directoryHint: .isDirectory)
         let stagedPreview = stage.appending(path: "preview", directoryHint: .isDirectory)
@@ -156,14 +161,19 @@ public struct IconsService: Sendable {
         )
         try fileSystem.write(manifestData, to: stagedManifest, atomically: false)
 
-        try FileReplacementTransaction(fileSystem: fileSystem).commit(
-            [
-                FileReplacement(target: appTarget, staged: stagedApp),
-                FileReplacement(target: previewTarget, staged: stagedPreview),
-                FileReplacement(target: layout.manifest, staged: stagedManifest),
-            ],
-            backupDirectory: transactionRoot.appending(path: "backup"),
-        )
+        do {
+            try FileReplacementTransaction(fileSystem: fileSystem).commit(
+                [
+                    FileReplacement(target: appTarget, staged: stagedApp),
+                    FileReplacement(target: previewTarget, staged: stagedPreview),
+                    FileReplacement(target: layout.manifest, staged: stagedManifest),
+                ],
+                backupDirectory: transactionRoot.appending(path: "backup"),
+            )
+        } catch let failure as FileReplacementTransactionFailure {
+            preserveTransactionRootForRecovery = true
+            throw failure
+        }
         try await terminal.write(
             "Added \"\(plan.icon.displayName)\" (id: \(plan.icon.id), asset: \(plan.setName)).\n",
             to: .standardOutput,
@@ -203,31 +213,41 @@ public struct IconsService: Sendable {
         }
 
         let transactionRoot = try makeTransactionRoot()
-        defer { try? fileSystem.removeItem(at: transactionRoot) }
+        var preserveTransactionRootForRecovery = false
+        defer {
+            if preserveTransactionRootForRecovery == false {
+                try? fileSystem.removeItem(at: transactionRoot)
+            }
+        }
         let stage = transactionRoot.appending(path: "stage", directoryHint: .isDirectory)
         let stagedManifest = stage.appending(path: "AppIcons.json")
         try fileSystem.createDirectory(at: stage, withIntermediateDirectories: true)
         try fileSystem.write(manifestData, to: stagedManifest, atomically: false)
-        try FileReplacementTransaction(fileSystem: fileSystem).commit(
-            [
-                FileReplacement(
-                    target: layout.appCatalog.appending(
-                        path: "\(setName).appiconset",
-                        directoryHint: .isDirectory,
+        do {
+            try FileReplacementTransaction(fileSystem: fileSystem).commit(
+                [
+                    FileReplacement(
+                        target: layout.appCatalog.appending(
+                            path: "\(setName).appiconset",
+                            directoryHint: .isDirectory,
+                        ),
+                        staged: nil,
                     ),
-                    staged: nil,
-                ),
-                FileReplacement(
-                    target: layout.previewCatalog.appending(
-                        path: "\(setName).imageset",
-                        directoryHint: .isDirectory,
+                    FileReplacement(
+                        target: layout.previewCatalog.appending(
+                            path: "\(setName).imageset",
+                            directoryHint: .isDirectory,
+                        ),
+                        staged: nil,
                     ),
-                    staged: nil,
-                ),
-                FileReplacement(target: layout.manifest, staged: stagedManifest),
-            ],
-            backupDirectory: transactionRoot.appending(path: "backup"),
-        )
+                    FileReplacement(target: layout.manifest, staged: stagedManifest),
+                ],
+                backupDirectory: transactionRoot.appending(path: "backup"),
+            )
+        } catch let failure as FileReplacementTransactionFailure {
+            preserveTransactionRootForRecovery = true
+            throw failure
+        }
         try await terminal.write(
             "Removed \"\(plan.icon.displayName)\" (id: \(plan.icon.id)).\n",
             to: .standardOutput,

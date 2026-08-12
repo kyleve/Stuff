@@ -98,8 +98,11 @@ public struct LedgerInstallService: Sendable {
             CommandInvocation(
                 executable: "mise",
                 arguments: ["exec", "--", "tuist", "generate", "--no-open"],
+                environment: [:],
                 workingDirectory: repository,
+                standardInput: [],
                 captureOutput: false,
+                mergeStandardError: false,
             ),
             outputHandler: { stream, bytes in
                 if stream == .standardError {
@@ -134,8 +137,11 @@ public struct LedgerInstallService: Sendable {
                     "CODE_SIGNING_ALLOWED=YES",
                     "build",
                 ],
+                environment: [:],
                 workingDirectory: repository,
+                standardInput: [],
                 captureOutput: false,
+                mergeStandardError: false,
             ),
         )
         guard build.succeeded else { throw LedgerInstallFailure.exitCode(build.exitCode) }
@@ -156,7 +162,12 @@ public struct LedgerInstallService: Sendable {
             )
         }
         try fileSystem.createDirectory(at: transactionRoot, withIntermediateDirectories: false)
-        defer { try? fileSystem.removeItem(at: transactionRoot) }
+        var preserveTransactionRootForRecovery = false
+        defer {
+            if preserveTransactionRootForRecovery == false {
+                try? fileSystem.removeItem(at: transactionRoot)
+            }
+        }
         let stage = transactionRoot.appending(path: "stage", directoryHint: .isDirectory)
         try fileSystem.createDirectory(at: stage, withIntermediateDirectories: false)
         let stagedApp = stage.appending(path: "Ledger.app", directoryHint: .isDirectory)
@@ -188,10 +199,15 @@ public struct LedgerInstallService: Sendable {
             }
         }
 
-        try FileReplacementTransaction(fileSystem: fileSystem).commit(
-            [FileReplacement(target: destination, staged: stagedApp)],
-            backupDirectory: transactionRoot.appending(path: "backup"),
-        )
+        do {
+            try FileReplacementTransaction(fileSystem: fileSystem).commit(
+                [FileReplacement(target: destination, staged: stagedApp)],
+                backupDirectory: transactionRoot.appending(path: "backup"),
+            )
+        } catch let failure as FileReplacementTransactionFailure {
+            preserveTransactionRootForRecovery = true
+            throw failure
+        }
         try await terminal.write(
             "==> Installed Ledger to \(destination.path)\n",
             to: .standardOutput,
@@ -201,8 +217,11 @@ public struct LedgerInstallService: Sendable {
                 CommandInvocation(
                     executable: "open",
                     arguments: [destination.path],
+                    environment: [:],
                     workingDirectory: repository,
+                    standardInput: [],
                     captureOutput: false,
+                    mergeStandardError: false,
                 ),
             )
             guard open.succeeded else { throw LedgerInstallFailure.exitCode(open.exitCode) }
