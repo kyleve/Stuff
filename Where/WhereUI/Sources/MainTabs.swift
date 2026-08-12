@@ -44,7 +44,7 @@ struct MainTabs: View {
     }
 
     var body: some View {
-        let recordingConfiguration = recordingWarning.configuration(for: session)
+        let recordingInputs = recordingWarning.localInputs(for: session)
         TabView(selection: $selection) {
             Tab(
                 String(localized: .tabLocations),
@@ -76,9 +76,10 @@ struct MainTabs: View {
         // returns to the foreground; cancel the subscription on background so a
         // backgrounded scene drives no refreshes.
         .task { await report.activate() }
-        .task(id: recordingConfiguration) {
-            recordingWarning.register(recordingConfiguration)
+        .task(id: recordingInputs) {
+            await recordingWarning.refresh(recordingInputs, for: session)
         }
+        .task { await recordingWarning.observeAuthorityChanges(for: session) }
         .onChange(of: scenePhase) { _, newPhase in
             switch newPhase {
                 case .active:

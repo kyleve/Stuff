@@ -1,9 +1,11 @@
+import Foundation
 import Testing
-import WhereCore
+@_spi(Testing) import WhereCore
 @testable import WhereUI
 
 @MainActor
 struct RecordingConfigurationWarningModelTests {
+    private static let now = Date(timeIntervalSinceReferenceDate: 100_000)
     private let warning = RecordingConfigurationWarningModel.Configuration(
         isPrimaryRecordingDevice: true,
         automaticRecordingEnabled: false,
@@ -89,5 +91,30 @@ struct RecordingConfigurationWarningModelTests {
 
         #expect(relaunchedModel.isPresented == false)
         #expect(preferences.recordingConfigurationWarningRegistration.generation == 1)
+    }
+
+    @Test func recentRecorderMakesThisPhoneSecondary() {
+        let currentDevice = InstallationRecordingContext.testing.currentDevice
+        let otherDevice = RecordingDevice(
+            id: RecordingDeviceID(rawValue: UUID()),
+            systemName: "Other iPhone",
+            nickname: nil,
+            kind: .phone,
+            registeredAt: Self.now.addingTimeInterval(-100_000),
+            lastSeenAt: Self.now,
+            removedAt: nil,
+            status: .recording,
+        )
+
+        #expect(RecordingConfigurationWarningModel.isPrimaryRecordingDevice(
+            currentDevice,
+            among: [otherDevice],
+            now: Self.now,
+        ) == false)
+        #expect(RecordingConfigurationWarningModel.isPrimaryRecordingDevice(
+            currentDevice,
+            among: [],
+            now: Self.now,
+        ))
     }
 }
