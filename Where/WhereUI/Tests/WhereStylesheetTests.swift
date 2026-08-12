@@ -5,6 +5,7 @@ import SwiftUI
 import TestHostSupport
 import Testing
 import UIKit
+import WhereCore
 @testable import WhereUI
 
 /// `WhereStylesheet` currently ships the fixed geometry migrated from the former
@@ -12,6 +13,25 @@ import UIKit
 /// later trait-aware derivation — can't silently drift the defaults.
 struct WhereStylesheetTests {
     private let style = WhereStylesheet.default
+
+    @MainActor
+    @Test func themesRetainDistinctIdentityWithEquivalentTokens() throws {
+        var standardThemes = BThemes()
+        standardThemes[WhereTheme.self] = .standard
+        var alternateThemes = BThemes()
+        alternateThemes[WhereTheme.self] = .alternate
+
+        let standardContext = BContext(traits: .system, themes: standardThemes)
+        let alternateContext = BContext(traits: .system, themes: alternateThemes)
+        let standard = try standardContext.stylesheets.get(WhereStylesheet.self)
+        let alternate = try alternateContext.stylesheets.get(WhereStylesheet.self)
+
+        #expect(standard.theme == .standard)
+        #expect(alternate.theme == .alternate)
+        var normalizedStandard = standard
+        normalizedStandard.theme = WhereTheme.alternate
+        #expect(normalizedStandard == alternate)
+    }
 
     @Test func spacingScale() {
         #expect(style.spacing.xxSmall == 2)

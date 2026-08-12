@@ -115,6 +115,10 @@ public final class WhereModel {
     /// holding it eagerly doesn't cost the logged-out window anything.
     let preferences: WherePreferences
 
+    /// The active presentation theme. Onboarding can preview this value in
+    /// memory before committing; Appearance Settings persists immediately.
+    public private(set) var theme: WhereTheme
+
     /// The one device-local recording context store composed for this process.
     /// It owns the non-backed-up installation sidecar and is shared with every
     /// bootstrap this model creates, so onboarding and service assembly cannot
@@ -249,8 +253,23 @@ public final class WhereModel {
     /// Mark the first-run app flow complete after its scope and selections have
     /// been committed. Recording confirmation is persisted separately first.
     public func completeOnboarding() {
+        preferences.theme = theme
         hasOnboarded = true
         Self.logger { .onboardingCompleted }
+    }
+
+    /// Preview a theme without writing device preferences.
+    public func previewTheme(_ newTheme: WhereTheme) {
+        guard newTheme != theme else { return }
+        theme = newTheme
+    }
+
+    /// Select and immediately persist a theme outside onboarding.
+    public func selectTheme(_ newTheme: WhereTheme) {
+        if newTheme != theme {
+            theme = newTheme
+        }
+        preferences.theme = newTheme
     }
 
     /// Reconcile a cold-launch onboarding import before the Restore UI can be presented.
@@ -301,6 +320,7 @@ public final class WhereModel {
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
         self.preferences = preferences
+        theme = preferences.theme
         self.installationContextStore = installationContextStore
         onboardingImportRecovery = OnboardingImportRecoveryModel(
             installationContextStore: installationContextStore,
@@ -340,6 +360,7 @@ public final class WhereModel {
         )
         scopeState = .real(scope)
         self.preferences = preferences
+        theme = preferences.theme
         self.installationContextStore = installationContextStore
         onboardingImportRecovery = OnboardingImportRecoveryModel(
             installationContextStore: installationContextStore,
@@ -544,10 +565,12 @@ public final class WhereModel {
             // though deleting its tombstone still needs a retry, so a relaunch cannot combine a
             // fresh unconfirmed identity with stale "already onboarded" preferences.
             preferences.reset()
+            theme = preferences.theme
             Self.logger { .resetPreferences }
             throw error
         }
         preferences.reset()
+        theme = preferences.theme
         Self.logger { .resetPreferences }
     }
 }

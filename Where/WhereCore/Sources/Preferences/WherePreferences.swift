@@ -39,6 +39,21 @@ public final class WherePreferences {
         set { store.set(newValue, forKey: Keys.showsRecordedLocationDots.rawValue) }
     }
 
+    /// The device-local presentation theme. Missing and unrecognized values
+    /// resolve to Standard so upgrades preserve the app's familiar appearance.
+    public var theme: WhereTheme {
+        get {
+            guard
+                let rawValue = store.object(forKey: Keys.theme.rawValue) as? String,
+                let theme = WhereTheme(rawValue: rawValue)
+            else {
+                return .standard
+            }
+            return theme
+        }
+        set { store.set(newValue.rawValue, forKey: Keys.theme.rawValue) }
+    }
+
     /// Whether the daily "log before the day ends" reminder is enabled. Defaults
     /// to `true` so the safety net is active out of the box.
     public var remindersEnabled: Bool {
@@ -149,6 +164,7 @@ public final class WherePreferences {
     private enum Keys: String, CaseIterable {
         case hasOnboarded = "where.hasOnboarded"
         case showsRecordedLocationDots = "where.showsRecordedLocationDots"
+        case theme = "where.theme"
         case remindersEnabled = "where.remindersEnabled"
         case reminderHour = "where.reminderHour"
         case reminderMinute = "where.reminderMinute"

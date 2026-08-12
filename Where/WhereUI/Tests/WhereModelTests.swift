@@ -33,6 +33,32 @@ struct WhereModelTests {
         )
     }
 
+    @Test func loadsPreviewsCommitsAndResetsTheme() throws {
+        let preferences = makePreferences()
+        preferences.theme = .alternate
+        let model = try WhereModel(
+            services: makeServices(),
+            preferences: preferences,
+            logSystem: .isolated(),
+        )
+
+        #expect(model.theme == .alternate)
+        model.previewTheme(.standard)
+        #expect(model.theme == .standard)
+        #expect(preferences.theme == .alternate)
+
+        model.completeOnboarding()
+        #expect(preferences.theme == .standard)
+
+        model.selectTheme(.alternate)
+        #expect(model.theme == .alternate)
+        #expect(preferences.theme == .alternate)
+
+        try model.resetPreferences()
+        #expect(model.theme == .standard)
+        #expect(preferences.theme == .standard)
+    }
+
     @Test func lateLogStoreArrivalPublishesReadyState() async throws {
         let store = try await PeriscopeStore.inMemory(
             session: .current(attributes: [:]),
