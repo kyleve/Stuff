@@ -9,6 +9,7 @@ struct AppearanceSettingsView: View {
     var focus: SettingsFocus?
 
     @State private var showAppIcon = false
+    @Environment(WhereModel.self) private var model
     #if DEBUG
         @Environment(\.cardDesignerModel) private var cardDesignerModel
     #endif
@@ -17,6 +18,17 @@ struct AppearanceSettingsView: View {
         @Bindable var report = report
         SettingsFocusScope(focus: focus) {
             Form {
+                Section {
+                    WhereThemePicker(selection: model.theme) {
+                        model.selectTheme($0)
+                    }
+                    .settingsRow(Item.theme)
+                } header: {
+                    Text(.settingsAppearanceThemeHeader)
+                } footer: {
+                    Text(.settingsAppearanceThemeFooter)
+                }
+
                 Section {
                     Toggle(isOn: $report.showsRecordedLocationDots) {
                         Label(
@@ -78,6 +90,7 @@ extension AppearanceSettingsView: SettingsSection {
     }
 
     enum Item: SettingsItem {
+        case theme
         case locationDots
         case appIcon
         #if DEBUG
@@ -86,6 +99,7 @@ extension AppearanceSettingsView: SettingsSection {
 
         var title: String {
             switch self {
+                case .theme: String(localized: .settingsAppearanceThemeHeader)
                 case .locationDots:
                     String(localized: .settingsAppearanceLocationDotsToggle)
                 case .appIcon: String(localized: .settingsAppIconLink)
@@ -97,6 +111,8 @@ extension AppearanceSettingsView: SettingsSection {
 
         var keywords: [String] {
             switch self {
+                case .theme:
+                    splitKeywords(String(localized: .settingsKeywordsTheme))
                 case .locationDots:
                     splitKeywords(String(localized: .settingsKeywordsLocationDots))
                 case .appIcon: splitKeywords(String(localized: .settingsKeywordsAppIcon))
@@ -120,6 +136,7 @@ extension AppearanceSettingsView: SettingsSection {
                 NavigationStack {
                     AppearanceSettingsView(report: PreviewSupport.loadedYearReportModel())
                 }
+                .environment(PreviewSupport.loadedModel())
             }
         }
     }

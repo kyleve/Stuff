@@ -123,6 +123,7 @@ public struct RootView: View {
                             gate: handle,
                             installationContext: model.installationRecordingContext,
                             startsAtRecordingChoice: model.hasOnboarded,
+                            initialTheme: model.theme,
                         )
                     }
                 },

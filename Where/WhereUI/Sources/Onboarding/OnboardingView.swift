@@ -41,6 +41,7 @@ public struct OnboardingView: View {
             gate: gate,
             installationContext: installationContext,
             startsAtRecordingChoice: false,
+            initialTheme: .standard,
         )
     }
 
@@ -52,11 +53,13 @@ public struct OnboardingView: View {
         gate: LifecycleGateHandle,
         installationContext: InstallationRecordingContext,
         startsAtRecordingChoice: Bool,
+        initialTheme: WhereTheme = .standard,
     ) {
         _flow = State(initialValue: OnboardingFlowModel(
             gate: gate,
             installationContext: installationContext,
             startsAtRecordingChoice: startsAtRecordingChoice,
+            initialTheme: initialTheme,
         ))
     }
 
@@ -66,6 +69,12 @@ public struct OnboardingView: View {
         Group {
             switch flow.phase {
                 case .intro: introScreen
+                case .theme:
+                    OnboardingThemeSelectionView(
+                        selection: flow.theme,
+                        onSelect: { flow.selectTheme($0, using: model) },
+                        onContinue: flow.continueAfterThemeSelection,
+                    )
                 case .pickRegions: pickRegions
                 case .customize: customize
                 case .location: location
