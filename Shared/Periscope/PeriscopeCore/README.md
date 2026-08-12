@@ -10,7 +10,7 @@ queryable on device.
 PeriscopeCore owns the model and the machinery: events, levels, scopes,
 links, tags, spans, attachments, the sink pipeline (OSLog + SwiftData
 built-in), ambient event sources, and the store. SwiftUI integration lives in
-[`PeriscopeUI`](../PeriscopeUI). the on-device viewer, tracer, toast, and
+[`PeriscopeUI`](../PeriscopeUI). The on-device viewer, tracer, toast, and
 inspect mode live in [`PeriscopeTools`](../PeriscopeTools).
 
 ## Vocabulary
@@ -72,9 +72,9 @@ Periscope.shared.startDefaultAmbientSources()
 
 ## Public API
 
-- **Events** — `LogEvent` (`Codable & Sendable`. `eventName`, `eventVersion`,
+- **Events** — `LogEvent` (`Codable & Sendable`; `eventName`, `eventVersion`,
   `level`, `message`), the built-in freeform `Message`, and the extensible
-  `LogLevel` struct (`name` + `severity`. standard ladder `debug…fault`,
+  `LogLevel` struct (`name` + `severity`; standard ladder `debug…fault`,
   custom levels slot between).
 - **Loggers** — `Log<Event>`: derive typed children (`log(PhotoLogs.self)`),
   entity children (`log(for: id)`), link contexts (`+` / `linked(with:)`),
@@ -89,19 +89,19 @@ Periscope.shared.startDefaultAmbientSources()
   (return → `.success`, throw → `.failure`, `CancellationError` →
   `.cancelled`), and an optional `budget:` fires a `SpanOverdue` warning
   while the closure hangs past it. Names resolve against `Event.SpanName`
-  (defaults to `String`). declare a `SpanName` enum on the event type for
+  (defaults to `String`). Declare a `SpanName` enum on the event type for
   compiler-checked tokens — the recommended style for structured events.
   Open-ended flows use `begin(for:lifetime:relaunch:)`/`end(for:exit:)`.
   Every span provably ends: bounded spans expire past
   their budget (watchdog, `.expired`), re-begins supersede the open span
   (`.superseded`), and a relaunch closes `endsWithProcess` spans the dead
   process left open (`.orphaned`, duration unknowable). Durations use
-  `ContinuousClock`. spans mirror to `OSSignposter`.
+  `ContinuousClock`. Spans mirror to `OSSignposter`.
 - **Attachments** — `LogAttachment` (+ `.error`, `.json`, `.image`
-  conveniences) rides along with any event. blobs persist externally and
+  conveniences) rides along with any event. Blobs persist externally and
   load on demand.
 - **System** — `Periscope`: the recorder and `LogSink` pipeline (OSLog sink
-  built in. `add(sink:)` returns a `SinkToken` that `remove(_:)` detaches — 
+  built in; `add(sink:)` returns a `SinkToken` that `remove(_:)` detaches —
   see [Detaching a sink](#detaching-a-sink)), level floors (`minimumLevel`,
   `setMinimumLevel(_:forSubtree:)`),
   flush threshold, bounded drop policy with synthetic `DroppedEvents`,

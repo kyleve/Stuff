@@ -6,7 +6,7 @@ components and widget views, and the `@Observable` view models that turn
 of `WhereCore` (domain, persistence, GPS) and `RegionKit` (geometry) — both of
 which stay UI-free — and leans on the Broadway design system for its tokens. The
 app target is a thin shell that builds a model at launch and shows WhereUI's
-`RootView`. the **WhereWidgets** extension reuses WhereUI's views to render a
+`RootView`. The **WhereWidgets** extension reuses WhereUI's views to render a
 published snapshot.
 
 For the module's *rules* — the domain/presentation layering, localization,
@@ -43,21 +43,21 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   never on Where-operated servers. `AboutSettingsView` is the last Settings block — 
   build identity, the app's generated attribution report (linked libraries and
   development tools as separate sections), and bundled-data provenance, each
-  vended by whoever owns it rather than listed in the view. it renders an
+  vended by whoever owns it rather than listed in the view. It renders an
   explicit "no report" state, since only the app bundle carries one, and ends
   with a passport-style link to the project's public source on GitHub. `MainTabs`
   is built from the `WhereSession` the launch's `.ready` carries. The app
   injects the launch-built model + runner
-  (`init(model:launcher:)`). a no-arg `init()` builds its own for previews and
+  (`init(model:launcher:)`). A no-arg `init()` builds its own for previews and
   the hosted UI test.
 - **Developer tools** — DEBUG-only logging, span, region-map, Flyover, and
   next-launch Inspector controls. The global launcher's accordion only updates
-  `InspectorModeController`. the current regular runtime continues until the
+  `InspectorModeController`. The current regular runtime continues until the
   developer relaunches. The Logs destination is always present: before its
   durable store is ready it reports whether the open is still running,
   unavailable, or failed with the actual error.
 - **`WhereLaunch`** — the launch, reset, and exit-demo plans themselves. Every
-  step declares how long it must take (`BudgetedLaunchStep`) and joins the
+  step declares a budget (`BudgetedLaunchStep`) and joins the
   plan through `.measured()`, so each run is one Periscope span named after
   the step (`step(resolve-scope)`) that warns while it overruns its budget — 
   the launch's cost breaks down per step instead of arriving as one slow
@@ -126,7 +126,7 @@ skips straight to that final page. Finishing logs in to the real scope. The
   a backup**, which skips the manual pick/customize steps, verifies this
   installation's recording choice, then opens the store and imports the backup
   after asking whether to **Merge** (recommended, preserving existing data) or
-  **Replace** (destructive, starting from the backup). and **Explore a demo**,
+  **Replace** (destructive, starting from the backup), and **Explore a demo**,
   which builds a throwaway in-memory world behind a captioned launch splash and
   enters it. Once an onboarding import commits, its summary is retained and
   a two-phase marker remains in the backup-excluded sidecar until onboarding is
@@ -204,7 +204,7 @@ struct WhereApp: App {
 }
 ```
 
-The regular runtime owns the model and launch runner. the DEBUG Inspector
+The regular runtime owns the model and launch runner. The DEBUG Inspector
 runtime supplies an entirely separate root. `RootView` applies
 `whereBroadwayRoot()` itself, so a host doesn't wrap it. For
 a self-contained preview or UI test, the no-arg `RootView()` builds its own
@@ -214,10 +214,10 @@ model and a foreground launch runner.
 
 Appearance tokens — geometry, fonts, colors, motion — live in one place,
 `WhereStylesheet`, a Broadway `BStylesheet` resolved from the environment. Views
-read it with `@Environment(\.stylesheet)`. off the `View` tree (layout helpers,
+read it with `@Environment(\.stylesheet)`. Off the `View` tree (layout helpers,
 tests) code uses `WhereStylesheet.default`. The active sheet is seeded by
 `whereBroadwayRoot()` at the app root and in each Broadway-root-less consumer
-(WhereWidgets). with no root present, resolution falls back to `.default`.
+(WhereWidgets). With no root present, resolution falls back to `.default`.
 The rules for what may and may not live in the sheet are in
 [`AGENTS.md`](AGENTS.md#design-system--wherestylesheet).
 
@@ -288,7 +288,7 @@ but lighten dark glass. Reduce Transparency removes the constellation halos
 while retaining the crisp centers.
 Live tilt is observed only by the sheen overlay, so its 60 Hz updates do not
 invalidate the card's text or Canvas artwork. The card adds no standalone edge
-stroke. its containing Liquid Glass surface owns the subtle outer border so
+stroke. Its containing Liquid Glass surface owns the subtle outer border so
 direct and production rendering do not diverge.
 
 DEBUG builds include Card Designer Studio under Settings → Appearance. It
@@ -296,7 +296,7 @@ edits a versioned, persisted draft of the regular, compact, and shared card
 presentation, previews both appearances with live tilt, and exports the full
 result—or only its changes from the app defaults—as shareable or clipboard JSON
 and Swift. The draft affects the rest of the app only while “Apply to App” is
-enabled. that switch resets on every launch.
+enabled. That switch intentionally resets on every launch.
 
 ## Previews
 

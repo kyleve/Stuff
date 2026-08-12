@@ -89,7 +89,7 @@ An ordered array of entries, one per available region:
   `european-union`). The `other` catch-all isn't in the manifest — it's a
   sentinel with no geometry.
 - `name` — the English display name (the `localizedName` fallback).
-- `localizationKey` — optional. when present, `localizedName` resolves it from
+- `localizationKey` — optional. When present, `localizedName` resolves it from
   `Localizable.xcstrings` (`bundle: .module`), else falls back to `name`. Only
   the handful with existing translations carry one. (Dynamic ids mean names are
   data, so region names lose static string-catalog extraction — a deliberate
@@ -121,10 +121,10 @@ ruby Where/RegionKit/Tools/generate-regions.rb
 ### Source data (not bundled)
 
 Each entry below is also expressed in code as a `RegionDataSource`, which is
-what the app credits on its About screen. keep the two in step.
+what the app credits on its About screen. Keep the two in step.
 
 - **`us-states.geojson`** — US state boundaries (50 states + DC + PR),
-  `MultiPolygon` per feature keyed by `properties.NAME`. the generator splits it
+  `MultiPolygon` per feature keyed by `properties.NAME`. The generator splits it
   into one `regions/us-<USPS>.geojson` per feature. Originally
   `gz_2010_us_040_00_5m.json` (5m, 2010 census) from
   [eric.clst.org/tech/usgeojson](https://eric.clst.org/tech/usgeojson/),
@@ -132,7 +132,7 @@ what the app credits on its About screen. keep the two in step.
   works are public domain (17 U.S.C. § 105). attribution requested (see the repo
   `README.md`).
 - **`canada.geojson` / `europeanUnion.geojson`** — hand-simplified outlines,
-  deliberately coarse (fine for `RegionAttributorTests` spot-checks. must be
+  deliberately coarse (fine for `RegionAttributorTests` spot-checks; must be
   replaced with higher-fidelity public-domain sources before any production
   residency-audit use).
 
@@ -143,7 +143,7 @@ Adding a region is now **pure data** — no new `Region` case, no code:
 1. Add its geometry to `Tools/source/` (a new feature, or a new source file).
 2. Run `ruby Where/RegionKit/Tools/generate-regions.rb` to regenerate
    `regions/` + `regions.json` (add the `NAME → id` mapping in the script if it's
-   a new US feature. blocs/countries get an entry in the script's `NON_US` list).
+   a new US feature; blocs/countries get an entry in the script's `NON_US` list).
 3. Optionally add a `region.<key>` entry to `Localizable.xcstrings` and point the
    manifest entry's `localizationKey` at it (otherwise the English `name` shows).
 4. Attribute the geometry in `RegionDataSource` — a US state is already covered

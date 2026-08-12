@@ -20,12 +20,12 @@ one it belongs to rather than to a god-object:
 
 ### Persistence & writes
 
-- **`WhereStore`** — the value-type persistence boundary (a protocol. nothing
+- **`WhereStore`** — the value-type persistence boundary (a protocol; nothing
   crossing it is a SwiftData record). Mutations run inside `perform { … }` (one
-  atomic transaction). callers whose decision was made against a particular
+  atomic transaction). Callers whose decision was made against a particular
   data generation use `perform(expectedDataGenerationID:)`, and multi-table reads use
   `readSnapshot { … }` so a Reset or Replace cannot split one operation across
-  generations. a persistent-history boundary invalidates any external commit
+  generations. A persistent-history boundary invalidates any external commit
   crossing a snapshot even when its remote-change notification arrives later.
   `changes()` emits once per local commit and external import for the Where store
   URL, excluding other stores such as Periscope. `remoteChanges()` uses
@@ -239,7 +239,7 @@ A single **read-refresh signal** ties the module together: every write origin �
 a manual edit, a live GPS sample, or a CloudKit import from another device — 
 funnels through `WhereStore.perform` (or the remote-import path) and pings
 `changes()`. Readers (the UI's session, the issue scanner) re-derive purely off
-that ping, so nothing goes stale behind a write it didn't initiate. and because
+that ping, so nothing goes stale behind a write it didn't initiate. Because
 writes await their own side effects, a reader on the next ping sees a
 fully-applied change. Generation-pinned snapshots keep a multi-table projection in
 one generation, while expected-generation writes reject work whose assumptions went

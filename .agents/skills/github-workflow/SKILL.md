@@ -66,8 +66,8 @@ authorizes replies on the threads you fix, decline, or defer — see
 - Start from [`.github/PULL_REQUEST_TEMPLATE.md`](../../../.github/PULL_REQUEST_TEMPLATE.md)
   and follow [Writing the PR body](#writing-the-pr-body) below.
 - **Flag lines that warrant extra scrutiny.** Leave a PR review comment on
-  anything a reviewer must look at closely (subtle behavior changes,
-  incomplete migrations, assumptions about `main`).
+  anything worth a closer read (subtle behavior changes, incomplete migrations,
+  assumptions about `main`).
 
 ### Writing the PR body
 
