@@ -30,13 +30,17 @@ struct PresenceTimelineList: View {
                 Text(String(localized: .timelineEmptyDescription))
             }
         } else {
+            let pinsOverview = stylesheet.timeline.overview.pinsToViewport
+
             ScrollView {
-                LazyVStack(spacing: stylesheet.spacing.large) {
-                    YearRibbon(
-                        days: yearReport?.days ?? [],
-                        year: report.selectedYear,
-                        calendar: report.calendar,
-                    )
+                LazyVStack(spacing: pinsOverview ? 0 : stylesheet.spacing.large) {
+                    if !pinsOverview {
+                        YearRibbon(
+                            days: yearReport?.days ?? [],
+                            year: report.selectedYear,
+                            calendar: report.calendar,
+                        )
+                    }
 
                     LazyVStack(spacing: 0) {
                         ForEach(stints.enumerated(), id: \.element.id) { index, stint in
@@ -51,8 +55,26 @@ struct PresenceTimelineList: View {
                     }
                 }
                 .padding(.horizontal, stylesheet.spacing.xxLarge)
-                .padding(.vertical, stylesheet.spacing.large)
+                .padding(.top, pinsOverview ? 0 : stylesheet.spacing.large)
+                .padding(.bottom, stylesheet.spacing.large)
             }
+            .safeAreaInset(
+                edge: .top,
+                spacing: 0,
+            ) {
+                if pinsOverview {
+                    YearRibbon(
+                        days: yearReport?.days ?? [],
+                        year: report.selectedYear,
+                        calendar: report.calendar,
+                    )
+                    .padding(.horizontal, stylesheet.spacing.xxLarge)
+                    .padding(.top, stylesheet.spacing.large)
+                    .padding(.bottom, stylesheet.spacing.large)
+                }
+            }
+            .defaultScrollAnchor(.bottom, for: .initialOffset)
+            .id(report.selectedYear)
         }
     }
 }
@@ -61,7 +83,16 @@ struct PresenceTimelineList: View {
     extension PresenceTimelineList: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
             [
-                whereSnapshot(name: "WithData", configurations: .fullContentScreenDefaults) {
+                whereSnapshot(
+                    name: "WithData",
+                    configurations: .fullContentScreenDefaults,
+                    measurementReadiness: .immediate,
+                ) {
+                    NavigationStack {
+                        PresenceTimelineList(report: PreviewSupport.loadedYearReportModel())
+                    }
+                },
+                whereSnapshot(name: "InitialBottom", configurations: .screenDefaults) {
                     NavigationStack {
                         PresenceTimelineList(report: PreviewSupport.loadedYearReportModel())
                     }
@@ -69,6 +100,20 @@ struct PresenceTimelineList: View {
                 whereSnapshot(
                     name: "DifferentiateWithoutColor",
                     configurations: .fullContentPhoneLightDark,
+                    measurementReadiness: .immediate,
+                ) {
+                    NavigationStack {
+                        PresenceTimelineList(report: PreviewSupport.loadedYearReportModel())
+                    }
+                    .bTraitOverrides { traits, overrides in
+                        var accessibility = traits.accessibility
+                        accessibility.shouldDifferentiateWithoutColor = true
+                        overrides.accessibility = accessibility
+                    }
+                },
+                whereSnapshot(
+                    name: "DifferentiateWithoutColorInitialBottom",
+                    configurations: .phoneLightDark,
                 ) {
                     NavigationStack {
                         PresenceTimelineList(report: PreviewSupport.loadedYearReportModel())

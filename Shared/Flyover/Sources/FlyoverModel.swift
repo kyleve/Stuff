@@ -19,8 +19,9 @@ final class FlyoverModel<ScreenID: Hashable> {
     private(set) var previewedScreenID: ScreenID?
 
     let contentLoadCoordinator = FlyoverContentLoadCoordinator()
+    let previewReadiness = FlyoverPreviewReadiness<ScreenID>()
     private let frameStates: [ScreenID: FlyoverFrameState]
-    private var hasAppliedInitialCanvasZoom = false
+    private(set) var hasAppliedInitialCanvasZoom = false
 
     init(catalog: FlyoverCatalog<ScreenID>) {
         frameStates = catalog.screens.reduce(into: [:]) { states, screen in
@@ -51,6 +52,21 @@ final class FlyoverModel<ScreenID: Hashable> {
     func variant(for screen: FlyoverScreen<ScreenID>) -> FlyoverVariant {
         let selectedID = state(for: screen).variantID
         return screen.variants.first { $0.id == selectedID } ?? screen.variants[0]
+    }
+
+    func previewLoadKey(for screen: FlyoverScreen<ScreenID>) -> FlyoverPreviewReadiness<ScreenID>
+        .LoadKey
+    {
+        let state = state(for: screen)
+        return FlyoverPreviewReadiness<ScreenID>.LoadKey(
+            screenID: screen.id,
+            variantID: variant(for: screen).id,
+            generation: state.generation,
+        )
+    }
+
+    func waitUntilVisiblePreviewsAreLoaded() async {
+        await previewReadiness.waitUntilReady()
     }
 
     func focus(_ screen: FlyoverScreen<ScreenID>) {

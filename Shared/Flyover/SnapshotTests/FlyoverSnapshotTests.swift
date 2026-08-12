@@ -9,17 +9,26 @@ import Testing
 struct FlyoverSnapshotTests {
     @Test func canvasAndList() async {
         let catalog = Self.catalog()
-        await assertSnapshots(
-            of: FlyoverView(catalog: catalog),
-            named: "FlyoverCanvas",
-            configurations: SnapshotConfiguration.combinations(
-                devices: [.iPadFullContent],
-                colorSchemes: [.light, .dark],
-            ),
-            // Canvas previews load serially, so a cold CI host can still be resolving
-            // the visible screen trees after the default settling budget.
-            settle: .settledAtLeast(minDuration: 1.5),
-        )
+        for configuration in SnapshotConfiguration.combinations(
+            devices: [.iPadFullContent],
+            colorSchemes: [.light, .dark],
+        ) {
+            // A fresh model gives each appearance an independent readiness
+            // expectation and set of serial preview loads.
+            let model = FlyoverModel(catalog: catalog)
+            await assertSnapshots(
+                of: FlyoverView(catalog: catalog, model: model),
+                named: "FlyoverCanvas",
+                configurations: [configuration],
+                measurementReadiness: .settled,
+                onReadyToMeasure: {
+                    await model.waitUntilVisiblePreviewsAreLoaded()
+                },
+                // The deterministic hook covers preview loading. Keep the floor
+                // for the genuinely time-based glass material adaptation.
+                settle: .settledAtLeast(minDuration: 1.5),
+            )
+        }
 
         await assertSnapshots(
             of: FlyoverView(catalog: catalog),

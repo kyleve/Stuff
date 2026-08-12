@@ -132,7 +132,10 @@ extension DataSettingsView: SettingsSection {
 #if DEBUG
     extension DataSettingsView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            whereSnapshot(name: "Default", configurations: .fullContentScreenDefaults) {
+            whereSnapshot(
+                name: "Default",
+                configurations: .fullContentScreenDefaults,
+            ) {
                 NavigationStack {
                     DataSettingsView(
                         report: PreviewSupport.loadedYearReportModel(),

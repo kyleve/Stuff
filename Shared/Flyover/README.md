@@ -119,6 +119,10 @@ single pinned preview until it is paused. Opening the focused inspector unloads
 the underlying canvas previews. Variant builders are deferred and serialized,
 with a render opportunity between builds, so expensive preview-model
 construction cannot accumulate in one SwiftUI update.
+The canvas also tracks the latest nonempty set of visible variant/generation
+loads. Snapshot capture awaits that production loading signal before intrinsic
+measurement, so a slow runner cannot size or capture a partially loaded canvas;
+viewport or variant changes supersede stale completions.
 
 The initial canvas zoom fits the graph to the available width so its cards are
 immediately legible and the remaining groups can be reached by vertical

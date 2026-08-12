@@ -112,13 +112,25 @@ struct WhereLifecycleFailureView: View {
 #if DEBUG
     extension WhereLifecycleFailureView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            whereSnapshot(name: "CommittedResetCleanup", configurations: .screenDefaults) {
+            whereSnapshot(
+                name: "CommittedResetCleanup",
+                configurations: .screenDefaults,
+                measurementReadiness: .immediate,
+            ) {
                 WhereLifecycleFailureView(presentation: .committedResetCleanup)
             }
-            whereSnapshot(name: "CommittedImportCleanup", configurations: .phoneLightDark) {
+            whereSnapshot(
+                name: "CommittedImportCleanup",
+                configurations: .phoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
                 WhereLifecycleFailureView(presentation: .committedImportCleanup(.preview))
             }
-            whereSnapshot(name: "CommittedImportSetup", configurations: .phoneLightDark) {
+            whereSnapshot(
+                name: "CommittedImportSetup",
+                configurations: .phoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
                 WhereLifecycleFailureView(presentation: .committedImportSetup(.preview))
             }
         }

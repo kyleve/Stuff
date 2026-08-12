@@ -138,6 +138,7 @@ struct LargeViewCaptureTests {
             named: "full-content-navigation-probe",
             sizing: .intrinsic(width: 402, minimumHeight: 0),
             safeAreaInsets: .zero,
+            measurementReadiness: .immediate,
         )
         #expect(image.size.height >= 3255)
         #expect(image.size.height < 3265)

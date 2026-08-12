@@ -11,6 +11,11 @@ public struct FlyoverView<ScreenID: Hashable>: View {
         _model = State(initialValue: FlyoverModel(catalog: catalog))
     }
 
+    init(catalog: FlyoverCatalog<ScreenID>, model: FlyoverModel<ScreenID>) {
+        self.catalog = catalog
+        _model = State(initialValue: model)
+    }
+
     public var body: some View {
         FlyoverRootView(catalog: catalog, model: model)
             .broadwayRoot()

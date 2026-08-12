@@ -8,7 +8,6 @@ enum SiriIntentFeature: CaseIterable, Hashable {
     case todayRegions
     case daysInRegion
     case regionOnDate
-    case recentActivity
     case logDay
     case logTrip
 
@@ -17,7 +16,6 @@ enum SiriIntentFeature: CaseIterable, Hashable {
             case .todayRegions: .todayRegions
             case .daysInRegion: .daysInRegion
             case .regionOnDate: .regionOnDate
-            case .recentActivity: .recentActivity
             case .logDay: .logDay
             case .logTrip: .logTrip
         }
@@ -28,7 +26,6 @@ enum SiriIntentFeature: CaseIterable, Hashable {
             case .todayRegions: .locationFill
             case .daysInRegion: .calendar
             case .regionOnDate: .calendarBadgeClock
-            case .recentActivity: .sparkles
             case .logDay: .mappinAndEllipse
             case .logTrip: .airplane
         }
@@ -39,7 +36,6 @@ enum SiriIntentFeature: CaseIterable, Hashable {
             case .todayRegions: String(localized: .settingsExploreSiriTodayRequest)
             case .daysInRegion: String(localized: .settingsExploreSiriDaysRequest)
             case .regionOnDate: String(localized: .settingsExploreSiriDateRequest)
-            case .recentActivity: String(localized: .settingsExploreSiriRecentRequest)
             case .logDay: String(localized: .settingsExploreSiriLogDayRequest)
             case .logTrip: String(localized: .settingsExploreSiriLogTripRequest)
         }
@@ -50,7 +46,6 @@ enum SiriIntentFeature: CaseIterable, Hashable {
             case .todayRegions: String(localized: .settingsExploreSiriTodayResponse)
             case .daysInRegion: String(localized: .settingsExploreSiriDaysResponse)
             case .regionOnDate: String(localized: .settingsExploreSiriDateResponse)
-            case .recentActivity: String(localized: .settingsExploreSiriRecentResponse)
             case .logDay: String(localized: .settingsExploreSiriLogDayResponse)
             case .logTrip: String(localized: .settingsExploreSiriLogTripResponse)
         }

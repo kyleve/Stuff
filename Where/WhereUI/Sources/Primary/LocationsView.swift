@@ -283,20 +283,37 @@ private struct ResolveToolbarLabel: View {
             whereSnapshot(
                 name: "Loaded",
                 configurations: .fullContentScreenDefaults,
+                measurementReadiness: .immediate,
                 settle: .settledAtLeast(minDuration: 1.0),
             ) {
                 LocationsView(report: PreviewSupport.loadedYearReportModel())
             }
-            whereSnapshot(name: "Empty", configurations: .phoneLightDark) {
+            whereSnapshot(
+                name: "Empty",
+                configurations: .phoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
                 LocationsView(report: PreviewSupport.emptyYearReportModel())
             }
-            whereSnapshot(name: "MissingDays", configurations: .fullContentPhoneLightDark) {
+            whereSnapshot(
+                name: "MissingDays",
+                configurations: .fullContentPhoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
                 LocationsView(report: PreviewSupport.missingDaysYearReportModel())
             }
-            whereSnapshot(name: "ElsewhereOnly", configurations: .phoneLightDark) {
+            whereSnapshot(
+                name: "ElsewhereOnly",
+                configurations: .phoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
                 LocationsView(report: PreviewSupport.elsewhereOnlyYearReportModel())
             }
-            whereSnapshot(name: "DotsHidden", configurations: .fullContentPhoneLightDark) {
+            whereSnapshot(
+                name: "DotsHidden",
+                configurations: .fullContentPhoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
                 LocationsView(
                     report: PreviewSupport.loadedYearReportModelWithLocationDotsHidden(),
                 )

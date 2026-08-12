@@ -53,7 +53,7 @@ every one — and streams progress while it goes:
 ./test WhereCoreTests   # one bundle
 ./test --all            # the whole unit suite
 ./test --snapshots      # the image-snapshot suite
-./test --everything     # both, as CI runs it
+./test --everything     # both CI suites in one local run
 ```
 
 See `./test --help` for the rest, including `--timings` and `--review` for
@@ -70,8 +70,9 @@ Codex-managed worktrees use the checked-in local environment at
 without changing the checkout when its `HEAD` does not contain the latest main.
 The **Update to latest main** toolbar action safely fast-forwards a checkout
 directly behind main and refuses divergent feature history. On macOS the
-environment also runs `./ide --bootstrap --no-open`, offers project generation,
-affected tests, and format lint actions, and removes only that checkout's
+environment also runs `./ide --bootstrap --no-open`, which hydrates the
+checkout's Git LFS snapshot references before generating the project; it offers
+affected tests and format lint actions, and removes only that checkout's
 simulator on cleanup. `.worktreeinclude` copies the gitignored
 `.mise.local.toml` signing override from the source checkout into each new
 managed worktree.
@@ -89,7 +90,9 @@ The executable configuration is in [`BumperBowling.swift`](BumperBowling.swift);
 the enforced invariants and repair guidance are cataloged in
 [`.bumper/RULES.md`](.bumper/RULES.md).
 
-To see where build and test time goes, run `./profile` — it prints the slowest build phases, the slowest tests (per bundle), and any slow type-check sites. It only reports, it never fails; see `./profile --help` for flags (`--build-only`/`--tests-only`, `--no-snapshots`, `--device`/`--os`, `--top`, thresholds).
+To see where build and test time goes, run `./profile` — it prints setup/build/test walls, the slowest build phases and tests, slow type-check sites, and per-phase snapshot capture costs. The default reuses unit-build products for the snapshot build; `--ci-shape` instead gives each scheme cold DerivedData like its independent CI job. It only reports, it never fails on slow numbers; see `./profile --help` for the remaining scope, destination, and threshold flags.
+
+CI runs the complete snapshot suite serially on one isolated runner. Multiple snapshot simulators on one Mac contend for the same render server, so do not run snapshots concurrently locally.
 
 To hunt down flaky tests, run `./flaky` — it runs the whole suite several times, then tight-loops (in isolation) any test that ever failed, and records the tests that both pass and fail (with flake counts) in [`FLAKY_TESTS.md`](FLAKY_TESTS.md). Like `./profile` it's report-only; see `./flaky --help` for flags (`--suite-runs`, `--iterations`, `--device`/`--os`, `--no-update`, `--top`).
 

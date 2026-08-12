@@ -21,7 +21,6 @@ struct WhereLogTreeTests {
         #expect(WhereLog.widgets.primaryScope.name == "widgets")
         #expect(WhereLog.session.primaryScope.name == "session")
         #expect(WhereLog.evidence.primaryScope.name == "evidence")
-        #expect(WhereLog.recentActivity.primaryScope.name == "recentActivity")
         #expect(WhereLog.reporting.primaryScope.name == "reporting")
         #expect(WhereLog.reporting.primaryScope.parentID == rootID)
     }

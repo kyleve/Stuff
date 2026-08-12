@@ -60,11 +60,6 @@ public struct WhereServices: Sendable {
     public let backup: BackupCoordinator
     /// Data-quality issue detection for the Resolve tab.
     public let resolution: DataIssueScanner
-    /// On-device summary of a selectable look-back window of tracked locations
-    /// (see `RecentActivityWindow`). Named distinctly from `summary` (the daily
-    /// notification recap) — this one is an on-demand Foundation Models
-    /// narrative.
-    public let recentActivity: RecentActivitySummarizer
     /// The persistence boundary, retained so `dataChangeUpdates()` can hand out
     /// the store's `changes()` stream — the single read-refresh signal every
     /// write origin (manual edit, live GPS, remote sync) funnels through.
@@ -122,7 +117,6 @@ public struct WhereServices: Sendable {
         locationOutbox: any LocationOutbox = NoOpLocationOutbox(),
         importRecoveryPersistence: any BackupImportRecoveryPersisting =
             NoopBackupImportRecoveryPersistence(),
-        activitySummaryGenerator: any ActivitySummaryGenerating = FoundationModelSummaryGenerator(),
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
         let currentDevice = installationContext.currentDevice
@@ -267,15 +261,6 @@ public struct WhereServices: Sendable {
             changes: store.remoteChanges(),
             reconcile: { await derivedData.reconcile() },
         )
-        let recentActivity = RecentActivitySummarizer(
-            store: store,
-            attributor: attributor,
-            generator: activitySummaryGenerator,
-            calendar: aggregator.calendar,
-            now: now,
-            segmentLimit: RecentActivitySummarizer.defaultSegmentLimit,
-        )
-
         self.reports = reports
         self.evidence = evidence
         self.reminders = reminders
@@ -287,7 +272,6 @@ public struct WhereServices: Sendable {
         self.journal = journal
         self.backup = backup
         self.resolution = resolution
-        self.recentActivity = recentActivity
         self.store = store
         self.attributor = attributor
         self.aggregator = aggregator
@@ -321,7 +305,6 @@ public struct WhereServices: Sendable {
         widgetRefresher: any WidgetTimelineRefreshing,
         locationOutbox: any LocationOutbox = NoOpLocationOutbox(),
         importRecoveryPersistence: any BackupImportRecoveryPersisting,
-        activitySummaryGenerator: any ActivitySummaryGenerating = FoundationModelSummaryGenerator(),
         now: @escaping @Sendable () -> Date = { Date() },
     ) async throws -> WhereServices {
         let tracked = try await store.trackedRegions()
@@ -345,7 +328,6 @@ public struct WhereServices: Sendable {
             widgetRefresher: widgetRefresher,
             locationOutbox: locationOutbox,
             importRecoveryPersistence: importRecoveryPersistence,
-            activitySummaryGenerator: activitySummaryGenerator,
             now: now,
         )
     }
