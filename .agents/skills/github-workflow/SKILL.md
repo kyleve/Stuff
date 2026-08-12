@@ -1,6 +1,6 @@
 ---
 name: github-workflow
-description: Opens and maintains pull requests, handles review feedback, checks CI, and posts as the user via gh or ManagePullRequest. Use when committing for push, opening or updating a PR after plan execution, responding to review comments, or diagnosing CI failures.
+description: Opens and maintains pull requests, including stacked PRs through gh stack, handles review feedback, checks CI, and posts as the user via gh or ManagePullRequest. Use when committing for push, opening or updating a PR after plan execution, creating or maintaining a PR stack, responding to review comments, or diagnosing CI failures.
 ---
 
 GitHub workflow for this repo. Read root [`AGENTS.md`](../../../AGENTS.md) first for
@@ -20,11 +20,17 @@ always-on commit and test invariants — this skill assumes those.
 |-----|------|
 | Read PRs, checks, comments, issues | `gh` |
 | Create or update a PR | `ManagePullRequest` when available; otherwise `gh pr create` / `gh pr edit` |
+| Create, update, sync, or merge a PR stack | `gh stack` |
 | Reply on a review thread | `ManagePullRequest` `post_comment` with `in_reply_to`, or `gh api` |
 | Resolve a review thread | `ManagePullRequest` `resolve_comment` when asked |
 
 Cloud agents: use `ManagePullRequest` for create/update/reply — not `gh pr
 create` / `gh pr edit`. Local sessions may use `gh` throughout.
+
+**Stacked PRs are the exception:** use `gh stack` in every environment for
+stack topology and lifecycle. `ManagePullRequest` and `gh pr edit` may refine
+an individual PR's title or body after submission, but must not manually wire
+base branches or substitute for `gh stack`.
 
 **Unsolicited top-level PR comments** (not review replies) still need an
 explicit user request. **Review feedback is different:** when the user asks you
@@ -51,6 +57,9 @@ authorizes replies on the threads you fix, decline, or defer — see
 ## Opening a PR
 
 - **Open PRs ready-for-review, not draft.**
+- If the branch belongs to a stack, or the work needs dependent PRs, follow
+  [Creating and maintaining stacked PRs](#creating-and-maintaining-stacked-prs)
+  instead of opening independent PRs.
 - **Default after plan execution:** if the branch has no PR yet, open one before
   handing back; if a PR exists, push and refresh the body when the work outgrew
   it.
@@ -173,15 +182,46 @@ shape below is genuinely unclear.
 
 - Push each commit as it lands.
 
-## Maintaining stacked PRs
+## Creating and maintaining stacked PRs
 
 Treat a stack as one dependency chain even when the requested PR is near its
 base: a conflict or failing integration in one slice can block every PR above
 it.
 
-- Start by inspecting the whole graph with `gh stack view --short`, then read
-  every PR's base, head SHA, mergeability, merge-state status, and checks. Find
-  the first broken slice; do not assume the PR the user noticed owns the fault.
+- **Use `gh stack` for the whole stack lifecycle.** Never emulate a stack by
+  manually chaining PR base branches with `gh pr create`, `gh pr edit`,
+  `ManagePullRequest`, or raw pushes. Check `gh stack --version` first; if the
+  extension is unavailable or reports that stacked PRs are not enabled for the
+  repository, report the blocker instead of falling back to ordinary PRs.
+- Create a new locally tracked stack before implementing its dependent slices.
+  Pass branches bottom-to-top to `gh stack init --base <trunk> <branches...>`,
+  or start the bottom branch with `gh stack init <branch>` and add each next
+  layer from the current top with `gh stack add <branch>`. Put foundational
+  work at the bottom and each dependent concern above it.
+- Open or update every PR and the GitHub stack together with `gh stack submit
+  --auto --open`. `--open` is required by this repo's ready-for-review rule;
+  without it, non-interactive submission creates drafts. After submission,
+  use the ordinary per-PR editing tool to apply this skill's title/body guidance
+  and template, then confirm the graph with `gh stack view --json`.
+- Use `gh stack link --base <trunk> --open <bottom> ... <top>` only when the
+  branches are deliberately managed without local `gh stack` tracking, such as
+  by another branch tool or a separate worktree whose stack metadata is absent.
+  Arguments are bottom-to-top; `link` pushes branches, creates or reuses PRs,
+  corrects their bases, and links the remote stack, but does not create local
+  navigation metadata.
+- Start existing-stack work by checking it out with `gh stack checkout
+  <stack-number-or-PR>` and inspecting the whole graph with `gh stack view
+  --json`. Do not use bare `checkout`, `view`, `submit`, `switch`, or `modify`
+  in an agent session because they can open an interactive picker or TUI. Then
+  read every PR's base, head SHA, mergeability, merge-state status, and checks.
+  Find the first broken slice; do not assume the PR the user noticed owns the
+  fault.
+- Make a change on the earliest branch that owns it. After changing a lower
+  slice, run `gh stack rebase --upstack` from that slice so every dependent
+  branch inherits the fix, then use `gh stack push` to update the complete
+  active chain. Use `gh stack sync` for the routine fetch/reconcile/rebase/push
+  flow after trunk or remote stack state changes; it never opens missing PRs,
+  so use `submit --auto --open` when the stack gains a new PR.
 - Rebase from that first affected branch through the stack with `gh stack
   rebase --no-trunk --upstack`. This rewrites upstack branches, so obtain user
   authorization before doing it unless their request already explicitly covers
@@ -201,6 +241,18 @@ it.
 - Push the complete rewritten chain with `gh stack push`, then re-read every PR
   and verify its base branch, remote head SHA, and `mergeable` value. Return the
   checkout to the branch the user was reviewing when practical.
+- Merge through `gh stack merge <stack-or-PR> --yes`, never `gh pr merge`.
+  Passing a PR merges that PR plus every unmerged slice below it; passing a
+  stack number merges the whole stack. The operation is all-or-nothing unless
+  the base uses a merge queue, in which case GitHub queues the selected stack.
+
+`gh stack push` and `submit` are not atomic: some branch or PR updates may land
+before a later lease or API failure. Re-run after fixing the rejected slice and
+verify every member. `gh stack sync` uses an atomic multi-branch push, restores
+the stack if its cascade rebase conflicts, and can exit successfully after
+aborting a non-interactive local/remote divergence; read its final status rather
+than trusting exit code alone. `gh stack <command> --help` is authoritative for
+the installed extension's current flags and behavior.
 
 GitHub commonly reports an otherwise mergeable upstack PR as `BLOCKED` while
 its parent PR or required checks are pending. Distinguish that expected
