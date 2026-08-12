@@ -21,6 +21,18 @@ commands:
           condition: << parameters.hydrate_snapshots >>
           steps:
             - run:
+                name: Inventory snapshot references
+                command: |
+                  # The middle marker describes hydration, not corpus identity.
+                  git lfs ls-files --long \
+                    | sed -E 's/ [*-] / /' \
+                    | LC_ALL=C sort \
+                    > .circleci/lfs-cache-manifest
+            - restore_cache:
+                keys:
+                  - lfs-objects-v2-{{ checksum ".circleci/lfs-cache-manifest" }}
+                  - lfs-objects-v2-
+            - run:
                 name: Hydrate snapshot references
                 command: |
                   git lfs pull
@@ -30,9 +42,23 @@ commands:
                     printf '%s\n' "$pointer_files" >&2
                     exit 1
                   fi
+                  git lfs prune --no-verify-remote
+            - save_cache:
+                key: lfs-objects-v2-{{ checksum ".circleci/lfs-cache-manifest" }}
+                paths:
+                  - .git/lfs/objects
+            - run:
+                name: Remove snapshot cache manifest
+                command: rm .circleci/lfs-cache-manifest
       - restore_cache:
           keys:
-            - downloads-v1-{{ arch }}-{{ checksum ".mise.toml" }}-{{ checksum "Package.swift" }}-{{ checksum "Package.resolved" }}
+            - mise-installs-v2-{{ arch }}-{{ checksum ".mise.toml" }}
+      - restore_cache:
+          keys:
+            - swiftpm-repositories-v2-{{ arch }}-xcode-27A5228h-{{ checksum "Package.resolved" }}
+      - restore_cache:
+          keys:
+            - swiftpm-artifacts-v2-{{ arch }}-xcode-27A5228h-{{ checksum "Package.resolved" }}
       - run:
           name: Install pinned tools
           command: |
@@ -42,12 +68,31 @@ commands:
             mise trust .mise.toml
             mise install
       - save_cache:
-          key: downloads-v1-{{ arch }}-{{ checksum ".mise.toml" }}-{{ checksum "Package.swift" }}-{{ checksum "Package.resolved" }}
+          key: mise-installs-v2-{{ arch }}-{{ checksum ".mise.toml" }}
           paths:
-            - ~/.cache/mise
-            - ~/.local/share/mise/downloads
-            - ~/Library/Caches/Homebrew
+            - ~/.local/share/mise/installs
+      - run:
+          name: Configure test work directory
+          command: |
+            printf '%s\n' 'export TEST_WORKDIR="$CIRCLE_WORKING_DIRECTORY/<< parameters.test_workdir >>"' >> "$BASH_ENV"
+            mkdir -p "$CIRCLE_WORKING_DIRECTORY/<< parameters.test_workdir >>"
+            chmod 700 "$CIRCLE_WORKING_DIRECTORY/<< parameters.test_workdir >>"
+      - run:
+          name: Resolve Swift packages
+          command: |
+            # Populate the immutable download caches before either test job saves them.
+            if ! mise exec -- tuist generate --no-open >"$TEST_WORKDIR/generate.log" 2>&1; then
+              echo "error: tuist generate failed. Tail of $TEST_WORKDIR/generate.log:" >&2
+              tail -n 20 "$TEST_WORKDIR/generate.log" >&2
+              exit 1
+            fi
+      - save_cache:
+          key: swiftpm-repositories-v2-{{ arch }}-xcode-27A5228h-{{ checksum "Package.resolved" }}
+          paths:
             - ~/Library/Caches/org.swift.swiftpm/repositories
+      - save_cache:
+          key: swiftpm-artifacts-v2-{{ arch }}-xcode-27A5228h-{{ checksum "Package.resolved" }}
+          paths:
             - ~/Library/Caches/org.swift.swiftpm/artifacts
       - run:
           name: Validate runner environment
@@ -74,10 +119,6 @@ commands:
             selected_simulator="$(./simulator --shared --os 27.0 --no-boot)"
             echo "Selected simulator: $selected_simulator"
             xcrun simctl list devices available | grep "$selected_simulator"
-
-            printf '%s\n' 'export TEST_WORKDIR="$CIRCLE_WORKING_DIRECTORY/<< parameters.test_workdir >>"' >> "$BASH_ENV"
-            mkdir -p "$CIRCLE_WORKING_DIRECTORY/<< parameters.test_workdir >>"
-            chmod 700 "$CIRCLE_WORKING_DIRECTORY/<< parameters.test_workdir >>"
 
             echo "Checkout: $(git rev-parse HEAD)"
             echo "Origin: $(git remote get-url origin)"
@@ -179,7 +220,7 @@ jobs:
           test_workdir: test-output-ios
       - run_with_timeout:
           seconds: 2700
-          command: ./test --all --shared --os 27.0
+          command: ./test --all --shared --os 27.0 --no-generate
       - export_test_results:
           test_workdir: test-output-ios
           output_directory: test-results-ios
@@ -199,6 +240,7 @@ jobs:
           seconds: 3600
           command: >-
             ./test --snapshots --shared --os 27.0 --review --timings
+            --no-generate
       - export_test_results:
           test_workdir: test-output-snapshots
           output_directory: test-results-snapshots
