@@ -36,7 +36,7 @@ struct TestServiceTests {
         )
 
         let status = try await service.run(
-            TestRequest(
+            makeTestRequest(
                 scope: .all,
                 record: "missing",
                 timings: true,
@@ -119,7 +119,7 @@ struct TestServiceTests {
         )
 
         let status = try await service.run(
-            TestRequest(scope: .all, build: false, generate: false),
+            makeTestRequest(scope: .all, build: false, generate: false),
         )
 
         #expect(status == 1)
@@ -151,7 +151,7 @@ struct TestServiceTests {
             environment: ["TEST_WORKDIR": root.appending(path: "work").path],
         )
 
-        let status = try await service.run(TestRequest(scope: .changed))
+        let status = try await service.run(makeTestRequest(scope: .changed))
 
         #expect(status == 0)
         #expect(await runner.invocations.count == 6)
@@ -182,7 +182,7 @@ struct TestServiceTests {
 
         do {
             _ = try await service.run(
-                TestRequest(scope: .bundles, bundles: ["CoreTests"]),
+                makeTestRequest(scope: .bundles, bundles: ["CoreTests"]),
             )
             Issue.record("expected graph loading to fail")
         } catch let failure as ToolFailure {
@@ -225,7 +225,7 @@ struct TestServiceTests {
         )
 
         let status = try await service.run(
-            TestRequest(scope: .all, build: false, generate: false, timings: true),
+            makeTestRequest(scope: .all, build: false, generate: false, timings: true),
         )
 
         #expect(status == 0)
@@ -261,7 +261,7 @@ struct TestServiceTests {
             environment: ["TEST_WORKDIR": ""],
         )
 
-        _ = try await service.run(TestRequest(scope: .changed))
+        _ = try await service.run(makeTestRequest(scope: .changed))
 
         let permissions = try #require(
             FileManager.default.attributesOfItem(atPath: root.path)[.posixPermissions] as? Int,
@@ -293,7 +293,7 @@ struct TestServiceTests {
         )
 
         do {
-            _ = try await service.run(TestRequest(scope: .snapshots))
+            _ = try await service.run(makeTestRequest(scope: .snapshots))
             Issue.record("expected the snapshot preflight to require Git LFS")
         } catch let failure as ToolFailure {
             #expect(failure.description.contains("require git-lfs"))
@@ -327,7 +327,7 @@ struct TestServiceTests {
         )
 
         do {
-            _ = try await service.run(TestRequest(scope: .snapshots))
+            _ = try await service.run(makeTestRequest(scope: .snapshots))
             Issue.record("expected the snapshot preflight to reject a pointer")
         } catch let failure as ToolFailure {
             #expect(failure.description.contains("1 snapshot reference(s)"))
@@ -371,7 +371,7 @@ struct TestServiceTests {
         )
 
         let status = try await service.run(
-            TestRequest(scope: .snapshots, build: false, generate: false),
+            makeTestRequest(scope: .snapshots, build: false, generate: false),
         )
 
         #expect(status == 0)
@@ -382,6 +382,40 @@ struct TestServiceTests {
             "TEST_RUNNER_SNAPSHOT_SETTLE_TIMEOUT_MULTIPLIER",
         ] == "2")
     }
+}
+
+private func makeTestRequest(
+    scope: TestScope,
+    bundles: [String] = [],
+    only: [String] = [],
+    baseReference: String = "origin/main",
+    build: Bool = true,
+    generate: Bool = true,
+    record: String? = nil,
+    device: String = "iPhone 17",
+    os: String = "27.0",
+    sharedSimulator: Bool = false,
+    timings: Bool = false,
+    review: Bool = false,
+    heartbeat: TimeInterval = 15,
+    statusFile: String? = nil,
+) -> TestRequest {
+    TestRequest(
+        scope: scope,
+        bundles: bundles,
+        only: only,
+        baseReference: baseReference,
+        build: build,
+        generate: generate,
+        record: record,
+        device: device,
+        os: os,
+        sharedSimulator: sharedSimulator,
+        timings: timings,
+        review: review,
+        heartbeat: heartbeat,
+        statusFile: statusFile,
+    )
 }
 
 private actor StubSimulatorResolver: SimulatorResolving {

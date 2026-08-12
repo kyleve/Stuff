@@ -10,13 +10,13 @@ public struct WhereInstallRequest: Equatable, Sendable {
     public let dryRun: Bool
 
     public init(
-        device: String? = nil,
-        configuration: String = "Debug",
-        optimize: Bool = true,
-        cloudKit: Bool = false,
-        launch: Bool = true,
-        assumeYes: Bool = false,
-        dryRun: Bool = false,
+        device: String?,
+        configuration: String,
+        optimize: Bool,
+        cloudKit: Bool,
+        launch: Bool,
+        assumeYes: Bool,
+        dryRun: Bool,
     ) {
         self.device = device
         self.configuration = configuration
@@ -83,9 +83,7 @@ public struct WhereInstallService: Sendable {
                 arguments: [
                     "exec",
                     "--",
-                    "sh",
-                    "-c",
-                    #"printf "%s" "${TUIST_DEVELOPMENT_TEAM:-}""#,
+                    "env",
                 ],
                 environment: [:],
                 workingDirectory: repository,
@@ -101,9 +99,10 @@ public struct WhereInstallService: Sendable {
         guard teamLookup.succeeded else {
             throw ToolFailure.exitCode(teamLookup.exitCode)
         }
-        let team = teamLookup.standardOutputText.trimmingCharacters(
-            in: .whitespacesAndNewlines,
-        )
+        let team = environmentValue(
+            named: "TUIST_DEVELOPMENT_TEAM",
+            in: teamLookup.standardOutputText,
+        ) ?? ""
         guard team.isEmpty == false else {
             throw ToolFailure.message("""
             no Apple Developer team configured — a device build can't be signed.
@@ -143,7 +142,7 @@ public struct WhereInstallService: Sendable {
         guard build.succeeded else { throw ToolFailure.exitCode(build.exitCode) }
 
         let app = paths.app(configuration: request.configuration)
-        guard fileSystem.kind(of: app) == .directory else {
+        guard try fileSystem.kind(of: app) == .directory else {
             throw ToolFailure.message("built app not found at \(app.path)")
         }
 
@@ -251,6 +250,16 @@ public struct WhereInstallService: Sendable {
             to: .standardOutput,
         )
         return 0
+    }
+
+    private func environmentValue(named name: String, in output: String) -> String? {
+        let prefix = "\(name)="
+        guard let assignment = output.split(separator: "\n").first(where: {
+            $0.hasPrefix(prefix)
+        }) else {
+            return nil
+        }
+        return assignment.dropFirst(prefix.count).trimmingCharacters(in: .whitespaces)
     }
 
     private func makePaths() -> Paths {

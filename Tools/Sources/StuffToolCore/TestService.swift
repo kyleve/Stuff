@@ -19,19 +19,19 @@ public struct TestRequest: Equatable, Sendable {
 
     public init(
         scope: TestScope,
-        bundles: [String] = [],
-        only: [String] = [],
-        baseReference: String = "origin/main",
-        build: Bool = true,
-        generate: Bool = true,
-        record: String? = nil,
-        device: String = "iPhone 17",
-        os: String = "27.0",
-        sharedSimulator: Bool = false,
-        timings: Bool = false,
-        review: Bool = false,
-        heartbeat: TimeInterval = 15,
-        statusFile: String? = nil,
+        bundles: [String],
+        only: [String],
+        baseReference: String,
+        build: Bool,
+        generate: Bool,
+        record: String?,
+        device: String,
+        os: String,
+        sharedSimulator: Bool,
+        timings: Bool,
+        review: Bool,
+        heartbeat: TimeInterval,
+        statusFile: String?,
     ) {
         self.scope = scope
         self.bundles = bundles
@@ -198,7 +198,7 @@ public struct TestService: Sendable {
                 path: "\(scheme.name).xcresult",
                 directoryHint: .isDirectory,
             )
-            if fileSystem.kind(of: resultURL) != .missing {
+            if try fileSystem.kind(of: resultURL) != .missing {
                 try fileSystem.removeItem(at: resultURL)
             }
             if request.build {
@@ -378,7 +378,7 @@ public struct TestService: Sendable {
             path: "tuist-graph",
             directoryHint: .isDirectory,
         )
-        if fileSystem.kind(of: graphDirectory) != .missing {
+        if try fileSystem.kind(of: graphDirectory) != .missing {
             try fileSystem.removeItem(at: graphDirectory)
         }
         try fileSystem.createDirectory(
@@ -596,7 +596,7 @@ public struct TestService: Sendable {
     private func printFailures(resultBundles: [URL]) async throws {
         try await printSection("FAILURES")
         let resultTool = XCResultTool(runner: runner, repository: repository)
-        for resultURL in resultBundles where fileSystem.kind(of: resultURL) == .directory {
+        for resultURL in resultBundles where try fileSystem.kind(of: resultURL) == .directory {
             let catalog: XCResultTestCatalog
             do {
                 catalog = try await resultTool.testCatalog(at: resultURL)

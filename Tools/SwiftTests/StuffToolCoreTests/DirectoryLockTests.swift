@@ -80,8 +80,8 @@ struct DirectoryLockTests {
 private struct AtomicWriteEnforcingFileSystem: FileSystem {
     private let base = FoundationFileSystem()
 
-    func kind(of url: URL) -> FileItemKind {
-        base.kind(of: url)
+    func kind(of url: URL) throws -> FileItemKind {
+        try base.kind(of: url)
     }
 
     func contents(of directory: URL) throws -> [URL] {

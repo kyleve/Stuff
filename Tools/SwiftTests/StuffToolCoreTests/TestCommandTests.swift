@@ -27,6 +27,8 @@ struct TestCommandTests {
 
         #expect(command.makeRequest() == TestRequest(
             scope: .snapshots,
+            bundles: [],
+            only: [],
             baseReference: "upstream/main",
             build: false,
             generate: false,

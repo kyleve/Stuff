@@ -45,7 +45,7 @@ public struct DirectoryLock: Sendable {
             do {
                 try fileSystem.createDirectory(at: directory, withIntermediateDirectories: false)
             } catch {
-                guard fileSystem.kind(of: directory) == .directory else { throw error }
+                guard try fileSystem.kind(of: directory) == .directory else { throw error }
                 let owner = lockOwner()
                 if staleCleared == false,
                    let owner,
@@ -83,7 +83,7 @@ public struct DirectoryLock: Sendable {
 
     public mutating func release() throws {
         guard held else { return }
-        if fileSystem.kind(of: directory) != .missing {
+        if try fileSystem.kind(of: directory) != .missing {
             try fileSystem.removeItem(at: directory)
         }
         held = false

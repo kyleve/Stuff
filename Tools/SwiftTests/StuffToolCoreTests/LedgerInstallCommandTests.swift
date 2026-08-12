@@ -13,7 +13,10 @@ struct LedgerInstallCommandTests {
 
     @Test func defaultsToInstallAndOpenAndRejectsUnknownArguments() throws {
         let command = try LedgerInstallCommand.parse([])
-        #expect(command.makeRequest() == LedgerInstallRequest())
+        #expect(command.makeRequest() == LedgerInstallRequest(
+            openAfterInstall: true,
+            dryRun: false,
+        ))
 
         #expect(throws: (any Error).self) {
             _ = try LedgerInstallCommand.parse(["--unknown"])

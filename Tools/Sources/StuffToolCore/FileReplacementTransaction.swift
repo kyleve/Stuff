@@ -48,7 +48,7 @@ public struct FileReplacementTransaction: Sendable {
         do {
             for (index, replacement) in replacements.enumerated() {
                 let backup: URL?
-                if fileSystem.kind(of: replacement.target) == .missing {
+                if try fileSystem.kind(of: replacement.target) == .missing {
                     backup = nil
                 } else {
                     let value = backupDirectory.appending(path: String(index))
@@ -98,7 +98,7 @@ public struct FileReplacementTransaction: Sendable {
     private func rollback(_ applied: ReversedCollection<[AppliedReplacement]>) throws {
         for entry in applied {
             if entry.installedStagedItem,
-               fileSystem.kind(of: entry.replacement.target) != .missing
+               try fileSystem.kind(of: entry.replacement.target) != .missing
             {
                 try fileSystem.removeItem(at: entry.replacement.target)
             }

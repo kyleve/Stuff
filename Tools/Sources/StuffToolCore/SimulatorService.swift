@@ -429,7 +429,7 @@ public struct SimulatorService: Sendable {
             let device = "\(entry.device ?? "") / iOS \(entry.os ?? "")"
             var checkout = entry.checkout?.path ?? "unknown (missing)"
             if let entryCheckout = entry.checkout,
-               fileSystem.kind(of: entryCheckout) != .directory
+               try fileSystem.kind(of: entryCheckout) != .directory
             {
                 checkout += " (missing)"
             }
@@ -503,8 +503,8 @@ public struct SimulatorService: Sendable {
                 )
                 continue
             }
-            guard fileSystem.kind(of: checkout) != .directory else { continue }
-            guard fileSystem.kind(of: checkout.deletingLastPathComponent()) == .directory else {
+            guard try fileSystem.kind(of: checkout) != .directory else { continue }
+            guard try fileSystem.kind(of: checkout.deletingLastPathComponent()) == .directory else {
                 try await terminal.write(
                     "==> Skipping \(entry.name) — \(checkout.path) is missing, but so is its parent (unmounted volume?)\n",
                     to: .standardError,

@@ -84,4 +84,28 @@ struct XcodeWorkspaceTests {
         #expect(try workspace.logTail(at: root.appending(path: "run.log"), lines: 2) ==
             "third\n")
     }
+
+    @Test func failedBuildSettingsLookupPreservesTheXcodebuildStatus() async throws {
+        let root = try makeTemporaryDirectory()
+        defer { removeTemporaryDirectory(root) }
+        let workspace = XcodeWorkspace(
+            runner: FakeCommandRunner(responses: [.stub(exitCode: 72)]),
+            fileSystem: FoundationFileSystem(),
+            repository: root,
+            workspace: "Stuff.xcworkspace",
+        )
+
+        do {
+            _ = try await workspace.builtProductsDirectory(
+                scheme: "Stuff-iOS-Tests",
+                destination: "platform=iOS Simulator,id=UDID",
+                derivedData: nil,
+            )
+            Issue.record("expected xcodebuild failure")
+        } catch let failure as ToolFailure {
+            #expect(failure == .exitCode(72))
+        } catch {
+            Issue.record("unexpected error: \(error)")
+        }
+    }
 }

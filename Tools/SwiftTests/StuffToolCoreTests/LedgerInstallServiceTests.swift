@@ -47,12 +47,16 @@ struct LedgerInstallServiceTests {
             temporary: temporary,
         )
 
-        let status = try await service.run(LedgerInstallRequest())
+        let status = try await service.run(LedgerInstallRequest(
+            openAfterInstall: true,
+            dryRun: false,
+        ))
 
         #expect(status == 0)
         #expect(try base.read(destination.appending(path: "Contents/marker")) == Data("new".utf8))
-        #expect(base.kind(of: buildRoot) == .missing)
-        #expect(base.kind(of: applications.appending(path: ".Ledger-install-probe")) == .missing)
+        #expect(try base.kind(of: buildRoot) == .missing)
+        #expect(try base
+            .kind(of: applications.appending(path: ".Ledger-install-probe")) == .missing)
         let invocations = await runner.invocations
         #expect(invocations.count == 6)
         #expect(invocations[0].arguments == ["exec", "--", "tuist", "generate", "--no-open"])
@@ -89,7 +93,7 @@ struct LedgerInstallServiceTests {
 
         #expect(status == 0)
         #expect(await runner.invocations.isEmpty)
-        #expect(FoundationFileSystem().kind(of: applications) == .missing)
+        #expect(try FoundationFileSystem().kind(of: applications) == .missing)
         #expect(await terminal.standardOutputText.contains("launch disabled"))
     }
 
@@ -114,7 +118,10 @@ struct LedgerInstallServiceTests {
         )
 
         do {
-            _ = try await service.run(LedgerInstallRequest())
+            _ = try await service.run(LedgerInstallRequest(
+                openAfterInstall: true,
+                dryRun: false,
+            ))
             Issue.record("expected unsafe destination failure")
         } catch let failure as ToolFailure {
             #expect(failure.description.contains("refusing to replace"))
@@ -144,7 +151,7 @@ struct LedgerInstallServiceTests {
                 }
             },
         )
-        let faulting = MoveFaultFileSystem(base: base, failingMove: 2)
+        let faulting = FaultInjectingFileSystem(base: base, failingMove: 2)
         let service = makeService(
             runner: runner,
             fileSystem: faulting,
@@ -155,15 +162,20 @@ struct LedgerInstallServiceTests {
         )
 
         do {
-            _ = try await service.run(LedgerInstallRequest(openAfterInstall: false))
+            _ = try await service.run(LedgerInstallRequest(
+                openAfterInstall: false,
+                dryRun: false,
+            ))
             Issue.record("expected injected replacement failure")
         } catch is InjectedMoveFailure {
             // Expected.
         }
 
         #expect(try base.read(destination.appending(path: "Contents/marker")) == Data("old".utf8))
-        #expect(base.kind(of: applications.appending(path: ".Ledger-install-probe")) == .missing)
-        #expect(base.kind(of: temporary.appending(path: "Ledger-install-build-probe")) == .missing)
+        #expect(try base
+            .kind(of: applications.appending(path: ".Ledger-install-probe")) == .missing)
+        #expect(try base
+            .kind(of: temporary.appending(path: "Ledger-install-build-probe")) == .missing)
     }
 
     @Test func rollbackFailurePreservesTheInstalledAppBackupForRecovery() async throws {
@@ -192,7 +204,7 @@ struct LedgerInstallServiceTests {
             path: ".Ledger-install-probe",
             directoryHint: .isDirectory,
         )
-        let faulting = MoveFaultFileSystem(base: base, failingMoves: [2, 3])
+        let faulting = FaultInjectingFileSystem(base: base, failingMoves: [2, 3])
         let service = makeService(
             runner: runner,
             fileSystem: faulting,
@@ -203,7 +215,10 @@ struct LedgerInstallServiceTests {
         )
 
         do {
-            _ = try await service.run(LedgerInstallRequest(openAfterInstall: false))
+            _ = try await service.run(LedgerInstallRequest(
+                openAfterInstall: false,
+                dryRun: false,
+            ))
             Issue.record("expected rollback failure")
         } catch let failure as FileReplacementTransactionFailure {
             #expect(failure.description.contains(transactionRoot.appending(path: "backup").path))
@@ -211,8 +226,8 @@ struct LedgerInstallServiceTests {
             Issue.record("unexpected error: \(error)")
         }
 
-        #expect(base.kind(of: transactionRoot) == .directory)
-        #expect(base.kind(of: destination) == .missing)
+        #expect(try base.kind(of: transactionRoot) == .directory)
+        #expect(try base.kind(of: destination) == .missing)
         #expect(
             try base.read(transactionRoot.appending(path: "backup/0/Contents/marker")) ==
                 Data("old".utf8),

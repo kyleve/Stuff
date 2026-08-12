@@ -104,7 +104,9 @@ public struct IconsService: Sendable {
             path: "\(plan.setName).imageset",
             directoryHint: .isDirectory,
         )
-        for target in [appTarget, previewTarget] where fileSystem.kind(of: target) != .missing {
+        for target in [appTarget, previewTarget]
+            where try fileSystem.kind(of: target) != .missing
+        {
             throw IconCatalogFailure.message("\(relativePath(target)) already exists")
         }
 
@@ -301,8 +303,8 @@ public struct IconsService: Sendable {
     }
 
     private func validateLayout(_ layout: Layout) throws {
-        let invalid = [layout.manifest, layout.appCatalog, layout.previewCatalog].filter {
-            fileSystem.kind(of: $0) == .missing
+        let invalid = try [layout.manifest, layout.appCatalog, layout.previewCatalog].filter {
+            try fileSystem.kind(of: $0) == .missing
         }
         guard invalid.isEmpty else {
             throw IconCatalogFailure.message(
@@ -310,9 +312,9 @@ public struct IconsService: Sendable {
                     "run ./icons from the repo root",
             )
         }
-        guard fileSystem.kind(of: layout.manifest) == .file,
-              fileSystem.kind(of: layout.appCatalog) == .directory,
-              fileSystem.kind(of: layout.previewCatalog) == .directory
+        guard try fileSystem.kind(of: layout.manifest) == .file,
+              try fileSystem.kind(of: layout.appCatalog) == .directory,
+              try fileSystem.kind(of: layout.previewCatalog) == .directory
         else {
             throw IconCatalogFailure
                 .message("the app-icon repository layout has invalid item types")
@@ -338,7 +340,7 @@ public struct IconsService: Sendable {
     }
 
     private func image(at url: URL, userPath: String) throws -> IconImageData {
-        guard fileSystem.kind(of: url) == .file else {
+        guard try fileSystem.kind(of: url) == .file else {
             throw IconCatalogFailure.message("no such file: \(userPath)")
         }
         return try IconImageData(data: fileSystem.read(url), pathDescription: userPath)
@@ -349,7 +351,7 @@ public struct IconsService: Sendable {
             path: ".stuff-icons-transaction-\(transactionIdentifier())",
             directoryHint: .isDirectory,
         )
-        guard fileSystem.kind(of: root) == .missing else {
+        guard try fileSystem.kind(of: root) == .missing else {
             throw IconCatalogFailure
                 .message("transaction staging path already exists: \(root.path)")
         }

@@ -22,8 +22,10 @@ struct IconsServiceTests {
                 IconAddRequest(
                     lightPath: "art/ocean.png",
                     name: "Ocean",
+                    id: nil,
                     darkPath: "art/ocean.png",
                     tintedPath: "art/ocean.png",
+                    dryRun: false,
                 ),
             ),
         )
@@ -41,7 +43,7 @@ struct IconsServiceTests {
         #expect(try fileSystem.read(appSet.appending(path: "AppIconOcean-Dark.png")) == image)
         #expect(try fileSystem.read(appSet.appending(path: "AppIconOcean-Tinted.png")) == image)
         #expect(try fileSystem.read(previewSet.appending(path: "AppIconOcean.png")) == image)
-        #expect(fileSystem
+        #expect(try fileSystem
             .kind(of: previewSet.appending(path: "AppIconOcean-Tinted.png")) == .missing)
         let manifestURL = iconManifestURL(root)
         let added = try IconCatalogPlanner().decodeManifest(
@@ -49,13 +51,13 @@ struct IconsServiceTests {
             pathDescription: "AppIcons.json",
         )
         #expect(added.icons.map(\.id) == ["classic", "pride", "ocean"])
-        #expect(fileSystem
+        #expect(try fileSystem
             .kind(of: root.appending(path: ".stuff-icons-transaction-success")) == .missing)
 
-        try await service.run(.remove(IconRemoveRequest(target: "OCEAN")))
+        try await service.run(.remove(IconRemoveRequest(target: "OCEAN", dryRun: false)))
 
-        #expect(fileSystem.kind(of: appSet) == .missing)
-        #expect(fileSystem.kind(of: previewSet) == .missing)
+        #expect(try fileSystem.kind(of: appSet) == .missing)
+        #expect(try fileSystem.kind(of: previewSet) == .missing)
         #expect(try fileSystem.read(manifestURL) == fixtureData("app-icons", extension: "json"))
         #expect(await terminal.standardOutputText.contains("Added \"Ocean\""))
         #expect(await terminal.standardOutputText.contains("Removed \"Ocean\""))
@@ -81,16 +83,19 @@ struct IconsServiceTests {
                 IconAddRequest(
                     lightPath: "art/ocean.png",
                     name: "Ocean",
+                    id: nil,
+                    darkPath: nil,
+                    tintedPath: nil,
                     dryRun: true,
                 ),
             ),
         )
 
         #expect(try fileSystem.read(iconManifestURL(root)) == original)
-        #expect(fileSystem.kind(of: root.appending(
+        #expect(try fileSystem.kind(of: root.appending(
             path: "Where/Where/Resources/AppIcon.xcassets/AppIconOcean.appiconset",
         )) == .missing)
-        #expect(fileSystem
+        #expect(try fileSystem
             .kind(of: root.appending(path: ".stuff-icons-transaction-dry")) == .missing)
         #expect(await terminal.standardOutputText.contains("no files changed"))
     }
@@ -102,7 +107,7 @@ struct IconsServiceTests {
         try makeIconRepository(root, fileSystem: base)
         _ = try writeIconFixture(root, fileSystem: base)
         let original = try base.read(iconManifestURL(root))
-        let faulting = MoveFaultFileSystem(base: base, failingMove: 4)
+        let faulting = FaultInjectingFileSystem(base: base, failingMove: 4)
         let service = IconsService(
             fileSystem: faulting,
             terminal: MemoryTerminal(),
@@ -113,7 +118,14 @@ struct IconsServiceTests {
         do {
             try await service.run(
                 .add(
-                    IconAddRequest(lightPath: "art/ocean.png", name: "Ocean"),
+                    IconAddRequest(
+                        lightPath: "art/ocean.png",
+                        name: "Ocean",
+                        id: nil,
+                        darkPath: nil,
+                        tintedPath: nil,
+                        dryRun: false,
+                    ),
                 ),
             )
             Issue.record("expected the injected commit failure")
@@ -122,14 +134,14 @@ struct IconsServiceTests {
         }
 
         #expect(try base.read(iconManifestURL(root)) == original)
-        #expect(base.kind(of: root.appending(
+        #expect(try base.kind(of: root.appending(
             path: "Where/Where/Resources/AppIcon.xcassets/AppIconOcean.appiconset",
         )) == .missing)
-        #expect(base.kind(of: root.appending(
+        #expect(try base.kind(of: root.appending(
             path: "Where/WhereUI/Sources/Resources/AppIconPreviews.xcassets/" +
                 "AppIconOcean.imageset",
         )) == .missing)
-        #expect(base
+        #expect(try base
             .kind(of: root.appending(path: ".stuff-icons-transaction-rollback")) == .missing)
     }
 
@@ -144,7 +156,7 @@ struct IconsServiceTests {
             path: ".stuff-icons-transaction-recovery",
             directoryHint: .isDirectory,
         )
-        let faulting = MoveFaultFileSystem(base: base, failingMoves: [4, 5])
+        let faulting = FaultInjectingFileSystem(base: base, failingMoves: [4, 5])
         let service = IconsService(
             fileSystem: faulting,
             terminal: MemoryTerminal(),
@@ -154,7 +166,14 @@ struct IconsServiceTests {
 
         do {
             try await service.run(
-                .add(IconAddRequest(lightPath: "art/ocean.png", name: "Ocean")),
+                .add(IconAddRequest(
+                    lightPath: "art/ocean.png",
+                    name: "Ocean",
+                    id: nil,
+                    darkPath: nil,
+                    tintedPath: nil,
+                    dryRun: false,
+                )),
             )
             Issue.record("expected rollback failure")
         } catch let failure as FileReplacementTransactionFailure {
@@ -163,7 +182,7 @@ struct IconsServiceTests {
             Issue.record("unexpected error: \(error)")
         }
 
-        #expect(base.kind(of: transactionRoot) == .directory)
+        #expect(try base.kind(of: transactionRoot) == .directory)
         #expect(
             try base.read(transactionRoot.appending(path: "backup/2")) == original,
         )

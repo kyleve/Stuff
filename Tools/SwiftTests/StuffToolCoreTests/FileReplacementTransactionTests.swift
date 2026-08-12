@@ -29,7 +29,7 @@ struct FileReplacementTransactionTests {
         )
 
         #expect(try fileSystem.read(existing) == Data("new".utf8))
-        #expect(fileSystem.kind(of: removed) == .missing)
+        #expect(try fileSystem.kind(of: removed) == .missing)
         #expect(try fileSystem.read(created) == Data("create".utf8))
     }
 
@@ -47,7 +47,7 @@ struct FileReplacementTransactionTests {
         let stagedSecond = stage.appending(path: "second")
         try base.write(Data("first-new".utf8), to: stagedFirst, atomically: false)
         try base.write(Data("second-new".utf8), to: stagedSecond, atomically: false)
-        let faulting = MoveFaultFileSystem(base: base, failingMove: 4)
+        let faulting = FaultInjectingFileSystem(base: base, failingMove: 4)
 
         #expect(throws: (any Error).self) {
             try FileReplacementTransaction(fileSystem: faulting).commit(
@@ -72,7 +72,7 @@ struct FileReplacementTransactionTests {
         let backup = root.appending(path: "backup", directoryHint: .isDirectory)
         try base.write(Data("old".utf8), to: target, atomically: false)
         try base.write(Data("new".utf8), to: staged, atomically: false)
-        let faulting = MoveFaultFileSystem(base: base, failingMoves: [2, 3])
+        let faulting = FaultInjectingFileSystem(base: base, failingMoves: [2, 3])
 
         do {
             try FileReplacementTransaction(fileSystem: faulting).commit(
@@ -91,7 +91,33 @@ struct FileReplacementTransactionTests {
             Issue.record("unexpected error: \(error)")
         }
 
-        #expect(base.kind(of: target) == .missing)
+        #expect(try base.kind(of: target) == .missing)
         #expect(try base.read(backup.appending(path: "0")) == Data("old".utf8))
+    }
+
+    @Test func metadataFailureStopsBeforeMovingTheTarget() throws {
+        let root = try makeTemporaryDirectory()
+        defer { removeTemporaryDirectory(root) }
+        let base = FoundationFileSystem()
+        let target = root.appending(path: "target")
+        let staged = root.appending(path: "staged")
+        try base.write(Data("old".utf8), to: target, atomically: false)
+        try base.write(Data("new".utf8), to: staged, atomically: false)
+        let faulting = FaultInjectingFileSystem(base: base, failingKind: target)
+
+        do {
+            try FileReplacementTransaction(fileSystem: faulting).commit(
+                [FileReplacement(target: target, staged: staged)],
+                backupDirectory: root.appending(path: "backup"),
+            )
+            Issue.record("expected metadata lookup failure")
+        } catch is InjectedKindFailure {
+            // Expected.
+        } catch {
+            Issue.record("unexpected error: \(error)")
+        }
+
+        #expect(try base.read(target) == Data("old".utf8))
+        #expect(try base.read(staged) == Data("new".utf8))
     }
 }

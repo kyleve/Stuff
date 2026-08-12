@@ -34,7 +34,7 @@ struct TestProgressReporterTests {
         #expect(await terminal.standardOutputText.contains("✘ ExampleSuite/second()"))
         #expect(await terminal.standardOutputText.contains("2 tests, 1 images in 0:00 — 1 failed"))
         #expect(try String(contentsOf: log, encoding: .utf8) == output)
-        #expect(fileSystem.kind(of: URL(filePath: counts.path + ".empty")) == .missing)
+        #expect(try fileSystem.kind(of: URL(filePath: counts.path + ".empty")) == .missing)
     }
 
     @Test func zeroTestsIsObservableAndCreatesTheFailureMarker() async throws {

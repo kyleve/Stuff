@@ -8,7 +8,7 @@ public enum FileItemKind: Equatable, Sendable {
 }
 
 public protocol FileSystem: Sendable {
-    func kind(of url: URL) -> FileItemKind
+    func kind(of url: URL) throws -> FileItemKind
     func contents(of directory: URL) throws -> [URL]
     func copyItem(at source: URL, to destination: URL) throws
     func createDirectory(at url: URL, withIntermediateDirectories: Bool) throws
@@ -22,11 +22,17 @@ public protocol FileSystem: Sendable {
 public struct FoundationFileSystem: FileSystem {
     public init() {}
 
-    public func kind(of url: URL) -> FileItemKind {
-        guard let attributes = try? FileManager.default.attributesOfItem(atPath: url.path),
-              let type = attributes[.type] as? FileAttributeType
-        else {
+    public func kind(of url: URL) throws -> FileItemKind {
+        let attributes: [FileAttributeKey: Any]
+        do {
+            attributes = try FileManager.default.attributesOfItem(atPath: url.path)
+        } catch let error as CocoaError where error.code == .fileReadNoSuchFile {
             return .missing
+        } catch {
+            throw error
+        }
+        guard let type = attributes[.type] as? FileAttributeType else {
+            throw CocoaError(.fileReadUnknown, userInfo: [NSFilePathErrorKey: url.path])
         }
         return switch type {
             case .typeDirectory: .directory

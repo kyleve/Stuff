@@ -43,25 +43,38 @@ enum FakeCommandFailure: Error {
 }
 
 struct InjectedMoveFailure: Error {}
+struct InjectedKindFailure: Error {}
 
-final class MoveFaultFileSystem: FileSystem, @unchecked Sendable {
+final class FaultInjectingFileSystem: FileSystem, @unchecked Sendable {
     private let base: FoundationFileSystem
     private let failingMoves: Set<Int>
+    private let failingKind: URL?
     private let lock = NSLock()
     private var moveCount = 0
 
     init(base: FoundationFileSystem, failingMove: Int) {
         self.base = base
         failingMoves = [failingMove]
+        failingKind = nil
     }
 
     init(base: FoundationFileSystem, failingMoves: Set<Int>) {
         self.base = base
         self.failingMoves = failingMoves
+        failingKind = nil
     }
 
-    func kind(of url: URL) -> FileItemKind {
-        base.kind(of: url)
+    init(base: FoundationFileSystem, failingKind: URL) {
+        self.base = base
+        failingMoves = []
+        self.failingKind = failingKind.standardizedFileURL
+    }
+
+    func kind(of url: URL) throws -> FileItemKind {
+        if url.standardizedFileURL == failingKind {
+            throw InjectedKindFailure()
+        }
+        return try base.kind(of: url)
     }
 
     func contents(of directory: URL) throws -> [URL] {

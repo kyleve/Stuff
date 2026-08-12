@@ -65,7 +65,7 @@ public actor TestProgressReporter {
         self.terminal = terminal
         self.fileSystem = fileSystem
         self.clock = clock
-        if fileSystem.kind(of: countsURL) == .missing {
+        if try fileSystem.kind(of: countsURL) == .missing {
             expected = ExpectedCounts()
             initialWarning = nil
         } else {
@@ -152,7 +152,7 @@ public actor TestProgressReporter {
             } catch {
                 try await warn("could not write zero-test marker at \(emptyMarker.path): \(error)")
             }
-        } else if fileSystem.kind(of: emptyMarker) != .missing {
+        } else if try fileSystem.kind(of: emptyMarker) != .missing {
             do {
                 try fileSystem.removeItem(at: emptyMarker)
             } catch {

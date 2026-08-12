@@ -32,9 +32,9 @@ public struct SimulatorRegistry: Sendable {
     }
 
     public func entries() throws -> [SimulatorRegistryEntry] {
-        guard fileSystem.kind(of: directory) == .directory else { return [] }
+        guard try fileSystem.kind(of: directory) == .directory else { return [] }
         return try fileSystem.contents(of: directory)
-            .filter { fileSystem.kind(of: $0) == .file }
+            .filter { try fileSystem.kind(of: $0) == .file }
             .sorted { $0.lastPathComponent < $1.lastPathComponent }
             .map(readEntry)
     }
@@ -63,7 +63,7 @@ public struct SimulatorRegistry: Sendable {
 
     public func remove(name: String) throws {
         let url = directory.appending(path: name)
-        guard fileSystem.kind(of: url) != .missing else { return }
+        guard try fileSystem.kind(of: url) != .missing else { return }
         try fileSystem.removeItem(at: url)
     }
 

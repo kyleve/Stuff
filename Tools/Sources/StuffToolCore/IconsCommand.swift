@@ -10,11 +10,11 @@ public struct IconAddRequest: Equatable, Sendable {
 
     public init(
         lightPath: String,
-        name: String? = nil,
-        id: String? = nil,
-        darkPath: String? = nil,
-        tintedPath: String? = nil,
-        dryRun: Bool = false,
+        name: String?,
+        id: String?,
+        darkPath: String?,
+        tintedPath: String?,
+        dryRun: Bool,
     ) {
         self.lightPath = lightPath
         self.name = name
@@ -29,7 +29,7 @@ public struct IconRemoveRequest: Equatable, Sendable {
     public let target: String
     public let dryRun: Bool
 
-    public init(target: String, dryRun: Bool = false) {
+    public init(target: String, dryRun: Bool) {
         self.target = target
         self.dryRun = dryRun
     }

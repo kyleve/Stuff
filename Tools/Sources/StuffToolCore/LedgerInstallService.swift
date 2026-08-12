@@ -4,7 +4,7 @@ public struct LedgerInstallRequest: Equatable, Sendable {
     public let openAfterInstall: Bool
     public let dryRun: Bool
 
-    public init(openAfterInstall: Bool = true, dryRun: Bool = false) {
+    public init(openAfterInstall: Bool, dryRun: Bool) {
         self.openAfterInstall = openAfterInstall
         self.dryRun = dryRun
     }
@@ -73,7 +73,7 @@ public struct LedgerInstallService: Sendable {
             path: "Ledger-install-build-\(runIdentifier)",
             directoryHint: .isDirectory,
         )
-        guard fileSystem.kind(of: buildRoot) == .missing else {
+        guard try fileSystem.kind(of: buildRoot) == .missing else {
             throw ToolFailure
                 .message("temporary build path already exists: \(buildRoot.path)")
         }
@@ -142,7 +142,7 @@ public struct LedgerInstallService: Sendable {
             path: ".Ledger-install-\(runIdentifier)",
             directoryHint: .isDirectory,
         )
-        guard fileSystem.kind(of: transactionRoot) == .missing else {
+        guard try fileSystem.kind(of: transactionRoot) == .missing else {
             throw ToolFailure.message(
                 "installation staging path already exists: \(transactionRoot.path)",
             )
@@ -161,7 +161,7 @@ public struct LedgerInstallService: Sendable {
         try validateAppBundle(stagedApp, role: "staged app")
 
         try await terminal.write("==> Installing to \(destination.path)\n", to: .standardOutput)
-        if fileSystem.kind(of: destination) == .directory {
+        if try fileSystem.kind(of: destination) == .directory {
             let installedBinary = destination.appending(path: "Contents/MacOS/Ledger")
             let outcome = try await InstalledProcessController(
                 runner: runner,
@@ -220,13 +220,13 @@ public struct LedgerInstallService: Sendable {
 
     private func validateDestination(_ destination: URL) throws {
         guard applicationsDirectory.standardizedFileURL.path.hasPrefix("/"),
-              fileSystem.kind(of: applicationsDirectory) == .directory
+              try fileSystem.kind(of: applicationsDirectory) == .directory
         else {
             throw ToolFailure.message(
                 "installation parent is not a directory: \(applicationsDirectory.path)",
             )
         }
-        switch fileSystem.kind(of: destination) {
+        switch try fileSystem.kind(of: destination) {
             case .missing:
                 break
             case .directory:
@@ -239,9 +239,9 @@ public struct LedgerInstallService: Sendable {
     }
 
     private func validateAppBundle(_ app: URL, role: String) throws {
-        guard fileSystem.kind(of: app) == .directory,
-              fileSystem.kind(of: app.appending(path: "Contents/Info.plist")) == .file,
-              fileSystem.kind(of: app.appending(path: "Contents/MacOS/Ledger")) == .file
+        guard try fileSystem.kind(of: app) == .directory,
+              try fileSystem.kind(of: app.appending(path: "Contents/Info.plist")) == .file,
+              try fileSystem.kind(of: app.appending(path: "Contents/MacOS/Ledger")) == .file
         else {
             throw ToolFailure.message(
                 "\(role) is not a complete Ledger.app bundle at \(app.path)",

@@ -10,7 +10,7 @@ struct WhereInstallServiceTests {
         let fileSystem = FoundationFileSystem()
         try prepareInstallOutputs(work: work, fileSystem: fileSystem)
         let runner = FakeCommandRunner(responses: [
-            .stub(standardOutput: "ABCDE12345\n"),
+            .stub(standardOutput: "PATH=/usr/bin\nTUIST_DEVELOPMENT_TEAM=ABCDE12345\n"),
             .stub(),
             .stub(standardOutput: "build output\n"),
             .stub(),
@@ -28,7 +28,7 @@ struct WhereInstallServiceTests {
         )
 
         let status = try await service.run(
-            WhereInstallRequest(
+            makeWhereInstallRequest(
                 device: "UDID-A",
                 cloudKit: true,
                 assumeYes: false,
@@ -41,9 +41,7 @@ struct WhereInstallServiceTests {
         #expect(invocations[0].arguments == [
             "exec",
             "--",
-            "sh",
-            "-c",
-            #"printf "%s" "${TUIST_DEVELOPMENT_TEAM:-}""#,
+            "env",
         ])
         #expect(invocations[1].arguments == ["exec", "--", "tuist", "generate", "--no-open"])
         #expect(invocations[2].executable == "mise")
@@ -85,7 +83,7 @@ struct WhereInstallServiceTests {
         )
 
         let status = try await service.run(
-            WhereInstallRequest(
+            makeWhereInstallRequest(
                 device: "Phone",
                 optimize: false,
                 launch: false,
@@ -95,7 +93,7 @@ struct WhereInstallServiceTests {
 
         #expect(status == 0)
         #expect(await runner.invocations.isEmpty)
-        #expect(FoundationFileSystem().kind(of: work) == .missing)
+        #expect(try FoundationFileSystem().kind(of: work) == .missing)
         #expect(await terminal.standardOutputText.contains("no project generation"))
         #expect(await terminal.standardOutputText.contains("launch disabled"))
     }
@@ -113,14 +111,14 @@ struct WhereInstallServiceTests {
             environment: ["WHERE_INSTALL_WORKDIR": root.appending(path: "missing").path],
         )
         do {
-            _ = try await missingTeam.run(WhereInstallRequest())
+            _ = try await missingTeam.run(makeWhereInstallRequest())
             Issue.record("expected missing team failure")
         } catch let failure as ToolFailure {
             #expect(failure.description.contains("no Apple Developer team configured"))
         }
 
         let buildRunner = FakeCommandRunner(responses: [
-            .stub(standardOutput: "TEAM"),
+            .stub(standardOutput: "TUIST_DEVELOPMENT_TEAM=TEAM\n"),
             .stub(),
             .stub(exitCode: 65),
         ])
@@ -133,7 +131,7 @@ struct WhereInstallServiceTests {
             environment: ["WHERE_INSTALL_WORKDIR": root.appending(path: "build").path],
         )
         do {
-            _ = try await buildFailure.run(WhereInstallRequest())
+            _ = try await buildFailure.run(makeWhereInstallRequest())
             Issue.record("expected build failure")
         } catch let failure as ToolFailure {
             #expect(failure == .exitCode(65))
@@ -157,7 +155,7 @@ struct WhereInstallServiceTests {
         )
 
         do {
-            _ = try await service.run(WhereInstallRequest())
+            _ = try await service.run(makeWhereInstallRequest())
             Issue.record("expected signing-team lookup failure")
         } catch let failure as ToolFailure {
             #expect(failure == .exitCode(78))
@@ -168,9 +166,7 @@ struct WhereInstallServiceTests {
         #expect(invocation.arguments == [
             "exec",
             "--",
-            "sh",
-            "-c",
-            #"printf "%s" "${TUIST_DEVELOPMENT_TEAM:-}""#,
+            "env",
         ])
     }
 
@@ -181,7 +177,7 @@ struct WhereInstallServiceTests {
         let fileSystem = FoundationFileSystem()
         try prepareInstallOutputs(work: work, fileSystem: fileSystem)
         let runner = FakeCommandRunner(responses: [
-            .stub(standardOutput: "ABCDE12345\n"),
+            .stub(standardOutput: "TUIST_DEVELOPMENT_TEAM=ABCDE12345\n"),
             .stub(),
             .stub(),
             .stub(),
@@ -198,7 +194,7 @@ struct WhereInstallServiceTests {
 
         do {
             _ = try await service.run(
-                WhereInstallRequest(device: "UDID-A", launch: false),
+                makeWhereInstallRequest(device: "UDID-A", launch: false),
             )
             Issue.record("expected EOF to cancel installation")
         } catch let failure as ToolFailure {
@@ -208,6 +204,26 @@ struct WhereInstallServiceTests {
         #expect(await runner.invocations.count == 4)
         #expect(await terminal.prompts == ["Press Enter to install, or Ctrl-C to cancel... "])
     }
+}
+
+private func makeWhereInstallRequest(
+    device: String? = nil,
+    configuration: String = "Debug",
+    optimize: Bool = true,
+    cloudKit: Bool = false,
+    launch: Bool = true,
+    assumeYes: Bool = false,
+    dryRun: Bool = false,
+) -> WhereInstallRequest {
+    WhereInstallRequest(
+        device: device,
+        configuration: configuration,
+        optimize: optimize,
+        cloudKit: cloudKit,
+        launch: launch,
+        assumeYes: assumeYes,
+        dryRun: dryRun,
+    )
 }
 
 private func prepareInstallOutputs(

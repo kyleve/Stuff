@@ -92,7 +92,7 @@ struct XcodeWorkspace {
                 output: .captured,
             ),
         )
-        guard result.succeeded else { return nil }
+        guard result.succeeded else { throw ToolFailure.exitCode(result.exitCode) }
         let marker = " BUILT_PRODUCTS_DIR = "
         for line in result.standardOutputText.split(separator: "\n") {
             guard let range = line.range(of: marker) else { continue }
@@ -121,7 +121,7 @@ struct XcodeWorkspace {
     }
 
     func removeIfPresent(_ url: URL) throws {
-        if fileSystem.kind(of: url) != .missing {
+        if try fileSystem.kind(of: url) != .missing {
             try fileSystem.removeItem(at: url)
         }
     }

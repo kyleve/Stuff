@@ -395,7 +395,7 @@ public struct FlakyService: Sendable {
         var combined = existing
         combined.append(Data(("\nwarning: " + message + "\n").utf8))
         try fileSystem.write(combined, to: log, atomically: false)
-        if fileSystem.kind(of: output) != .missing {
+        if try fileSystem.kind(of: output) != .missing {
             try fileSystem.removeItem(at: output)
         }
     }
