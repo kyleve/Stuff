@@ -266,6 +266,8 @@ public final class WhereModel {
 
     /// Preview a theme without writing device preferences.
     public func previewTheme(_ newTheme: WhereTheme) {
+        // RootView observes `theme` and passes it to `whereBroadwayRoot`, so
+        // this assignment immediately re-resolves the live presentation tree.
         guard newTheme != theme else { return }
         theme = newTheme
     }
