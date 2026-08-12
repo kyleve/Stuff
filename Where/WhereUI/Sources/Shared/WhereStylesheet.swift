@@ -50,6 +50,13 @@ struct WhereStylesheet: BStylesheet {
         let traits = context.traits
         theme = context.themes[WhereTheme.self]
 
+        switch theme {
+            case .standard:
+                applyQuietGlassTheme()
+            case .alternate:
+                break
+        }
+
         // Grow day-grid tap targets at accessibility Dynamic Type sizes.
         if traits.contentSizeCategory.isAccessibilitySize {
             calendar.day.minHeight = 56
@@ -96,13 +103,122 @@ struct WhereStylesheet: BStylesheet {
         // dark glass without changing its hue or saturation on touch.
         if traits.mode == .dark {
             card.securityPrint = .dark
-            featureDiscovery.siri.accent = Palette.Brand.dark.mineral
+            palette = theme == .standard ? .glassDark : .dark
+            featureDiscovery.siri.accent = palette.brand.mineral
             featureDiscovery.widgets.wallpapers.home = .init(
-                top: Palette.Brand.dark.canvas,
-                bottom: Palette.Brand.dark.raisedPaper,
+                top: palette.brand.canvas,
+                bottom: palette.brand.raisedPaper,
             )
-            palette = .dark
         }
+    }
+
+    /// Resolve the complete Quiet Glass baseline before accessibility and
+    /// appearance traits refine it. Components keep one view hierarchy; this
+    /// swaps their authored material, type, geometry, and ornament together.
+    private mutating func applyQuietGlassTheme() {
+        palette = .glass
+
+        locations.titleFont = .largeTitle.weight(.semibold)
+        locations.eyebrowFont = .caption.weight(.semibold)
+        locations.summaryFont = .subheadline
+        locations.surfaceBorderOpacity = 0.08
+        locations.surfaceBorderWidth = 0.5
+        locations.featuredMinimumHeight = 286
+        locations.standardMinimumHeight = 238
+
+        card.regular.cornerRadius = 26
+        card.regular.regionNameTypography = .init(
+            size: .fixed(36),
+            weight: .semibold,
+            design: .default,
+        )
+        card.regular.regionNameTracking = -0.25
+        card.regular.sheen.intensity = 0.15
+        card.regular.sheen.staticGlintIntensity = 0.04
+        card.regular.glow = .init(opacity: 0, radius: 0)
+        card.regular.lift = .init(opacity: 0.09, radius: 14, offsetY: 7)
+        card.compact.cornerRadius = 22
+        card.compact.regionNameTypography = .init(
+            size: .semantic(.title3),
+            weight: .semibold,
+            design: .default,
+        )
+        card.compact.sheen.intensity = 0.1
+        card.compact.glow = .init(opacity: 0, radius: 0)
+        card.glassTintOpacity = 0.09
+        card.nameOpacity = 1
+        card.watermarkOpacity = 0.035
+        card.rosetteFill = .init(primary: 0, secondary: 0)
+        if var regionShape = card.regular.regionShape {
+            regionShape.watermark.fillOpacity = 0.045
+            if var stroke = regionShape.watermark.stroke {
+                stroke.opacity = 0.09
+                regionShape.watermark.stroke = stroke
+            }
+            regionShape.securityBorder.opacity = 0
+            card.regular.regionShape = regionShape
+        }
+
+        calendar.month.cornerRadius = 22
+        calendar.month.ruleOpacity = 0
+        calendar.month.plain.fill = Color.white.opacity(0.08)
+        calendar.month.plain.border = Color.primary.opacity(0.08)
+        calendar.month.plain.borderWidth = 0.5
+        calendar.month.current.fill = Color.accentColor.opacity(0.045)
+        calendar.month.current.border = Color.accentColor.opacity(0.2)
+        calendar.month.current.borderWidth = 0.75
+        calendar.regionBand.opacity = 0.075
+
+        timeline.overview.cornerRadius = 22
+        timeline.overview.background = Color.white.opacity(0.08)
+        timeline.overview.border = Color.primary.opacity(0.08)
+        timeline.overview.borderWidth = 0.5
+        timeline.overview.yearFont = .title2.bold()
+        timeline.row.cornerRadius = 20
+        timeline.row.borderOpacity = 0.08
+        timeline.row.borderWidth = 0.5
+
+        typography.editorialTitle = .largeTitle.bold()
+        homeWidget.eyebrowFont = .caption2.weight(.semibold)
+        homeWidget.heroNameFont = .title2.weight(.semibold)
+        homeWidget.rowNameFont = .caption.weight(.semibold)
+        homeWidget.ruleOpacity = 0.18
+        homeWidget.borderOpacity = 0.08
+        recordSnippet.cornerRadius = 22
+        recordSnippet.titleFont = .title3.weight(.semibold)
+        recordSnippet.borderOpacity = 0.08
+        recordSnippet.ruleOpacity = 0.12
+        elsewhereCard.cornerRadius = 26
+
+        year.cover.cornerRadius = 32
+        year.cover.titleFont = .largeTitle.weight(.semibold)
+        year.cover.figureEditorialFont = .title2.weight(.semibold)
+        year.cover.borderOpacity = 0.14
+        passportCard.cornerRadius = 24
+        passportCard.rosette.primaryOpacity = 0
+        passportCard.rosette.secondaryOpacity = 0
+        passportCard.glassTintOpacity = 0.08
+        passportCard.accentGlow = .init(opacity: 0, radius: 0)
+        passportCard.reflectiveSurface.intensity = 0.06
+
+        evidence.archive.titleFont = .title2.weight(.semibold)
+        evidence.archive.rowTitleFont = .headline.weight(.semibold)
+        evidence.archive.borderOpacity = 0.08
+        evidence.compose.titleFont = .title3.weight(.semibold)
+        recordPreparation.cornerRadius = 26
+        recordPreparation.titleFont = .title2.weight(.semibold)
+        recordPreparation.borderOpacity = 0.12
+        featureDiscovery.backgroundPattern.opacity = 0
+        featureDiscovery.marketingPanel.cornerRadius = 22
+        featureDiscovery.marketingPanel.borderOpacity = 0.08
+        featureDiscovery.siri.card.cornerRadius = 22
+        featureDiscovery.siri.bubble.cornerRadius = 20
+        featureDiscovery.widgets.frame.cornerRadius = 22
+        featureDiscovery.siri.accent = palette.brand.mineral
+        featureDiscovery.widgets.wallpapers.home = .init(
+            top: palette.brand.canvas,
+            bottom: palette.brand.raisedPaper,
+        )
     }
 
     /// The fixed token set: the fallback used off the `View` tree (layout
@@ -2293,6 +2409,62 @@ extension WhereStylesheet {
                 backgroundBottom: Brand.dark.canvas,
             ),
         )
+
+        static let glass = Palette(
+            brand: Brand(
+                canvas: Color(red: 0.94, green: 0.955, blue: 0.97),
+                raisedPaper: Color(red: 0.985, green: 0.99, blue: 1),
+                ink: Color(red: 0.08, green: 0.1, blue: 0.13),
+                midnight: Color(red: 0.9, green: 0.925, blue: 0.95),
+                onMidnight: Color(red: 0.08, green: 0.1, blue: 0.13),
+                brass: Color(red: 0.3, green: 0.43, blue: 0.54),
+                oxblood: Color(red: 0.46, green: 0.25, blue: 0.31),
+                forest: Color(red: 0.2, green: 0.38, blue: 0.31),
+                mineral: Color(red: 0.25, green: 0.43, blue: 0.56),
+            ),
+            primary: Primary(
+                backgroundTop: Color(red: 0.97, green: 0.98, blue: 0.99),
+                backgroundBottom: Color(red: 0.91, green: 0.94, blue: 0.97),
+            ),
+            splash: Splash(
+                background: Color(red: 0.94, green: 0.955, blue: 0.97),
+                vignetteCenter: Color(red: 0.99, green: 0.995, blue: 1),
+                vignetteEdge: Color(red: 0.91, green: 0.935, blue: 0.96),
+                iconGlow: Color(red: 0.25, green: 0.43, blue: 0.56),
+            ),
+            onboarding: Onboarding(
+                backgroundTop: Color(red: 0.985, green: 0.99, blue: 1),
+                backgroundBottom: Color(red: 0.91, green: 0.94, blue: 0.97),
+            ),
+        )
+
+        static let glassDark = Palette(
+            brand: Brand(
+                canvas: Color(red: 0.055, green: 0.065, blue: 0.08),
+                raisedPaper: Color(red: 0.105, green: 0.12, blue: 0.145),
+                ink: Color(red: 0.93, green: 0.95, blue: 0.98),
+                midnight: Color(red: 0.075, green: 0.09, blue: 0.115),
+                onMidnight: Color(red: 0.93, green: 0.95, blue: 0.98),
+                brass: Color(red: 0.48, green: 0.63, blue: 0.74),
+                oxblood: Color(red: 0.64, green: 0.39, blue: 0.45),
+                forest: Color(red: 0.36, green: 0.56, blue: 0.47),
+                mineral: Color(red: 0.46, green: 0.64, blue: 0.76),
+            ),
+            primary: Primary(
+                backgroundTop: Color(red: 0.09, green: 0.105, blue: 0.13),
+                backgroundBottom: Color(red: 0.045, green: 0.055, blue: 0.07),
+            ),
+            splash: Splash(
+                background: Color(red: 0.055, green: 0.065, blue: 0.08),
+                vignetteCenter: Color(red: 0.105, green: 0.12, blue: 0.145),
+                vignetteEdge: Color(red: 0.045, green: 0.055, blue: 0.07),
+                iconGlow: Color(red: 0.46, green: 0.64, blue: 0.76),
+            ),
+            onboarding: Onboarding(
+                backgroundTop: Color(red: 0.105, green: 0.12, blue: 0.145),
+                backgroundBottom: Color(red: 0.045, green: 0.055, blue: 0.07),
+            ),
+        )
     }
 }
 
@@ -2300,7 +2472,7 @@ extension WhereStylesheet {
 
 /// The Where app's Broadway themes, seeded at the root by `whereBroadwayRoot()`.
 /// Carries the selected presentation identity independently from system traits.
-/// Both identities currently resolve through the same tokens.
+/// Standard maps to Quiet Glass while Alternate maps to the editorial Folio.
 enum WhereThemes {
     static func current(theme: WhereTheme) -> BThemes {
         var themes = BThemes()
