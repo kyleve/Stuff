@@ -2,8 +2,8 @@ import Foundation
 import RegionKit
 
 /// The app's persisted user intent — onboarding completion and the reminder /
-/// daily-summary schedules — plus small pieces of UI
-/// continuity state, behind a `KeyValueStore` so production uses `UserDefaults`
+/// daily-summary schedules — plus small pieces of UI continuity and acknowledgement
+/// state, behind a `KeyValueStore` so production uses `UserDefaults`
 /// and tests use an in-memory double.
 ///
 /// `store` is deliberately not defaulted: defaulting it to
@@ -93,6 +93,46 @@ public final class WherePreferences {
         set { store.set(newValue, forKey: Keys.issueAlertsEnabled.rawValue) }
     }
 
+    /// Generation bookkeeping for the recording-configuration warning. This is UI continuity
+    /// state: the live recording policy and authorization remain authoritative.
+    public var recordingConfigurationWarningRegistration:
+        RecordingConfigurationWarningRegistration
+    {
+        get {
+            guard
+                let storage = store.object(
+                    forKey: Keys.recordingConfigurationWarningRegistration.rawValue,
+                ) as? [String: Any],
+                let generation = storage[RecordingWarningKeys.generation.rawValue] as? Int,
+                generation >= 0,
+                let wasActive = storage[RecordingWarningKeys.wasActive.rawValue] as? Bool
+            else {
+                return RecordingConfigurationWarningRegistration()
+            }
+            let acknowledged = storage[RecordingWarningKeys.acknowledged.rawValue] as? Int
+            guard acknowledged.map({ $0 <= generation }) ?? true else {
+                return RecordingConfigurationWarningRegistration()
+            }
+            return RecordingConfigurationWarningRegistration(
+                generation: generation,
+                acknowledgedGeneration: acknowledged,
+                wasWarningConditionActive: wasActive,
+            )
+        }
+        set {
+            var storage: [String: Any] = [
+                RecordingWarningKeys.generation.rawValue: newValue.generation,
+            ]
+            if let acknowledged = newValue.acknowledgedGeneration {
+                storage[RecordingWarningKeys.acknowledged.rawValue] = acknowledged
+            }
+            if let wasActive = newValue.wasWarningConditionActive {
+                storage[RecordingWarningKeys.wasActive.rawValue] = wasActive
+            }
+            store.set(storage, forKey: Keys.recordingConfigurationWarningRegistration.rawValue)
+        }
+    }
+
     /// GPS border-drift detection threshold in meters. Defaults to 10 km.
     public var driftThresholdMeters: Int {
         get {
@@ -156,7 +196,15 @@ public final class WherePreferences {
         case summaryHour = "where.summaryHour"
         case summaryMinute = "where.summaryMinute"
         case issueAlertsEnabled = "where.issueAlertsEnabled"
+        case recordingConfigurationWarningRegistration =
+            "where.recordingConfigurationWarningRegistration"
         case driftThresholdMeters = "where.driftThresholdMeters"
         case lastSeenLocationDayCounts = "where.lastSeenLocationDayCounts"
+    }
+
+    private enum RecordingWarningKeys: String {
+        case generation
+        case acknowledged
+        case wasActive
     }
 }

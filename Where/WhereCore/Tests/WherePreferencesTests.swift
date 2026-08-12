@@ -17,6 +17,10 @@ struct WherePreferencesTests {
         #expect(preferences.summaryEnabled)
         #expect(preferences.summaryTime == .defaultMorning)
         #expect(preferences.issueAlertsEnabled)
+        #expect(
+            preferences.recordingConfigurationWarningRegistration
+                == RecordingConfigurationWarningRegistration(),
+        )
         #expect(preferences.driftThresholdMeters == DriftThreshold.default.rawValue)
         #expect(preferences.lastSeenLocationDayCounts(in: 2026) == nil)
     }
@@ -42,6 +46,10 @@ struct WherePreferencesTests {
         preferences.summaryEnabled = false
         preferences.summaryTime = ReminderTime(hour: 17, minute: 45)
         preferences.issueAlertsEnabled = false
+        var recordingWarning = preferences.recordingConfigurationWarningRegistration
+        recordingWarning.register(isWarningConditionActive: true)
+        recordingWarning.acknowledgeCurrentGeneration()
+        preferences.recordingConfigurationWarningRegistration = recordingWarning
         preferences.driftThresholdMeters = 25000
         preferences.setLastSeenLocationDayCounts([.california: 100], in: 2026)
 
@@ -54,6 +62,10 @@ struct WherePreferencesTests {
         #expect(preferences.summaryEnabled)
         #expect(preferences.summaryTime == .defaultMorning)
         #expect(preferences.issueAlertsEnabled)
+        #expect(
+            preferences.recordingConfigurationWarningRegistration
+                == RecordingConfigurationWarningRegistration(),
+        )
         #expect(preferences.driftThresholdMeters == DriftThreshold.default.rawValue)
         #expect(preferences.lastSeenLocationDayCounts(in: 2026) == nil)
     }

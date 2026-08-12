@@ -22,7 +22,9 @@ struct MainTabs: View {
     }
 
     @State private var report: YearReportModel
+    @State private var recordingWarning: RecordingConfigurationWarningModel
     @State private var selection: TabID = .locations
+    @Environment(WhereSession.self) private var session
     @Environment(\.scenePhase) private var scenePhase
 
     /// Build the scene's report model from the coordinator's service layer.
@@ -36,9 +38,13 @@ struct MainTabs: View {
             preferences: session.preferences,
             now: session.now,
         ))
+        _recordingWarning = State(initialValue: RecordingConfigurationWarningModel(
+            preferences: session.preferences,
+        ))
     }
 
     var body: some View {
+        let recordingConfiguration = recordingWarning.configuration(for: session)
         TabView(selection: $selection) {
             Tab(
                 String(localized: .tabLocations),
@@ -59,9 +65,10 @@ struct MainTabs: View {
                 systemImage: "gearshape.fill",
                 value: TabID.settings,
             ) {
-                SettingsView(report: report)
+                SettingsView(report: report, recordingWarning: recordingWarning)
                     .reportingDeveloperTabBarInset()
             }
+            .badge(recordingWarning.isPresented ? 1 : 0)
         }
         // Keep the tab bar fixed — don't minimize it as content scrolls.
         .tabBarMinimizeBehavior(.never)
@@ -69,6 +76,9 @@ struct MainTabs: View {
         // returns to the foreground; cancel the subscription on background so a
         // backgrounded scene drives no refreshes.
         .task { await report.activate() }
+        .task(id: recordingConfiguration) {
+            recordingWarning.register(recordingConfiguration)
+        }
         .onChange(of: scenePhase) { _, newPhase in
             switch newPhase {
                 case .active:
