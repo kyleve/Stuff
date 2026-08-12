@@ -43,7 +43,7 @@
     {
       "name": "AccessibilitySnapshot",
       "kind": "developmentTool",
-      "version": "0.11.0",
+      "version": "0.12.0",
       "homepageURL": "https://github.com/cashapp/AccessibilitySnapshot",
       "license": {
         "name": "Apache License 2.0",
