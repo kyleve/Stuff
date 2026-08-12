@@ -26,6 +26,8 @@ jobs:
       - name: ShellCheck
         run: ./shellcheck
       - run: ./swiftformat --lint
+      - name: SF Symbol lint
+        run: ./sf-symbols --lint
       # Catalogs drift out of Xcode's serialization the moment one is written by
       # anything but Xcode, and the cost lands on whoever next builds in the IDE
       # (see "Formatting" in AGENTS.md). This rides along in the format job

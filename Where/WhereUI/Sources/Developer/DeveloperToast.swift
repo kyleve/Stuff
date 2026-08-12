@@ -2,6 +2,7 @@
     import Observation
     import PeriscopeCore
     import PeriscopeTools
+    import SFSafeSymbols
     import SwiftUI
 
     /// The DEBUG-only in-app toast surface for high-severity log records.
@@ -96,7 +97,7 @@
 
         var body: some View {
             HStack(alignment: .top, spacing: 10) {
-                Image(systemName: symbol)
+                Image(systemSymbol: symbol)
                     .foregroundStyle(tint)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(toast.title)
@@ -127,10 +128,10 @@
             toast.level >= .error ? .red : .orange
         }
 
-        private var symbol: String {
+        private var symbol: SFSymbol {
             toast.level >= .error
-                ? "exclamationmark.octagon.fill"
-                : "exclamationmark.triangle.fill"
+                ? .exclamationmarkOctagonFill
+                : .exclamationmarkTriangleFill
         }
     }
 

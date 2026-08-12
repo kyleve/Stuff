@@ -1,5 +1,6 @@
 import AppKit
 import LedgerCore
+import SFSafeSymbols
 import SwiftUI
 
 /// A pane in the settings sidebar: static identity/metadata plus its own
@@ -10,7 +11,7 @@ private protocol SettingsPane: View {
     /// Sidebar label and navigation title.
     static var title: String { get }
     /// Sidebar SF Symbol.
-    static var icon: String { get }
+    static var icon: SFSymbol { get }
 
     init(session: LedgerSession)
 }
@@ -21,7 +22,7 @@ private protocol SettingsPane: View {
 private struct SettingsPaneItem: Identifiable {
     let id: ObjectIdentifier
     let title: String
-    let icon: String
+    let icon: SFSymbol
     let makeView: (LedgerSession) -> AnyView
 
     init(_ pane: (some SettingsPane).Type) {
@@ -47,7 +48,7 @@ struct SettingsView: View {
     var body: some View {
         NavigationSplitView(columnVisibility: .constant(.all)) {
             List(panes, selection: $selection) { pane in
-                Label(pane.title, systemImage: pane.icon)
+                Label(pane.title, systemSymbol: pane.icon)
             }
             .navigationSplitViewColumnWidth(min: 170, ideal: 190, max: 220)
             .toolbar(removing: .sidebarToggle)
@@ -69,7 +70,7 @@ struct SettingsView: View {
 /// General preferences: whether Ledger launches at login.
 private struct GeneralSettingsPane: SettingsPane {
     static let title = "General"
-    static let icon = "gearshape"
+    static let icon = SFSymbol.gearshape
 
     @Bindable var session: LedgerSession
 
@@ -116,14 +117,14 @@ private struct GeneralSettingsPane: SettingsPane {
                 } label: {
                     Label(
                         "Approval needed in System Settings",
-                        systemImage: "exclamationmark.triangle.fill",
+                        systemSymbol: .exclamationmarkTriangleFill,
                     )
                     .foregroundStyle(.orange)
                 }
             }
 
             if let error = session.loginItemError {
-                Label(error, systemImage: "xmark.octagon.fill")
+                Label(error, systemSymbol: .xmarkOctagonFill)
                     .font(.callout)
                     .foregroundStyle(.red)
             }
@@ -143,7 +144,7 @@ private struct GeneralSettingsPane: SettingsPane {
 /// optional override for when that isn't available (or has expired).
 private struct AccountSettingsPane: SettingsPane {
     static let title = "Account"
-    static let icon = "person.crop.circle"
+    static let icon = SFSymbol.personCropCircle
 
     let session: LedgerSession
 
@@ -158,15 +159,15 @@ private struct AccountSettingsPane: SettingsPane {
         Form {
             Section("Cursor session") {
                 if session.hasManualToken {
-                    Label("Using a pasted session token", systemImage: "key.fill")
+                    Label("Using a pasted session token", systemSymbol: .keyFill)
                         .foregroundStyle(.secondary)
                 } else if session.autoTokenAvailable {
-                    Label("Using your signed-in Cursor session", systemImage: "checkmark.seal.fill")
+                    Label("Using your signed-in Cursor session", systemSymbol: .checkmarkSealFill)
                         .foregroundStyle(.green)
                 } else {
                     Label(
                         "No Cursor session found — sign in to Cursor, or paste a token below",
-                        systemImage: "exclamationmark.triangle.fill",
+                        systemSymbol: .exclamationmarkTriangleFill,
                     )
                     .foregroundStyle(.orange)
                 }
@@ -184,7 +185,7 @@ private struct AccountSettingsPane: SettingsPane {
                     }
                 }
                 if let tokenError {
-                    Label(tokenError, systemImage: "xmark.octagon.fill")
+                    Label(tokenError, systemSymbol: .xmarkOctagonFill)
                         .font(.callout)
                         .foregroundStyle(.red)
                 }

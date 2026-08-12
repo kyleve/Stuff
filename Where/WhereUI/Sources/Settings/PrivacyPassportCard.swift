@@ -8,8 +8,8 @@ struct PrivacyPassportCard: View {
         PassportCard(
             title: .settingsPrivacyTitle,
             detail: .settingsPrivacyDetail,
-            sealSystemImage: "lock.shield.fill",
-            accessorySystemImage: nil,
+            sealSystemSymbol: .lockShieldFill,
+            accessorySystemSymbol: nil,
             isInteractive: false,
             surface: .reflective(tilt: tilt),
         )

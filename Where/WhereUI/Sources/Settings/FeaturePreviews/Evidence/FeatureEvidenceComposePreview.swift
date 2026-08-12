@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SwiftUI
 import WhereCore
 
@@ -13,7 +14,7 @@ struct FeatureEvidenceComposePreview: View {
             VStack(alignment: .leading, spacing: panelStyle.contentSpacing) {
                 Label(
                     String(localized: .settingsExploreEvidenceComposeTitle),
-                    systemImage: "checkmark.circle",
+                    systemSymbol: .checkmarkCircle,
                 )
                 .font(.headline)
 
@@ -23,7 +24,7 @@ struct FeatureEvidenceComposePreview: View {
                         .foregroundStyle(.secondary)
                     Label(
                         EvidenceKind.boardingPass.displayName,
-                        systemImage: EvidenceKind.boardingPass.symbolName,
+                        systemSymbol: EvidenceKind.boardingPass.symbol,
                     )
                 }
                 Divider()
@@ -36,7 +37,7 @@ struct FeatureEvidenceComposePreview: View {
                 Divider()
                 Label(
                     String(localized: .settingsExploreEvidenceAttachmentReady),
-                    systemImage: "paperclip",
+                    systemSymbol: .paperclip,
                 )
                 .foregroundStyle(.secondary)
             }

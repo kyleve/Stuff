@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 
@@ -17,7 +18,7 @@ struct SiriFeaturesView: View {
                     FeatureMarketingHeader(
                         title: String(localized: .settingsExploreSiriTitle),
                         tagline: String(localized: .settingsExploreSiriTagline),
-                        systemImage: SettingsDestination.siri.systemImage,
+                        systemSymbol: SettingsDestination.siri.systemSymbol,
                         tint: SettingsDestination.siri.iconColor,
                     )
                     .listRowInsets(.init())
@@ -33,7 +34,7 @@ struct SiriFeaturesView: View {
                             let personalized = presentation.siriExample(for: feature)
                             SiriIntentCard(
                                 title: feature.item.title,
-                                systemImage: feature.systemImage,
+                                systemSymbol: feature.systemSymbol,
                                 request: personalized?.request ?? feature.request,
                                 response: personalized?.response ?? feature.response,
                             )

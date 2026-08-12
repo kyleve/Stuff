@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 import WhereCore
@@ -76,7 +77,7 @@ public struct YearTotalsWidgetView: View {
 
     private var emptyContent: some View {
         VStack(alignment: .leading, spacing: stylesheet.spacing.xSmall) {
-            Image(systemName: "calendar.badge.exclamationmark")
+            Image(systemSymbol: .calendarBadgeExclamationmark)
                 .font(.title3)
                 .foregroundStyle(.tertiary)
                 .accessibilityHidden(true)

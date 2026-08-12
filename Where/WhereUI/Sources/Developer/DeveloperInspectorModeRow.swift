@@ -1,5 +1,6 @@
 #if DEBUG
     import Inspector
+    import SFSafeSymbols
     import SwiftUI
 
     /// The accordion's next-launch Inspector control.
@@ -26,7 +27,7 @@
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 } icon: {
-                    Image(systemName: systemImage)
+                    Image(systemSymbol: systemSymbol)
                         .frame(width: menu.iconWidth)
                 }
                 .padding(.horizontal, menu.horizontalPadding)
@@ -51,10 +52,10 @@
             }
         }
 
-        private var systemImage: String {
+        private var systemSymbol: SFSymbol {
             switch controller.nextLaunch {
-                case .regularApplication: "wrench.and.screwdriver"
-                case .inspector: "xmark.circle"
+                case .regularApplication: .wrenchAndScrewdriver
+                case .inspector: .xmarkCircle
             }
         }
 

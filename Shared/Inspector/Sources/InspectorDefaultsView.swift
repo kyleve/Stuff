@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SwiftUI
 
 struct InspectorDefaultsView: View {
@@ -30,7 +31,7 @@ struct InspectorDefaultsView: View {
             if model.entries.isEmpty {
                 ContentUnavailableView(
                     "No Defaults",
-                    systemImage: "slider.horizontal.3",
+                    systemSymbol: .sliderHorizontal3,
                     description: Text("This persistent domain has no values."),
                 )
             } else if filteredEntries.isEmpty {
@@ -111,7 +112,7 @@ private struct InspectorDefaultEditorView: View {
                 editor
             }
             Section {
-                Button("Delete Value", systemImage: "trash", role: .destructive) {
+                Button("Delete Value", systemSymbol: .trash, role: .destructive) {
                     isConfirmingDeletion = true
                 }
                 .confirmationDialog(

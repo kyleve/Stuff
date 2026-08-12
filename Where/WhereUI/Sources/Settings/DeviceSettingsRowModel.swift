@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import SFSafeSymbols
 import WhereCore
 
 /// Editable presentation state for one synced recording device.
@@ -82,8 +83,8 @@ final class DeviceSettingsRowModel: Identifiable {
         return trimmed.isEmpty ? systemName : trimmed
     }
 
-    var systemImage: String {
-        kind.systemImage
+    var systemSymbol: SFSymbol {
+        kind.systemSymbol
     }
 
     func requestNicknameSave() {
@@ -164,13 +165,13 @@ final class DeviceSettingsRowModel: Identifiable {
 }
 
 extension RecordingDeviceKind {
-    var systemImage: String {
+    var systemSymbol: SFSymbol {
         switch self {
-            case .phone: "iphone"
-            case .tablet: "ipad"
-            case .computer: "desktopcomputer"
-            case .watch: "applewatch"
-            case .other: "apple.logo"
+            case .phone: .iphone
+            case .tablet: .ipad
+            case .computer: .desktopcomputer
+            case .watch: .applewatch
+            case .other: .appleLogo
         }
     }
 }

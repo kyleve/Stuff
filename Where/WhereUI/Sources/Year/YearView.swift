@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 import WhereCore
@@ -56,10 +57,10 @@ enum YearMode: String, Hashable, CaseIterable {
         }
     }
 
-    var systemImage: String {
+    var systemSymbol: SFSymbol {
         switch self {
-            case .calendar: "calendar"
-            case .timeline: "calendar.day.timeline.left"
+            case .calendar: .calendar
+            case .timeline: .calendarDayTimelineLeft
         }
     }
 }
@@ -100,7 +101,7 @@ private struct YearModePicker: View {
         return Button {
             withAnimation(.snappy(duration: 0.28)) { mode = candidate }
         } label: {
-            Label(candidate.title, systemImage: candidate.systemImage)
+            Label(candidate.title, systemSymbol: candidate.systemSymbol)
                 .labelStyle(.titleAndIcon)
                 .imageScale(.large)
                 .font(.subheadline.weight(.medium))

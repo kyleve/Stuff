@@ -1,3 +1,4 @@
+import SFSafeSymbols
 #if DEBUG
     import SwiftUI
 
@@ -18,7 +19,7 @@
 
         var body: some View {
             Button(action: action) {
-                Image(systemName: isMenuPresented ? "xmark" : "wrench.and.screwdriver")
+                Image(systemSymbol: isMenuPresented ? .xmark : .wrenchAndScrewdriver)
                     .font(.system(size: diameter * 0.4, weight: .semibold))
                     .foregroundStyle(.primary)
                     .frame(width: diameter, height: diameter)

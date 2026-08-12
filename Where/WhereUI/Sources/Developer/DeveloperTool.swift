@@ -1,5 +1,6 @@
 #if DEBUG
     import Foundation
+    import SFSafeSymbols
 
     /// A destination launched from the DEBUG-only developer overlay.
     ///
@@ -26,11 +27,11 @@
             }
         }
 
-        var systemImage: String {
+        var systemSymbol: SFSymbol {
             switch self {
-                case .logs: "ladybug"
-                case .openSpans: "timer"
-                case .regionMap: "map"
+                case .logs: .ladybug
+                case .openSpans: .timer
+                case .regionMap: .map
             }
         }
     }

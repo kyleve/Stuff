@@ -1,4 +1,5 @@
 import RegionKit
+import SFSafeSymbols
 import SwiftUI
 
 /// Shows one region's resolved user appearance across the surfaces that share it.
@@ -22,22 +23,22 @@ struct FeatureRegionStylePreview: View {
                             .foregroundStyle(.secondary)
                     }
                 } icon: {
-                    Image(systemName: style.symbolName)
+                    Image(systemSymbol: style.symbol)
                         .foregroundStyle(style.tint)
                 }
 
                 previewLayout {
                     surface(
                         String(localized: .settingsExplorePersonalizationCards),
-                        systemImage: style.symbolName,
+                        systemSymbol: style.symbol,
                     )
                     surface(
                         String(localized: .settingsExplorePersonalizationCalendar),
-                        systemImage: "calendar",
+                        systemSymbol: .calendar,
                     )
                     surface(
                         String(localized: .settingsExplorePersonalizationWidgets),
-                        systemImage: "widget.small",
+                        systemSymbol: .widgetSmall,
                     )
                 }
             }
@@ -53,9 +54,9 @@ struct FeatureRegionStylePreview: View {
         }
     }
 
-    private func surface(_ title: String, systemImage: String) -> some View {
+    private func surface(_ title: String, systemSymbol: SFSymbol) -> some View {
         VStack(spacing: stylesheet.spacing.small) {
-            Image(systemName: systemImage)
+            Image(systemSymbol: systemSymbol)
                 .font(.system(size: 32, weight: .semibold))
                 .symbolRenderingMode(.hierarchical)
                 .foregroundStyle(style.tint.gradient)
