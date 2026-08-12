@@ -58,6 +58,9 @@ public struct WhereServices: Sendable {
     public let journal: DayJournal
     /// Backup export / import.
     public let backup: BackupCoordinator
+    /// The single synced “I’ll be here through…” intent used by location
+    /// forecasts.
+    public let plannedStays: PlannedStayCoordinator
     /// Data-quality issue detection for the Resolve tab.
     public let resolution: DataIssueScanner
     /// The persistence boundary, retained so `dataChangeUpdates()` can hand out
@@ -261,6 +264,11 @@ public struct WhereServices: Sendable {
             changes: store.remoteChanges(),
             reconcile: { await derivedData.reconcile() },
         )
+        let plannedStays = PlannedStayCoordinator(
+            store: store,
+            calendar: aggregator.calendar,
+            now: now,
+        )
         self.reports = reports
         self.evidence = evidence
         self.reminders = reminders
@@ -271,6 +279,7 @@ public struct WhereServices: Sendable {
         self.recording = recording
         self.journal = journal
         self.backup = backup
+        self.plannedStays = plannedStays
         self.resolution = resolution
         self.store = store
         self.attributor = attributor

@@ -5,7 +5,8 @@ shared components and widget views, and the `@Observable` view models that
 orchestrate `WhereCore` for them (`WhereModel`, the `WhereSession`
 coordinator, and the scoped `YearReportModel` / `ResolveModel` /
 `BackupModel` / `RemindersSettingsModel` / `DevicesSettingsModel` /
-`OnboardingFlowModel` / `OnboardingImportRecoveryModel`).
+`OnboardingFlowModel` / `OnboardingImportRecoveryModel` /
+`LocationForecastModel`).
 Layering, localization, preview, and testing conventions live in the feature
 [`Where/AGENTS.md`](../AGENTS.md). Read that and the root
 [`AGENTS.md`](../../AGENTS.md) first.
@@ -76,6 +77,8 @@ Layering, localization, preview, and testing conventions live in the feature
   simplify, or spatially reduce artwork in a card's `body`.
 - Keep Locations-card points on `YearReportModel`'s loaded
   `YearReportDetails`.
+- Keep planned-stay persistence and forecast math in WhereCore; `LocationForecastModel` only mirrors
+  the active register and orchestrates intents for the Locations, calendar, and timeline surfaces.
 - Continuous/looping motion (repeat-forever pulses, `TimelineView(.animation)`,
   typewriter reveals) must consult the shared `@MotionIsStatic` helper
   ([`Sources/Shared/MotionIsStatic.swift`](Sources/Shared/MotionIsStatic.swift))

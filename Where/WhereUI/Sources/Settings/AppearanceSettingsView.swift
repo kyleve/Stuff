@@ -31,6 +31,18 @@ struct AppearanceSettingsView: View {
                 }
 
                 Section {
+                    Toggle(isOn: $report.showsLocationForecastsOnLocationsTab) {
+                        Label(
+                            String(localized: .settingsAppearanceLocationForecastsToggle),
+                            systemSymbol: .chartLineUptrendXyaxis,
+                        )
+                    }
+                    .settingsRow(Item.locationForecasts)
+                } footer: {
+                    Text(String(localized: .settingsAppearanceLocationForecastsFooter))
+                }
+
+                Section {
                     // A sheet (not a push) so the icon picker's Done/commit point
                     // is explicit, matching the app's other editor flows.
                     Button {
@@ -80,6 +92,7 @@ extension AppearanceSettingsView: SettingsSection {
 
     enum Item: SettingsItem {
         case locationDots
+        case locationForecasts
         case appIcon
         #if DEBUG
             case cardDesigner
@@ -89,6 +102,8 @@ extension AppearanceSettingsView: SettingsSection {
             switch self {
                 case .locationDots:
                     String(localized: .settingsAppearanceLocationDotsToggle)
+                case .locationForecasts:
+                    String(localized: .settingsAppearanceLocationForecastsToggle)
                 case .appIcon: String(localized: .settingsAppIconLink)
                 #if DEBUG
                     case .cardDesigner: String(localized: .cardDesignerTitle)
@@ -100,6 +115,8 @@ extension AppearanceSettingsView: SettingsSection {
             switch self {
                 case .locationDots:
                     splitKeywords(String(localized: .settingsKeywordsLocationDots))
+                case .locationForecasts:
+                    splitKeywords(String(localized: .settingsKeywordsLocationForecasts))
                 case .appIcon: splitKeywords(String(localized: .settingsKeywordsAppIcon))
                 #if DEBUG
                     case .cardDesigner:
