@@ -1,3 +1,4 @@
+import RegionKit
 import SFSafeSymbols
 import SwiftUI
 import WhereCore
@@ -47,7 +48,15 @@ private struct WhereThemeOption: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: stylesheet.spacing.medium) {
-            WhereThemePreviewArtwork()
+            RegionSummaryCard(
+                regionDays: RegionDays(region: .california, days: 128),
+                variant: .compact,
+                renderPurpose: .themeSpecimen,
+                year: 2026,
+                showsRecordedPoints: false,
+            )
+            .whereBroadwayRoot(theme: theme)
+            .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
                 HStack(spacing: stylesheet.spacing.small) {
@@ -78,75 +87,6 @@ private struct WhereThemeOption: View {
                 )
         }
         .contentShape(RoundedRectangle(cornerRadius: 18))
-    }
-}
-
-/// A compact rendering of the current Liquid Glass location-card language.
-private struct WhereThemePreviewArtwork: View {
-    @Environment(\.stylesheet) private var stylesheet
-
-    var body: some View {
-        let style = stylesheet.card.regular
-        let tint = Color.orange
-        let shape = RoundedRectangle(cornerRadius: style.cornerRadius)
-
-        VStack(alignment: .leading, spacing: stylesheet.spacing.medium) {
-            HStack {
-                Text(verbatim: "CALIFORNIA • 2026")
-                    .font(.caption2.weight(.semibold))
-                    .tracking(0.8)
-                    .foregroundStyle(tint.opacity(0.8))
-                Spacer(minLength: 0)
-                Image(systemSymbol: .sunMaxFill)
-                    .foregroundStyle(tint)
-            }
-
-            Text(verbatim: "California")
-                .font(style.regionNameTypography.font)
-                .tracking(style.regionNameTracking)
-                .lineLimit(1)
-                .minimumScaleFactor(0.45)
-                .foregroundStyle(tint.opacity(stylesheet.card.nameOpacity))
-
-            HStack(alignment: .firstTextBaseline, spacing: stylesheet.spacing.xSmall) {
-                Text(verbatim: "128")
-                    .font(.title.bold().monospacedDigit())
-                Text(.themePreviewDays)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Capsule()
-                .fill(tint.opacity(0.16))
-                .frame(height: style.progressBarHeight)
-                .overlay(alignment: .leading) {
-                    GeometryReader { proxy in
-                        Capsule()
-                            .fill(tint)
-                            .frame(width: proxy.size.width * 0.4)
-                    }
-                }
-        }
-        .padding(14)
-        .frame(maxWidth: .infinity, minHeight: 172, alignment: .leading)
-        .background {
-            SecurityPrintRosette(
-                tint: tint,
-                wobble: style.rosette.wobble,
-                lineWidth: style.rosette.lineWidth,
-                primaryRingSpacing: style.rosette.primaryRingSpacing,
-                secondaryRingSpacing: style.rosette.secondaryRingSpacing,
-                primaryOpacity: stylesheet.card.rosetteFill.primary,
-                secondaryOpacity: stylesheet.card.rosetteFill.secondary,
-            )
-            .clipShape(shape)
-        }
-        .glassEffect(
-            .regular.tint(tint.opacity(stylesheet.card.glassTintOpacity)),
-            in: shape,
-        )
-        .overlay { shape.stroke(tint.opacity(0.18), lineWidth: 0.75) }
-        .accessibilityHidden(true)
     }
 }
 

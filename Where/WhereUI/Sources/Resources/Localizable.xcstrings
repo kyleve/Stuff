@@ -7724,17 +7724,6 @@
         }
       }
     },
-    "theme.preview.days" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "days"
-          }
-        }
-      }
-    },
     "theme.selected.value" : {
       "extractionState" : "manual",
       "localizations" : {
