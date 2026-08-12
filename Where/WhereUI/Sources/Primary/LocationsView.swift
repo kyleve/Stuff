@@ -1,5 +1,6 @@
 import PeriscopeCore
 import RegionKit
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 import WhereCore
@@ -85,7 +86,7 @@ struct LocationsView: View {
                 ContentUnavailableView {
                     Label(
                         String(localized: .commonLoadErrorTitle),
-                        systemImage: "exclamationmark.icloud",
+                        systemSymbol: .exclamationmarkIcloud,
                     )
                 } description: {
                     Text(error.message)
@@ -241,7 +242,7 @@ struct LocationsView: View {
 
     private var emptyState: some View {
         ContentUnavailableView {
-            Label(WhereFormat.primaryEmptyTitle(year: report.selectedYear), systemImage: "map")
+            Label(WhereFormat.primaryEmptyTitle(year: report.selectedYear), systemSymbol: .map)
         } description: {
             Text(String(localized: .primaryEmptyDescription))
         }
@@ -249,7 +250,7 @@ struct LocationsView: View {
 
     private var elsewhereOnlyState: some View {
         ContentUnavailableView {
-            Label(String(localized: .primaryElsewhereOnlyTitle), systemImage: "globe.americas")
+            Label(String(localized: .primaryElsewhereOnlyTitle), systemSymbol: .globeAmericas)
         } description: {
             Text(WhereFormat.primaryElsewhereOnlyDescription(count: report.trackedDayCount))
         } actions: {
@@ -274,7 +275,7 @@ private struct ResolveToolbarLabel: View {
     @Environment(\.stylesheet) private var stylesheet
 
     var body: some View {
-        Image(systemName: "checklist")
+        Image(systemSymbol: .checklist)
             .overlay(alignment: .topTrailing) {
                 Text(count, format: .number)
                     .font(.caption2.weight(.bold))
@@ -299,26 +300,51 @@ private struct ResolveToolbarLabel: View {
             whereSnapshot(
                 name: "Loaded",
                 configurations: .fullContentScreenDefaults,
+                measurementReadiness: .immediate,
                 settle: .settledAtLeast(minDuration: 1.0),
             ) {
                 LocationsView(report: PreviewSupport.loadedYearReportModel())
             }
-            whereSnapshot(name: "PlannedStay", configurations: .phoneLightDark) {
+            whereSnapshot(
+                name: "PlannedStay",
+                configurations: .fullContentPhoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
                 LocationsView(report: PreviewSupport.plannedStayYearReportModel())
             }
-            whereSnapshot(name: "ForecastsHidden", configurations: .phoneLightDark) {
+            whereSnapshot(
+                name: "ForecastsHidden",
+                configurations: .fullContentPhoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
                 LocationsView(report: forecastsHiddenReport())
             }
-            whereSnapshot(name: "Empty", configurations: .phoneLightDark) {
+            whereSnapshot(
+                name: "Empty",
+                configurations: .phoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
                 LocationsView(report: PreviewSupport.emptyYearReportModel())
             }
-            whereSnapshot(name: "MissingDays", configurations: .fullContentPhoneLightDark) {
+            whereSnapshot(
+                name: "MissingDays",
+                configurations: .fullContentPhoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
                 LocationsView(report: PreviewSupport.missingDaysYearReportModel())
             }
-            whereSnapshot(name: "ElsewhereOnly", configurations: .phoneLightDark) {
+            whereSnapshot(
+                name: "ElsewhereOnly",
+                configurations: .phoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
                 LocationsView(report: PreviewSupport.elsewhereOnlyYearReportModel())
             }
-            whereSnapshot(name: "DotsHidden", configurations: .fullContentPhoneLightDark) {
+            whereSnapshot(
+                name: "DotsHidden",
+                configurations: .fullContentPhoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
                 LocationsView(
                     report: PreviewSupport.loadedYearReportModelWithLocationDotsHidden(),
                 )

@@ -1,3 +1,4 @@
+import SFSafeSymbols
 #if DEBUG
     import RegionKit
     import SnapshotKit
@@ -119,10 +120,7 @@
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Menu(
-                        String(localized: .cardDesignerReset),
-                        systemImage: "arrow.counterclockwise",
-                    ) {
+                    Menu {
                         Button(String(localized: .cardDesignerResetVariant)) {
                             model.reset(variant)
                         }
@@ -133,6 +131,11 @@
                         Button(String(localized: .cardDesignerResetAll), role: .destructive) {
                             isConfirmingResetAll = true
                         }
+                    } label: {
+                        Label(
+                            String(localized: .cardDesignerReset),
+                            systemSymbol: .arrowCounterclockwise,
+                        )
                     }
                 }
             }

@@ -1,3 +1,4 @@
+import SFSafeSymbols
 @_spi(Testing) import SnapshotKitTesting
 import SwiftUI
 import TestHostSupport
@@ -126,7 +127,7 @@ struct LargeViewCaptureTests {
             .toolbarBackground(.visible, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
-                    Button("Add", systemImage: "plus", action: {})
+                    Button("Add", systemSymbol: .plus, action: {})
                 }
             }
         }
@@ -137,6 +138,7 @@ struct LargeViewCaptureTests {
             named: "full-content-navigation-probe",
             sizing: .intrinsic(width: 402, minimumHeight: 0),
             safeAreaInsets: .zero,
+            measurementReadiness: .immediate,
         )
         #expect(image.size.height >= 3255)
         #expect(image.size.height < 3265)

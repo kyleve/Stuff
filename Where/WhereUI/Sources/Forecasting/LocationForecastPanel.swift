@@ -1,4 +1,5 @@
 import RegionKit
+import SFSafeSymbols
 import SwiftUI
 import WhereCore
 
@@ -66,7 +67,7 @@ struct LocationForecastPanel: View {
         if let elapsedDays = forecasts.first?.elapsedDays {
             ViewThatFits(in: .horizontal) {
                 HStack(alignment: .firstTextBaseline) {
-                    Image(systemName: "chart.line.uptrend.xyaxis")
+                    Image(systemSymbol: .chartLineUptrendXyaxis)
                         .accessibilityHidden(true)
                     Text(String(localized: .locationForecastTitle))
                         .fixedSize(horizontal: true, vertical: false)
@@ -80,7 +81,7 @@ struct LocationForecastPanel: View {
 
                 VStack(alignment: .leading, spacing: style.estimateSpacing) {
                     HStack(alignment: .firstTextBaseline) {
-                        Image(systemName: "chart.line.uptrend.xyaxis")
+                        Image(systemSymbol: .chartLineUptrendXyaxis)
                             .accessibilityHidden(true)
                         Text(String(localized: .locationForecastTitle))
                     }
@@ -95,7 +96,7 @@ struct LocationForecastPanel: View {
             .font(.headline)
         } else {
             HStack(alignment: .firstTextBaseline) {
-                Image(systemName: "chart.line.uptrend.xyaxis")
+                Image(systemSymbol: .chartLineUptrendXyaxis)
                     .accessibilityHidden(true)
                 Text(String(localized: .locationForecastTitle))
             }
@@ -115,7 +116,7 @@ struct LocationForecastPanel: View {
         if editableRegion != nil, let editAction {
             Button(
                 String(localized: .locationForecastEditStay),
-                systemImage: "calendar.badge.clock",
+                systemSymbol: .calendarBadgeClock,
                 action: editAction,
             )
             .buttonStyle(.bordered)

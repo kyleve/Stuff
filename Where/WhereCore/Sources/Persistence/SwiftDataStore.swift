@@ -2326,9 +2326,9 @@ final class SDTrackedRegion {
     /// The stored appearance, or `nil` when the row has no complete look yet.
     var appearanceValue: RegionAppearance? {
         guard let colorRaw, let color = RegionColorToken(rawValue: colorRaw),
-              let emoji, let symbolName
+              let emoji, let symbolName, let symbol = RegionSymbol(rawValue: symbolName)
         else { return nil }
-        return RegionAppearance(color: color, emoji: emoji, symbolName: symbolName)
+        return RegionAppearance(color: color, emoji: emoji, symbolName: symbol)
     }
 
     /// Overwrite the stored appearance (clearing the style fields when `nil`)
@@ -2336,7 +2336,7 @@ final class SDTrackedRegion {
     func apply(appearance: RegionAppearance?, order: Int?) {
         colorRaw = appearance?.color.rawValue
         emoji = appearance?.emoji
-        symbolName = appearance?.symbolName
+        symbolName = appearance?.symbolName.rawValue
         orderIndex = order
     }
 }

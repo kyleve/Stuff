@@ -24,19 +24,18 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   `MainTabs`, the Liquid Glass tab bar over three tabs — Locations, Your Year,
   Settings. Elsewhere is an entry card on Locations, Resolve a Locations toolbar
   button, and the data screens (attachments, logged days, regions) sit in the
-  Settings "Data" group. The **Explore Features** group demonstrates all six
-  Siri/Shortcuts intent as an example conversation, demonstrates tracked-region
+  Settings "Data" group. The **Explore Features** group demonstrates all five
+  Siri/Shortcuts intents as example conversations, demonstrates tracked-region
   results in Spotlight, and renders every supported
   widget family on miniature Home Screen and Lock Screen surfaces. A Share &
   Evidence walkthrough also reveals the system Share-sheet extension and links
-  into the saved attachment archive. Insights & Accuracy introduces the private
-  on-device activity narrative and the automatic issue detectors without
-  running either merely to render the gallery. These galleries use a
-  shared marketing header, quiet patterned backdrop, and staged entrance that
-  resolves immediately for Reduce Motion and snapshot capture. Once the selected
-  report has 14 recorded days, both galleries personalize themselves with its
-  real regions, counts, and dates; sparse reports keep the illustrative Siri copy
-  and empty widget state.
+  into the saved attachment archive. Insights & Accuracy introduces the
+  automatic issue detectors without running them merely to render the gallery.
+  These galleries use a shared marketing header, quiet patterned backdrop, and
+  staged entrance that resolves immediately for Reduce Motion and snapshot
+  capture. Once the selected report has 14 recorded days, the Siri, Spotlight,
+  widget, and evidence examples use its real regions, counts, and dates; sparse
+  reports keep the illustrative Siri copy and empty widget state.
   Backup and destructive data management share one Data drill-in. Both Data and
   About lead with the same full-width passport-style
   privacy statement on a passport-navy, tilt-reflective surface: location
@@ -151,7 +150,7 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   with: `TodayWidgetView`, `YearTotalsWidgetView`, and the accessory family
   (`TodayInlineAccessoryView`, `TodayCircularAccessoryView`,
   `YearTotalsRectangularAccessoryView`). Each takes a `WidgetSnapshot`.
-- **`RegionStyle` / `RegionStyleResolver`** — a region's symbol, emoji, and
+- **`RegionStyle` / `RegionStyleResolver`** — a region's typed `SFSymbol`, emoji, and
   tint, shared across cards, calendar dots, and timelines. Views resolve it from
   `@Environment(\.regionStyles)` (`regionStyles.style(for: region)`), seeded by
   `whereBroadwayRoot(regionStyles:)` — from `WhereSession`'s live resolver in the

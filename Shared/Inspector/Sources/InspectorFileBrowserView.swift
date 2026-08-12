@@ -1,4 +1,5 @@
 import QuickLook
+import SFSafeSymbols
 import SwiftUI
 
 struct InspectorFileBrowserView: View {
@@ -48,13 +49,15 @@ struct InspectorFileBrowserView: View {
         .quickLookPreview($previewURL)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Menu("Sort", systemImage: "arrow.up.arrow.down") {
+                Menu {
                     Picker("Sort by", selection: $sortOrder) {
                         ForEach(SortOrder.allCases, id: \.self) { order in
                             Text(order.rawValue).tag(order)
                         }
                     }
                     Toggle("Ascending", isOn: $isSortAscending)
+                } label: {
+                    Label("Sort", systemSymbol: .arrowUpArrowDown)
                 }
             }
         }
@@ -68,7 +71,7 @@ struct InspectorFileBrowserView: View {
         if items.isEmpty {
             ContentUnavailableView(
                 "Empty Folder",
-                systemImage: "folder",
+                systemSymbol: .folder,
                 description: Text("This folder contains no files."),
             )
         } else if filteredItems.isEmpty {
@@ -189,21 +192,21 @@ private struct FileItemView: View {
                             .foregroundStyle(.secondary)
                     }
                     if let deletionProhibition = item.deletionProhibition {
-                        Label(deletionProhibition, systemImage: "lock")
+                        Label(deletionProhibition, systemSymbol: .lock)
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                             .lineLimit(2)
                     }
                 }
             } icon: {
-                Image(systemName: item.isSymbolicLink
-                    ? "link"
-                    : item.isDirectory ? "folder" : "doc")
+                Image(systemSymbol: item.isSymbolicLink
+                    ? .link
+                    : item.isDirectory ? .folder : .doc)
             }
         }
         .swipeActions {
             if item.deletionProhibition == nil {
-                Button("Delete", systemImage: "trash", role: .destructive) {
+                Button("Delete", systemSymbol: .trash, role: .destructive) {
                     isConfirmingDeletion = true
                 }
             }
@@ -259,7 +262,7 @@ private struct InspectorFileDetailView: View {
                     )
                 }
             }
-            Button("Preview File", systemImage: "eye") {
+            Button("Preview File", systemSymbol: .eye) {
                 Task { await preview() }
             }
         }

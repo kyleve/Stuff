@@ -8,7 +8,7 @@ conventions.
 
 ## Scope & dependencies
 
-- Flyover may import SwiftUI, BroadwayCore/BroadwayUI, and SnapshotKit; it must
+- Flyover may import SwiftUI, SFSafeSymbols, BroadwayCore/BroadwayUI, and SnapshotKit; it must
   not import WhereCore, WhereUI, persistence frameworks, or any app module.
 - Apps own their typed screen IDs, demo/synthetic state, catalog construction,
   and the DEBUG-only entry point that hosts ``FlyoverView``.
@@ -40,6 +40,9 @@ conventions.
 - Invoke variant builders through the serial deferred load coordinator, never
   synchronously from a SwiftUI `body`; preview fixtures may open expensive
   in-memory stores.
+- Canvas preview readiness is the latest nonempty visible-load expectation;
+  variant/generation changes supersede stale completions, and cancelled waiters
+  must resume. `FlyoverSnapshotTests` awaits it before intrinsic measurement.
 - Global traits are session-only and apply to registered content, not Flyover
   chrome.
 - Register forward push/modal routes only. Flyover derives Back/Dismiss cues

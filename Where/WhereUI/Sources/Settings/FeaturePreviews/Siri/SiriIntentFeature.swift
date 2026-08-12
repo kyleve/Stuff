@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SwiftUI
 
 /// One App Intent demonstrated by the Siri feature gallery. Kept separate from
@@ -7,7 +8,6 @@ enum SiriIntentFeature: CaseIterable, Hashable {
     case todayRegions
     case daysInRegion
     case regionOnDate
-    case recentActivity
     case logDay
     case logTrip
 
@@ -16,20 +16,18 @@ enum SiriIntentFeature: CaseIterable, Hashable {
             case .todayRegions: .todayRegions
             case .daysInRegion: .daysInRegion
             case .regionOnDate: .regionOnDate
-            case .recentActivity: .recentActivity
             case .logDay: .logDay
             case .logTrip: .logTrip
         }
     }
 
-    var systemImage: String {
+    var systemSymbol: SFSymbol {
         switch self {
-            case .todayRegions: "location.fill"
-            case .daysInRegion: "calendar"
-            case .regionOnDate: "calendar.badge.clock"
-            case .recentActivity: "sparkles"
-            case .logDay: "mappin.and.ellipse"
-            case .logTrip: "airplane"
+            case .todayRegions: .locationFill
+            case .daysInRegion: .calendar
+            case .regionOnDate: .calendarBadgeClock
+            case .logDay: .mappinAndEllipse
+            case .logTrip: .airplane
         }
     }
 
@@ -38,7 +36,6 @@ enum SiriIntentFeature: CaseIterable, Hashable {
             case .todayRegions: String(localized: .settingsExploreSiriTodayRequest)
             case .daysInRegion: String(localized: .settingsExploreSiriDaysRequest)
             case .regionOnDate: String(localized: .settingsExploreSiriDateRequest)
-            case .recentActivity: String(localized: .settingsExploreSiriRecentRequest)
             case .logDay: String(localized: .settingsExploreSiriLogDayRequest)
             case .logTrip: String(localized: .settingsExploreSiriLogTripRequest)
         }
@@ -49,7 +46,6 @@ enum SiriIntentFeature: CaseIterable, Hashable {
             case .todayRegions: String(localized: .settingsExploreSiriTodayResponse)
             case .daysInRegion: String(localized: .settingsExploreSiriDaysResponse)
             case .regionOnDate: String(localized: .settingsExploreSiriDateResponse)
-            case .recentActivity: String(localized: .settingsExploreSiriRecentResponse)
             case .logDay: String(localized: .settingsExploreSiriLogDayResponse)
             case .logTrip: String(localized: .settingsExploreSiriLogTripResponse)
         }

@@ -1,5 +1,6 @@
 import LifecycleKit
 import LifecycleKitUI
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 import WhereCore
@@ -45,10 +46,10 @@ enum WhereLifecycleFailurePresentation: Equatable {
         }
     }
 
-    var systemImage: String {
+    var systemSymbol: SFSymbol {
         switch self {
-            case .committedImportCleanup, .committedImportSetup: "exclamationmark.icloud"
-            case .committedResetCleanup: "trash.slash"
+            case .committedImportCleanup, .committedImportSetup: .exclamationmarkIcloud
+            case .committedResetCleanup: .trashSlash
         }
     }
 }
@@ -87,7 +88,7 @@ struct WhereLifecycleFailureView: View {
                 GeometryReader { geometry in
                     ScrollView {
                         VStack(spacing: stylesheet.spacing.large) {
-                            Image(systemName: presentation.systemImage)
+                            Image(systemSymbol: presentation.systemSymbol)
                                 .font(.largeTitle)
                                 .foregroundStyle(.secondary)
                                 .accessibilityHidden(true)
@@ -111,13 +112,25 @@ struct WhereLifecycleFailureView: View {
 #if DEBUG
     extension WhereLifecycleFailureView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            whereSnapshot(name: "CommittedResetCleanup", configurations: .screenDefaults) {
+            whereSnapshot(
+                name: "CommittedResetCleanup",
+                configurations: .screenDefaults,
+                measurementReadiness: .immediate,
+            ) {
                 WhereLifecycleFailureView(presentation: .committedResetCleanup)
             }
-            whereSnapshot(name: "CommittedImportCleanup", configurations: .phoneLightDark) {
+            whereSnapshot(
+                name: "CommittedImportCleanup",
+                configurations: .phoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
                 WhereLifecycleFailureView(presentation: .committedImportCleanup(.preview))
             }
-            whereSnapshot(name: "CommittedImportSetup", configurations: .phoneLightDark) {
+            whereSnapshot(
+                name: "CommittedImportSetup",
+                configurations: .phoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
                 WhereLifecycleFailureView(presentation: .committedImportSetup(.preview))
             }
         }

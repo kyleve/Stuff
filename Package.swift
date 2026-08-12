@@ -24,6 +24,7 @@ let package = Package(
         .library(name: "SnapshotKitTesting", targets: ["SnapshotKitTesting"]),
         .library(name: "TestHostSupport", targets: ["TestHostSupport"]),
         .library(name: "RegionKit", targets: ["RegionKit"]),
+        .library(name: "WhereCrashReporting", targets: ["WhereCrashReporting"]),
         .library(name: "WhereCore", targets: ["WhereCore"]),
         .library(name: "WhereUI", targets: ["WhereUI"]),
         .library(name: "WhereIntents", targets: ["WhereIntents"]),
@@ -36,11 +37,14 @@ let package = Package(
             branch: "main",
         ),
         .package(url: "https://github.com/weichsel/ZIPFoundation", from: "0.9.20"),
+        .package(url: "https://github.com/bitdriftlabs/capture-ios.git", from: "0.23.11"),
+        .package(url: "https://github.com/getsentry/sentry-cocoa", from: "9.25.0"),
         // Snapshot-testing engine + accessibility parser. Consumed only by the
         // test-only `SnapshotKitTesting` target (never a shipping app). See
         // Shared/SnapshotKitTesting.
         .package(url: "https://github.com/pointfreeco/swift-snapshot-testing", from: "1.18.0"),
         .package(url: "https://github.com/cashapp/AccessibilitySnapshot", from: "0.11.0"),
+        .package(url: "https://github.com/SFSafeSymbols/SFSafeSymbols", from: "7.0.0"),
     ],
     targets: [
         .target(
@@ -66,6 +70,7 @@ let package = Package(
             name: "LifecycleKitUI",
             dependencies: [
                 .target(name: "LifecycleKit"),
+                .product(name: "SFSafeSymbols", package: "SFSafeSymbols"),
             ],
             path: "Shared/LifecycleKitUI/Sources",
             resources: [
@@ -97,11 +102,15 @@ let package = Package(
                 .target(name: "PeriscopeUI"),
                 .target(name: "BroadwayCore"),
                 .target(name: "BroadwayUI"),
+                .product(name: "SFSafeSymbols", package: "SFSafeSymbols"),
             ],
             path: "Shared/Periscope/PeriscopeTools/Sources",
         ),
         .target(
             name: "Inspector",
+            dependencies: [
+                .product(name: "SFSafeSymbols", package: "SFSafeSymbols"),
+            ],
             path: "Shared/Inspector/Sources",
         ),
         .target(
@@ -110,6 +119,7 @@ let package = Package(
                 .target(name: "BroadwayCore"),
                 .target(name: "BroadwayUI"),
                 .target(name: "SnapshotKit"),
+                .product(name: "SFSafeSymbols", package: "SFSafeSymbols"),
             ],
             path: "Shared/Flyover/Sources",
         ),
@@ -123,11 +133,12 @@ let package = Package(
                 .target(name: "SnapshotKit"),
                 .target(name: "TestHostSupport"),
                 .product(name: "SnapshotTesting", package: "swift-snapshot-testing"),
-                // Only `AccessibilitySnapshotCore` is imported; the umbrella
-                // product additionally pulls in the XCTest-facing half, widening
-                // the statically embedded closure of every consuming test bundle
-                // for no benefit.
+                // Keep the focused Core + SwiftUI renderer products: the
+                // umbrella additionally pulls in AccessibilitySnapshot's own
+                // SnapshotTesting integration, widening every consuming test
+                // bundle's statically embedded closure for no benefit.
                 .product(name: "AccessibilitySnapshotCore", package: "AccessibilitySnapshot"),
+                .product(name: "AccessibilitySnapshotPreviews", package: "AccessibilitySnapshot"),
             ],
             path: "Shared/SnapshotKitTesting/Sources",
         ),
@@ -144,6 +155,14 @@ let package = Package(
             resources: [
                 .process("Resources"),
             ],
+        ),
+        .target(
+            name: "WhereCrashReporting",
+            dependencies: [
+                .product(name: "Capture", package: "capture-ios"),
+                .product(name: "Sentry", package: "sentry-cocoa"),
+            ],
+            path: "Where/WhereCrashReporting/Sources",
         ),
         .target(
             name: "WhereCore",
@@ -175,6 +194,7 @@ let package = Package(
                 .target(name: "RegionKit"),
                 .target(name: "SnapshotKit"),
                 .target(name: "Inspector"),
+                .product(name: "SFSafeSymbols", package: "SFSafeSymbols"),
             ],
             path: "Where/WhereUI/Sources",
             resources: [

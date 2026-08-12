@@ -56,16 +56,16 @@ struct PrimaryRegionSelectionModelTests {
 
         model.setColor(.mint, for: .california)
         model.setEmoji("🌊", for: .california)
-        model.setSymbol("water.waves", for: .california)
+        model.setSymbol(.waterWaves, for: .california)
         let edited = model.appearance(for: .california)
         #expect(edited.color == .mint)
         #expect(edited.emoji == "🌊")
-        #expect(edited.symbolName == "water.waves")
+        #expect(edited.symbolName == .waterWaves)
     }
 
     @Test func seedsFromExistingPrimaryRegions() throws {
         let tx = try region("us-TX")
-        let look = RegionAppearance(color: .orange, emoji: "🤠", symbolName: "star.fill")
+        let look = RegionAppearance(color: .orange, emoji: "🤠", symbolName: .starFill)
         let model = PrimaryRegionSelectionModel(existing: [
             PrimaryRegion(region: .california, appearance: nil, order: 0),
             PrimaryRegion(region: tx, appearance: look, order: 1),

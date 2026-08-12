@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 import WhereCore
@@ -17,7 +18,7 @@ struct WidgetFeaturesView: View {
                     FeatureMarketingHeader(
                         title: String(localized: .settingsExploreWidgetsTitle),
                         tagline: String(localized: .settingsExploreWidgetsTagline),
-                        systemImage: SettingsDestination.widgets.systemImage,
+                        systemSymbol: SettingsDestination.widgets.systemSymbol,
                         tint: SettingsDestination.widgets.iconColor,
                     )
                     .listRowInsets(.init())
@@ -94,13 +95,21 @@ extension WidgetFeaturesView: SettingsSection {
 #if DEBUG
     extension WidgetFeaturesView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            whereSnapshot(name: "Default", configurations: .fullContentScreenDefaults) {
+            whereSnapshot(
+                name: "Default",
+                configurations: .fullContentScreenDefaults,
+                measurementReadiness: .immediate,
+            ) {
                 WidgetFeaturesView(
                     focus: nil,
                     presentation: PreviewSupport.featureDiscoveryPresentation(),
                 )
             }
-            whereSnapshot(name: "TwoRegions", configurations: .fullContentPhoneLightDark) {
+            whereSnapshot(
+                name: "TwoRegions",
+                configurations: .fullContentPhoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
                 WidgetFeaturesView(
                     focus: nil,
                     presentation: twoRegionPresentation,

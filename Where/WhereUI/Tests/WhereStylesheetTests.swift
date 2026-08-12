@@ -316,6 +316,7 @@ struct WhereStylesheetTests {
         #expect(overview.border == Color.primary.opacity(0.1))
         #expect(overview.borderWidth == 1)
         #expect(overview.yearFont == .system(.title2, design: .serif).bold())
+        #expect(overview.pinsToViewport)
 
         let ribbon = timeline.ribbon
         #expect(ribbon.monthLabelSpacing == 6)
@@ -625,6 +626,7 @@ struct WhereStylesheetTests {
         context.traitOverrides.contentSizeCategory = .accessibilityLarge
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
         #expect(resolved.calendar.day.minHeight == 56)
+        #expect(resolved.timeline.overview.pinsToViewport == false)
         #expect(resolved.timeline.row.stacksDayCount)
         #expect(resolved.featureDiscovery.siri.bubble.indent == 0)
         #expect(resolved.featureDiscovery.widgets.contentWidth(in: 834) == 320)
@@ -648,6 +650,7 @@ struct WhereStylesheetTests {
             shouldDifferentiateWithoutColor: true,
         )
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
+        #expect(resolved.timeline.overview.pinsToViewport == false)
         #expect(resolved.timeline.ribbon.separatesRegions)
     }
 

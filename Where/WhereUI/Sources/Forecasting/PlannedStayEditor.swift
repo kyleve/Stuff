@@ -1,4 +1,5 @@
 import RegionKit
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 
@@ -40,7 +41,7 @@ struct PlannedStayEditor: View {
 
                 if case let .failed(message) = saveState {
                     Section {
-                        Label(message, systemImage: "exclamationmark.triangle.fill")
+                        Label(message, systemSymbol: .exclamationmarkTriangleFill)
                             .foregroundStyle(.red)
                     }
                 }

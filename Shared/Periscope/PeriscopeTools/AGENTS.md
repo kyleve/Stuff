@@ -10,7 +10,7 @@ the build system, formatting, and global conventions. Read that first.
 
 ## Scope & dependencies
 
-- **SwiftUI + PeriscopeCore + PeriscopeUI + BroadwayCore/BroadwayUI.** No app
+- **SwiftUI + SFSafeSymbols + PeriscopeCore + PeriscopeUI + BroadwayCore/BroadwayUI.** No app
   code — app-specific wiring (which store, which alert handler) comes in via
   configuration.
 - **Intended for DEBUG / developer surfaces**; consumers gate entry points

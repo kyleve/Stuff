@@ -43,6 +43,7 @@ struct WhereStylesheet: BStylesheet {
         // Grow day-grid tap targets at accessibility Dynamic Type sizes.
         if traits.contentSizeCategory.isAccessibilitySize {
             calendar.day.minHeight = 56
+            timeline.overview.pinsToViewport = false
             timeline.row.stacksDayCount = true
             featureDiscovery.siri.bubble.indent = 0
         }
@@ -50,6 +51,7 @@ struct WhereStylesheet: BStylesheet {
         // Give every region a consistently labeled ribbon band when tint
         // alone is not an acceptable differentiator.
         if traits.accessibility.shouldDifferentiateWithoutColor {
+            timeline.overview.pinsToViewport = false
             timeline.ribbon.separatesRegions = true
         }
 
@@ -1214,6 +1216,8 @@ extension WhereStylesheet {
             var border: Color
             var borderWidth: CGFloat
             var yearFont: Font
+            /// Keep the compact overview visible while the journey scrolls.
+            var pinsToViewport: Bool
         }
 
         struct Ribbon: Equatable {
@@ -1270,6 +1274,7 @@ extension WhereStylesheet {
                 border: Color.primary.opacity(0.1),
                 borderWidth: 1,
                 yearFont: .system(.title2, design: .serif).bold(),
+                pinsToViewport: true,
             ),
             ribbon: Ribbon(
                 monthLabelSpacing: 6,

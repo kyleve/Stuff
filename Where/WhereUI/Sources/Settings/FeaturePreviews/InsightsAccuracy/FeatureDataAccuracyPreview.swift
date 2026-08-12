@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SwiftUI
 
 /// A compact catalog of the four data-quality detectors Where runs, headed by
@@ -13,7 +14,7 @@ struct FeatureDataAccuracyPreview: View {
             VStack(alignment: .leading, spacing: panelStyle.contentSpacing) {
                 Label(
                     String(localized: .settingsExploreInsightsAccuracyTitle),
-                    systemImage: "checkmark.shield",
+                    systemSymbol: .checkmarkShield,
                 )
                 .font(.headline)
 
@@ -21,8 +22,8 @@ struct FeatureDataAccuracyPreview: View {
                     Text(status)
                         .font(.subheadline.bold())
                 } icon: {
-                    Image(systemName: issueCount == 0 ? "checkmark.circle.fill" :
-                        "exclamationmark.circle.fill")
+                    Image(systemSymbol: issueCount == 0 ? .checkmarkCircleFill :
+                        .exclamationmarkCircleFill)
                         .foregroundStyle(issueCount == 0 ? .green : .orange)
                 }
 
@@ -30,17 +31,17 @@ struct FeatureDataAccuracyPreview: View {
 
                 detector(
                     String(localized: .settingsExploreInsightsMissingDays),
-                    icon: "calendar.badge.exclamationmark",
+                    icon: .calendarBadgeExclamationmark,
                 )
                 detector(
                     String(localized: .settingsExploreInsightsBorderDrift),
-                    icon: "location.circle",
+                    icon: .locationCircle,
                 )
                 detector(
                     String(localized: .settingsExploreInsightsAbruptChanges),
-                    icon: "arrow.triangle.swap",
+                    icon: .arrowTriangleSwap,
                 )
-                detector(String(localized: .settingsExploreInsightsFlightDays), icon: "airplane")
+                detector(String(localized: .settingsExploreInsightsFlightDays), icon: .airplane)
             }
         }
         .accessibilityElement(children: .contain)
@@ -54,8 +55,8 @@ struct FeatureDataAccuracyPreview: View {
         }
     }
 
-    private func detector(_ title: String, icon: String) -> some View {
-        Label(title, systemImage: icon)
+    private func detector(_ title: String, icon: SFSymbol) -> some View {
+        Label(title, systemSymbol: icon)
             .font(.subheadline)
             .foregroundStyle(.secondary)
     }

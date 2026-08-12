@@ -15,6 +15,8 @@ Layering, localization, preview, and testing conventions live in the feature
 - Presentation layer only — no domain rules, persistence, or store I/O here
   ([Layering](../AGENTS.md#layering)). Dependencies live in the root
   [`Package.swift`](../../Package.swift).
+- WhereUI maps Core's persisted `RegionSymbol` values to SFSafeSymbols'
+  `SFSymbol` and re-exports SFSafeSymbols for its presentation API consumers.
 - Composition is the one exception: `WhereScope` and `WhereModel` decide which
   world the app is logged in to and assemble it. That's launch wiring, not
   domain logic — see [Scopes and the launch](../AGENTS.md#scopes-and-the-launch).

@@ -22,10 +22,6 @@ struct WhereIntentsLogTests {
         #expect(
             String(describing: WhereIntentsLog.SpanName.perform(.logDay)) == "perform(log-day)",
         )
-        #expect(
-            String(describing: WhereIntentsLog.SpanName.perform(.recentActivitySummary))
-                == "perform(recent-activity-summary)",
-        )
         #expect(String(describing: WhereIntentsLog.SpanName.awaitServices) == "awaitServices")
     }
 
@@ -45,12 +41,10 @@ struct WhereIntentsLogTests {
         #expect(WhereIntentsLog.IntentName.allCases.allSatisfy { $0.budget > .zero })
     }
 
-    @Test func onlyTheSlowByNatureIntentsGetSlack() {
-        // The summary waits on an on-device model that may still be warming and a
-        // trip backfills a whole range; a single aggregated read has no such
+    @Test func onlyTheSlowByNatureIntentGetsSlack() {
+        // A trip backfills a whole range; a single aggregated read has no such
         // excuse, so it stays on the tight default.
         let read = WhereIntentsLog.IntentName.todayRegions.budget
-        #expect(WhereIntentsLog.IntentName.recentActivitySummary.budget > read)
         #expect(WhereIntentsLog.IntentName.logTrip.budget > read)
         #expect(WhereIntentsLog.IntentName.logDay.budget == read)
     }

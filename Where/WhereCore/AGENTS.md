@@ -47,8 +47,9 @@ internal shape.
 - **Primary regions *are* the tracked-region set.** `primaryRegions()` /
   `setPrimaryRegions(_:)` read/write the same `SDTrackedRegion` rows as
   `trackedRegions()` — picking scopes GPS attribution *and* carries each
-  region's `RegionAppearance` + pick order. `RegionAppearance` is data
-  (WhereCore); the token→`Color` mapping is presentation (WhereUI).
+  region's `RegionAppearance` + pick order. `RegionAppearance` carries the
+  persisted `RegionSymbol`; its mapping to SFSafeSymbols and `Color` is
+  presentation (WhereUI).
 - **Export backups from one `readSnapshot` and keep restorable user data
   lossless.** Add persisted user-data shapes end-to-end and cover both import
   strategies, but export no target-owned recording check-ins and ignore any in

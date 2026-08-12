@@ -1,4 +1,5 @@
 import RegionKit
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 import WhereCore
@@ -114,7 +115,7 @@ struct SettingsView: View {
             } label: {
                 Label(
                     String(localized: .settingsDemoExit),
-                    systemImage: "rectangle.portrait.and.arrow.right",
+                    systemSymbol: .rectanglePortraitAndArrowRight,
                 )
             }
         } header: {
@@ -179,7 +180,7 @@ struct SettingsView: View {
             Label {
                 Text(destination.rowTitle)
             } icon: {
-                SettingsIcon(systemImage: destination.systemImage, color: destination.iconColor)
+                SettingsIcon(systemSymbol: destination.systemSymbol, color: destination.iconColor)
             }
         }
     }
@@ -213,7 +214,7 @@ struct SettingsView: View {
             }
         } icon: {
             SettingsIcon(
-                systemImage: result.destination.systemImage,
+                systemSymbol: result.destination.systemSymbol,
                 color: result.destination.iconColor,
             )
         }
@@ -258,7 +259,6 @@ struct SettingsView: View {
                 InsightsAccuracyFeaturesView(
                     report: report,
                     focus: route.focus,
-                    presentation: featureDiscoveryPresentation,
                 )
             case .personalization:
                 PersonalizationFeaturesView(report: report, focus: route.focus)
@@ -300,6 +300,7 @@ struct SettingsView: View {
                         device: .iPhoneFullContent,
                     ),
                 ],
+                measurementReadiness: .immediate,
             ) {
                 SettingsView(report: PreviewSupport.loadedYearReportModel())
                     .environment(PreviewSupport.loadedModel())
@@ -307,7 +308,11 @@ struct SettingsView: View {
             }
             // Demo mode: the exit section on top, and the groups that would
             // reach past the demo (backup, erase/reset, app icon) gone.
-            whereSnapshot(name: "DemoMode", configurations: .fullContentPhoneLightDark) {
+            whereSnapshot(
+                name: "DemoMode",
+                configurations: .fullContentPhoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
                 SettingsView(report: PreviewSupport.loadedYearReportModel())
                     .environment(PreviewSupport.loadedModel())
                     .environment(PreviewSupport.loadedSession())

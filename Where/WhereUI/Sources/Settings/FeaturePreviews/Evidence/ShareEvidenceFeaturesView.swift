@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 import WhereCore
@@ -47,7 +48,7 @@ struct ShareEvidenceFeaturesView: View {
                     FeatureMarketingHeader(
                         title: String(localized: .settingsExploreEvidenceTitle),
                         tagline: String(localized: .settingsExploreEvidenceTagline),
-                        systemImage: SettingsDestination.shareEvidence.systemImage,
+                        systemSymbol: SettingsDestination.shareEvidence.systemSymbol,
                         tint: SettingsDestination.shareEvidence.iconColor,
                     )
                     .listRowInsets(.init())
@@ -71,7 +72,7 @@ struct ShareEvidenceFeaturesView: View {
                                     Text(String(localized: .settingsExploreEvidenceOpenArchive))
                                         .foregroundStyle(.primary)
                                 } icon: {
-                                    Image(systemName: "paperclip")
+                                    Image(systemSymbol: .paperclip)
                                         .foregroundStyle(SettingsDestination.shareEvidence
                                             .iconColor)
                                 }

@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SwiftUI
 import WhereCore
 
@@ -42,21 +43,21 @@ struct MainTabs: View {
         TabView(selection: $selection) {
             Tab(
                 String(localized: .tabLocations),
-                systemImage: "location.fill",
+                systemSymbol: .locationFill,
                 value: TabID.locations,
             ) {
                 LocationsView(report: report)
                     .reportingDeveloperTabBarInset()
             }
 
-            Tab(String(localized: .tabYear), systemImage: "calendar", value: TabID.year) {
+            Tab(String(localized: .tabYear), systemSymbol: .calendar, value: TabID.year) {
                 YearView(report: report)
                     .reportingDeveloperTabBarInset()
             }
 
             Tab(
                 String(localized: .tabSettings),
-                systemImage: "gearshape.fill",
+                systemSymbol: .gearshapeFill,
                 value: TabID.settings,
             ) {
                 SettingsView(report: report)

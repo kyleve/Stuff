@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SwiftUI
 
 /// A quiet disclosure treatment for the floating Locations forecast card.
@@ -11,7 +12,7 @@ struct LocationForecastDisclosureStyle: DisclosureGroupStyle {
             } label: {
                 HStack(alignment: .firstTextBaseline) {
                     configuration.label
-                    Image(systemName: "chevron.right")
+                    Image(systemSymbol: .chevronRight)
                         .rotationEffect(.degrees(configuration.isExpanded ? 90 : 0))
                         .accessibilityHidden(true)
                 }
