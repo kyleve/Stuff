@@ -191,6 +191,18 @@ public struct TodayWidgetView: View {
                     totals: [.california: 132, .newYork: 41],
                 ))
             }
+            whereSnapshot(
+                name: "Glass",
+                theme: .glass,
+                configurations: .componentLightDark,
+                settle: .immediate,
+            ) {
+                TodayWidgetView(snapshot: PreviewSupport.sampleWidgetSnapshot(
+                    dayRegions: [.california],
+                    totals: [.california: 132],
+                    theme: .glass,
+                ))
+            }
             whereSnapshot(name: "Empty", configurations: .componentLightDark, settle: .immediate) {
                 TodayWidgetView(snapshot: PreviewSupport.sampleWidgetSnapshot(
                     dayRegions: [],

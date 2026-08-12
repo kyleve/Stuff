@@ -44,6 +44,9 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
   closure: keep the span around the fetch/write, and the result's type inference
   out of it. `IntentServices.current()` spans only the parking path, so a
   measured wait means the intent actually raced the app's launch.
+- Resolve snippet services and `WhereTheme` as one `IntentServices.Context`;
+  the app updates that installed context on an Appearance change, and snippets
+  seed both theme and region styles at their Broadway root.
 - **Use `Calendar.whereIntents` for all year/day math**, never
   `Calendar.current` — Gregorian in the current time zone, matching
   `DayAggregator()`. Guard: `Calendar+WhereIntentsTests`.

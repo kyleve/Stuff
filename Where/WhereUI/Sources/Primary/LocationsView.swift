@@ -380,6 +380,15 @@ private struct ResolveToolbarLabel: View {
                 LocationsView(report: forecastsHiddenReport())
             }
             whereSnapshot(
+                name: "Glass",
+                theme: .standard,
+                configurations: .fullContentPhoneLightDark,
+                measurementReadiness: .immediate,
+                settle: .settledAtLeast(minDuration: 1.0),
+            ) {
+                LocationsView(report: PreviewSupport.loadedYearReportModel())
+            }
+            whereSnapshot(
                 name: "Empty",
                 configurations: .phoneLightDark,
                 measurementReadiness: .immediate,

@@ -185,6 +185,7 @@ extension AppearanceSettingsView: SettingsSection {
                 },
                 whereSnapshot(
                     name: "Folio",
+                    theme: .alternate,
                     configurations: .fullContentPhoneLightDark,
                     measurementReadiness: .immediate,
                 ) {
@@ -192,7 +193,6 @@ extension AppearanceSettingsView: SettingsSection {
                         AppearanceSettingsView(report: PreviewSupport.loadedYearReportModel())
                     }
                     .environment(PreviewSupport.loadedModel(theme: .alternate))
-                    .whereBroadwayRoot(theme: .alternate)
                 },
             ]
         }

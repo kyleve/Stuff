@@ -311,7 +311,7 @@ struct RegionSummaryCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: card.contentSpacing) {
-            if let recordIndex {
+            if let recordIndex, stylesheet.locations.showsRecordIndex {
                 HStack(spacing: stylesheet.spacing.medium) {
                     Text(verbatim: String(format: "%02d", recordIndex))
                         .font(stylesheet.locations.recordIndexFont)

@@ -93,6 +93,9 @@ internal shape.
 - **Writes await their side effects.** `DayJournal` commits, then awaits the
   reminder reconcile + widget publish in sequence, so a reader on the next
   `changes()` ping never observes a half-applied write.
+- **Carry `WhereTheme` in `WidgetSnapshot`.** Decode snapshots without it as
+  Folio, and republish immediately on a device-local Appearance change; the
+  widget process never reads app preferences directly.
 - **Filter persistent-store remote-change notifications by the Where store URL
   and the store instance's transaction author.** Never let Periscope or Where's
   own local saves enter `remoteChanges()`; guard: `StoreRemoteChangeSourceTests`.

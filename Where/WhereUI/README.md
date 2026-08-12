@@ -175,8 +175,9 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   editorial folio chrome and Reduce Motion-aware three-beat reveals. The examples reuse
   already-loaded user data when it is representative and link to the existing
   feature surfaces for any action.
-- **`whereBroadwayRoot()`** — seeds the selected `WhereTheme` and Broadway
-  design-system context so descendants resolve the `WhereStylesheet` tokens (see [Design
+- **`whereBroadwayRoot(theme:regionStyles:)`** — seeds the selected Glass or
+  Folio language plus the Broadway design-system context so
+  descendants resolve the `WhereStylesheet` tokens (see [Design
   system](#design-system)). Applied by `RootView` and by each widget.
 - **`RegionMapView`** — the developer region-map tool (also hosted standalone by
   the RegionViewer Mac Catalyst app).
@@ -227,8 +228,11 @@ Appearance tokens — geometry, fonts, colors, motion — live in one place,
 `WhereStylesheet`, a Broadway `BStylesheet` resolved from the environment. Views
 read it with `@Environment(\.stylesheet)`; off the `View` tree (layout helpers,
 tests) code uses `WhereStylesheet.default`. The active sheet is seeded by
-`whereBroadwayRoot()` at the app root and in each Broadway-root-less consumer
-(WhereWidgets); with no root present, resolution falls back to `.default`.
+`whereBroadwayRoot(theme:regionStyles:)` at the app root and in each
+Broadway-root-less consumer. `WhereTheme.folio` is the stable default;
+Appearance Settings commits either Folio or Quiet Glass as a device-local
+preference, while first-run onboarding previews the choice in memory until the
+flow completes. With no root present, resolution falls back to `.default`.
 The widget extension also calls `whereWidgetBackground()`, a WhereUI-owned seam
 that consumes the resolved palette without exposing or double-linking Broadway.
 The rules for what may and may not live in the sheet are in
@@ -265,10 +269,11 @@ colors not owned by a single component on `Palette`, the few bespoke display
 faces on `Typography`, and Where's physical timing cadence on `Motion`.
 Component styles own the animations and transitions those timings drive — for
 example, `OnboardingStyle` owns its phase transition and `YearStyle` owns the
-Calendar/Timeline depth dissolve. The house palette is a quiet paper, ink,
-midnight, brass, oxblood, forest, and mineral family resolved for the active
-appearance; region colors remain user-owned accent ink rather than app-global
-theme colors.
+Calendar/Timeline depth dissolve. Folio uses warm paper, ink, midnight, brass,
+oxblood, forest, and mineral; Quiet Glass uses neutral mist/charcoal Liquid
+Glass, SF display faces, softer ornament, and lighter borders. Region colors
+remain user-owned accent ink in both languages rather than app-global theme
+colors.
 
 ### Trait-aware tokens
 

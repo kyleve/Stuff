@@ -45,7 +45,9 @@ it hosts a `Button(intent:)` that runs `LogDayIntent` and reloads the card with
 the updated total. The presentational card bodies live in `WhereUI`
 (`Sources/Intents/`, Broadway-styled, with `#Preview`s); the interactive
 wrapper that wires the button to an intent lives here, since `WhereUI` can't
-depend on `WhereIntents`.
+depend on `WhereIntents`. Each snippet seeds its Broadway root with the
+installed context's theme; the app updates that context immediately when the
+Appearance setting changes.
 
 ## Spotlight
 

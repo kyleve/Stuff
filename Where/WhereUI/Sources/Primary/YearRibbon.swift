@@ -90,6 +90,11 @@ struct YearRibbon: View {
                     .fill(overview.background)
             }
         }
+        .optionalGlassSurface(
+            overview.usesGlassSurface,
+            tint: stylesheet.palette.brand.raisedPaper.opacity(0.24),
+            in: RoundedRectangle(cornerRadius: overview.cornerRadius),
+        )
         .overlay {
             RoundedRectangle(cornerRadius: overview.cornerRadius)
                 .stroke(

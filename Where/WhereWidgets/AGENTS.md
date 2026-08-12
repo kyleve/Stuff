@@ -44,5 +44,7 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
   `WhereUI`, which is why the seam lives there rather than a `broadwayRoot` call
   here (see the root
   [`AGENTS.md`](../../AGENTS.md#never-double-link-a-product-whereui-already-carries)).
+- Seed that root with both `WidgetSnapshot.theme` and its region appearances;
+  snapshots predating the theme field decode as Folio in WhereCore.
 - Apply WhereUI's `whereWidgetBackground()` only to home-screen families;
   preserve WidgetKit's clear/system-monochrome containers for accessories.

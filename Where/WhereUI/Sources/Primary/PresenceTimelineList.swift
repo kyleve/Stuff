@@ -106,6 +106,16 @@ struct PresenceTimelineList: View {
                         PresenceTimelineList(report: PreviewSupport.loadedYearReportModel())
                     }
                 },
+                whereSnapshot(
+                    name: "Glass",
+                    theme: .glass,
+                    configurations: .fullContentPhoneLightDark,
+                    measurementReadiness: .immediate,
+                ) {
+                    NavigationStack {
+                        PresenceTimelineList(report: PreviewSupport.loadedYearReportModel())
+                    }
+                },
                 whereSnapshot(name: "InitialBottom", configurations: .screenDefaults) {
                     NavigationStack {
                         PresenceTimelineList(report: PreviewSupport.loadedYearReportModel())

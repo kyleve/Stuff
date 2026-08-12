@@ -143,6 +143,14 @@ public struct YearTotalsWidgetView: View {
                     totals: [:],
                 ))
             }
+            whereSnapshot(
+                name: "Glass",
+                theme: .glass,
+                configurations: .componentLightDark,
+                settle: .immediate,
+            ) {
+                YearTotalsWidgetView(snapshot: PreviewSupport.sampleWidgetSnapshot(theme: .glass))
+            }
         }
     }
 

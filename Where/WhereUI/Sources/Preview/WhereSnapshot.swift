@@ -1,6 +1,7 @@
 #if DEBUG
     import SnapshotKit
     import SwiftUI
+    import WhereCore
 
     /// Builds a ``SnapshotCase`` whose content is seeded with `whereBroadwayRoot()`,
     /// so WhereUI views resolve trait-aware `WhereStylesheet` tokens under snapshot
@@ -15,6 +16,7 @@
     @MainActor
     public func whereSnapshot(
         name: String,
+        theme: WhereTheme = .folio,
         configurations: [SnapshotConfiguration],
         measurementReadiness: SnapshotMeasurementReadiness = .sameAsCapture,
         settle: SnapshotSettle = .settled,
@@ -28,7 +30,7 @@
             settle: settle,
             onReadyToSnapshot: onReadyToSnapshot,
         ) {
-            content().whereBroadwayRoot()
+            content().whereBroadwayRoot(theme: theme)
         }
     }
 

@@ -297,7 +297,7 @@ private struct MonthGridView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: calendar.month.sectionSpacing) {
             Text(monthName)
-                .font(.system(.title2, design: .serif).weight(.semibold))
+                .font(calendar.month.titleFont)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             LazyVGrid(
@@ -358,6 +358,11 @@ private struct MonthGridView: View {
                 cardShape.strokeBorder(card.border, lineWidth: card.borderWidth)
             }
         }
+        .optionalGlassSurface(
+            calendar.month.usesGlassSurface,
+            tint: stylesheet.palette.brand.raisedPaper.opacity(0.26),
+            in: cardShape,
+        )
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(monthName)
         .accessibilityValue(accessibilityValue)
@@ -645,6 +650,15 @@ private struct DayCell: View {
                 }
             }
             whereSnapshot(name: "InitialPosition", configurations: .phoneLightDark) {
+                NavigationStack {
+                    CalendarContentView(report: PreviewSupport.loadedYearReportModel())
+                }
+            }
+            whereSnapshot(
+                name: "Glass",
+                theme: .glass,
+                configurations: .fullContentPhoneLightDark,
+            ) {
                 NavigationStack {
                     CalendarContentView(report: PreviewSupport.loadedYearReportModel())
                 }

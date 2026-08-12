@@ -44,6 +44,11 @@ struct ElsewhereSummaryCard: View {
         .padding(style.padding)
         .frame(maxWidth: .infinity)
         .background(stylesheet.palette.brand.raisedPaper, in: cardShape)
+        .optionalGlassSurface(
+            style.usesGlassSurface,
+            tint: stylesheet.palette.brand.raisedPaper.opacity(0.24),
+            in: cardShape,
+        )
         .overlay {
             cardShape.strokeBorder(
                 stylesheet.palette.brand.ink.opacity(
@@ -72,7 +77,7 @@ struct ElsewhereSummaryCard: View {
 
     private var title: some View {
         Text(String(localized: .secondaryTitle))
-            .font(.system(.headline, design: .serif).weight(.semibold))
+            .font(style.titleFont)
             .foregroundStyle(stylesheet.palette.brand.ink)
             .fixedSize(horizontal: false, vertical: true)
     }

@@ -41,7 +41,7 @@ struct PresenceJourneyRow: View {
                 countLayout {
                     VStack(alignment: .leading, spacing: row.labelSpacing) {
                         Text(regionName)
-                            .font(.system(.headline, design: .serif).weight(.semibold))
+                            .font(row.regionNameFont)
                             .foregroundStyle(style.tint)
                         Text(dateRange)
                             .font(.subheadline.monospacedDigit())
@@ -74,6 +74,11 @@ struct PresenceJourneyRow: View {
                 RoundedRectangle(cornerRadius: row.cornerRadius)
                     .fill(stylesheet.palette.brand.raisedPaper)
             }
+            .optionalGlassSurface(
+                row.usesGlassSurface,
+                tint: stylesheet.palette.brand.raisedPaper.opacity(0.24),
+                in: RoundedRectangle(cornerRadius: row.cornerRadius),
+            )
             .overlay {
                 RoundedRectangle(cornerRadius: row.cornerRadius)
                     .stroke(

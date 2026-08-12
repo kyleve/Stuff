@@ -124,8 +124,10 @@ worked examples.
   `@Environment(\.regionStyles)` and seeded by
   `whereBroadwayRoot(theme:regionStyles:)` — no global accessor or hardcoded
   per-region look in a view.
-- Seed `WhereTheme` through `whereBroadwayRoot(theme:regionStyles:)`; Standard
-  and Alternate remain distinct persisted identities even while their tokens match.
+- **Resolve the app-wide visual language through `WhereTheme` in Broadway.**
+  Seed `whereBroadwayRoot(theme:regionStyles:)` at every process root; keep
+  Standard/Alternate differences in component-owned stylesheet values rather than
+  switching directly on the theme throughout views.
 - The DEBUG card designer may override only presentation values already owned
   by `CardStyles`; it must not add a second production styling system or alter
   count animation and outline-cache behavior.

@@ -804,6 +804,7 @@
             totals: [Region: Int]? = nil,
             day: Date = PreviewSupport.referenceWidgetDay,
             year: Int = PreviewSupport.year,
+            theme: WhereTheme = .folio,
         ) -> WidgetSnapshot {
             WidgetSnapshot(
                 day: day,
@@ -816,6 +817,7 @@
                     .europeanUnion: 4,
                     .other: 2,
                 ],
+                theme: theme,
             )
         }
 

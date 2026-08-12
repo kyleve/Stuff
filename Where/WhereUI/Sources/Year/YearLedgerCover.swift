@@ -77,6 +77,11 @@ struct YearLedgerCover: View {
         }
         .frame(maxWidth: .infinity, minHeight: cover.minimumHeight, alignment: .leading)
         .background(brand.midnight, in: shape)
+        .optionalGlassSurface(
+            cover.usesGlassSurface,
+            tint: brand.midnight.opacity(0.2),
+            in: shape,
+        )
         .overlay {
             shape.strokeBorder(
                 brand.brass.opacity(cover.borderOpacity),

@@ -1,9 +1,10 @@
-import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 import WhereCore
 
-/// First-run choice between Where's two presentation identities.
+/// First-run choice between Where's two complete visual languages. The picker
+/// previews both roots independently; the surrounding screen adopts the
+/// currently previewed choice through `RootView`.
 struct OnboardingThemeSelectionView: View {
     let selection: WhereTheme
     let onSelect: (WhereTheme) -> Void
@@ -17,14 +18,12 @@ struct OnboardingThemeSelectionView: View {
                 VStack(spacing: stylesheet.spacing.xxxLarge) {
                     Spacer(minLength: 0)
 
-                    Image(systemSymbol: .square3Layers3d)
-                        .font(stylesheet.typography.onboardingIcon)
-                        .foregroundStyle(Color.accentColor)
+                    OnboardingBrandMark()
                         .accessibilityHidden(true)
 
-                    VStack(spacing: stylesheet.spacing.large) {
+                    VStack(spacing: stylesheet.spacing.medium) {
                         Text(.onboardingThemeTitle)
-                            .font(.largeTitle.bold())
+                            .font(stylesheet.typography.editorialTitle)
                             .multilineTextAlignment(.center)
                         Text(.onboardingThemeDescription)
                             .font(.body)
@@ -38,8 +37,7 @@ struct OnboardingThemeSelectionView: View {
                         Text(.onboardingContinue)
                             .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
+                    .buttonStyle(WeightedPrimaryButtonStyle())
 
                     Spacer(minLength: 0)
                 }

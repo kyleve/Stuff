@@ -51,6 +51,17 @@ struct WidgetSnapshotPublisherTests {
         #expect(await refresher.publishCount == 1)
     }
 
+    @Test func themeSelectionForcesARepublish() async throws {
+        let now = WhereCoreTestSupport.iso("2026-03-15T12:00:00-07:00")
+        let (publisher, _, refresher) = try Self.makePublisher(now: { now })
+        await publisher.publish()
+
+        await publisher.publishTheme(.glass)
+
+        #expect(await refresher.publishCount == 2)
+        #expect(await refresher.lastSnapshot?.theme == .glass)
+    }
+
     @Test func incompleteDestructiveGenerationReplacesSensitiveSnapshotWithEmptyState(
     ) async throws {
         let now = WhereCoreTestSupport.iso("2026-03-15T12:00:00-07:00")

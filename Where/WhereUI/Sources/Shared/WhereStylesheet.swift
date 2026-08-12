@@ -125,6 +125,8 @@ struct WhereStylesheet: BStylesheet {
         locations.surfaceBorderWidth = 0.5
         locations.featuredMinimumHeight = 286
         locations.standardMinimumHeight = 238
+        locations.mastheadLabel = .record
+        locations.showsRecordIndex = false
 
         card.regular.cornerRadius = 26
         card.regular.regionNameTypography = .init(
@@ -160,6 +162,8 @@ struct WhereStylesheet: BStylesheet {
         }
 
         calendar.month.cornerRadius = 22
+        calendar.month.titleFont = .title2.weight(.semibold)
+        calendar.month.usesGlassSurface = true
         calendar.month.ruleOpacity = 0
         calendar.month.plain.fill = Color.white.opacity(0.08)
         calendar.month.plain.border = Color.primary.opacity(0.08)
@@ -174,7 +178,10 @@ struct WhereStylesheet: BStylesheet {
         timeline.overview.border = Color.primary.opacity(0.08)
         timeline.overview.borderWidth = 0.5
         timeline.overview.yearFont = .title2.bold()
+        timeline.overview.usesGlassSurface = true
         timeline.row.cornerRadius = 20
+        timeline.row.regionNameFont = .headline.weight(.semibold)
+        timeline.row.usesGlassSurface = true
         timeline.row.borderOpacity = 0.08
         timeline.row.borderWidth = 0.5
 
@@ -189,11 +196,14 @@ struct WhereStylesheet: BStylesheet {
         recordSnippet.borderOpacity = 0.08
         recordSnippet.ruleOpacity = 0.12
         elsewhereCard.cornerRadius = 26
+        elsewhereCard.titleFont = .headline.weight(.semibold)
+        elsewhereCard.usesGlassSurface = true
 
         year.cover.cornerRadius = 32
         year.cover.titleFont = .largeTitle.weight(.semibold)
         year.cover.figureEditorialFont = .title2.weight(.semibold)
         year.cover.borderOpacity = 0.14
+        year.cover.usesGlassSurface = true
         passportCard.cornerRadius = 24
         passportCard.rosette.primaryOpacity = 0
         passportCard.rosette.secondaryOpacity = 0
@@ -224,6 +234,22 @@ struct WhereStylesheet: BStylesheet {
     /// The fixed token set: the fallback used off the `View` tree (layout
     /// helpers, tests) and when no Broadway root has seeded a context.
     static let `default` = WhereStylesheet()
+
+    /// Resolve the compact side-by-side theme specimens without nesting a
+    /// second Broadway root inside the live app root. The specimen needs only
+    /// each language's authored baseline plus light/dark palette; accessibility
+    /// layout remains owned by the surrounding picker.
+    static func themePreview(_ theme: WhereTheme, colorScheme: ColorScheme) -> WhereStylesheet {
+        var style = WhereStylesheet()
+        style.theme = theme
+        if theme == .glass {
+            style.applyQuietGlassTheme()
+        }
+        if colorScheme == .dark {
+            style.palette = theme == .glass ? .glassDark : .dark
+        }
+        return style
+    }
 }
 
 // MARK: - Location forecast
@@ -321,6 +347,11 @@ extension WhereStylesheet {
 extension WhereStylesheet {
     /// Editorial hierarchy for the Locations masthead and ranked folio stack.
     struct LocationsStyle: Equatable {
+        enum MastheadLabel: Equatable {
+            case folio
+            case record
+        }
+
         var horizontalInset: CGFloat
         var topInset: CGFloat
         var mastheadSpacing: CGFloat
@@ -333,6 +364,8 @@ extension WhereStylesheet {
         var standardMinimumHeight: CGFloat
         var recordIndexFont: Font
         var recordLabelFont: Font
+        var mastheadLabel: MastheadLabel
+        var showsRecordIndex: Bool
         var surfaceBorderOpacity: Double
         var surfaceBorderWidth: CGFloat
 
@@ -349,6 +382,8 @@ extension WhereStylesheet {
             standardMinimumHeight: 248,
             recordIndexFont: .caption.weight(.semibold).monospacedDigit(),
             recordLabelFont: .caption2.weight(.semibold),
+            mastheadLabel: .folio,
+            showsRecordIndex: true,
             surfaceBorderOpacity: 0.12,
             surfaceBorderWidth: 0.75,
         )
@@ -1056,6 +1091,8 @@ extension WhereStylesheet {
             var gridSpacing: CGFloat
             var padding: CGFloat
             var cornerRadius: CGFloat
+            var titleFont: Font
+            var usesGlassSurface: Bool
             var ruleSpacing: CGFloat
             var ruleOpacity: Double
             /// Card treatment for a past month — the plain wash + rim.
@@ -1175,6 +1212,8 @@ extension WhereStylesheet {
                 gridSpacing: 6,
                 padding: 16,
                 cornerRadius: 14,
+                titleFont: .system(.title2, design: .serif).weight(.semibold),
+                usesGlassSurface: false,
                 ruleSpacing: 32,
                 ruleOpacity: 0.028,
                 plain: MonthStyle.Card(
@@ -1503,6 +1542,7 @@ extension WhereStylesheet {
             var border: Color
             var borderWidth: CGFloat
             var yearFont: Font
+            var usesGlassSurface: Bool
             /// Keep the compact overview visible while the journey scrolls.
             var pinsToViewport: Bool
         }
@@ -1544,6 +1584,8 @@ extension WhereStylesheet {
             var horizontalPadding: CGFloat
             var verticalPadding: CGFloat
             var cornerRadius: CGFloat
+            var regionNameFont: Font
+            var usesGlassSurface: Bool
             var fillOpacity: Double
             var borderOpacity: Double
             var borderWidth: CGFloat
@@ -1575,6 +1617,7 @@ extension WhereStylesheet {
                 border: Color.primary.opacity(0.14),
                 borderWidth: 0.75,
                 yearFont: .system(.title2, design: .serif).bold(),
+                usesGlassSurface: false,
                 pinsToViewport: true,
             ),
             ribbon: Ribbon(
@@ -1606,6 +1649,8 @@ extension WhereStylesheet {
                 horizontalPadding: 14,
                 verticalPadding: 12,
                 cornerRadius: 12,
+                regionNameFont: .system(.headline, design: .serif).weight(.semibold),
+                usesGlassSurface: false,
                 fillOpacity: 0,
                 borderOpacity: 0.14,
                 borderWidth: 0.75,
@@ -1744,11 +1789,15 @@ extension WhereStylesheet {
         var padding: CGFloat
         /// Point size of the leading globe glyph.
         var iconPointSize: CGFloat
+        var titleFont: Font
+        var usesGlassSurface: Bool
 
         static let standard = ElsewhereCardStyle(
             cornerRadius: 22,
             padding: 18,
             iconPointSize: 28,
+            titleFont: .system(.headline, design: .serif).weight(.semibold),
+            usesGlassSurface: false,
         )
     }
 }
@@ -1920,6 +1969,7 @@ extension WhereStylesheet {
             var borderWidth: CGFloat
             var actionHorizontalPadding: CGFloat
             var actionVerticalPadding: CGFloat
+            var usesGlassSurface: Bool
         }
 
         enum MotionMode: Equatable {
@@ -1961,6 +2011,7 @@ extension WhereStylesheet {
                 borderWidth: 0.75,
                 actionHorizontalPadding: 18,
                 actionVerticalPadding: 11,
+                usesGlassSurface: false,
             ),
         )
     }

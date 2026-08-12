@@ -69,6 +69,8 @@ struct WhereStylesheetTests {
         #expect(locations.cardSpacing == 18)
         #expect(locations.featuredMinimumHeight == 300)
         #expect(locations.standardMinimumHeight == 248)
+        #expect(locations.mastheadLabel == .folio)
+        #expect(locations.showsRecordIndex)
         #expect(locations.surfaceBorderOpacity == 0.12)
         #expect(locations.surfaceBorderWidth == 0.75)
     }
@@ -87,7 +89,13 @@ struct WhereStylesheetTests {
         #expect(resolved.card.regular.regionNameTypography.design == .default)
         #expect(resolved.card.rosetteFill == .init(primary: 0, secondary: 0))
         #expect(resolved.calendar.month.ruleOpacity == 0)
+        #expect(resolved.calendar.month.usesGlassSurface)
         #expect(resolved.timeline.row.cornerRadius == 20)
+        #expect(resolved.timeline.overview.usesGlassSurface)
+        #expect(resolved.timeline.row.usesGlassSurface)
+        #expect(resolved.locations.mastheadLabel == .record)
+        #expect(resolved.locations.showsRecordIndex == false)
+        #expect(resolved.year.cover.usesGlassSurface)
         #expect(resolved.featureDiscovery.backgroundPattern.opacity == 0)
     }
 
@@ -104,6 +112,17 @@ struct WhereStylesheetTests {
         #expect(resolved.palette == .glassDark)
         #expect(resolved.card.securityPrint == .dark)
         #expect(resolved.featureDiscovery.siri.accent == resolved.palette.brand.mineral)
+    }
+
+    @Test func themePreviewsResolveBothLanguagesWithoutANestedBroadwayRoot() {
+        let folio = WhereStylesheet.themePreview(.folio, colorScheme: .light)
+        let glass = WhereStylesheet.themePreview(.glass, colorScheme: .dark)
+
+        #expect(folio.theme == .folio)
+        #expect(folio.palette == .standard)
+        #expect(glass.theme == .glass)
+        #expect(glass.palette == .glassDark)
+        #expect(glass.card.regular.regionNameTypography.design == .default)
     }
 
     @Test func regularCardStyle() {
@@ -329,6 +348,8 @@ struct WhereStylesheetTests {
         #expect(month.gridSpacing == 6)
         #expect(month.padding == 16)
         #expect(month.cornerRadius == 14)
+        #expect(month.titleFont == .system(.title2, design: .serif).weight(.semibold))
+        #expect(month.usesGlassSurface == false)
         #expect(month.ruleSpacing == 32)
         #expect(month.ruleOpacity == 0.028)
         #expect(month.plain.fill == Color.primary.opacity(0.012))
@@ -397,6 +418,7 @@ struct WhereStylesheetTests {
         #expect(overview.border == Color.primary.opacity(0.14))
         #expect(overview.borderWidth == 0.75)
         #expect(overview.yearFont == .system(.title2, design: .serif).bold())
+        #expect(overview.usesGlassSurface == false)
         #expect(overview.pinsToViewport)
 
         let ribbon = timeline.ribbon
@@ -428,6 +450,8 @@ struct WhereStylesheetTests {
         #expect(row.horizontalPadding == 14)
         #expect(row.verticalPadding == 12)
         #expect(row.cornerRadius == 12)
+        #expect(row.regionNameFont == .system(.headline, design: .serif).weight(.semibold))
+        #expect(row.usesGlassSurface == false)
         #expect(row.fillOpacity == 0)
         #expect(row.borderOpacity == 0.14)
         #expect(row.borderWidth == 0.75)
@@ -506,6 +530,8 @@ struct WhereStylesheetTests {
         #expect(card.cornerRadius == 22)
         #expect(card.padding == 18)
         #expect(card.iconPointSize == 28)
+        #expect(card.titleFont == .system(.headline, design: .serif).weight(.semibold))
+        #expect(card.usesGlassSurface == false)
     }
 
     @Test func typographyFaces() {
@@ -634,6 +660,7 @@ struct WhereStylesheetTests {
             borderWidth: 0.75,
             actionHorizontalPadding: 18,
             actionVerticalPadding: 11,
+            usesGlassSurface: false,
         ))
     }
 

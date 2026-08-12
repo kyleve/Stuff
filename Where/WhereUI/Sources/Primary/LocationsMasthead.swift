@@ -19,7 +19,7 @@ struct LocationsMasthead: View {
                 WhereSeal(tint: brand.brass)
                     .frame(width: 30, height: 30)
 
-                Text(.locationsFolioLabel)
+                Text(mastheadLabel(for: style.mastheadLabel))
                     .font(style.eyebrowFont)
                     .tracking(1.4)
                     .foregroundStyle(brand.brass)
@@ -74,6 +74,15 @@ struct LocationsMasthead: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
+    }
+
+    private func mastheadLabel(
+        for label: WhereStylesheet.LocationsStyle.MastheadLabel,
+    ) -> LocalizedStringResource {
+        switch label {
+            case .folio: .locationsFolioLabel
+            case .record: .locationsRecordLabel
+        }
     }
 
     @ViewBuilder

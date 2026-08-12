@@ -24,6 +24,7 @@ public actor WidgetSnapshotPublisher {
     private let maxAge: TimeInterval
 
     private var lastPublished: PublishedWidgetSnapshot?
+    private var theme = WhereTheme.folio
 
     private struct PublishedWidgetSnapshot {
         let snapshot: WidgetSnapshot
@@ -71,6 +72,20 @@ public actor WidgetSnapshotPublisher {
         await publish()
     }
 
+    /// Seed the visual language before a launch/foreground refresh. This is a
+    /// configuration handoff only: the caller's subsequent refresh owns I/O.
+    public func configureTheme(_ theme: WhereTheme) {
+        self.theme = theme
+    }
+
+    /// Publish the newly selected visual language immediately, even when the
+    /// underlying report is otherwise fresh.
+    public func publishTheme(_ theme: WhereTheme) async {
+        guard theme != self.theme || lastPublished?.snapshot.theme != theme else { return }
+        self.theme = theme
+        await publish()
+    }
+
     /// Recompute today's `WidgetSnapshot` from the store and hand it to the
     /// refresher to publish + reload. Called after every committed mutation that
     /// can change what a widget shows. A failure here is non-fatal: the widget
@@ -78,7 +93,7 @@ public actor WidgetSnapshotPublisher {
     func publish() async {
         await Self.logger.measure(.publish, budget: .seconds(2)) {
             do {
-                let snapshot = try await widgetReader.snapshot(asOf: now())
+                let snapshot = try await widgetReader.snapshot(asOf: now()).applyingTheme(theme)
                 await widgetRefresher.publish(snapshot)
                 lastPublished = PublishedWidgetSnapshot(snapshot: snapshot, publishedAt: now())
                 Self.logger {
@@ -99,6 +114,7 @@ public actor WidgetSnapshotPublisher {
                     year: CalendarDay(from: date, in: calendar).year,
                     dayRegions: [],
                     totals: [:],
+                    theme: theme,
                 )
                 await widgetRefresher.publish(snapshot)
                 lastPublished = PublishedWidgetSnapshot(snapshot: snapshot, publishedAt: date)
