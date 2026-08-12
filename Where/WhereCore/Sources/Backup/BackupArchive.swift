@@ -9,7 +9,8 @@ import RegionKit
 /// The arrays represent the persisted collections (`SDLocationSample` /
 /// `SDEvidence` / `SDManualDay` / `SDDismissedIssue` / `SDTrackedRegion`) via
 /// their value-type representations, plus installation profiles, nickname events, the
-/// device-removal tombstones. Target-owned check-ins and local recording consent are
+/// device-removal tombstones, and planned-stay revisions. Target-owned check-ins and local
+/// recording consent are
 /// intentionally excluded because a backup cannot restore proof of local physical state.
 public struct BackupArchive: Codable, Sendable, Hashable {
     /// Bumped whenever the archive's on-disk shape changes in a way older
@@ -19,11 +20,11 @@ public struct BackupArchive: Codable, Sendable, Hashable {
     ///
     /// v3 adds sample provenance, immutable installation profiles, nickname changes, and archive
     /// tombstones. v4 expands device kinds, groups metadata edit payloads, and renames the
-    /// profile's registration-generation key. There's no in-app decode fallback for an older
-    /// archive — it is reshaped out of band by
+    /// profile's registration-generation key; v5 adds `plannedStayRecords`. There's no in-app
+    /// decode fallback for an older archive — it is reshaped out of band by
     /// `Tools/upgrade-backup.rb`, matching the module's no-migration-on-read rule (see
     /// `AGENTS.md`).
-    public static let currentFormatVersion = 4
+    public static let currentFormatVersion = 5
 
     public let formatVersion: Int
     public let exportedAt: Date
@@ -48,6 +49,9 @@ public struct BackupArchive: Codable, Sendable, Hashable {
     public let recordingDeviceMetadataChanges: [RecordingDeviceMetadataChange]
     /// Irreversible installation-removal tombstones.
     public let recordingDeviceRemovals: [RecordingDeviceRemoval]
+    /// Revisions of the synced planned-stay register, including its clearing
+    /// tombstone, so restore cannot resurrect an older active stay.
+    public let plannedStayRecords: [PlannedStayRecord]
     /// One entry per evidence record that has blob bytes in the archive.
     /// Evidence without bytes simply has no entry here.
     public let assets: [BackupAssetEntry]
@@ -64,6 +68,7 @@ public struct BackupArchive: Codable, Sendable, Hashable {
         recordingDeviceProfiles: [RecordingDeviceProfile],
         recordingDeviceMetadataChanges: [RecordingDeviceMetadataChange],
         recordingDeviceRemovals: [RecordingDeviceRemoval],
+        plannedStayRecords: [PlannedStayRecord],
         assets: [BackupAssetEntry],
     ) {
         self.formatVersion = formatVersion
@@ -77,6 +82,7 @@ public struct BackupArchive: Codable, Sendable, Hashable {
         self.recordingDeviceProfiles = recordingDeviceProfiles
         self.recordingDeviceMetadataChanges = recordingDeviceMetadataChanges
         self.recordingDeviceRemovals = recordingDeviceRemovals
+        self.plannedStayRecords = plannedStayRecords
         self.assets = assets
     }
 }

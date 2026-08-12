@@ -216,6 +216,12 @@ struct WhereStylesheetTests {
         #expect(calendar.regionBand.cornerRadius == 14)
         #expect(calendar.regionBand.continuationRadius == 3)
         #expect(calendar.regionBand.verticalInset == 4)
+        #expect(calendar.regionBand.planned == .init(
+            fillOpacity: 0.07,
+            hatchOpacity: 0.32,
+            hatchSpacing: 6,
+            hatchLineWidth: 1,
+        ))
 
         let day = calendar.day
         #expect(day.minHeight == 44)
@@ -256,6 +262,21 @@ struct WhereStylesheetTests {
         #expect(month.footerSpacing == 4)
         #expect(month.footerRowSpacing == 6)
         #expect(month.unfocusedRowOpacity == 0.55)
+    }
+
+    @Test func locationForecastStyle() {
+        let forecast = style.locationForecast
+        #expect(forecast.cornerRadius == 22)
+        #expect(forecast.padding == 16)
+        #expect(forecast.rowSpacing == 12)
+        #expect(forecast.estimateSpacing == 3)
+        #expect(forecast.collapsedLabelColor == Color.primary.opacity(0.5))
+        #expect(forecast.borderColor == Color.primary.opacity(0.06))
+        #expect(forecast.borderWidth == 0.5)
+        #expect(forecast.shadowColor == Color.black.opacity(0.06))
+        #expect(forecast.shadowRadius == 8)
+        #expect(forecast.shadowOffsetY == 2)
+        #expect(forecast.expansionAnimation == .easeInOut(duration: 0.2))
     }
 
     @Test func appIconStyle() {
@@ -331,6 +352,14 @@ struct WhereStylesheetTests {
         #expect(row.countVerticalPadding == 6)
         #expect(row.countFillOpacity == 0.16)
         #expect(row.stacksDayCount == false)
+
+        let planned = timeline.planned
+        #expect(planned.fillOpacity == 0.035)
+        #expect(planned.borderOpacity == 0.14)
+        #expect(planned.hatchOpacity == 0.16)
+        #expect(planned.hatchSpacing == 8)
+        #expect(planned.hatchLineWidth == 1)
+        #expect(planned.labelOpacity == 0.7)
     }
 
     @Test func regionMapStyle() {

@@ -119,6 +119,9 @@ public final class YearReportModel {
     let services: WhereServices
     /// Persisted user intent. Exposed for the same reason as `services`.
     let preferences: WherePreferences
+    /// Synced planned-stay state and pure forecast projections for the
+    /// Locations surfaces.
+    let forecasts: LocationForecastModel
     /// The model's notion of "now", forwarded for calendar / missing-day math.
     let now: @Sendable () -> Date
 
@@ -146,6 +149,17 @@ public final class YearReportModel {
     /// `WherePreferences` is intentionally a plain wrapper, so the shared scene
     /// model publishes this value to both the Appearance toggle and Locations.
     private var showsRecordedLocationDotsStorage: Bool
+
+    /// Observed mirror of the Locations tab's forecast-visibility preference.
+    /// `WherePreferences` is intentionally not observable, so Settings writes
+    /// through this property to update the mounted Locations tab immediately.
+    public var showsLocationForecastsOnLocationsTab: Bool {
+        didSet {
+            guard oldValue != showsLocationForecastsOnLocationsTab else { return }
+            preferences.showsLocationForecastsOnLocationsTab =
+                showsLocationForecastsOnLocationsTab
+        }
+    }
 
     /// Whether Locations cards render their recorded GPS constellations.
     /// Writes persist synchronously and update the visible cards immediately.
@@ -249,9 +263,12 @@ public final class YearReportModel {
         driftThresholdStorage = DriftThreshold(rawValue: preferences.driftThresholdMeters)
             ?? .default
         showsRecordedLocationDotsStorage = preferences.showsRecordedLocationDots
+        showsLocationForecastsOnLocationsTab =
+            preferences.showsLocationForecastsOnLocationsTab
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = .current
         self.calendar = calendar
+        forecasts = LocationForecastModel(services: services, calendar: calendar, now: now)
         loadState = details == nil ? .idle : .loaded
     }
 
@@ -314,6 +331,7 @@ public final class YearReportModel {
     func refreshAll(forceDataIssueCount: Bool) async {
         await Self.logger.measure(.sceneRefresh, budget: .seconds(3)) {
             await refresh()
+            await forecasts.refresh()
             await refreshEvidenceDayKeys()
             await refreshDataIssueCount(force: forceDataIssueCount)
         }
