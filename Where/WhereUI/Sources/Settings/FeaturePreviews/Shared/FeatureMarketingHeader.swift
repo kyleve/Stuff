@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SwiftUI
 
 /// The shared hero treatment for Settings screens that market a feature rather
@@ -5,7 +6,7 @@ import SwiftUI
 struct FeatureMarketingHeader: View {
     let title: String
     let tagline: String
-    let systemImage: String
+    let systemSymbol: SFSymbol
     let tint: Color
 
     @Environment(\.stylesheet) private var stylesheet
@@ -13,7 +14,7 @@ struct FeatureMarketingHeader: View {
     var body: some View {
         let style = stylesheet.featureDiscovery.marketingHeader
         VStack(spacing: style.spacing) {
-            Image(systemName: systemImage)
+            Image(systemSymbol: systemSymbol)
                 .font(.system(size: style.symbolPointSize, weight: .semibold))
                 .foregroundStyle(tint)
                 .frame(width: style.badgeSize, height: style.badgeSize)
@@ -42,7 +43,7 @@ struct FeatureMarketingHeader: View {
         FeatureMarketingHeader(
             title: "Siri, Shortcuts & Spotlight",
             tagline: "Ask, automate, or search for where you’ve been.",
-            systemImage: "waveform",
+            systemSymbol: .waveform,
             tint: .pink,
         )
         .padding()

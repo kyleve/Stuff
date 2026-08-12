@@ -1,4 +1,5 @@
 import RegionKit
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 import WhereCore
@@ -114,7 +115,7 @@ struct SettingsView: View {
             } label: {
                 Label(
                     String(localized: .settingsDemoExit),
-                    systemImage: "rectangle.portrait.and.arrow.right",
+                    systemSymbol: .rectanglePortraitAndArrowRight,
                 )
             }
         } header: {
@@ -179,7 +180,7 @@ struct SettingsView: View {
             Label {
                 Text(destination.rowTitle)
             } icon: {
-                SettingsIcon(systemImage: destination.systemImage, color: destination.iconColor)
+                SettingsIcon(systemSymbol: destination.systemSymbol, color: destination.iconColor)
             }
         }
     }
@@ -213,7 +214,7 @@ struct SettingsView: View {
             }
         } icon: {
             SettingsIcon(
-                systemImage: result.destination.systemImage,
+                systemSymbol: result.destination.systemSymbol,
                 color: result.destination.iconColor,
             )
         }

@@ -1,4 +1,5 @@
 import RegionKit
+import SFSafeSymbols
 import SwiftUI
 
 /// The selectable feature list shared by the bounded developer map screen and
@@ -49,7 +50,7 @@ struct RegionMapLegend: View {
                     .accessibilityHidden(true)
             }
             if group.title == selectedTitle {
-                Image(systemName: "checkmark")
+                Image(systemSymbol: .checkmark)
                     .foregroundStyle(.tint)
             }
         }

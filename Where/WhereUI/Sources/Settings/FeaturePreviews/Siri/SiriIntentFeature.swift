@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SwiftUI
 
 /// One App Intent demonstrated by the Siri feature gallery. Kept separate from
@@ -20,13 +21,13 @@ enum SiriIntentFeature: CaseIterable, Hashable {
         }
     }
 
-    var systemImage: String {
+    var systemSymbol: SFSymbol {
         switch self {
-            case .todayRegions: "location.fill"
-            case .daysInRegion: "calendar"
-            case .regionOnDate: "calendar.badge.clock"
-            case .logDay: "mappin.and.ellipse"
-            case .logTrip: "airplane"
+            case .todayRegions: .locationFill
+            case .daysInRegion: .calendar
+            case .regionOnDate: .calendarBadgeClock
+            case .logDay: .mappinAndEllipse
+            case .logTrip: .airplane
         }
     }
 

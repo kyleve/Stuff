@@ -1,3 +1,4 @@
+import SFSafeSymbols
 #if DEBUG
     import PeriscopeTools
     import SwiftUI
@@ -32,7 +33,7 @@
                             case .opening:
                                 ContentUnavailableView(
                                     String(localized: .developerLoggingOpeningTitle),
-                                    systemImage: tool.systemImage,
+                                    systemSymbol: tool.systemSymbol,
                                     description: Text(String(
                                         localized: .developerLoggingOpeningDescription,
                                     )),
@@ -43,7 +44,7 @@
                             case let .failed(description):
                                 ContentUnavailableView(
                                     String(localized: .developerLoggingFailedTitle),
-                                    systemImage: "exclamationmark.triangle",
+                                    systemSymbol: .exclamationmarkTriangle,
                                     description: Text(description),
                                 )
                                 .navigationTitle(tool.title)

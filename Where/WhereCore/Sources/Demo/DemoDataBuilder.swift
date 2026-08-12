@@ -52,12 +52,12 @@ public struct DemoDataBuilder: Sendable {
     private static let primaryRegions = [
         PrimaryRegion(
             region: .newYork,
-            appearance: RegionAppearance(color: .indigo, emoji: "🗽", symbolName: "building.2"),
+            appearance: RegionAppearance(color: .indigo, emoji: "🗽", symbolName: .building2),
             order: 0,
         ),
         PrimaryRegion(
             region: .california,
-            appearance: RegionAppearance(color: .orange, emoji: "🌉", symbolName: "sun.max"),
+            appearance: RegionAppearance(color: .orange, emoji: "🌉", symbolName: .sunMax),
             order: 1,
         ),
     ]
