@@ -25,13 +25,14 @@ struct MainTabs: View {
     @State private var recordingWarning: RecordingConfigurationWarningModel
     @State private var selection: TabID = .locations
     @Environment(\.scenePhase) private var scenePhase
-    private let session: WhereSession
+    private let recordingWarningSource: RecordingConfigurationWarningModel.Source
 
     /// Build the scene's report model from the coordinator's service layer.
     /// `initialDetails` / `selectedYear` are the preview/test seam threaded from
     /// `WhereModel`; both are nil / the current year in the app.
     init(session: WhereSession, initialDetails: YearReportDetails?, selectedYear: Int) {
-        self.session = session
+        let recordingWarningSource = RecordingConfigurationWarningModel.Source(session: session)
+        self.recordingWarningSource = recordingWarningSource
         _report = State(initialValue: YearReportModel(
             services: session.services,
             details: initialDetails,
@@ -40,12 +41,12 @@ struct MainTabs: View {
             now: session.now,
         ))
         _recordingWarning = State(initialValue: RecordingConfigurationWarningModel(
-            preferences: session.preferences,
+            preferences: recordingWarningSource.preferences,
         ))
     }
 
     var body: some View {
-        let recordingInputs = recordingWarning.localInputs(for: session)
+        let recordingInputs = recordingWarningSource.localInputs
         TabView(selection: $selection) {
             Tab(
                 String(localized: .tabLocations),
@@ -78,9 +79,9 @@ struct MainTabs: View {
         // backgrounded scene drives no refreshes.
         .task { await report.activate() }
         .task(id: recordingInputs) {
-            await recordingWarning.refresh(recordingInputs, for: session)
+            await recordingWarning.refresh(recordingInputs, from: recordingWarningSource)
         }
-        .task { await recordingWarning.observeAuthorityChanges(for: session) }
+        .task { await recordingWarning.observeAuthorityChanges(from: recordingWarningSource) }
         .onChange(of: scenePhase) { _, newPhase in
             switch newPhase {
                 case .active:
