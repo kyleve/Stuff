@@ -1,4 +1,5 @@
 import LifecycleKitUI
+import SFSafeSymbols
 import SwiftUI
 
 /// Blocking recovery shown when CloudKit retires this installation identity.
@@ -11,7 +12,7 @@ struct RemovedDeviceView: View {
 
     var body: some View {
         VStack(spacing: stylesheet.spacing.xxLarge) {
-            Image(systemName: "iphone.slash")
+            Image(systemSymbol: .iphoneSlash)
                 .font(.largeTitle)
                 .foregroundStyle(.secondary)
                 .accessibilityHidden(true)

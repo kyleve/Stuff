@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SwiftUI
 
 /// One side of the compact example conversation used to explain an App Intent.
@@ -40,7 +41,7 @@ struct SiriChatBubble: View {
 
     private var speakerIcon: some View {
         let style = stylesheet.featureDiscovery
-        return Image(systemName: "waveform")
+        return Image(systemSymbol: .waveform)
             .font(.system(size: style.siri.speakerIcon.symbolPointSize, weight: .bold))
             .foregroundStyle(.white)
             .frame(

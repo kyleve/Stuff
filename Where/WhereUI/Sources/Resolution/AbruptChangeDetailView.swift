@@ -1,4 +1,5 @@
 import RegionKit
+import SFSafeSymbols
 import SwiftUI
 import WhereCore
 
@@ -61,7 +62,7 @@ struct AbruptChangeDetailView: View {
         } else {
             ContentUnavailableView(
                 String(localized: .commonLoadErrorTitle),
-                systemImage: "exclamationmark.triangle",
+                systemSymbol: .exclamationmarkTriangle,
             )
         }
     }

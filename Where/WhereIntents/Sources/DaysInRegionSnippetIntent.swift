@@ -90,7 +90,7 @@ struct DaysInRegionInteractiveSnippet: View {
                     Label {
                         Text(IntentStrings.logTodayHere)
                     } icon: {
-                        Image(systemName: "plus.circle.fill")
+                        Image(systemSymbol: .plusCircleFill)
                     }
                     .frame(maxWidth: .infinity)
                 }

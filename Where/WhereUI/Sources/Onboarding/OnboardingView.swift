@@ -1,5 +1,6 @@
 import LifecycleKit
 import PeriscopeCore
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 import UniformTypeIdentifiers
@@ -176,7 +177,7 @@ public struct OnboardingView: View {
     private func pageView(_ page: OnboardingPage) -> some View {
         VStack(spacing: stylesheet.spacing.xxxLarge) {
             Spacer(minLength: 0)
-            Image(systemName: page.symbol)
+            Image(systemSymbol: page.symbol)
                 .font(stylesheet.typography.onboardingIcon)
                 .foregroundStyle(Color.accentColor)
                 .accessibilityHidden(true)
@@ -251,7 +252,7 @@ public struct OnboardingView: View {
             ScrollView {
                 VStack(spacing: stylesheet.spacing.xxxLarge) {
                     Spacer(minLength: 0)
-                    Image(systemName: deviceKind.systemImage)
+                    Image(systemSymbol: deviceKind.systemSymbol)
                         .font(stylesheet.typography.onboardingIcon)
                         .foregroundStyle(Color.accentColor)
                         .accessibilityHidden(true)
@@ -275,11 +276,11 @@ public struct OnboardingView: View {
                                     if recommendation.recentRecordingDevice != nil {
                                         Label(
                                             String(localized: .onboardingRecordingRecent),
-                                            systemImage: "iphone.radiowaves.left.and.right",
+                                            systemSymbol: .iphoneRadiowavesLeftAndRight,
                                         )
                                     }
                                 case let .failed(description):
-                                    Label(description, systemImage: "icloud.slash")
+                                    Label(description, systemSymbol: .icloudSlash)
                                         .foregroundStyle(.secondary)
                             }
                             Toggle(
@@ -410,26 +411,26 @@ final class OnboardingIntroState {
 /// list reads declaratively and stays easy to reorder.
 struct OnboardingPage: Identifiable {
     let id: String
-    let symbol: String
+    let symbol: SFSymbol
     let title: String
     let description: String
 
     static let all: [OnboardingPage] = [
         OnboardingPage(
             id: "welcome",
-            symbol: "globe.americas.fill",
+            symbol: .globeAmericasFill,
             title: String(localized: .onboardingWelcomeTitle),
             description: String(localized: .onboardingWelcomeDescription),
         ),
         OnboardingPage(
             id: "automatic",
-            symbol: "location.fill.viewfinder",
+            symbol: .locationFillViewfinder,
             title: String(localized: .onboardingAutomaticTitle),
             description: String(localized: .onboardingAutomaticDescription),
         ),
         OnboardingPage(
             id: "privacy",
-            symbol: "lock.shield.fill",
+            symbol: .lockShieldFill,
             title: String(localized: .onboardingPrivacyTitle),
             description: String(localized: .onboardingPrivacyDescription),
         ),

@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SwiftUI
 
 /// A shared resting surface for a complete pane in the feature-marketing
@@ -27,7 +28,7 @@ struct FeatureMarketingPanel<Content: View>: View {
 #if DEBUG
     #Preview {
         FeatureMarketingPanel {
-            Label("Feature preview", systemImage: "sparkles")
+            Label("Feature preview", systemSymbol: .sparkles)
         }
         .padding()
         .whereBroadwayRoot()

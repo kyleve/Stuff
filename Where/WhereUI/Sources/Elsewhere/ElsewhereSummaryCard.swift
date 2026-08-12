@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SwiftUI
 import WhereCore
 
@@ -17,7 +18,7 @@ struct ElsewhereSummaryCard: View {
 
     var body: some View {
         HStack(spacing: stylesheet.spacing.large) {
-            Image(systemName: "globe.americas.fill")
+            Image(systemSymbol: .globeAmericasFill)
                 .font(.system(size: style.iconPointSize))
                 .foregroundStyle(.tint)
                 .accessibilityHidden(true)
@@ -32,7 +33,7 @@ struct ElsewhereSummaryCard: View {
 
             Spacer(minLength: 0)
 
-            Image(systemName: "chevron.right")
+            Image(systemSymbol: .chevronRight)
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.secondary)
                 .accessibilityHidden(true)

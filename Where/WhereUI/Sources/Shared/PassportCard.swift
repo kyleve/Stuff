@@ -1,11 +1,12 @@
+import SFSafeSymbols
 import SwiftUI
 
 /// The shared card content and chrome used for Where's passport statements.
 struct PassportCard: View {
     let title: LocalizedStringResource
     let detail: LocalizedStringResource
-    let sealSystemImage: String
-    let accessorySystemImage: String?
+    let sealSystemSymbol: SFSymbol
+    let accessorySystemSymbol: SFSymbol?
     let isInteractive: Bool
     let surface: PassportCardSurfaceKind
 
@@ -48,7 +49,7 @@ struct PassportCard: View {
                             ),
                         )
                         .padding(style.seal.innerInset)
-                    Image(systemName: sealSystemImage)
+                    Image(systemSymbol: sealSystemSymbol)
                         .font(style.seal.symbolFont)
                         .foregroundStyle(.tint)
                 }
@@ -67,8 +68,8 @@ struct PassportCard: View {
 
                 Spacer(minLength: 0)
 
-                if let accessorySystemImage {
-                    Image(systemName: accessorySystemImage)
+                if let accessorySystemSymbol {
+                    Image(systemSymbol: accessorySystemSymbol)
                         .foregroundStyle(.tint)
                         .accessibilityHidden(true)
                 }
@@ -97,8 +98,8 @@ struct PassportCard: View {
         PassportCard(
             title: .settingsPrivacyTitle,
             detail: .settingsPrivacyDetail,
-            sealSystemImage: "lock.shield.fill",
-            accessorySystemImage: nil,
+            sealSystemSymbol: .lockShieldFill,
+            accessorySystemSymbol: nil,
             isInteractive: false,
             surface: .reflective(tilt: .preview),
         )

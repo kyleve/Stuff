@@ -41,7 +41,7 @@ struct WidgetDataReaderTests {
 
     @Test func snapshotCarriesPickedRegionAppearances() async throws {
         let (reader, store) = try Self.makeReader()
-        let caLook = RegionAppearance(color: .orange, emoji: "🌴", symbolName: "sun.max.fill")
+        let caLook = RegionAppearance(color: .orange, emoji: "🌴", symbolName: .sunMaxFill)
         try await store.perform {
             try await store.setPrimaryRegions([
                 PrimaryRegion(region: .california, appearance: caLook, order: 0),
@@ -57,37 +57,18 @@ struct WidgetDataReaderTests {
     }
 
     @Test func snapshotAppearancesSurviveCodableRoundTrip() throws {
-        let look = RegionAppearance(color: .indigo, emoji: "🗽", symbolName: "building.2.fill")
+        let look = RegionAppearance(color: .indigo, emoji: "🗽", symbolName: .building2Fill)
         let snapshot = WidgetSnapshot(
             day: WhereCoreTestSupport.iso("2026-03-15T00:00:00-07:00"),
             year: 2026,
             dayRegions: [.newYork],
             totals: [.newYork: 3],
             appearances: [.newYork: look],
-            theme: .alternate,
         )
         let data = try JSONEncoder().encode(snapshot)
         let decoded = try JSONDecoder().decode(WidgetSnapshot.self, from: data)
         #expect(decoded == snapshot)
         #expect(decoded.appearances == [.newYork: look])
-        #expect(decoded.theme == .alternate)
-    }
-
-    @Test func snapshotWithoutThemeDecodesAsStandard() throws {
-        let snapshot = WidgetSnapshot(
-            day: WhereCoreTestSupport.iso("2026-03-15T00:00:00-07:00"),
-            year: 2026,
-            dayRegions: [.newYork],
-            totals: [.newYork: 3],
-        )
-        let encoded = try JSONEncoder().encode(snapshot)
-        var object = try #require(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
-        object.removeValue(forKey: "theme")
-        let legacy = try JSONSerialization.data(withJSONObject: object)
-
-        let decoded = try JSONDecoder().decode(WidgetSnapshot.self, from: legacy)
-
-        #expect(decoded.theme == .standard)
     }
 
     @Test func samplesAndManualDaysRollUpLikeTheYearReport() async throws {

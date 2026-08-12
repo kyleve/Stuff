@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SwiftUI
 
 /// A miniature system Share sheet that makes Where's extension visible inside
@@ -12,7 +13,7 @@ struct FeatureShareSheetPreview: View {
             VStack(alignment: .leading, spacing: panelStyle.contentSpacing) {
                 Label(
                     String(localized: .settingsExploreEvidenceShareTitle),
-                    systemImage: "square.and.arrow.up",
+                    systemSymbol: .squareAndArrowUp,
                 )
                 .font(.headline)
 
@@ -20,30 +21,30 @@ struct FeatureShareSheetPreview: View {
                     if dynamicTypeSize.isAccessibilitySize {
                         VStack(alignment: .leading, spacing: stylesheet.spacing.medium) {
                             shareSource(
-                                "airplane",
+                                .airplane,
                                 title: String(localized: .settingsExploreEvidenceSourcePass),
                             )
                             shareSource(
-                                "doc.richtext",
+                                .docRichtext,
                                 title: String(localized: .settingsExploreEvidenceSourceReceipt),
                             )
                             shareSource(
-                                "photo",
+                                .photo,
                                 title: String(localized: .settingsExploreEvidenceSourcePhoto),
                             )
                         }
                     } else {
                         HStack(spacing: stylesheet.spacing.large) {
                             shareSource(
-                                "airplane",
+                                .airplane,
                                 title: String(localized: .settingsExploreEvidenceSourcePass),
                             )
                             shareSource(
-                                "doc.richtext",
+                                .docRichtext,
                                 title: String(localized: .settingsExploreEvidenceSourceReceipt),
                             )
                             shareSource(
-                                "photo",
+                                .photo,
                                 title: String(localized: .settingsExploreEvidenceSourcePhoto),
                             )
                         }
@@ -70,16 +71,16 @@ struct FeatureShareSheetPreview: View {
         .accessibilityElement(children: .combine)
     }
 
-    private func shareSource(_ systemImage: String, title: String) -> some View {
+    private func shareSource(_ systemSymbol: SFSymbol, title: String) -> some View {
         Group {
             if dynamicTypeSize.isAccessibilitySize {
                 HStack(spacing: stylesheet.spacing.small) {
-                    sourceIcon(systemImage)
+                    sourceIcon(systemSymbol)
                     sourceTitle(title, alignment: .leading)
                 }
             } else {
                 VStack(spacing: stylesheet.spacing.small) {
-                    sourceIcon(systemImage)
+                    sourceIcon(systemSymbol)
                     sourceTitle(title, alignment: .center)
                 }
             }
@@ -87,8 +88,8 @@ struct FeatureShareSheetPreview: View {
         .frame(maxWidth: .infinity)
     }
 
-    private func sourceIcon(_ systemImage: String) -> some View {
-        Image(systemName: systemImage)
+    private func sourceIcon(_ systemSymbol: SFSymbol) -> some View {
+        Image(systemSymbol: systemSymbol)
             .font(.system(size: 22))
             .frame(width: 44, height: 44)
             .background(.quaternary, in: .rect(cornerRadius: 12))

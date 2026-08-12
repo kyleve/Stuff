@@ -52,9 +52,9 @@ Xcode project](#generating-the-xcode-project)). A fresh machine needs `./ide
 generating; plain `./ide` fails fast pointing at it.
 
 The executables in the repo root are the dev scripts — `ide`, `test`,
-`swiftformat`, `sync-agents`, `profile`, `icons`, `flaky`, `simulator`,
-`worktree`, `xcstrings`, `attribution`, `codex-watchdog`, `tla-check` — and each
-takes `--help`. Reach for one rather than
+`swiftformat`, `sf-symbols`, `sync-agents`, `profile`, `icons`, `flaky`, `simulator`,
+`worktree`, `xcstrings`, `attribution`, `codex-watchdog`, `tla-check`,
+`circleci-artifacts` — and each takes `--help`. Reach for one rather than
 hand-rolling its job: `test` is the only way tests should be run (see [Running
 tests](#running-tests)), and `icons`, `attribution`, and `simulator` in particular own state that is
 easy to corrupt by hand — `./simulator` owns a per-checkout device (see the
@@ -197,11 +197,12 @@ isolated `./test WhereUITests` run. Guard:
 `WhereStylesheetTests.resolvesTraitAwareTokensFromTheBroadwayRoot` fails if a
 duplicate copy answers.
 
-**Exception:** `WhereUITests` names `LifecycleKit` because its test sources use
-those public types directly and Xcode 27 beta 4 emits that product as a shared
-package framework in this graph; copying it transitively through `WhereUI` does
-not put it on the test bundle's link command. This links the same generated
-framework rather than another static copy. Re-measure on a toolchain change.
+**Exception:** `WhereUITests` names `LifecycleKit` and `SFSafeSymbols` because
+its test sources use those public types directly and Xcode 27 emits those
+products as shared package frameworks in this graph; copying them transitively
+through `WhereUI` does not put them on the test bundle's link command. This
+links the same generated frameworks rather than another static copy. Re-measure
+on a toolchain change.
 
 The guard test is the authority on whether a given duplication is harmful —
 measured symbol-coalescing detail and the correction history: PR #145.
@@ -407,6 +408,11 @@ creating, changing, or reviewing a SwiftUI/UIKit surface. It owns the general
 view/model boundary, reuse, binding, Broadway stylesheet, layout,
 accessibility, localization, UIKit-bridge, preview, and image-snapshot
 procedures; module `AGENTS.md` files add only their local seams and invariants.
+
+SF Symbols use SFSafeSymbols' `SFSymbol` and `systemSymbol` overloads; never
+spell a symbol as a raw string or construct an unchecked `SFSymbol`. Run
+`./sf-symbols --lint`. `WhereShortcuts.swift` is the sole exception because the
+App Shortcuts metadata macro requires compile-time string literals.
 
 ### Repo hygiene
 

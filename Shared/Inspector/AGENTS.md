@@ -9,8 +9,8 @@ formatting, and repository-wide conventions.
 
 ## Scope and dependencies
 
-- Depend only on SwiftUI, SwiftData, Foundation, Observation, QuickLook, and
-  UIKit. Never import Where or another app module; applications provide every
+- Depend only on SwiftUI, SwiftData, Foundation, Observation, QuickLook,
+  SFSafeSymbols, and UIKit. Never import Where or another app module; applications provide every
   source through `InspectorConfiguration`.
 - Keep boot selection outside this module. `InspectorModeController` persists
   next-launch choice and pending recovery erasures in one dedicated suite.

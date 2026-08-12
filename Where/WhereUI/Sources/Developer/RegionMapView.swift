@@ -1,6 +1,7 @@
 import MapKit
 import PeriscopeCore
 import RegionKit
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 import WhereCore
@@ -61,13 +62,13 @@ public struct RegionMapView: View {
             case let .some(.failure(error)):
                 ContentUnavailableView(
                     String(localized: .regionMapLoadErrorTitle),
-                    systemImage: "exclamationmark.triangle",
+                    systemSymbol: .exclamationmarkTriangle,
                     description: Text(error.localizedDescription),
                 )
             case let .some(.success(loaded)) where loaded.isEmpty:
                 ContentUnavailableView(
                     String(localized: .regionMapEmptyTitle),
-                    systemImage: "map",
+                    systemSymbol: .map,
                     description: Text(String(localized: .regionMapEmptyDescription)),
                 )
             case let .some(.success(loaded)):

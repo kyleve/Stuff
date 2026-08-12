@@ -41,7 +41,7 @@ one it belongs to rather than to a god-object:
   holds the user's **tracked / primary regions** (`trackedRegions()` /
   `setTrackedRegion(_:id:)`, plus `primaryRegions()` / `setPrimaryRegions(_:)`
   which surface and persist each region's picked `RegionAppearance` — color
-  token, emoji, SF Symbol — and pick order alongside the synced rows) — one row
+  token, emoji, typed `RegionSymbol` — and pick order alongside the synced rows) — one row
   per region, defaulting to the four until the user chooses in the onboarding /
   Settings region picker. Recording identity and synced status are split into
   immutable profiles, append-only nickname events and removal tombstones, and target-owned
@@ -139,8 +139,9 @@ one it belongs to rather than to a god-object:
   badge), `DailySummaryReconciler` (year-to-date recap),
   `DataIssueAlertReconciler` ("issues to resolve").
 - **`WidgetSnapshotPublisher`** — republishes the App Group snapshot the widgets
-  read, with a freshness policy and the device-local `WhereTheme` needed to
-  seed the extension's presentation root.
+  read, with a freshness policy for the independently aggregated data.
+- **`WidgetPresentationPublisher`** — atomically writes the device-local `WhereTheme`
+  to its own App Group file and reloads WidgetKit without reading or rebuilding widget data.
 - **`BackupCoordinator`** — ZIP export/import via `ZIPFoundation`. Export pins
   tables and evidence blobs to one generation-consistent snapshot. Merge preserves queued locations
   and the installation-local recording choice. Replace writes the archive into a new child generation,
@@ -161,8 +162,9 @@ one it belongs to rather than to a god-object:
   the domain value.
 - **`WherePreferences`** — persisted user intent (onboarding,
   reminder / summary schedules, presentation theme, Locations-card GPS-dot visibility) plus the
-  year-keyed Location-card counts used for presentation continuity, behind a
-  `KeyValueStore`. The store has no
+  year-keyed Location-card counts and Codable recording-warning generation used for presentation
+  continuity, behind a `KeyValueStore`. `RecordingConfigurationWarningCondition` evaluates the live
+  device authority, recording choice, and authorization tuple in Core. The store has no
   default: production names `UserDefaults.standard` and everything else names
   `InMemoryKeyValueStore()`, so no test or preview can reach the host's real
   defaults by saying nothing. Recording confirmation is deliberately absent:

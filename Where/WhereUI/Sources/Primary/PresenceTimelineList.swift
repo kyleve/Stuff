@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 import WhereCore
@@ -23,7 +24,7 @@ struct PresenceTimelineList: View {
             ContentUnavailableView {
                 Label(
                     String(localized: .timelineEmptyTitle),
-                    systemImage: "calendar.day.timeline.left",
+                    systemSymbol: .calendarDayTimelineLeft,
                 )
             } description: {
                 Text(String(localized: .timelineEmptyDescription))

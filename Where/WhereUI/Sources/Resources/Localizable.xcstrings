@@ -7232,6 +7232,42 @@
         }
       }
     },
+    "settings.recording.warning.dismiss" : {
+      "comment" : "Button that acknowledges and hides the Settings warning about automatic recording being unavailable.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Dismiss"
+          }
+        }
+      }
+    },
+    "settings.recording.warning.message" : {
+      "comment" : "Settings warning explaining that this phone will not automatically record locations until both controls are enabled.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Automatic Recording is off and Where doesn't have Always location access. This phone won't record your location in the background."
+          }
+        }
+      }
+    },
+    "settings.recording.warning.title" : {
+      "comment" : "Title of the Settings warning about automatic location recording.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Automatic recording needs attention"
+          }
+        }
+      }
+    },
     "settings.regions.empty" : {
       "extractionState" : "manual",
       "localizations" : {

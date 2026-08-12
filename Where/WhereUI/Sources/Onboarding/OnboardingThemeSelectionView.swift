@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 import WhereCore
@@ -16,7 +17,7 @@ struct OnboardingThemeSelectionView: View {
                 VStack(spacing: stylesheet.spacing.xxxLarge) {
                     Spacer(minLength: 0)
 
-                    Image(systemName: "square.3.layers.3d")
+                    Image(systemSymbol: .square3Layers3d)
                         .font(stylesheet.typography.onboardingIcon)
                         .foregroundStyle(Color.accentColor)
                         .accessibilityHidden(true)

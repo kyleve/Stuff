@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SwiftUI
 import WhereCore
 
@@ -53,7 +54,7 @@ private struct WhereThemeOption: View {
                     Text(theme.title)
                         .font(.headline)
                     Spacer(minLength: 0)
-                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    Image(systemSymbol: isSelected ? .checkmarkCircleFill : .circle)
                         .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
                 }
                 Text(theme.detail)
@@ -96,7 +97,7 @@ private struct WhereThemePreviewArtwork: View {
                     .tracking(0.8)
                     .foregroundStyle(tint.opacity(0.8))
                 Spacer(minLength: 0)
-                Image(systemName: "sun.max.fill")
+                Image(systemSymbol: .sunMaxFill)
                     .foregroundStyle(tint)
             }
 
