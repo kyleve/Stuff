@@ -18,11 +18,9 @@ struct CalendarContentView: View {
 
     let report: YearReportModel
 
-    @Environment(\.isCapturingSnapshot) private var isCapturingSnapshot
     @Environment(\.stylesheet) private var stylesheet
     @State private var monthsLoad: Result<[CalendarMonth], Error>?
     @State private var plannedStayEditorTarget: PlannedStayEditorTarget?
-    @State private var didRevealCurrentMonth = false
 
     private static let logger = WhereLog.session(CalendarViewLog.self)
 
@@ -130,56 +128,37 @@ struct CalendarContentView: View {
     }
 
     private func calendarContent(months: [CalendarMonth]) -> some View {
-        let visibleMonths = shownMonths(months)
-        return ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(spacing: stylesheet.calendar.monthSpacing) {
-                    ForEach(visibleMonths) { month in
-                        VStack(spacing: stylesheet.calendar.monthSpacing) {
-                            MonthGridView(
-                                month: month,
-                                focusedRegion: focusedRegion,
-                                dateCalendar: report.calendar,
-                                plannedRegion: report.forecasts.plannedRegion(on:),
+        ScrollView {
+            LazyVStack(spacing: stylesheet.calendar.monthSpacing) {
+                ForEach(shownMonths(months)) { month in
+                    VStack(spacing: stylesheet.calendar.monthSpacing) {
+                        MonthGridView(
+                            month: month,
+                            focusedRegion: focusedRegion,
+                            dateCalendar: report.calendar,
+                            plannedRegion: report.forecasts.plannedRegion(on:),
+                        )
+                        // In chronological flow, the estimate belongs immediately
+                        // after the month whose recorded pace it is projecting from.
+                        if month.isCurrentMonth, !calendarForecasts.isEmpty {
+                            LocationForecastPanel(
+                                forecasts: calendarForecasts,
+                                plannedStay: report.forecasts.activePlannedStay,
+                                editableRegions: editableForecastRegions,
+                                editAction: { region in
+                                    plannedStayEditorTarget = PlannedStayEditorTarget(
+                                        region: region,
+                                    )
+                                },
+                                clearAction: report.forecasts.clear,
                             )
-                            // In chronological flow, the estimate belongs immediately
-                            // after the month whose recorded pace it is projecting from.
-                            if month.isCurrentMonth, !calendarForecasts.isEmpty {
-                                LocationForecastPanel(
-                                    forecasts: calendarForecasts,
-                                    plannedStay: report.forecasts.activePlannedStay,
-                                    editableRegions: editableForecastRegions,
-                                    editAction: { region in
-                                        plannedStayEditorTarget = PlannedStayEditorTarget(
-                                            region: region,
-                                        )
-                                    },
-                                    clearAction: report.forecasts.clear,
-                                )
-                            }
                         }
-                        .id(month.id)
                     }
                 }
-                .padding()
             }
-            .task {
-                // Full-content snapshots expand the scroll view to show every
-                // month, so applying a viewport offset during measurement would
-                // clip the otherwise production-identical calendar content.
-                guard !isCapturingSnapshot,
-                      !didRevealCurrentMonth,
-                      let currentMonth = visibleMonths.first(where: \.isCurrentMonth)
-                else { return }
-
-                // Wait for the lazy stack to install its scroll targets before
-                // positioning the current month and the estimate beneath it.
-                await Task.yield()
-                guard !Task.isCancelled else { return }
-                didRevealCurrentMonth = true
-                proxy.scrollTo(currentMonth.id, anchor: .bottom)
-            }
+            .padding()
         }
+        .defaultScrollAnchor(.bottom, for: .initialOffset)
     }
 
     private var calendarForecasts: [LocationForecast] {
