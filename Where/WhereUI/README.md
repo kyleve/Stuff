@@ -144,7 +144,11 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
 - **`DevicesSettingsView`** — Settings’ installation rows for local recording choice, synced
   nicknames, advisory activity/permission status, and irreversible removal. Only the current row
   can toggle recording; remote rows can be renamed or removed while preserving their earlier
-  history.
+  history. The current row can open Settings.app to promote location access even while recording is
+  off. Settings badges when the current phone is the expected recorder (no other installation
+  recently reported recording) but has both automatic recording and Always location access disabled;
+  the user can acknowledge that occurrence, and a later recovery then regression starts a new warning
+  generation.
 - **Widget views** — the shared renderers the **WhereWidgets** extension draws
   with: `TodayWidgetView`, `YearTotalsWidgetView`, and the accessory family
   (`TodayInlineAccessoryView`, `TodayCircularAccessoryView`,
