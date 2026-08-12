@@ -1,6 +1,7 @@
 import Observation
 import PeriscopeCore
 import RegionKit
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 import WhereCore
@@ -166,7 +167,7 @@ struct ManualDayView: View {
             Button(role: .destructive) {
                 showDeleteConfirmation = true
             } label: {
-                Label(String(localized: .loggedDaysDelete), systemImage: "trash")
+                Label(String(localized: .loggedDaysDelete), systemSymbol: .trash)
             }
             .disabled(pending != nil)
         } footer: {

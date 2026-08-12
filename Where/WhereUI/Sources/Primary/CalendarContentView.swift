@@ -1,5 +1,6 @@
 import PeriscopeCore
 import RegionKit
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 import WhereCore
@@ -55,7 +56,7 @@ struct CalendarContentView: View {
                 ContentUnavailableView {
                     Label(
                         String(localized: .commonLoadErrorTitle),
-                        systemImage: "exclamationmark.icloud",
+                        systemSymbol: .exclamationmarkIcloud,
                     )
                 } description: {
                     Text(error.message)
@@ -64,7 +65,7 @@ struct CalendarContentView: View {
                 ContentUnavailableView {
                     Label(
                         String(localized: .commonLoadErrorTitle),
-                        systemImage: "exclamationmark.icloud",
+                        systemSymbol: .exclamationmarkIcloud,
                     )
                 } description: {
                     Text(String(localized: .calendarUnavailableDescription))
@@ -105,7 +106,7 @@ struct CalendarContentView: View {
 
     private func calendarLayoutError(_ error: Error) -> some View {
         ContentUnavailableView {
-            Label(String(localized: .commonLoadErrorTitle), systemImage: "exclamationmark.icloud")
+            Label(String(localized: .commonLoadErrorTitle), systemSymbol: .exclamationmarkIcloud)
         } description: {
             Text(String(localized: .calendarUnavailableDescription))
         }
@@ -351,7 +352,7 @@ private struct DayCell: View {
                 // over the accent "today" fill and the region dots below.
                 .overlay(alignment: .topTrailing) {
                     if day.hasEvidence {
-                        Image(systemName: "paperclip")
+                        Image(systemSymbol: .paperclip)
                             .font(.system(size: calendar.day.evidenceBadge.iconSize, weight: .bold))
                             .foregroundStyle(Color.accentColor)
                             .padding(calendar.day.evidenceBadge.padding)

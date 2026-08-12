@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 import WhereCore
@@ -17,7 +18,7 @@ struct WidgetFeaturesView: View {
                     FeatureMarketingHeader(
                         title: String(localized: .settingsExploreWidgetsTitle),
                         tagline: String(localized: .settingsExploreWidgetsTagline),
-                        systemImage: SettingsDestination.widgets.systemImage,
+                        systemSymbol: SettingsDestination.widgets.systemSymbol,
                         tint: SettingsDestination.widgets.iconColor,
                     )
                     .listRowInsets(.init())

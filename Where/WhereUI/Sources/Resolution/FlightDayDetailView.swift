@@ -1,4 +1,5 @@
 import RegionKit
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 import WhereCore
@@ -31,7 +32,7 @@ struct FlightDayDetailView: View {
             } else {
                 ContentUnavailableView(
                     String(localized: .commonLoadErrorTitle),
-                    systemImage: "exclamationmark.triangle",
+                    systemSymbol: .exclamationmarkTriangle,
                 )
             }
         }

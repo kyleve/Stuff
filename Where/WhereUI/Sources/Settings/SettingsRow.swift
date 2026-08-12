@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SwiftUI
 import UIKit
 
@@ -154,7 +155,7 @@ struct SettingsFocusScope<Content: View>: View {
             List {
                 Label(
                     String(localized: .settingsDevicesAutomaticRecording),
-                    systemImage: "location.fill",
+                    systemSymbol: .locationFill,
                 )
                 .settingsRow(DevicesSettingsView.Item.automaticRecording)
             }

@@ -42,7 +42,7 @@ one it belongs to rather than to a god-object:
   holds the user's **tracked / primary regions** (`trackedRegions()` /
   `setTrackedRegion(_:id:)`, plus `primaryRegions()` / `setPrimaryRegions(_:)`
   which surface and persist each region's picked `RegionAppearance` — color
-  token, emoji, SF Symbol — and pick order alongside the synced rows) — one row
+  token, emoji, typed `RegionSymbol` — and pick order alongside the synced rows) — one row
   per region, defaulting to the four until the user chooses in the onboarding /
   Settings region picker. Recording identity and synced status are split into
   immutable profiles, append-only nickname events and removal tombstones, and target-owned

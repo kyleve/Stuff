@@ -1,4 +1,5 @@
 @testable import Flyover
+import SFSafeSymbols
 import SnapshotKit
 import SnapshotKitTesting
 import SwiftUI
@@ -116,7 +117,7 @@ struct FlyoverSnapshotTests {
                     .navigationTitle(title)
                     .toolbar {
                         ToolbarItem(placement: .primaryAction) {
-                            Button("Add", systemImage: "plus", action: {})
+                            Button("Add", systemSymbol: .plus, action: {})
                         }
                     }
                 },
@@ -126,7 +127,7 @@ struct FlyoverSnapshotTests {
                 ) {
                     ContentUnavailableView(
                         "No \(title)",
-                        systemImage: "rectangle.stack",
+                        systemSymbol: .rectangleStack,
                     )
                 },
             ],

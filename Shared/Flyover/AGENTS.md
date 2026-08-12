@@ -8,7 +8,7 @@ conventions.
 
 ## Scope & dependencies
 
-- Flyover may import SwiftUI, BroadwayCore/BroadwayUI, and SnapshotKit; it must
+- Flyover may import SwiftUI, SFSafeSymbols, BroadwayCore/BroadwayUI, and SnapshotKit; it must
   not import WhereCore, WhereUI, persistence frameworks, or any app module.
 - Apps own their typed screen IDs, demo/synthetic state, catalog construction,
   and the DEBUG-only entry point that hosts ``FlyoverView``.

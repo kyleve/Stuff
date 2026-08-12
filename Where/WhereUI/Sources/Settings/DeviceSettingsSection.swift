@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SwiftUI
 import WhereCore
 
@@ -33,7 +34,7 @@ struct DeviceSettingsSection: View {
 
             LabeledContent(String(localized: .settingsDevicesStatus)) {
                 HStack {
-                    Image(systemName: statusSymbol)
+                    Image(systemSymbol: statusSymbol)
                         .accessibilityHidden(true)
                     Text(statusTitle)
                 }
@@ -76,7 +77,7 @@ struct DeviceSettingsSection: View {
                     } label: {
                         Label(
                             String(localized: .settingsDevicesGrant),
-                            systemImage: "location.magnifyingglass",
+                            systemSymbol: .locationMagnifyingglass,
                         )
                     }
                 }
@@ -87,7 +88,7 @@ struct DeviceSettingsSection: View {
                     } label: {
                         Label(
                             String(localized: .settingsPermissionAlertOpenSettings),
-                            systemImage: "gear",
+                            systemSymbol: .gear,
                         )
                     }
                 }
@@ -96,7 +97,7 @@ struct DeviceSettingsSection: View {
                     isConfirmingRemoval = true
                 } label: {
                     HStack {
-                        Image(systemName: "trash")
+                        Image(systemSymbol: .trash)
                         Text(String(localized: .settingsDevicesRemove))
                     }
                     .foregroundStyle(.red)
@@ -135,7 +136,7 @@ struct DeviceSettingsSection: View {
                     }
                 }
             } icon: {
-                Image(systemName: row.systemImage)
+                Image(systemSymbol: row.systemSymbol)
             }
         } footer: {
             if row.isCurrent {
@@ -159,15 +160,15 @@ struct DeviceSettingsSection: View {
         }
     }
 
-    private var statusSymbol: String {
+    private var statusSymbol: SFSymbol {
         if row.isCurrent, case .unavailable = session.recordingRuntimeState {
-            return "exclamationmark.triangle"
+            return .exclamationmarkTriangle
         }
         return switch row.status {
-            case .unknown: "clock.arrow.trianglehead.counterclockwise.rotate.90"
-            case .recording: "location.fill"
-            case .off: "location.slash"
-            case .permissionRequired: "exclamationmark.triangle"
+            case .unknown: .clockArrowTriangleheadCounterclockwiseRotate90
+            case .recording: .locationFill
+            case .off: .locationSlash
+            case .permissionRequired: .exclamationmarkTriangle
         }
     }
 

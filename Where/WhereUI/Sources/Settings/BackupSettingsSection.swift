@@ -1,4 +1,5 @@
 import PeriscopeCore
+import SFSafeSymbols
 import SwiftUI
 import WhereCore
 
@@ -41,12 +42,12 @@ struct BackupSettingsSection: View {
                 if backup.backupState == .exporting {
                     backupProgressLabel(
                         String(localized: .settingsBackupExporting),
-                        systemImage: "square.and.arrow.up",
+                        systemSymbol: .squareAndArrowUp,
                     )
                 } else {
                     Label(
                         String(localized: .settingsBackupExport),
-                        systemImage: "square.and.arrow.up",
+                        systemSymbol: .squareAndArrowUp,
                     )
                 }
             }
@@ -64,9 +65,9 @@ struct BackupSettingsSection: View {
 
     /// Determinate progress for an in-flight export, driven by
     /// `backup.backupProgress` as the backup coordinator makes progress.
-    private func backupProgressLabel(_ title: String, systemImage: String) -> some View {
+    private func backupProgressLabel(_ title: String, systemSymbol: SFSymbol) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Label(title, systemImage: systemImage)
+            Label(title, systemSymbol: systemSymbol)
             ProgressView(value: backup.backupProgress)
         }
     }

@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 
@@ -70,13 +71,13 @@ private struct StaggeredRevealModifier: ViewModifier {
             VStack(alignment: .leading) {
                 Label(
                     String(localized: .settingsExploreSiriTitle),
-                    systemImage: "waveform",
+                    systemSymbol: .waveform,
                 )
                 .staggeredReveal(order: 0)
 
                 Label(
                     String(localized: .settingsExploreWidgetsTitle),
-                    systemImage: "rectangle.3.group",
+                    systemSymbol: .rectangle3Group,
                 )
                 .staggeredReveal(order: 1)
             }

@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 import WhereCore
@@ -47,7 +48,7 @@ struct YearView: View {
                     Button {
                         showingRecentActivity = true
                     } label: {
-                        Label(String(localized: .primaryRecentActivity), systemImage: "sparkles")
+                        Label(String(localized: .primaryRecentActivity), systemSymbol: .sparkles)
                     }
                     .accessibilityIdentifier("where_recent_activity_button")
                 }
@@ -71,10 +72,10 @@ enum YearMode: String, Hashable, CaseIterable {
         }
     }
 
-    var systemImage: String {
+    var systemSymbol: SFSymbol {
         switch self {
-            case .calendar: "calendar"
-            case .timeline: "calendar.day.timeline.left"
+            case .calendar: .calendar
+            case .timeline: .calendarDayTimelineLeft
         }
     }
 }
@@ -115,7 +116,7 @@ private struct YearModePicker: View {
         return Button {
             withAnimation(.snappy(duration: 0.28)) { mode = candidate }
         } label: {
-            Label(candidate.title, systemImage: candidate.systemImage)
+            Label(candidate.title, systemSymbol: candidate.systemSymbol)
                 .labelStyle(.titleAndIcon)
                 .imageScale(.large)
                 .font(.subheadline.weight(.medium))

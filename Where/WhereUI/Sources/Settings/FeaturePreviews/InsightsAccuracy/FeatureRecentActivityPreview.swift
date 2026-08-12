@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SwiftUI
 
 /// A deterministic preview of the private on-device activity narrative. The
@@ -13,7 +14,7 @@ struct FeatureRecentActivityPreview: View {
             VStack(alignment: .leading, spacing: panelStyle.contentSpacing) {
                 Label(
                     String(localized: .settingsExploreInsightsActivityTitle),
-                    systemImage: "sparkles",
+                    systemSymbol: .sparkles,
                 )
                 .font(.headline)
 
@@ -23,7 +24,7 @@ struct FeatureRecentActivityPreview: View {
 
                 Label(
                     String(localized: .settingsExploreInsightsOnDevice),
-                    systemImage: "iphone.gen3.radiowaves.left.and.right",
+                    systemSymbol: .iphoneGen3RadiowavesLeftAndRight,
                 )
                 .font(.footnote)
                 .foregroundStyle(.secondary)

@@ -1,4 +1,5 @@
 import RegionKit
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 import WhereCore
@@ -94,7 +95,7 @@ struct RegionAppearanceEditor: View {
                         }
                         .overlay {
                             if isSelected {
-                                Image(systemName: "checkmark")
+                                Image(systemSymbol: .checkmark)
                                     .font(.caption.weight(.bold))
                                     .foregroundStyle(token.selectionForeground)
                             }
@@ -136,14 +137,14 @@ struct RegionAppearanceEditor: View {
                 Button {
                     model.setSymbol(symbol, for: region)
                 } label: {
-                    Image(systemName: symbol)
+                    Image(systemSymbol: symbol.sfSymbol)
                         .font(.title3)
                         .foregroundStyle(appearance.color.color)
                         .frame(width: style.glyphTileSize, height: style.glyphTileSize)
                         .background(selectionBackground(isSelected))
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(symbol)
+                .accessibilityLabel(symbol.rawValue)
                 .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
             }
         }
@@ -193,7 +194,7 @@ struct RegionCustomizeView: View {
                 // No selection to customize — nothing to step through.
                 ContentUnavailableView(
                     String(localized: .regionPickerTitle),
-                    systemImage: "map",
+                    systemSymbol: .map,
                     description: Text(String(localized: .regionPickerSubtitle)),
                 )
             }

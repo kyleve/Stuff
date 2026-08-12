@@ -150,7 +150,7 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   with: `TodayWidgetView`, `YearTotalsWidgetView`, and the accessory family
   (`TodayInlineAccessoryView`, `TodayCircularAccessoryView`,
   `YearTotalsRectangularAccessoryView`). Each takes a `WidgetSnapshot`.
-- **`RegionStyle` / `RegionStyleResolver`** — a region's symbol, emoji, and
+- **`RegionStyle` / `RegionStyleResolver`** — a region's typed `SFSymbol`, emoji, and
   tint, shared across cards, calendar dots, and timelines. Views resolve it from
   `@Environment(\.regionStyles)` (`regionStyles.style(for: region)`), seeded by
   `whereBroadwayRoot(regionStyles:)` — from `WhereSession`'s live resolver in the

@@ -269,7 +269,7 @@ struct BackupCoordinatorTests {
 
     @Test func importRestoresPickedRegionAppearance() async throws {
         let source = try Self.makeHarness()
-        let caLook = RegionAppearance(color: .orange, emoji: "🌴", symbolName: "sun.max.fill")
+        let caLook = RegionAppearance(color: .orange, emoji: "🌴", symbolName: .sunMaxFill)
         try await source.store.perform {
             try await source.store.setPrimaryRegions([
                 PrimaryRegion(region: .california, appearance: caLook, order: 0),
@@ -292,7 +292,7 @@ struct BackupCoordinatorTests {
     @Test func mergeImportKeepsCustomizedLookWhenArchiveAppearanceIsNil() async throws {
         // The device customized California; the archive tracks it with no picked
         // look. A merge must not clobber the device's look with the archive's nil.
-        let caLook = RegionAppearance(color: .orange, emoji: "🌴", symbolName: "sun.max.fill")
+        let caLook = RegionAppearance(color: .orange, emoji: "🌴", symbolName: .sunMaxFill)
         let source = try Self.makeHarness()
         try await source.store.perform {
             try await source.store.setPrimaryRegions([
@@ -323,9 +323,9 @@ struct BackupCoordinatorTests {
         let archiveCALook = RegionAppearance(
             color: .indigo,
             emoji: "🌉",
-            symbolName: "building.2.fill",
+            symbolName: .building2Fill,
         )
-        let txLook = RegionAppearance(color: .red, emoji: "🤠", symbolName: "star.fill")
+        let txLook = RegionAppearance(color: .red, emoji: "🤠", symbolName: .starFill)
         let source = try Self.makeHarness()
         try await source.store.perform {
             try await source.store.setPrimaryRegions([
@@ -337,7 +337,7 @@ struct BackupCoordinatorTests {
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
 
         let destination = try Self.makeHarness()
-        let deviceCALook = RegionAppearance(color: .orange, emoji: "🌴", symbolName: "sun.max.fill")
+        let deviceCALook = RegionAppearance(color: .orange, emoji: "🌴", symbolName: .sunMaxFill)
         try await destination.store.perform {
             try await destination.store.setPrimaryRegions([
                 PrimaryRegion(region: .california, appearance: deviceCALook, order: 0),

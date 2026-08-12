@@ -1,4 +1,5 @@
 import LifecycleKitUI
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 import WhereCore
@@ -44,7 +45,7 @@ struct DataSettingsView: View {
             Button(role: .destructive) {
                 showClearConfirmation = true
             } label: {
-                Label(eraseTitle, systemImage: "trash")
+                Label(eraseTitle, systemSymbol: .trash)
             }
             .settingsRow(Item.eraseYear)
             .confirmationDialog(
@@ -75,7 +76,7 @@ struct DataSettingsView: View {
             Button(role: .destructive) {
                 showResetConfirmation = true
             } label: {
-                Label(String(localized: .settingsResetErase), systemImage: "arrow.counterclockwise")
+                Label(String(localized: .settingsResetErase), systemSymbol: .arrowCounterclockwise)
             }
             .settingsRow(Item.resetApp)
             .confirmationDialog(

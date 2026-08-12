@@ -41,6 +41,7 @@ let package = Package(
         // Shared/SnapshotKitTesting.
         .package(url: "https://github.com/pointfreeco/swift-snapshot-testing", from: "1.18.0"),
         .package(url: "https://github.com/cashapp/AccessibilitySnapshot", from: "0.11.0"),
+        .package(url: "https://github.com/SFSafeSymbols/SFSafeSymbols", from: "7.0.0"),
     ],
     targets: [
         .target(
@@ -66,6 +67,7 @@ let package = Package(
             name: "LifecycleKitUI",
             dependencies: [
                 .target(name: "LifecycleKit"),
+                .product(name: "SFSafeSymbols", package: "SFSafeSymbols"),
             ],
             path: "Shared/LifecycleKitUI/Sources",
             resources: [
@@ -97,11 +99,15 @@ let package = Package(
                 .target(name: "PeriscopeUI"),
                 .target(name: "BroadwayCore"),
                 .target(name: "BroadwayUI"),
+                .product(name: "SFSafeSymbols", package: "SFSafeSymbols"),
             ],
             path: "Shared/Periscope/PeriscopeTools/Sources",
         ),
         .target(
             name: "Inspector",
+            dependencies: [
+                .product(name: "SFSafeSymbols", package: "SFSafeSymbols"),
+            ],
             path: "Shared/Inspector/Sources",
         ),
         .target(
@@ -110,6 +116,7 @@ let package = Package(
                 .target(name: "BroadwayCore"),
                 .target(name: "BroadwayUI"),
                 .target(name: "SnapshotKit"),
+                .product(name: "SFSafeSymbols", package: "SFSafeSymbols"),
             ],
             path: "Shared/Flyover/Sources",
         ),
@@ -175,6 +182,7 @@ let package = Package(
                 .target(name: "RegionKit"),
                 .target(name: "SnapshotKit"),
                 .target(name: "Inspector"),
+                .product(name: "SFSafeSymbols", package: "SFSafeSymbols"),
             ],
             path: "Where/WhereUI/Sources",
             resources: [

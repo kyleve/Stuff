@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SwiftUI
 
 /// The full detail of a single row: every attribute with its complete,
@@ -36,7 +37,7 @@ struct RowDetailView: View {
                             HStack {
                                 Text(column)
                                 Spacer()
-                                Image(systemName: "chevron.right")
+                                Image(systemSymbol: .chevronRight)
                                     .font(.caption.bold())
                                     .foregroundStyle(.tertiary)
                             }
@@ -59,7 +60,7 @@ struct RowDetailView: View {
         }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button("Delete Row", systemImage: "trash", role: .destructive) {
+                Button("Delete Row", systemSymbol: .trash, role: .destructive) {
                     isConfirmingDeletion = true
                 }
                 .confirmationDialog(

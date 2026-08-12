@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SwiftUI
 
 /// A miniature Spotlight result showing how an indexed tracked region opens
@@ -13,7 +14,7 @@ struct FeatureSpotlightPreview: View {
             VStack(alignment: .leading, spacing: style.contentSpacing) {
                 Label(
                     String(localized: .settingsExploreSpotlightTitle),
-                    systemImage: "magnifyingglass",
+                    systemSymbol: .magnifyingglass,
                 )
                 .font(.headline)
 
@@ -21,7 +22,7 @@ struct FeatureSpotlightPreview: View {
                     Text(example.query)
                         .foregroundStyle(.primary)
                 } icon: {
-                    Image(systemName: "magnifyingglass")
+                    Image(systemSymbol: .magnifyingglass)
                         .foregroundStyle(.secondary)
                 }
                 .padding(.horizontal, stylesheet.spacing.medium)
@@ -42,7 +43,7 @@ struct FeatureSpotlightPreview: View {
 
                     Spacer(minLength: stylesheet.spacing.small)
 
-                    Image(systemName: "chevron.right")
+                    Image(systemSymbol: .chevronRight)
                         .font(.subheadline.bold())
                         .foregroundStyle(.tertiary)
                         .accessibilityHidden(true)

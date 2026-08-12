@@ -1,4 +1,5 @@
 import PeriscopeCore
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 import WhereCore
@@ -43,7 +44,7 @@ struct RecentActivitySummaryView: View {
                         } label: {
                             Label(
                                 String(localized: .recentActivityRefresh),
-                                systemImage: "arrow.clockwise",
+                                systemSymbol: .arrowClockwise,
                             )
                         }
                         .disabled(model.loadState == .loading)
@@ -97,7 +98,7 @@ struct RecentActivitySummaryView: View {
                 ContentUnavailableView {
                     Label(
                         String(localized: .recentActivityEmptyTitle),
-                        systemImage: "location.slash",
+                        systemSymbol: .locationSlash,
                     )
                 } description: {
                     Text(WhereFormat.recentActivityEmptyDescription(model.window))
@@ -107,7 +108,7 @@ struct RecentActivitySummaryView: View {
                 ContentUnavailableView {
                     Label(
                         String(localized: .recentActivityUnavailableTitle),
-                        systemImage: "sparkles.slash",
+                        systemSymbol: .sparkles,
                     )
                 } description: {
                     Text(WhereFormat.recentActivityUnavailableMessage(reason))
@@ -117,7 +118,7 @@ struct RecentActivitySummaryView: View {
                 ContentUnavailableView {
                     Label(
                         String(localized: .recentActivityFailedTitle),
-                        systemImage: "exclamationmark.triangle",
+                        systemSymbol: .exclamationmarkTriangle,
                     )
                 } description: {
                     Text(message)

@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SwiftUI
 
 /// Flyover's Broadway-rooted content and presentation routing.
@@ -13,7 +14,7 @@ struct FlyoverRootView<ScreenID: Hashable>: View {
             } else {
                 ContentUnavailableView(
                     "Invalid Flyover Catalog",
-                    systemImage: "exclamationmark.triangle",
+                    systemSymbol: .exclamationmarkTriangle,
                     description: Text(
                         "\(catalog.validationIssues.count) structural issue(s) must be fixed.",
                     ),

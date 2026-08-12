@@ -1,5 +1,6 @@
 import PeriscopeCore
 import RegionKit
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 import WhereCore
@@ -85,7 +86,7 @@ struct LocationsView: View {
                 ContentUnavailableView {
                     Label(
                         String(localized: .commonLoadErrorTitle),
-                        systemImage: "exclamationmark.icloud",
+                        systemSymbol: .exclamationmarkIcloud,
                     )
                 } description: {
                     Text(error.message)
@@ -224,7 +225,7 @@ struct LocationsView: View {
 
     private var emptyState: some View {
         ContentUnavailableView {
-            Label(WhereFormat.primaryEmptyTitle(year: report.selectedYear), systemImage: "map")
+            Label(WhereFormat.primaryEmptyTitle(year: report.selectedYear), systemSymbol: .map)
         } description: {
             Text(String(localized: .primaryEmptyDescription))
         }
@@ -232,7 +233,7 @@ struct LocationsView: View {
 
     private var elsewhereOnlyState: some View {
         ContentUnavailableView {
-            Label(String(localized: .primaryElsewhereOnlyTitle), systemImage: "globe.americas")
+            Label(String(localized: .primaryElsewhereOnlyTitle), systemSymbol: .globeAmericas)
         } description: {
             Text(WhereFormat.primaryElsewhereOnlyDescription(count: report.trackedDayCount))
         } actions: {
@@ -257,7 +258,7 @@ private struct ResolveToolbarLabel: View {
     @Environment(\.stylesheet) private var stylesheet
 
     var body: some View {
-        Image(systemName: "checklist")
+        Image(systemSymbol: .checklist)
             .overlay(alignment: .topTrailing) {
                 Text(count, format: .number)
                     .font(.caption2.weight(.bold))

@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 
@@ -18,7 +19,7 @@ struct InsightsAccuracyFeaturesView: View {
                     FeatureMarketingHeader(
                         title: String(localized: .settingsExploreInsightsTitle),
                         tagline: String(localized: .settingsExploreInsightsTagline),
-                        systemImage: SettingsDestination.insightsAccuracy.systemImage,
+                        systemSymbol: SettingsDestination.insightsAccuracy.systemSymbol,
                         tint: SettingsDestination.insightsAccuracy.iconColor,
                     )
                     .listRowInsets(.init())
@@ -35,7 +36,7 @@ struct InsightsAccuracyFeaturesView: View {
                             Button(action: showRecentActivity) {
                                 actionLabel(
                                     String(localized: .settingsExploreInsightsOpenActivity),
-                                    systemImage: "sparkles",
+                                    systemSymbol: .sparkles,
                                 )
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -53,7 +54,7 @@ struct InsightsAccuracyFeaturesView: View {
                                 Button(action: showResolution) {
                                     actionLabel(
                                         String(localized: .settingsExploreInsightsOpenResolve),
-                                        systemImage: "checklist",
+                                        systemSymbol: .checklist,
                                     )
                                 }
                                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -82,12 +83,12 @@ struct InsightsAccuracyFeaturesView: View {
         }
     }
 
-    private func actionLabel(_ title: String, systemImage: String) -> some View {
+    private func actionLabel(_ title: String, systemSymbol: SFSymbol) -> some View {
         Label {
             Text(title)
                 .foregroundStyle(.primary)
         } icon: {
-            Image(systemName: systemImage)
+            Image(systemSymbol: systemSymbol)
                 .foregroundStyle(SettingsDestination.insightsAccuracy.iconColor)
         }
     }

@@ -1,5 +1,6 @@
 import Foundation
 import RegionKit
+import SFSafeSymbols
 import SwiftUI
 import WhereCore
 
@@ -132,7 +133,7 @@ struct RegionSummaryCard: View {
         EntryStamp(
             title: regionDays.region.localizedName.uppercased(),
             year: year,
-            symbolName: style.symbolName,
+            symbol: style.symbol,
             tint: securityPrintTint,
             style: card.entryStamp,
             regionPath: regionPaths?.stamp ?? Path(),
@@ -188,7 +189,7 @@ struct RegionSummaryCard: View {
                     constellationStyle: cardStyles.constellation,
                 )
             } else {
-                Image(systemName: style.symbolName)
+                Image(systemSymbol: style.symbol)
                     .font(.system(size: card.watermarkFontSize))
                     .foregroundStyle(tint.opacity(cardStyles.watermarkOpacity))
                     .rotationEffect(.degrees(-14))
@@ -264,7 +265,7 @@ struct RegionSummaryCard: View {
                             .foregroundStyle(.secondary)
                     }
                     if let places {
-                        Label(places, systemImage: "mappin.and.ellipse")
+                        Label(places, systemSymbol: .mappinAndEllipse)
                             .font(.caption2.weight(.medium))
                             .foregroundStyle(style.tint)
                             .lineLimit(1)
@@ -361,7 +362,7 @@ struct RegionArtworkLoadID: Equatable {
 private struct EntryStamp: View {
     let title: String
     let year: Int
-    let symbolName: String
+    let symbol: SFSymbol
     let tint: Color
     let style: WhereStylesheet.CardStyle.EntryStamp
     let regionPath: Path
@@ -400,7 +401,7 @@ private struct EntryStamp: View {
                         height: size * style.content.artworkExtent.height,
                     )
                 } else {
-                    Image(systemName: symbolName)
+                    Image(systemSymbol: symbol)
                         .font(style.content.symbolFont.font(for: size))
                 }
                 Text(verbatim: String(year))
