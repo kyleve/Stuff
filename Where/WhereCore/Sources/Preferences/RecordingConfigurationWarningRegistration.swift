@@ -1,7 +1,7 @@
 import Foundation
 
 /// Persisted generation bookkeeping for the dismissible recording-configuration warning.
-public struct RecordingConfigurationWarningRegistration: Equatable, Sendable {
+public struct RecordingConfigurationWarningRegistration: Codable, Equatable, Sendable {
     public private(set) var generation: Int
     public private(set) var acknowledgedGeneration: Int?
     public private(set) var wasWarningConditionActive: Bool?
@@ -38,5 +38,15 @@ public struct RecordingConfigurationWarningRegistration: Equatable, Sendable {
     public mutating func acknowledgeCurrentGeneration() {
         guard requiresWarning else { return }
         acknowledgedGeneration = generation
+    }
+
+    var isValid: Bool {
+        generation >= 0 && (acknowledgedGeneration.map { $0 <= generation } ?? true)
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case generation
+        case acknowledgedGeneration
+        case wasWarningConditionActive
     }
 }

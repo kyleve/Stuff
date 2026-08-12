@@ -1,43 +1,18 @@
-import Foundation
 import Testing
-@_spi(Testing) import WhereCore
+import WhereCore
 @testable import WhereUI
 
 @MainActor
 struct RecordingConfigurationWarningModelTests {
-    private static let now = Date(timeIntervalSinceReferenceDate: 100_000)
-    private let warning = RecordingConfigurationWarningModel.Configuration(
-        isPrimaryRecordingDevice: true,
-        automaticRecordingEnabled: false,
-        authorizationStatus: .whenInUse,
-    )
-    @Test func presentsOnlyWhenAllWarningConditionsAreActive() {
+    @Test func presentsWhenConditionBecomesActive() {
         let model = RecordingConfigurationWarningModel(
             preferences: WherePreferences(store: InMemoryKeyValueStore()),
         )
 
-        model.register(warning)
+        model.register(isWarningConditionActive: true)
         #expect(model.isPresented)
 
-        model.register(RecordingConfigurationWarningModel.Configuration(
-            isPrimaryRecordingDevice: true,
-            automaticRecordingEnabled: true,
-            authorizationStatus: .whenInUse,
-        ))
-        #expect(model.isPresented == false)
-
-        model.register(RecordingConfigurationWarningModel.Configuration(
-            isPrimaryRecordingDevice: true,
-            automaticRecordingEnabled: false,
-            authorizationStatus: .always,
-        ))
-        #expect(model.isPresented == false)
-
-        model.register(RecordingConfigurationWarningModel.Configuration(
-            isPrimaryRecordingDevice: false,
-            automaticRecordingEnabled: false,
-            authorizationStatus: .whenInUse,
-        ))
+        model.register(isWarningConditionActive: false)
         #expect(model.isPresented == false)
     }
 
@@ -45,7 +20,7 @@ struct RecordingConfigurationWarningModelTests {
         let preferences = WherePreferences(store: InMemoryKeyValueStore())
         let model = RecordingConfigurationWarningModel(preferences: preferences)
 
-        model.register(warning)
+        model.register(isWarningConditionActive: true)
         #expect(model.isPresented)
         model.dismiss()
 
@@ -53,28 +28,14 @@ struct RecordingConfigurationWarningModelTests {
         #expect(RecordingConfigurationWarningModel(preferences: preferences).isPresented == false)
     }
 
-    @Test(arguments: [
-        RecordingConfigurationWarningModel.Configuration(
-            isPrimaryRecordingDevice: true,
-            automaticRecordingEnabled: true,
-            authorizationStatus: .whenInUse,
-        ),
-        RecordingConfigurationWarningModel.Configuration(
-            isPrimaryRecordingDevice: true,
-            automaticRecordingEnabled: false,
-            authorizationStatus: .always,
-        ),
-    ])
-    func warningReappearsAfterEitherRequirementRecoversThenRegresses(
-        recovery: RecordingConfigurationWarningModel.Configuration,
-    ) {
+    @Test func warningReappearsAfterConditionRecoversThenRegresses() {
         let preferences = WherePreferences(store: InMemoryKeyValueStore())
         let model = RecordingConfigurationWarningModel(preferences: preferences)
 
-        model.register(warning)
+        model.register(isWarningConditionActive: true)
         model.dismiss()
-        model.register(recovery)
-        model.register(warning)
+        model.register(isWarningConditionActive: false)
+        model.register(isWarningConditionActive: true)
 
         #expect(model.isPresented)
         #expect(preferences.recordingConfigurationWarningRegistration.generation == 2)
@@ -83,38 +44,13 @@ struct RecordingConfigurationWarningModelTests {
     @Test func steadyWarningDoesNotBecomeNewGenerationAfterRelaunch() {
         let preferences = WherePreferences(store: InMemoryKeyValueStore())
         let firstModel = RecordingConfigurationWarningModel(preferences: preferences)
-        firstModel.register(warning)
+        firstModel.register(isWarningConditionActive: true)
         firstModel.dismiss()
 
         let relaunchedModel = RecordingConfigurationWarningModel(preferences: preferences)
-        relaunchedModel.register(warning)
+        relaunchedModel.register(isWarningConditionActive: true)
 
         #expect(relaunchedModel.isPresented == false)
         #expect(preferences.recordingConfigurationWarningRegistration.generation == 1)
-    }
-
-    @Test func recentRecorderMakesThisPhoneSecondary() {
-        let currentDevice = InstallationRecordingContext.testing.currentDevice
-        let otherDevice = RecordingDevice(
-            id: RecordingDeviceID(rawValue: UUID()),
-            systemName: "Other iPhone",
-            nickname: nil,
-            kind: .phone,
-            registeredAt: Self.now.addingTimeInterval(-100_000),
-            lastSeenAt: Self.now,
-            removedAt: nil,
-            status: .recording,
-        )
-
-        #expect(RecordingConfigurationWarningModel.isPrimaryRecordingDevice(
-            currentDevice,
-            among: [otherDevice],
-            now: Self.now,
-        ) == false)
-        #expect(RecordingConfigurationWarningModel.isPrimaryRecordingDevice(
-            currentDevice,
-            among: [],
-            now: Self.now,
-        ))
     }
 }

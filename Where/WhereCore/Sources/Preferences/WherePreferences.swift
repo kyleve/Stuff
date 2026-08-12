@@ -100,36 +100,34 @@ public final class WherePreferences {
     {
         get {
             guard
-                let storage = store.object(
+                let data = store.object(
                     forKey: Keys.recordingConfigurationWarningRegistration.rawValue,
-                ) as? [String: Any],
-                let generation = storage[RecordingWarningKeys.generation.rawValue] as? Int,
-                generation >= 0,
-                let wasActive = storage[RecordingWarningKeys.wasActive.rawValue] as? Bool
+                ) as? Data
             else {
                 return RecordingConfigurationWarningRegistration()
             }
-            let acknowledged = storage[RecordingWarningKeys.acknowledged.rawValue] as? Int
-            guard acknowledged.map({ $0 <= generation }) ?? true else {
+            do {
+                let registration = try JSONDecoder().decode(
+                    RecordingConfigurationWarningRegistration.self,
+                    from: data,
+                )
+                guard registration.isValid else {
+                    assertionFailure("Decoded an invalid recording warning registration.")
+                    return RecordingConfigurationWarningRegistration()
+                }
+                return registration
+            } catch {
+                assertionFailure("Could not decode recording warning registration: \(error)")
                 return RecordingConfigurationWarningRegistration()
             }
-            return RecordingConfigurationWarningRegistration(
-                generation: generation,
-                acknowledgedGeneration: acknowledged,
-                wasWarningConditionActive: wasActive,
-            )
         }
         set {
-            var storage: [String: Any] = [
-                RecordingWarningKeys.generation.rawValue: newValue.generation,
-            ]
-            if let acknowledged = newValue.acknowledgedGeneration {
-                storage[RecordingWarningKeys.acknowledged.rawValue] = acknowledged
+            do {
+                let data = try JSONEncoder().encode(newValue)
+                store.set(data, forKey: Keys.recordingConfigurationWarningRegistration.rawValue)
+            } catch {
+                assertionFailure("Could not encode recording warning registration: \(error)")
             }
-            if let wasActive = newValue.wasWarningConditionActive {
-                storage[RecordingWarningKeys.wasActive.rawValue] = wasActive
-            }
-            store.set(storage, forKey: Keys.recordingConfigurationWarningRegistration.rawValue)
         }
     }
 
@@ -200,11 +198,5 @@ public final class WherePreferences {
             "where.recordingConfigurationWarningRegistration"
         case driftThresholdMeters = "where.driftThresholdMeters"
         case lastSeenLocationDayCounts = "where.lastSeenLocationDayCounts"
-    }
-
-    private enum RecordingWarningKeys: String {
-        case generation
-        case acknowledged
-        case wasActive
     }
 }

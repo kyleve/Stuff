@@ -1,4 +1,3 @@
-import Foundation
 import Observation
 import WhereCore
 
@@ -9,18 +8,6 @@ final class RecordingConfigurationWarningModel {
     struct LocalInputs: Hashable {
         let automaticRecordingEnabled: Bool?
         let authorizationStatus: LocationAuthorizationStatus
-    }
-
-    struct Configuration: Hashable {
-        let isPrimaryRecordingDevice: Bool
-        let automaticRecordingEnabled: Bool?
-        let authorizationStatus: LocationAuthorizationStatus
-
-        var isWarningConditionActive: Bool {
-            isPrimaryRecordingDevice
-                && automaticRecordingEnabled == false
-                && !authorizationStatus.allowsBackgroundTracking
-        }
     }
 
     private let preferences: WherePreferences
@@ -60,33 +47,20 @@ final class RecordingConfigurationWarningModel {
         do {
             let devices = try await session.recordingDevices()
             guard sequence == refreshSequence else { return }
-            register(Configuration(
-                isPrimaryRecordingDevice: Self.isPrimaryRecordingDevice(
-                    session.services.recording.currentDevice,
-                    among: devices.map(\.device),
-                    now: session.now(),
-                ),
+            let condition = RecordingConfigurationWarningCondition(
+                currentDevice: session.services.recording.currentDevice,
+                devices: devices.map(\.device),
                 automaticRecordingEnabled: inputs.automaticRecordingEnabled,
                 authorizationStatus: inputs.authorizationStatus,
-            ))
+                now: session.now(),
+            )
+            register(isWarningConditionActive: condition.isActive)
         } catch {
             guard sequence == refreshSequence else { return }
             Self.logger(attachments: [.error(error, name: "recording-warning-error")]) {
                 .authorityLoadFailed(description: error.localizedDescription)
             }
         }
-    }
-
-    static func isPrimaryRecordingDevice(
-        _ currentDevice: CurrentRecordingDevice,
-        among devices: [RecordingDevice],
-        now: Date,
-    ) -> Bool {
-        RecordingOnboardingRecommendation(
-            for: currentDevice,
-            devices: devices,
-            now: now,
-        ).isEnabled
     }
 
     /// Keep the primary-device decision live as other installations check in, stop, or disappear.
@@ -98,8 +72,8 @@ final class RecordingConfigurationWarningModel {
         }
     }
 
-    func register(_ configuration: Configuration) {
-        registration.register(isWarningConditionActive: configuration.isWarningConditionActive)
+    func register(isWarningConditionActive: Bool) {
+        registration.register(isWarningConditionActive: isWarningConditionActive)
         preferences.recordingConfigurationWarningRegistration = registration
         isPresented = registration.requiresWarning
     }

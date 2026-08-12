@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import WhereCore
 
@@ -18,5 +19,19 @@ struct RecordingConfigurationWarningRegistrationTests {
         registration.register(isWarningConditionActive: true)
         #expect(registration.generation == 2)
         #expect(registration.requiresWarning)
+    }
+
+    @Test func codableRoundTripPreservesGenerationState() throws {
+        var registration = RecordingConfigurationWarningRegistration()
+        registration.register(isWarningConditionActive: true)
+        registration.acknowledgeCurrentGeneration()
+
+        let data = try JSONEncoder().encode(registration)
+        let decoded = try JSONDecoder().decode(
+            RecordingConfigurationWarningRegistration.self,
+            from: data,
+        )
+
+        #expect(decoded == registration)
     }
 }

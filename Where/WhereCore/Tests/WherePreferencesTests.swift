@@ -37,6 +37,17 @@ struct WherePreferencesTests {
         #expect(preferences.lastSeenLocationDayCounts(in: 2026) == counts2026)
     }
 
+    @Test func recordingWarningRegistrationRoundTrips() {
+        let preferences = preferences()
+        var registration = RecordingConfigurationWarningRegistration()
+        registration.register(isWarningConditionActive: true)
+        registration.acknowledgeCurrentGeneration()
+
+        preferences.recordingConfigurationWarningRegistration = registration
+
+        #expect(preferences.recordingConfigurationWarningRegistration == registration)
+    }
+
     @Test func resetRestoresEveryDefaultAndClearsLocationCounts() {
         let preferences = preferences()
         preferences.hasOnboarded = true
