@@ -1,18 +1,18 @@
 ---
 name: tla-verify-protocol
-description: Model-check coordination protocols with TLA+/TLC and map the result back to source behavior and deterministic tests. Use only when the user explicitly invokes this skill or asks for TLA+, TLC, or PlusCal verification of a concurrent state machine, lifecycle, queue, retry, cancellation, teardown, resource handoff, or dependency protocol. Do not trigger for ordinary Swift protocol work, general concurrency review, unit testing, or race diagnosis without an explicit formal-model request.
+description: Model-check coordination protocols with TLA+ and TLC. Map the result back to source behavior and deterministic tests. Use only when the user explicitly invokes this skill or asks for TLA+, TLC, or PlusCal verification of a concurrent state machine, lifecycle, queue, retry, cancellation, teardown, resource handoff, or dependency protocol. Do not trigger for ordinary Swift protocol work, general concurrency review, unit testing, or race diagnosis without an explicit formal-model request.
 ---
 
 # Verify a protocol with TLA+
 
 Verify one narrow temporal claim, not an application. Treat TLC output as
-evidence about the stated model, bounds, and assumptions; never present it as
+evidence about the stated model, bounds, and assumptions. Never present it as
 proof that the implementation is correct.
 
 Read the repository and affected module instructions before modeling. In this
 repository, use
 [`Where/Specifications/TrackingReconciliation`](../../../Where/Specifications/TrackingReconciliation/README.md)
-as the worked tooling and documentation reference, without copying its state
+as the worked tooling and documentation reference. Do not copy its state
 mapping into unrelated protocols.
 
 ## Establish the verification boundary
@@ -26,8 +26,8 @@ mapping into unrelated protocols.
 3. Record the source revision and files the model represents. List suspension
    points, locks, actor reentrancy, tasks, callbacks, persistence boundaries,
    and environment actions that can change ordering.
-4. Stop and request direction if a missing product decision changes the
-   contract materially. If the logic has no meaningful temporal behavior,
+4. If a missing product decision changes the contract materially, stop and request direction.
+   If the logic has no meaningful temporal behavior,
    explain why TLA+ is the wrong verification tool.
 
 Read [`references/modeling-checklist.md`](references/modeling-checklist.md)
@@ -69,7 +69,7 @@ code tests can cite.
 1. Check a negative control or known-broken design against the same variables,
    bounds, and properties. Require it to fail for the expected reason.
 2. Inspect the counterexample rather than accepting a nonzero TLC exit status.
-   Fix the model only when the trace demonstrates a mapping error; do not erase
+   Fix the model only when the trace demonstrates a mapping error. Do not erase
    a production-faithful counterexample.
 3. Check the current or candidate design with the same property definitions.
 4. Exercise more than one small finite bound when the state space permits. If a
@@ -81,7 +81,7 @@ code tests can cite.
 ## Make the check reproducible
 
 Pin the TLC and Java versions and verify downloaded artifacts by checksum. Keep
-tool caches and per-run state in ignored local build storage; isolate concurrent
+tool caches and per-run state in ignored local build storage. Isolate concurrent
 runs. Do not add TLA+ to root tool configuration, repository-wide policy, or CI
 unless the user explicitly requests that adoption.
 
@@ -98,7 +98,7 @@ convention. In this repository, prefer a feature-level
 
 Run checks from the repository root with `./tla-check [<Concern> ...]` (see
 [`Where/Specifications/TrackingReconciliation`](../../../Where/Specifications/TrackingReconciliation/README.md)).
-The root script owns TLC/JDK download and pinning; do not add per-spec `check`
+The root script owns TLC/JDK download and pinning. Do not add per-spec `check`
 scripts or wire TLA+ into CI unless explicitly requested.
 
 Do not force these exact filenames when the protocol needs a different model
@@ -108,7 +108,7 @@ shape.
 
 Turn each real counterexample into a source-level event timeline with file and
 line references. When edits are authorized, add a deterministic regression test
-that holds the implementation at the modeled interleaving; use synchronization,
+that holds the implementation at the modeled interleaving. Use synchronization,
 not sleeps. Keep a known-broken assertion explicit until the product fix lands.
 
 A clean candidate model must identify the implementation obligations needed to
