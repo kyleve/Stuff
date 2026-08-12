@@ -11,7 +11,7 @@ formatting, and global conventions. Read that first.
 
 - **BroadwayCore** — foundation types (Foundation + UIKit). No sibling deps.
 - **BroadwayUI** — components (SwiftUI + UIKit). Depends on BroadwayCore.
-- **BroadwayCatalog** — showcase app. Depends on BroadwayUI.
+- **BroadwayCatalog** — showcase app. Depends on BroadwayUI and SFSafeSymbols.
 
 UIKit hosting helpers for Broadway's hosted test bundles live in the shared
 [`TestHostSupport`](../TestHostSupport) module (not a Broadway module).

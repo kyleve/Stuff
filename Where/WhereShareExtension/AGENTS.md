@@ -11,11 +11,11 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
 
 - **Tuist app-extension target** ([`Project.swift`](../../Project.swift),
   bundle ID `com.stuff.where.share`), depending on **WhereCore**, **WhereUI**,
-  and **PeriscopeCore**. Embedded by the **Where** app; shares the
+  **PeriscopeCore**, and **SFSafeSymbols**. Embedded by the **Where** app; shares the
   `group.com.stuff.where` App Group entitlement. Logs via the `WhereLog` facade
   (typed `ShareExtensionLog` events); as a separate process its
   `Periscope.shared` is OSLog-only (no store).
-- Presentation reuses WhereUI's public `EvidenceKind.symbolName`/`displayName`;
+- Presentation reuses WhereUI's public `EvidenceKind.symbol`/`displayName`;
   only extension chrome lives in this target's catalog, referenced through its
   generated `LocalizedStringResource` symbols.
 - No test bundle; the store write contract is covered from **WhereCore** store

@@ -7,7 +7,7 @@ import Testing
 /// their picked ``RegionAppearance`` and pick order for the picker/customization
 /// UI.
 struct PrimaryRegionStoreTests {
-    private func appearance(_ color: RegionColorToken, _ emoji: String, _ symbol: String)
+    private func appearance(_ color: RegionColorToken, _ emoji: String, _ symbol: RegionSymbol)
         -> RegionAppearance
     {
         RegionAppearance(color: color, emoji: emoji, symbolName: symbol)
@@ -32,8 +32,8 @@ struct PrimaryRegionStoreTests {
     @Test func replacePersistsAppearanceAndOrder() async throws {
         let store = try SwiftDataStore.inMemory()
         let texas = try #require(Region(rawValue: "us-TX"))
-        let caLook = appearance(.orange, "🌴", "sun.max.fill")
-        let txLook = appearance(.red, "🤠", "star.fill")
+        let caLook = appearance(.orange, "🌴", .sunMaxFill)
+        let txLook = appearance(.red, "🤠", .starFill)
         try await store.perform {
             try await store.setPrimaryRegions([
                 pick(.california, caLook, 0),
@@ -50,8 +50,8 @@ struct PrimaryRegionStoreTests {
 
     @Test func replaceOverwritesAnExistingRowLook() async throws {
         let store = try SwiftDataStore.inMemory()
-        let first = appearance(.orange, "🌴", "sun.max.fill")
-        let second = appearance(.indigo, "🌉", "building.2.fill")
+        let first = appearance(.orange, "🌴", .sunMaxFill)
+        let second = appearance(.indigo, "🌉", .building2Fill)
         try await store.perform {
             try await store.setPrimaryRegions([pick(.california, first, 0)])
         }
@@ -69,14 +69,14 @@ struct PrimaryRegionStoreTests {
         let texas = try #require(Region(rawValue: "us-TX"))
         try await store.perform {
             try await store.setPrimaryRegions([
-                pick(.california, appearance(.orange, "🌴", "sun.max.fill"), 0),
-                pick(texas, appearance(.red, "🤠", "star.fill"), 1),
+                pick(.california, appearance(.orange, "🌴", .sunMaxFill), 0),
+                pick(texas, appearance(.red, "🤠", .starFill), 1),
             ])
         }
         // Re-committing without California removes it by omission.
         try await store.perform {
             try await store.setPrimaryRegions([
-                pick(texas, appearance(.red, "🤠", "star.fill"), 0),
+                pick(texas, appearance(.red, "🤠", .starFill), 0),
             ])
         }
         #expect(try await store.primaryRegions().map(\.region) == [texas])

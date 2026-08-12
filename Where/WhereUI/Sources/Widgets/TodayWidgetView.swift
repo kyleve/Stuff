@@ -1,4 +1,5 @@
 import RegionKit
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 import WhereCore
@@ -92,7 +93,7 @@ public struct TodayWidgetView: View {
 
     private var emptyContent: some View {
         VStack(alignment: .leading, spacing: stylesheet.spacing.xSmall) {
-            Image(systemName: "location.slash")
+            Image(systemSymbol: .locationSlash)
                 .font(.title3)
                 .foregroundStyle(.tertiary)
                 .accessibilityHidden(true)

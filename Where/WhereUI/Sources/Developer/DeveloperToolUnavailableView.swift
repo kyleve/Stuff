@@ -8,7 +8,7 @@
         var body: some View {
             ContentUnavailableView(
                 String(localized: .developerUnavailableTitle),
-                systemImage: tool.systemImage,
+                systemSymbol: tool.systemSymbol,
                 description: Text(String(localized: .developerUnavailableDescription)),
             )
             .navigationTitle(tool.title)

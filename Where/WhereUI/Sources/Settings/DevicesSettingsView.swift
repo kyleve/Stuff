@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 import WhereCore
@@ -56,7 +57,7 @@ struct DevicesSettingsView: View {
                         Section {
                             ContentUnavailableView(
                                 String(localized: .settingsDevicesLoadFailed),
-                                systemImage: "exclamationmark.icloud",
+                                systemSymbol: .exclamationmarkIcloud,
                                 description: Text(failure.message),
                             )
                             Button(String(localized: .commonRetry)) {
@@ -67,7 +68,7 @@ struct DevicesSettingsView: View {
                         Section {
                             ContentUnavailableView(
                                 String(localized: .settingsDevicesLoadFailed),
-                                systemImage: "exclamationmark.icloud",
+                                systemSymbol: .exclamationmarkIcloud,
                             )
                             Button(String(localized: .commonRetry)) {
                                 Task { await model.retry() }

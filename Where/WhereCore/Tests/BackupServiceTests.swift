@@ -391,7 +391,7 @@ struct BackupServiceTests {
                 appearance: RegionAppearance(
                     color: .orange,
                     emoji: "🌴",
-                    symbolName: "sun.max.fill",
+                    symbolName: .sunMaxFill,
                 ),
                 order: 0,
             ),
@@ -467,7 +467,7 @@ struct BackupServiceTests {
                     appearance: RegionAppearance(
                         color: .orange,
                         emoji: "🌴",
-                        symbolName: "sun.max.fill",
+                        symbolName: .sunMaxFill,
                     ),
                     order: 0,
                 ),

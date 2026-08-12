@@ -1,3 +1,4 @@
+import SFSafeSymbols
 #if DEBUG
     import SwiftUI
 
@@ -10,7 +11,7 @@
                 .overlay(alignment: .topLeading) {
                     Button(
                         String(localized: .developerClose),
-                        systemImage: "xmark",
+                        systemSymbol: .xmark,
                         action: dismiss.callAsFunction,
                     )
                     .labelStyle(.iconOnly)

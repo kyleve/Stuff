@@ -1,3 +1,4 @@
+import SFSafeSymbols
 #if DEBUG
     import PeriscopeTools
     import SwiftUI
@@ -10,7 +11,7 @@
             if let store = world.scope.logStore {
                 PeriscopeViewer(store: store, title: "Logs")
             } else {
-                ContentUnavailableView("No log store", systemImage: "ladybug.slash")
+                ContentUnavailableView("No log store", systemSymbol: .ladybugSlash)
             }
         }
     }

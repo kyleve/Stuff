@@ -10,7 +10,7 @@ build system, formatting, and global conventions. Read that first.
 
 ## Scope & dependencies
 
-- Depends only on **LedgerCore** (plus SwiftUI/AppKit). It's the app target in
+- Depends only on **LedgerCore** and **SFSafeSymbols** (plus SwiftUI/AppKit). It's the app target in
   [`Project.swift`](../../Project.swift) (`.mac` destination, `com.stuff.ledger`,
   `LSUIElement`), paired with the hostless `LedgerCoreTests` bundle in the same
   file and driven by the `Ledger` / `Ledger-macOS-Tests` schemes.

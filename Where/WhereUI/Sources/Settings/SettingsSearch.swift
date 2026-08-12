@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SwiftUI
 
 /// The top-level Settings groups. Each drills into its own sub-screen; the
@@ -42,27 +43,27 @@ enum SettingsDestination: Hashable, CaseIterable {
     }
 
     /// The SF Symbol shown as the row's leading icon.
-    var systemImage: String {
+    var systemSymbol: SFSymbol {
         switch self {
-            case .attachments: "paperclip"
-            case .loggedDays: "calendar.badge.plus"
-            case .devices: "iphone.and.arrow.forward"
-            case .regions: "map.fill"
-            case .alerts: "bell.badge"
-            case .appearance: "paintbrush.fill"
-            case .year: "calendar"
-            case .siri: "waveform"
-            case .widgets: "widget.small"
-            case .shareEvidence: "square.and.arrow.down.fill"
-            case .insightsAccuracy: "sparkles"
-            case .personalization: "paintpalette.fill"
-            case .data: "externaldrive.fill"
-            case .about: "info"
+            case .attachments: .paperclip
+            case .loggedDays: .calendarBadgePlus
+            case .devices: .iphoneAndArrowForward
+            case .regions: .mapFill
+            case .alerts: .bellBadge
+            case .appearance: .paintbrushFill
+            case .year: .calendar
+            case .siri: .waveform
+            case .widgets: .widgetSmall
+            case .shareEvidence: .squareAndArrowDownFill
+            case .insightsAccuracy: .sparkles
+            case .personalization: .paintpaletteFill
+            case .data: .externaldriveFill
+            case .about: .info
         }
     }
 
     /// The fill color of the row's iOS-style icon chip. Lives here (like
-    /// `systemImage`) rather than in the stylesheet, which deliberately holds no
+    /// `systemSymbol`) rather than in the stylesheet, which deliberately holds no
     /// accent/adaptive colors.
     var iconColor: Color {
         switch self {

@@ -7,7 +7,7 @@ struct RecordingConfigurationWarningTabLabel: View {
 
     var body: some View {
         let inputs = source.localInputs
-        Label(String(localized: .tabSettings), systemImage: "gearshape.fill")
+        Label(String(localized: .tabSettings), systemSymbol: .gearshapeFill)
             .accessibilityValue(
                 model.isPresented ? String(localized: .settingsRecordingWarningTitle) : "",
             )

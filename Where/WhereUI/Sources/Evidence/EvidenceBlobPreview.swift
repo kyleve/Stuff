@@ -1,4 +1,5 @@
 import PDFKit
+import SFSafeSymbols
 import SwiftUI
 import UIKit
 import WhereCore
@@ -62,7 +63,7 @@ struct EvidenceBlobPreview: View {
 
     private var unavailable: some View {
         ContentUnavailableView {
-            Label(String(localized: .evidenceDetailNoPreviewTitle), systemImage: "doc.questionmark")
+            Label(String(localized: .evidenceDetailNoPreviewTitle), systemSymbol: .docQuestionmark)
         } description: {
             Text(String(localized: .evidenceDetailNoPreviewDescription))
         }
@@ -70,7 +71,7 @@ struct EvidenceBlobPreview: View {
 
     private var failedToDecode: some View {
         ContentUnavailableView {
-            Label(String(localized: .evidenceDetailNoPreviewTitle), systemImage: "doc.questionmark")
+            Label(String(localized: .evidenceDetailNoPreviewTitle), systemSymbol: .docQuestionmark)
         } description: {
             Text(String(localized: .evidenceDetailPreviewFailed))
         }

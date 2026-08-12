@@ -1,4 +1,5 @@
 import RegionKit
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 import WhereCore
@@ -24,10 +25,10 @@ public struct TodayInlineAccessoryView: View {
         if let first = regions.first {
             Label(
                 regions.map(\.localizedName).joined(separator: " · "),
-                systemImage: regionStyles.style(for: first).symbolName,
+                systemSymbol: regionStyles.style(for: first).symbol,
             )
         } else {
-            Label(String(localized: .widgetTodayEmpty), systemImage: "location.slash")
+            Label(String(localized: .widgetTodayEmpty), systemSymbol: .locationSlash)
         }
     }
 }
@@ -52,11 +53,9 @@ public struct TodayCircularAccessoryView: View {
         ZStack {
             AccessoryWidgetBackground()
             VStack(spacing: 0) {
-                Image(
-                    systemName: regions.first
-                        .map { regionStyles.style(for: $0).symbolName } ?? "location.slash",
-                )
-                .font(.title3)
+                Image(systemSymbol: regions.first
+                    .map { regionStyles.style(for: $0).symbol } ?? .locationSlash)
+                    .font(.title3)
                 if regions.count > 1 {
                     Text(verbatim: "+\(regions.count - 1)")
                         .font(.caption2.weight(.semibold))

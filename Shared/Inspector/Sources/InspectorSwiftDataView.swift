@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SwiftData
 import SwiftUI
 
@@ -50,7 +51,7 @@ public struct InspectorSwiftDataView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(
                         "Erase Store",
-                        systemImage: "externaldrive.badge.xmark",
+                        systemSymbol: .externaldriveBadgeXmark,
                         role: .destructive,
                     ) {
                         isConfirmingStoreErase = true
@@ -88,7 +89,7 @@ public struct InspectorSwiftDataView: View {
         if model.entities.isEmpty {
             ContentUnavailableView(
                 "No Entities",
-                systemImage: "tray",
+                systemSymbol: .tray,
                 description: Text("This store has no model types."),
             )
         } else if filteredEntities.isEmpty {
@@ -103,7 +104,7 @@ private struct EntityRow: View {
 
     var body: some View {
         HStack {
-            Label(entity.name, systemImage: "tablecells")
+            Label(entity.name, systemSymbol: .tablecells)
             Spacer()
             Text("\(entity.count)")
                 .font(.callout.monospacedDigit())

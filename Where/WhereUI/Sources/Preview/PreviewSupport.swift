@@ -282,7 +282,7 @@
                     appearance: RegionAppearance(
                         color: .orange,
                         emoji: "🌴",
-                        symbolName: "sun.max.fill",
+                        symbolName: .sunMaxFill,
                     ),
                     order: 0,
                 ),
@@ -291,7 +291,7 @@
                     appearance: RegionAppearance(
                         color: .indigo,
                         emoji: "🗽",
-                        symbolName: "building.2.fill",
+                        symbolName: .building2Fill,
                     ),
                     order: 1,
                 ),

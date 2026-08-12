@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 import WhereCore
@@ -21,7 +22,7 @@ struct AppearanceSettingsView: View {
                     Toggle(isOn: $report.showsRecordedLocationDots) {
                         Label(
                             String(localized: .settingsAppearanceLocationDotsToggle),
-                            systemImage: "mappin.and.ellipse",
+                            systemSymbol: .mappinAndEllipse,
                         )
                     }
                     .settingsRow(Item.locationDots)
@@ -35,7 +36,7 @@ struct AppearanceSettingsView: View {
                     Button {
                         showAppIcon = true
                     } label: {
-                        Label(String(localized: .settingsAppIconLink), systemImage: "app.badge")
+                        Label(String(localized: .settingsAppIconLink), systemSymbol: .appBadge)
                     }
                     .tint(.primary)
                     .settingsRow(Item.appIcon)
@@ -51,7 +52,7 @@ struct AppearanceSettingsView: View {
                             } label: {
                                 Label(
                                     String(localized: .cardDesignerTitle),
-                                    systemImage: "paintpalette",
+                                    systemSymbol: .paintpalette,
                                 )
                             }
                             .settingsRow(Item.cardDesigner)
