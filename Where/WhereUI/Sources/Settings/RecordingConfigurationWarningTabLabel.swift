@@ -19,3 +19,21 @@ struct RecordingConfigurationWarningTabLabel: View {
             }
     }
 }
+
+#if DEBUG
+    #Preview {
+        let session = PreviewSupport.loadedSession()
+        let model = PreviewSupport.recordingConfigurationWarningModel()
+        TabView(selection: .constant(0)) {
+            Tab(value: 0) {
+                Color.clear
+            } label: {
+                RecordingConfigurationWarningTabLabel(
+                    model: model,
+                    source: RecordingConfigurationWarningModel.Source(session: session),
+                )
+            }
+            .badge(model.isPresented ? 1 : 0)
+        }
+    }
+#endif
