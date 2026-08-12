@@ -191,7 +191,7 @@ struct DeviceSettingsSection: View {
     }
 
     private var showOpenSettingsButton: Bool {
-        guard row.isCurrent, row.isEnabled else { return false }
+        guard row.isCurrent else { return false }
         return switch session.authorizationStatus {
             case .denied, .restricted, .whenInUse: true
             case .notDetermined, .always: false
