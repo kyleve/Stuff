@@ -46,6 +46,7 @@ struct WhereStylesheetTests {
     }
 
     @Test func signatureFolioFoundation() {
+        #expect(style.theme == .folio)
         #expect(style.seal == .init(
             outerRingWidth: 2,
             innerRingWidth: 0.75,
@@ -70,6 +71,39 @@ struct WhereStylesheetTests {
         #expect(locations.standardMinimumHeight == 248)
         #expect(locations.surfaceBorderOpacity == 0.12)
         #expect(locations.surfaceBorderWidth == 0.75)
+    }
+
+    @MainActor
+    @Test func quietGlassThemeResolvesACompleteBaseline() throws {
+        var themes = BThemes()
+        themes[WhereTheme.self] = .glass
+        let context = BContext(traits: .system, themes: themes)
+
+        let resolved = try context.stylesheets.get(WhereStylesheet.self)
+
+        #expect(resolved.theme == .glass)
+        #expect(resolved.palette == .glass)
+        #expect(resolved.card.regular.cornerRadius == 26)
+        #expect(resolved.card.regular.regionNameTypography.design == .default)
+        #expect(resolved.card.rosetteFill == .init(primary: 0, secondary: 0))
+        #expect(resolved.calendar.month.ruleOpacity == 0)
+        #expect(resolved.timeline.row.cornerRadius == 20)
+        #expect(resolved.featureDiscovery.backgroundPattern.opacity == 0)
+    }
+
+    @MainActor
+    @Test func quietGlassComposesWithDarkAppearance() throws {
+        var themes = BThemes()
+        themes[WhereTheme.self] = .glass
+        var context = BContext(traits: .system, themes: themes)
+        context.baseTraits.mode = .dark
+
+        let resolved = try context.stylesheets.get(WhereStylesheet.self)
+
+        #expect(resolved.theme == .glass)
+        #expect(resolved.palette == .glassDark)
+        #expect(resolved.card.securityPrint == .dark)
+        #expect(resolved.featureDiscovery.siri.accent == resolved.palette.brand.mineral)
     }
 
     @Test func regularCardStyle() {

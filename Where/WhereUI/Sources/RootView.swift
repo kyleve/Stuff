@@ -241,6 +241,10 @@ public struct RootView: View {
                 theme: model.theme,
                 regionStyles: model.session?.regionStyles ?? .default,
             )
+            .animation(
+                reduceMotion ? .easeInOut(duration: 0.18) : .smooth(duration: 0.36),
+                value: model.theme,
+            )
     }
 
     /// How the launch splash gives way to the app once the runner is `.ready`:

@@ -8828,6 +8828,50 @@
         }
       }
     },
+    "theme.folio.detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Editorial paper and private-ledger details"
+          }
+        }
+      }
+    },
+    "theme.folio.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Folio"
+          }
+        }
+      }
+    },
+    "theme.glass.detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quiet translucency and precise system typography"
+          }
+        }
+      }
+    },
+    "theme.glass.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Glass"
+          }
+        }
+      }
+    },
     "theme.notSelected.value" : {
       "extractionState" : "manual",
       "localizations" : {

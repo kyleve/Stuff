@@ -234,4 +234,37 @@ struct WhereModelTests {
         #expect(published === store)
         #expect(model.logStore === store)
     }
+
+    @Test func themePreviewDoesNotPersistUntilOnboardingCompletes() throws {
+        let preferences = makePreferences()
+        let model = try WhereModel(
+            services: makeServices(),
+            preferences: preferences,
+            logSystem: .isolated(),
+        )
+
+        model.previewTheme(.glass)
+
+        #expect(model.theme == .glass)
+        #expect(preferences.theme == .folio)
+
+        model.completeOnboarding()
+
+        #expect(preferences.theme == .glass)
+        #expect(preferences.hasOnboarded)
+    }
+
+    @Test func settingsThemeSelectionPersistsImmediately() throws {
+        let preferences = makePreferences()
+        let model = try WhereModel(
+            services: makeServices(),
+            preferences: preferences,
+            logSystem: .isolated(),
+        )
+
+        model.selectTheme(.glass)
+
+        #expect(model.theme == .glass)
+        #expect(preferences.theme == .glass)
+    }
 }

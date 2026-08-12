@@ -172,16 +172,29 @@ extension AppearanceSettingsView: SettingsSection {
 #if DEBUG
     extension AppearanceSettingsView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            whereSnapshot(
-                name: "Default",
-                configurations: .fullContentScreenDefaults,
-                measurementReadiness: .immediate,
-            ) {
-                NavigationStack {
-                    AppearanceSettingsView(report: PreviewSupport.loadedYearReportModel())
-                }
-                .environment(PreviewSupport.loadedModel())
-            }
+            [
+                whereSnapshot(
+                    name: "Default",
+                    configurations: .fullContentScreenDefaults,
+                    measurementReadiness: .immediate,
+                ) {
+                    NavigationStack {
+                        AppearanceSettingsView(report: PreviewSupport.loadedYearReportModel())
+                    }
+                    .environment(PreviewSupport.loadedModel())
+                },
+                whereSnapshot(
+                    name: "Folio",
+                    configurations: .fullContentPhoneLightDark,
+                    measurementReadiness: .immediate,
+                ) {
+                    NavigationStack {
+                        AppearanceSettingsView(report: PreviewSupport.loadedYearReportModel())
+                    }
+                    .environment(PreviewSupport.loadedModel(theme: .alternate))
+                    .whereBroadwayRoot(theme: .alternate)
+                },
+            ]
         }
     }
 
