@@ -150,7 +150,7 @@ struct WhereStylesheet: BStylesheet {
         card.glassTintOpacity = 0.09
         card.nameOpacity = 1
         card.watermarkOpacity = 0.035
-        card.rosetteFill = .init(primary: 0, secondary: 0)
+        card.rosetteFill = .init(primary: 0.04, secondary: 0.022)
         if var regionShape = card.regular.regionShape {
             regionShape.watermark.fillOpacity = 0.045
             if var stroke = regionShape.watermark.stroke {

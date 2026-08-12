@@ -87,7 +87,7 @@ struct WhereStylesheetTests {
         #expect(resolved.palette == .glass)
         #expect(resolved.card.regular.cornerRadius == 26)
         #expect(resolved.card.regular.regionNameTypography.design == .default)
-        #expect(resolved.card.rosetteFill == .init(primary: 0, secondary: 0))
+        #expect(resolved.card.rosetteFill == .init(primary: 0.04, secondary: 0.022))
         #expect(resolved.calendar.month.ruleOpacity == 0)
         #expect(resolved.calendar.month.usesGlassSurface)
         #expect(resolved.timeline.row.cornerRadius == 20)
