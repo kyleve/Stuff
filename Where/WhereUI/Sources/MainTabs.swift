@@ -46,7 +46,6 @@ struct MainTabs: View {
     }
 
     var body: some View {
-        let recordingInputs = recordingWarningSource.localInputs
         TabView(selection: $selection) {
             Tab(
                 String(localized: .tabLocations),
@@ -62,13 +61,14 @@ struct MainTabs: View {
                     .reportingDeveloperTabBarInset()
             }
 
-            Tab(
-                String(localized: .tabSettings),
-                systemImage: "gearshape.fill",
-                value: TabID.settings,
-            ) {
+            Tab(value: TabID.settings) {
                 SettingsView(report: report, recordingWarning: recordingWarning)
                     .reportingDeveloperTabBarInset()
+            } label: {
+                RecordingConfigurationWarningTabLabel(
+                    model: recordingWarning,
+                    source: recordingWarningSource,
+                )
             }
             .badge(recordingWarning.isPresented ? 1 : 0)
         }
@@ -78,10 +78,6 @@ struct MainTabs: View {
         // returns to the foreground; cancel the subscription on background so a
         // backgrounded scene drives no refreshes.
         .task { await report.activate() }
-        .task(id: recordingInputs) {
-            await recordingWarning.refresh(recordingInputs, from: recordingWarningSource)
-        }
-        .task { await recordingWarning.observeAuthorityChanges(from: recordingWarningSource) }
         .onChange(of: scenePhase) { _, newPhase in
             switch newPhase {
                 case .active:
