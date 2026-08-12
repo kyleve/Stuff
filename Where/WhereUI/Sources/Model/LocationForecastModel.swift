@@ -9,6 +9,17 @@ import WhereCore
 @MainActor
 @Observable
 final class LocationForecastModel {
+    /// The future slice of a planned stay that intersects a displayed year.
+    struct PlannedInterval: Equatable {
+        let region: Region
+        let start: CalendarDay
+        let end: CalendarDay
+
+        var dayCount: Int {
+            start.days(through: end).count
+        }
+    }
+
     private(set) var activePlannedStay: PlannedStay?
 
     private let services: WhereServices
@@ -77,13 +88,23 @@ final class LocationForecastModel {
     /// ending next year still occupies the rest of this year; a past report has
     /// no overlap because projections begin tomorrow.
     func plannedStay(intersecting year: Int) -> PlannedStay? {
+        guard plannedInterval(intersecting: year) != nil else { return nil }
+        return activePlannedStay
+    }
+
+    func plannedInterval(intersecting year: Int) -> PlannedInterval? {
         guard let stay = activePlannedStay else { return nil }
         let tomorrow = CalendarDay(from: now(), in: calendar).adding(days: 1)
         let firstDay = CalendarDay(year: year, month: 1, day: 1)
         let lastDay = CalendarDay.lastDay(ofYear: year)
         let projectedStart = max(tomorrow, firstDay)
         let projectedEnd = min(stay.through, lastDay)
-        return projectedStart <= projectedEnd ? stay : nil
+        guard projectedStart <= projectedEnd else { return nil }
+        return PlannedInterval(
+            region: stay.region,
+            start: projectedStart,
+            end: projectedEnd,
+        )
     }
 
     func departureDate(for region: Region) -> Date {

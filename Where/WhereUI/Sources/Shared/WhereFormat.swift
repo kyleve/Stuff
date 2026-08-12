@@ -257,6 +257,14 @@ enum WhereFormat {
         String(localized: .timelineRowAccessibility(region, range, dayCount(days)))
     }
 
+    static func timelinePlannedRowAccessibility(
+        region: String,
+        range: String,
+        days: Int,
+    ) -> String {
+        String(localized: .timelinePlannedRowAccessibility(region, range, dayCount(days)))
+    }
+
     static func evidenceRowAccessibility(kind: EvidenceKind, date: Date) -> String {
         let day = date.formatted(.dateTime.month(.wide).day().year())
         return String(localized: .evidenceRowAccessibility(evidenceKind(kind), day))

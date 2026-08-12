@@ -118,6 +118,12 @@ struct LocationForecastModelTests {
 
         #expect(model.plannedStay(intersecting: 2026) == stay)
         #expect(model.plannedStay(intersecting: 2025) == nil)
+        #expect(model.plannedInterval(intersecting: 2026) == .init(
+            region: .newYork,
+            start: CalendarDay(year: 2026, month: 7, day: 16),
+            end: CalendarDay(year: 2026, month: 12, day: 31),
+        ))
+        #expect(model.plannedInterval(intersecting: 2026)?.dayCount == 169)
     }
 
     @Test func failedSaveKeepsTheLastGoodValue() async throws {

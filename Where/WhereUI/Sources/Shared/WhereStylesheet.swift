@@ -1207,6 +1207,7 @@ extension WhereStylesheet {
         var ribbon: Ribbon
         var rail: Rail
         var row: Row
+        var planned: Planned
 
         struct Overview: Equatable {
             var spacing: CGFloat
@@ -1265,6 +1266,17 @@ extension WhereStylesheet {
             var stacksDayCount: Bool
         }
 
+        /// The future planned-stay treatment appended after recorded journey
+        /// rows. Its lighter fill and hatch distinguish intent from history.
+        struct Planned: Equatable {
+            var fillOpacity: Double
+            var borderOpacity: Double
+            var hatchOpacity: Double
+            var hatchSpacing: CGFloat
+            var hatchLineWidth: CGFloat
+            var labelOpacity: Double
+        }
+
         static let standard = TimelineStyle(
             overview: Overview(
                 spacing: 12,
@@ -1310,6 +1322,14 @@ extension WhereStylesheet {
                 countVerticalPadding: 6,
                 countFillOpacity: 0.16,
                 stacksDayCount: false,
+            ),
+            planned: Planned(
+                fillOpacity: 0.035,
+                borderOpacity: 0.14,
+                hatchOpacity: 0.16,
+                hatchSpacing: 8,
+                hatchLineWidth: 1,
+                labelOpacity: 0.7,
             ),
         )
     }

@@ -75,7 +75,7 @@ Layering, localization, preview, and testing conventions live in the feature
 - Keep Locations-card points on `YearReportModel`'s loaded
   `YearReportDetails`.
 - Keep planned-stay persistence and forecast math in WhereCore; `LocationForecastModel` only mirrors
-  the active register and orchestrates intents for the Locations and calendar surfaces.
+  the active register and orchestrates intents for the Locations, calendar, and timeline surfaces.
 - Continuous/looping motion (repeat-forever pulses, `TimelineView(.animation)`,
   typewriter reveals) must consult the shared `@MotionIsStatic` helper
   ([`Sources/Shared/MotionIsStatic.swift`](Sources/Shared/MotionIsStatic.swift))

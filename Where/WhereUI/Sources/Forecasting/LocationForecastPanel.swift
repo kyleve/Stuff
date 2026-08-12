@@ -3,13 +3,14 @@ import SFSafeSymbols
 import SwiftUI
 import WhereCore
 
-/// Annual location estimates shared by the Locations summary and a focused
-/// region calendar. An optional edit action belongs only to the current region.
+/// Annual location estimates shared by the Locations summary and calendar
+/// surfaces. Calendar hosts can offer one or more regions for stay planning.
 struct LocationForecastPanel: View {
     let forecasts: [LocationForecast]
     var plannedStay: PlannedStay?
-    var editableRegion: Region?
-    var editAction: (() -> Void)?
+    var editableRegions: [Region] = []
+    var editAction: ((Region) -> Void)?
+    var clearAction: (@MainActor () async throws -> Void)?
     var isCollapsible = false
 
     @State private var isExpanded = false
@@ -113,13 +114,13 @@ struct LocationForecastPanel: View {
             )
         }
 
-        if editableRegion != nil, let editAction {
-            Button(
-                String(localized: .locationForecastEditStay),
-                systemSymbol: .calendarBadgeClock,
-                action: editAction,
+        if !editableRegions.isEmpty, let editAction {
+            LocationForecastControls(
+                editableRegions: editableRegions,
+                plannedStay: plannedStay,
+                editAction: editAction,
+                clearAction: clearAction,
             )
-            .buttonStyle(.bordered)
         }
     }
 }
@@ -159,8 +160,9 @@ private struct LocationForecastRow: View {
         LocationForecastPanel(
             forecasts: report.forecasts.leadingForecasts(report: report.report),
             plannedStay: report.forecasts.activePlannedStay,
-            editableRegion: .newYork,
-            editAction: {},
+            editableRegions: [.california, .newYork],
+            editAction: { _ in },
+            clearAction: {},
         )
         .padding()
     }

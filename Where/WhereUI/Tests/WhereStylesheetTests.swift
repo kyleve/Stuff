@@ -352,6 +352,14 @@ struct WhereStylesheetTests {
         #expect(row.countVerticalPadding == 6)
         #expect(row.countFillOpacity == 0.16)
         #expect(row.stacksDayCount == false)
+
+        let planned = timeline.planned
+        #expect(planned.fillOpacity == 0.035)
+        #expect(planned.borderOpacity == 0.14)
+        #expect(planned.hatchOpacity == 0.16)
+        #expect(planned.hatchSpacing == 8)
+        #expect(planned.hatchLineWidth == 1)
+        #expect(planned.labelOpacity == 0.7)
     }
 
     @Test func regionMapStyle() {

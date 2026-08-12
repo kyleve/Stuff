@@ -3007,6 +3007,28 @@
         }
       }
     },
+    "locationForecast.clearStay" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Clear"
+          }
+        }
+      }
+    },
+    "locationForecast.clearingStay" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Clearing planned stay"
+          }
+        }
+      }
+    },
     "locationForecast.editStay" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -7780,6 +7802,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No stays yet"
+          }
+        }
+      }
+    },
+    "timeline.plannedRow.accessibility" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Planned stay in %1$@, %2$@, %3$@"
+          }
+        }
+      }
+    },
+    "timeline.plannedStay" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Planned stay"
           }
         }
       }

@@ -21,7 +21,7 @@ struct CalendarContentView: View {
     @Environment(\.isCapturingSnapshot) private var isCapturingSnapshot
     @Environment(\.stylesheet) private var stylesheet
     @State private var monthsLoad: Result<[CalendarMonth], Error>?
-    @State private var showingPlannedStayEditor = false
+    @State private var plannedStayEditorTarget: PlannedStayEditorTarget?
     @State private var didRevealCurrentMonth = false
 
     private static let logger = WhereLog.session(CalendarViewLog.self)
@@ -33,6 +33,14 @@ struct CalendarContentView: View {
         let evidenceDayKeys: Set<CalendarDay>
         let referenceDay: Date
         let focusedRegion: Region?
+    }
+
+    private struct PlannedStayEditorTarget: Identifiable {
+        let region: Region
+
+        var id: Region {
+            region
+        }
     }
 
     var body: some View {
@@ -83,10 +91,8 @@ struct CalendarContentView: View {
         // Log View Mode: reveal an inspect badge for this calendar's events. A
         // no-op in release.
         .debugLogInspectable(WhereLog.session(CalendarViewLog.self))
-        .sheet(isPresented: $showingPlannedStayEditor) {
-            if let focusedRegion {
-                PlannedStayEditor(region: focusedRegion, model: report.forecasts)
-            }
+        .sheet(item: $plannedStayEditorTarget) { target in
+            PlannedStayEditor(region: target.region, model: report.forecasts)
         }
     }
 
@@ -138,17 +144,17 @@ struct CalendarContentView: View {
                             )
                             // In chronological flow, the estimate belongs immediately
                             // after the month whose recorded pace it is projecting from.
-                            if month.isCurrentMonth, let focusedForecast {
+                            if month.isCurrentMonth, !calendarForecasts.isEmpty {
                                 LocationForecastPanel(
-                                    forecasts: [focusedForecast],
+                                    forecasts: calendarForecasts,
                                     plannedStay: report.forecasts.activePlannedStay,
-                                    editableRegion: report.forecasts.isCurrent(
-                                        focusedForecast.region,
-                                        report: report.report,
-                                    ) ? focusedForecast.region : nil,
-                                    editAction: {
-                                        showingPlannedStayEditor = true
+                                    editableRegions: editableForecastRegions,
+                                    editAction: { region in
+                                        plannedStayEditorTarget = PlannedStayEditorTarget(
+                                            region: region,
+                                        )
                                     },
+                                    clearAction: report.forecasts.clear,
                                 )
                             }
                         }
@@ -176,9 +182,23 @@ struct CalendarContentView: View {
         }
     }
 
-    private var focusedForecast: LocationForecast? {
-        guard let focusedRegion else { return nil }
-        return report.forecasts.forecast(for: focusedRegion, report: report.report)
+    private var calendarForecasts: [LocationForecast] {
+        if let focusedRegion {
+            return report.forecasts.forecast(for: focusedRegion, report: report.report).map { [$0] }
+                ?? []
+        }
+        return report.ranking.primary.compactMap {
+            report.forecasts.forecast(for: $0.region, report: report.report)
+        }
+    }
+
+    private var editableForecastRegions: [Region] {
+        if let focusedRegion {
+            return report.forecasts.isCurrent(focusedRegion, report: report.report)
+                ? [focusedRegion]
+                : []
+        }
+        return report.ranking.primary.map(\.region)
     }
 
     /// A plan belongs on the selected year's calendar and, when this is a
@@ -607,6 +627,14 @@ private struct DayCell: View {
                         focusedRegion: .newYork,
                         report: PreviewSupport.plannedStayYearReportModel(),
                     )
+                }
+            }
+            whereSnapshot(
+                name: "MultiRegionPlannedStay",
+                configurations: .fullContentPhoneLightDark,
+            ) {
+                NavigationStack {
+                    CalendarContentView(report: PreviewSupport.plannedStayYearReportModel())
                 }
             }
         }
