@@ -1,9 +1,10 @@
 import Foundation
 import RegionKit
 
-/// The app's persisted user intent — onboarding completion and the reminder /
-/// daily-summary schedules — plus small pieces of UI continuity and acknowledgement
-/// state, behind a `KeyValueStore` so production uses `UserDefaults`
+/// The app's persisted user intent — onboarding completion, forecast
+/// visibility, and the reminder / daily-summary schedules — plus small pieces of UI
+/// continuity and acknowledgement state, behind a `KeyValueStore` so production uses
+/// `UserDefaults`
 /// and tests use an in-memory double.
 ///
 /// `store` is deliberately not defaulted: defaulting it to
@@ -37,6 +38,17 @@ public final class WherePreferences {
     public var showsRecordedLocationDots: Bool {
         get { store.object(forKey: Keys.showsRecordedLocationDots.rawValue) as? Bool ?? true }
         set { store.set(newValue, forKey: Keys.showsRecordedLocationDots.rawValue) }
+    }
+
+    /// Whether the annual-estimate summary appears on the Locations tab.
+    /// Defaults to `true` so an existing or fresh install sees the feature until
+    /// the user explicitly turns it off.
+    public var showsLocationForecastsOnLocationsTab: Bool {
+        get {
+            store.object(forKey: Keys.showsLocationForecastsOnLocationsTab.rawValue) as? Bool
+                ?? true
+        }
+        set { store.set(newValue, forKey: Keys.showsLocationForecastsOnLocationsTab.rawValue) }
     }
 
     /// Whether the daily "log before the day ends" reminder is enabled. Defaults
@@ -187,6 +199,7 @@ public final class WherePreferences {
     private enum Keys: String, CaseIterable {
         case hasOnboarded = "where.hasOnboarded"
         case showsRecordedLocationDots = "where.showsRecordedLocationDots"
+        case showsLocationForecastsOnLocationsTab = "where.showsLocationForecastsOnLocationsTab"
         case remindersEnabled = "where.remindersEnabled"
         case reminderHour = "where.reminderHour"
         case reminderMinute = "where.reminderMinute"

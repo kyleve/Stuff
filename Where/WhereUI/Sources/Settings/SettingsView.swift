@@ -124,7 +124,7 @@ struct SettingsView: View {
                             .foregroundStyle(.secondary)
                     }
                 } icon: {
-                    Image(systemName: "exclamationmark.triangle.fill")
+                    Image(systemSymbol: .exclamationmarkTriangleFill)
                         .foregroundStyle(.yellow)
                         .accessibilityHidden(true)
                 }

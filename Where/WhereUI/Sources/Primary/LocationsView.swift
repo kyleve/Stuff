@@ -184,6 +184,17 @@ struct LocationsView: View {
         .defaultScrollAnchor(.center)
         .scrollBounceBehavior(.basedOnSize)
         .accessibilityIdentifier("where_root_title")
+        .safeAreaInset(edge: .bottom) {
+            if report.showsLocationForecastsOnLocationsTab, !topForecasts.isEmpty {
+                LocationForecastPanel(
+                    forecasts: topForecasts,
+                    plannedStay: report.forecasts.activePlannedStay,
+                    isCollapsible: true,
+                )
+                .padding(.horizontal)
+                .padding(.bottom, stylesheet.spacing.small)
+            }
+        }
         .onAppear { isCardSurfaceVisible = true }
         .onDisappear { isCardSurfaceVisible = false }
         // The task belongs to the cards, and its ID includes explicit visibility
@@ -209,6 +220,12 @@ struct LocationsView: View {
             .impact(weight: .light),
             trigger: dayCountPresentation.feedbackTrigger,
         )
+    }
+
+    /// Three forecast rows are independent from the two-card Primary split.
+    /// `.other` is a catch-all rather than a place a user can plan around.
+    private var topForecasts: [LocationForecast] {
+        report.forecasts.leadingForecasts(report: report.report)
     }
 
     /// The region's calendar, pushed as a nested view. It's the zoom
@@ -289,6 +306,20 @@ private struct ResolveToolbarLabel: View {
                 LocationsView(report: PreviewSupport.loadedYearReportModel())
             }
             whereSnapshot(
+                name: "PlannedStay",
+                configurations: .fullContentPhoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
+                LocationsView(report: PreviewSupport.plannedStayYearReportModel())
+            }
+            whereSnapshot(
+                name: "ForecastsHidden",
+                configurations: .fullContentPhoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
+                LocationsView(report: forecastsHiddenReport())
+            }
+            whereSnapshot(
                 name: "Empty",
                 configurations: .phoneLightDark,
                 measurementReadiness: .immediate,
@@ -318,6 +349,12 @@ private struct ResolveToolbarLabel: View {
                     report: PreviewSupport.loadedYearReportModelWithLocationDotsHidden(),
                 )
             }
+        }
+
+        private static func forecastsHiddenReport() -> YearReportModel {
+            let report = PreviewSupport.loadedYearReportModel()
+            report.showsLocationForecastsOnLocationsTab = false
+            return report
         }
     }
 

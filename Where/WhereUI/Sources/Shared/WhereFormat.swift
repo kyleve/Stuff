@@ -60,6 +60,30 @@ enum WhereFormat {
         String(localized: .manualRangeFooter(count))
     }
 
+    static func locationForecastEstimate(region: Region, days: Int) -> AttributedString {
+        AttributedString(localized: .locationForecastEstimate(
+            region.localizedName,
+            dayCount(days),
+        ))
+    }
+
+    static func locationForecastElapsed(days: Int) -> String {
+        String(localized: .locationForecastElapsed(dayCount(days)))
+    }
+
+    static func locationForecastBasis(yearToDateDays: Int) -> String {
+        String(localized: .locationForecastBasis(dayCount(yearToDateDays)))
+    }
+
+    static func locationForecastPlan(through day: CalendarDay) -> String {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .current
+        let date = day.startOfDay(in: calendar)
+        return String(localized: .locationForecastPlan(
+            date.formatted(.dateTime.month(.wide).day().year()),
+        ))
+    }
+
     static func settingsBackupImportedMessage(
         samples: Int,
         evidence: Int,
@@ -201,12 +225,16 @@ enum WhereFormat {
         regions: [Region],
         needsAttention: Bool,
         hasEvidence: Bool,
+        isPlanned: Bool,
     ) -> String {
-        let base = calendarDayBase(date: date, regions: regions, needsAttention: needsAttention)
-        guard hasEvidence else { return base }
+        var label = calendarDayBase(date: date, regions: regions, needsAttention: needsAttention)
+        if isPlanned {
+            label = String(localized: .calendarDayPlannedAccessibility(label))
+        }
+        guard hasEvidence else { return label }
         // Append the attachment cue so VoiceOver announces it after the day's
         // regions/status, e.g. "Monday, March 4, California, has evidence".
-        return String(localized: .calendarDayHasEvidenceAccessibility(base))
+        return String(localized: .calendarDayHasEvidenceAccessibility(label))
     }
 
     private static func calendarDayBase(
@@ -227,6 +255,14 @@ enum WhereFormat {
 
     static func timelineRowAccessibility(region: String, range: String, days: Int) -> String {
         String(localized: .timelineRowAccessibility(region, range, dayCount(days)))
+    }
+
+    static func timelinePlannedRowAccessibility(
+        region: String,
+        range: String,
+        days: Int,
+    ) -> String {
+        String(localized: .timelinePlannedRowAccessibility(region, range, dayCount(days)))
     }
 
     static func evidenceRowAccessibility(kind: EvidenceKind, date: Date) -> String {
