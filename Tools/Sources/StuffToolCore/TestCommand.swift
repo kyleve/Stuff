@@ -1,6 +1,4 @@
 import ArgumentParser
-import Darwin
-import Foundation
 
 public struct TestCommand: AsyncParsableCommand {
     public static let configuration = CommandConfiguration(
@@ -112,70 +110,11 @@ public struct TestCommand: AsyncParsableCommand {
     }
 
     public mutating func run() async throws {
-        let terminal = StandardTerminal()
-        let environment = ProcessInfo.processInfo.environment
-        let repository = environment["STUFF_REPOSITORY_ROOT"]
-            .map { URL(filePath: $0, directoryHint: .isDirectory) }
-            ?? URL(
-                filePath: FileManager.default.currentDirectoryPath,
-                directoryHint: .isDirectory,
-            )
-        let runner = CommandRunner()
-        let fileSystem = FoundationFileSystem()
-        let clock = ContinuousToolClock()
-        let directories = ToolDirectories(
-            environment: environment,
-            homeFallback: FileManager.default.homeDirectoryForCurrentUser,
-            temporaryFallback: FileManager.default.temporaryDirectory,
-        )
-        let simulator = SimulatorService(
-            runner: runner,
-            fileSystem: fileSystem,
-            clock: clock,
-            processInspector: SystemProcessInspector(),
-            terminal: StandardErrorOnlyTerminal(base: terminal),
-            repository: repository,
-            home: directories.home,
-            temporaryDirectory: directories.temporary,
-            processID: getpid(),
-        )
-        let service = TestService(
-            runner: runner,
-            simulator: simulator,
-            fileSystem: fileSystem,
-            clock: clock,
-            terminal: terminal,
-            repository: repository,
-            temporaryDirectory: directories.temporary,
-            environment: environment,
-        )
-        do {
-            let status = try await service.run(makeRequest())
-            if status != 0 { throw ExitCode(status) }
-        } catch let failure as TestServiceFailure {
-            switch failure {
-                case let .message(message):
-                    try await terminal.write("error: \(message)\n", to: .standardError)
-                    throw ExitCode.failure
-                case let .exitCode(code):
-                    throw ExitCode(code)
-                case .reported:
-                    throw ExitCode.failure
-            }
-        } catch let failure as SimulatorFailure {
-            if case let .message(message) = failure {
-                try await terminal.write("error: \(message)\n", to: .standardError)
-            }
-            throw ExitCode(failure.exitStatus)
-        } catch let failure as DirectoryLockFailure {
-            try await terminal.write("error: \(failure)\n", to: .standardError)
-            throw ExitCode.failure
-        } catch let exitCode as ExitCode {
-            throw exitCode
-        } catch {
-            try await terminal.write("error: \(error)\n", to: .standardError)
-            throw ExitCode((error as? CommandLaunchFailure)?.exitStatus ?? 1)
+        let runtime = ToolRuntime()
+        let status = try await performPublicCommand(terminal: runtime.terminal) {
+            try await runtime.testService().run(makeRequest())
         }
+        if status != 0 { throw ExitCode(status) }
     }
 
     private var selectedScope: TestScope {

@@ -115,7 +115,7 @@ struct WhereInstallServiceTests {
         do {
             _ = try await missingTeam.run(WhereInstallRequest())
             Issue.record("expected missing team failure")
-        } catch let failure as WhereInstallFailure {
+        } catch let failure as ToolFailure {
             #expect(failure.description.contains("no Apple Developer team configured"))
         }
 
@@ -135,7 +135,7 @@ struct WhereInstallServiceTests {
         do {
             _ = try await buildFailure.run(WhereInstallRequest())
             Issue.record("expected build failure")
-        } catch let failure as WhereInstallFailure {
+        } catch let failure as ToolFailure {
             #expect(failure == .exitCode(65))
         }
     }
@@ -159,7 +159,7 @@ struct WhereInstallServiceTests {
         do {
             _ = try await service.run(WhereInstallRequest())
             Issue.record("expected signing-team lookup failure")
-        } catch let failure as WhereInstallFailure {
+        } catch let failure as ToolFailure {
             #expect(failure == .exitCode(78))
         }
 
@@ -201,7 +201,7 @@ struct WhereInstallServiceTests {
                 WhereInstallRequest(device: "UDID-A", launch: false),
             )
             Issue.record("expected EOF to cancel installation")
-        } catch let failure as WhereInstallFailure {
+        } catch let failure as ToolFailure {
             #expect(failure == .exitCode(1))
         }
 

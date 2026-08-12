@@ -1,5 +1,4 @@
 import ArgumentParser
-import Foundation
 
 public struct LedgerInstallCommand: AsyncParsableCommand {
     public static let configuration = CommandConfiguration(
@@ -24,61 +23,10 @@ public struct LedgerInstallCommand: AsyncParsableCommand {
     }
 
     public mutating func run() async throws {
-        let terminal = StandardTerminal()
-        let environment = ProcessInfo.processInfo.environment
-        let repository = environment["STUFF_REPOSITORY_ROOT"]
-            .map { URL(filePath: $0, directoryHint: .isDirectory) }
-            ?? URL(
-                filePath: FileManager.default.currentDirectoryPath,
-                directoryHint: .isDirectory,
-            )
-        let directories = ToolDirectories(
-            environment: environment,
-            homeFallback: FileManager.default.homeDirectoryForCurrentUser,
-            temporaryFallback: FileManager.default.temporaryDirectory,
-        )
-        let service = LedgerInstallService(
-            runner: CommandRunner(),
-            fileSystem: FoundationFileSystem(),
-            clock: ContinuousToolClock(),
-            terminal: terminal,
-            repository: repository,
-            applicationsDirectory: URL(filePath: "/Applications", directoryHint: .isDirectory),
-            temporaryDirectory: directories.temporary,
-            identifier: { UUID().uuidString },
-            terminationPolicy: ProcessTerminationPolicy(
-                graceChecks: 50,
-                forceChecks: 10,
-                interval: .milliseconds(100),
-            ),
-        )
-        do {
-            let status = try await service.run(makeRequest())
-            if status != 0 { throw ExitCode(status) }
-        } catch let failure as LedgerInstallFailure {
-            switch failure {
-                case let .message(message):
-                    try await terminal.write("error: \(message)\n", to: .standardError)
-                    throw ExitCode.failure
-                case let .exitCode(code):
-                    throw ExitCode(code)
-            }
-        } catch let failure as InstalledProcessFailure {
-            try await terminal.write("error: \(failure)\n", to: .standardError)
-            switch failure {
-                case .message:
-                    throw ExitCode.failure
-                case let .exitCode(code):
-                    throw ExitCode(code)
-            }
-        } catch let failure as FileReplacementTransactionFailure {
-            try await terminal.write("error: \(failure)\n", to: .standardError)
-            throw ExitCode.failure
-        } catch let exitCode as ExitCode {
-            throw exitCode
-        } catch {
-            try await terminal.write("error: \(error)\n", to: .standardError)
-            throw ExitCode((error as? CommandLaunchFailure)?.exitStatus ?? 1)
+        let runtime = ToolRuntime()
+        let status = try await performPublicCommand(terminal: runtime.terminal) {
+            try await runtime.ledgerInstallService().run(makeRequest())
         }
+        if status != 0 { throw ExitCode(status) }
     }
 }

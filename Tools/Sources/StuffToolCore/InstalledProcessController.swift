@@ -141,8 +141,7 @@ public struct InstalledProcessController: Sendable {
                 environment: [:],
                 workingDirectory: repository,
                 standardInput: [],
-                captureOutput: true,
-                mergeStandardError: false,
+                output: .captured,
             ),
         )
         guard result.succeeded else { throw InstalledProcessFailure.exitCode(result.exitCode) }
@@ -159,8 +158,7 @@ public struct InstalledProcessController: Sendable {
                 environment: [:],
                 workingDirectory: repository,
                 standardInput: [],
-                captureOutput: true,
-                mergeStandardError: false,
+                output: .captured,
             ),
         )
     }

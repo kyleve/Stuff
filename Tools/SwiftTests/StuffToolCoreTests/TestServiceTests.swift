@@ -83,8 +83,7 @@ struct TestServiceTests {
             "TEST_RUNNER_SNAPSHOT_DIFF": "1",
             "TEST_RUNNER_PACKAGE_RESOURCE_BUNDLE_PATH": "/tmp/Build/Products",
         ])
-        #expect(test.captureOutput == false)
-        #expect(test.mergeStandardError)
+        #expect(test.output == .merged)
         #expect(try String(
             decoding: Data(contentsOf: work.appending(path: "Stuff-iOS-Tests.log")),
             as: UTF8.self,
@@ -186,7 +185,7 @@ struct TestServiceTests {
                 TestRequest(scope: .bundles, bundles: ["CoreTests"]),
             )
             Issue.record("expected graph loading to fail")
-        } catch let failure as TestServiceFailure {
+        } catch let failure as ToolFailure {
             #expect(failure.description.contains("tuist graph failed"))
         }
 
@@ -296,7 +295,7 @@ struct TestServiceTests {
         do {
             _ = try await service.run(TestRequest(scope: .snapshots))
             Issue.record("expected the snapshot preflight to require Git LFS")
-        } catch let failure as TestServiceFailure {
+        } catch let failure as ToolFailure {
             #expect(failure.description.contains("require git-lfs"))
             #expect(failure.description.contains("./ide --bootstrap"))
         }
@@ -330,7 +329,7 @@ struct TestServiceTests {
         do {
             _ = try await service.run(TestRequest(scope: .snapshots))
             Issue.record("expected the snapshot preflight to reject a pointer")
-        } catch let failure as TestServiceFailure {
+        } catch let failure as ToolFailure {
             #expect(failure.description.contains("1 snapshot reference(s)"))
             #expect(failure.description.contains("card.dark.png"))
             #expect(failure.description.contains("git lfs pull"))

@@ -38,27 +38,6 @@ public struct SimulatorRequest: Equatable, Sendable {
     }
 }
 
-public enum SimulatorFailure: Error, Equatable, CustomStringConvertible, Sendable {
-    case message(String)
-    case exitCode(Int32)
-    case reported
-
-    public var description: String {
-        switch self {
-            case let .message(message): message
-            case let .exitCode(code): "simulator command exited with status \(code)"
-            case .reported: "simulator command failed"
-        }
-    }
-
-    public var exitStatus: Int32 {
-        switch self {
-            case .message, .reported: 1
-            case let .exitCode(code): code
-        }
-    }
-}
-
 public struct SimulatorService: Sendable {
     private struct Identity {
         let checkout: URL
@@ -169,18 +148,18 @@ public struct SimulatorService: Sendable {
 
     private func validate(_ request: SimulatorRequest) throws {
         guard request.device.isEmpty == false else {
-            throw SimulatorFailure.message("--device requires a value")
+            throw ToolFailure.message("--device requires a value")
         }
         guard request.os.isEmpty == false else {
-            throw SimulatorFailure.message("--os requires a value")
+            throw ToolFailure.message("--os requires a value")
         }
         if request.shared, request.mode != .resolve {
-            throw SimulatorFailure.message(
+            throw ToolFailure.message(
                 "--shared has no checkout of its own to \(request.mode.rawValue) (see ./simulator --help)",
             )
         }
         if request.dryRun, [.prune, .delete, .recreate].contains(request.mode) == false {
-            throw SimulatorFailure.message(
+            throw ToolFailure.message(
                 "--dry-run only applies to --prune, --delete, or --recreate (see ./simulator --help)",
             )
         }
@@ -194,8 +173,7 @@ public struct SimulatorService: Sendable {
                 environment: [:],
                 workingDirectory: repository,
                 standardInput: [],
-                captureOutput: true,
-                mergeStandardError: false,
+                output: .captured,
             ),
         )
         let path = result.standardOutputText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -283,7 +261,7 @@ public struct SimulatorService: Sendable {
             )
             try await terminal.write("Available devices:\n", to: .standardError)
             try await runDiagnostic(["simctl", "list", "devices", "available"])
-            throw SimulatorFailure.reported
+            throw ToolFailure.reported
         }
         return try await finishResolution(
             request: request,
@@ -310,7 +288,7 @@ public struct SimulatorService: Sendable {
             SimulatorSelection.select(devices)
         }
         guard case let .selected(udid, ambiguousCount) = selection else {
-            throw SimulatorFailure.message("could not resolve \(identity.ownedName)")
+            throw ToolFailure.message("could not resolve \(identity.ownedName)")
         }
         try registry.write(
             name: identity.ownedName,
@@ -369,7 +347,7 @@ public struct SimulatorService: Sendable {
                 to: .standardError,
             )
             try await runDiagnostic(["simctl", "list", "devicetypes"])
-            throw SimulatorFailure.reported
+            throw ToolFailure.reported
         }
 
         let runtimes: SimctlRuntimes = try await decodeCommand([
@@ -386,7 +364,7 @@ public struct SimulatorService: Sendable {
                 to: .standardError,
             )
             try await runDiagnostic(["simctl", "list", "runtimes"])
-            throw SimulatorFailure.reported
+            throw ToolFailure.reported
         }
 
         try await terminal.write(
@@ -402,7 +380,7 @@ public struct SimulatorService: Sendable {
         ])
         let udid = result.standardOutputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard udid.isEmpty == false else {
-            throw SimulatorFailure.message(
+            throw ToolFailure.message(
                 "simctl create returned no UDID for '\(identity.ownedName)'.",
             )
         }
@@ -589,7 +567,7 @@ public struct SimulatorService: Sendable {
         do {
             return try decoder.decode(Value.self, from: Data(result.standardOutput))
         } catch {
-            throw SimulatorFailure.message(
+            throw ToolFailure.message(
                 "could not decode `xcrun \(arguments.joined(separator: " "))` JSON: \(error)",
             )
         }
@@ -603,13 +581,12 @@ public struct SimulatorService: Sendable {
                 environment: [:],
                 workingDirectory: repository,
                 standardInput: [],
-                captureOutput: true,
-                mergeStandardError: false,
+                output: .captured,
             ),
         )
         guard result.succeeded else {
             try await terminal.write(result.standardError, to: .standardError)
-            throw SimulatorFailure.exitCode(result.exitCode)
+            throw ToolFailure.exitCode(result.exitCode)
         }
         return result
     }
@@ -622,8 +599,7 @@ public struct SimulatorService: Sendable {
                 environment: [:],
                 workingDirectory: repository,
                 standardInput: [],
-                captureOutput: true,
-                mergeStandardError: false,
+                output: .captured,
             ),
         )
         try await terminal.write(result.standardOutput, to: .standardError)
@@ -638,14 +614,13 @@ public struct SimulatorService: Sendable {
                 environment: [:],
                 workingDirectory: repository,
                 standardInput: [],
-                captureOutput: true,
-                mergeStandardError: false,
+                output: .captured,
             ),
             outputHandler: { _, bytes in
                 try await terminal.write(bytes, to: .standardError)
             },
         )
-        guard result.succeeded else { throw SimulatorFailure.exitCode(result.exitCode) }
+        guard result.succeeded else { throw ToolFailure.exitCode(result.exitCode) }
     }
 }
 
@@ -661,7 +636,7 @@ extension SimulatorService: SimulatorResolving {
                 mode: .resolve,
             ),
         ) else {
-            throw SimulatorFailure.message("simulator resolution returned no UDID")
+            throw ToolFailure.message("simulator resolution returned no UDID")
         }
         return udid
     }

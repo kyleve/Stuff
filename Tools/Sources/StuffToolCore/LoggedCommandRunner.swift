@@ -13,13 +13,15 @@ public struct LoggedCommandRunner: Sendable {
     public func run(
         _ invocation: CommandInvocation,
         logURL: URL,
+        outputHandler: CommandOutputHandler?,
     ) async throws -> CommandResult {
         let writer = try CommandLogWriter(url: logURL, fileSystem: fileSystem)
         do {
             let result = try await runner.run(
                 invocation,
-                outputHandler: { _, bytes in
+                outputHandler: { stream, bytes in
                     try await writer.append(bytes)
+                    try await outputHandler?(stream, bytes)
                 },
             )
             try await writer.finish()

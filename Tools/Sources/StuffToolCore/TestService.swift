@@ -50,20 +50,6 @@ public struct TestRequest: Equatable, Sendable {
     }
 }
 
-public enum TestServiceFailure: Error, Equatable, CustomStringConvertible, Sendable {
-    case message(String)
-    case exitCode(Int32)
-    case reported
-
-    public var description: String {
-        switch self {
-            case let .message(message): message
-            case let .exitCode(code): "test prerequisite exited with status \(code)"
-            case .reported: "test command failed"
-        }
-    }
-}
-
 /// Owns the complete host-side orchestration behind the public `./test` command.
 public struct TestService: Sendable {
     private static let workspace = "Stuff.xcworkspace"
@@ -77,6 +63,7 @@ public struct TestService: Sendable {
     private let repository: URL
     private let temporaryDirectory: URL
     private let environment: [String: String]
+    private let xcodeWorkspace: XcodeWorkspace
 
     public init(
         runner: any CommandRunning,
@@ -96,6 +83,12 @@ public struct TestService: Sendable {
         self.repository = repository
         self.temporaryDirectory = temporaryDirectory
         self.environment = environment
+        xcodeWorkspace = XcodeWorkspace(
+            runner: runner,
+            fileSystem: fileSystem,
+            repository: repository,
+            workspace: Self.workspace,
+        )
     }
 
     public func run(_ request: TestRequest) async throws -> Int32 {
@@ -112,12 +105,11 @@ public struct TestService: Sendable {
                 environment: [:],
                 workingDirectory: repository,
                 standardInput: [],
-                captureOutput: false,
-                mergeStandardError: false,
+                output: .streamed,
             ),
         )
         guard backupResult.succeeded else {
-            throw TestServiceFailure.exitCode(backupResult.exitCode)
+            throw ToolFailure.exitCode(backupResult.exitCode)
         }
 
         let workDirectory = try makeWorkDirectory()
@@ -139,7 +131,7 @@ public struct TestService: Sendable {
         let graph = needsGraph ? try await loadRepositoryGraph(in: workDirectory) : nil
         if request.scope == .changed {
             guard let graph else {
-                throw TestServiceFailure.message("could not load the repository graph")
+                throw ToolFailure.message("could not load the repository graph")
             }
             bundles = graph.affectedBundles(changedPaths: changedPaths)
             guard bundles.isEmpty == false else {
@@ -167,7 +159,7 @@ public struct TestService: Sendable {
                 graph: graph,
             )
         } catch let failure as TestRunPlanFailure {
-            throw TestServiceFailure.message(failure.description)
+            throw ToolFailure.message(failure.description)
         }
         if plan.includesSnapshots {
             try await requireHydratedSnapshotReferences()
@@ -258,8 +250,7 @@ public struct TestService: Sendable {
                         environment: runEnvironment,
                         workingDirectory: repository,
                         standardInput: [],
-                        captureOutput: false,
-                        mergeStandardError: true,
+                        output: .merged,
                     ),
                     outputHandler: { stream, bytes in
                         try await reporter.consume(stream, bytes: bytes)
@@ -325,8 +316,7 @@ public struct TestService: Sendable {
                 environment: [:],
                 workingDirectory: repository,
                 standardInput: [],
-                captureOutput: true,
-                mergeStandardError: false,
+                output: .captured,
             ),
         )
         let base: String
@@ -338,12 +328,11 @@ public struct TestService: Sendable {
                     environment: [:],
                     workingDirectory: repository,
                     standardInput: [],
-                    captureOutput: true,
-                    mergeStandardError: false,
+                    output: .captured,
                 ),
             )
             guard mergeBase.succeeded else {
-                throw TestServiceFailure.message(
+                throw ToolFailure.message(
                     "git merge-base failed for '\(baseReference)': " +
                         mergeBase.standardErrorText.trimmingCharacters(in: .whitespacesAndNewlines),
                 )
@@ -370,12 +359,11 @@ public struct TestService: Sendable {
                     environment: [:],
                     workingDirectory: repository,
                     standardInput: [],
-                    captureOutput: true,
-                    mergeStandardError: false,
+                    output: .captured,
                 ),
             )
             guard result.succeeded else {
-                throw TestServiceFailure.message(
+                throw ToolFailure.message(
                     "git \(arguments.joined(separator: " ")) failed: " +
                         result.standardErrorText.trimmingCharacters(in: .whitespacesAndNewlines),
                 )
@@ -414,12 +402,11 @@ public struct TestService: Sendable {
                 environment: [:],
                 workingDirectory: repository,
                 standardInput: [],
-                captureOutput: true,
-                mergeStandardError: false,
+                output: .captured,
             ),
         )
         guard graphResult.succeeded else {
-            throw TestServiceFailure.message(
+            throw ToolFailure.message(
                 "tuist graph failed: " + graphResult.standardErrorText
                     .trimmingCharacters(in: .whitespacesAndNewlines),
             )
@@ -431,12 +418,11 @@ public struct TestService: Sendable {
                 environment: [:],
                 workingDirectory: repository,
                 standardInput: [],
-                captureOutput: true,
-                mergeStandardError: false,
+                output: .captured,
             ),
         )
         guard packageResult.succeeded else {
-            throw TestServiceFailure.message(
+            throw ToolFailure.message(
                 "swift package dump-package failed: " + packageResult.standardErrorText
                     .trimmingCharacters(in: .whitespacesAndNewlines),
             )
@@ -448,7 +434,7 @@ public struct TestService: Sendable {
                 repository: repository,
             )
         } catch {
-            throw TestServiceFailure.message("could not read the Tuist graph: \(error)")
+            throw ToolFailure.message("could not read the Tuist graph: \(error)")
         }
     }
 
@@ -458,17 +444,9 @@ public struct TestService: Sendable {
             to: .standardOutput,
         )
         let logURL = workDirectory.appending(path: "generate.log")
-        let result = try await runLogged(
-            CommandInvocation(
-                executable: "mise",
-                arguments: ["exec", "--", "tuist", "generate", "--no-open"],
-                environment: [:],
-                workingDirectory: repository,
-                standardInput: [],
-                captureOutput: false,
-                mergeStandardError: true,
-            ),
+        let result = try await xcodeWorkspace.generateProject(
             logURL: logURL,
+            outputHandler: nil,
         )
         guard result.succeeded else {
             try await printLogFailure(
@@ -476,7 +454,7 @@ public struct TestService: Sendable {
                 logURL: logURL,
                 tailLines: 20,
             )
-            throw TestServiceFailure.reported
+            throw ToolFailure.reported
         }
     }
 
@@ -490,17 +468,16 @@ public struct TestService: Sendable {
                     environment: [:],
                     workingDirectory: repository,
                     standardInput: [],
-                    captureOutput: true,
-                    mergeStandardError: false,
+                    output: .captured,
                 ),
             )
         } catch {
-            throw TestServiceFailure.message(
+            throw ToolFailure.message(
                 "snapshot tests require git-lfs; run ./ide --bootstrap.",
             )
         }
         guard version.succeeded else {
-            throw TestServiceFailure.message(
+            throw ToolFailure.message(
                 "snapshot tests require git-lfs; run ./ide --bootstrap.",
             )
         }
@@ -512,12 +489,11 @@ public struct TestService: Sendable {
                 environment: [:],
                 workingDirectory: repository,
                 standardInput: [],
-                captureOutput: true,
-                mergeStandardError: false,
+                output: .captured,
             ),
         )
         guard listing.succeeded else {
-            throw TestServiceFailure.message(
+            throw ToolFailure.message(
                 "could not inspect Git LFS snapshot references.",
             )
         }
@@ -528,7 +504,7 @@ public struct TestService: Sendable {
                 from: Data(listing.standardOutput),
             )
         } catch {
-            throw TestServiceFailure.message(
+            throw ToolFailure.message(
                 "could not inspect Git LFS snapshot references: \(error)",
             )
         }
@@ -545,7 +521,7 @@ public struct TestService: Sendable {
             if unresolved.count > 5 {
                 lines.append("         … and \(unresolved.count - 5) more")
             }
-            throw TestServiceFailure.message(lines.joined(separator: "\n"))
+            throw ToolFailure.message(lines.joined(separator: "\n"))
         }
     }
 
@@ -553,33 +529,11 @@ public struct TestService: Sendable {
         scheme: String,
         destination: String,
     ) async throws -> String? {
-        let result = try await runner.run(
-            CommandInvocation(
-                executable: "xcodebuild",
-                arguments: [
-                    "-showBuildSettings",
-                    "-workspace",
-                    Self.workspace,
-                    "-scheme",
-                    scheme,
-                    "-destination",
-                    destination,
-                ],
-                environment: [:],
-                workingDirectory: repository,
-                standardInput: [],
-                captureOutput: true,
-                mergeStandardError: false,
-            ),
+        try await xcodeWorkspace.builtProductsDirectory(
+            scheme: scheme,
+            destination: destination,
+            derivedData: nil,
         )
-        guard result.succeeded else { return nil }
-        let marker = " BUILT_PRODUCTS_DIR = "
-        for line in result.standardOutputText.split(separator: "\n") {
-            guard let range = line.range(of: marker) else { continue }
-            let value = line[range.upperBound...].trimmingCharacters(in: .whitespaces)
-            if value.isEmpty == false { return value }
-        }
-        return nil
     }
 
     private func build(
@@ -589,24 +543,17 @@ public struct TestService: Sendable {
     ) async throws {
         try await terminal.write("==> Building \(scheme) for testing\n", to: .standardOutput)
         let logURL = workDirectory.appending(path: "\(scheme)-build.log")
-        let result = try await runLogged(
-            CommandInvocation(
-                executable: "xcodebuild",
-                arguments: [
-                    "build-for-testing",
-                    "-workspace",
-                    Self.workspace,
-                    "-scheme",
-                    scheme,
-                    "-destination",
-                    destination,
-                ],
-                environment: [:],
-                workingDirectory: repository,
-                standardInput: [],
-                captureOutput: false,
-                mergeStandardError: true,
-            ),
+        let result = try await xcodeWorkspace.xcodebuild(
+            [
+                "build-for-testing",
+                "-workspace",
+                Self.workspace,
+                "-scheme",
+                scheme,
+                "-destination",
+                destination,
+            ],
+            environment: [:],
             logURL: logURL,
         )
         guard result.succeeded else {
@@ -615,7 +562,7 @@ public struct TestService: Sendable {
                 logURL: logURL,
                 tailLines: 30,
             )
-            throw TestServiceFailure.reported
+            throw ToolFailure.reported
         }
     }
 
@@ -730,34 +677,17 @@ public struct TestService: Sendable {
             "error: \(message). Tail of \(logURL.path):\n",
             to: .standardError,
         )
-        let data: Data
         do {
-            data = try fileSystem.read(logURL)
+            let tail = try xcodeWorkspace.logTail(at: logURL, lines: tailLines)
+            if tail.isEmpty == false {
+                try await terminal.write(tail + "\n", to: .standardError)
+            }
         } catch {
             try await terminal.write(
                 "warning: could not read \(logURL.path): \(error)\n",
                 to: .standardError,
             )
-            return
         }
-        let lines = String(decoding: data, as: UTF8.self).split(
-            separator: "\n",
-            omittingEmptySubsequences: false,
-        )
-        let tail = lines.suffix(tailLines).joined(separator: "\n")
-        if tail.isEmpty == false {
-            try await terminal.write(tail + "\n", to: .standardError)
-        }
-    }
-
-    private func runLogged(
-        _ invocation: CommandInvocation,
-        logURL: URL,
-    ) async throws -> CommandResult {
-        try await LoggedCommandRunner(
-            runner: runner,
-            fileSystem: fileSystem,
-        ).run(invocation, logURL: logURL)
     }
 
     private func runForwarding(_ invocation: CommandInvocation) async throws -> CommandResult {

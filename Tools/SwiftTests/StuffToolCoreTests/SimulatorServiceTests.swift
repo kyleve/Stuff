@@ -92,7 +92,7 @@ struct SimulatorServiceTests {
                 ),
             )
             Issue.record("expected creation to fail")
-        } catch SimulatorFailure.exitCode(23) {
+        } catch ToolFailure.exitCode(23) {
             // Expected.
         }
 
@@ -275,7 +275,7 @@ struct SimulatorServiceTests {
                 ),
             )
             Issue.record("expected booting to fail")
-        } catch SimulatorFailure.exitCode(42) {
+        } catch ToolFailure.exitCode(42) {
             // Expected.
         }
 

@@ -1,9 +1,21 @@
-import CryptoKit
 import Foundation
 
+public enum ProfileScope: Equatable, Sendable {
+    case build
+    case tests
+    case all
+
+    var includesBuild: Bool {
+        self != .tests
+    }
+
+    var includesTests: Bool {
+        self != .build
+    }
+}
+
 public struct ProfileRequest: Equatable, Sendable {
-    public let build: Bool
-    public let tests: Bool
+    public let scope: ProfileScope
     public let snapshots: Bool
     public let ciShape: Bool
     public let device: String
@@ -13,18 +25,16 @@ public struct ProfileRequest: Equatable, Sendable {
     public let typeCheckThreshold: Int
 
     public init(
-        build: Bool = true,
-        tests: Bool = true,
-        snapshots: Bool = true,
-        ciShape: Bool = false,
-        device: String = "iPhone 17",
-        os: String = "27.0",
-        top: Int = 15,
-        testThreshold: Double = 0.1,
-        typeCheckThreshold: Int = 100,
+        scope: ProfileScope,
+        snapshots: Bool,
+        ciShape: Bool,
+        device: String,
+        os: String,
+        top: Int,
+        testThreshold: Double,
+        typeCheckThreshold: Int,
     ) {
-        self.build = build
-        self.tests = tests
+        self.scope = scope
         self.snapshots = snapshots
         self.ciShape = ciShape
         self.device = device
@@ -32,18 +42,6 @@ public struct ProfileRequest: Equatable, Sendable {
         self.top = top
         self.testThreshold = testThreshold
         self.typeCheckThreshold = typeCheckThreshold
-    }
-}
-
-public enum ProfileServiceFailure: Error, Equatable, CustomStringConvertible, Sendable {
-    case message(String)
-    case exitCode(Int32)
-
-    public var description: String {
-        switch self {
-            case let .message(message): message
-            case let .exitCode(code): "profile command exited with status \(code)"
-        }
     }
 }
 
@@ -58,6 +56,7 @@ public struct ProfileService: Sendable {
         let work: URL
         let derived: URL
         let snapshotDerived: URL
+        let generationLog: URL
         let buildLog: URL
         let testLog: URL
         let resultBundle: URL
@@ -88,6 +87,7 @@ public struct ProfileService: Sendable {
     private let repository: URL
     private let temporaryDirectory: URL
     private let environment: [String: String]
+    private let xcodeWorkspace: XcodeWorkspace
 
     public init(
         runner: any CommandRunning,
@@ -107,6 +107,12 @@ public struct ProfileService: Sendable {
         self.repository = repository
         self.temporaryDirectory = temporaryDirectory
         self.environment = environment
+        xcodeWorkspace = XcodeWorkspace(
+            runner: runner,
+            fileSystem: fileSystem,
+            repository: repository,
+            workspace: Self.workspace,
+        )
     }
 
     public func run(_ request: ProfileRequest) async throws -> Int32 {
@@ -129,16 +135,8 @@ public struct ProfileService: Sendable {
             to: .standardOutput,
         )
         let generationStart = await clock.now()
-        let generation = try await runner.run(
-            CommandInvocation(
-                executable: "mise",
-                arguments: ["exec", "--", "tuist", "generate", "--no-open"],
-                environment: [:],
-                workingDirectory: repository,
-                standardInput: [],
-                captureOutput: false,
-                mergeStandardError: false,
-            ),
+        let generation = try await xcodeWorkspace.generateProject(
+            logURL: paths.generationLog,
             outputHandler: { stream, bytes in
                 if stream == .standardError {
                     try await terminal.write(bytes, to: .standardError)
@@ -147,12 +145,12 @@ public struct ProfileService: Sendable {
         )
         walls.generation = await elapsedSeconds(since: generationStart)
         guard generation.succeeded else {
-            throw ProfileServiceFailure.exitCode(generation.exitCode)
+            throw ToolFailure.exitCode(generation.exitCode)
         }
 
         var unitEnvironment: [String: String] = [:]
         let unitSettingsStart = await clock.now()
-        if let products = try await builtProductsDirectory(
+        if let products = try await xcodeWorkspace.builtProductsDirectory(
             scheme: Self.unitScheme,
             destination: destination,
             derivedData: paths.derived,
@@ -168,9 +166,9 @@ public struct ProfileService: Sendable {
         walls.unitBuildSettings = await elapsedSeconds(since: unitSettingsStart)
 
         var snapshotEnvironment = ["TEST_RUNNER_SNAPSHOT_TIMING": "1"]
-        if request.tests, request.snapshots {
+        if request.scope.includesTests, request.snapshots {
             let settingsStart = await clock.now()
-            if let products = try await builtProductsDirectory(
+            if let products = try await xcodeWorkspace.builtProductsDirectory(
                 scheme: Self.snapshotScheme,
                 destination: destination,
                 derivedData: paths.snapshotDerived,
@@ -186,14 +184,14 @@ public struct ProfileService: Sendable {
             walls.snapshotBuildSettings = await elapsedSeconds(since: settingsStart)
         }
 
-        if request.build {
+        if request.scope.includesBuild {
             try await terminal.write(
                 "==> Clean build-for-testing on \(request.device) / iOS \(request.os) (cold build)\n",
                 to: .standardOutput,
             )
             let start = await clock.now()
-            let result = try await runLogged(
-                arguments: [
+            let result = try await xcodeWorkspace.xcodebuild(
+                [
                     "clean",
                     "build-for-testing",
                     "-workspace",
@@ -217,7 +215,7 @@ public struct ProfileService: Sendable {
                     logURL: paths.buildLog,
                     tailLines: 30,
                 )
-                throw ProfileServiceFailure.exitCode(result.exitCode)
+                throw ToolFailure.exitCode(result.exitCode)
             }
             try await printSection(
                 "BUILD HOT SPOTS  —  cold build wall: \(walls.build ?? 0)s",
@@ -241,9 +239,9 @@ public struct ProfileService: Sendable {
         var catalogs: [XCResultTestCatalog] = []
         var unitWallLabel = ""
         var snapshotBuildLabel: String?
-        if request.tests {
+        if request.scope.includesTests {
             let unitAction: String
-            if request.build {
+            if request.scope.includesBuild {
                 unitAction = "test-without-building"
                 unitWallLabel = "test-execution wall"
                 try await terminal.write(
@@ -258,10 +256,10 @@ public struct ProfileService: Sendable {
                     to: .standardOutput,
                 )
             }
-            try removeIfPresent(paths.resultBundle)
+            try xcodeWorkspace.removeIfPresent(paths.resultBundle)
             let start = await clock.now()
-            let result = try await runLogged(
-                arguments: [
+            let result = try await xcodeWorkspace.xcodebuild(
+                [
                     unitAction,
                     "-workspace",
                     Self.workspace,
@@ -273,6 +271,8 @@ public struct ProfileService: Sendable {
                     paths.derived.path,
                     "-resultBundlePath",
                     paths.resultBundle.path,
+                    "-collect-test-diagnostics",
+                    "never",
                 ],
                 environment: unitEnvironment,
                 logURL: paths.testLog,
@@ -284,7 +284,7 @@ public struct ProfileService: Sendable {
                     logURL: paths.testLog,
                     tailLines: 40,
                 )
-                throw ProfileServiceFailure.exitCode(result.exitCode)
+                throw ToolFailure.exitCode(result.exitCode)
             }
             if let catalog = try await readCatalog(
                 resultBundle: paths.resultBundle,
@@ -294,7 +294,7 @@ public struct ProfileService: Sendable {
             }
 
             if request.snapshots {
-                if request.build {
+                if request.scope.includesBuild {
                     let buildArguments: [String]
                     if request.ciShape {
                         buildArguments = ["clean", "build-for-testing"]
@@ -309,8 +309,8 @@ public struct ProfileService: Sendable {
                         to: .standardOutput,
                     )
                     let snapshotBuildStart = await clock.now()
-                    let snapshotBuild = try await runLogged(
-                        arguments: buildArguments + [
+                    let snapshotBuild = try await xcodeWorkspace.xcodebuild(
+                        buildArguments + [
                             "-workspace",
                             Self.workspace,
                             "-scheme",
@@ -332,7 +332,7 @@ public struct ProfileService: Sendable {
                             logURL: paths.snapshotBuildLog,
                             tailLines: 30,
                         )
-                        throw ProfileServiceFailure.exitCode(snapshotBuild.exitCode)
+                        throw ToolFailure.exitCode(snapshotBuild.exitCode)
                     }
                     try await terminal.write(
                         "    snapshot build (\(snapshotBuildLabel ?? "")): " +
@@ -351,11 +351,11 @@ public struct ProfileService: Sendable {
                         to: .standardOutput,
                     )
                 }
-                try removeIfPresent(paths.snapshotResultBundle)
+                try xcodeWorkspace.removeIfPresent(paths.snapshotResultBundle)
                 let snapshotStart = await clock.now()
-                let snapshotResult = try await runLogged(
-                    arguments: [
-                        request.build ? "test-without-building" : "test",
+                let snapshotResult = try await xcodeWorkspace.xcodebuild(
+                    [
+                        request.scope.includesBuild ? "test-without-building" : "test",
                         "-workspace",
                         Self.workspace,
                         "-scheme",
@@ -366,6 +366,8 @@ public struct ProfileService: Sendable {
                         paths.snapshotDerived.path,
                         "-resultBundlePath",
                         paths.snapshotResultBundle.path,
+                        "-collect-test-diagnostics",
+                        "never",
                     ],
                     environment: snapshotEnvironment,
                     logURL: paths.snapshotTestLog,
@@ -384,7 +386,7 @@ public struct ProfileService: Sendable {
                             "rerun with --no-snapshots to profile without it.\n",
                         to: .standardError,
                     )
-                    throw ProfileServiceFailure.exitCode(snapshotResult.exitCode)
+                    throw ToolFailure.exitCode(snapshotResult.exitCode)
                 }
                 if let catalog = try await readCatalog(
                     resultBundle: paths.snapshotResultBundle,
@@ -426,16 +428,11 @@ public struct ProfileService: Sendable {
     }
 
     private func makePaths(ciShape: Bool) throws -> Paths {
-        let canonicalRepository = repository.resolvingSymlinksInPath()
-        let digest = SHA256.hash(data: Data(canonicalRepository.path.utf8))
-            .prefix(6)
-            .map { String(format: "%02x", $0) }
-            .joined()
         let configured = environment["PROFILE_WORKDIR"].flatMap { path in
             path.isEmpty ? nil : resolveUserPath(path)
         }
         let work = configured ?? temporaryDirectory.appending(
-            path: "where-profile-\(digest)",
+            path: "where-profile-\(xcodeWorkspace.checkoutIdentifier)",
             directoryHint: .isDirectory,
         )
         try fileSystem.createDirectory(at: work, withIntermediateDirectories: true)
@@ -447,6 +444,7 @@ public struct ProfileService: Sendable {
             snapshotDerived: ciShape
                 ? work.appending(path: "SnapshotDerivedData", directoryHint: .isDirectory)
                 : derived,
+            generationLog: work.appending(path: "generate.log"),
             buildLog: work.appending(path: "build.log"),
             testLog: work.appending(path: "test.log"),
             resultBundle: work.appending(path: "tests.xcresult", directoryHint: .isDirectory),
@@ -462,78 +460,17 @@ public struct ProfileService: Sendable {
         )
     }
 
-    private func builtProductsDirectory(
-        scheme: String,
-        destination: String,
-        derivedData: URL,
-    ) async throws -> String? {
-        let result = try await runner.run(
-            CommandInvocation(
-                executable: "xcodebuild",
-                arguments: [
-                    "-showBuildSettings",
-                    "-workspace",
-                    Self.workspace,
-                    "-scheme",
-                    scheme,
-                    "-destination",
-                    destination,
-                    "-derivedDataPath",
-                    derivedData.path,
-                ],
-                environment: [:],
-                workingDirectory: repository,
-                standardInput: [],
-                captureOutput: true,
-                mergeStandardError: false,
-            ),
-        )
-        guard result.succeeded else { return nil }
-        let marker = " BUILT_PRODUCTS_DIR = "
-        for line in result.standardOutputText.split(separator: "\n") {
-            guard let range = line.range(of: marker) else { continue }
-            let value = line[range.upperBound...].trimmingCharacters(in: .whitespaces)
-            if value.isEmpty == false { return value }
-        }
-        return nil
-    }
-
-    private func runLogged(
-        arguments: [String],
-        environment: [String: String],
-        logURL: URL,
-    ) async throws -> CommandResult {
-        try await LoggedCommandRunner(runner: runner, fileSystem: fileSystem).run(
-            CommandInvocation(
-                executable: "xcodebuild",
-                arguments: arguments,
-                environment: environment,
-                workingDirectory: repository,
-                standardInput: [],
-                captureOutput: false,
-                mergeStandardError: true,
-            ),
-            logURL: logURL,
-        )
-    }
-
     private func readCatalog(resultBundle: URL, output: URL) async throws -> XCResultTestCatalog? {
-        let data: Data
         do {
-            data = try await XCResultTool(runner: runner, repository: repository)
-                .testsData(at: resultBundle)
-        } catch {
-            throw ProfileServiceFailure.message(String(describing: error))
-        }
-        try fileSystem.write(data, to: output, atomically: false)
-        do {
-            return try JSONDecoder().decode(XCResultTestCatalog.self, from: data)
-        } catch {
+            return try await xcodeWorkspace.testCatalog(at: resultBundle, exportingTo: output)
+        } catch is DecodingError {
             try await terminal.write(
-                "warning: couldn't parse test results from \(output.path) (\(error))\n",
+                "warning: couldn't parse test results from \(output.path)\n",
                 to: .standardError,
             )
             return nil
+        } catch {
+            throw ToolFailure.message(String(describing: error))
         }
     }
 
@@ -588,7 +525,7 @@ public struct ProfileService: Sendable {
             "  unit build settings: \(walls.unitBuildSettings)s\n",
             to: .standardOutput,
         )
-        if request.tests, request.snapshots {
+        if request.scope.includesTests, request.snapshots {
             try await terminal.write(
                 "  snapshot build settings: \(walls.snapshotBuildSettings)s\n",
                 to: .standardOutput,
@@ -630,9 +567,7 @@ public struct ProfileService: Sendable {
             to: .standardError,
         )
         do {
-            let lines = try String(decoding: fileSystem.read(logURL), as: UTF8.self)
-                .split(separator: "\n", omittingEmptySubsequences: false)
-            let tail = lines.suffix(tailLines).joined(separator: "\n")
+            let tail = try xcodeWorkspace.logTail(at: logURL, lines: tailLines)
             if tail.isEmpty == false {
                 try await terminal.write(tail + "\n", to: .standardError)
             }
@@ -654,12 +589,6 @@ public struct ProfileService: Sendable {
                 )
             },
         )
-    }
-
-    private func removeIfPresent(_ url: URL) throws {
-        if fileSystem.kind(of: url) != .missing {
-            try fileSystem.removeItem(at: url)
-        }
     }
 
     private func elapsedSeconds(since start: TimeInterval) async -> Int {

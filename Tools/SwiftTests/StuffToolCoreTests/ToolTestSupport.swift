@@ -185,6 +185,26 @@ func removeTemporaryDirectory(_ directory: URL) {
     try? FileManager.default.removeItem(at: directory)
 }
 
+let testRepositoryRoot = URL(filePath: #filePath)
+    .deletingLastPathComponent()
+    .deletingLastPathComponent()
+    .deletingLastPathComponent()
+    .deletingLastPathComponent()
+
+let prebuiltStuffExecutable: URL = {
+    var directory = Bundle.module.bundleURL
+    repeat {
+        let candidate = directory.appending(path: "stuff")
+        if FileManager.default.isExecutableFile(atPath: candidate.path) {
+            return candidate
+        }
+        let parent = directory.deletingLastPathComponent()
+        guard parent != directory else { break }
+        directory = parent
+    } while true
+    return Bundle.module.bundleURL.appending(path: "stuff")
+}()
+
 func fixtureData(_ name: String, extension fileExtension: String) throws -> Data {
     let url = try #require(
         Bundle.module.url(

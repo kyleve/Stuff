@@ -1,5 +1,6 @@
+import ArgumentParser
 import Foundation
-import StuffToolCore
+@testable import StuffToolCore
 import Subprocess
 import Testing
 
@@ -114,6 +115,38 @@ struct PublicCommandTests {
             #expect(PublicCommand(rawValue: command.rawValue) == command)
             #expect(command.commandType.configuration.commandName == command.publicPath)
         }
+    }
+
+    @Test func publicExecutionReportsMessagesAndPreservesTheirStatus() async {
+        let terminal = MemoryTerminal()
+
+        do {
+            let _: Void = try await performPublicCommand(terminal: terminal) {
+                throw ToolFailure.message("actionable failure")
+            }
+            Issue.record("expected command failure")
+        } catch let exitCode as ExitCode {
+            #expect(exitCode.rawValue == 1)
+        } catch {
+            Issue.record("unexpected error: \(error)")
+        }
+        #expect(await terminal.standardErrorText == "error: actionable failure\n")
+    }
+
+    @Test func publicExecutionDoesNotRelabelAChildExit() async {
+        let terminal = MemoryTerminal()
+
+        do {
+            let _: Void = try await performPublicCommand(terminal: terminal) {
+                throw ToolFailure.exitCode(23)
+            }
+            Issue.record("expected command failure")
+        } catch let exitCode as ExitCode {
+            #expect(exitCode.rawValue == 23)
+        } catch {
+            Issue.record("unexpected error: \(error)")
+        }
+        #expect(await terminal.standardErrorText.isEmpty)
     }
 }
 

@@ -1,16 +1,16 @@
 import Foundation
 
 /// Aggregates per-case durations from one or more disjoint test-scheme catalogs.
-public struct TestHotSpotReport: Equatable, Sendable {
-    public let cases: [XCResultTestCase]
+struct TestHotSpotReport: Equatable {
+    let cases: [XCResultTestCase]
 
-    public init(catalogs: [XCResultTestCatalog]) {
+    init(catalogs: [XCResultTestCatalog]) {
         cases = catalogs.flatMap(\.testCases).filter {
             $0.result.caseInsensitiveCompare("Skipped") != .orderedSame
         }
     }
 
-    public func text(top: Int, threshold: Double) -> String {
+    func text(top: Int, threshold: Double) -> String {
         let total = cases.reduce(0) { $0 + $1.durationInSeconds }
         var output = String(
             format: "%d tests, summed self-time %.2fs\n\n",

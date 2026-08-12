@@ -1,17 +1,10 @@
 import Foundation
 
-public struct FlakySuiteStat: Codable, Equatable, Sendable {
-    public let bundle: String
-    public let name: String
-    public let failures: Int
-    public let seen: Int
-
-    public init(bundle: String, name: String, failures: Int, seen: Int) {
-        self.bundle = bundle
-        self.name = name
-        self.failures = failures
-        self.seen = seen
-    }
+struct FlakySuiteStat: Codable, Equatable {
+    let bundle: String
+    let name: String
+    let failures: Int
+    let seen: Int
 
     private enum CodingKeys: String, CodingKey {
         case bundle
@@ -21,24 +14,19 @@ public struct FlakySuiteStat: Codable, Equatable, Sendable {
     }
 }
 
-public struct FlakyTightCounts: Equatable, Sendable {
-    public let failures: Int
-    public let total: Int
-
-    public init(failures: Int, total: Int) {
-        self.failures = failures
-        self.total = total
-    }
+struct FlakyTightCounts: Equatable {
+    let failures: Int
+    let total: Int
 }
 
-public struct FlakySuiteAnalysis: Equatable, Sendable {
-    public let stats: [String: FlakySuiteStat]
+struct FlakySuiteAnalysis: Equatable {
+    let stats: [String: FlakySuiteStat]
 
-    public init(stats: [String: FlakySuiteStat]) {
+    init(stats: [String: FlakySuiteStat]) {
         self.stats = stats
     }
 
-    public init(catalogs: [XCResultTestCatalog]) {
+    init(catalogs: [XCResultTestCatalog]) {
         var stats: [String: FlakySuiteStat] = [:]
         for testCase in catalogs.flatMap(\.testCases) {
             let current = stats[testCase.identifier] ?? FlakySuiteStat(
@@ -57,19 +45,19 @@ public struct FlakySuiteAnalysis: Equatable, Sendable {
         self.stats = stats
     }
 
-    public var suspects: [String] {
+    var suspects: [String] {
         stats.compactMap { identifier, stat in
             stat.failures > 0 ? identifier : nil
         }.sorted()
     }
 
-    public func encodedCounts() throws -> Data {
+    func encodedCounts() throws -> Data {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
         return try encoder.encode(stats)
     }
 
-    public static func tightCounts(
+    static func tightCounts(
         catalog: XCResultTestCatalog?,
         summary: XCResultSummary?,
     ) -> FlakyTightCounts {
@@ -96,73 +84,35 @@ public struct FlakySuiteAnalysis: Equatable, Sendable {
     }
 }
 
-public struct FlakyReportRow: Equatable, Sendable {
-    public let identifier: String
-    public let bundle: String
-    public let name: String
-    public let suiteFailures: Int
-    public let suiteRuns: Int
-    public let tightFailures: Int
-    public let tightTotal: Int
-    public let flakeRate: Double
+struct FlakyReportRow: Equatable {
+    let identifier: String
+    let bundle: String
+    let name: String
+    let suiteFailures: Int
+    let suiteRuns: Int
+    let tightFailures: Int
+    let tightTotal: Int
+    let flakeRate: Double
 
-    public init(
-        identifier: String,
-        bundle: String,
-        name: String,
-        suiteFailures: Int,
-        suiteRuns: Int,
-        tightFailures: Int,
-        tightTotal: Int,
-        flakeRate: Double,
-    ) {
-        self.identifier = identifier
-        self.bundle = bundle
-        self.name = name
-        self.suiteFailures = suiteFailures
-        self.suiteRuns = suiteRuns
-        self.tightFailures = tightFailures
-        self.tightTotal = tightTotal
-        self.flakeRate = flakeRate
-    }
-
-    public var tightCell: String {
+    var tightCell: String {
         tightTotal > 0 ? "\(tightFailures)/\(tightTotal)" : "n/a"
     }
 }
 
-public struct FlakyReportMetadata: Equatable, Sendable {
-    public let date: Date
-    public let suiteRuns: Int
-    public let iterations: Int
-    public let relaunch: String
-    public let device: String
-    public let os: String
-    public let top: Int?
-
-    public init(
-        date: Date,
-        suiteRuns: Int,
-        iterations: Int,
-        relaunch: String,
-        device: String,
-        os: String,
-        top: Int?,
-    ) {
-        self.date = date
-        self.suiteRuns = suiteRuns
-        self.iterations = iterations
-        self.relaunch = relaunch
-        self.device = device
-        self.os = os
-        self.top = top
-    }
+struct FlakyReportMetadata: Equatable {
+    let date: Date
+    let suiteRuns: Int
+    let iterations: Int
+    let relaunch: String
+    let device: String
+    let os: String
+    let top: Int?
 }
 
-public struct FlakyReport: Equatable, Sendable {
-    public let rows: [FlakyReportRow]
+struct FlakyReport: Equatable {
+    let rows: [FlakyReportRow]
 
-    public init(
+    init(
         suite: FlakySuiteAnalysis,
         tightCounts: [String: FlakyTightCounts],
         suiteRuns: Int,
@@ -196,7 +146,7 @@ public struct FlakyReport: Equatable, Sendable {
         }
     }
 
-    public func consoleText(top: Int?) -> String {
+    func consoleText(top: Int?) -> String {
         let shown = shownRows(top: top)
         guard shown.isEmpty == false else { return "No flaky tests detected.\n" }
 
@@ -218,7 +168,7 @@ public struct FlakyReport: Equatable, Sendable {
         return output
     }
 
-    public func markdown(_ metadata: FlakyReportMetadata) -> String {
+    func markdown(_ metadata: FlakyReportMetadata) -> String {
         let shown = shownRows(top: metadata.top)
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime]

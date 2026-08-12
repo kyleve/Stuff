@@ -1,33 +1,22 @@
 import Foundation
 
-public struct BuildPhaseTiming: Equatable, Sendable {
-    public let name: String
-    public let tasks: Int
-    public let seconds: Double
-
-    public init(name: String, tasks: Int, seconds: Double) {
-        self.name = name
-        self.tasks = tasks
-        self.seconds = seconds
-    }
+struct BuildPhaseTiming: Equatable {
+    let name: String
+    let tasks: Int
+    let seconds: Double
 }
 
-public struct TypeCheckTiming: Equatable, Sendable {
-    public let location: String
-    public let milliseconds: Int
-
-    public init(location: String, milliseconds: Int) {
-        self.location = location
-        self.milliseconds = milliseconds
-    }
+struct TypeCheckTiming: Equatable {
+    let location: String
+    let milliseconds: Int
 }
 
 /// Best-effort parsing for Xcode's human-readable build timing summary.
-public struct BuildTimingReport: Equatable, Sendable {
-    public let phases: [BuildPhaseTiming]
-    public let typeChecks: [TypeCheckTiming]
+struct BuildTimingReport: Equatable {
+    let phases: [BuildPhaseTiming]
+    let typeChecks: [TypeCheckTiming]
 
-    public init(log: Data) {
+    init(log: Data) {
         var phases: [BuildPhaseTiming] = []
         var typeChecks: [TypeCheckTiming] = []
         for line in String(decoding: log, as: UTF8.self).split(separator: "\n") {
@@ -43,7 +32,7 @@ public struct BuildTimingReport: Equatable, Sendable {
         self.typeChecks = typeChecks
     }
 
-    public func text(typeCheckThreshold: Int) -> String {
+    func text(typeCheckThreshold: Int) -> String {
         var output = ""
         if phases.isEmpty {
             output += "  (no build-timing summary found — was this a no-op incremental build?)\n"

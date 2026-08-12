@@ -3,9 +3,9 @@ import Testing
 
 struct SimulatorCommandTests {
     @Test func simulatorFailuresMapToTheirCompatibilityExitStatus() {
-        #expect(SimulatorFailure.message("bad input").exitStatus == 1)
-        #expect(SimulatorFailure.reported.exitStatus == 1)
-        #expect(SimulatorFailure.exitCode(23).exitStatus == 23)
+        #expect(ToolFailure.message("bad input").exitStatus == 1)
+        #expect(ToolFailure.reported.exitStatus == 1)
+        #expect(ToolFailure.exitCode(23).exitStatus == 23)
     }
 
     @Test func parserAcceptsEveryCompatibilityFlag() throws {

@@ -45,7 +45,7 @@ struct FlakyServiceTests {
         )
 
         let status = try await service.run(
-            FlakyRequest(
+            request(
                 suiteRuns: 1,
                 iterations: 2,
                 relaunch: .no,
@@ -65,8 +65,7 @@ struct FlakyServiceTests {
         #expect(invocations[3].environment == [
             "TEST_RUNNER_PACKAGE_RESOURCE_BUNDLE_PATH": "/tmp/Products",
         ])
-        #expect(invocations[3].captureOutput == false)
-        #expect(invocations[3].mergeStandardError)
+        #expect(invocations[3].output == .merged)
         #expect(invocations[5].arguments.contains(
             "-only-testing:StuffCoreTests/RaceTests/sometimesFails()",
         ))
@@ -101,9 +100,9 @@ struct FlakyServiceTests {
         let service = makeService(root: root, runner: runner, terminal: terminal)
 
         do {
-            _ = try await service.run(FlakyRequest(suiteRuns: 1, iterations: 2))
+            _ = try await service.run(request(suiteRuns: 1, iterations: 2))
             Issue.record("expected the build failure")
-        } catch let failure as FlakyServiceFailure {
+        } catch let failure as ToolFailure {
             #expect(failure == .exitCode(72))
         }
         #expect(await terminal.standardErrorText.contains("build failed (exit 72)"))
@@ -124,7 +123,7 @@ struct FlakyServiceTests {
         let service = makeService(root: root, runner: runner, terminal: terminal)
 
         let status = try await service.run(
-            FlakyRequest(suiteRuns: 1, iterations: 2, updateReport: false),
+            request(suiteRuns: 1, iterations: 2, updateReport: false),
         )
 
         #expect(status == 0)
@@ -146,6 +145,24 @@ struct FlakyServiceTests {
             repository: root,
             home: root,
             environment: ["FLAKY_WORKDIR": root.appending(path: "work").path],
+        )
+    }
+
+    private func request(
+        suiteRuns: Int,
+        iterations: Int,
+        relaunch: FlakyRelaunch = .yes,
+        updateReport: Bool = true,
+    ) -> FlakyRequest {
+        FlakyRequest(
+            suiteRuns: suiteRuns,
+            iterations: iterations,
+            device: "iPhone 17",
+            os: "27.0",
+            scheme: "Stuff-iOS-Tests",
+            relaunch: relaunch,
+            updateReport: updateReport,
+            top: nil,
         )
     }
 }

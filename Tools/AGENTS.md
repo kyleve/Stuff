@@ -1,8 +1,8 @@
 # Tools — Repository Tooling
 
 The independent host-side package under `Tools/Package.swift` owns the Swift
-implementation of Stuff's macOS developer commands, while this folder also owns
-direct tests for retained cross-platform Python and Ruby tools; see
+implementation of Stuff's Xcode- and device-heavy macOS developer commands,
+while this folder also owns direct tests for retained Python and Ruby tools; see
 [`README.md`](README.md). The repository-wide conventions and validation rules
 remain in [`../AGENTS.md`](../AGENTS.md).
 
@@ -12,7 +12,7 @@ remain in [`../AGENTS.md`](../AGENTS.md).
   does not resolve or build application dependencies.
 - `StuffToolCore` may import Foundation, Darwin, Dispatch, Synchronization,
   ArgumentParser, and Subprocess. Keep the `StuffTool` executable limited to
-  command registration and process-wide signal supervision.
+  command registration, parser termination, and exit-status mapping.
 - Preserve the root command shims as the public interface; command implementations
   must not assume the caller's current working directory is the repository root.
 - Keep retained Python and Ruby behavior importable without executing its CLI;
@@ -22,8 +22,14 @@ remain in [`../AGENTS.md`](../AGENTS.md).
 
 - Represent subprocesses as executable plus argument arrays; never construct a
   shell command string.
+- Leave spawned commands in the caller's foreground process group so
+  terminal-generated job-control signals reach the command tree without a
+  custom supervisor.
 - Inject process, filesystem, clock, and terminal seams into behavior that needs
   them, and keep parsing/reporting as value transformations.
+- Share workspace generation, build-settings lookup, logged `xcodebuild`, and
+  typed xcresult export through `XcodeWorkspace`; commands own their distinct
+  failure and reporting semantics.
 - Preserve each migrated command's stdout, stderr, and exit-code contract.
 - Commands that delete or replace external state expose a non-mutating dry run and
   validate their exact target before changing it.

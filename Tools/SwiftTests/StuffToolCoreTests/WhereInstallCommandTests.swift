@@ -41,7 +41,7 @@ struct WhereInstallCommandTests {
             ["--device", ""],
         ] {
             let command = try WhereInstallCommand.parse(arguments)
-            #expect(throws: WhereInstallFailure.self) {
+            #expect(throws: ToolFailure.self) {
                 _ = try command.makeRequest()
             }
         }

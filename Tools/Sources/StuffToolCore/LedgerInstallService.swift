@@ -10,18 +10,6 @@ public struct LedgerInstallRequest: Equatable, Sendable {
     }
 }
 
-public enum LedgerInstallFailure: Error, Equatable, CustomStringConvertible, Sendable {
-    case message(String)
-    case exitCode(Int32)
-
-    public var description: String {
-        switch self {
-            case let .message(message): message
-            case let .exitCode(code): "Ledger installer exited with status \(code)"
-        }
-    }
-}
-
 /// Builds, stages, validates, and transactionally replaces `/Applications/Ledger.app`.
 public struct LedgerInstallService: Sendable {
     private static let appName = "Ledger"
@@ -86,7 +74,7 @@ public struct LedgerInstallService: Sendable {
             directoryHint: .isDirectory,
         )
         guard fileSystem.kind(of: buildRoot) == .missing else {
-            throw LedgerInstallFailure
+            throw ToolFailure
                 .message("temporary build path already exists: \(buildRoot.path)")
         }
         try fileSystem.createDirectory(at: buildRoot, withIntermediateDirectories: false)
@@ -101,8 +89,7 @@ public struct LedgerInstallService: Sendable {
                 environment: [:],
                 workingDirectory: repository,
                 standardInput: [],
-                captureOutput: false,
-                mergeStandardError: false,
+                output: .streamed,
             ),
             outputHandler: { stream, bytes in
                 if stream == .standardError {
@@ -111,7 +98,7 @@ public struct LedgerInstallService: Sendable {
             },
         )
         guard generation.succeeded else {
-            throw LedgerInstallFailure.exitCode(generation.exitCode)
+            throw ToolFailure.exitCode(generation.exitCode)
         }
 
         try await terminal.write("==> Building Ledger (Release)\n", to: .standardOutput)
@@ -140,11 +127,10 @@ public struct LedgerInstallService: Sendable {
                 environment: [:],
                 workingDirectory: repository,
                 standardInput: [],
-                captureOutput: false,
-                mergeStandardError: false,
+                output: .streamed,
             ),
         )
-        guard build.succeeded else { throw LedgerInstallFailure.exitCode(build.exitCode) }
+        guard build.succeeded else { throw ToolFailure.exitCode(build.exitCode) }
 
         let built = buildRoot.appending(
             path: "Build/Products/Release/Ledger.app",
@@ -157,7 +143,7 @@ public struct LedgerInstallService: Sendable {
             directoryHint: .isDirectory,
         )
         guard fileSystem.kind(of: transactionRoot) == .missing else {
-            throw LedgerInstallFailure.message(
+            throw ToolFailure.message(
                 "installation staging path already exists: \(transactionRoot.path)",
             )
         }
@@ -220,11 +206,10 @@ public struct LedgerInstallService: Sendable {
                     environment: [:],
                     workingDirectory: repository,
                     standardInput: [],
-                    captureOutput: false,
-                    mergeStandardError: false,
+                    output: .streamed,
                 ),
             )
-            guard open.succeeded else { throw LedgerInstallFailure.exitCode(open.exitCode) }
+            guard open.succeeded else { throw ToolFailure.exitCode(open.exitCode) }
             try await terminal.write(
                 "==> Launched. Look for the $ amount in your menu bar.\n",
                 to: .standardOutput,
@@ -237,7 +222,7 @@ public struct LedgerInstallService: Sendable {
         guard applicationsDirectory.standardizedFileURL.path.hasPrefix("/"),
               fileSystem.kind(of: applicationsDirectory) == .directory
         else {
-            throw LedgerInstallFailure.message(
+            throw ToolFailure.message(
                 "installation parent is not a directory: \(applicationsDirectory.path)",
             )
         }
@@ -247,7 +232,7 @@ public struct LedgerInstallService: Sendable {
             case .directory:
                 try validateAppBundle(destination, role: "installed destination")
             case .file, .symbolicLink:
-                throw LedgerInstallFailure.message(
+                throw ToolFailure.message(
                     "refusing to replace non-app destination at \(destination.path)",
                 )
         }
@@ -258,7 +243,7 @@ public struct LedgerInstallService: Sendable {
               fileSystem.kind(of: app.appending(path: "Contents/Info.plist")) == .file,
               fileSystem.kind(of: app.appending(path: "Contents/MacOS/Ledger")) == .file
         else {
-            throw LedgerInstallFailure.message(
+            throw ToolFailure.message(
                 "\(role) is not a complete Ledger.app bundle at \(app.path)",
             )
         }

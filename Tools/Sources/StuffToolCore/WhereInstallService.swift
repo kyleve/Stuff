@@ -28,18 +28,6 @@ public struct WhereInstallRequest: Equatable, Sendable {
     }
 }
 
-public enum WhereInstallFailure: Error, Equatable, CustomStringConvertible, Sendable {
-    case message(String)
-    case exitCode(Int32)
-
-    public var description: String {
-        switch self {
-            case let .message(message): message
-            case let .exitCode(code): "Where installer exited with status \(code)"
-        }
-    }
-}
-
 /// Builds and installs the signed Where app through typed `devicectl` selection.
 public struct WhereInstallService: Sendable {
     private static let workspace = "Stuff.xcworkspace"
@@ -102,8 +90,7 @@ public struct WhereInstallService: Sendable {
                 environment: [:],
                 workingDirectory: repository,
                 standardInput: [],
-                captureOutput: true,
-                mergeStandardError: false,
+                output: .captured,
             ),
             outputHandler: { stream, bytes in
                 if stream == .standardError {
@@ -112,13 +99,13 @@ public struct WhereInstallService: Sendable {
             },
         )
         guard teamLookup.succeeded else {
-            throw WhereInstallFailure.exitCode(teamLookup.exitCode)
+            throw ToolFailure.exitCode(teamLookup.exitCode)
         }
         let team = teamLookup.standardOutputText.trimmingCharacters(
             in: .whitespacesAndNewlines,
         )
         guard team.isEmpty == false else {
-            throw WhereInstallFailure.message("""
+            throw ToolFailure.message("""
             no Apple Developer team configured — a device build can't be signed.
 
             Set it once (writes the gitignored .mise.local.toml), then re-run:
@@ -135,8 +122,7 @@ public struct WhereInstallService: Sendable {
                 environment: [:],
                 workingDirectory: repository,
                 standardInput: [],
-                captureOutput: false,
-                mergeStandardError: false,
+                output: .streamed,
             ),
             outputHandler: { stream, bytes in
                 if stream == .standardError {
@@ -145,7 +131,7 @@ public struct WhereInstallService: Sendable {
             },
         )
         guard generation.succeeded else {
-            throw WhereInstallFailure.exitCode(generation.exitCode)
+            throw ToolFailure.exitCode(generation.exitCode)
         }
 
         let optimizationLabel = request.optimize ? ", optimized" : ""
@@ -154,11 +140,11 @@ public struct WhereInstallService: Sendable {
             to: .standardOutput,
         )
         let build = try await runForwarding(buildInvocation(request, derived: paths.derived))
-        guard build.succeeded else { throw WhereInstallFailure.exitCode(build.exitCode) }
+        guard build.succeeded else { throw ToolFailure.exitCode(build.exitCode) }
 
         let app = paths.app(configuration: request.configuration)
         guard fileSystem.kind(of: app) == .directory else {
-            throw WhereInstallFailure.message("built app not found at \(app.path)")
+            throw ToolFailure.message("built app not found at \(app.path)")
         }
 
         try await terminal.write("==> resolving device\n", to: .standardOutput)
@@ -175,8 +161,7 @@ public struct WhereInstallService: Sendable {
                 environment: [:],
                 workingDirectory: repository,
                 standardInput: [],
-                captureOutput: false,
-                mergeStandardError: false,
+                output: .streamed,
             ),
             outputHandler: { stream, bytes in
                 if stream == .standardError {
@@ -184,12 +169,12 @@ public struct WhereInstallService: Sendable {
                 }
             },
         )
-        guard list.succeeded else { throw WhereInstallFailure.exitCode(list.exitCode) }
+        guard list.succeeded else { throw ToolFailure.exitCode(list.exitCode) }
         let devices: Data
         do {
             devices = try fileSystem.read(paths.devicesJSON)
         } catch {
-            throw WhereInstallFailure.message(
+            throw ToolFailure.message(
                 "couldn't read devicectl's device list (\(error)). " +
                     "Run `xcrun devicectl list devices` to check your setup.",
             )
@@ -208,7 +193,7 @@ public struct WhereInstallService: Sendable {
             guard try await terminal.readLine(
                 prompt: "Press Enter to install, or Ctrl-C to cancel... ",
             ) != nil else {
-                throw WhereInstallFailure.exitCode(1)
+                throw ToolFailure.exitCode(1)
             }
         }
 
@@ -228,11 +213,10 @@ public struct WhereInstallService: Sendable {
                 environment: [:],
                 workingDirectory: repository,
                 standardInput: [],
-                captureOutput: false,
-                mergeStandardError: false,
+                output: .streamed,
             ),
         )
-        guard install.succeeded else { throw WhereInstallFailure.exitCode(install.exitCode) }
+        guard install.succeeded else { throw ToolFailure.exitCode(install.exitCode) }
 
         if request.launch {
             let suffix = request.cloudKit ? " with CloudKit validation enabled" : ""
@@ -256,11 +240,10 @@ public struct WhereInstallService: Sendable {
                     environment: [:],
                     workingDirectory: repository,
                     standardInput: [],
-                    captureOutput: false,
-                    mergeStandardError: false,
+                    output: .streamed,
                 ),
             )
-            guard launch.succeeded else { throw WhereInstallFailure.exitCode(launch.exitCode) }
+            guard launch.succeeded else { throw ToolFailure.exitCode(launch.exitCode) }
         }
 
         try await terminal.write(
@@ -322,8 +305,7 @@ public struct WhereInstallService: Sendable {
             environment: [:],
             workingDirectory: repository,
             standardInput: [],
-            captureOutput: false,
-            mergeStandardError: false,
+            output: .streamed,
         )
     }
 

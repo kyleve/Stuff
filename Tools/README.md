@@ -1,9 +1,9 @@
 # Stuff Tools
 
 `Tools/Package.swift` is the independent macOS command-line package behind the
-repository's migrated developer commands. Familiar root paths remain the
-user-facing interface; each migrated command is a small shim that dispatches
-into the `stuff` executable here.
+repository's Xcode- and device-heavy developer commands. Familiar root paths
+remain the user-facing interface; each is a small shim into the `stuff`
+executable.
 
 The package is intentionally separate from the root application package. A tool
 build resolves only ArgumentParser and Subprocess, never the iOS application
@@ -23,15 +23,14 @@ updates. Update dependencies explicitly with `swift package resolve
 --package-path Tools`, then regenerate the app attribution report because these
 packages are credited as development tools.
 
-Every external command runs in its own process group. Cancellation and output
-failures tear down that entire group, including descendants left behind when
-their leader exits. The executable forwards HUP, INT, QUIT, PIPE, and TERM,
-waits a bounded interval for cleanup, and then preserves that signal's shell exit
-status; a repeated signal forces immediate group cleanup. A Dispatch-side final
-watchdog still exits if a synchronous terminal write has blocked Swift's executor.
-Processes that deliberately create a new session leave this ownership boundary.
-Terminal stop/resume job control is not yet bridged across the isolated session;
-the root `TODOs.md` tracks that remaining compatibility gap.
+External commands remain in the caller's foreground process group. The terminal
+therefore delivers Ctrl-C, Ctrl-\, and Ctrl-Z/`fg` job control to `stuff` and its
+command tree using ordinary POSIX behavior, without a process-global signal
+supervisor. Other signals retain their normal OS targeting rather than being
+intercepted and relayed. Swift Subprocess still tears down the direct child when
+a Swift task is cancelled or an output handler fails; programmatic cancellation
+does not promise to find a signal-ignoring descendant after its leader has
+exited.
 
 ## Migrated commands
 

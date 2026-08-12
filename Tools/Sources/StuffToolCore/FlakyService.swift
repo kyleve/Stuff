@@ -11,14 +11,14 @@ public struct FlakyRequest: Equatable, Sendable {
     public let top: Int?
 
     public init(
-        suiteRuns: Int = 10,
-        iterations: Int = 50,
-        device: String = "iPhone 17",
-        os: String = "27.0",
-        scheme: String = "Stuff-iOS-Tests",
-        relaunch: FlakyRelaunch = .yes,
-        updateReport: Bool = true,
-        top: Int? = nil,
+        suiteRuns: Int,
+        iterations: Int,
+        device: String,
+        os: String,
+        scheme: String,
+        relaunch: FlakyRelaunch,
+        updateReport: Bool,
+        top: Int?,
     ) {
         self.suiteRuns = suiteRuns
         self.iterations = iterations
@@ -31,18 +31,6 @@ public struct FlakyRequest: Equatable, Sendable {
     }
 }
 
-public enum FlakyServiceFailure: Error, Equatable, CustomStringConvertible, Sendable {
-    case message(String)
-    case exitCode(Int32)
-
-    public var description: String {
-        switch self {
-            case let .message(message): message
-            case let .exitCode(code): "flaky prerequisite exited with status \(code)"
-        }
-    }
-}
-
 /// Runs the report-only suite and isolated repetition phases behind `./flaky`.
 public struct FlakyService: Sendable {
     private static let workspace = "Stuff.xcworkspace"
@@ -51,6 +39,7 @@ public struct FlakyService: Sendable {
     private struct Paths {
         let work: URL
         let derived: URL
+        let generationLog: URL
         let buildLog: URL
         let suiteDirectory: URL
         let tightDirectory: URL
@@ -58,7 +47,6 @@ public struct FlakyService: Sendable {
         let suiteCounts: URL
     }
 
-    private let runner: any CommandRunning
     private let simulator: any SimulatorResolving
     private let fileSystem: any FileSystem
     private let clock: any ToolClock
@@ -66,6 +54,7 @@ public struct FlakyService: Sendable {
     private let repository: URL
     private let home: URL
     private let environment: [String: String]
+    private let xcodeWorkspace: XcodeWorkspace
 
     public init(
         runner: any CommandRunning,
@@ -77,7 +66,6 @@ public struct FlakyService: Sendable {
         home: URL,
         environment: [String: String],
     ) {
-        self.runner = runner
         self.simulator = simulator
         self.fileSystem = fileSystem
         self.clock = clock
@@ -85,6 +73,12 @@ public struct FlakyService: Sendable {
         self.repository = repository
         self.home = home
         self.environment = environment
+        xcodeWorkspace = XcodeWorkspace(
+            runner: runner,
+            fileSystem: fileSystem,
+            repository: repository,
+            workspace: Self.workspace,
+        )
     }
 
     public func run(_ request: FlakyRequest) async throws -> Int32 {
@@ -100,16 +94,8 @@ public struct FlakyService: Sendable {
             "==> Regenerating project (tuist generate --no-open)\n",
             to: .standardOutput,
         )
-        let generation = try await runner.run(
-            CommandInvocation(
-                executable: "mise",
-                arguments: ["exec", "--", "tuist", "generate", "--no-open"],
-                environment: [:],
-                workingDirectory: repository,
-                standardInput: [],
-                captureOutput: false,
-                mergeStandardError: false,
-            ),
+        let generation = try await xcodeWorkspace.generateProject(
+            logURL: paths.generationLog,
             outputHandler: { stream, bytes in
                 if stream == .standardError {
                     try await terminal.write(bytes, to: .standardError)
@@ -117,11 +103,11 @@ public struct FlakyService: Sendable {
             },
         )
         guard generation.succeeded else {
-            throw FlakyServiceFailure.exitCode(generation.exitCode)
+            throw ToolFailure.exitCode(generation.exitCode)
         }
 
         var testEnvironment: [String: String] = [:]
-        if let products = try await builtProductsDirectory(
+        if let products = try await xcodeWorkspace.builtProductsDirectory(
             scheme: request.scheme,
             destination: destination,
             derivedData: paths.derived,
@@ -140,8 +126,8 @@ public struct FlakyService: Sendable {
                 "iOS \(request.os)\n",
             to: .standardOutput,
         )
-        let build = try await runXcodebuild(
-            arguments: [
+        let build = try await xcodeWorkspace.xcodebuild(
+            [
                 "build-for-testing",
                 "-workspace",
                 Self.workspace,
@@ -157,7 +143,7 @@ public struct FlakyService: Sendable {
         )
         guard build.succeeded else {
             try await printFailure(build, logURL: paths.buildLog)
-            throw FlakyServiceFailure.exitCode(build.exitCode)
+            throw ToolFailure.exitCode(build.exitCode)
         }
 
         try await terminal.write(
@@ -166,19 +152,20 @@ public struct FlakyService: Sendable {
         )
         var suiteCatalogs: [XCResultTestCatalog] = []
         for index in 1 ... request.suiteRuns {
+            try Task.checkCancellation()
             let resultBundle = paths.suiteDirectory.appending(
                 path: "run_\(index).xcresult",
                 directoryHint: .isDirectory,
             )
             let log = paths.suiteDirectory.appending(path: "run_\(index).log")
             let json = paths.suiteDirectory.appending(path: "run_\(index).json")
-            try removeIfPresent(resultBundle)
+            try xcodeWorkspace.removeIfPresent(resultBundle)
             try await terminal.write(
                 "  - suite run \(index)/\(request.suiteRuns)\n",
                 to: .standardOutput,
             )
-            _ = try await runXcodebuild(
-                arguments: [
+            _ = try await xcodeWorkspace.xcodebuild(
+                [
                     "test-without-building",
                     "-workspace",
                     Self.workspace,
@@ -233,6 +220,7 @@ public struct FlakyService: Sendable {
                 to: .standardOutput,
             )
             for (offset, identifier) in suite.suspects.enumerated() {
+                try Task.checkCancellation()
                 let index = offset + 1
                 let stem = paths.tightDirectory.appending(path: "tight_\(index)")
                 let resultBundle = URL(
@@ -243,7 +231,7 @@ public struct FlakyService: Sendable {
                 let identifierFile = URL(filePath: stem.path + ".id")
                 let testsJSON = URL(filePath: stem.path + ".tests.json")
                 let summaryJSON = URL(filePath: stem.path + ".summary.json")
-                try removeIfPresent(resultBundle)
+                try xcodeWorkspace.removeIfPresent(resultBundle)
                 try await terminal.write(
                     "  - [\(index)/\(suite.suspects.count)] \(identifier)\n",
                     to: .standardOutput,
@@ -253,8 +241,8 @@ public struct FlakyService: Sendable {
                     to: identifierFile,
                     atomically: false,
                 )
-                _ = try await runXcodebuild(
-                    arguments: [
+                _ = try await xcodeWorkspace.xcodebuild(
+                    [
                         "test-without-building",
                         "-workspace",
                         Self.workspace,
@@ -339,12 +327,13 @@ public struct FlakyService: Sendable {
         let work = configured ?? home
             .appending(path: "Library/Developer/Xcode/DerivedData", directoryHint: .isDirectory)
             .appending(
-                path: "where-flaky-\(repository.lastPathComponent)",
+                path: "where-flaky-\(xcodeWorkspace.checkoutIdentifier)",
                 directoryHint: .isDirectory,
             )
         let paths = Paths(
             work: work,
             derived: work.appending(path: "DerivedData", directoryHint: .isDirectory),
+            generationLog: work.appending(path: "generate.log"),
             buildLog: work.appending(path: "build.log"),
             suiteDirectory: work.appending(path: "suite", directoryHint: .isDirectory),
             tightDirectory: work.appending(path: "tight", directoryHint: .isDirectory),
@@ -353,7 +342,7 @@ public struct FlakyService: Sendable {
         )
         try fileSystem.createDirectory(at: work, withIntermediateDirectories: true)
         for url in [paths.suiteDirectory, paths.tightDirectory, paths.suspects, paths.suiteCounts] {
-            try removeIfPresent(url)
+            try xcodeWorkspace.removeIfPresent(url)
         }
         try fileSystem.createDirectory(
             at: paths.suiteDirectory,
@@ -366,61 +355,6 @@ public struct FlakyService: Sendable {
         return paths
     }
 
-    private func runXcodebuild(
-        arguments: [String],
-        environment: [String: String],
-        logURL: URL,
-    ) async throws -> CommandResult {
-        try await LoggedCommandRunner(runner: runner, fileSystem: fileSystem).run(
-            CommandInvocation(
-                executable: "xcodebuild",
-                arguments: arguments,
-                environment: environment,
-                workingDirectory: repository,
-                standardInput: [],
-                captureOutput: false,
-                mergeStandardError: true,
-            ),
-            logURL: logURL,
-        )
-    }
-
-    private func builtProductsDirectory(
-        scheme: String,
-        destination: String,
-        derivedData: URL,
-    ) async throws -> String? {
-        let result = try await runner.run(
-            CommandInvocation(
-                executable: "xcodebuild",
-                arguments: [
-                    "-showBuildSettings",
-                    "-workspace",
-                    Self.workspace,
-                    "-scheme",
-                    scheme,
-                    "-destination",
-                    destination,
-                    "-derivedDataPath",
-                    derivedData.path,
-                ],
-                environment: [:],
-                workingDirectory: repository,
-                standardInput: [],
-                captureOutput: true,
-                mergeStandardError: false,
-            ),
-        )
-        guard result.succeeded else { return nil }
-        let marker = " BUILT_PRODUCTS_DIR = "
-        for line in result.standardOutputText.split(separator: "\n") {
-            guard let range = line.range(of: marker) else { continue }
-            let value = line[range.upperBound...].trimmingCharacters(in: .whitespaces)
-            if value.isEmpty == false { return value }
-        }
-        return nil
-    }
-
     private func readCatalog(
         resultBundle: URL,
         output: URL,
@@ -428,14 +362,7 @@ public struct FlakyService: Sendable {
         context: String,
     ) async throws -> XCResultTestCatalog? {
         do {
-            let data = try await XCResultTool(runner: runner, repository: repository)
-                .testsData(at: resultBundle)
-            try fileSystem.write(data, to: output, atomically: false)
-            do {
-                return try JSONDecoder().decode(XCResultTestCatalog.self, from: data)
-            } catch {
-                try await warnInspectionFailure(error, output: output, log: log, context: context)
-            }
+            return try await xcodeWorkspace.testCatalog(at: resultBundle, exportingTo: output)
         } catch {
             try await warnInspectionFailure(error, output: output, log: log, context: context)
         }
@@ -449,14 +376,7 @@ public struct FlakyService: Sendable {
         context: String,
     ) async throws -> XCResultSummary? {
         do {
-            let data = try await XCResultTool(runner: runner, repository: repository)
-                .summaryData(at: resultBundle)
-            try fileSystem.write(data, to: output, atomically: false)
-            do {
-                return try JSONDecoder().decode(XCResultSummary.self, from: data)
-            } catch {
-                try await warnInspectionFailure(error, output: output, log: log, context: context)
-            }
+            return try await xcodeWorkspace.summary(at: resultBundle, exportingTo: output)
         } catch {
             try await warnInspectionFailure(error, output: output, log: log, context: context)
         }
@@ -486,9 +406,7 @@ public struct FlakyService: Sendable {
             to: .standardError,
         )
         do {
-            let lines = try String(decoding: fileSystem.read(logURL), as: UTF8.self)
-                .split(separator: "\n", omittingEmptySubsequences: false)
-            let tail = lines.suffix(40).joined(separator: "\n")
+            let tail = try xcodeWorkspace.logTail(at: logURL, lines: 40)
             if tail.isEmpty == false {
                 try await terminal.write(tail + "\n", to: .standardError)
             }
@@ -497,12 +415,6 @@ public struct FlakyService: Sendable {
                 "warning: could not read \(logURL.path): \(error)\n",
                 to: .standardError,
             )
-        }
-    }
-
-    private func removeIfPresent(_ url: URL) throws {
-        if fileSystem.kind(of: url) != .missing {
-            try fileSystem.removeItem(at: url)
         }
     }
 

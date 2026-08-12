@@ -1,5 +1,5 @@
 import Foundation
-import StuffToolCore
+@testable import StuffToolCore
 import Testing
 
 struct BuildTimingReportTests {

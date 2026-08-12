@@ -20,8 +20,7 @@ struct ProfileCommandTests {
         ])
 
         #expect(command.makeRequest() == ProfileRequest(
-            build: false,
-            tests: true,
+            scope: .tests,
             snapshots: false,
             ciShape: true,
             device: "iPhone 17 Pro",

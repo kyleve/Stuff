@@ -34,4 +34,21 @@ struct FileSystemTests {
         )
         #expect(permissions == 0o700)
     }
+
+    @Test func atomicReplacementPreservesExistingPermissions() throws {
+        let root = try makeTemporaryDirectory()
+        defer { removeTemporaryDirectory(root) }
+        let fileSystem = FoundationFileSystem()
+        let file = root.appending(path: "report.md")
+        try fileSystem.write(Data("old".utf8), to: file, atomically: false)
+        try fileSystem.setPosixPermissions(0o640, at: file)
+
+        try fileSystem.write(Data("new".utf8), to: file, atomically: true)
+
+        let permissions = try #require(
+            FileManager.default.attributesOfItem(atPath: file.path)[.posixPermissions] as? Int,
+        )
+        #expect(try fileSystem.read(file) == Data("new".utf8))
+        #expect(permissions == 0o640)
+    }
 }

@@ -1,5 +1,4 @@
 import ArgumentParser
-import Foundation
 
 public struct IconAddRequest: Equatable, Sendable {
     public let lightPath: String
@@ -117,33 +116,9 @@ public struct IconsCommand: AsyncParsableCommand {
     }
 
     public mutating func run() async throws {
-        let terminal = StandardTerminal()
-        let environment = ProcessInfo.processInfo.environment
-        let repository = environment["STUFF_REPOSITORY_ROOT"]
-            .map { URL(filePath: $0, directoryHint: .isDirectory) }
-            ?? URL(
-                filePath: FileManager.default.currentDirectoryPath,
-                directoryHint: .isDirectory,
-            )
-        let service = IconsService(
-            fileSystem: FoundationFileSystem(),
-            terminal: terminal,
-            repository: repository,
-            transactionIdentifier: { UUID().uuidString },
-        )
-        do {
-            try await service.run(makeRequest())
-        } catch let failure as IconCatalogFailure {
-            try await terminal.write("error: \(failure)\n", to: .standardError)
-            throw ExitCode.failure
-        } catch let failure as FileReplacementTransactionFailure {
-            try await terminal.write("error: \(failure)\n", to: .standardError)
-            throw ExitCode.failure
-        } catch let exitCode as ExitCode {
-            throw exitCode
-        } catch {
-            try await terminal.write("error: \(error)\n", to: .standardError)
-            throw ExitCode.failure
+        let runtime = ToolRuntime()
+        try await performPublicCommand(terminal: runtime.terminal) {
+            try await runtime.iconsService().run(makeRequest())
         }
     }
 

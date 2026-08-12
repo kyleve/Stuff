@@ -1,5 +1,99 @@
 import ArgumentParser
 
+/// The common recoverable failures emitted by command orchestration.
+public enum ToolFailure: Error, Equatable, CustomStringConvertible, Sendable {
+    case message(String)
+    case exitCode(Int32)
+    case reported
+
+    public var description: String {
+        switch self {
+            case let .message(message): message
+            case let .exitCode(code): "command exited with status \(code)"
+            case .reported: "command failed"
+        }
+    }
+
+    public var exitStatus: Int32 {
+        switch self {
+            case .message, .reported: 1
+            case let .exitCode(code): code
+        }
+    }
+}
+
+private protocol PublicCommandFailure: Error {
+    var publicMessage: String? { get }
+    var publicExitStatus: Int32 { get }
+}
+
+extension ToolFailure: PublicCommandFailure {
+    fileprivate var publicMessage: String? {
+        guard case let .message(message) = self else { return nil }
+        return message
+    }
+
+    fileprivate var publicExitStatus: Int32 {
+        exitStatus
+    }
+}
+
+extension CommandLaunchFailure: PublicCommandFailure {
+    fileprivate var publicMessage: String? {
+        description
+    }
+
+    fileprivate var publicExitStatus: Int32 {
+        exitStatus
+    }
+}
+
+extension DeviceSelectionFailure: PublicCommandFailure {}
+
+extension DirectoryLockFailure: PublicCommandFailure {}
+
+extension FileReplacementTransactionFailure: PublicCommandFailure {}
+
+extension IconCatalogFailure: PublicCommandFailure {}
+
+extension InstalledProcessFailure: PublicCommandFailure {
+    fileprivate var publicExitStatus: Int32 {
+        switch self {
+            case .message: 1
+            case let .exitCode(code): code
+        }
+    }
+}
+
+extension PublicCommandFailure where Self: CustomStringConvertible {
+    fileprivate var publicMessage: String? {
+        description
+    }
+
+    fileprivate var publicExitStatus: Int32 {
+        1
+    }
+}
+
+func performPublicCommand<Result>(
+    terminal: any Terminal,
+    operation: () async throws -> Result,
+) async throws -> Result {
+    do {
+        return try await operation()
+    } catch let exitCode as ExitCode {
+        throw exitCode
+    } catch let failure as any PublicCommandFailure {
+        if let message = failure.publicMessage {
+            try await terminal.write("error: \(message)\n", to: .standardError)
+        }
+        throw ExitCode(failure.publicExitStatus)
+    } catch {
+        try await terminal.write("error: \(error)\n", to: .standardError)
+        throw ExitCode.failure
+    }
+}
+
 public struct PublicCommandTermination: Equatable, Sendable {
     public let message: String
     public let stream: TerminalStream

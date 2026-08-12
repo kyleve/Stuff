@@ -116,7 +116,7 @@ struct LedgerInstallServiceTests {
         do {
             _ = try await service.run(LedgerInstallRequest())
             Issue.record("expected unsafe destination failure")
-        } catch let failure as LedgerInstallFailure {
+        } catch let failure as ToolFailure {
             #expect(failure.description.contains("refusing to replace"))
         }
         #expect(await runner.invocations.isEmpty)

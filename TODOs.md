@@ -103,14 +103,6 @@ inbox rather than here.
 - docs [quick-win]: Two feature-group folders are missing the doc pair the root [`AGENTS.md`](AGENTS.md#per-module-docs) requires of a module group spanning several targets. `Where/` has an `AGENTS.md` but **no `README.md`** — so the app with 11 modules and by far the most surface has no human-facing entry point at its root, while `Shared/Broadway/` and `Shared/Periscope/` both carry the pair. `Ledger/` has **neither**, though it groups the app target and `LedgerCore` (each of which has its own complete pair). Write the group-level `README.md` for `Where/` and both files for `Ledger/`, covering only what the group shares — the module graph and the invariants no single module owns — per the group rule, and without restating what the leaf docs already say. (audit 2026-08-09)
 
 ## P2s (Nice to have)
-- fix(Scripts) [needs-design]: Bridge terminal stop/resume job control across
-  isolated tool sessions — `CommandRunner` creates a new session for every child
-  (`Tools/Sources/StuffToolCore/CommandRunner.swift:74-76`), while `SystemSignalSource`
-  forwards terminating signals but not SIGTSTP/SIGCONT
-  (`Tools/Sources/StuffTool/SystemSignalSource.swift:8-14`). Ctrl-Z can therefore stop
-  `stuff` while Xcode or device work continues. Forward stop/continue as a pair
-  and prove Ctrl-Z plus `fg` through a PTY before claiming full terminal parity.
-  (agent 2026-08-10)
 - feat(Scripts) [needs-design]: Teach [`test`](test) the native-macOS tier, or stop stating that it is the only entry point. The root [`AGENTS.md`](AGENTS.md#running-tests) says "**Use `./test`** — the only way to run tests. Never hand-roll `tuist test` or `xcodebuild`", but `./test` contains no reference to Ledger or a macOS destination anywhere in its 869 lines, so `LedgerCoreTests` — a real bundle with its own CI job — simply cannot be run through it. The [`running-tests`](.agents/skills/running-tests/SKILL.md) skill already documents the exception with the raw command (`SKILL.md:114-116`, `tuist test Ledger-macOS-Tests -- -destination 'platform=macOS'`), and `LedgerCore/AGENTS.md` gives its own variant, so the truth lives in two places while the always-applied root rule contradicts both. An agent that reads only the root file — which is the one guaranteed to be loaded — concludes Ledger's tests go through `./test`, and nothing tells it otherwise until the command fails. Either add a macOS tier to `./test` (it already resolves destinations through [`simulator`](simulator) for iOS, and a macOS run needs no device at all, so this is the smaller change than it looks) or make the root rule name the carve-out explicitly. **The doc half is done** — root `AGENTS.md` now points at the skill for the macOS bundle — so what remains is deciding whether the script should absorb the tier. (audit 2026-08-09)
 - refactor [needs-design]: Vendor the local package through Tuist instead of Xcode's SPM integration, so package products become real Tuist targets. Today [`Project.swift`](Project.swift) uses `Package.local(path: .relativeToRoot("."))`, which emits an `XCLocalSwiftPackageReference` and hands the whole package to **Xcode's** SPM integration: every product links statically into each consumer, Tuist never sees the targets, and `PackageSettings` is inert. The alternative — the arrangement Tuist actually intends, and which other projects using it don't hit these duplication problems with — declares the local package as a dependency of a `Tuist/Package.swift` and consumes products with `.external(name:)`, so Tuist generates the targets and their product types and settings become ours to set. What it would buy: `PackageSettings` (per-product `.framework`/`.staticFramework`, per-target build settings), `Config(generationOptions: .options(enforceExplicitDependencies: true))` to catch the transitive-import looseness the test bundles lean on, resource bundles that stop being copied into every consumer (the full GeoJSON set is currently embedded per bundle), and retirement of the double-linking rule as a discipline. **Prototyped — blocked on a repo-layout prerequisite, not on the mechanism.** (spike 2026-07-26)
 	- The blocker: Tuist cannot vendor a local package whose directory *is* the project directory. `tuist generate` dies with `Fatal error: Duplicate values for key: '/Users/kve/Development/Stuff4'`. Confirmed this is specifically the root collision rather than something else about this repo: pointing `Tuist/Package.swift` at a throwaway probe package elsewhere vendored fine and advanced to graph construction (failing only with `` `LifecycleKit` is not a valid configured external dependency ``, the correct next error). Projects that use this arrangement successfully avoid the collision purely by layout — the package at the repo root with the Tuist manifests in a subdirectory — where Stuff has both at the root.
@@ -130,29 +122,31 @@ inbox rather than here.
 - test(CreditKit) [needs-design]: The attribution drift guard didn't detect a stale report, so the app could ship notices that don't govern the code in it. **Closed by `./attribution --check`**, a network-free mode that re-derives the expected report from `Package.swift`, `Package.resolved`, and the skills manifest and diffs it against the committed one, gated in CI beside the other lints (`.github/workflows/ci.yml`). The literal name lists in `AppAttributionTests` are gone — a test bundle can't read the manifests, so all it could compare against was a literal — and that suite now asserts only what the shipping bundle can answer. **As originally filed this item was wrong on a detail worth recording:** it claimed the old guard caught an added dependency but not a bumped one. It caught neither. Comparing the report to a hardcoded list means a dependency added without regenerating leaves report and list still agreeing, which is exactly what happened — the guard passed on a report missing the two snapshot packages that merging `main` had added. (pr#140 review, closed 2026-07-26)
 
 ## P2s (Nice to have)
-- fix(Scripts) [needs-design]: `CommandRunner` cancellation targeted only the
-  immediate subprocess, while session isolation by itself would have detached
-  Xcode descendants from terminal signals. Closed by upgrading Swift Subprocess,
-  giving every external command an isolated process group, and installing a
-  composition-root signal relay that forwards HUP/INT/QUIT/PIPE/TERM before it
-  cancels and awaits the command, with a Dispatch-side deadline that cannot be
-  starved by a blocked terminal write. Repeated signals force cleanup without
-  changing the first signal's exit policy. Runner regressions cover a leader that
-  exits before its signal-ignoring grandchild; public-shim tests cover direct
-  SIGTERM, PTY Ctrl-C, a closed output pipe, a full output pipe, and
-  repeated-signal escalation. Descendants that deliberately create a new session
-  remain outside the owned tree; terminal stop/resume is tracked separately.
-  (agent 2026-08-10, closed 2026-08-10)
+- fix(Scripts) [needs-design]: Preserve command-tree signal behavior without
+  orphaning Xcode work. **Closed by using the caller's foreground process group.**
+  An isolated-session supervisor was implemented and proved first, but its signal
+  relay, spawn/reap barriers, watchdogs, and adversarial fixtures cost about 1,900
+  lines and still left terminal stop/resume as a separate protocol. The bounded
+  simplification keeps children in the foreground group instead, so the terminal
+  delivers Ctrl-C, Ctrl-\, and Ctrl-Z/`fg` to the whole tree using ordinary POSIX
+  behavior. Other signals retain their normal OS targeting rather than being
+  relayed. Swift Subprocess owns direct-child teardown for output failures and
+  task cancellation; cancellation initiated only through Swift no longer promises
+  to recover a signal-ignoring descendant after its leader exits.
+  (agent 2026-08-10, simplified 2026-08-12)
 - refactor(Scripts) [needs-design]: Finish the bounded Swift tooling migration.
-  **Closed by the phase commits `f75ee0e9` through `5f59c2a9`.** The independent,
-  macOS-only `Tools` package now owns `xcstrings`, simulator selection, iOS test
-  orchestration, profiling, flake detection, icon transactions, and both app
-  installers behind stable public shims. Mutating commands have scoped dry runs;
-  Xcode/device work shares typed process, graph, xcresult, simulator, and device
-  infrastructure with hermetic tests. ShellCheck gates the bootstrap shell that
-  remains. The final embedded Python moved into tested `Tools/tla_check.py`, and
-  the retained attribution, agent-sync, region-generator, and backup-upgrader
-  implementations now have direct fixture coverage rather than
+  **Closed by the phase commits `f75ee0e9` through `5f59c2a9`, then narrowed after
+  measuring the result.** The independent macOS-only `Tools` package owns
+  `xcstrings`, simulator selection, iOS test orchestration, profiling, flake
+  detection, icon transactions, and both app installers behind stable public
+  shims. `test`, `profile`, and `flaky` share one narrow Xcode-workspace layer
+  for generation, logged builds, build settings, result export, and log tails;
+  their distinct selection, failure, and reporting semantics remain separate.
+  Mutating commands have scoped dry runs, while Xcode/device work shares typed
+  process, graph, xcresult, simulator, and device infrastructure with hermetic
+  tests. ShellCheck gates the shell that remains. The retained
+  attribution, agent-sync, region-generator, TLA+, and backup-upgrader
+  implementations have direct fixture coverage rather than
   being rewritten for language purity. (human 2026-07-28, closed 2026-08-10)
 - refactor(Scripts) [needs-design]: The affected-bundle selector regex-parsed
   `Project.swift`, so a formatting change could silently under-select tests.

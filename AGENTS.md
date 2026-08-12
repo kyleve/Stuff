@@ -46,10 +46,11 @@ references the package via `Package.local(path: .relativeToRoot("."))`. The
 two manifests are the authoritative target catalog — it is deliberately not
 duplicated here.
 
-Host-side macOS commands live in the independent [`Tools/Package.swift`](Tools/Package.swift)
-package. Root command paths remain compatibility shims into its `stuff`
-executable; cross-platform Ruby/Python tools and bootstrap shell remain outside
-that package. Test it with `swift test --package-path Tools`; its local
+Xcode- and device-heavy host-side macOS commands live in the independent
+[`Tools/Package.swift`](Tools/Package.swift) package. Root command paths remain
+compatibility shims into its `stuff` executable; cross-platform Ruby/Python
+tools and bootstrap shell remain outside that package. Test it with
+`swift test --package-path Tools`; its local
 [`AGENTS.md`](Tools/AGENTS.md) owns the process, filesystem, and command-parity
 invariants.
 

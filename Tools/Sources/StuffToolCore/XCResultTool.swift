@@ -70,8 +70,7 @@ public struct XCResultTool: Sendable {
                 environment: [:],
                 workingDirectory: repository,
                 standardInput: [],
-                captureOutput: true,
-                mergeStandardError: false,
+                output: .captured,
             ),
         )
         guard result.succeeded else {

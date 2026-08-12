@@ -21,10 +21,10 @@ struct LoggedCommandRunnerTests {
                 environment: [:],
                 workingDirectory: nil,
                 standardInput: [],
-                captureOutput: false,
-                mergeStandardError: false,
+                output: .streamed,
             ),
             logURL: log,
+            outputHandler: nil,
         )
 
         #expect(result.succeeded)

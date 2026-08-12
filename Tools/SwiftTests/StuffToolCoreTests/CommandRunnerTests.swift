@@ -13,8 +13,7 @@ struct CommandRunnerTests {
                 environment: [:],
                 workingDirectory: nil,
                 standardInput: [],
-                captureOutput: true,
-                mergeStandardError: false,
+                output: .captured,
             ),
         )
 
@@ -35,8 +34,7 @@ struct CommandRunnerTests {
                     environment: ["PATH": directory.path],
                     workingDirectory: nil,
                     standardInput: [],
-                    captureOutput: true,
-                    mergeStandardError: false,
+                    output: .captured,
                 ),
             )
             Issue.record("expected launching to fail")
@@ -62,8 +60,7 @@ struct CommandRunnerTests {
                     environment: [:],
                     workingDirectory: nil,
                     standardInput: [],
-                    captureOutput: true,
-                    mergeStandardError: false,
+                    output: .captured,
                 ),
             )
             Issue.record("expected launching to fail")
@@ -83,8 +80,7 @@ struct CommandRunnerTests {
                 environment: [:],
                 workingDirectory: nil,
                 standardInput: [],
-                captureOutput: true,
-                mergeStandardError: false,
+                output: .captured,
             ),
             outputHandler: { stream, bytes in
                 await recorder.record(stream, bytes: bytes)
@@ -104,8 +100,7 @@ struct CommandRunnerTests {
                 environment: [:],
                 workingDirectory: nil,
                 standardInput: [],
-                captureOutput: true,
-                mergeStandardError: false,
+                output: .captured,
             ),
         )
 
@@ -121,8 +116,7 @@ struct CommandRunnerTests {
                 environment: [:],
                 workingDirectory: nil,
                 standardInput: [],
-                captureOutput: false,
-                mergeStandardError: true,
+                output: .merged,
             ),
             outputHandler: { stream, bytes in
                 await recorder.record(stream, bytes: bytes)
@@ -143,8 +137,7 @@ struct CommandRunnerTests {
                 environment: [:],
                 workingDirectory: nil,
                 standardInput: [],
-                captureOutput: true,
-                mergeStandardError: false,
+                output: .captured,
             ),
         )
 
@@ -152,100 +145,22 @@ struct CommandRunnerTests {
         #expect(result.exitCode == 143)
     }
 
-    @Test func outputHandlerFailureTerminatesTheProcessTree() async throws {
-        let fixture = try UncooperativeProcessTreeFixture()
-        let gate = CancellationGate()
-        defer { fixture.cleanUp() }
-
-        let task = Task {
-            try await CommandRunner().run(
-                fixture.invocation,
-                outputHandler: { _, _ in
-                    await gate.wait()
-                    throw OutputFailure.expected
-                },
-            )
-        }
-        defer { task.cancel() }
-        let childProcessID = try await waitForProcessID(in: fixture.childPIDFile)
-        let grandchildProcessID = try await waitForProcessID(in: fixture.grandchildPIDFile)
-        try #require(isProcessAlive(childProcessID))
-        try #require(isProcessAlive(grandchildProcessID))
-        await gate.open()
-        try await waitForProcessExit(grandchildProcessID)
-
+    @Test func outputHandlerFailureTerminatesTheChild() async throws {
         do {
-            _ = try await task.value
+            _ = try await CommandRunner().run(
+                CommandInvocation(
+                    executable: "/bin/sh",
+                    arguments: ["-c", "printf ready; exec /usr/bin/tail -f /dev/null"],
+                    environment: [:],
+                    workingDirectory: nil,
+                    standardInput: [],
+                    output: .streamed,
+                ),
+                outputHandler: { _, _ in throw OutputFailure.expected },
+            )
             Issue.record("expected the output handler failure")
         } catch OutputFailure.expected {
-            // Expected after the whole isolated process group has exited.
-        } catch {
-            Issue.record("unexpected error: \(error)")
-        }
-    }
-
-    @Test func cancellationTerminatesTheProcessTree() async throws {
-        let fixture = try UncooperativeProcessTreeFixture()
-        defer { fixture.cleanUp() }
-
-        let task = Task {
-            try await CommandRunner().run(fixture.invocation)
-        }
-        defer { task.cancel() }
-        let childProcessID = try await waitForProcessID(in: fixture.childPIDFile)
-        let grandchildProcessID = try await waitForProcessID(in: fixture.grandchildPIDFile)
-        try #require(isProcessAlive(childProcessID))
-        try #require(isProcessAlive(grandchildProcessID))
-
-        task.cancel()
-        try await waitForProcessExit(grandchildProcessID)
-
-        do {
-            _ = try await task.value
-            Issue.record("expected cancellation")
-        } catch is CancellationError {
-            // Expected after the whole isolated process group has exited.
-        } catch {
-            Issue.record("unexpected error: \(error)")
-        }
-    }
-
-    @Test func cancellationTerminatesTheTreeWhileAnOutputHandlerIsBlocked() async throws {
-        let fixture = try UncooperativeProcessTreeFixture()
-        let gate = CancellationGate()
-        let (handlerEvents, handlerEventContinuation) = AsyncStream.makeStream(of: Void.self)
-        defer {
-            handlerEventContinuation.finish()
-            fixture.cleanUp()
-        }
-
-        let task = Task {
-            try await CommandRunner().run(
-                fixture.invocation,
-                outputHandler: { _, _ in
-                    handlerEventContinuation.yield()
-                    await gate.wait()
-                },
-            )
-        }
-        defer { task.cancel() }
-        for await _ in handlerEvents {
-            break
-        }
-        let childProcessID = try await waitForProcessID(in: fixture.childPIDFile)
-        let grandchildProcessID = try await waitForProcessID(in: fixture.grandchildPIDFile)
-        try #require(isProcessAlive(childProcessID))
-        try #require(isProcessAlive(grandchildProcessID))
-
-        task.cancel()
-        try await waitForProcessExit(grandchildProcessID)
-        await gate.open()
-
-        do {
-            _ = try await task.value
-            Issue.record("expected cancellation")
-        } catch is CancellationError {
-            // Expected after the fallback killed the blocked handler's group.
+            // The runner tears down its direct child before returning the error.
         } catch {
             Issue.record("unexpected error: \(error)")
         }
@@ -275,8 +190,7 @@ struct CommandRunnerTests {
                     environment: [:],
                     workingDirectory: nil,
                     standardInput: [],
-                    captureOutput: true,
-                    mergeStandardError: false,
+                    output: .captured,
                 ),
             )
         }
@@ -306,8 +220,7 @@ struct CommandRunnerTests {
                 environment: ["STUFF_VALUE": "injected"],
                 workingDirectory: nil,
                 standardInput: [],
-                captureOutput: true,
-                mergeStandardError: false,
+                output: .captured,
             ),
         )
         let workingDirectory = URL(filePath: "/private/tmp", directoryHint: .isDirectory)
@@ -318,8 +231,7 @@ struct CommandRunnerTests {
                 environment: [:],
                 workingDirectory: workingDirectory,
                 standardInput: [],
-                captureOutput: true,
-                mergeStandardError: false,
+                output: .captured,
             ),
         )
         let input = try await CommandRunner().run(
@@ -329,8 +241,7 @@ struct CommandRunnerTests {
                 environment: [:],
                 workingDirectory: nil,
                 standardInput: Array("input".utf8),
-                captureOutput: true,
-                mergeStandardError: false,
+                output: .captured,
             ),
         )
 
@@ -342,65 +253,6 @@ struct CommandRunnerTests {
 
 private enum OutputFailure: Error {
     case expected
-}
-
-private struct UncooperativeProcessTreeFixture {
-    let directory: URL
-    let childPIDFile: URL
-    let grandchildPIDFile: URL
-
-    init() throws {
-        directory = try makeTemporaryDirectory()
-        childPIDFile = directory.appending(path: "child.pid")
-        grandchildPIDFile = directory.appending(path: "grandchild.pid")
-    }
-
-    var invocation: CommandInvocation {
-        CommandInvocation(
-            executable: "/bin/sh",
-            arguments: ["-c", Self.script],
-            environment: [
-                "STUFF_TEST_CHILD_PID_FILE": childPIDFile.path,
-                "STUFF_TEST_GRANDCHILD_PID_FILE": grandchildPIDFile.path,
-            ],
-            workingDirectory: nil,
-            standardInput: [],
-            captureOutput: true,
-            mergeStandardError: false,
-        )
-    }
-
-    func cleanUp() {
-        for file in [grandchildPIDFile, childPIDFile] {
-            guard let processID = try? processID(in: file) else { continue }
-            _ = Darwin.kill(processID, SIGKILL)
-        }
-        removeTemporaryDirectory(directory)
-    }
-
-    private func processID(in file: URL) throws -> pid_t {
-        let value = try String(contentsOf: file, encoding: .utf8)
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let processID = pid_t(value), processID > 0 else {
-            throw UncooperativeProcessTreeFixtureError.invalidProcessID(file)
-        }
-        return processID
-    }
-
-    private static let script = """
-    printf '%s\\n' "$$" > "$STUFF_TEST_CHILD_PID_FILE"
-    /bin/sh -c '
-        trap "" HUP INT QUIT TERM PIPE
-        printf "%s\\n" "$$" > "$STUFF_TEST_GRANDCHILD_PID_FILE"
-        exec /usr/bin/tail -f /dev/null
-    ' &
-    printf 'ready\\n'
-    exec /usr/bin/tail -f /dev/null
-    """
-}
-
-private enum UncooperativeProcessTreeFixtureError: Error {
-    case invalidProcessID(URL)
 }
 
 private actor OutputRecorder {

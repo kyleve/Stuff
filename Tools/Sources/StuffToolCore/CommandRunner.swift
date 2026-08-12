@@ -26,6 +26,17 @@ public typealias CommandOutputHandler = @Sendable (
     [UInt8],
 ) async throws -> Void
 
+/// Selects whether command output is retained and whether stderr remains separate.
+public enum CommandOutputMode: Equatable, Sendable {
+    case captured
+    case streamed
+    case merged
+
+    fileprivate var capturesOutput: Bool {
+        self == .captured
+    }
+}
+
 /// A value description of one subprocess, suitable for assertions in tests.
 public struct CommandInvocation: Equatable, Sendable {
     public let executable: String
@@ -33,8 +44,7 @@ public struct CommandInvocation: Equatable, Sendable {
     public let environment: [String: String]
     public let workingDirectory: URL?
     public let standardInput: [UInt8]
-    public let captureOutput: Bool
-    public let mergeStandardError: Bool
+    public let output: CommandOutputMode
 
     public init(
         executable: String,
@@ -42,16 +52,14 @@ public struct CommandInvocation: Equatable, Sendable {
         environment: [String: String],
         workingDirectory: URL?,
         standardInput: [UInt8],
-        captureOutput: Bool,
-        mergeStandardError: Bool,
+        output: CommandOutputMode,
     ) {
         self.executable = executable
         self.arguments = arguments
         self.environment = environment
         self.workingDirectory = workingDirectory
         self.standardInput = standardInput
-        self.captureOutput = captureOutput
-        self.mergeStandardError = mergeStandardError
+        self.output = output
     }
 }
 
@@ -67,6 +75,9 @@ public struct CommandLaunchFailure: Error, CustomStringConvertible, Sendable {
 }
 
 /// Production subprocess runner backed by Swift Subprocess.
+///
+/// Children stay in the tool's foreground process group so terminal-generated
+/// job-control signals reach the whole command tree naturally.
 public struct CommandRunner: CommandRunning {
     public init() {}
 
@@ -92,87 +103,65 @@ public struct CommandRunner: CommandRunning {
         outputHandler: CommandOutputHandler?,
     ) async throws -> CommandResult {
         try Task.checkCancellation()
-        let relay = CommandSignalRelay.current ?? CommandSignalRelay()
         let environment = invocation.environment.reduce(
             into: [Environment.Key: String?](),
         ) { result, pair in
             guard let key = Environment.Key(rawValue: pair.key) else { return }
             result[key] = pair.value
         }
-        var configuredPlatformOptions = PlatformOptions()
-        configuredPlatformOptions.createSession = true
-        configuredPlatformOptions.teardownSequence = commandTeardownSequence()
-        let platformOptions = configuredPlatformOptions
-        let capturedOutput = CapturedCommandOutput()
-        if invocation.mergeStandardError {
-            return try await runCombined(
+        var platformOptions = PlatformOptions()
+        platformOptions.teardownSequence = commandTeardownSequence
+
+        if invocation.output == .merged {
+            return try await runMerged(
                 invocation,
                 environment: environment,
                 platformOptions: platformOptions,
                 outputHandler: outputHandler,
-                relay: relay,
             )
         }
-        let registration = relay.reserve()
-        defer { relay.complete(registration) }
-        let result = try await withTaskCancellationHandler {
-            try await Subprocess.run(
-                subprocessExecutable(invocation.executable),
-                arguments: Arguments(invocation.arguments),
-                environment: invocation.environment.isEmpty
-                    ? .inherit
-                    : .inherit.updating(environment),
-                workingDirectory: invocation.workingDirectory.map { .init($0.path) },
-                platformOptions: platformOptions,
-                input: .array(invocation.standardInput),
-                output: .sequence,
-                error: .sequence,
-            ) { execution in
-                relay.attach(
-                    registration,
-                    processGroupID: execution.processIdentifier.value,
-                )
-                defer { relay.finish(registration) }
-                try await withThrowingTaskGroup(of: Void.self) { group in
-                    group.addTask {
-                        for try await buffer in execution.standardOutput {
-                            let bytes = buffer.withUnsafeBytes { Array($0) }
-                            if invocation.captureOutput {
-                                await capturedOutput.append(bytes, to: .standardOutput)
-                            }
-                            try await outputHandler?(.standardOutput, bytes)
+
+        let capturedOutput = CapturedCommandOutput()
+        let result = try await Subprocess.run(
+            subprocessExecutable(invocation.executable),
+            arguments: Arguments(invocation.arguments),
+            environment: invocation.environment.isEmpty
+                ? .inherit
+                : .inherit.updating(environment),
+            workingDirectory: invocation.workingDirectory.map { .init($0.path) },
+            platformOptions: platformOptions,
+            input: .array(invocation.standardInput),
+            output: .sequence,
+            error: .sequence,
+        ) { execution in
+            try await withThrowingTaskGroup(of: Void.self) { group in
+                group.addTask {
+                    for try await buffer in execution.standardOutput {
+                        let bytes = buffer.withUnsafeBytes { Array($0) }
+                        if invocation.output.capturesOutput {
+                            await capturedOutput.append(bytes, to: .standardOutput)
                         }
-                    }
-                    group.addTask {
-                        for try await buffer in execution.standardError {
-                            let bytes = buffer.withUnsafeBytes { Array($0) }
-                            if invocation.captureOutput {
-                                await capturedOutput.append(bytes, to: .standardError)
-                            }
-                            try await outputHandler?(.standardError, bytes)
-                        }
-                    }
-                    do {
-                        while try await group.next() != nil {}
-                    } catch {
-                        await execution.teardown(
-                            using: commandTeardownSequence(after: error, relay: relay),
-                        )
-                        try forceKillProcessGroup(execution.processIdentifier.value)
-                        group.cancelAll()
-                        throw error
+                        try await outputHandler?(.standardOutput, bytes)
                     }
                 }
-                if Task.isCancelled {
-                    await execution.teardown(
-                        using: commandTeardownSequence(firstSignal: relay.firstSignal),
-                    )
-                    try forceKillProcessGroup(execution.processIdentifier.value)
-                    throw CancellationError()
+                group.addTask {
+                    for try await buffer in execution.standardError {
+                        let bytes = buffer.withUnsafeBytes { Array($0) }
+                        if invocation.output.capturesOutput {
+                            await capturedOutput.append(bytes, to: .standardError)
+                        }
+                        try await outputHandler?(.standardError, bytes)
+                    }
+                }
+                do {
+                    while try await group.next() != nil {}
+                } catch {
+                    await execution.teardown(using: commandTeardownSequence)
+                    group.cancelAll()
+                    throw error
                 }
             }
-        } onCancel: {
-            relay.beginCancellation(registration)
+            try Task.checkCancellation()
         }
         try Task.checkCancellation()
         let output = await capturedOutput.value
@@ -183,59 +172,39 @@ public struct CommandRunner: CommandRunning {
         )
     }
 
-    private func runCombined(
+    private func runMerged(
         _ invocation: CommandInvocation,
         environment: [Environment.Key: String?],
         platformOptions: PlatformOptions,
         outputHandler: CommandOutputHandler?,
-        relay: CommandSignalRelay,
     ) async throws -> CommandResult {
-        let capturedOutput = CapturedCommandOutput()
-        let registration = relay.reserve()
-        defer { relay.complete(registration) }
-        let result = try await withTaskCancellationHandler {
-            try await Subprocess.run(
-                subprocessExecutable(invocation.executable),
-                arguments: Arguments(invocation.arguments),
-                environment: invocation.environment.isEmpty
-                    ? .inherit
-                    : .inherit.updating(environment),
-                workingDirectory: invocation.workingDirectory.map { .init($0.path) },
-                platformOptions: platformOptions,
-                input: .array(invocation.standardInput),
-                output: .sequence,
-                error: .combinedWithOutput,
-            ) { execution in
-                relay.attach(
-                    registration,
-                    processGroupID: execution.processIdentifier.value,
-                )
-                defer { relay.finish(registration) }
-                do {
-                    for try await buffer in execution.standardOutput {
-                        let bytes = buffer.withUnsafeBytes { Array($0) }
-                        if invocation.captureOutput {
-                            await capturedOutput.append(bytes, to: .standardOutput)
-                        }
-                        try await outputHandler?(.standardOutput, bytes)
-                    }
-                    try Task.checkCancellation()
-                } catch {
-                    await execution.teardown(
-                        using: commandTeardownSequence(after: error, relay: relay),
-                    )
-                    try forceKillProcessGroup(execution.processIdentifier.value)
-                    throw error
+        let result = try await Subprocess.run(
+            subprocessExecutable(invocation.executable),
+            arguments: Arguments(invocation.arguments),
+            environment: invocation.environment.isEmpty
+                ? .inherit
+                : .inherit.updating(environment),
+            workingDirectory: invocation.workingDirectory.map { .init($0.path) },
+            platformOptions: platformOptions,
+            input: .array(invocation.standardInput),
+            output: .sequence,
+            error: .combinedWithOutput,
+        ) { execution in
+            do {
+                for try await buffer in execution.standardOutput {
+                    let bytes = buffer.withUnsafeBytes { Array($0) }
+                    try await outputHandler?(.standardOutput, bytes)
                 }
+                try Task.checkCancellation()
+            } catch {
+                await execution.teardown(using: commandTeardownSequence)
+                throw error
             }
-        } onCancel: {
-            relay.beginCancellation(registration)
         }
         try Task.checkCancellation()
-        let output = await capturedOutput.value
         return CommandResult(
             terminationStatus: result.terminationStatus,
-            standardOutput: output.standardOutput,
+            standardOutput: [],
             standardError: [],
         )
     }
@@ -273,55 +242,10 @@ private func subprocessExecutable(_ executable: String) -> Executable {
     executable.contains("/") ? .path(.init(executable)) : .name(executable)
 }
 
-private func commandTeardownSequence(
-    firstSignal: CommandSignal? = nil,
-) -> [TeardownStep] {
-    [
-        .send(
-            // The relay already sent a latched terminal signal. Signal zero
-            // provides its grace period without racing it with a duplicate.
-            signal: Signal(rawValue: firstSignal == nil ? SIGINT : 0),
-            toProcessGroup: true,
-            allowedDurationToNextStep: .seconds(2),
-        ),
-        .gracefulShutDown(
-            toProcessGroup: true,
-            allowedDurationToNextStep: .seconds(2),
-        ),
-    ]
-}
-
-private func commandTeardownSequence(
-    after error: any Error,
-    relay: CommandSignalRelay,
-) -> [TeardownStep] {
-    if isBrokenPipe(error), relay.firstSignal == nil {
-        relay.receiveBrokenPipeError()
-    }
-    return commandTeardownSequence(firstSignal: relay.firstSignal)
-}
-
-private func isBrokenPipe(_ error: any Error) -> Bool {
-    var current: NSError? = error as NSError
-    while let candidate = current {
-        if candidate.domain == NSPOSIXErrorDomain, candidate.code == EPIPE {
-            return true
-        }
-        current = candidate.userInfo[NSUnderlyingErrorKey] as? NSError
-    }
-    return false
-}
-
-private func forceKillProcessGroup(_ processGroupID: Int32) throws {
-    guard Darwin.kill(-processGroupID, SIGKILL) != 0 else { return }
-    // Darwin can report EPERM once a session contains only unsignalable
-    // zombies. The preceding teardown already waited for its leader.
-    guard errno != ESRCH, errno != EPERM else { return }
-    guard let errorCode = POSIXErrorCode(rawValue: errno) else {
-        throw CocoaError(.fileWriteUnknown)
-    }
-    throw POSIXError(errorCode)
-}
+private let commandTeardownSequence: [TeardownStep] = [
+    .send(signal: .interrupt, allowedDurationToNextStep: .seconds(2)),
+    .gracefulShutDown(allowedDurationToNextStep: .seconds(2)),
+]
 
 private actor CapturedCommandOutput {
     private var standardOutput: [UInt8] = []
