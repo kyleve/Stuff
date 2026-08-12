@@ -299,6 +299,11 @@ public struct RootView: View {
         public static var snapshots: [SnapshotCase] {
             let model = PreviewSupport.loadedModel()
             let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
+            let recordingWarningModel = PreviewSupport.recordingConfigurationWarningAppModel()
+            let recordingWarningLauncher = WhereLaunch.makeLauncher(
+                model: recordingWarningModel,
+                reason: .userForeground,
+            )
             whereSnapshot(
                 name: "LoggedIn",
                 configurations: .fullContentPhoneLightDark,
@@ -306,6 +311,14 @@ public struct RootView: View {
                 onReadyToSnapshot: { await launcher.run() },
             ) {
                 RootView(model: model, launcher: launcher)
+            }
+            whereSnapshot(
+                name: "RecordingConfigurationWarning",
+                configurations: .fullContentPhoneLightDark,
+                settle: .settledAtLeast(minDuration: 1.5),
+                onReadyToSnapshot: { await recordingWarningLauncher.run() },
+            ) {
+                RootView(model: recordingWarningModel, launcher: recordingWarningLauncher)
             }
         }
     }
