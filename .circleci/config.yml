@@ -35,10 +35,10 @@ commands:
             - mise-installs-v2-{{ arch }}-{{ checksum ".mise.toml" }}
       - restore_cache:
           keys:
-            - swiftpm-repositories-v2-{{ arch }}-xcode-27A5228h-{{ checksum "Package.resolved" }}
+            - swiftpm-repositories-v2-{{ arch }}-{{ checksum "Package.resolved" }}
       - restore_cache:
           keys:
-            - swiftpm-artifacts-v2-{{ arch }}-xcode-27A5228h-{{ checksum "Package.resolved" }}
+            - swiftpm-artifacts-v2-{{ arch }}-{{ checksum "Package.resolved" }}
       - run:
           name: Install pinned tools
           command: |
@@ -58,7 +58,7 @@ commands:
             mkdir -p "$CIRCLE_WORKING_DIRECTORY/<< parameters.test_workdir >>"
             chmod 700 "$CIRCLE_WORKING_DIRECTORY/<< parameters.test_workdir >>"
       - run:
-          name: Resolve Swift packages
+          name: Generate project and resolve Swift packages
           command: |
             # Populate the immutable download caches before either test job saves them.
             if ! mise exec -- tuist generate --no-open >"$TEST_WORKDIR/generate.log" 2>&1; then
@@ -67,11 +67,11 @@ commands:
               exit 1
             fi
       - save_cache:
-          key: swiftpm-repositories-v2-{{ arch }}-xcode-27A5228h-{{ checksum "Package.resolved" }}
+          key: swiftpm-repositories-v2-{{ arch }}-{{ checksum "Package.resolved" }}
           paths:
             - ~/Library/Caches/org.swift.swiftpm/repositories
       - save_cache:
-          key: swiftpm-artifacts-v2-{{ arch }}-xcode-27A5228h-{{ checksum "Package.resolved" }}
+          key: swiftpm-artifacts-v2-{{ arch }}-{{ checksum "Package.resolved" }}
           paths:
             - ~/Library/Caches/org.swift.swiftpm/artifacts
       - run:
