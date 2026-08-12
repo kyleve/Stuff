@@ -414,8 +414,8 @@ public struct SimulatorService: Sendable {
         registry: SimulatorRegistry,
         dryRun: Bool,
     ) async throws {
-        let devices = try await deviceList(availableOnly: false).allDevices
-            .filter { $0.name == identity.ownedName }
+        let devices = try await deviceList(availableOnly: false)
+            .devices(runtime: identity.runtimeKey, named: identity.ownedName)
         for device in devices {
             let verb = dryRun ? "Would delete" : "Deleting"
             try await terminal.write(

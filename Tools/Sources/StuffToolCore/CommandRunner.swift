@@ -55,11 +55,39 @@ public struct CommandInvocation: Equatable, Sendable {
     }
 }
 
+/// A subprocess that the operating system could not launch.
+public struct CommandLaunchFailure: Error, CustomStringConvertible, Sendable {
+    public let exitStatus: Int32
+    public let description: String
+
+    public init(exitStatus: Int32, description: String) {
+        self.exitStatus = exitStatus
+        self.description = description
+    }
+}
+
 /// Production subprocess runner backed by Swift Subprocess.
 public struct CommandRunner: CommandRunning {
     public init() {}
 
     public func run(
+        _ invocation: CommandInvocation,
+        outputHandler: CommandOutputHandler?,
+    ) async throws -> CommandResult {
+        do {
+            return try await runCommand(invocation, outputHandler: outputHandler)
+        } catch let error as SubprocessError {
+            guard error.code == .executableNotFound || error.code == .spawnFailed else {
+                throw error
+            }
+            throw CommandLaunchFailure(
+                exitStatus: executableCandidateExists(for: invocation) ? 126 : 127,
+                description: error.description,
+            )
+        }
+    }
+
+    private func runCommand(
         _ invocation: CommandInvocation,
         outputHandler: CommandOutputHandler?,
     ) async throws -> CommandResult {
@@ -211,6 +239,34 @@ public struct CommandRunner: CommandRunning {
             standardError: [],
         )
     }
+}
+
+private func executableCandidateExists(for invocation: CommandInvocation) -> Bool {
+    if invocation.executable.contains("/") {
+        let base = invocation.workingDirectory ?? URL(
+            filePath: FileManager.default.currentDirectoryPath,
+            directoryHint: .isDirectory,
+        )
+        return FileManager.default.fileExists(
+            atPath: URL(filePath: invocation.executable, relativeTo: base)
+                .standardizedFileURL
+                .path,
+        )
+    }
+    let path = invocation.environment["PATH"]
+        ?? ProcessInfo.processInfo.environment["PATH"]
+        ?? "/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin"
+    return path.split(separator: ":")
+        .lazy
+        .map(String.init)
+        .filter { $0.hasPrefix("/") }
+        .contains { directory in
+            FileManager.default.fileExists(
+                atPath: URL(filePath: directory, directoryHint: .isDirectory)
+                    .appending(path: invocation.executable)
+                    .path,
+            )
+        }
 }
 
 private func subprocessExecutable(_ executable: String) -> Executable {

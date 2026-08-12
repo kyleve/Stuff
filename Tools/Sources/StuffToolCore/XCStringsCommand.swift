@@ -1,4 +1,5 @@
 import ArgumentParser
+import Darwin
 import Foundation
 
 public struct XCStringsRequest: Equatable, Sendable {
@@ -58,6 +59,7 @@ public struct XCStringsCommand: ParsableCommand {
             print("\(targets.count) \(subject) Xcode's serialization.")
         } else if request.lint {
             let subject = offenders.count == 1 ? "catalog isn't" : "catalogs aren't"
+            fflush(stdout)
             FileHandle.standardError.write(
                 Data("\(offenders.count) \(subject) normalized — run ./xcstrings\n".utf8),
             )

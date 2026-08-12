@@ -23,6 +23,57 @@ struct CommandRunnerTests {
         #expect(result.standardError.isEmpty == false)
     }
 
+    @Test func missingExecutableUsesTheShellCompatibleStatus() async throws {
+        let directory = try makeTemporaryDirectory()
+        defer { removeTemporaryDirectory(directory) }
+
+        do {
+            _ = try await CommandRunner().run(
+                CommandInvocation(
+                    executable: "stuff-command-that-does-not-exist",
+                    arguments: [],
+                    environment: ["PATH": directory.path],
+                    workingDirectory: nil,
+                    standardInput: [],
+                    captureOutput: true,
+                    mergeStandardError: false,
+                ),
+            )
+            Issue.record("expected launching to fail")
+        } catch let failure as CommandLaunchFailure {
+            #expect(failure.exitStatus == 127)
+        } catch {
+            Issue.record("unexpected error: \(error)")
+        }
+    }
+
+    @Test func nonExecutableCommandUsesTheShellCompatibleStatus() async throws {
+        let directory = try makeTemporaryDirectory()
+        defer { removeTemporaryDirectory(directory) }
+        let executable = directory.appending(path: "not-executable")
+        try Data("#!/bin/sh\nexit 0\n".utf8).write(to: executable)
+        try #require(Darwin.access(executable.path, X_OK) != 0)
+
+        do {
+            _ = try await CommandRunner().run(
+                CommandInvocation(
+                    executable: executable.path,
+                    arguments: [],
+                    environment: [:],
+                    workingDirectory: nil,
+                    standardInput: [],
+                    captureOutput: true,
+                    mergeStandardError: false,
+                ),
+            )
+            Issue.record("expected launching to fail")
+        } catch let failure as CommandLaunchFailure {
+            #expect(failure.exitStatus == 126)
+        } catch {
+            Issue.record("unexpected error: \(error)")
+        }
+    }
+
     @Test func streamsHighVolumeWithoutLosingCapturedBytes() async throws {
         let recorder = OutputRecorder()
         let result = try await CommandRunner().run(

@@ -71,12 +71,17 @@ public struct WhereInstallCommand: AsyncParsableCommand {
                 filePath: FileManager.default.currentDirectoryPath,
                 directoryHint: .isDirectory,
             )
+        let directories = ToolDirectories(
+            environment: environment,
+            homeFallback: FileManager.default.homeDirectoryForCurrentUser,
+            temporaryFallback: FileManager.default.temporaryDirectory,
+        )
         let service = WhereInstallService(
             runner: CommandRunner(),
             fileSystem: FoundationFileSystem(),
             terminal: terminal,
             repository: repository,
-            home: FileManager.default.homeDirectoryForCurrentUser,
+            home: directories.home,
             environment: environment,
         )
         do {
@@ -97,7 +102,7 @@ public struct WhereInstallCommand: AsyncParsableCommand {
             throw exitCode
         } catch {
             try await terminal.write("error: \(error)\n", to: .standardError)
-            throw ExitCode.failure
+            throw ExitCode((error as? CommandLaunchFailure)?.exitStatus ?? 1)
         }
     }
 }

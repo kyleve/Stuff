@@ -148,6 +148,54 @@ struct SimulatorServiceTests {
         #expect(await terminal.standardErrorText.contains("NEARBY") == false)
     }
 
+    @Test func deleteTargetsOnlyTheRequestedRuntime() async throws {
+        let root = try simulatorFixtureRoot()
+        defer { removeTemporaryDirectory(root) }
+        let checkout = root.appending(path: "repo", directoryHint: .isDirectory)
+        let ownedName = simulatorName(checkout: checkout, device: "iPhone 17", os: "27.0")
+        let runner = FakeCommandRunner(responses: [
+            .stub(standardOutput: "\(checkout.path)\n"),
+            .stub(standardOutput: deviceListJSON(runtimeDevices: [
+                "com.apple.CoreSimulator.SimRuntime.iOS-27-0": [
+                    (ownedName, "REQUESTED-RUNTIME", "Shutdown"),
+                ],
+                "com.apple.CoreSimulator.SimRuntime.iOS-26-0": [
+                    (ownedName, "OTHER-RUNTIME", "Shutdown"),
+                ],
+            ])),
+            .stub(),
+        ])
+        let terminal = MemoryTerminal()
+        let registry = SimulatorRegistry(
+            directory: registryDirectory(root: root),
+            fileSystem: FoundationFileSystem(),
+        )
+        try registry.write(
+            name: ownedName,
+            checkout: checkout,
+            udid: "REQUESTED-RUNTIME",
+            device: "iPhone 17",
+            os: "27.0",
+        )
+        let service = makeService(root: root, runner: runner, terminal: terminal)
+
+        try await service.run(
+            SimulatorRequest(
+                device: "iPhone 17",
+                os: "27.0",
+                boot: true,
+                shared: false,
+                dryRun: false,
+                mode: .delete,
+            ),
+        )
+
+        let invocations = await runner.invocations
+        #expect(invocations.count == 3)
+        #expect(invocations[2].arguments == ["simctl", "delete", "REQUESTED-RUNTIME"])
+        #expect(await terminal.standardErrorText.contains("OTHER-RUNTIME") == false)
+    }
+
     @Test func deleteDryRunPreservesTheDeviceAndRegistry() async throws {
         let root = try simulatorFixtureRoot()
         defer { removeTemporaryDirectory(root) }
@@ -273,12 +321,20 @@ private func registryDirectory(root: URL) -> URL {
 private func deviceListJSON(
     devices: [(name: String, udid: String, state: String)],
 ) -> String {
-    let values = devices.map { device in
-        ["name": device.name, "udid": device.udid, "state": device.state]
+    deviceListJSON(runtimeDevices: [
+        "com.apple.CoreSimulator.SimRuntime.iOS-27-0": devices,
+    ])
+}
+
+private func deviceListJSON(
+    runtimeDevices: [String: [(name: String, udid: String, state: String)]],
+) -> String {
+    let values = runtimeDevices.mapValues { devices in
+        devices.map { device in
+            ["name": device.name, "udid": device.udid, "state": device.state]
+        }
     }
-    let object: [String: Any] = [
-        "devices": ["com.apple.CoreSimulator.SimRuntime.iOS-27-0": values],
-    ]
+    let object: [String: Any] = ["devices": values]
     do {
         let data = try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])
         return String(decoding: data, as: UTF8.self)

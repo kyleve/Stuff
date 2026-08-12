@@ -264,13 +264,13 @@ func isProcessAlive(_ processID: pid_t) -> Bool {
     return Darwin.kill(processID, 0) == 0 || errno == EPERM
 }
 
-private let testRepositoryRoot = URL(filePath: #filePath)
+let testRepositoryRoot = URL(filePath: #filePath)
     .deletingLastPathComponent()
     .deletingLastPathComponent()
     .deletingLastPathComponent()
     .deletingLastPathComponent()
 
-private let prebuiltStuffExecutable: URL = {
+let prebuiltStuffExecutable: URL = {
     var directory = Bundle.module.bundleURL
     repeat {
         let candidate = directory.appending(path: "stuff")

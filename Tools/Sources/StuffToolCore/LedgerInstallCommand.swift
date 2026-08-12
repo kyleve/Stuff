@@ -32,6 +32,11 @@ public struct LedgerInstallCommand: AsyncParsableCommand {
                 filePath: FileManager.default.currentDirectoryPath,
                 directoryHint: .isDirectory,
             )
+        let directories = ToolDirectories(
+            environment: environment,
+            homeFallback: FileManager.default.homeDirectoryForCurrentUser,
+            temporaryFallback: FileManager.default.temporaryDirectory,
+        )
         let service = LedgerInstallService(
             runner: CommandRunner(),
             fileSystem: FoundationFileSystem(),
@@ -39,7 +44,7 @@ public struct LedgerInstallCommand: AsyncParsableCommand {
             terminal: terminal,
             repository: repository,
             applicationsDirectory: URL(filePath: "/Applications", directoryHint: .isDirectory),
-            temporaryDirectory: FileManager.default.temporaryDirectory,
+            temporaryDirectory: directories.temporary,
             identifier: { UUID().uuidString },
             terminationPolicy: ProcessTerminationPolicy(
                 graceChecks: 50,
@@ -73,7 +78,7 @@ public struct LedgerInstallCommand: AsyncParsableCommand {
             throw exitCode
         } catch {
             try await terminal.write("error: \(error)\n", to: .standardError)
-            throw ExitCode.failure
+            throw ExitCode((error as? CommandLaunchFailure)?.exitStatus ?? 1)
         }
     }
 }

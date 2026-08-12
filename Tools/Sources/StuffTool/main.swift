@@ -85,6 +85,14 @@ enum StuffTool {
         arguments: [String],
         relay: CommandSignalRelay,
     ) async -> Int32 {
+        if arguments.isEmpty,
+           let termination = command.noArgumentTermination
+        {
+            guard write(termination.message, to: termination.stream) else {
+                return relay.firstSignal.map { 128 + $0.rawValue } ?? EXIT_FAILURE
+            }
+            return termination.exitCode
+        }
         do {
             try Task.checkCancellation()
             var parsed = try command.commandType.parseAsRoot(arguments)

@@ -52,6 +52,11 @@ public struct SimulatorCommand: AsyncParsableCommand {
                     filePath: FileManager.default.currentDirectoryPath,
                     directoryHint: .isDirectory,
                 )
+            let directories = ToolDirectories(
+                environment: environment,
+                homeFallback: FileManager.default.homeDirectoryForCurrentUser,
+                temporaryFallback: FileManager.default.temporaryDirectory,
+            )
             let service = SimulatorService(
                 runner: CommandRunner(),
                 fileSystem: FoundationFileSystem(),
@@ -59,8 +64,8 @@ public struct SimulatorCommand: AsyncParsableCommand {
                 processInspector: SystemProcessInspector(),
                 terminal: terminal,
                 repository: repository,
-                home: FileManager.default.homeDirectoryForCurrentUser,
-                temporaryDirectory: FileManager.default.temporaryDirectory,
+                home: directories.home,
+                temporaryDirectory: directories.temporary,
                 processID: getpid(),
             )
             _ = try await service.run(
@@ -85,7 +90,7 @@ public struct SimulatorCommand: AsyncParsableCommand {
             throw exitCode
         } catch {
             try await terminal.write("error: \(error)\n", to: .standardError)
-            throw ExitCode.failure
+            throw ExitCode((error as? CommandLaunchFailure)?.exitStatus ?? 1)
         }
     }
 

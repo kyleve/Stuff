@@ -105,7 +105,10 @@ public struct IconCatalogPlanner: Sendable {
     public func decodeManifest(_ data: Data, pathDescription: String) throws -> AppIconManifest {
         let manifest: AppIconManifest
         do {
+            try validateSchema(data, pathDescription: pathDescription)
             manifest = try JSONDecoder().decode(AppIconManifest.self, from: data)
+        } catch let failure as IconCatalogFailure {
+            throw failure
         } catch {
             throw IconCatalogFailure.message(
                 "\(pathDescription) is not valid JSON: \(error)",
@@ -113,6 +116,32 @@ public struct IconCatalogPlanner: Sendable {
         }
         try validate(manifest)
         return manifest
+    }
+
+    private func validateSchema(_ data: Data, pathDescription: String) throws {
+        let value = try JSONSerialization.jsonObject(with: data)
+        guard let object = value as? [String: Any] else { return }
+        if let field = object.keys.sorted().first(where: { $0 != "icons" }) {
+            throw IconCatalogFailure.message(
+                "\(pathDescription) contains unsupported field \"\(field)\"",
+            )
+        }
+        guard let icons = object["icons"] as? [[String: Any]] else { return }
+        let supportedFields: Set = [
+            "id",
+            "displayName",
+            "alternateIconName",
+            "previewImageName",
+        ]
+        for (index, icon) in icons.enumerated() {
+            if let field = icon.keys.sorted()
+                .first(where: { supportedFields.contains($0) == false })
+            {
+                throw IconCatalogFailure.message(
+                    "\(pathDescription) icon \(index + 1) contains unsupported field \"\(field)\"",
+                )
+            }
+        }
     }
 
     public func addition(

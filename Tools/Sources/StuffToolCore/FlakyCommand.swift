@@ -87,6 +87,11 @@ public struct FlakyCommand: AsyncParsableCommand {
         let runner = CommandRunner()
         let fileSystem = FoundationFileSystem()
         let clock = ContinuousToolClock()
+        let directories = ToolDirectories(
+            environment: environment,
+            homeFallback: FileManager.default.homeDirectoryForCurrentUser,
+            temporaryFallback: FileManager.default.temporaryDirectory,
+        )
         let simulator = SimulatorService(
             runner: runner,
             fileSystem: fileSystem,
@@ -94,8 +99,8 @@ public struct FlakyCommand: AsyncParsableCommand {
             processInspector: SystemProcessInspector(),
             terminal: StandardErrorOnlyTerminal(base: terminal),
             repository: repository,
-            home: FileManager.default.homeDirectoryForCurrentUser,
-            temporaryDirectory: FileManager.default.temporaryDirectory,
+            home: directories.home,
+            temporaryDirectory: directories.temporary,
             processID: getpid(),
         )
         let service = FlakyService(
@@ -105,7 +110,7 @@ public struct FlakyCommand: AsyncParsableCommand {
             clock: clock,
             terminal: terminal,
             repository: repository,
-            home: FileManager.default.homeDirectoryForCurrentUser,
+            home: directories.home,
             environment: environment,
         )
         do {
@@ -131,7 +136,7 @@ public struct FlakyCommand: AsyncParsableCommand {
             throw exitCode
         } catch {
             try await terminal.write("error: \(error)\n", to: .standardError)
-            throw ExitCode.failure
+            throw ExitCode((error as? CommandLaunchFailure)?.exitStatus ?? 1)
         }
     }
 }

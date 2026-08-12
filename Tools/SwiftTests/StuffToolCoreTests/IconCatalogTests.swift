@@ -101,6 +101,26 @@ struct IconCatalogTests {
         }
     }
 
+    @Test func rejectsUnknownManifestMetadataBeforeAMutationCanDiscardIt() throws {
+        let planner = IconCatalogPlanner()
+        let topLevel = Data(#"{"icons":[],"version":2}"#.utf8)
+        let perIcon = Data(
+            #"{"icons":[{"id":"classic","displayName":"Classic","alternateIconName":null,"previewImageName":"AppIcon","accessibilityLabel":"Default"}]}"#
+                .utf8,
+        )
+
+        #expect(throws: IconCatalogFailure.message(
+            "AppIcons.json contains unsupported field \"version\"",
+        )) {
+            _ = try planner.decodeManifest(topLevel, pathDescription: "AppIcons.json")
+        }
+        #expect(throws: IconCatalogFailure.message(
+            "AppIcons.json icon 1 contains unsupported field \"accessibilityLabel\"",
+        )) {
+            _ = try planner.decodeManifest(perIcon, pathDescription: "AppIcons.json")
+        }
+    }
+
     @Test func removalMatchesCaseInsensitivelyButProtectsThePrimaryIcon() throws {
         let planner = IconCatalogPlanner()
         let manifest = try planner.decodeManifest(

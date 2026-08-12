@@ -64,6 +64,9 @@ struct TestCommandTests {
             _ = try TestCommand.parse(["--all", "--everything"])
         }
         #expect(throws: (any Error).self) {
+            _ = try TestCommand.parse(["WhereCoreTests", "--all"])
+        }
+        #expect(throws: (any Error).self) {
             _ = try TestCommand.parse(["--heartbeat", "0"])
         }
         #expect(throws: (any Error).self) {

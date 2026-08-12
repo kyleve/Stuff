@@ -57,6 +57,15 @@ public enum PublicCommand: String, CaseIterable, Sendable {
         self == .ledgerInstall ? 2 : 1
     }
 
+    public var noArgumentTermination: PublicCommandTermination? {
+        guard self == .icons else { return nil }
+        return PublicCommandTermination(
+            message: commandType.helpMessage(),
+            stream: .standardOutput,
+            exitCode: usageExitCode,
+        )
+    }
+
     public func termination(for error: any Error) -> PublicCommandTermination {
         let parserExitCode = commandType.exitCode(for: error)
         return PublicCommandTermination(

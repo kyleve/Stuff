@@ -77,6 +77,11 @@ public struct TestCommand: AsyncParsableCommand {
         guard scopes <= 1 else {
             throw ValidationError("choose only one of --all, --snapshots, or --everything")
         }
+        guard bundles.isEmpty || scopes == 0 else {
+            throw ValidationError(
+                "bundle names cannot be combined with --all, --snapshots, or --everything",
+            )
+        }
         if let record, ["all", "failed", "missing", "never"].contains(record) == false {
             throw ValidationError(
                 "--record must be all, failed, missing or never (got '\(record)')",
@@ -118,6 +123,11 @@ public struct TestCommand: AsyncParsableCommand {
         let runner = CommandRunner()
         let fileSystem = FoundationFileSystem()
         let clock = ContinuousToolClock()
+        let directories = ToolDirectories(
+            environment: environment,
+            homeFallback: FileManager.default.homeDirectoryForCurrentUser,
+            temporaryFallback: FileManager.default.temporaryDirectory,
+        )
         let simulator = SimulatorService(
             runner: runner,
             fileSystem: fileSystem,
@@ -125,8 +135,8 @@ public struct TestCommand: AsyncParsableCommand {
             processInspector: SystemProcessInspector(),
             terminal: StandardErrorOnlyTerminal(base: terminal),
             repository: repository,
-            home: FileManager.default.homeDirectoryForCurrentUser,
-            temporaryDirectory: FileManager.default.temporaryDirectory,
+            home: directories.home,
+            temporaryDirectory: directories.temporary,
             processID: getpid(),
         )
         let service = TestService(
@@ -136,7 +146,7 @@ public struct TestCommand: AsyncParsableCommand {
             clock: clock,
             terminal: terminal,
             repository: repository,
-            temporaryDirectory: FileManager.default.temporaryDirectory,
+            temporaryDirectory: directories.temporary,
             environment: environment,
         )
         do {
@@ -164,7 +174,7 @@ public struct TestCommand: AsyncParsableCommand {
             throw exitCode
         } catch {
             try await terminal.write("error: \(error)\n", to: .standardError)
-            throw ExitCode.failure
+            throw ExitCode((error as? CommandLaunchFailure)?.exitStatus ?? 1)
         }
     }
 
