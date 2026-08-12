@@ -21,18 +21,6 @@ commands:
           condition: << parameters.hydrate_snapshots >>
           steps:
             - run:
-                name: Inventory snapshot references
-                command: |
-                  # The middle marker describes hydration, not corpus identity.
-                  git lfs ls-files --long \
-                    | sed -E 's/ [*-] / /' \
-                    | LC_ALL=C sort \
-                    > .circleci/lfs-cache-manifest
-            - restore_cache:
-                keys:
-                  - lfs-objects-v2-{{ checksum ".circleci/lfs-cache-manifest" }}
-                  - lfs-objects-v2-
-            - run:
                 name: Hydrate snapshot references
                 command: |
                   git lfs pull
@@ -42,14 +30,6 @@ commands:
                     printf '%s\n' "$pointer_files" >&2
                     exit 1
                   fi
-                  git lfs prune --no-verify-remote
-            - save_cache:
-                key: lfs-objects-v2-{{ checksum ".circleci/lfs-cache-manifest" }}
-                paths:
-                  - .git/lfs/objects
-            - run:
-                name: Remove snapshot cache manifest
-                command: rm .circleci/lfs-cache-manifest
       - restore_cache:
           keys:
             - mise-installs-v2-{{ arch }}-{{ checksum ".mise.toml" }}
