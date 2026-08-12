@@ -24,9 +24,6 @@ public actor WidgetSnapshotPublisher {
     private let maxAge: TimeInterval
 
     private var lastPublished: PublishedWidgetSnapshot?
-    private var theme = WhereTheme.standard
-    private var presentationRevision: UInt64 = 0
-    private var queuedPublish: Task<Void, Never>?
 
     private struct PublishedWidgetSnapshot {
         let snapshot: WidgetSnapshot
@@ -61,34 +58,15 @@ public actor WidgetSnapshotPublisher {
     /// Recompute and publish the snapshot from whatever the store currently
     /// holds, without needing a mutation first, but skip the rebuild when a
     /// current-day snapshot was published recently. A new day, a snapshot older
-    /// than `maxAge`, a changed presentation theme, or nothing published yet
-    /// (cold launch) all fall through to a full rebuild.
+    /// than `maxAge`, or nothing published yet (cold launch) all fall through
+    /// to a full rebuild.
     public func refreshIfStale() async {
         if let last = lastPublished {
             let today = calendar.startOfDay(for: now())
             let isFresh = now().timeIntervalSince(last.publishedAt) < maxAge
-            if last.snapshot.day == today, last.snapshot.theme == theme, isFresh {
+            if last.snapshot.day == today, isFresh {
                 return
             }
-        }
-        await publish()
-    }
-
-    /// Seed the current preference before a launch or foreground refresh.
-    public func configureTheme(_ theme: WhereTheme) {
-        guard theme != self.theme else { return }
-        self.theme = theme
-        presentationRevision &+= 1
-        queuedPublish?.cancel()
-    }
-
-    /// Immediately rebuild and republish after an Appearance selection.
-    public func publishTheme(_ theme: WhereTheme) async {
-        guard theme != self.theme || lastPublished?.snapshot.theme != theme else { return }
-        if theme != self.theme {
-            self.theme = theme
-            presentationRevision &+= 1
-            queuedPublish?.cancel()
         }
         await publish()
     }
@@ -99,13 +77,9 @@ public actor WidgetSnapshotPublisher {
     /// keeps showing its last published snapshot.
     func publish() async {
         await Self.logger.measure(.publish, budget: .seconds(2)) {
-            let revision = presentationRevision
-            let theme = theme
             do {
-                let snapshot = try await widgetReader.snapshot(asOf: now()).applyingTheme(theme)
-                guard revision == presentationRevision else { return }
-                await enqueue(snapshot, revision: revision)
-                guard revision == presentationRevision else { return }
+                let snapshot = try await widgetReader.snapshot(asOf: now())
+                await widgetRefresher.publish(snapshot)
                 lastPublished = PublishedWidgetSnapshot(snapshot: snapshot, publishedAt: now())
                 Self.logger {
                     .published(
@@ -125,33 +99,14 @@ public actor WidgetSnapshotPublisher {
                     year: CalendarDay(from: date, in: calendar).year,
                     dayRegions: [],
                     totals: [:],
-                    theme: theme,
                 )
-                guard revision == presentationRevision else { return }
-                await enqueue(snapshot, revision: revision)
-                guard revision == presentationRevision else { return }
+                await widgetRefresher.publish(snapshot)
                 lastPublished = PublishedWidgetSnapshot(snapshot: snapshot, publishedAt: date)
                 Self.logger { .buildFailed(description: error.localizedDescription) }
             } catch {
                 Self.logger { .buildFailed(description: error.localizedDescription) }
             }
         }
-    }
-
-    /// Serialize writes through a task chain. A theme change cancels a queued
-    /// superseded write; a write already in flight finishes before its
-    /// replacement, so the newest selection is always the final external state.
-    private func enqueue(_ snapshot: WidgetSnapshot, revision: UInt64) async {
-        let previous = queuedPublish
-        let refresher = widgetRefresher
-        let task = Task {
-            await previous?.value
-            guard !Task.isCancelled else { return }
-            await refresher.publish(snapshot)
-        }
-        queuedPublish = task
-        await task.value
-        guard revision == presentationRevision else { return }
     }
 
     /// Publish after a single ingested sample, skipping the rebuild + WidgetKit

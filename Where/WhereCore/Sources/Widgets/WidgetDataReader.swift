@@ -26,28 +26,22 @@ public struct WidgetSnapshot: Hashable, Sendable, Codable {
     /// hasn't customized (and for snapshots written before this field existed) —
     /// those fall back to the default look.
     public let appearances: [Region: RegionAppearance]
-    /// The device-local presentation identity the widget root should seed.
-    /// Snapshots written before themes existed decode as Standard.
-    public let theme: WhereTheme
-
     public init(
         day: Date,
         year: Int,
         dayRegions: Set<Region>,
         totals: [Region: Int],
         appearances: [Region: RegionAppearance] = [:],
-        theme: WhereTheme = .standard,
     ) {
         self.day = day
         self.year = year
         self.dayRegions = dayRegions
         self.totals = totals
         self.appearances = appearances
-        self.theme = theme
     }
 
     private enum CodingKeys: String, CodingKey {
-        case day, year, dayRegions, totals, appearances, theme
+        case day, year, dayRegions, totals, appearances
     }
 
     public init(from decoder: any Decoder) throws {
@@ -60,19 +54,6 @@ public struct WidgetSnapshot: Hashable, Sendable, Codable {
         // empty map rather than failing (the widget then uses default looks).
         appearances = try container
             .decodeIfPresent([Region: RegionAppearance].self, forKey: .appearances) ?? [:]
-        theme = try container.decodeIfPresent(WhereTheme.self, forKey: .theme) ?? .standard
-    }
-
-    /// Return the same immutable data snapshot with a presentation identity.
-    func applyingTheme(_ theme: WhereTheme) -> WidgetSnapshot {
-        WidgetSnapshot(
-            day: day,
-            year: year,
-            dayRegions: dayRegions,
-            totals: totals,
-            appearances: appearances,
-            theme: theme,
-        )
     }
 }
 

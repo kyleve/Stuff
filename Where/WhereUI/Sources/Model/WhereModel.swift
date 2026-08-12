@@ -259,6 +259,7 @@ public final class WhereModel {
     /// been committed. Recording confirmation is persisted separately first.
     public func completeOnboarding() {
         preferences.theme = theme
+        publishThemeChange(theme)
         hasOnboarded = true
         Self.logger { .onboardingCompleted }
     }
@@ -274,14 +275,19 @@ public final class WhereModel {
         guard newTheme != theme || preferences.theme != newTheme else { return }
         theme = newTheme
         preferences.theme = newTheme
+        publishThemeChange(newTheme)
+    }
+
+    /// Reassert the persisted device theme to app extensions at process launch.
+    public func synchronizeTheme() {
+        publishThemeChange(theme)
+    }
+
+    private func publishThemeChange(_ theme: WhereTheme) {
         themeChangeTask?.cancel()
         themeChangeTask = Task { [weak self] in
             guard let self, !Task.isCancelled else { return }
-            if let session {
-                await session.publishTheme(newTheme)
-            }
-            guard !Task.isCancelled else { return }
-            await onThemeChanged(newTheme)
+            await onThemeChanged(theme)
         }
     }
 
@@ -578,14 +584,14 @@ public final class WhereModel {
             // though deleting its tombstone still needs a retry, so a relaunch cannot combine a
             // fresh unconfirmed identity with stale "already onboarded" preferences.
             preferences.reset()
-            themeChangeTask?.cancel()
             theme = preferences.theme
+            publishThemeChange(theme)
             Self.logger { .resetPreferences }
             throw error
         }
         preferences.reset()
-        themeChangeTask?.cancel()
         theme = preferences.theme
+        publishThemeChange(theme)
         Self.logger { .resetPreferences }
     }
 }

@@ -29,6 +29,14 @@ private actor ThemeChangeGate {
     }
 }
 
+private actor ThemeRecorder {
+    private(set) var delivered: [WhereTheme] = []
+
+    func receive(_ theme: WhereTheme) {
+        delivered.append(theme)
+    }
+}
+
 @MainActor
 private func waitForWhereModel(
     _ predicate: () -> Bool,
@@ -103,6 +111,36 @@ struct WhereModelTests {
         }
 
         #expect(await gate.delivered == [.standard])
+    }
+
+    @Test func onboardingCommitLaunchSynchronizationAndResetPublishTheme() async throws {
+        let preferences = makePreferences()
+        let model = try WhereModel(
+            services: makeServices(),
+            preferences: preferences,
+            logSystem: .isolated(),
+        )
+        let recorder = ThemeRecorder()
+        model.onThemeChanged = { await recorder.receive($0) }
+
+        model.previewTheme(.alternate)
+        model.completeOnboarding()
+        while await recorder.delivered.count < 1 {
+            await Task.yield()
+        }
+        #expect(await recorder.delivered == [.alternate])
+
+        model.synchronizeTheme()
+        while await recorder.delivered.count < 2 {
+            await Task.yield()
+        }
+        #expect(await recorder.delivered == [.alternate, .alternate])
+
+        try model.resetPreferences()
+        while await recorder.delivered.count < 3 {
+            await Task.yield()
+        }
+        #expect(await recorder.delivered == [.alternate, .alternate, .standard])
     }
 
     @Test func lateLogStoreArrivalPublishesReadyState() async throws {

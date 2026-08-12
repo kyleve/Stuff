@@ -11,29 +11,8 @@ struct WidgetSnapshotPublisherTests {
     private actor SpyRefresher: WidgetTimelineRefreshing {
         private(set) var publishCount = 0
         private(set) var lastSnapshot: WidgetSnapshot?
-        private var blocksNextPublish = false
-        private var blockedContinuation: CheckedContinuation<Void, Never>?
-
-        var isBlocked: Bool {
-            blockedContinuation != nil
-        }
-
-        func blockNextPublish() {
-            blocksNextPublish = true
-        }
-
-        func releaseBlockedPublish() {
-            blockedContinuation?.resume()
-            blockedContinuation = nil
-        }
 
         func publish(_ snapshot: WidgetSnapshot) async {
-            if blocksNextPublish {
-                blocksNextPublish = false
-                await withCheckedContinuation { continuation in
-                    blockedContinuation = continuation
-                }
-            }
             publishCount += 1
             lastSnapshot = snapshot
         }
@@ -70,35 +49,6 @@ struct WidgetSnapshotPublisherTests {
         let (publisher, _, refresher) = try Self.makePublisher(now: { now })
         await publisher.publish()
         #expect(await refresher.publishCount == 1)
-        #expect(await refresher.lastSnapshot?.theme == .standard)
-    }
-
-    @Test func themeSelectionForcesARepublish() async throws {
-        let now = WhereCoreTestSupport.iso("2026-03-15T12:00:00-07:00")
-        let (publisher, _, refresher) = try Self.makePublisher(now: { now })
-        await publisher.publish()
-
-        await publisher.publishTheme(.alternate)
-
-        #expect(await refresher.publishCount == 2)
-        #expect(await refresher.lastSnapshot?.theme == .alternate)
-    }
-
-    @Test func rapidThemeChangesCannotFinishOnTheSupersededTheme() async throws {
-        let now = WhereCoreTestSupport.iso("2026-03-15T12:00:00-07:00")
-        let (publisher, _, refresher) = try Self.makePublisher(now: { now })
-        await refresher.blockNextPublish()
-
-        let alternate = Task { await publisher.publishTheme(.alternate) }
-        while await !refresher.isBlocked {
-            await Task.yield()
-        }
-        let standard = Task { await publisher.publishTheme(.standard) }
-        await refresher.releaseBlockedPublish()
-
-        await alternate.value
-        await standard.value
-        #expect(await refresher.lastSnapshot?.theme == .standard)
     }
 
     @Test func incompleteDestructiveGenerationReplacesSensitiveSnapshotWithEmptyState(
@@ -147,13 +97,11 @@ struct WidgetSnapshotPublisherTests {
         )))
         try remoteContext.save()
 
-        await publisher.configureTheme(.alternate)
         await publisher.publish()
 
         #expect(await refresher.publishCount == 2)
         #expect(await refresher.lastSnapshot?.dayRegions.isEmpty == true)
         #expect(await refresher.lastSnapshot?.totals.isEmpty == true)
-        #expect(await refresher.lastSnapshot?.theme == .alternate)
     }
 
     @Test func refreshIfStaleSkipsWhenFresh() async throws {
@@ -174,18 +122,6 @@ struct WidgetSnapshotPublisherTests {
         clock.advance(by: 120) // same day, but older than the 60s window
         await publisher.refreshIfStale()
         #expect(await refresher.publishCount == 2)
-    }
-
-    @Test func configuredThemeInvalidatesAnOtherwiseFreshSnapshot() async throws {
-        let now = WhereCoreTestSupport.iso("2026-03-15T12:00:00-07:00")
-        let (publisher, _, refresher) = try Self.makePublisher(now: { now })
-        await publisher.publish()
-
-        await publisher.configureTheme(.alternate)
-        await publisher.refreshIfStale()
-
-        #expect(await refresher.publishCount == 2)
-        #expect(await refresher.lastSnapshot?.theme == .alternate)
     }
 
     @Test func publishAfterIngestSkipsWhenDayAndRegionUnchanged() async throws {
