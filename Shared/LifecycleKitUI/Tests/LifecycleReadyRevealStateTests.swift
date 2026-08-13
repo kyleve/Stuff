@@ -4,10 +4,25 @@ import Testing
 struct LifecycleReadyRevealStateTests {
     private let minimumSplashDuration = Duration.milliseconds(800)
 
+    @Test func zeroMinimumStartsRevealed() {
+        let state = LifecycleReadyRevealState(minimumSplashDuration: .zero)
+
+        #expect(state.canRevealReady)
+        #expect(state.splashHoldDeadline == nil)
+    }
+
+    @Test func positiveMinimumStartsAwaitingTheFirstVisibleReady() {
+        let state = LifecycleReadyRevealState(
+            minimumSplashDuration: minimumSplashDuration,
+        )
+
+        #expect(state.canRevealReady == false)
+        #expect(state.splashHoldDeadline == nil)
+    }
+
     @Test func firstVisibleReadyStartsAHoldWhenNoSplashRendered() {
         let readyInstant = ContinuousClock.now
         var state = LifecycleReadyRevealState(
-            policy: .splashBeforeFirstReveal,
             minimumSplashDuration: minimumSplashDuration,
         )
 
@@ -27,7 +42,6 @@ struct LifecycleReadyRevealStateTests {
         let splashInstant = ContinuousClock.now
         let readyInstant = splashInstant.advanced(by: .milliseconds(400))
         var state = LifecycleReadyRevealState(
-            policy: .splashBeforeFirstReveal,
             minimumSplashDuration: minimumSplashDuration,
         )
         state.splashAppeared(
@@ -47,7 +61,6 @@ struct LifecycleReadyRevealStateTests {
     @Test func visibleReadyDoesNotReplayAfterContentWasRevealed() {
         let readyInstant = ContinuousClock.now
         var state = LifecycleReadyRevealState(
-            policy: .splashBeforeFirstReveal,
             minimumSplashDuration: minimumSplashDuration,
         )
         state = .revealed
@@ -65,7 +78,6 @@ struct LifecycleReadyRevealStateTests {
         let firstReadyInstant = ContinuousClock.now
         let resumedReadyInstant = firstReadyInstant.advanced(by: .seconds(5))
         var state = LifecycleReadyRevealState(
-            policy: .splashBeforeFirstReveal,
             minimumSplashDuration: minimumSplashDuration,
         )
         state.readyBecameVisible(
@@ -73,7 +85,7 @@ struct LifecycleReadyRevealStateTests {
             minimumSplashDuration: minimumSplashDuration,
         )
 
-        state.sceneBecameInactive(beforeFirstRevealUsing: .splashBeforeFirstReveal)
+        state.sceneBecameInactive()
         state.readyBecameVisible(
             at: resumedReadyInstant,
             minimumSplashDuration: minimumSplashDuration,
@@ -88,12 +100,11 @@ struct LifecycleReadyRevealStateTests {
 
     @Test func sceneInactivityDoesNotReplayAfterContentWasRevealed() {
         var state = LifecycleReadyRevealState(
-            policy: .splashBeforeFirstReveal,
             minimumSplashDuration: minimumSplashDuration,
         )
         state = .revealed
 
-        state.sceneBecameInactive(beforeFirstRevealUsing: .splashBeforeFirstReveal)
+        state.sceneBecameInactive()
 
         #expect(state.canRevealReady)
         #expect(state.splashHoldDeadline == nil)
@@ -102,7 +113,6 @@ struct LifecycleReadyRevealStateTests {
     @Test func sceneInactivityBeforeTheUncoveredFrameStillOwesAReveal() {
         let readyInstant = ContinuousClock.now
         var state = LifecycleReadyRevealState(
-            policy: .splashBeforeFirstReveal,
             minimumSplashDuration: minimumSplashDuration,
         )
         state.readyBecameVisible(
@@ -112,7 +122,7 @@ struct LifecycleReadyRevealStateTests {
         state.splashHoldElapsed()
         #expect(state.canRevealReady)
 
-        state.sceneBecameInactive(beforeFirstRevealUsing: .splashBeforeFirstReveal)
+        state.sceneBecameInactive()
 
         #expect(state.canRevealReady == false)
         #expect(state.splashHoldDeadline == nil)
@@ -121,7 +131,6 @@ struct LifecycleReadyRevealStateTests {
     @Test func committedUncoveredFrameMakesTheRevealSticky() {
         let readyInstant = ContinuousClock.now
         var state = LifecycleReadyRevealState(
-            policy: .splashBeforeFirstReveal,
             minimumSplashDuration: minimumSplashDuration,
         )
         state.readyBecameVisible(
@@ -131,7 +140,7 @@ struct LifecycleReadyRevealStateTests {
         state.splashHoldElapsed()
 
         state.contentDidReveal()
-        state.sceneBecameInactive(beforeFirstRevealUsing: .splashBeforeFirstReveal)
+        state.sceneBecameInactive()
 
         #expect(state.canRevealReady)
         #expect(state.splashHoldDeadline == nil)
@@ -140,9 +149,9 @@ struct LifecycleReadyRevealStateTests {
     @Test func aLaterRenderedSplashRearmsTheMinimum() {
         let splashInstant = ContinuousClock.now
         var state = LifecycleReadyRevealState(
-            policy: .phaseDriven,
             minimumSplashDuration: minimumSplashDuration,
         )
+        state = .revealed
         #expect(state.canRevealReady)
 
         state.splashAppeared(

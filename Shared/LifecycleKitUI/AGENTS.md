@@ -29,16 +29,15 @@ build system, formatting, and global conventions. Read that first.
 - **Every splash-showing state resolves to one `LaunchOverlay.splash` case** —
   never per-phase `switch` arms, which remount the splash at each boundary
   and reset its animations and caption timers.
-- **`minimumSplashDuration` holds only an observed splash by default** —
-  `.phaseDriven` keeps an already-`.ready` mount immediate, while
-  `.splashBeforeFirstReveal` may establish the first hold from a visible
-  `.ready` when foreground promotion coalesced past the splash. Keep that hold
+- **A positive `minimumSplashDuration` covers the first visible ready reveal** —
+  including an already-`.ready` mount when foreground promotion coalesced past
+  the splash; `.zero` reveals immediately. Keep the positive-duration hold
   keyed on readiness *and* active-scene visibility, retain an observed splash's
   original deadline, and never arm or complete it offscreen. An interrupted
   first reveal returns to awaiting; only content whose uncovered frame was
   committed survives an ordinary resume without replay. Guards:
-  `minimumSplashDurationDoesNotHoldWhenNoSplashWasShown`,
-  `splashBeforeFirstRevealKeepsBackgroundReadyHeadless`,
+  `positiveMinimumCoversAlreadyReadyContent`,
+  `positiveMinimumKeepsBackgroundReadyHeadless`,
   `promotedBackgroundReadyForcesTheFirstRevealSplash`,
   `interruptedFirstRevealWaitsAgainAfterTheSceneBecomesActive`. Assert
   "revealed" via the *absent splash*, not via `content` (content is built
