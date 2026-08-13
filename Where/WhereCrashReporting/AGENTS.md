@@ -1,7 +1,7 @@
 # WhereCrashReporting – Module Shape
 
 WhereCrashReporting is the Where app's vendor-neutral boundary around its
-process-global crash-reporting SDKs. See [`README.md`](README.md). This file complements the root
+process-global crash-reporting SDK. See [`README.md`](README.md). This file complements the root
 [`AGENTS.md`](../../AGENTS.md), which owns build, formatting, and repository-wide
 conventions.
 
@@ -16,7 +16,7 @@ conventions.
   separate product decision and sampling policy.
 - Keep project-specific client configuration at the app composition root.
 - Do not start the process-global SDK under XCTest; detect the test process via
-  `XCTestConfigurationFilePath` before touching either vendor.
+  `XCTestConfigurationFilePath` before touching the vendor.
 
 ## Testing
 
