@@ -22,6 +22,9 @@ import SFSafeSymbols
         var body: some View {
             NavigationStack {
                 switch tool {
+                    case .crashTesting:
+                        DeveloperCrashTestingView()
+
                     case .logs:
                         switch model?.logStoreState {
                             case let .ready(store):
@@ -68,5 +71,9 @@ import SFSafeSymbols
         DeveloperToolView(tool: .regionMap)
             .environment(PreviewSupport.loadedModel())
             .environment(PreviewSupport.loadedSession())
+    }
+
+    #Preview("Crash testing") {
+        DeveloperToolView(tool: .crashTesting)
     }
 #endif

@@ -2405,6 +2405,186 @@
         }
       }
     },
+    "developer.crash.abortSignal.description" : {
+      "comment" : "Explanation of the abort-signal crash test.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calls abort() to terminate the process with SIGABRT."
+          }
+        }
+      }
+    },
+    "developer.crash.abortSignal.title" : {
+      "comment" : "Title of the abort-signal crash test.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abort Signal"
+          }
+        }
+      }
+    },
+    "developer.crash.arrayBounds.description" : {
+      "comment" : "Explanation of the array-bounds crash test.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reads one element past the end of a Swift array."
+          }
+        }
+      }
+    },
+    "developer.crash.arrayBounds.title" : {
+      "comment" : "Title of the array-bounds crash test.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Array Out of Bounds"
+          }
+        }
+      }
+    },
+    "developer.crash.confirmation.action" : {
+      "comment" : "Destructive confirmation button that immediately crashes the app.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Crash Now"
+          }
+        }
+      }
+    },
+    "developer.crash.confirmation.title" : {
+      "comment" : "Title of the confirmation dialog shown before a forced crash.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Crash Where?"
+          }
+        }
+      }
+    },
+    "developer.crash.fatalError.description" : {
+      "comment" : "Explanation of the Swift fatalError crash test.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Invokes Swift fatalError with a recognizable diagnostic message."
+          }
+        }
+      }
+    },
+    "developer.crash.fatalError.title" : {
+      "comment" : "Title of the Swift fatalError crash test.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Swift Fatal Error"
+          }
+        }
+      }
+    },
+    "developer.crash.invalidMemoryAccess.description" : {
+      "comment" : "Explanation of the invalid-memory-access crash test.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Writes through an invalid pointer to produce a bad-access crash."
+          }
+        }
+      }
+    },
+    "developer.crash.invalidMemoryAccess.title" : {
+      "comment" : "Title of the invalid-memory-access crash test.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Invalid Memory Access"
+          }
+        }
+      }
+    },
+    "developer.crash.objectiveCException.description" : {
+      "comment" : "Explanation of the Objective-C exception crash test.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Raises an uncaught NSException with a recognizable reason."
+          }
+        }
+      }
+    },
+    "developer.crash.objectiveCException.title" : {
+      "comment" : "Title of the Objective-C exception crash test.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Objective-C Exception"
+          }
+        }
+      }
+    },
+    "developer.crashTesting.footer" : {
+      "comment" : "Instructions shown below the forced-crash developer controls.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Each action terminates Where immediately. Reopen the app after each test so the crash reporter can send the report. A connected debugger may intercept the crash."
+          }
+        }
+      }
+    },
+    "developer.crashTesting.link" : {
+      "comment" : "Label for the button that opens the forced-crash testing screen.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Crash Testing"
+          }
+        }
+      }
+    },
+    "developer.crashTesting.title" : {
+      "comment" : "Title of the forced-crash testing developer screen.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Crash Testing"
+          }
+        }
+      }
+    },
     "developer.dragHandle" : {
       "comment" : "Accessibility label for the handle that drags the floating developer window.",
       "extractionState" : "manual",
