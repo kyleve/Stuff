@@ -29,6 +29,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
             launchConfiguration: launchConfiguration,
             client: client,
             logSystem: .shared,
+            now: Date.init,
         )
         reportingControllers = [reportingController]
         let applyRemoteLogging: DiagnosticReportingSettingsModel.ApplyRemoteLogging = {
@@ -59,8 +60,10 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
             )
             if let regularRuntime = runtime as? RegularApplicationRuntime {
                 client.setStartupFailureHandler { [weak model = regularRuntime.model] message in
-                    Task { await reportingController.providerDidFail() }
-                    model?.diagnosticReporting.recordRuntimeFailure(message)
+                    Task {
+                        await reportingController.providerDidFail()
+                        model?.diagnosticReporting.recordRuntimeFailure(message)
+                    }
                 }
             }
         #else
@@ -70,8 +73,10 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
                 applyRemoteLogging: applyRemoteLogging,
             )
             client.setStartupFailureHandler { [weak model = regularRuntime.model] message in
-                Task { await reportingController.providerDidFail() }
-                model?.diagnosticReporting.recordRuntimeFailure(message)
+                Task {
+                    await reportingController.providerDidFail()
+                    model?.diagnosticReporting.recordRuntimeFailure(message)
+                }
             }
             runtime = regularRuntime
         #endif

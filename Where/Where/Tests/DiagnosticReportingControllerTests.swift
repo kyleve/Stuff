@@ -58,6 +58,59 @@ struct DiagnosticReportingControllerTests {
         #expect(entries.map(\.level) == [.warning, .error, .error])
     }
 
+    @Test func mapsEveryAcceptedStandardLevel() async {
+        let configuration = DiagnosticReportingConfiguration(
+            sharesCrashReports: false,
+            sharesSessionReplays: false,
+            remoteLogging: .enabled(minimumLevel: .debug, metadataPolicy: .approvedFields),
+        )
+        let fixture = Fixture(configuration: configuration)
+        fixture.controller.start()
+        let log = Log<RemoteTestEvent>(recorder: fixture.logSystem)
+
+        for level in LogLevel.standardLevels {
+            log { RemoteTestEvent(level: level) }
+        }
+        await fixture.logSystem.flush()
+
+        #expect(await fixture.writer.entries.map(\.level) == [
+            .debug,
+            .info,
+            .info,
+            .warning,
+            .error,
+            .error,
+        ])
+    }
+
+    @Test func enabledPolicyDoesNotRetroactivelyExportOlderRecords() async {
+        let writer = RecordingBitdriftWriter()
+        let effectiveFrom = Date(timeIntervalSinceReferenceDate: 200)
+        let sink = BitdriftRemoteLogSink(
+            configuration: .enabled(
+                minimumLevel: .debug,
+                metadataPolicy: .approvedFields,
+            ),
+            effectiveFrom: effectiveFrom,
+            writer: writer,
+        )
+
+        await sink.write([
+            LogRecord(
+                date: effectiveFrom.addingTimeInterval(-0.001),
+                event: RemoteTestEvent(level: .warning),
+                scopes: [],
+            ),
+            LogRecord(
+                date: effectiveFrom,
+                event: RemoteTestEvent(level: .warning),
+                scopes: [],
+            ),
+        ])
+
+        #expect(await writer.entries.count == 1)
+    }
+
     @Test func approvedExportExcludesPrivateContext() async throws {
         let configuration = DiagnosticReportingConfiguration.defaults(isDebugBuild: true)
         let fixture = Fixture(configuration: configuration)
@@ -172,6 +225,27 @@ struct DiagnosticReportingControllerTests {
         }
     }
 
+    @Test func providerGatePreventsImmediateSinkAttachment() async {
+        let fixture = Fixture(configuration: DiagnosticReportingConfiguration(
+            sharesCrashReports: false,
+            sharesSessionReplays: false,
+            remoteLogging: .off,
+        ))
+        fixture.client.allowsStart = false
+
+        await #expect(throws: DiagnosticReportingController.Failure.providerUnavailable) {
+            try await fixture.controller.applyRemoteLogging(
+                .enabled(minimumLevel: .warning, metadataPolicy: .approvedFields),
+                revision: 1,
+            )
+        }
+        let log = Log<RemoteTestEvent>(recorder: fixture.logSystem)
+        log { RemoteTestEvent(level: .warning) }
+        await fixture.logSystem.flush()
+
+        #expect(await fixture.writer.entries.isEmpty)
+    }
+
     @Test func asynchronousProviderFailureDetachesTheRemoteSink() async {
         let fixture = Fixture(configuration: .defaults(isDebugBuild: true))
         fixture.controller.start()
@@ -219,6 +293,7 @@ private struct Fixture {
             launchConfiguration: configuration,
             client: client,
             logSystem: logSystem,
+            now: Date.init,
         )
     }
 }
@@ -240,6 +315,7 @@ private final class FakeBitdriftClient: BitdriftReportingClientProtocol {
     private(set) var startConfiguration: BitdriftLaunchConfiguration?
     private(set) var sleepStates: [Bool] = []
     var startError: Failure?
+    var allowsStart = true
 
     init(writer: any BitdriftLogWriting) {
         self.writer = writer
@@ -247,6 +323,7 @@ private final class FakeBitdriftClient: BitdriftReportingClientProtocol {
 
     func start(configuration: BitdriftLaunchConfiguration) throws {
         if let startError { throw startError }
+        guard allowsStart else { return }
         hasStarted = true
         startConfiguration = configuration
     }

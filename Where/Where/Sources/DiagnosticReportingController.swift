@@ -16,10 +16,15 @@ extension BitdriftReportingClient: BitdriftReportingClientProtocol {}
 /// Reconciles launch-only reporting channels with the live Periscope export sink.
 @MainActor
 final class DiagnosticReportingController: WhereReportingController {
+    enum Failure: Error, Equatable {
+        case providerUnavailable
+    }
+
     let launchConfiguration: DiagnosticReportingConfiguration
 
     private let client: any BitdriftReportingClientProtocol
     private let logSystem: Periscope
+    private let now: @MainActor () -> Date
     private var remoteSink: BitdriftRemoteLogSink?
     private var remoteSinkToken: Periscope.SinkToken?
     private var latestRevision: UInt64 = 0
@@ -28,10 +33,12 @@ final class DiagnosticReportingController: WhereReportingController {
         launchConfiguration: DiagnosticReportingConfiguration,
         client: any BitdriftReportingClientProtocol,
         logSystem: Periscope,
+        now: @escaping @MainActor () -> Date,
     ) {
         self.launchConfiguration = launchConfiguration
         self.client = client
         self.logSystem = logSystem
+        self.now = now
     }
 
     func start() {
@@ -75,9 +82,10 @@ final class DiagnosticReportingController: WhereReportingController {
 
             case .enabled:
                 try startProviderIfNeeded()
+                guard client.hasStarted else { throw Failure.providerUnavailable }
                 client.setSleeping(false)
                 if let remoteSink {
-                    await remoteSink.update(configuration: configuration)
+                    await remoteSink.update(configuration: configuration, effectiveFrom: now())
                     guard revision == latestRevision else { return }
                 } else {
                     attachRemoteSink(configuration: configuration)
@@ -105,7 +113,11 @@ final class DiagnosticReportingController: WhereReportingController {
 
     private func attachRemoteSink(configuration: RemoteLoggingConfiguration) {
         guard remoteSinkToken == nil else { return }
-        let sink = BitdriftRemoteLogSink(configuration: configuration, writer: client.writer)
+        let sink = BitdriftRemoteLogSink(
+            configuration: configuration,
+            effectiveFrom: now(),
+            writer: client.writer,
+        )
         remoteSink = sink
         remoteSinkToken = logSystem.add(sink: sink)
     }
@@ -128,16 +140,23 @@ extension DiagnosticReportingConfiguration {
 /// Actor-isolated mapping from Periscope's live records to Bitdrift fields.
 actor BitdriftRemoteLogSink: LogSink {
     private var configuration: RemoteLoggingConfiguration
+    private var effectiveFrom: Date
     private let writer: any BitdriftLogWriting
     private var scopes: [ScopeID: LogScope] = [:]
 
-    init(configuration: RemoteLoggingConfiguration, writer: any BitdriftLogWriting) {
+    init(
+        configuration: RemoteLoggingConfiguration,
+        effectiveFrom: Date,
+        writer: any BitdriftLogWriting,
+    ) {
         self.configuration = configuration
+        self.effectiveFrom = effectiveFrom
         self.writer = writer
     }
 
-    func update(configuration: RemoteLoggingConfiguration) {
+    func update(configuration: RemoteLoggingConfiguration, effectiveFrom: Date) {
         self.configuration = configuration
+        self.effectiveFrom = effectiveFrom
     }
 
     func defineScopes(_ scopes: [LogScope]) {
@@ -148,7 +167,9 @@ actor BitdriftRemoteLogSink: LogSink {
 
     func write(_ records: [LogRecord]) async {
         guard case let .enabled(minimumLevel, metadataPolicy) = configuration else { return }
-        for record in records where record.level >= minimumLevel.periscopeLevel {
+        for record in records
+            where record.date >= effectiveFrom && record.level >= minimumLevel.periscopeLevel
+        {
             await writer.write(entry(for: record, metadataPolicy: metadataPolicy))
         }
     }
@@ -235,6 +256,7 @@ extension LogLevel {
             case let level where level >= .error: .error
             case let level where level >= .warning: .warning
             case let level where level >= .notice: .info
+            case let level where level >= .info: .info
             default: .debug
         }
     }
