@@ -115,6 +115,9 @@ public final class WhereModel {
     /// holding it eagerly doesn't cost the logged-out window anything.
     let preferences: WherePreferences
 
+    /// Process reporting state stays real even while the active data scope is a demo.
+    public let diagnosticReporting: DiagnosticReportingSettingsModel
+
     /// The one device-local recording context store composed for this process.
     /// It owns the non-backed-up installation sidecar and is shared with every
     /// bootstrap this model creates, so onboarding and service assembly cannot
@@ -298,9 +301,19 @@ public final class WhereModel {
             any InstallationRecordingContextStoring,
         ) -> any WhereScopeAssembling,
         logSystem: Periscope,
+        effectiveDiagnosticReportingConfiguration: DiagnosticReportingConfiguration? = nil,
+        applyRemoteLogging: @escaping DiagnosticReportingSettingsModel.ApplyRemoteLogging = {
+            _, _ in
+        },
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
         self.preferences = preferences
+        diagnosticReporting = DiagnosticReportingSettingsModel(
+            preferences: preferences,
+            effectiveConfiguration: effectiveDiagnosticReportingConfiguration
+                ?? preferences.diagnosticReportingConfiguration,
+            applyRemoteLogging: applyRemoteLogging,
+        )
         self.installationContextStore = installationContextStore
         onboardingImportRecovery = OnboardingImportRecoveryModel(
             installationContextStore: installationContextStore,
@@ -328,6 +341,10 @@ public final class WhereModel {
         selectedYear: Int = WhereModel.currentYear,
         preferences: WherePreferences,
         logSystem: Periscope,
+        effectiveDiagnosticReportingConfiguration: DiagnosticReportingConfiguration? = nil,
+        applyRemoteLogging: @escaping DiagnosticReportingSettingsModel.ApplyRemoteLogging = {
+            _, _ in
+        },
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
         let installationContextStore = InMemoryInstallationRecordingContextStore(
@@ -340,6 +357,12 @@ public final class WhereModel {
         )
         scopeState = .real(scope)
         self.preferences = preferences
+        diagnosticReporting = DiagnosticReportingSettingsModel(
+            preferences: preferences,
+            effectiveConfiguration: effectiveDiagnosticReportingConfiguration
+                ?? preferences.diagnosticReportingConfiguration,
+            applyRemoteLogging: applyRemoteLogging,
+        )
         self.installationContextStore = installationContextStore
         onboardingImportRecovery = OnboardingImportRecoveryModel(
             installationContextStore: installationContextStore,
@@ -544,10 +567,12 @@ public final class WhereModel {
             // though deleting its tombstone still needs a retry, so a relaunch cannot combine a
             // fresh unconfirmed identity with stale "already onboarded" preferences.
             preferences.reset()
+            diagnosticReporting.preferencesDidReset()
             Self.logger { .resetPreferences }
             throw error
         }
         preferences.reset()
+        diagnosticReporting.preferencesDidReset()
         Self.logger { .resetPreferences }
     }
 }
