@@ -92,4 +92,25 @@ enum LocationIngestorLog: LogEvent {
                 nil
         }
     }
+
+    var remoteFields: [RemoteLogField] {
+        switch self {
+            case let .restoredBacklog(count):
+                [RemoteLogField(key: RemoteLogFieldKey("backlog_count"), value: .count(count))]
+            case let .retryQueueAtCapacity(capacity):
+                [RemoteLogField(key: RemoteLogFieldKey("capacity"), value: .count(capacity))]
+            case let .drainedBacklog(sampleCount, dayCount):
+                [
+                    RemoteLogField(
+                        key: RemoteLogFieldKey("sample_count"),
+                        value: .count(sampleCount),
+                    ),
+                    RemoteLogField(key: RemoteLogFieldKey("day_count"), value: .count(dayCount)),
+                ]
+            case .monitoringStarted, .monitoringStopped, .quiesced, .todayIntervalUnavailable,
+                 .foregroundCaptureReadFailed, .capturedForegroundFix, .persistFailed,
+                 .retryBacklogPersistenceFailed, .retryStillFailing:
+                []
+        }
+    }
 }

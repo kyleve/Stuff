@@ -63,6 +63,10 @@ the build system, formatting, and global conventions. Read that first.
   drain is awaited and the sink flushed, so a removed sink is owed nothing and
   hears nothing more. Removing a `PeriscopeStore` also uninstalls that store's
   journal. Guard: `PeriscopeTests.removalDeliversAndFlushesWhatTheSinkWasOwed`.
+- **Remote export is explicit opt-in per event.** Safe sinks use
+  `remoteMessage` and `remoteFields`; never infer from payloads, tags, dynamic
+  scopes, ambient state, external IDs, or attachments. Attachment bytes are
+  never a remote-export input, including Debug full-metadata mode.
 - **Sink failures never propagate or vanish** — logged to OSLog, counted, and
   persisted as a synthetic `StoreWriteFailed` marker; the pipeline reports
   drops with a synthetic `DroppedEvents` record.

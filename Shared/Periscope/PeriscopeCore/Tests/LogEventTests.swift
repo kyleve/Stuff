@@ -10,6 +10,27 @@ private struct PhotoUploaded: LogEvent {
     }
 }
 
+private enum UploadKind: String {
+    case thumbnail
+}
+
+private struct ApprovedUpload: LogEvent {
+    let byteCount: Int
+    var message: String {
+        "Uploaded"
+    }
+
+    var remoteFields: [RemoteLogField] {
+        [
+            RemoteLogField(key: RemoteLogFieldKey("byte_count"), value: .count(byteCount)),
+            RemoteLogField(
+                key: RemoteLogFieldKey("kind"),
+                value: .category(RemoteLogCategory(UploadKind.thumbnail)),
+            ),
+        ]
+    }
+}
+
 private struct DiskFull: LogEvent {
     static let eventName = "disk-full"
     static let eventVersion = 2
@@ -40,6 +61,20 @@ struct LogEventTests {
         let event = PhotoUploaded(photoID: "p1", byteCount: 42)
         #expect(event.level == .info)
         #expect(DiskFull().level == .error)
+    }
+
+    @Test func remoteFieldsDefaultToEmpty() {
+        #expect(PhotoUploaded(photoID: "private-id", byteCount: 42).remoteFields.isEmpty)
+    }
+
+    @Test func remoteFieldsCarryOnlyApprovedTypedValues() {
+        #expect(ApprovedUpload(byteCount: 42).remoteFields == [
+            RemoteLogField(key: RemoteLogFieldKey("byte_count"), value: .count(42)),
+            RemoteLogField(
+                key: RemoteLogFieldKey("kind"),
+                value: .category(RemoteLogCategory(UploadKind.thumbnail)),
+            ),
+        ])
     }
 
     @Test func payloadRoundTripsThroughCodable() throws {

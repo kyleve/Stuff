@@ -76,4 +76,18 @@ enum YearReportModelLog: LogEvent {
                 nil
         }
     }
+
+    var remoteFields: [RemoteLogField] {
+        switch self {
+            case let .reportLoaded(_, dayCount):
+                [RemoteLogField(
+                    key: RemoteLogFieldKey("day_count"),
+                    value: .count(dayCount),
+                )]
+            case .selectedYear, .reportLoadFailed, .evidenceDayKeysLoadFailed,
+                 .dataIssueScanFailed, .clearYearFailed, .locationsLoadFailed,
+                 .dayLocationsLoadFailed, .representativeCoordinatesLoadFailed:
+                []
+        }
+    }
 }
