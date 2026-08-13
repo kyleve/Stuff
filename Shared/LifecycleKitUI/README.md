@@ -112,7 +112,9 @@ surfaces are unaffected, and once content is revealed an ordinary foreground
 resume does not replay the forced splash. If the scene becomes inactive before
 that reveal, the pending hold is canceled rather than completed offscreen; the
 next active presentation starts a fresh minimum so content cannot appear for
-the first time without its splash.
+the first time without its splash. Timer expiry merely releases the overlay;
+the no-replay state becomes permanent only after SwiftUI commits an uncovered
+content frame.
 
 ## Reaching the runner from nested views
 

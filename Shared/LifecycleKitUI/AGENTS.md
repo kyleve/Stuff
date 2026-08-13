@@ -35,8 +35,8 @@ build system, formatting, and global conventions. Read that first.
   `.ready` when foreground promotion coalesced past the splash. Keep that hold
   keyed on readiness *and* active-scene visibility, retain an observed splash's
   original deadline, and never arm or complete it offscreen. An interrupted
-  first reveal returns to awaiting; only already-revealed content survives an
-  ordinary resume without replay. Guards:
+  first reveal returns to awaiting; only content whose uncovered frame was
+  committed survives an ordinary resume without replay. Guards:
   `minimumSplashDurationDoesNotHoldWhenNoSplashWasShown`,
   `splashBeforeFirstRevealKeepsBackgroundReadyHeadless`,
   `promotedBackgroundReadyForcesTheFirstRevealSplash`,

@@ -99,6 +99,44 @@ struct LifecycleReadyRevealStateTests {
         #expect(state.splashHoldDeadline == nil)
     }
 
+    @Test func sceneInactivityBeforeTheUncoveredFrameStillOwesAReveal() {
+        let readyInstant = ContinuousClock.now
+        var state = LifecycleReadyRevealState(
+            policy: .splashBeforeFirstReveal,
+            minimumSplashDuration: minimumSplashDuration,
+        )
+        state.readyBecameVisible(
+            at: readyInstant,
+            minimumSplashDuration: minimumSplashDuration,
+        )
+        state.splashHoldElapsed()
+        #expect(state.canRevealReady)
+
+        state.sceneBecameInactive(beforeFirstRevealUsing: .splashBeforeFirstReveal)
+
+        #expect(state.canRevealReady == false)
+        #expect(state.splashHoldDeadline == nil)
+    }
+
+    @Test func committedUncoveredFrameMakesTheRevealSticky() {
+        let readyInstant = ContinuousClock.now
+        var state = LifecycleReadyRevealState(
+            policy: .splashBeforeFirstReveal,
+            minimumSplashDuration: minimumSplashDuration,
+        )
+        state.readyBecameVisible(
+            at: readyInstant,
+            minimumSplashDuration: minimumSplashDuration,
+        )
+        state.splashHoldElapsed()
+
+        state.contentDidReveal()
+        state.sceneBecameInactive(beforeFirstRevealUsing: .splashBeforeFirstReveal)
+
+        #expect(state.canRevealReady)
+        #expect(state.splashHoldDeadline == nil)
+    }
+
     @Test func aLaterRenderedSplashRearmsTheMinimum() {
         let splashInstant = ContinuousClock.now
         var state = LifecycleReadyRevealState(

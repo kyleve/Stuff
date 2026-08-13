@@ -176,7 +176,7 @@ public struct LifecycleContainer<
             // Drive the reveal in an explicit transaction: `.animation(_:value:)`
             // doesn't reliably animate this async, `.task`-driven flip, so the
             // splash would be removed without its reveal transition.
-            withAnimation(animation) { readyRevealState = .revealed }
+            withAnimation(animation) { readyRevealState.splashHoldElapsed() }
         }
     }
 
@@ -322,7 +322,17 @@ public struct LifecycleContainer<
             case let .failure(failure):
                 failureView(failure).transition(transition).zIndex(Self.launchSurfaceZIndex)
             case .revealed:
-                EmptyView()
+                // Timer expiry only permits the overlay to leave. Make the
+                // reveal sticky after SwiftUI commits that uncovered frame, so
+                // an intervening inactive scene still owes its first reveal.
+                Color.clear
+                    .frame(width: 0, height: 0)
+                    .accessibilityHidden(true)
+                    .allowsHitTesting(false)
+                    .onAppear {
+                        guard isPresentationVisible, runner.phase.isReady else { return }
+                        readyRevealState.contentDidReveal()
+                    }
         }
     }
 

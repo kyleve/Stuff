@@ -5,6 +5,9 @@
 enum LifecycleReadyRevealState: Equatable {
     case awaitingFirstVisibleReady
     case holdingSplash(until: ContinuousClock.Instant)
+    /// The deadline elapsed and the overlay may leave, but SwiftUI has not yet
+    /// committed an uncovered ready-content frame.
+    case releasing
     case revealed
 
     init(
@@ -22,14 +25,14 @@ enum LifecycleReadyRevealState: Equatable {
     var canRevealReady: Bool {
         switch self {
             case .awaitingFirstVisibleReady, .holdingSplash: false
-            case .revealed: true
+            case .releasing, .revealed: true
         }
     }
 
     var splashHoldDeadline: ContinuousClock.Instant? {
         switch self {
             case let .holdingSplash(until: deadline): deadline
-            case .awaitingFirstVisibleReady, .revealed: nil
+            case .awaitingFirstVisibleReady, .releasing, .revealed: nil
         }
     }
 
@@ -50,6 +53,16 @@ enum LifecycleReadyRevealState: Equatable {
     ) {
         guard case .awaitingFirstVisibleReady = self else { return }
         splashAppeared(at: instant, minimumSplashDuration: minimumSplashDuration)
+    }
+
+    mutating func splashHoldElapsed() {
+        guard case .holdingSplash = self else { return }
+        self = .releasing
+    }
+
+    mutating func contentDidReveal() {
+        guard case .releasing = self else { return }
+        self = .revealed
     }
 
     /// Cancels an unrevealed presentation episode when its scene stops being
