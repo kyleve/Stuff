@@ -21,6 +21,8 @@ struct CalendarContentView: View {
     @Environment(\.stylesheet) private var stylesheet
     @State private var monthsLoad: Result<[CalendarMonth], Error>?
     @State private var plannedStayEditorTarget: PlannedStayEditorTarget?
+    @State private var initiallyPositionedYear: Int?
+    @State private var scrollPosition = ScrollPosition(idType: String.self)
 
     private static let logger = WhereLog.session(CalendarViewLog.self)
 
@@ -128,9 +130,13 @@ struct CalendarContentView: View {
     }
 
     private func calendarContent(months: [CalendarMonth]) -> some View {
-        ScrollView {
+        let visibleMonths = shownMonths(months)
+        let initialMonthID = visibleMonths.first(where: \.isCurrentMonth)?.id
+            ?? visibleMonths.last?.id
+
+        return ScrollView {
             LazyVStack(spacing: stylesheet.calendar.monthSpacing) {
-                ForEach(shownMonths(months)) { month in
+                ForEach(visibleMonths) { month in
                     VStack(spacing: stylesheet.calendar.monthSpacing) {
                         MonthGridView(
                             month: month,
@@ -138,12 +144,10 @@ struct CalendarContentView: View {
                             dateCalendar: report.calendar,
                             plannedRegion: displayedPlannedRegion(on:),
                         )
+
                         // In chronological flow, the estimate belongs immediately
                         // after the month whose recorded pace it is projecting from.
-                        if report.showsEstimatedTimeAndPlanning,
-                           month.isCurrentMonth,
-                           !calendarForecasts.isEmpty
-                        {
+                        if showsForecast(after: month) {
                             LocationForecastPanel(
                                 forecasts: calendarForecasts,
                                 plannedStay: report.forecasts.activePlannedStay,
@@ -157,11 +161,25 @@ struct CalendarContentView: View {
                             )
                         }
                     }
+                    .id(month.id)
                 }
             }
+            .scrollTargetLayout()
             .padding()
         }
-        .defaultScrollAnchor(.bottom, for: .initialOffset)
+        .scrollPosition($scrollPosition)
+        .task(id: report.selectedYear) {
+            guard initiallyPositionedYear != report.selectedYear else { return }
+            guard let initialMonthID else { return }
+            scrollPosition.scrollTo(id: initialMonthID, anchor: .bottom)
+            initiallyPositionedYear = report.selectedYear
+        }
+    }
+
+    private func showsForecast(after month: CalendarMonth) -> Bool {
+        report.showsEstimatedTimeAndPlanning
+            && month.isCurrentMonth
+            && !calendarForecasts.isEmpty
     }
 
     private var calendarForecasts: [LocationForecast] {
@@ -586,6 +604,11 @@ private struct DayCell: View {
     extension CalendarContentView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
             whereSnapshot(name: "WithData", configurations: .fullContentScreenDefaults) {
+                NavigationStack {
+                    CalendarContentView(report: PreviewSupport.loadedYearReportModel())
+                }
+            }
+            whereSnapshot(name: "InitialPosition", configurations: .phoneLightDark) {
                 NavigationStack {
                     CalendarContentView(report: PreviewSupport.loadedYearReportModel())
                 }

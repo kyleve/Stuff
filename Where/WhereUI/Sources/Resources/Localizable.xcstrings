@@ -3119,40 +3119,6 @@
         }
       }
     },
-    "locationForecast.explanation.body" : {
-      "comment" : "Explains annual estimate math and why displayed regional totals need not equal the number of days in a year.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Where projects each region’s year-to-date pace across the rest of the year. A planned stay reserves those future days for that region, then the usual pace resumes. Travel days can count toward more than one region, and this summary may omit some regions, so the estimates may not total 365 days."
-          }
-        }
-      }
-    },
-    "locationForecast.explanation.button" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "About estimated time"
-          }
-        }
-      }
-    },
-    "locationForecast.explanation.title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "How estimates work"
-          }
-        }
-      }
-    },
     "locationForecast.plan" : {
       "comment" : "Explains the planned-stay input included in an annual location forecast.",
       "extractionState" : "manual",
@@ -6030,6 +5996,116 @@
         }
       }
     },
+    "settings.explore.estimatedTime.calculation.elapsed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "182 elapsed calendar days"
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.calculation.intro" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Suppose July 1 is day 182. New York has counted on 91 of those days—a 50% pace—and you plan to stay there through July 10."
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.calculation.otherRegions" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Those 9 planned days belong only to New York. Every other region adds no planned days and resumes its own pace on July 11."
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.calculation.pace" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "91 recorded ÷ 182 elapsed = 50% pace"
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.calculation.planned" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "9 days reserved for New York"
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.calculation.projection" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "174 unreserved days × 50% = 87 projected"
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.calculation.remaining" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "174 days left after the plan"
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.calculation.result" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "91 recorded + 9 planned + 87 projected = 187 days"
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.calculation.timeline" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "A 365-day timeline with 182 elapsed days, 9 planned days, and 174 unreserved days remaining."
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.calculation.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "A simple example"
+          }
+        }
+      }
+    },
     "settings.explore.estimatedTime.disabled.description" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6080,7 +6156,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "After three complete months, Where projects each region’s year-to-date pace through the rest of the year."
+            "value" : "After three complete months, Where divides each region’s year-to-date days by all elapsed calendar days. It applies that pace to unreserved days left in the year, then rounds the total to the nearest day."
           }
         }
       }
@@ -6102,7 +6178,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Use “I’ll be here through…” to reserve upcoming days for one region. Other regions pause during that stay, then resume their usual pace."
+            "value" : "A plan reserves tomorrow through the selected end date, inclusive. Those days count for the chosen region; every other region’s projection pauses, then each region resumes its own historical pace."
           }
         }
       }
@@ -6157,7 +6233,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "A travel day can count toward more than one region, and summaries may omit smaller regions, so estimates may not total 365 days."
+            "value" : "Each region is calculated independently. A recorded travel day can count toward more than one region, and summaries may omit smaller regions, so displayed estimates may not total 365 days."
           }
         }
       }

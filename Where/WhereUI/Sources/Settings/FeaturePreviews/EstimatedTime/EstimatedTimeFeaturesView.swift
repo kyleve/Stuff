@@ -48,13 +48,21 @@ struct EstimatedTimeFeaturesView: View {
                         )
                         .featureMarketingRow(order: 3)
                         .settingsRow(Item.planning, restingBackground: .clear)
+                    }
 
+                    Section {
+                        FeatureEstimatedTimeCalculationExample()
+                            .featureMarketingRow(order: 4)
+                            .settingsRow(Item.calculation, restingBackground: .clear)
+                    }
+
+                    Section {
                         explanation(
                             title: String(localized: .settingsExploreEstimatedTimeTotalsTitle),
                             body: String(localized: .settingsExploreEstimatedTimeTotalsDescription),
                             systemSymbol: .airplane,
                         )
-                        .featureMarketingRow(order: 4)
+                        .featureMarketingRow(order: 5)
                         .settingsRow(Item.totals, restingBackground: .clear)
                     }
 
@@ -72,10 +80,10 @@ struct EstimatedTimeFeaturesView: View {
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
                         }
-                        .featureMarketingRow(order: 5)
+                        .featureMarketingRow(order: 6)
                     } footer: {
                         FeatureDiscoveryDataFooter()
-                            .staggeredReveal(order: 6)
+                            .staggeredReveal(order: 7)
                     }
                 }
                 .scrollContentBackground(.hidden)
@@ -130,6 +138,7 @@ extension EstimatedTimeFeaturesView: SettingsSection {
         case overview
         case pace
         case planning
+        case calculation
         case totals
 
         var title: String {
@@ -137,6 +146,8 @@ extension EstimatedTimeFeaturesView: SettingsSection {
                 case .overview: String(localized: .settingsExploreEstimatedTimeOverview)
                 case .pace: String(localized: .settingsExploreEstimatedTimePaceTitle)
                 case .planning: String(localized: .settingsExploreEstimatedTimePlanTitle)
+                case .calculation:
+                    String(localized: .settingsExploreEstimatedTimeCalculationTitle)
                 case .totals: String(localized: .settingsExploreEstimatedTimeTotalsTitle)
             }
         }

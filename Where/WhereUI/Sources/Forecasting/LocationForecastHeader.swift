@@ -1,30 +1,24 @@
 import SFSafeSymbols
 import SwiftUI
 
-/// Forecast heading whose disclosure and explanation remain independent
-/// controls on the compact Locations card.
+/// Forecast heading that optionally expands the compact Locations card.
 struct LocationForecastHeader: View {
     let elapsedDays: Int?
     let isExpanded: Bool
     var expansionAction: (() -> Void)?
 
-    @State private var isShowingExplanation = false
     @Environment(\.stylesheet) private var stylesheet
 
     var body: some View {
         ViewThatFits(in: .horizontal) {
             HStack(alignment: .center, spacing: stylesheet.spacing.xSmall) {
                 title
-                explanationButton
                 Spacer(minLength: stylesheet.spacing.large)
                 elapsed
             }
 
             VStack(alignment: .leading, spacing: stylesheet.locationForecast.estimateSpacing) {
-                HStack(alignment: .center, spacing: stylesheet.spacing.xSmall) {
-                    title
-                    explanationButton
-                }
+                title
                 elapsed
                     .frame(maxWidth: .infinity, alignment: .trailing)
             }
@@ -49,6 +43,7 @@ struct LocationForecastHeader: View {
             }
             .buttonStyle(.plain)
             .foregroundStyle(stylesheet.locationForecast.collapsedLabelColor)
+            .frame(minHeight: 44)
             .accessibilityValue(String(localized: isExpanded
                     ? .locationForecastExpanded
                     : .locationForecastCollapsed))
@@ -57,29 +52,6 @@ struct LocationForecastHeader: View {
                 String(localized: .locationForecastTitle),
                 systemSymbol: .chartLineUptrendXyaxis,
             )
-        }
-    }
-
-    private var explanationButton: some View {
-        Button(
-            String(localized: .locationForecastExplanationButton),
-            systemSymbol: .infoCircle,
-        ) {
-            isShowingExplanation = true
-        }
-        .labelStyle(.iconOnly)
-        .frame(minWidth: 44, minHeight: 44)
-        .popover(isPresented: $isShowingExplanation) {
-            VStack(alignment: .leading, spacing: stylesheet.spacing.medium) {
-                Text(String(localized: .locationForecastExplanationTitle))
-                    .font(.headline)
-                Text(String(localized: .locationForecastExplanationBody))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-            .padding()
-            .frame(idealWidth: 320)
-            .presentationCompactAdaptation(.popover)
         }
     }
 

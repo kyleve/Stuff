@@ -484,6 +484,13 @@ struct WhereStylesheetTests {
             lineWidth: 0.9,
             opacity: 0.12,
         ))
+        #expect(featureDiscovery.estimatedTime == .init(
+            timelineHeight: 18,
+            timelineSpacing: 3,
+            calculationSpacing: 8,
+            segmentCornerRadius: 5,
+            legendDotSize: 10,
+        ))
         #expect(featureDiscovery.siri == .init(
             card: .init(
                 cornerRadius: 20,

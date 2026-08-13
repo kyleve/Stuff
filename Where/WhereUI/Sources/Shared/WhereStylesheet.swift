@@ -1507,6 +1507,7 @@ extension WhereStylesheet {
         var marketingHeader: MarketingHeader
         var marketingPanel: MarketingPanel
         var backgroundPattern: BackgroundPattern
+        var estimatedTime: EstimatedTime
         var siri: Siri
         var widgets: Widgets
 
@@ -1537,6 +1538,14 @@ extension WhereStylesheet {
             var phaseStep: CGFloat
             var lineWidth: CGFloat
             var opacity: Double
+        }
+
+        struct EstimatedTime: Equatable {
+            var timelineHeight: CGFloat
+            var timelineSpacing: CGFloat
+            var calculationSpacing: CGFloat
+            var segmentCornerRadius: CGFloat
+            var legendDotSize: CGFloat
         }
 
         struct Siri: Equatable {
@@ -1631,6 +1640,13 @@ extension WhereStylesheet {
                 phaseStep: 0.31,
                 lineWidth: 0.9,
                 opacity: 0.12,
+            ),
+            estimatedTime: EstimatedTime(
+                timelineHeight: 18,
+                timelineSpacing: 3,
+                calculationSpacing: 8,
+                segmentCornerRadius: 5,
+                legendDotSize: 10,
             ),
             siri: Siri(
                 card: Siri.Card(

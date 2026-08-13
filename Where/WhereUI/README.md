@@ -31,8 +31,9 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   Evidence walkthrough also reveals the system Share-sheet extension and links
   into the saved attachment archive. Insights & Accuracy introduces the
   automatic issue detectors without running them merely to render the gallery,
-  while Estimated Time & Planning explains the live annual projection, planned
-  stays, and why overlapping travel days do not sum neatly to one year.
+  while Estimated Time & Planning explains the live annual projection with a
+  worked pace-and-plan calculation, planned stays, and why overlapping travel
+  days do not sum neatly to one year.
   These galleries use a shared marketing header, quiet patterned backdrop, and
   staged entrance that resolves immediately for Reduce Motion and snapshot
   capture. Once the selected report has 14 recorded days, the Siri, Spotlight,

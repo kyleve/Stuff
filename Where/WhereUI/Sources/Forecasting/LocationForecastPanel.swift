@@ -37,6 +37,7 @@ struct LocationForecastPanel: View {
 
             if !isCollapsible || isExpanded {
                 forecastContent
+                    .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
         .padding(style.padding)
@@ -58,7 +59,6 @@ struct LocationForecastPanel: View {
                 Color.clear.glassEffect(.regular, in: shape)
             }
         }
-        .animation(style.expansionAnimation, value: isExpanded)
     }
 
     @ViewBuilder
@@ -81,7 +81,9 @@ struct LocationForecastPanel: View {
     }
 
     private func toggleExpansion() {
-        isExpanded.toggle()
+        withAnimation(style.expansionAnimation) {
+            isExpanded.toggle()
+        }
     }
 }
 
