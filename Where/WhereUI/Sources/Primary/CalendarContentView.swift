@@ -237,9 +237,37 @@ private struct MonthGridView: View {
         RoundedRectangle(cornerRadius: calendar.month.cornerRadius, style: .continuous)
     }
 
+    private var monthName: String {
+        month.startOfMonth.formatted(.dateTime.month(.wide))
+    }
+
+    private var accessibilityValue: String {
+        WhereFormat.calendarMonthAccessibility(
+            regionTotals: month.regionTotals,
+            regionCombinationTotals: month.regionCombinationTotals,
+            needsAttentionDays: month.days.count(where: \.needsAttention),
+            evidenceDays: month.days.count(where: \.hasEvidence),
+            plannedRegionTotals: plannedRegionTotals,
+        )
+    }
+
+    private var plannedRegionTotals: [RegionDayTally] {
+        var counts: [Region: Int] = [:]
+        for day in month.days {
+            if let region = plannedRegion(on: day) {
+                counts[region, default: 0] += 1
+            }
+        }
+        return Region.rankedByDayCount(
+            counts.map { RegionDayTally(region: $0.key, days: $0.value) },
+            days: \.days,
+            region: \.region,
+        )
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: calendar.month.sectionSpacing) {
-            Text(month.startOfMonth.formatted(.dateTime.month(.wide)))
+            Text(monthName)
                 .font(.title.weight(.semibold))
                 .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -282,6 +310,9 @@ private struct MonthGridView: View {
                     cardShape.strokeBorder(card.border, lineWidth: card.borderWidth)
                 }
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(monthName)
+        .accessibilityValue(accessibilityValue)
     }
 
     /// The stay-pill geometry for the day at `index`: a run is contiguous days
@@ -403,13 +434,6 @@ private struct MonthFooter: View {
                 .foregroundStyle(.secondary)
         }
         .opacity(focusedRegion == nil || isFocused ? 1 : calendar.month.unfocusedRowOpacity)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(
-            WhereFormat.regionDaysAccessibility(
-                region: tally.region.localizedName,
-                days: tally.days,
-            ),
-        )
     }
 }
 
@@ -471,16 +495,6 @@ private struct DayCell: View {
         .background { stayPill }
         .frame(minHeight: calendar.day.minHeight)
         .contentShape(Rectangle())
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(
-            WhereFormat.calendarDayAccessibility(
-                date: day.date,
-                regions: band.regions,
-                needsAttention: day.needsAttention,
-                hasEvidence: day.hasEvidence,
-                isPlanned: band.isPlanned,
-            ),
-        )
     }
 
     /// Region-presence dots beneath the day number (one per region the day

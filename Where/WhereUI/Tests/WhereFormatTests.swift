@@ -190,6 +190,65 @@ struct WhereFormatTests {
         #expect(label.contains(Region.newYork.localizedName))
     }
 
+    @Test func calendarMonthAccessibilitySummarizesTotalsOverlapsAndStatuses() {
+        let value = WhereFormat.calendarMonthAccessibility(
+            regionTotals: [
+                RegionDayTally(region: .california, days: 17),
+                RegionDayTally(region: .newYork, days: 12),
+            ],
+            regionCombinationTotals: [
+                RegionCombinationDayTally(regions: [.california, .newYork], days: 1),
+            ],
+            needsAttentionDays: 2,
+            evidenceDays: 1,
+            plannedRegionTotals: [RegionDayTally(region: .newYork, days: 3)],
+        )
+
+        let expected = "California: 17 days, New York: 12 days, "
+            + "1 day in California and New York, 2 days need a location, "
+            + "1 day has evidence, and 3 days planned in New York"
+        #expect(value == expected)
+    }
+
+    @Test func calendarMonthAccessibilityKeepsEmptyStateBeforeStatusCounts() {
+        let value = WhereFormat.calendarMonthAccessibility(
+            regionTotals: [],
+            regionCombinationTotals: [],
+            needsAttentionDays: 1,
+            evidenceDays: 2,
+            plannedRegionTotals: [],
+        )
+
+        #expect(value == "No days logged, 1 day needs a location, and 2 days have evidence")
+    }
+
+    @Test func widgetAccessibilitySummariesUseExplicitLabelsAndVisibleRows() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(identifier: "America/Los_Angeles"))
+        let date = try #require(calendar.date(from: DateComponents(
+            year: 2026,
+            month: 7,
+            day: 15,
+            hour: 12,
+        )))
+
+        #expect(WhereFormat.widgetTodayAccessibilityLabel(date: date) == "Today, July 15")
+        #expect(
+            WhereFormat.widgetTodayAccessibilityValue(regions: [.california, .newYork])
+                == "California and New York",
+        )
+        #expect(
+            WhereFormat.widgetTodayAccessibilityValue(regions: []) == "Nothing logged yet",
+        )
+        #expect(
+            WhereFormat.widgetYearAccessibilityValue(entries: [
+                RegionDays(region: .california, days: 132),
+                RegionDays(region: .newYork, days: 1),
+            ]) == "California: 132 days and New York: 1 day",
+        )
+        #expect(WhereFormat.widgetYearAccessibilityValue(entries: []) == "No days logged")
+    }
+
     @Test func regionMapKindSwitchesResolve() {
         #expect(WhereFormat.regionMapKind(.attribution) == "Attribution")
         #expect(WhereFormat.regionMapKind(.source) == "Source")
