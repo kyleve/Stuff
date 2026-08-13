@@ -33,11 +33,14 @@ build system, formatting, and global conventions. Read that first.
   `.phaseDriven` keeps an already-`.ready` mount immediate, while
   `.splashBeforeFirstReveal` may establish the first hold from a visible
   `.ready` when foreground promotion coalesced past the splash. Keep that hold
-  keyed on readiness *and* visibility, retain an observed splash's original
-  deadline, and never arm it headlessly. Guards:
+  keyed on readiness *and* active-scene visibility, retain an observed splash's
+  original deadline, and never arm or complete it offscreen. An interrupted
+  first reveal returns to awaiting; only already-revealed content survives an
+  ordinary resume without replay. Guards:
   `minimumSplashDurationDoesNotHoldWhenNoSplashWasShown`,
   `splashBeforeFirstRevealKeepsBackgroundReadyHeadless`,
-  `promotedBackgroundReadyForcesTheFirstRevealSplash`. Assert
+  `promotedBackgroundReadyForcesTheFirstRevealSplash`,
+  `interruptedFirstRevealWaitsAgainAfterTheSceneBecomesActive`. Assert
   "revealed" via the *absent splash*, not via `content` (content is built
   during a hold too); `isShowingSplash` must read the runner's own surface,
   never `displayedSurfaceIdentity`, which reports `.splash` for a held

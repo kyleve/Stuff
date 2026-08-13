@@ -55,6 +55,10 @@ public struct RootView: View {
     private let launcher: LifecycleRunner<WhereSession>
     #if DEBUG
         private let inspectorModeController: InspectorModeController?
+        /// Hosted snapshots have no active SwiftUI scene even though their
+        /// controller is on screen. Production leaves this nil and follows the
+        /// real scene phase; the testing SPI can explicitly model visibility.
+        private let presentationVisibilityOverride: Bool?
     #endif
 
     // Inject the app-owned model + runner built at launch. The app uses this.
@@ -67,6 +71,19 @@ public struct RootView: View {
             _model = State(initialValue: model)
             self.launcher = launcher
             self.inspectorModeController = inspectorModeController
+            presentationVisibilityOverride = nil
+        }
+
+        @_spi(Testing)
+        public init(
+            model: WhereModel,
+            launcher: LifecycleRunner<WhereSession>,
+            presentationVisibilityOverride: Bool,
+        ) {
+            _model = State(initialValue: model)
+            self.launcher = launcher
+            inspectorModeController = nil
+            self.presentationVisibilityOverride = presentationVisibilityOverride
         }
     #else
         public init(
@@ -104,6 +121,7 @@ public struct RootView: View {
         launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
         #if DEBUG
             inspectorModeController = nil
+            presentationVisibilityOverride = nil
         #endif
     }
 
@@ -115,6 +133,7 @@ public struct RootView: View {
                 animation: revealAnimation,
                 minimumSplashDuration: stylesheet.launch.minimumSplashDuration,
                 readyRevealPolicy: .splashBeforeFirstReveal,
+                isPresentationVisible: isLifecyclePresentationVisible,
                 splash: { _ in LaunchSplashView() },
                 failure: { WhereLifecycleFailureView(failure: $0) },
                 gates: {
@@ -260,6 +279,14 @@ public struct RootView: View {
         reduceMotion ? stylesheet.motion.reducedReveal : stylesheet.motion.reveal
     }
 
+    private var isLifecyclePresentationVisible: Bool {
+        #if DEBUG
+            presentationVisibilityOverride ?? (scenePhase == .active)
+        #else
+            scenePhase == .active
+        #endif
+    }
+
     #if DEBUG
         /// Build the log-view-mode inspector and start the toast alerter once the
         /// launch bootstrap has opened the process-global store. Idempotent: it's
@@ -313,7 +340,11 @@ public struct RootView: View {
                 settle: .settledAtLeast(minDuration: 1.5),
                 onReadyToSnapshot: { await launcher.run() },
             ) {
-                RootView(model: model, launcher: launcher)
+                RootView(
+                    model: model,
+                    launcher: launcher,
+                    presentationVisibilityOverride: true,
+                )
             }
             whereSnapshot(
                 name: "RecordingConfigurationWarning",
@@ -321,7 +352,11 @@ public struct RootView: View {
                 settle: .settledAtLeast(minDuration: 1.5),
                 onReadyToSnapshot: { await recordingWarningLauncher.run() },
             ) {
-                RootView(model: recordingWarningModel, launcher: recordingWarningLauncher)
+                RootView(
+                    model: recordingWarningModel,
+                    launcher: recordingWarningLauncher,
+                    presentationVisibilityOverride: true,
+                )
             }
         }
     }

@@ -76,7 +76,8 @@ Layering, localization, preview, and testing conventions live in the feature
   `YearReportDetails`.
 - Keep `RootView` opted into LifecycleKitUI's first-ready splash policy: the
   first foreground-visible `MainTabs` reveal gets the stylesheet minimum even
-  when headless promotion coalesces, while warm resumes never replay it.
+  when headless promotion coalesces or the first hold is interrupted, while
+  warm resumes never replay it.
 - Keep planned-stay persistence and forecast math in WhereCore; `LocationForecastModel` only mirrors
   the active register and orchestrates intents for the Locations, calendar, and timeline surfaces.
 - Continuous/looping motion (repeat-forever pulses, `TimelineView(.animation)`,

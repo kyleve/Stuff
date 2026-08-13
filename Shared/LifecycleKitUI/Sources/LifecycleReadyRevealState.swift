@@ -51,4 +51,21 @@ enum LifecycleReadyRevealState: Equatable {
         guard case .awaitingFirstVisibleReady = self else { return }
         splashAppeared(at: instant, minimumSplashDuration: minimumSplashDuration)
     }
+
+    /// Cancels an unrevealed presentation episode when its scene stops being
+    /// visible. The opt-in policy still owes a splash on the next active
+    /// presentation; the default policy returns to its immediate-ready state.
+    mutating func sceneBecameInactive(
+        beforeFirstRevealUsing policy: LifecycleReadyRevealPolicy,
+    ) {
+        guard case .revealed = self else {
+            switch policy {
+                case .phaseDriven:
+                    self = .revealed
+                case .splashBeforeFirstReveal:
+                    self = .awaitingFirstVisibleReady
+            }
+            return
+        }
+    }
 }

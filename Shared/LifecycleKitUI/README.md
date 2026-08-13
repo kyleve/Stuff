@@ -97,6 +97,7 @@ LifecycleContainer(
     runner,
     minimumSplashDuration: .milliseconds(800),
     readyRevealPolicy: .splashBeforeFirstReveal,
+    isPresentationVisible: scenePhase == .active,
 ) { session in
     MainTabs(session: session)
 }
@@ -108,7 +109,10 @@ foreground promotion starts and finishes, and SwiftUI observes only the final
 that case. A rendered splash keeps its original deadline, so reaching `.ready`
 does not start a second hold. Headless phases remain viewless, gate and failure
 surfaces are unaffected, and once content is revealed an ordinary foreground
-resume does not replay the forced splash.
+resume does not replay the forced splash. If the scene becomes inactive before
+that reveal, the pending hold is canceled rather than completed offscreen; the
+next active presentation starts a fresh minimum so content cannot appear for
+the first time without its splash.
 
 ## Reaching the runner from nested views
 

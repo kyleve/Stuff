@@ -291,6 +291,51 @@ struct LifecycleContainerTests {
         #expect(!splashIsVisible)
     }
 
+    @Test func interruptedFirstRevealWaitsAgainAfterTheSceneBecomesActive() async throws {
+        var content = false
+        var splashIsVisible = false
+        let visibility = PresentationVisibilityFixture(true)
+        let runner = await makeReadyRunner()
+
+        let root = PresentationVisibilityOverride(fixture: visibility) { isVisible in
+            LifecycleContainer(
+                runner,
+                minimumSplashDuration: .milliseconds(100),
+                readyRevealPolicy: .splashBeforeFirstReveal,
+                isPresentationVisible: isVisible,
+                splash: { _ in
+                    ProbeView {
+                        splashIsVisible = true
+                    }
+                    .onDisappear { splashIsVisible = false }
+                },
+                failure: { _ in EmptyView() },
+            ) { _ in
+                ProbeView { content = true }
+            }
+        }
+
+        try await show(UIHostingController(rootView: root)) { _ in
+            try await waitUntil { content && splashIsVisible }
+
+            visibility.isVisible = false
+            // The original 100 ms deadline must not reveal content offscreen.
+            let revealedOffscreen = renders(within: 0.2) { splashIsVisible == false }
+            #expect(revealedOffscreen == false)
+
+            visibility.isVisible = true
+            #expect(splashIsVisible)
+            let revealedBeforeFreshMinimum = renders(within: 0.05) {
+                splashIsVisible == false
+            }
+            #expect(revealedBeforeFreshMinimum == false)
+            try await waitUntil { splashIsVisible == false }
+        }
+
+        #expect(content)
+        #expect(splashIsVisible == false)
+    }
+
     @Test func awaitingGateShowsTheRegisteredGateViewWithTheTrunkValue() async throws {
         var gateValue: String?
         var content = false
