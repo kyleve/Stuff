@@ -54,10 +54,11 @@ public final class WherePreferences {
         set { store.set(newValue.rawValue, forKey: Keys.theme.rawValue) }
     }
 
-    /// Whether the annual-estimate summary appears on the Locations tab.
+    /// Whether annual estimates, stay planning, and their projections appear.
     /// Defaults to `true` so an existing or fresh install sees the feature until
-    /// the user explicitly turns it off.
-    public var showsLocationForecastsOnLocationsTab: Bool {
+    /// the user explicitly turns it off. The defaults key retains its original
+    /// Locations-only name so an existing choice survives the broader meaning.
+    public var showsEstimatedTimeAndPlanning: Bool {
         get {
             store.object(forKey: Keys.showsLocationForecastsOnLocationsTab.rawValue) as? Bool
                 ?? true

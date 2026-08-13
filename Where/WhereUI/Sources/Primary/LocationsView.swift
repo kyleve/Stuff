@@ -13,6 +13,7 @@ struct LocationsView: View {
     let report: YearReportModel
 
     @State private var showingResolution = false
+    @State private var plannedStayEditorTarget: PlannedStayEditorTarget?
     @State private var isCardSurfaceVisible = false
     @State private var dayCountPresentation: LocationDayCountPresentationModel
 
@@ -72,6 +73,9 @@ struct LocationsView: View {
         .sheet(isPresented: $showingResolution) {
             ResolutionView(report: report)
         }
+        .sheet(item: $plannedStayEditorTarget) { target in
+            PlannedStayEditor(region: target.region, model: report.forecasts)
+        }
         // Log View Mode: reveal an inspect badge for the year-report events
         // backing this screen. A no-op in release.
         .debugLogInspectable(WhereLog.session(YearReportModelLog.self))
@@ -123,6 +127,7 @@ struct LocationsView: View {
                                 regionDays: presentedItem,
                                 interactive: true,
                                 yearLength: report.daysInSelectedYear,
+                                estimatedDays: estimatedDays(for: item.region),
                                 year: report.selectedYear,
                                 tilt: tilt,
                                 recordedPoints: report.primaryRegionLocations?
@@ -185,10 +190,13 @@ struct LocationsView: View {
         .scrollBounceBehavior(.basedOnSize)
         .accessibilityIdentifier("where_root_title")
         .safeAreaInset(edge: .bottom) {
-            if report.showsLocationForecastsOnLocationsTab, !topForecasts.isEmpty {
+            if report.showsEstimatedTimeAndPlanning, !topForecasts.isEmpty {
                 LocationForecastPanel(
                     forecasts: topForecasts,
                     plannedStay: report.forecasts.activePlannedStay,
+                    editableRegions: topForecasts.map(\.region),
+                    editAction: editPlannedStay,
+                    clearAction: report.forecasts.clear,
                     isCollapsible: true,
                 )
                 .padding(.horizontal)
@@ -226,6 +234,23 @@ struct LocationsView: View {
     /// `.other` is a catch-all rather than a place a user can plan around.
     private var topForecasts: [LocationForecast] {
         report.forecasts.leadingForecasts(report: report.report)
+    }
+
+    private func estimatedDays(for region: Region) -> Int? {
+        guard report.showsEstimatedTimeAndPlanning else { return nil }
+        return report.forecasts.forecast(for: region, report: report.report)?.estimatedTotalDays
+    }
+
+    private func editPlannedStay(_ region: Region) {
+        plannedStayEditorTarget = PlannedStayEditorTarget(region: region)
+    }
+
+    private struct PlannedStayEditorTarget: Identifiable {
+        let region: Region
+
+        var id: Region {
+            region
+        }
     }
 
     /// The region's calendar, pushed as a nested view. It's the zoom
@@ -352,9 +377,7 @@ private struct ResolveToolbarLabel: View {
         }
 
         private static func forecastsHiddenReport() -> YearReportModel {
-            let report = PreviewSupport.loadedYearReportModel()
-            report.showsLocationForecastsOnLocationsTab = false
-            return report
+            PreviewSupport.loadedYearReportModelWithEstimatedTimeHidden()
         }
     }
 

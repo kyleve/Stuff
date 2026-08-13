@@ -47,6 +47,7 @@ struct WhereStylesheetTests {
 
     @Test func regularCardStyle() {
         let card = style.card.regular
+        #expect(style.card.estimatedProgressOpacity == 0.3)
         #expect(card.cornerRadius == 28)
         #expect(card.padding == 22)
         #expect(card.contentSpacing == 16)
@@ -503,6 +504,13 @@ struct WhereStylesheetTests {
             phaseStep: 0.31,
             lineWidth: 0.9,
             opacity: 0.12,
+        ))
+        #expect(featureDiscovery.estimatedTime == .init(
+            timelineHeight: 18,
+            timelineSpacing: 3,
+            calculationSpacing: 8,
+            segmentCornerRadius: 5,
+            legendDotSize: 10,
         ))
         #expect(featureDiscovery.siri == .init(
             card: .init(

@@ -30,7 +30,10 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   widget family on miniature Home Screen and Lock Screen surfaces. A Share &
   Evidence walkthrough also reveals the system Share-sheet extension and links
   into the saved attachment archive. Insights & Accuracy introduces the
-  automatic issue detectors without running them merely to render the gallery.
+  automatic issue detectors without running them merely to render the gallery,
+  while Estimated Time & Planning explains the live annual projection with a
+  worked pace-and-plan calculation, planned stays, and why overlapping travel
+  days do not sum neatly to one year.
   These galleries use a shared marketing header, quiet patterned backdrop, and
   staged entrance that resolves immediately for Reduce Motion and snapshot
   capture. Once the selected report has 14 recorded days, the Siri, Spotlight,
@@ -50,8 +53,10 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   injects the launch-built model + runner
   (`init(model:launcher:)`); a no-arg `init()` builds its own for previews and
   the hosted UI test.
-- **Developer tools** — DEBUG-only logging, span, region-map, Flyover, and
-  next-launch Inspector controls. The global launcher's accordion only updates
+- **Developer tools** — DEBUG-only logging, span, region-map, Flyover, forced-crash,
+  and next-launch Inspector controls. Forced crashes cover Swift traps, Objective-C
+  exceptions, abort signals, and invalid memory access so crash reporters can be
+  checked end to end. The global launcher's accordion only updates
   `InspectorModeController`; the current regular runtime continues until the
   developer relaunches. The Logs destination is always present: before its
   durable store is ready it reports whether the open is still running,
@@ -153,7 +158,9 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
 - **Widget views** — the shared renderers the **WhereWidgets** extension draws
   with: `TodayWidgetView`, `YearTotalsWidgetView`, and the accessory family
   (`TodayInlineAccessoryView`, `TodayCircularAccessoryView`,
-  `YearTotalsRectangularAccessoryView`). Each takes a `WidgetSnapshot`.
+  `YearTotalsRectangularAccessoryView`). Each takes a `WidgetSnapshot` and
+  exposes one explicit accessibility label/value pair rather than its visual
+  rows as separate elements.
 - **`RegionStyle` / `RegionStyleResolver`** — a region's typed `SFSymbol`, emoji, and
   tint, shared across cards, calendar dots, and timelines. Views resolve it from
   `@Environment(\.regionStyles)` (`regionStyles.style(for: region)`), seeded by
@@ -298,9 +305,10 @@ stroke; its containing Liquid Glass surface owns the subtle outer border so
 direct and production rendering do not diverge.
 
 After at least three months of the current year, Locations can reveal a collapsible annual estimate
-from the recorded pace; Settings > Appearance can disable it entirely. A focused region calendar
-places the estimate after the current month and renders “I’ll be here through…” future days with a
-continuous hatched band, distinct from recorded presence.
+from the recorded pace and plan a stay through one of its displayed regions. A focused region
+calendar places the estimate after the current month and renders planned future days with a
+continuous hatched band, distinct from recorded presence. Settings > Appearance disables every
+estimate and planning visualization only after clearing the synced plan succeeds.
 
 DEBUG builds include Card Designer Studio under Settings → Appearance. It
 edits a versioned, persisted draft of the regular, compact, and shared card

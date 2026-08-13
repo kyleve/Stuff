@@ -196,7 +196,8 @@ struct SettingsView: View {
             case .regions:
                 showRegions = true
             case .attachments, .loggedDays, .devices, .alerts, .appearance, .year, .siri,
-                 .widgets, .shareEvidence, .insightsAccuracy, .personalization, .data, .about:
+                 .widgets, .shareEvidence, .estimatedTime, .insightsAccuracy, .personalization,
+                 .data, .about:
                 assertionFailure("\(destination) is a push destination, not a sheet")
         }
     }
@@ -230,7 +231,7 @@ struct SettingsView: View {
             case .year:
                 report.selectedYear.formatted(.number.grouping(.never))
             case .attachments, .loggedDays, .regions, .alerts, .appearance, .siri, .widgets,
-                 .shareEvidence, .insightsAccuracy, .personalization, .data, .about:
+                 .shareEvidence, .estimatedTime, .insightsAccuracy, .personalization, .data, .about:
                 nil
         }
     }
@@ -288,6 +289,8 @@ struct SettingsView: View {
                     focus: route.focus,
                     presentation: featureDiscoveryPresentation,
                 )
+            case .estimatedTime:
+                EstimatedTimeFeaturesView(report: report, focus: route.focus)
             case .insightsAccuracy:
                 InsightsAccuracyFeaturesView(
                     report: report,
@@ -388,6 +391,7 @@ struct SettingsView: View {
                 .push(to: SiriFeaturesView.flyoverID),
                 .push(to: WidgetFeaturesView.flyoverID),
                 .push(to: ShareEvidenceFeaturesView.flyoverID),
+                .push(to: EstimatedTimeFeaturesView.flyoverID),
                 .push(to: InsightsAccuracyFeaturesView.flyoverID),
                 .push(to: PersonalizationFeaturesView.flyoverID),
                 .push(to: DataSettingsView.flyoverID),

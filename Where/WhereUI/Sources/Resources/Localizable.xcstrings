@@ -249,6 +249,90 @@
         }
       }
     },
+    "calendar.month.combination.accessibility" : {
+      "comment" : "Accessibility value component for the number of days shared by one exact combination of regions. The first argument is a localized day count; the second is a localized region list.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ in %2$@"
+          }
+        }
+      }
+    },
+    "calendar.month.empty.accessibility" : {
+      "comment" : "Accessibility value component for a calendar month with no recorded regional presence.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "No days logged"
+          }
+        }
+      }
+    },
+    "calendar.month.evidence.accessibility" : {
+      "comment" : "Accessibility value component for the number of calendar days carrying evidence.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "new",
+                  "value" : "%lld day has evidence"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "new",
+                  "value" : "%lld days have evidence"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "calendar.month.needsAttention.accessibility" : {
+      "comment" : "Accessibility value component for the number of calendar days that still need a location.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "new",
+                  "value" : "%lld day needs a location"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "new",
+                  "value" : "%lld days need a location"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "calendar.month.planned.accessibility" : {
+      "comment" : "Accessibility value component for planned calendar days in a region. The first argument is a localized day count; the second is a localized region name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ planned in %2$@"
+          }
+        }
+      }
+    },
     "calendar.region.title" : {
       "comment" : "Title for the calendar when it's focused on a single region, e.g. \"California · 2026\".",
       "extractionState" : "manual",
@@ -2227,6 +2311,18 @@
         }
       }
     },
+    "common.regionDaysEstimated.accessibility" : {
+      "comment" : "VoiceOver summary for a location card showing recorded and estimated annual day counts. The first placeholder is the region name; the second and third are localized day counts.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@: %2$@ recorded, estimated %3$@"
+          }
+        }
+      }
+    },
     "common.retry" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2317,6 +2413,186 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Exit full screen"
+          }
+        }
+      }
+    },
+    "developer.crash.abortSignal.description" : {
+      "comment" : "Explanation of the abort-signal crash test.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calls abort() to terminate the process with SIGABRT."
+          }
+        }
+      }
+    },
+    "developer.crash.abortSignal.title" : {
+      "comment" : "Title of the abort-signal crash test.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abort Signal"
+          }
+        }
+      }
+    },
+    "developer.crash.arrayBounds.description" : {
+      "comment" : "Explanation of the array-bounds crash test.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reads one element past the end of a Swift array."
+          }
+        }
+      }
+    },
+    "developer.crash.arrayBounds.title" : {
+      "comment" : "Title of the array-bounds crash test.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Array Out of Bounds"
+          }
+        }
+      }
+    },
+    "developer.crash.confirmation.action" : {
+      "comment" : "Destructive confirmation button that immediately crashes the app.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Crash Now"
+          }
+        }
+      }
+    },
+    "developer.crash.confirmation.title" : {
+      "comment" : "Title of the confirmation dialog shown before a forced crash.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Crash Where?"
+          }
+        }
+      }
+    },
+    "developer.crash.fatalError.description" : {
+      "comment" : "Explanation of the Swift fatalError crash test.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Invokes Swift fatalError with a recognizable diagnostic message."
+          }
+        }
+      }
+    },
+    "developer.crash.fatalError.title" : {
+      "comment" : "Title of the Swift fatalError crash test.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Swift Fatal Error"
+          }
+        }
+      }
+    },
+    "developer.crash.invalidMemoryAccess.description" : {
+      "comment" : "Explanation of the invalid-memory-access crash test.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Writes through an invalid pointer to produce a bad-access crash."
+          }
+        }
+      }
+    },
+    "developer.crash.invalidMemoryAccess.title" : {
+      "comment" : "Title of the invalid-memory-access crash test.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Invalid Memory Access"
+          }
+        }
+      }
+    },
+    "developer.crash.objectiveCException.description" : {
+      "comment" : "Explanation of the Objective-C exception crash test.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Raises an uncaught NSException with a recognizable reason."
+          }
+        }
+      }
+    },
+    "developer.crash.objectiveCException.title" : {
+      "comment" : "Title of the Objective-C exception crash test.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Objective-C Exception"
+          }
+        }
+      }
+    },
+    "developer.crashTesting.footer" : {
+      "comment" : "Instructions shown below the forced-crash developer controls.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Each action terminates Where immediately. Reopen the app after each test so the crash reporter can send the report. A connected debugger may intercept the crash."
+          }
+        }
+      }
+    },
+    "developer.crashTesting.link" : {
+      "comment" : "Label for the button that opens the forced-crash testing screen.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Crash Testing"
+          }
+        }
+      }
+    },
+    "developer.crashTesting.title" : {
+      "comment" : "Title of the forced-crash testing developer screen.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Crash Testing"
           }
         }
       }
@@ -2995,6 +3271,18 @@
         }
       }
     },
+    "locationCard.estimatedDays" : {
+      "comment" : "Compact label above a location card progress bar. The placeholder is an already-localized day count, for example '184 days'.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Estimated · %@"
+          }
+        }
+      }
+    },
     "locationForecast.basis" : {
       "comment" : "Short explanation below a location forecast. The placeholder is the region's year-to-date day count.",
       "extractionState" : "manual",
@@ -3025,6 +3313,17 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Clearing planned stay"
+          }
+        }
+      }
+    },
+    "locationForecast.collapsed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Collapsed"
           }
         }
       }
@@ -3093,6 +3392,17 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "%1$@ might be **%2$@** this year"
+          }
+        }
+      }
+    },
+    "locationForecast.expanded" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Expanded"
           }
         }
       }
@@ -5392,6 +5702,17 @@
         }
       }
     },
+    "settings.appearance.locationForecasts.disableError.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Couldn’t turn off Estimated Time & Planning"
+          }
+        }
+      }
+    },
     "settings.appearance.locationForecasts.footer" : {
       "comment" : "Explains the scope of the annual location forecast visibility toggle.",
       "extractionState" : "manual",
@@ -5399,7 +5720,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Show or hide the annual estimated-time summary in Locations."
+            "value" : "Show or hide annual estimates, stay planning, and planned-day visuals across Locations, Calendar, and Timeline. Turning this off also clears your current plan."
           }
         }
       }
@@ -5411,7 +5732,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Estimated time"
+            "value" : "Estimated time & planning"
           }
         }
       }
@@ -6003,6 +6324,281 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Where uses your data here when there’s enough to make these examples relevant. Browsing this screen never changes it."
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.calculation.elapsed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "182 elapsed calendar days"
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.calculation.intro" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Suppose July 1 is day 182. New York has counted on 91 of those days—a 50% pace—and you plan to stay there through July 10."
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.calculation.otherRegions" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Those 9 planned days belong only to New York. Every other region adds no planned days and resumes its own pace on July 11."
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.calculation.pace" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "91 recorded ÷ 182 elapsed = 50% pace"
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.calculation.planned" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "9 days reserved for New York"
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.calculation.projection" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "174 unreserved days × 50% = 87 projected"
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.calculation.remaining" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "174 days left after the plan"
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.calculation.result" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "91 recorded + 9 planned + 87 projected = 187 days"
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.calculation.timeline" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "A 365-day timeline with 182 elapsed days, 9 planned days, and 174 unreserved days remaining."
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.calculation.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "A simple example"
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.disabled.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Estimated time and planning are hidden. You can turn them on from Appearance."
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.disabled.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Estimated time is off"
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.manage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Manage Estimated Time & Planning"
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.overview" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Your estimated time"
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.pace.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "After three complete months, Where divides each region’s year-to-date days by all elapsed calendar days. It applies that pace to unreserved days left in the year, then rounds the total to the nearest day."
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.pace.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Your pace"
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.plan.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "A plan reserves tomorrow through the selected end date, inclusive. Those days count for the chosen region; every other region’s projection pauses, then each region resumes its own historical pace."
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.plan.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Plan ahead"
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.row" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Estimated Time & Planning"
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.tagline" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "See where this year’s pace—and your plans—could take you."
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Estimated Time & Planning"
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.totals.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Each region is calculated independently. A recorded travel day can count toward more than one region, and summaries may omit smaller regions, so displayed estimates may not total 365 days."
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.totals.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Why totals vary"
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.unavailable.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Estimates appear for the current year after three complete months and enough recorded history to establish a pace."
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.unavailable.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Building your estimate"
           }
         }
       }
@@ -7137,6 +7733,17 @@
         }
       }
     },
+    "settings.keywords.estimatedTimeFeatures" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "estimate, estimated time, forecast, pace, planned stay, planning, overlap, travel days, annual"
+          }
+        }
+      }
+    },
     "settings.keywords.evidenceFeatures" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -7992,6 +8599,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%1$@, %2$@, %3$@"
+          }
+        }
+      }
+    },
+    "widget.today.accessibility.label" : {
+      "comment" : "Accessibility label for a Today widget, including its localized month and day.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Today, %@"
           }
         }
       }

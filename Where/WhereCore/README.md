@@ -99,6 +99,9 @@ one it belongs to rather than to a god-object:
 - **`DayAggregator`** — turns samples + manual overlays into those reports,
   carrying the injected `Calendar` (which decides how a `sample.timestamp`
   buckets into a `CalendarDay`).
+- **`PresenceCalendar` / `CalendarMonth`** — lays a report out into month grids
+  and preserves both ranked per-region totals and exact multi-region
+  combination totals for accessible month summaries.
 
 ### Location
 
@@ -165,7 +168,7 @@ one it belongs to rather than to a god-object:
   the domain value.
 - **`WherePreferences`** — persisted user intent (onboarding,
   reminder / summary schedules, presentation theme, and Locations-card GPS-dot and
-  annual-forecast visibility) plus the
+  estimated-time/planning visibility) plus the
   year-keyed Location-card counts and Codable recording-warning generation used for presentation
   continuity, behind a `KeyValueStore`. `RecordingConfigurationWarningCondition` evaluates the live
   device authority, recording choice, and authorization tuple in Core. The store has no
