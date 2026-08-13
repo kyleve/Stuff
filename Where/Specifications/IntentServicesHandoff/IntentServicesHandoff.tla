@@ -8,95 +8,88 @@ ASSUME Implementation \in {"current", "broken"}
 Phases == {"idle", "parked", "holding", "cancelled"}
 InstallStates == {"none", "installed", "cleared"}
 
-VARIABLES
-    installed,
-    installState,
-    waiterCount,
-    consumerPhase,
-    selfCreated
+(* --algorithm IntentServicesHandoffAlgorithm {
+variables installed = FALSE,
+          installState = "none",
+          waiterCount = 0,
+          consumerPhase = "idle",
+          selfCreated = FALSE;
 
-vars == <<installed, installState, waiterCount, consumerPhase, selfCreated>>
+fair process (IntentFiresEarly = "IntentFiresEarly") {
+IntentFiresEarlyStep:
+    while (TRUE) {
+        await consumerPhase = "idle";
+        if (installed) {
+            consumerPhase := "holding";
+        } else if (Implementation = "broken") {
+            selfCreated := TRUE ||
+            installed := TRUE ||
+            consumerPhase := "holding" ||
+            installState := "installed";
+        } else {
+            consumerPhase := "parked" ||
+            waiterCount := waiterCount + 1;
+        };
+    }
+}
 
-Init ==
-    /\ installed = FALSE
-    /\ installState = "none"
-    /\ waiterCount = 0
-    /\ consumerPhase = "idle"
-    /\ selfCreated = FALSE
+fair process (Install = "Install") {
+InstallStep:
+    while (TRUE) {
+        await installState \in {"none", "cleared"};
+        if (waiterCount > 0) {
+            installed := TRUE ||
+            installState := "installed" ||
+            consumerPhase := "holding" ||
+            waiterCount := waiterCount - 1;
+        } else {
+            installed := TRUE ||
+            installState := "installed";
+        };
+    }
+}
 
-IntentFiresEarly ==
-    /\ consumerPhase = "idle"
-    /\ IF installed
-          THEN /\ consumerPhase' = "holding"
-               /\ UNCHANGED <<installed, installState, waiterCount, selfCreated>>
-          ELSE IF Implementation = "broken"
-                  THEN /\ selfCreated' = TRUE
-                       /\ installed' = TRUE
-                       /\ consumerPhase' = "holding"
-                       /\ installState' = "installed"
-                       /\ UNCHANGED waiterCount
-                  ELSE /\ consumerPhase' = "parked"
-                       /\ waiterCount' = waiterCount + 1
-                       /\ UNCHANGED <<installed, installState, selfCreated>>
+fair process (Clear = "Clear") {
+ClearStep:
+    while (TRUE) {
+        await installed;
+        installed := FALSE ||
+        installState := "cleared" ||
+        consumerPhase := IF consumerPhase = "holding" THEN "idle" ELSE consumerPhase;
+    }
+}
 
-Install ==
-    /\ installState \in {"none", "cleared"}
-    /\ installed' = TRUE
-    /\ installState' = "installed"
-    /\ IF waiterCount > 0
-          THEN /\ consumerPhase' = "holding"
-               /\ waiterCount' = waiterCount - 1
-          ELSE /\ UNCHANGED <<consumerPhase, waiterCount>>
-    /\ UNCHANGED selfCreated
+fair process (InstallReplace = "InstallReplace") {
+InstallReplaceStep:
+    while (TRUE) {
+        await installState = "installed";
+        if (waiterCount > 0) {
+            installed := TRUE ||
+            consumerPhase := "holding" ||
+            waiterCount := waiterCount - 1;
+        } else {
+            installed := TRUE;
+        };
+    }
+}
 
-Clear ==
-    /\ installed
-    /\ installed' = FALSE
-    /\ installState' = "cleared"
-    /\ IF consumerPhase = "holding"
-          THEN consumerPhase' = "idle"
-          ELSE UNCHANGED consumerPhase
-    /\ UNCHANGED <<waiterCount, selfCreated>>
+fair process (CancelWaiter = "CancelWaiter") {
+CancelWaiterStep:
+    while (TRUE) {
+        await consumerPhase = "parked" /\ waiterCount > 0;
+        consumerPhase := "cancelled" ||
+        waiterCount := waiterCount - 1;
+    }
+}
 
-InstallReplace ==
-    /\ installState = "installed"
-    /\ installed' = TRUE
-    /\ IF waiterCount > 0
-          THEN /\ consumerPhase' = "holding"
-               /\ waiterCount' = waiterCount - 1
-          ELSE /\ UNCHANGED <<consumerPhase, waiterCount>>
-    /\ UNCHANGED <<installState, selfCreated>>
-
-CancelWaiter ==
-    /\ consumerPhase = "parked"
-    /\ waiterCount > 0
-    /\ consumerPhase' = "cancelled"
-    /\ waiterCount' = waiterCount - 1
-    /\ UNCHANGED <<installed, installState, selfCreated>>
-
-ConsumerUsesStack ==
-    /\ consumerPhase = "holding"
-    /\ installed
-    /\ consumerPhase' = "idle"
-    /\ UNCHANGED <<installed, installState, waiterCount, selfCreated>>
-
-Next ==
-    \/ IntentFiresEarly
-    \/ Install
-    \/ Clear
-    \/ InstallReplace
-    \/ CancelWaiter
-    \/ ConsumerUsesStack
-
-Fairness ==
-    /\ WF_vars(Install)
-    /\ WF_vars(Clear)
-    /\ WF_vars(InstallReplace)
-    /\ WF_vars(CancelWaiter)
-    /\ WF_vars(ConsumerUsesStack)
-    /\ WF_vars(IntentFiresEarly)
-
-Spec == Init /\ [][Next]_vars /\ Fairness
+fair process (ConsumerUsesStack = "ConsumerUsesStack") {
+ConsumerUsesStackStep:
+    while (TRUE) {
+        await consumerPhase = "holding" /\ installed;
+        consumerPhase := "idle";
+    }
+}
+} *)
 
 TypeOK ==
     /\ installState \in InstallStates
