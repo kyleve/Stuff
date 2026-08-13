@@ -90,7 +90,7 @@ struct ElsewhereSummaryCard: View {
     }
 
     private var chevron: some View {
-        Image(systemName: "chevron.right")
+        Image(systemSymbol: .chevronRight)
             .font(.subheadline.weight(.semibold))
             .foregroundStyle(.secondary)
             .accessibilityHidden(true)

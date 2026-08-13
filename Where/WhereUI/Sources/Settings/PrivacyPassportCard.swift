@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 
@@ -48,15 +49,15 @@ struct PrivacyPassportCard: View {
 
                 if dynamicTypeSize.isAccessibilitySize {
                     VStack(alignment: .leading, spacing: stylesheet.spacing.small) {
-                        privacyClaim(.settingsPrivacyOnDevice, systemImage: "iphone")
-                        privacyClaim(.settingsPrivacyPrivateICloud, systemImage: "icloud")
-                        privacyClaim(.settingsPrivacyNoServers, systemImage: "server.rack")
+                        privacyClaim(.settingsPrivacyOnDevice, systemSymbol: .iphone)
+                        privacyClaim(.settingsPrivacyPrivateICloud, systemSymbol: .icloud)
+                        privacyClaim(.settingsPrivacyNoServers, systemSymbol: .serverRack)
                     }
                 } else {
                     HStack(spacing: stylesheet.spacing.small) {
-                        privacyClaim(.settingsPrivacyOnDevice, systemImage: "iphone")
-                        privacyClaim(.settingsPrivacyPrivateICloud, systemImage: "icloud")
-                        privacyClaim(.settingsPrivacyNoServers, systemImage: "server.rack")
+                        privacyClaim(.settingsPrivacyOnDevice, systemSymbol: .iphone)
+                        privacyClaim(.settingsPrivacyPrivateICloud, systemSymbol: .icloud)
+                        privacyClaim(.settingsPrivacyNoServers, systemSymbol: .serverRack)
                     }
                 }
             }
@@ -76,9 +77,9 @@ struct PrivacyPassportCard: View {
 
     private func privacyClaim(
         _ title: LocalizedStringResource,
-        systemImage: String,
+        systemSymbol: SFSymbol,
     ) -> some View {
-        Label(String(localized: title), systemImage: systemImage)
+        Label(String(localized: title), systemSymbol: systemSymbol)
             .font(.caption.weight(.medium))
             .foregroundStyle(stylesheet.palette.brand.onMidnight.opacity(0.86))
             .padding(.horizontal, stylesheet.spacing.medium)

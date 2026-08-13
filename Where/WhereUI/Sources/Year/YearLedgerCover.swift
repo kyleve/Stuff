@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SwiftUI
 
 /// The annual ledger's midnight cover and its three report-backed figures.
@@ -64,7 +65,7 @@ struct YearLedgerCover: View {
                 HStack(spacing: stylesheet.spacing.medium) {
                     Text(.yearLedgerOpen)
                         .font(.subheadline.weight(.semibold))
-                    Image(systemName: "arrow.up.right")
+                    Image(systemSymbol: .arrowUpRight)
                         .font(.caption.weight(.bold))
                 }
                 .foregroundStyle(brand.midnight)

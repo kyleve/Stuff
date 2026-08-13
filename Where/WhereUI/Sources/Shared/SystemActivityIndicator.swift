@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 
@@ -11,7 +12,7 @@ struct SystemActivityIndicator: View {
 
     var body: some View {
         if isCapturingSnapshot {
-            Image(systemName: "circle.dotted")
+            Image(systemSymbol: .circleDotted)
                 .foregroundStyle(tint)
                 .accessibilityHidden(true)
         } else {

@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 
@@ -139,7 +140,7 @@ struct BackupPreparationView: View {
                 VStack(alignment: .leading, spacing: stylesheet.spacing.medium) {
                     Label(
                         String(localized: .settingsBackupReady),
-                        systemImage: "checkmark.seal",
+                        systemSymbol: .checkmarkSeal,
                     )
                     .font(style.statusFont)
                     .foregroundStyle(stylesheet.palette.brand.forest)
@@ -154,7 +155,7 @@ struct BackupPreparationView: View {
                 VStack(alignment: .leading, spacing: stylesheet.spacing.large) {
                     Label(
                         String(localized: .settingsBackupErrorTitle),
-                        systemImage: "exclamationmark.triangle",
+                        systemSymbol: .exclamationmarkTriangle,
                     )
                     .font(style.statusFont)
                     .foregroundStyle(stylesheet.palette.brand.oxblood)

@@ -74,7 +74,7 @@ struct YearView: View {
             ContentUnavailableView {
                 Label(
                     String(localized: .commonLoadErrorTitle),
-                    systemImage: "exclamationmark.icloud",
+                    systemSymbol: .exclamationmarkIcloud,
                 )
             } description: {
                 Text(error.message)
