@@ -249,6 +249,90 @@
         }
       }
     },
+    "calendar.month.combination.accessibility" : {
+      "comment" : "Accessibility value component for the number of days shared by one exact combination of regions. The first argument is a localized day count; the second is a localized region list.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ in %2$@"
+          }
+        }
+      }
+    },
+    "calendar.month.empty.accessibility" : {
+      "comment" : "Accessibility value component for a calendar month with no recorded regional presence.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "No days logged"
+          }
+        }
+      }
+    },
+    "calendar.month.evidence.accessibility" : {
+      "comment" : "Accessibility value component for the number of calendar days carrying evidence.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "new",
+                  "value" : "%lld day has evidence"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "new",
+                  "value" : "%lld days have evidence"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "calendar.month.needsAttention.accessibility" : {
+      "comment" : "Accessibility value component for the number of calendar days that still need a location.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "new",
+                  "value" : "%lld day needs a location"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "new",
+                  "value" : "%lld days need a location"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "calendar.month.planned.accessibility" : {
+      "comment" : "Accessibility value component for planned calendar days in a region. The first argument is a localized day count; the second is a localized region name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ planned in %2$@"
+          }
+        }
+      }
+    },
     "calendar.region.title" : {
       "comment" : "Title for the calendar when it's focused on a single region, e.g. \"California · 2026\".",
       "extractionState" : "manual",
@@ -7871,6 +7955,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%1$@, %2$@, %3$@"
+          }
+        }
+      }
+    },
+    "widget.today.accessibility.label" : {
+      "comment" : "Accessibility label for a Today widget, including its localized month and day.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Today, %@"
           }
         }
       }
