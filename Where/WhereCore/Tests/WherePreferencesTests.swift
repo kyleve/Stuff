@@ -26,6 +26,67 @@ struct WherePreferencesTests {
         #expect(preferences.lastSeenLocationDayCounts(in: 2026) == nil)
     }
 
+    @Test(arguments: [
+        (false, RemoteLoggingConfiguration.off),
+        (
+            true,
+            RemoteLoggingConfiguration.enabled(
+                minimumLevel: .warning,
+                metadataPolicy: .approvedFields,
+            )
+        ),
+    ])
+    func diagnosticDefaults(
+        isDebugBuild: Bool,
+        expectedRemoteLogging: RemoteLoggingConfiguration,
+    ) {
+        let configuration = preferences().diagnosticReportingConfiguration(
+            isDebugBuild: isDebugBuild,
+        )
+
+        #expect(configuration.sharesCrashReports)
+        #expect(configuration.sharesSessionReplays == false)
+        #expect(configuration.remoteLogging == expectedRemoteLogging)
+    }
+
+    @Test func diagnosticConfigurationRoundTrips() {
+        let preferences = preferences()
+        let configuration = DiagnosticReportingConfiguration(
+            sharesCrashReports: false,
+            sharesSessionReplays: true,
+            remoteLogging: .enabled(
+                minimumLevel: .notice,
+                metadataPolicy: .allMetadataExcludingAttachmentData,
+            ),
+        )
+
+        preferences.diagnosticReportingConfiguration = configuration
+
+        #expect(preferences.diagnosticReportingConfiguration == configuration)
+    }
+
+    @Test func invalidDiagnosticValuesFailSafelyToRemoteLoggingOff() {
+        func verify(key: String, value: Any) {
+            let store = InMemoryKeyValueStore()
+            store.set("warning", forKey: "where.diagnostics.remoteLogLevel")
+            store.set("approvedFields", forKey: "where.diagnostics.remoteLogMetadataPolicy")
+            store.set(value, forKey: key)
+            var messages: [String] = []
+            let preferences = WherePreferences(
+                store: store,
+                invalidDiagnosticValue: { messages.append($0) },
+            )
+
+            #expect(preferences.diagnosticReportingConfiguration.remoteLogging == .off)
+            #expect(messages.count == 1)
+        }
+
+        verify(key: "where.diagnostics.remoteLogLevel", value: "verbose")
+        verify(key: "where.diagnostics.remoteLogMetadataPolicy", value: "everything")
+        verify(key: "where.diagnostics.sharesCrashReports", value: "yes")
+        verify(key: "where.diagnostics.sharesSessionReplays", value: "yes")
+    }
+
     @Test func locationDayCountsRoundTripIndependentlyByYear() {
         let preferences = preferences()
         let counts2025: [Region: Int] = [.california: 42, .other: 3]
@@ -76,6 +137,14 @@ struct WherePreferencesTests {
         preferences.recordingConfigurationWarningRegistration = recordingWarning
         preferences.driftThresholdMeters = 25000
         preferences.setLastSeenLocationDayCounts([.california: 100], in: 2026)
+        preferences.diagnosticReportingConfiguration = DiagnosticReportingConfiguration(
+            sharesCrashReports: false,
+            sharesSessionReplays: true,
+            remoteLogging: .enabled(
+                minimumLevel: .debug,
+                metadataPolicy: .allMetadataExcludingAttachmentData,
+            ),
+        )
 
         preferences.reset()
 
@@ -93,5 +162,9 @@ struct WherePreferencesTests {
         )
         #expect(preferences.driftThresholdMeters == DriftThreshold.default.rawValue)
         #expect(preferences.lastSeenLocationDayCounts(in: 2026) == nil)
+        #expect(
+            preferences.diagnosticReportingConfiguration
+                == DiagnosticReportingConfiguration.currentBuildDefaults,
+        )
     }
 }

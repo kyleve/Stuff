@@ -20,9 +20,19 @@ import RegionKit
 /// their own observable state.
 public final class WherePreferences {
     private let store: any KeyValueStore
+    private let invalidDiagnosticValue: (String) -> Void
 
     public init(store: any KeyValueStore) {
         self.store = store
+        invalidDiagnosticValue = { message in assertionFailure(message) }
+    }
+
+    init(
+        store: any KeyValueStore,
+        invalidDiagnosticValue: @escaping (String) -> Void,
+    ) {
+        self.store = store
+        self.invalidDiagnosticValue = invalidDiagnosticValue
     }
 
     /// Whether first-run onboarding has been completed. Defaults to `false` so
@@ -104,6 +114,123 @@ public final class WherePreferences {
     public var issueAlertsEnabled: Bool {
         get { store.object(forKey: Keys.issueAlertsEnabled.rawValue) as? Bool ?? true }
         set { store.set(newValue, forKey: Keys.issueAlertsEnabled.rawValue) }
+    }
+
+    /// The user's saved, vendor-neutral diagnostic-reporting choices.
+    public var diagnosticReportingConfiguration: DiagnosticReportingConfiguration {
+        get { diagnosticReportingConfiguration(isDebugBuild: Self.isDebugBuild) }
+        set { setDiagnosticReportingConfiguration(newValue) }
+    }
+
+    /// Resolves defaults for an explicit build flavor so both shipping and
+    /// developer first-install behavior can be verified in one test process.
+    public func diagnosticReportingConfiguration(
+        isDebugBuild: Bool,
+    ) -> DiagnosticReportingConfiguration {
+        let defaults = DiagnosticReportingConfiguration.defaults(isDebugBuild: isDebugBuild)
+        var hasInvalidValue = false
+        let sharesCrashReports = diagnosticBool(
+            forKey: .sharesCrashReports,
+            defaultValue: defaults.sharesCrashReports,
+            hasInvalidValue: &hasInvalidValue,
+        )
+        let sharesSessionReplays = diagnosticBool(
+            forKey: .sharesSessionReplays,
+            defaultValue: defaults.sharesSessionReplays,
+            hasInvalidValue: &hasInvalidValue,
+        )
+
+        guard let storedLevel = store.object(forKey: Keys.remoteLogLevel.rawValue) else {
+            return DiagnosticReportingConfiguration(
+                sharesCrashReports: sharesCrashReports,
+                sharesSessionReplays: sharesSessionReplays,
+                remoteLogging: hasInvalidValue ? .off : defaults.remoteLogging,
+            )
+        }
+        guard let rawLevel = storedLevel as? String else {
+            invalidDiagnosticValue("Invalid persisted remote logging level type")
+            return DiagnosticReportingConfiguration(
+                sharesCrashReports: sharesCrashReports,
+                sharesSessionReplays: sharesSessionReplays,
+                remoteLogging: .off,
+            )
+        }
+        guard rawLevel != "off" else {
+            return DiagnosticReportingConfiguration(
+                sharesCrashReports: sharesCrashReports,
+                sharesSessionReplays: sharesSessionReplays,
+                remoteLogging: .off,
+            )
+        }
+        guard let minimumLevel = RemoteLogLevel(rawValue: rawLevel) else {
+            invalidDiagnosticValue("Invalid persisted remote logging level: \(rawLevel)")
+            return DiagnosticReportingConfiguration(
+                sharesCrashReports: sharesCrashReports,
+                sharesSessionReplays: sharesSessionReplays,
+                remoteLogging: .off,
+            )
+        }
+
+        let storedMetadataPolicy = store.object(forKey: Keys.remoteLogMetadataPolicy.rawValue)
+        let rawMetadataPolicy: String
+        if let storedMetadataPolicy {
+            guard let value = storedMetadataPolicy as? String else {
+                invalidDiagnosticValue("Invalid persisted remote metadata policy type")
+                return DiagnosticReportingConfiguration(
+                    sharesCrashReports: sharesCrashReports,
+                    sharesSessionReplays: sharesSessionReplays,
+                    remoteLogging: .off,
+                )
+            }
+            rawMetadataPolicy = value
+        } else {
+            rawMetadataPolicy = RemoteLogMetadataPolicy.approvedFields.rawValue
+        }
+        guard let metadataPolicy = RemoteLogMetadataPolicy(rawValue: rawMetadataPolicy) else {
+            invalidDiagnosticValue("Invalid persisted remote metadata policy: \(rawMetadataPolicy)")
+            return DiagnosticReportingConfiguration(
+                sharesCrashReports: sharesCrashReports,
+                sharesSessionReplays: sharesSessionReplays,
+                remoteLogging: .off,
+            )
+        }
+        return DiagnosticReportingConfiguration(
+            sharesCrashReports: sharesCrashReports,
+            sharesSessionReplays: sharesSessionReplays,
+            remoteLogging: hasInvalidValue ? .off : .enabled(
+                minimumLevel: minimumLevel,
+                metadataPolicy: metadataPolicy,
+            ),
+        )
+    }
+
+    private func diagnosticBool(
+        forKey key: Keys,
+        defaultValue: Bool,
+        hasInvalidValue: inout Bool,
+    ) -> Bool {
+        guard let storedValue = store.object(forKey: key.rawValue) else { return defaultValue }
+        guard let value = storedValue as? Bool else {
+            hasInvalidValue = true
+            invalidDiagnosticValue("Invalid persisted diagnostic Boolean: \(key.rawValue)")
+            return defaultValue
+        }
+        return value
+    }
+
+    public func setDiagnosticReportingConfiguration(
+        _ configuration: DiagnosticReportingConfiguration,
+    ) {
+        store.set(configuration.sharesCrashReports, forKey: Keys.sharesCrashReports.rawValue)
+        store.set(configuration.sharesSessionReplays, forKey: Keys.sharesSessionReplays.rawValue)
+        switch configuration.remoteLogging {
+            case .off:
+                store.set("off", forKey: Keys.remoteLogLevel.rawValue)
+                store.removeObject(forKey: Keys.remoteLogMetadataPolicy.rawValue)
+            case let .enabled(minimumLevel, metadataPolicy):
+                store.set(minimumLevel.rawValue, forKey: Keys.remoteLogLevel.rawValue)
+                store.set(metadataPolicy.rawValue, forKey: Keys.remoteLogMetadataPolicy.rawValue)
+        }
     }
 
     /// Generation bookkeeping for the recording-configuration warning. This is UI continuity
@@ -208,9 +335,21 @@ public final class WherePreferences {
         case summaryHour = "where.summaryHour"
         case summaryMinute = "where.summaryMinute"
         case issueAlertsEnabled = "where.issueAlertsEnabled"
+        case sharesCrashReports = "where.diagnostics.sharesCrashReports"
+        case sharesSessionReplays = "where.diagnostics.sharesSessionReplays"
+        case remoteLogLevel = "where.diagnostics.remoteLogLevel"
+        case remoteLogMetadataPolicy = "where.diagnostics.remoteLogMetadataPolicy"
         case recordingConfigurationWarningRegistration =
             "where.recordingConfigurationWarningRegistration"
         case driftThresholdMeters = "where.driftThresholdMeters"
         case lastSeenLocationDayCounts = "where.lastSeenLocationDayCounts"
+    }
+
+    private static var isDebugBuild: Bool {
+        #if DEBUG
+            true
+        #else
+            false
+        #endif
     }
 }
