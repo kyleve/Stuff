@@ -3,7 +3,7 @@
 Models at-most-one active [`WhereScope`](../../WhereUI/Sources/Model/WhereScope.swift)
 and at-most-one live real [`SwiftDataStore`](../../WhereCore/Sources/Store/SwiftDataStore.swift)
 container over the user's store file. Complements
-[`LogRouting`](../LogRouting/README.md), which covers Periscope sink ownership;
+[`LogRouting`](../LogRouting/README.md), which covers Periscope sink ownership.
 this spec covers scope/container *lifetime*.
 
 ## Correspondence

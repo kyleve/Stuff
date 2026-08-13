@@ -2,12 +2,12 @@
 
 `Tools/Package.swift` is the independent macOS command-line package behind the
 repository's Xcode- and device-heavy developer commands. Familiar root paths
-remain the user-facing interface; each is a small shim into the `stuff`
+remain the user-facing interface. Each is a small shim into the `stuff`
 executable.
 
-The package is intentionally separate from the root application package. A tool
-build resolves only ArgumentParser and Subprocess, never the iOS application
-graph, and tool-only dependencies stay out of shipping targets.
+The package is separate from the root application package. A tool build resolves
+only ArgumentParser and Subprocess. It never resolves the iOS application graph.
+Tool-only dependencies stay out of shipping targets.
 
 ## Development
 
@@ -24,13 +24,12 @@ updates. Update dependencies explicitly with `swift package resolve
 packages are credited as development tools.
 
 External commands remain in the caller's foreground process group. The terminal
-therefore delivers Ctrl-C, Ctrl-\, and Ctrl-Z/`fg` job control to `stuff` and its
-command tree using ordinary POSIX behavior, without a process-global signal
-supervisor. Other signals retain their normal OS targeting rather than being
-intercepted and relayed. Swift Subprocess still tears down the direct child when
-a Swift task is cancelled or an output handler fails; programmatic cancellation
-does not promise to find a signal-ignoring descendant after its leader has
-exited.
+uses ordinary POSIX behavior to deliver Ctrl-C, Ctrl-\, and Ctrl-Z/`fg` job
+control to `stuff` and its command tree. There is no process-global signal
+supervisor. Other signals keep their normal OS targeting. Swift Subprocess tears
+down the direct child when a Swift task is cancelled or an output handler fails.
+Programmatic cancellation does not promise to find a signal-ignoring descendant
+after its leader exits.
 
 ## Migrated commands
 
@@ -39,33 +38,34 @@ exited.
   provenance, bounded locking, boot waiting, and exact-target deletion. Unowned
   devices are reported but never deleted automatically.
 - `./test` derives affected bundles from Tuist's JSON graph plus SwiftPM's
-  package dump, then shares the simulator resolver and streams raw `xcodebuild`
+  package dump. It shares the simulator resolver and streams raw `xcodebuild`
   output through a directly tested progress reporter. A successful process that
   matched zero tests is still a failed run. Snapshot scopes forward the optional
-  CI settle-timeout multiplier; Git LFS hydration remains a checkout/bootstrap
+  CI settle-timeout multiplier. Git LFS hydration remains a checkout/bootstrap
   responsibility rather than a per-run content inspection.
 - `./profile` keeps clean-build, unit-test, and serial snapshot-test timing as
-  separate legs. It reads typed xcresult test cases, parses Xcode's build-timing
-  summary and type-check warnings, and can retain CI-shaped separate DerivedData.
+  separate legs. It reads typed xcresult test cases. It parses Xcode's
+  build-timing summary and type-check warnings. It can retain CI-shaped separate
+  DerivedData.
 - `./flaky` retains warm DerivedData while treating suite and isolated test
   failures as report data. Typed xcresult aggregation identifies only tests that
   both pass and fail; prerequisite and build failures still exit nonzero.
 - `./icons` validates complete app-catalog, preview-catalog, and manifest outputs
   before a same-filesystem transaction replaces anything. A failed commit rolls
-  every target back; if rollback itself fails, the command preserves and reports
-  the recovery directory. `--dry-run` performs validation without staging files.
+  every target back. If rollback fails, the command preserves and reports the
+  recovery directory. `--dry-run` performs validation without staging files.
 - `./Where/install` keeps signing, build, exact physical-device selection,
   installation, and launch as typed steps. It decodes `devicectl`'s current
   properties schema and offers a no-signing, no-device-query `--dry-run`.
-- `./Ledger/install` validates the fixed destination and complete app shape,
-  terminates only the exact installed executable with bounded escalation, and
-  replaces it from `/Applications`-local staging with rollback. A failed rollback
-  preserves and reports its recovery directory. Its `--dry-run` performs no
-  build, process, filesystem, or launch operation.
+- `./Ledger/install` validates the fixed destination and complete app shape. It
+  terminates only the exact installed executable with bounded escalation. It
+  replaces the app from `/Applications`-local staging with rollback. A failed
+  rollback preserves and reports its recovery directory. Its `--dry-run`
+  performs no build, process, filesystem, or launch operation.
 
 ## Why `test` uses raw xcodebuild
 
-The command deliberately uses `xcodebuild build-for-testing` followed by
+The command uses `xcodebuild build-for-testing` followed by
 `test-without-building`. Tuist's formatter can omit the detail block following
 Swift Testing's generic “Issue recorded” headline, including snapshot mismatch
 paths. The raw invocation also sets `-collect-test-diagnostics never`; without

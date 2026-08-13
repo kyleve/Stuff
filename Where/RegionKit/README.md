@@ -17,7 +17,7 @@ into it for lookup. RegionKit depends only on
   (`rawValue`, e.g. `"us-CA"`, `"canada"`), with a `localizedName`. It is **not**
   a hardcoded enum: the set of *available* regions is data (see `RegionCatalog`).
   Conveniences (`.california`, `.newYork`, `.canada`, `.europeanUnion`, `.other`)
-  read naturally at call sites; `.other` is the catch-all sentinel (no geometry).
+  read naturally at call sites. `.other` is the catch-all sentinel (no geometry).
   (Day-count *ranking* lives in `WhereCore`, not here.)
 - **`RegionCatalog`** — the catalog of available regions, loaded from the bundled
   `regions.json` manifest: `all`, `localizedName(for:)`, canonical order, and the
@@ -29,7 +29,7 @@ into it for lookup. RegionKit depends only on
   coordinate to its `Region` (bounding-box pre-pass, then an even-odd ray-cast),
   and `distanceToBoundary` measures nearness to a region's edge. An attributor is
   built for a **specific set of regions** (`RegionAttributor(for:)`) and loads
-  only those regions' files; `.all` covers the whole catalog and `.shared` the
+  only those regions' files. `.all` covers the whole catalog and `.shared` the
   default four. `RegionAttributing` is the protocol the app's live, swappable
   attributor also conforms to.
 - **`RegionGeometryCatalog`** — read-only drawable `RegionOutline`s: a cached,
@@ -85,11 +85,11 @@ An ordered array of entries, one per available region:
 ```
 
 - `id` — a stable data identifier, never shown to the user. US states are
-  `us-<USPS>` (`us-CA`, `us-NY`, …); countries/blocs use a slug (`canada`,
+  `us-<USPS>` (`us-CA`, `us-NY`, …). countries/blocs use a slug (`canada`,
   `european-union`). The `other` catch-all isn't in the manifest — it's a
   sentinel with no geometry.
 - `name` — the English display name (the `localizedName` fallback).
-- `localizationKey` — optional; when present, `localizedName` resolves it from
+- `localizationKey` — optional. When present, `localizedName` resolves it from
   `Localizable.xcstrings` (`bundle: .module`), else falls back to `name`. Only
   the handful with existing translations carry one. (Dynamic ids mean names are
   data, so region names lose static string-catalog extraction — a deliberate
@@ -125,18 +125,18 @@ byte-for-byte idempotence; use the Ruby test-loader command in `Tools/README.md`
 ### Source data (not bundled)
 
 Each entry below is also expressed in code as a `RegionDataSource`, which is
-what the app credits on its About screen; keep the two in step.
+what the app credits on its About screen. Keep the two in step.
 
 - **`us-states.geojson`** — US state boundaries (50 states + DC + PR),
-  `MultiPolygon` per feature keyed by `properties.NAME`; the generator splits it
+  `MultiPolygon` per feature keyed by `properties.NAME`. The generator splits it
   into one `regions/us-<USPS>.geojson` per feature. Originally
   `gz_2010_us_040_00_5m.json` (5m, 2010 census) from
   [eric.clst.org/tech/usgeojson](https://eric.clst.org/tech/usgeojson/),
   converted from US Census Cartographic Boundary Files. License: US Government
-  works are public domain (17 U.S.C. § 105); attribution requested (see the repo
+  works are public domain (17 U.S.C. § 105). Attribution requested (see the repo
   `README.md`).
 - **`canada.geojson` / `europeanUnion.geojson`** — hand-simplified outlines,
-  deliberately coarse (fine for `RegionAttributorTests` spot-checks; should be
+  deliberately coarse (fine for `RegionAttributorTests` spot-checks; must be
   replaced with higher-fidelity public-domain sources before any production
   residency-audit use).
 
@@ -163,11 +163,11 @@ Everything downstream (`RegionStyle`, region pickers, the App Intents
 Swift Testing in [`Tests/`](Tests), hosted in `StuffTestHost` (so
 `Bundle.module` resolves the GeoJSON at runtime). Attribution, geometry
 (point-in-polygon, bounding box, longitude span), and the geometry catalog are
-covered here; internal types (`GeoJSON`, `GeoPolygon`, `RegionPolygons`) are
+covered here. internal types (`GeoJSON`, `GeoPolygon`, `RegionPolygons`) are
 reached via `@testable import RegionKit`.
 
 **GeoJSON *decoding* is not covered** — there is no `GeoJSONTests.swift`, so the
 unsupported-geometry throw and the malformed-coordinate drop are unexercised, and
 `RegionCatalog`'s degrade-to-empty-catalog path is asserted only at the log-event
-level. Filed in [`Where/TODOs.md`](../TODOs.md); this paragraph goes away when it
+level. Filed in [`Where/TODOs.md`](../TODOs.md). This paragraph goes away when it
 closes.
