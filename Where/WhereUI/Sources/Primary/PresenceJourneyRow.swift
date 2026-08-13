@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SwiftUI
 
 /// One stop on the year journey: a connected region marker, its date span, and
@@ -91,7 +92,7 @@ struct PresenceJourneyRow: View {
         .background(alignment: .leading) {
             PresenceJourneyRail(
                 tint: style.tint,
-                symbolName: style.symbolName,
+                symbol: style.symbol,
                 emoji: style.emoji,
                 isFirst: isFirst,
                 isLast: isLast,

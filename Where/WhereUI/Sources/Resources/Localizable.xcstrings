@@ -3367,6 +3367,18 @@
         }
       }
     },
+    "launch.privateRecord" : {
+      "comment" : "Tracked document label above the Where seal on the launch cover.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "PRIVATE RECORD"
+          }
+        }
+      }
+    },
     "launch.resetCleanup.message" : {
       "comment" : "Terminal launch message after synced data was erased but local post-commit cleanup failed.",
       "extractionState" : "manual",

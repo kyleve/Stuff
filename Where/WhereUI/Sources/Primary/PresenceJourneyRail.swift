@@ -1,10 +1,11 @@
+import SFSafeSymbols
 import SwiftUI
 
 /// The continuous route beside a timeline row: a region-tinted line passing
 /// through a precise region-symbol marker, trimmed at the first and last stops.
 struct PresenceJourneyRail: View {
     let tint: Color
-    let symbolName: String
+    let symbol: SFSymbol
     let emoji: String
     let isFirst: Bool
     let isLast: Bool
@@ -50,7 +51,7 @@ struct PresenceJourneyRail: View {
                     .fill(tint.opacity(rail.nodeFillOpacity))
                 Circle()
                     .stroke(tint, lineWidth: rail.nodeStrokeWidth)
-                Image(systemName: symbolName)
+                Image(systemSymbol: symbol)
                     .font(rail.nodeSymbolFont)
                     .foregroundStyle(tint)
                 Text(emoji)
@@ -71,7 +72,7 @@ struct PresenceJourneyRail: View {
     #Preview {
         PresenceJourneyRail(
             tint: .orange,
-            symbolName: "sun.max.fill",
+            symbol: .sunMaxFill,
             emoji: "🌴",
             isFirst: false,
             isLast: false,

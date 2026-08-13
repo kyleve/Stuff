@@ -656,7 +656,7 @@ private struct DayCell: View {
             }
             whereSnapshot(
                 name: "Glass",
-                theme: .glass,
+                theme: .standard,
                 configurations: .fullContentPhoneLightDark,
             ) {
                 NavigationStack {

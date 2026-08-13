@@ -88,6 +88,7 @@ struct PlannedPresenceJourneyRow: View {
         .background(alignment: .leading) {
             PresenceJourneyRail(
                 tint: style.tint.opacity(planned.labelOpacity),
+                symbol: style.symbol,
                 emoji: style.emoji,
                 isFirst: isFirst,
                 isLast: true,

@@ -214,7 +214,7 @@ private struct YearModePicker: View {
             }
             whereSnapshot(
                 name: "Glass",
-                theme: .glass,
+                theme: .standard,
                 configurations: .fullContentPhoneLightDark,
                 measurementReadiness: .immediate,
                 settle: .settledAtLeast(minDuration: 1.0),

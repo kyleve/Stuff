@@ -708,7 +708,7 @@
         /// logged-in UI and the host's real `UserDefaults` can't leak in.
         /// Synchronous, so it drops straight into `#Preview`.
         @MainActor
-        public static func loadedModel(theme: WhereTheme = .folio) -> WhereModel {
+        public static func loadedModel(theme: WhereTheme = .alternate) -> WhereModel {
             let preferences = previewPreferences()
             preferences.hasOnboarded = true
             preferences.theme = theme
@@ -765,7 +765,7 @@
         /// the onboarding preview/snapshot, honoring PreviewSupport's no-disk
         /// contract so the host's real defaults can't leak in.
         @MainActor
-        public static func onboardingModel(theme: WhereTheme = .folio) -> WhereModel {
+        public static func onboardingModel(theme: WhereTheme = .alternate) -> WhereModel {
             let preferences = previewPreferences()
             preferences.theme = theme
             return WhereModel(
@@ -804,7 +804,6 @@
             totals: [Region: Int]? = nil,
             day: Date = PreviewSupport.referenceWidgetDay,
             year: Int = PreviewSupport.year,
-            theme: WhereTheme = .folio,
         ) -> WidgetSnapshot {
             WidgetSnapshot(
                 day: day,
@@ -817,7 +816,6 @@
                     .europeanUnion: 4,
                     .other: 2,
                 ],
-                theme: theme,
             )
         }
 

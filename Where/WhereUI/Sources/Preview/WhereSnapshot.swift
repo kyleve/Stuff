@@ -16,7 +16,7 @@
     @MainActor
     public func whereSnapshot(
         name: String,
-        theme: WhereTheme = .folio,
+        theme: WhereTheme = .alternate,
         configurations: [SnapshotConfiguration],
         measurementReadiness: SnapshotMeasurementReadiness = .sameAsCapture,
         settle: SnapshotSettle = .settled,

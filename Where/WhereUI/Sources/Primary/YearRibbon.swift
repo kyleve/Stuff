@@ -1,4 +1,5 @@
 import RegionKit
+import SFSafeSymbols
 import SwiftUI
 import WhereCore
 
@@ -53,7 +54,7 @@ struct YearRibbon: View {
                                     ? String(localized: .secondaryTitle)
                                     : region.localizedName
                                 HStack(spacing: stylesheet.spacing.small) {
-                                    Image(systemName: style.symbolName)
+                                    Image(systemSymbol: style.symbol)
                                         .foregroundStyle(style.tint)
                                     Text(regionName)
                                     Text(style.emoji)

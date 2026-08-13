@@ -63,7 +63,7 @@ public struct YearTotalsWidgetView: View {
             ForEach(ranked) { entry in
                 let style = regionStyles.style(for: entry.region)
                 HStack(spacing: stylesheet.spacing.small) {
-                    routeMarker(symbolName: style.symbolName, tint: style.tint)
+                    routeMarker(symbol: style.symbol, tint: style.tint)
                     Text(entry.region.localizedName)
                         .font(stylesheet.homeWidget.rowNameFont)
                         .lineLimit(1)
@@ -89,9 +89,9 @@ public struct YearTotalsWidgetView: View {
         }
     }
 
-    private func routeMarker(symbolName: String, tint: Color) -> some View {
+    private func routeMarker(symbol: SFSymbol, tint: Color) -> some View {
         let style = stylesheet.homeWidget
-        return Image(systemName: symbolName)
+        return Image(systemSymbol: symbol)
             .font(.system(size: style.routeSymbolPointSize, weight: .semibold))
             .foregroundStyle(tint)
             .frame(width: style.routeMarkerSize, height: style.routeMarkerSize)
@@ -145,11 +145,11 @@ public struct YearTotalsWidgetView: View {
             }
             whereSnapshot(
                 name: "Glass",
-                theme: .glass,
+                theme: .standard,
                 configurations: .componentLightDark,
                 settle: .immediate,
             ) {
-                YearTotalsWidgetView(snapshot: PreviewSupport.sampleWidgetSnapshot(theme: .glass))
+                YearTotalsWidgetView(snapshot: PreviewSupport.sampleWidgetSnapshot())
             }
         }
     }

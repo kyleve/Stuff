@@ -264,14 +264,7 @@ public final class WhereSession {
     /// Republish the widget snapshot from whatever is on disk. A launch step
     /// in its own right (see `WhereLaunch.plan(for:)`).
     public func refreshWidgetSnapshot() async {
-        await services.widgets.configureTheme(preferences.theme)
         await services.widgets.refreshIfStale()
-    }
-
-    /// Republish widgets immediately when Appearance changes, without waiting
-    /// for another data write or foreground refresh.
-    func publishTheme(_ theme: WhereTheme) async {
-        await services.widgets.publishTheme(theme)
     }
 
     /// Read the current authorization status from the ingestor into our

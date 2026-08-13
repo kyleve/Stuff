@@ -1,4 +1,5 @@
 import RegionKit
+import SFSafeSymbols
 import SwiftUI
 
 /// The identity-preserving destination for a ranked folio card.
@@ -74,7 +75,7 @@ struct FocusedRegionCalendarView: View {
                     .minimumScaleFactor(0.75)
 
                 HStack(alignment: .firstTextBaseline, spacing: stylesheet.spacing.small) {
-                    Image(systemName: regionStyle.symbolName)
+                    Image(systemSymbol: regionStyle.symbol)
                         .font(.caption)
                     Text(dayCount, format: .number)
                         .font(.headline.monospacedDigit())

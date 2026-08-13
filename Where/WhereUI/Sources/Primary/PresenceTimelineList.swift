@@ -108,7 +108,7 @@ struct PresenceTimelineList: View {
                 },
                 whereSnapshot(
                     name: "Glass",
-                    theme: .glass,
+                    theme: .standard,
                     configurations: .fullContentPhoneLightDark,
                     measurementReadiness: .immediate,
                 ) {

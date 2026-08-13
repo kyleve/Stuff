@@ -184,15 +184,15 @@ extension AppearanceSettingsView: SettingsSection {
                     .environment(PreviewSupport.loadedModel())
                 },
                 whereSnapshot(
-                    name: "Folio",
-                    theme: .alternate,
+                    name: "Glass",
+                    theme: .standard,
                     configurations: .fullContentPhoneLightDark,
                     measurementReadiness: .immediate,
                 ) {
                     NavigationStack {
                         AppearanceSettingsView(report: PreviewSupport.loadedYearReportModel())
                     }
-                    .environment(PreviewSupport.loadedModel(theme: .alternate))
+                    .environment(PreviewSupport.loadedModel(theme: .standard))
                 },
             ]
         }

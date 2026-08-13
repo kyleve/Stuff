@@ -141,7 +141,7 @@ public struct TodayWidgetView: View {
     private func routeMarker(for region: Region) -> some View {
         let widgetStyle = stylesheet.homeWidget
         let regionStyle = regionStyles.style(for: region)
-        return Image(systemName: regionStyle.symbolName)
+        return Image(systemSymbol: regionStyle.symbol)
             .font(.system(size: widgetStyle.routeSymbolPointSize, weight: .semibold))
             .foregroundStyle(regionStyle.tint)
             .frame(width: widgetStyle.routeMarkerSize, height: widgetStyle.routeMarkerSize)
@@ -193,14 +193,13 @@ public struct TodayWidgetView: View {
             }
             whereSnapshot(
                 name: "Glass",
-                theme: .glass,
+                theme: .standard,
                 configurations: .componentLightDark,
                 settle: .immediate,
             ) {
                 TodayWidgetView(snapshot: PreviewSupport.sampleWidgetSnapshot(
                     dayRegions: [.california],
                     totals: [.california: 132],
-                    theme: .glass,
                 ))
             }
             whereSnapshot(name: "Empty", configurations: .componentLightDark, settle: .immediate) {

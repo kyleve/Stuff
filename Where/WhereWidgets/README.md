@@ -12,9 +12,9 @@ so an appearance change does not rebuild the data snapshot.
 All rendering lives in [`WhereUI`](../WhereUI/) — this target only wires
 WidgetKit configuration, the timeline provider, and family-specific layout.
 Home-screen families apply WhereUI's `whereWidgetBackground()` modifier for
-the Folio or Quiet Glass palette carried by `WidgetSnapshot`; lock-screen
-accessories retain WidgetKit's native monochrome containers. Snapshots written
-before theme support decode as Folio.
+the selected Folio or Quiet Glass palette; lock-screen accessories retain
+WidgetKit's native monochrome containers. The provider reads that palette from
+`WidgetPresentationStore` independently of `WidgetSnapshot` data.
 
 ## Widgets
 

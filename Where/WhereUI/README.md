@@ -229,10 +229,11 @@ Appearance tokens — geometry, fonts, colors, motion — live in one place,
 read it with `@Environment(\.stylesheet)`; off the `View` tree (layout helpers,
 tests) code uses `WhereStylesheet.default`. The active sheet is seeded by
 `whereBroadwayRoot(theme:regionStyles:)` at the app root and in each
-Broadway-root-less consumer. `WhereTheme.folio` is the stable default;
-Appearance Settings commits either Folio or Quiet Glass as a device-local
-preference, while first-run onboarding previews the choice in memory until the
-flow completes. With no root present, resolution falls back to `.default`.
+Broadway-root-less consumer. `WhereTheme.standard` is the stable default and
+resolves to Quiet Glass; Alternate resolves to Folio. Appearance Settings
+commits either language as a device-local preference, while first-run
+onboarding previews the choice in memory until the flow completes. With no root
+present, resolution falls back to the Standard `.default`.
 The widget extension also calls `whereWidgetBackground()`, a WhereUI-owned seam
 that consumes the resolved palette without exposing or double-linking Broadway.
 The rules for what may and may not live in the sheet are in

@@ -12,25 +12,13 @@ import WhereCore
 /// `UIConstants`. These assertions pin those values so the migration — and any
 /// later trait-aware derivation — can't silently drift the defaults.
 struct WhereStylesheetTests {
-    private let style = WhereStylesheet.default
+    private let style = WhereStylesheet.themePreview(.alternate, colorScheme: .light)
 
     @MainActor
-    @Test func themesRetainDistinctIdentityWithEquivalentTokens() throws {
-        var standardThemes = BThemes()
-        standardThemes[WhereTheme.self] = .standard
-        var alternateThemes = BThemes()
-        alternateThemes[WhereTheme.self] = .alternate
-
-        let standardContext = BContext(traits: .system, themes: standardThemes)
-        let alternateContext = BContext(traits: .system, themes: alternateThemes)
-        let standard = try standardContext.stylesheets.get(WhereStylesheet.self)
-        let alternate = try alternateContext.stylesheets.get(WhereStylesheet.self)
-
-        #expect(standard.theme == .standard)
-        #expect(alternate.theme == .alternate)
-        var normalizedStandard = standard
-        normalizedStandard.theme = WhereTheme.alternate
-        #expect(normalizedStandard == alternate)
+    private func folioContext() -> BContext {
+        var themes = BThemes()
+        themes[WhereTheme.self] = .alternate
+        return BContext(traits: .system, themes: themes)
     }
 
     @Test func spacingScale() {
@@ -46,7 +34,7 @@ struct WhereStylesheetTests {
     }
 
     @Test func signatureFolioFoundation() {
-        #expect(style.theme == .folio)
+        #expect(style.theme == .alternate)
         #expect(style.seal == .init(
             outerRingWidth: 2,
             innerRingWidth: 0.75,
@@ -78,12 +66,12 @@ struct WhereStylesheetTests {
     @MainActor
     @Test func quietGlassThemeResolvesACompleteBaseline() throws {
         var themes = BThemes()
-        themes[WhereTheme.self] = .glass
+        themes[WhereTheme.self] = .standard
         let context = BContext(traits: .system, themes: themes)
 
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
 
-        #expect(resolved.theme == .glass)
+        #expect(resolved.theme == .standard)
         #expect(resolved.palette == .glass)
         #expect(resolved.card.regular.cornerRadius == 26)
         #expect(resolved.card.regular.regionNameTypography.design == .default)
@@ -102,25 +90,25 @@ struct WhereStylesheetTests {
     @MainActor
     @Test func quietGlassComposesWithDarkAppearance() throws {
         var themes = BThemes()
-        themes[WhereTheme.self] = .glass
+        themes[WhereTheme.self] = .standard
         var context = BContext(traits: .system, themes: themes)
         context.baseTraits.mode = .dark
 
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
 
-        #expect(resolved.theme == .glass)
+        #expect(resolved.theme == .standard)
         #expect(resolved.palette == .glassDark)
         #expect(resolved.card.securityPrint == .dark)
         #expect(resolved.featureDiscovery.siri.accent == resolved.palette.brand.mineral)
     }
 
     @Test func themePreviewsResolveBothLanguagesWithoutANestedBroadwayRoot() {
-        let folio = WhereStylesheet.themePreview(.folio, colorScheme: .light)
-        let glass = WhereStylesheet.themePreview(.glass, colorScheme: .dark)
+        let folio = WhereStylesheet.themePreview(.alternate, colorScheme: .light)
+        let glass = WhereStylesheet.themePreview(.standard, colorScheme: .dark)
 
-        #expect(folio.theme == .folio)
+        #expect(folio.theme == .alternate)
         #expect(folio.palette == .standard)
-        #expect(glass.theme == .glass)
+        #expect(glass.theme == .standard)
         #expect(glass.palette == .glassDark)
         #expect(glass.card.regular.regionNameTypography.design == .default)
     }
@@ -868,7 +856,7 @@ struct WhereStylesheetTests {
         #expect(style.size.launchCaptionBottomInset == 72)
     }
 
-    /// With default/system traits the stylesheet resolves to the fixed defaults.
+    /// With default/system traits the stylesheet resolves to Standard.
     @MainActor
     @Test func resolvesThroughBroadwayToTheDefaults() throws {
         let context = BContext(traits: .system)
@@ -878,7 +866,7 @@ struct WhereStylesheetTests {
 
     @MainActor
     @Test func growsDayGridTapTargetAtAccessibilitySizes() throws {
-        var context = BContext(traits: .system)
+        var context = folioContext()
         context.traitOverrides.contentSizeCategory = .accessibilityLarge
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
         #expect(resolved.calendar.day.minHeight == 56)
@@ -892,7 +880,7 @@ struct WhereStylesheetTests {
 
     @MainActor
     @Test func flattensCardGlowUnderReduceTransparency() throws {
-        var context = BContext(traits: .system)
+        var context = folioContext()
         context.traitOverrides.accessibility = BAccessibility(isReduceTransparencyEnabled: true)
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
         #expect(resolved.card.regular.glow.radius == 0)
@@ -903,7 +891,7 @@ struct WhereStylesheetTests {
 
     @MainActor
     @Test func strengthensDocumentRulesAtIncreasedContrast() throws {
-        var context = BContext(traits: .system)
+        var context = folioContext()
         context.traitOverrides.accessibility = BAccessibility(isDarkerSystemColorsEnabled: true)
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
         #expect(resolved.homeWidget.borderOpacity == 0.3)
@@ -915,7 +903,7 @@ struct WhereStylesheetTests {
 
     @MainActor
     @Test func separatesRibbonRegionsWithoutColorDifferentiation() throws {
-        var context = BContext(traits: .system)
+        var context = folioContext()
         context.traitOverrides.accessibility = BAccessibility(
             shouldDifferentiateWithoutColor: true,
         )
@@ -926,7 +914,7 @@ struct WhereStylesheetTests {
 
     @MainActor
     @Test func crossFadesTheCardDayCountUnderReduceMotion() throws {
-        var context = BContext(traits: .system)
+        var context = folioContext()
         context.traitOverrides.accessibility = BAccessibility(isReduceMotionEnabled: true)
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
         #expect(resolved.card.dayCount == .reducedMotion)
@@ -940,7 +928,7 @@ struct WhereStylesheetTests {
 
     @MainActor
     @Test func palesCardSecurityPrintInDarkMode() throws {
-        var context = BContext(traits: .system)
+        var context = folioContext()
         context.traitOverrides.mode = .dark
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
         #expect(resolved.card.securityPrint == .dark)

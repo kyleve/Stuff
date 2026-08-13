@@ -101,7 +101,7 @@ public struct DaysInRegionSnippetView: View {
 
     private func routeMarker(style: RegionStyle) -> some View {
         let component = stylesheet.recordSnippet
-        return Image(systemName: style.symbolName)
+        return Image(systemSymbol: style.symbol)
             .font(.system(size: component.routeSymbolPointSize, weight: .semibold))
             .foregroundStyle(style.tint)
             .frame(width: component.routeMarkerSize, height: component.routeMarkerSize)
@@ -211,7 +211,7 @@ public struct RegionsSnippetView: View {
 
     private func routeMarker(style: RegionStyle) -> some View {
         let component = stylesheet.recordSnippet
-        return Image(systemName: style.symbolName)
+        return Image(systemSymbol: style.symbol)
             .font(.system(size: component.routeSymbolPointSize, weight: .semibold))
             .foregroundStyle(style.tint)
             .frame(width: component.routeMarkerSize, height: component.routeMarkerSize)

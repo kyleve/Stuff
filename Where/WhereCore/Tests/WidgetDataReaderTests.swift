@@ -64,30 +64,11 @@ struct WidgetDataReaderTests {
             dayRegions: [.newYork],
             totals: [.newYork: 3],
             appearances: [.newYork: look],
-            theme: .glass,
         )
         let data = try JSONEncoder().encode(snapshot)
         let decoded = try JSONDecoder().decode(WidgetSnapshot.self, from: data)
         #expect(decoded == snapshot)
         #expect(decoded.appearances == [.newYork: look])
-        #expect(decoded.theme == .glass)
-    }
-
-    @Test func snapshotWithoutThemeDecodesAsFolio() throws {
-        let snapshot = WidgetSnapshot(
-            day: WhereCoreTestSupport.iso("2026-03-15T00:00:00-07:00"),
-            year: 2026,
-            dayRegions: [.newYork],
-            totals: [.newYork: 3],
-        )
-        let encoded = try JSONEncoder().encode(snapshot)
-        var object = try #require(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
-        object.removeValue(forKey: "theme")
-        let legacy = try JSONSerialization.data(withJSONObject: object)
-
-        let decoded = try JSONDecoder().decode(WidgetSnapshot.self, from: legacy)
-
-        #expect(decoded.theme == .folio)
     }
 
     @Test func samplesAndManualDaysRollUpLikeTheYearReport() async throws {

@@ -231,9 +231,13 @@ struct WhereStylesheet: BStylesheet {
         )
     }
 
-    /// The fixed token set: the fallback used off the `View` tree (layout
+    /// The Standard token set: the fallback used off the `View` tree (layout
     /// helpers, tests) and when no Broadway root has seeded a context.
-    static let `default` = WhereStylesheet()
+    static let `default`: WhereStylesheet = {
+        var style = WhereStylesheet()
+        style.applyQuietGlassTheme()
+        return style
+    }()
 
     /// Resolve the compact side-by-side theme specimens without nesting a
     /// second Broadway root inside the live app root. The specimen needs only
@@ -242,11 +246,11 @@ struct WhereStylesheet: BStylesheet {
     static func themePreview(_ theme: WhereTheme, colorScheme: ColorScheme) -> WhereStylesheet {
         var style = WhereStylesheet()
         style.theme = theme
-        if theme == .glass {
+        if theme == .standard {
             style.applyQuietGlassTheme()
         }
         if colorScheme == .dark {
-            style.palette = theme == .glass ? .glassDark : .dark
+            style.palette = theme == .standard ? .glassDark : .dark
         }
         return style
     }
