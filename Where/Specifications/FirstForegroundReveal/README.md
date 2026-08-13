@@ -8,7 +8,7 @@ the first uncovered frame keep that reveal owed without replaying on ordinary
 scene resumes afterward?
 
 The model represents production source at commit
-`567bf419778866e9788ac8e4f01c7460b8b5b494`. It is design evidence for the
+`0b80b463ebb3520cf902e9bbe2ee8e4a6b356976`. It is design evidence for the
 stated bounds and assumptions, not proof that SwiftUI or the implementation is
 correct. Changes to `RootView` foreground promotion, `LifecycleRunner` phase
 publication, `LifecycleContainer`'s observation/task identities, or
@@ -39,7 +39,7 @@ case's verdict, generated/distinct-state count, and graph depth exactly.
 | `renderedSurface` | No visible scene, the splash overlay, or uncovered ready content selected by `LifecycleContainer`; committing `.releasing` content corresponds to the reveal marker's `onAppear` setting `.revealed` |
 | `contentBuilt` | Ready content's single call site, built under the covering splash before reveal |
 | `OrdinaryResume` | Later scene background/active cycles after promotion; the launch reason and ready phase stay unchanged |
-| `ResignActiveBeforeReveal` / `ReactivateBeforeReveal` | An active-scene interruption before content is committed, followed by the inactive render resetting an unrevealed policy and a later active presentation |
+| `ResignActiveBeforeReveal` / `ReactivateBeforeReveal` | An active-scene interruption before content is committed, followed by the inactive render resetting an unrevealed positive-duration presentation and a later active presentation |
 
 The source entry points represented are `RootView.body`'s initial active-scene
 task and `scenePhase` change handler, `LifecycleRunner.enterForeground()`, and
@@ -90,15 +90,15 @@ the two-resume path non-vacuous.
 
 The interruption path assumes SwiftUI commits the inactive presentation update
 before the scene becomes active again; that render is where the keyed task is
-canceled and an unrevealed opt-in policy returns to awaiting. The hosted test
-drives this same active → inactive → active ordering.
+canceled and an unrevealed positive-duration presentation returns to awaiting.
+The hosted test drives this same active → inactive → active ordering.
 
-Zero-duration policy, `.phaseDriven`, gates, failures, teardown/reset splash
-episodes, animation frames, accessibility/hit testing, scene destruction and
-recreation, multiple windows, process termination, coalescing away the entire
-inactive presentation update, and actual SwiftUI runtime scheduling are
-excluded. The hosted Swift test remains the implementation guard for the
-scheduling behavior represented by the model.
+Zero-duration behavior, gates, failures, teardown/reset splash episodes,
+animation frames, accessibility/hit testing, scene destruction and recreation,
+multiple windows, process termination, coalescing away the entire inactive
+presentation update, and actual SwiftUI runtime scheduling are excluded. The
+hosted Swift test remains the implementation guard for the scheduling behavior
+represented by the model.
 
 ## Controls and result
 

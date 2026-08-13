@@ -132,7 +132,6 @@ public struct RootView: View {
                 transition: revealTransition,
                 animation: revealAnimation,
                 minimumSplashDuration: stylesheet.launch.minimumSplashDuration,
-                readyRevealPolicy: .splashBeforeFirstReveal,
                 isPresentationVisible: isLifecyclePresentationVisible,
                 splash: { _ in LaunchSplashView() },
                 failure: { WhereLifecycleFailureView(failure: $0) },

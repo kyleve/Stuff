@@ -1,7 +1,7 @@
 /// The presentation history that decides whether ready content is covered by
 /// the splash. The deadline belongs to a rendered splash appearance—or, for
-/// the opt-in policy, the first visible ready presentation when SwiftUI never
-/// observed the runner's intervening splash phase.
+/// the first visible ready presentation when SwiftUI never observed the
+/// runner's intervening splash phase.
 enum LifecycleReadyRevealState: Equatable {
     case awaitingFirstVisibleReady
     case holdingSplash(until: ContinuousClock.Instant)
@@ -10,16 +10,8 @@ enum LifecycleReadyRevealState: Equatable {
     case releasing
     case revealed
 
-    init(
-        policy: LifecycleReadyRevealPolicy,
-        minimumSplashDuration: Duration,
-    ) {
-        switch policy {
-            case .phaseDriven:
-                self = .revealed
-            case .splashBeforeFirstReveal:
-                self = minimumSplashDuration > .zero ? .awaitingFirstVisibleReady : .revealed
-        }
+    init(minimumSplashDuration: Duration) {
+        self = minimumSplashDuration > .zero ? .awaitingFirstVisibleReady : .revealed
     }
 
     var canRevealReady: Bool {
@@ -66,18 +58,11 @@ enum LifecycleReadyRevealState: Equatable {
     }
 
     /// Cancels an unrevealed presentation episode when its scene stops being
-    /// visible. The opt-in policy still owes a splash on the next active
-    /// presentation; the default policy returns to its immediate-ready state.
-    mutating func sceneBecameInactive(
-        beforeFirstRevealUsing policy: LifecycleReadyRevealPolicy,
-    ) {
+    /// visible. A positive minimum still owes a splash on the next active
+    /// presentation; a committed reveal remains sticky.
+    mutating func sceneBecameInactive() {
         guard case .revealed = self else {
-            switch policy {
-                case .phaseDriven:
-                    self = .revealed
-                case .splashBeforeFirstReveal:
-                    self = .awaitingFirstVisibleReady
-            }
+            self = .awaitingFirstVisibleReady
             return
         }
     }

@@ -102,7 +102,7 @@ ResignActiveBeforeRevealStep:
 
 \* SwiftUI delivers the inactive presentation update before the scene becomes
 \* active again. Its render below cancels the keyed task and returns an
-\* unrevealed opt-in policy to awaiting.
+\* unrevealed positive-duration presentation to awaiting.
 fair process (ReactivateBeforeReveal = "ReactivateBeforeReveal") {
 ReactivateBeforeRevealStep:
     while (TRUE) {

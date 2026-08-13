@@ -45,7 +45,6 @@ public struct LifecycleContainer<
     private let transition: AnyTransition
     private let animation: Animation?
     private let minimumSplashDuration: Duration
-    private let readyRevealPolicy: LifecycleReadyRevealPolicy
     private let isPresentationVisible: Bool
     private let splash: (LifecycleStepContext?) -> Splash
     private let failureView: (LifecycleFailure) -> Failure
@@ -67,12 +66,9 @@ public struct LifecycleContainer<
     ///     as soon as the runner is ready. The hold isn't dead time: `content`
     ///     is already built beneath the splash, so the destination warms up
     ///     during it rather than in the frame the reveal starts.
-    ///   - readyRevealPolicy: whether an already-ready first visible presentation
-    ///     reveals immediately or synthesizes the splash hold when SwiftUI never
-    ///     observed a preceding splash phase.
     ///   - isPresentationVisible: whether the containing scene is active. Apps
-    ///     using `.splashBeforeFirstReveal` should pass their active-scene state
-    ///     so an interrupted hold cannot complete offscreen.
+    ///     with a positive minimum should pass their active-scene state so an
+    ///     interrupted hold cannot complete offscreen.
     ///   - splash: the waiting surface; receives the running step's context
     ///     (nil between steps) so it can show a caption/progress.
     ///   - failure: the (terminal) error surface, given the failure. There is
@@ -84,7 +80,6 @@ public struct LifecycleContainer<
         transition: AnyTransition = .opacity,
         animation: Animation? = .default,
         minimumSplashDuration: Duration = .zero,
-        readyRevealPolicy: LifecycleReadyRevealPolicy = .phaseDriven,
         isPresentationVisible: Bool = true,
         @ViewBuilder splash: @escaping (LifecycleStepContext?) -> Splash,
         @ViewBuilder failure: @escaping (LifecycleFailure) -> Failure,
@@ -95,7 +90,6 @@ public struct LifecycleContainer<
         self.transition = transition
         self.animation = animation
         self.minimumSplashDuration = minimumSplashDuration
-        self.readyRevealPolicy = readyRevealPolicy
         self.isPresentationVisible = isPresentationVisible
         self.splash = splash
         failureView = failure
@@ -103,7 +97,6 @@ public struct LifecycleContainer<
         self.content = content
         _readyRevealState = State(
             initialValue: LifecycleReadyRevealState(
-                policy: readyRevealPolicy,
                 minimumSplashDuration: minimumSplashDuration,
             ),
         )
@@ -147,13 +140,11 @@ public struct LifecycleContainer<
         // first-reveal obligation expire offscreen.
         .onChange(of: isPresentationVisible, initial: true) { _, active in
             guard active == false else { return }
-            readyRevealState.sceneBecameInactive(
-                beforeFirstRevealUsing: readyRevealPolicy,
-            )
+            readyRevealState.sceneBecameInactive()
         }
         // Include visibility in the identity: a background runner can remain
         // `.ready` across foreground promotion, and that false → true transition
-        // is what must start an opt-in first-reveal hold.
+        // is what must start the first-reveal hold.
         .task(id: isReadyAndVisible) {
             guard isReadyAndVisible else { return }
             readyRevealState.readyBecameVisible(
@@ -201,7 +192,7 @@ public struct LifecycleContainer<
     }
 
     /// Whether presentation history permits the ready content to show: the
-    /// policy owes no first splash and no rendered-splash hold remains.
+    /// positive minimum owes no first splash and no rendered-splash hold remains.
     private var canRevealReady: Bool {
         readyRevealState.canRevealReady
     }
@@ -377,7 +368,6 @@ extension LifecycleContainer where Splash == LifecycleSplash, Failure == Lifecyc
     public init(
         _ runner: LifecycleRunner<Launch>,
         minimumSplashDuration: Duration = .zero,
-        readyRevealPolicy: LifecycleReadyRevealPolicy = .phaseDriven,
         isPresentationVisible: Bool = true,
         @GateRegistrationsBuilder gates: () -> [GateRegistration] = { [] },
         @ViewBuilder content: @escaping (Launch) -> Content,
@@ -385,7 +375,6 @@ extension LifecycleContainer where Splash == LifecycleSplash, Failure == Lifecyc
         self.init(
             runner,
             minimumSplashDuration: minimumSplashDuration,
-            readyRevealPolicy: readyRevealPolicy,
             isPresentationVisible: isPresentationVisible,
             splash: { _ in LifecycleSplash() },
             failure: { LifecycleFailureView(failure: $0) },
@@ -401,7 +390,6 @@ extension LifecycleContainer where Failure == LifecycleFailureView {
     public init(
         _ runner: LifecycleRunner<Launch>,
         minimumSplashDuration: Duration = .zero,
-        readyRevealPolicy: LifecycleReadyRevealPolicy = .phaseDriven,
         isPresentationVisible: Bool = true,
         @ViewBuilder splash: @escaping (LifecycleStepContext?) -> Splash,
         @GateRegistrationsBuilder gates: () -> [GateRegistration] = { [] },
@@ -410,7 +398,6 @@ extension LifecycleContainer where Failure == LifecycleFailureView {
         self.init(
             runner,
             minimumSplashDuration: minimumSplashDuration,
-            readyRevealPolicy: readyRevealPolicy,
             isPresentationVisible: isPresentationVisible,
             splash: splash,
             failure: { LifecycleFailureView(failure: $0) },
