@@ -1,13 +1,13 @@
-import WhereSpecifications.Protocol
-import WhereSpecifications.IngestorQuiesce.Model
-import WhereSpecifications.IntentServicesHandoff.Model
-import WhereSpecifications.LaunchLifecycle.Model
-import WhereSpecifications.LogRouting.Model
-import WhereSpecifications.PostWriteReconcile.Model
-import WhereSpecifications.ScopeExclusivity.Model
-import WhereSpecifications.StorePerformSerialization.Model
-import WhereSpecifications.TrackingReconciliation.Model
-import WhereSpecifications.RemoteDeviceRemoval.Model
+import Protocol
+import IngestorQuiesce.Model
+import IntentServicesHandoff.Model
+import LaunchLifecycle.Model
+import LogRouting.Model
+import PostWriteReconcile.Model
+import ScopeExclusivity.Model
+import StorePerformSerialization.Model
+import TrackingReconciliation.Model
+import RemoteDeviceRemoval.Model
 
 namespace WhereSpecifications
 

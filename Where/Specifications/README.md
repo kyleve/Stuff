@@ -2,8 +2,8 @@
 
 This directory contains an opt-in Lean 4 verification prototype beside the
 existing TLA+/TLC models. Lean is pinned by `lean-toolchain`; Lake builds the
-repo-owned protocol library and the nine model modules under
-`WhereSpecifications/` with only Lean's `Std` library.
+repo-owned protocol library and the nine `Model.lean` modules beside their
+TLA+ models, with only Lean's `Std` library.
 
 Run all proof modules and all 25 diagnostic cases from the repository root:
 
@@ -26,7 +26,7 @@ The exact breadth-first search is diagnostic: it reports state counts and
 shortest counterexample action sequences, but its result is never used as proof
 evidence. No proof may use `sorry`, `admit`, new axioms, or `native_decide`.
 
-`WhereSpecifications/Protocol.lean` owns labelled traces, infinite behaviors,
+`Protocol.lean` owns labelled traces, infinite behaviors,
 stuttering, `Eventually`, `LeadsTo`, TLA-compatible weak fairness, and exact
 search whose hash table resolves collisions with state equality.
 

@@ -1,7 +1,7 @@
 # Tracking reconciliation formal specification
 
 The side-by-side Lean prototype in
-`WhereSpecifications/TrackingReconciliation/Model.lean` kernel-proves
+`Model.lean` kernel-proves
 `CurrentIntentIsImmediate` and `CorrectAtQuiescence`, and checks all six finite
 cases with `./lean-check TrackingReconciliation`. It does not yet prove
 `EventuallySettled` from the same weak-fairness assumptions or prove deadlock

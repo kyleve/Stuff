@@ -1,7 +1,7 @@
 # Remote device removal
 
 The side-by-side Lean prototype in
-`WhereSpecifications/RemoteDeviceRemoval/Model.lean` kernel-proves the five
+`Model.lean` kernel-proves the five
 current safety properties and checks all five finite cases with
 `./lean-check RemoteDeviceRemoval`. It does not yet prove
 `DeliveredRemovalEventuallyStops`, `DeliveredRemovalEventuallyRetires`, or

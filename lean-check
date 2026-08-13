@@ -62,8 +62,8 @@ ensure_elan() {
 }
 
 list_specs() {
-    find "$package_root/WhereSpecifications" -mindepth 1 -maxdepth 1 -type d -print \
-        | while IFS= read -r directory; do basename "$directory"; done \
+    find "$package_root" -mindepth 2 -maxdepth 2 -name Model.lean -print \
+        | while IFS= read -r model; do basename "$(dirname "$model")"; done \
         | sort
 }
 
@@ -99,11 +99,11 @@ main() {
         else
             local spec
             for spec in "${specs[@]}"; do
-                if [[ ! -f "WhereSpecifications/$spec/Model.lean" ]]; then
+                if [[ ! -f "$spec/Model.lean" ]]; then
                     echo "error: unknown spec '$spec'" >&2
                     exit 1
                 fi
-                lake build "WhereSpecifications.$spec.Model"
+                lake build "$spec.Model"
             done
             lake exe where-specifications "${specs[@]}"
         fi

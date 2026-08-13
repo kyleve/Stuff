@@ -1,6 +1,6 @@
 # IntentServices handoff
 
-The side-by-side Lean prototype in `WhereSpecifications/IntentServicesHandoff/Model.lean`
+The side-by-side Lean prototype in `Model.lean`
 kernel-proves the current safety properties over every reachable state and
 checks the broken trace. Run it with `./lean-check IntentServicesHandoff`; TLC
 remains checked in while repository-wide fairness/deadlock parity is open.

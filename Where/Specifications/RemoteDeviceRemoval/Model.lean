@@ -1,4 +1,4 @@
-import WhereSpecifications.Protocol
+import Protocol
 
 namespace WhereSpecifications.RemoteDeviceRemoval
 open TransitionSystem

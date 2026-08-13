@@ -4,6 +4,19 @@ defaultTargets = ["WhereSpecifications", "where-specifications"]
 
 [[lean_lib]]
 name = "WhereSpecifications"
+roots = [
+    "WhereSpecifications",
+    "Protocol",
+    "IngestorQuiesce.Model",
+    "IntentServicesHandoff.Model",
+    "LaunchLifecycle.Model",
+    "LogRouting.Model",
+    "PostWriteReconcile.Model",
+    "RemoteDeviceRemoval.Model",
+    "ScopeExclusivity.Model",
+    "StorePerformSerialization.Model",
+    "TrackingReconciliation.Model",
+]
 
 [[lean_exe]]
 name = "where-specifications"

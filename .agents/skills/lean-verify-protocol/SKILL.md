@@ -11,7 +11,7 @@ the implementation.
 
 Read the root and affected module instructions, production implementation,
 callers, tests, and the nearest specification README before editing a model.
-Use `Where/Specifications/WhereSpecifications/Protocol.lean` rather than
+Use `Where/Specifications/Protocol.lean` rather than
 introducing another transition-system dependency.
 
 ## Establish source correspondence
