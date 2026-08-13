@@ -3,10 +3,12 @@
 The **Where** widget extension: home-screen and lock-screen widgets that show
 today's region presence and year-to-date day counts per region.
 
-Widgets never open the SwiftData store. The app publishes a single aggregated
+Widgets never open the SwiftData store. The app publishes an aggregated
 [`WidgetSnapshot`](../WhereCore/Sources/Widgets/WidgetDataReader.swift) JSON file
 into the shared App Group (`group.com.stuff.where`); this extension reads it via
 [`WidgetSnapshotStore`](../WhereCore/Sources/Widgets/WidgetSnapshotStore.swift).
+The device-local theme is independently published through `WidgetPresentationStore`,
+so an appearance change does not rebuild the data snapshot.
 All rendering lives in [`WhereUI`](../WhereUI/) — this target only wires
 WidgetKit configuration, the timeline provider, and family-specific layout.
 
@@ -22,14 +24,18 @@ WidgetKit configuration, the timeline provider, and family-specific layout.
 ```
 Where app (WidgetSnapshotPublisher)
     └─▶ WidgetSnapshotStore.write (App Group JSON)
-            └─▶ WhereWidgetProvider.loadEntry (widget extension read)
-                    └─▶ WhereUI widget views
+Where app (WidgetPresentationPublisher)
+    └─▶ WidgetPresentationStore.write (App Group JSON)
+Both files
+    └─▶ WhereWidgetProvider.loadEntry (widget extension read)
+            └─▶ WhereUI widget views
 ```
 
 The app refreshes the snapshot after each committed store write and calls
 `WidgetCenter.reloadAllTimelines()`. The provider also schedules a reload
 after the next local midnight so the timeline `date` stays current even if the
-app never wakes.
+app never wakes. Missing or unknown presentation values resolve to Standard,
+and Appearance changes publish only that small value before reloading timelines.
 
 ## Localization
 

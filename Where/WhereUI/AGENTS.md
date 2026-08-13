@@ -80,6 +80,8 @@ Layering, localization, preview, and testing conventions live in the feature
   warm resumes never replay it.
 - Keep planned-stay persistence and forecast math in WhereCore; `LocationForecastModel` only mirrors
   the active register and orchestrates intents for the Locations, calendar, and timeline surfaces.
+- Hide every forecast and planned-stay visualization behind
+  `YearReportModel.showsEstimatedTimeAndPlanning`; persist Off only after clearing the synced plan.
 - Continuous/looping motion (repeat-forever pulses, `TimelineView(.animation)`,
   typewriter reveals) must consult the shared `@MotionIsStatic` helper
   ([`Sources/Shared/MotionIsStatic.swift`](Sources/Shared/MotionIsStatic.swift))
@@ -117,10 +119,10 @@ worked examples.
   token.
 - **Per-region tints stay in `RegionStyle`**, resolved via
   `@Environment(\.regionStyles)` and seeded by
-  `whereBroadwayRoot(regionStyles:)` — no global accessor or hardcoded
+  `whereBroadwayRoot(theme:regionStyles:)` — no global accessor or hardcoded
   per-region look in a view.
-- `WhereThemes` is deliberately empty — the seam a future app-wide theme
-  plugs into.
+- Seed `WhereTheme` through `whereBroadwayRoot(theme:regionStyles:)`; Standard
+  and Alternate remain distinct persisted identities even while their tokens match.
 - The DEBUG card designer may override only presentation values already owned
   by `CardStyles`; it must not add a second production styling system or alter
   count animation and outline-cache behavior.

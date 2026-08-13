@@ -4,7 +4,8 @@ The **Where** App Intents layer: it brings Where's region / day-count data and
 manual day logging to **Siri**, **Spotlight**, and the **Shortcuts app**, and
 presents results as interactive snippet cards.
 
-Intents are thin adapters. They resolve a process-cached `WhereServices`
+Intents are thin adapters. They resolve a process-cached `WhereServices` and
+device-local `WhereTheme` atomically
 through the `@Dependency`-injected `IntentServices` handoff (owned by the
 app's `AppDelegate` and registered with `AppDependencyManager`; the launch
 installs a stack built with

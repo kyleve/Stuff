@@ -21,6 +21,8 @@ struct CalendarContentView: View {
     @Environment(\.stylesheet) private var stylesheet
     @State private var monthsLoad: Result<[CalendarMonth], Error>?
     @State private var plannedStayEditorTarget: PlannedStayEditorTarget?
+    @State private var initiallyPositionedYear: Int?
+    @State private var scrollPosition = ScrollPosition(idType: String.self)
 
     private static let logger = WhereLog.session(CalendarViewLog.self)
 
@@ -128,19 +130,24 @@ struct CalendarContentView: View {
     }
 
     private func calendarContent(months: [CalendarMonth]) -> some View {
-        ScrollView {
+        let visibleMonths = shownMonths(months)
+        let initialMonthID = visibleMonths.first(where: \.isCurrentMonth)?.id
+            ?? visibleMonths.last?.id
+
+        return ScrollView {
             LazyVStack(spacing: stylesheet.calendar.monthSpacing) {
-                ForEach(shownMonths(months)) { month in
+                ForEach(visibleMonths) { month in
                     VStack(spacing: stylesheet.calendar.monthSpacing) {
                         MonthGridView(
                             month: month,
                             focusedRegion: focusedRegion,
                             dateCalendar: report.calendar,
-                            plannedRegion: report.forecasts.plannedRegion(on:),
+                            plannedRegion: displayedPlannedRegion(on:),
                         )
+
                         // In chronological flow, the estimate belongs immediately
                         // after the month whose recorded pace it is projecting from.
-                        if month.isCurrentMonth, !calendarForecasts.isEmpty {
+                        if showsForecast(after: month) {
                             LocationForecastPanel(
                                 forecasts: calendarForecasts,
                                 plannedStay: report.forecasts.activePlannedStay,
@@ -154,11 +161,25 @@ struct CalendarContentView: View {
                             )
                         }
                     }
+                    .id(month.id)
                 }
             }
+            .scrollTargetLayout()
             .padding()
         }
-        .defaultScrollAnchor(.bottom, for: .initialOffset)
+        .scrollPosition($scrollPosition)
+        .task(id: report.selectedYear) {
+            guard initiallyPositionedYear != report.selectedYear else { return }
+            guard let initialMonthID else { return }
+            scrollPosition.scrollTo(id: initialMonthID, anchor: .bottom)
+            initiallyPositionedYear = report.selectedYear
+        }
+    }
+
+    private func showsForecast(after month: CalendarMonth) -> Bool {
+        report.showsEstimatedTimeAndPlanning
+            && month.isCurrentMonth
+            && !calendarForecasts.isEmpty
     }
 
     private var calendarForecasts: [LocationForecast] {
@@ -183,10 +204,16 @@ struct CalendarContentView: View {
     /// A plan belongs on the selected year's calendar and, when this is a
     /// region-focused calendar, only on that region's destination.
     private var displayedPlannedStay: PlannedStay? {
+        guard report.showsEstimatedTimeAndPlanning else { return nil }
         guard let year = report.report?.year else { return nil }
         guard let stay = report.forecasts.plannedStay(intersecting: year) else { return nil }
         guard focusedRegion == nil || focusedRegion == stay.region else { return nil }
         return stay
+    }
+
+    private func displayedPlannedRegion(on day: CalendarDay) -> Region? {
+        guard report.showsEstimatedTimeAndPlanning else { return nil }
+        return report.forecasts.plannedRegion(on: day)
     }
 
     /// The months to show in chronological order. Future months are omitted
@@ -237,9 +264,37 @@ private struct MonthGridView: View {
         RoundedRectangle(cornerRadius: calendar.month.cornerRadius, style: .continuous)
     }
 
+    private var monthName: String {
+        month.startOfMonth.formatted(.dateTime.month(.wide))
+    }
+
+    private var accessibilityValue: String {
+        WhereFormat.calendarMonthAccessibility(
+            regionTotals: month.regionTotals,
+            regionCombinationTotals: month.regionCombinationTotals,
+            needsAttentionDays: month.days.count(where: \.needsAttention),
+            evidenceDays: month.days.count(where: \.hasEvidence),
+            plannedRegionTotals: plannedRegionTotals,
+        )
+    }
+
+    private var plannedRegionTotals: [RegionDayTally] {
+        var counts: [Region: Int] = [:]
+        for day in month.days {
+            if let region = plannedRegion(on: day) {
+                counts[region, default: 0] += 1
+            }
+        }
+        return Region.rankedByDayCount(
+            counts.map { RegionDayTally(region: $0.key, days: $0.value) },
+            days: \.days,
+            region: \.region,
+        )
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: calendar.month.sectionSpacing) {
-            Text(month.startOfMonth.formatted(.dateTime.month(.wide)))
+            Text(monthName)
                 .font(.title.weight(.semibold))
                 .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -282,6 +337,9 @@ private struct MonthGridView: View {
                     cardShape.strokeBorder(card.border, lineWidth: card.borderWidth)
                 }
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(monthName)
+        .accessibilityValue(accessibilityValue)
     }
 
     /// The stay-pill geometry for the day at `index`: a run is contiguous days
@@ -403,13 +461,6 @@ private struct MonthFooter: View {
                 .foregroundStyle(.secondary)
         }
         .opacity(focusedRegion == nil || isFocused ? 1 : calendar.month.unfocusedRowOpacity)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(
-            WhereFormat.regionDaysAccessibility(
-                region: tally.region.localizedName,
-                days: tally.days,
-            ),
-        )
     }
 }
 
@@ -471,16 +522,6 @@ private struct DayCell: View {
         .background { stayPill }
         .frame(minHeight: calendar.day.minHeight)
         .contentShape(Rectangle())
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(
-            WhereFormat.calendarDayAccessibility(
-                date: day.date,
-                regions: band.regions,
-                needsAttention: day.needsAttention,
-                hasEvidence: day.hasEvidence,
-                isPlanned: band.isPlanned,
-            ),
-        )
     }
 
     /// Region-presence dots beneath the day number (one per region the day
@@ -581,6 +622,11 @@ private struct DayCell: View {
                     CalendarContentView(report: PreviewSupport.loadedYearReportModel())
                 }
             }
+            whereSnapshot(name: "InitialPosition", configurations: .phoneLightDark) {
+                NavigationStack {
+                    CalendarContentView(report: PreviewSupport.loadedYearReportModel())
+                }
+            }
             whereSnapshot(name: "Empty", configurations: .fullContentPhoneLightDark) {
                 NavigationStack {
                     CalendarContentView(report: PreviewSupport.emptyYearReportModel())
@@ -614,6 +660,16 @@ private struct DayCell: View {
             ) {
                 NavigationStack {
                     CalendarContentView(report: PreviewSupport.plannedStayYearReportModel())
+                }
+            }
+            whereSnapshot(
+                name: "PlannedStayHidden",
+                configurations: .fullContentPhoneLightDark,
+            ) {
+                NavigationStack {
+                    CalendarContentView(report: PreviewSupport.plannedStayYearReportModel(
+                        showsEstimatedTimeAndPlanning: false,
+                    ))
                 }
             }
         }

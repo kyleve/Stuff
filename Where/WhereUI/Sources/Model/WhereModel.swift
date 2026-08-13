@@ -115,6 +115,10 @@ public final class WhereModel {
     /// holding it eagerly doesn't cost the logged-out window anything.
     let preferences: WherePreferences
 
+    /// The active presentation theme. Onboarding can preview this value in
+    /// memory before committing; Appearance Settings persists immediately.
+    public private(set) var theme: WhereTheme
+
     /// The one device-local recording context store composed for this process.
     /// It owns the non-backed-up installation sidecar and is shared with every
     /// bootstrap this model creates, so onboarding and service assembly cannot
@@ -138,6 +142,11 @@ public final class WhereModel {
     /// opens a second container over the same file. Set once, at the app's
     /// composition root; the default no-op covers previews and tests.
     public var onLoggedOut: @MainActor () async -> Void = {}
+
+    /// Keeps widgets and App Intents synchronized with Appearance Settings.
+    public var onThemeChanged: @MainActor (WhereTheme) async -> Void = { _ in }
+
+    @ObservationIgnored private var themeChangeTask: Task<Void, Never>?
 
     /// The logging system every scope this model creates records into. Carried
     /// rather than reached for: the app hands down `Periscope.shared` from its
@@ -249,8 +258,39 @@ public final class WhereModel {
     /// Mark the first-run app flow complete after its scope and selections have
     /// been committed. Recording confirmation is persisted separately first.
     public func completeOnboarding() {
+        preferences.theme = theme
+        publishThemeChange(theme)
         hasOnboarded = true
         Self.logger { .onboardingCompleted }
+    }
+
+    /// Preview a theme without writing device preferences.
+    public func previewTheme(_ newTheme: WhereTheme) {
+        // RootView observes `theme` and passes it to `whereBroadwayRoot`, so
+        // this assignment immediately re-resolves the live presentation tree.
+        guard newTheme != theme else { return }
+        theme = newTheme
+    }
+
+    /// Select and immediately persist a theme outside onboarding.
+    public func selectTheme(_ newTheme: WhereTheme) {
+        guard newTheme != theme || preferences.theme != newTheme else { return }
+        theme = newTheme
+        preferences.theme = newTheme
+        publishThemeChange(newTheme)
+    }
+
+    /// Reassert the persisted device theme to app extensions at process launch.
+    public func synchronizeTheme() {
+        publishThemeChange(theme)
+    }
+
+    private func publishThemeChange(_ theme: WhereTheme) {
+        themeChangeTask?.cancel()
+        themeChangeTask = Task { [weak self] in
+            guard let self, !Task.isCancelled else { return }
+            await onThemeChanged(theme)
+        }
     }
 
     /// Reconcile a cold-launch onboarding import before the Restore UI can be presented.
@@ -301,6 +341,7 @@ public final class WhereModel {
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
         self.preferences = preferences
+        theme = preferences.theme
         self.installationContextStore = installationContextStore
         onboardingImportRecovery = OnboardingImportRecoveryModel(
             installationContextStore: installationContextStore,
@@ -340,6 +381,7 @@ public final class WhereModel {
         )
         scopeState = .real(scope)
         self.preferences = preferences
+        theme = preferences.theme
         self.installationContextStore = installationContextStore
         onboardingImportRecovery = OnboardingImportRecoveryModel(
             installationContextStore: installationContextStore,
@@ -544,10 +586,14 @@ public final class WhereModel {
             // though deleting its tombstone still needs a retry, so a relaunch cannot combine a
             // fresh unconfirmed identity with stale "already onboarded" preferences.
             preferences.reset()
+            theme = preferences.theme
+            publishThemeChange(theme)
             Self.logger { .resetPreferences }
             throw error
         }
         preferences.reset()
+        theme = preferences.theme
+        publishThemeChange(theme)
         Self.logger { .resetPreferences }
     }
 }

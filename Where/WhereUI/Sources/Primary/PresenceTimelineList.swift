@@ -19,7 +19,9 @@ struct PresenceTimelineList: View {
     var body: some View {
         let yearReport = report.report
         let stints = yearReport.map { PresenceTimeline.stints(from: $0) } ?? []
-        let plannedInterval = report.forecasts.plannedInterval(intersecting: report.selectedYear)
+        let plannedInterval = report.showsEstimatedTimeAndPlanning
+            ? report.forecasts.plannedInterval(intersecting: report.selectedYear)
+            : nil
 
         if stints.isEmpty, plannedInterval == nil {
             ContentUnavailableView {
@@ -146,6 +148,17 @@ struct PresenceTimelineList: View {
                 ) {
                     NavigationStack {
                         PresenceTimelineList(report: PreviewSupport.plannedStayYearReportModel())
+                    }
+                },
+                whereSnapshot(
+                    name: "PlannedStayHidden",
+                    configurations: .fullContentPhoneLightDark,
+                    measurementReadiness: .immediate,
+                ) {
+                    NavigationStack {
+                        PresenceTimelineList(report: PreviewSupport.plannedStayYearReportModel(
+                            showsEstimatedTimeAndPlanning: false,
+                        ))
                     }
                 },
             ]

@@ -30,7 +30,10 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   widget family on miniature Home Screen and Lock Screen surfaces. A Share &
   Evidence walkthrough also reveals the system Share-sheet extension and links
   into the saved attachment archive. Insights & Accuracy introduces the
-  automatic issue detectors without running them merely to render the gallery.
+  automatic issue detectors without running them merely to render the gallery,
+  while Estimated Time & Planning explains the live annual projection with a
+  worked pace-and-plan calculation, planned stays, and why overlapping travel
+  days do not sum neatly to one year.
   These galleries use a shared marketing header, quiet patterned backdrop, and
   staged entrance that resolves immediately for Reduce Motion and snapshot
   capture. Once the selected report has 14 recorded days, the Siri, Spotlight,
@@ -55,8 +58,10 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   The app injects the launch-built model + runner
   (`init(model:launcher:)`); a no-arg `init()` builds its own for previews and
   the hosted UI test.
-- **Developer tools** — DEBUG-only logging, span, region-map, Flyover, and
-  next-launch Inspector controls. The global launcher's accordion only updates
+- **Developer tools** — DEBUG-only logging, span, region-map, Flyover, forced-crash,
+  and next-launch Inspector controls. Forced crashes cover Swift traps, Objective-C
+  exceptions, abort signals, and invalid memory access so crash reporters can be
+  checked end to end. The global launcher's accordion only updates
   `InspectorModeController`; the current regular runtime continues until the
   developer relaunches. The Logs destination is always present: before its
   durable store is ready it reports whether the open is still running,
@@ -158,20 +163,22 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
 - **Widget views** — the shared renderers the **WhereWidgets** extension draws
   with: `TodayWidgetView`, `YearTotalsWidgetView`, and the accessory family
   (`TodayInlineAccessoryView`, `TodayCircularAccessoryView`,
-  `YearTotalsRectangularAccessoryView`). Each takes a `WidgetSnapshot`.
+  `YearTotalsRectangularAccessoryView`). Each takes a `WidgetSnapshot` and
+  exposes one explicit accessibility label/value pair rather than its visual
+  rows as separate elements.
 - **`RegionStyle` / `RegionStyleResolver`** — a region's typed `SFSymbol`, emoji, and
   tint, shared across cards, calendar dots, and timelines. Views resolve it from
   `@Environment(\.regionStyles)` (`regionStyles.style(for: region)`), seeded by
-  `whereBroadwayRoot(regionStyles:)` — from `WhereSession`'s live resolver in the
-  app, the `WidgetSnapshot` in the widget process, and services in App Intents —
+  `whereBroadwayRoot(theme:regionStyles:)` — from `WhereSession`'s live resolver
+  in the app, the `WidgetSnapshot` in the widget process, and services in App Intents —
   falling back to a deterministic default from `RegionAppearanceCatalog`.
 - **Feature discovery galleries** — Settings markets Siri/Spotlight, widgets,
   evidence, private insights, data accuracy, and personalization with shared
   patterned chrome and Reduce Motion-aware staged reveals. The examples reuse
   already-loaded user data when it is representative and link to the existing
   feature surfaces for any action.
-- **`whereBroadwayRoot()`** — seeds the Broadway design-system context so
-  descendants resolve the `WhereStylesheet` tokens (see [Design
+- **`whereBroadwayRoot()`** — seeds the selected `WhereTheme` and Broadway
+  design-system context so descendants resolve the `WhereStylesheet` tokens (see [Design
   system](#design-system)). Applied by `RootView` and by each widget.
 - **`RegionMapView`** — the developer region-map tool (also hosted standalone by
   the RegionViewer Mac Catalyst app).
@@ -270,13 +277,18 @@ Reduce Motion.
 `RegionStyle` is data-driven and resolved through the environment: views read
 `@Environment(\.regionStyles)` (a `RegionStyleResolver`) and call
 `regionStyles.style(for: region)`. The resolver is seeded by
-`whereBroadwayRoot(regionStyles:)`: the app passes `WhereSession`'s live
+`whereBroadwayRoot(theme:regionStyles:)`: the app passes `WhereSession`'s live
 resolver (updated on launch + `changes()`), the widget process one built from
 its `WidgetSnapshot`, and App Intents snippets one from their services; the
 default empty resolver yields the fallback looks
 (`RegionAppearanceCatalog.defaultAppearance(for:)`) for previews and the
 region-map viewer. The catalog also owns the selectable color/emoji/symbol
 option lists the picker shows.
+
+`WhereTheme` is the device-local presentation identity. Standard and Alternate
+currently resolve through identical Liquid Glass tokens; onboarding previews
+before commit, Appearance Settings persists immediately, and widgets and
+snippets receive the same identity through their cross-process snapshots.
 
 Regular `RegionSummaryCard`s ask the root-owned `RegionOutlinePathCache` for a
 medium SwiftUI path for the large security-print watermark and a small path for
@@ -298,9 +310,10 @@ stroke; its containing Liquid Glass surface owns the subtle outer border so
 direct and production rendering do not diverge.
 
 After at least three months of the current year, Locations can reveal a collapsible annual estimate
-from the recorded pace; Settings > Appearance can disable it entirely. A focused region calendar
-places the estimate after the current month and renders “I’ll be here through…” future days with a
-continuous hatched band, distinct from recorded presence.
+from the recorded pace and plan a stay through one of its displayed regions. A focused region
+calendar places the estimate after the current month and renders planned future days with a
+continuous hatched band, distinct from recorded presence. Settings > Appearance disables every
+estimate and planning visualization only after clearing the synced plan succeeds.
 
 DEBUG builds include Card Designer Studio under Settings → Appearance. It
 edits a versioned, persisted draft of the regular, compact, and shared card

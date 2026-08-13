@@ -150,15 +150,24 @@ public final class YearReportModel {
     /// model publishes this value to both the Appearance toggle and Locations.
     private var showsRecordedLocationDotsStorage: Bool
 
-    /// Observed mirror of the Locations tab's forecast-visibility preference.
-    /// `WherePreferences` is intentionally not observable, so Settings writes
-    /// through this property to update the mounted Locations tab immediately.
-    public var showsLocationForecastsOnLocationsTab: Bool {
+    /// Observed mirror of the estimated-time and planning visibility preference.
+    /// `WherePreferences` is intentionally not observable, so the async intent
+    /// below updates every mounted forecast/planning surface immediately.
+    public private(set) var showsEstimatedTimeAndPlanning: Bool {
         didSet {
-            guard oldValue != showsLocationForecastsOnLocationsTab else { return }
-            preferences.showsLocationForecastsOnLocationsTab =
-                showsLocationForecastsOnLocationsTab
+            guard oldValue != showsEstimatedTimeAndPlanning else { return }
+            preferences.showsEstimatedTimeAndPlanning = showsEstimatedTimeAndPlanning
         }
+    }
+
+    /// Enable immediately, or clear the synced plan before hiding every
+    /// estimated-time surface. A failed clear leaves the preference and UI on.
+    func setEstimatedTimeAndPlanningEnabled(_ isEnabled: Bool) async throws {
+        guard isEnabled != showsEstimatedTimeAndPlanning else { return }
+        if !isEnabled {
+            try await forecasts.clear()
+        }
+        showsEstimatedTimeAndPlanning = isEnabled
     }
 
     /// Whether Locations cards render their recorded GPS constellations.
@@ -263,8 +272,7 @@ public final class YearReportModel {
         driftThresholdStorage = DriftThreshold(rawValue: preferences.driftThresholdMeters)
             ?? .default
         showsRecordedLocationDotsStorage = preferences.showsRecordedLocationDots
-        showsLocationForecastsOnLocationsTab =
-            preferences.showsLocationForecastsOnLocationsTab
+        showsEstimatedTimeAndPlanning = preferences.showsEstimatedTimeAndPlanning
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = .current
         self.calendar = calendar

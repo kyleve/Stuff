@@ -5,6 +5,7 @@ import SwiftUI
 import TestHostSupport
 import Testing
 import UIKit
+import WhereCore
 @testable import WhereUI
 
 /// `WhereStylesheet` currently ships the fixed geometry migrated from the former
@@ -12,6 +13,25 @@ import UIKit
 /// later trait-aware derivation — can't silently drift the defaults.
 struct WhereStylesheetTests {
     private let style = WhereStylesheet.default
+
+    @MainActor
+    @Test func themesRetainDistinctIdentityWithEquivalentTokens() throws {
+        var standardThemes = BThemes()
+        standardThemes[WhereTheme.self] = .standard
+        var alternateThemes = BThemes()
+        alternateThemes[WhereTheme.self] = .alternate
+
+        let standardContext = BContext(traits: .system, themes: standardThemes)
+        let alternateContext = BContext(traits: .system, themes: alternateThemes)
+        let standard = try standardContext.stylesheets.get(WhereStylesheet.self)
+        let alternate = try alternateContext.stylesheets.get(WhereStylesheet.self)
+
+        #expect(standard.theme == .standard)
+        #expect(alternate.theme == .alternate)
+        var normalizedStandard = standard
+        normalizedStandard.theme = WhereTheme.alternate
+        #expect(normalizedStandard == alternate)
+    }
 
     @Test func spacingScale() {
         #expect(style.spacing.xxSmall == 2)
@@ -27,6 +47,7 @@ struct WhereStylesheetTests {
 
     @Test func regularCardStyle() {
         let card = style.card.regular
+        #expect(style.card.estimatedProgressOpacity == 0.3)
         #expect(card.cornerRadius == 28)
         #expect(card.padding == 22)
         #expect(card.contentSpacing == 16)
@@ -484,6 +505,13 @@ struct WhereStylesheetTests {
             lineWidth: 0.9,
             opacity: 0.12,
         ))
+        #expect(featureDiscovery.estimatedTime == .init(
+            timelineHeight: 18,
+            timelineSpacing: 3,
+            calculationSpacing: 8,
+            segmentCornerRadius: 5,
+            legendDotSize: 10,
+        ))
         #expect(featureDiscovery.siri == .init(
             card: .init(
                 cornerRadius: 20,
@@ -737,10 +765,22 @@ struct WhereStylesheetEnvironmentTests {
             try waitFor { box.calendarDayMinHeight == 56 }
         }
     }
+
+    @Test func whereBroadwayRootSeedsThemeIdentity() throws {
+        let box = StylesheetProbeBox()
+        let host = UIHostingController(
+            rootView: StylesheetProbe(box: box)
+                .whereBroadwayRoot(theme: .alternate),
+        )
+        try show(host) { _ in
+            try waitFor { box.theme == .alternate }
+        }
+    }
 }
 
 private final class StylesheetProbeBox {
     var calendarDayMinHeight: CGFloat?
+    var theme: WhereTheme?
 }
 
 private struct StylesheetProbe: View {
@@ -752,6 +792,9 @@ private struct StylesheetProbe: View {
         Color.clear
             .onChange(of: stylesheet.calendar.day.minHeight, initial: true) { _, newValue in
                 box.calendarDayMinHeight = newValue
+            }
+            .onChange(of: stylesheet.theme, initial: true) { _, newValue in
+                box.theme = newValue
             }
     }
 }
