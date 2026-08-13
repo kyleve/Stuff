@@ -9,6 +9,16 @@ public struct RemoteLogField: Equatable, Sendable {
         self.key = key
         self.value = value
     }
+
+    /// The standard closed category identifying one case of an event enum.
+    public static func eventKind<Value>(_ value: Value) -> Self
+        where Value: RawRepresentable & CaseIterable & Sendable, Value.RawValue == String
+    {
+        Self(
+            key: RemoteLogFieldKey("kind"),
+            value: .category(RemoteLogCategory(value)),
+        )
+    }
 }
 
 /// A structured remote-field key. Unlike a dictionary key, this keeps event
@@ -34,8 +44,12 @@ public struct RemoteLogCategory: Equatable, Sendable {
     public let rawValue: String
 
     public init<Value>(_ value: Value)
-        where Value: RawRepresentable & Sendable, Value.RawValue == String
+        where Value: RawRepresentable & CaseIterable & Sendable, Value.RawValue == String
     {
+        precondition(
+            Value.allCases.contains { $0.rawValue == value.rawValue },
+            "Remote log categories must be members of a closed CaseIterable set",
+        )
         rawValue = value.rawValue
     }
 }

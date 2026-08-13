@@ -4,6 +4,21 @@ import PeriscopeCore
 /// and the durable retry queue. Persist failures carry the offending sample id
 /// on `externalID` so the tooling can trace one sample across retries.
 enum LocationIngestorLog: LogEvent {
+    private enum RemoteKind: String, CaseIterable {
+        case monitoringStarted = "monitoring-started"
+        case monitoringStopped = "monitoring-stopped"
+        case restoredBacklog = "restored-backlog"
+        case quiesced
+        case todayIntervalUnavailable = "today-interval-unavailable"
+        case foregroundCaptureReadFailed = "foreground-capture-read-failed"
+        case capturedForegroundFix = "captured-foreground-fix"
+        case persistFailed = "persist-failed"
+        case retryBacklogPersistenceFailed = "retry-backlog-persistence-failed"
+        case retryQueueAtCapacity = "retry-queue-at-capacity"
+        case retryStillFailing = "retry-still-failing"
+        case drainedBacklog = "drained-backlog"
+    }
+
     /// Names the ingestor's timed spans.
     ///
     /// The single-sample commit isn't here — `SwiftDataStore` already spans every
@@ -94,23 +109,48 @@ enum LocationIngestorLog: LogEvent {
     }
 
     var remoteFields: [RemoteLogField] {
+        var fields = [RemoteLogField.eventKind(remoteKind)]
         switch self {
             case let .restoredBacklog(count):
-                [RemoteLogField(key: RemoteLogFieldKey("backlog_count"), value: .count(count))]
+                fields.append(RemoteLogField(
+                    key: RemoteLogFieldKey("backlog_count"),
+                    value: .count(count),
+                ))
             case let .retryQueueAtCapacity(capacity):
-                [RemoteLogField(key: RemoteLogFieldKey("capacity"), value: .count(capacity))]
+                fields.append(RemoteLogField(
+                    key: RemoteLogFieldKey("capacity"),
+                    value: .count(capacity),
+                ))
             case let .drainedBacklog(sampleCount, dayCount):
-                [
+                fields.append(contentsOf: [
                     RemoteLogField(
                         key: RemoteLogFieldKey("sample_count"),
                         value: .count(sampleCount),
                     ),
                     RemoteLogField(key: RemoteLogFieldKey("day_count"), value: .count(dayCount)),
-                ]
+                ])
             case .monitoringStarted, .monitoringStopped, .quiesced, .todayIntervalUnavailable,
                  .foregroundCaptureReadFailed, .capturedForegroundFix, .persistFailed,
                  .retryBacklogPersistenceFailed, .retryStillFailing:
-                []
+                break
+        }
+        return fields
+    }
+
+    private var remoteKind: RemoteKind {
+        switch self {
+            case .monitoringStarted: .monitoringStarted
+            case .monitoringStopped: .monitoringStopped
+            case .restoredBacklog: .restoredBacklog
+            case .quiesced: .quiesced
+            case .todayIntervalUnavailable: .todayIntervalUnavailable
+            case .foregroundCaptureReadFailed: .foregroundCaptureReadFailed
+            case .capturedForegroundFix: .capturedForegroundFix
+            case .persistFailed: .persistFailed
+            case .retryBacklogPersistenceFailed: .retryBacklogPersistenceFailed
+            case .retryQueueAtCapacity: .retryQueueAtCapacity
+            case .retryStillFailing: .retryStillFailing
+            case .drainedBacklog: .drainedBacklog
         }
     }
 }

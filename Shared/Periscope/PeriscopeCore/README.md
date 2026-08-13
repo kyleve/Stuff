@@ -102,8 +102,9 @@ Periscope.shared.startDefaultAmbientSources()
   load on demand.
 - **Remote approval** — `remoteMessage` defaults to the stable event name and
   `remoteFields` defaults empty. Fields are restricted to booleans, counts,
-  durations, and closed categories; safe sinks never infer from the Codable
-  payload, tags, dynamic scopes, ambient state, external IDs, or attachments.
+  durations, and closed `RawRepresentable & CaseIterable` categories whose
+  selected value must be one of `allCases`; safe sinks never infer from the
+  Codable payload, tags, dynamic scopes, ambient state, external IDs, or attachments.
   Debug full-metadata mode may add that context plus attachment names/MIME
   types, but attachment bytes are never a remote-export input.
 - **System** — `Periscope`: the recorder and `LogSink` pipeline (OSLog sink

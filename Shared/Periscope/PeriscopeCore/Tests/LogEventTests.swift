@@ -10,7 +10,7 @@ private struct PhotoUploaded: LogEvent {
     }
 }
 
-private enum UploadKind: String {
+private enum UploadKind: String, CaseIterable {
     case thumbnail
 }
 

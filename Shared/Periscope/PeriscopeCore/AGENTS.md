@@ -66,7 +66,8 @@ the build system, formatting, and global conventions. Read that first.
 - **Remote export is explicit opt-in per event.** Safe sinks use
   `remoteMessage` and `remoteFields`; never infer from payloads, tags, dynamic
   scopes, ambient state, external IDs, or attachments. Attachment bytes are
-  never a remote-export input, including Debug full-metadata mode.
+  never a remote-export input, including Debug full-metadata mode. Category
+  fields use closed `CaseIterable` values and reject values outside `allCases`.
 - **Sink failures never propagate or vanish** — logged to OSLog, counted, and
   persisted as a synthetic `StoreWriteFailed` marker; the pipeline reports
   drops with a synthetic `DroppedEvents` record.
