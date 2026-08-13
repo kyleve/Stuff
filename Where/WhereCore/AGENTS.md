@@ -64,6 +64,9 @@ internal shape.
   `BackupArchive.currentFormatVersion` and extends
   [`../Tools/upgrade-backup.rb`](../Tools/upgrade-backup.rb); never add an
   in-code legacy decode fallback.
+- **The planned stay is a generation-scoped last-writer register with tombstones.** Resolve
+  duplicate CloudKit revisions by `updatedAt` then UUID, and clear or expire by writing a newer
+  `nil` value; deleting the winner can resurrect stale intent (`PlannedStayCoordinatorTests`).
 - **A logical day is a `CalendarDay`, not a `Date`.** `CalendarDay` (Y-M-D)
   is the timezone-independent identity every stored user record and day
   comparison keys on; persisting a `Date` makes a day drift across time-zone

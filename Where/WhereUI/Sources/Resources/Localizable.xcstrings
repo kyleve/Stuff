@@ -237,6 +237,18 @@
         }
       }
     },
+    "calendar.day.planned.accessibility" : {
+      "comment" : "Accessibility label appended to a future calendar day covered by the user's planned stay.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%@, planned"
+          }
+        }
+      }
+    },
     "calendar.region.title" : {
       "comment" : "Title for the calendar when it's focused on a single region, e.g. \"California · 2026\".",
       "extractionState" : "manual",
@@ -2983,6 +2995,142 @@
         }
       }
     },
+    "locationForecast.basis" : {
+      "comment" : "Short explanation below a location forecast. The placeholder is the region's year-to-date day count.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Based on %@ here."
+          }
+        }
+      }
+    },
+    "locationForecast.clearStay" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Clear"
+          }
+        }
+      }
+    },
+    "locationForecast.clearingStay" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Clearing planned stay"
+          }
+        }
+      }
+    },
+    "locationForecast.editStay" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "I’ll be here through…"
+          }
+        }
+      }
+    },
+    "locationForecast.editor.date" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Here through"
+          }
+        }
+      }
+    },
+    "locationForecast.editor.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "The selected day is included in your planned stay. The estimate resumes your year-to-date pace the following day."
+          }
+        }
+      }
+    },
+    "locationForecast.editor.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Plan This Stay"
+          }
+        }
+      }
+    },
+    "locationForecast.elapsed" : {
+      "comment" : "Shared elapsed-time context in the annual location forecast header. The placeholder is an already-localized day count, for example '182 days'.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%@ elapsed"
+          }
+        }
+      }
+    },
+    "locationForecast.estimate" : {
+      "comment" : "Annual location forecast sentence. The first placeholder is a region name; the second is an already-localized day count, for example '183 days', and is emphasized.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ might be **%2$@** this year"
+          }
+        }
+      }
+    },
+    "locationForecast.plan" : {
+      "comment" : "Explains the planned-stay input included in an annual location forecast.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Includes staying through %@."
+          }
+        }
+      }
+    },
+    "locationForecast.removePlan" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Remove Plan"
+          }
+        }
+      }
+    },
+    "locationForecast.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Estimated Time"
+          }
+        }
+      }
+    },
     "locations.elsewhere.subtitle" : {
       "comment" : "Subtitle on the Locations tab's Elsewhere entry card: region count.",
       "extractionState" : "manual",
@@ -5244,6 +5392,30 @@
         }
       }
     },
+    "settings.appearance.locationForecasts.footer" : {
+      "comment" : "Explains the scope of the annual location forecast visibility toggle.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Show or hide the annual estimated-time summary in Locations."
+          }
+        }
+      }
+    },
+    "settings.appearance.locationForecasts.toggle" : {
+      "comment" : "Toggle that controls whether annual location forecasts appear on the Locations tab.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Estimated time"
+          }
+        }
+      }
+    },
     "settings.appearance.theme.footer" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -7042,6 +7214,18 @@
         }
       }
     },
+    "settings.keywords.locationForecasts" : {
+      "comment" : "Comma-separated Settings search keywords for the annual location forecast visibility toggle.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "estimate, estimates, estimated time, forecast, forecasts, annual, year"
+          }
+        }
+      }
+    },
     "settings.keywords.loggedDays" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -7775,6 +7959,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No stays yet"
+          }
+        }
+      }
+    },
+    "timeline.plannedRow.accessibility" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Planned stay in %1$@, %2$@, %3$@"
+          }
+        }
+      }
+    },
+    "timeline.plannedStay" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Planned stay"
           }
         }
       }

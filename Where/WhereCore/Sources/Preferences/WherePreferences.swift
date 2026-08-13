@@ -1,10 +1,10 @@
 import Foundation
 import RegionKit
 
-/// The app's persisted user intent — onboarding completion and the reminder /
-/// daily-summary schedules — plus small pieces of UI continuity and acknowledgement
-/// state, behind a `KeyValueStore` so production uses `UserDefaults`
-/// and tests use an in-memory double.
+/// The app's persisted user intent — onboarding completion, presentation
+/// theme, Locations-card visibility, and notification schedules — plus small
+/// pieces of UI continuity and acknowledgement state, behind a `KeyValueStore`
+/// so production uses `UserDefaults` and tests use an in-memory double.
 ///
 /// `store` is deliberately not defaulted: defaulting it to
 /// `UserDefaults.standard` made the real, process-wide defaults the thing you
@@ -52,6 +52,17 @@ public final class WherePreferences {
             return theme
         }
         set { store.set(newValue.rawValue, forKey: Keys.theme.rawValue) }
+    }
+
+    /// Whether the annual-estimate summary appears on the Locations tab.
+    /// Defaults to `true` so an existing or fresh install sees the feature until
+    /// the user explicitly turns it off.
+    public var showsLocationForecastsOnLocationsTab: Bool {
+        get {
+            store.object(forKey: Keys.showsLocationForecastsOnLocationsTab.rawValue) as? Bool
+                ?? true
+        }
+        set { store.set(newValue, forKey: Keys.showsLocationForecastsOnLocationsTab.rawValue) }
     }
 
     /// Whether the daily "log before the day ends" reminder is enabled. Defaults
@@ -185,9 +196,8 @@ public final class WherePreferences {
     }
 
     /// Clear every persisted preference so the next launch behaves like a fresh
-    /// install: onboarding shows again, reminder/summary schedules revert to
-    /// defaults, and UI
-    /// continuity snapshots are forgotten.
+    /// install: onboarding shows again, presentation and notification settings
+    /// revert to defaults, and UI continuity snapshots are forgotten.
     /// Removing the keys (rather than writing `false`/`0`) lets the
     /// default-valued getters report first-install state again.
     public func reset() {
@@ -203,6 +213,7 @@ public final class WherePreferences {
         case hasOnboarded = "where.hasOnboarded"
         case showsRecordedLocationDots = "where.showsRecordedLocationDots"
         case theme = "where.theme"
+        case showsLocationForecastsOnLocationsTab = "where.showsLocationForecastsOnLocationsTab"
         case remindersEnabled = "where.remindersEnabled"
         case reminderHour = "where.reminderHour"
         case reminderMinute = "where.reminderMinute"

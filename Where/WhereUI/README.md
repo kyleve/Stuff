@@ -91,7 +91,8 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   per-device recording changes, `startTracking()` / `stopTracking()`,
   `refreshWidgetSnapshot()`). It holds no presentation state of its own.
 - **Scope-tiered models** — scene-scoped **`YearReportModel`** (the selected
-  year's `YearReportDetails`, its `LoadState`, and the manual-day edit intents), plus
+  year's `YearReportDetails`, its `LoadState`, manual-day edit intents, and the shared
+  **`LocationForecastModel`** planned-stay mirror), plus
   view-scoped **`ResolveModel`** (data-issue triage), **`BackupModel`**
   (Settings export progress and failures),
   **`RemindersSettingsModel`** (notification prefs),
@@ -295,6 +296,11 @@ Live tilt is observed only by the sheen overlay, so its 60 Hz updates do not
 invalidate the card's text or Canvas artwork. The card adds no standalone edge
 stroke; its containing Liquid Glass surface owns the subtle outer border so
 direct and production rendering do not diverge.
+
+After at least three months of the current year, Locations can reveal a collapsible annual estimate
+from the recorded pace; Settings > Appearance can disable it entirely. A focused region calendar
+places the estimate after the current month and renders “I’ll be here through…” future days with a
+continuous hatched band, distinct from recorded presence.
 
 DEBUG builds include Card Designer Studio under Settings → Appearance. It
 edits a versioned, persisted draft of the regular, compact, and shared card

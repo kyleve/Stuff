@@ -13,6 +13,7 @@ struct WherePreferencesTests {
         #expect(preferences.hasOnboarded == false)
         #expect(preferences.showsRecordedLocationDots)
         #expect(preferences.theme == .standard)
+        #expect(preferences.showsLocationForecastsOnLocationsTab)
         #expect(preferences.remindersEnabled)
         #expect(preferences.reminderTime == .defaultEvening)
         #expect(preferences.summaryEnabled)
@@ -65,6 +66,7 @@ struct WherePreferencesTests {
         preferences.hasOnboarded = true
         preferences.showsRecordedLocationDots = false
         preferences.theme = .alternate
+        preferences.showsLocationForecastsOnLocationsTab = false
         preferences.remindersEnabled = false
         preferences.reminderTime = ReminderTime(hour: 9, minute: 15)
         preferences.summaryEnabled = false
@@ -82,6 +84,7 @@ struct WherePreferencesTests {
         #expect(preferences.hasOnboarded == false)
         #expect(preferences.showsRecordedLocationDots)
         #expect(preferences.theme == .standard)
+        #expect(preferences.showsLocationForecastsOnLocationsTab)
         #expect(preferences.remindersEnabled)
         #expect(preferences.reminderTime == .defaultEvening)
         #expect(preferences.summaryEnabled)

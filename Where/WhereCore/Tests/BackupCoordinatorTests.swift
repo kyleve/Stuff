@@ -94,6 +94,14 @@ struct BackupCoordinatorTests {
     private static let recordingDeviceID = RecordingDeviceID(
         rawValue: UUID(uuidString: "EEEEEEEE-EEEE-EEEE-EEEE-EEEEEEEEEEEE")!,
     )
+    private static let plannedStay = PlannedStayRecord(
+        id: UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")!,
+        value: PlannedStay(
+            region: .newYork,
+            through: CalendarDay(year: 2026, month: 9, day: 1),
+        ),
+        updatedAt: Date(timeIntervalSince1970: 1_700_000_000),
+    )
 
     /// Seed every persisted domain directly into a store so backup tests don't
     /// depend on the journal or recording controller.
@@ -107,6 +115,7 @@ struct BackupCoordinatorTests {
                 regions: [.newYork],
             ))
             try await store.restoreDismissedIssue(dismissal)
+            try await store.restorePlannedStayRecord(plannedStay)
             try await store.addRecordingDeviceProfile(RecordingDeviceProfile(
                 id: recordingDeviceID,
                 systemName: "iPad",
@@ -168,6 +177,7 @@ struct BackupCoordinatorTests {
         #expect(try await destination.store.allDismissedIssues() == source.store
             .allDismissedIssues())
         #expect(try await destination.store.allDismissedIssues() == [Self.dismissal])
+        #expect(try await destination.store.plannedStayRecords() == [Self.plannedStay])
         #expect(try await destination.store.recordingDeviceProfiles() == source.store
             .recordingDeviceProfiles())
         #expect(try await destination.store.recordingDeviceMetadataChanges() == source.store
@@ -514,6 +524,7 @@ struct BackupCoordinatorTests {
             recordingDeviceProfiles: [],
             recordingDeviceMetadataChanges: [],
             recordingDeviceRemovals: [],
+            plannedStayRecords: [],
             blobs: [:],
         )
         defer { try? FileManager.default.removeItem(at: secondURL.deletingLastPathComponent()) }

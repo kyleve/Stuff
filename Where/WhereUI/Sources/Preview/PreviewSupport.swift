@@ -317,6 +317,42 @@
             )
         }
 
+        /// A report stopped at the pinned "today" with a deterministic future
+        /// New York stay, for forecast and planned-calendar previews.
+        @MainActor
+        public static func plannedStayYearReportModel() -> YearReportModel {
+            let completeReport = sampleReport()
+            var calendar = Calendar(identifier: .gregorian)
+            calendar.timeZone = TimeZone(identifier: "America/Los_Angeles")!
+            let today = CalendarDay(from: referenceNow, in: calendar)
+            let recordedDays = completeReport.days.filter { $0.day <= today }
+            var recordedTotals: [Region: Int] = [:]
+            for day in recordedDays {
+                for region in day.regions {
+                    recordedTotals[region, default: 0] += 1
+                }
+            }
+            let model = YearReportModel(
+                services: previewServices(),
+                details: YearReportDetails(
+                    report: YearReport(
+                        year: completeReport.year,
+                        days: recordedDays,
+                        totals: recordedTotals,
+                    ),
+                    primaryRegionLocations: sampleRegionLocations(),
+                ),
+                selectedYear: year,
+                preferences: previewPreferences(),
+                now: { referenceNow },
+            )
+            model.forecasts.setActivePlannedStay(PlannedStay(
+                region: .newYork,
+                through: CalendarDay(year: year, month: 8, day: 15),
+            ))
+            return model
+        }
+
         /// The same complete year value `ReportReader.yearReportDetails` returns
         /// in production, built synchronously for previews and image tests.
         public static func sampleYearReportDetails() -> YearReportDetails {

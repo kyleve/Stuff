@@ -3,8 +3,8 @@ import SnapshotKit
 import SwiftUI
 import WhereCore
 
-/// Settings drill-in for presentation choices: whether recorded GPS dots appear
-/// on Locations cards and which alternate app icon is used.
+/// Settings drill-in for presentation choices: theme, Locations-card overlays,
+/// and alternate app icon.
 struct AppearanceSettingsView: View {
     let report: YearReportModel
     var focus: SettingsFocus?
@@ -40,6 +40,18 @@ struct AppearanceSettingsView: View {
                     .settingsRow(Item.locationDots)
                 } footer: {
                     Text(String(localized: .settingsAppearanceLocationDotsFooter))
+                }
+
+                Section {
+                    Toggle(isOn: $report.showsLocationForecastsOnLocationsTab) {
+                        Label(
+                            String(localized: .settingsAppearanceLocationForecastsToggle),
+                            systemSymbol: .chartLineUptrendXyaxis,
+                        )
+                    }
+                    .settingsRow(Item.locationForecasts)
+                } footer: {
+                    Text(String(localized: .settingsAppearanceLocationForecastsFooter))
                 }
 
                 Section {
@@ -93,6 +105,7 @@ extension AppearanceSettingsView: SettingsSection {
     enum Item: SettingsItem {
         case theme
         case locationDots
+        case locationForecasts
         case appIcon
         #if DEBUG
             case cardDesigner
@@ -103,6 +116,8 @@ extension AppearanceSettingsView: SettingsSection {
                 case .theme: String(localized: .settingsAppearanceThemeHeader)
                 case .locationDots:
                     String(localized: .settingsAppearanceLocationDotsToggle)
+                case .locationForecasts:
+                    String(localized: .settingsAppearanceLocationForecastsToggle)
                 case .appIcon: String(localized: .settingsAppIconLink)
                 #if DEBUG
                     case .cardDesigner: String(localized: .cardDesignerTitle)
@@ -116,6 +131,8 @@ extension AppearanceSettingsView: SettingsSection {
                     splitKeywords(String(localized: .settingsKeywordsTheme))
                 case .locationDots:
                     splitKeywords(String(localized: .settingsKeywordsLocationDots))
+                case .locationForecasts:
+                    splitKeywords(String(localized: .settingsKeywordsLocationForecasts))
                 case .appIcon: splitKeywords(String(localized: .settingsKeywordsAppIcon))
                 #if DEBUG
                     case .cardDesigner:
