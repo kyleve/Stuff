@@ -3029,6 +3029,17 @@
         }
       }
     },
+    "locationForecast.collapsed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Collapsed"
+          }
+        }
+      }
+    },
     "locationForecast.editStay" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3093,6 +3104,51 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "%1$@ might be **%2$@** this year"
+          }
+        }
+      }
+    },
+    "locationForecast.expanded" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Expanded"
+          }
+        }
+      }
+    },
+    "locationForecast.explanation.body" : {
+      "comment" : "Explains annual estimate math and why displayed regional totals need not equal the number of days in a year.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Where projects each region’s year-to-date pace across the rest of the year. A planned stay reserves those future days for that region, then the usual pace resumes. Travel days can count toward more than one region, and this summary may omit some regions, so the estimates may not total 365 days."
+          }
+        }
+      }
+    },
+    "locationForecast.explanation.button" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "About estimated time"
+          }
+        }
+      }
+    },
+    "locationForecast.explanation.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "How estimates work"
           }
         }
       }
@@ -5370,6 +5426,17 @@
         }
       }
     },
+    "settings.appearance.locationForecasts.disableError.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Couldn’t turn off Estimated Time & Planning"
+          }
+        }
+      }
+    },
     "settings.appearance.locationForecasts.footer" : {
       "comment" : "Explains the scope of the annual location forecast visibility toggle.",
       "extractionState" : "manual",
@@ -5377,7 +5444,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Show or hide the annual estimated-time summary in Locations."
+            "value" : "Show or hide annual estimates, stay planning, and planned-day visuals across Locations, Calendar, and Timeline. Turning this off also clears your current plan."
           }
         }
       }
@@ -5389,7 +5456,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Estimated time"
+            "value" : "Estimated time & planning"
           }
         }
       }
@@ -5959,6 +6026,171 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Where uses your data here when there’s enough to make these examples relevant. Browsing this screen never changes it."
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.disabled.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Estimated time and planning are hidden. You can turn them on from Appearance."
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.disabled.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Estimated time is off"
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.manage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Manage Estimated Time & Planning"
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.overview" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Your estimated time"
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.pace.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "After three complete months, Where projects each region’s year-to-date pace through the rest of the year."
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.pace.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Your pace"
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.plan.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Use “I’ll be here through…” to reserve upcoming days for one region. Other regions pause during that stay, then resume their usual pace."
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.plan.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Plan ahead"
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.row" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Estimated Time & Planning"
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.tagline" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "See where this year’s pace—and your plans—could take you."
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Estimated Time & Planning"
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.totals.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "A travel day can count toward more than one region, and summaries may omit smaller regions, so estimates may not total 365 days."
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.totals.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Why totals vary"
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.unavailable.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Estimates appear for the current year after three complete months and enough recorded history to establish a pace."
+          }
+        }
+      }
+    },
+    "settings.explore.estimatedTime.unavailable.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Building your estimate"
           }
         }
       }
@@ -7089,6 +7321,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "erase, delete, clear, year, data"
+          }
+        }
+      }
+    },
+    "settings.keywords.estimatedTimeFeatures" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "estimate, estimated time, forecast, pace, planned stay, planning, overlap, travel days, annual"
           }
         }
       }

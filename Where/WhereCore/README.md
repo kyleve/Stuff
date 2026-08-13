@@ -162,7 +162,7 @@ one it belongs to rather than to a god-object:
   `InstallationRecordingContextStoring` keeps the persistence adapter outside
   the domain value.
 - **`WherePreferences`** — persisted user intent (onboarding,
-  reminder / summary schedules, Locations-card GPS-dot and annual-forecast visibility) plus the
+  reminder / summary schedules, Locations-card GPS-dot and estimated-time/planning visibility) plus the
   year-keyed Location-card counts and Codable recording-warning generation used for presentation
   continuity, behind a `KeyValueStore`. `RecordingConfigurationWarningCondition` evaluates the live
   device authority, recording choice, and authorization tuple in Core. The store has no

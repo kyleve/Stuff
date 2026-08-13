@@ -136,11 +136,14 @@ struct CalendarContentView: View {
                             month: month,
                             focusedRegion: focusedRegion,
                             dateCalendar: report.calendar,
-                            plannedRegion: report.forecasts.plannedRegion(on:),
+                            plannedRegion: displayedPlannedRegion(on:),
                         )
                         // In chronological flow, the estimate belongs immediately
                         // after the month whose recorded pace it is projecting from.
-                        if month.isCurrentMonth, !calendarForecasts.isEmpty {
+                        if report.showsEstimatedTimeAndPlanning,
+                           month.isCurrentMonth,
+                           !calendarForecasts.isEmpty
+                        {
                             LocationForecastPanel(
                                 forecasts: calendarForecasts,
                                 plannedStay: report.forecasts.activePlannedStay,
@@ -183,10 +186,16 @@ struct CalendarContentView: View {
     /// A plan belongs on the selected year's calendar and, when this is a
     /// region-focused calendar, only on that region's destination.
     private var displayedPlannedStay: PlannedStay? {
+        guard report.showsEstimatedTimeAndPlanning else { return nil }
         guard let year = report.report?.year else { return nil }
         guard let stay = report.forecasts.plannedStay(intersecting: year) else { return nil }
         guard focusedRegion == nil || focusedRegion == stay.region else { return nil }
         return stay
+    }
+
+    private func displayedPlannedRegion(on day: CalendarDay) -> Region? {
+        guard report.showsEstimatedTimeAndPlanning else { return nil }
+        return report.forecasts.plannedRegion(on: day)
     }
 
     /// The months to show in chronological order. Future months are omitted
@@ -614,6 +623,16 @@ private struct DayCell: View {
             ) {
                 NavigationStack {
                     CalendarContentView(report: PreviewSupport.plannedStayYearReportModel())
+                }
+            }
+            whereSnapshot(
+                name: "PlannedStayHidden",
+                configurations: .fullContentPhoneLightDark,
+            ) {
+                NavigationStack {
+                    CalendarContentView(report: PreviewSupport.plannedStayYearReportModel(
+                        showsEstimatedTimeAndPlanning: false,
+                    ))
                 }
             }
         }

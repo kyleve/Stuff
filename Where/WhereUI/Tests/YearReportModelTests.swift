@@ -279,19 +279,19 @@ struct YearReportModelTests {
         #expect(preferences.driftThresholdMeters == DriftThreshold.km25.rawValue)
     }
 
-    @Test func locationForecastVisibilityMirrorsAndPersists() throws {
+    @Test func estimatedTimeVisibilityMirrorsAndPersists() async throws {
         let preferences = makePreferences()
-        preferences.showsLocationForecastsOnLocationsTab = false
+        preferences.showsEstimatedTimeAndPlanning = false
         let report = try YearReportModel(
             services: makeServices(),
             selectedYear: 2026,
             preferences: preferences,
         )
 
-        #expect(report.showsLocationForecastsOnLocationsTab == false)
+        #expect(report.showsEstimatedTimeAndPlanning == false)
 
-        report.showsLocationForecastsOnLocationsTab = true
-        #expect(preferences.showsLocationForecastsOnLocationsTab)
+        try await report.setEstimatedTimeAndPlanningEnabled(true)
+        #expect(preferences.showsEstimatedTimeAndPlanning)
     }
 
     /// The Resolve list keys its scan `.task(id:)` on `dataIssueScanInputs`, so a

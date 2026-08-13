@@ -45,11 +45,13 @@ public struct LocationForecast: Hashable, Sendable {
         let baselineRate = Double(yearToDateDays) / Double(elapsedDays)
         let tomorrow = today.adding(days: 1)
 
-        let matchingStay = plannedStay.flatMap { stay in
-            stay.region == region && stay.through >= today ? stay : nil
+        let activeStay = plannedStay.flatMap { stay in
+            stay.through >= tomorrow ? stay : nil
         }
-        let plannedEnd = matchingStay.map { min($0.through, lastDay) }
-        let plannedDays = plannedEnd.map { tomorrow.days(through: $0).count } ?? 0
+        let plannedEnd = activeStay.map { min($0.through, lastDay) }
+        let plannedDays = activeStay?.region == region
+            ? plannedEnd.map { tomorrow.days(through: $0).count } ?? 0
+            : 0
         let projectionStart = plannedEnd?.adding(days: 1) ?? tomorrow
         let remainingDays = projectionStart.days(through: lastDay).count
         let projectedRemainingDays = baselineRate * Double(remainingDays)
