@@ -49,8 +49,13 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   vended by whoever owns it rather than listed in the view; it renders an
   explicit "no report" state, since only the app bundle carries one, and ends
   with a passport-style link to the project's public source on GitHub. `MainTabs`
-  is built from the `WhereSession` the launch's `.ready` carries. The app
-  injects the launch-built model + runner
+  is built from the `WhereSession` the launch's `.ready` carries. Its first
+  visible reveal is covered by the launch splash for the stylesheet's minimum
+  duration even when a headless-ready launch completes foreground promotion
+  between SwiftUI renders; the tabs warm beneath it, and later foreground
+  resumes do not replay it. Leaving before the first reveal keeps that reveal
+  owed, so returning shows the full splash instead of expiring it offscreen.
+  The app injects the launch-built model + runner
   (`init(model:launcher:)`); a no-arg `init()` builds its own for previews and
   the hosted UI test.
 - **Developer tools** — DEBUG-only logging, span, region-map, Flyover, forced-crash,

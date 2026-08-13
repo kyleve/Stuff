@@ -26,10 +26,9 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
   associated-object key must resolve to the same pointer in every image. A
   per-image `static var key: UInt8` would not match across the host↔bundle
   boundary and would silently read `nil` — the exact flake this replaces.
-- **`show` waits for readiness.** It pumps the run loop for the host window + root
-  VC before hosting, so a test running before the scene connects doesn't fail
-  spuriously; it follows Apple's parent/child VC order and always restores
-  `layer.speed` via a `defer` at entry.
+- **Both `show` overloads wait for readiness.** They pump the run loop for the
+  host window + root VC before hosting, follow Apple's parent/child VC order,
+  and always restore `layer.speed` via a `defer` at entry.
 
 ## Testing
 
