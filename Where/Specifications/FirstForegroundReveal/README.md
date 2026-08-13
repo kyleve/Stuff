@@ -8,12 +8,17 @@ the first uncovered frame keep that reveal owed without replaying on ordinary
 scene resumes afterward?
 
 The model represents production source at commit
-`a3c83cbacc3cb4bd4a8f1a3a41ec6d89eb18ec27`. It is design evidence for the
+`567bf419778866e9788ac8e4f01c7460b8b5b494`. It is design evidence for the
 stated bounds and assumptions, not proof that SwiftUI or the implementation is
 correct. Changes to `RootView` foreground promotion, `LifecycleRunner` phase
 publication, `LifecycleContainer`'s observation/task identities, or
 `LifecycleReadyRevealState` invalidate the result until this mapping is checked
 again.
+
+The editable state-machine source is C-syntax PlusCal embedded in
+`FirstForegroundReveal.tla`; `./tla-check` translates only an isolated copy.
+Migrating the original raw-TLA actions after merging `main` preserved every
+case's verdict, generated/distinct-state count, and graph depth exactly.
 
 ## Source correspondence
 
