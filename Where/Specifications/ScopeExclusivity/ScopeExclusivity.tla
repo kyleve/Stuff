@@ -7,84 +7,69 @@ ASSUME Implementation \in {"current", "broken"}
 
 ActiveScopes == {"none", "real", "demo"}
 
-VARIABLES
-    activeScope,
-    realContainersAlive,
-    demoContainerOpen,
-    onboardingGate,
-    flyoverBuilt
+(* --algorithm ScopeExclusivityAlgorithm {
+variables activeScope = "none",
+          realContainersAlive = 0,
+          demoContainerOpen = FALSE,
+          onboardingGate = TRUE,
+          flyoverBuilt = FALSE;
 
-vars == <<activeScope, realContainersAlive, demoContainerOpen, onboardingGate,
-          flyoverBuilt>>
+fair process (ClearOnboardingGate = "ClearOnboardingGate") {
+ClearOnboardingGateStep:
+    while (TRUE) {
+        await onboardingGate;
+        onboardingGate := FALSE;
+    }
+}
 
-Init ==
-    /\ activeScope = "none"
-    /\ realContainersAlive = 0
-    /\ demoContainerOpen = FALSE
-    /\ onboardingGate = TRUE
-    /\ flyoverBuilt = FALSE
+fair process (ResolveRealScope = "ResolveRealScope") {
+ResolveRealScopeStep:
+    while (TRUE) {
+        await ~onboardingGate /\
+              (IF Implementation = "current"
+                   THEN activeScope = "none" /\ realContainersAlive = 0
+                   ELSE activeScope \in {"none", "real"});
+        activeScope := "real" ||
+        realContainersAlive := realContainersAlive + 1;
+    }
+}
 
-ClearOnboardingGate ==
-    /\ onboardingGate
-    /\ onboardingGate' = FALSE
-    /\ UNCHANGED <<activeScope, realContainersAlive, demoContainerOpen, flyoverBuilt>>
+fair process (LogOut = "LogOut") {
+LogOutStep:
+    while (TRUE) {
+        await activeScope \in {"real", "demo"};
+        activeScope := "none" ||
+        realContainersAlive := IF activeScope = "real" THEN 0 ELSE realContainersAlive ||
+        demoContainerOpen := IF activeScope = "demo" THEN FALSE ELSE demoContainerOpen ||
+        onboardingGate := TRUE;
+    }
+}
 
-ResolveRealScope ==
-    /\ ~onboardingGate
-    /\ IF Implementation = "current"
-          THEN /\ activeScope = "none"
-               /\ realContainersAlive = 0
-          ELSE activeScope \in {"none", "real"}
-    /\ activeScope' = "real"
-    /\ realContainersAlive' = realContainersAlive + 1
-    /\ UNCHANGED <<demoContainerOpen, onboardingGate, flyoverBuilt>>
+fair process (ActivateDemo = "ActivateDemo") {
+ActivateDemoStep:
+    while (TRUE) {
+        await ~onboardingGate /\ activeScope \in {"none", "real"};
+        activeScope := "demo" ||
+        demoContainerOpen := TRUE ||
+        realContainersAlive := IF activeScope = "real" THEN 0 ELSE realContainersAlive;
+    }
+}
 
-LogOut ==
-    /\ activeScope \in {"real", "demo"}
-    /\ activeScope' = "none"
-    /\ IF activeScope = "real"
-          THEN realContainersAlive' = 0
-          ELSE UNCHANGED realContainersAlive
-    /\ IF activeScope = "demo"
-          THEN demoContainerOpen' = FALSE
-          ELSE UNCHANGED demoContainerOpen
-    /\ onboardingGate' = TRUE
-    /\ UNCHANGED flyoverBuilt
+fair process (BuildFlyoverSibling = "BuildFlyoverSibling") {
+BuildFlyoverSiblingStep:
+    while (TRUE) {
+        demoContainerOpen := TRUE ||
+        flyoverBuilt := TRUE;
+    }
+}
 
-ActivateDemo ==
-    /\ ~onboardingGate
-    /\ activeScope \in {"none", "real"}
-    /\ activeScope' = "demo"
-    /\ demoContainerOpen' = TRUE
-    /\ IF activeScope = "real"
-          THEN realContainersAlive' = 0
-          ELSE UNCHANGED realContainersAlive
-    /\ UNCHANGED <<onboardingGate, flyoverBuilt>>
-
-BuildFlyoverSibling ==
-    /\ demoContainerOpen' = TRUE
-    /\ flyoverBuilt' = TRUE
-    /\ UNCHANGED <<activeScope, realContainersAlive, onboardingGate>>
-
-Stutter ==
-    UNCHANGED vars
-
-Next ==
-    \/ ClearOnboardingGate
-    \/ ResolveRealScope
-    \/ LogOut
-    \/ ActivateDemo
-    \/ BuildFlyoverSibling
-    \/ Stutter
-
-Fairness ==
-    /\ WF_vars(ClearOnboardingGate)
-    /\ WF_vars(ResolveRealScope)
-    /\ WF_vars(LogOut)
-    /\ WF_vars(ActivateDemo)
-    /\ WF_vars(BuildFlyoverSibling)
-
-Spec == Init /\ [][Next]_vars /\ Fairness
+process (Stutter = "Stutter") {
+StutterStep:
+    while (TRUE) {
+        skip;
+    }
+}
+} *)
 
 TypeOK ==
     /\ activeScope \in ActiveScopes

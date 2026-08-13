@@ -8,91 +8,84 @@ ASSUME Implementation \in {"current", "broken"}
 WritePhases == {"idle", "inPerform", "committed"}
 ReconcilePhases == {"none", "invalidating", "reminders", "widgets", "done"}
 
-VARIABLES
-    writePhase,
-    reconcilePhase,
-    changesPinged,
-    sideEffectsApplied,
-    readerSawPing
+(* --algorithm PostWriteReconcileAlgorithm {
+variables writePhase = "idle",
+          reconcilePhase = "none",
+          changesPinged = FALSE,
+          sideEffectsApplied = FALSE,
+          readerSawPing = FALSE;
 
-vars == <<writePhase, reconcilePhase, changesPinged, sideEffectsApplied, readerSawPing>>
+fair process (BeginPerform = "BeginPerform") {
+BeginPerformStep:
+    while (TRUE) {
+        await writePhase = "idle";
+        writePhase := "inPerform";
+    }
+}
 
-Init ==
-    /\ writePhase = "idle"
-    /\ reconcilePhase = "none"
-    /\ changesPinged = FALSE
-    /\ sideEffectsApplied = FALSE
-    /\ readerSawPing = FALSE
+fair process (Commit = "Commit") {
+CommitStep:
+    while (TRUE) {
+        await writePhase = "inPerform";
+        writePhase := "committed" ||
+        reconcilePhase := "invalidating";
+    }
+}
 
-BeginPerform ==
-    /\ writePhase = "idle"
-    /\ writePhase' = "inPerform"
-    /\ UNCHANGED <<reconcilePhase, changesPinged, sideEffectsApplied, readerSawPing>>
+fair process (StepInvalidate = "StepInvalidate") {
+StepInvalidateStep:
+    while (TRUE) {
+        await reconcilePhase = "invalidating";
+        reconcilePhase := "reminders";
+    }
+}
 
-Commit ==
-    /\ writePhase = "inPerform"
-    /\ writePhase' = "committed"
-    /\ reconcilePhase' = "invalidating"
-    /\ UNCHANGED <<changesPinged, sideEffectsApplied, readerSawPing>>
+fair process (StepReminders = "StepReminders") {
+StepRemindersStep:
+    while (TRUE) {
+        await reconcilePhase = "reminders";
+        reconcilePhase := "widgets";
+    }
+}
 
-StepInvalidate ==
-    /\ reconcilePhase = "invalidating"
-    /\ reconcilePhase' = "reminders"
-    /\ UNCHANGED <<writePhase, changesPinged, sideEffectsApplied, readerSawPing>>
+fair process (StepWidgets = "StepWidgets") {
+StepWidgetsStep:
+    while (TRUE) {
+        await reconcilePhase = "widgets";
+        reconcilePhase := "done" ||
+        sideEffectsApplied := TRUE;
+    }
+}
 
-StepReminders ==
-    /\ reconcilePhase = "reminders"
-    /\ reconcilePhase' = "widgets"
-    /\ UNCHANGED <<writePhase, changesPinged, sideEffectsApplied, readerSawPing>>
+fair process (PingChanges = "PingChanges") {
+PingChangesStep:
+    while (TRUE) {
+        await writePhase = "committed" /\
+              (IF Implementation = "broken" THEN TRUE ELSE reconcilePhase = "done");
+        changesPinged := TRUE;
+    }
+}
 
-StepWidgets ==
-    /\ reconcilePhase = "widgets"
-    /\ reconcilePhase' = "done"
-    /\ sideEffectsApplied' = TRUE
-    /\ UNCHANGED <<writePhase, changesPinged, readerSawPing>>
+fair process (ReaderRefresh = "ReaderRefresh") {
+ReaderRefreshStep:
+    while (TRUE) {
+        await changesPinged;
+        readerSawPing := TRUE;
+    }
+}
 
-PingChanges ==
-    /\ writePhase = "committed"
-    /\ IF Implementation = "broken"
-          THEN TRUE
-          ELSE reconcilePhase = "done"
-    /\ changesPinged' = TRUE
-    /\ UNCHANGED <<writePhase, reconcilePhase, sideEffectsApplied, readerSawPing>>
-
-ReaderRefresh ==
-    /\ changesPinged
-    /\ readerSawPing' = TRUE
-    /\ UNCHANGED <<writePhase, reconcilePhase, changesPinged, sideEffectsApplied>>
-
-ResetPath ==
-    /\ writePhase = "committed"
-    /\ writePhase' = "idle"
-    /\ reconcilePhase' = "none"
-    /\ changesPinged' = FALSE
-    /\ sideEffectsApplied' = FALSE
-    /\ readerSawPing' = FALSE
-
-Next ==
-    \/ BeginPerform
-    \/ Commit
-    \/ StepInvalidate
-    \/ StepReminders
-    \/ StepWidgets
-    \/ PingChanges
-    \/ ReaderRefresh
-    \/ ResetPath
-
-Fairness ==
-    /\ WF_vars(BeginPerform)
-    /\ WF_vars(Commit)
-    /\ WF_vars(StepInvalidate)
-    /\ WF_vars(StepReminders)
-    /\ WF_vars(StepWidgets)
-    /\ WF_vars(PingChanges)
-    /\ WF_vars(ReaderRefresh)
-    /\ WF_vars(ResetPath)
-
-Spec == Init /\ [][Next]_vars /\ Fairness
+fair process (ResetPath = "ResetPath") {
+ResetPathStep:
+    while (TRUE) {
+        await writePhase = "committed";
+        writePhase := "idle" ||
+        reconcilePhase := "none" ||
+        changesPinged := FALSE ||
+        sideEffectsApplied := FALSE ||
+        readerSawPing := FALSE;
+    }
+}
+} *)
 
 TypeOK ==
     /\ writePhase \in WritePhases

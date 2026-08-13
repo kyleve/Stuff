@@ -8,6 +8,7 @@
     /// through floating/full-screen transitions without retaining a parallel
     /// collection of labels, icons, or route flags.
     enum DeveloperTool: Hashable, Identifiable {
+        case crashTesting
         case logs
         case openSpans
         case regionMap
@@ -18,6 +19,8 @@
 
         var title: String {
             switch self {
+                case .crashTesting:
+                    String(localized: .developerCrashTestingLink)
                 case .logs:
                     String(localized: .developerLogsLink)
                 case .openSpans:
@@ -29,6 +32,7 @@
 
         var systemSymbol: SFSymbol {
             switch self {
+                case .crashTesting: .exclamationmarkTriangleFill
                 case .logs: .ladybug
                 case .openSpans: .timer
                 case .regionMap: .map

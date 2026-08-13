@@ -24,46 +24,49 @@ public struct YearTotalsRectangularAccessoryView: View {
     }
 
     public var body: some View {
-        if ranked.isEmpty {
-            Label(
-                String(localized: .widgetYearEmpty),
-                systemSymbol: .calendarBadgeExclamationmark,
-            )
-            .font(.caption)
-        } else {
-            VStack(alignment: .leading, spacing: 0) {
-                ForEach(ranked) { entry in
-                    HStack(spacing: stylesheet.spacing.xSmall) {
-                        Image(systemSymbol: regionStyles.style(for: entry.region).symbol)
-                            .font(.caption2)
-                            .accessibilityHidden(true)
-                        Text(entry.region.localizedName)
-                            .font(.caption2)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.7)
-                        Spacer(minLength: stylesheet.spacing.xSmall)
-                        Text(entry.days, format: .number)
-                            .font(.caption.weight(.bold))
-                            .monospacedDigit()
+        Group {
+            if ranked.isEmpty {
+                Label(
+                    String(localized: .widgetYearEmpty),
+                    systemSymbol: .calendarBadgeExclamationmark,
+                )
+                .font(.caption)
+            } else {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(ranked) { entry in
+                        HStack(spacing: stylesheet.spacing.xSmall) {
+                            Image(systemSymbol: regionStyles.style(for: entry.region).symbol)
+                                .font(.caption2)
+                                .accessibilityHidden(true)
+                            Text(entry.region.localizedName)
+                                .font(.caption2)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.7)
+                            Spacer(minLength: stylesheet.spacing.xSmall)
+                            Text(entry.days, format: .number)
+                                .font(.caption.weight(.bold))
+                                .monospacedDigit()
+                        }
                     }
-                    .accessibilityElement(children: .combine)
-                    .accessibilityLabel(
-                        WhereFormat.regionDaysAccessibility(
-                            region: entry.region.localizedName,
-                            days: entry.days,
-                        ),
-                    )
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(WhereFormat.widgetYearTitle(year: snapshot.year))
+        .accessibilityValue(WhereFormat.widgetYearAccessibilityValue(entries: ranked))
     }
 }
 
 #if DEBUG
     extension YearTotalsRectangularAccessoryView: SnapshotProviding {
         public static var snapshots: [SnapshotCase] {
-            whereSnapshot(name: "Ranked", configurations: .componentLightDark, settle: .immediate) {
+            whereSnapshot(
+                name: "Ranked",
+                configurations: .componentLightDark
+                    + SnapshotConfiguration.combinations(snapshotTypes: [.accessibility]),
+                settle: .immediate,
+            ) {
                 YearTotalsRectangularAccessoryView(snapshot: PreviewSupport.sampleWidgetSnapshot(
                     dayRegions: [.california],
                     totals: [.california: 132, .newYork: 41, .canada: 9, .other: 2],

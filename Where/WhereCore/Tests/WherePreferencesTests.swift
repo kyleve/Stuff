@@ -12,7 +12,8 @@ struct WherePreferencesTests {
 
         #expect(preferences.hasOnboarded == false)
         #expect(preferences.showsRecordedLocationDots)
-        #expect(preferences.showsLocationForecastsOnLocationsTab)
+        #expect(preferences.theme == .standard)
+        #expect(preferences.showsEstimatedTimeAndPlanning)
         #expect(preferences.remindersEnabled)
         #expect(preferences.reminderTime == .defaultEvening)
         #expect(preferences.summaryEnabled)
@@ -26,6 +27,17 @@ struct WherePreferencesTests {
         #expect(preferences.lastSeenLocationDayCounts(in: 2026) == nil)
     }
 
+    @Test func themeRoundTripsAndUnknownValuesFallBackToStandard() {
+        let store = InMemoryKeyValueStore()
+        let preferences = WherePreferences(store: store)
+
+        preferences.theme = .alternate
+        #expect(preferences.theme == .alternate)
+
+        store.set("future-theme", forKey: "where.theme")
+        #expect(preferences.theme == .standard)
+    }
+
     @Test func locationDayCountsRoundTripIndependentlyByYear() {
         let preferences = preferences()
         let counts2025: [Region: Int] = [.california: 42, .other: 3]
@@ -36,6 +48,17 @@ struct WherePreferencesTests {
 
         #expect(preferences.lastSeenLocationDayCounts(in: 2025) == counts2025)
         #expect(preferences.lastSeenLocationDayCounts(in: 2026) == counts2026)
+    }
+
+    @Test func estimatedTimeUsesTheLegacyLocationsVisibilityKey() {
+        let store = InMemoryKeyValueStore()
+        store.set(false, forKey: "where.showsLocationForecastsOnLocationsTab")
+        let preferences = WherePreferences(store: store)
+
+        #expect(preferences.showsEstimatedTimeAndPlanning == false)
+
+        preferences.showsEstimatedTimeAndPlanning = true
+        #expect(store.bool(forKey: "where.showsLocationForecastsOnLocationsTab"))
     }
 
     @Test func recordingWarningRegistrationRoundTrips() {
@@ -53,7 +76,8 @@ struct WherePreferencesTests {
         let preferences = preferences()
         preferences.hasOnboarded = true
         preferences.showsRecordedLocationDots = false
-        preferences.showsLocationForecastsOnLocationsTab = false
+        preferences.theme = .alternate
+        preferences.showsEstimatedTimeAndPlanning = false
         preferences.remindersEnabled = false
         preferences.reminderTime = ReminderTime(hour: 9, minute: 15)
         preferences.summaryEnabled = false
@@ -70,7 +94,8 @@ struct WherePreferencesTests {
 
         #expect(preferences.hasOnboarded == false)
         #expect(preferences.showsRecordedLocationDots)
-        #expect(preferences.showsLocationForecastsOnLocationsTab)
+        #expect(preferences.theme == .standard)
+        #expect(preferences.showsEstimatedTimeAndPlanning)
         #expect(preferences.remindersEnabled)
         #expect(preferences.reminderTime == .defaultEvening)
         #expect(preferences.summaryEnabled)

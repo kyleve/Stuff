@@ -113,6 +113,43 @@ public func show<ViewController: UIViewController>(
     }
 }
 
+/// Async-body overload of ``show(_:loadAndPlaceView:timeout:perform:)``.
+///
+/// Use this form when a hosted view must remain in the hierarchy while the
+/// test awaits application or SwiftUI task work.
+@MainActor
+public func show<ViewController: UIViewController>(
+    _ viewController: ViewController,
+    loadAndPlaceView: Bool = true,
+    timeout: TimeInterval = 10.0,
+    perform test: (ViewController) async throws -> Void,
+) async throws {
+    let rootVC = try waitForHostRootViewController(timeout: timeout)
+
+    defer { rootVC.view.window?.layer.speed = 1 }
+    rootVC.view.window?.layer.speed = 100
+
+    rootVC.addChild(viewController)
+
+    if loadAndPlaceView {
+        viewController.view.frame = rootVC.view.bounds
+        rootVC.view.addSubview(viewController.view)
+        viewController.view.layoutIfNeeded()
+    }
+
+    viewController.didMove(toParent: rootVC)
+
+    defer {
+        viewController.willMove(toParent: nil)
+        if loadAndPlaceView {
+            viewController.view.removeFromSuperview()
+        }
+        viewController.removeFromParent()
+    }
+
+    try await test(viewController)
+}
+
 @MainActor
 private func waitForHostRootViewController(timeout: TimeInterval) throws -> UIViewController {
     let deadline = Date(timeIntervalSinceNow: timeout)

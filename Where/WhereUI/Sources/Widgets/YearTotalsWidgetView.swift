@@ -45,6 +45,9 @@ public struct YearTotalsWidgetView: View {
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(WhereFormat.widgetYearTitle(year: snapshot.year))
+        .accessibilityValue(WhereFormat.widgetYearAccessibilityValue(entries: ranked))
     }
 
     private var rows: some View {
@@ -64,13 +67,6 @@ public struct YearTotalsWidgetView: View {
                         .monospacedDigit()
                         .foregroundStyle(regionStyles.style(for: entry.region).tint)
                 }
-                .accessibilityElement(children: .combine)
-                .accessibilityLabel(
-                    WhereFormat.regionDaysAccessibility(
-                        region: entry.region.localizedName,
-                        days: entry.days,
-                    ),
-                )
             }
         }
     }

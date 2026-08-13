@@ -22,14 +22,19 @@ public struct TodayInlineAccessoryView: View {
     }
 
     public var body: some View {
-        if let first = regions.first {
-            Label(
-                regions.map(\.localizedName).joined(separator: " · "),
-                systemSymbol: regionStyles.style(for: first).symbol,
-            )
-        } else {
-            Label(String(localized: .widgetTodayEmpty), systemSymbol: .locationSlash)
+        Group {
+            if let first = regions.first {
+                Label(
+                    regions.map(\.localizedName).joined(separator: " · "),
+                    systemSymbol: regionStyles.style(for: first).symbol,
+                )
+            } else {
+                Label(String(localized: .widgetTodayEmpty), systemSymbol: .locationSlash)
+            }
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(WhereFormat.widgetTodayAccessibilityLabel(date: snapshot.day))
+        .accessibilityValue(WhereFormat.widgetTodayAccessibilityValue(regions: regions))
     }
 }
 
@@ -63,12 +68,8 @@ public struct TodayCircularAccessoryView: View {
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(accessibilityText)
-    }
-
-    private var accessibilityText: String {
-        guard !regions.isEmpty else { return String(localized: .widgetTodayEmpty) }
-        return regions.map(\.localizedName).joined(separator: ", ")
+        .accessibilityLabel(WhereFormat.widgetTodayAccessibilityLabel(date: snapshot.day))
+        .accessibilityValue(WhereFormat.widgetTodayAccessibilityValue(regions: regions))
     }
 }
 
@@ -77,7 +78,8 @@ public struct TodayCircularAccessoryView: View {
         public static var snapshots: [SnapshotCase] {
             whereSnapshot(
                 name: "Regions",
-                configurations: .componentLightDark,
+                configurations: .componentLightDark
+                    + SnapshotConfiguration.combinations(snapshotTypes: [.accessibility]),
                 settle: .immediate,
             ) {
                 TodayInlineAccessoryView(snapshot: PreviewSupport.sampleWidgetSnapshot(
@@ -98,7 +100,8 @@ public struct TodayCircularAccessoryView: View {
         public static var snapshots: [SnapshotCase] {
             whereSnapshot(
                 name: "Regions",
-                configurations: .componentLightDark,
+                configurations: .componentLightDark
+                    + SnapshotConfiguration.combinations(snapshotTypes: [.accessibility]),
                 settle: .immediate,
             ) {
                 TodayCircularAccessoryView(snapshot: PreviewSupport.sampleWidgetSnapshot(

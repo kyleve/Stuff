@@ -320,7 +320,9 @@
         /// A report stopped at the pinned "today" with a deterministic future
         /// New York stay, for forecast and planned-calendar previews.
         @MainActor
-        public static func plannedStayYearReportModel() -> YearReportModel {
+        public static func plannedStayYearReportModel(
+            showsEstimatedTimeAndPlanning: Bool = true,
+        ) -> YearReportModel {
             let completeReport = sampleReport()
             var calendar = Calendar(identifier: .gregorian)
             calendar.timeZone = TimeZone(identifier: "America/Los_Angeles")!
@@ -332,6 +334,8 @@
                     recordedTotals[region, default: 0] += 1
                 }
             }
+            let preferences = previewPreferences()
+            preferences.showsEstimatedTimeAndPlanning = showsEstimatedTimeAndPlanning
             let model = YearReportModel(
                 services: previewServices(),
                 details: YearReportDetails(
@@ -343,7 +347,7 @@
                     primaryRegionLocations: sampleRegionLocations(),
                 ),
                 selectedYear: year,
-                preferences: previewPreferences(),
+                preferences: preferences,
                 now: { referenceNow },
             )
             model.forecasts.setActivePlannedStay(PlannedStay(
@@ -369,6 +373,20 @@
             let model = loadedYearReportModel()
             model.showsRecordedLocationDots = false
             return model
+        }
+
+        /// The loaded report fixture with every estimated-time presentation off.
+        @MainActor
+        public static func loadedYearReportModelWithEstimatedTimeHidden() -> YearReportModel {
+            let preferences = previewPreferences()
+            preferences.showsEstimatedTimeAndPlanning = false
+            return YearReportModel(
+                services: previewServices(),
+                details: sampleYearReportDetails(),
+                selectedYear: year,
+                preferences: preferences,
+                now: { referenceNow },
+            )
         }
 
         /// Deterministic point clouds for the Locations card constellations.

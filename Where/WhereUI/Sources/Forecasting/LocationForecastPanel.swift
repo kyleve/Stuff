@@ -1,5 +1,4 @@
 import RegionKit
-import SFSafeSymbols
 import SwiftUI
 import WhereCore
 
@@ -24,21 +23,21 @@ struct LocationForecastPanel: View {
     var body: some View {
         VStack(alignment: .leading, spacing: style.rowSpacing) {
             if isCollapsible {
-                DisclosureGroup(isExpanded: $isExpanded) {
-                    VStack(alignment: .leading, spacing: style.rowSpacing) {
-                        forecastContent
-                    }
-                    .padding(.top, style.rowSpacing)
-                }
-                label: {
-                    forecastHeader
-                }
-                .disclosureGroupStyle(LocationForecastDisclosureStyle(
-                    foregroundColor: style.collapsedLabelColor,
-                ))
+                LocationForecastHeader(
+                    elapsedDays: forecasts.first?.elapsedDays,
+                    isExpanded: isExpanded,
+                    expansionAction: toggleExpansion,
+                )
             } else {
-                forecastHeader
+                LocationForecastHeader(
+                    elapsedDays: forecasts.first?.elapsedDays,
+                    isExpanded: true,
+                )
+            }
+
+            if !isCollapsible || isExpanded {
                 forecastContent
+                    .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
         .padding(style.padding)
@@ -60,49 +59,6 @@ struct LocationForecastPanel: View {
                 Color.clear.glassEffect(.regular, in: shape)
             }
         }
-        .animation(style.expansionAnimation, value: isExpanded)
-    }
-
-    @ViewBuilder
-    private var forecastHeader: some View {
-        if let elapsedDays = forecasts.first?.elapsedDays {
-            ViewThatFits(in: .horizontal) {
-                HStack(alignment: .firstTextBaseline) {
-                    Image(systemSymbol: .chartLineUptrendXyaxis)
-                        .accessibilityHidden(true)
-                    Text(String(localized: .locationForecastTitle))
-                        .fixedSize(horizontal: true, vertical: false)
-                    Spacer(minLength: stylesheet.spacing.large)
-                    Text(WhereFormat.locationForecastElapsed(days: elapsedDays))
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                        .fixedSize(horizontal: true, vertical: false)
-                }
-
-                VStack(alignment: .leading, spacing: style.estimateSpacing) {
-                    HStack(alignment: .firstTextBaseline) {
-                        Image(systemSymbol: .chartLineUptrendXyaxis)
-                            .accessibilityHidden(true)
-                        Text(String(localized: .locationForecastTitle))
-                    }
-                    Text(WhereFormat.locationForecastElapsed(days: elapsedDays))
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                        .multilineTextAlignment(.trailing)
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                }
-            }
-            .font(.headline)
-        } else {
-            HStack(alignment: .firstTextBaseline) {
-                Image(systemSymbol: .chartLineUptrendXyaxis)
-                    .accessibilityHidden(true)
-                Text(String(localized: .locationForecastTitle))
-            }
-            .font(.headline)
-        }
     }
 
     @ViewBuilder
@@ -121,6 +77,12 @@ struct LocationForecastPanel: View {
                 editAction: editAction,
                 clearAction: clearAction,
             )
+        }
+    }
+
+    private func toggleExpansion() {
+        withAnimation(style.expansionAnimation) {
+            isExpanded.toggle()
         }
     }
 }
