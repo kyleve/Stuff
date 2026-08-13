@@ -156,7 +156,9 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
 - **Widget views** — the shared renderers the **WhereWidgets** extension draws
   with: `TodayWidgetView`, `YearTotalsWidgetView`, and the accessory family
   (`TodayInlineAccessoryView`, `TodayCircularAccessoryView`,
-  `YearTotalsRectangularAccessoryView`). Each takes a `WidgetSnapshot`.
+  `YearTotalsRectangularAccessoryView`). Each takes a `WidgetSnapshot` and
+  exposes one explicit accessibility label/value pair rather than its visual
+  rows as separate elements.
 - **`RegionStyle` / `RegionStyleResolver`** — a region's typed `SFSymbol`, emoji, and
   tint, shared across cards, calendar dots, and timelines. Views resolve it from
   `@Environment(\.regionStyles)` (`regionStyles.style(for: region)`), seeded by

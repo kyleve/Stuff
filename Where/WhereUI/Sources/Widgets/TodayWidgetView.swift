@@ -51,7 +51,9 @@ public struct TodayWidgetView: View {
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(WhereFormat.widgetTodayAccessibilityLabel(date: snapshot.day))
+        .accessibilityValue(WhereFormat.widgetTodayAccessibilityValue(regions: regions))
     }
 
     /// The common case — one region so far today — gets the full passport

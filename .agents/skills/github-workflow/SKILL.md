@@ -1,6 +1,6 @@
 ---
 name: github-workflow
-description: Opens and maintains pull requests, including stacked PRs through gh stack, handles review feedback, checks CI, and posts as the user via gh or ManagePullRequest. Use when committing for push, opening or updating a PR after plan execution, creating or maintaining a PR stack, responding to review comments, or diagnosing CI failures.
+description: Opens and maintains pull requests, including stacked PRs through gh stack, handles review feedback, checks GitHub Actions and CircleCI, and posts as the user via gh or ManagePullRequest. Use when committing for push, opening or updating a PR after plan execution, creating or maintaining a PR stack, responding to review comments, or diagnosing CI failures.
 ---
 
 GitHub workflow for this repo. Read root [`AGENTS.md`](../../../AGENTS.md) first for
@@ -19,6 +19,7 @@ always-on commit and test invariants — this skill assumes those.
 | Job | Tool |
 |-----|------|
 | Read PRs, checks, comments, issues | `gh` |
+| Download CircleCI failure artifacts | `./circleci-artifacts <job-uuid-or-url>` |
 | Create or update a PR | `ManagePullRequest` when available; otherwise `gh pr create` / `gh pr edit` |
 | Create, update, sync, or merge a PR stack | `gh stack` |
 | Reply on a review thread | `ManagePullRequest` `post_comment` with `in_reply_to`, or `gh api` |
@@ -306,6 +307,17 @@ When addressing:
 
 ## CI
 
+- Start with `gh pr checks <pr>` to identify the failing provider, check, and
+  job URL. Use GitHub Actions logs for GitHub-hosted checks.
+- For a failed CircleCI check, use the repository-owned
+  `./circleci-artifacts <job-uuid-or-url>` script instead of scraping the web
+  UI. It downloads the job bundle to
+  `.build/circleci-artifacts/<job-uuid>` by default and requires an
+  authenticated CircleCI CLI.
+- Read the smallest diagnostic artifact first. Snapshot jobs publish
+  `snapshots/diagnostics/test-output/failures.json` and `diffs.jsonl`; inspect
+  the corresponding actual/reference images under
+  `snapshots/diagnostics/snapshot-images` before recording any reference.
 - **Don't block the conversation polling CI.** Report what's running and hand
   the turn back; delegate a genuine watch to a background subagent.
 
