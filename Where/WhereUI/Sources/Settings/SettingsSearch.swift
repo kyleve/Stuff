@@ -20,6 +20,7 @@ enum SettingsDestination: Hashable, CaseIterable {
     case insightsAccuracy
     case personalization
     case data
+    case privacyDiagnostics
     case about
 
     /// The localized title shown on the top-level drill-in row and as the parent
@@ -40,6 +41,7 @@ enum SettingsDestination: Hashable, CaseIterable {
             case .insightsAccuracy: String(localized: .settingsExploreInsightsRow)
             case .personalization: String(localized: .settingsExplorePersonalizationRow)
             case .data: String(localized: .settingsDataHeader)
+            case .privacyDiagnostics: String(localized: .settingsDiagnosticsTitle)
             case .about: String(localized: .settingsAboutHeader)
         }
     }
@@ -61,6 +63,7 @@ enum SettingsDestination: Hashable, CaseIterable {
             case .insightsAccuracy: .sparkles
             case .personalization: .paintpaletteFill
             case .data: .externaldriveFill
+            case .privacyDiagnostics: .lockShieldFill
             case .about: .info
         }
     }
@@ -84,19 +87,20 @@ enum SettingsDestination: Hashable, CaseIterable {
             case .insightsAccuracy: .orange
             case .personalization: .purple
             case .data: .teal
+            case .privacyDiagnostics: .indigo
             case .about: .brown
         }
     }
 
     /// Whether the group is offered while the app is running on demo data.
     ///
-    /// The two that aren't would each reach past the demo and touch the device:
+    /// The groups that aren't available would reach past the demo and touch the device:
     /// **data** backs up, restores, erases, and resets, while **appearance**
     /// includes setting an alternate app icon, which outlives the process. A
     /// demo leaves no trace, so it doesn't offer the ways to leave one.
     var isAvailableInDemoMode: Bool {
         switch self {
-            case .data, .appearance: false
+            case .data, .appearance, .privacyDiagnostics: false
             case .attachments, .loggedDays, .devices, .regions, .alerts, .year, .siri, .widgets,
                  .shareEvidence, .estimatedTime, .insightsAccuracy, .personalization, .about:
                 true
@@ -110,7 +114,8 @@ enum SettingsDestination: Hashable, CaseIterable {
         switch self {
             case .regions: true
             case .attachments, .loggedDays, .devices, .alerts, .appearance, .year, .siri, .widgets,
-                 .shareEvidence, .estimatedTime, .insightsAccuracy, .personalization, .data, .about:
+                 .shareEvidence, .estimatedTime, .insightsAccuracy, .personalization, .data,
+                 .privacyDiagnostics, .about:
                 false
         }
     }
@@ -146,7 +151,7 @@ enum SettingsListSection: CaseIterable {
                     .insightsAccuracy,
                     .personalization,
                 ]
-            case .storage: [.data]
+            case .storage: [.data, .privacyDiagnostics]
             case .about: [.about]
         }
     }
@@ -266,6 +271,7 @@ enum SettingsCatalog {
             + InsightsAccuracyFeaturesView.searchResults
             + PersonalizationFeaturesView.searchResults
             + DataSettingsView.searchResults
+            + PrivacyDiagnosticsSettingsView.searchResults
             + AboutSettingsView.searchResults
 
     /// The results matching a (trimmed, non-empty) query.

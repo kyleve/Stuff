@@ -5,7 +5,8 @@ components and widget views, and the `@Observable` view models that
 orchestrate `WhereCore` for them (`WhereModel`, the `WhereSession`
 coordinator, and the scoped `YearReportModel` / `ResolveModel` /
 `BackupModel` / `RemindersSettingsModel` / `DevicesSettingsModel` / `OnboardingFlowModel` /
-`OnboardingImportRecoveryModel` / `LocationForecastModel`).
+`OnboardingImportRecoveryModel` / `LocationForecastModel` /
+`DiagnosticReportingSettingsModel`).
 Layering, localization, preview, and testing conventions live in the feature
 [`Where/AGENTS.md`](../AGENTS.md)
 — read that and the root [`AGENTS.md`](../../AGENTS.md) first.
@@ -36,6 +37,9 @@ Layering, localization, preview, and testing conventions live in the feature
   of cleanup, and retain the marker through any failure (`WhereLaunchTests`).
 - Keep backup import onboarding-only; Settings exports archives but never starts or resumes an
   import (`BackupModelTests`).
+- Keep diagnostic reporting's saved, process-effective, applying, and failed
+  states distinct. Crash/replay choices stay pending until relaunch; remote-log
+  revisions apply live and an older completion must never win.
 - The DEBUG developer accordion may only latch or clear
   `InspectorModeController` for the next launch. It must not host a live
   SwiftData inspector or switch the current runtime.

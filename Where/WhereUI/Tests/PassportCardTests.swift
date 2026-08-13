@@ -8,7 +8,7 @@ struct PassportCardTests {
     @Test func hostsInformationalContent() throws {
         let rootView = PassportCard(
             title: .settingsPrivacyTitle,
-            detail: .settingsPrivacyDetail,
+            detail: String(localized: .settingsPrivacyDetail),
             sealSystemSymbol: .lockShieldFill,
             accessorySystemSymbol: nil,
             isInteractive: false,

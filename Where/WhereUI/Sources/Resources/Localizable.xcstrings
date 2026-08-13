@@ -6262,6 +6262,303 @@
         }
       }
     },
+    "settings.diagnostics.applyFailed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Couldn't apply diagnostic logging"
+          }
+        }
+      }
+    },
+    "settings.diagnostics.applying" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Applying"
+          }
+        }
+      }
+    },
+    "settings.diagnostics.crash.keywords" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "crash, fatal, report"
+          }
+        }
+      }
+    },
+    "settings.diagnostics.crashReports" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Share crash reports"
+          }
+        }
+      }
+    },
+    "settings.diagnostics.currentState" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Current until next launch"
+          }
+        }
+      }
+    },
+    "settings.diagnostics.fullMetadata" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Include all log metadata"
+          }
+        }
+      }
+    },
+    "settings.diagnostics.fullMetadata.confirm.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Structured log payloads, complete scopes, tags, ambient state, external IDs, and attachment names may contain personal data. Attachment contents are never sent."
+          }
+        }
+      }
+    },
+    "settings.diagnostics.fullMetadata.confirm.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Include potentially personal metadata?"
+          }
+        }
+      }
+    },
+    "settings.diagnostics.fullMetadata.enable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Include all metadata"
+          }
+        }
+      }
+    },
+    "settings.diagnostics.fullMetadata.warning" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Warning: full log metadata may contain personal data. Attachment contents are never sent."
+          }
+        }
+      }
+    },
+    "settings.diagnostics.level.debug" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Debug (all)"
+          }
+        }
+      }
+    },
+    "settings.diagnostics.level.error" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Error and above"
+          }
+        }
+      }
+    },
+    "settings.diagnostics.level.fault" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Fault only"
+          }
+        }
+      }
+    },
+    "settings.diagnostics.level.info" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Info and above"
+          }
+        }
+      }
+    },
+    "settings.diagnostics.level.notice" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Notice and above"
+          }
+        }
+      }
+    },
+    "settings.diagnostics.level.warning" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Warning and above"
+          }
+        }
+      }
+    },
+    "settings.diagnostics.logging.keywords" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "logs, diagnostics, remote, severity"
+          }
+        }
+      }
+    },
+    "settings.diagnostics.metadata.keywords" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "metadata, payload, personal data, pii"
+          }
+        }
+      }
+    },
+    "settings.diagnostics.off" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Off"
+          }
+        }
+      }
+    },
+    "settings.diagnostics.on" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "On"
+          }
+        }
+      }
+    },
+    "settings.diagnostics.relaunchFooter" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Crash reporting and session replay changes take effect the next time Where launches."
+          }
+        }
+      }
+    },
+    "settings.diagnostics.remoteFooter" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Diagnostic log changes apply immediately. Standard sharing includes only approved operational fields."
+          }
+        }
+      }
+    },
+    "settings.diagnostics.remoteLogging" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Send diagnostic logs"
+          }
+        }
+      }
+    },
+    "settings.diagnostics.replay.keywords" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "session replay, screen recording, redaction"
+          }
+        }
+      }
+    },
+    "settings.diagnostics.retry" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Retry"
+          }
+        }
+      }
+    },
+    "settings.diagnostics.sessionReplay" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Share session replays"
+          }
+        }
+      }
+    },
+    "settings.diagnostics.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Privacy & Diagnostics"
+          }
+        }
+      }
+    },
     "settings.eraseYear.title" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -7944,6 +8241,17 @@
         }
       }
     },
+    "settings.privacy.crashReports" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Crash reports and required technical app and device context are being shared with Where's developer."
+          }
+        }
+      }
+    },
     "settings.privacy.detail" : {
       "comment" : "Detail in the privacy passport card shown at the top of Data and About settings.",
       "extractionState" : "manual",
@@ -7952,6 +8260,116 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Your location history stays on your devices and in your private iCloud account. Where sends no data to anyone."
+          }
+        }
+      }
+    },
+    "settings.privacy.fullMetadata" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Full log metadata is active and may contain personal data."
+          }
+        }
+      }
+    },
+    "settings.privacy.location" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Your location history stays on your devices and in your private iCloud account."
+          }
+        }
+      }
+    },
+    "settings.privacy.logs.debug" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Diagnostic logs at all levels are being shared."
+          }
+        }
+      }
+    },
+    "settings.privacy.logs.error" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Diagnostic logs at error and fault levels are being shared."
+          }
+        }
+      }
+    },
+    "settings.privacy.logs.fault" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Only fault-level diagnostic logs are being shared."
+          }
+        }
+      }
+    },
+    "settings.privacy.logs.info" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Diagnostic logs at info level and above are being shared."
+          }
+        }
+      }
+    },
+    "settings.privacy.logs.notice" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Diagnostic logs at notice level and above are being shared."
+          }
+        }
+      }
+    },
+    "settings.privacy.logs.warning" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Diagnostic logs at warning level and above are being shared."
+          }
+        }
+      }
+    },
+    "settings.privacy.noDiagnostics" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "No crash reports, screen replays, or diagnostic logs are being shared."
+          }
+        }
+      }
+    },
+    "settings.privacy.sessionReplay" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Screen replays are being shared with text and images redacted."
           }
         }
       }

@@ -101,6 +101,7 @@
                 InsightsAccuracyFeaturesView.flyoverData,
                 PersonalizationFeaturesView.flyoverData,
                 DataSettingsView.flyoverData,
+                PrivacyDiagnosticsSettingsView.flyoverData,
                 AboutSettingsView.flyoverData,
                 LicenseView.flyoverData,
             ]
