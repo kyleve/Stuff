@@ -32,6 +32,12 @@
       "outputContains": "Invariant RepeatedResumeNotReached is violated."
     },
     {
+      "name": "interrupted-first-reveal-reachability",
+      "config": "ReachInterruptedFirstReveal.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant InterruptedFirstRevealNotReached is violated."
+    },
+    {
       "name": "current",
       "config": "Current.cfg",
       "expect": "pass"
