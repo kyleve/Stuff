@@ -8,112 +8,84 @@ ASSUME Implementation \in {"current", "broken"}
 Reasons == {"undetermined", "userForeground"}
 Phases == {"notStarted", "driving", "ready"}
 
-VARIABLES
-    reason,
-    phase,
-    driveActive,
-    memoSyncAuth,
-    memoReconcile,
-    captureTodayDone,
-    syncAuthRuns,
-    reconcileRuns
+(* --algorithm LaunchLifecycleAlgorithm {
+variables reason = "undetermined",
+          phase = "notStarted",
+          driveActive = FALSE,
+          memoSyncAuth = FALSE,
+          memoReconcile = FALSE,
+          captureTodayDone = FALSE,
+          syncAuthRuns = 0,
+          reconcileRuns = 0;
 
-vars == <<reason, phase, driveActive, memoSyncAuth, memoReconcile,
-          captureTodayDone, syncAuthRuns, reconcileRuns>>
+fair process (StartDrive = "StartDrive") {
+StartDriveStep:
+    while (TRUE) {
+        await phase = "notStarted";
+        phase := "driving" ||
+        driveActive := TRUE;
+    }
+}
 
-Init ==
-    /\ reason = "undetermined"
-    /\ phase = "notStarted"
-    /\ driveActive = FALSE
-    /\ memoSyncAuth = FALSE
-    /\ memoReconcile = FALSE
-    /\ captureTodayDone = FALSE
-    /\ syncAuthRuns = 0
-    /\ reconcileRuns = 0
+fair process (RunSyncAuth = "RunSyncAuth") {
+RunSyncAuthStep:
+    while (TRUE) {
+        await phase = "driving" /\ driveActive /\
+              (IF Implementation = "current" THEN memoSyncAuth = FALSE ELSE TRUE);
+        memoSyncAuth := TRUE ||
+        syncAuthRuns := syncAuthRuns + 1;
+    }
+}
 
-StartDrive ==
-    /\ phase = "notStarted"
-    /\ phase' = "driving"
-    /\ driveActive' = TRUE
-    /\ UNCHANGED <<reason, memoSyncAuth, memoReconcile, captureTodayDone,
-                   syncAuthRuns, reconcileRuns>>
+fair process (RunReconcileTracking = "RunReconcileTracking") {
+RunReconcileTrackingStep:
+    while (TRUE) {
+        await phase = "driving" /\ driveActive /\
+              (IF Implementation = "current" THEN memoReconcile = FALSE ELSE TRUE);
+        memoReconcile := TRUE ||
+        reconcileRuns := reconcileRuns + 1;
+    }
+}
 
-RunSyncAuth ==
-    /\ phase = "driving"
-    /\ driveActive
-    /\ IF Implementation = "current"
-          THEN memoSyncAuth = FALSE
-          ELSE TRUE
-    /\ memoSyncAuth' = TRUE
-    /\ syncAuthRuns' = syncAuthRuns + 1
-    /\ UNCHANGED <<reason, phase, driveActive, memoReconcile, captureTodayDone,
-                   reconcileRuns>>
+fair process (RunCaptureToday = "RunCaptureToday") {
+RunCaptureTodayStep:
+    while (TRUE) {
+        await phase = "driving" /\ driveActive /\
+              reason = "userForeground" /\ ~captureTodayDone;
+        captureTodayDone := TRUE;
+    }
+}
 
-RunReconcileTracking ==
-    /\ phase = "driving"
-    /\ driveActive
-    /\ IF Implementation = "current"
-          THEN memoReconcile = FALSE
-          ELSE TRUE
-    /\ memoReconcile' = TRUE
-    /\ reconcileRuns' = reconcileRuns + 1
-    /\ UNCHANGED <<reason, phase, driveActive, memoSyncAuth, captureTodayDone,
-                   syncAuthRuns>>
+fair process (EnterForeground = "EnterForeground") {
+EnterForegroundStep:
+    while (TRUE) {
+        await reason = "undetermined" /\ phase \in {"driving", "ready"};
+        reason := "userForeground" ||
+        phase := "driving" ||
+        driveActive := TRUE ||
+        memoSyncAuth := IF Implementation = "broken" THEN FALSE ELSE memoSyncAuth ||
+        memoReconcile := IF Implementation = "broken" THEN FALSE ELSE memoReconcile;
+    }
+}
 
-RunCaptureToday ==
-    /\ phase = "driving"
-    /\ driveActive
-    /\ reason = "userForeground"
-    /\ ~captureTodayDone
-    /\ captureTodayDone' = TRUE
-    /\ UNCHANGED <<reason, phase, driveActive, memoSyncAuth, memoReconcile,
-                   syncAuthRuns, reconcileRuns>>
+fair process (ReachReady = "ReachReady") {
+ReachReadyStep:
+    while (TRUE) {
+        await phase = "driving" /\ driveActive /\ memoSyncAuth /\ memoReconcile /\
+              (reason = "undetermined" \/ captureTodayDone);
+        phase := "ready" ||
+        driveActive := FALSE;
+    }
+}
 
-EnterForeground ==
-    /\ reason = "undetermined"
-    /\ phase \in {"driving", "ready"}
-    /\ reason' = "userForeground"
-    /\ phase' = "driving"
-    /\ driveActive' = TRUE
-    /\ IF Implementation = "broken"
-          THEN /\ memoSyncAuth' = FALSE
-               /\ memoReconcile' = FALSE
-          ELSE UNCHANGED <<memoSyncAuth, memoReconcile>>
-    /\ UNCHANGED <<captureTodayDone, syncAuthRuns, reconcileRuns>>
-
-ReachReady ==
-    /\ phase = "driving"
-    /\ driveActive
-    /\ memoSyncAuth
-    /\ memoReconcile
-    /\ (reason = "undetermined" \/ captureTodayDone)
-    /\ phase' = "ready"
-    /\ driveActive' = FALSE
-    /\ UNCHANGED <<reason, memoSyncAuth, memoReconcile, captureTodayDone,
-                   syncAuthRuns, reconcileRuns>>
-
-Stutter ==
-    phase = "ready"
-    /\ UNCHANGED vars
-
-Next ==
-    \/ StartDrive
-    \/ RunSyncAuth
-    \/ RunReconcileTracking
-    \/ RunCaptureToday
-    \/ EnterForeground
-    \/ ReachReady
-    \/ Stutter
-
-Fairness ==
-    /\ WF_vars(StartDrive)
-    /\ WF_vars(RunSyncAuth)
-    /\ WF_vars(RunReconcileTracking)
-    /\ WF_vars(RunCaptureToday)
-    /\ WF_vars(EnterForeground)
-    /\ WF_vars(ReachReady)
-
-Spec == Init /\ [][Next]_vars /\ Fairness
+process (Stutter = "Stutter") {
+StutterStep:
+    while (TRUE) {
+        await phase = "ready";
+        skip;
+    }
+}
+} *)
 
 TypeOK ==
     /\ reason \in Reasons
