@@ -12,7 +12,7 @@ struct WherePreferencesTests {
 
         #expect(preferences.hasOnboarded == false)
         #expect(preferences.showsRecordedLocationDots)
-        #expect(preferences.showsLocationForecastsOnLocationsTab)
+        #expect(preferences.showsEstimatedTimeAndPlanning)
         #expect(preferences.remindersEnabled)
         #expect(preferences.reminderTime == .defaultEvening)
         #expect(preferences.summaryEnabled)
@@ -38,6 +38,17 @@ struct WherePreferencesTests {
         #expect(preferences.lastSeenLocationDayCounts(in: 2026) == counts2026)
     }
 
+    @Test func estimatedTimeUsesTheLegacyLocationsVisibilityKey() {
+        let store = InMemoryKeyValueStore()
+        store.set(false, forKey: "where.showsLocationForecastsOnLocationsTab")
+        let preferences = WherePreferences(store: store)
+
+        #expect(preferences.showsEstimatedTimeAndPlanning == false)
+
+        preferences.showsEstimatedTimeAndPlanning = true
+        #expect(store.bool(forKey: "where.showsLocationForecastsOnLocationsTab"))
+    }
+
     @Test func recordingWarningRegistrationRoundTrips() {
         let preferences = preferences()
         var registration = RecordingConfigurationWarningRegistration()
@@ -53,7 +64,7 @@ struct WherePreferencesTests {
         let preferences = preferences()
         preferences.hasOnboarded = true
         preferences.showsRecordedLocationDots = false
-        preferences.showsLocationForecastsOnLocationsTab = false
+        preferences.showsEstimatedTimeAndPlanning = false
         preferences.remindersEnabled = false
         preferences.reminderTime = ReminderTime(hour: 9, minute: 15)
         preferences.summaryEnabled = false
@@ -70,7 +81,7 @@ struct WherePreferencesTests {
 
         #expect(preferences.hasOnboarded == false)
         #expect(preferences.showsRecordedLocationDots)
-        #expect(preferences.showsLocationForecastsOnLocationsTab)
+        #expect(preferences.showsEstimatedTimeAndPlanning)
         #expect(preferences.remindersEnabled)
         #expect(preferences.reminderTime == .defaultEvening)
         #expect(preferences.summaryEnabled)

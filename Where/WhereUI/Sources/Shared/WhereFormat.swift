@@ -84,6 +84,10 @@ enum WhereFormat {
         ))
     }
 
+    static func locationCardEstimatedDays(_ days: Int) -> String {
+        String(localized: .locationCardEstimatedDays(dayCount(days)))
+    }
+
     static func settingsBackupImportedMessage(
         samples: Int,
         evidence: Int,
@@ -218,6 +222,18 @@ enum WhereFormat {
 
     static func regionDaysAccessibility(region: String, days: Int) -> String {
         String(localized: .commonRegionDaysAccessibility(region, dayCount(days)))
+    }
+
+    static func regionDaysEstimatedAccessibility(
+        region: String,
+        recordedDays: Int,
+        estimatedDays: Int,
+    ) -> String {
+        String(localized: .commonRegionDaysEstimatedAccessibility(
+            region,
+            dayCount(recordedDays),
+            dayCount(estimatedDays),
+        ))
     }
 
     static func calendarMonthAccessibility(

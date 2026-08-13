@@ -10,12 +10,22 @@ struct AppearanceSettingsView: View {
     var focus: SettingsFocus?
 
     @State private var showAppIcon = false
+    @State private var estimatedTimeSettings: EstimatedTimeAndPlanningSettingsModel
     #if DEBUG
         @Environment(\.cardDesignerModel) private var cardDesignerModel
     #endif
 
+    init(report: YearReportModel, focus: SettingsFocus? = nil) {
+        self.report = report
+        self.focus = focus
+        _estimatedTimeSettings = State(initialValue: EstimatedTimeAndPlanningSettingsModel(
+            report: report,
+        ))
+    }
+
     var body: some View {
         @Bindable var report = report
+        @Bindable var estimatedTimeSettings = estimatedTimeSettings
         SettingsFocusScope(focus: focus) {
             Form {
                 Section {
@@ -31,12 +41,19 @@ struct AppearanceSettingsView: View {
                 }
 
                 Section {
-                    Toggle(isOn: $report.showsLocationForecastsOnLocationsTab) {
-                        Label(
-                            String(localized: .settingsAppearanceLocationForecastsToggle),
-                            systemSymbol: .chartLineUptrendXyaxis,
-                        )
+                    Toggle(isOn: $estimatedTimeSettings.isEnabled) {
+                        HStack {
+                            Label(
+                                String(localized: .settingsAppearanceLocationForecastsToggle),
+                                systemSymbol: .chartLineUptrendXyaxis,
+                            )
+                            if estimatedTimeSettings.isUpdating {
+                                ProgressView()
+                                    .controlSize(.small)
+                            }
+                        }
                     }
+                    .disabled(estimatedTimeSettings.isUpdating)
                     .settingsRow(Item.locationForecasts)
                 } footer: {
                     Text(String(localized: .settingsAppearanceLocationForecastsFooter))
@@ -81,6 +98,15 @@ struct AppearanceSettingsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showAppIcon) {
             AppIconView()
+        }
+        .alert(
+            String(localized: .settingsAppearanceLocationForecastsDisableErrorTitle),
+            isPresented: $estimatedTimeSettings.isShowingError,
+            presenting: estimatedTimeSettings.presentedFailure,
+        ) { _ in
+            Button(String(localized: .commonOk), role: .cancel) {}
+        } message: { message in
+            Text(message)
         }
     }
 }

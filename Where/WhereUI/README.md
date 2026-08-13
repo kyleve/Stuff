@@ -30,7 +30,10 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   widget family on miniature Home Screen and Lock Screen surfaces. A Share &
   Evidence walkthrough also reveals the system Share-sheet extension and links
   into the saved attachment archive. Insights & Accuracy introduces the
-  automatic issue detectors without running them merely to render the gallery.
+  automatic issue detectors without running them merely to render the gallery,
+  while Estimated Time & Planning explains the live annual projection with a
+  worked pace-and-plan calculation, planned stays, and why overlapping travel
+  days do not sum neatly to one year.
   These galleries use a shared marketing header, quiet patterned backdrop, and
   staged entrance that resolves immediately for Reduce Motion and snapshot
   capture. Once the selected report has 14 recorded days, the Siri, Spotlight,
@@ -297,9 +300,10 @@ stroke; its containing Liquid Glass surface owns the subtle outer border so
 direct and production rendering do not diverge.
 
 After at least three months of the current year, Locations can reveal a collapsible annual estimate
-from the recorded pace; Settings > Appearance can disable it entirely. A focused region calendar
-places the estimate after the current month and renders “I’ll be here through…” future days with a
-continuous hatched band, distinct from recorded presence.
+from the recorded pace and plan a stay through one of its displayed regions. A focused region
+calendar places the estimate after the current month and renders planned future days with a
+continuous hatched band, distinct from recorded presence. Settings > Appearance disables every
+estimate and planning visualization only after clearing the synced plan succeeds.
 
 DEBUG builds include Card Designer Studio under Settings → Appearance. It
 edits a versioned, persisted draft of the regular, compact, and shared card

@@ -59,6 +59,17 @@ struct WhereFormatTests {
         )
     }
 
+    @Test func locationCardEstimateCopyComposesLocalizedDayCounts() {
+        #expect(WhereFormat.locationCardEstimatedDays(184) == "Estimated · 184 days")
+        #expect(
+            WhereFormat.regionDaysEstimatedAccessibility(
+                region: "California",
+                recordedDays: 148,
+                estimatedDays: 184,
+            ) == "California: 148 days recorded, estimated 184 days",
+        )
+    }
+
     /// The one string that agrees grammatically via automatic inflection
     /// (`^[%lld region](inflect: true)`) rather than an explicit plural
     /// variation, so both forms are worth pinning.
