@@ -317,7 +317,7 @@ struct RegionSummaryCard: View {
                             .background(alignment: .leading) {
                                 if let estimatedFraction {
                                     Capsule()
-                                        .fill(style.tint.opacity(
+                                        .fill(securityPrintTint.opacity(
                                             cardStyles.estimatedProgressOpacity,
                                         ))
                                         .frame(width: proxy.size.width * estimatedFraction)
