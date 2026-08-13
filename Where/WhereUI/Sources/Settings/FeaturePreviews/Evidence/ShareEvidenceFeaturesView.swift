@@ -116,7 +116,7 @@ struct ShareEvidenceFeaturesView: View {
         }
     }
 
-    private enum Route: Hashable {
+    enum Route: Hashable {
         case archive
     }
 }

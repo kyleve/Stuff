@@ -83,6 +83,15 @@ Layering, localization, preview, and testing conventions live in the feature
   ([`Sources/Shared/MotionIsStatic.swift`](Sources/Shared/MotionIsStatic.swift))
   for its static end-state — never hand-roll the
   `\.accessibilityReduceMotion` + `\.isCapturingSnapshot` pair.
+- Pass large `Form`/`List` subtrees through a nominal child before
+  `SettingsFocusScope`; `SettingsRouteViewTests` exercises every push
+  destination and its nested heterogeneous routes against the DEBUG-only
+  value-size tripwire.
+- Keep the Settings content-footprint tripwire DEBUG-only; Release has no
+  footprint precondition.
+- Diagnostic: `EXC_BAD_ACCESS` / `___chkstk_darwin` followed by
+  `View.environment<T>` during a navigation push means inspect concrete content
+  stored by generic wrappers.
 - A step joins `WhereLaunch`'s plan through `.measured()` and so must declare a
   `budget` (`BudgetedLaunchStep`) — see [Spans](../AGENTS.md#spans). WhereUI also
   owns log retention: `LogHistoryPruner` bounds the store by age *and* event
