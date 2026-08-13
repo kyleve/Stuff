@@ -60,7 +60,7 @@ struct SwiftDataStoreTests {
         #expect(await firstPing(stream, within: .seconds(2)))
     }
 
-    /// Guards TLC property `AtMostOneOutermost` in
+    /// Guards formal property `AtMostOneOutermost` (TLC and Lean) in
     /// `Where/Specifications/StorePerformSerialization`. Two outermost
     /// `perform` calls on different tasks must be serialized. Because
     /// `perform`'s block is `async` and the store is an `actor`, naive

@@ -1,0 +1,7 @@
+interface:
+  display_name: "Verify Protocol with Lean"
+  short_description: "Prove protocol properties with Lean 4"
+  default_prompt: "Use $lean-verify-protocol to prove this coordination protocol and map the model back to its implementation."
+
+policy:
+  allow_implicit_invocation: false

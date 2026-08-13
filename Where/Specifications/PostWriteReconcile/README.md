@@ -1,5 +1,10 @@
 # Post-write reconcile
 
+The side-by-side Lean prototype in `WhereSpecifications/PostWriteReconcile/Model.lean`
+kernel-proves the current safety properties over every reachable state and
+checks the broken trace. Run it with `./lean-check PostWriteReconcile`; TLC
+remains checked in while repository-wide fairness/deadlock parity is open.
+
 Models the intended contract in [`DayJournal.reconcileAfterDayDataChange()`](../../WhereCore/Sources/Journal/DayJournal.swift):
 commit, then full fan-out (invalidate → reminders → issue alerts → widgets), then
 `changes()` readers observe applied side effects.

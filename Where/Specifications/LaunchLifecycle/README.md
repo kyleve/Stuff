@@ -1,5 +1,10 @@
 # Launch lifecycle (narrow slice)
 
+The side-by-side Lean prototype in `WhereSpecifications/LaunchLifecycle/Model.lean`
+kernel-proves the current safety properties over every reachable state and
+checks the broken trace. Run it with `./lean-check LaunchLifecycle`; TLC remains
+checked in while repository-wide fairness/deadlock parity is open.
+
 Models the undetermined → foreground promotion path in
 [`LifecycleRunner`](../../../Shared/LifecycleKit/Sources/LifecycleRunner.swift)
 and [`RootView`](../../WhereUI/Sources/RootView.swift): a headless drive runs

@@ -1,5 +1,13 @@
 # Remote device removal
 
+The side-by-side Lean prototype in
+`WhereSpecifications/RemoteDeviceRemoval/Model.lean` kernel-proves the five
+current safety properties and checks all five finite cases with
+`./lean-check RemoteDeviceRemoval`. It does not yet prove
+`DeliveredRemovalEventuallyStops`, `DeliveredRemovalEventuallyRetires`, or
+deadlock freedom, so the TLA+/TLC model remains authoritative for those
+obligations.
+
 This model checks one privacy-sensitive question: after one installation permanently removes
 another, do independently synced advisory rows remain unable to reactivate the removed identity,
 does the target eventually stop once it receives the tombstone, does every user-facing history

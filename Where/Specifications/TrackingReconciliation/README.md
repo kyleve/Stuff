@@ -1,4 +1,11 @@
-# Tracking reconciliation TLA+ pilot
+# Tracking reconciliation formal specification
+
+The side-by-side Lean prototype in
+`WhereSpecifications/TrackingReconciliation/Model.lean` kernel-proves
+`CurrentIntentIsImmediate` and `CorrectAtQuiescence`, and checks all six finite
+cases with `./lean-check TrackingReconciliation`. It does not yet prove
+`EventuallySettled` from the same weak-fairness assumptions or prove deadlock
+freedom, so the TLA+/TLC model remains authoritative for those obligations.
 
 This model checks one narrow question about automatic-recording commands: after a finite sequence
 of local enable/disable choices and all asynchronous work settles, do the installation sidecar,

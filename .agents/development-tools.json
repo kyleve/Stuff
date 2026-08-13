@@ -1,4 +1,14 @@
 {
+  "Elan": {
+    "repo": "leanprover/elan",
+    "ref": "b6cec7e10fe4965a605aaf60d1cb4a5837f0462b",
+    "version": "4.2.3"
+  },
+  "Lean": {
+    "repo": "leanprover/lean4",
+    "ref": "d8b18978322de05a8f3dba51ef03cf5461676c17",
+    "version": "4.33.0"
+  },
   "TLA+ Tools": {
     "repo": "tlaplus/tlaplus",
     "ref": "5a47802b5c391f59ecdd44117981f4ff8c0656ba",

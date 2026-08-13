@@ -99,6 +99,7 @@ adding a dependency can't quietly land under the wrong kind.
 omitted, the pinned ref's short prefix is used (as for agent skills). Keep each
 entry's `ref` aligned with the revision the repository actually uses — for
 example, bump `.agents/development-tools.json` when `./tla-check`'s pinned TLC
+or `./lean-check`'s pinned Lean/Elan
 version changes.
 
 The tool needs network and an authenticated `gh`. It is idempotent: re-running

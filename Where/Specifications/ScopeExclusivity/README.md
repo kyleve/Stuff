@@ -1,5 +1,10 @@
 # Scope exclusivity
 
+The side-by-side Lean prototype in `WhereSpecifications/ScopeExclusivity/Model.lean`
+kernel-proves the current safety properties over every reachable state and
+checks the broken trace. Run it with `./lean-check ScopeExclusivity`; TLC
+remains checked in while repository-wide fairness/deadlock parity is open.
+
 Models at-most-one active [`WhereScope`](../../WhereUI/Sources/Model/WhereScope.swift)
 and at-most-one live real [`SwiftDataStore`](../../WhereCore/Sources/Store/SwiftDataStore.swift)
 container over the user's store file. Complements

@@ -270,9 +270,12 @@ surfaces survive at near-Release speed. Options: `./Where/install --help`.
 Root [testing conventions](../AGENTS.md#testing) apply. What's specific here:
 
 - **Formal protocol specs** live under [`Specifications/`](Specifications/); run
-  them locally with [`./tla-check`](../tla-check) (opt-in, not CI). Each folder
-  holds a `.tla` model, TLC configs, a `manifest.json`, and a README tying the
-  model to production code and cited Swift tests.
+  the Lean prototype with [`./lean-check`](../lean-check) and the authoritative
+  TLC liveness/deadlock checks with [`./tla-check`](../tla-check) (both opt-in,
+  not CI). Lean safety claims are kernel-checked theorems; its breadth-first
+  search is diagnostic only. Keep TLA until the three documented weak-fairness
+  theorems and deadlock proofs reach parity; see
+  [`Specifications/README.md`](Specifications/README.md).
 - Test bundles run in `StuffTestHost` via the `unitTests` helper in
   `Project.swift` and link `TestHostSupport` (`show(_:perform:)`, `waitFor`).
 - Use `ScriptedLocationSource` and `SwiftDataStore.inMemory()` — never
