@@ -9,89 +9,102 @@ struct EstimatedTimeFeaturesView: View {
     let report: YearReportModel
     let focus: SettingsFocus?
 
-    @Environment(\.stylesheet) private var stylesheet
-
     var body: some View {
         StaggeredRevealScope {
             SettingsFocusScope(focus: focus) {
-                Form {
-                    FeatureMarketingHeader(
-                        title: String(localized: .settingsExploreEstimatedTimeTitle),
-                        tagline: String(localized: .settingsExploreEstimatedTimeTagline),
-                        systemSymbol: SettingsDestination.estimatedTime.systemSymbol,
-                        tint: SettingsDestination.estimatedTime.iconColor,
-                    )
-                    .listRowInsets(.init())
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-                    .staggeredReveal(order: 0)
-
-                    Section {
-                        preview
-                            .featureMarketingRow(order: 1)
-                            .settingsRow(Item.overview, restingBackground: .clear)
-                    }
-
-                    Section {
-                        explanation(
-                            title: String(localized: .settingsExploreEstimatedTimePaceTitle),
-                            body: String(localized: .settingsExploreEstimatedTimePaceDescription),
-                            systemSymbol: .chartLineUptrendXyaxis,
-                        )
-                        .featureMarketingRow(order: 2)
-                        .settingsRow(Item.pace, restingBackground: .clear)
-
-                        explanation(
-                            title: String(localized: .settingsExploreEstimatedTimePlanTitle),
-                            body: String(localized: .settingsExploreEstimatedTimePlanDescription),
-                            systemSymbol: .calendarBadgeClock,
-                        )
-                        .featureMarketingRow(order: 3)
-                        .settingsRow(Item.planning, restingBackground: .clear)
-                    }
-
-                    Section {
-                        FeatureEstimatedTimeCalculationExample()
-                            .featureMarketingRow(order: 4)
-                            .settingsRow(Item.calculation, restingBackground: .clear)
-                    }
-
-                    Section {
-                        explanation(
-                            title: String(localized: .settingsExploreEstimatedTimeTotalsTitle),
-                            body: String(localized: .settingsExploreEstimatedTimeTotalsDescription),
-                            systemSymbol: .airplane,
-                        )
-                        .featureMarketingRow(order: 5)
-                        .settingsRow(Item.totals, restingBackground: .clear)
-                    }
-
-                    Section {
-                        FeatureMarketingPanel {
-                            NavigationLink(value: SettingsRoute(.appearance)) {
-                                Label {
-                                    Text(String(localized: .settingsExploreEstimatedTimeManage))
-                                        .foregroundStyle(.primary)
-                                } icon: {
-                                    Image(systemSymbol: .paintbrushFill)
-                                        .foregroundStyle(SettingsDestination.estimatedTime
-                                            .iconColor)
-                                }
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                        .featureMarketingRow(order: 6)
-                    } footer: {
-                        FeatureDiscoveryDataFooter()
-                            .staggeredReveal(order: 7)
-                    }
-                }
-                .scrollContentBackground(.hidden)
-                .background(FeatureDiscoveryBackground())
+                EstimatedTimeFeaturesContent(report: report)
             }
         }
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+/// Keeps the large concrete `Form` type behind a small nominal view so the
+/// focus scope does not copy the form's full value onto the stack while a
+/// navigation push is preparing its destination.
+private struct EstimatedTimeFeaturesContent: View {
+    let report: YearReportModel
+
+    @Environment(\.stylesheet) private var stylesheet
+
+    var body: some View {
+        Form {
+            FeatureMarketingHeader(
+                title: String(localized: .settingsExploreEstimatedTimeTitle),
+                tagline: String(localized: .settingsExploreEstimatedTimeTagline),
+                systemSymbol: SettingsDestination.estimatedTime.systemSymbol,
+                tint: SettingsDestination.estimatedTime.iconColor,
+            )
+            .listRowInsets(.init())
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
+            .staggeredReveal(order: 0)
+
+            Section {
+                preview
+                    .featureMarketingRow(order: 1)
+                    .settingsRow(EstimatedTimeFeaturesView.Item.overview, restingBackground: .clear)
+            }
+
+            Section {
+                explanation(
+                    title: String(localized: .settingsExploreEstimatedTimePaceTitle),
+                    body: String(localized: .settingsExploreEstimatedTimePaceDescription),
+                    systemSymbol: .chartLineUptrendXyaxis,
+                )
+                .featureMarketingRow(order: 2)
+                .settingsRow(EstimatedTimeFeaturesView.Item.pace, restingBackground: .clear)
+
+                explanation(
+                    title: String(localized: .settingsExploreEstimatedTimePlanTitle),
+                    body: String(localized: .settingsExploreEstimatedTimePlanDescription),
+                    systemSymbol: .calendarBadgeClock,
+                )
+                .featureMarketingRow(order: 3)
+                .settingsRow(EstimatedTimeFeaturesView.Item.planning, restingBackground: .clear)
+            }
+
+            Section {
+                FeatureEstimatedTimeCalculationExample()
+                    .featureMarketingRow(order: 4)
+                    .settingsRow(
+                        EstimatedTimeFeaturesView.Item.calculation,
+                        restingBackground: .clear,
+                    )
+            }
+
+            Section {
+                explanation(
+                    title: String(localized: .settingsExploreEstimatedTimeTotalsTitle),
+                    body: String(localized: .settingsExploreEstimatedTimeTotalsDescription),
+                    systemSymbol: .airplane,
+                )
+                .featureMarketingRow(order: 5)
+                .settingsRow(EstimatedTimeFeaturesView.Item.totals, restingBackground: .clear)
+            }
+
+            Section {
+                FeatureMarketingPanel {
+                    NavigationLink(value: SettingsRoute(.appearance)) {
+                        Label {
+                            Text(String(localized: .settingsExploreEstimatedTimeManage))
+                                .foregroundStyle(.primary)
+                        } icon: {
+                            Image(systemSymbol: .paintbrushFill)
+                                .foregroundStyle(SettingsDestination.estimatedTime.iconColor)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .featureMarketingRow(order: 6)
+            } footer: {
+                FeatureDiscoveryDataFooter()
+                    .staggeredReveal(order: 7)
+            }
+        }
+        .scrollContentBackground(.hidden)
+        .background(FeatureDiscoveryBackground())
     }
 
     @ViewBuilder
