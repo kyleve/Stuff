@@ -17,6 +17,7 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
     let model: WhereModel
 
     let intentServices = IntentServices()
+    private let widgetPresentationPublisher = WidgetPresentationPublisher()
     private(set) var launcher: LifecycleRunner<WhereSession>!
 
     #if DEBUG
@@ -102,9 +103,18 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
 
         WhereLaunch.startAmbientLogging(on: .shared)
         model.onLoggedOut = { [intentServices] in await intentServices.clear() }
+        model.onThemeChanged = { [intentServices, widgetPresentationPublisher] theme in
+            await widgetPresentationPublisher.publish(theme)
+            guard !Task.isCancelled else { return }
+            await intentServices.updateTheme(theme)
+        }
+        model.synchronizeTheme()
         let launcher = WhereLaunch
-            .makeLauncher(model: model, reason: .undetermined) { [intentServices] in
-                await intentServices.install(.forIntents(sharingStoreOf: $0))
+            .makeLauncher(model: model, reason: .undetermined) { [intentServices, model] in
+                await intentServices.install(
+                    .forIntents(sharingStoreOf: $0),
+                    theme: model.theme,
+                )
             }
         self.launcher = launcher
         Task { [launcher, model, intentServices] in

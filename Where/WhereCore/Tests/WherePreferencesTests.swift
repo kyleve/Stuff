@@ -12,6 +12,7 @@ struct WherePreferencesTests {
 
         #expect(preferences.hasOnboarded == false)
         #expect(preferences.showsRecordedLocationDots)
+        #expect(preferences.theme == .standard)
         #expect(preferences.showsEstimatedTimeAndPlanning)
         #expect(preferences.remindersEnabled)
         #expect(preferences.reminderTime == .defaultEvening)
@@ -87,6 +88,17 @@ struct WherePreferencesTests {
         verify(key: "where.diagnostics.sharesSessionReplays", value: "yes")
     }
 
+    @Test func themeRoundTripsAndUnknownValuesFallBackToStandard() {
+        let store = InMemoryKeyValueStore()
+        let preferences = WherePreferences(store: store)
+
+        preferences.theme = .alternate
+        #expect(preferences.theme == .alternate)
+
+        store.set("future-theme", forKey: "where.theme")
+        #expect(preferences.theme == .standard)
+    }
+
     @Test func locationDayCountsRoundTripIndependentlyByYear() {
         let preferences = preferences()
         let counts2025: [Region: Int] = [.california: 42, .other: 3]
@@ -125,6 +137,7 @@ struct WherePreferencesTests {
         let preferences = preferences()
         preferences.hasOnboarded = true
         preferences.showsRecordedLocationDots = false
+        preferences.theme = .alternate
         preferences.showsEstimatedTimeAndPlanning = false
         preferences.remindersEnabled = false
         preferences.reminderTime = ReminderTime(hour: 9, minute: 15)
@@ -150,6 +163,7 @@ struct WherePreferencesTests {
 
         #expect(preferences.hasOnboarded == false)
         #expect(preferences.showsRecordedLocationDots)
+        #expect(preferences.theme == .standard)
         #expect(preferences.showsEstimatedTimeAndPlanning)
         #expect(preferences.remindersEnabled)
         #expect(preferences.reminderTime == .defaultEvening)

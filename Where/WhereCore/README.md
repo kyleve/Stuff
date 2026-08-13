@@ -145,7 +145,9 @@ one it belongs to rather than to a god-object:
   badge), `DailySummaryReconciler` (year-to-date recap),
   `DataIssueAlertReconciler` ("issues to resolve").
 - **`WidgetSnapshotPublisher`** — republishes the App Group snapshot the widgets
-  read, with a freshness policy.
+  read, with a freshness policy for the independently aggregated data.
+- **`WidgetPresentationPublisher`** — atomically writes the device-local `WhereTheme`
+  to its own App Group file and reloads WidgetKit without reading or rebuilding widget data.
 - **`BackupCoordinator`** — ZIP export/import via `ZIPFoundation`. Export pins
   tables, planned-stay revisions, and evidence blobs to one generation-consistent snapshot. Merge preserves queued locations
   and the installation-local recording choice. Replace writes the archive into a new child generation,
@@ -165,7 +167,8 @@ one it belongs to rather than to a god-object:
   `InstallationRecordingContextStoring` keeps the persistence adapter outside
   the domain value.
 - **`WherePreferences`** — persisted user intent (onboarding,
-  reminder / summary schedules, Locations-card GPS-dot and estimated-time/planning visibility) plus the
+  reminder / summary schedules, presentation theme, and Locations-card GPS-dot and
+  estimated-time/planning visibility) plus the
   year-keyed Location-card counts and Codable recording-warning generation used for presentation
   continuity, behind a `KeyValueStore`. It also owns the vendor-neutral
   `DiagnosticReportingConfiguration`: crash reports default On, replay Off,

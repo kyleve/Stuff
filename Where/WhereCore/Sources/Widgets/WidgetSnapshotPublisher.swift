@@ -58,8 +58,8 @@ public actor WidgetSnapshotPublisher {
     /// Recompute and publish the snapshot from whatever the store currently
     /// holds, without needing a mutation first, but skip the rebuild when a
     /// current-day snapshot was published recently. A new day, a snapshot older
-    /// than `maxAge`, or nothing published yet (cold launch) all fall through to
-    /// a full rebuild.
+    /// than `maxAge`, or nothing published yet (cold launch) all fall through
+    /// to a full rebuild.
     public func refreshIfStale() async {
         if let last = lastPublished {
             let today = calendar.startOfDay(for: now())

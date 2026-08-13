@@ -26,7 +26,6 @@ public struct WidgetSnapshot: Hashable, Sendable, Codable {
     /// hasn't customized (and for snapshots written before this field existed) —
     /// those fall back to the default look.
     public let appearances: [Region: RegionAppearance]
-
     public init(
         day: Date,
         year: Int,

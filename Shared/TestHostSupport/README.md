@@ -24,10 +24,10 @@ import Testing
 import TestHostSupport
 
 @MainActor
-@Test func rendersContent() throws {
+@Test func rendersContent() async throws {
     let vc = MyViewController()
-    try show(vc) { vc in
-        try waitFor { vc.isFullyLoaded }
+    try await show(vc) { vc in
+        await vc.loadContent()
         #expect(vc.titleLabel.text == "Hello")
     }
 }
@@ -38,7 +38,8 @@ import TestHostSupport
 - `show(_:loadAndPlaceView:timeout:perform:)` — hosts a `UIViewController` in the
   test host's main window for the duration of `perform`, driving the real UIKit
   appearance lifecycle (`addChild` → attach → `didMove(toParent:)`, reversed on
-  teardown) and restoring `layer.speed` even if the body throws.
+  teardown) and restoring `layer.speed` even if the body throws. Synchronous and
+  async-body overloads keep the view hosted while their body runs.
 - `hostKeyWindow()` — the host's designated window (see below), or `nil` before
   the scene connects.
 - `waitFor(timeout:predicate:)` — pump the run loop until a predicate holds.

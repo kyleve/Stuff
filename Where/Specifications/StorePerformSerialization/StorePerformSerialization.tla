@@ -7,104 +7,95 @@ ASSUME Implementation \in {"current", "broken"}
 
 TaskPhases == {"idle", "waiting", "inPerform", "committed"}
 
-VARIABLES
-    isTransacting,
-    waiterCount,
-    taskAPhase,
-    taskBPhase,
-    nestedDepth,
-    aCommitted,
-    bCommitted
+(* --algorithm StorePerformSerializationAlgorithm {
+variables isTransacting = FALSE,
+          waiterCount = 0,
+          taskAPhase = "idle",
+          taskBPhase = "idle",
+          nestedDepth = 0,
+          aCommitted = FALSE,
+          bCommitted = FALSE;
 
-vars == <<isTransacting, waiterCount, taskAPhase, taskBPhase, nestedDepth,
-          aCommitted, bCommitted>>
+fair process (BeginOuterA = "BeginOuterA") {
+BeginOuterAStep:
+    while (TRUE) {
+        await taskAPhase = "idle";
+        if (isTransacting) {
+            taskAPhase := "waiting" ||
+            waiterCount := waiterCount + 1;
+        } else {
+            taskAPhase := "inPerform" ||
+            isTransacting := TRUE;
+        };
+    }
+}
 
-Init ==
-    /\ isTransacting = FALSE
-    /\ waiterCount = 0
-    /\ taskAPhase = "idle"
-    /\ taskBPhase = "idle"
-    /\ nestedDepth = 0
-    /\ aCommitted = FALSE
-    /\ bCommitted = FALSE
+fair process (BeginOuterB = "BeginOuterB") {
+BeginOuterBStep:
+    while (TRUE) {
+        await taskBPhase = "idle";
+        if (Implementation = "broken" /\ taskAPhase = "inPerform") {
+            taskBPhase := "inPerform";
+        } else if (isTransacting) {
+            taskBPhase := "waiting" ||
+            waiterCount := waiterCount + 1;
+        } else {
+            taskBPhase := "inPerform" ||
+            isTransacting := TRUE;
+        };
+    }
+}
 
-BeginOuterA ==
-    /\ taskAPhase = "idle"
-    /\ IF isTransacting
-          THEN /\ taskAPhase' = "waiting"
-               /\ waiterCount' = waiterCount + 1
-               /\ UNCHANGED <<isTransacting, taskBPhase, nestedDepth, aCommitted, bCommitted>>
-          ELSE /\ taskAPhase' = "inPerform"
-               /\ isTransacting' = TRUE
-               /\ UNCHANGED <<waiterCount, taskBPhase, nestedDepth, aCommitted, bCommitted>>
+fair process (BeginNestedSameTask = "BeginNestedSameTask") {
+BeginNestedSameTaskStep:
+    while (TRUE) {
+        await taskAPhase = "inPerform" /\ nestedDepth < 1;
+        nestedDepth := nestedDepth + 1;
+    }
+}
 
-BeginOuterB ==
-    /\ taskBPhase = "idle"
-    /\ IF /\ Implementation = "broken"
-          /\ taskAPhase = "inPerform"
-          THEN /\ taskBPhase' = "inPerform"
-               /\ UNCHANGED <<isTransacting, waiterCount, taskAPhase, nestedDepth, aCommitted, bCommitted>>
-          ELSE IF isTransacting
-                  THEN /\ taskBPhase' = "waiting"
-                       /\ waiterCount' = waiterCount + 1
-                       /\ UNCHANGED <<isTransacting, taskAPhase, nestedDepth, aCommitted, bCommitted>>
-                  ELSE /\ taskBPhase' = "inPerform"
-                       /\ isTransacting' = TRUE
-                       /\ UNCHANGED <<waiterCount, taskAPhase, nestedDepth, aCommitted, bCommitted>>
+fair process (CommitA = "CommitA") {
+CommitAStep:
+    while (TRUE) {
+        await taskAPhase = "inPerform" /\ nestedDepth = 0;
+        if (waiterCount > 0) {
+            taskAPhase := "committed" ||
+            aCommitted := TRUE ||
+            waiterCount := waiterCount - 1 ||
+            taskBPhase := "inPerform";
+        } else {
+            taskAPhase := "committed" ||
+            aCommitted := TRUE ||
+            isTransacting := FALSE;
+        };
+    }
+}
 
-BeginNestedSameTask ==
-    /\ taskAPhase = "inPerform"
-    /\ nestedDepth < 1
-    /\ nestedDepth' = nestedDepth + 1
-    /\ UNCHANGED <<isTransacting, waiterCount, taskAPhase, taskBPhase, aCommitted, bCommitted>>
+fair process (CommitB = "CommitB") {
+CommitBStep:
+    while (TRUE) {
+        await taskBPhase = "inPerform";
+        if (waiterCount > 0) {
+            taskBPhase := "committed" ||
+            bCommitted := TRUE ||
+            waiterCount := waiterCount - 1 ||
+            taskAPhase := "inPerform";
+        } else {
+            taskBPhase := "committed" ||
+            bCommitted := TRUE ||
+            isTransacting := FALSE;
+        };
+    }
+}
 
-CommitA ==
-    /\ taskAPhase = "inPerform"
-    /\ nestedDepth = 0
-    /\ taskAPhase' = "committed"
-    /\ aCommitted' = TRUE
-    /\ IF waiterCount > 0
-          THEN /\ waiterCount' = waiterCount - 1
-               /\ taskBPhase' = "inPerform"
-               /\ UNCHANGED isTransacting
-          ELSE /\ isTransacting' = FALSE
-               /\ UNCHANGED <<waiterCount, taskBPhase>>
-    /\ UNCHANGED <<nestedDepth, bCommitted>>
-
-CommitB ==
-    /\ taskBPhase = "inPerform"
-    /\ taskBPhase' = "committed"
-    /\ bCommitted' = TRUE
-    /\ IF waiterCount > 0
-          THEN /\ waiterCount' = waiterCount - 1
-               /\ taskAPhase' = "inPerform"
-               /\ UNCHANGED isTransacting
-          ELSE /\ isTransacting' = FALSE
-               /\ UNCHANGED <<waiterCount, taskAPhase>>
-    /\ UNCHANGED <<nestedDepth, aCommitted>>
-
-EndNested ==
-    /\ nestedDepth > 0
-    /\ nestedDepth' = nestedDepth - 1
-    /\ UNCHANGED <<isTransacting, waiterCount, taskAPhase, taskBPhase, aCommitted, bCommitted>>
-
-Next ==
-    \/ BeginOuterA
-    \/ BeginOuterB
-    \/ BeginNestedSameTask
-    \/ CommitA
-    \/ CommitB
-    \/ EndNested
-
-Fairness ==
-    /\ WF_vars(BeginOuterA)
-    /\ WF_vars(BeginOuterB)
-    /\ WF_vars(BeginNestedSameTask)
-    /\ WF_vars(CommitA)
-    /\ WF_vars(CommitB)
-    /\ WF_vars(EndNested)
-
-Spec == Init /\ [][Next]_vars /\ Fairness
+fair process (EndNested = "EndNested") {
+EndNestedStep:
+    while (TRUE) {
+        await nestedDepth > 0;
+        nestedDepth := nestedDepth - 1;
+    }
+}
+} *)
 
 TypeOK ==
     /\ isTransacting \in BOOLEAN

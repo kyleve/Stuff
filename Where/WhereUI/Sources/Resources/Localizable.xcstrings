@@ -4202,6 +4202,28 @@
         }
       }
     },
+    "onboarding.theme.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose an appearance for Where. You can change it at any time in Appearance."
+          }
+        }
+      }
+    },
+    "onboarding.theme.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose your theme"
+          }
+        }
+      }
+    },
     "onboarding.tryDemo" : {
       "comment" : "Button on the onboarding intro that enters demo mode: a throwaway, in-memory sample year.",
       "extractionState" : "manual",
@@ -5711,6 +5733,28 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Estimated time & planning"
+          }
+        }
+      }
+    },
+    "settings.appearance.theme.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Theme is stored on this device and also styles its home-screen widgets."
+          }
+        }
+      }
+    },
+    "settings.appearance.theme.header" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Theme"
           }
         }
       }
@@ -8163,6 +8207,17 @@
         }
       }
     },
+    "settings.keywords.theme" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "theme, appearance, style, standard, alternate, glass"
+          }
+        }
+      }
+    },
     "settings.keywords.widgets" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -8841,6 +8896,72 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Your Year"
+          }
+        }
+      }
+    },
+    "theme.alternate.detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A second theme, currently matching Standard."
+          }
+        }
+      }
+    },
+    "theme.alternate.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alternate"
+          }
+        }
+      }
+    },
+    "theme.notSelected.value" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not selected"
+          }
+        }
+      }
+    },
+    "theme.selected.value" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Selected"
+          }
+        }
+      }
+    },
+    "theme.standard.detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where’s familiar Liquid Glass appearance."
+          }
+        }
+      }
+    },
+    "theme.standard.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Standard"
           }
         }
       }

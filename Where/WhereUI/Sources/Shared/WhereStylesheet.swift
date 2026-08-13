@@ -2,6 +2,7 @@ import BroadwayCore
 import BroadwayUI
 import CoreGraphics
 import SwiftUI
+import WhereCore
 
 /// The Where app's design tokens, resolved as a Broadway ``BStylesheet``.
 ///
@@ -12,6 +13,7 @@ import SwiftUI
 /// `@Environment(\.stylesheet)` (seeded by `.broadwayRoot` at the app root);
 /// callers off the `View` tree (layout helpers, tests) use ``default``.
 struct WhereStylesheet: BStylesheet {
+    var theme = WhereTheme.standard
     var spacing = Spacing()
     var size = Size()
     var card = CardStyles.standard
@@ -39,6 +41,7 @@ struct WhereStylesheet: BStylesheet {
         // of tokens that should react to the current traits. Everything else
         // stays constant, so a default/system context reproduces `default`.
         let traits = context.traits
+        theme = context.themes[WhereTheme.self]
 
         // Grow day-grid tap targets at accessibility Dynamic Type sizes.
         if traits.contentSizeCategory.isAccessibilitySize {
@@ -1853,12 +1856,18 @@ extension WhereStylesheet {
 // MARK: - Themes
 
 /// The Where app's Broadway themes, seeded at the root by `whereBroadwayRoot()`.
-/// Empty for now — `WhereStylesheet` derives from traits, not themes — and the
-/// home for app-level palette/typography themes as the design system grows.
+/// Carries the selected presentation identity independently from system traits.
+/// Both identities currently resolve through the same tokens.
 enum WhereThemes {
-    static var current: BThemes {
-        BThemes()
+    static func current(theme: WhereTheme) -> BThemes {
+        var themes = BThemes()
+        themes[WhereTheme.self] = theme
+        return themes
     }
+}
+
+extension WhereTheme: BTheme {
+    public static let defaultValue = WhereTheme.standard
 }
 
 // MARK: - Root
@@ -1887,9 +1896,10 @@ extension View {
     /// The root also owns and injects the region-outline `Path` cache so cards
     /// share render artifacts without a process-global UI singleton.
     public func whereBroadwayRoot(
+        theme: WhereTheme = .standard,
         regionStyles: RegionStyleResolver = .default,
     ) -> some View {
-        modifier(WhereBroadwayRootModifier(regionStyles: regionStyles))
+        modifier(WhereBroadwayRootModifier(theme: theme, regionStyles: regionStyles))
     }
 }
 
@@ -1897,12 +1907,13 @@ extension View {
 /// Broadway/design context. Keeping the path cache here shares it across cards
 /// without introducing a process-global UI singleton.
 private struct WhereBroadwayRootModifier: ViewModifier {
+    let theme: WhereTheme
     let regionStyles: RegionStyleResolver
     @State private var regionOutlinePathCache = RegionOutlinePathCache()
 
     func body(content: Content) -> some View {
         content
-            .broadwayRoot(themes: WhereThemes.current)
+            .broadwayRoot(themes: WhereThemes.current(theme: theme))
             .environment(\.regionStyles, regionStyles)
             .environment(\.regionOutlinePathCache, regionOutlinePathCache)
     }

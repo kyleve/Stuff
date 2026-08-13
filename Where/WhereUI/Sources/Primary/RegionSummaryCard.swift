@@ -7,6 +7,14 @@ import WhereCore
 /// A Liquid Glass card summarizing how many days were spent in one region.
 /// Used prominently on the Primary tab and (more compactly) on Elsewhere.
 struct RegionSummaryCard: View {
+    /// Why the shared card is being rendered. A theme specimen keeps the real
+    /// compact-card surface and hierarchy, but omits the provenance stamp that
+    /// cannot remain legible in the narrow half-column preview.
+    enum RenderPurpose {
+        case content
+        case themeSpecimen
+    }
+
     let regionDays: RegionDays
     var caption: String?
     /// An optional reverse-geocoded "where" teaser (e.g. "Paris, France"),
@@ -18,6 +26,8 @@ struct RegionSummaryCard: View {
     /// `.compact` Elsewhere one. The caller picks; the view reads the one
     /// resolved ``WhereStylesheet/CardStyle`` and never branches on it again.
     var variant: WhereStylesheet.CardStyle.Variant = .regular
+
+    var renderPurpose: RenderPurpose = .content
 
     /// When `true`, the card's Liquid Glass reacts to touch with the system's
     /// interactive press (scale + illumination), so a tappable card feels
@@ -307,7 +317,9 @@ struct RegionSummaryCard: View {
 
                 Spacer(minLength: 0)
 
-                entryStamp
+                if renderPurpose == .content {
+                    entryStamp
+                }
             }
 
             HStack(alignment: .firstTextBaseline, spacing: stylesheet.spacing.small) {

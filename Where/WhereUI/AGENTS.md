@@ -78,6 +78,10 @@ Layering, localization, preview, and testing conventions live in the feature
   project, simplify, or spatially reduce artwork in a card's `body`.
 - Keep Locations-card points on `YearReportModel`'s loaded
   `YearReportDetails`.
+- Keep `RootView` opted into LifecycleKitUI's first-ready splash policy: the
+  first foreground-visible `MainTabs` reveal gets the stylesheet minimum even
+  when headless promotion coalesces or the first hold is interrupted, while
+  warm resumes never replay it.
 - Keep planned-stay persistence and forecast math in WhereCore; `LocationForecastModel` only mirrors
   the active register and orchestrates intents for the Locations, calendar, and timeline surfaces.
 - Hide every forecast and planned-stay visualization behind
@@ -119,10 +123,10 @@ worked examples.
   token.
 - **Per-region tints stay in `RegionStyle`**, resolved via
   `@Environment(\.regionStyles)` and seeded by
-  `whereBroadwayRoot(regionStyles:)` — no global accessor or hardcoded
+  `whereBroadwayRoot(theme:regionStyles:)` — no global accessor or hardcoded
   per-region look in a view.
-- `WhereThemes` is deliberately empty — the seam a future app-wide theme
-  plugs into.
+- Seed `WhereTheme` through `whereBroadwayRoot(theme:regionStyles:)`; Standard
+  and Alternate remain distinct persisted identities even while their tokens match.
 - The DEBUG card designer may override only presentation values already owned
   by `CardStyles`; it must not add a second production styling system or alter
   count animation and outline-cache behavior.

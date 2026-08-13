@@ -29,14 +29,22 @@ build system, formatting, and global conventions. Read that first.
 - **Every splash-showing state resolves to one `LaunchOverlay.splash` case** —
   never per-phase `switch` arms, which remount the splash at each boundary
   and reset its animations and caption timers.
-- **`minimumSplashDuration` only holds a splash that was actually shown** —
-  armed when the splash *appears*, so an already-`.ready` mount reveals
-  immediately. Guard: `minimumSplashDurationDoesNotHoldWhenNoSplashWasShown`
-  (the timing half is device-verified, not host-testable). Assert "revealed"
-  via the *absent splash*, not via `content` (content is built during a hold
-  too); `isShowingSplash` must read the runner's own surface, never
-  `displayedSurfaceIdentity`, which reports `.splash` for a held `.ready` and
-  would re-arm the hold from its own release.
+- **`minimumSplashDuration` holds only an observed splash by default** —
+  `.phaseDriven` keeps an already-`.ready` mount immediate, while
+  `.splashBeforeFirstReveal` may establish the first hold from a visible
+  `.ready` when foreground promotion coalesced past the splash. Keep that hold
+  keyed on readiness *and* active-scene visibility, retain an observed splash's
+  original deadline, and never arm or complete it offscreen. An interrupted
+  first reveal returns to awaiting; only content whose uncovered frame was
+  committed survives an ordinary resume without replay. Guards:
+  `minimumSplashDurationDoesNotHoldWhenNoSplashWasShown`,
+  `splashBeforeFirstRevealKeepsBackgroundReadyHeadless`,
+  `promotedBackgroundReadyForcesTheFirstRevealSplash`,
+  `interruptedFirstRevealWaitsAgainAfterTheSceneBecomesActive`. Assert
+  "revealed" via the *absent splash*, not via `content` (content is built
+  during a hold too); `isShowingSplash` must read the runner's own surface,
+  never `displayedSurfaceIdentity`, which reports `.splash` for a held
+  `.ready` and would re-arm the hold from its own release.
 - **Gate views resolve only their own handle** — a superseded drive's handle
   no-ops; don't route gate resolution through anything else.
 - **One registration per gate type** (construction `precondition`); a parked

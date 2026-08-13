@@ -3,13 +3,14 @@ import SnapshotKit
 import SwiftUI
 import WhereCore
 
-/// Settings drill-in for presentation choices: whether recorded GPS dots appear
-/// on Locations cards and which alternate app icon is used.
+/// Settings drill-in for presentation choices: theme, Locations-card overlays,
+/// and alternate app icon.
 struct AppearanceSettingsView: View {
     let report: YearReportModel
     var focus: SettingsFocus?
 
     @State private var showAppIcon = false
+    @Environment(WhereModel.self) private var model
     @State private var estimatedTimeSettings: EstimatedTimeAndPlanningSettingsModel
     #if DEBUG
         @Environment(\.cardDesignerModel) private var cardDesignerModel
@@ -28,6 +29,17 @@ struct AppearanceSettingsView: View {
         @Bindable var estimatedTimeSettings = estimatedTimeSettings
         SettingsFocusScope(focus: focus) {
             Form {
+                Section {
+                    WhereThemePicker(selection: model.theme) {
+                        model.selectTheme($0)
+                    }
+                    .settingsRow(Item.theme)
+                } header: {
+                    Text(.settingsAppearanceThemeHeader)
+                } footer: {
+                    Text(.settingsAppearanceThemeFooter)
+                }
+
                 Section {
                     Toggle(isOn: $report.showsRecordedLocationDots) {
                         Label(
@@ -117,6 +129,7 @@ extension AppearanceSettingsView: SettingsSection {
     }
 
     enum Item: SettingsItem {
+        case theme
         case locationDots
         case locationForecasts
         case appIcon
@@ -126,6 +139,7 @@ extension AppearanceSettingsView: SettingsSection {
 
         var title: String {
             switch self {
+                case .theme: String(localized: .settingsAppearanceThemeHeader)
                 case .locationDots:
                     String(localized: .settingsAppearanceLocationDotsToggle)
                 case .locationForecasts:
@@ -139,6 +153,8 @@ extension AppearanceSettingsView: SettingsSection {
 
         var keywords: [String] {
             switch self {
+                case .theme:
+                    splitKeywords(String(localized: .settingsKeywordsTheme))
                 case .locationDots:
                     splitKeywords(String(localized: .settingsKeywordsLocationDots))
                 case .locationForecasts:
@@ -164,6 +180,7 @@ extension AppearanceSettingsView: SettingsSection {
                 NavigationStack {
                     AppearanceSettingsView(report: PreviewSupport.loadedYearReportModel())
                 }
+                .environment(PreviewSupport.loadedModel())
             }
         }
     }
