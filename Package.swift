@@ -43,7 +43,7 @@ let package = Package(
         // test-only `SnapshotKitTesting` target (never a shipping app). See
         // Shared/SnapshotKitTesting.
         .package(url: "https://github.com/pointfreeco/swift-snapshot-testing", from: "1.18.0"),
-        .package(url: "https://github.com/cashapp/AccessibilitySnapshot", from: "0.11.0"),
+        .package(url: "https://github.com/cashapp/AccessibilitySnapshot", from: "0.12.0"),
         .package(url: "https://github.com/SFSafeSymbols/SFSafeSymbols", from: "7.0.0"),
     ],
     targets: [
