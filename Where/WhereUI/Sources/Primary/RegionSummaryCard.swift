@@ -139,6 +139,20 @@ struct RegionSummaryCard: View {
         cardStyles.dayCount
     }
 
+    private var accessibilityLabel: String {
+        guard let estimatedDays else {
+            return WhereFormat.regionDaysAccessibility(
+                region: regionDays.region.localizedName,
+                days: regionDays.days,
+            )
+        }
+        return WhereFormat.regionDaysEstimatedAccessibility(
+            region: regionDays.region.localizedName,
+            recordedDays: regionDays.days,
+            estimatedDays: estimatedDays,
+        )
+    }
+
     /// A circular rubber-stamp "entry" impression: the region glyph and year
     /// ringed by the region name, tilted as if pressed onto the page. The arc
     /// lettering is dropped on the small compact cards where it can't be read.
@@ -306,27 +320,38 @@ struct RegionSummaryCard: View {
                     .foregroundStyle(.secondary)
             }
 
-            Capsule()
-                .fill(.quaternary)
-                .frame(height: barHeight)
-                .overlay(alignment: .leading) {
-                    GeometryReader { proxy in
-                        Capsule()
-                            .fill(style.tint)
-                            .frame(width: proxy.size.width * recordedFraction)
-                            .background(alignment: .leading) {
-                                if let estimatedFraction {
-                                    Capsule()
-                                        .fill(securityPrintTint.opacity(
-                                            cardStyles.estimatedProgressOpacity,
-                                        ))
-                                        .frame(width: proxy.size.width * estimatedFraction)
-                                }
-                            }
-                    }
+            VStack(alignment: .trailing, spacing: stylesheet.spacing.xxSmall) {
+                if let estimatedDays {
+                    Text(WhereFormat.locationCardEstimatedDays(estimatedDays))
+                        .font(.caption.weight(.semibold))
+                        .textCase(.uppercase)
+                        .tracking(0.8)
+                        .foregroundStyle(securityPrintTint)
+                        .contentTransition(dayCount.transition(days: estimatedDays))
                 }
-                .frame(height: barHeight)
-                .accessibilityHidden(true)
+
+                Capsule()
+                    .fill(.quaternary)
+                    .frame(height: barHeight)
+                    .overlay(alignment: .leading) {
+                        GeometryReader { proxy in
+                            Capsule()
+                                .fill(style.tint)
+                                .frame(width: proxy.size.width * recordedFraction)
+                                .background(alignment: .leading) {
+                                    if let estimatedFraction {
+                                        Capsule()
+                                            .fill(securityPrintTint.opacity(
+                                                cardStyles.estimatedProgressOpacity,
+                                            ))
+                                            .frame(width: proxy.size.width * estimatedFraction)
+                                    }
+                                }
+                        }
+                    }
+                    .frame(height: barHeight)
+            }
+            .accessibilityHidden(true)
         }
         // What makes the count's `.contentTransition` run at all — one morphs
         // only inside an animation transaction — and it sweeps the ambient bar,
@@ -364,12 +389,7 @@ struct RegionSummaryCard: View {
             y: card.lift.offsetY,
         )
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(
-            WhereFormat.regionDaysAccessibility(
-                region: regionDays.region.localizedName,
-                days: regionDays.days,
-            ),
-        )
+        .accessibilityLabel(accessibilityLabel)
         .task(id: regionArtworkLoadID, loadRegionOutlines)
     }
 }

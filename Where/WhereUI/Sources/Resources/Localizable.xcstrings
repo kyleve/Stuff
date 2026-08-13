@@ -2227,6 +2227,18 @@
         }
       }
     },
+    "common.regionDaysEstimated.accessibility" : {
+      "comment" : "VoiceOver summary for a location card showing recorded and estimated annual day counts. The first placeholder is the region name; the second and third are localized day counts.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@: %2$@ recorded, estimated %3$@"
+          }
+        }
+      }
+    },
     "common.retry" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2991,6 +3003,18 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Data erased; cleanup incomplete"
+          }
+        }
+      }
+    },
+    "locationCard.estimatedDays" : {
+      "comment" : "Compact label above a location card progress bar. The placeholder is an already-localized day count, for example '184 days'.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Estimated · %@"
           }
         }
       }
