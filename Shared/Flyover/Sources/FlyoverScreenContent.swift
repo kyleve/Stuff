@@ -6,7 +6,7 @@ struct FlyoverScreenContent<ScreenID: Hashable>: View {
     let screen: FlyoverScreen<ScreenID>
     let model: FlyoverModel<ScreenID>
     let isOverview: Bool
-    @State private var content: AnyView?
+    @State private var loadedContent: LoadedContent?
     @Environment(\.colorScheme) private var systemColorScheme
     @Environment(\.flyoverStylesheet) private var stylesheet
 
@@ -20,16 +20,17 @@ struct FlyoverScreenContent<ScreenID: Hashable>: View {
             generation: state.generation,
             isOverview: isOverview,
         )
+        let previewLoadKey = model.previewLoadKey(for: screen)
 
         Group {
-            if let content {
+            if let loadedContent, loadedContent.id == contentID {
                 switch screen.navigationContainer {
                     case .stack:
                         NavigationStack {
-                            content
+                            loadedContent.content
                         }
                     case .none:
-                        content
+                        loadedContent.content
                 }
             } else {
                 ProgressView()
@@ -56,7 +57,23 @@ struct FlyoverScreenContent<ScreenID: Hashable>: View {
         )
         .allowsHitTesting(isOverview == false)
         .task(id: contentID) {
-            content = nil
+            if loadedContent?.id == contentID {
+                if isOverview {
+                    model.previewReadiness.beganLoading(previewLoadKey)
+                    model.previewReadiness.finishedLoading(previewLoadKey)
+                }
+                return
+            }
+            loadedContent = nil
+            if isOverview {
+                model.previewReadiness.beganLoading(previewLoadKey)
+            }
+            var didFinishLoading = false
+            defer {
+                if isOverview, didFinishLoading == false {
+                    model.previewReadiness.unloaded(previewLoadKey)
+                }
+            }
             await model.contentLoadCoordinator.perform {
                 guard Task.isCancelled == false else {
                     return
@@ -69,11 +86,17 @@ struct FlyoverScreenContent<ScreenID: Hashable>: View {
                 guard Task.isCancelled == false else {
                     return
                 }
-                content = loadedContent
+                self.loadedContent = LoadedContent(id: contentID, content: loadedContent)
+                didFinishLoading = true
+                if isOverview {
+                    model.previewReadiness.finishedLoading(previewLoadKey)
+                }
             }
         }
         .onDisappear {
-            content = nil
+            if isOverview {
+                model.previewReadiness.unloaded(previewLoadKey)
+            }
         }
     }
 
@@ -89,5 +112,10 @@ struct FlyoverScreenContent<ScreenID: Hashable>: View {
         let variantID: FlyoverVariantID
         let generation: Int
         let isOverview: Bool
+    }
+
+    private struct LoadedContent {
+        let id: ContentID
+        let content: AnyView
     }
 }

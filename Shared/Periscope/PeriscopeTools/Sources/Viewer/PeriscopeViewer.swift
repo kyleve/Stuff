@@ -1,4 +1,5 @@
 import PeriscopeCore
+import SFSafeSymbols
 import SwiftUI
 
 /// The log viewer: two surfaces switched by a nav-bar segmented control — a
@@ -154,13 +155,13 @@ public struct PeriscopeViewer: View {
             case let .failed(reason):
                 ContentUnavailableView(
                     "Logs Unavailable",
-                    systemImage: "exclamationmark.triangle",
+                    systemSymbol: .exclamationmarkTriangle,
                     description: Text(reason),
                 )
             case let .loaded(events) where events.isEmpty:
                 ContentUnavailableView(
                     "No Logs",
-                    systemImage: "doc.text.magnifyingglass",
+                    systemSymbol: .docTextMagnifyingglass,
                     description: Text("No stored events match the current filters."),
                 )
             case let .loaded(events):
@@ -227,7 +228,7 @@ public struct PeriscopeViewer: View {
                 }
             }
         } label: {
-            Label("Filter", systemImage: "line.3.horizontal.decrease.circle")
+            Label("Filter", systemSymbol: .line3HorizontalDecreaseCircle)
         }
     }
 
@@ -238,15 +239,15 @@ public struct PeriscopeViewer: View {
             Button {
                 spanDestination = .tree
             } label: {
-                Label("Span Tree", systemImage: "stopwatch")
+                Label("Span Tree", systemSymbol: .stopwatch)
             }
             Button {
                 spanDestination = .history
             } label: {
-                Label("Span History", systemImage: "chart.bar.xaxis")
+                Label("Span History", systemSymbol: .chartBarXaxis)
             }
         } label: {
-            Label("Spans", systemImage: "stopwatch")
+            Label("Spans", systemSymbol: .stopwatch)
         }
     }
 
@@ -263,7 +264,7 @@ public struct PeriscopeViewer: View {
                 }
             }
         } label: {
-            Label("Export", systemImage: "square.and.arrow.up")
+            Label("Export", systemSymbol: .squareAndArrowUp)
         }
     }
 }

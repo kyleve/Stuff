@@ -30,15 +30,15 @@ public enum RegionColorToken: String, CaseIterable, Sendable, Codable, Hashable 
 }
 
 /// The user-chosen look for a region: an accent color token, an emoji, and an
-/// SF Symbol name. Pure data — the concrete color and any option catalogs live
+/// SF Symbol identifier. Pure data — the concrete symbol and option catalogs live
 /// in the presentation layer. Persisted alongside the region's tracked-region
 /// row so a customized region keeps its look across devices and reinstalls.
 public struct RegionAppearance: Hashable, Sendable, Codable {
     public var color: RegionColorToken
     public var emoji: String
-    public var symbolName: String
+    public var symbolName: RegionSymbol
 
-    public init(color: RegionColorToken, emoji: String, symbolName: String) {
+    public init(color: RegionColorToken, emoji: String, symbolName: RegionSymbol) {
         self.color = color
         self.emoji = emoji
         self.symbolName = symbolName

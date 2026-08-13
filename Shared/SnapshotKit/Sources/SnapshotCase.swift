@@ -39,8 +39,8 @@ public enum SnapshotMeasurementReadiness: Equatable, Sendable {
 /// variants inside a `#Preview` — the same matrix, traits, and content the
 /// snapshot tests capture. Test-only capture mechanics are documented on
 /// ``previewConfigurations``.
-/// Accessibility variants are excluded from that preview (see
-/// ``previewConfigurations``); they only render as tests.
+/// Accessibility variants are excluded from that preview because their
+/// annotation renderer is test-only (see ``previewConfigurations``).
 public struct SnapshotCase: Identifiable {
     /// The case name — groups a component's variants and prefixes their
     /// reference-image identifiers.
@@ -51,6 +51,12 @@ public struct SnapshotCase: Identifiable {
     public let settle: SnapshotSettle
     /// When intrinsic/full-content sizing may measure the content.
     public let measurementReadiness: SnapshotMeasurementReadiness
+    /// Runs after intrinsic/full-content content is hosted and laid out, but
+    /// before it settles and is measured. Use it to await a deterministic
+    /// content-ready signal when the loaded state changes ideal height. `nil`
+    /// for synchronously measurable content; fixed-size configurations reject
+    /// a hook because they do not have a measurement phase.
+    public let onReadyToMeasure: (@MainActor () async -> Void)?
     /// Runs in the capture pipeline after the content has settled and before
     /// the image is taken — the deterministic point to focus a field or trigger
     /// a presented state. Its effects are settled again before capture. `nil`
@@ -77,6 +83,7 @@ public struct SnapshotCase: Identifiable {
         name: String,
         configurations: [SnapshotConfiguration],
         measurementReadiness: SnapshotMeasurementReadiness = .sameAsCapture,
+        onReadyToMeasure: (@MainActor () async -> Void)? = nil,
         settle: SnapshotSettle = .settled,
         onReadyToSnapshot: (@MainActor () async -> Void)? = nil,
         @ViewBuilder content: @escaping @MainActor () -> some View,
@@ -84,14 +91,15 @@ public struct SnapshotCase: Identifiable {
         self.name = name
         self.configurations = configurations
         self.measurementReadiness = measurementReadiness
+        self.onReadyToMeasure = onReadyToMeasure
         self.settle = settle
         self.onReadyToSnapshot = onReadyToSnapshot
         contentFactory = { AnyView(content()) }
     }
 
-    /// The configurations that can render in a plain SwiftUI preview. Accessibility
-    /// captures need the test-only library's VoiceOver parser, so they're dropped
-    /// from the cutsheet (they still run as snapshot tests). The cutsheet also
+    /// The configurations that can render without linking test-only dependencies.
+    /// Accessibility annotations belong to `SnapshotKitTesting`, so those variants
+    /// are dropped from the cutsheet (they still run as snapshot tests). The cutsheet also
     /// cannot perform the capture pipeline's UIKit-backed `List`/`Form`
     /// measurement, safe-area override, async ready hook, or tile-and-stitch;
     /// full-content preview height is therefore an approximation while the test

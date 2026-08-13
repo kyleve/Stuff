@@ -217,6 +217,32 @@ private enum GenerationScopedFetch {
         })
     }
 
+    static func plannedStays(
+        belongingTo generationID: WhereDataGenerationID,
+        sortBy: [SortDescriptor<SDPlannedStay>] = [],
+    ) -> FetchDescriptor<SDPlannedStay> {
+        let membership = GenerationMembership(generationID)
+        let storedGenerationID = membership.storedID
+        let includesLegacy = membership.includesLegacy
+        return descriptor(predicate: #Predicate {
+            $0.generationID == storedGenerationID ||
+                (includesLegacy && $0.generationID == nil)
+        }, sortBy: sortBy)
+    }
+
+    static func plannedStays(
+        belongingTo generationID: WhereDataGenerationID,
+        id: UUID,
+    ) -> FetchDescriptor<SDPlannedStay> {
+        let membership = GenerationMembership(generationID)
+        let storedGenerationID = membership.storedID
+        let includesLegacy = membership.includesLegacy
+        return descriptor(predicate: #Predicate {
+            ($0.generationID == storedGenerationID ||
+                (includesLegacy && $0.generationID == nil)) && $0.id == id
+        })
+    }
+
     static func metadataChanges(
         belongingTo generationID: WhereDataGenerationID,
         sortBy: [SortDescriptor<SDRecordingDeviceMetadataChange>] = [],
@@ -543,6 +569,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             SDManualDay.self,
             SDDismissedIssue.self,
             SDTrackedRegion.self,
+            SDPlannedStay.self,
             SDRecordingDeviceProfile.self,
             SDRecordingDeviceMetadataChange.self,
             SDRecordingDeviceCheckIn.self,
@@ -1154,6 +1181,11 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         )) {
             context.delete(record)
         }
+        for record in try context.fetch(GenerationScopedFetch.plannedStays(
+            belongingTo: generationID,
+        )) {
+            context.delete(record)
+        }
         for record in try context.fetch(GenerationScopedFetch.metadataChanges(
             belongingTo: generationID,
         )) {
@@ -1734,6 +1766,45 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         }
     }
 
+    // MARK: - Planned stay
+
+    public func plannedStayRecords() async throws -> [PlannedStayRecord] {
+        let context = readContext()
+        let generationID = try readGenerationID(in: context)
+        let descriptor = GenerationScopedFetch.plannedStays(
+            belongingTo: generationID,
+            sortBy: [SortDescriptor(\.updatedAt), SortDescriptor(\.id)],
+        )
+        return try context.fetch(descriptor).compactMap { record in
+            let value = record.toValue()
+            if value == nil { Self.logFault(forCorrupt: record) }
+            return value
+        }
+    }
+
+    public func replacePlannedStayRecord(with record: PlannedStayRecord) async throws {
+        let context = mutationContext()
+        let generationID = mutationGenerationID()
+        for existing in try context.fetch(GenerationScopedFetch.plannedStays(
+            belongingTo: generationID,
+        )) {
+            context.delete(existing)
+        }
+        context.insert(SDPlannedStay(value: record, generationID: generationID))
+    }
+
+    public func restorePlannedStayRecord(_ record: PlannedStayRecord) async throws {
+        let context = mutationContext()
+        let generationID = mutationGenerationID()
+        for duplicate in try context.fetch(GenerationScopedFetch.plannedStays(
+            belongingTo: generationID,
+            id: record.id,
+        )) {
+            context.delete(duplicate)
+        }
+        context.insert(SDPlannedStay(value: record, generationID: generationID))
+    }
+
     // MARK: - Tracked regions
 
     public func trackedRegions() async throws -> Set<Region> {
@@ -2255,9 +2326,9 @@ final class SDTrackedRegion {
     /// The stored appearance, or `nil` when the row has no complete look yet.
     var appearanceValue: RegionAppearance? {
         guard let colorRaw, let color = RegionColorToken(rawValue: colorRaw),
-              let emoji, let symbolName
+              let emoji, let symbolName, let symbol = RegionSymbol(rawValue: symbolName)
         else { return nil }
-        return RegionAppearance(color: color, emoji: emoji, symbolName: symbolName)
+        return RegionAppearance(color: color, emoji: emoji, symbolName: symbol)
     }
 
     /// Overwrite the stored appearance (clearing the style fields when `nil`)
@@ -2265,8 +2336,48 @@ final class SDTrackedRegion {
     func apply(appearance: RegionAppearance?, order: Int?) {
         colorRaw = appearance?.color.rawValue
         emoji = appearance?.emoji
-        symbolName = appearance?.symbolName
+        symbolName = appearance?.symbolName.rawValue
         orderIndex = order
+    }
+}
+
+/// One CloudKit-compatible revision of the single planned-stay register. Every
+/// field is optional as required by the mirrored schema. `nil` region/day
+/// together represents a tombstone; only a mismatched pair is corrupt.
+@Model
+final class SDPlannedStay {
+    var generationID: UUID?
+    var id: UUID?
+    var regionID: String?
+    var throughDayKey: String?
+    var updatedAt: Date?
+
+    init() {}
+
+    convenience init(value: PlannedStayRecord, generationID: WhereDataGenerationID) {
+        self.init()
+        self.generationID = generationID.rawValue
+        id = value.id
+        regionID = value.value?.region.rawValue
+        throughDayKey = value.value?.through.description
+        updatedAt = value.updatedAt
+    }
+
+    func toValue() -> PlannedStayRecord? {
+        guard let id, let updatedAt else { return nil }
+        let stay: PlannedStay?
+        switch (regionID, throughDayKey) {
+            case (nil, nil):
+                stay = nil
+            case let (regionID?, throughDayKey?):
+                guard let region = Region(rawValue: regionID),
+                      let through = CalendarDay(iso: throughDayKey)
+                else { return nil }
+                stay = PlannedStay(region: region, through: through)
+            case (.some, nil), (nil, .some):
+                return nil
+        }
+        return PlannedStayRecord(id: id, value: stay, updatedAt: updatedAt)
     }
 }
 

@@ -13,7 +13,7 @@ build system, formatting, and global conventions. Read that first.
 
 ## Scope & dependencies
 
-- **SwiftUI + LifecycleKit only.** No app imports — app-specific launch UI
+- **SwiftUI + LifecycleKit + SFSafeSymbols only.** No app imports — app-specific launch UI
   (splashes, onboarding) lives in the consumer (e.g. `WhereUI`).
 - The engine/UI split is deliberate: LifecycleKit must stay renderable-state
   only (no SwiftUI import); anything that builds a `View` belongs here.

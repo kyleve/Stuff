@@ -75,8 +75,6 @@ TIMINGS=false
 REVIEW=false
 BASE_REF="origin/main"
 SHARED=false
-SNAPSHOT_SHARD=""
-TIMING_REPORT=""
 
 usage() {
     cat <<'USAGE'
@@ -107,9 +105,6 @@ Running:
   --shared          Use any existing simulator with that name rather than this
                     checkout's own — for a throwaway machine (CI) that is
                     already isolated
-  --snapshot-shard N/2
-                    Run shard 1 or 2 from .github/snapshot-shards.json;
-                    requires --snapshots
 
 Reporting:
   --timings         Collect per-phase snapshot capture timings and print a
@@ -120,8 +115,6 @@ Reporting:
                     (default: 15)
   --status-file P   Keep only the latest progress line in P, for a watcher that
                     would rather read one small file than scan a log
-  --timing-report P Write versioned per-suite snapshot durations from the
-                    .xcresult to P, for ./snapshot-shards balance
   -h, --help        Show this help
 
 Examples:
@@ -129,7 +122,6 @@ Examples:
   ./test WhereCoreTests WhereUITests
   ./test --snapshots --review             # snapshots, with the diffs described
   ./test --snapshots --timings            # where the capture time goes
-  ./test --snapshots --snapshot-shard 1/2 # one serial CI shard
   ./test --everything                     # everything, as CI runs it
   ./test --only 'WhereUITests/WhereStylesheetTests/resolvesTraitAwareTokens()'
 USAGE
@@ -151,13 +143,11 @@ while [ $# -gt 0 ]; do
         --record) shift; RECORD="${1:?--record requires a mode}" ;;
         --device) shift; DEVICE="${1:?--device requires a value}" ;;
         --shared) SHARED=true ;;
-        --snapshot-shard) shift; SNAPSHOT_SHARD="${1:?--snapshot-shard requires N/2}" ;;
         --os) shift; OS="${1:?--os requires a value}" ;;
         --timings) TIMINGS=true ;;
         --review) REVIEW=true ;;
         --heartbeat) shift; HEARTBEAT="${1:?--heartbeat requires a value}" ;;
         --status-file) shift; STATUS_FILE="${1:?--status-file requires a path}" ;;
-        --timing-report) shift; TIMING_REPORT="${1:?--timing-report requires a path}" ;;
         -h|--help) usage; exit 0 ;;
         -*) echo "error: unknown option '$1' (see ./test --help)" >&2; exit 1 ;;
         *) BUNDLES+=("$1"); SCOPE=bundles ;;
@@ -172,20 +162,6 @@ case "$RECORD" in
     *) echo "error: --record must be all, failed, missing or never (got '$RECORD')" >&2
        exit 1 ;;
 esac
-
-case "$SNAPSHOT_SHARD" in
-    ""|1/2|2/2) ;;
-    *) echo "error: --snapshot-shard must be 1/2 or 2/2 (got '$SNAPSHOT_SHARD')" >&2
-       exit 1 ;;
-esac
-if [ -n "$SNAPSHOT_SHARD" ] && [ "$SCOPE" != snapshots ]; then
-    echo "error: --snapshot-shard requires --snapshots" >&2
-    exit 1
-fi
-if [ -n "$SNAPSHOT_SHARD" ] && [ "${#ONLY[@]}" -gt 0 ]; then
-    echo "error: --snapshot-shard cannot be combined with --only" >&2
-    exit 1
-fi
 
 echo "==> Testing backup upgrader"
 mise exec -- ruby Where/Tools/Tests/upgrade_backup_test.rb
@@ -634,16 +610,6 @@ EOF
         ;;
 esac
 
-if [ -n "$SNAPSHOT_SHARD" ]; then
-    shard_number="${SNAPSHOT_SHARD%/2}"
-    shard_identifiers="$(./snapshot-shards list "$shard_number")"
-    while IFS= read -r identifier; do
-        [ -n "$identifier" ] && SNAPSHOT_FILTERS+=("-only-testing:$identifier")
-    done <<EOF
-$shard_identifiers
-EOF
-fi
-
 if [ "${#ONLY[@]}" -gt 0 ]; then
     # An identifier's first component is its bundle, which decides the scheme —
     # so `./test --only 'WhereUISnapshotTests/…'` needs no `--snapshots`. Without
@@ -666,17 +632,6 @@ if [ "${#SCHEMES[@]}" -eq 0 ]; then
     exit 1
 fi
 
-if [ -n "$TIMING_REPORT" ]; then
-    has_snapshot_scheme=false
-    for scheme in "${SCHEMES[@]}"; do
-        [ "$scheme" = "$SNAPSHOT_SCHEME" ] && has_snapshot_scheme=true
-    done
-    if [ "$has_snapshot_scheme" != true ]; then
-        echo "error: --timing-report requires a snapshot test scope" >&2
-        exit 1
-    fi
-fi
-
 if [ "$DO_GENERATE" = true ]; then
     echo "==> Regenerating project (tuist generate --no-open)"
     if ! mise exec -- tuist generate --no-open >"$WORKDIR/generate.log" 2>&1; then
@@ -697,6 +652,8 @@ RUN_ENV=()
 [ -n "$RECORD" ] && RUN_ENV+=("TEST_RUNNER_SNAPSHOT_RECORD=$RECORD")
 [ "$TIMINGS" = true ] && RUN_ENV+=("TEST_RUNNER_SNAPSHOT_TIMING=1")
 [ "$REVIEW" = true ] && RUN_ENV+=("TEST_RUNNER_SNAPSHOT_DIFF=1")
+[ -n "${SNAPSHOT_SETTLE_TIMEOUT_MULTIPLIER:-}" ] \
+    && RUN_ENV+=("TEST_RUNNER_SNAPSHOT_SETTLE_TIMEOUT_MULTIPLIER=$SNAPSHOT_SETTLE_TIMEOUT_MULTIPLIER")
 
 # SwiftPM's generated `Bundle.module` accessors honor
 # PACKAGE_RESOURCE_BUNDLE_PATH as their first lookup candidate (DEBUG-only,
@@ -783,19 +740,6 @@ for scheme in "${SCHEMES[@]}"; do
         [ "$overall_status" -eq 0 ] && overall_status=1
     fi
 done
-
-if [ -n "$TIMING_REPORT" ]; then
-    report_results=()
-    for result in "${RESULTS[@]}"; do
-        [ -d "$result" ] && report_results+=(--xcresult "$result")
-    done
-    if [ "${#report_results[@]}" -eq 0 ]; then
-        echo "error: no result bundle is available for --timing-report" >&2
-        [ "$overall_status" -eq 0 ] && overall_status=1
-    elif ! ./snapshot-shards report "${report_results[@]}" --output "$TIMING_REPORT"; then
-        [ "$overall_status" -eq 0 ] && overall_status=1
-    fi
-fi
 
 # Failures, reprinted with the identifier that re-runs each one.
 if [ "$overall_status" -ne 0 ]; then

@@ -28,6 +28,22 @@ struct SnapshotCaseTests {
         #expect(snapshotCase.measurementReadiness == .immediate)
     }
 
+    @Test func onReadyToMeasureDefaultsToNil() {
+        let snapshotCase = SnapshotCase(name: "States", configurations: []) { Color.red }
+        #expect(snapshotCase.onReadyToMeasure == nil)
+    }
+
+    @Test func onReadyToMeasureStoresTheDeclaredHook() async {
+        var hookRan = false
+        let snapshotCase = SnapshotCase(
+            name: "States",
+            configurations: [],
+            onReadyToMeasure: { hookRan = true },
+        ) { Color.red }
+        await snapshotCase.onReadyToMeasure?()
+        #expect(hookRan)
+    }
+
     @Test func settleStoresTheDeclaredMode() {
         let snapshotCase = SnapshotCase(name: "States", configurations: [], settle: .immediate) {
             Color.red

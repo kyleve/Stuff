@@ -5,7 +5,7 @@ components and widget views, and the `@Observable` view models that
 orchestrate `WhereCore` for them (`WhereModel`, the `WhereSession`
 coordinator, and the scoped `YearReportModel` / `ResolveModel` /
 `BackupModel` / `RemindersSettingsModel` / `DevicesSettingsModel` / `OnboardingFlowModel` /
-`OnboardingImportRecoveryModel`).
+`OnboardingImportRecoveryModel` / `LocationForecastModel`).
 Layering, localization, preview, and testing conventions live in the feature
 [`Where/AGENTS.md`](../AGENTS.md)
 — read that and the root [`AGENTS.md`](../../AGENTS.md) first.
@@ -15,6 +15,8 @@ Layering, localization, preview, and testing conventions live in the feature
 - Presentation layer only — no domain rules, persistence, or store I/O here
   ([Layering](../AGENTS.md#layering)). Dependencies live in the root
   [`Package.swift`](../../Package.swift).
+- WhereUI maps Core's persisted `RegionSymbol` values to SFSafeSymbols'
+  `SFSymbol` and re-exports SFSafeSymbols for its presentation API consumers.
 - Composition is the one exception: `WhereScope` and `WhereModel` decide which
   world the app is logged in to and assemble it. That's launch wiring, not
   domain logic — see [Scopes and the launch](../AGENTS.md#scopes-and-the-launch).
@@ -75,6 +77,8 @@ Layering, localization, preview, and testing conventions live in the feature
 - Keep `RootView` opted into LifecycleKitUI's first-ready splash policy: the
   first foreground-visible `MainTabs` reveal gets the stylesheet minimum even
   when headless promotion coalesces, while warm resumes never replay it.
+- Keep planned-stay persistence and forecast math in WhereCore; `LocationForecastModel` only mirrors
+  the active register and orchestrates intents for the Locations, calendar, and timeline surfaces.
 - Continuous/looping motion (repeat-forever pulses, `TimelineView(.animation)`,
   typewriter reveals) must consult the shared `@MotionIsStatic` helper
   ([`Sources/Shared/MotionIsStatic.swift`](Sources/Shared/MotionIsStatic.swift))

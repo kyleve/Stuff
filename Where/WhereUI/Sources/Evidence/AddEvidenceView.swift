@@ -1,5 +1,6 @@
 import PeriscopeCore
 import PhotosUI
+import SFSafeSymbols
 import SwiftUI
 import UniformTypeIdentifiers
 import WhereCore
@@ -90,16 +91,16 @@ struct AddEvidenceView: View {
                     model.removeAttachment()
                     photoItem = nil
                 } label: {
-                    Label(String(localized: .evidenceFormRemove), systemImage: "trash")
+                    Label(String(localized: .evidenceFormRemove), systemSymbol: .trash)
                 }
             } else {
                 Button {
                     showingFileImporter = true
                 } label: {
-                    Label(String(localized: .evidenceFormChooseFile), systemImage: "doc")
+                    Label(String(localized: .evidenceFormChooseFile), systemSymbol: .doc)
                 }
                 PhotosPicker(selection: $photoItem, matching: .images) {
-                    Label(String(localized: .evidenceFormChoosePhoto), systemImage: "photo")
+                    Label(String(localized: .evidenceFormChoosePhoto), systemSymbol: .photo)
                 }
             }
         } header: {
@@ -111,7 +112,7 @@ struct AddEvidenceView: View {
         HStack {
             Label(
                 attachment.filename ?? String(localized: .evidenceFormAttachmentHeader),
-                systemImage: "paperclip",
+                systemSymbol: .paperclip,
             )
             .lineLimit(1)
             .truncationMode(.middle)
@@ -128,7 +129,7 @@ struct AddEvidenceView: View {
         return Section {
             Picker(String(localized: .evidenceFormKind), selection: $model.kind) {
                 ForEach(EvidenceKind.knownCases, id: \.self) { kind in
-                    Label(kind.displayName, systemImage: kind.symbolName).tag(kind)
+                    Label(kind.displayName, systemSymbol: kind.symbol).tag(kind)
                 }
             }
             if case .other = model.kind {

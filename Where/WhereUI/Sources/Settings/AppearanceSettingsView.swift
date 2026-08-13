@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 import WhereCore
@@ -21,7 +22,7 @@ struct AppearanceSettingsView: View {
                     Toggle(isOn: $report.showsRecordedLocationDots) {
                         Label(
                             String(localized: .settingsAppearanceLocationDotsToggle),
-                            systemImage: "mappin.and.ellipse",
+                            systemSymbol: .mappinAndEllipse,
                         )
                     }
                     .settingsRow(Item.locationDots)
@@ -30,12 +31,24 @@ struct AppearanceSettingsView: View {
                 }
 
                 Section {
+                    Toggle(isOn: $report.showsLocationForecastsOnLocationsTab) {
+                        Label(
+                            String(localized: .settingsAppearanceLocationForecastsToggle),
+                            systemSymbol: .chartLineUptrendXyaxis,
+                        )
+                    }
+                    .settingsRow(Item.locationForecasts)
+                } footer: {
+                    Text(String(localized: .settingsAppearanceLocationForecastsFooter))
+                }
+
+                Section {
                     // A sheet (not a push) so the icon picker's Done/commit point
                     // is explicit, matching the app's other editor flows.
                     Button {
                         showAppIcon = true
                     } label: {
-                        Label(String(localized: .settingsAppIconLink), systemImage: "app.badge")
+                        Label(String(localized: .settingsAppIconLink), systemSymbol: .appBadge)
                     }
                     .tint(.primary)
                     .settingsRow(Item.appIcon)
@@ -51,7 +64,7 @@ struct AppearanceSettingsView: View {
                             } label: {
                                 Label(
                                     String(localized: .cardDesignerTitle),
-                                    systemImage: "paintpalette",
+                                    systemSymbol: .paintpalette,
                                 )
                             }
                             .settingsRow(Item.cardDesigner)
@@ -79,6 +92,7 @@ extension AppearanceSettingsView: SettingsSection {
 
     enum Item: SettingsItem {
         case locationDots
+        case locationForecasts
         case appIcon
         #if DEBUG
             case cardDesigner
@@ -88,6 +102,8 @@ extension AppearanceSettingsView: SettingsSection {
             switch self {
                 case .locationDots:
                     String(localized: .settingsAppearanceLocationDotsToggle)
+                case .locationForecasts:
+                    String(localized: .settingsAppearanceLocationForecastsToggle)
                 case .appIcon: String(localized: .settingsAppIconLink)
                 #if DEBUG
                     case .cardDesigner: String(localized: .cardDesignerTitle)
@@ -99,6 +115,8 @@ extension AppearanceSettingsView: SettingsSection {
             switch self {
                 case .locationDots:
                     splitKeywords(String(localized: .settingsKeywordsLocationDots))
+                case .locationForecasts:
+                    splitKeywords(String(localized: .settingsKeywordsLocationForecasts))
                 case .appIcon: splitKeywords(String(localized: .settingsKeywordsAppIcon))
                 #if DEBUG
                     case .cardDesigner:

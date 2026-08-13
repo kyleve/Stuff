@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SwiftUI
 
 /// Color and accessibility trait controls for registered Flyover content.
@@ -5,7 +6,7 @@ struct FlyoverAppearanceMenu<ScreenID: Hashable>: View {
     @Bindable var model: FlyoverModel<ScreenID>
 
     var body: some View {
-        Menu("Traits", systemImage: "circle.lefthalf.filled") {
+        Menu {
             Picker("Appearance", selection: $model.appearance) {
                 ForEach(FlyoverAppearance.allCases) { appearance in
                     Text(appearance.title)
@@ -36,6 +37,8 @@ struct FlyoverAppearanceMenu<ScreenID: Hashable>: View {
                 Text("Bold")
                     .tag(LegibilityWeight.bold)
             }
+        } label: {
+            Label("Traits", systemSymbol: .circleLefthalfFilled)
         }
     }
 }

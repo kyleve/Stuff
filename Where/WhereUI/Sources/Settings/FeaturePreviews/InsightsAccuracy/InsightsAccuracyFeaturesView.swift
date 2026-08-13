@@ -1,14 +1,14 @@
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 
-/// Markets Where's on-device travel narrative and its automatic data-quality
-/// detection, while deferring generation and fixes until an explicit action.
+/// Markets Where's automatic data-quality detection while deferring fixes
+/// until an explicit action.
 struct InsightsAccuracyFeaturesView: View {
     let report: YearReportModel
     let focus: SettingsFocus?
-    let presentation: FeatureDiscoveryPresentation
 
-    @State private var presentedSheet: Sheet?
+    @State private var showingResolution = false
     @Environment(\.stylesheet) private var stylesheet
 
     var body: some View {
@@ -18,7 +18,7 @@ struct InsightsAccuracyFeaturesView: View {
                     FeatureMarketingHeader(
                         title: String(localized: .settingsExploreInsightsTitle),
                         tagline: String(localized: .settingsExploreInsightsTagline),
-                        systemImage: SettingsDestination.insightsAccuracy.systemImage,
+                        systemSymbol: SettingsDestination.insightsAccuracy.systemSymbol,
                         tint: SettingsDestination.insightsAccuracy.iconColor,
                     )
                     .listRowInsets(.init())
@@ -27,25 +27,8 @@ struct InsightsAccuracyFeaturesView: View {
                     .staggeredReveal(order: 0)
 
                     Section {
-                        FeatureRecentActivityPreview(example: presentation.activityExample)
-                            .featureMarketingRow(order: 1)
-                            .settingsRow(Item.recentActivity, restingBackground: .clear)
-
-                        FeatureMarketingPanel {
-                            Button(action: showRecentActivity) {
-                                actionLabel(
-                                    String(localized: .settingsExploreInsightsOpenActivity),
-                                    systemImage: "sparkles",
-                                )
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                        .featureMarketingRow(order: 2)
-                    }
-
-                    Section {
                         FeatureDataAccuracyPreview(issueCount: report.dataIssueCount)
-                            .featureMarketingRow(order: 3)
+                            .featureMarketingRow(order: 1)
                             .settingsRow(Item.dataAccuracy, restingBackground: .clear)
 
                         if report.dataIssueCount > 0 {
@@ -53,19 +36,19 @@ struct InsightsAccuracyFeaturesView: View {
                                 Button(action: showResolution) {
                                     actionLabel(
                                         String(localized: .settingsExploreInsightsOpenResolve),
-                                        systemImage: "checklist",
+                                        systemSymbol: .checklist,
                                     )
                                 }
                                 .frame(maxWidth: .infinity, alignment: .leading)
                             }
-                            .featureMarketingRow(order: 4)
+                            .featureMarketingRow(order: 2)
                         }
                     } footer: {
                         VStack(alignment: .leading, spacing: stylesheet.spacing.medium) {
                             Text(String(localized: .settingsExploreInsightsFooter))
                             FeatureDiscoveryDataFooter()
                         }
-                        .staggeredReveal(order: 5)
+                        .staggeredReveal(order: 3)
                     }
                 }
                 .scrollContentBackground(.hidden)
@@ -74,39 +57,23 @@ struct InsightsAccuracyFeaturesView: View {
         }
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
-        .sheet(item: $presentedSheet) { sheet in
-            switch sheet {
-                case .recentActivity: RecentActivitySummaryView(report: report)
-                case .resolution: ResolutionView(report: report)
-            }
+        .sheet(isPresented: $showingResolution) {
+            ResolutionView(report: report)
         }
     }
 
-    private func actionLabel(_ title: String, systemImage: String) -> some View {
+    private func actionLabel(_ title: String, systemSymbol: SFSymbol) -> some View {
         Label {
             Text(title)
                 .foregroundStyle(.primary)
         } icon: {
-            Image(systemName: systemImage)
+            Image(systemSymbol: systemSymbol)
                 .foregroundStyle(SettingsDestination.insightsAccuracy.iconColor)
         }
     }
 
-    private func showRecentActivity() {
-        presentedSheet = .recentActivity
-    }
-
     private func showResolution() {
-        presentedSheet = .resolution
-    }
-
-    private enum Sheet: Hashable, Identifiable {
-        case recentActivity
-        case resolution
-
-        var id: Self {
-            self
-        }
+        showingResolution = true
     }
 }
 
@@ -116,14 +83,10 @@ extension InsightsAccuracyFeaturesView: SettingsSection {
     }
 
     enum Item: SettingsItem {
-        case recentActivity
         case dataAccuracy
 
         var title: String {
-            switch self {
-                case .recentActivity: String(localized: .settingsExploreInsightsActivityTitle)
-                case .dataAccuracy: String(localized: .settingsExploreInsightsAccuracyTitle)
-            }
+            String(localized: .settingsExploreInsightsAccuracyTitle)
         }
 
         var keywords: [String] {
@@ -143,7 +106,6 @@ extension InsightsAccuracyFeaturesView: SettingsSection {
                 InsightsAccuracyFeaturesView(
                     report: reportWithIssues(),
                     focus: nil,
-                    presentation: PreviewSupport.featureDiscoveryPresentation(),
                 )
             }
         }
@@ -166,10 +128,7 @@ extension InsightsAccuracyFeaturesView: SettingsSection {
         static let flyoverData = WhereFlyoverData.snapshots(
             InsightsAccuracyFeaturesView.self,
             title: "Insights & Accuracy",
-            routes: [
-                .modal(to: RecentActivitySummaryView.flyoverID),
-                .modal(to: ResolutionView.flyoverID),
-            ],
+            routes: [.modal(to: ResolutionView.flyoverID)],
         )
     }
 #endif

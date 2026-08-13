@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 import WhereCore
@@ -18,24 +19,29 @@ struct PresenceTimelineList: View {
     var body: some View {
         let yearReport = report.report
         let stints = yearReport.map { PresenceTimeline.stints(from: $0) } ?? []
+        let plannedInterval = report.forecasts.plannedInterval(intersecting: report.selectedYear)
 
-        if stints.isEmpty {
+        if stints.isEmpty, plannedInterval == nil {
             ContentUnavailableView {
                 Label(
                     String(localized: .timelineEmptyTitle),
-                    systemImage: "calendar.day.timeline.left",
+                    systemSymbol: .calendarDayTimelineLeft,
                 )
             } description: {
                 Text(String(localized: .timelineEmptyDescription))
             }
         } else {
+            let pinsOverview = stylesheet.timeline.overview.pinsToViewport
+
             ScrollView {
-                LazyVStack(spacing: stylesheet.spacing.large) {
-                    YearRibbon(
-                        days: yearReport?.days ?? [],
-                        year: report.selectedYear,
-                        calendar: report.calendar,
-                    )
+                LazyVStack(spacing: pinsOverview ? 0 : stylesheet.spacing.large) {
+                    if !pinsOverview {
+                        YearRibbon(
+                            days: yearReport?.days ?? [],
+                            year: report.selectedYear,
+                            calendar: report.calendar,
+                        )
+                    }
 
                     LazyVStack(spacing: 0) {
                         ForEach(stints.enumerated(), id: \.element.id) { index, stint in
@@ -44,14 +50,42 @@ struct PresenceTimelineList: View {
                                 calendar: report.calendar,
                                 daysInYear: report.daysInSelectedYear,
                                 isFirst: index == stints.startIndex,
-                                isLast: index == stints.index(before: stints.endIndex),
+                                isLast: plannedInterval == nil
+                                    && index == stints.index(before: stints.endIndex),
+                            )
+                        }
+
+                        if let plannedInterval {
+                            PlannedPresenceJourneyRow(
+                                interval: plannedInterval,
+                                calendar: report.calendar,
+                                daysInYear: report.daysInSelectedYear,
+                                isFirst: stints.isEmpty,
                             )
                         }
                     }
                 }
                 .padding(.horizontal, stylesheet.spacing.xxLarge)
-                .padding(.vertical, stylesheet.spacing.large)
+                .padding(.top, pinsOverview ? 0 : stylesheet.spacing.large)
+                .padding(.bottom, stylesheet.spacing.large)
             }
+            .safeAreaInset(
+                edge: .top,
+                spacing: 0,
+            ) {
+                if pinsOverview {
+                    YearRibbon(
+                        days: yearReport?.days ?? [],
+                        year: report.selectedYear,
+                        calendar: report.calendar,
+                    )
+                    .padding(.horizontal, stylesheet.spacing.xxLarge)
+                    .padding(.top, stylesheet.spacing.large)
+                    .padding(.bottom, stylesheet.spacing.large)
+                }
+            }
+            .defaultScrollAnchor(.bottom, for: .initialOffset)
+            .id(report.selectedYear)
         }
     }
 }
@@ -69,6 +103,11 @@ struct PresenceTimelineList: View {
                         PresenceTimelineList(report: PreviewSupport.loadedYearReportModel())
                     }
                 },
+                whereSnapshot(name: "InitialBottom", configurations: .screenDefaults) {
+                    NavigationStack {
+                        PresenceTimelineList(report: PreviewSupport.loadedYearReportModel())
+                    }
+                },
                 whereSnapshot(
                     name: "DifferentiateWithoutColor",
                     configurations: .fullContentPhoneLightDark,
@@ -81,6 +120,32 @@ struct PresenceTimelineList: View {
                         var accessibility = traits.accessibility
                         accessibility.shouldDifferentiateWithoutColor = true
                         overrides.accessibility = accessibility
+                    }
+                },
+                whereSnapshot(
+                    name: "DifferentiateWithoutColorInitialBottom",
+                    configurations: .phoneLightDark,
+                ) {
+                    NavigationStack {
+                        PresenceTimelineList(report: PreviewSupport.loadedYearReportModel())
+                    }
+                    .bTraitOverrides { traits, overrides in
+                        var accessibility = traits.accessibility
+                        accessibility.shouldDifferentiateWithoutColor = true
+                        overrides.accessibility = accessibility
+                    }
+                },
+                whereSnapshot(
+                    name: "PlannedStay",
+                    configurations: .fullContentPhoneLightDark
+                        + SnapshotConfiguration.combinations(
+                            devices: [.iPhoneFullContent],
+                            snapshotTypes: [.accessibility],
+                        ),
+                    measurementReadiness: .immediate,
+                ) {
+                    NavigationStack {
+                        PresenceTimelineList(report: PreviewSupport.plannedStayYearReportModel())
                     }
                 },
             ]

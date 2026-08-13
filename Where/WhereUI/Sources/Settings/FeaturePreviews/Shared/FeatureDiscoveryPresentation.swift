@@ -16,19 +16,14 @@ struct FeatureDiscoveryPresentation {
         let resultSubtitle: String
     }
 
-    struct ActivityExample: Equatable {
-        let summary: String
-    }
-
-    /// Two weeks of recorded days is enough to make counts, recent activity,
-    /// and widget totals representative rather than incidental.
+    /// Two weeks of recorded days is enough to make counts and widget totals
+    /// representative rather than incidental.
     static let minimumLoggedDayCount = 14
 
     let usesUserData: Bool
     let widgetSnapshot: WidgetSnapshot
     let lockScreenDate: Date
     let spotlightExample: SpotlightExample
-    let activityExample: ActivityExample
 
     private let siriExamples: [SiriIntentFeature: SiriExample]
 
@@ -73,9 +68,6 @@ struct FeatureDiscoveryPresentation {
                 )),
                 resultSubtitle: String(localized: .settingsExploreSpotlightResultGeneric),
             )
-            activityExample = ActivityExample(
-                summary: String(localized: .settingsExploreInsightsActivityGeneric),
-            )
             siriExamples = [:]
             return
         }
@@ -97,30 +89,12 @@ struct FeatureDiscoveryPresentation {
             calendar: calendar,
         )
         spotlightExample = Self.spotlightExample(report: report)
-        activityExample = Self.activityExample(relevantDays: relevantDays)
         siriExamples = Self.siriExamples(
             report: report,
             relevantDays: relevantDays,
             referenceDay: referenceDay,
-            referenceDate: referenceDate,
             calendar: calendar,
         )
-    }
-
-    private static func activityExample(relevantDays: [DayPresence]) -> ActivityExample {
-        let recentDays = relevantDays.suffix(minimumLoggedDayCount)
-        let regions = Set(recentDays.flatMap(\.regions))
-        guard !regions.isEmpty else {
-            return ActivityExample(
-                summary: String(localized: .settingsExploreInsightsActivityGeneric),
-            )
-        }
-        return ActivityExample(summary: String(
-            localized: .settingsExploreInsightsActivityPersonalized(
-                minimumLoggedDayCount,
-                regionList(regions),
-            ),
-        ))
     }
 
     private static func spotlightExample(report: YearReport) -> SpotlightExample {
@@ -153,7 +127,6 @@ struct FeatureDiscoveryPresentation {
         report: YearReport,
         relevantDays: [DayPresence],
         referenceDay: CalendarDay,
-        referenceDate: Date,
         calendar: Calendar,
     ) -> [SiriIntentFeature: SiriExample] {
         var examples: [SiriIntentFeature: SiriExample] = [:]
@@ -195,24 +168,6 @@ struct FeatureDiscoveryPresentation {
                 response: String(localized: .settingsExploreSiriPersonalizedDateResponse(
                     dateText,
                     regionList(latestDay.regions),
-                )),
-            )
-        }
-
-        let recentInterval = RecentActivityWindow.week.interval(
-            now: referenceDate,
-            calendar: calendar,
-        )
-        let recentStartDay = CalendarDay(from: recentInterval.start, in: calendar)
-        let recentDays = relevantDays.filter {
-            $0.day >= recentStartDay && $0.day <= referenceDay
-        }
-        let recentRegions = Set(recentDays.flatMap(\.regions))
-        if !recentRegions.isEmpty {
-            examples[.recentActivity] = SiriExample(
-                request: String(localized: .settingsExploreSiriRecentRequest),
-                response: String(localized: .settingsExploreSiriPersonalizedRecentResponse(
-                    regionList(recentRegions),
                 )),
             )
         }

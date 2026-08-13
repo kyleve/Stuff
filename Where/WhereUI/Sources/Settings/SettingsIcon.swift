@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SwiftUI
 
 /// The colored rounded-square icon chip for a top-level settings row (iOS-Settings
@@ -5,7 +6,7 @@ import SwiftUI
 /// light mode and black in dark mode; the chip geometry comes from
 /// `WhereStylesheet.SettingsStyle`.
 struct SettingsIcon: View {
-    let systemImage: String
+    let systemSymbol: SFSymbol
     let color: Color
 
     @Environment(\.stylesheet) private var stylesheet
@@ -13,7 +14,7 @@ struct SettingsIcon: View {
 
     var body: some View {
         let settings = stylesheet.settings
-        Image(systemName: systemImage)
+        Image(systemSymbol: systemSymbol)
             .font(.system(size: settings.iconSymbolSize, weight: .semibold))
             .foregroundStyle(colorScheme == .dark ? Color.black : Color.white)
             .frame(width: settings.iconSize, height: settings.iconSize)
@@ -33,7 +34,10 @@ struct SettingsIcon: View {
                 Label {
                     Text(destination.rowTitle)
                 } icon: {
-                    SettingsIcon(systemImage: destination.systemImage, color: destination.iconColor)
+                    SettingsIcon(
+                        systemSymbol: destination.systemSymbol,
+                        color: destination.iconColor,
+                    )
                 }
             }
         }

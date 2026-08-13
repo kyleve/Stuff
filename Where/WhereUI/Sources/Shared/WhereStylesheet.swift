@@ -22,6 +22,7 @@ struct WhereStylesheet: BStylesheet {
     var regionPicker = RegionPickerStyle.standard
     var evidence = EvidenceStyle.standard
     var elsewhereCard = ElsewhereCardStyle.standard
+    var locationForecast = LocationForecastStyle.standard
     var palette = Palette.standard
     var motion = Motion.standard
     var launch = LaunchStyle.standard
@@ -42,6 +43,7 @@ struct WhereStylesheet: BStylesheet {
         // Grow day-grid tap targets at accessibility Dynamic Type sizes.
         if traits.contentSizeCategory.isAccessibilitySize {
             calendar.day.minHeight = 56
+            timeline.overview.pinsToViewport = false
             timeline.row.stacksDayCount = true
             featureDiscovery.siri.bubble.indent = 0
         }
@@ -49,6 +51,7 @@ struct WhereStylesheet: BStylesheet {
         // Give every region a consistently labeled ribbon band when tint
         // alone is not an acceptable differentiator.
         if traits.accessibility.shouldDifferentiateWithoutColor {
+            timeline.overview.pinsToViewport = false
             timeline.ribbon.separatesRegions = true
         }
 
@@ -78,6 +81,40 @@ struct WhereStylesheet: BStylesheet {
     /// The fixed token set: the fallback used off the `View` tree (layout
     /// helpers, tests) and when no Broadway root has seeded a context.
     static let `default` = WhereStylesheet()
+}
+
+// MARK: - Location forecast
+
+extension WhereStylesheet {
+    /// Geometry for the annual-estimate panel shared by the Locations tab and
+    /// region-focused calendars.
+    struct LocationForecastStyle: Equatable {
+        var cornerRadius: CGFloat
+        var padding: CGFloat
+        var rowSpacing: CGFloat
+        var estimateSpacing: CGFloat
+        var collapsedLabelColor: Color
+        var borderColor: Color
+        var borderWidth: CGFloat
+        var shadowColor: Color
+        var shadowRadius: CGFloat
+        var shadowOffsetY: CGFloat
+        var expansionAnimation: Animation
+
+        static let standard = LocationForecastStyle(
+            cornerRadius: 22,
+            padding: 16,
+            rowSpacing: 12,
+            estimateSpacing: 3,
+            collapsedLabelColor: Color.primary.opacity(0.5),
+            borderColor: Color.primary.opacity(0.06),
+            borderWidth: 0.5,
+            shadowColor: Color.black.opacity(0.06),
+            shadowRadius: 8,
+            shadowOffsetY: 2,
+            expansionAnimation: .easeInOut(duration: 0.2),
+        )
+    }
 }
 
 extension WhereStylesheet {
@@ -889,6 +926,16 @@ extension WhereStylesheet {
             /// Padding between the day content (number + dots) and the pill's
             /// top/bottom edges, so the pill doesn't butt against the dots.
             var verticalInset: CGFloat
+            /// Lower-opacity fill plus a diagonal pattern for future days the
+            /// user has planned but not yet recorded.
+            var planned: Planned
+
+            struct Planned: Equatable {
+                var fillOpacity: Double
+                var hatchOpacity: Double
+                var hatchSpacing: CGFloat
+                var hatchLineWidth: CGFloat
+            }
         }
 
         /// The paperclip badge in a day cell's top-trailing corner marking a day
@@ -939,6 +986,12 @@ extension WhereStylesheet {
                 cornerRadius: 14,
                 continuationRadius: 3,
                 verticalInset: 4,
+                planned: RegionBand.Planned(
+                    fillOpacity: 0.07,
+                    hatchOpacity: 0.32,
+                    hatchSpacing: 6,
+                    hatchLineWidth: 1,
+                ),
             ),
             day: DayStyle(
                 minHeight: 44,
@@ -1154,6 +1207,7 @@ extension WhereStylesheet {
         var ribbon: Ribbon
         var rail: Rail
         var row: Row
+        var planned: Planned
 
         struct Overview: Equatable {
             var spacing: CGFloat
@@ -1163,6 +1217,8 @@ extension WhereStylesheet {
             var border: Color
             var borderWidth: CGFloat
             var yearFont: Font
+            /// Keep the compact overview visible while the journey scrolls.
+            var pinsToViewport: Bool
         }
 
         struct Ribbon: Equatable {
@@ -1210,6 +1266,17 @@ extension WhereStylesheet {
             var stacksDayCount: Bool
         }
 
+        /// The future planned-stay treatment appended after recorded journey
+        /// rows. Its lighter fill and hatch distinguish intent from history.
+        struct Planned: Equatable {
+            var fillOpacity: Double
+            var borderOpacity: Double
+            var hatchOpacity: Double
+            var hatchSpacing: CGFloat
+            var hatchLineWidth: CGFloat
+            var labelOpacity: Double
+        }
+
         static let standard = TimelineStyle(
             overview: Overview(
                 spacing: 12,
@@ -1219,6 +1286,7 @@ extension WhereStylesheet {
                 border: Color.primary.opacity(0.1),
                 borderWidth: 1,
                 yearFont: .system(.title2, design: .serif).bold(),
+                pinsToViewport: true,
             ),
             ribbon: Ribbon(
                 monthLabelSpacing: 6,
@@ -1254,6 +1322,14 @@ extension WhereStylesheet {
                 countVerticalPadding: 6,
                 countFillOpacity: 0.16,
                 stacksDayCount: false,
+            ),
+            planned: Planned(
+                fillOpacity: 0.035,
+                borderOpacity: 0.14,
+                hatchOpacity: 0.16,
+                hatchSpacing: 8,
+                hatchLineWidth: 1,
+                labelOpacity: 0.7,
             ),
         )
     }

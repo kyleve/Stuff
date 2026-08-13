@@ -1,4 +1,5 @@
 import RegionKit
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 import WhereCore
@@ -16,6 +17,7 @@ import WhereCore
 /// `WhereModel` (reset) come from the environment via the sub-screens.
 struct SettingsView: View {
     let report: YearReportModel
+    let recordingWarning: RecordingConfigurationWarningModel
     @State private var backup: BackupModel
     @State private var reminders: RemindersSettingsModel
     @State private var searchText = ""
@@ -26,8 +28,14 @@ struct SettingsView: View {
     @Environment(\.lifecycle) private var lifecycle
     @Environment(\.isInDemoMode) private var isInDemoMode
 
-    init(report: YearReportModel) {
+    init(
+        report: YearReportModel,
+        recordingWarning: RecordingConfigurationWarningModel? = nil,
+    ) {
         self.report = report
+        self.recordingWarning = recordingWarning ?? RecordingConfigurationWarningModel(
+            preferences: report.preferences,
+        )
         _backup = State(initialValue: BackupModel(services: report.services))
         _reminders = State(initialValue: RemindersSettingsModel(
             services: report.services,
@@ -66,6 +74,9 @@ struct SettingsView: View {
                         searchNavigationRow(result)
                     }
                 } else {
+                    if recordingWarning.isPresented {
+                        recordingWarningSection
+                    }
                     if isInDemoMode {
                         demoSection
                     }
@@ -101,6 +112,29 @@ struct SettingsView: View {
         }
     }
 
+    private var recordingWarningSection: some View {
+        Section {
+            NavigationLink(value: SettingsRoute(.devices)) {
+                Label {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(.settingsRecordingWarningTitle)
+                            .font(.headline)
+                        Text(.settingsRecordingWarningMessage)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                } icon: {
+                    Image(systemSymbol: .exclamationmarkTriangleFill)
+                        .foregroundStyle(.yellow)
+                        .accessibilityHidden(true)
+                }
+            }
+            Button(.settingsRecordingWarningDismiss, role: .cancel) {
+                recordingWarning.dismiss()
+            }
+        }
+    }
+
     /// The way out of demo mode, at the very top of the list where a temporary
     /// state belongs — above the real settings rather than filed among them.
     ///
@@ -114,7 +148,7 @@ struct SettingsView: View {
             } label: {
                 Label(
                     String(localized: .settingsDemoExit),
-                    systemImage: "rectangle.portrait.and.arrow.right",
+                    systemSymbol: .rectanglePortraitAndArrowRight,
                 )
             }
         } header: {
@@ -179,7 +213,7 @@ struct SettingsView: View {
             Label {
                 Text(destination.rowTitle)
             } icon: {
-                SettingsIcon(systemImage: destination.systemImage, color: destination.iconColor)
+                SettingsIcon(systemSymbol: destination.systemSymbol, color: destination.iconColor)
             }
         }
     }
@@ -213,7 +247,7 @@ struct SettingsView: View {
             }
         } icon: {
             SettingsIcon(
-                systemImage: result.destination.systemImage,
+                systemSymbol: result.destination.systemSymbol,
                 color: result.destination.iconColor,
             )
         }
@@ -258,7 +292,6 @@ struct SettingsView: View {
                 InsightsAccuracyFeaturesView(
                     report: report,
                     focus: route.focus,
-                    presentation: featureDiscoveryPresentation,
                 )
             case .personalization:
                 PersonalizationFeaturesView(report: report, focus: route.focus)
@@ -317,6 +350,18 @@ struct SettingsView: View {
                     .environment(PreviewSupport.loadedModel())
                     .environment(PreviewSupport.loadedSession())
                     .environment(\.isInDemoMode, true)
+            }
+            whereSnapshot(
+                name: "RecordingConfigurationWarning",
+                configurations: .fullContentPhoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
+                SettingsView(
+                    report: PreviewSupport.loadedYearReportModel(),
+                    recordingWarning: PreviewSupport.recordingConfigurationWarningModel(),
+                )
+                .environment(PreviewSupport.loadedModel())
+                .environment(PreviewSupport.loadedSession())
             }
         }
     }

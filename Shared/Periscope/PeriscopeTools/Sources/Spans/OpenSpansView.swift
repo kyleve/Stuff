@@ -1,4 +1,5 @@
 import PeriscopeCore
+import SFSafeSymbols
 import SwiftUI
 
 /// The open-spans developer surface: every span currently open via
@@ -29,7 +30,7 @@ public struct OpenSpansView: View {
         if spans.isEmpty {
             ContentUnavailableView(
                 "No Open Spans",
-                systemImage: "point.bottomleft.forward.to.point.topright.scurvepath",
+                systemSymbol: .pointBottomleftForwardToPointToprightScurvepath,
                 description: Text("Spans opened with begin(for:) appear here while they run."),
             )
         } else {

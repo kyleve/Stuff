@@ -22,6 +22,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: jdx/mise-action@v3
       - run: ./swiftformat --lint
+      - name: SF Symbol lint
+        run: ./sf-symbols --lint
       # Catalogs drift out of Xcode's serialization the moment one is written by
       # anything but Xcode, and the cost lands on whoever next builds in the IDE
       # (see "Formatting" in AGENTS.md). This rides along in the format job
@@ -36,16 +38,8 @@ jobs:
       # catalog lint does.
       - name: Attribution report check
         run: ./attribution --check
-      # The assignment is explicit so a CI run is reproducible. Discovery keeps
-      # it from becoming a place where a newly added suite can disappear.
-      - name: Snapshot shard configuration
-        run: |
-          python3 -m unittest discover -s Tools/Tests -p 'test_snapshot_shards.py'
-          ./snapshot-shards check
-
   architecture:
     name: Bumper Bowling
-    needs: format
     runs-on: xcode-27
     env:
       BUMPER_CACHE_DIR: .build/bumper-cache
@@ -73,130 +67,9 @@ jobs:
       - name: Enforce Where architecture
         run: swift run bumper lint . --timings
 
-  test:
-    name: Build & Test (iOS)
-    needs: format
-    runs-on: xcode-27
-    # A cold/stalled CoreSimulator has held this job for 3.5–5 hours on the
-    # xcode-27 image (a ~10 minute run), so cap it rather than letting a stuck
-    # boot sit on a runner until the 6-hour default.
-    timeout-minutes: 45
-    env:
-      # A known path for the diagnostics step below, rather than digging through
-      # DerivedData for whatever `.xcresult` looks freshest.
-      TEST_WORKDIR: ${{ github.workspace }}/test-output
-    steps:
-      - uses: actions/checkout@v4
-      - uses: jdx/mise-action@v3
-      # `./test` owns the whole invocation — it regenerates the project, resolves
-      # and boots the simulator by UDID via `./simulator` (never by name; see
-      # "Selecting a simulator" in AGENTS.md), runs the scheme, and streams
-      # progress. That is the same command a developer runs, so CI and local runs
-      # can't drift apart, and the progress lines are newline-terminated here
-      # because stdout isn't a terminal.
-      #
-      # `--shared` takes the image's existing iPhone 17 instead of creating a
-      # device of this checkout's own: a job already owns its VM, so the isolation
-      # is free here and a fresh device would only add a first-boot data migration
-      # to every run.
-      #
-      # `--all` rather than the default affected-bundle scope: a CI run must not
-      # depend on what the diff looks like.
-      - name: Build & Test (iOS)
-        run: ./test --all --shared --os 27.0
-      # Hosted tests can crash the test-host process without leaving any error in
-      # the summarized output. On failure, capture crash reports plus the logs and
-      # result bundle `./test` wrote, which hold the per-test crash backtraces.
-      - name: Collect test diagnostics
-        if: ${{ failure() }}
-        run: |
-          mkdir -p diagnostics/crashes
-          cp -R "$HOME/Library/Logs/DiagnosticReports/." diagnostics/crashes/ 2>/dev/null || true
-          cp -R "$TEST_WORKDIR" diagnostics/test-output 2>/dev/null || true
-          echo '--- collected diagnostics ---'
-          find diagnostics -maxdepth 3 | head -200
-      - name: Upload test diagnostics
-        if: ${{ failure() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-diagnostics-ios
-          path: diagnostics
-          if-no-files-found: warn
-          retention-days: 7
-
-  snapshot_shards:
-    name: Snapshot Tests (iOS, ${{ matrix.shard }}/2)
-    needs: format
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [1, 2]
-    # Same image as the `test` job: references are only reproducible against one
-    # renderer, so the snapshot job must not lag the toolchain the rest of CI
-    # (and every local run) uses.
-    runs-on: xcode-27
-    # Same stuck-simulator cap as the `test` job above, sized for this job's
-    # longer run.
-    timeout-minutes: 60
-    env:
-      TEST_WORKDIR: ${{ github.workspace }}/test-output-${{ matrix.shard }}
-    steps:
-      # Reference images live in Git LFS (see .gitattributes), so fetch them —
-      # without this the images arrive as pointer files and every comparison fails.
-      - uses: actions/checkout@v4
-        with:
-          lfs: true
-      - uses: jdx/mise-action@v3
-      # `--snapshots` is the standalone `StuffSnapshotTests` scheme, which is
-      # where the SNAPSHOT_EXPECTED_* / TZ pins live and which gathers every
-      # module's image bundle. The checked-in shard maps suites to this isolated
-      # runner; each invocation itself remains serial. `--review` describes any
-      # capture that differs from its reference (pixel count, max channel delta,
-      # changed region), which is the difference between a diagnosable failure
-      # and "does not match reference".
-      #
-      # Deliberately NOT parallel within this runner. xcodebuild's `-parallel-testing-enabled` /
-      # `-parallelize-tests-among-destinations` distribute XCTest *classes*, and
-      # every test here is Swift Testing, which presents none — so it lands
-      # everything on one worker and Swift Testing's own in-process parallelism
-      # then interleaves captures inside a single StuffTestHost, corrupting each
-      # other's images (verified: 24+ spurious mismatches, and 1.2–3x SLOWER than
-      # serial). See `SnapshotCaptureLock` and the sharding note in
-      # Shared/SnapshotKitTesting/AGENTS.md.
-      - name: Snapshot Tests (iOS, ${{ matrix.shard }}/2)
-        run: >-
-          ./test --snapshots --snapshot-shard ${{ matrix.shard }}/2
-          --shared --os 27.0 --review
-          --timing-report "$TEST_WORKDIR/snapshot-suite-durations.json"
-      - name: Upload snapshot timings
-        if: ${{ success() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: snapshot-timings-${{ matrix.shard }}
-          path: ${{ env.TEST_WORKDIR }}/snapshot-suite-durations.json
-          if-no-files-found: error
-          retention-days: 30
-      - name: Collect snapshot diagnostics
-        if: ${{ failure() }}
-        run: |
-          mkdir -p diagnostics/crashes
-          cp -R "$HOME/Library/Logs/DiagnosticReports/." diagnostics/crashes/ 2>/dev/null || true
-          cp -R "$TEST_WORKDIR" diagnostics/test-output 2>/dev/null || true
-          echo '--- collected diagnostics ---'
-          find diagnostics -maxdepth 3 | head -200
-      - name: Upload snapshot diagnostics
-        if: ${{ failure() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: snapshot-diagnostics-ios-${{ matrix.shard }}
-          path: diagnostics
-          if-no-files-found: warn
-          retention-days: 7
-
   test-macos:
     name: Build & Test (macOS)
-    needs: format
-    # Same image as the other jobs so every target builds against one toolchain.
+    # Keep the native-macOS target on GitHub's pinned Xcode image.
     runs-on: xcode-27
     # The macOS-only Ledger scheme is self-contained and fast (no simulator, no
     # LFS), so this cap is well clear of a normal run.

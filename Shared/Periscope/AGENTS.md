@@ -14,7 +14,7 @@ formatting, and global conventions. Read that first.
 - **PeriscopeCore** — the model and machinery. No SwiftUI, no app code.
 - **PeriscopeUI** — SwiftUI integration. Depends on PeriscopeCore.
 - **PeriscopeTools** — developer surfaces. Depends on PeriscopeCore,
-  PeriscopeUI, and BroadwayCore/BroadwayUI.
+  PeriscopeUI, BroadwayCore/BroadwayUI, and SFSafeSymbols.
 
 Each layer reaches only *down*, and **the Broadway dependency stops at
 PeriscopeTools** — Core and UI must stay design-system-free so a consumer can

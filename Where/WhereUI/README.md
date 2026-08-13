@@ -24,19 +24,18 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   `MainTabs`, the Liquid Glass tab bar over three tabs — Locations, Your Year,
   Settings. Elsewhere is an entry card on Locations, Resolve a Locations toolbar
   button, and the data screens (attachments, logged days, regions) sit in the
-  Settings "Data" group. The **Explore Features** group demonstrates all six
-  Siri/Shortcuts intent as an example conversation, demonstrates tracked-region
+  Settings "Data" group. The **Explore Features** group demonstrates all five
+  Siri/Shortcuts intents as example conversations, demonstrates tracked-region
   results in Spotlight, and renders every supported
   widget family on miniature Home Screen and Lock Screen surfaces. A Share &
   Evidence walkthrough also reveals the system Share-sheet extension and links
-  into the saved attachment archive. Insights & Accuracy introduces the private
-  on-device activity narrative and the automatic issue detectors without
-  running either merely to render the gallery. These galleries use a
-  shared marketing header, quiet patterned backdrop, and staged entrance that
-  resolves immediately for Reduce Motion and snapshot capture. Once the selected
-  report has 14 recorded days, both galleries personalize themselves with its
-  real regions, counts, and dates; sparse reports keep the illustrative Siri copy
-  and empty widget state.
+  into the saved attachment archive. Insights & Accuracy introduces the
+  automatic issue detectors without running them merely to render the gallery.
+  These galleries use a shared marketing header, quiet patterned backdrop, and
+  staged entrance that resolves immediately for Reduce Motion and snapshot
+  capture. Once the selected report has 14 recorded days, the Siri, Spotlight,
+  widget, and evidence examples use its real regions, counts, and dates; sparse
+  reports keep the illustrative Siri copy and empty widget state.
   Backup and destructive data management share one Data drill-in. Both Data and
   About lead with the same full-width passport-style
   privacy statement on a passport-navy, tilt-reflective surface: location
@@ -95,7 +94,8 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   per-device recording changes, `startTracking()` / `stopTracking()`,
   `refreshWidgetSnapshot()`). It holds no presentation state of its own.
 - **Scope-tiered models** — scene-scoped **`YearReportModel`** (the selected
-  year's `YearReportDetails`, its `LoadState`, and the manual-day edit intents), plus
+  year's `YearReportDetails`, its `LoadState`, manual-day edit intents, and the shared
+  **`LocationForecastModel`** planned-stay mirror), plus
   view-scoped **`ResolveModel`** (data-issue triage), **`BackupModel`**
   (Settings export progress and failures),
   **`RemindersSettingsModel`** (notification prefs),
@@ -148,12 +148,16 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
 - **`DevicesSettingsView`** — Settings’ installation rows for local recording choice, synced
   nicknames, advisory activity/permission status, and irreversible removal. Only the current row
   can toggle recording; remote rows can be renamed or removed while preserving their earlier
-  history.
+  history. The current row can open Settings.app to promote location access even while recording is
+  off. Settings badges when the current phone is the expected recorder (no other installation
+  recently reported recording) but has both automatic recording and Always location access disabled;
+  the user can acknowledge that occurrence, and a later recovery then regression starts a new warning
+  generation.
 - **Widget views** — the shared renderers the **WhereWidgets** extension draws
   with: `TodayWidgetView`, `YearTotalsWidgetView`, and the accessory family
   (`TodayInlineAccessoryView`, `TodayCircularAccessoryView`,
   `YearTotalsRectangularAccessoryView`). Each takes a `WidgetSnapshot`.
-- **`RegionStyle` / `RegionStyleResolver`** — a region's symbol, emoji, and
+- **`RegionStyle` / `RegionStyleResolver`** — a region's typed `SFSymbol`, emoji, and
   tint, shared across cards, calendar dots, and timelines. Views resolve it from
   `@Environment(\.regionStyles)` (`regionStyles.style(for: region)`), seeded by
   `whereBroadwayRoot(regionStyles:)` — from `WhereSession`'s live resolver in the
@@ -290,6 +294,11 @@ Live tilt is observed only by the sheen overlay, so its 60 Hz updates do not
 invalidate the card's text or Canvas artwork. The card adds no standalone edge
 stroke; its containing Liquid Glass surface owns the subtle outer border so
 direct and production rendering do not diverge.
+
+After at least three months of the current year, Locations can reveal a collapsible annual estimate
+from the recorded pace; Settings > Appearance can disable it entirely. A focused region calendar
+places the estimate after the current month and renders “I’ll be here through…” future days with a
+continuous hatched band, distinct from recorded presence.
 
 DEBUG builds include Card Designer Studio under Settings → Appearance. It
 edits a versioned, persisted draft of the regular, compact, and shared card

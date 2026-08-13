@@ -1,13 +1,13 @@
 {
-  "originHash" : "434317bff5c30f26405c7c079b864a7846ad67b3f96dd2d0366c4154d7c44f22",
+  "originHash" : "b3b346e3ec74adcaa27daf260cae87b973e4399aa61877f6dd2d901dc6645de7",
   "pins" : [
     {
       "identity" : "accessibilitysnapshot",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/cashapp/AccessibilitySnapshot",
       "state" : {
-        "revision" : "38132a8505ffe780f61ac44522dd1ffa8e8be2fe",
-        "version" : "0.11.0"
+        "revision" : "c1605f10124733eed116b4737147ed4e2bd7e2e3",
+        "version" : "0.12.0"
       }
     },
     {
@@ -53,6 +53,15 @@
       "state" : {
         "revision" : "d27a0ddf0cd1bc90ab038f5781fddc39b894430e",
         "version" : "9.25.0"
+      }
+    },
+    {
+      "identity" : "sfsafesymbols",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/SFSafeSymbols/SFSafeSymbols",
+      "state" : {
+        "revision" : "e01b3d4f861412f8dcee8d93c417d2c2b0cdfd77",
+        "version" : "7.0.0"
       }
     },
     {

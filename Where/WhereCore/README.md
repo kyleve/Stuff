@@ -3,9 +3,8 @@
 The domain layer of the **Where** app: it ingests location, persists it, rolls
 it up into per-day and per-year region presence, finds the data-quality problems
 worth resolving, and drives the side effects that follow a change (reminders,
-widget snapshots, backups, on-device activity summaries). It is pure Swift +
-Foundation + SwiftData + CoreLocation + FoundationModels — **no SwiftUI or
-UIKit** — so all of it is unit-testable off-screen. It builds on
+widget snapshots, backups). It is pure Swift + Foundation + SwiftData +
+CoreLocation — **no SwiftUI or UIKit** — so all of it is unit-testable off-screen. It builds on
 [`RegionKit`](../RegionKit) for coordinate→region lookup and logs through
 [`Periscope`](../../Shared/Periscope) via the `WhereLog` facade.
 
@@ -42,7 +41,7 @@ one it belongs to rather than to a god-object:
   holds the user's **tracked / primary regions** (`trackedRegions()` /
   `setTrackedRegion(_:id:)`, plus `primaryRegions()` / `setPrimaryRegions(_:)`
   which surface and persist each region's picked `RegionAppearance` — color
-  token, emoji, SF Symbol — and pick order alongside the synced rows) — one row
+  token, emoji, typed `RegionSymbol` — and pick order alongside the synced rows) — one row
   per region, defaulting to the four until the user chooses in the onboarding /
   Settings region picker. Recording identity and synced status are split into
   immutable profiles, append-only nickname events and removal tombstones, and target-owned
@@ -65,6 +64,9 @@ one it belongs to rather than to a god-object:
   (`clearManualDay` / `clearYear` / `eraseAllData`), evidence, and issue
   dismissals. Each write commits, then awaits its reminder reconcile + widget
   publish so the next reader sees a fully-applied change.
+- **`PlannedStayCoordinator`** — the synced, generation-scoped last-writer register behind “I’ll
+  be here through…”. Clears and expiry write tombstones, and annual forecasts consume its current
+  value without coupling projection math to persistence.
 
 - **`DemoDataBuilder`** — writes the dataset the app's demo mode runs on into a
   given `WhereServices`: a plausible current year of living in New York with
@@ -120,7 +122,7 @@ one it belongs to rather than to a god-object:
   target-owned advisory check-ins, and global removal tombstones sync independently. Another
   installation can rename or remove a device identity, but cannot change its recording consent.
 - **`LocationHistoryReader`** — the shared removal-aware read boundary used by reports, widgets,
-  recent activity, and foreground capture checks. It hides a removed identity's GPS samples at
+  and foreground capture checks. It hides a removed identity's GPS samples at
   and after its earliest tombstone while keeping earlier raw storage, backups, legacy samples
   without provenance, and user-asserted samples lossless.
 
@@ -142,7 +144,7 @@ one it belongs to rather than to a god-object:
 - **`WidgetSnapshotPublisher`** — republishes the App Group snapshot the widgets
   read, with a freshness policy.
 - **`BackupCoordinator`** — ZIP export/import via `ZIPFoundation`. Export pins
-  tables and evidence blobs to one generation-consistent snapshot. Merge preserves queued locations
+  tables, planned-stay revisions, and evidence blobs to one generation-consistent snapshot. Merge preserves queued locations
   and the installation-local recording choice. Replace writes the archive into a new child generation,
   retains existing removal tombstones, and preserves the local choice before pending fixes are
   discarded. A prepared
@@ -154,17 +156,16 @@ one it belongs to rather than to a god-object:
   sidecar tombstone before clearing recovery, so a cold launch can repair a preference write
   that did not reach disk without offering the same archive again.
   Check-ins are deliberately neither exported nor restored because they are live advisory status.
-- **`RecentActivitySummarizer`** — an on-device Foundation Models narrative over
-  a selectable look-back `RecentActivityWindow`.
 - **`InstallationRecordingContext`** — the device-local installation identity,
   explicitly confirmed local recording choice, and stable timestamp for recreating
   its immutable device profile idempotently.
   `InstallationRecordingContextStoring` keeps the persistence adapter outside
   the domain value.
 - **`WherePreferences`** — persisted user intent (onboarding,
-  reminder / summary schedules, Locations-card GPS-dot visibility) plus the
-  year-keyed Location-card counts used for presentation continuity, behind a
-  `KeyValueStore`. The store has no
+  reminder / summary schedules, Locations-card GPS-dot and annual-forecast visibility) plus the
+  year-keyed Location-card counts and Codable recording-warning generation used for presentation
+  continuity, behind a `KeyValueStore`. `RecordingConfigurationWarningCondition` evaluates the live
+  device authority, recording choice, and authorization tuple in Core. The store has no
   default: production names `UserDefaults.standard` and everything else names
   `InMemoryKeyValueStore()`, so no test or preview can reach the host's real
   defaults by saying nothing. Recording confirmation is deliberately absent:
@@ -270,9 +271,6 @@ rotates to a Reset child generation, and discards the retry queue only after com
   incomplete causal generation DAG fails closed instead of mixing old and new state.
 - **Failures surface.** Store methods are `async throws`; errors are logged via
   `WhereLog` and left observable — never swallowed into an empty default.
-- **Foundation Models may be unavailable.** `RecentActivitySummarizer` reports a
-  typed reason rather than a silently empty summary.
-
 ## Testing
 
 Swift Testing in [`Tests/`](Tests) (`WhereCoreTests`), hosted in `StuffTestHost`.

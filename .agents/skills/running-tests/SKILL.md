@@ -50,16 +50,12 @@ dependency graph says they're affected.
 - **`--review`** — how each differing reference differs (pixel count, max delta,
   changed region); use to tell a broken render from antialiasing drift
 - **`--timings`** — where capture time went per phase
-- **`--timing-report PATH`** — write per-suite durations for
-  `./snapshot-shards balance --report PATH`
 - **`--record MODE`** — re-record references: `all`, `failed`, `missing`, or
   `never` (default). Fix the view first; re-record only when the render is
   correct
 
-Don't run multiple image shards concurrently on one Mac: its simulators share
-one render server, making captures slower and flaky. CI's two shards are safe
-because they run serially on separate runners; `--snapshot-shard 1/2` and
-`2/2` exist for that topology, not same-machine parallelism. See
+Don't parallelize the image suite: simulators on one Mac share one render
+server, making captures slower and flaky. See
 [`Shared/SnapshotKitTesting/AGENTS.md`](../../../Shared/SnapshotKitTesting/AGENTS.md).
 
 ## Iterate faster

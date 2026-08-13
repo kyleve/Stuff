@@ -14,7 +14,7 @@ import UIKit
 ///
 /// `async` because the render pipeline must suspend for SwiftUI `.task`-driven
 /// content to load before capture — see
-/// ``renderSnapshotImage(of:named:sizing:safeAreaInsets:isAccessibility:settle:onReadyToSnapshot:)``.
+/// ``renderSnapshotImage(of:named:sizing:safeAreaInsets:isAccessibility:measurementReadiness:onReadyToMeasure:settle:onReadyToSnapshot:)``.
 @MainActor
 public func assertSnapshots(
     of provider: (some SnapshotProviding).Type,
@@ -26,6 +26,12 @@ public func assertSnapshots(
     column: UInt = #column,
 ) async {
     guard simulatorMatchesSnapshotExpectations() else { return }
+    do {
+        _ = try SnapshotSettleTimeoutPolicy.fromEnvironment()
+    } catch {
+        Issue.record(error)
+        return
+    }
     let snapshots = provider.snapshots
     let duplicates = duplicateSnapshotIdentifiers(in: snapshots)
     guard duplicates.isEmpty else {
@@ -46,6 +52,7 @@ public func assertSnapshots(
             named: snapshotCase.name,
             configurations: snapshotCase.configurations,
             measurementReadiness: snapshotCase.measurementReadiness,
+            onReadyToMeasure: snapshotCase.onReadyToMeasure,
             settle: snapshotCase.settle,
             onReadyToSnapshot: snapshotCase.onReadyToSnapshot,
             record: record,
@@ -66,6 +73,7 @@ public func assertSnapshots(
     named name: String,
     configurations: [SnapshotConfiguration],
     measurementReadiness: SnapshotMeasurementReadiness = .sameAsCapture,
+    onReadyToMeasure: (@MainActor () async -> Void)? = nil,
     settle: SnapshotSettle = .settled,
     onReadyToSnapshot: (@MainActor () async -> Void)? = nil,
     record: SnapshotTestingConfiguration.Record? = nil,
@@ -99,6 +107,13 @@ public func assertSnapshots(
     // default plain output.
     let resolvedRecord = record ?? environmentRecordMode()
     let resolvedDiffTool = environmentDiffTool()
+    let settleTimeoutPolicy: SnapshotSettleTimeoutPolicy
+    do {
+        settleTimeoutPolicy = try .fromEnvironment()
+    } catch {
+        Issue.record(error)
+        return
+    }
     // Read once per call rather than per configuration: the environment can't
     // change mid-run, and the pixel walk is the cost worth gating, not this.
     let isDiffReportingEnabled = SnapshotDiffReporting.isEnabledByEnvironment
@@ -140,10 +155,14 @@ public func assertSnapshots(
                 safeAreaInsets: configuration.device.safeAreaInsets.uiEdgeInsets,
                 isAccessibility: configuration.snapshotType == .accessibility,
                 measurementReadiness: measurementReadiness,
+                onReadyToMeasure: onReadyToMeasure,
                 settle: settle,
                 onReadyToSnapshot: onReadyToSnapshot,
+                settleTimeoutPolicy: settleTimeoutPolicy,
                 timing: timing,
             )
+        } catch is CancellationError {
+            return
         } catch {
             Issue.record(error)
             continue

@@ -10,8 +10,8 @@ struct AboutOpenSourceFooter: View {
             PassportCard(
                 title: .settingsAboutSourceTitle,
                 detail: .settingsAboutSourceAction,
-                sealSystemImage: "chevron.left.forwardslash.chevron.right",
-                accessorySystemImage: "arrow.up.right",
+                sealSystemSymbol: .chevronLeftForwardslashChevronRight,
+                accessorySystemSymbol: .arrowUpRight,
                 isInteractive: true,
                 surface: .securityPrint,
             )

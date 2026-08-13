@@ -7,10 +7,11 @@ class UpgradeBackupTest < Minitest::Test
   def test_v1_adds_current_tables_without_inventing_recording_consent
     upgraded = upgrade_manifest(base_manifest(1))
 
-    assert_equal 4, upgraded.fetch("formatVersion")
+    assert_equal 5, upgraded.fetch("formatVersion")
     assert_equal [], upgraded.fetch("recordingDeviceProfiles")
     assert_equal [], upgraded.fetch("recordingDeviceMetadataChanges")
     assert_equal [], upgraded.fetch("recordingDeviceRemovals")
+    assert_equal [], upgraded.fetch("plannedStayRecords")
     assert_nil upgraded.fetch("samples").first.fetch("recordingDeviceID")
   end
 
@@ -53,7 +54,7 @@ class UpgradeBackupTest < Minitest::Test
 
     upgraded = upgrade_manifest(manifest)
 
-    assert_equal 4, upgraded.fetch("formatVersion")
+    assert_equal 5, upgraded.fetch("formatVersion")
     assert_equal({
       "kind" => { "other" => {} },
       "registrationGenerationID" => "generation-id",
@@ -66,8 +67,8 @@ class UpgradeBackupTest < Minitest::Test
     }, upgraded.fetch("recordingDeviceMetadataChanges").last)
   end
 
-  def test_v4_is_idempotent
-    once = upgrade_manifest(base_manifest(4))
+  def test_v5_is_idempotent
+    once = upgrade_manifest(base_manifest(5))
     assert_equal once, upgrade_manifest(Marshal.load(Marshal.dump(once)))
   end
 
@@ -83,7 +84,7 @@ class UpgradeBackupTest < Minitest::Test
   end
 
   def test_rejects_branch_only_or_future_formats
-    error = assert_raises(SystemExit) { upgrade_manifest(base_manifest(5)) }
+    error = assert_raises(SystemExit) { upgrade_manifest(base_manifest(6)) }
     assert_equal 1, error.status
   end
 

@@ -47,8 +47,9 @@ internal shape.
 - **Primary regions *are* the tracked-region set.** `primaryRegions()` /
   `setPrimaryRegions(_:)` read/write the same `SDTrackedRegion` rows as
   `trackedRegions()` — picking scopes GPS attribution *and* carries each
-  region's `RegionAppearance` + pick order. `RegionAppearance` is data
-  (WhereCore); the token→`Color` mapping is presentation (WhereUI).
+  region's `RegionAppearance` + pick order. `RegionAppearance` carries the
+  persisted `RegionSymbol`; its mapping to SFSafeSymbols and `Color` is
+  presentation (WhereUI).
 - **Export backups from one `readSnapshot` and keep restorable user data
   lossless.** Add persisted user-data shapes end-to-end and cover both import
   strategies, but export no target-owned recording check-ins and ignore any in
@@ -63,6 +64,9 @@ internal shape.
   `BackupArchive.currentFormatVersion` and extends
   [`../Tools/upgrade-backup.rb`](../Tools/upgrade-backup.rb); never add an
   in-code legacy decode fallback.
+- **The planned stay is a generation-scoped last-writer register with tombstones.** Resolve
+  duplicate CloudKit revisions by `updatedAt` then UUID, and clear or expire by writing a newer
+  `nil` value; deleting the winner can resurrect stale intent (`PlannedStayCoordinatorTests`).
 - **A logical day is a `CalendarDay`, not a `Date`.** `CalendarDay` (Y-M-D)
   is the timezone-independent identity every stored user record and day
   comparison keys on; persisting a `Date` makes a day drift across time-zone

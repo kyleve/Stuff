@@ -1,9 +1,10 @@
 import Foundation
 import RegionKit
 
-/// The app's persisted user intent — onboarding completion and the reminder /
-/// daily-summary schedules — plus small pieces of UI
-/// continuity state, behind a `KeyValueStore` so production uses `UserDefaults`
+/// The app's persisted user intent — onboarding completion, forecast
+/// visibility, and the reminder / daily-summary schedules — plus small pieces of UI
+/// continuity and acknowledgement state, behind a `KeyValueStore` so production uses
+/// `UserDefaults`
 /// and tests use an in-memory double.
 ///
 /// `store` is deliberately not defaulted: defaulting it to
@@ -37,6 +38,17 @@ public final class WherePreferences {
     public var showsRecordedLocationDots: Bool {
         get { store.object(forKey: Keys.showsRecordedLocationDots.rawValue) as? Bool ?? true }
         set { store.set(newValue, forKey: Keys.showsRecordedLocationDots.rawValue) }
+    }
+
+    /// Whether the annual-estimate summary appears on the Locations tab.
+    /// Defaults to `true` so an existing or fresh install sees the feature until
+    /// the user explicitly turns it off.
+    public var showsLocationForecastsOnLocationsTab: Bool {
+        get {
+            store.object(forKey: Keys.showsLocationForecastsOnLocationsTab.rawValue) as? Bool
+                ?? true
+        }
+        set { store.set(newValue, forKey: Keys.showsLocationForecastsOnLocationsTab.rawValue) }
     }
 
     /// Whether the daily "log before the day ends" reminder is enabled. Defaults
@@ -91,6 +103,44 @@ public final class WherePreferences {
     public var issueAlertsEnabled: Bool {
         get { store.object(forKey: Keys.issueAlertsEnabled.rawValue) as? Bool ?? true }
         set { store.set(newValue, forKey: Keys.issueAlertsEnabled.rawValue) }
+    }
+
+    /// Generation bookkeeping for the recording-configuration warning. This is UI continuity
+    /// state: the live recording policy and authorization remain authoritative.
+    public var recordingConfigurationWarningRegistration:
+        RecordingConfigurationWarningRegistration
+    {
+        get {
+            guard
+                let data = store.object(
+                    forKey: Keys.recordingConfigurationWarningRegistration.rawValue,
+                ) as? Data
+            else {
+                return RecordingConfigurationWarningRegistration()
+            }
+            do {
+                let registration = try JSONDecoder().decode(
+                    RecordingConfigurationWarningRegistration.self,
+                    from: data,
+                )
+                guard registration.isValid else {
+                    assertionFailure("Decoded an invalid recording warning registration.")
+                    return RecordingConfigurationWarningRegistration()
+                }
+                return registration
+            } catch {
+                assertionFailure("Could not decode recording warning registration: \(error)")
+                return RecordingConfigurationWarningRegistration()
+            }
+        }
+        set {
+            do {
+                let data = try JSONEncoder().encode(newValue)
+                store.set(data, forKey: Keys.recordingConfigurationWarningRegistration.rawValue)
+            } catch {
+                assertionFailure("Could not encode recording warning registration: \(error)")
+            }
+        }
     }
 
     /// GPS border-drift detection threshold in meters. Defaults to 10 km.
@@ -149,6 +199,7 @@ public final class WherePreferences {
     private enum Keys: String, CaseIterable {
         case hasOnboarded = "where.hasOnboarded"
         case showsRecordedLocationDots = "where.showsRecordedLocationDots"
+        case showsLocationForecastsOnLocationsTab = "where.showsLocationForecastsOnLocationsTab"
         case remindersEnabled = "where.remindersEnabled"
         case reminderHour = "where.reminderHour"
         case reminderMinute = "where.reminderMinute"
@@ -156,6 +207,8 @@ public final class WherePreferences {
         case summaryHour = "where.summaryHour"
         case summaryMinute = "where.summaryMinute"
         case issueAlertsEnabled = "where.issueAlertsEnabled"
+        case recordingConfigurationWarningRegistration =
+            "where.recordingConfigurationWarningRegistration"
         case driftThresholdMeters = "where.driftThresholdMeters"
         case lastSeenLocationDayCounts = "where.lastSeenLocationDayCounts"
     }
