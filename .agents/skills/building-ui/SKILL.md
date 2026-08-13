@@ -113,6 +113,11 @@ module-owned stylesheets.
   than remain at zero opacity.
 - Keep the visual structure consistent across states and variants unless the
   difference is intentional and modeled by the component style.
+- Put a large declarative subtree behind a nominal child `View` before passing
+  it through a custom generic container that stores or repeatedly transforms
+  its `Content`. In particular, do not pass a multi-section `Form` or `List`
+  directly into such a wrapper: SwiftUI may copy the full concrete value on the
+  stack while applying environment or navigation updates.
 
 ## Build for accessibility and localization
 

@@ -20,6 +20,7 @@ struct SettingsView: View {
     let recordingWarning: RecordingConfigurationWarningModel
     @State private var backup: BackupModel
     @State private var reminders: RemindersSettingsModel
+    @State private var path: [SettingsRoute]
     @State private var searchText = ""
     @State private var showRegions = false
 
@@ -32,6 +33,14 @@ struct SettingsView: View {
         report: YearReportModel,
         recordingWarning: RecordingConfigurationWarningModel? = nil,
     ) {
+        self.init(report: report, recordingWarning: recordingWarning, initialPath: [])
+    }
+
+    private init(
+        report: YearReportModel,
+        recordingWarning: RecordingConfigurationWarningModel?,
+        initialPath: [SettingsRoute],
+    ) {
         self.report = report
         self.recordingWarning = recordingWarning ?? RecordingConfigurationWarningModel(
             preferences: report.preferences,
@@ -42,7 +51,16 @@ struct SettingsView: View {
             preferences: report.preferences,
             now: report.now,
         ))
+        _path = State(initialValue: initialPath)
     }
+
+    #if DEBUG
+        /// Drives the production `NavigationStack` to one destination in tests.
+        /// The test-only seam stays out of release and creates no parallel route.
+        init(report: YearReportModel, testingRoute route: SettingsRoute) {
+            self.init(report: report, recordingWarning: nil, initialPath: [route])
+        }
+    #endif
 
     private var searchQuery: String {
         searchText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -67,7 +85,7 @@ struct SettingsView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             List {
                 if isSearching {
                     ForEach(searchResults) { result in
