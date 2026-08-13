@@ -123,6 +123,7 @@ public struct RootView: View {
                             gate: handle,
                             installationContext: model.installationRecordingContext,
                             startsAtRecordingChoice: model.hasOnboarded,
+                            initialTheme: model.theme,
                         )
                     }
                 },
@@ -236,7 +237,10 @@ public struct RootView: View {
             // styles (`\.regionStyles`) so cards/calendar/onboarding render the
             // user's picked looks. `.default` before the session exists (splash) and
             // reactive after, since reading `session.regionStyles` tracks it.
-            .whereBroadwayRoot(regionStyles: model.session?.regionStyles ?? .default)
+            .whereBroadwayRoot(
+                theme: model.theme,
+                regionStyles: model.session?.regionStyles ?? .default,
+            )
     }
 
     /// How the launch splash gives way to the app once the runner is `.ready`:

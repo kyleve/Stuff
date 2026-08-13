@@ -26,11 +26,17 @@ import WhereCore
 /// launch, the reset relaunch — replacing the cached stack, so intents always
 /// ride the current session's store instance.
 public actor IntentServices {
-    private var installed: WhereServices?
+    /// The store-sharing services and presentation identity resolved together.
+    struct Context {
+        let services: WhereServices
+        let theme: WhereTheme
+    }
+
+    private var installed: Context?
 
     /// Intents parked in `current()` awaiting installation, keyed so a
     /// cancelled waiter can remove exactly itself.
-    private var waiters: [Int: CheckedContinuation<WhereServices, any Error>] = [:]
+    private var waiters: [Int: CheckedContinuation<Context, any Error>] = [:]
     private var nextWaiterID = 0
 
     /// Create the instance the composition root owns (and tests build
@@ -42,13 +48,21 @@ public actor IntentServices {
     /// the launch's services, resuming any parked intents. Idempotent per
     /// stack; a later install (a fresh session after reset) replaces the
     /// cached one.
-    public func install(_ services: WhereServices) {
-        installed = services
+    public func install(_ services: WhereServices, theme: WhereTheme) {
+        let context = Context(services: services, theme: theme)
+        installed = context
         let parked = waiters
         waiters = [:]
         for continuation in parked.values {
-            continuation.resume(returning: services)
+            continuation.resume(returning: context)
         }
+    }
+
+    /// Replace only the presentation identity while retaining the current
+    /// store-sharing service stack.
+    public func updateTheme(_ theme: WhereTheme) {
+        guard let installed else { return }
+        self.installed = Context(services: installed.services, theme: theme)
     }
 
     /// Release the installed stack, so nothing here keeps the app's store alive
@@ -71,6 +85,11 @@ public actor IntentServices {
     /// report needs answered. It carries no budget — how long the wait may
     /// reasonably run is the *launch*'s expectation, already declared per step.
     func current() async throws -> WhereServices {
+        try await currentContext().services
+    }
+
+    /// Resolve services and theme atomically for snippet presentation.
+    func currentContext() async throws -> Context {
         if let installed {
             return installed
         }
@@ -81,7 +100,7 @@ public actor IntentServices {
 
     /// Suspend until `install(_:)` resumes us, keyed so a cancelled waiter can
     /// remove exactly itself.
-    private func park() async throws -> WhereServices {
+    private func park() async throws -> Context {
         let id = nextWaiterID
         nextWaiterID += 1
         return try await withTaskCancellationHandler {

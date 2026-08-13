@@ -6,6 +6,37 @@ import Testing
 
 private struct WhereModelWaitTimeout: Error {}
 
+private actor ThemeChangeGate {
+    private(set) var isBlocked = false
+    private(set) var delivered: [WhereTheme] = []
+    private var continuation: CheckedContinuation<Void, Never>?
+
+    func receive(_ theme: WhereTheme) async {
+        if theme == .alternate {
+            isBlocked = true
+            await withCheckedContinuation { continuation in
+                self.continuation = continuation
+            }
+            guard !Task.isCancelled else { return }
+        }
+        delivered.append(theme)
+    }
+
+    func release() {
+        continuation?.resume()
+        continuation = nil
+        isBlocked = false
+    }
+}
+
+private actor ThemeRecorder {
+    private(set) var delivered: [WhereTheme] = []
+
+    func receive(_ theme: WhereTheme) {
+        delivered.append(theme)
+    }
+}
+
 @MainActor
 private func waitForWhereModel(
     _ predicate: () -> Bool,
@@ -31,6 +62,85 @@ struct WhereModelTests {
             issueAlertScheduler: NoopDataIssueAlertScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
+    }
+
+    @Test func loadsPreviewsCommitsAndResetsTheme() throws {
+        let preferences = makePreferences()
+        preferences.theme = .alternate
+        let model = try WhereModel(
+            services: makeServices(),
+            preferences: preferences,
+            logSystem: .isolated(),
+        )
+
+        #expect(model.theme == .alternate)
+        model.previewTheme(.standard)
+        #expect(model.theme == .standard)
+        #expect(preferences.theme == .alternate)
+
+        model.completeOnboarding()
+        #expect(preferences.theme == .standard)
+
+        model.selectTheme(.alternate)
+        #expect(model.theme == .alternate)
+        #expect(preferences.theme == .alternate)
+
+        try model.resetPreferences()
+        #expect(model.theme == .standard)
+        #expect(preferences.theme == .standard)
+    }
+
+    @Test func repeatedThemeSelectionsCancelSupersededUpdates() async throws {
+        let model = try WhereModel(
+            services: makeServices(),
+            preferences: makePreferences(),
+            logSystem: .isolated(),
+        )
+        let gate = ThemeChangeGate()
+        model.onThemeChanged = { await gate.receive($0) }
+
+        model.selectTheme(.alternate)
+        while await !gate.isBlocked {
+            await Task.yield()
+        }
+        model.selectTheme(.standard)
+        await gate.release()
+        try await waitForWhereModel { model.theme == .standard }
+        while await gate.delivered.isEmpty {
+            await Task.yield()
+        }
+
+        #expect(await gate.delivered == [.standard])
+    }
+
+    @Test func onboardingCommitLaunchSynchronizationAndResetPublishTheme() async throws {
+        let preferences = makePreferences()
+        let model = try WhereModel(
+            services: makeServices(),
+            preferences: preferences,
+            logSystem: .isolated(),
+        )
+        let recorder = ThemeRecorder()
+        model.onThemeChanged = { await recorder.receive($0) }
+
+        model.previewTheme(.alternate)
+        model.completeOnboarding()
+        while await recorder.delivered.count < 1 {
+            await Task.yield()
+        }
+        #expect(await recorder.delivered == [.alternate])
+
+        model.synchronizeTheme()
+        while await recorder.delivered.count < 2 {
+            await Task.yield()
+        }
+        #expect(await recorder.delivered == [.alternate, .alternate])
+
+        try model.resetPreferences()
+        while await recorder.delivered.count < 3 {
+            await Task.yield()
+        }
+        #expect(await recorder.delivered == [.alternate, .alternate, .standard])
     }
 
     @Test func lateLogStoreArrivalPublishesReadyState() async throws {

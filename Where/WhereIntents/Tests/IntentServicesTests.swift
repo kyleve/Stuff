@@ -17,7 +17,7 @@ struct IntentServicesTests {
     @Test func currentReturnsTheInstalledStack() async throws {
         let handoff = IntentServices()
         let stack = try makeStack()
-        await handoff.install(stack)
+        await handoff.install(stack, theme: .standard)
 
         let resolved = try await handoff.current()
 
@@ -32,7 +32,7 @@ struct IntentServicesTests {
         try await waitUntil { await handoff.waiterCount == 1 }
 
         let stack = try makeStack()
-        await handoff.install(stack)
+        await handoff.install(stack, theme: .standard)
 
         let resolved = try await parked.value
         #expect(resolved.journal === stack.journal)
@@ -56,8 +56,8 @@ struct IntentServicesTests {
         let handoff = IntentServices()
         let first = try makeStack()
         let second = try makeStack()
-        await handoff.install(first)
-        await handoff.install(second)
+        await handoff.install(first, theme: .standard)
+        await handoff.install(second, theme: .alternate)
 
         let resolved = try await handoff.current()
         #expect(resolved.journal === second.journal)
@@ -74,9 +74,21 @@ struct IntentServicesTests {
         await handoff.clear()
 
         let replacement = try makeStack()
-        await handoff.install(replacement)
+        await handoff.install(replacement, theme: .standard)
 
         let resolved = try await parked.value
         #expect(resolved.journal === replacement.journal)
+    }
+
+    @Test func themeUpdatesAtomicallyWithoutReplacingTheStack() async throws {
+        let handoff = IntentServices()
+        let stack = try makeStack()
+        await handoff.install(stack, theme: .standard)
+
+        await handoff.updateTheme(.alternate)
+
+        let context = try await handoff.currentContext()
+        #expect(context.services.journal === stack.journal)
+        #expect(context.theme == .alternate)
     }
 }

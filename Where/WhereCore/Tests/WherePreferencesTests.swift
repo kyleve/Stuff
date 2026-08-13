@@ -12,6 +12,7 @@ struct WherePreferencesTests {
 
         #expect(preferences.hasOnboarded == false)
         #expect(preferences.showsRecordedLocationDots)
+        #expect(preferences.theme == .standard)
         #expect(preferences.showsEstimatedTimeAndPlanning)
         #expect(preferences.remindersEnabled)
         #expect(preferences.reminderTime == .defaultEvening)
@@ -24,6 +25,17 @@ struct WherePreferencesTests {
         )
         #expect(preferences.driftThresholdMeters == DriftThreshold.default.rawValue)
         #expect(preferences.lastSeenLocationDayCounts(in: 2026) == nil)
+    }
+
+    @Test func themeRoundTripsAndUnknownValuesFallBackToStandard() {
+        let store = InMemoryKeyValueStore()
+        let preferences = WherePreferences(store: store)
+
+        preferences.theme = .alternate
+        #expect(preferences.theme == .alternate)
+
+        store.set("future-theme", forKey: "where.theme")
+        #expect(preferences.theme == .standard)
     }
 
     @Test func locationDayCountsRoundTripIndependentlyByYear() {
@@ -64,6 +76,7 @@ struct WherePreferencesTests {
         let preferences = preferences()
         preferences.hasOnboarded = true
         preferences.showsRecordedLocationDots = false
+        preferences.theme = .alternate
         preferences.showsEstimatedTimeAndPlanning = false
         preferences.remindersEnabled = false
         preferences.reminderTime = ReminderTime(hour: 9, minute: 15)
@@ -81,6 +94,7 @@ struct WherePreferencesTests {
 
         #expect(preferences.hasOnboarded == false)
         #expect(preferences.showsRecordedLocationDots)
+        #expect(preferences.theme == .standard)
         #expect(preferences.showsEstimatedTimeAndPlanning)
         #expect(preferences.remindersEnabled)
         #expect(preferences.reminderTime == .defaultEvening)

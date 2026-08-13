@@ -1,7 +1,7 @@
 # WhereWidgets – Module Shape
 
-The **Where** widget extension: WidgetKit configurations that read a published
-`WidgetSnapshot` from the App Group and render via shared views in **WhereUI**.
+The **Where** widget extension: WidgetKit configurations that read published
+data and presentation files from the App Group and render via shared views in **WhereUI**.
 See [`README.md`](README.md) for the data path and widget list.
 
 This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
@@ -22,18 +22,22 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
 
 1. App commits a store change → `WidgetSnapshotPublisher` rebuilds the
    snapshot → writes JSON + `WidgetCenter.reloadAllTimelines()`.
-2. The provider reads the JSON on each timeline request and schedules
+2. A device-theme change → `WidgetPresentationPublisher` writes the separate
+   presentation JSON + reloads timelines without rebuilding data.
+3. The provider reads both files on each timeline request and schedules
    `.after(nextMidnight)` so WidgetKit re-queries even without an app reload.
 
 ## Invariants
 
-- **Read-only App Group access** — only the app writes `widget-snapshot.json`.
+- **Read-only App Group access** — only the app writes `widget-snapshot.json` and
+  `widget-presentation.json`.
 - **No stale-day invalidation in the provider.** A snapshot whose `day` rolled
   past today is still shown until the app republishes — intentional.
 - In-widget strings come from WhereUI (shared views + `WhereFormat`); the
   gallery name/description resolve through this extension's own generated
   catalog symbols (`String(localized: .widgetGalleryTodayName)`).
-- **Seed the Broadway root via WhereUI's `whereBroadwayRoot()`** (applied in each
+- **Seed the Broadway root via WhereUI's `whereBroadwayRoot()`** with the
+  separately published theme and the snapshot's region styles (applied in each
   widget's `StaticConfiguration` content) so the shared WhereUI views resolve
   trait-aware `@Environment(\.stylesheet)` tokens instead of `.default`. Never
   add a direct `BroadwayCore`/`BroadwayUI` dependency — Broadway arrives through
