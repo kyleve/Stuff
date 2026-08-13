@@ -1,0 +1,113 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+package_root="$repo_root/Where/Specifications"
+tool_root="$repo_root/.build/lean"
+elan_version="4.2.3"
+elan_root="$tool_root/elan"
+elan_bin="$elan_root/bin/elan"
+
+usage() {
+    sed -n '2,20p' "$0"
+    exit 0
+}
+
+# Usage: ./lean-check [--list] [SPEC ...]
+#
+# Build the kernel-checked Lean protocol proofs and run their diagnostic cases.
+# With no SPEC names, every specification is checked.
+#
+# Options:
+#   --list    Print discoverable specification names and exit
+#   --help    Show this help
+
+checksum() {
+    shasum -a 256 "$1" | awk '{print $1}'
+}
+
+platform_artifact() {
+    local os arch
+    os="$(uname -s)"
+    arch="$(uname -m)"
+    case "$os/$arch" in
+        Darwin/arm64) echo "elan-aarch64-apple-darwin.tar.gz 7cae4c03b2f0de4053fb04a91359d5804551e6e37a6ddd1b2e0097dc561ae4a9" ;;
+        Darwin/x86_64) echo "elan-x86_64-apple-darwin.tar.gz 10d037a69731c0593723e018130c5f54afde175796b4af8ba1317e561e55598c" ;;
+        Linux/aarch64|Linux/arm64) echo "elan-aarch64-unknown-linux-gnu.tar.gz cb69af0803b04157bc30201c29c12fca882bb3ad8b43476b8d2d3064810bc3ac" ;;
+        Linux/x86_64) echo "elan-x86_64-unknown-linux-gnu.tar.gz df0b2b3a439961ffcbb3985214365ffe40f49bc871df04dff268c7d8e21ca8b2" ;;
+        *) echo "error: unsupported Lean host $os/$arch" >&2; exit 1 ;;
+    esac
+}
+
+ensure_elan() {
+    if [[ -x "$elan_bin" ]]; then
+        return
+    fi
+    local artifact expected bootstrap_dir archive url
+    read -r artifact expected <<<"$(platform_artifact)"
+    bootstrap_dir="$tool_root/bootstrap/v$elan_version"
+    archive="$bootstrap_dir/$artifact"
+    url="https://github.com/leanprover/elan/releases/download/v$elan_version/$artifact"
+    mkdir -p "$bootstrap_dir" "$elan_root"
+    if [[ ! -f "$archive" ]]; then
+        echo "Downloading Elan $elan_version..."
+        curl --fail --location --retry 3 --output "$archive" "$url"
+    fi
+    if [[ "$(checksum "$archive")" != "$expected" ]]; then
+        echo "error: Elan archive checksum did not match $expected" >&2
+        exit 1
+    fi
+    tar -xzf "$archive" -C "$bootstrap_dir"
+    ELAN_HOME="$elan_root" "$bootstrap_dir/elan-init" -y --no-modify-path --default-toolchain none
+}
+
+list_specs() {
+    find "$package_root/WhereSpecifications" -mindepth 1 -maxdepth 1 -type d -print \
+        | while IFS= read -r directory; do basename "$directory"; done \
+        | sort
+}
+
+main() {
+    local list_only=false
+    local specs=()
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -h|--help) usage ;;
+            --list) list_only=true; shift ;;
+            -*) echo "error: unknown option '$1'" >&2; exit 2 ;;
+            *) specs+=("$1"); shift ;;
+        esac
+    done
+    if $list_only; then
+        list_specs
+        return
+    fi
+
+    ensure_elan
+    export ELAN_HOME="$elan_root"
+    export PATH="$elan_root/bin:$PATH"
+    local toolchain
+    toolchain="$(<"$package_root/lean-toolchain")"
+    if ! "$elan_bin" toolchain list | grep -Fq "$toolchain"; then
+        "$elan_bin" toolchain install "$toolchain"
+    fi
+    (
+        cd "$package_root"
+        if [[ ${#specs[@]} -eq 0 ]]; then
+            lake build
+            lake exe where-specifications
+        else
+            local spec
+            for spec in "${specs[@]}"; do
+                if [[ ! -f "WhereSpecifications/$spec/Model.lean" ]]; then
+                    echo "error: unknown spec '$spec'" >&2
+                    exit 1
+                fi
+                lake build "WhereSpecifications.$spec.Model"
+            done
+            lake exe where-specifications "${specs[@]}"
+        fi
+    )
+}
+
+main "$@"

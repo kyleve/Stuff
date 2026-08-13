@@ -1,0 +1,16 @@
+import WhereSpecifications.Protocol
+import WhereSpecifications.IngestorQuiesce.Model
+import WhereSpecifications.IntentServicesHandoff.Model
+import WhereSpecifications.LaunchLifecycle.Model
+import WhereSpecifications.LogRouting.Model
+import WhereSpecifications.PostWriteReconcile.Model
+import WhereSpecifications.ScopeExclusivity.Model
+import WhereSpecifications.StorePerformSerialization.Model
+import WhereSpecifications.TrackingReconciliation.Model
+import WhereSpecifications.RemoteDeviceRemoval.Model
+
+namespace WhereSpecifications
+
+def version : String := "0.1.0"
+
+end WhereSpecifications

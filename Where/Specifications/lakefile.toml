@@ -1,0 +1,10 @@
+name = "WhereSpecifications"
+version = "0.1.0"
+defaultTargets = ["WhereSpecifications", "where-specifications"]
+
+[[lean_lib]]
+name = "WhereSpecifications"
+
+[[lean_exe]]
+name = "where-specifications"
+root = "Main"
