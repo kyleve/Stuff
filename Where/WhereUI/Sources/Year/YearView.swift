@@ -1,16 +1,15 @@
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 import WhereCore
 
 /// Your Year tab: the selected year's calendar and timeline for the same data.
 /// A floating Liquid Glass pill at the bottom (Photos-style) zooms between the
-/// calendar (month detail) and the timeline (year overview); the activity
-/// summary sits in the toolbar.
+/// calendar (month detail) and the timeline (year overview).
 struct YearView: View {
     let report: YearReportModel
 
     @State private var mode: YearMode
-    @State private var showingRecentActivity = false
 
     @Environment(\.stylesheet) private var stylesheet
 
@@ -42,19 +41,6 @@ struct YearView: View {
                 YearModePicker(mode: $mode)
                     .padding(.bottom, stylesheet.spacing.xLarge)
             }
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        showingRecentActivity = true
-                    } label: {
-                        Label(String(localized: .primaryRecentActivity), systemImage: "sparkles")
-                    }
-                    .accessibilityIdentifier("where_recent_activity_button")
-                }
-            }
-        }
-        .sheet(isPresented: $showingRecentActivity) {
-            RecentActivitySummaryView(report: report)
         }
     }
 }
@@ -71,10 +57,10 @@ enum YearMode: String, Hashable, CaseIterable {
         }
     }
 
-    var systemImage: String {
+    var systemSymbol: SFSymbol {
         switch self {
-            case .calendar: "calendar"
-            case .timeline: "calendar.day.timeline.left"
+            case .calendar: .calendar
+            case .timeline: .calendarDayTimelineLeft
         }
     }
 }
@@ -115,7 +101,7 @@ private struct YearModePicker: View {
         return Button {
             withAnimation(.snappy(duration: 0.28)) { mode = candidate }
         } label: {
-            Label(candidate.title, systemImage: candidate.systemImage)
+            Label(candidate.title, systemSymbol: candidate.systemSymbol)
                 .labelStyle(.titleAndIcon)
                 .imageScale(.large)
                 .font(.subheadline.weight(.medium))
@@ -142,11 +128,16 @@ private struct YearModePicker: View {
             whereSnapshot(
                 name: "Loaded",
                 configurations: .fullContentScreenDefaults,
+                measurementReadiness: .immediate,
                 settle: .settledAtLeast(minDuration: 1.0),
             ) {
                 YearView(report: PreviewSupport.loadedYearReportModel())
             }
-            whereSnapshot(name: "Empty", configurations: .fullContentPhoneLightDark) {
+            whereSnapshot(
+                name: "Empty",
+                configurations: .fullContentPhoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
                 YearView(report: PreviewSupport.emptyYearReportModel())
             }
         }
@@ -161,9 +152,6 @@ private struct YearModePicker: View {
     extension YearView: WhereFlyoverProviding {
         static let flyoverData = WhereFlyoverData(
             YearView.self,
-            routes: [
-                .modal(to: RecentActivitySummaryView.flyoverID),
-            ],
         ) { id, world in
             .init(
                 id: id,

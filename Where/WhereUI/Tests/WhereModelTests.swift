@@ -44,7 +44,8 @@ struct WhereModelTests {
         bootstrap.gateLogStore()
         let model = WhereModel(
             preferences: makePreferences(),
-            makeBootstrap: { bootstrap },
+            installationContextStore: makeInstallationRecordingContextStore(),
+            makeBootstrap: { _ in bootstrap },
             logSystem: .isolated(),
         )
 
@@ -67,7 +68,8 @@ struct WhereModelTests {
         let bootstrap = try FailingLogStoreBootstrap(services: makeServices())
         let model = WhereModel(
             preferences: makePreferences(),
-            makeBootstrap: { bootstrap },
+            installationContextStore: makeInstallationRecordingContextStore(),
+            makeBootstrap: { _ in bootstrap },
             logSystem: .isolated(),
         )
 
@@ -89,7 +91,8 @@ struct WhereModelTests {
         let bootstrap = try ScriptedBootstrap(services: makeServices())
         let model = WhereModel(
             preferences: makePreferences(),
-            makeBootstrap: { bootstrap },
+            installationContextStore: makeInstallationRecordingContextStore(),
+            makeBootstrap: { _ in bootstrap },
             logSystem: .isolated(),
         )
 

@@ -5,6 +5,7 @@ import Testing
 import UIKit
 @testable import Where
 import WhereCore
+import WhereCrashReporting
 
 @MainActor
 struct WhereAppTests {
@@ -24,7 +25,41 @@ struct WhereAppTests {
         #expect(runtime.rootCount == 1)
     }
 
+    @Test func delegateStartsEveryCrashReporterBeforeItsRuntime() {
+        var events: [String] = []
+        let runtime = RuntimeSpy()
+        runtime.onLaunch = { events.append("runtime") }
+        let delegate = AppDelegate(
+            runtime: runtime,
+            crashReporters: [
+                CrashReporterSpy { events.append("sentry") },
+                CrashReporterSpy { events.append("bitdrift") },
+            ],
+        )
+
+        _ = delegate.application(
+            UIApplication.shared,
+            didFinishLaunchingWithOptions: nil,
+        )
+
+        #expect(events == ["sentry", "bitdrift", "runtime"])
+    }
+
     #if DEBUG
+        @Test func ordinaryDebugBuildUsesLocalOnlyStorageAcrossRelaunches() {
+            #expect(
+                RegularApplicationRuntime.storeStorage(forCloudKitValidationBuild: false)
+                    == .localOnly,
+            )
+        }
+
+        @Test func cloudKitValidationBuildUsesCloudKitStorageAcrossRelaunches() {
+            #expect(
+                RegularApplicationRuntime.storeStorage(forCloudKitValidationBuild: true)
+                    == .cloudKit,
+            )
+        }
+
         @Test func selectingInspectorConstructsOnlyInspectorRuntime() throws {
             let fixture = try ModeFixture()
             defer { fixture.cleanup() }
@@ -255,18 +290,29 @@ struct WhereAppTests {
 private final class RuntimeSpy: WhereApplicationRuntime {
     private(set) var launchCount = 0
     private(set) var rootCount = 0
+    var onLaunch: () -> Void = {}
 
     func didFinishLaunching(
         application _: UIApplication,
         options _: [UIApplication.LaunchOptionsKey: Any]?,
     ) -> Bool {
         launchCount += 1
+        onLaunch()
         return true
     }
 
     func makeRootView() -> AnyView {
         rootCount += 1
         return AnyView(EmptyView())
+    }
+}
+
+@MainActor
+private struct CrashReporterSpy: WhereCrashReporting {
+    let onStart: () -> Void
+
+    func start() {
+        onStart()
     }
 }
 

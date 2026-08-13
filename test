@@ -82,7 +82,8 @@ Usage: ./test [options] [BundleName ...]
 
 Runs this repo's tests against the simulator this checkout owns, streaming
 progress as it goes. With no arguments it runs only the bundles affected by the
-working tree's changes.
+working tree's changes. Every test run also runs the fast host-side backup
+upgrader regression suite before selecting an iOS test scope.
 
 Scope:
   (no arguments)    Bundles affected by the diff against origin/main, including
@@ -161,6 +162,9 @@ case "$RECORD" in
     *) echo "error: --record must be all, failed, missing or never (got '$RECORD')" >&2
        exit 1 ;;
 esac
+
+echo "==> Testing backup upgrader"
+mise exec -- ruby Where/Tools/Tests/upgrade_backup_test.rb
 
 WORKSPACE="Stuff.xcworkspace"
 UNIT_SCHEME="Stuff-iOS-Tests"
@@ -648,6 +652,8 @@ RUN_ENV=()
 [ -n "$RECORD" ] && RUN_ENV+=("TEST_RUNNER_SNAPSHOT_RECORD=$RECORD")
 [ "$TIMINGS" = true ] && RUN_ENV+=("TEST_RUNNER_SNAPSHOT_TIMING=1")
 [ "$REVIEW" = true ] && RUN_ENV+=("TEST_RUNNER_SNAPSHOT_DIFF=1")
+[ -n "${SNAPSHOT_SETTLE_TIMEOUT_MULTIPLIER:-}" ] \
+    && RUN_ENV+=("TEST_RUNNER_SNAPSHOT_SETTLE_TIMEOUT_MULTIPLIER=$SNAPSHOT_SETTLE_TIMEOUT_MULTIPLIER")
 
 # SwiftPM's generated `Bundle.module` accessors honor
 # PACKAGE_RESOURCE_BUNDLE_PATH as their first lookup candidate (DEBUG-only,

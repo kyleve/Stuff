@@ -60,6 +60,30 @@ enum WhereFormat {
         String(localized: .manualRangeFooter(count))
     }
 
+    static func locationForecastEstimate(region: Region, days: Int) -> AttributedString {
+        AttributedString(localized: .locationForecastEstimate(
+            region.localizedName,
+            dayCount(days),
+        ))
+    }
+
+    static func locationForecastElapsed(days: Int) -> String {
+        String(localized: .locationForecastElapsed(dayCount(days)))
+    }
+
+    static func locationForecastBasis(yearToDateDays: Int) -> String {
+        String(localized: .locationForecastBasis(dayCount(yearToDateDays)))
+    }
+
+    static func locationForecastPlan(through day: CalendarDay) -> String {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .current
+        let date = day.startOfDay(in: calendar)
+        return String(localized: .locationForecastPlan(
+            date.formatted(.dateTime.month(.wide).day().year()),
+        ))
+    }
+
     static func settingsBackupImportedMessage(
         samples: Int,
         evidence: Int,
@@ -73,6 +97,38 @@ enum WhereFormat {
             manualDays,
             dismissedIssues,
             trackedRegions,
+        ))
+    }
+
+    static func settingsBackupImportedMessage(
+        _ summary: BackupCoordinator.ImportSummary,
+    ) -> String {
+        settingsBackupImportedMessage(
+            samples: summary.sampleCount,
+            evidence: summary.evidenceCount,
+            manualDays: summary.manualDayCount,
+            dismissedIssues: summary.dismissedIssueCount,
+            trackedRegions: summary.trackedRegionCount,
+        )
+    }
+
+    /// A committed import is not retryable: pair its preserved summary with
+    /// recovery guidance that cannot be mistaken for a rolled-back failure.
+    static func backupImportCleanupMessage(
+        _ summary: BackupCoordinator.ImportSummary,
+    ) -> String {
+        String(localized: .backupImportCleanupMessage(
+            settingsBackupImportedMessage(summary),
+        ))
+    }
+
+    /// A later onboarding step cannot roll back an import that already committed. Preserve the
+    /// summary while directing the user to resume setup instead of applying the archive again.
+    static func backupImportSetupMessage(
+        _ summary: BackupCoordinator.ImportSummary,
+    ) -> String {
+        String(localized: .backupImportSetupMessage(
+            settingsBackupImportedMessage(summary),
         ))
     }
 
@@ -169,12 +225,16 @@ enum WhereFormat {
         regions: [Region],
         needsAttention: Bool,
         hasEvidence: Bool,
+        isPlanned: Bool,
     ) -> String {
-        let base = calendarDayBase(date: date, regions: regions, needsAttention: needsAttention)
-        guard hasEvidence else { return base }
+        var label = calendarDayBase(date: date, regions: regions, needsAttention: needsAttention)
+        if isPlanned {
+            label = String(localized: .calendarDayPlannedAccessibility(label))
+        }
+        guard hasEvidence else { return label }
         // Append the attachment cue so VoiceOver announces it after the day's
         // regions/status, e.g. "Monday, March 4, California, has evidence".
-        return String(localized: .calendarDayHasEvidenceAccessibility(base))
+        return String(localized: .calendarDayHasEvidenceAccessibility(label))
     }
 
     private static func calendarDayBase(
@@ -195,6 +255,14 @@ enum WhereFormat {
 
     static func timelineRowAccessibility(region: String, range: String, days: Int) -> String {
         String(localized: .timelineRowAccessibility(region, range, dayCount(days)))
+    }
+
+    static func timelinePlannedRowAccessibility(
+        region: String,
+        range: String,
+        days: Int,
+    ) -> String {
+        String(localized: .timelinePlannedRowAccessibility(region, range, dayCount(days)))
     }
 
     static func evidenceRowAccessibility(kind: EvidenceKind, date: Date) -> String {
@@ -286,59 +354,6 @@ enum WhereFormat {
         switch kind {
             case .attribution: String(localized: .regionMapKindAttributionFooter)
             case .source: String(localized: .regionMapKindSourceFooter)
-        }
-    }
-
-    // MARK: Recent activity
-
-    static func recentActivityTitle(_ window: RecentActivityWindow) -> String {
-        switch window {
-            case .day: String(localized: .recentActivityTitleDay)
-            case .week: String(localized: .recentActivityTitleWeek)
-            case .month: String(localized: .recentActivityTitleMonth)
-            case .yearToDate: String(localized: .recentActivityTitleYearToDate)
-        }
-    }
-
-    static func recentActivityWindowLabel(_ window: RecentActivityWindow) -> String {
-        switch window {
-            case .day: String(localized: .recentActivityWindowDay)
-            case .week: String(localized: .recentActivityWindowWeek)
-            case .month: String(localized: .recentActivityWindowMonth)
-            case .yearToDate: String(localized: .recentActivityWindowYearToDate)
-        }
-    }
-
-    static func recentActivityFooter(_ window: RecentActivityWindow) -> String {
-        switch window {
-            case .day: String(localized: .recentActivityFooterDay)
-            case .week: String(localized: .recentActivityFooterWeek)
-            case .month: String(localized: .recentActivityFooterMonth)
-            case .yearToDate: String(localized: .recentActivityFooterYearToDate)
-        }
-    }
-
-    static func recentActivityEmptyDescription(_ window: RecentActivityWindow) -> String {
-        switch window {
-            case .day: String(localized: .recentActivityEmptyDescriptionDay)
-            case .week: String(localized: .recentActivityEmptyDescriptionWeek)
-            case .month: String(localized: .recentActivityEmptyDescriptionMonth)
-            case .yearToDate: String(localized: .recentActivityEmptyDescriptionYearToDate)
-        }
-    }
-
-    static func recentActivityUnavailableMessage(
-        _ reason: ActivitySummaryUnavailableReason,
-    ) -> String {
-        switch reason {
-            case .deviceNotEligible:
-                String(localized: .recentActivityUnavailableDeviceNotEligible)
-            case .appleIntelligenceNotEnabled:
-                String(localized: .recentActivityUnavailableAppleIntelligenceNotEnabled)
-            case .modelNotReady:
-                String(localized: .recentActivityUnavailableModelNotReady)
-            case .unknown:
-                String(localized: .recentActivityUnavailableUnknown)
         }
     }
 

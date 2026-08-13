@@ -73,8 +73,12 @@ struct YearRibbon: View {
         }
         .padding(overview.padding)
         .background {
-            RoundedRectangle(cornerRadius: overview.cornerRadius)
-                .fill(overview.background)
+            ZStack {
+                RoundedRectangle(cornerRadius: overview.cornerRadius)
+                    .fill(.background)
+                RoundedRectangle(cornerRadius: overview.cornerRadius)
+                    .fill(overview.background)
+            }
         }
         .overlay {
             RoundedRectangle(cornerRadius: overview.cornerRadius)

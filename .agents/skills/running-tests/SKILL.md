@@ -54,7 +54,8 @@ dependency graph says they're affected.
   `never` (default). Fix the view first; re-record only when the render is
   correct
 
-Don't parallelize the image suite — see
+Don't parallelize the image suite: simulators on one Mac share one render
+server, making captures slower and flaky. See
 [`Shared/SnapshotKitTesting/AGENTS.md`](../../../Shared/SnapshotKitTesting/AGENTS.md).
 
 ## Iterate faster

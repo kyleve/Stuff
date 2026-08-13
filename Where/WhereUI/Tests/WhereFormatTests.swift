@@ -37,6 +37,28 @@ struct WhereFormatTests {
         #expect(WhereFormat.dayUnit(2) == "days")
     }
 
+    @Test func locationForecastCopyComposesLocalizedDayCounts() {
+        let estimate = WhereFormat.locationForecastEstimate(region: .newYork, days: 183)
+        #expect(String(estimate.characters) == "New York might be 183 days this year")
+        let emphasized = estimate.runs.compactMap { run -> String? in
+            guard run.inlinePresentationIntent?.contains(.stronglyEmphasized) == true else {
+                return nil
+            }
+            return String(estimate[run.range].characters)
+        }
+        #expect(emphasized == ["183 days"])
+        #expect(WhereFormat.locationForecastElapsed(days: 182) == "182 days elapsed")
+        #expect(
+            WhereFormat.locationForecastBasis(yearToDateDays: 91)
+                == "Based on 91 days here.",
+        )
+        #expect(
+            WhereFormat.locationForecastPlan(
+                through: CalendarDay(year: 2026, month: 8, day: 15),
+            ) == "Includes staying through August 15, 2026.",
+        )
+    }
+
     /// The one string that agrees grammatically via automatic inflection
     /// (`^[%lld region](inflect: true)`) rather than an explicit plural
     /// variation, so both forms are worth pinning.
@@ -91,6 +113,24 @@ struct WhereFormatTests {
         )
     }
 
+    @Test func backupCleanupMessagePreservesSummaryAndSafeRecoveryGuidance() {
+        let summary = BackupCoordinator.ImportSummary(
+            sampleCount: 3,
+            evidenceCount: 2,
+            manualDayCount: 5,
+            dismissedIssueCount: 4,
+            trackedRegionCount: 6,
+            recordingDeviceCount: 2,
+            recordingDeviceRemovalCount: 7,
+        )
+
+        let message = WhereFormat.backupImportCleanupMessage(summary)
+
+        #expect(message.contains("Imported 3 location samples"))
+        #expect(message.contains("Close and reopen Where"))
+        #expect(message.contains("Do not import this backup again."))
+    }
+
     @Test func yearTitlesFormatGroupingFree() {
         #expect(WhereFormat.evidenceListTitle(year: 2026) == "Evidence · 2026")
         #expect(WhereFormat.loggedDaysTitle(year: 2026) == "Logged Days · 2026")
@@ -121,15 +161,33 @@ struct WhereFormatTests {
             regions: [.california],
             needsAttention: false,
             hasEvidence: true,
+            isPlanned: false,
         )
         let without = WhereFormat.calendarDayAccessibility(
             date: date,
             regions: [.california],
             needsAttention: false,
             hasEvidence: false,
+            isPlanned: false,
         )
         #expect(withEvidence.hasSuffix("has evidence"))
         #expect(!without.hasSuffix("has evidence"))
+    }
+
+    @Test func calendarDayAccessibilityIdentifiesPlannedPresence() throws {
+        let calendar = Calendar(identifier: .gregorian)
+        let label = try WhereFormat.calendarDayAccessibility(
+            date: #require(calendar.date(
+                from: DateComponents(year: 2026, month: 7, day: 16),
+            )),
+            regions: [.newYork],
+            needsAttention: false,
+            hasEvidence: false,
+            isPlanned: true,
+        )
+
+        #expect(label.contains("planned"))
+        #expect(label.contains(Region.newYork.localizedName))
     }
 
     @Test func regionMapKindSwitchesResolve() {

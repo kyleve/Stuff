@@ -83,9 +83,14 @@
         /// `UNUserNotificationCenter` permission prompt in previews/tests.
         @MainActor
         public static func previewServices() -> WhereServices {
+            previewServices(locationSource: ScriptedLocationSource())
+        }
+
+        @MainActor
+        private static func previewServices(locationSource: any LocationSource) -> WhereServices {
             WhereServices(
                 store: try! SwiftDataStore.inMemory(),
-                locationSource: ScriptedLocationSource(),
+                locationSource: locationSource,
                 reminderScheduler: NoopLoggingReminderScheduler(),
                 summaryScheduler: NoopDailySummaryScheduler(),
                 issueAlertScheduler: NoopDataIssueAlertScheduler(),
@@ -113,6 +118,73 @@
         @MainActor
         public static func loadedSession() -> WhereSession {
             WhereSession(services: previewServices(), preferences: previewPreferences())
+        }
+
+        /// Current-device session whose permission must be promoted in Settings.app.
+        @MainActor
+        static func whenInUseSession() -> WhereSession {
+            WhereSession(
+                services: previewServices(
+                    locationSource: ScriptedLocationSource(authorizationStatus: .whenInUse),
+                ),
+                preferences: previewPreferences(),
+            )
+        }
+
+        /// A persisted warning generation for rendering the Settings banner without a view-only
+        /// flag. The production model reads the same `WherePreferences` registration.
+        @MainActor
+        static func recordingConfigurationWarningModel()
+            -> RecordingConfigurationWarningModel
+        {
+            let preferences = previewPreferences()
+            var registration = preferences.recordingConfigurationWarningRegistration
+            registration.register(isWarningConditionActive: true)
+            preferences.recordingConfigurationWarningRegistration = registration
+            return RecordingConfigurationWarningModel(preferences: preferences)
+        }
+
+        /// Current + left-behind device rows for the Devices screen.
+        public static func recordingDeviceConfigurations() -> [RecordingDeviceConfiguration] {
+            recordingDeviceConfigurations(automaticRecordingEnabled: true)
+        }
+
+        static func recordingDeviceConfigurations(
+            automaticRecordingEnabled: Bool,
+        ) -> [RecordingDeviceConfiguration] {
+            let remoteID = RecordingDeviceID(
+                rawValue: UUID(uuidString: "00000000-0000-0000-0000-000000000002")!,
+            )
+            return [
+                RecordingDeviceConfiguration(
+                    device: RecordingDevice(
+                        id: InstallationRecordingContext.testing.currentDevice.id,
+                        systemName: "iPhone",
+                        nickname: "My iPhone",
+                        kind: .phone,
+                        registeredAt: referenceNow.addingTimeInterval(-90 * 24 * 60 * 60),
+                        lastSeenAt: referenceNow,
+                        removedAt: nil,
+                        status: automaticRecordingEnabled ? .recording : .off,
+                    ),
+                    isCurrentDevice: true,
+                    localAutomaticRecordingEnabled: automaticRecordingEnabled,
+                ),
+                RecordingDeviceConfiguration(
+                    device: RecordingDevice(
+                        id: remoteID,
+                        systemName: "iPad",
+                        nickname: "Home iPad",
+                        kind: .tablet,
+                        registeredAt: referenceNow.addingTimeInterval(-60 * 24 * 60 * 60),
+                        lastSeenAt: referenceNow.addingTimeInterval(-2 * 24 * 60 * 60),
+                        removedAt: nil,
+                        status: .off,
+                    ),
+                    isCurrentDevice: false,
+                    localAutomaticRecordingEnabled: nil,
+                ),
+            ]
         }
 
         // MARK: - Settings models (reminders / backup sub-screens)
@@ -210,7 +282,7 @@
                     appearance: RegionAppearance(
                         color: .orange,
                         emoji: "🌴",
-                        symbolName: "sun.max.fill",
+                        symbolName: .sunMaxFill,
                     ),
                     order: 0,
                 ),
@@ -219,7 +291,7 @@
                     appearance: RegionAppearance(
                         color: .indigo,
                         emoji: "🗽",
-                        symbolName: "building.2.fill",
+                        symbolName: .building2Fill,
                     ),
                     order: 1,
                 ),
@@ -243,6 +315,42 @@
                 preferences: previewPreferences(),
                 now: { referenceNow },
             )
+        }
+
+        /// A report stopped at the pinned "today" with a deterministic future
+        /// New York stay, for forecast and planned-calendar previews.
+        @MainActor
+        public static func plannedStayYearReportModel() -> YearReportModel {
+            let completeReport = sampleReport()
+            var calendar = Calendar(identifier: .gregorian)
+            calendar.timeZone = TimeZone(identifier: "America/Los_Angeles")!
+            let today = CalendarDay(from: referenceNow, in: calendar)
+            let recordedDays = completeReport.days.filter { $0.day <= today }
+            var recordedTotals: [Region: Int] = [:]
+            for day in recordedDays {
+                for region in day.regions {
+                    recordedTotals[region, default: 0] += 1
+                }
+            }
+            let model = YearReportModel(
+                services: previewServices(),
+                details: YearReportDetails(
+                    report: YearReport(
+                        year: completeReport.year,
+                        days: recordedDays,
+                        totals: recordedTotals,
+                    ),
+                    primaryRegionLocations: sampleRegionLocations(),
+                ),
+                selectedYear: year,
+                preferences: previewPreferences(),
+                now: { referenceNow },
+            )
+            model.forecasts.setActivePlannedStay(PlannedStay(
+                region: .newYork,
+                through: CalendarDay(year: year, month: 8, day: 15),
+            ))
+            return model
         }
 
         /// The same complete year value `ReportReader.yearReportDetails` returns
@@ -451,19 +559,6 @@
             return resolve
         }
 
-        // MARK: - Recent activity (24h summary sheet)
-
-        /// A recent-activity model forced into a chosen state (no generator run),
-        /// so the summary sheet's states drop straight into a `#Preview`.
-        @MainActor
-        public static func recentActivityModel(
-            state: RecentActivityModel.LoadState,
-        ) -> RecentActivityModel {
-            let model = RecentActivityModel(services: previewServices())
-            model.previewLoad(state)
-            return model
-        }
-
         // MARK: - Logged days (manual entries sheet)
 
         /// A believable set of manual day entries across the sample year — a mix
@@ -608,6 +703,39 @@
             )
         }
 
+        /// Logged-in shell fixture whose current phone is the expected recorder but has both
+        /// automatic recording and Always location access disabled. Launch reconciliation drives
+        /// the real session and warning model before snapshot capture.
+        @MainActor
+        static func recordingConfigurationWarningAppModel() -> WhereModel {
+            let preferences = previewPreferences()
+            preferences.hasOnboarded = true
+            let context = InstallationRecordingContext(
+                currentDevice: InstallationRecordingContext.testing.currentDevice,
+                registeredAt: InstallationRecordingContext.testing.registeredAt,
+                recordingChoice: .off,
+                isRejoining: false,
+            )
+            let services = WhereServices(
+                store: try! SwiftDataStore.inMemory(),
+                locationSource: ScriptedLocationSource(authorizationStatus: .whenInUse),
+                installationContext: context,
+                reminderScheduler: NoopLoggingReminderScheduler(),
+                summaryScheduler: NoopDailySummaryScheduler(),
+                issueAlertScheduler: NoopDataIssueAlertScheduler(),
+                widgetRefresher: NoopWidgetTimelineRefresher(),
+                now: { referenceNow },
+            )
+            return WhereModel(
+                services: services,
+                details: sampleYearReportDetails(),
+                selectedYear: year,
+                preferences: preferences,
+                logSystem: logSystem,
+                now: { referenceNow },
+            )
+        }
+
         /// Fixed day for widget previews and snapshots — a single pinned instant
         /// so the day/year chrome renders identically whenever a capture runs
         /// (an unpinned `.now` default churned references daily). Widget captures
@@ -667,6 +795,19 @@
                     .europeanUnion: 4,
                     .other: 2,
                 ],
+            )
+        }
+
+        /// Personalized feature-gallery content over the same pinned report and
+        /// clock used by the rest of the WhereUI snapshot catalog.
+        @MainActor
+        static func featureDiscoveryPresentation() -> FeatureDiscoveryPresentation {
+            let model = loadedYearReportModel()
+            return FeatureDiscoveryPresentation(
+                report: model.report,
+                selectedYear: model.selectedYear,
+                referenceDate: model.referenceDate,
+                calendar: model.calendar,
             )
         }
     }

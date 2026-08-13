@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SwiftUI
 
 /// A two-axis, pinch-zoomable graph of all registered screens.
@@ -24,6 +25,15 @@ struct FlyoverCanvasView<ScreenID: Hashable>: View {
             Set([previewedScreenID])
         } else {
             renderPlan.liveScreenIDs
+        }
+        let expectedPreviewLoads: Set<FlyoverPreviewReadiness<ScreenID>.LoadKey> = if model
+            .hasAppliedInitialCanvasZoom
+        {
+            Set(catalog.screens.compactMap { screen in
+                liveScreenIDs.contains(screen.id) ? model.previewLoadKey(for: screen) : nil
+            })
+        } else {
+            []
         }
 
         GeometryReader { proxy in
@@ -70,7 +80,7 @@ struct FlyoverCanvasView<ScreenID: Hashable>: View {
                 visibleRect = newValue
             }
             .overlay(alignment: .topTrailing) {
-                Button("Fit All", systemImage: "arrow.up.left.and.arrow.down.right") {
+                Button("Fit All", systemSymbol: .arrowUpLeftAndArrowDownRight) {
                     fitAll(layout: layout, in: proxy.size)
                 }
                 .buttonStyle(.bordered)
@@ -80,6 +90,9 @@ struct FlyoverCanvasView<ScreenID: Hashable>: View {
             }
             .task {
                 applyInitialWidthFit(layout: layout, in: proxy.size)
+            }
+            .task(id: expectedPreviewLoads) {
+                model.previewReadiness.expect(expectedPreviewLoads)
             }
         }
     }

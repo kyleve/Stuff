@@ -32,6 +32,15 @@ public enum SnapshotSizing: Sendable {
 /// A capture failure that callers can report without comparing or recording an
 /// invalid image.
 public enum SnapshotRenderingError: Error, Equatable, Sendable {
+    /// The CI-only settle multiplier was malformed or outside its supported
+    /// safety range.
+    case invalidSettleTimeoutMultiplier(value: String)
+    /// A pre-measure hook was supplied for a fixed-size capture, where there is
+    /// no intrinsic measurement host on which to run it.
+    case measurementHookRequiresIntrinsicSizing(name: String)
+    /// Deterministic content readiness did not arrive before the capture's
+    /// effective settle ceiling.
+    case measurementReadinessTimedOut(name: String, budget: TimeInterval)
     /// Full-content measurement did not reach a stable height within the
     /// bounded fixed-point pass budget.
     case intrinsicHeightDidNotConverge(name: String, measuredHeights: [CGFloat])
@@ -40,6 +49,12 @@ public enum SnapshotRenderingError: Error, Equatable, Sendable {
 extension SnapshotRenderingError: LocalizedError {
     public var errorDescription: String? {
         switch self {
+            case let .invalidSettleTimeoutMultiplier(value):
+                return "Invalid SNAPSHOT_SETTLE_TIMEOUT_MULTIPLIER \"\(value)\"; use a finite value from 1 through 4."
+            case let .measurementHookRequiresIntrinsicSizing(name):
+                return "Snapshot \(name) declares onReadyToMeasure, but fixed sizing has no intrinsic measurement phase."
+            case let .measurementReadinessTimedOut(name, budget):
+                return "Snapshot \(name) measurement readiness did not complete within \(budget.formatted())s."
             case let .intrinsicHeightDidNotConverge(name, measuredHeights):
                 let heights = measuredHeights.map { String(format: "%.1f", $0) }
                     .joined(separator: ", ")
@@ -69,6 +84,13 @@ extension SnapshotRenderingError: LocalizedError {
 /// effects are settled again (with the same `settle` mode) so they're committed
 /// in the image. For `.intrinsic` sizing the content is measured *before* the
 /// hook runs, so a hook must not change the content's ideal size.
+/// `measurementReadiness` controls only the settle before intrinsic sizing; it
+/// never shortens the final capture settle.
+/// `onReadyToMeasure` runs earlier, after an intrinsic probe is hosted and laid
+/// out but before that settle and size resolution. It is for deterministic
+/// readiness signals whose completion can change ideal height. The hook is
+/// invalid for `.fixed` sizing, is bounded by the capture's effective settle
+/// ceiling, and must cooperate with task cancellation.
 ///
 /// `async` is load-bearing, not a convenience: the settle phase must *suspend*
 /// (freeing the main actor) for SwiftUI `.task`-driven content to load — see
@@ -102,17 +124,23 @@ public func renderSnapshotImage(
     sizing: SnapshotSizing = .fixed,
     safeAreaInsets: UIEdgeInsets? = .zero,
     isAccessibility: Bool = false,
+    measurementReadiness: SnapshotMeasurementReadiness = .sameAsCapture,
+    onReadyToMeasure: (@MainActor () async -> Void)? = nil,
     settle: SnapshotSettle = .settled,
     onReadyToSnapshot: (@MainActor () async -> Void)? = nil,
 ) async throws -> UIImage {
-    try await renderSnapshotCapture(
+    let settleTimeoutPolicy = try SnapshotSettleTimeoutPolicy.fromEnvironment()
+    return try await renderSnapshotCapture(
         of: viewController,
         named: name,
         sizing: sizing,
         safeAreaInsets: safeAreaInsets,
         isAccessibility: isAccessibility,
+        measurementReadiness: measurementReadiness,
+        onReadyToMeasure: onReadyToMeasure,
         settle: settle,
         onReadyToSnapshot: onReadyToSnapshot,
+        settleTimeoutPolicy: settleTimeoutPolicy,
         timing: SnapshotCaptureTiming(identifier: name, isEnabled: false),
     ).image
 }
@@ -129,7 +157,7 @@ public func renderSnapshotImage(
     public let pngData: Data
 }
 
-/// ``renderSnapshotImage(of:named:sizing:safeAreaInsets:isAccessibility:settle:onReadyToSnapshot:)``
+/// ``renderSnapshotImage(of:named:sizing:safeAreaInsets:isAccessibility:measurementReadiness:onReadyToMeasure:settle:onReadyToSnapshot:)``
 /// with a caller-supplied phase recorder, so `assertSnapshots` can attribute the
 /// capture *and* the comparison that follows it to one line of output, and can
 /// compare the captured bytes against the reference without re-encoding.
@@ -140,8 +168,11 @@ public func renderSnapshotImage(
     sizing: SnapshotSizing,
     safeAreaInsets: UIEdgeInsets?,
     isAccessibility: Bool,
+    measurementReadiness: SnapshotMeasurementReadiness,
+    onReadyToMeasure: (@MainActor () async -> Void)?,
     settle: SnapshotSettle,
     onReadyToSnapshot: (@MainActor () async -> Void)?,
+    settleTimeoutPolicy: SnapshotSettleTimeoutPolicy,
     timing: SnapshotCaptureTiming,
 ) async throws -> SnapshotCapture {
     try await SnapshotCaptureLock.withLock {
@@ -151,15 +182,18 @@ public func renderSnapshotImage(
             sizing: sizing,
             safeAreaInsets: safeAreaInsets,
             isAccessibility: isAccessibility,
+            measurementReadiness: measurementReadiness,
+            onReadyToMeasure: onReadyToMeasure,
             settle: settle,
             onReadyToSnapshot: onReadyToSnapshot,
+            settleTimeoutPolicy: settleTimeoutPolicy,
             timing: timing,
         )
     }
 }
 
 /// The capture body of
-/// ``renderSnapshotImage(of:named:sizing:safeAreaInsets:isAccessibility:settle:onReadyToSnapshot:)``,
+/// ``renderSnapshotImage(of:named:sizing:safeAreaInsets:isAccessibility:measurementReadiness:onReadyToMeasure:settle:onReadyToSnapshot:)``,
 /// run while holding ``SnapshotCaptureLock``.
 @MainActor
 private func renderSnapshotImageLocked(
@@ -168,8 +202,11 @@ private func renderSnapshotImageLocked(
     sizing: SnapshotSizing,
     safeAreaInsets: UIEdgeInsets?,
     isAccessibility: Bool,
+    measurementReadiness: SnapshotMeasurementReadiness,
+    onReadyToMeasure: (@MainActor () async -> Void)?,
     settle: SnapshotSettle,
     onReadyToSnapshot: (@MainActor () async -> Void)?,
+    settleTimeoutPolicy: SnapshotSettleTimeoutPolicy,
     timing: SnapshotCaptureTiming,
 ) async throws -> SnapshotCapture {
     func capture() async throws -> SnapshotCapture {
@@ -198,17 +235,18 @@ private func renderSnapshotImageLocked(
         // surfaces it to SwiftUI as `\.isCapturingSnapshot`.
         viewController.traitOverrides[SnapshotCaptureTrait.self] = true
 
-        try await timing.measure(.intrinsicMeasure) {
-            try await resolveContentSize(
-                of: viewController,
-                named: name,
-                sizing: sizing,
-                settle: settle,
-                hostedIn: hostRoot,
-                window: window,
-                timing: timing,
-            )
-        }
+        try await resolveContentSize(
+            of: viewController,
+            named: name,
+            sizing: sizing,
+            settle: measurementReadiness.resolvedSettle(captureSettle: settle),
+            onReadyToMeasure: onReadyToMeasure,
+            measurementHookMaximumDuration: settleTimeoutPolicy.maximumDuration(for: settle),
+            hostedIn: hostRoot,
+            window: window,
+            timing: timing,
+            settleTimeoutPolicy: settleTimeoutPolicy,
+        )
 
         let captureViewController: UIViewController = isAccessibility
             ? AccessibilitySnapshotViewController(wrapping: viewController)
@@ -234,6 +272,7 @@ private func renderSnapshotImageLocked(
                     named: name,
                     settle: settle,
                     timing: timing,
+                    timeoutPolicy: settleTimeoutPolicy,
                 )
             },
             phase: "content",
@@ -256,6 +295,7 @@ private func renderSnapshotImageLocked(
                         named: name,
                         settle: settle,
                         timing: timing,
+                        timeoutPolicy: settleTimeoutPolicy,
                     )
                 },
                 phase: "onReadyToSnapshot",
@@ -307,6 +347,19 @@ private func renderSnapshotImageLocked(
     return try await capture()
 }
 
+extension SnapshotMeasurementReadiness {
+    fileprivate func resolvedSettle(captureSettle: SnapshotSettle) -> SnapshotSettle {
+        switch self {
+            case .sameAsCapture:
+                captureSettle
+            case .immediate:
+                .immediate
+            case .settled:
+                .settled
+        }
+    }
+}
+
 /// Adds `child` (sized to its view's current frame) into the appeared host root
 /// via the full `addChild` → attach-view → `didMove` contract, so the child — and
 /// the SwiftUI content it hosts — runs its real appearance lifecycle.
@@ -354,21 +407,63 @@ private func resolveContentSize(
     named name: String,
     sizing: SnapshotSizing,
     settle: SnapshotSettle,
+    onReadyToMeasure: (@MainActor () async -> Void)?,
+    measurementHookMaximumDuration: TimeInterval,
     hostedIn hostRoot: UIViewController,
     window: UIWindow,
     timing: SnapshotCaptureTiming,
+    settleTimeoutPolicy: SnapshotSettleTimeoutPolicy,
 ) async throws {
-    guard case let .intrinsic(width, minimumHeight) = sizing else { return }
+    guard case let .intrinsic(width, minimumHeight) = sizing else {
+        if onReadyToMeasure != nil {
+            throw SnapshotRenderingError.measurementHookRequiresIntrinsicSizing(name: name)
+        }
+        return
+    }
 
-    let probeHeight = max(window.bounds.height, 1)
-    viewController.view.frame = CGRect(x: 0, y: 0, width: width, height: probeHeight)
+    let probeWrapper = timing.measure(.intrinsicMeasure) {
+        let probeHeight = max(window.bounds.height, 1)
+        viewController.view.frame = CGRect(x: 0, y: 0, width: width, height: probeHeight)
 
-    let probeWrapper = SnapshotWrappingViewController(viewController)
-    hostChildForCapture(probeWrapper, in: hostRoot)
-    probeWrapper.view.setNeedsLayout()
-    CATransaction.performWithoutAnimation(probeWrapper.view.layoutIfNeeded)
+        let wrapper = SnapshotWrappingViewController(viewController)
+        hostChildForCapture(wrapper, in: hostRoot)
+        wrapper.view.setNeedsLayout()
+        CATransaction.performWithoutAnimation(wrapper.view.layoutIfNeeded)
+        return wrapper
+    }
+    defer {
+        // Detach the content VC from the probe wrapper first (so the caller can
+        // re-wrap it), then tear the probe wrapper down — including on a hook
+        // timeout or cancellation.
+        viewController.willMove(toParent: nil)
+        viewController.removeFromParent()
+        removeChildAfterCapture(probeWrapper)
+    }
+
+    if let onReadyToMeasure {
+        try await timing.measure(.measurementHook) {
+            try await runSnapshotMeasurementHook(
+                named: name,
+                maximumDuration: measurementHookMaximumDuration,
+                hook: onReadyToMeasure,
+            )
+        }
+        timing.measure(.intrinsicMeasure) {
+            probeWrapper.view.setNeedsLayout()
+            CATransaction.performWithoutAnimation(probeWrapper.view.layoutIfNeeded)
+        }
+    }
+
     await reportIfUnsettled(
-        settleForCapture(probeWrapper.view, named: name, settle: settle, timing: timing),
+        timing.measure(.intrinsicMeasure) {
+            await settleForCapture(
+                probeWrapper.view,
+                named: name,
+                settle: settle,
+                timing: timing,
+                timeoutPolicy: settleTimeoutPolicy,
+            )
+        },
         phase: "intrinsic measurement",
         of: viewController,
         named: name,
@@ -390,38 +485,36 @@ private func resolveContentSize(
         return measured
     }
 
-    var measured = measureContent()
-    var measuredHeights = [measured.height]
-    var didConverge = false
-    for _ in 0 ..< 10 {
-        viewController.view.frame = CGRect(origin: .zero, size: measured)
-        probeWrapper.view.frame.size = measured
-        CATransaction.performWithoutAnimation(probeWrapper.view.layoutIfNeeded)
-        let remeasured = measureContent()
-        measuredHeights.append(remeasured.height)
-        if abs(remeasured.height - measured.height) < 0.5 {
+    let measurement = timing.measure(.intrinsicMeasure) {
+        var measured = measureContent()
+        var measuredHeights = [measured.height]
+        var didConverge = false
+        for _ in 0 ..< 10 {
+            viewController.view.frame = CGRect(origin: .zero, size: measured)
+            probeWrapper.view.frame.size = measured
+            CATransaction.performWithoutAnimation(probeWrapper.view.layoutIfNeeded)
+            let remeasured = measureContent()
+            measuredHeights.append(remeasured.height)
+            if abs(remeasured.height - measured.height) < 0.5 {
+                measured = remeasured
+                didConverge = true
+                break
+            }
             measured = remeasured
-            didConverge = true
-            break
         }
-        measured = remeasured
+        return (measured, measuredHeights, didConverge)
     }
-
-    // Detach the content VC from the probe wrapper first (so the caller can
-    // re-wrap it), then tear the probe wrapper down.
-    viewController.willMove(toParent: nil)
-    viewController.removeFromParent()
-    removeChildAfterCapture(probeWrapper)
-
-    guard didConverge else {
+    guard measurement.2 else {
         throw SnapshotRenderingError.intrinsicHeightDidNotConverge(
             name: name,
-            measuredHeights: measuredHeights,
+            measuredHeights: measurement.1,
         )
     }
 
-    viewController.view.frame = CGRect(origin: .zero, size: measured)
-    CATransaction.performWithoutAnimation(viewController.view.layoutIfNeeded)
+    timing.measure(.intrinsicMeasure) {
+        viewController.view.frame = CGRect(origin: .zero, size: measurement.0)
+        CATransaction.performWithoutAnimation(viewController.view.layoutIfNeeded)
+    }
 }
 
 extension UIView {

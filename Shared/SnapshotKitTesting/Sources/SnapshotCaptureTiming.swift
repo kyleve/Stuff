@@ -1,17 +1,19 @@
 import Foundation
+import SnapshotKit
 
 /// A phase of a single image capture, as attributed by ``SnapshotCaptureTiming``.
 ///
 /// The cases are the pipeline's own steps in the order they run, so a timing
 /// line reads as a walk through `renderSnapshotImage`. `settle`-shaped work
-/// appears under three separate keys rather than one: the intrinsic-sizing
-/// probe runs its own settle before the capture's, and a case's
-/// `onReadyToSnapshot` hook is followed by a second one, so folding all three
-/// together would hide which of them a slow case is actually paying for.
+/// appears under separate keys rather than one: the intrinsic-sizing probe,
+/// its deterministic readiness hook, the final settle, and a case's
+/// `onReadyToSnapshot` hook each answer different performance questions.
 @_spi(Testing) public enum SnapshotCapturePhase: String, Sendable, CaseIterable {
     /// Hosting and settling the throwaway probe that measures `.intrinsic` /
     /// `.fullContent` content. Zero for `.fixed` sizing, which is most captures.
     case intrinsicMeasure
+    /// A deterministic readiness hook run while the intrinsic probe is hosted.
+    case measurementHook
     /// Attaching the capture wrapper to the host root and laying it out — the
     /// real UIKit appearance transition, so SwiftUI `onAppear` / `.task` start.
     case host
@@ -72,6 +74,9 @@ import Foundation
 
     private let identifier: String
     private let isEnabled: Bool
+    private let sizing: String
+    private let measurementReadiness: String
+    private let captureSettle: String
     private let clock = ContinuousClock()
     private let start: ContinuousClock.Instant
     private var durations: [SnapshotCapturePhase: TimeInterval] = [:]
@@ -79,9 +84,18 @@ import Foundation
     private var tiles = 0
     private var pixels = 0
 
-    public init(identifier: String, isEnabled: Bool) {
+    public init(
+        identifier: String,
+        isEnabled: Bool,
+        sizing: SnapshotSizing = .fixed,
+        measurementReadiness: SnapshotMeasurementReadiness = .sameAsCapture,
+        captureSettle: SnapshotSettle = .settled,
+    ) {
         self.identifier = identifier
         self.isEnabled = isEnabled
+        self.sizing = sizing.timingDescription
+        self.measurementReadiness = measurementReadiness.timingDescription
+        self.captureSettle = captureSettle.timingDescription
         start = clock.now
     }
 
@@ -150,6 +164,9 @@ import Foundation
         guard isEnabled else { return nil }
         let payload = SnapshotCaptureTimingLine(
             id: identifier,
+            sizing: sizing,
+            measurementReadiness: measurementReadiness,
+            captureSettle: captureSettle,
             phases: durations.reduce(into: [:]) { $0[$1.key.rawValue] = rounded($1.value) },
             settlePasses: settlePasses,
             tiles: tiles,
@@ -188,11 +205,51 @@ import Foundation
 /// a diagnostic format read by `./test --timings`, not a persisted one.
 private struct SnapshotCaptureTimingLine: Encodable {
     let id: String
+    let sizing: String
+    let measurementReadiness: String
+    let captureSettle: String
     let phases: [String: Double]
     let settlePasses: Int
     let tiles: Int
     let pixels: Int
     let total: Double
+}
+
+extension SnapshotSizing {
+    fileprivate var timingDescription: String {
+        switch self {
+            case .fixed:
+                "fixed"
+            case .intrinsic:
+                "intrinsic"
+        }
+    }
+}
+
+extension SnapshotMeasurementReadiness {
+    fileprivate var timingDescription: String {
+        switch self {
+            case .sameAsCapture:
+                "sameAsCapture"
+            case .immediate:
+                "immediate"
+            case .settled:
+                "settled"
+        }
+    }
+}
+
+extension SnapshotSettle {
+    fileprivate var timingDescription: String {
+        switch self {
+            case .settled:
+                "settled"
+            case let .settledAtLeast(minDuration):
+                "settledAtLeast(\(minDuration))"
+            case .immediate:
+                "immediate"
+        }
+    }
 }
 
 extension JSONEncoder {

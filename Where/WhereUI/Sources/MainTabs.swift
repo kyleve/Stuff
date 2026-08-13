@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SwiftUI
 import WhereCore
 
@@ -22,13 +23,17 @@ struct MainTabs: View {
     }
 
     @State private var report: YearReportModel
+    @State private var recordingWarning: RecordingConfigurationWarningModel
     @State private var selection: TabID = .locations
     @Environment(\.scenePhase) private var scenePhase
+    private let recordingWarningSource: RecordingConfigurationWarningModel.Source
 
     /// Build the scene's report model from the coordinator's service layer.
     /// `initialDetails` / `selectedYear` are the preview/test seam threaded from
     /// `WhereModel`; both are nil / the current year in the app.
     init(session: WhereSession, initialDetails: YearReportDetails?, selectedYear: Int) {
+        let recordingWarningSource = RecordingConfigurationWarningModel.Source(session: session)
+        self.recordingWarningSource = recordingWarningSource
         _report = State(initialValue: YearReportModel(
             services: session.services,
             details: initialDetails,
@@ -36,32 +41,37 @@ struct MainTabs: View {
             preferences: session.preferences,
             now: session.now,
         ))
+        _recordingWarning = State(initialValue: RecordingConfigurationWarningModel(
+            preferences: recordingWarningSource.preferences,
+        ))
     }
 
     var body: some View {
         TabView(selection: $selection) {
             Tab(
                 String(localized: .tabLocations),
-                systemImage: "location.fill",
+                systemSymbol: .locationFill,
                 value: TabID.locations,
             ) {
                 LocationsView(report: report)
                     .reportingDeveloperTabBarInset()
             }
 
-            Tab(String(localized: .tabYear), systemImage: "calendar", value: TabID.year) {
+            Tab(String(localized: .tabYear), systemSymbol: .calendar, value: TabID.year) {
                 YearView(report: report)
                     .reportingDeveloperTabBarInset()
             }
 
-            Tab(
-                String(localized: .tabSettings),
-                systemImage: "gearshape.fill",
-                value: TabID.settings,
-            ) {
-                SettingsView(report: report)
+            Tab(value: TabID.settings) {
+                SettingsView(report: report, recordingWarning: recordingWarning)
                     .reportingDeveloperTabBarInset()
+            } label: {
+                RecordingConfigurationWarningTabLabel(
+                    model: recordingWarning,
+                    source: recordingWarningSource,
+                )
             }
+            .badge(recordingWarning.isPresented ? 1 : 0)
         }
         // Keep the tab bar fixed — don't minimize it as content scrolls.
         .tabBarMinimizeBehavior(.never)

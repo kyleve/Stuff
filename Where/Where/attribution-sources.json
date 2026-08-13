@@ -5,7 +5,7 @@
       "type": "swiftPackageManager",
       "manifest": "Package.swift",
       "resolved": "Package.resolved",
-      "shippedFrom": ["WhereUI", "WhereIntents"]
+      "shippedFrom": ["WhereUI", "WhereIntents", "WhereCrashReporting"]
     },
     {
       "type": "agentSkills",

@@ -216,6 +216,12 @@ struct WhereStylesheetTests {
         #expect(calendar.regionBand.cornerRadius == 14)
         #expect(calendar.regionBand.continuationRadius == 3)
         #expect(calendar.regionBand.verticalInset == 4)
+        #expect(calendar.regionBand.planned == .init(
+            fillOpacity: 0.07,
+            hatchOpacity: 0.32,
+            hatchSpacing: 6,
+            hatchLineWidth: 1,
+        ))
 
         let day = calendar.day
         #expect(day.minHeight == 44)
@@ -258,6 +264,21 @@ struct WhereStylesheetTests {
         #expect(month.unfocusedRowOpacity == 0.55)
     }
 
+    @Test func locationForecastStyle() {
+        let forecast = style.locationForecast
+        #expect(forecast.cornerRadius == 22)
+        #expect(forecast.padding == 16)
+        #expect(forecast.rowSpacing == 12)
+        #expect(forecast.estimateSpacing == 3)
+        #expect(forecast.collapsedLabelColor == Color.primary.opacity(0.5))
+        #expect(forecast.borderColor == Color.primary.opacity(0.06))
+        #expect(forecast.borderWidth == 0.5)
+        #expect(forecast.shadowColor == Color.black.opacity(0.06))
+        #expect(forecast.shadowRadius == 8)
+        #expect(forecast.shadowOffsetY == 2)
+        #expect(forecast.expansionAnimation == .easeInOut(duration: 0.2))
+    }
+
     @Test func appIconStyle() {
         let appIcon = style.appIcon
         #expect(appIcon.gridMax == 180)
@@ -295,6 +316,7 @@ struct WhereStylesheetTests {
         #expect(overview.border == Color.primary.opacity(0.1))
         #expect(overview.borderWidth == 1)
         #expect(overview.yearFont == .system(.title2, design: .serif).bold())
+        #expect(overview.pinsToViewport)
 
         let ribbon = timeline.ribbon
         #expect(ribbon.monthLabelSpacing == 6)
@@ -330,6 +352,14 @@ struct WhereStylesheetTests {
         #expect(row.countVerticalPadding == 6)
         #expect(row.countFillOpacity == 0.16)
         #expect(row.stacksDayCount == false)
+
+        let planned = timeline.planned
+        #expect(planned.fillOpacity == 0.035)
+        #expect(planned.borderOpacity == 0.14)
+        #expect(planned.hatchOpacity == 0.16)
+        #expect(planned.hatchSpacing == 8)
+        #expect(planned.hatchLineWidth == 1)
+        #expect(planned.labelOpacity == 0.7)
     }
 
     @Test func regionMapStyle() {
@@ -389,6 +419,25 @@ struct WhereStylesheetTests {
         #expect(motion.reveal == .easeIn(duration: 0.16))
         #expect(motion.reducedReveal == .easeInOut(duration: 0.2))
         #expect(motion.captionFade == .easeOut(duration: 0.3))
+        #expect(motion.staggeredReveal.animation == .easeOut(duration: 0.35))
+        #expect(motion.staggeredReveal.verticalOffset == 16)
+        #expect(motion.staggeredReveal.delay == 0.08)
+
+        let hidden = motion.staggeredReveal.presentation(
+            isRevealed: false,
+            motionIsStatic: false,
+            order: 2,
+        )
+        #expect(hidden.opacity == 0)
+        #expect(hidden.verticalOffset == 16)
+        #expect(hidden.animation == .easeOut(duration: 0.35).delay(0.16))
+
+        let staticPresentation = motion.staggeredReveal.presentation(
+            isRevealed: false,
+            motionIsStatic: true,
+            order: 2,
+        )
+        #expect(staticPresentation == .visible)
     }
 
     @Test func launchTimings() {
@@ -405,6 +454,71 @@ struct WhereStylesheetTests {
         #expect(settings.flashAnimation == .easeInOut(duration: 0.4))
         #expect(settings.flashDuration == .seconds(1))
         #expect(settings.scrollSettleDelay == .milliseconds(350))
+    }
+
+    @Test func featureDiscoveryStyle() {
+        let featureDiscovery = style.featureDiscovery
+        #expect(featureDiscovery.marketingHeader == .init(
+            badgeSize: 76,
+            symbolPointSize: 34,
+            badgeTintOpacity: 0.14,
+            contentMaxWidth: 560,
+            spacing: 14,
+            verticalPadding: 24,
+        ))
+        #expect(featureDiscovery.marketingPanel == .init(
+            cornerRadius: 20,
+            maxWidth: 680,
+            padding: 16,
+            contentSpacing: 12,
+            rowVerticalInset: 6,
+        ))
+        #expect(featureDiscovery.backgroundPattern == .init(
+            contourSpacing: 30,
+            primaryDistortion: 13,
+            secondaryDistortion: 6,
+            horizontalScale: 1.22,
+            centerXRatio: 0.18,
+            centerYRatio: 0.46,
+            phaseStep: 0.31,
+            lineWidth: 0.9,
+            opacity: 0.12,
+        ))
+        #expect(featureDiscovery.siri == .init(
+            card: .init(
+                cornerRadius: 20,
+                maxWidth: 680,
+                padding: 16,
+                spacing: 12,
+                rowVerticalInset: 6,
+            ),
+            bubble: .init(
+                cornerRadius: 16,
+                horizontalPadding: 12,
+                verticalPadding: 10,
+                indent: 34,
+            ),
+            speakerIcon: .init(containerSize: 28, symbolPointSize: 12),
+            accent: Color(white: 0.28),
+        ))
+        #expect(featureDiscovery.widgets == .init(
+            device: .init(
+                cornerRadius: 28,
+                contentMaxWidth: 560,
+                regularContentWidth: 320,
+                dynamicTypeLimit: .xLarge,
+                padding: 14,
+                spacing: 12,
+            ),
+            frame: .init(cornerRadius: 18, padding: 12),
+            wallpapers: .init(
+                home: .init(top: .indigo, bottom: .cyan),
+                lock: .init(top: .purple, bottom: .blue),
+            ),
+            lockWidgetHeight: 76,
+        ))
+        #expect(featureDiscovery.widgets.contentWidth(in: 402) == 374)
+        #expect(featureDiscovery.widgets.contentWidth(in: 834) == 320)
     }
 
     @Test func passportCardStyle() {
@@ -520,7 +634,10 @@ struct WhereStylesheetTests {
         context.traitOverrides.contentSizeCategory = .accessibilityLarge
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
         #expect(resolved.calendar.day.minHeight == 56)
+        #expect(resolved.timeline.overview.pinsToViewport == false)
         #expect(resolved.timeline.row.stacksDayCount)
+        #expect(resolved.featureDiscovery.siri.bubble.indent == 0)
+        #expect(resolved.featureDiscovery.widgets.contentWidth(in: 834) == 320)
     }
 
     @MainActor
@@ -541,6 +658,7 @@ struct WhereStylesheetTests {
             shouldDifferentiateWithoutColor: true,
         )
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
+        #expect(resolved.timeline.overview.pinsToViewport == false)
         #expect(resolved.timeline.ribbon.separatesRegions)
     }
 
@@ -560,6 +678,7 @@ struct WhereStylesheetTests {
         context.traitOverrides.mode = .dark
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
         #expect(resolved.card.securityPrint == .dark)
+        #expect(resolved.featureDiscovery.siri.accent == Color(white: 0.42))
         #expect(resolved.card.securityPrint.backgroundBlendMode == .luminosity)
         #expect(resolved.card.securityPrint.tint(.red) == Color.red.mix(
             with: .white,

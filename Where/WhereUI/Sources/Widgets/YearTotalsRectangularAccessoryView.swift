@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 import WhereCore
@@ -26,14 +27,14 @@ public struct YearTotalsRectangularAccessoryView: View {
         if ranked.isEmpty {
             Label(
                 String(localized: .widgetYearEmpty),
-                systemImage: "calendar.badge.exclamationmark",
+                systemSymbol: .calendarBadgeExclamationmark,
             )
             .font(.caption)
         } else {
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(ranked) { entry in
                     HStack(spacing: stylesheet.spacing.xSmall) {
-                        Image(systemName: regionStyles.style(for: entry.region).symbolName)
+                        Image(systemSymbol: regionStyles.style(for: entry.region).symbol)
                             .font(.caption2)
                             .accessibilityHidden(true)
                         Text(entry.region.localizedName)

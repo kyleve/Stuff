@@ -23,10 +23,10 @@ struct DeveloperTabBarInsetTests {
     @Test func reporterMeasuresFloatingTabBarHeight() throws {
         let box = InsetBox()
         let root = TabView {
-            Tab("One", systemImage: "1.circle") {
+            Tab("One", systemSymbol: ._1Circle) {
                 Color.clear.reportingDeveloperTabBarInset()
             }
-            Tab("Two", systemImage: "2.circle") {
+            Tab("Two", systemSymbol: ._2Circle) {
                 Color.clear
             }
         }

@@ -1,5 +1,6 @@
 import PeriscopeCore
 import RegionKit
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 import WhereCore
@@ -62,7 +63,7 @@ struct ResolutionView: View {
                 ContentUnavailableView {
                     Label(
                         String(localized: .commonLoadErrorTitle),
-                        systemImage: "exclamationmark.icloud",
+                        systemSymbol: .exclamationmarkIcloud,
                     )
                 } description: {
                     Text(error.message)
@@ -77,7 +78,7 @@ struct ResolutionView: View {
                     ContentUnavailableView {
                         Label(
                             String(localized: .resolutionEmptyTitle),
-                            systemImage: "checkmark.seal",
+                            systemSymbol: .checkmarkSeal,
                         )
                     } description: {
                         Text(String(localized: .resolutionEmptyDescription))
@@ -100,7 +101,7 @@ struct ResolutionView: View {
                     } header: {
                         Label(
                             WhereFormat.resolutionSectionHeader(category),
-                            systemImage: sectionIcon(category),
+                            systemSymbol: sectionIcon(category),
                         )
                     }
                 }
@@ -113,12 +114,12 @@ struct ResolutionView: View {
         resolve.dataIssues.filter { $0.category == category }
     }
 
-    private func sectionIcon(_ category: DataIssueCategory) -> String {
+    private func sectionIcon(_ category: DataIssueCategory) -> SFSymbol {
         switch category {
-            case .missingDays: "calendar.badge.exclamationmark"
-            case .borderDrift: "location.circle"
-            case .abruptChange: "arrow.triangle.swap"
-            case .flightDay: "airplane"
+            case .missingDays: .calendarBadgeExclamationmark
+            case .borderDrift: .locationCircle
+            case .abruptChange: .arrowTriangleSwap
+            case .flightDay: .airplane
         }
     }
 }
@@ -150,7 +151,7 @@ private struct IssueRow: View {
                 Button(role: .destructive) {
                     Task { await resolve.dismiss(issue) }
                 } label: {
-                    Label(String(localized: .resolutionDismiss), systemImage: "xmark")
+                    Label(String(localized: .resolutionDismiss), systemSymbol: .xmark)
                 }
             }
         }

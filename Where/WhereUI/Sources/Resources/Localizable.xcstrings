@@ -139,6 +139,54 @@
         }
       }
     },
+    "backup.importCleanup.message" : {
+      "comment" : "Message shown after backup data committed but recording cleanup failed. The placeholder is the preserved import summary.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Your backup data was imported successfully. Where couldn't finish recording cleanup, so automatic recording remains off. Close and reopen Where. Do not import this backup again.\n\n%@"
+          }
+        }
+      }
+    },
+    "backup.importCleanup.title" : {
+      "comment" : "Title shown when a backup import committed but recording cleanup still requires an app relaunch.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Backup imported; cleanup incomplete"
+          }
+        }
+      }
+    },
+    "backup.importSetup.message" : {
+      "comment" : "Terminal launch message after an onboarding backup committed but setup of the new installation failed. The placeholder is the preserved import summary.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Your backup data was imported successfully, but Where couldn't finish setting up this device. Close and reopen Where; setup will retry automatically. Do not import this backup again.\n\n%@"
+          }
+        }
+      }
+    },
+    "backup.importSetup.title" : {
+      "comment" : "Terminal launch title after an onboarding backup committed but setup of the new installation failed.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Backup imported; setup incomplete"
+          }
+        }
+      }
+    },
     "calendar.day.accessibility" : {
       "comment" : "Accessibility label for a calendar day, including the day of the week and the names of the regions that day.",
       "extractionState" : "manual",
@@ -185,6 +233,18 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "%@, needs a location"
+          }
+        }
+      }
+    },
+    "calendar.day.planned.accessibility" : {
+      "comment" : "Accessibility label appended to a future calendar day covered by the user's planned stay.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%@, planned"
           }
         }
       }
@@ -2167,6 +2227,17 @@
         }
       }
     },
+    "common.retry" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retry"
+          }
+        }
+      }
+    },
     "common.save" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2461,6 +2532,39 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tool unavailable"
+          }
+        }
+      }
+    },
+    "device.removed.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatic recording has stopped. Rejoin to create a new device identity and choose whether this device should record."
+          }
+        }
+      }
+    },
+    "device.removed.rejoin" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rejoin This Device"
+          }
+        }
+      }
+    },
+    "device.removed.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This device was removed from Where"
           }
         }
       }
@@ -2863,6 +2967,166 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Getting things ready…"
+          }
+        }
+      }
+    },
+    "launch.resetCleanup.message" : {
+      "comment" : "Terminal launch message after synced data was erased but local post-commit cleanup failed.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Your synced data was erased, but Where couldn't finish local cleanup. Automatic recording remains off. Close and reopen Where. If Settings appears, retry Erase All Data & Reset; if onboarding appears, finish setup."
+          }
+        }
+      }
+    },
+    "launch.resetCleanup.title" : {
+      "comment" : "Terminal launch title after reset committed but local cleanup failed.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Data erased; cleanup incomplete"
+          }
+        }
+      }
+    },
+    "locationForecast.basis" : {
+      "comment" : "Short explanation below a location forecast. The placeholder is the region's year-to-date day count.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Based on %@ here."
+          }
+        }
+      }
+    },
+    "locationForecast.clearStay" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Clear"
+          }
+        }
+      }
+    },
+    "locationForecast.clearingStay" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Clearing planned stay"
+          }
+        }
+      }
+    },
+    "locationForecast.editStay" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "I’ll be here through…"
+          }
+        }
+      }
+    },
+    "locationForecast.editor.date" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Here through"
+          }
+        }
+      }
+    },
+    "locationForecast.editor.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "The selected day is included in your planned stay. The estimate resumes your year-to-date pace the following day."
+          }
+        }
+      }
+    },
+    "locationForecast.editor.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Plan This Stay"
+          }
+        }
+      }
+    },
+    "locationForecast.elapsed" : {
+      "comment" : "Shared elapsed-time context in the annual location forecast header. The placeholder is an already-localized day count, for example '182 days'.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%@ elapsed"
+          }
+        }
+      }
+    },
+    "locationForecast.estimate" : {
+      "comment" : "Annual location forecast sentence. The first placeholder is a region name; the second is an already-localized day count, for example '183 days', and is emphasized.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ might be **%2$@** this year"
+          }
+        }
+      }
+    },
+    "locationForecast.plan" : {
+      "comment" : "Explains the planned-stay input included in an annual location forecast.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Includes staying through %@."
+          }
+        }
+      }
+    },
+    "locationForecast.removePlan" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Remove Plan"
+          }
+        }
+      }
+    },
+    "locationForecast.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Estimated Time"
           }
         }
       }
@@ -3433,37 +3697,14 @@
         }
       }
     },
-    "onboarding.enableLocation" : {
-      "comment" : "Button text to prompt the user to enable location services.",
-      "extractionState" : "manual",
-      "isCommentAutoGenerated" : true,
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Enable Location"
-          }
-        }
-      }
-    },
-    "onboarding.location.description" : {
+    "onboarding.installationSecurityError" : {
+      "comment" : "Launch failure shown when Where cannot prove that the device-local recording identity is excluded from backup and also cannot remove it safely.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Where uses background location to log the regions you pass through. You can change this anytime in Settings."
-          }
-        }
-      }
-    },
-    "onboarding.location.title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Turn on location"
+            "value" : "Where couldn't secure this device's recording identity. Close and reopen Where, then try again."
           }
         }
       }
@@ -3475,19 +3716,6 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Next"
-          }
-        }
-      }
-    },
-    "onboarding.notNow" : {
-      "comment" : "Button title for skipping the onboarding flow.",
-      "extractionState" : "manual",
-      "isCommentAutoGenerated" : true,
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Not Now"
           }
         }
       }
@@ -3514,6 +3742,94 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Private by design"
+          }
+        }
+      }
+    },
+    "onboarding.recording.checking" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Checking your other devices…"
+          }
+        }
+      }
+    },
+    "onboarding.recording.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Where should record automatically only on devices you usually carry. You can change this later in Devices."
+          }
+        }
+      }
+    },
+    "onboarding.recording.other.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Record on this device?"
+          }
+        }
+      }
+    },
+    "onboarding.recording.phone.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Record on this iPhone?"
+          }
+        }
+      }
+    },
+    "onboarding.recording.recent" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Another device was recording recently"
+          }
+        }
+      }
+    },
+    "onboarding.recording.recommendation.off" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Off is recommended for devices you may leave behind."
+          }
+        }
+      }
+    },
+    "onboarding.recording.recommendation.on" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "On is recommended because your iPhone usually travels with you."
+          }
+        }
+      }
+    },
+    "onboarding.recording.tablet.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Record on this iPad?"
           }
         }
       }
@@ -3549,6 +3865,18 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Couldn't restore backup"
+          }
+        }
+      }
+    },
+    "onboarding.restoreMergeRecommended" : {
+      "comment" : "Recommended non-destructive backup strategy shown during onboarding.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Merge (Recommended)"
           }
         }
       }
@@ -3731,17 +4059,6 @@
         }
       }
     },
-    "primary.recentActivity" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Recent activity"
-          }
-        }
-      }
-    },
     "primary.timeline" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3749,292 +4066,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Timeline"
-          }
-        }
-      }
-    },
-    "recentActivity.empty.description.day" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No locations were recorded in the last 24 hours."
-          }
-        }
-      }
-    },
-    "recentActivity.empty.description.month" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No locations were recorded in the past month."
-          }
-        }
-      }
-    },
-    "recentActivity.empty.description.week" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No locations were recorded in the past week."
-          }
-        }
-      }
-    },
-    "recentActivity.empty.description.yearToDate" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No locations were recorded so far this year."
-          }
-        }
-      }
-    },
-    "recentActivity.empty.title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nothing tracked"
-          }
-        }
-      }
-    },
-    "recentActivity.failed.title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Couldn't summarize"
-          }
-        }
-      }
-    },
-    "recentActivity.footer.day" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "An on-device summary of where you've been in the last 24 hours. Your location never leaves your device."
-          }
-        }
-      }
-    },
-    "recentActivity.footer.month" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "An on-device summary of where you've been over the past month. Your location never leaves your device."
-          }
-        }
-      }
-    },
-    "recentActivity.footer.week" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "An on-device summary of where you've been over the past week. Your location never leaves your device."
-          }
-        }
-      }
-    },
-    "recentActivity.footer.yearToDate" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "An on-device summary of where you've been so far this year. Your location never leaves your device."
-          }
-        }
-      }
-    },
-    "recentActivity.loading" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Summarizing…"
-          }
-        }
-      }
-    },
-    "recentActivity.refresh" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Refresh"
-          }
-        }
-      }
-    },
-    "recentActivity.title.day" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Last 24 hours"
-          }
-        }
-      }
-    },
-    "recentActivity.title.month" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Past month"
-          }
-        }
-      }
-    },
-    "recentActivity.title.week" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Past week"
-          }
-        }
-      }
-    },
-    "recentActivity.title.yearToDate" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Year so far"
-          }
-        }
-      }
-    },
-    "recentActivity.unavailable.appleIntelligenceNotEnabled" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Turn on Apple Intelligence in Settings to generate summaries."
-          }
-        }
-      }
-    },
-    "recentActivity.unavailable.deviceNotEligible" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This device doesn't support on-device summaries."
-          }
-        }
-      }
-    },
-    "recentActivity.unavailable.modelNotReady" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The on-device model is still getting ready. Try again shortly."
-          }
-        }
-      }
-    },
-    "recentActivity.unavailable.title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Summaries unavailable"
-          }
-        }
-      }
-    },
-    "recentActivity.unavailable.unknown" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "On-device summaries aren't available right now."
-          }
-        }
-      }
-    },
-    "recentActivity.window.day" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "24 Hours"
-          }
-        }
-      }
-    },
-    "recentActivity.window.month" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Month"
-          }
-        }
-      }
-    },
-    "recentActivity.window.pickerLabel" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Summary range"
-          }
-        }
-      }
-    },
-    "recentActivity.window.week" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Week"
-          }
-        }
-      }
-    },
-    "recentActivity.window.yearToDate" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Year"
           }
         }
       }
@@ -5339,6 +5370,30 @@
         }
       }
     },
+    "settings.appearance.locationForecasts.footer" : {
+      "comment" : "Explains the scope of the annual location forecast visibility toggle.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Show or hide the annual estimated-time summary in Locations."
+          }
+        }
+      }
+    },
+    "settings.appearance.locationForecasts.toggle" : {
+      "comment" : "Toggle that controls whether annual location forecasts appear on the Locations tab.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Estimated time"
+          }
+        }
+      }
+    },
     "settings.attachments.row" : {
       "comment" : "Row title for the attachments (evidence) screen in the Settings Data group.",
       "extractionState" : "manual",
@@ -5347,6 +5402,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Attachments"
+          }
+        }
+      }
+    },
+    "settings.backup.cleanupRequired" : {
+      "comment" : "Settings footer while a committed backup import still needs its post-commit cleanup retried.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "A previous backup finished importing, but recording cleanup still needs attention. Finish cleanup before importing another backup."
           }
         }
       }
@@ -5423,7 +5490,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Merge keeps everything already on this device and adds the file's records. Replace erases this device first, then restores only what's in the file."
+            "value" : "Merge keeps the data already synced to your devices and adds the file's records. Replace restores the file's history and settings, retains device identities for safe syncing, and turns automatic recording off until you re-enable it. Offline devices receive the changes when they reconnect."
           }
         }
       }
@@ -5494,6 +5561,30 @@
         }
       }
     },
+    "settings.backup.retryCleanup" : {
+      "comment" : "Button that retries only cleanup after a backup import already committed.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Retry Backup Cleanup"
+          }
+        }
+      }
+    },
+    "settings.backup.retryingCleanup" : {
+      "comment" : "Progress label while retrying only cleanup after a backup import already committed.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Finishing Backup Cleanup…"
+          }
+        }
+      }
+    },
     "settings.backup.share" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5533,7 +5624,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This removes every sample, manual day, and piece of evidence in %@. It can't be undone."
+            "value" : "This removes every sample, manual day, and piece of evidence in %@ across all synced devices, including offline devices when they next connect. It can't be undone."
           }
         }
       }
@@ -5607,6 +5698,249 @@
         }
       }
     },
+    "settings.devices.automaticRecording" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatic Recording"
+          }
+        }
+      }
+    },
+    "settings.devices.current.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This device applies changes immediately. Always location access is required for background recording."
+          }
+        }
+      }
+    },
+    "settings.devices.error.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t Update Devices"
+          }
+        }
+      }
+    },
+    "settings.devices.grant" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grant location access"
+          }
+        }
+      }
+    },
+    "settings.devices.keywords.name" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "device, name, nickname, iphone, ipad"
+          }
+        }
+      }
+    },
+    "settings.devices.keywords.recording" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "location, gps, tracking, background, automatic, device, travel"
+          }
+        }
+      }
+    },
+    "settings.devices.lastActive" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last Active"
+          }
+        }
+      }
+    },
+    "settings.devices.loadFailed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Devices Unavailable"
+          }
+        }
+      }
+    },
+    "settings.devices.name" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Device Name"
+          }
+        }
+      }
+    },
+    "settings.devices.remote.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recording choices are local to each device. Remove this device to stop it when it next syncs and hide later automatic locations."
+          }
+        }
+      }
+    },
+    "settings.devices.remove" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove from Where"
+          }
+        }
+      }
+    },
+    "settings.devices.remove.confirm.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatic recording stops when that device reconnects. Earlier history stays visible. Use Apple Lost Mode or remote erase for a missing device."
+          }
+        }
+      }
+    },
+    "settings.devices.remove.confirm.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove this device from Where?"
+          }
+        }
+      }
+    },
+    "settings.devices.status" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Status"
+          }
+        }
+      }
+    },
+    "settings.devices.status.off" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Off"
+          }
+        }
+      }
+    },
+    "settings.devices.status.pending" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting for Device"
+          }
+        }
+      }
+    },
+    "settings.devices.status.permissionRequired" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Location Access Needed"
+          }
+        }
+      }
+    },
+    "settings.devices.status.recording" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recording"
+          }
+        }
+      }
+    },
+    "settings.devices.status.syncing" : {
+      "comment" : "Status shown while a device profile has synced but its recording policy is still arriving.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Syncing Recording Setting"
+          }
+        }
+      }
+    },
+    "settings.devices.status.unavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unavailable"
+          }
+        }
+      }
+    },
+    "settings.devices.thisDevice" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This Device"
+          }
+        }
+      }
+    },
+    "settings.devices.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Devices"
+          }
+        }
+      }
+    },
     "settings.eraseYear.title" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5614,6 +5948,936 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Erase year data"
+          }
+        }
+      }
+    },
+    "settings.explore.dataFooter" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where uses your data here when there’s enough to make these examples relevant. Browsing this screen never changes it."
+          }
+        }
+      }
+    },
+    "settings.explore.evidence.archive.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep It with Your History"
+          }
+        }
+      }
+    },
+    "settings.explore.evidence.attachmentReady" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Attachment ready to save"
+          }
+        }
+      }
+    },
+    "settings.explore.evidence.compose.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confirm the Details"
+          }
+        }
+      }
+    },
+    "settings.explore.evidence.fallback" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your saved evidence couldn’t be loaded, so this card uses an example."
+          }
+        }
+      }
+    },
+    "settings.explore.evidence.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "From Mail, Photos, Files, or Wallet, open the Share sheet and choose Where. You can also add evidence from the attachment archive."
+          }
+        }
+      }
+    },
+    "settings.explore.evidence.openArchive" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Attachments"
+          }
+        }
+      }
+    },
+    "settings.explore.evidence.row" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Share & Evidence"
+          }
+        }
+      }
+    },
+    "settings.explore.evidence.share.action" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where"
+          }
+        }
+      }
+    },
+    "settings.explore.evidence.share.actionSubtitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save as travel evidence"
+          }
+        }
+      }
+    },
+    "settings.explore.evidence.share.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Share from Another App"
+          }
+        }
+      }
+    },
+    "settings.explore.evidence.source.pass" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pass"
+          }
+        }
+      }
+    },
+    "settings.explore.evidence.source.photo" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Photo"
+          }
+        }
+      }
+    },
+    "settings.explore.evidence.source.receipt" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Receipt"
+          }
+        }
+      }
+    },
+    "settings.explore.evidence.tagline" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep the passes, receipts, and photos that support your travel history."
+          }
+        }
+      }
+    },
+    "settings.explore.evidence.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save Travel Evidence"
+          }
+        }
+      }
+    },
+    "settings.explore.header" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Explore Features"
+          }
+        }
+      }
+    },
+    "settings.explore.insights.abruptChanges" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrupt changes"
+          }
+        }
+      }
+    },
+    "settings.explore.insights.accuracy.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Catch and Correct Issues"
+          }
+        }
+      }
+    },
+    "settings.explore.insights.allClear" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your selected year is all clear"
+          }
+        }
+      }
+    },
+    "settings.explore.insights.borderDrift" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Border drift"
+          }
+        }
+      }
+    },
+    "settings.explore.insights.flightDays" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flight days"
+          }
+        }
+      }
+    },
+    "settings.explore.insights.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where surfaces Resolve when it finds a gap, drift, abrupt change, or flight-day anomaly."
+          }
+        }
+      }
+    },
+    "settings.explore.insights.issueCount" : {
+      "comment" : "Current number of data issues found in the selected year.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld issues ready to review"
+          }
+        }
+      }
+    },
+    "settings.explore.insights.missingDays" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Missing days"
+          }
+        }
+      }
+    },
+    "settings.explore.insights.openResolve" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Resolve"
+          }
+        }
+      }
+    },
+    "settings.explore.insights.row" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Insights & Accuracy"
+          }
+        }
+      }
+    },
+    "settings.explore.insights.tagline" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Catch gaps, drift, and other issues before they affect your records."
+          }
+        }
+      }
+    },
+    "settings.explore.insights.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Insights & Accuracy"
+          }
+        }
+      }
+    },
+    "settings.explore.personalization.calendar" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calendar"
+          }
+        }
+      }
+    },
+    "settings.explore.personalization.cards" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cards"
+          }
+        }
+      }
+    },
+    "settings.explore.personalization.currentIcon" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Current app icon"
+          }
+        }
+      }
+    },
+    "settings.explore.personalization.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Region looks stay consistent across cards, calendars, widgets, and Siri. Your app icon is a device setting."
+          }
+        }
+      }
+    },
+    "settings.explore.personalization.icon.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose Your App Icon"
+          }
+        }
+      }
+    },
+    "settings.explore.personalization.iconUnavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "App icon preview unavailable"
+          }
+        }
+      }
+    },
+    "settings.explore.personalization.openIcon" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose App Icon"
+          }
+        }
+      }
+    },
+    "settings.explore.personalization.openRegions" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Customize Regions"
+          }
+        }
+      }
+    },
+    "settings.explore.personalization.regions.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Style Your Places"
+          }
+        }
+      }
+    },
+    "settings.explore.personalization.row" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Make It Yours"
+          }
+        }
+      }
+    },
+    "settings.explore.personalization.tagline" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Give your places a signature look—and choose the Where icon that feels like you."
+          }
+        }
+      }
+    },
+    "settings.explore.personalization.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Make It Yours"
+          }
+        }
+      }
+    },
+    "settings.explore.personalization.widgets" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Widgets"
+          }
+        }
+      }
+    },
+    "settings.explore.siri.card.accessibility.label" : {
+      "comment" : "Accessibility label for one Siri feature card. The argument is the feature title.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ask Siri about %@"
+          }
+        }
+      }
+    },
+    "settings.explore.siri.card.accessibility.value" : {
+      "comment" : "Accessibility value for one Siri feature card. The first argument is the user's request and the second is Siri's response.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You ask, “%1$@” Siri responds, “%2$@”"
+          }
+        }
+      }
+    },
+    "settings.explore.siri.date.request" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where was I on June 3?"
+          }
+        }
+      }
+    },
+    "settings.explore.siri.date.response" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "June 3 counted for New York."
+          }
+        }
+      }
+    },
+    "settings.explore.siri.date.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Region on a Date"
+          }
+        }
+      }
+    },
+    "settings.explore.siri.days.request" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How many days have I spent in California this year?"
+          }
+        }
+      }
+    },
+    "settings.explore.siri.days.response" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You’ve spent 132 days in California this year."
+          }
+        }
+      }
+    },
+    "settings.explore.siri.days.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Days in a Region"
+          }
+        }
+      }
+    },
+    "settings.explore.siri.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Try these with Siri, or find every action in the Shortcuts app."
+          }
+        }
+      }
+    },
+    "settings.explore.siri.logDay.request" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Log that I was in New York today."
+          }
+        }
+      }
+    },
+    "settings.explore.siri.logDay.response" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I logged today in New York."
+          }
+        }
+      }
+    },
+    "settings.explore.siri.logDay.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Log a Day"
+          }
+        }
+      }
+    },
+    "settings.explore.siri.logTrip.request" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Log my trip to Canada from July 8 through July 12."
+          }
+        }
+      }
+    },
+    "settings.explore.siri.logTrip.response" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I logged 5 days in Canada."
+          }
+        }
+      }
+    },
+    "settings.explore.siri.logTrip.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Log a Trip"
+          }
+        }
+      }
+    },
+    "settings.explore.siri.personalized.date.request" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where was I on %@?"
+          }
+        }
+      }
+    },
+    "settings.explore.siri.personalized.date.response" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ counted for %2$@."
+          }
+        }
+      }
+    },
+    "settings.explore.siri.personalized.days.request" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How many days have I spent in %1$@ in %2$@?"
+          }
+        }
+      }
+    },
+    "settings.explore.siri.personalized.days.response" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You’ve spent %1$@ in %2$@ in %3$@."
+          }
+        }
+      }
+    },
+    "settings.explore.siri.personalized.today.response.empty" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing is logged for today yet."
+          }
+        }
+      }
+    },
+    "settings.explore.siri.personalized.today.response.regions" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Today counts for %@."
+          }
+        }
+      }
+    },
+    "settings.explore.siri.row" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Siri, Shortcuts & Spotlight"
+          }
+        }
+      }
+    },
+    "settings.explore.siri.tagline" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ask, automate, or search for where you’ve been."
+          }
+        }
+      }
+    },
+    "settings.explore.siri.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Siri, Shortcuts & Spotlight"
+          }
+        }
+      }
+    },
+    "settings.explore.siri.today.request" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where am I today?"
+          }
+        }
+      }
+    },
+    "settings.explore.siri.today.response" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Today counts for California."
+          }
+        }
+      }
+    },
+    "settings.explore.siri.today.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Today’s Regions"
+          }
+        }
+      }
+    },
+    "settings.explore.spotlight.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search for one of your tracked regions in Spotlight to jump straight to its day count."
+          }
+        }
+      }
+    },
+    "settings.explore.spotlight.previewLabel" : {
+      "comment" : "Accessibility description for the miniature Spotlight result. Arguments are the query, result title, and result subtitle.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spotlight search for %1$@. Result: %2$@, %3$@."
+          }
+        }
+      }
+    },
+    "settings.explore.spotlight.result.generic" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Where to see your total"
+          }
+        }
+      }
+    },
+    "settings.explore.spotlight.result.personalized" : {
+      "comment" : "Spotlight result subtitle. Arguments are a localized day count and year.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ in %2$@"
+          }
+        }
+      }
+    },
+    "settings.explore.spotlight.result.title" : {
+      "comment" : "Spotlight result title. Argument is a localized region name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Days in %@"
+          }
+        }
+      }
+    },
+    "settings.explore.spotlight.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Find a Region in Spotlight"
+          }
+        }
+      }
+    },
+    "settings.explore.widgets.home.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Today is available in Small. Year Totals is available in Small and Medium."
+          }
+        }
+      }
+    },
+    "settings.explore.widgets.home.header" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Home Screen"
+          }
+        }
+      }
+    },
+    "settings.explore.widgets.home.previewLabel" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Example Home Screen showing Where widgets."
+          }
+        }
+      }
+    },
+    "settings.explore.widgets.lock.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Today is available Inline and Circular. Year Totals is available Rectangular."
+          }
+        }
+      }
+    },
+    "settings.explore.widgets.lock.header" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lock Screen"
+          }
+        }
+      }
+    },
+    "settings.explore.widgets.lock.previewLabel" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Example Lock Screen showing Where widgets."
+          }
+        }
+      }
+    },
+    "settings.explore.widgets.row" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Widgets"
+          }
+        }
+      }
+    },
+    "settings.explore.widgets.tagline" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your travels, at a glance—wherever you need them."
+          }
+        }
+      }
+    },
+    "settings.explore.widgets.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Widgets"
           }
         }
       }
@@ -5829,6 +7093,17 @@
         }
       }
     },
+    "settings.keywords.evidenceFeatures" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "share, Share sheet, boarding pass, receipt, photo, Wallet, attachment, evidence"
+          }
+        }
+      }
+    },
     "settings.keywords.export" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5862,6 +7137,17 @@
         }
       }
     },
+    "settings.keywords.insightsFeatures" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "issue, resolve, missing day, drift, border, flight, accuracy"
+          }
+        }
+      }
+    },
     "settings.keywords.issueAlerts" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5884,6 +7170,18 @@
         }
       }
     },
+    "settings.keywords.locationForecasts" : {
+      "comment" : "Comma-separated Settings search keywords for the annual location forecast visibility toggle.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "estimate, estimates, estimated time, forecast, forecasts, annual, year"
+          }
+        }
+      }
+    },
     "settings.keywords.loggedDays" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5891,6 +7189,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "logged days, manual, override, entry, backfill"
+          }
+        }
+      }
+    },
+    "settings.keywords.personalizationFeatures" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "customize, personalization, appearance, color, emoji, symbol, region style, app icon, theme"
           }
         }
       }
@@ -5928,6 +7237,17 @@
         }
       }
     },
+    "settings.keywords.siri" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Siri, Shortcuts, voice, intent, ask, automation"
+          }
+        }
+      }
+    },
     "settings.keywords.summary" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5939,13 +7259,13 @@
         }
       }
     },
-    "settings.keywords.tracking" : {
+    "settings.keywords.widgets" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "location, gps, tracking, background, permission"
+            "value" : "widget, Home Screen, Lock Screen, accessory, glance"
           }
         }
       }
@@ -5957,50 +7277,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "year, report, calendar"
-          }
-        }
-      }
-    },
-    "settings.location.footer" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Where watches for visits and big moves to figure out which region you're in. It needs Always access and a little patience."
-          }
-        }
-      }
-    },
-    "settings.location.grant" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Grant location access"
-          }
-        }
-      }
-    },
-    "settings.location.header" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Location"
-          }
-        }
-      }
-    },
-    "settings.location.toggle" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Track in the background"
           }
         }
       }
@@ -6081,6 +7357,42 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Private by design"
+          }
+        }
+      }
+    },
+    "settings.recording.warning.dismiss" : {
+      "comment" : "Button that acknowledges and hides the Settings warning about automatic recording being unavailable.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Dismiss"
+          }
+        }
+      }
+    },
+    "settings.recording.warning.message" : {
+      "comment" : "Settings warning explaining that this phone will not automatically record locations until both controls are enabled.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Automatic Recording is off and Where doesn't have Always location access. This phone won't record your location in the background."
+          }
+        }
+      }
+    },
+    "settings.recording.warning.title" : {
+      "comment" : "Title of the Settings warning about automatic location recording.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Automatic recording needs attention"
           }
         }
       }
@@ -6233,7 +7545,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "This erases every sample, manual day, and piece of evidence on this device and returns you to first-run setup. It can't be undone."
+            "value" : "This erases every synced sample, manual day, and piece of evidence across all your devices, stops automatic recording on every known device, then returns this device to first-run setup. Offline devices discard pending fixes and receive the changes when they reconnect. It can't be undone."
           }
         }
       }
@@ -6526,6 +7838,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No stays yet"
+          }
+        }
+      }
+    },
+    "timeline.plannedRow.accessibility" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Planned stay in %1$@, %2$@, %3$@"
+          }
+        }
+      }
+    },
+    "timeline.plannedStay" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Planned stay"
           }
         }
       }

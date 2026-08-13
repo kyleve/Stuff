@@ -1,4 +1,5 @@
 import RegionKit
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 import WhereCore
@@ -156,7 +157,7 @@ struct DayRelabelView: View {
                 EmptyView()
             case let .borderDrift(region, meters):
                 banner(
-                    icon: "location.circle",
+                    icon: .locationCircle,
                     text: WhereFormat.relabelReasonBorderDrift(
                         region: region.localizedName,
                         distance: meters.map(Self.formattedDistance),
@@ -164,20 +165,20 @@ struct DayRelabelView: View {
                 )
             case .travelDay:
                 banner(
-                    icon: "arrow.triangle.swap",
+                    icon: .arrowTriangleSwap,
                     text: String(localized: .relabelReasonTravelDay),
                 )
             case let .flight(removed):
-                banner(icon: "airplane", text: WhereFormat.relabelReasonFlight(removed: removed))
+                banner(icon: .airplane, text: WhereFormat.relabelReasonFlight(removed: removed))
         }
     }
 
-    private func banner(icon: String, text: String) -> some View {
+    private func banner(icon: SFSymbol, text: String) -> some View {
         Section {
             Label {
                 Text(text)
             } icon: {
-                Image(systemName: icon)
+                Image(systemSymbol: icon)
                     .foregroundStyle(.tint)
             }
             .font(.subheadline)

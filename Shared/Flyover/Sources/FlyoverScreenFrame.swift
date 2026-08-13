@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SwiftUI
 
 /// One overview card containing an inert rendered screen and live local controls.
@@ -43,7 +44,7 @@ private struct FlyoverScreenPlaceholder<ScreenID: Hashable>: View {
     var body: some View {
         let style = stylesheet.screen.placeholder
         VStack(spacing: style.spacing) {
-            Image(systemName: "viewfinder")
+            Image(systemSymbol: .viewfinder)
                 .font(style.iconFont)
                 .foregroundStyle(.secondary)
             Text(model.variant(for: screen).title)
@@ -53,7 +54,7 @@ private struct FlyoverScreenPlaceholder<ScreenID: Hashable>: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: style.messageMaximumWidth)
-            Button("Render Preview", systemImage: "play.fill") {
+            Button("Render Preview", systemSymbol: .playFill) {
                 model.preview(screen)
             }
             .buttonStyle(.bordered)

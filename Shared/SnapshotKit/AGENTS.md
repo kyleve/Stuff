@@ -28,8 +28,10 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
   treat it as a wire format. Adding an axis is safe only with a default that
   is omitted (how `layoutDirection`/`legibilityWeight` landed).
 - **`.accessibility` configs are preview-filtered.** `snapshotPreviews` drops
-  them because VoiceOver annotations require the test-only library; they only
-  render as snapshot tests. Don't "fix" previews to include them.
+  them because Stuff keeps AccessibilitySnapshot's annotation renderer in the
+  test-only `SnapshotKitTesting` product rather than linking it into shipping
+  UI modules; they only render as snapshot tests. Don't "fix" previews to
+  include them without a preview-only dependency boundary.
 - **`SnapshotCase` content builders stay lazy.** Constructing a provider's
   descriptor array must not instantiate every view or model; each content
   access creates the independent value rendered by that configuration.
@@ -55,6 +57,13 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
   container instead snapshots its shared scrolling child directly; never add
   snapshot-only production layout. Fixed device frames are for non-scrolling
   subjects.
+- **Measurement readiness never replaces capture readiness.** Keep
+  `measurementReadiness` at `.sameAsCapture` when async work can change ideal
+  height, or await that work deterministically from `onReadyToMeasure` and use
+  `.settled` for the probe. Use `.immediate` only for synchronously sized
+  fixtures; the case's final `settle` remains independently load-bearing. A
+  measurement hook is intrinsic/full-content-only. Guards:
+  `AsyncContentCaptureTests` and `LargeViewCaptureTests`.
 
 ## Testing
 

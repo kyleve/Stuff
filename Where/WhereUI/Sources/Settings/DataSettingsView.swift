@@ -1,4 +1,5 @@
 import LifecycleKitUI
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 import WhereCore
@@ -44,7 +45,7 @@ struct DataSettingsView: View {
             Button(role: .destructive) {
                 showClearConfirmation = true
             } label: {
-                Label(eraseTitle, systemImage: "trash")
+                Label(eraseTitle, systemSymbol: .trash)
             }
             .settingsRow(Item.eraseYear)
             .confirmationDialog(
@@ -75,7 +76,7 @@ struct DataSettingsView: View {
             Button(role: .destructive) {
                 showResetConfirmation = true
             } label: {
-                Label(String(localized: .settingsResetErase), systemImage: "arrow.counterclockwise")
+                Label(String(localized: .settingsResetErase), systemSymbol: .arrowCounterclockwise)
             }
             .settingsRow(Item.resetApp)
             .confirmationDialog(
@@ -107,14 +108,12 @@ extension DataSettingsView: SettingsSection {
 
     enum Item: SettingsItem {
         case exportBackup
-        case importBackup
         case eraseYear
         case resetApp
 
         var title: String {
             switch self {
                 case .exportBackup: String(localized: .settingsBackupExport)
-                case .importBackup: String(localized: .settingsBackupImport)
                 case .eraseYear: String(localized: .settingsEraseYearTitle)
                 case .resetApp: String(localized: .settingsResetErase)
             }
@@ -123,7 +122,6 @@ extension DataSettingsView: SettingsSection {
         var keywords: [String] {
             switch self {
                 case .exportBackup: splitKeywords(String(localized: .settingsKeywordsExport))
-                case .importBackup: splitKeywords(String(localized: .settingsKeywordsImport))
                 case .eraseYear: splitKeywords(String(localized: .settingsKeywordsEraseYear))
                 case .resetApp: splitKeywords(String(localized: .settingsKeywordsReset))
             }
@@ -134,7 +132,10 @@ extension DataSettingsView: SettingsSection {
 #if DEBUG
     extension DataSettingsView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
-            whereSnapshot(name: "Default", configurations: .fullContentScreenDefaults) {
+            whereSnapshot(
+                name: "Default",
+                configurations: .fullContentScreenDefaults,
+            ) {
                 NavigationStack {
                     DataSettingsView(
                         report: PreviewSupport.loadedYearReportModel(),

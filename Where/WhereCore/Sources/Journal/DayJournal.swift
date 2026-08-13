@@ -20,6 +20,8 @@ public actor DayJournal {
     /// data rather than racing the scanner's async store-change invalidation.
     private let issueScanner: DataIssueScanner
     private let widgets: WidgetSnapshotPublisher
+    private let currentDeviceID: RecordingDeviceID
+    private let now: @Sendable () -> Date
 
     private static let logger = WhereLog.root(DayJournalLog.self)
 
@@ -30,6 +32,8 @@ public actor DayJournal {
         issueAlerts: DataIssueAlertReconciler,
         issueScanner: DataIssueScanner,
         widgets: WidgetSnapshotPublisher,
+        currentDeviceID: RecordingDeviceID,
+        now: @escaping @Sendable () -> Date,
     ) {
         self.store = store
         self.aggregator = aggregator
@@ -37,6 +41,8 @@ public actor DayJournal {
         self.issueAlerts = issueAlerts
         self.issueScanner = issueScanner
         self.widgets = widgets
+        self.currentDeviceID = currentDeviceID
+        self.now = now
     }
 
     // MARK: - Post-write reconciliation
@@ -59,9 +65,8 @@ public actor DayJournal {
 
     /// Full reconcile after a change to persisted day data (manual overlays,
     /// clears): recount issues / badge / notification, then republish the widget
-    /// snapshot. Every day-mutating write funnels through here so the fan-out
-    /// stays in one place — including the backup import, which the composition
-    /// root points at this method via `BackupCoordinator`'s `onImport` hook.
+    /// snapshot. Every local day-mutating write funnels through here; backup and
+    /// remote imports use the composition root's full derived-data fan-out.
     func reconcileAfterDayDataChange() async {
         await Self.logger.measure(.reconcileAfterDayDataChange, budget: .seconds(5)) {
             await reconcileIssueState()
@@ -79,7 +84,9 @@ public actor DayJournal {
     // MARK: - Ingestion
 
     public func ingest(_ sample: LocationSample) async throws {
-        try await store.perform { try await store.add(sample: sample) }
+        try await store.performInCurrentGeneration {
+            try await store.add(sample: sample)
+        }
         await reconcileAfterSampleIngest(sample)
     }
 
@@ -92,7 +99,7 @@ public actor DayJournal {
     public func ingest(_ samples: [LocationSample]) async throws {
         guard !samples.isEmpty else { return }
         try await Self.logger.measure(.ingestBatch, budget: .seconds(5)) {
-            try await store.perform {
+            try await store.performInCurrentGeneration {
                 for sample in samples {
                     try await store.add(sample: sample)
                 }
@@ -104,7 +111,9 @@ public actor DayJournal {
     // MARK: - Retroactive entry
 
     public func addManualSample(_ sample: LocationSample) async throws {
-        try await store.perform { try await store.add(sample: sample) }
+        try await store.performInCurrentGeneration {
+            try await store.add(sample: sample)
+        }
         await reconcileAfterSampleIngest(sample)
     }
 
@@ -115,7 +124,9 @@ public actor DayJournal {
     ) async throws {
         let day = CalendarDay(from: date, in: aggregator.calendar)
         let presence = DayPresence(day: day, regions: regions, audit: audit)
-        try await store.perform { try await store.setManualDay(presence) }
+        try await store.performInCurrentGeneration {
+            try await store.setManualDay(presence)
+        }
         await reconcileAfterDayDataChange()
         Self.logger { .addedManualDay(day: String(describing: day), regionCount: regions.count) }
     }
@@ -132,7 +143,9 @@ public actor DayJournal {
     ) async throws {
         let day = CalendarDay(from: date, in: aggregator.calendar)
         let presence = DayPresence(day: day, regions: regions, isAuthoritative: true, audit: audit)
-        try await store.perform { try await store.setManualDay(presence) }
+        try await store.performInCurrentGeneration {
+            try await store.setManualDay(presence)
+        }
         await reconcileAfterDayDataChange()
         Self.logger { .overrodeDay(day: String(describing: day), regionCount: regions.count) }
     }
@@ -143,7 +156,9 @@ public actor DayJournal {
     /// simply lets the aggregator fall back to whatever GPS recorded.
     public func clearManualDay(date: Date) async throws {
         let day = CalendarDay(from: date, in: aggregator.calendar)
-        try await store.perform { try await store.clearManualDay(day) }
+        try await store.performInCurrentGeneration {
+            try await store.clearManualDay(day)
+        }
         await reconcileAfterDayDataChange()
         Self.logger { .clearedManualDay(day: String(describing: day)) }
     }
@@ -161,7 +176,7 @@ public actor DayJournal {
         guard !dates.isEmpty else { return }
         let days = dates.map { CalendarDay(from: $0, in: aggregator.calendar) }
         try await Self.logger.measure(.clearManualDays, budget: .seconds(2)) {
-            try await store.perform {
+            try await store.performInCurrentGeneration {
                 for day in days {
                     try await store.clearManualDay(day)
                 }
@@ -193,7 +208,7 @@ public actor DayJournal {
         // One audit stamps every day in the range — it records the single act of
         // entry, not a per-day fact.
         try await Self.logger.measure(.backfillDays, budget: .seconds(2)) {
-            try await store.perform {
+            try await store.performInCurrentGeneration {
                 for day in days {
                     try await store.setManualDay(
                         DayPresence(day: day, regions: regions, audit: audit),
@@ -213,7 +228,9 @@ public actor DayJournal {
         let interval = aggregator.yearInterval(year: year)
         let dayRange = CalendarDay.yearRange(year)
         try await Self.logger.measure(.clearYear, budget: .seconds(5)) {
-            try await store.perform { try await store.clear(in: interval, manualDays: dayRange) }
+            try await store.performInCurrentGeneration {
+                try await store.clear(in: interval, manualDays: dayRange)
+            }
         }
         await reconcileAfterDayDataChange()
         Self.logger { .clearedYear(year: year) }
@@ -225,8 +242,25 @@ public actor DayJournal {
     /// `clearYear`'s reconciliation so the badge/reminders reflect the now-empty
     /// store immediately rather than relying on a later launch step.
     public func eraseAllData() async throws {
+        let resetAt = now()
         try await Self.logger.measure(.eraseAllData, budget: .seconds(10)) {
-            try await store.perform { try await store.clearAll() }
+            try await store.perform {
+                let deviceIDs = try await Set(store.recordingDeviceProfiles().map(\.id))
+                    .union([currentDeviceID])
+                _ = try await store.rotateDataGeneration(
+                    reason: .accountReset,
+                    changedBy: currentDeviceID,
+                    at: resetAt,
+                )
+                for deviceID in deviceIDs {
+                    try await store.addRecordingDeviceRemoval(RecordingDeviceRemoval(
+                        id: .init(rawValue: UUID()),
+                        deviceID: deviceID,
+                        removedAt: resetAt,
+                        removedByDeviceID: currentDeviceID,
+                    ))
+                }
+            }
         }
         await reconcileAfterDayDataChange()
         Self.logger { .erasedAllData }
@@ -235,7 +269,9 @@ public actor DayJournal {
     // MARK: - Evidence
 
     public func addEvidence(_ evidence: Evidence, blob: Data? = nil) async throws {
-        try await store.perform { try await store.write(evidence: evidence, blob: blob) }
+        try await store.performInCurrentGeneration {
+            try await store.write(evidence: evidence, blob: blob)
+        }
         Self.logger {
             .wroteEvidence(id: String(describing: evidence.id), hasBlob: blob != nil)
         }
@@ -252,7 +288,9 @@ public actor DayJournal {
     // MARK: - Data resolution dismissals
 
     public func dismissIssue(id: DataIssueID) async throws {
-        try await store.perform { try await store.setIssueDismissed(true, id: id) }
+        try await store.performInCurrentGeneration {
+            try await store.setIssueDismissed(true, id: id)
+        }
         // Dismissing removes the issue from the unresolved count, so the badge
         // and the "issues to resolve" notification both have to recount. No
         // widget publish: a dismissal doesn't change day data.
@@ -260,7 +298,9 @@ public actor DayJournal {
     }
 
     public func restoreIssue(id: DataIssueID) async throws {
-        try await store.perform { try await store.setIssueDismissed(false, id: id) }
+        try await store.performInCurrentGeneration {
+            try await store.setIssueDismissed(false, id: id)
+        }
         await reconcileIssueState()
     }
 }

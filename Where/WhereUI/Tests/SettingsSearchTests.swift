@@ -41,13 +41,22 @@ struct SettingsSearchTests {
     }
 
     @Test func matchesOnKeyword() {
-        // "gps" is a keyword for location tracking, data resolution, and the
+        // "gps" is a keyword for device recording, data resolution, and the
         // Appearance dot toggle, but not part of their titles.
         let results = SettingsCatalog.results(matching: "gps")
         let destinations = Set(results.map(\.destination))
-        #expect(destinations.contains(.location))
+        #expect(destinations.contains(.devices))
         #expect(destinations.contains(.alerts))
         #expect(destinations.contains(.appearance))
+    }
+
+    @Test func matchesLocationForecastVisibilityOnEstimateKeyword() {
+        let results = SettingsCatalog.results(matching: "estimate")
+
+        #expect(results.contains {
+            $0.destination == .appearance
+                && $0.title == String(localized: .settingsAppearanceLocationForecastsToggle)
+        })
     }
 
     @Test func matchesTheAboutScreenOnALicenseKeyword() {
@@ -55,6 +64,19 @@ struct SettingsSearchTests {
         // About screen's keywords are registered.
         let results = SettingsCatalog.results(matching: "license")
         #expect(results.contains { $0.destination == .about })
+    }
+
+    @Test func matchesFeatureExplorersOnTheirPlatformKeywords() {
+        let automation = SettingsCatalog.results(matching: "automation")
+        let accessory = SettingsCatalog.results(matching: "accessory")
+        let boardingPass = SettingsCatalog.results(matching: "boarding pass")
+        let drift = SettingsCatalog.results(matching: "drift")
+        let emoji = SettingsCatalog.results(matching: "emoji")
+        #expect(automation.contains { $0.destination == .siri })
+        #expect(accessory.contains { $0.destination == .widgets })
+        #expect(boardingPass.contains { $0.destination == .shareEvidence })
+        #expect(drift.contains { $0.destination == .insightsAccuracy })
+        #expect(emoji.contains { $0.destination == .personalization })
     }
 
     @Test func focusedRouteCarriesTheResultsDestinationAndFocus() throws {
@@ -65,6 +87,6 @@ struct SettingsSearchTests {
     }
 
     @Test func groupRouteHasNoFocus() {
-        #expect(SettingsRoute(.location).focus == nil)
+        #expect(SettingsRoute(.devices).focus == nil)
     }
 }

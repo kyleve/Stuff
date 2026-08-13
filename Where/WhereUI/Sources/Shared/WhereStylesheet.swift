@@ -22,11 +22,13 @@ struct WhereStylesheet: BStylesheet {
     var regionPicker = RegionPickerStyle.standard
     var evidence = EvidenceStyle.standard
     var elsewhereCard = ElsewhereCardStyle.standard
+    var locationForecast = LocationForecastStyle.standard
     var palette = Palette.standard
     var motion = Motion.standard
     var launch = LaunchStyle.standard
     var typography = Typography.standard
     var settings = SettingsStyle.standard
+    var featureDiscovery = FeatureDiscoveryStyle.standard
     var passportCard = PassportCardStyle.standard
     var developerOverlay = DeveloperOverlayStyle.standard
 
@@ -41,12 +43,15 @@ struct WhereStylesheet: BStylesheet {
         // Grow day-grid tap targets at accessibility Dynamic Type sizes.
         if traits.contentSizeCategory.isAccessibilitySize {
             calendar.day.minHeight = 56
+            timeline.overview.pinsToViewport = false
             timeline.row.stacksDayCount = true
+            featureDiscovery.siri.bubble.indent = 0
         }
 
         // Give every region a consistently labeled ribbon band when tint
         // alone is not an acceptable differentiator.
         if traits.accessibility.shouldDifferentiateWithoutColor {
+            timeline.overview.pinsToViewport = false
             timeline.ribbon.separatesRegions = true
         }
 
@@ -69,12 +74,47 @@ struct WhereStylesheet: BStylesheet {
         // dark glass without changing its hue or saturation on touch.
         if traits.mode == .dark {
             card.securityPrint = .dark
+            featureDiscovery.siri.accent = Color(white: 0.42)
         }
     }
 
     /// The fixed token set: the fallback used off the `View` tree (layout
     /// helpers, tests) and when no Broadway root has seeded a context.
     static let `default` = WhereStylesheet()
+}
+
+// MARK: - Location forecast
+
+extension WhereStylesheet {
+    /// Geometry for the annual-estimate panel shared by the Locations tab and
+    /// region-focused calendars.
+    struct LocationForecastStyle: Equatable {
+        var cornerRadius: CGFloat
+        var padding: CGFloat
+        var rowSpacing: CGFloat
+        var estimateSpacing: CGFloat
+        var collapsedLabelColor: Color
+        var borderColor: Color
+        var borderWidth: CGFloat
+        var shadowColor: Color
+        var shadowRadius: CGFloat
+        var shadowOffsetY: CGFloat
+        var expansionAnimation: Animation
+
+        static let standard = LocationForecastStyle(
+            cornerRadius: 22,
+            padding: 16,
+            rowSpacing: 12,
+            estimateSpacing: 3,
+            collapsedLabelColor: Color.primary.opacity(0.5),
+            borderColor: Color.primary.opacity(0.06),
+            borderWidth: 0.5,
+            shadowColor: Color.black.opacity(0.06),
+            shadowRadius: 8,
+            shadowOffsetY: 2,
+            expansionAnimation: .easeInOut(duration: 0.2),
+        )
+    }
 }
 
 extension WhereStylesheet {
@@ -886,6 +926,16 @@ extension WhereStylesheet {
             /// Padding between the day content (number + dots) and the pill's
             /// top/bottom edges, so the pill doesn't butt against the dots.
             var verticalInset: CGFloat
+            /// Lower-opacity fill plus a diagonal pattern for future days the
+            /// user has planned but not yet recorded.
+            var planned: Planned
+
+            struct Planned: Equatable {
+                var fillOpacity: Double
+                var hatchOpacity: Double
+                var hatchSpacing: CGFloat
+                var hatchLineWidth: CGFloat
+            }
         }
 
         /// The paperclip badge in a day cell's top-trailing corner marking a day
@@ -936,6 +986,12 @@ extension WhereStylesheet {
                 cornerRadius: 14,
                 continuationRadius: 3,
                 verticalInset: 4,
+                planned: RegionBand.Planned(
+                    fillOpacity: 0.07,
+                    hatchOpacity: 0.32,
+                    hatchSpacing: 6,
+                    hatchLineWidth: 1,
+                ),
             ),
             day: DayStyle(
                 minHeight: 44,
@@ -1151,6 +1207,7 @@ extension WhereStylesheet {
         var ribbon: Ribbon
         var rail: Rail
         var row: Row
+        var planned: Planned
 
         struct Overview: Equatable {
             var spacing: CGFloat
@@ -1160,6 +1217,8 @@ extension WhereStylesheet {
             var border: Color
             var borderWidth: CGFloat
             var yearFont: Font
+            /// Keep the compact overview visible while the journey scrolls.
+            var pinsToViewport: Bool
         }
 
         struct Ribbon: Equatable {
@@ -1207,6 +1266,17 @@ extension WhereStylesheet {
             var stacksDayCount: Bool
         }
 
+        /// The future planned-stay treatment appended after recorded journey
+        /// rows. Its lighter fill and hatch distinguish intent from history.
+        struct Planned: Equatable {
+            var fillOpacity: Double
+            var borderOpacity: Double
+            var hatchOpacity: Double
+            var hatchSpacing: CGFloat
+            var hatchLineWidth: CGFloat
+            var labelOpacity: Double
+        }
+
         static let standard = TimelineStyle(
             overview: Overview(
                 spacing: 12,
@@ -1216,6 +1286,7 @@ extension WhereStylesheet {
                 border: Color.primary.opacity(0.1),
                 borderWidth: 1,
                 yearFont: .system(.title2, design: .serif).bold(),
+                pinsToViewport: true,
             ),
             ribbon: Ribbon(
                 monthLabelSpacing: 6,
@@ -1251,6 +1322,14 @@ extension WhereStylesheet {
                 countVerticalPadding: 6,
                 countFillOpacity: 0.16,
                 stacksDayCount: false,
+            ),
+            planned: Planned(
+                fillOpacity: 0.035,
+                borderOpacity: 0.14,
+                hatchOpacity: 0.16,
+                hatchSpacing: 8,
+                hatchLineWidth: 1,
+                labelOpacity: 0.7,
             ),
         )
     }
@@ -1317,11 +1396,49 @@ extension WhereStylesheet {
         var reducedReveal: Animation
         /// One-shot fade for incidental appearance (e.g. the launch caption).
         var captionFade: Animation
+        /// The reusable staged entrance used by marketing-style screens.
+        var staggeredReveal: StaggeredReveal
+
+        struct StaggeredReveal: Equatable {
+            var animation: Animation
+            var verticalOffset: CGFloat
+            var delay: TimeInterval
+
+            func presentation(
+                isRevealed: Bool,
+                motionIsStatic: Bool,
+                order: Int,
+            ) -> Presentation {
+                guard !motionIsStatic else { return .visible }
+                return Presentation(
+                    opacity: isRevealed ? 1 : 0,
+                    verticalOffset: isRevealed ? 0 : verticalOffset,
+                    animation: animation.delay(Double(max(0, order)) * delay),
+                )
+            }
+
+            struct Presentation: Equatable {
+                var opacity: Double
+                var verticalOffset: CGFloat
+                var animation: Animation?
+
+                static let visible = Presentation(
+                    opacity: 1,
+                    verticalOffset: 0,
+                    animation: nil,
+                )
+            }
+        }
 
         static let standard = Motion(
             reveal: .easeIn(duration: 0.16),
             reducedReveal: .easeInOut(duration: 0.2),
             captionFade: .easeOut(duration: 0.3),
+            staggeredReveal: StaggeredReveal(
+                animation: .easeOut(duration: 0.35),
+                verticalOffset: 16,
+                delay: 0.08,
+            ),
         )
     }
 }
@@ -1377,6 +1494,183 @@ extension WhereStylesheet {
             flashAnimation: .easeInOut(duration: 0.4),
             flashDuration: .seconds(1),
             scrollSettleDelay: .milliseconds(350),
+        )
+    }
+}
+
+// MARK: - Feature discovery
+
+extension WhereStylesheet {
+    /// Appearance for the Siri conversation cards and the miniature widget
+    /// surfaces in Settings' feature explorer.
+    struct FeatureDiscoveryStyle: Equatable {
+        var marketingHeader: MarketingHeader
+        var marketingPanel: MarketingPanel
+        var backgroundPattern: BackgroundPattern
+        var siri: Siri
+        var widgets: Widgets
+
+        struct MarketingHeader: Equatable {
+            var badgeSize: CGFloat
+            var symbolPointSize: CGFloat
+            var badgeTintOpacity: Double
+            var contentMaxWidth: CGFloat
+            var spacing: CGFloat
+            var verticalPadding: CGFloat
+        }
+
+        struct MarketingPanel: Equatable {
+            var cornerRadius: CGFloat
+            var maxWidth: CGFloat
+            var padding: CGFloat
+            var contentSpacing: CGFloat
+            var rowVerticalInset: CGFloat
+        }
+
+        struct BackgroundPattern: Equatable {
+            var contourSpacing: CGFloat
+            var primaryDistortion: CGFloat
+            var secondaryDistortion: CGFloat
+            var horizontalScale: CGFloat
+            var centerXRatio: CGFloat
+            var centerYRatio: CGFloat
+            var phaseStep: CGFloat
+            var lineWidth: CGFloat
+            var opacity: Double
+        }
+
+        struct Siri: Equatable {
+            var card: Card
+            var bubble: Bubble
+            var speakerIcon: SpeakerIcon
+            var accent: Color
+
+            struct Card: Equatable {
+                var cornerRadius: CGFloat
+                var maxWidth: CGFloat
+                var padding: CGFloat
+                var spacing: CGFloat
+                var rowVerticalInset: CGFloat
+            }
+
+            struct Bubble: Equatable {
+                var cornerRadius: CGFloat
+                var horizontalPadding: CGFloat
+                var verticalPadding: CGFloat
+                var indent: CGFloat
+            }
+
+            struct SpeakerIcon: Equatable {
+                var containerSize: CGFloat
+                var symbolPointSize: CGFloat
+            }
+        }
+
+        struct Widgets: Equatable {
+            var device: Device
+            var frame: Frame
+            var wallpapers: Wallpapers
+            var lockWidgetHeight: CGFloat
+
+            struct Device: Equatable {
+                var cornerRadius: CGFloat
+                var contentMaxWidth: CGFloat
+                var regularContentWidth: CGFloat
+                var dynamicTypeLimit: DynamicTypeSize
+                var padding: CGFloat
+                var spacing: CGFloat
+            }
+
+            struct Frame: Equatable {
+                var cornerRadius: CGFloat
+                var padding: CGFloat
+            }
+
+            struct Wallpapers: Equatable {
+                var home: Gradient
+                var lock: Gradient
+
+                struct Gradient: Equatable {
+                    var top: Color
+                    var bottom: Color
+                }
+            }
+
+            func contentWidth(in containerWidth: CGFloat) -> CGFloat {
+                let availableWidth = max(0, containerWidth - device.padding * 2)
+                if availableWidth > device.contentMaxWidth {
+                    return device.regularContentWidth
+                }
+                return min(availableWidth, device.contentMaxWidth)
+            }
+        }
+
+        static let standard = FeatureDiscoveryStyle(
+            marketingHeader: MarketingHeader(
+                badgeSize: 76,
+                symbolPointSize: 34,
+                badgeTintOpacity: 0.14,
+                contentMaxWidth: 560,
+                spacing: 14,
+                verticalPadding: 24,
+            ),
+            marketingPanel: MarketingPanel(
+                cornerRadius: 20,
+                maxWidth: 680,
+                padding: 16,
+                contentSpacing: 12,
+                rowVerticalInset: 6,
+            ),
+            backgroundPattern: BackgroundPattern(
+                contourSpacing: 30,
+                primaryDistortion: 13,
+                secondaryDistortion: 6,
+                horizontalScale: 1.22,
+                centerXRatio: 0.18,
+                centerYRatio: 0.46,
+                phaseStep: 0.31,
+                lineWidth: 0.9,
+                opacity: 0.12,
+            ),
+            siri: Siri(
+                card: Siri.Card(
+                    cornerRadius: 20,
+                    maxWidth: 680,
+                    padding: 16,
+                    spacing: 12,
+                    rowVerticalInset: 6,
+                ),
+                bubble: Siri.Bubble(
+                    cornerRadius: 16,
+                    horizontalPadding: 12,
+                    verticalPadding: 10,
+                    indent: 34,
+                ),
+                speakerIcon: Siri.SpeakerIcon(
+                    containerSize: 28,
+                    symbolPointSize: 12,
+                ),
+                accent: Color(white: 0.28),
+            ),
+            widgets: Widgets(
+                device: Widgets.Device(
+                    cornerRadius: 28,
+                    contentMaxWidth: 560,
+                    regularContentWidth: 320,
+                    dynamicTypeLimit: .xLarge,
+                    padding: 14,
+                    spacing: 12,
+                ),
+                frame: Widgets.Frame(
+                    cornerRadius: 18,
+                    padding: 12,
+                ),
+                wallpapers: Widgets.Wallpapers(
+                    home: Widgets.Wallpapers.Gradient(top: .indigo, bottom: .cyan),
+                    lock: Widgets.Wallpapers.Gradient(top: .purple, bottom: .blue),
+                ),
+                lockWidgetHeight: 76,
+            ),
         )
     }
 }

@@ -24,8 +24,20 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   `MainTabs`, the Liquid Glass tab bar over three tabs — Locations, Your Year,
   Settings. Elsewhere is an entry card on Locations, Resolve a Locations toolbar
   button, and the data screens (attachments, logged days, regions) sit in the
-  Settings "Data" group. Backup and destructive data management share one Data
-  drill-in. Both Data and About lead with the same full-width passport-style
+  Settings "Data" group. The **Explore Features** group demonstrates all five
+  Siri/Shortcuts intents as example conversations, demonstrates tracked-region
+  results in Spotlight, and renders every supported
+  widget family on miniature Home Screen and Lock Screen surfaces. A Share &
+  Evidence walkthrough also reveals the system Share-sheet extension and links
+  into the saved attachment archive. Insights & Accuracy introduces the
+  automatic issue detectors without running them merely to render the gallery.
+  These galleries use a shared marketing header, quiet patterned backdrop, and
+  staged entrance that resolves immediately for Reduce Motion and snapshot
+  capture. Once the selected report has 14 recorded days, the Siri, Spotlight,
+  widget, and evidence examples use its real regions, counts, and dates; sparse
+  reports keep the illustrative Siri copy and empty widget state.
+  Backup and destructive data management share one Data drill-in. Both Data and
+  About lead with the same full-width passport-style
   privacy statement on a passport-navy, tilt-reflective surface: location
   history stays on the user's devices and in their private iCloud account,
   never on Where-operated servers. `AboutSettingsView` is the last Settings block —
@@ -67,54 +79,92 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   opens, its bring-up is spanned (`openLogStore`) and history is trimmed with
   `LogHistoryPruner` (a 100-day window *and* a 50k-event ceiling, so the store is
   bounded however heavily the device logs).
-- **`WhereModel`** — app-level state that outlives any one scope: the
-  onboarding flag, the active `WhereScope`, the owned `WhereSession`, and the
-  lifecycle intents (`activate(scope:)`, `startSession(scope:)` — which
+- **`WhereModel`** — app-level state that outlives any one scope: the backed-up
+  onboarding flag, the separately injected non-backed-up installation
+  recording context (including stable first-profile/policy timestamps), the
+  active `WhereScope`, the owned `WhereSession`, and the lifecycle intents
+  (`activate(scope:)`, `startSession(scope:)` — which
   *returns* the session the launch's `start-session` step threads onward —
   `endSession()`, `resetPreferences()`).
 - **`WhereSession`** — the always-on coordinator: tracking + location
   authorization state and the intents that drive them (`requestPermission()`,
-  `startTracking()` / `stopTracking()`, `refreshWidgetSnapshot()`). It holds no
-  presentation state of its own.
+  per-device recording changes, `startTracking()` / `stopTracking()`,
+  `refreshWidgetSnapshot()`). It holds no presentation state of its own.
 - **Scope-tiered models** — scene-scoped **`YearReportModel`** (the selected
-  year's `YearReportDetails`, its `LoadState`, and the manual-day edit intents),
-  plus view-scoped **`ResolveModel`** (data-issue triage), **`BackupModel`**
-  (export/import), **`RemindersSettingsModel`** (notification prefs), and
+  year's `YearReportDetails`, its `LoadState`, manual-day edit intents, and the shared
+  **`LocationForecastModel`** planned-stay mirror), plus
+  view-scoped **`ResolveModel`** (data-issue triage), **`BackupModel`**
+  (Settings export progress and failures),
+  **`RemindersSettingsModel`** (notification prefs),
+  **`DevicesSettingsModel`** (installation-local recording choice plus synced names, advisory
+  status, and irreversible removal), plus **`OnboardingFlowModel`** (first-run phase, restore,
+  demo, and completion orchestration) and **`OnboardingImportRecoveryModel`** (the sidecar/store
+  recovery handshake after an interrupted onboarding import), and
   **`LocationDayCountPresentationModel`** (the last primary-card counts the
   user saw). The Location model holds saved values until the card surface is
   visible and unobscured, holds them there for another half second, then
   advances every changed number in one animated beat, adding one light haptic
   when any count increased; decreases, first visits, and newly appearing cards
-  stay silent. Each model keeps its behavior off the view; none reimplements
-  Core rules.
+  stay silent. Each model orchestrates Core services or presentation state;
+  none reimplements Core rules.
 
 ### Reusable views & styling
 
-- **`OnboardingView`** — the first-run flow, registered for the launch's
+- **`OnboardingView` / `OnboardingFlowModel`** — the rendered first-run flow and its view-scoped
+  observable coordinator, registered for the launch's
   `OnboardingGate` and handed its `LifecycleGateHandle`. The gate roots the
-  trunk, so there is no session (and no open store) behind it: a paged intro,
+  trunk, so there is no session behind it: a paged intro,
   then picking up to five primary US regions (map or searchable list) and
-  giving each a look, then the location-permission ask. Finishing logs in to
-  the real scope — the app's one store open — and commits the picks as the
-  tracked-region set + appearances before resolving the gate. The intro also
-  offers **Restore from a backup**, which opens the store, imports a backup
-  (`.replace`), and skips the manual pick/customize steps straight to the
-  location ask; and **Explore a demo**, which builds a throwaway in-memory
-  world behind a captioned launch splash and enters it.
+  giving each a look, then verifying this installation's automatic-recording
+  choice. The final page opens the real store in a dormant state to inspect recent synced advisory
+  status before any services, App Intents, or GPS are active. A phone recommends On only when no
+  other installation recently reported recording; tablets, other devices, and explicit rejoins
+  recommend Off. Only an enabled confirmation requests location permission. A restored device can
+  inherit the backed-up onboarding flag but not the installation sidecar, so it
+  skips straight to that final page. Finishing logs in to the real scope — the
+  app promotes that same store into its one real scope — and commits the picks as the tracked-region set +
+  appearances before resolving the gate. The intro also offers **Restore from
+  a backup**, which skips the manual pick/customize steps, verifies this
+  installation's recording choice, then opens the store and imports the backup
+  after asking whether to **Merge** (recommended, preserving existing data) or
+  **Replace** (destructive, starting from the backup); and **Explore a demo**,
+  which builds a throwaway in-memory world behind a captioned launch splash and
+  enters it. Once an onboarding import commits, its summary is retained and
+  a two-phase marker remains in the backup-excluded sidecar until onboarding is
+  acknowledged. A terminal tombstone remains after recovery is cleared so a
+  cold launch can repair an onboarding preference that had not reached disk,
+  but never offer the same archive for import again. Every cold launch resolves
+  that onboarding marker before handing services to App Intents or registering
+  the recording device, so Replace cleanup finishes before GPS can reopen or
+  drain an obsolete outbox. `OnboardingImportRecoveryModel` owns that reconciliation rather than
+  the process-wide `WhereModel`. Settings intentionally offers export only.
 - **`RegionPickerView` / `RegionCustomizeView`** — the shared primary-region
   picker (segmented map/list) and per-region color/emoji/icon customization,
   backed by `PrimaryRegionSelectionModel`. Reused by onboarding and the Settings
   `RegionsSettingsView` editor.
+- **`DevicesSettingsView`** — Settings’ installation rows for local recording choice, synced
+  nicknames, advisory activity/permission status, and irreversible removal. Only the current row
+  can toggle recording; remote rows can be renamed or removed while preserving their earlier
+  history. The current row can open Settings.app to promote location access even while recording is
+  off. Settings badges when the current phone is the expected recorder (no other installation
+  recently reported recording) but has both automatic recording and Always location access disabled;
+  the user can acknowledge that occurrence, and a later recovery then regression starts a new warning
+  generation.
 - **Widget views** — the shared renderers the **WhereWidgets** extension draws
   with: `TodayWidgetView`, `YearTotalsWidgetView`, and the accessory family
   (`TodayInlineAccessoryView`, `TodayCircularAccessoryView`,
   `YearTotalsRectangularAccessoryView`). Each takes a `WidgetSnapshot`.
-- **`RegionStyle` / `RegionStyleResolver`** — a region's symbol, emoji, and
+- **`RegionStyle` / `RegionStyleResolver`** — a region's typed `SFSymbol`, emoji, and
   tint, shared across cards, calendar dots, and timelines. Views resolve it from
   `@Environment(\.regionStyles)` (`regionStyles.style(for: region)`), seeded by
   `whereBroadwayRoot(regionStyles:)` — from `WhereSession`'s live resolver in the
   app, the `WidgetSnapshot` in the widget process, and services in App Intents —
   falling back to a deterministic default from `RegionAppearanceCatalog`.
+- **Feature discovery galleries** — Settings markets Siri/Spotlight, widgets,
+  evidence, private insights, data accuracy, and personalization with shared
+  patterned chrome and Reduce Motion-aware staged reveals. The examples reuse
+  already-loaded user data when it is representative and link to the existing
+  feature surfaces for any action.
 - **`whereBroadwayRoot()`** — seeds the Broadway design-system context so
   descendants resolve the `WhereStylesheet` tokens (see [Design
   system](#design-system)). Applied by `RootView` and by each widget.
@@ -241,6 +291,11 @@ Live tilt is observed only by the sheen overlay, so its 60 Hz updates do not
 invalidate the card's text or Canvas artwork. The card adds no standalone edge
 stroke; its containing Liquid Glass surface owns the subtle outer border so
 direct and production rendering do not diverge.
+
+After at least three months of the current year, Locations can reveal a collapsible annual estimate
+from the recorded pace; Settings > Appearance can disable it entirely. A focused region calendar
+places the estimate after the current month and renders “I’ll be here through…” future days with a
+continuous hatched band, distinct from recorded presence.
 
 DEBUG builds include Card Designer Studio under Settings → Appearance. It
 edits a versioned, persisted draft of the regular, compact, and shared card
