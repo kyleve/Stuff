@@ -12,22 +12,19 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first. That file owns build system,
 ## Invariants
 
 - **Build `content` only from `.ready`'s carried value.** Never re-read from shared state.
-- **Build it as soon as the value exists, including under a splash hold.** The hold warms the destination.
+- **Build content as soon as the value exists, including under a splash hold.** The hold warms the destination.
 - **Keep one `content` call site.** Separate held/revealed branches give SwiftUI two identities and rebuild the destination at the reveal.
 - **Build no view tree when `reason.buildsNoViewTree`.** That applies even at `.ready`.
-- **Resolve every splash-showing state to one `LaunchOverlay.splash` case.** Never use per-phase `switch` arms.
-- **Per-phase arms remount the splash at each boundary.** They reset its animations and caption timers.
-- **Hold `minimumSplashDuration` only for a splash that was actually shown.** Arm it when the splash appears.
-- **Then an already-`.ready` mount reveals immediately.**
-- **Guard: `minimumSplashDurationDoesNotHoldWhenNoSplashWasShown`.** The timing half is device-verified, not host-testable.
+- **Resolve every splash-showing state to one `LaunchOverlay.splash` case.** Never use per-phase `switch` arms. They remount the splash at each boundary and reset its animations and caption timers.
+- **A positive `minimumSplashDuration` covers the first visible ready reveal.** That includes an already-`.ready` mount when foreground promotion coalesced past the splash. `.zero` reveals immediately.
+- **Key the positive-duration hold on readiness and active-scene visibility.** Retain an observed splash's original deadline. Never arm or complete the hold offscreen.
+- **An interrupted first reveal returns to awaiting.** Only content whose uncovered frame was committed survives an ordinary resume without replay.
+- **Guards:** `positiveMinimumCoversAlreadyReadyContent`, `positiveMinimumKeepsBackgroundReadyHeadless`, `promotedBackgroundReadyForcesTheFirstRevealSplash`, `interruptedFirstRevealWaitsAgainAfterTheSceneBecomesActive`.
 - **Assert "revealed" via the absent splash, not via `content`.** Content is built during a hold too.
-- **`isShowingSplash` must read the runner's own surface, never `displayedSurfaceIdentity`.**
-- **`displayedSurfaceIdentity` reports `.splash` for a held `.ready`.** That would re-arm the hold from its own release.
-- **Resolve gate views only through their own handle.** A superseded drive's handle no-ops.
-- **Do not route gate resolution through anything else.**
+- **`isShowingSplash` must read the runner's own surface, never `displayedSurfaceIdentity`.** That reports `.splash` for a held `.ready` and would re-arm the hold from its own release.
+- **Resolve gate views only through their own handle.** A superseded drive's handle no-ops. Do not route gate resolution through anything else.
 - **Allow one registration per gate type** (construction `precondition`).
-- **If a parked gate has no registration, log** (`os`, subsystem `com.stuff.lifecyclekitui`).
-- **Fail the handle with `MissingGateViewError` onto the terminal failure surface.** Never leave an indefinite splash.
+- **If a parked gate has no registration, log** (`os`, subsystem `com.stuff.lifecyclekitui`) **and fail the handle with `MissingGateViewError` onto the terminal failure surface.** Never leave an indefinite splash.
 
 ## Testing
 

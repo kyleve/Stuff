@@ -89,6 +89,18 @@ public final class LifecycleRunner<Launch: Sendable> {
         state.reason
     }
 
+    /// Changes only the observed launch reason, modeling a promotion whose
+    /// intermediate drive phases coalesced between SwiftUI renders.
+    @_spi(Testing)
+    public func promoteReasonToForegroundForTesting() {
+        switch state {
+            case .notStarted:
+                state = .notStarted(.userForeground)
+            case let .running(_, task):
+                state = .running(reason: .userForeground, task: task)
+        }
+    }
+
     @ObservationIgnored private let launchNodes: [LaunchPlanNode]
 
     /// The output of every node that ran to completion during the current

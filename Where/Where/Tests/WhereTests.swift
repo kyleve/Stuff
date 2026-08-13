@@ -32,8 +32,8 @@ struct WhereAppTests {
         let delegate = AppDelegate(
             runtime: runtime,
             crashReporters: [
-                CrashReporterSpy { events.append("sentry") },
-                CrashReporterSpy { events.append("bitdrift") },
+                CrashReporterSpy { events.append("first-reporter") },
+                CrashReporterSpy { events.append("second-reporter") },
             ],
         )
 
@@ -42,7 +42,7 @@ struct WhereAppTests {
             didFinishLaunchingWithOptions: nil,
         )
 
-        #expect(events == ["sentry", "bitdrift", "runtime"])
+        #expect(events == ["first-reporter", "second-reporter", "runtime"])
     }
 
     #if DEBUG

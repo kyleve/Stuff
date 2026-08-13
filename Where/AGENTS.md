@@ -271,10 +271,7 @@ surfaces survive at near-Release speed. Options: `./Where/install --help`.
 
 Root [testing conventions](../AGENTS.md#testing) apply. What is specific here:
 
-- **Formal protocol specs** live under [`Specifications/`](Specifications/). Run
-  them locally with [`./tla-check`](../tla-check) (opt-in, not CI). Each folder
-  holds a `.tla` model, TLC configs, a `manifest.json`, and a README tying the
-  model to production code and cited Swift tests.
+- **Formal protocol specs** live under [`Specifications/`](Specifications/README.md). Run them locally with [`./tla-check`](../tla-check) (opt-in, not CI). PlusCal is the editable model source. The checker translates an isolated copy under `.build/tla/runs/` before running TLC. Each concern also holds TLC configs, a `manifest.json`, and a README tying the model to production code and cited Swift tests.
 - Test bundles run in `StuffTestHost` via the `unitTests` helper in
   `Project.swift`. They link `TestHostSupport` (`show(_:perform:)`, `waitFor`).
 - Use `ScriptedLocationSource` and `SwiftDataStore.inMemory()`. Never use

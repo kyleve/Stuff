@@ -4,8 +4,8 @@ WhereCore is the domain layer of the Where feature. It owns the persistence
 boundary, GPS ingestion, per-day / per-year aggregation, data-quality
 detection, and the side effects that hang off a committed write. It is
 assembled behind one `Sendable` value — `WhereServices`. The UI and the App
-Intents stack talk to it. Widgets never do. They read the published
-`WidgetSnapshot` from the App Group. See [`README.md`](README.md) for the
+Intents stack talk to it. Widgets never do. They read the published data and
+presentation files from the App Group. See [`README.md`](README.md) for the
 public API and collaborators.
 
 The domain/presentation split and the rules WhereCore must uphold live in the
@@ -141,6 +141,10 @@ internal shape.
 - **Location-card history is non-authoritative preference state.** Keep its
   snapshots year-keyed by stable `Region` id. Clear them through
   `WherePreferences.reset()`. Current report totals remain the source of truth.
+- **`WhereTheme` is device-local preference state, not backup/domain data.**
+  Preserve its stable raw values. Make unknown or missing values Standard. Publish it through
+  `WidgetPresentationPublisher`. Never put it in `WidgetSnapshot`. Never rebuild widget data for a
+  presentation-only change.
 - **`DemoDataBuilder` seeds through the ordinary write paths** (`DayJournal`,
   `setPrimaryRegions`). No private door into the store. A demo exercises
   the code a real user does. Its data is sized against the *elapsed* year, not

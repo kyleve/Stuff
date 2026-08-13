@@ -1,9 +1,9 @@
 ---
 name: tla-verify-protocol
-description: Model-check coordination protocols with TLA+ and TLC. Map the result back to source behavior and deterministic tests. Use only when the user explicitly invokes this skill or asks for TLA+, TLC, or PlusCal verification of a concurrent state machine, lifecycle, queue, retry, cancellation, teardown, resource handoff, or dependency protocol. Do not trigger for ordinary Swift protocol work, general concurrency review, unit testing, or race diagnosis without an explicit formal-model request.
+description: Model-check coordination protocols with source-only PlusCal, TLA+, and TLC. Map the result back to source behavior and deterministic tests. Use only when the user explicitly invokes this skill or asks for TLA+, TLC, or PlusCal verification of a concurrent state machine, lifecycle, queue, retry, cancellation, teardown, resource handoff, or dependency protocol. Do not trigger for ordinary Swift protocol work, general concurrency review, unit testing, or race diagnosis without an explicit formal-model request.
 ---
 
-# Verify a protocol with TLA+
+# Verify a protocol with PlusCal and TLA+
 
 Verify one narrow temporal claim, not an application. Treat TLC output as
 evidence about the stated model, bounds, and assumptions. Never present it as
@@ -49,6 +49,21 @@ protocol family being checked.
 5. Model environment failures and late completions nondeterministically unless
    the production contract forbids them.
 
+Use C-syntax PlusCal as the editable source for executable state-machine and
+protocol actions. Keep mathematical helpers and checked safety/liveness
+properties as TLA+ around the algorithm. Use raw TLA+ for a declarative or
+refinement specification, or when expressing the source-faithful fairness in
+PlusCal would distort the model; record that reason in the model README.
+
+For PlusCal models:
+
+- give every source atomicity boundary an explicit label;
+- keep one atomic source action in one labelled step;
+- use `||` when assignments must observe the same pre-state;
+- map action-level fairness deliberately with `fair process` rather than
+  applying global algorithm fairness;
+- do not commit or edit the generated TLA+ translation.
+
 ## Define properties before judging the design
 
 Define and check:
@@ -89,17 +104,22 @@ When repository mutation is authorized, follow the nearest existing placement
 convention. In this repository, prefer a feature-level
 `Specifications/<Concern>/` folder containing:
 
-- the `.tla` module;
+- a `.tla` module containing source-only embedded PlusCal, or an explicitly
+  justified raw-TLA model;
 - configurations for the relevant current, negative-control, and candidate
   designs;
-- a `manifest.json` declaring each TLC case and its pass/fail expectation;
+- a `manifest.json` declaring `source` (`pluscal` or `tla`) and each TLC case's
+  pass/fail expectation;
 - a short README with the question, correspondence table, bounds, assumptions,
   exclusions, properties, results, and run command.
 
 Run checks from the repository root with `./tla-check [<Concern> ...]` (see
 [`Where/Specifications/TrackingReconciliation`](../../../Where/Specifications/TrackingReconciliation/README.md)).
-The root script owns TLC/JDK download and pinning. Do not add per-spec `check`
-scripts or wire TLA+ into CI unless explicitly requested.
+The root script owns PlusCal translation, TLC/JDK download and pinning, isolated
+run directories, and summary output. It translates a copy of the source and
+retains the generated module under `.build/tla/runs/`. Never run `pcal.trans`
+against a tracked model. Do not add per-spec `check` scripts or wire formal
+checks into CI unless explicitly requested.
 
 Do not force these exact filenames when the protocol needs a different model
 shape.

@@ -4,14 +4,20 @@ The **Where** App Intents layer.
 It brings Where's region / day-count data and manual day logging to **Siri**, **Spotlight**, and the **Shortcuts app**.
 It presents results as interactive snippet cards.
 
-Intents are thin adapters.
-They resolve a process-cached `WhereServices` through the `@Dependency`-injected `IntentServices` handoff (owned by the app's `AppDelegate` and registered with `AppDependencyManager`.
-The launch installs a stack built with [`WhereServices.forIntents(sharingStoreOf:)`](../WhereCore/Sources/WhereServices+Intents.swift) over the same `SwiftDataStore` it opened.
-An intent that fires earlier waits for that install rather than opening its own store.
-No GPS starts via `WhereCore`'s `IdleLocationSource`).
-They do read/write through the existing collaborators (`reports`, `journal`) using a Gregorian calendar (`Calendar.whereIntents`, matching the domain's aggregation so year/day math lines up).
-They render with [`WhereUI`](../WhereUI/) snippet views.
-The `AppShortcutsProvider` that gives Siri its spoken phrases lives in the **Where** app target (`WhereShortcuts`), not here, so App Intents metadata extraction always discovers it.
+Intents are thin adapters. They resolve a process-cached `WhereServices` and
+device-local `WhereTheme` atomically through the `@Dependency`-injected
+`IntentServices` handoff (owned by the app's `AppDelegate` and registered with
+`AppDependencyManager`. The launch installs a stack built with
+[`WhereServices.forIntents(sharingStoreOf:)`](../WhereCore/Sources/WhereServices+Intents.swift)
+over the same `SwiftDataStore` it opened. An intent that fires earlier waits
+for that install rather than opening its own store. No GPS starts via
+`WhereCore`'s `IdleLocationSource`). They do read/write through the existing
+collaborators (`reports`, `journal`) using a Gregorian calendar
+(`Calendar.whereIntents`, matching the domain's aggregation so year/day math
+lines up). They render with [`WhereUI`](../WhereUI/) snippet views. The
+`AppShortcutsProvider` that gives Siri its spoken phrases lives in the **Where**
+app target (`WhereShortcuts`), not here, so App Intents metadata extraction
+always discovers it.
 
 ## Intents
 

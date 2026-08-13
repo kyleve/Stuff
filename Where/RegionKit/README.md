@@ -129,7 +129,7 @@ what the app credits on its About screen. Keep the two in step.
   `gz_2010_us_040_00_5m.json` (5m, 2010 census) from
   [eric.clst.org/tech/usgeojson](https://eric.clst.org/tech/usgeojson/),
   converted from US Census Cartographic Boundary Files. License: US Government
-  works are public domain (17 U.S.C. § 105). attribution requested (see the repo
+  works are public domain (17 U.S.C. § 105). Attribution requested (see the repo
   `README.md`).
 - **`canada.geojson` / `europeanUnion.geojson`** — hand-simplified outlines,
   deliberately coarse (fine for `RegionAttributorTests` spot-checks; must be
@@ -165,5 +165,5 @@ reached via `@testable import RegionKit`.
 **GeoJSON *decoding* is not covered** — there is no `GeoJSONTests.swift`, so the
 unsupported-geometry throw and the malformed-coordinate drop are unexercised, and
 `RegionCatalog`'s degrade-to-empty-catalog path is asserted only at the log-event
-level. Filed in [`Where/TODOs.md`](../TODOs.md). this paragraph goes away when it
+level. Filed in [`Where/TODOs.md`](../TODOs.md). This paragraph goes away when it
 closes.

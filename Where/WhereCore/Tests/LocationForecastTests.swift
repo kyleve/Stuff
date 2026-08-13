@@ -102,14 +102,7 @@ struct LocationForecastTests {
         #expect(forecast.estimatedTotalDays == 274)
     }
 
-    @Test func anotherRegionsStayDoesNotChangeTheEstimate() throws {
-        let baseline = try #require(LocationForecast.estimate(
-            region: .newYork,
-            report: Self.report(),
-            asOf: Self.date(7, 1),
-            calendar: Self.calendar,
-            plannedStay: nil,
-        ))
+    @Test func anotherRegionsStayReservesItsDaysFromTheProjection() throws {
         let withCaliforniaStay = try #require(LocationForecast.estimate(
             region: .newYork,
             report: Self.report(),
@@ -121,6 +114,42 @@ struct LocationForecastTests {
             ),
         ))
 
-        #expect(withCaliforniaStay == baseline)
+        #expect(withCaliforniaStay.plannedDays == 0)
+        #expect(withCaliforniaStay.projectedRemainingDays == 76)
+        #expect(withCaliforniaStay.estimatedTotalDays == 167)
+    }
+
+    @Test func anotherRegionsCrossYearStayLeavesOnlyRecordedDays() throws {
+        let forecast = try #require(LocationForecast.estimate(
+            region: .newYork,
+            report: Self.report(),
+            asOf: Self.date(7, 1),
+            calendar: Self.calendar,
+            plannedStay: PlannedStay(
+                region: .california,
+                through: CalendarDay(year: 2027, month: 2, day: 1),
+            ),
+        ))
+
+        #expect(forecast.plannedDays == 0)
+        #expect(forecast.projectedRemainingDays == 0)
+        #expect(forecast.estimatedTotalDays == 91)
+    }
+
+    @Test func stayEndingTodayDoesNotReserveFutureDays() throws {
+        let forecast = try #require(LocationForecast.estimate(
+            region: .newYork,
+            report: Self.report(),
+            asOf: Self.date(7, 1),
+            calendar: Self.calendar,
+            plannedStay: PlannedStay(
+                region: .california,
+                through: CalendarDay(year: 2026, month: 7, day: 1),
+            ),
+        ))
+
+        #expect(forecast.plannedDays == 0)
+        #expect(forecast.projectedRemainingDays == 91.5)
+        #expect(forecast.estimatedTotalDays == 183)
     }
 }

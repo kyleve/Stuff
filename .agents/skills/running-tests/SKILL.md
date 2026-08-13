@@ -58,12 +58,6 @@ Do not parallelize the image suite. Simulators on one Mac share one render
 server. That makes captures slower and flaky. See
 [`Shared/SnapshotKitTesting/AGENTS.md`](../../../Shared/SnapshotKitTesting/AGENTS.md).
 
-Every snapshot scope preflights the tracked references before generating or
-building. If any are still Git LFS pointer text, `./test` fails with
-`git lfs pull` rather than producing misleading "incomparable" results.
-Codex-managed macOS setup hydrates them through `./ide --bootstrap --no-open`.
-Run `git lfs pull` explicitly for a manually-created or interrupted checkout.
-
 ## Iterate faster
 
 After a green build:

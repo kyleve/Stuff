@@ -1,7 +1,7 @@
 # WhereWidgets – Module Shape
 
-The **Where** widget extension is a WidgetKit target. It reads a published
-`WidgetSnapshot` from the App Group and renders via shared views in **WhereUI**.
+The **Where** widget extension is a WidgetKit target. It reads published
+data and presentation files from the App Group and renders via shared views in **WhereUI**.
 See [`README.md`](README.md) for the data path and widget list.
 
 This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
@@ -20,20 +20,24 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
 
 ## Refresh contract
 
-1. App commits a store change. Then `WidgetSnapshotPublisher` rebuilds the
-   snapshot. It writes JSON and calls `WidgetCenter.reloadAllTimelines()`.
-2. The provider reads the JSON on each timeline request. It schedules
+1. When the app commits a store change, `WidgetSnapshotPublisher` rebuilds the
+   snapshot, writes JSON, and calls `WidgetCenter.reloadAllTimelines()`.
+2. When the device theme changes, `WidgetPresentationPublisher` writes the separate
+   presentation JSON and reloads timelines without rebuilding data.
+3. The provider reads both files on each timeline request and schedules
    `.after(nextMidnight)` so WidgetKit re-queries even without an app reload.
 
 ## Invariants
 
-- **Read-only App Group access.** Only the app writes `widget-snapshot.json`.
+- **Read-only App Group access.** Only the app writes `widget-snapshot.json` and
+  `widget-presentation.json`.
 - **No stale-day invalidation in the provider.** A snapshot whose `day` rolled
   past today is still shown until the app republishes. That is intentional.
 - In-widget strings come from WhereUI (shared views + `WhereFormat`). The
   gallery name/description resolve through this extension's own generated
   catalog symbols (`String(localized: .widgetGalleryTodayName)`).
-- **Seed the Broadway root via WhereUI's `whereBroadwayRoot()`** (applied in each
+- **Seed the Broadway root via WhereUI's `whereBroadwayRoot()`** with the
+  separately published theme and the snapshot's region styles (applied in each
   widget's `StaticConfiguration` content). Then the shared WhereUI views resolve
   trait-aware `@Environment(\.stylesheet)` tokens instead of `.default`. Never
   add a direct `BroadwayCore`/`BroadwayUI` dependency. Broadway arrives through

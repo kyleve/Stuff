@@ -11,7 +11,7 @@ CoreLocation — **no SwiftUI or UIKit** — so all of it is unit-testable off-s
 Everything is reached through one `Sendable` container, **`WhereServices`**,
 which the presentation layer (`WhereUI`) and the widget extension talk to. For
 the domain/presentation layering and the rules this module enforces, see the
-feature [`Where/AGENTS.md`](../AGENTS.md). this file is the human-facing tour.
+feature [`Where/AGENTS.md`](../AGENTS.md). This file is the human-facing tour.
 
 ## What you get
 
@@ -49,7 +49,7 @@ one it belongs to rather than to a god-object:
 - **`WhereDataGeneration`** — the account-wide logical generation that keeps late
   uploads from an offline device from repopulating data after Reset or Replace.
   Each destructive operation appends one immutable node naming every real
-  maximal generation it observed. Reset wins a concurrent Replace. multiple unjoined
+  maximal generation it observed. Reset wins a concurrent Replace. Multiple unjoined
   resets resolve to a deterministic empty UUIDv8 synthetic generation, so neither
   reset branch's rows can reappear before another operation causally joins them. Persisted
   event ids remain UUIDv4. UUIDv8 is reserved for resolver-derived generations.
@@ -57,7 +57,7 @@ one it belongs to rather than to a god-object:
   regions that rebuilds on `changes()` (a local edit or a remote import), so the
   app + App Intents process attribute against the same synced set. Assemble
   services with `WhereServices.make(...)` (async — it reads the tracked set) in
-  production. the synchronous `WhereServices.init` uses `RegionAttributor.shared`
+  production. The synchronous `WhereServices.init` uses `RegionAttributor.shared`
   (the default four) for tests/previews.
 - **`DayJournal`** — the user-sourced writes: manual-day overlays
   (`addManualDay` / `overrideDay` / `addManualDays`), clears
@@ -94,11 +94,14 @@ one it belongs to rather than to a god-object:
   belong to several.
 - **`CalendarDay`** — a Y-M-D value that is the stable identity of a logical day.
   Stored user records and day comparisons key on it so they don't drift onto a
-  different day across a time-zone change. project to a concrete `Date` (grid
+  different day across a time-zone change. Project to a concrete `Date` (grid
   layout, display) only via `startOfDay(in:)`.
 - **`DayAggregator`** — turns samples + manual overlays into those reports,
   carrying the injected `Calendar` (which decides how a `sample.timestamp`
   buckets into a `CalendarDay`).
+- **`PresenceCalendar` / `CalendarMonth`** — lays a report out into month grids
+  and preserves both ranked per-region totals and exact multi-region
+  combination totals for accessible month summaries.
 
 ### Location
 
@@ -107,7 +110,7 @@ one it belongs to rather than to a god-object:
   Passive `sampleStream` plus a best-effort one-shot `requestCurrentLocation()`
   (returns `nil`, never throws, when no fix is available).
 - **`LocationIngestor`** — monitoring, the persist-with-retry queue, and
-  authorization. after each committed sample it reconciles the badge/reminders
+  authorization. After each committed sample it reconciles the badge/reminders
   and republishes the widget snapshot. Every automatic sample is stamped with
   the current installation's `RecordingDeviceID`. Every durable retry entry
   also carries the data generation that authorized it, so a pre-reset fix can be
@@ -130,7 +133,7 @@ one it belongs to rather than to a god-object:
 
 - **`DataIssueScanner`** + the `DataIssue` family (missing days, border drift,
   abrupt change, flight days) — the "Resolve" tab's detections and their
-  `IssueResolution` fixes. dismissals persist under a stable, device- and
+  `IssueResolution` fixes. Dismissals persist under a stable, device- and
   timezone-independent `storageKey` (a `CalendarDay` ISO string), so a dismissal
   doesn't reappear after travel. The `FlightDayDetector` reads the per-day GPS
   fixes the scanner puts on `DataIssueInput.daySamples` (timestamped, GPS-only)
@@ -142,7 +145,9 @@ one it belongs to rather than to a god-object:
   badge), `DailySummaryReconciler` (year-to-date recap),
   `DataIssueAlertReconciler` ("issues to resolve").
 - **`WidgetSnapshotPublisher`** — republishes the App Group snapshot the widgets
-  read, with a freshness policy.
+  read, with a freshness policy for the independently aggregated data.
+- **`WidgetPresentationPublisher`** — atomically writes the device-local `WhereTheme`
+  to its own App Group file and reloads WidgetKit without reading or rebuilding widget data.
 - **`BackupCoordinator`** — ZIP export/import via `ZIPFoundation`. Export pins
   tables, planned-stay revisions, and evidence blobs to one generation-consistent snapshot. Merge preserves queued locations
   and the installation-local recording choice. Replace writes the archive into a new child generation,
@@ -162,7 +167,8 @@ one it belongs to rather than to a god-object:
   `InstallationRecordingContextStoring` keeps the persistence adapter outside
   the domain value.
 - **`WherePreferences`** — persisted user intent (onboarding,
-  reminder / summary schedules, Locations-card GPS-dot and annual-forecast visibility) plus the
+  reminder / summary schedules, presentation theme, and Locations-card GPS-dot and
+  estimated-time/planning visibility) plus the
   year-keyed Location-card counts and Codable recording-warning generation used for presentation
   continuity, behind a `KeyValueStore`. `RecordingConfigurationWarningCondition` evaluates the live
   device authority, recording choice, and authorization tuple in Core. The store has no
@@ -252,13 +258,13 @@ rotates to a Reset child generation, and discards the retry queue only after com
 
 ## Contracts & limitations
 
-- **Values, not records.** Nothing crossing `WhereStore` is a SwiftData object. 
-  the DEBUG Inspector runtime opens its own container directly from the same
+- **Values, not records.** Nothing crossing `WhereStore` is a SwiftData object.
+  The DEBUG Inspector runtime opens its own container directly from the same
   schema factory and uses the factory's exact store URL for recovery, without
   constructing `WhereServices`.
 - **Always-location.** Background day tracking needs Always. `requestPermission()`
   throws `LocationPermissionDeniedError` on denial / restriction.
-- **Removal is global. recording consent is local.** A synced removal tombstone immediately hides
+- **Removal is global. Recording consent is local.** A synced removal tombstone immediately hides
   the target identity's samples at and after its timestamp and makes that installation stop when
   it next observes the change. Turning recording on or off affects only the installation where
   the user made the choice. Device check-ins are advisory status, not command acknowledgements. 
@@ -267,9 +273,9 @@ rotates to a Reset child generation, and discards the retry queue only after com
   installation's profile did not reach the resetting device until later.
 - **Destructive operations are logical generations.** Old rows may remain in
   CloudKit as sync/audit history, but ordinary reads select only the resolved
-  generation. Concurrent unjoined resets select a synthetic empty generation. an
+  generation. Concurrent unjoined resets select a synthetic empty generation. An
   incomplete causal generation DAG fails closed instead of mixing old and new state.
-- **Failures surface.** Store methods are `async throws`. errors are logged via
+- **Failures surface.** Store methods are `async throws`. Errors are logged via
   `WhereLog` and left observable — never swallowed into an empty default.
 ## Testing
 

@@ -35,9 +35,9 @@ It registers the App Intents dependency, starts logging, and builds a [`Lifecycl
 The runner drives the background-safe launch steps immediately and builds no view tree.
 When a scene actually activates, `RootView` promotes the launch to `.userForeground` and the remaining steps run.
 
-Before either the regular or Inspector runtime receives that callback, the app starts its Sentry and Bitdrift `WhereCrashReporting` implementations.
-Sentry SDK diagnostic output is enabled only in Debug builds.
-Performance tracing is not enabled by the crash-reporting setup.
+Before either the regular or Inspector runtime receives that callback, the app
+starts its Bitdrift `WhereCrashReporting` implementation. Performance tracing
+is not enabled by the crash-reporting setup.
 
 The Inspector runtime returns its standalone `InspectorView` and starts none of the model, launch, CoreLocation, notification, Periscope pipeline, App Intents, or Spotlight systems.
 It opens Where and Periscope containers only through their schema adapters for inspection.

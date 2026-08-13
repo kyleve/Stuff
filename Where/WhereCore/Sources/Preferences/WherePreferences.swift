@@ -1,11 +1,10 @@
 import Foundation
 import RegionKit
 
-/// The app's persisted user intent — onboarding completion, forecast
-/// visibility, and the reminder / daily-summary schedules — plus small pieces of UI
-/// continuity and acknowledgement state, behind a `KeyValueStore` so production uses
-/// `UserDefaults`
-/// and tests use an in-memory double.
+/// The app's persisted user intent — onboarding completion, presentation
+/// theme, Locations-card visibility, and notification schedules — plus small
+/// pieces of UI continuity and acknowledgement state, behind a `KeyValueStore`
+/// so production uses `UserDefaults` and tests use an in-memory double.
 ///
 /// `store` is deliberately not defaulted: defaulting it to
 /// `UserDefaults.standard` made the real, process-wide defaults the thing you
@@ -40,10 +39,26 @@ public final class WherePreferences {
         set { store.set(newValue, forKey: Keys.showsRecordedLocationDots.rawValue) }
     }
 
-    /// Whether the annual-estimate summary appears on the Locations tab.
+    /// The device-local presentation theme. Missing and unrecognized values
+    /// resolve to Standard so upgrades preserve the app's familiar appearance.
+    public var theme: WhereTheme {
+        get {
+            guard
+                let rawValue = store.object(forKey: Keys.theme.rawValue) as? String,
+                let theme = WhereTheme(rawValue: rawValue)
+            else {
+                return .standard
+            }
+            return theme
+        }
+        set { store.set(newValue.rawValue, forKey: Keys.theme.rawValue) }
+    }
+
+    /// Whether annual estimates, stay planning, and their projections appear.
     /// Defaults to `true` so an existing or fresh install sees the feature until
-    /// the user explicitly turns it off.
-    public var showsLocationForecastsOnLocationsTab: Bool {
+    /// the user explicitly turns it off. The defaults key retains its original
+    /// Locations-only name so an existing choice survives the broader meaning.
+    public var showsEstimatedTimeAndPlanning: Bool {
         get {
             store.object(forKey: Keys.showsLocationForecastsOnLocationsTab.rawValue) as? Bool
                 ?? true
@@ -182,9 +197,8 @@ public final class WherePreferences {
     }
 
     /// Clear every persisted preference so the next launch behaves like a fresh
-    /// install: onboarding shows again, reminder/summary schedules revert to
-    /// defaults, and UI
-    /// continuity snapshots are forgotten.
+    /// install: onboarding shows again, presentation and notification settings
+    /// revert to defaults, and UI continuity snapshots are forgotten.
     /// Removing the keys (rather than writing `false`/`0`) lets the
     /// default-valued getters report first-install state again.
     public func reset() {
@@ -199,6 +213,7 @@ public final class WherePreferences {
     private enum Keys: String, CaseIterable {
         case hasOnboarded = "where.hasOnboarded"
         case showsRecordedLocationDots = "where.showsRecordedLocationDots"
+        case theme = "where.theme"
         case showsLocationForecastsOnLocationsTab = "where.showsLocationForecastsOnLocationsTab"
         case remindersEnabled = "where.remindersEnabled"
         case reminderHour = "where.reminderHour"

@@ -13,16 +13,9 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first. This file adds module rules.
 
 ## Invariants an agent can't re-derive
 
-- **The host stamps its window. Do not guess.** `hostKeyWindow()` returns only the window marked `isMainTestHostWindow`.
-- **`StuffTestHost`'s `SceneDelegate` sets that marker.** Do not reintroduce a `first { $0.isKeyWindow } ?? first` search.
-- **Key `isMainTestHostWindow` on a name-interned `Selector`.**
-- **This module is statically embedded into the host app and each `.xctest` bundle.**
-- **An associated-object key must resolve to the same pointer in every image.**
-- **A per-image `static var key: UInt8` does not match across the host↔bundle boundary.**
-- **That mismatch silently reads `nil`.** That flake is what this replaces.
-- **`show` waits for readiness.** It pumps the run loop for the host window and root VC before hosting.
-- **Then a test that runs before the scene connects does not fail spuriously.**
-- **It follows Apple's parent/child VC order.** It always restores `layer.speed` through a `defer` at entry.
+- **The host stamps its window. Do not guess.** `hostKeyWindow()` returns only the window marked `isMainTestHostWindow`. `StuffTestHost`'s `SceneDelegate` sets that marker. Do not reintroduce a `first { $0.isKeyWindow } ?? first` search.
+- **Key `isMainTestHostWindow` on a name-interned `Selector`.** This module is statically embedded into the host app and each `.xctest` bundle. An associated-object key must resolve to the same pointer in every image. A per-image `static var key: UInt8` does not match across the host↔bundle boundary. That mismatch silently reads `nil`. That flake is what this replaces.
+- **Both `show` overloads wait for readiness.** They pump the run loop for the host window and root VC before hosting. They follow Apple's parent/child VC order. They always restore `layer.speed` through a `defer` at entry. Then a test that runs before the scene connects does not fail spuriously.
 
 ## Testing
 

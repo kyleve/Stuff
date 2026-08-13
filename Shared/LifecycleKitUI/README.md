@@ -53,10 +53,12 @@ LifecycleContainer(
 
 ## Holding the splash on a fast launch
 
-A fast launch can finish before the splash is ever seen (an optimized build may reach `.ready` in a few frames), so its reveal flashes past.
-Pass `minimumSplashDuration` to hold the splash up for at least that long once it first appears, then play the reveal.
-It defaults to `.zero` (reveal as soon as the runner is ready).
-The hold is per-appearance, so a reset relaunch (or the return from a gate) gets its own minimum:
+A fast launch can finish before the splash is ever seen (an optimized build
+may reach `.ready` in a few frames), so its reveal flashes past. Pass a positive
+`minimumSplashDuration` to cover the first visible ready reveal with the splash
+for at least that long, then play the reveal. It defaults to `.zero` (reveal as
+soon as the runner is ready). The hold is per-appearance, so a reset relaunch
+(or the return from a gate) gets its own minimum:
 
 ```swift
 LifecycleContainer(runner, minimumSplashDuration: .seconds(1)) { session in
@@ -70,6 +72,33 @@ The hold is not dead time.
 `content` is built as soon as the launch produces its value — beneath the splash that is still covering it — so the destination's `.task`s and first layout happen *during* the hold instead of in the frame the reveal animation starts.
 It stays gated on the launch's output either way (that value is only readable from `.ready`), so nothing is built speculatively.
 The hold stops being a stall and starts being a warm-up.
+
+An already-`.ready` container with a positive minimum also covers its first
+visible main-UI reveal. The app root must supply active-scene visibility so an
+interrupted hold cannot complete offscreen:
+
+```swift
+LifecycleContainer(
+    runner,
+    minimumSplashDuration: .milliseconds(800),
+    isPresentationVisible: scenePhase == .active,
+) { session in
+    MainTabs(session: session)
+}
+```
+
+That single duration contract covers the background-launch edge case where the
+runner is already ready, foreground promotion starts and finishes, and SwiftUI
+observes only the final `.ready` state. The first visible ready presentation
+establishes the hold in that case. A rendered splash keeps its original
+deadline, so reaching `.ready` does not start a second hold. Headless phases
+remain viewless, gate and failure surfaces are unaffected, and once content is
+revealed an ordinary foreground resume does not replay the splash. If the scene
+becomes inactive before that reveal, the pending hold is canceled rather than
+completed offscreen; the next active presentation starts a fresh minimum so
+content cannot appear for the first time without its splash. Timer expiry
+merely releases the overlay; the no-replay state becomes permanent only after
+SwiftUI commits an uncovered content frame.
 
 ## Reaching the runner from nested views
 
