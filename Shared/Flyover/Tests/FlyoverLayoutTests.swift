@@ -51,4 +51,58 @@ struct FlyoverLayoutTests {
         #expect(frame.minX > 1500)
         #expect(frame.minY > 1400)
     }
+
+    @Test func groupsFormATopAlignedHorizontalShelf() throws {
+        let style = FlyoverStylesheet.default.layout
+        let catalog = FlyoverCatalog(
+            groups: [
+                FlyoverGroup(
+                    id: FlyoverGroupID("main"),
+                    title: "Main",
+                    root: .root,
+                    screens: [
+                        makeFlyoverTestScreen(.root, title: "Root"),
+                    ],
+                ),
+                FlyoverGroup(
+                    id: FlyoverGroupID("components"),
+                    title: "Components",
+                    root: .component,
+                    screens: [
+                        makeFlyoverTestScreen(.component, title: "Component"),
+                        makeFlyoverTestScreen(.pushed, title: "Pushed"),
+                        makeFlyoverTestScreen(.modal, title: "Modal"),
+                    ],
+                ),
+            ],
+            transitions: [
+                FlyoverTransition(from: .component, to: .pushed, kind: .push),
+                FlyoverTransition(from: .component, to: .modal, kind: .modal),
+            ],
+        )
+        let layout = FlyoverLayout(catalog: catalog, style: style).resolve()
+        let main = try #require(layout.groupFrames[FlyoverGroupID("main")])
+        let components = try #require(layout.groupFrames[FlyoverGroupID("components")])
+
+        #expect(main.minY == style.canvasPadding)
+        #expect(components.minY == main.minY)
+        #expect(components.minX == main.maxX + style.groupSpacing)
+        #expect(layout.initialCanvasSize.width == main.maxX + style.canvasPadding)
+        #expect(layout.initialCanvasSize.height == main.maxY + style.canvasPadding)
+        #expect(layout.canvasSize.width == components.maxX + style.canvasPadding)
+        #expect(layout.canvasSize.height == components.maxY + style.canvasPadding)
+
+        let availableSize = CGSize(width: 1000, height: 1000)
+        let initialZoom = FlyoverCanvasZoomPlan(
+            canvasSize: layout.initialCanvasSize,
+            availableSize: availableSize,
+            edgeInset: FlyoverStylesheet.default.canvas.framingInset,
+        ).widthZoom
+        let fitAllZoom = FlyoverCanvasZoomPlan(
+            canvasSize: layout.canvasSize,
+            availableSize: availableSize,
+            edgeInset: FlyoverStylesheet.default.canvas.framingInset,
+        ).allZoom
+        #expect(initialZoom > fitAllZoom)
+    }
 }

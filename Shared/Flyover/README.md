@@ -124,9 +124,11 @@ loads. Snapshot capture awaits that production loading signal before intrinsic
 measurement, so a slow runner cannot size or capture a partially loaded canvas;
 viewport or variant changes supersede stale completions.
 
-The initial canvas zoom fits the graph to the available width so its cards are
-immediately legible and the remaining groups can be reached by vertical
-scrolling. **Fit All** remains available for a whole-graph overview.
+Groups form a top-aligned horizontal shelf while each group's navigation graph
+continues to advance from left to right. The initial canvas zoom fits the first
+group to the available width so its cards are immediately legible; later groups
+are reached by horizontal scrolling. **Fit All** remains available for a
+whole-graph overview.
 
 ## App integration
 

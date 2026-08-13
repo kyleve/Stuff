@@ -1,6 +1,6 @@
 import CoreGraphics
 
-/// Places catalog screens by graph depth while preserving registration order.
+/// Places catalog groups horizontally and their screens by graph depth.
 @MainActor
 struct FlyoverLayout<ScreenID: Hashable> {
     let catalog: FlyoverCatalog<ScreenID>
@@ -10,8 +10,9 @@ struct FlyoverLayout<ScreenID: Hashable> {
         let card = style.cardSize
         var screenFrames: [ScreenID: CGRect] = [:]
         var groupFrames: [FlyoverGroupID: CGRect] = [:]
-        var groupOriginY = style.canvasPadding
-        var maximumWidth: CGFloat = 0
+        var groupOriginX = style.canvasPadding
+        var maximumHeight: CGFloat = 0
+        var initialCanvasSize: CGSize?
 
         for group in catalog.groups {
             let depths = graphDepths(in: group)
@@ -55,12 +56,18 @@ struct FlyoverLayout<ScreenID: Hashable> {
                 + CGFloat(maximumRow) * style.verticalSpacing
                 + style.groupHeaderHeight
             let groupFrame = CGRect(
-                x: style.canvasPadding,
-                y: groupOriginY,
+                x: groupOriginX,
+                y: style.canvasPadding,
                 width: groupWidth,
                 height: groupHeight,
             )
             groupFrames[group.id] = groupFrame
+            if initialCanvasSize == nil {
+                initialCanvasSize = CGSize(
+                    width: groupFrame.maxX + style.canvasPadding,
+                    height: groupFrame.maxY + style.canvasPadding,
+                )
+            }
 
             for screen in group.screens {
                 guard let position = resolvedPositions[screen.id] else {
@@ -75,19 +82,21 @@ struct FlyoverLayout<ScreenID: Hashable> {
                 screenFrames[screen.id] = CGRect(origin: origin, size: card)
             }
 
-            maximumWidth = max(maximumWidth, groupFrame.maxX)
-            groupOriginY = groupFrame.maxY + style.groupSpacing
+            maximumHeight = max(maximumHeight, groupFrame.maxY)
+            groupOriginX = groupFrame.maxX + style.groupSpacing
+        }
+
+        guard let initialCanvasSize else {
+            preconditionFailure("A Flyover layout requires at least one group.")
         }
 
         return FlyoverLayoutResult(
             screenFrames: screenFrames,
             groupFrames: groupFrames,
+            initialCanvasSize: initialCanvasSize,
             canvasSize: CGSize(
-                width: maximumWidth + style.canvasPadding,
-                height: max(
-                    groupOriginY - style.groupSpacing + style.canvasPadding,
-                    1,
-                ),
+                width: max(groupOriginX - style.groupSpacing + style.canvasPadding, 1),
+                height: maximumHeight + style.canvasPadding,
             ),
         )
     }

@@ -35,8 +35,8 @@ conventions.
 - Canvas loading follows the viewport and keeps at most six automatic screen
   trees live; a manually requested preview replaces that set with one tree,
   and presenting the focused inspector suspends the canvas set.
-- Open the canvas fitted to its width; reserve whole-graph framing for the
-  explicit Fit All action.
+- Open the canvas fitted to its first group's width; reserve whole-graph framing
+  for the explicit Fit All action.
 - Invoke variant builders through the serial deferred load coordinator, never
   synchronously from a SwiftUI `body`; preview fixtures may open expensive
   in-memory stores.

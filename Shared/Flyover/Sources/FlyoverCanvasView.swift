@@ -89,7 +89,7 @@ struct FlyoverCanvasView<ScreenID: Hashable>: View {
                 .padding(stylesheet.canvas.overlayPadding)
             }
             .task {
-                applyInitialWidthFit(layout: layout, in: proxy.size)
+                applyInitialGroupWidthFit(layout: layout, in: proxy.size)
             }
             .task(id: expectedPreviewLoads) {
                 model.previewReadiness.expect(expectedPreviewLoads)
@@ -113,13 +113,13 @@ struct FlyoverCanvasView<ScreenID: Hashable>: View {
         zoomAtGestureStart = nil
     }
 
-    private func applyInitialWidthFit(
+    private func applyInitialGroupWidthFit(
         layout: FlyoverLayoutResult<ScreenID>,
         in availableSize: CGSize,
     ) {
         model.applyInitialCanvasZoom(
             FlyoverCanvasZoomPlan(
-                canvasSize: layout.canvasSize,
+                canvasSize: layout.initialCanvasSize,
                 availableSize: availableSize,
                 edgeInset: stylesheet.canvas.framingInset,
             ).widthZoom,

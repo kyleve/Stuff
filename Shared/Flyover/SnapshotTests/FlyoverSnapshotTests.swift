@@ -38,6 +38,31 @@ struct FlyoverSnapshotTests {
             ),
         )
 
+        let fittedAllModel = FlyoverModel(catalog: catalog)
+        let layout = FlyoverLayout(
+            catalog: catalog,
+            style: FlyoverStylesheet.default.layout,
+        ).resolve()
+        fittedAllModel.applyInitialCanvasZoom(
+            FlyoverCanvasZoomPlan(
+                canvasSize: layout.canvasSize,
+                availableSize: Self.iPadSnapshotSize,
+                edgeInset: FlyoverStylesheet.default.canvas.framingInset,
+            ).allZoom,
+        )
+        await assertSnapshots(
+            of: FlyoverView(catalog: catalog, model: fittedAllModel),
+            named: "FlyoverCanvasFitAll",
+            configurations: SnapshotConfiguration.combinations(
+                devices: [.iPadFullContent],
+            ),
+            measurementReadiness: .settled,
+            onReadyToMeasure: {
+                await fittedAllModel.waitUntilVisiblePreviewsAreLoaded()
+            },
+            settle: .settledAtLeast(minDuration: 1.5),
+        )
+
         let model = FlyoverModel(catalog: catalog)
         model.viewMode = .list
         await assertSnapshots(
@@ -50,6 +75,15 @@ struct FlyoverSnapshotTests {
                 devices: [.iPadFullContent],
             ),
         )
+    }
+
+    private static var iPadSnapshotSize: CGSize {
+        switch SnapshotConfiguration.Frame.iPadFullContent.size {
+            case let .fullContent(width, minimumHeight):
+                CGSize(width: width, height: minimumHeight ?? width)
+            case .fixed, .intrinsic:
+                preconditionFailure("The iPad full-content preset must remain full-content.")
+        }
     }
 
     private static func catalog() -> FlyoverCatalog<SnapshotScreen> {
