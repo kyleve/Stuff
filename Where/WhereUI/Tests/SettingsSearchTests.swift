@@ -50,6 +50,15 @@ struct SettingsSearchTests {
         #expect(destinations.contains(.appearance))
     }
 
+    @Test func matchesLocationForecastVisibilityOnEstimateKeyword() {
+        let results = SettingsCatalog.results(matching: "estimate")
+
+        #expect(results.contains {
+            $0.destination == .appearance
+                && $0.title == String(localized: .settingsAppearanceLocationForecastsToggle)
+        })
+    }
+
     @Test func matchesTheAboutScreenOnALicenseKeyword() {
         // "license" is nowhere in a section title, so this only passes if the
         // About screen's keywords are registered.
@@ -63,11 +72,21 @@ struct SettingsSearchTests {
         let boardingPass = SettingsCatalog.results(matching: "boarding pass")
         let drift = SettingsCatalog.results(matching: "drift")
         let emoji = SettingsCatalog.results(matching: "emoji")
+        let pace = SettingsCatalog.results(matching: "pace")
         #expect(automation.contains { $0.destination == .siri })
         #expect(accessory.contains { $0.destination == .widgets })
         #expect(boardingPass.contains { $0.destination == .shareEvidence })
         #expect(drift.contains { $0.destination == .insightsAccuracy })
         #expect(emoji.contains { $0.destination == .personalization })
+        #expect(pace.contains { $0.destination == .estimatedTime })
+    }
+
+    @Test func estimatedTimePrecedesInsightsAndAccuracy() throws {
+        let destinations = SettingsListSection.exploreFeatures.destinations
+        let estimatedTime = try #require(destinations.firstIndex(of: .estimatedTime))
+        let insights = try #require(destinations.firstIndex(of: .insightsAccuracy))
+
+        #expect(estimatedTime < insights)
     }
 
     @Test func focusedRouteCarriesTheResultsDestinationAndFocus() throws {

@@ -96,8 +96,4 @@ public struct TestRunPlan: Equatable, Sendable {
             throw TestRunPlanFailure.nothingToRun
         }
     }
-
-    public var includesSnapshots: Bool {
-        schemes.contains { $0.name == RepositoryGraph.snapshotScheme }
-    }
 }

@@ -272,74 +272,7 @@ struct TestServiceTests {
         })
     }
 
-    @Test func snapshotPreflightRequiresGitLFSBeforeGenerationAndSimulatorResolution(
-    ) async throws {
-        let root = try makeTemporaryDirectory()
-        defer { removeTemporaryDirectory(root) }
-        let runner = FakeCommandRunner(responses: [
-            .stub(),
-            .stub(exitCode: 1),
-        ])
-        let simulator = StubSimulatorResolver(udid: "UNUSED")
-        let service = TestService(
-            runner: runner,
-            simulator: simulator,
-            fileSystem: FoundationFileSystem(),
-            clock: ImmediateClock(),
-            terminal: MemoryTerminal(),
-            repository: root,
-            temporaryDirectory: root,
-            environment: ["TEST_WORKDIR": root.appending(path: "work").path],
-        )
-
-        do {
-            _ = try await service.run(makeTestRequest(scope: .snapshots))
-            Issue.record("expected the snapshot preflight to require Git LFS")
-        } catch let failure as ToolFailure {
-            #expect(failure.description.contains("require git-lfs"))
-            #expect(failure.description.contains("./ide --bootstrap"))
-        }
-
-        #expect(await runner.invocations.map(\.executable) == ["mise", "git-lfs"])
-        #expect(await simulator.calls.isEmpty)
-    }
-
-    @Test func snapshotPreflightRejectsPointersBeforeGenerationAndSimulatorResolution(
-    ) async throws {
-        let root = try makeTemporaryDirectory()
-        defer { removeTemporaryDirectory(root) }
-        let inventory = try fixtureData("git-lfs-files", extension: "json")
-        let runner = FakeCommandRunner(responses: [
-            .stub(),
-            .stub(standardOutput: "git-lfs/3.7.0\n"),
-            .stub(standardOutput: String(decoding: inventory, as: UTF8.self)),
-        ])
-        let simulator = StubSimulatorResolver(udid: "UNUSED")
-        let service = TestService(
-            runner: runner,
-            simulator: simulator,
-            fileSystem: FoundationFileSystem(),
-            clock: ImmediateClock(),
-            terminal: MemoryTerminal(),
-            repository: root,
-            temporaryDirectory: root,
-            environment: ["TEST_WORKDIR": root.appending(path: "work").path],
-        )
-
-        do {
-            _ = try await service.run(makeTestRequest(scope: .snapshots))
-            Issue.record("expected the snapshot preflight to reject a pointer")
-        } catch let failure as ToolFailure {
-            #expect(failure.description.contains("1 snapshot reference(s)"))
-            #expect(failure.description.contains("card.dark.png"))
-            #expect(failure.description.contains("git lfs pull"))
-        }
-
-        #expect(await runner.invocations.map(\.executable) == ["mise", "git-lfs", "git"])
-        #expect(await simulator.calls.isEmpty)
-    }
-
-    @Test func hydratedSnapshotScopeForwardsTheCISettleMultiplier() async throws {
+    @Test func snapshotScopeForwardsTheCISettleMultiplier() async throws {
         let root = try makeTemporaryDirectory()
         defer { removeTemporaryDirectory(root) }
         let testOutput = """
@@ -351,8 +284,6 @@ struct TestServiceTests {
         """
         let runner = FakeCommandRunner(responses: [
             .stub(),
-            .stub(standardOutput: "git-lfs/3.7.0\n"),
-            .stub(standardOutput: #"{"files":[]}"#),
             .stub(standardOutput: "    BUILT_PRODUCTS_DIR = /tmp/Products\n"),
             .stub(standardOutput: testOutput),
         ])
@@ -376,9 +307,7 @@ struct TestServiceTests {
 
         #expect(status == 0)
         let invocations = await runner.invocations
-        #expect(invocations[1].executable == "git-lfs")
-        #expect(invocations[2].arguments == ["lfs", "ls-files", "--json"])
-        #expect(invocations[4].environment[
+        #expect(invocations[2].environment[
             "TEST_RUNNER_SNAPSHOT_SETTLE_TIMEOUT_MULTIPLIER",
         ] == "2")
     }

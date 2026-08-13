@@ -7,90 +7,71 @@ ASSUME Implementation \in {"current", "broken"}
 
 Phases == {"idle", "begin", "awaiting", "done"}
 
-VARIABLES
-    acceptsSamples,
-    isMonitoring,
-    inFlightPersist,
-    quiescePhase,
-    storeCount,
-    sampleDelivered,
-    postQuiescePersist
+(* --algorithm IngestorQuiesceAlgorithm {
+variables acceptsSamples = TRUE,
+          isMonitoring = TRUE,
+          inFlightPersist = FALSE,
+          quiescePhase = "idle",
+          storeCount = 0,
+          sampleDelivered = FALSE,
+          postQuiescePersist = FALSE;
 
-vars == <<acceptsSamples, isMonitoring, inFlightPersist, quiescePhase,
-          storeCount, sampleDelivered, postQuiescePersist>>
+fair process (StreamSample = "StreamSample") {
+StreamSampleStep:
+    while (TRUE) {
+        await quiescePhase = "idle" /\ ~inFlightPersist /\ storeCount < 3;
+        sampleDelivered := TRUE ||
+        inFlightPersist := IF acceptsSamples THEN TRUE ELSE FALSE;
+    }
+}
 
-Init ==
-    /\ acceptsSamples = TRUE
-    /\ isMonitoring = TRUE
-    /\ inFlightPersist = FALSE
-    /\ quiescePhase = "idle"
-    /\ storeCount = 0
-    /\ sampleDelivered = FALSE
-    /\ postQuiescePersist = FALSE
+fair process (CompletePersist = "CompletePersist") {
+CompletePersistStep:
+    while (TRUE) {
+        await inFlightPersist;
+        inFlightPersist := FALSE ||
+        postQuiescePersist := (quiescePhase = "done") ||
+        storeCount := IF quiescePhase = "done" /\ Implementation = "current"
+                          THEN storeCount
+                          ELSE storeCount + 1;
+    }
+}
 
-StreamSample ==
-    /\ quiescePhase = "idle"
-    /\ ~inFlightPersist
-    /\ storeCount < 3
-    /\ sampleDelivered' = TRUE
-    /\ IF acceptsSamples
-          THEN inFlightPersist' = TRUE
-          ELSE inFlightPersist' = FALSE
-    /\ UNCHANGED <<acceptsSamples, isMonitoring, quiescePhase, storeCount, postQuiescePersist>>
+fair process (BeginQuiesce = "BeginQuiesce") {
+BeginQuiesceStep:
+    while (TRUE) {
+        await quiescePhase = "idle";
+        quiescePhase := "begin" ||
+        acceptsSamples := IF Implementation = "broken" THEN acceptsSamples ELSE FALSE ||
+        isMonitoring := FALSE;
+    }
+}
 
-CompletePersist ==
-    /\ inFlightPersist
-    /\ inFlightPersist' = FALSE
-    /\ postQuiescePersist' = (quiescePhase = "done")
-    /\ IF quiescePhase = "done" /\ Implementation = "current"
-          THEN UNCHANGED storeCount
-          ELSE storeCount' = storeCount + 1
-    /\ UNCHANGED <<acceptsSamples, isMonitoring, quiescePhase, sampleDelivered>>
+fair process (AwaitInFlight = "AwaitInFlight") {
+AwaitInFlightStep:
+    while (TRUE) {
+        await quiescePhase = "begin";
+        quiescePhase := "awaiting";
+    }
+}
 
-BeginQuiesce ==
-    /\ quiescePhase = "idle"
-    /\ quiescePhase' = "begin"
-    /\ acceptsSamples' = IF Implementation = "broken" THEN acceptsSamples ELSE FALSE
-    /\ isMonitoring' = FALSE
-    /\ UNCHANGED <<inFlightPersist, storeCount, sampleDelivered, postQuiescePersist>>
+fair process (CompleteQuiesce = "CompleteQuiesce") {
+CompleteQuiesceStep:
+    while (TRUE) {
+        await quiescePhase = "awaiting" /\ ~inFlightPersist;
+        quiescePhase := "done";
+    }
+}
 
-AwaitInFlight ==
-    /\ quiescePhase = "begin"
-    /\ quiescePhase' = "awaiting"
-    /\ UNCHANGED <<acceptsSamples, isMonitoring, inFlightPersist, storeCount, sampleDelivered, postQuiescePersist>>
-
-CompleteQuiesce ==
-    /\ quiescePhase = "awaiting"
-    /\ ~inFlightPersist
-    /\ quiescePhase' = "done"
-    /\ UNCHANGED <<acceptsSamples, isMonitoring, inFlightPersist, storeCount, sampleDelivered, postQuiescePersist>>
-
-LateSampleAfterQuiesce ==
-    /\ quiescePhase = "done"
-    /\ ~inFlightPersist
-    /\ sampleDelivered' = TRUE
-    /\ IF acceptsSamples
-          THEN inFlightPersist' = TRUE
-          ELSE inFlightPersist' = FALSE
-    /\ UNCHANGED <<acceptsSamples, isMonitoring, quiescePhase, storeCount, postQuiescePersist>>
-
-Next ==
-    \/ StreamSample
-    \/ CompletePersist
-    \/ BeginQuiesce
-    \/ AwaitInFlight
-    \/ CompleteQuiesce
-    \/ LateSampleAfterQuiesce
-
-Fairness ==
-    /\ WF_vars(StreamSample)
-    /\ WF_vars(CompletePersist)
-    /\ WF_vars(BeginQuiesce)
-    /\ WF_vars(AwaitInFlight)
-    /\ WF_vars(CompleteQuiesce)
-    /\ WF_vars(LateSampleAfterQuiesce)
-
-Spec == Init /\ [][Next]_vars /\ Fairness
+fair process (LateSampleAfterQuiesce = "LateSampleAfterQuiesce") {
+LateSampleAfterQuiesceStep:
+    while (TRUE) {
+        await quiescePhase = "done" /\ ~inFlightPersist;
+        sampleDelivered := TRUE ||
+        inFlightPersist := IF acceptsSamples THEN TRUE ELSE FALSE;
+    }
+}
+} *)
 
 TypeOK ==
     /\ acceptsSamples \in BOOLEAN

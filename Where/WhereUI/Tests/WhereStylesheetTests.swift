@@ -5,6 +5,7 @@ import SwiftUI
 import TestHostSupport
 import Testing
 import UIKit
+import WhereCore
 @testable import WhereUI
 
 /// `WhereStylesheet` currently ships the fixed geometry migrated from the former
@@ -12,6 +13,25 @@ import UIKit
 /// later trait-aware derivation — can't silently drift the defaults.
 struct WhereStylesheetTests {
     private let style = WhereStylesheet.default
+
+    @MainActor
+    @Test func themesRetainDistinctIdentityWithEquivalentTokens() throws {
+        var standardThemes = BThemes()
+        standardThemes[WhereTheme.self] = .standard
+        var alternateThemes = BThemes()
+        alternateThemes[WhereTheme.self] = .alternate
+
+        let standardContext = BContext(traits: .system, themes: standardThemes)
+        let alternateContext = BContext(traits: .system, themes: alternateThemes)
+        let standard = try standardContext.stylesheets.get(WhereStylesheet.self)
+        let alternate = try alternateContext.stylesheets.get(WhereStylesheet.self)
+
+        #expect(standard.theme == .standard)
+        #expect(alternate.theme == .alternate)
+        var normalizedStandard = standard
+        normalizedStandard.theme = WhereTheme.alternate
+        #expect(normalizedStandard == alternate)
+    }
 
     @Test func spacingScale() {
         #expect(style.spacing.xxSmall == 2)
@@ -27,6 +47,7 @@ struct WhereStylesheetTests {
 
     @Test func regularCardStyle() {
         let card = style.card.regular
+        #expect(style.card.estimatedProgressOpacity == 0.3)
         #expect(card.cornerRadius == 28)
         #expect(card.padding == 22)
         #expect(card.contentSpacing == 16)
@@ -216,6 +237,12 @@ struct WhereStylesheetTests {
         #expect(calendar.regionBand.cornerRadius == 14)
         #expect(calendar.regionBand.continuationRadius == 3)
         #expect(calendar.regionBand.verticalInset == 4)
+        #expect(calendar.regionBand.planned == .init(
+            fillOpacity: 0.07,
+            hatchOpacity: 0.32,
+            hatchSpacing: 6,
+            hatchLineWidth: 1,
+        ))
 
         let day = calendar.day
         #expect(day.minHeight == 44)
@@ -256,6 +283,21 @@ struct WhereStylesheetTests {
         #expect(month.footerSpacing == 4)
         #expect(month.footerRowSpacing == 6)
         #expect(month.unfocusedRowOpacity == 0.55)
+    }
+
+    @Test func locationForecastStyle() {
+        let forecast = style.locationForecast
+        #expect(forecast.cornerRadius == 22)
+        #expect(forecast.padding == 16)
+        #expect(forecast.rowSpacing == 12)
+        #expect(forecast.estimateSpacing == 3)
+        #expect(forecast.collapsedLabelColor == Color.primary.opacity(0.5))
+        #expect(forecast.borderColor == Color.primary.opacity(0.06))
+        #expect(forecast.borderWidth == 0.5)
+        #expect(forecast.shadowColor == Color.black.opacity(0.06))
+        #expect(forecast.shadowRadius == 8)
+        #expect(forecast.shadowOffsetY == 2)
+        #expect(forecast.expansionAnimation == .easeInOut(duration: 0.2))
     }
 
     @Test func appIconStyle() {
@@ -331,6 +373,14 @@ struct WhereStylesheetTests {
         #expect(row.countVerticalPadding == 6)
         #expect(row.countFillOpacity == 0.16)
         #expect(row.stacksDayCount == false)
+
+        let planned = timeline.planned
+        #expect(planned.fillOpacity == 0.035)
+        #expect(planned.borderOpacity == 0.14)
+        #expect(planned.hatchOpacity == 0.16)
+        #expect(planned.hatchSpacing == 8)
+        #expect(planned.hatchLineWidth == 1)
+        #expect(planned.labelOpacity == 0.7)
     }
 
     @Test func regionMapStyle() {
@@ -454,6 +504,13 @@ struct WhereStylesheetTests {
             phaseStep: 0.31,
             lineWidth: 0.9,
             opacity: 0.12,
+        ))
+        #expect(featureDiscovery.estimatedTime == .init(
+            timelineHeight: 18,
+            timelineSpacing: 3,
+            calculationSpacing: 8,
+            segmentCornerRadius: 5,
+            legendDotSize: 10,
         ))
         #expect(featureDiscovery.siri == .init(
             card: .init(
@@ -708,10 +765,22 @@ struct WhereStylesheetEnvironmentTests {
             try waitFor { box.calendarDayMinHeight == 56 }
         }
     }
+
+    @Test func whereBroadwayRootSeedsThemeIdentity() throws {
+        let box = StylesheetProbeBox()
+        let host = UIHostingController(
+            rootView: StylesheetProbe(box: box)
+                .whereBroadwayRoot(theme: .alternate),
+        )
+        try show(host) { _ in
+            try waitFor { box.theme == .alternate }
+        }
+    }
 }
 
 private final class StylesheetProbeBox {
     var calendarDayMinHeight: CGFloat?
+    var theme: WhereTheme?
 }
 
 private struct StylesheetProbe: View {
@@ -723,6 +792,9 @@ private struct StylesheetProbe: View {
         Color.clear
             .onChange(of: stylesheet.calendar.day.minHeight, initial: true) { _, newValue in
                 box.calendarDayMinHeight = newValue
+            }
+            .onChange(of: stylesheet.theme, initial: true) { _, newValue in
+                box.theme = newValue
             }
     }
 }

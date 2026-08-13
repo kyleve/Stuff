@@ -2,6 +2,7 @@ import BroadwayCore
 import BroadwayUI
 import CoreGraphics
 import SwiftUI
+import WhereCore
 
 /// The Where app's design tokens, resolved as a Broadway ``BStylesheet``.
 ///
@@ -12,6 +13,7 @@ import SwiftUI
 /// `@Environment(\.stylesheet)` (seeded by `.broadwayRoot` at the app root);
 /// callers off the `View` tree (layout helpers, tests) use ``default``.
 struct WhereStylesheet: BStylesheet {
+    var theme = WhereTheme.standard
     var spacing = Spacing()
     var size = Size()
     var card = CardStyles.standard
@@ -22,6 +24,7 @@ struct WhereStylesheet: BStylesheet {
     var regionPicker = RegionPickerStyle.standard
     var evidence = EvidenceStyle.standard
     var elsewhereCard = ElsewhereCardStyle.standard
+    var locationForecast = LocationForecastStyle.standard
     var palette = Palette.standard
     var motion = Motion.standard
     var launch = LaunchStyle.standard
@@ -38,6 +41,7 @@ struct WhereStylesheet: BStylesheet {
         // of tokens that should react to the current traits. Everything else
         // stays constant, so a default/system context reproduces `default`.
         let traits = context.traits
+        theme = context.themes[WhereTheme.self]
 
         // Grow day-grid tap targets at accessibility Dynamic Type sizes.
         if traits.contentSizeCategory.isAccessibilitySize {
@@ -80,6 +84,40 @@ struct WhereStylesheet: BStylesheet {
     /// The fixed token set: the fallback used off the `View` tree (layout
     /// helpers, tests) and when no Broadway root has seeded a context.
     static let `default` = WhereStylesheet()
+}
+
+// MARK: - Location forecast
+
+extension WhereStylesheet {
+    /// Geometry for the annual-estimate panel shared by the Locations tab and
+    /// region-focused calendars.
+    struct LocationForecastStyle: Equatable {
+        var cornerRadius: CGFloat
+        var padding: CGFloat
+        var rowSpacing: CGFloat
+        var estimateSpacing: CGFloat
+        var collapsedLabelColor: Color
+        var borderColor: Color
+        var borderWidth: CGFloat
+        var shadowColor: Color
+        var shadowRadius: CGFloat
+        var shadowOffsetY: CGFloat
+        var expansionAnimation: Animation
+
+        static let standard = LocationForecastStyle(
+            cornerRadius: 22,
+            padding: 16,
+            rowSpacing: 12,
+            estimateSpacing: 3,
+            collapsedLabelColor: Color.primary.opacity(0.5),
+            borderColor: Color.primary.opacity(0.06),
+            borderWidth: 0.5,
+            shadowColor: Color.black.opacity(0.06),
+            shadowRadius: 8,
+            shadowOffsetY: 2,
+            expansionAnimation: .easeInOut(duration: 0.2),
+        )
+    }
 }
 
 extension WhereStylesheet {
@@ -534,6 +572,8 @@ extension WhereStylesheet {
         var glassTintOpacity: Double
         /// Opacity of the region-name header.
         var nameOpacity: Double
+        /// Opacity of the estimated progress rendered behind recorded days.
+        var estimatedProgressOpacity: Double = 0.3
         /// Fill opacities of the two security-print rosettes.
         var rosetteFill: RosetteFill
         /// How the region tint is prepared for decorative security printing.
@@ -891,6 +931,16 @@ extension WhereStylesheet {
             /// Padding between the day content (number + dots) and the pill's
             /// top/bottom edges, so the pill doesn't butt against the dots.
             var verticalInset: CGFloat
+            /// Lower-opacity fill plus a diagonal pattern for future days the
+            /// user has planned but not yet recorded.
+            var planned: Planned
+
+            struct Planned: Equatable {
+                var fillOpacity: Double
+                var hatchOpacity: Double
+                var hatchSpacing: CGFloat
+                var hatchLineWidth: CGFloat
+            }
         }
 
         /// The paperclip badge in a day cell's top-trailing corner marking a day
@@ -941,6 +991,12 @@ extension WhereStylesheet {
                 cornerRadius: 14,
                 continuationRadius: 3,
                 verticalInset: 4,
+                planned: RegionBand.Planned(
+                    fillOpacity: 0.07,
+                    hatchOpacity: 0.32,
+                    hatchSpacing: 6,
+                    hatchLineWidth: 1,
+                ),
             ),
             day: DayStyle(
                 minHeight: 44,
@@ -1156,6 +1212,7 @@ extension WhereStylesheet {
         var ribbon: Ribbon
         var rail: Rail
         var row: Row
+        var planned: Planned
 
         struct Overview: Equatable {
             var spacing: CGFloat
@@ -1214,6 +1271,17 @@ extension WhereStylesheet {
             var stacksDayCount: Bool
         }
 
+        /// The future planned-stay treatment appended after recorded journey
+        /// rows. Its lighter fill and hatch distinguish intent from history.
+        struct Planned: Equatable {
+            var fillOpacity: Double
+            var borderOpacity: Double
+            var hatchOpacity: Double
+            var hatchSpacing: CGFloat
+            var hatchLineWidth: CGFloat
+            var labelOpacity: Double
+        }
+
         static let standard = TimelineStyle(
             overview: Overview(
                 spacing: 12,
@@ -1259,6 +1327,14 @@ extension WhereStylesheet {
                 countVerticalPadding: 6,
                 countFillOpacity: 0.16,
                 stacksDayCount: false,
+            ),
+            planned: Planned(
+                fillOpacity: 0.035,
+                borderOpacity: 0.14,
+                hatchOpacity: 0.16,
+                hatchSpacing: 8,
+                hatchLineWidth: 1,
+                labelOpacity: 0.7,
             ),
         )
     }
@@ -1436,6 +1512,7 @@ extension WhereStylesheet {
         var marketingHeader: MarketingHeader
         var marketingPanel: MarketingPanel
         var backgroundPattern: BackgroundPattern
+        var estimatedTime: EstimatedTime
         var siri: Siri
         var widgets: Widgets
 
@@ -1466,6 +1543,14 @@ extension WhereStylesheet {
             var phaseStep: CGFloat
             var lineWidth: CGFloat
             var opacity: Double
+        }
+
+        struct EstimatedTime: Equatable {
+            var timelineHeight: CGFloat
+            var timelineSpacing: CGFloat
+            var calculationSpacing: CGFloat
+            var segmentCornerRadius: CGFloat
+            var legendDotSize: CGFloat
         }
 
         struct Siri: Equatable {
@@ -1560,6 +1645,13 @@ extension WhereStylesheet {
                 phaseStep: 0.31,
                 lineWidth: 0.9,
                 opacity: 0.12,
+            ),
+            estimatedTime: EstimatedTime(
+                timelineHeight: 18,
+                timelineSpacing: 3,
+                calculationSpacing: 8,
+                segmentCornerRadius: 5,
+                legendDotSize: 10,
             ),
             siri: Siri(
                 card: Siri.Card(
@@ -1764,12 +1856,18 @@ extension WhereStylesheet {
 // MARK: - Themes
 
 /// The Where app's Broadway themes, seeded at the root by `whereBroadwayRoot()`.
-/// Empty for now — `WhereStylesheet` derives from traits, not themes — and the
-/// home for app-level palette/typography themes as the design system grows.
+/// Carries the selected presentation identity independently from system traits.
+/// Both identities currently resolve through the same tokens.
 enum WhereThemes {
-    static var current: BThemes {
-        BThemes()
+    static func current(theme: WhereTheme) -> BThemes {
+        var themes = BThemes()
+        themes[WhereTheme.self] = theme
+        return themes
     }
+}
+
+extension WhereTheme: BTheme {
+    public static let defaultValue = WhereTheme.standard
 }
 
 // MARK: - Root
@@ -1798,9 +1896,10 @@ extension View {
     /// The root also owns and injects the region-outline `Path` cache so cards
     /// share render artifacts without a process-global UI singleton.
     public func whereBroadwayRoot(
+        theme: WhereTheme = .standard,
         regionStyles: RegionStyleResolver = .default,
     ) -> some View {
-        modifier(WhereBroadwayRootModifier(regionStyles: regionStyles))
+        modifier(WhereBroadwayRootModifier(theme: theme, regionStyles: regionStyles))
     }
 }
 
@@ -1808,12 +1907,13 @@ extension View {
 /// Broadway/design context. Keeping the path cache here shares it across cards
 /// without introducing a process-global UI singleton.
 private struct WhereBroadwayRootModifier: ViewModifier {
+    let theme: WhereTheme
     let regionStyles: RegionStyleResolver
     @State private var regionOutlinePathCache = RegionOutlinePathCache()
 
     func body(content: Content) -> some View {
         content
-            .broadwayRoot(themes: WhereThemes.current)
+            .broadwayRoot(themes: WhereThemes.current(theme: theme))
             .environment(\.regionStyles, regionStyles)
             .environment(\.regionOutlinePathCache, regionOutlinePathCache)
     }

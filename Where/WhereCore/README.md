@@ -64,6 +64,9 @@ one it belongs to rather than to a god-object:
   (`clearManualDay` / `clearYear` / `eraseAllData`), evidence, and issue
   dismissals. Each write commits, then awaits its reminder reconcile + widget
   publish so the next reader sees a fully-applied change.
+- **`PlannedStayCoordinator`** — the synced, generation-scoped last-writer register behind “I’ll
+  be here through…”. Clears and expiry write tombstones, and annual forecasts consume its current
+  value without coupling projection math to persistence.
 
 - **`DemoDataBuilder`** — writes the dataset the app's demo mode runs on into a
   given `WhereServices`: a plausible current year of living in New York with
@@ -96,6 +99,9 @@ one it belongs to rather than to a god-object:
 - **`DayAggregator`** — turns samples + manual overlays into those reports,
   carrying the injected `Calendar` (which decides how a `sample.timestamp`
   buckets into a `CalendarDay`).
+- **`PresenceCalendar` / `CalendarMonth`** — lays a report out into month grids
+  and preserves both ranked per-region totals and exact multi-region
+  combination totals for accessible month summaries.
 
 ### Location
 
@@ -139,9 +145,11 @@ one it belongs to rather than to a god-object:
   badge), `DailySummaryReconciler` (year-to-date recap),
   `DataIssueAlertReconciler` ("issues to resolve").
 - **`WidgetSnapshotPublisher`** — republishes the App Group snapshot the widgets
-  read, with a freshness policy.
+  read, with a freshness policy for the independently aggregated data.
+- **`WidgetPresentationPublisher`** — atomically writes the device-local `WhereTheme`
+  to its own App Group file and reloads WidgetKit without reading or rebuilding widget data.
 - **`BackupCoordinator`** — ZIP export/import via `ZIPFoundation`. Export pins
-  tables and evidence blobs to one generation-consistent snapshot. Merge preserves queued locations
+  tables, planned-stay revisions, and evidence blobs to one generation-consistent snapshot. Merge preserves queued locations
   and the installation-local recording choice. Replace writes the archive into a new child generation,
   retains existing removal tombstones, and preserves the local choice before pending fixes are
   discarded. A prepared
@@ -159,9 +167,11 @@ one it belongs to rather than to a god-object:
   `InstallationRecordingContextStoring` keeps the persistence adapter outside
   the domain value.
 - **`WherePreferences`** — persisted user intent (onboarding,
-  reminder / summary schedules, Locations-card GPS-dot visibility) plus the
-  year-keyed Location-card counts used for presentation continuity, behind a
-  `KeyValueStore`. The store has no
+  reminder / summary schedules, presentation theme, and Locations-card GPS-dot and
+  estimated-time/planning visibility) plus the
+  year-keyed Location-card counts and Codable recording-warning generation used for presentation
+  continuity, behind a `KeyValueStore`. `RecordingConfigurationWarningCondition` evaluates the live
+  device authority, recording choice, and authorization tuple in Core. The store has no
   default: production names `UserDefaults.standard` and everything else names
   `InMemoryKeyValueStore()`, so no test or preview can reach the host's real
   defaults by saying nothing. Recording confirmation is deliberately absent:

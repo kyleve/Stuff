@@ -1,10 +1,10 @@
 import Foundation
 import RegionKit
 
-/// The app's persisted user intent — onboarding completion and the reminder /
-/// daily-summary schedules — plus small pieces of UI
-/// continuity state, behind a `KeyValueStore` so production uses `UserDefaults`
-/// and tests use an in-memory double.
+/// The app's persisted user intent — onboarding completion, presentation
+/// theme, Locations-card visibility, and notification schedules — plus small
+/// pieces of UI continuity and acknowledgement state, behind a `KeyValueStore`
+/// so production uses `UserDefaults` and tests use an in-memory double.
 ///
 /// `store` is deliberately not defaulted: defaulting it to
 /// `UserDefaults.standard` made the real, process-wide defaults the thing you
@@ -37,6 +37,33 @@ public final class WherePreferences {
     public var showsRecordedLocationDots: Bool {
         get { store.object(forKey: Keys.showsRecordedLocationDots.rawValue) as? Bool ?? true }
         set { store.set(newValue, forKey: Keys.showsRecordedLocationDots.rawValue) }
+    }
+
+    /// The device-local presentation theme. Missing and unrecognized values
+    /// resolve to Standard so upgrades preserve the app's familiar appearance.
+    public var theme: WhereTheme {
+        get {
+            guard
+                let rawValue = store.object(forKey: Keys.theme.rawValue) as? String,
+                let theme = WhereTheme(rawValue: rawValue)
+            else {
+                return .standard
+            }
+            return theme
+        }
+        set { store.set(newValue.rawValue, forKey: Keys.theme.rawValue) }
+    }
+
+    /// Whether annual estimates, stay planning, and their projections appear.
+    /// Defaults to `true` so an existing or fresh install sees the feature until
+    /// the user explicitly turns it off. The defaults key retains its original
+    /// Locations-only name so an existing choice survives the broader meaning.
+    public var showsEstimatedTimeAndPlanning: Bool {
+        get {
+            store.object(forKey: Keys.showsLocationForecastsOnLocationsTab.rawValue) as? Bool
+                ?? true
+        }
+        set { store.set(newValue, forKey: Keys.showsLocationForecastsOnLocationsTab.rawValue) }
     }
 
     /// Whether the daily "log before the day ends" reminder is enabled. Defaults
@@ -93,6 +120,44 @@ public final class WherePreferences {
         set { store.set(newValue, forKey: Keys.issueAlertsEnabled.rawValue) }
     }
 
+    /// Generation bookkeeping for the recording-configuration warning. This is UI continuity
+    /// state: the live recording policy and authorization remain authoritative.
+    public var recordingConfigurationWarningRegistration:
+        RecordingConfigurationWarningRegistration
+    {
+        get {
+            guard
+                let data = store.object(
+                    forKey: Keys.recordingConfigurationWarningRegistration.rawValue,
+                ) as? Data
+            else {
+                return RecordingConfigurationWarningRegistration()
+            }
+            do {
+                let registration = try JSONDecoder().decode(
+                    RecordingConfigurationWarningRegistration.self,
+                    from: data,
+                )
+                guard registration.isValid else {
+                    assertionFailure("Decoded an invalid recording warning registration.")
+                    return RecordingConfigurationWarningRegistration()
+                }
+                return registration
+            } catch {
+                assertionFailure("Could not decode recording warning registration: \(error)")
+                return RecordingConfigurationWarningRegistration()
+            }
+        }
+        set {
+            do {
+                let data = try JSONEncoder().encode(newValue)
+                store.set(data, forKey: Keys.recordingConfigurationWarningRegistration.rawValue)
+            } catch {
+                assertionFailure("Could not encode recording warning registration: \(error)")
+            }
+        }
+    }
+
     /// GPS border-drift detection threshold in meters. Defaults to 10 km.
     public var driftThresholdMeters: Int {
         get {
@@ -132,9 +197,8 @@ public final class WherePreferences {
     }
 
     /// Clear every persisted preference so the next launch behaves like a fresh
-    /// install: onboarding shows again, reminder/summary schedules revert to
-    /// defaults, and UI
-    /// continuity snapshots are forgotten.
+    /// install: onboarding shows again, presentation and notification settings
+    /// revert to defaults, and UI continuity snapshots are forgotten.
     /// Removing the keys (rather than writing `false`/`0`) lets the
     /// default-valued getters report first-install state again.
     public func reset() {
@@ -149,6 +213,8 @@ public final class WherePreferences {
     private enum Keys: String, CaseIterable {
         case hasOnboarded = "where.hasOnboarded"
         case showsRecordedLocationDots = "where.showsRecordedLocationDots"
+        case theme = "where.theme"
+        case showsLocationForecastsOnLocationsTab = "where.showsLocationForecastsOnLocationsTab"
         case remindersEnabled = "where.remindersEnabled"
         case reminderHour = "where.reminderHour"
         case reminderMinute = "where.reminderMinute"
@@ -156,6 +222,8 @@ public final class WherePreferences {
         case summaryHour = "where.summaryHour"
         case summaryMinute = "where.summaryMinute"
         case issueAlertsEnabled = "where.issueAlertsEnabled"
+        case recordingConfigurationWarningRegistration =
+            "where.recordingConfigurationWarningRegistration"
         case driftThresholdMeters = "where.driftThresholdMeters"
         case lastSeenLocationDayCounts = "where.lastSeenLocationDayCounts"
     }

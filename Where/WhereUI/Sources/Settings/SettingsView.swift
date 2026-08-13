@@ -17,6 +17,7 @@ import WhereCore
 /// `WhereModel` (reset) come from the environment via the sub-screens.
 struct SettingsView: View {
     let report: YearReportModel
+    let recordingWarning: RecordingConfigurationWarningModel
     @State private var backup: BackupModel
     @State private var reminders: RemindersSettingsModel
     @State private var searchText = ""
@@ -27,8 +28,14 @@ struct SettingsView: View {
     @Environment(\.lifecycle) private var lifecycle
     @Environment(\.isInDemoMode) private var isInDemoMode
 
-    init(report: YearReportModel) {
+    init(
+        report: YearReportModel,
+        recordingWarning: RecordingConfigurationWarningModel? = nil,
+    ) {
         self.report = report
+        self.recordingWarning = recordingWarning ?? RecordingConfigurationWarningModel(
+            preferences: report.preferences,
+        )
         _backup = State(initialValue: BackupModel(services: report.services))
         _reminders = State(initialValue: RemindersSettingsModel(
             services: report.services,
@@ -67,6 +74,9 @@ struct SettingsView: View {
                         searchNavigationRow(result)
                     }
                 } else {
+                    if recordingWarning.isPresented {
+                        recordingWarningSection
+                    }
                     if isInDemoMode {
                         demoSection
                     }
@@ -98,6 +108,29 @@ struct SettingsView: View {
             }
             .sheet(isPresented: $showRegions) {
                 RegionsSettingsView(usedThisYear: regionsUsedThisYear)
+            }
+        }
+    }
+
+    private var recordingWarningSection: some View {
+        Section {
+            NavigationLink(value: SettingsRoute(.devices)) {
+                Label {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(.settingsRecordingWarningTitle)
+                            .font(.headline)
+                        Text(.settingsRecordingWarningMessage)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                } icon: {
+                    Image(systemSymbol: .exclamationmarkTriangleFill)
+                        .foregroundStyle(.yellow)
+                        .accessibilityHidden(true)
+                }
+            }
+            Button(.settingsRecordingWarningDismiss, role: .cancel) {
+                recordingWarning.dismiss()
             }
         }
     }
@@ -163,7 +196,8 @@ struct SettingsView: View {
             case .regions:
                 showRegions = true
             case .attachments, .loggedDays, .devices, .alerts, .appearance, .year, .siri,
-                 .widgets, .shareEvidence, .insightsAccuracy, .personalization, .data, .about:
+                 .widgets, .shareEvidence, .estimatedTime, .insightsAccuracy, .personalization,
+                 .data, .about:
                 assertionFailure("\(destination) is a push destination, not a sheet")
         }
     }
@@ -197,7 +231,7 @@ struct SettingsView: View {
             case .year:
                 report.selectedYear.formatted(.number.grouping(.never))
             case .attachments, .loggedDays, .regions, .alerts, .appearance, .siri, .widgets,
-                 .shareEvidence, .insightsAccuracy, .personalization, .data, .about:
+                 .shareEvidence, .estimatedTime, .insightsAccuracy, .personalization, .data, .about:
                 nil
         }
     }
@@ -255,6 +289,8 @@ struct SettingsView: View {
                     focus: route.focus,
                     presentation: featureDiscoveryPresentation,
                 )
+            case .estimatedTime:
+                EstimatedTimeFeaturesView(report: report, focus: route.focus)
             case .insightsAccuracy:
                 InsightsAccuracyFeaturesView(
                     report: report,
@@ -318,6 +354,18 @@ struct SettingsView: View {
                     .environment(PreviewSupport.loadedSession())
                     .environment(\.isInDemoMode, true)
             }
+            whereSnapshot(
+                name: "RecordingConfigurationWarning",
+                configurations: .fullContentPhoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
+                SettingsView(
+                    report: PreviewSupport.loadedYearReportModel(),
+                    recordingWarning: PreviewSupport.recordingConfigurationWarningModel(),
+                )
+                .environment(PreviewSupport.loadedModel())
+                .environment(PreviewSupport.loadedSession())
+            }
         }
     }
 
@@ -343,6 +391,7 @@ struct SettingsView: View {
                 .push(to: SiriFeaturesView.flyoverID),
                 .push(to: WidgetFeaturesView.flyoverID),
                 .push(to: ShareEvidenceFeaturesView.flyoverID),
+                .push(to: EstimatedTimeFeaturesView.flyoverID),
                 .push(to: InsightsAccuracyFeaturesView.flyoverID),
                 .push(to: PersonalizationFeaturesView.flyoverID),
                 .push(to: DataSettingsView.flyoverID),

@@ -161,10 +161,6 @@ public struct TestService: Sendable {
         } catch let failure as TestRunPlanFailure {
             throw ToolFailure.message(failure.description)
         }
-        if plan.includesSnapshots {
-            try await requireHydratedSnapshotReferences()
-        }
-
         if request.generate {
             try await generateProject(in: workDirectory)
         }
@@ -455,73 +451,6 @@ public struct TestService: Sendable {
                 tailLines: 20,
             )
             throw ToolFailure.reported
-        }
-    }
-
-    private func requireHydratedSnapshotReferences() async throws {
-        let version: CommandResult
-        do {
-            version = try await runner.run(
-                CommandInvocation(
-                    executable: "git-lfs",
-                    arguments: ["version"],
-                    environment: [:],
-                    workingDirectory: repository,
-                    standardInput: [],
-                    output: .captured,
-                ),
-            )
-        } catch {
-            throw ToolFailure.message(
-                "snapshot tests require git-lfs; run ./ide --bootstrap.",
-            )
-        }
-        guard version.succeeded else {
-            throw ToolFailure.message(
-                "snapshot tests require git-lfs; run ./ide --bootstrap.",
-            )
-        }
-
-        let listing = try await runner.run(
-            CommandInvocation(
-                executable: "git",
-                arguments: ["lfs", "ls-files", "--json"],
-                environment: [:],
-                workingDirectory: repository,
-                standardInput: [],
-                output: .captured,
-            ),
-        )
-        guard listing.succeeded else {
-            throw ToolFailure.message(
-                "could not inspect Git LFS snapshot references.",
-            )
-        }
-        let inventory: GitLFSInventory
-        do {
-            inventory = try JSONDecoder().decode(
-                GitLFSInventory.self,
-                from: Data(listing.standardOutput),
-            )
-        } catch {
-            throw ToolFailure.message(
-                "could not inspect Git LFS snapshot references: \(error)",
-            )
-        }
-        let unresolved = inventory.unhydratedSnapshotReferences
-        guard unresolved.isEmpty else {
-            var lines = [
-                "\(unresolved.count) snapshot reference(s) are Git LFS pointer files, not PNGs.",
-                "       Snapshot comparisons would be incomplete or incomparable.",
-                "       Hydrate this checkout, then retry:",
-                "         git lfs pull",
-                "       First unresolved references:",
-            ]
-            lines.append(contentsOf: unresolved.prefix(5).map { "         \($0)" })
-            if unresolved.count > 5 {
-                lines.append("         … and \(unresolved.count - 5) more")
-            }
-            throw ToolFailure.message(lines.joined(separator: "\n"))
         }
     }
 

@@ -3,21 +3,43 @@ import SnapshotKit
 import SwiftUI
 import WhereCore
 
-/// Settings drill-in for presentation choices: whether recorded GPS dots appear
-/// on Locations cards and which alternate app icon is used.
+/// Settings drill-in for presentation choices: theme, Locations-card overlays,
+/// and alternate app icon.
 struct AppearanceSettingsView: View {
     let report: YearReportModel
     var focus: SettingsFocus?
 
     @State private var showAppIcon = false
+    @Environment(WhereModel.self) private var model
+    @State private var estimatedTimeSettings: EstimatedTimeAndPlanningSettingsModel
     #if DEBUG
         @Environment(\.cardDesignerModel) private var cardDesignerModel
     #endif
 
+    init(report: YearReportModel, focus: SettingsFocus? = nil) {
+        self.report = report
+        self.focus = focus
+        _estimatedTimeSettings = State(initialValue: EstimatedTimeAndPlanningSettingsModel(
+            report: report,
+        ))
+    }
+
     var body: some View {
         @Bindable var report = report
+        @Bindable var estimatedTimeSettings = estimatedTimeSettings
         SettingsFocusScope(focus: focus) {
             Form {
+                Section {
+                    WhereThemePicker(selection: model.theme) {
+                        model.selectTheme($0)
+                    }
+                    .settingsRow(Item.theme)
+                } header: {
+                    Text(.settingsAppearanceThemeHeader)
+                } footer: {
+                    Text(.settingsAppearanceThemeFooter)
+                }
+
                 Section {
                     Toggle(isOn: $report.showsRecordedLocationDots) {
                         Label(
@@ -28,6 +50,25 @@ struct AppearanceSettingsView: View {
                     .settingsRow(Item.locationDots)
                 } footer: {
                     Text(String(localized: .settingsAppearanceLocationDotsFooter))
+                }
+
+                Section {
+                    Toggle(isOn: $estimatedTimeSettings.isEnabled) {
+                        HStack {
+                            Label(
+                                String(localized: .settingsAppearanceLocationForecastsToggle),
+                                systemSymbol: .chartLineUptrendXyaxis,
+                            )
+                            if estimatedTimeSettings.isUpdating {
+                                ProgressView()
+                                    .controlSize(.small)
+                            }
+                        }
+                    }
+                    .disabled(estimatedTimeSettings.isUpdating)
+                    .settingsRow(Item.locationForecasts)
+                } footer: {
+                    Text(String(localized: .settingsAppearanceLocationForecastsFooter))
                 }
 
                 Section {
@@ -70,6 +111,15 @@ struct AppearanceSettingsView: View {
         .sheet(isPresented: $showAppIcon) {
             AppIconView()
         }
+        .alert(
+            String(localized: .settingsAppearanceLocationForecastsDisableErrorTitle),
+            isPresented: $estimatedTimeSettings.isShowingError,
+            presenting: estimatedTimeSettings.presentedFailure,
+        ) { _ in
+            Button(String(localized: .commonOk), role: .cancel) {}
+        } message: { message in
+            Text(message)
+        }
     }
 }
 
@@ -79,7 +129,9 @@ extension AppearanceSettingsView: SettingsSection {
     }
 
     enum Item: SettingsItem {
+        case theme
         case locationDots
+        case locationForecasts
         case appIcon
         #if DEBUG
             case cardDesigner
@@ -87,8 +139,11 @@ extension AppearanceSettingsView: SettingsSection {
 
         var title: String {
             switch self {
+                case .theme: String(localized: .settingsAppearanceThemeHeader)
                 case .locationDots:
                     String(localized: .settingsAppearanceLocationDotsToggle)
+                case .locationForecasts:
+                    String(localized: .settingsAppearanceLocationForecastsToggle)
                 case .appIcon: String(localized: .settingsAppIconLink)
                 #if DEBUG
                     case .cardDesigner: String(localized: .cardDesignerTitle)
@@ -98,8 +153,12 @@ extension AppearanceSettingsView: SettingsSection {
 
         var keywords: [String] {
             switch self {
+                case .theme:
+                    splitKeywords(String(localized: .settingsKeywordsTheme))
                 case .locationDots:
                     splitKeywords(String(localized: .settingsKeywordsLocationDots))
+                case .locationForecasts:
+                    splitKeywords(String(localized: .settingsKeywordsLocationForecasts))
                 case .appIcon: splitKeywords(String(localized: .settingsKeywordsAppIcon))
                 #if DEBUG
                     case .cardDesigner:
@@ -121,6 +180,7 @@ extension AppearanceSettingsView: SettingsSection {
                 NavigationStack {
                     AppearanceSettingsView(report: PreviewSupport.loadedYearReportModel())
                 }
+                .environment(PreviewSupport.loadedModel())
             }
         }
     }

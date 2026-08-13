@@ -12,13 +12,30 @@ struct WherePreferencesTests {
 
         #expect(preferences.hasOnboarded == false)
         #expect(preferences.showsRecordedLocationDots)
+        #expect(preferences.theme == .standard)
+        #expect(preferences.showsEstimatedTimeAndPlanning)
         #expect(preferences.remindersEnabled)
         #expect(preferences.reminderTime == .defaultEvening)
         #expect(preferences.summaryEnabled)
         #expect(preferences.summaryTime == .defaultMorning)
         #expect(preferences.issueAlertsEnabled)
+        #expect(
+            preferences.recordingConfigurationWarningRegistration
+                == RecordingConfigurationWarningRegistration(),
+        )
         #expect(preferences.driftThresholdMeters == DriftThreshold.default.rawValue)
         #expect(preferences.lastSeenLocationDayCounts(in: 2026) == nil)
+    }
+
+    @Test func themeRoundTripsAndUnknownValuesFallBackToStandard() {
+        let store = InMemoryKeyValueStore()
+        let preferences = WherePreferences(store: store)
+
+        preferences.theme = .alternate
+        #expect(preferences.theme == .alternate)
+
+        store.set("future-theme", forKey: "where.theme")
+        #expect(preferences.theme == .standard)
     }
 
     @Test func locationDayCountsRoundTripIndependentlyByYear() {
@@ -33,15 +50,43 @@ struct WherePreferencesTests {
         #expect(preferences.lastSeenLocationDayCounts(in: 2026) == counts2026)
     }
 
+    @Test func estimatedTimeUsesTheLegacyLocationsVisibilityKey() {
+        let store = InMemoryKeyValueStore()
+        store.set(false, forKey: "where.showsLocationForecastsOnLocationsTab")
+        let preferences = WherePreferences(store: store)
+
+        #expect(preferences.showsEstimatedTimeAndPlanning == false)
+
+        preferences.showsEstimatedTimeAndPlanning = true
+        #expect(store.bool(forKey: "where.showsLocationForecastsOnLocationsTab"))
+    }
+
+    @Test func recordingWarningRegistrationRoundTrips() {
+        let preferences = preferences()
+        var registration = RecordingConfigurationWarningRegistration()
+        registration.register(isWarningConditionActive: true)
+        registration.acknowledgeCurrentGeneration()
+
+        preferences.recordingConfigurationWarningRegistration = registration
+
+        #expect(preferences.recordingConfigurationWarningRegistration == registration)
+    }
+
     @Test func resetRestoresEveryDefaultAndClearsLocationCounts() {
         let preferences = preferences()
         preferences.hasOnboarded = true
         preferences.showsRecordedLocationDots = false
+        preferences.theme = .alternate
+        preferences.showsEstimatedTimeAndPlanning = false
         preferences.remindersEnabled = false
         preferences.reminderTime = ReminderTime(hour: 9, minute: 15)
         preferences.summaryEnabled = false
         preferences.summaryTime = ReminderTime(hour: 17, minute: 45)
         preferences.issueAlertsEnabled = false
+        var recordingWarning = preferences.recordingConfigurationWarningRegistration
+        recordingWarning.register(isWarningConditionActive: true)
+        recordingWarning.acknowledgeCurrentGeneration()
+        preferences.recordingConfigurationWarningRegistration = recordingWarning
         preferences.driftThresholdMeters = 25000
         preferences.setLastSeenLocationDayCounts([.california: 100], in: 2026)
 
@@ -49,11 +94,17 @@ struct WherePreferencesTests {
 
         #expect(preferences.hasOnboarded == false)
         #expect(preferences.showsRecordedLocationDots)
+        #expect(preferences.theme == .standard)
+        #expect(preferences.showsEstimatedTimeAndPlanning)
         #expect(preferences.remindersEnabled)
         #expect(preferences.reminderTime == .defaultEvening)
         #expect(preferences.summaryEnabled)
         #expect(preferences.summaryTime == .defaultMorning)
         #expect(preferences.issueAlertsEnabled)
+        #expect(
+            preferences.recordingConfigurationWarningRegistration
+                == RecordingConfigurationWarningRegistration(),
+        )
         #expect(preferences.driftThresholdMeters == DriftThreshold.default.rawValue)
         #expect(preferences.lastSeenLocationDayCounts(in: 2026) == nil)
     }

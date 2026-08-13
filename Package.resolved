@@ -1,13 +1,13 @@
 {
-  "originHash" : "434317bff5c30f26405c7c079b864a7846ad67b3f96dd2d0366c4154d7c44f22",
+  "originHash" : "50f5c006bb5b3e164cef24425f9464618baa354aeac574f74d2034161d47c135",
   "pins" : [
     {
       "identity" : "accessibilitysnapshot",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/cashapp/AccessibilitySnapshot",
       "state" : {
-        "revision" : "38132a8505ffe780f61ac44522dd1ffa8e8be2fe",
-        "version" : "0.11.0"
+        "revision" : "c1605f10124733eed116b4737147ed4e2bd7e2e3",
+        "version" : "0.12.0"
       }
     },
     {
@@ -53,15 +53,6 @@
       "state" : {
         "revision" : "e01b3d4f861412f8dcee8d93c417d2c2b0cdfd77",
         "version" : "7.0.0"
-      }
-    },
-    {
-      "identity" : "sentry-cocoa",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/getsentry/sentry-cocoa",
-      "state" : {
-        "revision" : "d27a0ddf0cd1bc90ab038f5781fddc39b894430e",
-        "version" : "9.25.0"
       }
     },
     {

@@ -50,7 +50,6 @@ struct TestRunPlanTests {
                 filters: [],
             ),
         ])
-        #expect(plan.includesSnapshots)
     }
 
     @Test func unknownExplicitBundleFailsBeforeXcodebuild() throws {

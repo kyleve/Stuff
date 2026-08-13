@@ -41,9 +41,9 @@ exited.
 - `./test` derives affected bundles from Tuist's JSON graph plus SwiftPM's
   package dump, then shares the simulator resolver and streams raw `xcodebuild`
   output through a directly tested progress reporter. A successful process that
-  matched zero tests is still a failed run. Snapshot scopes fail before project
-  generation when Git LFS references are not hydrated and forward the optional
-  CI settle-timeout multiplier.
+  matched zero tests is still a failed run. Snapshot scopes forward the optional
+  CI settle-timeout multiplier; Git LFS hydration remains a checkout/bootstrap
+  responsibility rather than a per-run content inspection.
 - `./profile` keeps clean-build, unit-test, and serial snapshot-test timing as
   separate legs. It reads typed xcresult test cases, parses Xcode's build-timing
   summary and type-check warnings, and can retain CI-shaped separate DerivedData.
@@ -88,7 +88,8 @@ target closure that Tuist leaves with Xcode's SwiftPM integration.
 - `Sources/StuffToolCore` contains commands, typed external formats, and injected
   process/filesystem infrastructure.
 - `SwiftTests/StuffToolCoreTests` contains fast hermetic Swift Testing suites.
-- `tla_check.py` contains the importable TLA+ manifest/TLC runner behind the
+- `tla_check.py` contains the importable manifest validation, isolated PlusCal
+  translation, TLC runner, and structured summary reporting behind the
   bootstrap-only root launcher.
 - `Tests` covers retained Python and Ruby tools against temporary fixture
   repositories; those tools remain in their existing language when they are

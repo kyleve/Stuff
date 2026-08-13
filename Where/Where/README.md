@@ -48,9 +48,8 @@ steps immediately and builds no view tree; when a scene actually activates,
 `RootView` promotes the launch to `.userForeground` and the remaining steps run.
 
 Before either the regular or Inspector runtime receives that callback, the app
-starts its Sentry and Bitdrift `WhereCrashReporting` implementations. Sentry SDK
-diagnostic output is enabled only in Debug builds; performance tracing is not
-enabled by the crash-reporting setup.
+starts its Bitdrift `WhereCrashReporting` implementation. Performance tracing
+is not enabled by the crash-reporting setup.
 
 The Inspector runtime returns its standalone `InspectorView` and starts none of
 the model, launch, CoreLocation, notification, Periscope pipeline, App Intents,

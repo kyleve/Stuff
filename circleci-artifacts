@@ -1,0 +1,102 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# circleci-artifacts — download every artifact produced by one CircleCI job.
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+output_dir=""
+job=""
+open_in_finder=false
+
+usage() {
+    cat <<'USAGE'
+Usage: ./circleci-artifacts [--output DIR] [--open] JOB
+
+Download every artifact produced by a CircleCI job. JOB may be either the job
+UUID or a CircleCI details URL containing a `job=<uuid>` query parameter.
+
+Options:
+  -o, --output DIR   Destination directory
+                     (default: .build/circleci-artifacts/<job-uuid>)
+  --open             Open the destination in Finder after downloading
+  -h, --help         Show this help
+
+Examples:
+  ./circleci-artifacts 5e23ecb0-69a5-4141-a382-37c2d8a51ebf
+  ./circleci-artifacts --open 5e23ecb0-69a5-4141-a382-37c2d8a51ebf
+  ./circleci-artifacts --output /tmp/ci-artifacts 'https://app.circleci.com/pipelines/...?job=5e23ecb0-69a5-4141-a382-37c2d8a51ebf&buildNumber=113'
+
+Requires an authenticated CircleCI CLI (`circleci auth login`).
+USAGE
+}
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -h | --help)
+            usage
+            exit 0
+            ;;
+        -o | --output)
+            shift
+            if [[ $# -eq 0 ]]; then
+                echo "error: --output requires a directory" >&2
+                exit 1
+            fi
+            output_dir="$1"
+            ;;
+        --output=*)
+            output_dir="${1#*=}"
+            if [[ -z "$output_dir" ]]; then
+                echo "error: --output requires a directory" >&2
+                exit 1
+            fi
+            ;;
+        --open)
+            open_in_finder=true
+            ;;
+        -*)
+            echo "error: unknown option '$1' (see ./circleci-artifacts --help)" >&2
+            exit 1
+            ;;
+        *)
+            if [[ -n "$job" ]]; then
+                echo "error: expected one job UUID or URL" >&2
+                exit 1
+            fi
+            job="$1"
+            ;;
+    esac
+    shift
+done
+
+if [[ -z "$job" ]]; then
+    usage >&2
+    exit 1
+fi
+
+uuid_pattern='[[:xdigit:]]{8}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{12}'
+if [[ "$job" =~ ^${uuid_pattern}$ ]]; then
+    job_id="$job"
+elif [[ "$job" =~ [\?\&]job=(${uuid_pattern}) ]]; then
+    job_id="${BASH_REMATCH[1]}"
+else
+    echo "error: JOB must be a job UUID or a CircleCI URL containing job=<uuid>" >&2
+    exit 1
+fi
+
+if ! command -v circleci >/dev/null 2>&1; then
+    echo "error: CircleCI CLI not found; install it from https://circleci.com/docs/local-cli/" >&2
+    exit 1
+fi
+
+if [[ -z "$output_dir" ]]; then
+    output_dir="$repo_root/.build/circleci-artifacts/$job_id"
+fi
+
+echo "==> Downloading CircleCI artifacts for job $job_id"
+echo "    $output_dir"
+circleci artifact "$job_id" --output "$output_dir"
+
+if [[ "$open_in_finder" = true ]]; then
+    open "$output_dir"
+fi

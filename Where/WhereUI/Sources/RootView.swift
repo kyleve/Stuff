@@ -123,6 +123,7 @@ public struct RootView: View {
                             gate: handle,
                             installationContext: model.installationRecordingContext,
                             startsAtRecordingChoice: model.hasOnboarded,
+                            initialTheme: model.theme,
                         )
                     }
                 },
@@ -236,7 +237,10 @@ public struct RootView: View {
             // styles (`\.regionStyles`) so cards/calendar/onboarding render the
             // user's picked looks. `.default` before the session exists (splash) and
             // reactive after, since reading `session.regionStyles` tracks it.
-            .whereBroadwayRoot(regionStyles: model.session?.regionStyles ?? .default)
+            .whereBroadwayRoot(
+                theme: model.theme,
+                regionStyles: model.session?.regionStyles ?? .default,
+            )
     }
 
     /// How the launch splash gives way to the app once the runner is `.ready`:
@@ -299,6 +303,11 @@ public struct RootView: View {
         public static var snapshots: [SnapshotCase] {
             let model = PreviewSupport.loadedModel()
             let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
+            let recordingWarningModel = PreviewSupport.recordingConfigurationWarningAppModel()
+            let recordingWarningLauncher = WhereLaunch.makeLauncher(
+                model: recordingWarningModel,
+                reason: .userForeground,
+            )
             whereSnapshot(
                 name: "LoggedIn",
                 configurations: .fullContentPhoneLightDark,
@@ -306,6 +315,14 @@ public struct RootView: View {
                 onReadyToSnapshot: { await launcher.run() },
             ) {
                 RootView(model: model, launcher: launcher)
+            }
+            whereSnapshot(
+                name: "RecordingConfigurationWarning",
+                configurations: .fullContentPhoneLightDark,
+                settle: .settledAtLeast(minDuration: 1.5),
+                onReadyToSnapshot: { await recordingWarningLauncher.run() },
+            ) {
+                RootView(model: recordingWarningModel, launcher: recordingWarningLauncher)
             }
         }
     }

@@ -4,8 +4,8 @@ WhereCore is the domain layer of the Where feature: the persistence boundary,
 GPS ingestion, per-day / per-year aggregation, data-quality detection, and
 the side effects that hang off a committed write. It is assembled behind one
 `Sendable` value — `WhereServices` — that the UI and the App Intents stack
-talk to (widgets never do; they read the published `WidgetSnapshot` from the
-App Group). See [`README.md`](README.md) for the public API and collaborators.
+talk to (widgets never do; they read the published data and presentation files
+from the App Group). See [`README.md`](README.md) for the public API and collaborators.
 
 The domain/presentation split and the rules WhereCore must uphold live in the
 feature [`Where/AGENTS.md`](../AGENTS.md#layering) — read that and the root
@@ -64,6 +64,9 @@ internal shape.
   `BackupArchive.currentFormatVersion` and extends
   [`../Tools/upgrade-backup.rb`](../Tools/upgrade-backup.rb); never add an
   in-code legacy decode fallback.
+- **The planned stay is a generation-scoped last-writer register with tombstones.** Resolve
+  duplicate CloudKit revisions by `updatedAt` then UUID, and clear or expire by writing a newer
+  `nil` value; deleting the winner can resurrect stale intent (`PlannedStayCoordinatorTests`).
 - **A logical day is a `CalendarDay`, not a `Date`.** `CalendarDay` (Y-M-D)
   is the timezone-independent identity every stored user record and day
   comparison keys on; persisting a `Date` makes a day drift across time-zone
@@ -130,6 +133,10 @@ internal shape.
 - **Location-card history is non-authoritative preference state.** Keep its
   snapshots year-keyed by stable `Region` id, and clear them through
   `WherePreferences.reset()`; current report totals remain the source of truth.
+- **`WhereTheme` is device-local preference state, not backup/domain data.**
+  Preserve its stable raw values and make unknown or missing values Standard. Publish it through
+  `WidgetPresentationPublisher`; never put it in `WidgetSnapshot` or rebuild widget data for a
+  presentation-only change.
 - **`DemoDataBuilder` seeds through the ordinary write paths** (`DayJournal`,
   `setPrimaryRegions`) — no private door into the store, so a demo exercises
   the code a real user does. Its data is sized against the *elapsed* year, not

@@ -7,6 +7,9 @@ specs_root="$repo_root/Where/Specifications"
 tlc_version="1.7.4"
 tlc_sha256="936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88"
 tlc_url="https://github.com/tlaplus/tlaplus/releases/download/v${tlc_version}/tla2tools.jar"
+pcal_version="1.11"
+java_version="temurin-21.0.8+9.0.LTS"
+
 tool_root="$repo_root/.build/tla"
 jar_dir="$tool_root/v${tlc_version}"
 jar_path="$jar_dir/tla2tools.jar"
@@ -16,12 +19,16 @@ usage() {
     cat <<'EOF'
 Usage: ./tla-check [--list] [SPEC ...]
 
-Run TLA+ model checks declared under Where/Specifications/*/manifest.json.
+Generate and run TLA+ model checks declared under
+Where/Specifications/*/manifest.json.
 With no SPEC names, every discoverable spec is checked.
 
 Options:
   --list    Print discoverable spec folder names and exit
   --help    Show this help
+
+PlusCal manifests are translated only inside the retained run directory;
+tracked model sources are never rewritten.
 
 Downloads pinned TLC and Java into .build/tla/ on first use (~350 MB).
 Set TLA_JAVA to a Java executable to bypass the pinned mise runtime.
@@ -87,18 +94,15 @@ run_spec() {
     local spec_name="$1"
     local spec_dir="$specs_root/$spec_name"
     local manifest="$spec_dir/manifest.json"
-    local run_dir logs_dir states_dir
+    local run_dir
 
     validate_spec_name "$spec_name"
-
     run_dir="$(mktemp -d "$runs_dir/${spec_name}.XXXXXX")"
-    logs_dir="$run_dir/logs"
-    states_dir="$run_dir/states"
-    mkdir -p "$logs_dir" "$states_dir"
 
     echo "==> $spec_name"
     python3 "$repo_root/Tools/tla_check.py" \
-        "$manifest" "$spec_dir" "$logs_dir" "$states_dir" "$jar_path"
+        "$manifest" "$spec_dir" "$run_dir" "$jar_path" \
+        "$tlc_version" "$pcal_version" "$java_version" "$tlc_sha256"
 }
 
 main() {
@@ -107,7 +111,7 @@ main() {
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
-            -h|--help)
+            -h | --help)
                 usage
                 exit 0
                 ;;

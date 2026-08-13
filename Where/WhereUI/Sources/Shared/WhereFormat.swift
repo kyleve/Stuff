@@ -60,6 +60,34 @@ enum WhereFormat {
         String(localized: .manualRangeFooter(count))
     }
 
+    static func locationForecastEstimate(region: Region, days: Int) -> AttributedString {
+        AttributedString(localized: .locationForecastEstimate(
+            region.localizedName,
+            dayCount(days),
+        ))
+    }
+
+    static func locationForecastElapsed(days: Int) -> String {
+        String(localized: .locationForecastElapsed(dayCount(days)))
+    }
+
+    static func locationForecastBasis(yearToDateDays: Int) -> String {
+        String(localized: .locationForecastBasis(dayCount(yearToDateDays)))
+    }
+
+    static func locationForecastPlan(through day: CalendarDay) -> String {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .current
+        let date = day.startOfDay(in: calendar)
+        return String(localized: .locationForecastPlan(
+            date.formatted(.dateTime.month(.wide).day().year()),
+        ))
+    }
+
+    static func locationCardEstimatedDays(_ days: Int) -> String {
+        String(localized: .locationCardEstimatedDays(dayCount(days)))
+    }
+
     static func settingsBackupImportedMessage(
         samples: Int,
         evidence: Int,
@@ -196,17 +224,95 @@ enum WhereFormat {
         String(localized: .commonRegionDaysAccessibility(region, dayCount(days)))
     }
 
+    static func regionDaysEstimatedAccessibility(
+        region: String,
+        recordedDays: Int,
+        estimatedDays: Int,
+    ) -> String {
+        String(localized: .commonRegionDaysEstimatedAccessibility(
+            region,
+            dayCount(recordedDays),
+            dayCount(estimatedDays),
+        ))
+    }
+
+    static func calendarMonthAccessibility(
+        regionTotals: [RegionDayTally],
+        regionCombinationTotals: [RegionCombinationDayTally],
+        needsAttentionDays: Int,
+        evidenceDays: Int,
+        plannedRegionTotals: [RegionDayTally],
+    ) -> String {
+        var components = regionTotals.map {
+            regionDaysAccessibility(region: $0.region.localizedName, days: $0.days)
+        }
+        if regionTotals.isEmpty {
+            components.append(String(localized: .calendarMonthEmptyAccessibility))
+        }
+        components += regionCombinationTotals.map {
+            String(localized: .calendarMonthCombinationAccessibility(
+                dayCount($0.days),
+                regionNamesAccessibility($0.regions),
+            ))
+        }
+        if needsAttentionDays > 0 {
+            components.append(String(localized: .calendarMonthNeedsAttentionAccessibility(
+                needsAttentionDays,
+            )))
+        }
+        if evidenceDays > 0 {
+            components.append(String(localized: .calendarMonthEvidenceAccessibility(evidenceDays)))
+        }
+        components += plannedRegionTotals.map {
+            String(localized: .calendarMonthPlannedAccessibility(
+                dayCount($0.days),
+                $0.region.localizedName,
+            ))
+        }
+        return accessibilityList(components)
+    }
+
+    static func widgetTodayAccessibilityLabel(date: Date) -> String {
+        String(localized: .widgetTodayAccessibilityLabel(
+            date.formatted(.dateTime.month(.wide).day()),
+        ))
+    }
+
+    static func widgetTodayAccessibilityValue(regions: [Region]) -> String {
+        guard !regions.isEmpty else { return String(localized: .widgetTodayEmpty) }
+        return regionNamesAccessibility(regions)
+    }
+
+    static func widgetYearAccessibilityValue(entries: [RegionDays]) -> String {
+        guard !entries.isEmpty else { return String(localized: .widgetYearEmpty) }
+        return accessibilityList(entries.map {
+            regionDaysAccessibility(region: $0.region.localizedName, days: $0.days)
+        })
+    }
+
+    private static func regionNamesAccessibility(_ regions: [Region]) -> String {
+        accessibilityList(regions.map(\.localizedName))
+    }
+
+    private static func accessibilityList(_ components: [String]) -> String {
+        components.formatted(.list(type: .and))
+    }
+
     static func calendarDayAccessibility(
         date: Date,
         regions: [Region],
         needsAttention: Bool,
         hasEvidence: Bool,
+        isPlanned: Bool,
     ) -> String {
-        let base = calendarDayBase(date: date, regions: regions, needsAttention: needsAttention)
-        guard hasEvidence else { return base }
+        var label = calendarDayBase(date: date, regions: regions, needsAttention: needsAttention)
+        if isPlanned {
+            label = String(localized: .calendarDayPlannedAccessibility(label))
+        }
+        guard hasEvidence else { return label }
         // Append the attachment cue so VoiceOver announces it after the day's
         // regions/status, e.g. "Monday, March 4, California, has evidence".
-        return String(localized: .calendarDayHasEvidenceAccessibility(base))
+        return String(localized: .calendarDayHasEvidenceAccessibility(label))
     }
 
     private static func calendarDayBase(
@@ -227,6 +333,14 @@ enum WhereFormat {
 
     static func timelineRowAccessibility(region: String, range: String, days: Int) -> String {
         String(localized: .timelineRowAccessibility(region, range, dayCount(days)))
+    }
+
+    static func timelinePlannedRowAccessibility(
+        region: String,
+        range: String,
+        days: Int,
+    ) -> String {
+        String(localized: .timelinePlannedRowAccessibility(region, range, dayCount(days)))
     }
 
     static func evidenceRowAccessibility(kind: EvidenceKind, date: Date) -> String {
