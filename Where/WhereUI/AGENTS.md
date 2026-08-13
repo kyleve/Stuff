@@ -39,7 +39,8 @@ Layering, localization, preview, and testing conventions live in the feature
   import (`BackupModelTests`).
 - Keep diagnostic reporting's saved, process-effective, applying, and failed
   states distinct. Crash/replay choices stay pending until relaunch; remote-log
-  revisions apply live and an older completion must never win.
+  revisions apply live, a runtime failure invalidates in-flight applies, and an
+  older completion must never win.
 - The DEBUG developer accordion may only latch or clear
   `InspectorModeController` for the next launch. It must not host a live
   SwiftData inspector or switch the current runtime.

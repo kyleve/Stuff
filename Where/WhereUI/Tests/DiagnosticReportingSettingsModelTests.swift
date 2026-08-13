@@ -138,6 +138,27 @@ struct DiagnosticReportingSettingsModelTests {
         #expect(model.effectiveRemoteLogging.minimumLevel == .error)
     }
 
+    @Test func runtimeFailureInvalidatesAnInFlightApply() async {
+        let preferences = WherePreferences(store: InMemoryKeyValueStore())
+        let gate = ApplyGate()
+        let model = DiagnosticReportingSettingsModel(
+            preferences: preferences,
+            effectiveConfiguration: .defaults(isDebugBuild: false),
+            applyRemoteLogging: { configuration, _ in
+                await gate.apply(configuration)
+            },
+        )
+
+        model.selectRemoteLevel(.info)
+        await waitUntil { await gate.hasBlockedChoice }
+        model.recordRuntimeFailure("provider failed")
+        await gate.releaseBlockedChoice()
+        await Task.yield()
+
+        #expect(model.effectiveRemoteLogging == .off)
+        #expect(model.applyState == .failed(message: "provider failed"))
+    }
+
     private func waitUntil(_ condition: @MainActor () -> Bool) async {
         for _ in 0 ..< 100 where !condition() {
             await Task.yield()

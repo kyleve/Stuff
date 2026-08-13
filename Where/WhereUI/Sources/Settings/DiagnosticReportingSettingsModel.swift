@@ -152,6 +152,9 @@ public final class DiagnosticReportingSettingsModel {
     }
 
     public func recordRuntimeFailure(_ message: String) {
+        revision &+= 1
+        applyTask?.cancel()
+        applyTask = nil
         effectiveCrashReports = false
         effectiveSessionReplays = false
         effectiveRemoteLogging = .off
