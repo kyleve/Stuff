@@ -1,4 +1,5 @@
 # External skills — fetched via ./sync-agents --install
+/simple-english/
 /swift-concurrency-pro/
 /swift-testing-pro/
 /swiftdata-pro/
