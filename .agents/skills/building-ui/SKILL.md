@@ -117,7 +117,9 @@ module-owned stylesheets.
   it through a custom generic container that stores or repeatedly transforms
   its `Content`. In particular, do not pass a multi-section `Form` or `List`
   directly into such a wrapper: SwiftUI may copy the full concrete value on the
-  stack while applying environment or navigation updates.
+  stack while applying environment or navigation updates. Treat a DEBUG-only
+  content-footprint guard as a heuristic tripwire for extraction, not a
+  shipping layout contract or a threshold to retune around.
 
 ## Build for accessibility and localization
 

@@ -97,13 +97,15 @@ struct SettingsRowModifier: ViewModifier {
 /// (no fade — still scrolls and shows a brief static highlight). Flashes once per
 /// appearance so returning to the screen doesn't re-flash.
 struct SettingsFocusScope<Content: View>: View {
-    /// Separates the largest known-safe Settings form (46,912 bytes) from the
-    /// 62,680-byte concrete value that overflowed a device stack while SwiftUI
-    /// applied this scope's environment during a navigation push. Large trees
-    /// belong behind a small nominal child view before crossing this boundary.
-    static var maximumContentFootprint: Int {
-        56 * 1024
-    }
+    #if DEBUG
+        /// A DEBUG-only heuristic separating the largest known-safe Settings form
+        /// (46,912 bytes) from the 62,680-byte concrete value that overflowed a
+        /// device stack while SwiftUI applied this scope's environment during a
+        /// navigation push. Large trees belong behind a small nominal child view.
+        static var maximumContentFootprint: Int {
+            56 * 1024
+        }
+    #endif
 
     let focus: SettingsFocus?
     let isReady: Bool
@@ -121,14 +123,15 @@ struct SettingsFocusScope<Content: View>: View {
     ) {
         self.focus = focus
         self.isReady = isReady
-        let content = content()
-        let contentFootprint = MemoryLayout<Content>.size
-        precondition(
-            contentFootprint <= Self.maximumContentFootprint,
-            "SettingsFocusScope Content is \(contentFootprint) bytes; extract its large "
-                + "Form/List subtree behind a nominal child View.",
-        )
-        self.content = content
+        #if DEBUG
+            let contentFootprint = MemoryLayout<Content>.size
+            precondition(
+                contentFootprint <= Self.maximumContentFootprint,
+                "SettingsFocusScope Content is \(contentFootprint) bytes; extract its large "
+                    + "Form/List subtree behind a nominal child View.",
+            )
+        #endif
+        self.content = content()
     }
 
     var body: some View {

@@ -3,8 +3,8 @@ import SwiftUI
 
 /// The top-level Settings groups. Each drills into its own sub-screen; the
 /// top-level list and `SettingsRoute` route on these, and the
-/// `navigationDestination` switch (in `SettingsView`) builds a screen for every
-/// case with no `default:`, so adding a case is a compile error until wired.
+/// `SettingsRouteView` switch builds a screen for every case with no `default:`,
+/// so adding a case is a compile error until wired.
 enum SettingsDestination: Hashable, CaseIterable {
     case attachments
     case loggedDays

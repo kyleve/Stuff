@@ -20,7 +20,6 @@ struct SettingsView: View {
     let recordingWarning: RecordingConfigurationWarningModel
     @State private var backup: BackupModel
     @State private var reminders: RemindersSettingsModel
-    @State private var path: [SettingsRoute]
     @State private var searchText = ""
     @State private var showRegions = false
 
@@ -33,14 +32,6 @@ struct SettingsView: View {
         report: YearReportModel,
         recordingWarning: RecordingConfigurationWarningModel? = nil,
     ) {
-        self.init(report: report, recordingWarning: recordingWarning, initialPath: [])
-    }
-
-    private init(
-        report: YearReportModel,
-        recordingWarning: RecordingConfigurationWarningModel?,
-        initialPath: [SettingsRoute],
-    ) {
         self.report = report
         self.recordingWarning = recordingWarning ?? RecordingConfigurationWarningModel(
             preferences: report.preferences,
@@ -51,16 +42,7 @@ struct SettingsView: View {
             preferences: report.preferences,
             now: report.now,
         ))
-        _path = State(initialValue: initialPath)
     }
-
-    #if DEBUG
-        /// Drives the production `NavigationStack` to one destination in tests.
-        /// The test-only seam stays out of release and creates no parallel route.
-        init(report: YearReportModel, testingRoute route: SettingsRoute) {
-            self.init(report: report, recordingWarning: nil, initialPath: [route])
-        }
-    #endif
 
     private var searchQuery: String {
         searchText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -85,7 +67,7 @@ struct SettingsView: View {
     }
 
     var body: some View {
-        NavigationStack(path: $path) {
+        NavigationStack {
             List {
                 if isSearching {
                     ForEach(searchResults) { result in
@@ -122,7 +104,12 @@ struct SettingsView: View {
                 }
             }
             .navigationDestination(for: SettingsRoute.self) { route in
-                destination(for: route)
+                SettingsRouteView(
+                    route: route,
+                    report: report,
+                    backup: backup,
+                    reminders: reminders,
+                )
             }
             .sheet(isPresented: $showRegions) {
                 RegionsSettingsView(usedThisYear: regionsUsedThisYear)
@@ -272,72 +259,12 @@ struct SettingsView: View {
         }
     }
 
-    @ViewBuilder
-    private func destination(for route: SettingsRoute) -> some View {
-        switch route.destination {
-            case .attachments:
-                EvidenceListView(report: report)
-            case .loggedDays:
-                LoggedDaysView(report: report)
-            case .devices:
-                DevicesSettingsView(session: session, focus: route.focus)
-            case .regions:
-                // Regions is presented as a sheet (`isSheet`), so it's never
-                // routed here; this arm only keeps the switch exhaustive.
-                EmptyView()
-            case .alerts:
-                AlertsSettingsView(report: report, reminders: reminders, focus: route.focus)
-            case .appearance:
-                AppearanceSettingsView(report: report, focus: route.focus)
-            case .year:
-                VisibleYearSettingsView(report: report, focus: route.focus)
-            case .siri:
-                SiriFeaturesView(
-                    focus: route.focus,
-                    presentation: featureDiscoveryPresentation,
-                )
-            case .widgets:
-                WidgetFeaturesView(
-                    focus: route.focus,
-                    presentation: featureDiscoveryPresentation,
-                )
-            case .shareEvidence:
-                ShareEvidenceFeaturesView(
-                    report: report,
-                    focus: route.focus,
-                    presentation: featureDiscoveryPresentation,
-                )
-            case .estimatedTime:
-                EstimatedTimeFeaturesView(report: report, focus: route.focus)
-            case .insightsAccuracy:
-                InsightsAccuracyFeaturesView(
-                    report: report,
-                    focus: route.focus,
-                )
-            case .personalization:
-                PersonalizationFeaturesView(report: report, focus: route.focus)
-            case .data:
-                DataSettingsView(report: report, backup: backup, focus: route.focus)
-            case .about:
-                AboutSettingsView(focus: route.focus)
-        }
-    }
-
     /// Regions with days in the selected report year, so the region editor can
     /// surface a "used this year" group (grouping order only — it doesn't affect
     /// what's saved). `.other` isn't a pickable region, so it's dropped.
     private var regionsUsedThisYear: Set<Region> {
         guard let totals = report.report?.totals else { return [] }
         return Set(totals.filter { $0.key != .other && $0.value > 0 }.map(\.key))
-    }
-
-    private var featureDiscoveryPresentation: FeatureDiscoveryPresentation {
-        FeatureDiscoveryPresentation(
-            report: report.report,
-            selectedYear: report.selectedYear,
-            referenceDate: report.referenceDate,
-            calendar: report.calendar,
-        )
     }
 }
 
