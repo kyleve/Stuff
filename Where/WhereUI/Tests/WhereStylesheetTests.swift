@@ -27,6 +27,7 @@ struct WhereStylesheetTests {
 
     @Test func regularCardStyle() {
         let card = style.card.regular
+        #expect(style.card.estimatedProgressOpacity == 0.3)
         #expect(card.cornerRadius == 28)
         #expect(card.padding == 22)
         #expect(card.contentSpacing == 16)

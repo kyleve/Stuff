@@ -127,6 +127,7 @@ struct LocationsView: View {
                                 regionDays: presentedItem,
                                 interactive: true,
                                 yearLength: report.daysInSelectedYear,
+                                estimatedDays: estimatedDays(for: item.region),
                                 year: report.selectedYear,
                                 tilt: tilt,
                                 recordedPoints: report.primaryRegionLocations?
@@ -233,6 +234,11 @@ struct LocationsView: View {
     /// `.other` is a catch-all rather than a place a user can plan around.
     private var topForecasts: [LocationForecast] {
         report.forecasts.leadingForecasts(report: report.report)
+    }
+
+    private func estimatedDays(for region: Region) -> Int? {
+        guard report.showsEstimatedTimeAndPlanning else { return nil }
+        return report.forecasts.forecast(for: region, report: report.report)?.estimatedTotalDays
     }
 
     private func editPlannedStay(_ region: Region) {

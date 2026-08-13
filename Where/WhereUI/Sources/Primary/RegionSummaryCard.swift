@@ -30,6 +30,10 @@ struct RegionSummaryCard: View {
     /// (`YearReportModel.daysInSelectedYear`); the default is only for previews.
     var yearLength = 365
 
+    /// The forecasted total rendered behind recorded progress. Locations cards
+    /// supply it when Estimated Time & Planning is visible; other cards omit it.
+    var estimatedDays: Int?
+
     /// The calendar year being summarized, inked onto the entry stamp. Callers
     /// pass `WhereSession.selectedYear`; the default is only for previews.
     var year = WhereModel.currentYear
@@ -92,6 +96,14 @@ struct RegionSummaryCard: View {
         styleOverride ?? regionStyles.style(for: regionDays.region)
     }
 
+    private var recordedFraction: Double {
+        fraction(for: regionDays.days)
+    }
+
+    private var estimatedFraction: Double? {
+        estimatedDays.map(fraction)
+    }
+
     /// Region ink on light cards; a pale derivative on dark cards that remains
     /// distinct while interactive Liquid Glass illuminates nearby surfaces.
     private var securityPrintTint: Color {
@@ -102,13 +114,13 @@ struct RegionSummaryCard: View {
         RoundedRectangle(cornerRadius: card.cornerRadius, style: .continuous)
     }
 
-    private var fraction: Double {
-        guard yearLength > 0 else { return 0 }
-        return min(1, Double(regionDays.days) / Double(yearLength))
-    }
-
     private var barHeight: CGFloat {
         card.progressBarHeight
+    }
+
+    private func fraction(for days: Int) -> Double {
+        guard yearLength > 0 else { return 0 }
+        return min(1, max(0, Double(days) / Double(yearLength)))
     }
 
     private var regionArtworkLoadID: RegionArtworkLoadID {
@@ -301,7 +313,16 @@ struct RegionSummaryCard: View {
                     GeometryReader { proxy in
                         Capsule()
                             .fill(style.tint)
-                            .frame(width: proxy.size.width * fraction)
+                            .frame(width: proxy.size.width * recordedFraction)
+                            .background(alignment: .leading) {
+                                if let estimatedFraction {
+                                    Capsule()
+                                        .fill(style.tint.opacity(
+                                            cardStyles.estimatedProgressOpacity,
+                                        ))
+                                        .frame(width: proxy.size.width * estimatedFraction)
+                                }
+                            }
                     }
                 }
                 .frame(height: barHeight)
@@ -311,6 +332,7 @@ struct RegionSummaryCard: View {
         // only inside an animation transaction — and it sweeps the ambient bar,
         // which reads the same count, in the same beat.
         .animation(dayCount.animation, value: regionDays.days)
+        .animation(dayCount.animation, value: estimatedDays)
         .padding(card.padding)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background { stampPaper }

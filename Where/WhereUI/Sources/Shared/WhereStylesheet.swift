@@ -569,6 +569,8 @@ extension WhereStylesheet {
         var glassTintOpacity: Double
         /// Opacity of the region-name header.
         var nameOpacity: Double
+        /// Opacity of the estimated progress rendered behind recorded days.
+        var estimatedProgressOpacity: Double = 0.3
         /// Fill opacities of the two security-print rosettes.
         var rosetteFill: RosetteFill
         /// How the region tint is prepared for decorative security printing.
