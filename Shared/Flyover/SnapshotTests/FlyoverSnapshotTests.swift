@@ -38,27 +38,16 @@ struct FlyoverSnapshotTests {
             ),
         )
 
-        let fittedAllModel = FlyoverModel(catalog: catalog)
-        let layout = FlyoverLayout(
-            catalog: catalog,
-            style: FlyoverStylesheet.default.layout,
-        ).resolve()
-        fittedAllModel.applyInitialCanvasZoom(
-            FlyoverCanvasZoomPlan(
-                canvasSize: layout.canvasSize,
-                availableSize: Self.iPadSnapshotSize,
-                edgeInset: FlyoverStylesheet.default.canvas.framingInset,
-            ).allZoom,
-        )
+        let fullCanvasModel = FlyoverModel(catalog: catalog)
         await assertSnapshots(
-            of: FlyoverView(catalog: catalog, model: fittedAllModel),
-            named: "FlyoverCanvasFitAll",
+            of: FlyoverView(catalog: catalog, model: fullCanvasModel),
+            named: "FlyoverCanvasFullContent",
             configurations: SnapshotConfiguration.combinations(
-                devices: [.iPadFullContent],
+                devices: [.iPadFullContent2D],
             ),
             measurementReadiness: .settled,
             onReadyToMeasure: {
-                await fittedAllModel.waitUntilVisiblePreviewsAreLoaded()
+                await fullCanvasModel.waitUntilVisiblePreviewsAreLoaded()
             },
             settle: .settledAtLeast(minDuration: 1.5),
         )
@@ -75,15 +64,6 @@ struct FlyoverSnapshotTests {
                 devices: [.iPadFullContent],
             ),
         )
-    }
-
-    private static var iPadSnapshotSize: CGSize {
-        switch SnapshotConfiguration.Frame.iPadFullContent.size {
-            case let .fullContent(width, minimumHeight):
-                CGSize(width: width, height: minimumHeight ?? width)
-            case .fixed, .intrinsic:
-                preconditionFailure("The iPad full-content preset must remain full-content.")
-        }
     }
 
     private static func catalog() -> FlyoverCatalog<SnapshotScreen> {

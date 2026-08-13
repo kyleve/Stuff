@@ -137,6 +137,8 @@ public func assertSnapshots(
                     width: width,
                     minimumHeight: minimumHeight ?? 0,
                 )
+            case let .fullContent2D(minimumSize):
+                .fullContent2D(minimumSize: minimumSize)
         }
         let identifier = fullSnapshotIdentifier(caseName: name, configuration: configuration)
         let timing = SnapshotCaptureTiming(
@@ -351,6 +353,8 @@ private func makeHostingController(
         case let .fullContent(width, minimumHeight):
             let height = minimumHeight ?? 1
             hostingController.view.frame = CGRect(x: 0, y: 0, width: width, height: height)
+        case let .fullContent2D(minimumSize):
+            hostingController.view.frame = CGRect(origin: .zero, size: minimumSize)
     }
 
     return hostingController

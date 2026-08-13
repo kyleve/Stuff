@@ -21,7 +21,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first. That file owns build, format
 - **Load the canvas from the viewport.** Keep at most six automatic screen trees live. A manually requested preview replaces that set with one tree. Presenting the focused inspector suspends the canvas set.
 - **Open the canvas fitted to its first group's width.** Reserve whole-graph framing for the explicit Fit All action.
 - **Invoke variant builders through the serial deferred load coordinator.** Never invoke them synchronously from a SwiftUI `body`. Preview fixtures may open expensive in-memory stores.
-- **Canvas preview readiness is the latest nonempty visible-load expectation.** Variant or generation changes supersede stale completions. Cancelled waiters must resume. `FlyoverSnapshotTests` awaits it before intrinsic measurement.
+- **Canvas preview readiness is the latest nonempty visible-load expectation.** Variant or generation changes supersede stale completions. Cancelled waiters must resume. `FlyoverSnapshotTests` awaits it before full-content measurement.
 - **Keep global traits session-only.** Apply them to registered content, not Flyover chrome.
 - **Register forward push/modal routes only.** Flyover derives Back/Dismiss cues from incoming routes.
 - **Type erase only at the heterogeneous content/control registry boundary.**

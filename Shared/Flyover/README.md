@@ -137,7 +137,9 @@ Run unit coverage with:
 ./test FlyoverTests
 ```
 
-The visual canvas/list contract is owned by `FlyoverSnapshotTests` in the shared snapshot scheme:
+The visual canvas/list contract is owned by `FlyoverSnapshotTests` in the shared snapshot scheme.
+Its full-canvas reference uses SnapshotKit's explicit two-axis full-content frame.
+This keeps every horizontally shelved group visible at the same readable initial zoom:
 
 ```sh
 ./test --snapshots
