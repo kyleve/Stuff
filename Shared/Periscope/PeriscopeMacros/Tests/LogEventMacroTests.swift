@@ -65,27 +65,41 @@ func expandsClassifiedEventAndLogMethod() {
             }
 
             static let scopeName = "Sample"
-        }
 
-        extension Log where Scope == SampleLog {
-            func counted(
-                count: ClassifiedLogInput<LogFieldPolicy.Shared, LogFieldPolicy.Count, Int>,
-                attachments: [LogAttachment] = [],
-                function: StaticString = #function,
-                fileID: StaticString = #fileID
-            ) {
-                record(
-                    SampleLog.Counted(
-                        count: count
-                    ),
-                    attachments: attachments,
-                    function: function,
-                    fileID: fileID
-                )
+            struct LogMethods {
+                fileprivate let log: Log<SampleLog>
+
+                var counted: CountedLogMethod {
+                    CountedLogMethod(log: log)
+                }
+            }
+
+            struct CountedLogMethod {
+                fileprivate let log: Log<SampleLog>
+
+                func callAsFunction(
+                    count: ClassifiedLogInput<LogFieldPolicy.Shared, LogFieldPolicy.Count, Int>,
+                    attachments: [LogAttachment] = [],
+                    function: StaticString = #function,
+                    fileID: StaticString = #fileID
+                ) {
+                    log.record(
+                        SampleLog.Counted(
+                            count: count
+                        ),
+                        attachments: attachments,
+                        function: function,
+                        fileID: fileID
+                    )
+                }
+            }
+
+            static func makeLogMethods(_ log: Log<SampleLog>) -> LogMethods {
+                LogMethods(log: log)
             }
         }
 
-        extension SampleLog.Counted: LogEvent, Codable, Sendable {
+        extension SampleLog.Counted: LogEvent {
         }
 
         extension SampleLog: LogScopeDefinition {

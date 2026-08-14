@@ -13,10 +13,10 @@
             // `.occurrence`: the app isn't "in a memory warning" afterwards,
             // so this must not stick to every later record's snapshot.
             AmbientEvent(
-                kind: .memory,
-                value: ["pressure": .string("warning")],
-                level: .warning,
-                reporting: .occurrence,
+                kind: .restricted(.technicalState, .memory),
+                value: .restricted(.domainValue, ["pressure": .string("warning")]),
+                level: .restricted(.technicalState, .warning),
+                reporting: .restricted(.technicalState, .occurrence),
             )
         }
     }

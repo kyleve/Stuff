@@ -15,7 +15,7 @@ private final class FreeformController: LogContextProviding {
 }
 
 private final class TypedController: LogContextProviding {
-    typealias LogEventType = PhotoLogs
+    typealias LoggingScope = PhotoLogs
 
     let system: Periscope
 

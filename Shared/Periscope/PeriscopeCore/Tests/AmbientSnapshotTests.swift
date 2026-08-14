@@ -5,7 +5,7 @@ import Testing
 struct AmbientSnapshotTests {
     @Test func firstStateEventStartsASnapshot() {
         let snapshot = AmbientSnapshot.folding(
-            AmbientEvent(kind: .network, value: ["status": "satisfied"]),
+            makeAmbientEvent(kind: .network, value: ["status": "satisfied"]),
             into: nil,
         )
         #expect(snapshot?[.network] == ["status": "satisfied"])
@@ -15,7 +15,11 @@ struct AmbientSnapshotTests {
     /// while carrying no values — `nil` says "not observed yet" honestly.
     @Test func momentaryEventCannotCreateAnEmptySnapshot() {
         let snapshot = AmbientSnapshot.folding(
-            AmbientEvent(kind: .memory, value: ["pressure": "warning"], reporting: .occurrence),
+            makeAmbientEvent(
+                kind: .memory,
+                value: ["pressure": "warning"],
+                reporting: .occurrence,
+            ),
             into: nil,
         )
         #expect(snapshot == nil)
@@ -24,7 +28,7 @@ struct AmbientSnapshotTests {
     @Test func changedValueTakesANewIdentity() {
         let first = AmbientSnapshot(id: UUID(), values: [.network: ["status": "satisfied"]])
         let second = first.applying(
-            AmbientEvent(kind: .network, value: ["status": "unsatisfied"]),
+            makeAmbientEvent(kind: .network, value: ["status": "unsatisfied"]),
         )
         #expect(second[.network] == ["status": "unsatisfied"])
         #expect(second.id != first.id)
@@ -32,7 +36,10 @@ struct AmbientSnapshotTests {
 
     @Test func newKindJoinsTheExistingValues() {
         let first = AmbientSnapshot(id: UUID(), values: [.network: ["status": "satisfied"]])
-        let second = first.applying(AmbientEvent(kind: .thermalState, value: ["level": "fair"]))
+        let second = first.applying(makeAmbientEvent(
+            kind: .thermalState,
+            value: ["level": "fair"],
+        ))
         #expect(second[.network] == ["status": "satisfied"])
         #expect(second[.thermalState] == ["level": "fair"])
     }
@@ -42,14 +49,19 @@ struct AmbientSnapshotTests {
     @Test func unchangedValueKeepsTheSameIdentity() {
         let first = AmbientSnapshot(id: UUID(), values: [.network: ["status": "satisfied"]])
         #expect(
-            first.applying(AmbientEvent(kind: .network, value: ["status": "satisfied"])) == first,
+            first.applying(makeAmbientEvent(kind: .network, value: ["status": "satisfied"]))
+                == first,
         )
     }
 
     @Test func momentaryEventLeavesAnExistingSnapshotAlone() {
         let first = AmbientSnapshot(id: UUID(), values: [.network: ["status": "satisfied"]])
         let second = first.applying(
-            AmbientEvent(kind: .memory, value: ["pressure": "warning"], reporting: .occurrence),
+            makeAmbientEvent(
+                kind: .memory,
+                value: ["pressure": "warning"],
+                reporting: .occurrence,
+            ),
         )
         #expect(second == first)
         #expect(second[.memory] == nil)

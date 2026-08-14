@@ -35,7 +35,10 @@ struct LogHistoryPrunerTests {
         await store.write((0 ..< count).map { daysAgo in
             LogRecord(
                 date: Self.now.addingTimeInterval(-Self.days(Double(daysAgo))),
-                event: Message(level: .info, "day-\(daysAgo)"),
+                event: Message(
+                    level: .restricted(.technicalState, .info),
+                    text: .restricted(.arbitraryText, "day-\(daysAgo)"),
+                ),
                 scopes: [root.id],
             )
         })
