@@ -40,6 +40,7 @@ extension FlyoverStylesheet {
         var cardSize = CGSize(width: 300, height: 650)
         var horizontalSpacing: CGFloat = 100
         var verticalSpacing: CGFloat = 90
+        var maximumAutomaticRowsPerColumn = 4
         var groupPadding: CGFloat = 60
         var groupSpacing: CGFloat = 120
         var canvasPadding: CGFloat = 40

@@ -7,6 +7,11 @@ struct FlyoverLayout<ScreenID: Hashable> {
     let style: FlyoverStylesheet.LayoutStyle
 
     func resolve() -> FlyoverLayoutResult<ScreenID> {
+        precondition(
+            style.maximumAutomaticRowsPerColumn > 0,
+            "A Flyover automatic column must allow at least one row.",
+        )
+
         let card = style.cardSize
         var screenFrames: [ScreenID: CGRect] = [:]
         var groupFrames: [FlyoverGroupID: CGRect] = [:]
@@ -22,28 +27,47 @@ struct FlyoverLayout<ScreenID: Hashable> {
                     occupied.insert(position)
                 }
             }
-            var nextRows: [Int: Int] = [:]
             var resolvedPositions: [ScreenID: FlyoverPosition] = [:]
 
             for screen in group.screens {
                 if let position = screen.position {
                     resolvedPositions[screen.id] = position
-                    nextRows[position.column] = max(
-                        nextRows[position.column, default: 0],
-                        position.row + 1,
-                    )
+                }
+            }
+
+            let automaticScreens = Dictionary(
+                grouping: group.screens.filter { $0.position == nil },
+                by: { depths[$0.id, default: 0] },
+            )
+            var nextAutomaticColumn = 0
+
+            for depth in automaticScreens.keys.sorted() {
+                guard let screens = automaticScreens[depth] else {
                     continue
                 }
 
-                let column = depths[screen.id, default: 0]
-                var row = nextRows[column, default: 0]
-                while occupied.contains(FlyoverPosition(column: column, row: row)) {
-                    row += 1
+                var column = max(depth, nextAutomaticColumn)
+                var row = 0
+
+                for screen in screens {
+                    while true {
+                        if row == style.maximumAutomaticRowsPerColumn {
+                            column += 1
+                            row = 0
+                        }
+
+                        let position = FlyoverPosition(column: column, row: row)
+                        row += 1
+                        guard occupied.insert(position).inserted else {
+                            continue
+                        }
+
+                        resolvedPositions[screen.id] = position
+                        break
+                    }
                 }
-                let position = FlyoverPosition(column: column, row: row)
-                occupied.insert(position)
-                resolvedPositions[screen.id] = position
-                nextRows[column] = row + 1
+
+                nextAutomaticColumn = column + 1
             }
 
             let maximumColumn = resolvedPositions.values.map(\.column).max() ?? 0

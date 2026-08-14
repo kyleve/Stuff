@@ -107,6 +107,8 @@ Snapshot capture awaits that production loading signal before intrinsic measurem
 Viewport or variant changes supersede stale completions.
 
 Groups form a top-aligned horizontal shelf while each group's navigation graph continues from left to right.
+Automatic screens at the same graph depth stack up to four rows before continuing in a new column, keeping broad catalogs from producing an excessively tall canvas.
+Explicit `FlyoverPosition` values remain exact and may intentionally exceed that automatic limit.
 The initial canvas zoom fits the first group to the available width so its cards are immediately legible.
 Reach later groups by horizontal scrolling.
 **Fit All** remains available for a whole-graph overview.
@@ -137,7 +139,9 @@ Run unit coverage with:
 ./test FlyoverTests
 ```
 
-The visual canvas/list contract is owned by `FlyoverSnapshotTests` in the shared snapshot scheme:
+The visual canvas/list contract is owned by `FlyoverSnapshotTests` in the shared snapshot scheme.
+Its full-canvas reference uses SnapshotKit's explicit two-axis full-content frame.
+This keeps every horizontally shelved group visible at the same readable initial zoom:
 
 ```sh
 ./test --snapshots

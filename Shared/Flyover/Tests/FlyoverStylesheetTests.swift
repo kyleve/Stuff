@@ -15,6 +15,7 @@ struct FlyoverStylesheetTests {
         #expect(style.layout.cardSize == CGSize(width: 300, height: 650))
         #expect(style.layout.horizontalSpacing == 100)
         #expect(style.layout.verticalSpacing == 90)
+        #expect(style.layout.maximumAutomaticRowsPerColumn == 4)
         #expect(style.layout.groupPadding == 60)
         #expect(style.layout.groupSpacing == 120)
         #expect(style.layout.canvasPadding == 40)

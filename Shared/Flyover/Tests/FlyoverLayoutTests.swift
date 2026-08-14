@@ -52,6 +52,60 @@ struct FlyoverLayoutTests {
         #expect(frame.minY > 1400)
     }
 
+    @Test func tallAutomaticStacksSpillRightBeforeTheNextDepth() throws {
+        var style = FlyoverStylesheet.default.layout
+        style.maximumAutomaticRowsPerColumn = 2
+        let childIDs = (1 ... 5).map { "child-\($0)" }
+        let screens = ["root"] + childIDs + ["grandchild"]
+        let catalog = FlyoverCatalog(
+            groups: [
+                FlyoverGroup(
+                    id: FlyoverGroupID("main"),
+                    title: "Main",
+                    root: "root",
+                    screens: screens.map { id in
+                        FlyoverScreen(
+                            id: id,
+                            title: id,
+                            variants: [
+                                FlyoverVariant(
+                                    id: FlyoverVariantID("default"),
+                                    title: "Default",
+                                ) {
+                                    EmptyView()
+                                },
+                            ],
+                        )
+                    },
+                ),
+            ],
+            transitions: childIDs.map {
+                FlyoverTransition(from: "root", to: $0, kind: .push)
+            } + [
+                FlyoverTransition(from: childIDs[0], to: "grandchild", kind: .push),
+            ],
+        )
+        let layout = FlyoverLayout(catalog: catalog, style: style).resolve()
+        let firstChild = try #require(layout.screenFrames[childIDs[0]])
+        let secondChild = try #require(layout.screenFrames[childIDs[1]])
+        let thirdChild = try #require(layout.screenFrames[childIDs[2]])
+        let fifthChild = try #require(layout.screenFrames[childIDs[4]])
+        let grandchild = try #require(layout.screenFrames["grandchild"])
+        let group = try #require(layout.groupFrames[FlyoverGroupID("main")])
+
+        #expect(secondChild.minX == firstChild.minX)
+        #expect(secondChild.minY > firstChild.minY)
+        #expect(thirdChild.minX > secondChild.minX)
+        #expect(thirdChild.minY == firstChild.minY)
+        #expect(grandchild.minX > fifthChild.minX)
+        #expect(
+            group.height == style.groupPadding * 2
+                + style.cardSize.height * 2
+                + style.verticalSpacing
+                + style.groupHeaderHeight,
+        )
+    }
+
     @Test func groupsFormATopAlignedHorizontalShelf() throws {
         let style = FlyoverStylesheet.default.layout
         let catalog = FlyoverCatalog(
