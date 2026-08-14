@@ -51,9 +51,10 @@ It streams progress while tests run:
 ```bash
 ./test                  # just what your change affects
 ./test WhereCoreTests   # one bundle
+./test PeriscopeMacrosTests # the host-side macro suite, without a simulator
 ./test --all            # the whole unit suite
 ./test --snapshots      # the image-snapshot suite
-./test --everything     # both CI suites in one local run
+./test --everything     # unit, snapshot, and host macro suites
 ```
 
 See `./test --help` for the rest, including `--timings` and `--review` for reading a snapshot run.

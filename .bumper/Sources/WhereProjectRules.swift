@@ -4,17 +4,18 @@ import SwiftSyntax
 let whereProjectRules = RuleSet {
     Rules.constructionOwnership(
         "WhereServices",
-        allowed: whereServicesConstructionScope,
+        allowed: whereServicesConstructionScope.union(nonWhereProductionScope),
         id: "where.services_composition_ownership",
     )
     Rules.constructionOwnership(
         "CoreLocationSource",
-        allowed: .files(["Where/WhereUI/Sources/Launch/WhereLaunch.swift"]),
+        allowed: RuleScope.files(["Where/WhereUI/Sources/Launch/WhereLaunch.swift"])
+            .union(nonWhereProductionScope),
         id: "where.live_location_source_ownership",
     )
     Rules.singleNominalSpelling(
         suffix: "Log",
-        owner: whereLoggingScope,
+        owner: whereLoggingScope.union(nonWhereProductionScope),
         id: "where.logging_type_ownership",
     )
     productionStoreOpeningRule
@@ -24,6 +25,14 @@ let whereProjectRules = RuleSet {
     appShortcutsProviderOwnershipRule
     loggingFacadeRule
     previewCoverageRule
+}
+
+private let whereProductionScope = RuleScope { file in
+    file.path.rawValue.hasPrefix("Where/") && file.path.rawValue.contains("/Sources/")
+}
+
+private let nonWhereProductionScope = RuleScope { file in
+    !whereProductionScope.includes(file)
 }
 
 private let whereServicesConstructionScope = RuleScope
@@ -48,6 +57,7 @@ private let productionStoreOpeningRule = Rules.files(
     "where.production_store_opening",
     severity: .error,
     summary: "Production SwiftData stores open only at the app and share-extension composition roots.",
+    scope: whereProductionScope,
 ) { file in
     functionCalls()
         .filter { match in
@@ -78,6 +88,7 @@ private let checkedConcurrencyBoundaryRule = Rules.files(
     "where.checked_concurrency_boundaries",
     severity: .error,
     summary: "Unchecked concurrency escape hatches stay inside documented lifecycle boundaries.",
+    scope: whereProductionScope,
 ) { file in
     let preconcurrencyFailures = SyntaxQuery<AttributeSyntax>()
         .filter { match in
@@ -118,6 +129,7 @@ private let gregorianCalendarRule = Rules.files(
     "where.gregorian_calendar",
     severity: .error,
     summary: "Where day and year calculations do not use the device's potentially non-Gregorian current calendar.",
+    scope: whereProductionScope,
 ) { file in
     SyntaxQuery<MemberAccessExprSyntax>()
         .filter { match in
@@ -153,6 +165,7 @@ private let storeTransactionBoundaryRule = Rules.files(
     "where.store_transaction_boundary",
     severity: .error,
     summary: "WhereStore mutations occur inside a transaction helper on store.",
+    scope: whereProductionScope,
 ) { file in
     functionCalls()
         .filter { match in
@@ -197,6 +210,7 @@ private let appShortcutsProviderOwnershipRule = Rules.files(
     "where.app_shortcuts_provider_ownership",
     severity: .error,
     summary: "AppShortcutsProvider conformances live in the Where app target.",
+    scope: whereProductionScope,
 ) { file in
     guard file.component.rawValue != WhereComponent.app.rawValue else { return [] }
     return SyntaxQuery<InheritedTypeSyntax>()
@@ -217,6 +231,7 @@ private let loggingFacadeRule = Rules.files(
     "where.logging_facade",
     severity: .error,
     summary: "Where production logging goes through its typed Periscope facades.",
+    scope: whereProductionScope,
 ) { file in
     let rawLoggingImports = SyntaxQuery<ImportDeclSyntax>()
         .filter { $0.node.path.trimmedDescription == "OSLog" }
