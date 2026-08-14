@@ -15,12 +15,14 @@ struct FlyoverLayout<ScreenID: Hashable> {
         let card = style.cardSize
         var screenFrames: [ScreenID: CGRect] = [:]
         var groupFrames: [FlyoverGroupID: CGRect] = [:]
+        var depthBands: [FlyoverDepthBand] = []
         var groupOriginX = style.canvasPadding
         var maximumHeight: CGFloat = 0
         var initialCanvasSize: CGSize?
 
         for group in catalog.groups {
             let depths = graphDepths(in: group)
+            let unlinkedDepth = (depths.values.max() ?? 0) + 1
             var occupied = Set<FlyoverPosition>()
             for screen in group.screens {
                 if let position = screen.position {
@@ -37,8 +39,9 @@ struct FlyoverLayout<ScreenID: Hashable> {
 
             let automaticScreens = Dictionary(
                 grouping: group.screens.filter { $0.position == nil },
-                by: { depths[$0.id, default: 0] },
+                by: { depths[$0.id] ?? unlinkedDepth },
             )
+            var depthColumnRanges: [Int: ClosedRange<Int>] = [:]
             var nextAutomaticColumn = 0
 
             for depth in automaticScreens.keys.sorted() {
@@ -47,6 +50,7 @@ struct FlyoverLayout<ScreenID: Hashable> {
                 }
 
                 var column = max(depth, nextAutomaticColumn)
+                let firstColumn = column
                 var row = 0
 
                 for screen in screens {
@@ -67,6 +71,7 @@ struct FlyoverLayout<ScreenID: Hashable> {
                     }
                 }
 
+                depthColumnRanges[depth] = firstColumn ... column
                 nextAutomaticColumn = column + 1
             }
 
@@ -86,6 +91,32 @@ struct FlyoverLayout<ScreenID: Hashable> {
                 height: groupHeight,
             )
             groupFrames[group.id] = groupFrame
+            for depth in depthColumnRanges.keys.sorted() {
+                guard let columns = depthColumnRanges[depth] else {
+                    continue
+                }
+                let firstCardX = groupFrame.minX + style.groupPadding
+                    + CGFloat(columns.lowerBound) * (card.width + style.horizontalSpacing)
+                let lastCardMaxX = groupFrame.minX + style.groupPadding
+                    + CGFloat(columns.upperBound) * (card.width + style.horizontalSpacing)
+                    + card.width
+                let frame = CGRect(
+                    x: firstCardX - style.depthBandHorizontalInset,
+                    y: groupFrame.minY + style.groupHeaderHeight + style.depthBandTopInset,
+                    width: lastCardMaxX - firstCardX + style.depthBandHorizontalInset * 2,
+                    height: groupFrame.height
+                        - style.groupHeaderHeight
+                        - style.depthBandTopInset
+                        - style.depthBandBottomInset,
+                )
+                depthBands.append(FlyoverDepthBand(
+                    id: FlyoverDepthBand.ID(
+                        group: group.id,
+                        kind: depth == unlinkedDepth ? .unlinked : .route(depth: depth),
+                    ),
+                    frame: frame,
+                ))
+            }
             if initialCanvasSize == nil {
                 initialCanvasSize = CGSize(
                     width: groupFrame.maxX + style.canvasPadding,
@@ -117,6 +148,7 @@ struct FlyoverLayout<ScreenID: Hashable> {
         return FlyoverLayoutResult(
             screenFrames: screenFrames,
             groupFrames: groupFrames,
+            depthBands: depthBands,
             initialCanvasSize: initialCanvasSize,
             canvasSize: CGSize(
                 width: max(groupOriginX - style.groupSpacing + style.canvasPadding, 1),
@@ -143,10 +175,6 @@ struct FlyoverLayout<ScreenID: Hashable> {
             }
         }
 
-        let disconnectedDepth = (depths.values.max() ?? 0) + 1
-        for screen in group.screens where depths[screen.id] == nil {
-            depths[screen.id] = disconnectedDepth
-        }
         return depths
     }
 }

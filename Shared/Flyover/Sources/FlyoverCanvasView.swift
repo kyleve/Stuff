@@ -45,6 +45,10 @@ struct FlyoverCanvasView<ScreenID: Hashable>: View {
                         }
                     }
 
+                    ForEach(layout.depthBands) { band in
+                        FlyoverDepthBandBackdrop(band: band)
+                    }
+
                     FlyoverConnectorCanvas(catalog: catalog, layout: layout)
 
                     ForEach(catalog.screens, id: \.id) { screen in

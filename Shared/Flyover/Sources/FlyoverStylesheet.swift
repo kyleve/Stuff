@@ -7,6 +7,7 @@ struct FlyoverStylesheet: BStylesheet {
     var canvas = CanvasStyle()
     var layout = LayoutStyle()
     var group = GroupStyle()
+    var depthBand = DepthBandStyle()
     var screen = ScreenStyle()
     var screenContent = ScreenContentStyle()
     var screenControls = ScreenControlsStyle()
@@ -41,6 +42,9 @@ extension FlyoverStylesheet {
         var horizontalSpacing: CGFloat = 100
         var verticalSpacing: CGFloat = 90
         var maximumAutomaticRowsPerColumn = 4
+        var depthBandHorizontalInset: CGFloat = 20
+        var depthBandTopInset: CGFloat = 12
+        var depthBandBottomInset: CGFloat = 24
         var groupPadding: CGFloat = 60
         var groupSpacing: CGFloat = 120
         var canvasPadding: CGFloat = 40
@@ -54,6 +58,16 @@ extension FlyoverStylesheet {
         var strokeWidth: CGFloat = 2
         var titleFont = Font.title2.bold()
         var titlePadding: CGFloat = 20
+    }
+
+    struct DepthBandStyle: Equatable {
+        var labelFont = Font.caption.bold()
+        var labelColor = Color.secondary
+        var labelLeadingPadding: CGFloat = 10
+        var labelSpacing: CGFloat = 6
+        var ruleColor = Color.secondary
+        var ruleOpacity: Double = 0.24
+        var ruleWidth: CGFloat = 1
     }
 
     struct ScreenStyle: Equatable {

@@ -108,6 +108,8 @@ Viewport or variant changes supersede stale completions.
 
 Groups form a top-aligned horizontal shelf while each group's navigation graph continues from left to right.
 Automatic screens at the same graph depth stack up to four rows before continuing in a new column, keeping broad catalogs from producing an excessively tall canvas.
+Each automatic route depth is marked by one labeled band spanning all of its overflow columns, so horizontal packing does not hide navigation depth.
+Screens with no route from their group's root are collected in a separate **Unlinked** band rather than presented as a false navigation depth.
 Explicit `FlyoverPosition` values remain exact and may intentionally exceed that automatic limit.
 The initial canvas zoom fits the first group to the available width so its cards are immediately legible.
 Reach later groups by horizontal scrolling.

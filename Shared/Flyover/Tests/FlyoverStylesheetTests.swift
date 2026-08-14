@@ -16,10 +16,17 @@ struct FlyoverStylesheetTests {
         #expect(style.layout.horizontalSpacing == 100)
         #expect(style.layout.verticalSpacing == 90)
         #expect(style.layout.maximumAutomaticRowsPerColumn == 4)
+        #expect(style.layout.depthBandHorizontalInset == 20)
+        #expect(style.layout.depthBandTopInset == 12)
+        #expect(style.layout.depthBandBottomInset == 24)
         #expect(style.layout.groupPadding == 60)
         #expect(style.layout.groupSpacing == 120)
         #expect(style.layout.canvasPadding == 40)
         #expect(style.layout.groupHeaderHeight == 44)
+        #expect(style.depthBand.labelLeadingPadding == 10)
+        #expect(style.depthBand.labelSpacing == 6)
+        #expect(style.depthBand.ruleOpacity == 0.24)
+        #expect(style.depthBand.ruleWidth == 1)
     }
 
     @Test func groupAndScreenDefaults() {
