@@ -766,7 +766,10 @@ for scheme in "${SCHEMES[@]}"; do
         if ! xcodebuild build-for-testing \
             -workspace "$WORKSPACE" \
             -scheme "$scheme" \
+            -configuration Debug \
             -destination "$DESTINATION" \
+            SWIFT_OPTIMIZATION_LEVEL=-O \
+            GCC_OPTIMIZATION_LEVEL=s \
             >"$WORKDIR/$scheme-build.log" 2>&1
         then
             echo "error: build failed for $scheme. Tail of $WORKDIR/$scheme-build.log:" >&2
