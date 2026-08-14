@@ -30,7 +30,7 @@ public struct LogEventMacro: MemberMacro, ExtensionMacro {
             )
             return []
         }
-        guard let scope = context.lexicalContext.compactMap({ $0.as(EnumDeclSyntax.self) }).last,
+        guard let scope = context.lexicalContext.first?.as(EnumDeclSyntax.self),
               attribute(named: "LogScope", in: scope.attributes) != nil
         else {
             context.diagnose(
@@ -79,10 +79,15 @@ public struct LogEventMacro: MemberMacro, ExtensionMacro {
         var members: [DeclSyntax] = [
             "\(raw: access)static let eventName = \(raw: scopeName).scopeName + \".\(raw: escapedStringLiteral(eventID))\"",
             "\(raw: access)static let eventVersion = \(raw: parsed.version)",
-            DeclSyntax(stringLiteral: codingKeys(access: access, fields: fields.values)),
             DeclSyntax(stringLiteral: initializer(access: access, fields: fields.values)),
             DeclSyntax(stringLiteral: classifiedFields(access: access, fields: fields.values)),
         ]
+        if !fields.values.isEmpty {
+            members.insert(
+                DeclSyntax(stringLiteral: codingKeys(access: access, fields: fields.values)),
+                at: 2,
+            )
+        }
         if let level = parsed.level {
             members.append("\(raw: access)var level: LogLevel { .\(raw: level) }")
         }
@@ -109,7 +114,7 @@ public struct LogEventMacro: MemberMacro, ExtensionMacro {
         in context: some MacroExpansionContext,
     ) throws -> [ExtensionDeclSyntax] {
         guard declaration.is(StructDeclSyntax.self),
-              context.lexicalContext.compactMap({ $0.as(EnumDeclSyntax.self) }).last.map({
+              context.lexicalContext.first?.as(EnumDeclSyntax.self).map({
                   attribute(named: "LogScope", in: $0.attributes) != nil
               }) == true
         else {
@@ -192,16 +197,15 @@ extension LogEventMacro {
         _ event: StructDeclSyntax,
         in context: some MacroExpansionContext,
     ) -> ParsedFields {
-        let metadataNames = ["message", "level", "externalID", "isProtectedFromDropping"]
-        let storedMetadataNames = ["message", "externalID", "isProtectedFromDropping"]
-        let reservedNames = [
-            "attachments",
-            "function",
-            "fileID",
+        let storedMetadataNames = [
+            "message",
+            "externalID",
             "classifiedFields",
             "eventName",
             "eventVersion",
+            "isProtectedFromDropping",
         ]
+        let reservedLabels = ["attachments", "function", "fileID"]
         let shareableKinds = ["boolean", "count", "limit", "duration", "category", "json"]
         var result = ParsedFields()
         var keys = Set<String>()
@@ -225,12 +229,22 @@ extension LogEventMacro {
                 continue
             }
             let name = identifier.identifier.text
-            if binding.accessorBlock != nil {
+            if let accessorBlock = binding.accessorBlock {
+                if attribute(named: "LogField", in: variable.attributes) != nil
+                    || accessorBlock.hasObservers
+                {
+                    context.diagnose(
+                        variable,
+                        id: "event-accessor",
+                        message: "event fields cannot declare accessors or observers",
+                    )
+                    result.hasError = true
+                }
                 // Computed projections are ordinary event API. They do not
                 // participate in the persisted payload or classification.
                 continue
             }
-            if storedMetadataNames.contains(name) || reservedNames.contains(name) {
+            if storedMetadataNames.contains(name) {
                 context.diagnose(
                     variable,
                     id: "event-reserved",
@@ -277,7 +291,7 @@ extension LogEventMacro {
                 )
                 result.hasError = true
             }
-            if reservedNames.contains(name) {
+            if reservedLabels.contains(name) {
                 context.diagnose(
                     variable,
                     id: "reserved-label",
