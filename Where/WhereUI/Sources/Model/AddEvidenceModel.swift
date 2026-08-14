@@ -93,7 +93,9 @@ public final class AddEvidenceModel {
 
     public func reportAttachmentError(_ message: String) {
         attachmentError = message
-        Self.logger { .attachmentPickFailed(description: message) }
+        Self.logger.attachmentPickFailed(
+            description: .restricted(.errorDetails, message),
+        )
     }
 
     /// Build the `Evidence` from the form and persist it (with any attachment
@@ -105,11 +107,15 @@ public final class AddEvidenceModel {
         let evidence = buildEvidence()
         do {
             try await services.journal.addEvidence(evidence, blob: attachment?.data)
-            Self.logger { .saved(evidenceID: String(describing: evidence.id)) }
+            Self.logger.saved(
+                evidenceID: .restricted(.identifier, String(describing: evidence.id)),
+            )
             return true
         } catch {
             saveState = .failed(error.localizedDescription)
-            Self.logger { .saveFailed(description: error.localizedDescription) }
+            Self.logger.saveFailed(
+                description: .restricted(.errorDetails, error.localizedDescription),
+            )
             return false
         }
     }

@@ -96,7 +96,7 @@ extension RegionCatalog {
 
     private static func loadFromBundle() -> RegionCatalog {
         guard let url = Bundle.module.url(forResource: "regions", withExtension: "json") else {
-            logger { .missingManifest }
+            logger.missingManifest()
             assertionFailure("Missing bundled regions.json")
             return RegionCatalog(entries: [])
         }
@@ -113,12 +113,13 @@ extension RegionCatalog {
                     )
                 }
             }
-            logger { .loaded(regionCount: entries.count) }
+            logger.loaded(regionCount: .shared(.count, entries.count))
             return RegionCatalog(entries: entries)
         } catch {
-            logger(attachments: [.error(error, name: "decode-error")]) {
-                .decodeFailed(description: error.localizedDescription)
-            }
+            logger.decodeFailed(
+                description: .restricted(.errorDetails, error.localizedDescription),
+                attachments: [.error(error, name: "decode-error")],
+            )
             assertionFailure("Failed to decode bundled regions.json: \(error)")
             return RegionCatalog(entries: [])
         }

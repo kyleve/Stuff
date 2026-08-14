@@ -17,7 +17,7 @@ final class ShareViewController: UIViewController {
         super.viewDidLoad()
 
         let items = (extensionContext?.inputItems as? [NSExtensionItem]) ?? []
-        Self.logger { .opened(itemCount: items.count) }
+        Self.logger.opened(itemCount: .restricted(.count, items.count))
 
         let model = ShareEvidenceModel(items: items)
         let root = ShareEvidenceView(

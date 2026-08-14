@@ -143,7 +143,7 @@ public actor LocationIngestor {
         isMonitoring = true
         await locationSource.start()
         guard isMonitoring else { return }
-        Self.logger { .monitoringStarted }
+        Self.logger.monitoringStarted()
         installIngestTaskIfNeeded()
     }
 
@@ -207,7 +207,7 @@ public actor LocationIngestor {
         guard !didLoadDurableBacklog else { return }
         let restored = try await outbox.load()
         if !restored.isEmpty {
-            Self.logger { .restoredBacklog(count: restored.count) }
+            Self.logger.restoredBacklog(count: .shared(.count, restored.count))
         }
         // Rows written before device provenance existed intentionally remain unstamped and
         // legacy-visible. Re-attributing them to this installation would make them depend on
@@ -266,7 +266,7 @@ public actor LocationIngestor {
         if isMonitoring {
             isMonitoring = false
             await locationSource.stop()
-            Self.logger { .monitoringStopped }
+            Self.logger.monitoringStopped()
         }
         captureTask?.cancel()
     }
@@ -290,7 +290,7 @@ public actor LocationIngestor {
         guard isMonitoring else { return }
         isMonitoring = false
         await locationSource.stop()
-        Self.logger { .monitoringStopped }
+        Self.logger.monitoringStopped()
     }
 
     /// Permanently discard samples awaiting persistence. The durable outbox is
@@ -315,7 +315,7 @@ public actor LocationIngestor {
     public func quiesce() async throws {
         await pause()
         try await discardRetryBacklog()
-        Self.logger { .quiesced }
+        Self.logger.quiesced()
     }
 
     /// Whether GPS monitoring is currently active. Exposed so the view-model can
@@ -371,7 +371,7 @@ public actor LocationIngestor {
     private func performTodayCapture(now: Date) async {
         let startOfDay = calendar.startOfDay(for: now)
         guard let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) else {
-            Self.logger { .todayIntervalUnavailable }
+            Self.logger.todayIntervalUnavailable()
             return
         }
         let interval = DateInterval(start: startOfDay, end: endOfDay)
@@ -385,7 +385,9 @@ public actor LocationIngestor {
         } catch {
             // Fail closed: if today's samples can't be read we skip rather than
             // risk logging a duplicate fix. Surfaced, not silently swallowed.
-            Self.logger { .foregroundCaptureReadFailed(description: error.localizedDescription) }
+            Self.logger.foregroundCaptureReadFailed(
+                description: .restricted(.errorDetails, error.localizedDescription),
+            )
             return
         }
         let fix = await Self.logger.measure(.acquireFix, budget: .seconds(10)) {
@@ -398,7 +400,7 @@ public actor LocationIngestor {
         // `pause()` either sees `acceptsSamples == false` here (we skip) or sees
         // the handle already set (it awaits us) — never neither.
         guard !Task.isCancelled, accepts(sample) else { return }
-        Self.logger { .capturedForegroundFix }
+        Self.logger.capturedForegroundFix()
         // Persist via `processIngestedSample` on the capture's own handle rather
         // than `ingest(_:)`, so it never shares the stream loop's single
         // `inFlightIngest` slot. `pause()` awaits this handle independently.
@@ -474,19 +476,19 @@ public actor LocationIngestor {
             // via `os.Logger` rather than silently dropped. The stream keeps
             // running so a transient error doesn't stop tracking, and the sample
             // is queued for retry on the next save attempt.
-            Self.logger(attachments: [.error(error, name: "persist-error")]) {
-                .persistFailed(
-                    sampleID: String(describing: sample.id),
-                    description: error.localizedDescription,
-                )
-            }
+            Self.logger.persistFailed(
+                sampleID: .restricted(.identifier, String(describing: sample.id)),
+                description: .restricted(.errorDetails, error.localizedDescription),
+                attachments: [.error(error, name: "persist-error")],
+            )
             enqueueForRetry(LocationOutboxEntry(sample: sample, dataGenerationID: dataGenerationID))
             do {
                 try await outbox.save(retryQueue)
             } catch {
-                Self.logger(attachments: [.error(error, name: "outbox-persist-error")]) {
-                    .retryBacklogPersistenceFailed(description: error.localizedDescription)
-                }
+                Self.logger.retryBacklogPersistenceFailed(
+                    description: .restricted(.errorDetails, error.localizedDescription),
+                    attachments: [.error(error, name: "outbox-persist-error")],
+                )
                 // Continuing to accept locations would make the in-memory queue the only copy;
                 // fail closed until reconciliation can reopen recording with durable storage.
                 await closeRecordingAuthority(ifAuthorizedFor: dataGenerationID)
@@ -496,7 +498,7 @@ public actor LocationIngestor {
 
     private func enqueueForRetry(_ entry: LocationOutboxEntry) {
         if retryQueue.count >= retryQueueCapacity {
-            Self.logger { .retryQueueAtCapacity(capacity: retryQueueCapacity) }
+            Self.logger.retryQueueAtCapacity(capacity: .shared(.count, retryQueueCapacity))
             retryQueue.removeFirst()
         }
         retryQueue.append(entry)
@@ -536,23 +538,20 @@ public actor LocationIngestor {
                     generationChanged = true
                     break
                 } catch {
-                    Self.logger(attachments: [.error(error, name: "retry-error")]) {
-                        .retryStillFailing(
-                            sampleID: String(describing: sample.id),
-                            description: error.localizedDescription,
-                        )
-                    }
+                    Self.logger.retryStillFailing(
+                        sampleID: .restricted(.identifier, String(describing: sample.id)),
+                        description: .restricted(.errorDetails, error.localizedDescription),
+                        attachments: [.error(error, name: "retry-error")],
+                    )
                     enqueueForRetry(entry)
                 }
             }
         }
         if !persistedDays.isEmpty {
-            Self.logger {
-                .drainedBacklog(
-                    sampleCount: persistedSampleCount,
-                    dayCount: persistedDays.count,
-                )
-            }
+            Self.logger.drainedBacklog(
+                sampleCount: .shared(.count, persistedSampleCount),
+                dayCount: .shared(.count, persistedDays.count),
+            )
         }
         try await outbox.save(retryQueue)
         if generationChanged {

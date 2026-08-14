@@ -7,7 +7,8 @@ import PeriscopeCore
 /// the read path its own log scope and a compiler-checked set of span names.
 /// A span-only facade, like ``PresenceCalendarLog``: `private init()` leaves no
 /// way to construct one, so it can never be emitted as an event.
-struct ReportReaderLog: LogEvent {
+@LogScope("ReportReader")
+enum ReportReaderLog {
     /// Names the read spans (`log.measure(.yearReport) { … }`). Each is one store
     /// fetch plus the aggregation over it; the fetch itself is spanned separately
     /// by `SwiftDataStore`, so the difference between the two is compute.
@@ -25,12 +26,4 @@ struct ReportReaderLog: LogEvent {
         /// One representative coordinate per region for a year.
         case representativeCoordinates
     }
-
-    static let eventName = "ReportReader"
-
-    var message: String {
-        ""
-    }
-
-    private init() {}
 }
