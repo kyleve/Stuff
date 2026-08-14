@@ -5,15 +5,30 @@ struct PrivacyPassportCard: View {
     let presentation: PrivacyPassportPresentation
     @State private var tilt = TiltProvider()
 
+    @Environment(\.stylesheet) private var stylesheet
+
     var body: some View {
-        PassportCard(
-            title: .settingsPrivacyTitle,
-            detail: presentation.detail,
-            sealSystemSymbol: .lockShieldFill,
-            accessorySystemSymbol: nil,
-            isInteractive: false,
-            surface: .reflective(tilt: tilt),
-        )
+        let style = stylesheet.privacyPassportCard
+        PrivacyPassportCardSurface(tilt: tilt) {
+            VStack(alignment: .leading, spacing: style.sectionSpacing) {
+                PrivacyPassportHeader()
+
+                Text(presentation.locationDetail)
+                    .font(style.detailFont)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                VStack(spacing: style.disclosure.rowSpacing) {
+                    ForEach(presentation.disclosures) { disclosure in
+                        PrivacyPassportDisclosureRow(disclosure: disclosure)
+                    }
+                }
+            }
+            .padding(style.padding)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .rotationEffect(.degrees(style.rotationDegrees))
+        .padding(style.rotationClearance)
         .onAppear { tilt.start() }
         .onDisappear { tilt.stop() }
     }

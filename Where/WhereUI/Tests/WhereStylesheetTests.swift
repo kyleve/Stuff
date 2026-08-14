@@ -549,14 +549,8 @@ struct WhereStylesheetTests {
         #expect(featureDiscovery.widgets.contentWidth(in: 834) == 320)
     }
 
-    @Test func passportCardStyle() {
-        let source = style.passportCard
-        #expect(source.cornerRadius == 20)
-        #expect(source.padding == 16)
-        #expect(source.contentSpacing == 12)
-        #expect(source.titleFont == .headline)
-        #expect(source.detailFont == .subheadline)
-        #expect(source.seal == .init(
+    @Test func settingsPassportStyles() {
+        #expect(style.passportSeal == .init(
             size: 52,
             rotationDegrees: -8,
             outerLineWidth: 2,
@@ -566,7 +560,17 @@ struct WhereStylesheetTests {
             dashSpacing: 3,
             symbolFont: .title3,
         ))
-        #expect(source.rosette == .init(
+
+        let privacy = style.privacyPassportCard
+        #expect(privacy.cornerRadius == 20)
+        #expect(privacy.padding == 16)
+        #expect(privacy.rotationClearance == 6)
+        #expect(privacy.rotationDegrees == -1.5)
+        #expect(privacy.sectionSpacing == 12)
+        #expect(privacy.headerSpacing == 12)
+        #expect(privacy.titleFont == .headline)
+        #expect(privacy.detailFont == .subheadline)
+        #expect(privacy.rosette == .init(
             wobble: 5,
             lineWidth: 0.75,
             primaryRingSpacing: 10,
@@ -574,7 +578,7 @@ struct WhereStylesheetTests {
             primaryOpacity: 0.1,
             secondaryOpacity: 0.06,
         ))
-        #expect(source.reflectiveSurface == .init(
+        #expect(privacy.reflectiveSurface == .init(
             backgroundTop: Color(red: 0.08, green: 0.18, blue: 0.34),
             backgroundBottom: Color(red: 0.02, green: 0.07, blue: 0.16),
             accent: Color(red: 0.88, green: 0.72, blue: 0.32),
@@ -583,9 +587,42 @@ struct WhereStylesheetTests {
             staticGlintIntensity: 0.28,
             staticPose: .init(roll: 0.3, pitch: -0.15),
         ))
-        #expect(source.glassTintOpacity == 0.06)
-        #expect(source.accentGlow == .init(opacity: 0.18, radius: 7))
-        #expect(source.liftShadow == .init(opacity: 0.08, radius: 5, offsetY: 2))
+        #expect(privacy.disclosure == .init(
+            rowSpacing: 8,
+            cornerRadius: 12,
+            padding: 10,
+            contentSpacing: 10,
+            textSpacing: 3,
+            iconSize: 32,
+            symbolFont: .subheadline,
+            titleFont: .subheadline,
+            detailFont: .footnote,
+            statusFont: .footnote,
+            statusHorizontalPadding: 8,
+            statusVerticalPadding: 4,
+            fillOpacity: 0.08,
+            strokeOpacity: 0.18,
+            strokeWidth: 0.75,
+            statusFillOpacity: 0.14,
+        ))
+        #expect(privacy.glassTintOpacity == 0.06)
+        #expect(privacy.accentGlow == .init(opacity: 0.18, radius: 7))
+        #expect(privacy.liftShadow == .init(opacity: 0.08, radius: 5, offsetY: 2))
+
+        let source = style.openSourceStamp
+        #expect(source.cornerRadius == 20)
+        #expect(source.padding == 16)
+        #expect(source.contentSpacing == 12)
+        #expect(source.titleFont == .headline)
+        #expect(source.detailFont == .subheadline)
+        #expect(source.outlineWidth == 1.5)
+        #expect(source.rosette == .init(
+            wobble: 5,
+            lineWidth: 0.75,
+            primaryRingSpacing: 10,
+            secondaryRingSpacing: 16,
+        ))
+        #expect(source.ink == .standard)
     }
 
     @Test func developerOverlayStyle() {
@@ -666,6 +703,7 @@ struct WhereStylesheetTests {
         #expect(resolved.timeline.row.stacksDayCount)
         #expect(resolved.featureDiscovery.siri.bubble.indent == 0)
         #expect(resolved.featureDiscovery.widgets.contentWidth(in: 834) == 320)
+        #expect(resolved.privacyPassportCard.rotationClearance == 24)
     }
 
     @MainActor
@@ -677,6 +715,16 @@ struct WhereStylesheetTests {
         #expect(resolved.card.compact.glow.radius == 0)
         #expect(resolved.card.constellation.haloOpacity == 0)
         #expect(resolved.card.constellation.coreOpacity == 0.92)
+        #expect(resolved.privacyPassportCard.glassTintOpacity == 0)
+        #expect(resolved.privacyPassportCard.disclosure.fillOpacity == 0.16)
+    }
+
+    @MainActor
+    @Test func strengthensTheSourceStampWithDarkerSystemColors() throws {
+        var context = BContext(traits: .system)
+        context.traitOverrides.accessibility = BAccessibility(isDarkerSystemColorsEnabled: true)
+        let resolved = try context.stylesheets.get(WhereStylesheet.self)
+        #expect(resolved.openSourceStamp.ink == .increasedContrast)
     }
 
     @MainActor
