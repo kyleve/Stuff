@@ -91,9 +91,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     }
 
     private static func recordDiagnosticProviderFailure(_ error: any Error) {
-        logger(attachments: [.error(error, name: "provider-startup-error")]) {
-            .diagnosticProviderStartupFailed
-        }
+        logger.diagnosticProviderStartupFailed(
+            attachments: [.error(error, name: "provider-startup-error")],
+        )
     }
 
     init(runtime: any WhereApplicationRuntime) {
