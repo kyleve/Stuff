@@ -66,6 +66,7 @@ struct AboutOpenSourceFooter: View {
             .accessibilityElement(children: .combine)
         }
         .buttonStyle(.plain)
+        .padding(.horizontal, stylesheet.openSourceStamp.outlineWidth)
     }
 }
 
