@@ -217,6 +217,28 @@ mkdir -p "$WORKDIR" && chmod 700 "$WORKDIR"
 
 rule() { printf '%s\n' "============================================================"; }
 
+phase_started() {
+    python3 -c 'import time; print(time.time_ns())'
+}
+
+emit_phase_timing() {
+    python3 - "$1" "$2" "${3:-}" "${4:-0}" <<'PY'
+import json
+import sys
+import time
+
+phase, started, scheme, status = sys.argv[1:]
+payload = {
+    "phase": phase,
+    "seconds": round((time.time_ns() - int(started)) / 1_000_000_000, 3),
+    "status": int(status),
+}
+if scheme:
+    payload["scheme"] = scheme
+print("CI_TIMING " + json.dumps(payload, separators=(",", ":")), flush=True)
+PY
+}
+
 # The image bundles, read from the manifest rather than listed here: a bundle can
 # only run from a scheme that contains it, and StuffSnapshotTests is the only one
 # carrying the SNAPSHOT_EXPECTED_* / TZ pins the comparisons rely on.
@@ -704,16 +726,28 @@ fi
 
 if [ "$DO_GENERATE" = true ]; then
     echo "==> Regenerating project (tuist generate --no-open)"
-    if ! mise exec -- tuist generate --no-open >"$WORKDIR/generate.log" 2>&1; then
+    started="$(phase_started)"
+    if mise exec -- tuist generate --no-open >"$WORKDIR/generate.log" 2>&1; then
+        emit_phase_timing generate "$started"
+    else
+        status=$?
+        emit_phase_timing generate "$started" "" "$status"
         echo "error: tuist generate failed. Tail of $WORKDIR/generate.log:" >&2
         tail -n 20 "$WORKDIR/generate.log" >&2
-        exit 1
+        exit "$status"
     fi
 fi
 
 SIMULATOR_FLAGS=(--device "$DEVICE" --os "$OS")
 [ "$SHARED" = true ] && SIMULATOR_FLAGS+=(--shared)
-UDID="$(./simulator "${SIMULATOR_FLAGS[@]}")"
+started="$(phase_started)"
+if UDID="$(./simulator "${SIMULATOR_FLAGS[@]}")"; then
+    emit_phase_timing simulator "$started"
+else
+    status=$?
+    emit_phase_timing simulator "$started" "" "$status"
+    exit "$status"
+fi
 DESTINATION="platform=iOS Simulator,id=$UDID"
 
 # xcodebuild strips the TEST_RUNNER_ prefix on the way in, which is why the
@@ -763,15 +797,20 @@ for scheme in "${SCHEMES[@]}"; do
 
     if [ "$DO_BUILD" = true ]; then
         echo "==> Building $scheme for testing"
-        if ! xcodebuild build-for-testing \
+        started="$(phase_started)"
+        if xcodebuild build-for-testing \
             -workspace "$WORKSPACE" \
             -scheme "$scheme" \
             -destination "$DESTINATION" \
             >"$WORKDIR/$scheme-build.log" 2>&1
         then
+            emit_phase_timing build "$started" "$scheme"
+        else
+            status=$?
+            emit_phase_timing build "$started" "$scheme" "$status"
             echo "error: build failed for $scheme. Tail of $WORKDIR/$scheme-build.log:" >&2
             tail -n 30 "$WORKDIR/$scheme-build.log" >&2
-            exit 1
+            exit "$status"
         fi
     fi
 
@@ -783,6 +822,7 @@ for scheme in "${SCHEMES[@]}"; do
     counts="$WORKDIR/counts-$scheme-$scope_key.json"
 
     echo "==> Testing $scheme on $DEVICE / iOS $OS"
+    started="$(phase_started)"
     set +e
     env ${RUN_ENV[@]+"${RUN_ENV[@]}"} \
         xcodebuild test-without-building \
@@ -802,6 +842,7 @@ for scheme in "${SCHEMES[@]}"; do
     # exiting 0 would otherwise mask a failed run.
     status="${PIPESTATUS[0]}"
     set -e
+    emit_phase_timing test "$started" "$scheme" "$status"
     RESULTS+=("$result")
     LOGS+=("$log")
     [ "$status" -ne 0 ] && overall_status="$status"

@@ -48,18 +48,7 @@ def test_cases_in(result):
     return test_cases
 
 
-def main():
-    if len(sys.argv) != 3:
-        raise SystemExit(f"usage: {sys.argv[0]} XCRESULT_DIRECTORY OUTPUT_XML")
-
-    input_directory = pathlib.Path(sys.argv[1])
-    output = pathlib.Path(sys.argv[2])
-    test_cases = [
-        case
-        for result in sorted(input_directory.glob("*.xcresult"))
-        for case in test_cases_in(result)
-    ]
-
+def write_junit(test_cases, output):
     suites = ET.Element("testsuites")
     grouped = {}
     for case in test_cases:
@@ -81,6 +70,7 @@ def main():
                 suite,
                 "testcase",
                 classname=f"{bundle}.{suite_name}",
+                file=f"{bundle}/{suite_name}",
                 name=name,
                 time=f"{elapsed:.3f}",
             )
@@ -92,6 +82,20 @@ def main():
     output.parent.mkdir(parents=True, exist_ok=True)
     ET.ElementTree(suites).write(output, encoding="utf-8", xml_declaration=True)
     print(f"Exported {len(test_cases)} test results to {output}")
+
+
+def main():
+    if len(sys.argv) != 3:
+        raise SystemExit(f"usage: {sys.argv[0]} XCRESULT_DIRECTORY OUTPUT_XML")
+
+    input_directory = pathlib.Path(sys.argv[1])
+    output = pathlib.Path(sys.argv[2])
+    test_cases = [
+        case
+        for result in sorted(input_directory.glob("*.xcresult"))
+        for case in test_cases_in(result)
+    ]
+    write_junit(test_cases, output)
 
 
 if __name__ == "__main__":
