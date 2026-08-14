@@ -61,6 +61,9 @@ commands:
             mkdir -p "$CIRCLE_WORKING_DIRECTORY/<< parameters.test_workdir >>"
             chmod 700 "$CIRCLE_WORKING_DIRECTORY/<< parameters.test_workdir >>"
       - run:
+          name: Test CI helpers
+          command: python3 .circleci/test_xcresult_to_junit.py
+      - run:
           name: Generate project and resolve Swift packages
           command: |
             # Populate the immutable download caches before either test job saves them.
