@@ -142,108 +142,35 @@ public final class WherePreferences {
         isDebugBuild: Bool,
     ) -> DiagnosticReportingConfiguration {
         let defaults = DiagnosticReportingConfiguration.defaults(isDebugBuild: isDebugBuild)
-        var hasInvalidValue = false
-        let sharesCrashReports = diagnosticBool(
-            forKey: .sharesCrashReports,
-            defaultValue: defaults.sharesCrashReports,
-            hasInvalidValue: &hasInvalidValue,
-        )
-        let sharesSessionReplays = diagnosticBool(
-            forKey: .sharesSessionReplays,
-            defaultValue: defaults.sharesSessionReplays,
-            hasInvalidValue: &hasInvalidValue,
-        )
-
-        guard let storedLevel = store.object(forKey: Keys.remoteLogLevel.rawValue) else {
-            return DiagnosticReportingConfiguration(
-                sharesCrashReports: sharesCrashReports,
-                sharesSessionReplays: sharesSessionReplays,
-                remoteLogging: hasInvalidValue ? .off : defaults.remoteLogging,
-            )
+        guard let storedValue = store.object(
+            forKey: Keys.diagnosticReportingConfiguration.rawValue,
+        ) else {
+            return defaults
         }
-        guard let rawLevel = storedLevel as? String else {
-            invalidDiagnosticValue("Invalid persisted remote logging level type")
-            return DiagnosticReportingConfiguration(
-                sharesCrashReports: sharesCrashReports,
-                sharesSessionReplays: sharesSessionReplays,
-                remoteLogging: .off,
-            )
+        guard let data = storedValue as? Data else {
+            invalidDiagnosticValue("Invalid persisted diagnostic reporting value type")
+            return defaults.withRemoteLoggingOff()
         }
-        guard rawLevel != "off" else {
-            return DiagnosticReportingConfiguration(
-                sharesCrashReports: sharesCrashReports,
-                sharesSessionReplays: sharesSessionReplays,
-                remoteLogging: .off,
-            )
+        do {
+            return try JSONDecoder()
+                .decode(PersistedDiagnosticReportingConfiguration.self, from: data)
+                .configuration
+        } catch {
+            invalidDiagnosticValue("Could not decode diagnostic reporting configuration: \(error)")
+            return defaults.withRemoteLoggingOff()
         }
-        guard let minimumLevel = RemoteLogLevel(rawValue: rawLevel) else {
-            invalidDiagnosticValue("Invalid persisted remote logging level: \(rawLevel)")
-            return DiagnosticReportingConfiguration(
-                sharesCrashReports: sharesCrashReports,
-                sharesSessionReplays: sharesSessionReplays,
-                remoteLogging: .off,
-            )
-        }
-
-        let storedMetadataPolicy = store.object(forKey: Keys.remoteLogMetadataPolicy.rawValue)
-        let rawMetadataPolicy: String
-        if let storedMetadataPolicy {
-            guard let value = storedMetadataPolicy as? String else {
-                invalidDiagnosticValue("Invalid persisted remote metadata policy type")
-                return DiagnosticReportingConfiguration(
-                    sharesCrashReports: sharesCrashReports,
-                    sharesSessionReplays: sharesSessionReplays,
-                    remoteLogging: .off,
-                )
-            }
-            rawMetadataPolicy = value
-        } else {
-            rawMetadataPolicy = RemoteLogMetadataPolicy.approvedFields.rawValue
-        }
-        guard let metadataPolicy = RemoteLogMetadataPolicy(rawValue: rawMetadataPolicy) else {
-            invalidDiagnosticValue("Invalid persisted remote metadata policy: \(rawMetadataPolicy)")
-            return DiagnosticReportingConfiguration(
-                sharesCrashReports: sharesCrashReports,
-                sharesSessionReplays: sharesSessionReplays,
-                remoteLogging: .off,
-            )
-        }
-        return DiagnosticReportingConfiguration(
-            sharesCrashReports: sharesCrashReports,
-            sharesSessionReplays: sharesSessionReplays,
-            remoteLogging: hasInvalidValue ? .off : .enabled(
-                minimumLevel: minimumLevel,
-                metadataPolicy: metadataPolicy,
-            ),
-        )
-    }
-
-    private func diagnosticBool(
-        forKey key: Keys,
-        defaultValue: Bool,
-        hasInvalidValue: inout Bool,
-    ) -> Bool {
-        guard let storedValue = store.object(forKey: key.rawValue) else { return defaultValue }
-        guard let value = storedValue as? Bool else {
-            hasInvalidValue = true
-            invalidDiagnosticValue("Invalid persisted diagnostic Boolean: \(key.rawValue)")
-            return defaultValue
-        }
-        return value
     }
 
     public func setDiagnosticReportingConfiguration(
         _ configuration: DiagnosticReportingConfiguration,
     ) {
-        store.set(configuration.sharesCrashReports, forKey: Keys.sharesCrashReports.rawValue)
-        store.set(configuration.sharesSessionReplays, forKey: Keys.sharesSessionReplays.rawValue)
-        switch configuration.remoteLogging {
-            case .off:
-                store.set("off", forKey: Keys.remoteLogLevel.rawValue)
-                store.removeObject(forKey: Keys.remoteLogMetadataPolicy.rawValue)
-            case let .enabled(minimumLevel, metadataPolicy):
-                store.set(minimumLevel.rawValue, forKey: Keys.remoteLogLevel.rawValue)
-                store.set(metadataPolicy.rawValue, forKey: Keys.remoteLogMetadataPolicy.rawValue)
+        do {
+            let data = try JSONEncoder().encode(
+                PersistedDiagnosticReportingConfiguration(configuration),
+            )
+            store.set(data, forKey: Keys.diagnosticReportingConfiguration.rawValue)
+        } catch {
+            assertionFailure("Could not encode diagnostic reporting configuration: \(error)")
         }
     }
 
@@ -349,10 +276,13 @@ public final class WherePreferences {
         case summaryHour = "where.summaryHour"
         case summaryMinute = "where.summaryMinute"
         case issueAlertsEnabled = "where.issueAlertsEnabled"
-        case sharesCrashReports = "where.diagnostics.sharesCrashReports"
-        case sharesSessionReplays = "where.diagnostics.sharesSessionReplays"
-        case remoteLogLevel = "where.diagnostics.remoteLogLevel"
-        case remoteLogMetadataPolicy = "where.diagnostics.remoteLogMetadataPolicy"
+        case diagnosticReportingConfiguration = "where.diagnostics.configuration"
+        // Keep the retired keys in reset so a reset erases settings written by
+        // a development build from before the composite value existed.
+        case legacySharesCrashReports = "where.diagnostics.sharesCrashReports"
+        case legacySharesSessionReplays = "where.diagnostics.sharesSessionReplays"
+        case legacyRemoteLogLevel = "where.diagnostics.remoteLogLevel"
+        case legacyRemoteLogMetadataPolicy = "where.diagnostics.remoteLogMetadataPolicy"
         case recordingConfigurationWarningRegistration =
             "where.recordingConfigurationWarningRegistration"
         case driftThresholdMeters = "where.driftThresholdMeters"
@@ -365,5 +295,47 @@ public final class WherePreferences {
         #else
             false
         #endif
+    }
+}
+
+/// A flat, rename-safe wire shape for the composite reporting preference.
+private struct PersistedDiagnosticReportingConfiguration: Codable {
+    let sharesCrashReports: Bool
+    let sharesSessionReplays: Bool
+    let remoteLogLevel: RemoteLogLevel?
+    let remoteLogMetadataPolicy: RemoteLogMetadataPolicy
+
+    init(_ configuration: DiagnosticReportingConfiguration) {
+        sharesCrashReports = configuration.sharesCrashReports
+        sharesSessionReplays = configuration.sharesSessionReplays
+        remoteLogLevel = configuration.remoteLogging.minimumLevel
+        remoteLogMetadataPolicy = configuration.remoteLogging.metadataPolicy
+    }
+
+    var configuration: DiagnosticReportingConfiguration {
+        DiagnosticReportingConfiguration(
+            sharesCrashReports: sharesCrashReports,
+            sharesSessionReplays: sharesSessionReplays,
+            remoteLogging: remoteLogLevel.map {
+                .enabled(minimumLevel: $0, metadataPolicy: remoteLogMetadataPolicy)
+            } ?? .off,
+        )
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case sharesCrashReports = "shares_crash_reports"
+        case sharesSessionReplays = "shares_session_replays"
+        case remoteLogLevel = "remote_log_level"
+        case remoteLogMetadataPolicy = "remote_log_metadata_policy"
+    }
+}
+
+extension DiagnosticReportingConfiguration {
+    fileprivate func withRemoteLoggingOff() -> Self {
+        Self(
+            sharesCrashReports: sharesCrashReports,
+            sharesSessionReplays: sharesSessionReplays,
+            remoteLogging: .off,
+        )
     }
 }
