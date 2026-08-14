@@ -336,9 +336,9 @@ the happy path. See the feature
 
 ## Flyover
 
-`Sources/Developer/Flyover` owns an explicit `WhereFlyoverScreenID` catalog.
-The enum is exhaustive and completeness-tested, so adding a top-level screen
-produces one obvious registration update rather than depending on source
+`Sources/Developer/Flyover` owns an explicit typed screen catalog.
+Its registration list is completeness-tested, so adding a top-level screen
+produces one obvious update rather than depending on source
 scanning or a macro that cannot discover navigation across the module.
 
 Opening Flyover asynchronously builds one `WhereScope.demo` and shares its
@@ -359,6 +359,19 @@ out. Selecting the inspect button opens the same screen in a full-screen
 interactive viewport. Flyover's appearance, device, Dynamic Type, contrast,
 layout-direction, and bold-text choices are session-only and apply only to
 registered content.
+
+`WhereFlyoverWebExportTests` is the hosted static-export adapter. It reads the
+request supplied by `./flyover export` and otherwise returns without work. One
+`WhereFlyoverWorld` supplies every capture in an export. Its frozen date,
+in-memory store, in-memory preferences, no-op services, private logs, and
+Broadway root are the same synthetic fixtures used by native Flyover. The
+export never activates that scope or reads app data.
+
+`WhereFlyoverScreenID.exportIdentifier` maps normal screens to their reflected
+type name. Contextual screens include both reflected type names. Snapshot-backed
+variant IDs use the snapshot case name. These identifiers are stable web and
+deep-link identities; process-local `ObjectIdentifier` values never leave the
+runtime catalog.
 
 ## Testing
 

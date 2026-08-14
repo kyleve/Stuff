@@ -1,0 +1,215 @@
+#!/bin/bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")" && pwd -P)"
+DEFAULT_OUTPUT=".build/flyover/where"
+OUTPUT="$DEFAULT_OUTPUT"
+PROFILES=()
+STAGING=""
+BACKUP=""
+DESTINATION=""
+
+usage() {
+    cat <<'USAGE'
+Usage:
+  ./flyover export [options]
+  ./flyover --help
+
+Export Where's native Flyover catalog as a portable static website.
+
+Options:
+  --output DIR     Generated website directory (default: .build/flyover/where)
+  --profile NAME   Add a capture profile. Repeat the flag for more profiles.
+                   The default is phone-light.
+  -h, --help       Show this help.
+
+Profiles:
+  phone-light, phone-dark, tablet-light, phone-landscape, phone-small,
+  phone-xxxl, phone-ax3, phone-contrast, phone-rtl, phone-bold,
+  phone-voiceover
+
+Examples:
+  ./flyover export
+  ./flyover export --profile phone-light --profile phone-dark
+  ./flyover export --output /tmp/where-flyover --profile tablet-light
+USAGE
+}
+
+error() {
+    echo "flyover: $*" >&2
+    exit 1
+}
+
+is_known_profile() {
+    case "$1" in
+        phone-light | phone-dark | tablet-light | phone-landscape | phone-small | \
+            phone-xxxl | phone-ax3 | phone-contrast | phone-rtl | phone-bold | \
+            phone-voiceover)
+            return 0
+            ;;
+        *) return 1 ;;
+    esac
+}
+
+add_profile() {
+    local candidate="$1" existing
+    is_known_profile "$candidate" || error "unknown profile '$candidate' (see ./flyover --help)"
+    for existing in ${PROFILES[@]+"${PROFILES[@]}"}; do
+        [ "$existing" = "$candidate" ] && return 0
+    done
+    PROFILES+=("$candidate")
+}
+
+resolve_path() {
+    python3 - "$1" <<'PY'
+import os, sys
+print(os.path.abspath(os.path.expanduser(sys.argv[1])))
+PY
+}
+
+cleanup() {
+    if [ -n "$STAGING" ] && [ -d "$STAGING" ]; then
+        rm -rf "$STAGING"
+    fi
+    if [ -n "$BACKUP" ] && [ -e "$BACKUP" ] && [ -n "$DESTINATION" ] && [ ! -e "$DESTINATION" ]; then
+        mv "$BACKUP" "$DESTINATION"
+    fi
+}
+trap cleanup EXIT INT TERM
+
+case "${1-}" in
+    -h | --help)
+        usage
+        exit 0
+        ;;
+    export)
+        shift
+        ;;
+    "")
+        usage >&2
+        exit 1
+        ;;
+    *) error "unknown command '${1-}' (see ./flyover --help)" ;;
+esac
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --output)
+            shift
+            [ "$#" -gt 0 ] || error "--output requires a directory"
+            OUTPUT="$1"
+            ;;
+        --profile)
+            shift
+            [ "$#" -gt 0 ] || error "--profile requires a name"
+            add_profile "$1"
+            ;;
+        -h | --help)
+            usage
+            exit 0
+            ;;
+        *) error "unknown option '$1' (see ./flyover --help)" ;;
+    esac
+    shift
+done
+
+[ "${#PROFILES[@]}" -gt 0 ] || PROFILES=(phone-light)
+DESTINATION="$(resolve_path "$OUTPUT")"
+HOME_PATH="$(resolve_path "$HOME")"
+WORKSPACE_PATH="$(resolve_path "$ROOT")"
+case "$DESTINATION" in
+    /) error "refusing to replace the filesystem root" ;;
+esac
+[ "$DESTINATION" != "$HOME_PATH" ] || error "refusing to replace the home directory"
+[ "$DESTINATION" != "$WORKSPACE_PATH" ] || error "refusing to replace the workspace root"
+
+if [ -e "$DESTINATION" ] && [ ! -f "$DESTINATION/.flyover-generated" ]; then
+    error "refusing to replace unmarked directory '$DESTINATION'"
+fi
+
+PARENT="$(dirname "$DESTINATION")"
+mkdir -p "$PARENT"
+STAGING="$(mktemp -d "$PARENT/.flyover-staging.XXXXXX")"
+mkdir -p "$STAGING/assets"
+cp "$ROOT/Shared/Flyover/Web/index.html" "$STAGING/index.html"
+cp "$ROOT/Shared/Flyover/Web/assets/app.js" "$STAGING/assets/app.js"
+cp "$ROOT/Shared/Flyover/Web/assets/styles.css" "$STAGING/assets/styles.css"
+
+COMMIT="$(git -C "$ROOT" rev-parse HEAD 2>/dev/null || echo unknown)"
+if [ -n "$(git -C "$ROOT" status --porcelain 2>/dev/null || true)" ]; then
+    DIRTY=true
+else
+    DIRTY=false
+fi
+BRANCH="$(git -C "$ROOT" branch --show-current 2>/dev/null || true)"
+GENERATED_AT="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+XCODE_VERSION="${FLYOVER_XCODE_VERSION_OVERRIDE:-$(xcodebuild -version 2>/dev/null | tr '\n' ' ' | sed 's/ $//' || true)}"
+[ -n "$XCODE_VERSION" ] || XCODE_VERSION=unknown
+PROFILE_LIST="$(IFS=,; echo "${PROFILES[*]}")"
+CAPTURE_RUNNER="${FLYOVER_CAPTURE_RUNNER:-$ROOT/test}"
+EXPORT_STARTED_AT=$SECONDS
+
+echo "==> Exporting ${#PROFILES[@]} profile(s) to $DESTINATION"
+env \
+    FLYOVER_EXPORT_DIRECTORY="$STAGING" \
+    FLYOVER_EXPORT_PROFILES="$PROFILE_LIST" \
+    FLYOVER_EXPORT_COMMIT="$COMMIT" \
+    FLYOVER_EXPORT_DIRTY="$DIRTY" \
+    FLYOVER_EXPORT_BRANCH="$BRANCH" \
+    FLYOVER_EXPORT_GENERATED_AT="$GENERATED_AT" \
+    FLYOVER_EXPORT_XCODE_VERSION="$XCODE_VERSION" \
+    FLYOVER_EXPORT_SIMULATOR_DEVICE="iPhone 17" \
+    FLYOVER_EXPORT_SIMULATOR_OS="27.0" \
+    "$CAPTURE_RUNNER" --only 'WhereUISnapshotTests/WhereFlyoverWebExportTests'
+
+python3 - "$STAGING" <<'PY'
+import json, os, pathlib, sys
+root = pathlib.Path(sys.argv[1])
+required = [root / 'index.html', root / 'manifest.json', root / 'manifest.js',
+            root / 'assets' / 'app.js', root / 'assets' / 'styles.css']
+missing = [str(path) for path in required if not path.is_file()]
+if missing:
+    raise SystemExit('flyover: generated artifact is missing: ' + ', '.join(missing))
+manifest = json.loads((root / 'manifest.json').read_text())
+if manifest.get('schemaVersion') != 1:
+    raise SystemExit('flyover: generated manifest does not use schemaVersion 1')
+images = manifest.get('images')
+if not isinstance(images, list):
+    raise SystemExit('flyover: generated manifest has no image list')
+for image in images:
+    relative = pathlib.PurePosixPath(image.get('relativePath', ''))
+    if relative.is_absolute() or '..' in relative.parts:
+        raise SystemExit(f'flyover: unsafe image path in manifest: {relative}')
+    if not (root / pathlib.Path(*relative.parts)).is_file():
+        raise SystemExit(f'flyover: manifest image is missing: {relative}')
+actual = sum(1 for path in (root / 'images').rglob('*.png')) if (root / 'images').is_dir() else 0
+if actual != len(images):
+    raise SystemExit(f'flyover: manifest requires {len(images)} images, found {actual}')
+PY
+
+printf '%s\n' 'schemaVersion=1' >"$STAGING/.flyover-generated"
+
+if [ -e "$DESTINATION" ]; then
+    BACKUP="$PARENT/.flyover-previous.$(basename "$DESTINATION").$$"
+    mv "$DESTINATION" "$BACKUP"
+fi
+mv "$STAGING" "$DESTINATION"
+STAGING=""
+if [ -n "$BACKUP" ]; then
+    rm -rf "$BACKUP"
+    BACKUP=""
+fi
+
+ELAPSED_SECONDS=$((SECONDS - EXPORT_STARTED_AT))
+python3 - "$DESTINATION" "$ELAPSED_SECONDS" <<'PY'
+import json, pathlib, sys
+root = pathlib.Path(sys.argv[1])
+elapsed = int(sys.argv[2])
+manifest = json.loads((root / 'manifest.json').read_text())
+size = sum(path.stat().st_size for path in root.rglob('*') if path.is_file())
+print(f"Flyover export complete: {len(manifest['screens'])} screens, "
+      f"{sum(len(screen['variants']) for screen in manifest['screens'])} states, "
+      f"{len(manifest['profiles'])} profiles, {len(manifest['images'])} images, "
+      f"{size} bytes in {elapsed}s")
+print(root)
+PY

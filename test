@@ -82,8 +82,8 @@ Usage: ./test [options] [BundleName ...]
 
 Runs this repo's tests against the simulator this checkout owns, streaming
 progress as it goes. With no arguments it runs only the bundles affected by the
-working tree's changes. Every test run also runs the fast host-side backup
-upgrader regression suite before selecting an iOS test scope.
+working tree's changes. Every test run also runs the fast host-side tooling
+regression suites before selecting an iOS test scope.
 
 Scope:
   (no arguments)    Bundles affected by the diff against origin/main, including
@@ -165,6 +165,8 @@ esac
 
 echo "==> Testing backup upgrader"
 mise exec -- ruby Where/Tools/Tests/upgrade_backup_test.rb
+echo "==> Testing flyover command"
+bash Shared/Flyover/Tools/Tests/flyover_test.sh
 
 WORKSPACE="Stuff.xcworkspace"
 UNIT_SCHEME="Stuff-iOS-Tests"
@@ -311,7 +313,7 @@ if problems:
 # the shared scripts, the format config, CI. Over-select rather than skip the
 # bundle that would have caught it.
 GLOBAL = {'Package.swift', 'Package.resolved', 'Project.swift', 'Tuist.swift',
-          '.swiftformat', '.mise.toml', 'test', 'simulator', 'ide'}
+          '.swiftformat', '.mise.toml', 'test', 'simulator', 'ide', 'flyover'}
 
 selected, changed_targets, everything = set(), set(), False
 for path in changed:
@@ -479,6 +481,12 @@ for raw in sys.stdin:
     if count_images and line.startswith('SNAPSHOT_TIMING '):
         images += 1
         emit()
+        continue
+    if line.startswith('FLYOVER_EXPORT '):
+        if is_terminal:
+            sys.stdout.write('\r\033[K')
+        print(f'    {line}', flush=True)
+        last_emit = 0.0
         continue
     match = SUITE.match(line)
     if match:
@@ -654,6 +662,12 @@ RUN_ENV=()
 [ "$REVIEW" = true ] && RUN_ENV+=("TEST_RUNNER_SNAPSHOT_DIFF=1")
 [ -n "${SNAPSHOT_SETTLE_TIMEOUT_MULTIPLIER:-}" ] \
     && RUN_ENV+=("TEST_RUNNER_SNAPSHOT_SETTLE_TIMEOUT_MULTIPLIER=$SNAPSHOT_SETTLE_TIMEOUT_MULTIPLIER")
+for flyover_name in DIRECTORY PROFILES COMMIT DIRTY BRANCH GENERATED_AT XCODE_VERSION SIMULATOR_DEVICE SIMULATOR_OS; do
+    flyover_variable="FLYOVER_EXPORT_$flyover_name"
+    if [ -n "${!flyover_variable:-}" ]; then
+        RUN_ENV+=("TEST_RUNNER_$flyover_variable=${!flyover_variable}")
+    fi
+done
 
 # SwiftPM's generated `Bundle.module` accessors honor
 # PACKAGE_RESOURCE_BUNDLE_PATH as their first lookup candidate (DEBUG-only,

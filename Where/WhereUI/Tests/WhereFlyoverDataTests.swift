@@ -1,5 +1,6 @@
 #if DEBUG
     import Flyover
+    import SnapshotKit
     import SwiftUI
     import Testing
     @testable import WhereUI
@@ -28,6 +29,29 @@
             #expect(transitions[1].source == data.id)
             #expect(transitions[1].destination == presented)
             #expect(transitions[1].kind == .modal)
+        }
+
+        @Test func snapshotVariantsUseSnapshotNamesAsStableIdentifiers() {
+            let data = WhereFlyoverData.snapshots(
+                SnapshotScreen.self,
+                title: "Snapshot",
+            )
+
+            let screen = data.screen(in: .preview())
+            #expect(screen.variants.map(\.id.rawValue) == ["First", "Second"])
+        }
+
+        private struct SnapshotScreen: View, SnapshotProviding {
+            var body: some View {
+                EmptyView()
+            }
+
+            static var snapshots: [SnapshotCase] {
+                [
+                    SnapshotCase(name: "First", configurations: []) { EmptyView() },
+                    SnapshotCase(name: "Second", configurations: []) { EmptyView() },
+                ]
+            }
         }
     }
 #endif
