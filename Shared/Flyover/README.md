@@ -113,6 +113,7 @@ Screens with no route from their group's root are collected in a separate **Unli
 Explicit `FlyoverPosition` values remain exact and may intentionally exceed that automatic limit.
 The initial canvas zoom fits the first group to the available width so its cards are immediately legible.
 Reach later groups by horizontal scrolling.
+Pinching or moving the zoom slider preserves the canvas point at the center of the visible viewport.
 **Fit All** remains available for a whole-graph overview.
 
 ## App integration
