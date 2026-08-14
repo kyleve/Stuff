@@ -248,7 +248,7 @@ backup_upgrader_is_needed() {
             ;;
     esac
 
-    for identifier in "${ONLY[@]}"; do
+    for identifier in ${ONLY[@]+"${ONLY[@]}"}; do
         bundle="${identifier%%/*}"
         if ! printf '%s\n' "$image_bundles" | grep -qx "$bundle"; then
             return 0

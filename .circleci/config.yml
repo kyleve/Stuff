@@ -181,7 +181,7 @@ commands:
             cp -R "<< parameters.test_workdir >>" diagnostics/test-output
             if << parameters.include_snapshot_images >>; then
               mkdir -p diagnostics/snapshot-images
-              grep -hEo '/[^[:space:]]+\.png' "<< parameters.test_workdir >>"/*.log 2>/dev/null \
+              { grep -hEo '/[^[:space:]]+\.png' "<< parameters.test_workdir >>"/*.log 2>/dev/null || true; } \
                 | sort -u \
                 | while IFS= read -r image; do
                     [[ -f "$image" ]] || continue
