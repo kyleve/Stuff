@@ -50,7 +50,8 @@ commands:
           command: |
             python3 .circleci/test_xcresult_to_junit.py
             python3 .circleci/test_test_artifacts.py
-            python3 .circleci/test_shard_suites.py
+            python3 Tools/Tests/test_snapshot_shards.py
+            ./snapshot-shards check
 
   validate_runner_environment:
     steps:
@@ -269,6 +270,20 @@ jobs:
             ./test --everything
             --build-artifacts "$CIRCLE_WORKING_DIRECTORY/ci-test-build"
             --no-generate --skip-architecture
+      - run:
+          name: Validate changed snapshot inventory with Xcode
+          command: |
+            if git diff --quiet origin/main...HEAD -- \
+              Project.swift ':(glob)**/SnapshotTests/**/*.swift'; then
+              echo "Snapshot definitions did not change. The source-plan validation is sufficient."
+              exit 0
+            fi
+            ./test --snapshots --shared --os 27.0 \
+              --test-artifacts "$CIRCLE_WORKING_DIRECTORY/ci-test-build" \
+              --enumerate-suites "$TEST_WORKDIR/suites.txt" \
+              --skip-architecture
+            ./snapshot-shards compare-enumeration \
+              --enumeration "$TEST_WORKDIR/suites.txt"
       - persist_to_workspace:
           root: ci-test-build
           paths:
@@ -307,22 +322,14 @@ jobs:
           hydrate_snapshots: true
           scheme: StuffSnapshotTests
           test_workdir: test-output-snapshots
-      - run_with_timeout:
-          seconds: 600
-          command: >-
-            ./test --snapshots --shared --os 27.0
-            --test-artifacts "$CIRCLE_WORKING_DIRECTORY/ci-test-build"
-            --enumerate-suites "$TEST_WORKDIR/suites.txt"
-            --skip-architecture
       - run:
-          name: Split snapshot suites by historical timing
+          name: Select deterministic snapshot shard
           command: |
-            circleci tests split --split-by=timings --timings-type=filename \
-              < "$TEST_WORKDIR/suites.txt" > "$TEST_WORKDIR/shard.txt"
-            python3 .circleci/shard_suites.py \
-              --all "$TEST_WORKDIR/suites.txt" \
-              --shard "$TEST_WORKDIR/shard.txt" \
-              --shard-count "$CIRCLE_NODE_TOTAL"
+            shard="$((CIRCLE_NODE_INDEX + 1))"
+            ./snapshot-shards list "$shard" > "$TEST_WORKDIR/shard.txt"
+            suite_count="$(wc -l < "$TEST_WORKDIR/shard.txt" | tr -d ' ')"
+            printf 'CI_SHARD {"index":%s,"shards":%s,"suites":%s}\n' \
+              "$CIRCLE_NODE_INDEX" "$CIRCLE_NODE_TOTAL" "$suite_count"
             echo "Assigned snapshot suites:"
             sed 's/^/  /' "$TEST_WORKDIR/shard.txt"
       - run_with_timeout:
@@ -335,6 +342,16 @@ jobs:
       - export_test_results:
           test_workdir: test-output-snapshots
           output_directory: test-results-snapshots
+      - run:
+          name: Stage snapshot suite timings
+          when: always
+          command: |
+            mkdir -p snapshot-timing-artifact
+            cp test-results-snapshots/results.xml \
+              "snapshot-timing-artifact/results-$CIRCLE_NODE_INDEX.xml"
+      - store_artifacts:
+          path: snapshot-timing-artifact
+          destination: snapshot-timings
       - collect_diagnostics:
           test_workdir: test-output-snapshots
           artifact_name: snapshots
