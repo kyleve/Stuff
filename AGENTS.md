@@ -115,9 +115,9 @@ source-level invariants. The entry point is
 [`BumperBowling.swift`](BumperBowling.swift). Repository-owned shapes and rules
 live in [`.bumper/Sources`](.bumper/Sources). [`.bumper/RULES.md`](.bumper/RULES.md) is the rule catalog.
 
-Run `swift run bumper config .`, `swift run bumper test .`, and
-`swift run bumper lint . --timings` after changing a Where dependency,
-composition root, or documented concurrency boundary. Keep the relevant
+Run `./test --architecture-only` after changing a Where dependency,
+composition root, or documented concurrency boundary. This command validates
+the configuration, tests the rules, and runs the lint. Keep the relevant
 `AGENTS.md`, the executable rule, its catalog entry, and its mutation test in
 the same change.
 
@@ -133,7 +133,8 @@ by `./sync-agents`.
 - `./sync-agents --install` — fetch external skills listed in
   `.agents/external-skills.json`. Rarely run by hand. `mise install` calls it
   from a `postinstall` hook. Installing tools also installs skills on a dev
-  machine and a cloud agent.
+  machine and a cloud agent. CI sets `MISE_NO_HOOKS=1` because CI does not use
+  agent skills.
 - `./sync-agents --add <url> [name]` — add an external skill from GitHub.
 - `./sync-agents --update` — re-fetch all external skills to the latest commit.
 
@@ -503,9 +504,10 @@ flag is needed there.
 `tuist test` or `xcodebuild` for them. The one exception is the native-macOS
 **Ledger-macOS-Tests** scheme, which `./test` does not know how to run at all.
 The [`running-tests`](.agents/skills/running-tests/SKILL.md) skill carries its
-invocation. Closing that gap is filed in [`TODOs.md`](TODOs.md). It runs the host-side backup-upgrader regression before
-selecting an iOS bundle, so tool-only changes remain covered by the same entry
-point. **Run checks in proportion to risk.** Run
+invocation. Closing that gap is filed in [`TODOs.md`](TODOs.md). The command
+runs the host-side backup-upgrader regression for affected or unit-capable iOS
+scopes. Snapshot-only runs skip this regression. Every normal invocation runs
+the Bumper Bowling checks first. **Run checks in proportion to risk.** Run
 `./swiftformat --lint` when the changed files are in its scope. Run the
 narrowest applicable `./test` tier for code, build, tooling, or behavior
 changes. Pure documentation or comment-only changes can skip checks that
