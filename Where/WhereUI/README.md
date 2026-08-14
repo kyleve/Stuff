@@ -42,15 +42,20 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   Backup and destructive data management share one Data drill-in. Data is
   followed by a persisted **Privacy & Diagnostics** screen for crash reports,
   redacted session replay, remote-log threshold, and Debug-only full metadata.
-  Data, Privacy & Diagnostics, and About lead with the same full-width
-  passport-style privacy statement. Its detail comes from the process's
-  effective reporting state, so next-launch choices do not rewrite the promise
-  early. `AboutSettingsView` is the last Settings block —
+  Data, Privacy & Diagnostics, and About lead with the same full-width, flat
+  passport-style privacy statement. It keeps the location promise separate
+  from icon-led rows that explain the purpose and scope of each active reporting
+  channel. On About and Data, each row links to Privacy & Diagnostics with an
+  in-row chevron. The rows are static on the Privacy & Diagnostics screen.
+  These rows come from the process's effective reporting state,
+  so next-launch choices do not rewrite the promise early. `AboutSettingsView`
+  is the last Settings block —
   build identity, the app's generated attribution report (linked libraries and
   development tools as separate sections), and bundled-data provenance, each
   vended by whoever owns it rather than listed in the view. It renders an
   explicit "no report" state, since only the app bundle carries one, and ends
-  with a passport-style link to the project's public source on GitHub.
+  with a flat, single-ink passport stamp linking to the project's public source
+  on GitHub.
   `MainTabs` is built from the `WhereSession` the launch's `.ready` carries. Its first
   visible reveal is covered by the launch splash for the stylesheet's minimum
   duration even when a headless-ready launch completes foreground promotion

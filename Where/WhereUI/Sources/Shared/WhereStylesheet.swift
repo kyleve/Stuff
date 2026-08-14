@@ -31,7 +31,9 @@ struct WhereStylesheet: BStylesheet {
     var typography = Typography.standard
     var settings = SettingsStyle.standard
     var featureDiscovery = FeatureDiscoveryStyle.standard
-    var passportCard = PassportCardStyle.standard
+    var passportSeal = PassportSealStyle.standard
+    var privacyPassportCard = PrivacyPassportCardStyle.standard
+    var openSourceStamp = OpenSourceStampStyle.standard
     var developerOverlay = DeveloperOverlayStyle.standard
 
     init() {}
@@ -64,6 +66,11 @@ struct WhereStylesheet: BStylesheet {
             card.regular.glow.radius = 0
             card.compact.glow.radius = 0
             card.constellation.haloOpacity = 0
+            privacyPassportCard.disclosure.fillOpacity = 0.16
+        }
+
+        if traits.accessibility.isDarkerSystemColorsEnabled {
+            openSourceStamp.ink = .increasedContrast
         }
 
         // Reduce Motion stops the cards' day count rolling its digits; it
@@ -1696,33 +1703,45 @@ extension WhereStylesheet {
     }
 }
 
-// MARK: - Passport card
+// MARK: - Settings passport artwork
 
 extension WhereStylesheet {
-    /// Appearance for compact passport statements in Settings.
-    struct PassportCardStyle: Equatable {
+    /// Geometry shared only by the repeated passport seal artwork.
+    struct PassportSealStyle: Equatable {
+        var size: CGFloat
+        var rotationDegrees: Double
+        var outerLineWidth: CGFloat
+        var innerLineWidth: CGFloat
+        var innerInset: CGFloat
+        var dashLength: CGFloat
+        var dashSpacing: CGFloat
+        var symbolFont: Font
+
+        static let standard = PassportSealStyle(
+            size: 52,
+            rotationDegrees: -8,
+            outerLineWidth: 2,
+            innerLineWidth: 1,
+            innerInset: 7,
+            dashLength: 3,
+            dashSpacing: 3,
+            symbolFont: .title3,
+        )
+    }
+
+    /// Appearance for the reflective privacy statement in Settings.
+    struct PrivacyPassportCardStyle: Equatable {
         var cornerRadius: CGFloat
         var padding: CGFloat
-        var contentSpacing: CGFloat
+        var sectionSpacing: CGFloat
+        var headerSpacing: CGFloat
         var titleFont: Font
         var detailFont: Font
-        var seal: Seal
         var rosette: Rosette
         var reflectiveSurface: ReflectiveSurface
-        var glassTintOpacity: Double
-        var accentGlow: Shadow
-        var liftShadow: Shadow
-
-        struct Seal: Equatable {
-            var size: CGFloat
-            var rotationDegrees: Double
-            var outerLineWidth: CGFloat
-            var innerLineWidth: CGFloat
-            var innerInset: CGFloat
-            var dashLength: CGFloat
-            var dashSpacing: CGFloat
-            var symbolFont: Font
-        }
+        var disclosure: Disclosure
+        var outlineOpacity: Double
+        var outlineWidth: CGFloat
 
         struct Rosette: Equatable {
             var wobble: CGFloat
@@ -1737,7 +1756,6 @@ extension WhereStylesheet {
             var backgroundTop: Color
             var backgroundBottom: Color
             var accent: Color
-            var glowOpacity: Double
             var intensity: Double
             var staticGlintIntensity: Double
             var staticPose: Pose
@@ -1748,28 +1766,32 @@ extension WhereStylesheet {
             }
         }
 
-        struct Shadow: Equatable {
-            var opacity: Double
-            var radius: CGFloat
-            var offsetY: CGFloat = 0
+        struct Disclosure: Equatable {
+            var rowSpacing: CGFloat
+            var cornerRadius: CGFloat
+            var padding: CGFloat
+            var contentSpacing: CGFloat
+            var textSpacing: CGFloat
+            var iconSize: CGFloat
+            var symbolFont: Font
+            var titleFont: Font
+            var detailFont: Font
+            var statusFont: Font
+            var statusHorizontalPadding: CGFloat
+            var statusVerticalPadding: CGFloat
+            var fillOpacity: Double
+            var strokeOpacity: Double
+            var strokeWidth: CGFloat
+            var statusFillOpacity: Double
         }
 
-        static let standard = PassportCardStyle(
+        static let standard = PrivacyPassportCardStyle(
             cornerRadius: 20,
             padding: 16,
-            contentSpacing: 12,
+            sectionSpacing: 12,
+            headerSpacing: 12,
             titleFont: .headline,
             detailFont: .subheadline,
-            seal: Seal(
-                size: 52,
-                rotationDegrees: -8,
-                outerLineWidth: 2,
-                innerLineWidth: 1,
-                innerInset: 7,
-                dashLength: 3,
-                dashSpacing: 3,
-                symbolFont: .title3,
-            ),
             rosette: Rosette(
                 wobble: 5,
                 lineWidth: 0.75,
@@ -1782,14 +1804,93 @@ extension WhereStylesheet {
                 backgroundTop: Color(red: 0.08, green: 0.18, blue: 0.34),
                 backgroundBottom: Color(red: 0.02, green: 0.07, blue: 0.16),
                 accent: Color(red: 0.88, green: 0.72, blue: 0.32),
-                glowOpacity: 0.12,
                 intensity: 0.28,
                 staticGlintIntensity: 0.28,
                 staticPose: .init(roll: 0.3, pitch: -0.15),
             ),
-            glassTintOpacity: 0.06,
-            accentGlow: Shadow(opacity: 0.18, radius: 7),
-            liftShadow: Shadow(opacity: 0.08, radius: 5, offsetY: 2),
+            disclosure: Disclosure(
+                rowSpacing: 8,
+                cornerRadius: 12,
+                padding: 10,
+                contentSpacing: 10,
+                textSpacing: 3,
+                iconSize: 32,
+                symbolFont: .subheadline,
+                titleFont: .subheadline,
+                detailFont: .footnote,
+                statusFont: .footnote,
+                statusHorizontalPadding: 8,
+                statusVerticalPadding: 4,
+                fillOpacity: 0.08,
+                strokeOpacity: 0.18,
+                strokeWidth: 0.75,
+                statusFillOpacity: 0.14,
+            ),
+            outlineOpacity: 0.32,
+            outlineWidth: 1,
+        )
+    }
+
+    /// Appearance for the flat, single-ink source stamp at the end of About.
+    struct OpenSourceStampStyle: Equatable {
+        var padding: CGFloat
+        var contentSpacing: CGFloat
+        var titleFont: Font
+        var detailFont: Font
+        var outlineWidth: CGFloat
+        var rosette: Rosette
+        var ink: Ink
+
+        struct Rosette: Equatable {
+            var wobble: CGFloat
+            var lineWidth: CGFloat
+            var primaryRingSpacing: CGFloat
+            var secondaryRingSpacing: CGFloat
+        }
+
+        struct Ink: Equatable {
+            var outlineOpacity: Double
+            var primaryRosetteOpacity: Double
+            var secondaryRosetteOpacity: Double
+            var sealOpacity: Double
+            var titleOpacity: Double
+            var detailOpacity: Double
+            var accessoryOpacity: Double
+
+            static let standard = Ink(
+                outlineOpacity: 0.72,
+                primaryRosetteOpacity: 0.1,
+                secondaryRosetteOpacity: 0.06,
+                sealOpacity: 0.9,
+                titleOpacity: 1,
+                detailOpacity: 0.68,
+                accessoryOpacity: 0.86,
+            )
+
+            static let increasedContrast = Ink(
+                outlineOpacity: 1,
+                primaryRosetteOpacity: 0.16,
+                secondaryRosetteOpacity: 0.1,
+                sealOpacity: 1,
+                titleOpacity: 1,
+                detailOpacity: 0.9,
+                accessoryOpacity: 1,
+            )
+        }
+
+        static let standard = OpenSourceStampStyle(
+            padding: 16,
+            contentSpacing: 12,
+            titleFont: .headline,
+            detailFont: .subheadline,
+            outlineWidth: 1.5,
+            rosette: Rosette(
+                wobble: 5,
+                lineWidth: 0.75,
+                primaryRingSpacing: 10,
+                secondaryRingSpacing: 16,
+            ),
+            ink: .standard,
         )
     }
 }
