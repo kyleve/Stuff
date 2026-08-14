@@ -152,6 +152,20 @@ extension SnapshotConfiguration {
             )
         }
 
+        /// A two-axis full-content frame: starts at `minimumSize`, then expands
+        /// to reveal the complete content of a viewport-filling scroll view.
+        /// Use this explicitly for spatial canvases; ordinary full-content
+        /// frames deliberately keep their device width fixed.
+        public static func fullContent2D(
+            name: String,
+            minimumSize: CGSize,
+        ) -> Frame {
+            Frame(
+                name: name,
+                size: .fullContent2D(minimumSize: minimumSize),
+            )
+        }
+
         /// An iPhone viewport that grows to fit settled scrolling content.
         public static let iPhoneFullContent = fullContent(
             name: "iPhone",
@@ -164,6 +178,18 @@ extension SnapshotConfiguration {
             name: "iPad",
             width: iPadWidth,
             minimumHeight: iPadHeight,
+        )
+
+        /// An iPhone viewport that expands along both scrolling axes.
+        public static let iPhoneFullContent2D = fullContent2D(
+            name: "iPhone",
+            minimumSize: CGSize(width: iPhoneWidth, height: iPhoneHeight),
+        )
+
+        /// An iPad viewport that expands along both scrolling axes.
+        public static let iPadFullContent2D = fullContent2D(
+            name: "iPad",
+            minimumSize: CGSize(width: iPadWidth, height: iPadHeight),
         )
 
         /// A phone screen frame (iPhone 17 point size).
@@ -195,6 +221,9 @@ extension SnapshotConfiguration {
         /// A fixed width with the height measured from the settled content, so
         /// scrollable content renders whole (see ``Frame/fullContent(name:width:)``).
         case fullContent(width: CGFloat, minimumHeight: CGFloat?)
+        /// A minimum viewport that expands to reveal a viewport-filling scroll
+        /// view in both dimensions (see ``Frame/fullContent2D(name:minimumSize:)``).
+        case fullContent2D(minimumSize: CGSize)
     }
 }
 

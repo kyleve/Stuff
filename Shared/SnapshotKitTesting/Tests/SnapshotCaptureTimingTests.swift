@@ -72,6 +72,17 @@ struct SnapshotCaptureTimingTests {
         #expect(line.captureSettle == "settledAtLeast(1.0)")
     }
 
+    @Test func twoAxisSizingIsReportedDistinctly() throws {
+        let timing = SnapshotCaptureTiming(
+            identifier: "spatial",
+            isEnabled: true,
+            sizing: .fullContent2D(minimumSize: CGSize(width: 834, height: 1194)),
+        )
+
+        let line = try decodedLine(from: timing)
+        #expect(line.sizing == "fullContent2D")
+    }
+
     @Test func unmeasuredPhasesAreAbsentRatherThanZero() throws {
         let timing = SnapshotCaptureTiming(identifier: "sparse", isEnabled: true)
         timing.measure(.compare) {}
