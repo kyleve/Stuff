@@ -1833,7 +1833,6 @@ extension WhereStylesheet {
 
     /// Appearance for the flat, single-ink source stamp at the end of About.
     struct OpenSourceStampStyle: Equatable {
-        var cornerRadius: CGFloat
         var padding: CGFloat
         var contentSpacing: CGFloat
         var titleFont: Font
@@ -1880,7 +1879,6 @@ extension WhereStylesheet {
         }
 
         static let standard = OpenSourceStampStyle(
-            cornerRadius: 20,
             padding: 16,
             contentSpacing: 12,
             titleFont: .headline,

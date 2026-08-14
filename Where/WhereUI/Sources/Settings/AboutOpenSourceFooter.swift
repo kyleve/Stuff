@@ -12,7 +12,7 @@ struct AboutOpenSourceFooter: View {
         Link(destination: Self.projectURL) {
             let style = stylesheet.openSourceStamp
             let ink = style.ink
-            let shape = RoundedRectangle(cornerRadius: style.cornerRadius)
+            let shape = ContainerRelativeShape()
             Group {
                 if dynamicTypeSize.isAccessibilitySize {
                     VStack(alignment: .leading, spacing: style.contentSpacing) {
@@ -66,7 +66,6 @@ struct AboutOpenSourceFooter: View {
             .accessibilityElement(children: .combine)
         }
         .buttonStyle(.plain)
-        .padding(.horizontal, stylesheet.openSourceStamp.outlineWidth)
     }
 }
 

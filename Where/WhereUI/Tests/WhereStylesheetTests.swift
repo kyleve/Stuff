@@ -606,7 +606,6 @@ struct WhereStylesheetTests {
         #expect(privacy.outlineWidth == 1)
 
         let source = style.openSourceStamp
-        #expect(source.cornerRadius == 20)
         #expect(source.padding == 16)
         #expect(source.contentSpacing == 12)
         #expect(source.titleFont == .headline)
