@@ -1,17 +1,12 @@
 import PeriscopeCore
 
 /// Process-level events from the Where application host.
-enum WhereAppLog: LogEvent {
-    case diagnosticProviderStartupFailed
-
-    var level: LogLevel {
-        .error
-    }
-
-    var message: String {
-        switch self {
-            case .diagnosticProviderStartupFailed:
-                "The diagnostic reporting provider did not start."
-        }
-    }
+@LogScope("WhereApp")
+enum WhereAppLog {
+    @LogEvent(
+        "diagnostic-provider-startup-failed",
+        level: .error,
+        message: "The diagnostic reporting provider did not start.",
+    )
+    struct DiagnosticProviderStartupFailed {}
 }
