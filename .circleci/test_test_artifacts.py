@@ -27,7 +27,7 @@ class ArtifactTests(unittest.TestCase):
     def make_artifacts(self, directory):
         root = pathlib.Path(directory).resolve()
         products = root / "DerivedData" / "Build" / "Products"
-        products.mkdir(parents=True)
+        (products / "Debug-iphonesimulator").mkdir(parents=True)
         (products / "StuffSnapshotTests_iphonesimulator27.0-arm64.xctestrun").touch()
         return root
 
@@ -64,7 +64,7 @@ class ArtifactTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = self.make_artifacts(directory)
             manifest = MODULE.create_manifest(root, ["StuffSnapshotTests"], METADATA)
-            manifest["products"] = "../Products"
+            manifest["builtProducts"] = "../Products"
             (root / "manifest.json").write_text(json.dumps(manifest))
 
             with self.assertRaisesRegex(ValueError, "leaves the artifact root"):
