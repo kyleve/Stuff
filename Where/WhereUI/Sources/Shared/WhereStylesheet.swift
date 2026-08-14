@@ -51,7 +51,6 @@ struct WhereStylesheet: BStylesheet {
             timeline.overview.pinsToViewport = false
             timeline.row.stacksDayCount = true
             featureDiscovery.siri.bubble.indent = 0
-            privacyPassportCard.rotationClearance = 24
         }
 
         // Give every region a consistently labeled ribbon band when tint
@@ -67,7 +66,6 @@ struct WhereStylesheet: BStylesheet {
             card.regular.glow.radius = 0
             card.compact.glow.radius = 0
             card.constellation.haloOpacity = 0
-            privacyPassportCard.glassTintOpacity = 0
             privacyPassportCard.disclosure.fillOpacity = 0.16
         }
 
@@ -1735,8 +1733,6 @@ extension WhereStylesheet {
     struct PrivacyPassportCardStyle: Equatable {
         var cornerRadius: CGFloat
         var padding: CGFloat
-        var rotationClearance: CGFloat
-        var rotationDegrees: Double
         var sectionSpacing: CGFloat
         var headerSpacing: CGFloat
         var titleFont: Font
@@ -1744,9 +1740,8 @@ extension WhereStylesheet {
         var rosette: Rosette
         var reflectiveSurface: ReflectiveSurface
         var disclosure: Disclosure
-        var glassTintOpacity: Double
-        var accentGlow: Shadow
-        var liftShadow: Shadow
+        var outlineOpacity: Double
+        var outlineWidth: CGFloat
 
         struct Rosette: Equatable {
             var wobble: CGFloat
@@ -1761,7 +1756,6 @@ extension WhereStylesheet {
             var backgroundTop: Color
             var backgroundBottom: Color
             var accent: Color
-            var glowOpacity: Double
             var intensity: Double
             var staticGlintIntensity: Double
             var staticPose: Pose
@@ -1791,17 +1785,9 @@ extension WhereStylesheet {
             var statusFillOpacity: Double
         }
 
-        struct Shadow: Equatable {
-            var opacity: Double
-            var radius: CGFloat
-            var offsetY: CGFloat = 0
-        }
-
         static let standard = PrivacyPassportCardStyle(
             cornerRadius: 20,
             padding: 16,
-            rotationClearance: 6,
-            rotationDegrees: -1.5,
             sectionSpacing: 12,
             headerSpacing: 12,
             titleFont: .headline,
@@ -1818,7 +1804,6 @@ extension WhereStylesheet {
                 backgroundTop: Color(red: 0.08, green: 0.18, blue: 0.34),
                 backgroundBottom: Color(red: 0.02, green: 0.07, blue: 0.16),
                 accent: Color(red: 0.88, green: 0.72, blue: 0.32),
-                glowOpacity: 0.12,
                 intensity: 0.28,
                 staticGlintIntensity: 0.28,
                 staticPose: .init(roll: 0.3, pitch: -0.15),
@@ -1841,9 +1826,8 @@ extension WhereStylesheet {
                 strokeWidth: 0.75,
                 statusFillOpacity: 0.14,
             ),
-            glassTintOpacity: 0.06,
-            accentGlow: Shadow(opacity: 0.18, radius: 7),
-            liftShadow: Shadow(opacity: 0.08, radius: 5, offsetY: 2),
+            outlineOpacity: 0.32,
+            outlineWidth: 1,
         )
     }
 

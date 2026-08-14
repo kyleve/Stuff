@@ -17,6 +17,7 @@ struct PrivacyDiagnosticsSettingsView: View {
                 ))
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
+                .listRowInsets(EdgeInsets())
 
                 Section {
                     Toggle(

@@ -1,4 +1,3 @@
-import SFSafeSymbols
 import SwiftUI
 
 /// Presents one active privacy-reporting disclosure as a self-contained status row.
@@ -6,24 +5,21 @@ struct PrivacyPassportDisclosureRow: View {
     let disclosure: PrivacyPassportPresentation.Disclosure
 
     @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         let style = stylesheet.privacyPassportCard.disclosure
-        HStack(alignment: .top, spacing: style.contentSpacing) {
-            Image(systemSymbol: disclosure.systemSymbol)
-                .font(style.symbolFont)
-                .foregroundStyle(.tint)
-                .frame(width: style.iconSize, height: style.iconSize)
-                .background(.tint.opacity(style.statusFillOpacity), in: Circle())
-                .accessibilityHidden(true)
-
-            VStack(alignment: .leading, spacing: style.textSpacing) {
-                PrivacyPassportDisclosureHeader(disclosure: disclosure)
-
-                Text(disclosure.detail)
-                    .font(style.detailFont)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: style.contentSpacing) {
+                    PrivacyPassportDisclosureSymbol(disclosure: disclosure)
+                    PrivacyPassportDisclosureText(disclosure: disclosure)
+                }
+            } else {
+                HStack(alignment: .top, spacing: style.contentSpacing) {
+                    PrivacyPassportDisclosureSymbol(disclosure: disclosure)
+                    PrivacyPassportDisclosureText(disclosure: disclosure)
+                }
             }
         }
         .padding(style.padding)

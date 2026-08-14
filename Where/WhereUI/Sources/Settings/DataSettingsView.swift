@@ -29,6 +29,7 @@ struct DataSettingsView: View {
                 ))
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
+                .listRowInsets(EdgeInsets())
                 BackupSettingsSection(backup: backup)
                 dataSection
                 resetSection

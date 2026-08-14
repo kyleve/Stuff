@@ -27,8 +27,6 @@ struct PrivacyPassportCard: View {
             .padding(style.padding)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .rotationEffect(.degrees(style.rotationDegrees))
-        .padding(style.rotationClearance)
         .onAppear { tilt.start() }
         .onDisappear { tilt.stop() }
     }

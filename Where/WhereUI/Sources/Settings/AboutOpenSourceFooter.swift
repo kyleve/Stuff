@@ -75,6 +75,7 @@ struct AboutOpenSourceFooter: View {
             AboutOpenSourceFooter()
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
+                .listRowInsets(EdgeInsets())
         }
         .whereBroadwayRoot()
     }

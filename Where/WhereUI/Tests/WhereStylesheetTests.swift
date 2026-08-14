@@ -564,8 +564,6 @@ struct WhereStylesheetTests {
         let privacy = style.privacyPassportCard
         #expect(privacy.cornerRadius == 20)
         #expect(privacy.padding == 16)
-        #expect(privacy.rotationClearance == 6)
-        #expect(privacy.rotationDegrees == -1.5)
         #expect(privacy.sectionSpacing == 12)
         #expect(privacy.headerSpacing == 12)
         #expect(privacy.titleFont == .headline)
@@ -582,7 +580,6 @@ struct WhereStylesheetTests {
             backgroundTop: Color(red: 0.08, green: 0.18, blue: 0.34),
             backgroundBottom: Color(red: 0.02, green: 0.07, blue: 0.16),
             accent: Color(red: 0.88, green: 0.72, blue: 0.32),
-            glowOpacity: 0.12,
             intensity: 0.28,
             staticGlintIntensity: 0.28,
             staticPose: .init(roll: 0.3, pitch: -0.15),
@@ -605,9 +602,8 @@ struct WhereStylesheetTests {
             strokeWidth: 0.75,
             statusFillOpacity: 0.14,
         ))
-        #expect(privacy.glassTintOpacity == 0.06)
-        #expect(privacy.accentGlow == .init(opacity: 0.18, radius: 7))
-        #expect(privacy.liftShadow == .init(opacity: 0.08, radius: 5, offsetY: 2))
+        #expect(privacy.outlineOpacity == 0.32)
+        #expect(privacy.outlineWidth == 1)
 
         let source = style.openSourceStamp
         #expect(source.cornerRadius == 20)
@@ -703,7 +699,6 @@ struct WhereStylesheetTests {
         #expect(resolved.timeline.row.stacksDayCount)
         #expect(resolved.featureDiscovery.siri.bubble.indent == 0)
         #expect(resolved.featureDiscovery.widgets.contentWidth(in: 834) == 320)
-        #expect(resolved.privacyPassportCard.rotationClearance == 24)
     }
 
     @MainActor
@@ -715,7 +710,6 @@ struct WhereStylesheetTests {
         #expect(resolved.card.compact.glow.radius == 0)
         #expect(resolved.card.constellation.haloOpacity == 0)
         #expect(resolved.card.constellation.coreOpacity == 0.92)
-        #expect(resolved.privacyPassportCard.glassTintOpacity == 0)
         #expect(resolved.privacyPassportCard.disclosure.fillOpacity == 0.16)
     }
 

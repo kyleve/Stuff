@@ -31,10 +31,6 @@ struct PrivacyPassportCardSurface<Content: View>: View {
                     )
                 }
             }
-            .glassEffect(
-                .regular.tint(reflection.accent.opacity(style.glassTintOpacity)),
-                in: shape,
-            )
             .tiltSheen(
                 tilt: tilt,
                 staticRoll: reflection.staticPose.roll,
@@ -46,17 +42,13 @@ struct PrivacyPassportCardSurface<Content: View>: View {
             .tint(reflection.accent)
             .environment(\.colorScheme, .dark)
             .clipShape(shape)
+            .overlay {
+                shape.strokeBorder(
+                    reflection.accent.opacity(style.outlineOpacity),
+                    lineWidth: style.outlineWidth,
+                )
+            }
             .contentShape(shape)
-            .shadow(
-                color: reflection.backgroundTop.opacity(reflection.glowOpacity),
-                radius: style.accentGlow.radius,
-                y: style.accentGlow.offsetY,
-            )
-            .shadow(
-                color: Color.black.opacity(style.liftShadow.opacity),
-                radius: style.liftShadow.radius,
-                y: style.liftShadow.offsetY,
-            )
     }
 }
 
