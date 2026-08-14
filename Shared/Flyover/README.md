@@ -134,6 +134,56 @@ Then keep their central catalog limited to grouping and assembly.
 Swift macros cannot discover all conformers or navigation destinations across a module.
 A generated source scan would add build ordering and cache invalidation complexity.
 
+## Static web export
+
+`FlyoverWebExporter` converts a DEBUG catalog into a static QA atlas. It writes
+native PNG captures, `manifest.json`, and `manifest.js`. The web shell reads
+`manifest.js`, so the atlas works from `file://` and any static host. The
+browser changes images and navigation state. It does not run SwiftUI or
+serialize `FlyoverControl` actions.
+
+The exporter validates the complete plan before its first capture. The host
+provides one stable string for each typed screen ID and one capture closure.
+Stable IDs must be nonempty and unique. Variant IDs must also be nonempty and
+unique within a screen. Image paths use generated ordinals, never these IDs.
+
+Every variant has a `FlyoverExportPolicy`. Snapshot-backed variants inherit
+their settle, readiness, and hook behavior. Their frame matrix reduces to one
+capture extent: fixed, intrinsic, full-content, or two-axis full-content. A
+mixed matrix is invalid unless the app supplies an explicit policy. Hosted
+variants default to a fixed viewport.
+
+Profiles are additive and keep request order. No profile matrix is generated.
+The built-in IDs are:
+
+- `phone-light`, `phone-dark`, `tablet-light`, and `phone-landscape`
+- `phone-small`, `phone-xxxl`, and `phone-ax3`
+- `phone-contrast`, `phone-rtl`, `phone-bold`, and `phone-voiceover`
+
+The first profile is the initial web selection. An empty profile list becomes
+`phone-light`. Fixed Flyover viewports keep their size while profile traits
+still apply.
+
+Run Where's exporter from the repository root:
+
+```sh
+./flyover export
+./flyover export --profile phone-light --profile phone-dark
+./flyover export --output /tmp/where-flyover --profile tablet-light
+```
+
+The default output is `.build/flyover/where`, resolved from the caller's
+directory. The command stages the complete site and replaces only an existing
+directory marked with `.flyover-generated`. A failed capture leaves the last
+successful atlas unchanged.
+
+The manifest compatibility boundary is `schemaVersion: 1`. It contains the
+application and build identity, profiles, precomputed canvas geometry, groups,
+screens, routes, and image metadata. It contains no local source or account
+paths. Full-content sizing uses SnapshotKitTesting limits and convergence
+rules. A sizing failure stops the export; it never substitutes a viewport
+image.
+
 ## Testing
 
 Run unit coverage with:

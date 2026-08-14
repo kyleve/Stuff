@@ -1,4 +1,4 @@
-enum FlyoverTestScreen: Hashable {
+enum FlyoverTestScreen: String, Hashable {
     case root
     case pushed
     case modal
