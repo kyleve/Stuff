@@ -13,7 +13,8 @@ For the rules that apply when editing this target, see [`AGENTS.md`](AGENTS.md).
 | File | Role |
 |------|------|
 | `Sources/WhereApp.swift` | `@main` `App`. One `WindowGroup` rendering the selected runtime's type-erased root. |
-| `Sources/AppDelegate.swift` | The boot router. Starts each crash reporter, selects one `WhereApplicationRuntime` in its initializer, and forwards lifecycle callbacks. |
+| `Sources/AppDelegate.swift` | The boot router. Resolves process reporting preferences, starts the reporting controller, selects one `WhereApplicationRuntime`, and forwards lifecycle callbacks. |
+| `Sources/DiagnosticReportingController.swift` | Owns the launch-only Bitdrift channels and revisioned Periscope remote sink for the process. |
 | `Sources/RegularApplicationRuntime.swift` | Owns the app's single `WhereModel`, `IntentServices`, and `LifecycleRunner`. Starts logging, installs the App Intents handoff, and indexes Spotlight. |
 | `Sources/WhereInspectorApplicationRuntime.swift` | DEBUG-only alternate runtime. Configures the standalone Inspector without constructing regular app systems. |
 | `Sources/WhereApplicationRuntime.swift` | The class-bound launch/root-view protocol shared by both runtimes. |
@@ -36,8 +37,13 @@ The runner drives the background-safe launch steps immediately and builds no vie
 When a scene actually activates, `RootView` promotes the launch to `.userForeground` and the remaining steps run.
 
 Before either the regular or Inspector runtime receives that callback, the app
-starts its Bitdrift `WhereCrashReporting` implementation. Performance tracing
-is not enabled by the crash-reporting setup.
+captures diagnostic preferences. It starts Bitdrift only if crash reports,
+session replay, or remote logs require it. Fatal reporting and replay stay at
+that launch snapshot. Remote Periscope forwarding attaches, updates, drains,
+and detaches live. The same `WherePreferences` instance feeds `WhereModel`.
+An all-Off launch never starts the SDK. Performance tracing is not enabled by
+this setup. If the provider does not start, the app records a typed local error
+event. The regular runtime also shows the error in Privacy & Diagnostics.
 
 The Inspector runtime returns its standalone `InspectorView` and starts none of the model, launch, CoreLocation, notification, Periscope pipeline, App Intents, or Spotlight systems.
 It opens Where and Periscope containers only through their schema adapters for inspection.

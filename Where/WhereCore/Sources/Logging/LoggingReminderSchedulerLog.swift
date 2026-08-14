@@ -48,4 +48,21 @@ enum LoggingReminderSchedulerLog: LogEvent {
                 "Failed to set badge count: \(description)"
         }
     }
+
+    var remoteFields: [RemoteLogField] {
+        switch self {
+            case let .reconciled(scheduled, removed, badge):
+                [
+                    RemoteLogField(
+                        key: RemoteLogFieldKey("scheduled_count"),
+                        value: .count(scheduled),
+                    ),
+                    RemoteLogField(key: RemoteLogFieldKey("removed_count"), value: .count(removed)),
+                    RemoteLogField(key: RemoteLogFieldKey("badge_count"), value: .count(badge)),
+                ]
+            case .authorizationRequestFailed, .authorizationNotGranted, .authorizationUnknown,
+                 .scheduleFailed, .badgeUpdateFailed:
+                []
+        }
+    }
 }

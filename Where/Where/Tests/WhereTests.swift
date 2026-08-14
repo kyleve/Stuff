@@ -25,15 +25,15 @@ struct WhereAppTests {
         #expect(runtime.rootCount == 1)
     }
 
-    @Test func delegateStartsEveryCrashReporterBeforeItsRuntime() {
+    @Test func delegateStartsEveryReportingControllerBeforeItsRuntime() {
         var events: [String] = []
         let runtime = RuntimeSpy()
         runtime.onLaunch = { events.append("runtime") }
         let delegate = AppDelegate(
             runtime: runtime,
-            crashReporters: [
-                CrashReporterSpy { events.append("first-reporter") },
-                CrashReporterSpy { events.append("second-reporter") },
+            reportingControllers: [
+                ReportingControllerSpy { events.append("first-reporter") },
+                ReportingControllerSpy { events.append("second-reporter") },
             ],
         )
 
@@ -58,6 +58,24 @@ struct WhereAppTests {
                 RegularApplicationRuntime.storeStorage(forCloudKitValidationBuild: true)
                     == .cloudKit,
             )
+        }
+
+        @Test func regularRuntimeUsesTheProcessReportingPreferencesForItsModel() {
+            let preferences = WherePreferences(store: InMemoryKeyValueStore())
+            let effective = DiagnosticReportingConfiguration.defaults(isDebugBuild: true)
+            let runtime = RegularApplicationRuntime(
+                preferences: preferences,
+                effectiveDiagnosticReportingConfiguration: effective,
+                applyRemoteLogging: { _, _ in },
+            )
+
+            preferences.hasOnboarded = true
+            runtime.model.diagnosticReporting.sharesCrashReports = false
+            runtime.model.diagnosticReporting.sharesSessionReplays = true
+
+            #expect(runtime.model.hasOnboarded)
+            #expect(preferences.diagnosticReportingConfiguration.sharesCrashReports == false)
+            #expect(preferences.diagnosticReportingConfiguration.sharesSessionReplays)
         }
 
         @Test func selectingInspectorConstructsOnlyInspectorRuntime() throws {
@@ -308,7 +326,7 @@ private final class RuntimeSpy: WhereApplicationRuntime {
 }
 
 @MainActor
-private struct CrashReporterSpy: WhereCrashReporting {
+private struct ReportingControllerSpy: WhereReportingController {
     let onStart: () -> Void
 
     func start() {

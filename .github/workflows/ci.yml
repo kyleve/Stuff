@@ -13,6 +13,11 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  # CI installs tools only. Agent skills are local-development inputs, and mise
+  # otherwise runs the postinstall hook even when every tool is already cached.
+  MISE_NO_HOOKS: "1"
+
 jobs:
   format:
     name: SwiftFormat Lint
@@ -65,18 +70,17 @@ jobs:
         with:
           path: .build
           key: ${{ runner.os }}-${{ runner.arch }}-bumper-${{ hashFiles('Package.swift', 'Package.resolved', 'BumperBowling.swift', '.bumper/Sources/**/*.swift', '.bumper/Tests/**/*.swift') }}
-      - name: Validate configuration
-        run: swift run bumper config .
-      - name: Test architecture rules
-        run: swift run bumper test .
+      - name: Validate and enforce architecture
+        run: ./test --architecture-only
+      # Lint builds and populates the cached Bumper consumer runner. Save only
+      # after the complete architecture pass so a cold run does not cache a
+      # half-populated .build directory.
       - name: Save Bumper build cache
         if: steps.bumper-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: .build
           key: ${{ steps.bumper-cache.outputs.cache-primary-key }}
-      - name: Enforce Where architecture
-        run: swift run bumper lint . --timings
 
   test-macos:
     name: Build & Test (macOS)

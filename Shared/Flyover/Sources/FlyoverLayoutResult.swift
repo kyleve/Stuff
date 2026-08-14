@@ -4,5 +4,7 @@ import CoreGraphics
 struct FlyoverLayoutResult<ScreenID: Hashable> {
     let screenFrames: [ScreenID: CGRect]
     let groupFrames: [FlyoverGroupID: CGRect]
+    let depthBands: [FlyoverDepthBand]
+    let initialCanvasSize: CGSize
     let canvasSize: CGSize
 }

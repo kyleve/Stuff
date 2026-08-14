@@ -79,6 +79,8 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **Include UIKit-backed SwiftUI containers in full-content sizing.**
 - **When a full-width scroll view such as `Form` reports its viewport through `sizeThatFits`, add surrounding chrome to the size.**
 - **Device presets retain their normal viewport height as the minimum.** Guard: `SnapshotKitTestingTests.LargeViewCaptureTests`.
+- **Use one authoritative scroller for two-axis full-content sizing.** Resolve both dimensions from the largest viewport-filling scroll descendant. Converge the size as one value. Reset it to the leading/top edge.
+- **Reject unsafe two-axis captures before allocation.** Limit them to 32,000 pixels per dimension and 100 million pixels total. Guard: `SnapshotKitTestingTests.LargeViewCaptureTests`.
 - **Intrinsic height must converge before comparison.**
 - **If bounded fixed-point passes are exhausted, fail the assertion and skip comparison/recording.** Never bless the last arbitrary height.
 - **Guard: `LargeViewCaptureTests.rejectsNonConvergingBoundedScrollMeasurement`.**

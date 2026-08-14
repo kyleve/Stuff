@@ -4,7 +4,7 @@ import SwiftUI
 /// The shared card content and chrome used for Where's passport statements.
 struct PassportCard: View {
     let title: LocalizedStringResource
-    let detail: LocalizedStringResource
+    let detail: String
     let sealSystemSymbol: SFSymbol
     let accessorySystemSymbol: SFSymbol?
     let isInteractive: Bool
@@ -97,7 +97,7 @@ struct PassportCard: View {
     #Preview {
         PassportCard(
             title: .settingsPrivacyTitle,
-            detail: .settingsPrivacyDetail,
+            detail: String(localized: .settingsPrivacyDetail),
             sealSystemSymbol: .lockShieldFill,
             accessorySystemSymbol: nil,
             isInteractive: false,

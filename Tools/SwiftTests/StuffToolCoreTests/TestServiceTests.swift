@@ -132,6 +132,9 @@ struct TestServiceTests {
         defer { removeTemporaryDirectory(root) }
         let runner = FakeCommandRunner(responses: [
             .stub(),
+            .stub(),
+            .stub(),
+            .stub(),
             .stub(standardOutput: "base\n"),
             .stub(standardOutput: "abcdef\n"),
             .stub(),
@@ -151,10 +154,16 @@ struct TestServiceTests {
             environment: ["TEST_WORKDIR": root.appending(path: "work").path],
         )
 
-        let status = try await service.run(makeTestRequest(scope: .changed))
+        let status = try await service.run(makeTestRequest(
+            scope: .changed,
+            architectureMode: .run,
+        ))
 
         #expect(status == 0)
-        #expect(await runner.invocations.count == 6)
+        let invocations = await runner.invocations
+        #expect(invocations.count == 9)
+        #expect(invocations.prefix(3).allSatisfy { $0.executable == "swift" })
+        #expect(invocations[3].executable == "mise")
         #expect(await simulator.calls.isEmpty)
         #expect(await terminal.standardOutputText.contains(
             "No changes against origin/main — nothing to test.",
@@ -166,7 +175,6 @@ struct TestServiceTests {
         defer { removeTemporaryDirectory(root) }
         let work = root.appending(path: "work", directoryHint: .isDirectory)
         let runner = FakeCommandRunner(responses: [
-            .stub(),
             .stub(exitCode: 1, standardError: "graph failed"),
         ])
         let service = TestService(
@@ -283,7 +291,6 @@ struct TestServiceTests {
 
         """
         let runner = FakeCommandRunner(responses: [
-            .stub(),
             .stub(standardOutput: "    BUILT_PRODUCTS_DIR = /tmp/Products\n"),
             .stub(standardOutput: testOutput),
         ])
@@ -307,9 +314,40 @@ struct TestServiceTests {
 
         #expect(status == 0)
         let invocations = await runner.invocations
-        #expect(invocations[2].environment[
+        #expect(invocations.count == 2)
+        #expect(invocations.contains { $0.executable == "mise" } == false)
+        #expect(invocations[1].environment[
             "TEST_RUNNER_SNAPSHOT_SETTLE_TIMEOUT_MULTIPLIER",
         ] == "2")
+    }
+
+    @Test func architectureOnlyStopsBeforeBackupFilesystemAndSimulatorWork() async throws {
+        let root = try makeTemporaryDirectory()
+        defer { removeTemporaryDirectory(root) }
+        let runner = FakeCommandRunner(responses: [.stub(), .stub(), .stub()])
+        let simulator = StubSimulatorResolver(udid: "UNUSED")
+        let terminal = MemoryTerminal()
+        let service = TestService(
+            runner: runner,
+            simulator: simulator,
+            fileSystem: FoundationFileSystem(),
+            clock: ImmediateClock(),
+            terminal: terminal,
+            repository: root,
+            temporaryDirectory: root,
+            environment: ["TEST_WORKDIR": root.appending(path: "work").path],
+        )
+
+        let status = try await service.run(makeTestRequest(
+            scope: .changed,
+            architectureMode: .only,
+        ))
+
+        #expect(status == 0)
+        #expect(await runner.invocations.count == 3)
+        #expect(await simulator.calls.isEmpty)
+        #expect(FileManager.default.fileExists(atPath: root.appending(path: "work").path) == false)
+        #expect(await terminal.standardOutputText.contains("Testing backup upgrader") == false)
     }
 }
 
@@ -318,6 +356,7 @@ private func makeTestRequest(
     bundles: [String] = [],
     only: [String] = [],
     baseReference: String = "origin/main",
+    architectureMode: TestArchitectureMode = .skip,
     build: Bool = true,
     generate: Bool = true,
     record: String? = nil,
@@ -334,6 +373,7 @@ private func makeTestRequest(
         bundles: bundles,
         only: only,
         baseReference: baseReference,
+        architectureMode: architectureMode,
         build: build,
         generate: generate,
         record: record,

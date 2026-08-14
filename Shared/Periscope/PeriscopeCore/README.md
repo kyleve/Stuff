@@ -73,7 +73,7 @@ Periscope.shared.startDefaultAmbientSources()
 ## Public API
 
 - **Events** — `LogEvent` (`Codable & Sendable`; `eventName`, `eventVersion`,
-  `level`, `message`), the built-in freeform `Message`, and the extensible
+  `level`, `message`, PII-free `remoteMessage`, approved `remoteFields`), the built-in freeform `Message`, and the extensible
   `LogLevel` struct (`name` + `severity`; standard ladder `debug…fault`,
   custom levels slot between).
 - **Loggers** — `Log<Event>`: derive typed children (`log(PhotoLogs.self)`),
@@ -100,6 +100,13 @@ Periscope.shared.startDefaultAmbientSources()
 - **Attachments** — `LogAttachment` (+ `.error`, `.json`, `.image`
   conveniences) rides along with any event. Blobs persist externally and
   load on demand.
+- **Remote approval** — `remoteMessage` defaults to the stable event name and
+  `remoteFields` defaults empty. Fields are restricted to booleans, counts,
+  durations, and closed `RawRepresentable & CaseIterable` categories whose
+  selected value must be one of `allCases`; safe sinks never infer from the
+  Codable payload, tags, dynamic scopes, ambient state, external IDs, or attachments.
+  Debug full-metadata mode may add that context plus attachment names/MIME
+  types, but attachment bytes are never a remote-export input.
 - **System** — `Periscope`: the recorder and `LogSink` pipeline (OSLog sink
   built in; `add(sink:)` returns a `SinkToken` that `remove(_:)` detaches —
   see [Detaching a sink](#detaching-a-sink)), level floors (`minimumLevel`,

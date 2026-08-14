@@ -9,7 +9,7 @@ struct AboutOpenSourceFooter: View {
         Link(destination: Self.projectURL) {
             PassportCard(
                 title: .settingsAboutSourceTitle,
-                detail: .settingsAboutSourceAction,
+                detail: String(localized: .settingsAboutSourceAction),
                 sealSystemSymbol: .chevronLeftForwardslashChevronRight,
                 accessorySystemSymbol: .arrowUpRight,
                 isInteractive: true,

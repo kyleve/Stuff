@@ -21,10 +21,10 @@ struct AboutSettingsView: View {
     var focus: SettingsFocus?
 
     @Environment(\.stylesheet) private var stylesheet
-
     private let buildInfo: BuildInfo
     private let attribution: AttributionManifest?
     private let dataSources: [RegionDataSource]
+    private let diagnosticReportingConfiguration: DiagnosticReportingConfiguration
 
     /// Defaults read the live values; the parameters exist so previews and tests
     /// can render a stamped build and a populated report, neither of which a
@@ -34,19 +34,24 @@ struct AboutSettingsView: View {
         buildInfo: BuildInfo = .current(bundle: .main),
         attribution: AttributionManifest? = AppAttribution.main,
         dataSources: [RegionDataSource] = RegionDataSource.all,
+        diagnosticReportingConfiguration: DiagnosticReportingConfiguration =
+            .currentBuildDefaults,
     ) {
         self.focus = focus
         self.buildInfo = buildInfo
         self.attribution = attribution
         self.dataSources = dataSources
+        self.diagnosticReportingConfiguration = diagnosticReportingConfiguration
     }
 
     var body: some View {
         SettingsFocusScope(focus: focus) {
             Form {
-                PrivacyPassportCard()
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
+                PrivacyPassportCard(presentation: PrivacyPassportPresentation(
+                    configuration: diagnosticReportingConfiguration,
+                ))
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
                 versionSection
                 dependenciesSection
                 developmentToolsSection
@@ -248,6 +253,7 @@ extension AboutSettingsView: SettingsSection {
                         attribution: PreviewSupport.sampleAttribution(),
                     )
                 }
+                .environment(PreviewSupport.loadedModel())
             }
             whereSnapshot(
                 name: "DirtyTree",
@@ -261,6 +267,7 @@ extension AboutSettingsView: SettingsSection {
                         attribution: PreviewSupport.sampleAttribution(),
                     )
                 }
+                .environment(PreviewSupport.loadedModel())
             }
             whereSnapshot(
                 name: "Unattributed",
@@ -276,6 +283,7 @@ extension AboutSettingsView: SettingsSection {
                         attribution: nil,
                     )
                 }
+                .environment(PreviewSupport.loadedModel())
             }
             whereSnapshot(
                 name: "LibrariesOnly",
@@ -293,6 +301,7 @@ extension AboutSettingsView: SettingsSection {
                         attribution: AttributionManifest(credits: libraries),
                     )
                 }
+                .environment(PreviewSupport.loadedModel())
             }
         }
     }

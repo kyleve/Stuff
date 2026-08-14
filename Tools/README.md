@@ -38,11 +38,14 @@ after its leader exits.
   provenance, bounded locking, boot waiting, and exact-target deletion. Unowned
   devices are reported but never deleted automatically.
 - `./test` derives affected bundles from Tuist's JSON graph plus SwiftPM's
-  package dump. It shares the simulator resolver and streams raw `xcodebuild`
-  output through a directly tested progress reporter. A successful process that
-  matched zero tests is still a failed run. Snapshot scopes forward the optional
-  CI settle-timeout multiplier. Git LFS hydration remains a checkout/bootstrap
-  responsibility rather than a per-run content inspection.
+  package dump. Every normal run first uses `ArchitectureCheckService` for the
+  complete Bumper configuration, rule-test, and lint sequence. Affected and
+  unit-capable scopes then run the backup-upgrader regression; snapshot-only
+  scopes skip it. The command shares the simulator resolver and streams raw
+  `xcodebuild` output through a directly tested progress reporter. A successful
+  process that matched zero tests is still a failed run. Snapshot scopes forward
+  the optional CI settle-timeout multiplier. Git LFS hydration remains a
+  checkout/bootstrap responsibility rather than a per-run content inspection.
 - `./profile` keeps clean-build, unit-test, and serial snapshot-test timing as
   separate legs. It reads typed xcresult test cases. It parses Xcode's
   build-timing summary and type-check warnings. It can retain CI-shaped separate

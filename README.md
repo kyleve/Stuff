@@ -78,11 +78,10 @@ On cleanup it removes only that checkout's simulator.
 Where's production architecture is checked with Bumper Bowling through the root Swift package:
 
 ```bash
-swift run bumper config .
-swift run bumper test .
-swift run bumper lint . --timings
+./test --architecture-only
 ```
 
+Normal `./test` invocations also run these architecture checks before other tests.
 The executable configuration is in [`BumperBowling.swift`](BumperBowling.swift).
 The enforced invariants and repair guidance are cataloged in [`.bumper/RULES.md`](.bumper/RULES.md).
 

@@ -22,7 +22,7 @@ struct SettingsSearchTests {
         // Data writes or restores an archive, erases, and resets; appearance
         // includes an app-icon setting that outlives the process. Everything else
         // is safe to explore, and the list would be a poor demo without it.
-        #expect(Set(hidden) == [.data, .appearance])
+        #expect(Set(hidden) == [.data, .appearance, .privacyDiagnostics])
     }
 
     @Test func focusTokensAreUnique() {
@@ -64,6 +64,17 @@ struct SettingsSearchTests {
         // About screen's keywords are registered.
         let results = SettingsCatalog.results(matching: "license")
         #expect(results.contains { $0.destination == .about })
+    }
+
+    @Test func privacyDiagnosticsFollowsDataInTheSameBlock() {
+        #expect(SettingsListSection.storage.destinations == [.data, .privacyDiagnostics])
+    }
+
+    @Test(arguments: ["crash", "session replay", "remote", "metadata"])
+    func diagnosticChoicesAreSearchable(query: String) {
+        let results = SettingsCatalog.results(matching: query)
+
+        #expect(results.contains { $0.destination == .privacyDiagnostics })
     }
 
     @Test func matchesFeatureExplorersOnTheirPlatformKeywords() {

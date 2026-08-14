@@ -1,5 +1,8 @@
+import PeriscopeCore
 import UIKit
+import WhereCore
 import WhereCrashReporting
+import WhereUI
 #if DEBUG
     import Inspector
 #endif
@@ -8,15 +11,35 @@ import WhereCrashReporting
 /// process callback to it without branching again.
 @MainActor
 final class AppDelegate: NSObject, UIApplicationDelegate {
+    private static let logger = WhereLog.root(WhereAppLog.self)
+
     let runtime: any WhereApplicationRuntime
-    private let crashReporters: [any WhereCrashReporting]
+    private let reportingControllers: [any WhereReportingController]
 
     override init() {
-        crashReporters = [
-            BitdriftCrashReporter(
-                apiKey: "GiBBMbsJNDqIM9c5450IEHoYFLt025SQo5kN2Vj6evk3GyILRVl1MWRBWUFLcGso9Qw=",
-            ),
-        ]
+        let preferences = WherePreferences(store: UserDefaults.standard)
+        let launchConfiguration = preferences.diagnosticReportingConfiguration.effective(
+            isDebugBuild: Self.isDebugBuild,
+        )
+        let client = BitdriftReportingClient(
+            apiKey: "GiBBMbsJNDqIM9c5450IEHoYFLt025SQo5kN2Vj6evk3GyILRVl1MWRBWUFLcGso9Qw=",
+            environment: ProcessInfo.processInfo.environment,
+            writer: BitdriftLogWriter(),
+            startupFailure: { error in
+                Self.recordDiagnosticProviderFailure(error)
+            },
+        )
+        let reportingController = DiagnosticReportingController(
+            launchConfiguration: launchConfiguration,
+            client: client,
+            logSystem: .shared,
+            now: Date.init,
+        )
+        reportingControllers = [reportingController]
+        let applyRemoteLogging: DiagnosticReportingSettingsModel.ApplyRemoteLogging = {
+            [reportingController] configuration, revision in
+            try await reportingController.applyRemoteLogging(configuration, revision: revision)
+        }
         #if DEBUG
             guard let applicationIdentifier = Bundle.main.bundleIdentifier else {
                 preconditionFailure("Where has no bundle identifier")
@@ -28,30 +51,63 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
                 modeController: modeController,
                 fileManager: .default,
                 regular: {
-                    RegularApplicationRuntime(inspectorModeController: modeController)
+                    RegularApplicationRuntime(
+                        preferences: preferences,
+                        effectiveDiagnosticReportingConfiguration: launchConfiguration,
+                        applyRemoteLogging: applyRemoteLogging,
+                        inspectorModeController: modeController,
+                    )
                 },
                 inspector: {
                     WhereInspectorApplicationRuntime(modeController: modeController)
                 },
             )
         #else
-            runtime = RegularApplicationRuntime()
+            let regularRuntime = RegularApplicationRuntime(
+                preferences: preferences,
+                effectiveDiagnosticReportingConfiguration: launchConfiguration,
+                applyRemoteLogging: applyRemoteLogging,
+            )
+            runtime = regularRuntime
         #endif
+        client.setStartupFailureHandler {
+            [weak model = (runtime as? RegularApplicationRuntime)?.model] error in
+            Self.recordDiagnosticProviderFailure(error)
+            let message = String(describing: error)
+            Task {
+                await reportingController.providerDidFail()
+                model?.diagnosticReporting.recordRuntimeFailure(message)
+            }
+        }
         super.init()
+    }
+
+    private static var isDebugBuild: Bool {
+        #if DEBUG
+            true
+        #else
+            false
+        #endif
+    }
+
+    private static func recordDiagnosticProviderFailure(_ error: any Error) {
+        logger(attachments: [.error(error, name: "provider-startup-error")]) {
+            .diagnosticProviderStartupFailed
+        }
     }
 
     init(runtime: any WhereApplicationRuntime) {
         self.runtime = runtime
-        crashReporters = []
+        reportingControllers = []
         super.init()
     }
 
     init(
         runtime: any WhereApplicationRuntime,
-        crashReporters: [any WhereCrashReporting],
+        reportingControllers: [any WhereReportingController],
     ) {
         self.runtime = runtime
-        self.crashReporters = crashReporters
+        self.reportingControllers = reportingControllers
         super.init()
     }
 
@@ -77,8 +133,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         _ application: UIApplication,
         didFinishLaunchingWithOptions options: [UIApplication.LaunchOptionsKey: Any]? = nil,
     ) -> Bool {
-        for crashReporter in crashReporters {
-            crashReporter.start()
+        for reportingController in reportingControllers {
+            reportingController.start()
         }
         return runtime.didFinishLaunching(application: application, options: options)
     }

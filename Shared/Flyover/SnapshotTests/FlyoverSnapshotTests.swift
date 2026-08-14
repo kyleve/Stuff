@@ -38,6 +38,20 @@ struct FlyoverSnapshotTests {
             ),
         )
 
+        let fullCanvasModel = FlyoverModel(catalog: catalog)
+        await assertSnapshots(
+            of: FlyoverView(catalog: catalog, model: fullCanvasModel),
+            named: "FlyoverCanvasFullContent",
+            configurations: SnapshotConfiguration.combinations(
+                devices: [.iPadFullContent2D],
+            ),
+            measurementReadiness: .settled,
+            onReadyToMeasure: {
+                await fullCanvasModel.waitUntilVisiblePreviewsAreLoaded()
+            },
+            settle: .settledAtLeast(minDuration: 1.5),
+        )
+
         let model = FlyoverModel(catalog: catalog)
         model.viewMode = .list
         await assertSnapshots(

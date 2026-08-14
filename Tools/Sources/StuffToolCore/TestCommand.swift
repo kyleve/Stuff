@@ -6,8 +6,9 @@ public struct TestCommand: AsyncParsableCommand {
         abstract: "Run Stuff's iOS tests through the repository-owned simulator.",
         discussion: """
         With no scope, runs the bundles affected by changes against origin/main,
-        including committed, uncommitted, and untracked files. Every invocation
-        first runs the host-side backup upgrader regression.
+        including committed, uncommitted, and untracked files. Every normal
+        invocation first runs the Bumper Bowling architecture checks. Affected
+        and unit-capable scopes also run the host-side backup upgrader regression.
         """,
     )
 
@@ -26,8 +27,20 @@ public struct TestCommand: AsyncParsableCommand {
     @Option(help: "An xcodebuild test identifier; repeatable.")
     var only: [String] = []
 
-    @Option(help: "Git reference used for affected-bundle selection.")
-    var base = "origin/main"
+    @Option(help: "Git reference used for affected-bundle selection (default: origin/main).")
+    var base: String?
+
+    @Flag(
+        name: .customLong("architecture-only"),
+        help: "Run only Bumper configuration, rule tests, and lint.",
+    )
+    var architectureOnly = false
+
+    @Flag(
+        name: .customLong("skip-architecture"),
+        help: "Skip Bumper checks because another CI job owns them.",
+    )
+    var skipArchitecture = false
 
     @Flag(name: .customLong("no-build"), help: "Reuse the last test build.")
     var noBuild = false
@@ -38,11 +51,11 @@ public struct TestCommand: AsyncParsableCommand {
     @Option(help: "Re-record snapshots: all, failed, missing, or never.")
     var record: String?
 
-    @Option(help: "Simulator device name.")
-    var device = "iPhone 17"
+    @Option(help: "Simulator device name (default: iPhone 17).")
+    var device: String?
 
-    @Option(help: "Simulator iOS version.")
-    var os = "27.0"
+    @Option(help: "Simulator iOS version (default: 27.0).")
+    var os: String?
 
     @Flag(help: "Use an existing shared simulator instead of this checkout's device.")
     var shared = false
@@ -53,8 +66,8 @@ public struct TestCommand: AsyncParsableCommand {
     @Flag(help: "Describe every differing snapshot.")
     var review = false
 
-    @Option(help: "Seconds between non-interactive progress lines.")
-    var heartbeat: Double = 15
+    @Option(help: "Seconds between non-interactive progress lines (default: 15).")
+    var heartbeat: Double?
 
     @Option(name: .customLong("status-file"), help: "Write the latest progress line here.")
     var statusFile: String?
@@ -62,9 +75,9 @@ public struct TestCommand: AsyncParsableCommand {
     public init() {}
 
     public mutating func validate() throws {
-        guard base.isEmpty == false else { throw ValidationError("--base requires a git ref") }
-        guard device.isEmpty == false else { throw ValidationError("--device requires a value") }
-        guard os.isEmpty == false else { throw ValidationError("--os requires a value") }
+        guard base?.isEmpty != true else { throw ValidationError("--base requires a git ref") }
+        guard device?.isEmpty != true else { throw ValidationError("--device requires a value") }
+        guard os?.isEmpty != true else { throw ValidationError("--os requires a value") }
         guard only.allSatisfy({ $0.isEmpty == false }) else {
             throw ValidationError("--only requires a test identifier")
         }
@@ -85,8 +98,20 @@ public struct TestCommand: AsyncParsableCommand {
                 "--record must be all, failed, missing or never (got '\(record)')",
             )
         }
-        guard heartbeat.isFinite, heartbeat > 0 else {
-            throw ValidationError("--heartbeat must be greater than zero")
+        if let heartbeat {
+            guard heartbeat.isFinite, heartbeat > 0 else {
+                throw ValidationError("--heartbeat must be greater than zero")
+            }
+        }
+        guard architectureOnly == false || skipArchitecture == false else {
+            throw ValidationError(
+                "--architecture-only cannot be combined with --skip-architecture",
+            )
+        }
+        guard architectureOnly == false || hasTestArguments == false else {
+            throw ValidationError(
+                "--architecture-only cannot be combined with test options or bundles",
+            )
         }
     }
 
@@ -95,16 +120,17 @@ public struct TestCommand: AsyncParsableCommand {
             scope: selectedScope,
             bundles: bundles,
             only: only,
-            baseReference: base,
+            baseReference: base ?? "origin/main",
+            architectureMode: architectureOnly ? .only : (skipArchitecture ? .skip : .run),
             build: noBuild == false,
             generate: noGenerate == false,
             record: record,
-            device: device,
-            os: os,
+            device: device ?? "iPhone 17",
+            os: os ?? "27.0",
             sharedSimulator: shared,
             timings: timings,
             review: review,
-            heartbeat: heartbeat,
+            heartbeat: heartbeat ?? 15,
             statusFile: statusFile,
         )
     }
@@ -124,5 +150,11 @@ public struct TestCommand: AsyncParsableCommand {
         if everything { return .everything }
         if only.isEmpty == false { return .only }
         return .changed
+    }
+
+    private var hasTestArguments: Bool {
+        bundles.isEmpty == false || all || snapshots || everything || only.isEmpty == false ||
+            base != nil || noBuild || noGenerate || record != nil || device != nil || os != nil ||
+            shared || timings || review || heartbeat != nil || statusFile != nil
     }
 }

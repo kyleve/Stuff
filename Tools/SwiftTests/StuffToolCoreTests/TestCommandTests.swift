@@ -30,6 +30,7 @@ struct TestCommandTests {
             bundles: [],
             only: [],
             baseReference: "upstream/main",
+            architectureMode: .run,
             build: false,
             generate: false,
             record: "missing",
@@ -56,6 +57,47 @@ struct TestCommandTests {
         let bundles = try TestCommand.parse(["WhereCoreTests", "WhereUITests"])
         #expect(bundles.makeRequest().scope == .bundles)
         #expect(bundles.makeRequest().bundles == ["WhereCoreTests", "WhereUITests"])
+    }
+
+    @Test func parserSelectsArchitectureOwnershipModes() throws {
+        let normal = try TestCommand.parse([])
+        #expect(normal.makeRequest().architectureMode == .run)
+
+        let skipped = try TestCommand.parse(["--skip-architecture", "--all"])
+        #expect(skipped.makeRequest().architectureMode == .skip)
+
+        let only = try TestCommand.parse(["--architecture-only"])
+        #expect(only.makeRequest().architectureMode == .only)
+    }
+
+    @Test func architectureOnlyRejectsEveryTestArgumentCategory() {
+        let testArguments = [
+            ["--all"],
+            ["--snapshots"],
+            ["--everything"],
+            ["--only", "WhereCoreTests/Suite"],
+            ["--base", "origin/main"],
+            ["--no-build"],
+            ["--no-generate"],
+            ["--record", "never"],
+            ["--device", "iPhone 17"],
+            ["--os", "27.0"],
+            ["--shared"],
+            ["--timings"],
+            ["--review"],
+            ["--heartbeat", "15"],
+            ["--status-file", "status.txt"],
+            ["WhereCoreTests"],
+        ]
+
+        for arguments in testArguments {
+            #expect(throws: (any Error).self) {
+                _ = try TestCommand.parse(["--architecture-only"] + arguments)
+            }
+        }
+        #expect(throws: (any Error).self) {
+            _ = try TestCommand.parse(["--architecture-only", "--skip-architecture"])
+        }
     }
 
     @Test func validationRejectsInvalidModesAndCombinations() {

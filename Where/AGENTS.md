@@ -191,7 +191,10 @@ typed-route list (`SettingsSearch.swift`. Every switch is exhaustive). A
 new drill-in is a set of compile errors to fill in. About stays the last
 block. The demo-mode exit is the first.
 
-The Data and About screens lead with the shared privacy passport statement.
+Data, Privacy & Diagnostics, and About lead with the shared privacy passport.
+Derive its detail from process-effective reporting channels, not saved pending
+choices. Hide the persisted diagnostics destination in demo mode. About still
+discloses the real process state.
 The About screen renders three live sources. They are the generated attribution
 report (`WhereCore.AppAttribution`), `RegionDataSource`, and `BuildInfo`.
 Never hard-code a list in the view. A missing report or unstamped build

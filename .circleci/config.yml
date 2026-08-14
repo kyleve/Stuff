@@ -6,6 +6,9 @@ executors:
       xcode: "27.0"
     resource_class: m4pro.medium
     shell: /bin/bash --login -eo pipefail
+    environment:
+      # Tool installation is required; local-development agent skills are not.
+      MISE_NO_HOOKS: "1"
 
 commands:
   prepare:
@@ -178,7 +181,7 @@ commands:
             cp -R "<< parameters.test_workdir >>" diagnostics/test-output
             if << parameters.include_snapshot_images >>; then
               mkdir -p diagnostics/snapshot-images
-              grep -hEo '/[^[:space:]]+\.png' "<< parameters.test_workdir >>"/*.log 2>/dev/null \
+              { grep -hEo '/[^[:space:]]+\.png' "<< parameters.test_workdir >>"/*.log 2>/dev/null || true; } \
                 | sort -u \
                 | while IFS= read -r image; do
                     [[ -f "$image" ]] || continue
@@ -200,7 +203,9 @@ jobs:
           test_workdir: test-output-ios
       - run_with_timeout:
           seconds: 2700
-          command: ./test --all --shared --os 27.0 --no-generate
+          command: >-
+            ./test --all --shared --os 27.0 --no-generate
+            --skip-architecture
       - export_test_results:
           test_workdir: test-output-ios
           output_directory: test-results-ios
@@ -220,7 +225,7 @@ jobs:
           seconds: 3600
           command: >-
             ./test --snapshots --shared --os 27.0 --review --timings
-            --no-generate
+            --no-generate --skip-architecture
       - export_test_results:
           test_workdir: test-output-snapshots
           output_directory: test-results-snapshots

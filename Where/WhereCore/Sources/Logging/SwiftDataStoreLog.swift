@@ -78,4 +78,26 @@ enum SwiftDataStoreLog: LogEvent {
                 "Could not classify persistent-store change; reconciling defensively: \(description)"
         }
     }
+
+    var remoteFields: [RemoteLogField] {
+        switch self {
+            case let .openedOnDisk(_, appGroupResolved, _):
+                [RemoteLogField(
+                    key: RemoteLogFieldKey("app_group_resolved"),
+                    value: .boolean(appGroupResolved),
+                )]
+            case let .ignoredUnknownTrackedRegions(ids), let .ignoredUnknownPrimaryRegions(ids):
+                [RemoteLogField(
+                    key: RemoteLogFieldKey("unknown_region_count"),
+                    value: .count(ids.count),
+                )]
+            case let .resolvedConflictingImmutableRecords(_, _, count):
+                [RemoteLogField(
+                    key: RemoteLogFieldKey("conflict_count"),
+                    value: .count(count),
+                )]
+            case .openedInMemory, .droppedCorruptRecord, .remoteChangeClassificationFailed:
+                []
+        }
+    }
 }

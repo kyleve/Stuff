@@ -19,9 +19,19 @@ import RegionKit
 /// their own observable state.
 public final class WherePreferences {
     private let store: any KeyValueStore
+    private let invalidValue: (String) -> Void
 
     public init(store: any KeyValueStore) {
         self.store = store
+        invalidValue = { message in assertionFailure(message) }
+    }
+
+    init(
+        store: any KeyValueStore,
+        invalidValue: @escaping (String) -> Void,
+    ) {
+        self.store = store
+        self.invalidValue = invalidValue
     }
 
     /// Whether first-run onboarding has been completed. Defaults to `false` so
@@ -120,42 +130,58 @@ public final class WherePreferences {
         set { store.set(newValue, forKey: Keys.issueAlertsEnabled.rawValue) }
     }
 
+    /// The user's saved, vendor-neutral diagnostic-reporting choices.
+    public var diagnosticReportingConfiguration: DiagnosticReportingConfiguration {
+        get { diagnosticReportingConfiguration(isDebugBuild: Self.isDebugBuild) }
+        set { setDiagnosticReportingConfiguration(newValue) }
+    }
+
+    /// Resolves defaults for an explicit build flavor so both shipping and
+    /// developer first-install behavior can be verified in one test process.
+    public func diagnosticReportingConfiguration(
+        isDebugBuild: Bool,
+    ) -> DiagnosticReportingConfiguration {
+        let defaults = DiagnosticReportingConfiguration.defaults(isDebugBuild: isDebugBuild)
+        switch decodedPreference(
+            DiagnosticReportingConfiguration.self,
+            forKey: .diagnosticReportingConfiguration,
+        ) {
+            case .missing:
+                return defaults
+            case let .value(configuration):
+                return configuration
+            case .invalid:
+                return defaults.withRemoteLoggingOff()
+        }
+    }
+
+    public func setDiagnosticReportingConfiguration(
+        _ configuration: DiagnosticReportingConfiguration,
+    ) {
+        setEncodedPreference(configuration, forKey: .diagnosticReportingConfiguration)
+    }
+
     /// Generation bookkeeping for the recording-configuration warning. This is UI continuity
     /// state: the live recording policy and authorization remain authoritative.
     public var recordingConfigurationWarningRegistration:
         RecordingConfigurationWarningRegistration
     {
         get {
-            guard
-                let data = store.object(
-                    forKey: Keys.recordingConfigurationWarningRegistration.rawValue,
-                ) as? Data
-            else {
-                return RecordingConfigurationWarningRegistration()
-            }
-            do {
-                let registration = try JSONDecoder().decode(
-                    RecordingConfigurationWarningRegistration.self,
-                    from: data,
-                )
-                guard registration.isValid else {
-                    assertionFailure("Decoded an invalid recording warning registration.")
+            switch decodedPreference(
+                RecordingConfigurationWarningRegistration.self,
+                forKey: .recordingConfigurationWarningRegistration,
+            ) {
+                case .missing, .invalid:
                     return RecordingConfigurationWarningRegistration()
-                }
-                return registration
-            } catch {
-                assertionFailure("Could not decode recording warning registration: \(error)")
-                return RecordingConfigurationWarningRegistration()
+                case let .value(registration):
+                    guard registration.isValid else {
+                        invalidValue("Decoded an invalid recording warning registration.")
+                        return RecordingConfigurationWarningRegistration()
+                    }
+                    return registration
             }
         }
-        set {
-            do {
-                let data = try JSONEncoder().encode(newValue)
-                store.set(data, forKey: Keys.recordingConfigurationWarningRegistration.rawValue)
-            } catch {
-                assertionFailure("Could not encode recording warning registration: \(error)")
-            }
-        }
+        set { setEncodedPreference(newValue, forKey: .recordingConfigurationWarningRegistration) }
     }
 
     /// GPS border-drift detection threshold in meters. Defaults to 10 km.
@@ -222,9 +248,59 @@ public final class WherePreferences {
         case summaryHour = "where.summaryHour"
         case summaryMinute = "where.summaryMinute"
         case issueAlertsEnabled = "where.issueAlertsEnabled"
+        case diagnosticReportingConfiguration = "where.diagnostics.configuration"
         case recordingConfigurationWarningRegistration =
             "where.recordingConfigurationWarningRegistration"
         case driftThresholdMeters = "where.driftThresholdMeters"
         case lastSeenLocationDayCounts = "where.lastSeenLocationDayCounts"
+    }
+
+    private static var isDebugBuild: Bool {
+        #if DEBUG
+            true
+        #else
+            false
+        #endif
+    }
+
+    private func decodedPreference<Value: Decodable>(
+        _ type: Value.Type,
+        forKey key: Keys,
+    ) -> DecodedPreference<Value> {
+        guard let storedValue = store.object(forKey: key.rawValue) else { return .missing }
+        guard let data = storedValue as? Data else {
+            invalidValue("Invalid persisted value type for \(key.rawValue).")
+            return .invalid
+        }
+        do {
+            return try .value(JSONDecoder().decode(type, from: data))
+        } catch {
+            invalidValue("Could not decode \(key.rawValue): \(error)")
+            return .invalid
+        }
+    }
+
+    private func setEncodedPreference(_ value: some Encodable, forKey key: Keys) {
+        do {
+            try store.set(JSONEncoder().encode(value), forKey: key.rawValue)
+        } catch {
+            invalidValue("Could not encode \(key.rawValue): \(error)")
+        }
+    }
+
+    private enum DecodedPreference<Value> {
+        case missing
+        case value(Value)
+        case invalid
+    }
+}
+
+extension DiagnosticReportingConfiguration {
+    fileprivate func withRemoteLoggingOff() -> Self {
+        Self(
+            sharesCrashReports: sharesCrashReports,
+            sharesSessionReplays: sharesSessionReplays,
+            remoteLogging: .off,
+        )
     }
 }

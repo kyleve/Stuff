@@ -34,6 +34,7 @@ struct TestRunPlanTests {
                 ],
             ),
         ])
+        #expect(plan.runsUnitTests)
     }
 
     @Test func snapshotScopeRunsTheWholeSnapshotScheme() throws {
@@ -50,6 +51,7 @@ struct TestRunPlanTests {
                 filters: [],
             ),
         ])
+        #expect(plan.runsUnitTests == false)
     }
 
     @Test func unknownExplicitBundleFailsBeforeXcodebuild() throws {
@@ -61,6 +63,32 @@ struct TestRunPlanTests {
                 graph: graph,
             )
         }
+    }
+
+    @Test func unitCapabilityFollowsBundleAndIdentifierSelection() throws {
+        let snapshotBundle = try TestRunPlan(
+            scope: .bundles,
+            bundles: ["UISnapshotTests"],
+            only: [],
+            graph: graph,
+        )
+        #expect(snapshotBundle.runsUnitTests == false)
+
+        let snapshotIdentifier = try TestRunPlan(
+            scope: .only,
+            bundles: [],
+            only: ["UISnapshotTests/Suite"],
+            graph: graph,
+        )
+        #expect(snapshotIdentifier.runsUnitTests == false)
+
+        let unitIdentifier = try TestRunPlan(
+            scope: .only,
+            bundles: [],
+            only: ["CoreTests/Suite"],
+            graph: graph,
+        )
+        #expect(unitIdentifier.runsUnitTests)
     }
 }
 

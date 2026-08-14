@@ -18,10 +18,11 @@ capture + comparison pipeline lives in the sibling
   text, `bold` token), a device `Frame`, and a `snapshotType` (`.standard` or
   `.accessibility`). `Hashable`, with an `identifier` (built from
   `identifierParts`) that **omits default axes** so common cases stay terse.
-  Frames come in three sizing strategies: fixed device viewports (`.iPhone`,
-  `.iPad`), the intrinsic `.component` frame, and `.fullContent(name:width:)` —
-  fixed width, height measured from the settled content, so the whole
-  scrollable content renders in one image with nothing scrolling. Full-width
+  Frames come in four sizing strategies: fixed device viewports (`.iPhone`,
+  `.iPad`), the intrinsic `.component` frame, `.fullContent(name:width:)`, and
+  `.fullContent2D(name:minimumSize:)`. The ordinary full-content frame has a
+  fixed width and a height measured from the settled content. Use the explicit
+  two-axis frame for spatial canvases that scroll in both dimensions. Full-width
   scrolling descendants drive the measured height while preserving surrounding
   navigation, tab, sheet, search, and toolbar chrome. An bounded
   or greedy production container that cannot converge must expose and
@@ -43,6 +44,11 @@ capture + comparison pipeline lives in the sibling
   Device presets render at least one normal viewport tall, then expand to show
   content that would otherwise scroll. fixed-height device frames are for
   non-scrolling subjects.
+- **Two-axis full-content frames** (`.iPhoneFullContent2D`,
+  `.iPadFullContent2D`, and `.fullContent2D(name:minimumSize:)`) — start at a
+  normal viewport and expand to one viewport-filling scroll view's complete
+  width and height. Ordinary screen snapshots remain device-width. The capture
+  pipeline bounds rendered pixel dimensions before allocation.
 - **`SnapshotProviding`** — a type declares its variants via
   `static var snapshots: [SnapshotCase]`.
 - **`SnapshotCase`** — a named group of configurations plus a lazy content

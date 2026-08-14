@@ -69,6 +69,11 @@ re-exports `SnapshotKit` and `SnapshotTesting`, so a test author needs a single
   change but couldn't complete enough render passes to prove stability (a
   starved CI machine) keeps waiting instead of failing falsely, giving up at a
   hard cap several budgets out.
+  Explicit two-axis full-content captures resolve one viewport-filling scroll
+  view's width and height together, iterate both dimensions to a fixed point,
+  and reset that viewport to its leading/top edge. The pipeline rejects a
+  capture before allocation if either rendered dimension exceeds 32,000 pixels
+  or the complete image exceeds 100 million pixels.
 - **Accessibility captures** — for `.accessibility` configurations, content is
   wrapped in AccessibilitySnapshot's SwiftUI renderer so the image is annotated
   with the VoiceOver reading order, labels, traits, and activation points.

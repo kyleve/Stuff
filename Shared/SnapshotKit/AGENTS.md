@@ -36,6 +36,8 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **Capture the production screen including navigation, tab, sheet, search, and toolbar chrome when measurement converges.**
 - **If a container is intentionally bounded or greedy, snapshot its shared scrolling child directly.** Never add snapshot-only production layout.
 - **Fixed device frames are for non-scrolling subjects.**
+- **Use two-axis full-content frames only for spatial canvases.** Choose `.iPhoneFullContent2D`, `.iPadFullContent2D`, or an explicit `.fullContent2D` when the production subject intentionally scrolls in both dimensions.
+- **Keep ordinary screen presets fixed-width.** Guard: `SnapshotConfigurationTests`.
 - **Measurement readiness never replaces capture readiness.**
 - **Keep `measurementReadiness` at `.sameAsCapture` when async work can change ideal height.**
 - **Or await that work deterministically from `onReadyToMeasure` and use `.settled` for the probe.**

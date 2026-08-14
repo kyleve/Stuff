@@ -38,6 +38,10 @@ Read the root [`AGENTS.md`](../../../AGENTS.md) first. That file owns the build 
 - **`remove(_:)` is `async` because it settles the sink first.** Await the in-flight drain and flush the sink.
 - **Then a removed sink is owed nothing and hears nothing more.**
 - **Removing a `PeriscopeStore` also uninstalls that store's journal.** Guard: `PeriscopeTests.removalDeliversAndFlushesWhatTheSinkWasOwed`.
+- **Make remote export an explicit opt-in for each event.** Safe sinks use `remoteMessage` and `remoteFields`.
+- **Never infer remote data from payloads, tags, dynamic scopes, ambient state, external IDs, or attachments.**
+- **Never use attachment bytes as remote-export input, including in Debug full-metadata mode.**
+- **Use closed `CaseIterable` values for category fields.** Reject values outside `allCases`.
 - **Sink failures never propagate or vanish.** Log them to OSLog. Count them.
 - **Persist a synthetic `StoreWriteFailed` marker.** The pipeline reports drops with a synthetic `DroppedEvents` record.
 - **Roll back a failed store save** (`recoverFromFailedWrite`). One poisoned batch must never wedge subsequent saves or fork the session.

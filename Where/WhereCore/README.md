@@ -170,7 +170,12 @@ one it belongs to rather than to a god-object:
   reminder / summary schedules, presentation theme, and Locations-card GPS-dot and
   estimated-time/planning visibility) plus the
   year-keyed Location-card counts and Codable recording-warning generation used for presentation
-  continuity, behind a `KeyValueStore`. `RecordingConfigurationWarningCondition` evaluates the live
+  continuity, behind a `KeyValueStore`. It also owns the vendor-neutral
+  `DiagnosticReportingConfiguration`: crash reports default On, replay Off,
+  and remote logs Off in Release / Warning in Debug. `WherePreferences` encodes
+  this configuration directly. Invalid data keeps the channel defaults. Invalid data
+  also turns remote logging Off. Reset removes every reporting key. Release always reduces
+  full-metadata intent to approved fields. `RecordingConfigurationWarningCondition` evaluates the live
   device authority, recording choice, and authorization tuple in Core. The store has no
   default: production names `UserDefaults.standard` and everything else names
   `InMemoryKeyValueStore()`, so no test or preview can reach the host's real

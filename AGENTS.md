@@ -132,9 +132,9 @@ source-level invariants. The entry point is
 [`BumperBowling.swift`](BumperBowling.swift). Repository-owned shapes and rules
 live in [`.bumper/Sources`](.bumper/Sources). [`.bumper/RULES.md`](.bumper/RULES.md) is the rule catalog.
 
-Run `swift run bumper config .`, `swift run bumper test .`, and
-`swift run bumper lint . --timings` after changing a Where dependency,
-composition root, or documented concurrency boundary. Keep the relevant
+Run `./test --architecture-only` after changing a Where dependency,
+composition root, or documented concurrency boundary. This command validates
+the configuration, tests the rules, and runs the lint. Keep the relevant
 `AGENTS.md`, the executable rule, its catalog entry, and its mutation test in
 the same change.
 
@@ -150,7 +150,8 @@ by `./sync-agents`.
 - `./sync-agents --install` — fetch external skills listed in
   `.agents/external-skills.json`. Rarely run by hand. `mise install` calls it
   from a `postinstall` hook. Installing tools also installs skills on a dev
-  machine and a cloud agent.
+  machine and a cloud agent. CI sets `MISE_NO_HOOKS=1` because CI does not use
+  agent skills.
 - `./sync-agents --add <url> [name]` — add an external skill from GitHub.
 - `./sync-agents --update` — re-fetch all external skills to the latest commit.
 
@@ -184,7 +185,7 @@ triage). **Always-on** rules every edit must honor stay in `AGENTS.md` or
 - **Image snapshots are the exception: one bundle per module, one shared scheme.** Each module owning image references has its own `*SnapshotTests` target over its `SnapshotTests/` folder. All are listed in the single shared **StuffSnapshotTests** scheme and its dedicated CI `snapshot` job. Snapshots are slow and LFS-backed. They are **out of** `Stuff-iOS-Tests`. References under any `__Snapshots__/` directory are Git LFS (`.gitattributes`. The CI job hydrates them explicitly). Framework halves: `Shared/SnapshotKit` (shippable matrix + previews) and `Shared/SnapshotKitTesting` (test-only pipeline, whose own regression bundle **SnapshotKitTestingTests** pixel-probes without LFS and runs in `Stuff-iOS-Tests`).
 - **A new image suite gets a target, not a scheme.** Add the `*SnapshotTests` target. List only `SnapshotKitTesting` in `extraPackageProducts`. Add it to the `StuffSnapshotTests` scheme's build and test lists. Never add a scheme or CI job of its own. An image bundle links only what its module needs (the Periscope and Inspector suites don't build against WhereUI at all). References follow the sources automatically via `#filePath`.
 - **Separate snapshot bundles are safe because each `.xctest` gets its own `StuffTestHost` process** (measured on Xcode 27 — `ProcessInfo.processIdentifier` probes. Details in the snapshot-bundle comment in [`Project.swift`](Project.swift)). Each bundle statically embeds its own copy of `SnapshotKitTesting`'s capture state. Two copies in one process corrupt each other. Tripwire: if a toolchain ever shares one host process across bundles, re-measure before adding another image bundle.
-- **Snapshots containing scrolling content use full-content intrinsic height.** Any image snapshot whose rendered subject contains a `ScrollView`, `List`, `Form`, or equivalent UIKit-backed scrolling container uses SnapshotKit's full-content device presets. Those presets keep the normal device viewport as their minimum height and grow to fit taller content. Fixed-height device frames are reserved for subjects without scrolling content. Preserve production navigation, tab, sheet, search, and toolbar chrome when intrinsic measurement converges. An intentionally bounded/greedy container instead snapshots its shared scrolling child directly. Never snapshot-only production layout (see `SnapshotConfiguration.Frame.fullContent`).
+- **Snapshots containing scrolling content use full-content sizing.** Use SnapshotKit's full-content device presets for ordinary `ScrollView`, `List`, `Form`, or equivalent UIKit-backed content. Those presets keep the normal device width and minimum viewport height while growing vertically. Use an explicit two-axis preset for a spatial canvas that intentionally scrolls in both dimensions. Its bounded capture grows from the normal viewport along both axes. Fixed device frames are for subjects without scrolling content. Preserve production navigation, tab, sheet, search, and toolbar chrome when measurement converges. Snapshot an intentionally bounded or greedy container's shared scrolling child directly. Never add snapshot-only production layout (see `SnapshotConfiguration.Frame.fullContent` and `.fullContent2D`).
 
 ### Never double-link a product WhereUI already carries
 
@@ -523,9 +524,10 @@ flag is needed there.
 `tuist test` or `xcodebuild` for them. The one exception is the native-macOS
 **Ledger-macOS-Tests** scheme, which `./test` does not know how to run at all.
 The [`running-tests`](.agents/skills/running-tests/SKILL.md) skill carries its
-invocation. Closing that gap is filed in [`TODOs.md`](TODOs.md). It runs the host-side backup-upgrader regression before
-selecting an iOS bundle, so tool-only changes remain covered by the same entry
-point. **Run checks in proportion to risk.** Run
+invocation. Closing that gap is filed in [`TODOs.md`](TODOs.md). The command
+runs the host-side backup-upgrader regression for affected or unit-capable iOS
+scopes. Snapshot-only runs skip this regression. Every normal invocation runs
+the Bumper Bowling checks first. **Run checks in proportion to risk.** Run
 `./swiftformat --lint` when the changed files are in its scope. Run the
 narrowest applicable `./test` tier for code, build, tooling, or behavior
 changes. Pure documentation or comment-only changes can skip checks that

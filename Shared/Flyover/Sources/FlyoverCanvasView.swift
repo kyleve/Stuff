@@ -3,9 +3,19 @@ import SwiftUI
 
 /// A two-axis, pinch-zoomable graph of all registered screens.
 struct FlyoverCanvasView<ScreenID: Hashable>: View {
+    private enum ZoomChangeBehavior {
+        /// Adjust the scroll offset so the canvas point at the viewport center stays fixed.
+        case preserveViewportCenter
+
+        /// Skip the offset adjustment for the initial fit, keeping the top-leading origin visible.
+        case preserveContentOrigin
+    }
+
     let catalog: FlyoverCatalog<ScreenID>
     @Bindable var model: FlyoverModel<ScreenID>
     @State private var zoomAtGestureStart: Double?
+    @State private var zoomChangeBehavior = ZoomChangeBehavior.preserveViewportCenter
+    @State private var scrollPosition = ScrollPosition()
     @State private var visibleRect = CGRect.zero
     @Environment(\.flyoverStylesheet) private var stylesheet
 
@@ -45,6 +55,10 @@ struct FlyoverCanvasView<ScreenID: Hashable>: View {
                         }
                     }
 
+                    ForEach(layout.depthBands) { band in
+                        FlyoverDepthBandBackdrop(band: band)
+                    }
+
                     FlyoverConnectorCanvas(catalog: catalog, layout: layout)
 
                     ForEach(catalog.screens, id: \.id) { screen in
@@ -74,10 +88,23 @@ struct FlyoverCanvasView<ScreenID: Hashable>: View {
                 )
                 .simultaneousGesture(magnificationGesture)
             }
+            .scrollPosition($scrollPosition)
             .onScrollGeometryChange(for: CGRect.self) { geometry in
                 geometry.visibleRect
             } action: { _, newValue in
                 visibleRect = newValue
+            }
+            .onChange(of: model.zoom) { oldZoom, newZoom in
+                switch zoomChangeBehavior {
+                    case .preserveViewportCenter:
+                        preserveViewportCenter(
+                            layout: layout,
+                            from: oldZoom,
+                            to: newZoom,
+                        )
+                    case .preserveContentOrigin:
+                        zoomChangeBehavior = .preserveViewportCenter
+                }
             }
             .overlay(alignment: .topTrailing) {
                 Button("Fit All", systemSymbol: .arrowUpLeftAndArrowDownRight) {
@@ -89,7 +116,7 @@ struct FlyoverCanvasView<ScreenID: Hashable>: View {
                 .padding(stylesheet.canvas.overlayPadding)
             }
             .task {
-                applyInitialWidthFit(layout: layout, in: proxy.size)
+                applyInitialGroupWidthFit(layout: layout, in: proxy.size)
             }
             .task(id: expectedPreviewLoads) {
                 model.previewReadiness.expect(expectedPreviewLoads)
@@ -113,17 +140,44 @@ struct FlyoverCanvasView<ScreenID: Hashable>: View {
         zoomAtGestureStart = nil
     }
 
-    private func applyInitialWidthFit(
+    private func preserveViewportCenter(
+        layout: FlyoverLayoutResult<ScreenID>,
+        from oldZoom: Double,
+        to newZoom: Double,
+    ) {
+        guard visibleRect.isEmpty == false else {
+            return
+        }
+        let plan = FlyoverCanvasZoomPlan(
+            canvasSize: layout.canvasSize,
+            availableSize: visibleRect.size,
+            edgeInset: stylesheet.canvas.framingInset,
+        )
+        scrollPosition.scrollTo(
+            point: plan.contentOffset(
+                preservingViewportCenterIn: visibleRect,
+                from: oldZoom,
+                to: newZoom,
+            ),
+        )
+    }
+
+    private func applyInitialGroupWidthFit(
         layout: FlyoverLayoutResult<ScreenID>,
         in availableSize: CGSize,
     ) {
-        model.applyInitialCanvasZoom(
-            FlyoverCanvasZoomPlan(
-                canvasSize: layout.canvasSize,
-                availableSize: availableSize,
-                edgeInset: stylesheet.canvas.framingInset,
-            ).widthZoom,
-        )
+        guard model.hasAppliedInitialCanvasZoom == false else {
+            return
+        }
+        let initialZoom = FlyoverCanvasZoomPlan(
+            canvasSize: layout.initialCanvasSize,
+            availableSize: availableSize,
+            edgeInset: stylesheet.canvas.framingInset,
+        ).widthZoom
+        if initialZoom != model.zoom {
+            zoomChangeBehavior = .preserveContentOrigin
+        }
+        model.applyInitialCanvasZoom(initialZoom)
     }
 
     private func fitAll(layout: FlyoverLayoutResult<ScreenID>, in availableSize: CGSize) {

@@ -115,6 +115,9 @@ public final class WhereModel {
     /// holding it eagerly doesn't cost the logged-out window anything.
     let preferences: WherePreferences
 
+    /// Process reporting state stays real even while the active data scope is a demo.
+    public let diagnosticReporting: DiagnosticReportingSettingsModel
+
     /// The active presentation theme. Onboarding can preview this value in
     /// memory before committing; Appearance Settings persists immediately.
     public private(set) var theme: WhereTheme
@@ -338,9 +341,19 @@ public final class WhereModel {
             any InstallationRecordingContextStoring,
         ) -> any WhereScopeAssembling,
         logSystem: Periscope,
+        effectiveDiagnosticReportingConfiguration: DiagnosticReportingConfiguration? = nil,
+        applyRemoteLogging: @escaping DiagnosticReportingSettingsModel.ApplyRemoteLogging = {
+            _, _ in
+        },
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
         self.preferences = preferences
+        diagnosticReporting = DiagnosticReportingSettingsModel(
+            preferences: preferences,
+            effectiveConfiguration: effectiveDiagnosticReportingConfiguration
+                ?? preferences.diagnosticReportingConfiguration,
+            applyRemoteLogging: applyRemoteLogging,
+        )
         theme = preferences.theme
         self.installationContextStore = installationContextStore
         onboardingImportRecovery = OnboardingImportRecoveryModel(
@@ -369,6 +382,10 @@ public final class WhereModel {
         selectedYear: Int = WhereModel.currentYear,
         preferences: WherePreferences,
         logSystem: Periscope,
+        effectiveDiagnosticReportingConfiguration: DiagnosticReportingConfiguration? = nil,
+        applyRemoteLogging: @escaping DiagnosticReportingSettingsModel.ApplyRemoteLogging = {
+            _, _ in
+        },
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
         let installationContextStore = InMemoryInstallationRecordingContextStore(
@@ -381,6 +398,12 @@ public final class WhereModel {
         )
         scopeState = .real(scope)
         self.preferences = preferences
+        diagnosticReporting = DiagnosticReportingSettingsModel(
+            preferences: preferences,
+            effectiveConfiguration: effectiveDiagnosticReportingConfiguration
+                ?? preferences.diagnosticReportingConfiguration,
+            applyRemoteLogging: applyRemoteLogging,
+        )
         theme = preferences.theme
         self.installationContextStore = installationContextStore
         onboardingImportRecovery = OnboardingImportRecoveryModel(
@@ -586,12 +609,14 @@ public final class WhereModel {
             // though deleting its tombstone still needs a retry, so a relaunch cannot combine a
             // fresh unconfirmed identity with stale "already onboarded" preferences.
             preferences.reset()
+            diagnosticReporting.preferencesDidReset()
             theme = preferences.theme
             publishThemeChange(theme)
             Self.logger { .resetPreferences }
             throw error
         }
         preferences.reset()
+        diagnosticReporting.preferencesDidReset()
         theme = preferences.theme
         publishThemeChange(theme)
         Self.logger { .resetPreferences }

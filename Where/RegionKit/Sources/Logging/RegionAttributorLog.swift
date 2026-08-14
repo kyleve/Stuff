@@ -69,4 +69,16 @@ enum RegionAttributorLog: LogEvent {
                 nil
         }
     }
+
+    var remoteFields: [RemoteLogField] {
+        switch self {
+            case let .loaded(regionCount):
+                [RemoteLogField(
+                    key: RemoteLogFieldKey("region_count"),
+                    value: .count(regionCount),
+                )]
+            case .missingGeometry, .emptyPolygons, .decodeFailed:
+                []
+        }
+    }
 }

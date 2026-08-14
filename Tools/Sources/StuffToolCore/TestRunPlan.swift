@@ -34,6 +34,10 @@ public enum TestRunPlanFailure: Error, Equatable, CustomStringConvertible, Senda
 public struct TestRunPlan: Equatable, Sendable {
     public let schemes: [TestSchemePlan]
 
+    public var runsUnitTests: Bool {
+        schemes.contains { $0.name == RepositoryGraph.unitScheme }
+    }
+
     public init(
         scope: TestScope,
         bundles: [String],

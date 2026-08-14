@@ -1,11 +1,18 @@
 import CryptoKit
 import Foundation
 
+public enum TestArchitectureMode: Equatable, Sendable {
+    case run
+    case only
+    case skip
+}
+
 public struct TestRequest: Equatable, Sendable {
     public let scope: TestScope
     public let bundles: [String]
     public let only: [String]
     public let baseReference: String
+    public let architectureMode: TestArchitectureMode
     public let build: Bool
     public let generate: Bool
     public let record: String?
@@ -22,6 +29,7 @@ public struct TestRequest: Equatable, Sendable {
         bundles: [String],
         only: [String],
         baseReference: String,
+        architectureMode: TestArchitectureMode,
         build: Bool,
         generate: Bool,
         record: String?,
@@ -37,6 +45,7 @@ public struct TestRequest: Equatable, Sendable {
         self.bundles = bundles
         self.only = only
         self.baseReference = baseReference
+        self.architectureMode = architectureMode
         self.build = build
         self.generate = generate
         self.record = record
@@ -64,6 +73,7 @@ public struct TestService: Sendable {
     private let temporaryDirectory: URL
     private let environment: [String: String]
     private let xcodeWorkspace: XcodeWorkspace
+    private let architectureChecks: ArchitectureCheckService
 
     public init(
         runner: any CommandRunning,
@@ -89,27 +99,25 @@ public struct TestService: Sendable {
             repository: repository,
             workspace: Self.workspace,
         )
+        architectureChecks = ArchitectureCheckService(
+            runner: runner,
+            terminal: terminal,
+            repository: repository,
+            environment: environment,
+        )
     }
 
     public func run(_ request: TestRequest) async throws -> Int32 {
-        try await terminal.write("==> Testing backup upgrader\n", to: .standardOutput)
-        let backupResult = try await runForwarding(
-            CommandInvocation(
-                executable: "mise",
-                arguments: [
-                    "exec",
-                    "--",
-                    "ruby",
-                    "Where/Tools/Tests/upgrade_backup_test.rb",
-                ],
-                environment: [:],
-                workingDirectory: repository,
-                standardInput: [],
-                output: .streamed,
-            ),
-        )
-        guard backupResult.succeeded else {
-            throw ToolFailure.exitCode(backupResult.exitCode)
+        if request.architectureMode != .skip {
+            let status = try await architectureChecks.run()
+            guard status == 0 else { throw ToolFailure.exitCode(status) }
+        }
+        if request.architectureMode == .only {
+            return 0
+        }
+
+        if request.scope == .changed {
+            try await runBackupUpgrader()
         }
 
         let workDirectory = try makeWorkDirectory()
@@ -160,6 +168,9 @@ public struct TestService: Sendable {
             )
         } catch let failure as TestRunPlanFailure {
             throw ToolFailure.message(failure.description)
+        }
+        if request.scope != .changed, plan.runsUnitTests {
+            try await runBackupUpgrader()
         }
         if request.generate {
             try await generateProject(in: workDirectory)
@@ -286,6 +297,28 @@ public struct TestService: Sendable {
             )
         }
         return overallStatus
+    }
+
+    private func runBackupUpgrader() async throws {
+        try await terminal.write("==> Testing backup upgrader\n", to: .standardOutput)
+        let result = try await runForwarding(
+            CommandInvocation(
+                executable: "mise",
+                arguments: [
+                    "exec",
+                    "--",
+                    "ruby",
+                    "Where/Tools/Tests/upgrade_backup_test.rb",
+                ],
+                environment: [:],
+                workingDirectory: repository,
+                standardInput: [],
+                output: .streamed,
+            ),
+        )
+        guard result.succeeded else {
+            throw ToolFailure.exitCode(result.exitCode)
+        }
     }
 
     private func makeWorkDirectory() throws -> URL {
