@@ -197,7 +197,7 @@ struct SettingsView: View {
                 showRegions = true
             case .attachments, .loggedDays, .devices, .alerts, .appearance, .year, .siri,
                  .widgets, .shareEvidence, .estimatedTime, .insightsAccuracy, .personalization,
-                 .data, .about:
+                 .data, .privacyDiagnostics, .about:
                 assertionFailure("\(destination) is a push destination, not a sheet")
         }
     }
@@ -231,7 +231,8 @@ struct SettingsView: View {
             case .year:
                 report.selectedYear.formatted(.number.grouping(.never))
             case .attachments, .loggedDays, .regions, .alerts, .appearance, .siri, .widgets,
-                 .shareEvidence, .estimatedTime, .insightsAccuracy, .personalization, .data, .about:
+                 .shareEvidence, .estimatedTime, .insightsAccuracy, .personalization, .data,
+                 .privacyDiagnostics, .about:
                 nil
         }
     }
@@ -300,8 +301,14 @@ struct SettingsView: View {
                 PersonalizationFeaturesView(report: report, focus: route.focus)
             case .data:
                 DataSettingsView(report: report, backup: backup, focus: route.focus)
+            case .privacyDiagnostics:
+                PrivacyDiagnosticsSettingsView(focus: route.focus)
             case .about:
-                AboutSettingsView(focus: route.focus)
+                AboutSettingsView(
+                    focus: route.focus,
+                    diagnosticReportingConfiguration: model.diagnosticReporting
+                        .effectiveConfiguration,
+                )
         }
     }
 
@@ -395,6 +402,7 @@ struct SettingsView: View {
                 .push(to: InsightsAccuracyFeaturesView.flyoverID),
                 .push(to: PersonalizationFeaturesView.flyoverID),
                 .push(to: DataSettingsView.flyoverID),
+                .push(to: PrivacyDiagnosticsSettingsView.flyoverID),
                 .push(to: AboutSettingsView.flyoverID),
             ],
         ) { world in

@@ -39,11 +39,13 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   capture. Once the selected report has 14 recorded days, the Siri, Spotlight,
   widget, and evidence examples use its real regions, counts, and dates. Sparse
   reports keep the illustrative Siri copy and empty widget state.
-  Backup and destructive data management share one Data drill-in. Both Data and
-  About lead with the same full-width passport-style
-  privacy statement on a passport-navy, tilt-reflective surface: location
-  history stays on the user's devices and in their private iCloud account,
-  never on Where-operated servers. `AboutSettingsView` is the last Settings block — 
+  Backup and destructive data management share one Data drill-in. Data is
+  followed by a persisted **Privacy & Diagnostics** screen for crash reports,
+  redacted session replay, remote-log threshold, and Debug-only full metadata.
+  Data, Privacy & Diagnostics, and About lead with the same full-width
+  passport-style privacy statement. Its detail comes from the process's
+  effective reporting state, so next-launch choices do not rewrite the promise
+  early. `AboutSettingsView` is the last Settings block —
   build identity, the app's generated attribution report (linked libraries and
   development tools as separate sections), and bundled-data provenance, each
   vended by whoever owns it rather than listed in the view. It renders an
@@ -105,6 +107,8 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   view-scoped **`ResolveModel`** (data-issue triage), **`BackupModel`**
   (Settings export progress and failures),
   **`RemindersSettingsModel`** (notification prefs),
+  process-scoped **`DiagnosticReportingSettingsModel`** (saved versus effective
+  launch channels and revisioned live log-policy application),
   **`DevicesSettingsModel`** (installation-local recording choice plus synced names, advisory
   status, and irreversible removal), plus **`OnboardingFlowModel`** (first-run phase, restore,
   demo, and completion orchestration) and **`OnboardingImportRecoveryModel`** (the sidecar/store

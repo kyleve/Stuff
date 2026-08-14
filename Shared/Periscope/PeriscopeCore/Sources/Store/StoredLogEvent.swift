@@ -18,6 +18,13 @@ public struct StoreWriteFailed: LogEvent {
         "\(lostRecordCount) record(s) failed to persist: \(reason)"
     }
 
+    public var remoteFields: [RemoteLogField] {
+        [RemoteLogField(
+            key: RemoteLogFieldKey("lost_record_count"),
+            value: .count(lostRecordCount),
+        )]
+    }
+
     public init(lostRecordCount: Int, reason: String) {
         self.lostRecordCount = lostRecordCount
         self.reason = reason

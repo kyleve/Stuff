@@ -24,9 +24,11 @@ struct DataSettingsView: View {
     var body: some View {
         SettingsFocusScope(focus: focus) {
             Form {
-                PrivacyPassportCard()
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
+                PrivacyPassportCard(presentation: PrivacyPassportPresentation(
+                    configuration: model.diagnosticReporting.effectiveConfiguration,
+                ))
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
                 BackupSettingsSection(backup: backup)
                 dataSection
                 resetSection

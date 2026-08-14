@@ -44,4 +44,40 @@ enum BackupModelLog: LogEvent {
                 "Backup import committed but recording cleanup failed: \(description)"
         }
     }
+
+    var remoteFields: [RemoteLogField] {
+        switch self {
+            case let .imported(
+            sampleCount,
+            evidenceCount,
+            manualDayCount,
+            dismissedIssueCount,
+            trackedRegionCount,
+        ):
+                [
+                    RemoteLogField(
+                        key: RemoteLogFieldKey("sample_count"),
+                        value: .count(sampleCount),
+                    ),
+                    RemoteLogField(
+                        key: RemoteLogFieldKey("evidence_count"),
+                        value: .count(evidenceCount),
+                    ),
+                    RemoteLogField(
+                        key: RemoteLogFieldKey("manual_day_count"),
+                        value: .count(manualDayCount),
+                    ),
+                    RemoteLogField(
+                        key: RemoteLogFieldKey("dismissed_issue_count"),
+                        value: .count(dismissedIssueCount),
+                    ),
+                    RemoteLogField(
+                        key: RemoteLogFieldKey("tracked_region_count"),
+                        value: .count(trackedRegionCount),
+                    ),
+                ]
+            case .exported, .exportFailed, .importFailed, .importCleanupFailed:
+                []
+        }
+    }
 }

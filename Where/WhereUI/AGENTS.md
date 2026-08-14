@@ -6,7 +6,7 @@ orchestrate `WhereCore` for them (`WhereModel`, the `WhereSession`
 coordinator, and the scoped `YearReportModel` / `ResolveModel` /
 `BackupModel` / `RemindersSettingsModel` / `DevicesSettingsModel` /
 `OnboardingFlowModel` / `OnboardingImportRecoveryModel` /
-`LocationForecastModel`).
+`LocationForecastModel` / `DiagnosticReportingSettingsModel`).
 Layering, localization, preview, and testing conventions live in the feature
 [`Where/AGENTS.md`](../AGENTS.md). Read that and the root
 [`AGENTS.md`](../../AGENTS.md) first.
@@ -39,6 +39,10 @@ Layering, localization, preview, and testing conventions live in the feature
   through any failure (`WhereLaunchTests`).
 - Keep backup import onboarding-only. Settings exports archives but never
   starts or resumes an import (`BackupModelTests`).
+- Keep diagnostic reporting's saved, process-effective, applying, and failed
+  states distinct. Crash and replay choices stay pending until relaunch.
+  Remote-log revisions apply live. A runtime failure invalidates in-flight
+  applies. An older completion must never win.
 - The DEBUG developer accordion may only latch or clear
   `InspectorModeController` for the next launch. It must not host a live
   SwiftData inspector or switch the current runtime.

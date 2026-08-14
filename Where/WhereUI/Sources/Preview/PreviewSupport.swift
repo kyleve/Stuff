@@ -721,6 +721,27 @@
             )
         }
 
+        /// A ready model with independently controlled saved and process-effective
+        /// diagnostic choices for Settings previews and snapshots.
+        @MainActor
+        public static func loadedModel(
+            savedDiagnosticReporting: DiagnosticReportingConfiguration,
+            effectiveDiagnosticReporting: DiagnosticReportingConfiguration,
+        ) -> WhereModel {
+            let preferences = previewPreferences()
+            preferences.hasOnboarded = true
+            preferences.diagnosticReportingConfiguration = savedDiagnosticReporting
+            return WhereModel(
+                services: previewServices(),
+                details: sampleYearReportDetails(),
+                selectedYear: year,
+                preferences: preferences,
+                logSystem: logSystem,
+                effectiveDiagnosticReportingConfiguration: effectiveDiagnosticReporting,
+                now: { referenceNow },
+            )
+        }
+
         /// Logged-in shell fixture whose current phone is the expected recorder but has both
         /// automatic recording and Always location access disabled. Launch reconciliation drives
         /// the real session and warning model before snapshot capture.

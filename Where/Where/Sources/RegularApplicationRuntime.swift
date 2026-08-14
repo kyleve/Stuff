@@ -33,11 +33,21 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
 
         private let inspectorModeController: InspectorModeController?
 
-        init(inspectorModeController: InspectorModeController? = nil) {
+        init(
+            preferences: WherePreferences,
+            effectiveDiagnosticReportingConfiguration: DiagnosticReportingConfiguration,
+            applyRemoteLogging: @escaping DiagnosticReportingSettingsModel.ApplyRemoteLogging,
+            inspectorModeController: InspectorModeController? = nil,
+        ) {
             self.inspectorModeController = inspectorModeController
-            model = Self.makeModel(storeStorage: Self.storeStorage(
-                forCloudKitValidationBuild: Self.isCloudKitValidationBuild,
-            ))
+            model = Self.makeModel(
+                storeStorage: Self.storeStorage(
+                    forCloudKitValidationBuild: Self.isCloudKitValidationBuild,
+                ),
+                preferences: preferences,
+                effectiveDiagnosticReportingConfiguration: effectiveDiagnosticReportingConfiguration,
+                applyRemoteLogging: applyRemoteLogging,
+            )
         }
 
         static func storeStorage(
@@ -46,16 +56,30 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
             validatesCloudKit ? .cloudKit : .localOnly
         }
     #else
-        init() {
-            model = Self.makeModel(storeStorage: .cloudKit)
+        init(
+            preferences: WherePreferences,
+            effectiveDiagnosticReportingConfiguration: DiagnosticReportingConfiguration,
+            applyRemoteLogging: @escaping DiagnosticReportingSettingsModel.ApplyRemoteLogging,
+        ) {
+            model = Self.makeModel(
+                storeStorage: .cloudKit,
+                preferences: preferences,
+                effectiveDiagnosticReportingConfiguration: effectiveDiagnosticReportingConfiguration,
+                applyRemoteLogging: applyRemoteLogging,
+            )
         }
     #endif
 
-    private static func makeModel(storeStorage: SwiftDataStore.Storage) -> WhereModel {
+    private static func makeModel(
+        storeStorage: SwiftDataStore.Storage,
+        preferences: WherePreferences,
+        effectiveDiagnosticReportingConfiguration: DiagnosticReportingConfiguration,
+        applyRemoteLogging: @escaping DiagnosticReportingSettingsModel.ApplyRemoteLogging,
+    ) -> WhereModel {
         let installationContextStore = FileInstallationRecordingContextStore()
         let locationOutbox = FileLocationOutbox.applicationSupport()
         return WhereModel(
-            preferences: WherePreferences(store: UserDefaults.standard),
+            preferences: preferences,
             installationContextStore: installationContextStore,
             makeBootstrap: {
                 WhereBootstrap(
@@ -65,6 +89,8 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
                 )
             },
             logSystem: .shared,
+            effectiveDiagnosticReportingConfiguration: effectiveDiagnosticReportingConfiguration,
+            applyRemoteLogging: applyRemoteLogging,
         )
     }
 
