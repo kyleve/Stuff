@@ -9,6 +9,7 @@ This file is the map.
 
 ## Modules
 
+- **PeriscopeMacros** ([PeriscopeMacros/](PeriscopeMacros/)) — the compile-time implementation for classified event authoring. It depends on SwiftSyntax and runs only on the build host.
 - **PeriscopeCore** ([PeriscopeCore/](PeriscopeCore/)) — the model and the machinery: events, levels, scopes, links, tags, spans, attachments, the sink pipeline (OSLog + SwiftData), ambient event sources, the crash journal, and the store. Foundation-level. No SwiftUI.
 - **PeriscopeUI** ([PeriscopeUI/](PeriscopeUI/)) — the SwiftUI integration: the `logContext` modifier and environment accessors that flow log scopes down a view hierarchy. Depends on PeriscopeCore.
 - **PeriscopeTools** ([PeriscopeTools/](PeriscopeTools/)) — the on-device developer surfaces: the latest-logs viewer, tracer, span views, scope-tree browser, debug toast, and inspect mode. Depends on PeriscopeCore, PeriscopeUI, and Broadway for styling.
@@ -23,7 +24,8 @@ It ships in no target and no CI job.
 
 Libraries are declared in the root [`Package.swift`](../../Package.swift).
 Their hosted test bundles are in [`Project.swift`](../../Project.swift).
-Run `./test PeriscopeCoreTests`, `./test PeriscopeUITests`, or `./test PeriscopeToolsTests`.
+Run `./test PeriscopeMacrosTests` for the host macro suite.
+Run `./test PeriscopeCoreTests`, `./test PeriscopeUITests`, or `./test PeriscopeToolsTests` for the hosted suites.
 
 ## Open work
 
