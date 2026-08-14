@@ -1,43 +1,44 @@
 import PeriscopeCore
 import WhereCore
 
-/// Structured events for `ResolveModel`, the data-issue resolution flow. Read /
-/// dismiss failures leave an honest UI error, so they log at `.warning`. A
-/// dismissed issue's id rides on `externalID`.
-enum ResolveModelLog: LogEvent {
+@LogScope("Resolve")
+enum ResolveModelLog {
     enum SpanName: String, CustomStringConvertible {
         case prepareReview
-        var description: String {
-            rawValue
+        var description: String { rawValue }
+    }
+
+    @LogEvent("correction-apply-failed", level: .warning,
+        message: "Failed to apply reviewed GPS sample corrections")
+    struct CorrectionApplyFailed {
+        @LogField("issue_id", exposure: .restricted, kind: .identifier)
+        var issueID: DataIssueID
+        var externalID: String? { issueID.storeURL.absoluteString }
+    }
+
+    @LogEvent("data-issue-scan-failed", level: .warning)
+    struct DataIssueScanFailed {
+        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        var description: String
+        var message: String {
+            "Failed to scan for data issues: \(description)"
         }
     }
 
-    case dataIssueScanFailed(description: String)
-    case dismissFailed(issueID: String, description: String)
-    case correctionApplyFailed(issueID: DataIssueID)
+    @LogEvent("dismiss-failed", level: .warning)
+    struct DismissFailed {
+        @LogField("issue_id", exposure: .restricted, kind: .identifier)
+        var issueID: String
 
-    static let eventName = "Resolve"
+        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        var description: String
 
-    var level: LogLevel {
-        .warning
-    }
-
-    var message: String {
-        switch self {
-            case let .dataIssueScanFailed(description):
-                "Failed to scan for data issues: \(description)"
-            case let .dismissFailed(issueID, description):
-                "Failed to dismiss data issue \(issueID): \(description)"
-            case .correctionApplyFailed:
-                "Failed to apply reviewed GPS sample corrections"
+        var message: String {
+            "Failed to dismiss data issue \(issueID): \(description)"
         }
-    }
 
-    var externalID: String? {
-        switch self {
-            case let .dismissFailed(issueID, _): issueID
-            case .dataIssueScanFailed: nil
-            case let .correctionApplyFailed(issueID): issueID.storeURL.absoluteString
+        var externalID: String? {
+            issueID
         }
     }
 }

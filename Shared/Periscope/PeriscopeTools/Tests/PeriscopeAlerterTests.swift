@@ -13,11 +13,8 @@ private final class CapturingAlertHandler: PeriscopeAlertHandler {
 }
 
 /// A fixture event for alerter routing.
-private struct AppLogs: LogEvent {
-    var message: String {
-        "app"
-    }
-}
+@LogScope("AppLogs")
+private enum AppLogs {}
 
 @MainActor
 struct PeriscopeAlerterTests {

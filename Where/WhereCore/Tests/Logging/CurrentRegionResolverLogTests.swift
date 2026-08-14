@@ -4,18 +4,30 @@ import Testing
 
 struct CurrentRegionResolverLogTests {
     @Test func finishedEventExportsOnlyBoundedNonLocationFields() {
-        let event = CurrentRegionResolverLog.finished(
-            reason: .boundaryUncertainty,
-            ageBucket: .recent,
-            accuracyBucket: .kilometer,
+        let event = CurrentRegionResolverLog.Finished(
+            reason: .shared(.category, .boundaryUncertainty),
+            ageBucket: .shared(.category, .recent),
+            accuracyBucket: .shared(.category, .kilometer),
         )
 
-        #expect(event.remoteFields.map(\.key) == [
-            RemoteLogFieldKey("kind"),
-            RemoteLogFieldKey("reason"),
-            RemoteLogFieldKey("age_bucket"),
-            RemoteLogFieldKey("accuracy_bucket"),
+        #expect(event.classifiedFields == [
+            .shareable(
+                key: LogFieldKey("reason"),
+                kind: .category,
+                value: .string("boundary-uncertainty"),
+            ),
+            .shareable(
+                key: LogFieldKey("age_bucket"),
+                kind: .category,
+                value: .string("11-60s"),
+            ),
+            .shareable(
+                key: LogFieldKey("accuracy_bucket"),
+                kind: .category,
+                value: .string("101-1000m"),
+            ),
         ])
+        #expect(CurrentRegionResolverLog.Finished.eventName == "CurrentRegionResolver.finished")
         #expect(event.message.contains("boundary-uncertainty"))
         #expect(event.message.contains("11-60s"))
         #expect(event.message.contains("101-1000m"))

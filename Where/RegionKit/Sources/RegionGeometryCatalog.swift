@@ -86,9 +86,11 @@ public enum RegionGeometryCatalog {
         do {
             return try await RegionCache.shared.outlines(for: region)
         } catch {
-            RegionLog.geometryCatalog(attachments: [.error(error, name: "geometry-error")]) {
-                .regionLoadFailed(region: region, description: error.localizedDescription)
-            }
+            RegionLog.geometryCatalog.regionLoadFailed(
+                region: .restricted(.location, region),
+                description: .restricted(.errorDetails, error.localizedDescription),
+                attachments: [.error(error, name: "geometry-error")],
+            )
             assertionFailure(
                 "Failed to load drawable outlines for \(region.rawValue): \(error.localizedDescription)",
             )

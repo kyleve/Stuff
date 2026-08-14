@@ -118,9 +118,10 @@ public struct RegionMapView: View {
             // Keep the failure observable in both the UI (the `.failure`
             // state renders an error) and the logs, rather than silently
             // showing an empty map.
-            RegionLog.geometryCatalog {
-                .loadFailed(kind: kind.rawValue, description: String(describing: error))
-            }
+            RegionLog.geometryCatalog.loadFailed(
+                kind: .restricted(.technicalState, kind.rawValue),
+                description: .restricted(.errorDetails, String(describing: error)),
+            )
             outlines = .failure(error)
         }
     }

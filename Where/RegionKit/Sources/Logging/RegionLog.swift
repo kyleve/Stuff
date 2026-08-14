@@ -1,14 +1,8 @@
 import PeriscopeCore
 
-/// Phantom root event naming RegionKit's log scope tree. It is never emitted —
-/// its only job is to give ``RegionLog``'s root `Log` the scope name
-/// `"RegionKit"`, so every RegionKit event sits under one filterable subtree.
-struct RegionKitRoot: LogEvent {
-    static let eventName = "RegionKit"
-    var message: String {
-        ""
-    }
-}
+/// Root namespace for RegionKit's log scope tree.
+@LogScope("RegionKit")
+enum RegionKitRoot {}
 
 /// Logging facade for `RegionKit`. Every logger site derives from one root
 /// `Log` scoped `"RegionKit"`, so RegionKit's events form a single subtree

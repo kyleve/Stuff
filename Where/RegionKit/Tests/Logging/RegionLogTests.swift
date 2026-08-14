@@ -24,10 +24,14 @@ struct RegionLogTests {
     // MARK: - RegionCatalogLog
 
     @Test func catalogEventsRenderAndLevel() {
-        #expect(RegionCatalogLog.missingManifest.level == .fault)
-        #expect(RegionCatalogLog.decodeFailed(description: "boom").level == .fault)
-        #expect(RegionCatalogLog.loaded(regionCount: 4).level == .info)
-        #expect(RegionCatalogLog.loaded(regionCount: 4).message.contains("4 region"))
+        #expect(RegionCatalogLog.MissingManifest().level == .fault)
+        #expect(RegionCatalogLog.DecodeFailed(
+            description: .restricted(.errorDetails, "boom"),
+        ).level == .fault)
+        #expect(RegionCatalogLog.Loaded(regionCount: .shared(.count, 4)).level == .info)
+        #expect(RegionCatalogLog.Loaded(
+            regionCount: .shared(.count, 4),
+        ).message.contains("4 region"))
     }
 
     // MARK: - RegionAttributorLog
@@ -36,33 +40,50 @@ struct RegionLogTests {
         // The region rides on externalID as its region:// identity (see
         // RegionURLTests for the exact string).
         #expect(
-            RegionAttributorLog.missingGeometry(region: .california)
+            RegionAttributorLog.MissingGeometry(region: .restricted(.location, .california))
                 .externalID == Region.california.regionURL.absoluteString,
         )
         #expect(
-            RegionAttributorLog.emptyPolygons(region: .canada)
+            RegionAttributorLog.EmptyPolygons(region: .restricted(.location, .canada))
                 .externalID == Region.canada.regionURL.absoluteString,
         )
         #expect(
-            RegionAttributorLog.decodeFailed(region: .newYork, description: "x")
-                .externalID == Region.newYork.regionURL.absoluteString,
+            RegionAttributorLog.DecodeFailed(
+                region: .restricted(.location, .newYork),
+                description: .restricted(.errorDetails, "x"),
+            )
+            .externalID == Region.newYork.regionURL.absoluteString,
         )
-        #expect(RegionAttributorLog.loaded(regionCount: 2).externalID == nil)
+        #expect(RegionAttributorLog.Loaded(
+            regionCount: .shared(.count, 2),
+        ).externalID == nil)
     }
 
     @Test func attributorFaultsAndInfo() {
-        #expect(RegionAttributorLog.missingGeometry(region: .california).level == .fault)
-        #expect(RegionAttributorLog.emptyPolygons(region: .california).level == .fault)
+        #expect(RegionAttributorLog.MissingGeometry(
+            region: .restricted(.location, .california),
+        ).level == .fault)
+        #expect(RegionAttributorLog.EmptyPolygons(
+            region: .restricted(.location, .california),
+        ).level == .fault)
         #expect(
-            RegionAttributorLog.decodeFailed(region: .california, description: "x").level == .fault,
+            RegionAttributorLog.DecodeFailed(
+                region: .restricted(.location, .california),
+                description: .restricted(.errorDetails, "x"),
+            ).level == .fault,
         )
-        #expect(RegionAttributorLog.loaded(regionCount: 2).level == .info)
+        #expect(RegionAttributorLog.Loaded(
+            regionCount: .shared(.count, 2),
+        ).level == .info)
     }
 
     // MARK: - RegionGeometryCatalogLog
 
     @Test func geometryCatalogFailureIsWarning() {
-        let event = RegionGeometryCatalogLog.loadFailed(kind: "source", description: "nope")
+        let event = RegionGeometryCatalogLog.LoadFailed(
+            kind: .restricted(.technicalState, "source"),
+            description: .restricted(.errorDetails, "nope"),
+        )
         #expect(event.level == .warning)
         #expect(event.message.contains("source"))
     }

@@ -20,7 +20,7 @@ struct AmbientLogContextTests {
         let log = Log<AppLogs>(system: system)
 
         await log.withContext {
-            Log<Message>.current.info("deep")
+            Log<FreeformLogScope>.current.info("deep")
         }
         await system.flush()
 
@@ -32,7 +32,7 @@ struct AmbientLogContextTests {
         let log = Log<AppLogs>(system: system)
 
         await log.withContext {
-            Log<PhotoLogs>.current { PhotoLogs(photoID: "p1") }
+            Log<PhotoLogs>.current.event(photoID: .restricted(.identifier, "p1"))
         }
         await system.flush()
 
@@ -46,7 +46,7 @@ struct AmbientLogContextTests {
 
         await model.withContext {
             await ui.withContext {
-                Log<Message>.current.info("both")
+                Log<FreeformLogScope>.current.info("both")
             }
         }
         await system.flush()
@@ -60,7 +60,7 @@ struct AmbientLogContextTests {
 
         await log.withContext {
             await log.withContext {
-                Log<Message>.current.info("once")
+                Log<FreeformLogScope>.current.info("once")
             }
         }
         await system.flush()
@@ -74,7 +74,7 @@ struct AmbientLogContextTests {
         await log.withContext {
             await withTaskGroup(of: Void.self) { group in
                 group.addTask {
-                    Log<Message>.current.info("from child task")
+                    Log<FreeformLogScope>.current.info("from child task")
                 }
                 await group.waitForAll()
             }
@@ -89,7 +89,7 @@ struct AmbientLogContextTests {
         let log = Log<AppLogs>(system: system)
 
         log.withContext {
-            Log<Message>.current.info("sync")
+            Log<FreeformLogScope>.current.info("sync")
         }
         await system.flush()
 
@@ -102,7 +102,7 @@ struct AmbientLogContextTests {
         let log = Log<AppLogs>(system: system).tagged(key, "pay_123")
 
         await log.withContext {
-            Log<Message>.current.info("tagged")
+            Log<FreeformLogScope>.current.info("tagged")
         }
         await system.flush()
 
@@ -118,7 +118,7 @@ struct AmbientLogContextTests {
 
         await outer.withContext {
             await inner.withContext {
-                Log<Message>.current.info("both")
+                Log<FreeformLogScope>.current.info("both")
             }
         }
         await system.flush()

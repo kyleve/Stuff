@@ -77,12 +77,14 @@ public final class BackupModel {
             let url = try await services.backup.exportBackup { continuation.yield($0) }
             continuation.finish()
             await observer.value
-            Self.logger { .exported }
+            Self.logger.exported()
             return url
         } catch {
             continuation.finish()
             presentBackupError(error)
-            Self.logger { .exportFailed(description: error.localizedDescription) }
+            Self.logger.exportFailed(
+                description: .restricted(.errorDetails, error.localizedDescription),
+            )
             return nil
         }
     }

@@ -229,9 +229,10 @@ struct RegionPickerView: View {
             guard !Task.isCancelled else { return }
             // Keep the failure observable in both the UI (error state) and the
             // logs rather than showing a blank map.
-            Self.logger(attachments: [.error(error, name: "geometry-error")]) {
-                .mapGeometryLoadFailed(description: error.localizedDescription)
-            }
+            Self.logger.mapGeometryLoadFailed(
+                description: .restricted(.errorDetails, error.localizedDescription),
+                attachments: [.error(error, name: "geometry-error")],
+            )
             mapData = .failure(error)
         }
     }

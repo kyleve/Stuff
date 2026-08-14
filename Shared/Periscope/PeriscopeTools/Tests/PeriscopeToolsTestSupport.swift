@@ -4,11 +4,20 @@ import TestHostSupport
 import UIKit
 
 /// Shared fixture event for the tools suites.
-struct PhotoLogs: LogEvent {
-    var photoID: String
-    var message: String {
-        "photo \(photoID)"
+@LogScope("PhotoLogs")
+enum PhotoLogs {
+    @LogEvent("event")
+    struct Event {
+        @LogField("photo_id", exposure: .restricted, kind: .identifier)
+        var photoID: String
+        var message: String {
+            "photo \(photoID)"
+        }
     }
+}
+
+func makePhotoEvent(_ photoID: String) -> PhotoLogs.Event {
+    PhotoLogs.Event(photoID: .restricted(.identifier, photoID))
 }
 
 /// A deterministic session for store-backed tests.

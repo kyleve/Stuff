@@ -136,7 +136,7 @@ struct PeriscopeViewerModelTests {
         let (store, root, _, _) = try await makeSeededStore()
         await store.write([
             makeRecord("plain", date: date(1), scopes: [root.id]),
-            LogRecord(date: date(2), event: PhotoLogs(photoID: "p1"), scopes: [root.id]),
+            LogRecord(date: date(2), event: makePhotoEvent("p1"), scopes: [root.id]),
         ])
 
         let model = PeriscopeViewerModel(store: store)
