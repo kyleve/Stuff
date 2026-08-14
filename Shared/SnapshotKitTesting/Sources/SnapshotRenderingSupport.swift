@@ -1,6 +1,5 @@
 import SnapshotKit
 import SwiftUI
-import Testing
 import UIKit
 
 /// How a settle phase ended. Only ``settled`` and ``skipped`` mean the pixels
@@ -26,48 +25,34 @@ import UIKit
     case cancelled
 }
 
-/// Fails the test when a settle phase ended somewhere the capture can't be
-/// trusted from. A view still in motion at the budget records an arbitrary
-/// frame, which is precisely how a flaky reference lands — the failure class
-/// the settle loop exists to prevent — so it's louder than a log: a silent
-/// timeout is indistinguishable from a clean capture in CI output.
+/// Throws when a settle phase cannot produce a trustworthy capture.
 @MainActor
-func reportIfUnsettled(
+func throwIfUnsettled(
     _ outcome: SettleOutcome,
     phase: String,
     of viewController: UIViewController,
     named name: String,
-) {
+) throws {
     switch outcome {
         case .settled, .skipped:
             return
         case let .timedOut(budget):
-            Issue.record(
-                """
-                Snapshot content never settled: the \(phase) phase for "\(name)" \
-                (\(type(of: viewController))) was observed still changing \(budget.formatted())s \
-                after hosting, so this capture is an arbitrary frame of whatever is still moving. \
-                Freeze the motion at a deterministic phase behind `\\.isCapturingSnapshot` (the \
-                Where app does this with `MotionIsStatic`), or — if the content is merely slow \
-                rather than endless — raise the floor with `.settledAtLeast(minDuration:)`.
-                """,
+            throw SnapshotRenderingError.settleTimedOut(
+                name: name,
+                phase: phase,
+                viewType: String(reflecting: type(of: viewController)),
+                budget: budget,
             )
         case let .starved(passes, cap):
-            Issue.record(
-                """
-                Snapshot settle starved: the \(phase) phase for "\(name)" \
-                (\(type(of: viewController))) completed only \(passes) render pass(es) in \
-                \(cap.formatted())s without ever observing the content change, so pixel \
-                stability could not be confirmed. This is an environment problem (a machine too \
-                loaded to complete render passes) or a view that renders no pixels (a zero-sized \
-                frame) — not view motion; widening the settle budget won't fix it.
-                """,
+            throw SnapshotRenderingError.settleStarved(
+                name: name,
+                phase: phase,
+                viewType: String(reflecting: type(of: viewController)),
+                passes: passes,
+                cap: cap,
             )
         case .cancelled:
-            // Deliberately quiet: a cancelled test is already being torn down and
-            // a second issue would just bury the cancellation. Skipping the assert
-            // outright is the real fix, tracked in TODOs.md.
-            return
+            throw CancellationError()
     }
 }
 

@@ -102,6 +102,19 @@ Reference images are written next to the test file under `__Snapshots__/` and
 are stored in Git LFS (see the root `.gitattributes`). Recording a new image is
 a failure by design, so a run that records can't be mistaken for a pass.
 
+## Hosted PNG capture
+
+`captureSnapshotPNG` uses the same hosted renderer without comparing a
+reference image. It accepts the view, configuration, name, sizing strategy,
+safe-area insets, readiness hooks, and settle policy. The returned
+`SnapshotPNG` contains PNG data, point and pixel dimensions, and image scale.
+
+The operation holds the existing capture lock. It also applies snapshot traits,
+full-content measurement, accessibility annotation, settling, and PNG
+round-tripping. Call it only from a test bundle hosted by `StuffTestHost`; it
+needs the host app's key window. A rendering or encoding failure throws. The
+caller must not publish a partial artifact.
+
 ## Recording
 
 `assertSnapshots` defaults to the `.missing` mode (records only images that

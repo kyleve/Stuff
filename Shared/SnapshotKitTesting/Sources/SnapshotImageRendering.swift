@@ -58,6 +58,20 @@ public enum SnapshotRenderingError: Error, Equatable, Sendable {
         maximumPixelDimension: Int,
         maximumPixelCount: Int,
     )
+    /// The rendered image could not be encoded as PNG bytes.
+    case pngEncodingFailed(name: String)
+    /// The PNG round-trip did not produce a Core Graphics image.
+    case missingCGImage(name: String)
+    /// The hosted pixels were still changing when the settle budget ended.
+    case settleTimedOut(name: String, phase: String, viewType: String, budget: TimeInterval)
+    /// The host could not complete enough render passes to prove stability.
+    case settleStarved(
+        name: String,
+        phase: String,
+        viewType: String,
+        passes: Int,
+        cap: TimeInterval,
+    )
 }
 
 extension SnapshotRenderingError: LocalizedError {
@@ -86,6 +100,14 @@ extension SnapshotRenderingError: LocalizedError {
             maximumPixelCount,
         ):
                 return "Snapshot \(name) would render at \(pixelWidth)×\(pixelHeight) pixels; two-axis captures are limited to \(maximumPixelDimension) pixels per dimension and \(maximumPixelCount) pixels total."
+            case let .pngEncodingFailed(name):
+                return "Snapshot \(name) could not be encoded as a PNG image."
+            case let .missingCGImage(name):
+                return "Snapshot \(name) did not produce a Core Graphics image."
+            case let .settleTimedOut(name, phase, viewType, budget):
+                return "Snapshot \(name) never settled during \(phase) for \(viewType) within \(budget.formatted())s. Freeze endless motion behind `\\.isCapturingSnapshot`, or raise the settle floor for finite work."
+            case let .settleStarved(name, phase, viewType, passes, cap):
+                return "Snapshot \(name) settle starved during \(phase) for \(viewType): only \(passes) render passes completed in \(cap.formatted())s."
         }
     }
 }
@@ -292,7 +314,7 @@ private func renderSnapshotImageLocked(
         }
         defer { removeChildAfterCapture(wrappingViewController) }
 
-        await reportIfUnsettled(
+        try await throwIfUnsettled(
             timing.measure(.settle) {
                 await settleForCapture(
                     wrappingViewController.view,
@@ -311,7 +333,7 @@ private func renderSnapshotImageLocked(
         // effects (a focused field, a presented state) are settled before the
         // accessibility parse and capture below reflect them.
         if let onReadyToSnapshot {
-            await reportIfUnsettled(
+            try await throwIfUnsettled(
                 timing.measure(.hook) {
                     await onReadyToSnapshot()
                     wrappingViewController.view.setNeedsLayout()
@@ -354,11 +376,11 @@ private func renderSnapshotImageLocked(
         // Round-trip through PNG bytes (preserving scale, which `UIImage(data:)`
         // alone would reset to 1) so the compare and the disk artifact are the
         // same bytes — see the doc comment above.
-        return timing.measure(.pngRoundTrip) {
+        return try timing.measure(.pngRoundTrip) {
             guard let pngData = image.pngData(),
                   let decoded = UIImage(data: pngData, scale: image.scale)
             else {
-                preconditionFailure("Snapshot capture could not be PNG-encoded.")
+                throw SnapshotRenderingError.pngEncodingFailed(name: name)
             }
             return SnapshotCapture(image: decoded, pngData: pngData)
         }
@@ -492,7 +514,7 @@ private func resolveContentSize(
         }
     }
 
-    await reportIfUnsettled(
+    try await throwIfUnsettled(
         timing.measure(.intrinsicMeasure) {
             await settleForCapture(
                 probeWrapper.view,
