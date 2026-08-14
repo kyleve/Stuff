@@ -176,6 +176,25 @@ struct DiagnosticReportingControllerTests {
         #expect(await sink.encodingFailureCount == 1)
     }
 
+    @Test func freeformTextIsExcludedFromBaselineExport() async throws {
+        let writer = RecordingBitdriftWriter()
+        let sink = BitdriftRemoteLogSink(
+            configuration: .enabled(minimumLevel: .debug, metadataPolicy: .approvedFields),
+            effectiveFrom: .distantPast,
+            writer: writer,
+        )
+        let event = Message(
+            level: .restricted(.technicalState, .info),
+            text: .restricted(.arbitraryText, "private freeform text"),
+        )
+
+        await sink.write([LogRecord(date: .now, event: event, scopes: [])])
+
+        let entry = try #require(await writer.entries.first)
+        #expect(entry.message == "message.message")
+        #expect(entry.fields.values.contains(.string("private freeform text")) == false)
+    }
+
     #if DEBUG
         @Test func fullMetadataIncludesContextButNeverAttachmentBytes() async throws {
             let configuration = DiagnosticReportingConfiguration(
@@ -210,6 +229,26 @@ struct DiagnosticReportingControllerTests {
             #expect(entry.fields["context.external_id"] == .string("private-external-id"))
             #expect(entry.fields["attachments.metadata"] == .string("diagnostic.txt:text/plain"))
             #expect(entry.fields.values.contains(.string("never-transmit-these-bytes")) == false)
+        }
+
+        @Test func fullMetadataEncodingFailureNeverSubstitutesAnEmptyObject() async {
+            let writer = RecordingBitdriftWriter()
+            let sink = BitdriftRemoteLogSink(
+                configuration: .enabled(
+                    minimumLevel: .debug,
+                    metadataPolicy: .allMetadataExcludingAttachmentData,
+                ),
+                effectiveFrom: .distantPast,
+                writer: writer,
+            )
+            let event = RemoteTestLog.InvalidDebug(
+                value: .restricted(.technicalState, .nan),
+            )
+
+            await sink.write([LogRecord(date: .now, event: event, scopes: [])])
+
+            #expect(await writer.entries.isEmpty)
+            #expect(await sink.encodingFailureCount == 1)
         }
     #endif
 
@@ -322,6 +361,12 @@ private enum RemoteTestLog {
     struct InvalidJSON {
         @LogField("json", exposure: .shareable, kind: .json)
         var json: JSONValue
+    }
+
+    @LogEvent("invalid-debug", message: "Invalid debug payload")
+    struct InvalidDebug {
+        @LogField("value", exposure: .restricted, kind: .technicalState)
+        var value: Double
     }
 }
 

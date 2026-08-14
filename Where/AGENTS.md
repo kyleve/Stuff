@@ -49,8 +49,7 @@ Rules the code enforces and agents must preserve:
   refresh inline. Launch is a typed [`LifecycleKit`](../Shared/LifecycleKit)
   `LaunchPlan` (`WhereLaunch` in WhereUI). It renders in
   [`LifecycleKitUI`](../Shared/LifecycleKitUI)'s container in `RootView`.
-- **All logging goes through [Periscope](../Shared/Periscope).** Use typed
-  `LogEvent`s off the `WhereLog` facade. Never use a raw string. Each module
+- **All logging goes through [Periscope](../Shared/Periscope).** Define `@LogScope` namespaces and nested `@LogEvent` structs. Classify each payload property with `@LogField`. Emit it with a matching `.shared` or `.restricted` input. Use the `WhereLog` facade. Never write a direct `LogEvent` conformance or use a raw string. Each module
   keeps its `*Log.swift` event types in its `Sources/Logging/` folder. Not
   re-derivable from source: events log `.public`, so **keep PII out**. `info`
   = important success. `warning` = degraded-but-handled. `error`/`fault` =
