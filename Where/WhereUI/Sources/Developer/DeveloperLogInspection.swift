@@ -14,7 +14,7 @@ extension View {
     /// that opens the newest events in `log`'s scope subtree — e.g. wrap an
     /// evidence row in `WhereLog.evidence` to see everything logged under it.
     @ViewBuilder
-    func debugLogInspectable(_ log: Log<some LogEvent>) -> some View {
+    func debugLogInspectable(_ log: Log<some LogScopeDefinition>) -> some View {
         #if DEBUG
             logInspectable(log)
         #else

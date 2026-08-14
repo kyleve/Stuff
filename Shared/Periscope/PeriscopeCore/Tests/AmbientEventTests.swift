@@ -4,13 +4,13 @@ import Testing
 
 struct AmbientEventTests {
     @Test func messageCombinesKindAndSortedFields() {
-        let event = AmbientEvent(kind: .network, value: ["status": "unsatisfied"])
+        let event = makeAmbientEvent(kind: .network, value: ["status": "unsatisfied"])
         #expect(event.message == "network: status=unsatisfied")
         #expect(event.level == .info)
     }
 
     @Test func messageOrdersFieldsDeterministically() {
-        let event = AmbientEvent(
+        let event = makeAmbientEvent(
             kind: .network,
             value: ["status": "satisfied", "interfaces": "wifi"],
         )
@@ -18,18 +18,22 @@ struct AmbientEventTests {
     }
 
     @Test func levelCanBeRaised() {
-        let event = AmbientEvent(kind: .memory, value: ["pressure": "warning"], level: .warning)
+        let event = makeAmbientEvent(
+            kind: .memory,
+            value: ["pressure": "warning"],
+            level: .warning,
+        )
         #expect(event.level == .warning)
     }
 
     @Test func appsCanDefineTheirOwnKinds() {
         let custom = AmbientKind("push-token")
-        let event = AmbientEvent(kind: custom, value: ["state": "refreshed"])
+        let event = makeAmbientEvent(kind: custom, value: ["state": "refreshed"])
         #expect(event.message == "push-token: state=refreshed")
     }
 
     @Test func roundTripsThroughCodable() throws {
-        let event = AmbientEvent(
+        let event = makeAmbientEvent(
             kind: .thermalState,
             value: ["level": "serious", "throttled": true, "steps": 3, "factor": 1.5],
             level: .warning,
@@ -43,7 +47,7 @@ struct AmbientEventTests {
     /// case-keyed wrapper a synthesized enum coding would emit — so a
     /// stored payload reads as data anywhere JSON is spoken.
     @Test func valueEncodesAsAPlainJSONObject() throws {
-        let event = AmbientEvent(
+        let event = makeAmbientEvent(
             kind: .accessibility,
             value: ["voiceover": false, "contrast": "high", "retries": 2],
         )
@@ -58,11 +62,12 @@ struct AmbientEventTests {
     }
 
     @Test func reportsLastingStateByDefault() {
-        #expect(AmbientEvent(kind: .network, value: ["status": "satisfied"]).reporting == .state)
+        #expect(makeAmbientEvent(kind: .network, value: ["status": "satisfied"])
+            .reporting == .state)
     }
 
     @Test func roundTripsMomentaryReporting() throws {
-        let event = AmbientEvent(
+        let event = makeAmbientEvent(
             kind: .memory,
             value: ["pressure": "warning"],
             level: .warning,

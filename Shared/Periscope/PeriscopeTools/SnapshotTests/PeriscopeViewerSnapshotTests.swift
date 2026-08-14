@@ -74,7 +74,10 @@ struct PeriscopeViewerSnapshotTests {
         await store.write(lines.map { line in
             LogRecord(
                 date: referenceNow.addingTimeInterval(-line.age),
-                event: Message(level: line.level, line.text),
+                event: Message(
+                    level: .restricted(.technicalState, line.level),
+                    text: .restricted(.arbitraryText, line.text),
+                ),
                 scopes: [line.scope.id],
                 tags: [],
             )

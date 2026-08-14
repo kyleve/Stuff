@@ -1,36 +1,5 @@
 import Foundation
 
-/// The synthetic event `PeriscopeStore` persists after a failed,
-/// rolled-back write — the durable history's marker for its own gap.
-/// The lost batch's contents are gone by definition; this records how
-/// many records vanished and why.
-public struct StoreWriteFailed: LogEvent {
-    public static let eventName = "store-write-failed"
-
-    public let lostRecordCount: Int
-    public let reason: String
-
-    public var level: LogLevel {
-        .warning
-    }
-
-    public var message: String {
-        "\(lostRecordCount) record(s) failed to persist: \(reason)"
-    }
-
-    public var remoteFields: [RemoteLogField] {
-        [RemoteLogField(
-            key: RemoteLogFieldKey("lost_record_count"),
-            value: .count(lostRecordCount),
-        )]
-    }
-
-    public init(lostRecordCount: Int, reason: String) {
-        self.lostRecordCount = lostRecordCount
-        self.reason = reason
-    }
-}
-
 /// A persisted log event, as returned by `PeriscopeStore` queries — the
 /// value-type snapshot of a stored row.
 ///

@@ -115,7 +115,7 @@ public struct LogEventMacro: MemberMacro, ExtensionMacro {
         else {
             return []
         }
-        let extensionDecl: DeclSyntax = "extension \(type.trimmed): LogEvent, Codable, Sendable {}"
+        let extensionDecl: DeclSyntax = "extension \(type.trimmed): LogEvent {}"
         return [extensionDecl.cast(ExtensionDeclSyntax.self)]
     }
 }
@@ -193,6 +193,7 @@ extension LogEventMacro {
         in context: some MacroExpansionContext,
     ) -> ParsedFields {
         let metadataNames = ["message", "level", "externalID", "isProtectedFromDropping"]
+        let storedMetadataNames = ["message", "externalID", "isProtectedFromDropping"]
         let reservedNames = [
             "attachments",
             "function",
@@ -225,17 +226,11 @@ extension LogEventMacro {
             }
             let name = identifier.identifier.text
             if binding.accessorBlock != nil {
-                if !metadataNames.contains(name) {
-                    context.diagnose(
-                        variable,
-                        id: "event-accessor",
-                        message: "only event metadata properties can have accessors",
-                    )
-                    result.hasError = true
-                }
+                // Computed projections are ordinary event API. They do not
+                // participate in the persisted payload or classification.
                 continue
             }
-            if metadataNames.contains(name) || reservedNames.contains(name) {
+            if storedMetadataNames.contains(name) || reservedNames.contains(name) {
                 context.diagnose(
                     variable,
                     id: "event-reserved",

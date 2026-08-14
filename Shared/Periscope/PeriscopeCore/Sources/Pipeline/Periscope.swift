@@ -117,27 +117,7 @@ public final class Periscope: LogRecorder, Sendable {
     }
 
     /// The synthetic event reporting records dropped by the overflow policy.
-    public struct DroppedEvents: LogEvent {
-        public static let eventName = "dropped-events"
-
-        public let count: Int
-
-        public var level: LogLevel {
-            .warning
-        }
-
-        public var message: String {
-            "\(count) log event(s) dropped before delivery"
-        }
-
-        public var remoteFields: [RemoteLogField] {
-            [RemoteLogField(key: RemoteLogFieldKey("count"), value: .count(count))]
-        }
-
-        public init(count: Int) {
-            self.count = count
-        }
-    }
+    public typealias DroppedEvents = PeriscopeInternalLog.DroppedEvents
 
     /// One entry in the ordered pending queue. A single queue keeps scope
     /// definitions strictly before the records that reference them.
@@ -684,10 +664,14 @@ public final class Periscope: LogRecorder, Sendable {
             var closing = LogRecord(
                 date: Date(),
                 event: SpanEnded(
-                    spanID: span.id,
-                    name: span.name,
-                    duration: now - span.start,
-                    exit: .expired(budget: budget),
+                    spanID: .restricted(.identifier, span.id),
+                    name: .restricted(.technicalState, span.name),
+                    duration: .shared(.duration, now - span.start),
+                    exitMode: .shared(.category, .expired),
+                    exitReason: .restricted(
+                        .errorDetails,
+                        SpanExit.expired(budget: budget).reason,
+                    ),
                 ),
                 scopes: span.scopes,
                 tags: span.tags,
@@ -832,7 +816,7 @@ public final class Periscope: LogRecorder, Sendable {
                 if state.droppedCount > 0 {
                     var report = LogRecord(
                         date: Date(),
-                        event: DroppedEvents(count: state.droppedCount),
+                        event: DroppedEvents(count: .shared(.count, state.droppedCount)),
                         scopes: [systemScope.id],
                     )
                     // Stamped here rather than in `buffer`: the report is

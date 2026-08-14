@@ -17,19 +17,7 @@ import Foundation
 ///
 /// Events are emitted through a typed logger: `Log<PhotoUploaded>` can log
 /// only `PhotoUploaded` values (plus freeform ``Message`` conveniences).
-public protocol LogEvent: Codable, Sendable {
-    /// The token type naming this event's spans — `log.measure(.saveEvent)`
-    /// resolves against it. Defaults to `String` for freeform span names;
-    /// declare a nested enum for typed tokens:
-    ///
-    /// ```swift
-    /// struct DatabaseLogs: LogEvent {
-    ///     enum SpanName: Hashable, Sendable { case saveEvent, migration }
-    ///     // ...
-    /// }
-    /// ```
-    associatedtype SpanName: Hashable, Sendable = String
-
+public protocol LogEvent: LogScopeDefinition, Codable, Sendable {
     /// Stable name the event persists under; defaults to the type name.
     ///
     /// Persisted payloads are keyed by this name (plus ``eventVersion``), so
@@ -72,6 +60,10 @@ public protocol LogEvent: Codable, Sendable {
 }
 
 extension LogEvent {
+    public static var scopeName: String {
+        eventName
+    }
+
     public static var eventName: String {
         String(describing: Self.self)
     }
