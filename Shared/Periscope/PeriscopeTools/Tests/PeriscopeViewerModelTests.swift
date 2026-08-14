@@ -142,7 +142,7 @@ struct PeriscopeViewerModelTests {
         let model = PeriscopeViewerModel(store: store)
         await model.load()
 
-        #expect(model.eventNames == ["PhotoLogs", "message"].sorted())
+        #expect(model.eventNames == ["PhotoLogs.event", "message.message"].sorted())
         #expect(model.sessions.count == 1)
         #expect(model.scopeChoices.map(\.path).contains("app / photos / album-1"))
         #expect(model.availableLevels == LogLevel.standardLevels)

@@ -515,6 +515,8 @@ cannot exercise them. Record skipped checks in the commit or PR validation.
 Semantic changes to configuration, scripts, generator inputs, executable
 examples, or app-rendered copy are not documentation-only.
 
+`./test PeriscopeMacrosTests` runs the host-side macro suite without selecting a simulator. `./test --all` and `./test --everything` include it. `./test --snapshots` alone does not.
+
 Load the [`running-tests`](.agents/skills/running-tests/SKILL.md) skill for
 test tiers, snapshot opt-in, why not `tuist test`, and per-checkout simulator
 management (`./simulator` resolves a UDID — never pass a device name to

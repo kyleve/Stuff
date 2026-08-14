@@ -1,8 +1,8 @@
 import Foundation
 
 /// A typed, hierarchical logger: a pure value that captures *where in the
-/// system* events come from, and can only emit `Event` values (plus freeform
-/// ``Message`` conveniences).
+/// system* events come from. Macro-generated methods emit its classified
+/// events. Every logger also provides freeform ``Message`` conveniences.
 ///
 /// Loggers form a tree of scopes. Calling a log with an event type derives a
 /// child logger typed to it; calling with an identifier derives a child scope
@@ -10,10 +10,13 @@ import Foundation
 /// contexts:
 ///
 /// ```swift
-/// let root = Log<AppLogs>(recorder: recorder)
-/// let photos = root(PhotoLogs.self)          // child scope, typed PhotoLogs
+/// let root = Log<AppLog>(recorder: recorder)
+/// let photos = root(PhotoLog.self)            // child scope, typed PhotoLog
 /// let album = photos(for: album.id)          // child scope keyed by id
-/// album { PhotoLogs.uploaded(photo.id) }     // emits with full context
+/// album.uploaded(
+///     photoID: .restricted(.identifier, photo.id),
+///     byteCount: .shared(.count, data.count)
+/// )
 ///
 /// let joined = album + uiLog                 // events reference both scopes
 /// ```
@@ -95,8 +98,8 @@ public struct Log<Scope: LogScopeDefinition>: Sendable {
     // MARK: Retyping
 
     /// This same context — scopes, tags, recorder — retyped to emit a
-    /// different event type. No child scope is derived (unlike calling with
-    /// an event type); adapters use this to carry a context across a typed
+    /// a different scope type. No child scope is derived. Adapters use this
+    /// to carry a context across a typed
     /// boundary, e.g. the SwiftUI environment's freeform accessor.
     public func retyped<Other: LogScopeDefinition>(to _: Other.Type) -> Log<Other> {
         Log<Other>(scopes: scopes, tags: tags, recorder: recorder)
@@ -152,8 +155,7 @@ public struct Log<Scope: LogScopeDefinition>: Sendable {
 }
 
 /// Freeform logging: every `Log` can emit ``Message`` events at any level,
-/// regardless of its `Event` type — the generic constraint applies to custom
-/// structured events only.
+/// regardless of its scope type.
 extension Log {
     public func log(
         _ level: LogLevel,

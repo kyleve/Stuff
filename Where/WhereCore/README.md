@@ -196,7 +196,7 @@ one it belongs to rather than to a god-object:
   [`RegionKit`](../RegionKit/README.md)'s.)
 - **`WhereLog`** — the Periscope logging facade: a `"Where"` root scope with
   grouping scopes (`location`, `reminders`, `backup`, `widgets`, `reporting`, …)
-  and a typed `LogEvent` per collaborator, emitted into `Periscope.shared`. Each
+  and an `@LogScope` namespace per collaborator. Nested `@LogEvent` structs emit through generated classified methods into `Periscope.shared`. Each
   collaborator's expensive work is also timed against a declared budget through
   its `*Log`'s `SpanName` cases, so slow reads, commits, and reconciles show up
   in Periscope's span history rather than only as a slow screen.

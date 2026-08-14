@@ -1,6 +1,6 @@
 # PeriscopeCore – Module Shape
 
-PeriscopeCore is the core of the **Periscope** observability framework. It provides typed `Codable` log events, the `Log<Event>` scope hierarchy, tags, spans, the sink pipeline, ambient event sources, and the SwiftData store. See [`README.md`](README.md) for the narrative and API.
+PeriscopeCore is the core of the **Periscope** observability framework. It provides classified `Codable` log events, the `Log<Scope>` hierarchy, tags, spans, the sink pipeline, ambient event sources, and the SwiftData store. See [`README.md`](README.md) for the narrative and API.
 
 Read the root [`AGENTS.md`](../../../AGENTS.md) first. That file owns the build system, formatting, and global conventions.
 
@@ -38,8 +38,9 @@ Read the root [`AGENTS.md`](../../../AGENTS.md) first. That file owns the build 
 - **`remove(_:)` is `async` because it settles the sink first.** Await the in-flight drain and flush the sink.
 - **Then a removed sink is owed nothing and hears nothing more.**
 - **Removing a `PeriscopeStore` also uninstalls that store's journal.** Guard: `PeriscopeTests.removalDeliversAndFlushesWhatTheSinkWasOwed`.
-- **Make remote export an explicit opt-in for each event.** Safe sinks use `remoteMessage` and `remoteFields`.
-- **Never infer remote data from payloads, tags, dynamic scopes, ambient state, external IDs, or attachments.**
+- **Repository events use the macros.** Do not add a direct `LogEvent` or `LogScopeDefinition` conformance.
+- **Approve shareable fields twice.** Use `.shareable` in `@LogField` and `.shared` at emission. Classification is author approval, not content inspection.
+- **Baseline sinks use `eventName` and `classifiedFields` only.** Never infer remote data from payloads, rendered messages, tags, dynamic scopes, ambient state, external IDs, or attachments.
 - **Never use attachment bytes as remote-export input, including in Debug full-metadata mode.**
 - **Use closed `CaseIterable` values for category fields.** Reject values outside `allCases`.
 - **Sink failures never propagate or vanish.** Log them to OSLog. Count them.
@@ -78,4 +79,4 @@ Read the root [`AGENTS.md`](../../../AGENTS.md) first. That file owns the build 
 
 ## Testing
 
-Swift Testing lives in [`Tests/`](Tests), hosted in `StuffTestHost` (`PeriscopeCoreTests`). Use in-memory stores and fresh `Periscope` systems per test (never the shared singleton). Use injected clocks. `Log<Event>()` defaults to `.shared` — a deliberate ergonomics exception to the no-Core-defaults rule — so tests must always pass `system:` explicitly.
+Swift Testing lives in [`Tests/`](Tests), hosted in `StuffTestHost` (`PeriscopeCoreTests`). Use in-memory stores and fresh `Periscope` systems per test (never the shared singleton). Use injected clocks. `Log<Scope>()` defaults to `.shared` — a deliberate ergonomics exception to the no-Core-defaults rule — so tests must always pass `system:` explicitly.

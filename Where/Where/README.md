@@ -45,6 +45,11 @@ An all-Off launch never starts the SDK. Performance tracing is not enabled by
 this setup. If the provider does not start, the app records a typed local error
 event. The regular runtime also shows the error in Privacy & Diagnostics.
 
+Baseline forwarding sends stable event metadata and shareable classified fields only.
+Debug-full forwarding can send the complete payload and context after user opt-in.
+Neither mode sends attachment bytes. If payload or JSON encoding fails, the sink skips that record.
+It counts the failure and reports it through OSLog to prevent Periscope recursion.
+
 The Inspector runtime returns its standalone `InspectorView` and starts none of the model, launch, CoreLocation, notification, Periscope pipeline, App Intents, or Spotlight systems.
 It opens Where and Periscope containers only through their schema adapters for inspection.
 Each source's containment root is derived from the adapter's exact store URL, since SwiftData may place the Periscope database in the app-group container.
