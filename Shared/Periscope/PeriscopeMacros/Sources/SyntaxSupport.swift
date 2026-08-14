@@ -103,3 +103,13 @@ func escapedStringLiteral(_ value: String) -> String {
     }
     return result
 }
+
+extension AccessorBlockSyntax {
+    var hasObservers: Bool {
+        guard case let .accessors(accessors) = accessors else { return false }
+        return accessors.contains { accessor in
+            let name = accessor.accessorSpecifier.text
+            return name == "willSet" || name == "didSet"
+        }
+    }
+}

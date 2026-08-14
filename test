@@ -722,7 +722,9 @@ LOGS=()
 if [ "$HOST_MACROS" = true ]; then
     echo "==> Building PeriscopeMacrosTests on the host"
     macro_build_log="$WORKDIR/PeriscopeMacrosTests-build.log"
-    if ! mise exec -- swift build --target PeriscopeMacrosTests >"$macro_build_log" 2>&1; then
+    # A target build stops at the test module and does not link the .xctest bundle.
+    # The synthesized product links it without building the package's iOS-only targets.
+    if ! mise exec -- swift build --product PeriscopeMacrosTests >"$macro_build_log" 2>&1; then
         echo "error: build failed for PeriscopeMacrosTests. Tail of $macro_build_log:" >&2
         tail -n 30 "$macro_build_log" >&2
         exit 1

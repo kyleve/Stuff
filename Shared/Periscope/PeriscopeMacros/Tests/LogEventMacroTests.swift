@@ -136,3 +136,194 @@ func eventRequiresScope() {
         macros: macros,
     )
 }
+
+@Test
+func eventRequiresAMessage() {
+    assertMacroExpansion(
+        """
+        @LogScope("Sample")
+        enum SampleLog {
+            @LogEvent("event")
+            struct Event {}
+        }
+        """,
+        expandedSource: """
+        @LogScope("Sample")
+        enum SampleLog {
+            struct Event {}
+        }
+
+        extension SampleLog.Event: LogEvent {
+        }
+        """,
+        diagnostics: [
+            DiagnosticSpec(
+                message: "an event requires a static or instance message",
+                line: 3,
+                column: 5,
+            ),
+        ],
+        macros: ["LogEvent": LogEventMacro.self],
+    )
+}
+
+@Test
+func eventRejectsInvalidIdentifiersAndVersions() {
+    assertMacroExpansion(
+        """
+        @LogScope("Sample")
+        enum SampleLog {
+            @LogEvent("", message: "Event")
+            struct Event {}
+        }
+        """,
+        expandedSource: """
+        @LogScope("Sample")
+        enum SampleLog {
+            struct Event {}
+        }
+
+        extension SampleLog.Event: LogEvent {
+        }
+        """,
+        diagnostics: [
+            DiagnosticSpec(
+                message: "@LogEvent requires a nonempty string-literal event ID",
+                line: 3,
+                column: 5,
+            ),
+        ],
+        macros: ["LogEvent": LogEventMacro.self],
+    )
+
+    assertMacroExpansion(
+        """
+        @LogScope("Sample")
+        enum SampleLog {
+            @LogEvent("event", message: "Event", version: 0)
+            struct Event {}
+        }
+        """,
+        expandedSource: """
+        @LogScope("Sample")
+        enum SampleLog {
+            struct Event {}
+        }
+
+        extension SampleLog.Event: LogEvent {
+        }
+        """,
+        diagnostics: [
+            DiagnosticSpec(
+                message: "version must be a positive integer literal",
+                line: 3,
+                column: 42,
+            ),
+        ],
+        macros: ["LogEvent": LogEventMacro.self],
+    )
+}
+
+@Test
+func eventRejectsUnclassifiedAndInvalidShareableFields() {
+    assertMacroExpansion(
+        """
+        @LogScope("Sample")
+        enum SampleLog {
+            @LogEvent("event", message: "Event")
+            struct Event {
+                var count: Int
+            }
+        }
+        """,
+        expandedSource: """
+        @LogScope("Sample")
+        enum SampleLog {
+            struct Event {
+                var count: Int
+            }
+        }
+
+        extension SampleLog.Event: LogEvent {
+        }
+        """,
+        diagnostics: [
+            DiagnosticSpec(
+                message: "stored event properties require a complete @LogField classification",
+                line: 5,
+                column: 9,
+            ),
+        ],
+        macros: ["LogEvent": LogEventMacro.self],
+    )
+
+    assertMacroExpansion(
+        """
+        @LogScope("Sample")
+        enum SampleLog {
+            @LogEvent("event", message: "Event")
+            struct Event {
+                @LogField("value", exposure: .shareable, kind: .identifier)
+                var value: String
+            }
+        }
+        """,
+        expandedSource: """
+        @LogScope("Sample")
+        enum SampleLog {
+            struct Event {
+                @LogField("value", exposure: .shareable, kind: .identifier)
+                var value: String
+            }
+        }
+
+        extension SampleLog.Event: LogEvent {
+        }
+        """,
+        diagnostics: [
+            DiagnosticSpec(
+                message: "field kind '.identifier' cannot be shareable",
+                line: 5,
+                column: 9,
+            ),
+            DiagnosticSpec(
+                message: "shareable .identifier requires its classified Swift value type",
+                line: 5,
+                column: 9,
+            ),
+        ],
+        macros: ["LogEvent": LogEventMacro.self],
+    )
+}
+
+@Test
+func scopeRejectsEventMethodNamesThatCollideWithGeneratedMembers() {
+    assertMacroExpansion(
+        """
+        @LogScope("Sample")
+        enum SampleLog {
+            @LogEvent("log", message: "Log")
+            struct Log {}
+        }
+        """,
+        expandedSource: """
+        enum SampleLog {
+            @LogEvent("log", message: "Log")
+            struct Log {}
+
+            static let scopeName = "Sample"
+        }
+
+        extension SampleLog: LogScopeDefinition {
+        }
+        """,
+        diagnostics: [
+            DiagnosticSpec(
+                message: "generated log method 'log' conflicts with a reserved LogMethods member",
+                line: 3,
+                column: 5,
+            ),
+        ],
+        macros: ["LogScope": LogScopeMacro.self],
+    )
+}

@@ -1,5 +1,5 @@
 /// A compile-time namespace for one stable logging scope.
-public protocol LogScopeDefinition {
+public protocol LogScopeDefinition: Sendable {
     associatedtype SpanName: Hashable & Sendable = String
     associatedtype LogMethods = EmptyLogMethods
 

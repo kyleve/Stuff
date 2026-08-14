@@ -263,7 +263,26 @@ extension ClassifiedLogInput where Exposure == LogFieldPolicy.Shared,
         _: LogFieldKindToken<Kind>,
         _ value: Value,
     ) -> Self {
-        .init(value: value)
+        preconditionClosedCategory(value)
+        return .init(value: value)
+    }
+}
+
+extension ClassifiedLogInput where Exposure == LogFieldPolicy.Shared,
+    Kind == LogFieldPolicy.Category
+{
+    public static func shared<Category>(
+        _: LogFieldKindToken<Kind>,
+        _ value: Category?,
+    ) -> Self where
+        Value == Category?,
+        Category: Codable & Sendable & CaseIterable & RawRepresentable,
+        Category.RawValue == String
+    {
+        if let value {
+            preconditionClosedCategory(value)
+        }
+        return .init(value: value)
     }
 }
 
@@ -305,4 +324,20 @@ extension Duration {
         return Double(components.seconds) * 1000
             + Double(components.attoseconds) / 1_000_000_000_000_000
     }
+}
+
+@_spi(Testing)
+public func isClosedLogCategory<Value: CaseIterable & RawRepresentable>(_ value: Value) -> Bool
+    where Value.RawValue == String
+{
+    Value.allCases.contains { $0.rawValue == value.rawValue }
+}
+
+private func preconditionClosedCategory<Value: CaseIterable & RawRepresentable>(_ value: Value)
+    where Value.RawValue == String
+{
+    precondition(
+        isClosedLogCategory(value),
+        "Shareable log categories must be members of a closed CaseIterable set",
+    )
 }

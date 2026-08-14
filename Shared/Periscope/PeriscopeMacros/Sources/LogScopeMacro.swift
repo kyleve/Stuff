@@ -36,6 +36,31 @@ public struct LogScopeMacro: MemberMacro, ExtensionMacro {
             )
             return []
         }
+        if let spanName = scope.memberBlock.members.first(where: { member in
+            if let declaration = member.decl.as(EnumDeclSyntax.self) {
+                return declaration.name.text == "SpanName"
+            }
+            if let declaration = member.decl.as(StructDeclSyntax.self) {
+                return declaration.name.text == "SpanName"
+            }
+            if let declaration = member.decl.as(ClassDeclSyntax.self) {
+                return declaration.name.text == "SpanName"
+            }
+            if let declaration = member.decl.as(ActorDeclSyntax.self) {
+                return declaration.name.text == "SpanName"
+            }
+            if let declaration = member.decl.as(TypeAliasDeclSyntax.self) {
+                return declaration.name.text == "SpanName"
+            }
+            return false
+        }), !spanName.decl.is(EnumDeclSyntax.self) {
+            context.diagnose(
+                spanName.decl,
+                id: "scope-span-name",
+                message: "SpanName must be a Hashable and Sendable enum",
+            )
+            return []
+        }
         let access = accessPrefix(scope.modifiers)
         let events = eventMethods(in: scope, context: context)
         var members: [DeclSyntax] = [
@@ -112,6 +137,14 @@ extension LogScopeMacro {
                 continue
             }
             let methodName = lowerCamelCase(event.name.text)
+            if methodName == "log" {
+                context.diagnose(
+                    event,
+                    id: "reserved-method",
+                    message: "generated log method 'log' conflicts with a reserved LogMethods member",
+                )
+                continue
+            }
             if !seenMethods.insert(methodName).inserted {
                 context.diagnose(
                     event,
