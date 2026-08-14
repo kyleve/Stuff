@@ -131,7 +131,7 @@ end
 # A target declaration, as distinct from a `.target(name:)` *dependency* entry:
 # only the declaration puts `name:` on its own line. Keying off that rather than
 # indentation keeps the parse independent of how deeply the array is nested.
-TARGET_DECLARATION = /\.(?:target|testTarget|executableTarget)\(\s*\n\s*name:\s*"([^"]+)"/
+TARGET_DECLARATION = /\.(target|testTarget|executableTarget|macro)\(\s*\n\s*name:\s*"([^"]+)"/
 TARGET_DEPENDENCY = /\.target\(name:\s*"([^"]+)"/
 PRODUCT_DEPENDENCY = /\.product\(\s*name:\s*"[^"]+",\s*package:\s*"([^"]+)"/
 
@@ -148,8 +148,9 @@ def package_targets(manifest_path)
     # Everything up to the next declaration is this target's body.
     body = text[declaration.end(0)...(declarations[index + 1]&.begin(0) || text.length)]
     [
-      declaration[1],
+      declaration[2],
       {
+        "kind" => declaration[1],
         "targets" => body.scan(TARGET_DEPENDENCY).flatten,
         "packages" => body.scan(PRODUCT_DEPENDENCY).flatten.map(&:downcase),
       },
@@ -172,6 +173,7 @@ def shipped_package_identities(targets, roots)
     visited << name
     target = targets[name]
     next unless target
+    next if target["kind"] == "macro"
     shipped.concat(target["packages"])
     queue.concat(target["targets"])
   end
@@ -332,10 +334,12 @@ def check_report(credits, output_path)
   puts "#{output_path}: up to date (#{committed.count} credit(s))"
 end
 
-check = !ARGV.delete("--check").nil?
-configs = ARGV
-fail_with("usage: generate-attribution.rb [--check] <config.json>...") if configs.empty?
-configs.each do |config|
-  fail_with("no config at #{config}") unless File.exist?(config)
-  report(config, check: check)
+if $PROGRAM_NAME == __FILE__
+  check = !ARGV.delete("--check").nil?
+  configs = ARGV
+  fail_with("usage: generate-attribution.rb [--check] <config.json>...") if configs.empty?
+  configs.each do |config|
+    fail_with("no config at #{config}") unless File.exist?(config)
+    report(config, check: check)
+  end
 end

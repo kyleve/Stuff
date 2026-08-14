@@ -78,6 +78,7 @@ SHARED=false
 RUN_ARCHITECTURE=true
 ARCHITECTURE_ONLY=false
 HAS_TEST_ARGUMENTS=false
+HOST_MACROS=false
 
 usage() {
     cat <<'USAGE'
@@ -93,9 +94,10 @@ Scope:
   (no arguments)    Bundles affected by the diff against origin/main, including
                     uncommitted and untracked files
   BundleName ...    Named bundles only (e.g. ./test WhereCoreTests)
-  --all             The full unit suite (Stuff-iOS-Tests)
+                    PeriscopeMacrosTests runs on the host without a simulator
+  --all             The full unit suite plus host macro tests
   --snapshots       The image-snapshot suite (StuffSnapshotTests)
-  --everything      Both suites — what CI runs
+  --everything      Both suites plus host macro tests — what CI runs
   --only ID         An xcodebuild test identifier, repeatable:
                     Bundle, Bundle/Suite, or 'Bundle/Suite/test()'
   --base REF        Compare against REF instead of origin/main
@@ -201,6 +203,9 @@ fi
 if [ "$ARCHITECTURE_ONLY" = true ]; then
     exit 0
 fi
+
+echo "==> Testing attribution generator"
+mise exec -- ruby Shared/CreditKit/Tools/Tests/generate_attribution_test.rb
 
 WORKSPACE="Stuff.xcworkspace"
 UNIT_SCHEME="Stuff-iOS-Tests"
@@ -627,9 +632,9 @@ add_scheme() {
 }
 
 case "$SCOPE" in
-    all) add_scheme "$UNIT_SCHEME" ;;
+    all) add_scheme "$UNIT_SCHEME"; HOST_MACROS=true ;;
     snapshots) add_scheme "$SNAPSHOT_SCHEME" ;;
-    everything) add_scheme "$UNIT_SCHEME"; add_scheme "$SNAPSHOT_SCHEME" ;;
+    everything) add_scheme "$UNIT_SCHEME"; add_scheme "$SNAPSHOT_SCHEME"; HOST_MACROS=true ;;
     bundles|changed)
         if [ "$SCOPE" = changed ]; then
             if git rev-parse --verify --quiet "$BASE_REF" >/dev/null; then
@@ -644,6 +649,10 @@ case "$SCOPE" in
             if [ -z "$changed_files" ]; then
                 echo "==> No changes against $BASE_REF — nothing to test."
                 exit 0
+            fi
+            if printf '%s\n' "$changed_files" | grep -Eq \
+                '^(Package\.swift|Package\.resolved|test|Shared/Periscope/PeriscopeMacros/)'; then
+                HOST_MACROS=true
             fi
             set +e
             selection="$(affected_bundles "$changed_files")"
@@ -660,16 +669,20 @@ case "$SCOPE" in
             done <<EOF
 $selection
 EOF
-            if [ "${#BUNDLES[@]}" -eq 0 ]; then
+            if [ "${#BUNDLES[@]}" -eq 0 ] && [ "$HOST_MACROS" = false ]; then
                 echo "==> No test bundle covers these changes:"
                 printf '%s\n' "$changed_files" | sed 's/^/      /'
                 exit 0
             fi
-            echo "==> Affected bundles: ${BUNDLES[*]}"
+            if [ "${#BUNDLES[@]}" -gt 0 ]; then
+                echo "==> Affected bundles: ${BUNDLES[*]}"
+            fi
         fi
         image_bundles="$(snapshot_bundles)"
         for bundle in "${BUNDLES[@]}"; do
-            if printf '%s\n' "$image_bundles" | grep -qx "$bundle"; then
+            if [ "$bundle" = PeriscopeMacrosTests ]; then
+                HOST_MACROS=true
+            elif printf '%s\n' "$image_bundles" | grep -qx "$bundle"; then
                 add_scheme "$SNAPSHOT_SCHEME"
                 SNAPSHOT_FILTERS+=("-only-testing:$bundle")
             else
@@ -697,9 +710,47 @@ if [ "${#ONLY[@]}" -gt 0 ]; then
     done
 fi
 
-if [ "${#SCHEMES[@]}" -eq 0 ]; then
+if [ "${#SCHEMES[@]}" -eq 0 ] && [ "$HOST_MACROS" = false ]; then
     echo "error: nothing to run (see ./test --help)" >&2
     exit 1
+fi
+
+overall_status=0
+RESULTS=()
+LOGS=()
+
+if [ "$HOST_MACROS" = true ]; then
+    echo "==> Building PeriscopeMacrosTests on the host"
+    macro_build_log="$WORKDIR/PeriscopeMacrosTests-build.log"
+    if ! mise exec -- swift build --target PeriscopeMacrosTests >"$macro_build_log" 2>&1; then
+        echo "error: build failed for PeriscopeMacrosTests. Tail of $macro_build_log:" >&2
+        tail -n 30 "$macro_build_log" >&2
+        exit 1
+    fi
+    macro_bundle="$(find .build -path '*/Products/Debug/PeriscopeMacrosTests.xctest' \
+        -type d -print -quit)"
+    if [ -z "$macro_bundle" ]; then
+        echo "error: SwiftPM did not produce PeriscopeMacrosTests.xctest" >&2
+        exit 1
+    fi
+    echo "==> Testing PeriscopeMacrosTests on macOS"
+    macro_log="$WORKDIR/PeriscopeMacrosTests.log"
+    set +e
+    xcrun xctest "$macro_bundle" 2>&1 | tee "$macro_log"
+    macro_status="${PIPESTATUS[0]}"
+    set -e
+    LOGS+=("$macro_log")
+    [ "$macro_status" -ne 0 ] && overall_status="$macro_status"
+fi
+
+if [ "${#SCHEMES[@]}" -eq 0 ]; then
+    echo
+    if [ "$overall_status" -eq 0 ]; then
+        echo "==> Passed. Logs and result bundles: $WORKDIR"
+    else
+        echo "==> Failed (exit $overall_status). Logs and result bundles: $WORKDIR"
+    fi
+    exit "$overall_status"
 fi
 
 if [ "$DO_GENERATE" = true ]; then
@@ -745,10 +796,6 @@ else
     echo "warning: could not resolve BUILT_PRODUCTS_DIR; package resource" \
         "bundle lookups will fall back to the linker's placement" >&2
 fi
-
-overall_status=0
-RESULTS=()
-LOGS=()
 
 for scheme in "${SCHEMES[@]}"; do
     filters=()
