@@ -51,7 +51,7 @@ struct WherePreferencesTests {
         #expect(configuration.remoteLogging == expectedRemoteLogging)
     }
 
-    @Test func diagnosticConfigurationRoundTrips() {
+    @Test func diagnosticConfigurationRoundTrips() throws {
         let store = InMemoryKeyValueStore()
         let preferences = WherePreferences(store: store)
         let configuration = DiagnosticReportingConfiguration(
@@ -66,19 +66,25 @@ struct WherePreferencesTests {
         preferences.diagnosticReportingConfiguration = configuration
 
         #expect(preferences.diagnosticReportingConfiguration == configuration)
-        #expect(store.object(forKey: "where.diagnostics.configuration") is Data)
-        #expect(store.object(forKey: "where.diagnostics.sharesCrashReports") == nil)
-        #expect(store.object(forKey: "where.diagnostics.sharesSessionReplays") == nil)
-        #expect(store.object(forKey: "where.diagnostics.remoteLogLevel") == nil)
-        #expect(store.object(forKey: "where.diagnostics.remoteLogMetadataPolicy") == nil)
+        let data = try #require(
+            store.object(forKey: "where.diagnostics.configuration") as? Data,
+        )
+        #expect(
+            try JSONDecoder().decode(DiagnosticReportingConfiguration.self, from: data)
+                == configuration,
+        )
     }
 
     @Test func invalidDiagnosticValuesFailSafelyToRemoteLoggingOff() throws {
         let invalidLevel = try JSONSerialization.data(withJSONObject: [
             "shares_crash_reports": false,
             "shares_session_replays": true,
-            "remote_log_level": "verbose",
-            "remote_log_metadata_policy": "approvedFields",
+            "remote_logging": [
+                "enabled": [
+                    "minimum_level": "verbose",
+                    "metadata_policy": "approvedFields",
+                ],
+            ],
         ])
 
         for value: Any in ["not data", Data("not JSON".utf8), invalidLevel] {

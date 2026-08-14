@@ -153,8 +153,7 @@ public final class WherePreferences {
         }
         do {
             return try JSONDecoder()
-                .decode(PersistedDiagnosticReportingConfiguration.self, from: data)
-                .configuration
+                .decode(DiagnosticReportingConfiguration.self, from: data)
         } catch {
             invalidDiagnosticValue("Could not decode diagnostic reporting configuration: \(error)")
             return defaults.withRemoteLoggingOff()
@@ -165,9 +164,7 @@ public final class WherePreferences {
         _ configuration: DiagnosticReportingConfiguration,
     ) {
         do {
-            let data = try JSONEncoder().encode(
-                PersistedDiagnosticReportingConfiguration(configuration),
-            )
+            let data = try JSONEncoder().encode(configuration)
             store.set(data, forKey: Keys.diagnosticReportingConfiguration.rawValue)
         } catch {
             assertionFailure("Could not encode diagnostic reporting configuration: \(error)")
@@ -277,12 +274,6 @@ public final class WherePreferences {
         case summaryMinute = "where.summaryMinute"
         case issueAlertsEnabled = "where.issueAlertsEnabled"
         case diagnosticReportingConfiguration = "where.diagnostics.configuration"
-        // Keep the retired keys in reset so a reset erases settings written by
-        // a development build from before the composite value existed.
-        case legacySharesCrashReports = "where.diagnostics.sharesCrashReports"
-        case legacySharesSessionReplays = "where.diagnostics.sharesSessionReplays"
-        case legacyRemoteLogLevel = "where.diagnostics.remoteLogLevel"
-        case legacyRemoteLogMetadataPolicy = "where.diagnostics.remoteLogMetadataPolicy"
         case recordingConfigurationWarningRegistration =
             "where.recordingConfigurationWarningRegistration"
         case driftThresholdMeters = "where.driftThresholdMeters"
@@ -295,38 +286,6 @@ public final class WherePreferences {
         #else
             false
         #endif
-    }
-}
-
-/// A flat, rename-safe wire shape for the composite reporting preference.
-private struct PersistedDiagnosticReportingConfiguration: Codable {
-    let sharesCrashReports: Bool
-    let sharesSessionReplays: Bool
-    let remoteLogLevel: RemoteLogLevel?
-    let remoteLogMetadataPolicy: RemoteLogMetadataPolicy
-
-    init(_ configuration: DiagnosticReportingConfiguration) {
-        sharesCrashReports = configuration.sharesCrashReports
-        sharesSessionReplays = configuration.sharesSessionReplays
-        remoteLogLevel = configuration.remoteLogging.minimumLevel
-        remoteLogMetadataPolicy = configuration.remoteLogging.metadataPolicy
-    }
-
-    var configuration: DiagnosticReportingConfiguration {
-        DiagnosticReportingConfiguration(
-            sharesCrashReports: sharesCrashReports,
-            sharesSessionReplays: sharesSessionReplays,
-            remoteLogging: remoteLogLevel.map {
-                .enabled(minimumLevel: $0, metadataPolicy: remoteLogMetadataPolicy)
-            } ?? .off,
-        )
-    }
-
-    private enum CodingKeys: String, CodingKey {
-        case sharesCrashReports = "shares_crash_reports"
-        case sharesSessionReplays = "shares_session_replays"
-        case remoteLogLevel = "remote_log_level"
-        case remoteLogMetadataPolicy = "remote_log_metadata_policy"
     }
 }
 

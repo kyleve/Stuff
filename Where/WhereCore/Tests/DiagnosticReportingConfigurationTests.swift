@@ -1,7 +1,31 @@
+import Foundation
 import Testing
 @testable import WhereCore
 
 struct DiagnosticReportingConfigurationTests {
+    @Test(arguments: [
+        RemoteLoggingConfiguration.off,
+        .enabled(minimumLevel: .notice, metadataPolicy: .approvedFields),
+        .enabled(
+            minimumLevel: .debug,
+            metadataPolicy: .allMetadataExcludingAttachmentData,
+        ),
+    ])
+    func persistedConfigurationRoundTrips(_ remoteLogging: RemoteLoggingConfiguration) throws {
+        let configuration = DiagnosticReportingConfiguration(
+            sharesCrashReports: false,
+            sharesSessionReplays: true,
+            remoteLogging: remoteLogging,
+        )
+
+        let data = try JSONEncoder().encode(configuration)
+
+        #expect(
+            try JSONDecoder().decode(DiagnosticReportingConfiguration.self, from: data)
+                == configuration,
+        )
+    }
+
     @Test func releaseDefaultsToCrashOnly() {
         let configuration = DiagnosticReportingConfiguration.defaults(isDebugBuild: false)
 
