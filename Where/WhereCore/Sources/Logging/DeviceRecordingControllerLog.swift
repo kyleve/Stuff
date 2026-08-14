@@ -1,25 +1,32 @@
 import PeriscopeCore
 
 /// Structured failures from local recording and synced-removal reconciliation.
-enum DeviceRecordingControllerLog: LogEvent {
-    case policyObservationFailed(description: String)
-    case rollbackRecoveryFailed(description: String)
-    case importRecoveryFailed(description: String)
-
-    static let eventName = "DeviceRecordingController"
-
-    var level: LogLevel {
-        .error
+@LogScope("DeviceRecordingController")
+enum DeviceRecordingControllerLog {
+    @LogEvent("policy-observation-failed", level: .error)
+    struct PolicyObservationFailed {
+        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        var description: String
+        var message: String {
+            "Failed to reconcile recording state; recording was stopped: \(description)"
+        }
     }
 
-    var message: String {
-        switch self {
-            case let .policyObservationFailed(description):
-                "Failed to reconcile recording state; recording was stopped: \(description)"
-            case let .rollbackRecoveryFailed(description):
-                "Failed to restore recording after an operation rolled back: \(description)"
-            case let .importRecoveryFailed(description):
-                "Backup committed, but recording could not be restored and was stopped: \(description)"
+    @LogEvent("rollback-recovery-failed", level: .error)
+    struct RollbackRecoveryFailed {
+        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        var description: String
+        var message: String {
+            "Failed to restore recording after an operation rolled back: \(description)"
+        }
+    }
+
+    @LogEvent("import-recovery-failed", level: .error)
+    struct ImportRecoveryFailed {
+        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        var description: String
+        var message: String {
+            "Backup committed, but recording could not be restored and was stopped: \(description)"
         }
     }
 }

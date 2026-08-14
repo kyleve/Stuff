@@ -112,9 +112,10 @@ enum SharedItemLoader {
                     filename: provider.suggestedName,
                 )
             case let .missing(reason):
-                logger {
-                    .attachmentLoadFailed(typeIdentifier: type.identifier, reason: reason)
-                }
+                logger.attachmentLoadFailed(
+                    typeIdentifier: .restricted(.identifier, type.identifier),
+                    reason: .restricted(.errorDetails, reason),
+                )
                 return nil
         }
     }
@@ -145,7 +146,7 @@ enum SharedItemLoader {
                     filename: provider.suggestedName,
                 )
             case let .missing(reason):
-                logger { .urlUnreadable(reason: reason) }
+                logger.urlUnreadable(reason: .restricted(.errorDetails, reason))
                 return nil
         }
     }

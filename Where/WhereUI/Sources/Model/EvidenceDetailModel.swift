@@ -40,12 +40,10 @@ public final class EvidenceDetailModel {
             blobState = .loaded(blob)
         } catch {
             blobState = .failed(error.localizedDescription)
-            Self.logger {
-                .blobLoadFailed(
-                    evidenceID: String(describing: evidence.id),
-                    description: error.localizedDescription,
-                )
-            }
+            Self.logger.blobLoadFailed(
+                evidenceID: .restricted(.identifier, String(describing: evidence.id)),
+                description: .restricted(.errorDetails, error.localizedDescription),
+            )
         }
     }
 

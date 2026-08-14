@@ -118,61 +118,6 @@ public struct Log<Scope: LogScopeDefinition>: Sendable {
 
     // MARK: Emitting
 
-    /// Log a structured event with this logger's full context.
-    public func callAsFunction(
-        function: StaticString = #function,
-        fileID: StaticString = #fileID,
-        _ event: () -> Scope,
-    ) where Scope: LogEvent {
-        emit(event(), callSite: LogCallSite(function: function, fileID: fileID))
-    }
-
-    /// Log a structured event with attached data — errors, payloads,
-    /// screenshots (see ``LogAttachment``).
-    public func callAsFunction(
-        attachments: [LogAttachment],
-        function: StaticString = #function,
-        fileID: StaticString = #fileID,
-        _ event: () -> Scope,
-    ) where Scope: LogEvent {
-        emit(
-            event(),
-            attachments: attachments,
-            callSite: LogCallSite(function: function, fileID: fileID),
-        )
-    }
-
-    /// Derive the typed child scope and log one event into it, in a single
-    /// expression: `log(PhotoLogs.self) { PhotoLogs(photoID: id) }`.
-    ///
-    /// This overload exists because Swift resolves a *value* call's
-    /// arguments and trailing closure as one `callAsFunction` application —
-    /// unlike *type* callees (SwiftUI's Layouts), which get an implicit
-    /// init-then-call split. Without it, the spelling above fails to
-    /// compile and must be written as two statements.
-    public func callAsFunction<Child: LogEvent>(
-        _ type: Child.Type,
-        function: StaticString = #function,
-        fileID: StaticString = #fileID,
-        _ event: () -> Child,
-    ) {
-        let child: Log<Child> = callAsFunction(type)
-        child.emit(event(), callSite: LogCallSite(function: function, fileID: fileID))
-    }
-
-    /// Derive the entity-keyed child scope and log one event into it, in a
-    /// single expression: `album(for: photo.id) { .uploaded }`. Exists for
-    /// the same trailing-closure reason as the typed variant above.
-    public func callAsFunction(
-        for id: some Hashable & Sendable,
-        function: StaticString = #function,
-        fileID: StaticString = #fileID,
-        _ event: () -> Scope,
-    ) where Scope: LogEvent {
-        let child: Log<Scope> = callAsFunction(for: id)
-        child.emit(event(), callSite: LogCallSite(function: function, fileID: fileID))
-    }
-
     /// Records one event with this logger's scopes, tags, attachments, and call site.
     public func record(
         _ event: some LogEvent,

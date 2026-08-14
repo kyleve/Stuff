@@ -33,11 +33,13 @@ public struct TodayRegionsIntent: AppIntent {
                             appGroupIdentifier: appGroupIdentifier,
                         ).read()
                     } catch {
-                        WhereIntentsLog.logger(
+                        WhereIntentsLog.logger.widgetSnapshotReadFailed(
+                            description: .restricted(
+                                .errorDetails,
+                                String(describing: error),
+                            ),
                             attachments: [.error(error, name: "snapshot-read-error")],
-                        ) {
-                            .widgetSnapshotReadFailed(description: String(describing: error))
-                        }
+                        )
                         return nil
                     }
                 },

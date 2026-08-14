@@ -1,24 +1,10 @@
 import PeriscopeCore
 
-/// Structured events for `RegionAttributor`'s per-region geometry load. Missing
-/// or corrupt bundled geometry is a programmer error, so those cases log at
-/// `.fault` (paired with a debug `assertionFailure`); the region id rides on
-/// `externalID` so the tooling can pull every event about one region.
-enum RegionAttributorLog: LogEvent {
-    /// Names the loader's timed spans. Building an attributor parses one GeoJSON
-    /// file per region, which is the most expensive thing RegionKit does — and it
-    /// happens on the launch's critical path (and again whenever the tracked set
-    /// changes), so both the whole load and each region's share of it are timed.
-    ///
-    /// `description` is spelled out because ``loadRegion(_:)`` carries a region:
-    /// reflection would render it `loadRegion(RegionKit.Region(rawValue: "us-CA"))`,
-    /// which is both unreadable and a Swift-internal shape in a name the tools
-    /// group timings by.
+/// Structured events and spans for `RegionAttributor`.
+@LogScope("RegionAttributor")
+enum RegionAttributorLog {
     enum SpanName: Hashable, CustomStringConvertible {
-        /// Loading every region an attributor was built for.
         case loadPolygons
-        /// One region's GeoJSON read + decode, so a slow load attributes to the
-        /// region whose geometry is heavy rather than to the set.
         case loadRegion(Region)
 
         var description: String {
@@ -29,56 +15,53 @@ enum RegionAttributorLog: LogEvent {
         }
     }
 
-    /// The manifest names a geometry file the bundle doesn't contain.
-    case missingGeometry(region: Region)
-    /// The region's GeoJSON decoded to zero polygons.
-    case emptyPolygons(region: Region)
-    /// The region's GeoJSON failed to decode.
-    case decodeFailed(region: Region, description: String)
-    /// Finished loading polygons for `regionCount` regions.
-    case loaded(regionCount: Int)
+    @LogEvent("missing-geometry", level: .fault)
+    struct MissingGeometry {
+        @LogField("region", exposure: .restricted, kind: .location)
+        var region: Region
+        var message: String {
+            "Missing bundled GeoJSON for region \(region.rawValue)"
+        }
 
-    static let eventName = "RegionAttributor"
-
-    var level: LogLevel {
-        switch self {
-            case .missingGeometry, .emptyPolygons, .decodeFailed: .fault
-            case .loaded: .info
+        var externalID: String? {
+            region.regionURL.absoluteString
         }
     }
 
-    var message: String {
-        switch self {
-            case let .missingGeometry(region):
-                "Missing bundled GeoJSON for region \(region.rawValue)"
-            case let .emptyPolygons(region):
-                "Region \(region.rawValue) decoded no polygons"
-            case let .decodeFailed(region, description):
-                "Failed to decode bundled GeoJSON for region \(region.rawValue): \(description)"
-            case let .loaded(regionCount):
-                "Loaded region polygons for \(regionCount) region(s)"
+    @LogEvent("empty-polygons", level: .fault)
+    struct EmptyPolygons {
+        @LogField("region", exposure: .restricted, kind: .location)
+        var region: Region
+        var message: String {
+            "Region \(region.rawValue) decoded no polygons"
+        }
+
+        var externalID: String? {
+            region.regionURL.absoluteString
         }
     }
 
-    var externalID: String? {
-        switch self {
-            case let .missingGeometry(region), let .emptyPolygons(region),
-                 let .decodeFailed(region, _):
-                region.regionURL.absoluteString
-            case .loaded:
-                nil
+    @LogEvent("decode-failed", level: .fault)
+    struct DecodeFailed {
+        @LogField("region", exposure: .restricted, kind: .location)
+        var region: Region
+        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        var description: String
+        var message: String {
+            "Failed to decode bundled GeoJSON for region \(region.rawValue): \(description)"
+        }
+
+        var externalID: String? {
+            region.regionURL.absoluteString
         }
     }
 
-    var remoteFields: [RemoteLogField] {
-        switch self {
-            case let .loaded(regionCount):
-                [RemoteLogField(
-                    key: RemoteLogFieldKey("region_count"),
-                    value: .count(regionCount),
-                )]
-            case .missingGeometry, .emptyPolygons, .decodeFailed:
-                []
+    @LogEvent("loaded")
+    struct Loaded {
+        @LogField("region_count", exposure: .shareable, kind: .count)
+        var regionCount: Int
+        var message: String {
+            "Loaded region polygons for \(regionCount) region(s)"
         }
     }
 }

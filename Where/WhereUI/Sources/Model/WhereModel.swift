@@ -278,7 +278,7 @@ public final class WhereModel {
         preferences.theme = theme
         publishThemeChange(theme)
         hasOnboarded = true
-        Self.logger { .onboardingCompleted }
+        Self.logger.onboardingCompleted()
     }
 
     /// Preview a theme without writing device preferences.
@@ -495,7 +495,7 @@ public final class WhereModel {
                 // login gets a fresh one.
                 scopeState = .real(scope)
                 logStoreState = scope.logStoreState
-                Self.logger { .openedRealScope }
+                Self.logger.openedRealScope()
                 return scope
         }
     }
@@ -566,7 +566,7 @@ public final class WhereModel {
         scopeState = .demo(scope)
         scope.startLogRouting()
         logStoreState = scope.logStoreState
-        Self.logger { .enteredDemoMode }
+        Self.logger.enteredDemoMode()
     }
 
     /// Leave demo mode: drop the demo session and scope, and give the real
@@ -580,7 +580,7 @@ public final class WhereModel {
     public func deactivateDemo() async {
         guard isInDemoMode else { return }
         await logOut()
-        Self.logger { .exitedDemoMode }
+        Self.logger.exitedDemoMode()
     }
 
     /// Create the logged-in `WhereSession` over `scope` and return it — the
@@ -597,7 +597,9 @@ public final class WhereModel {
             now: scope.sessionNow ?? now,
         )
         self.session = session
-        Self.logger { .startedSession(year: initialSelectedYear) }
+        Self.logger.startedSession(
+            year: .restricted(.domainValue, initialSelectedYear),
+        )
         return session
     }
 
@@ -607,13 +609,13 @@ public final class WhereModel {
     /// store and the installation context current at that attempt.
     public func endSession() async {
         await logOut()
-        Self.logger { .endedSession }
+        Self.logger.endedSession()
     }
 
     func rejoinInstallation() async throws {
         _ = try installationContextStore.rejoin()
         await logOut()
-        Self.logger { .endedSession }
+        Self.logger.endedSession()
     }
 
     /// Release whatever scope is active and return to logged out, ready to
@@ -653,14 +655,14 @@ public final class WhereModel {
             diagnosticReporting.preferencesDidReset()
             theme = preferences.theme
             publishThemeChange(theme)
-            Self.logger { .resetPreferences }
+            Self.logger.resetPreferences()
             throw error
         }
         preferences.reset()
         diagnosticReporting.preferencesDidReset()
         theme = preferences.theme
         publishThemeChange(theme)
-        Self.logger { .resetPreferences }
+        Self.logger.resetPreferences()
     }
 }
 

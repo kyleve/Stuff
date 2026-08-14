@@ -72,13 +72,11 @@ public struct CurrentRegionResolver: Sendable {
         sample: LocationSample?,
         now: Date,
     ) -> CurrentRegionResolution {
-        Self.logger {
-            .finished(
-                reason: reasonCode(for: resolution),
-                ageBucket: ageBucket(for: sample, now: now),
-                accuracyBucket: accuracyBucket(for: sample),
-            )
-        }
+        Self.logger.finished(
+            reason: .shared(.category, reasonCode(for: resolution)),
+            ageBucket: .shared(.category, ageBucket(for: sample, now: now)),
+            accuracyBucket: .shared(.category, accuracyBucket(for: sample)),
+        )
         return resolution
     }
 

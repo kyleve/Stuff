@@ -22,13 +22,14 @@ public enum RegionSpotlightIndexer {
         do {
             let entities = try await RegionEntity.tracked(from: intentServices.current())
             try await CSSearchableIndex.default().indexAppEntities(entities)
-            logger { .spotlightIndexed(regionCount: entities.count) }
+            logger.spotlightIndexed(regionCount: .restricted(.count, entities.count))
         } catch {
             // Degraded-but-handled: search integration is a nicety, so a failure
             // is logged and swallowed rather than surfaced to the user.
-            logger(attachments: [.error(error, name: "index-error")]) {
-                .spotlightIndexFailed(description: String(describing: error))
-            }
+            logger.spotlightIndexFailed(
+                description: .restricted(.errorDetails, String(describing: error)),
+                attachments: [.error(error, name: "index-error")],
+            )
         }
     }
 }

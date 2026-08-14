@@ -109,7 +109,7 @@ public struct RegionAttributor: RegionAttributing {
             for region in regions {
                 guard region != .other else { continue }
                 guard let url = RegionCatalog.shared.geometryURL(for: region) else {
-                    logger { .missingGeometry(region: region) }
+                    logger.missingGeometry(region: .restricted(.location, region))
                     assertionFailure("Missing bundled GeoJSON for region \(region.rawValue)")
                     continue
                 }
@@ -118,25 +118,24 @@ public struct RegionAttributor: RegionAttributing {
                         try GeoJSON.polygons(at: url)
                     }
                     guard !polygons.isEmpty else {
-                        logger { .emptyPolygons(region: region) }
+                        logger.emptyPolygons(region: .restricted(.location, region))
                         assertionFailure("Region \(region.rawValue) decoded no polygons")
                         continue
                     }
                     entries.append(RegionPolygons(region: region, polygons: polygons))
                 } catch {
-                    logger(attachments: [.error(error, name: "decode-error")]) {
-                        .decodeFailed(
-                            region: region,
-                            description: error.localizedDescription,
-                        )
-                    }
+                    logger.decodeFailed(
+                        region: .restricted(.location, region),
+                        description: .restricted(.errorDetails, error.localizedDescription),
+                        attachments: [.error(error, name: "decode-error")],
+                    )
                     assertionFailure(
                         "Failed to decode bundled GeoJSON for region \(region.rawValue): \(error)",
                     )
                 }
             }
         }
-        logger { .loaded(regionCount: entries.count) }
+        logger.loaded(regionCount: .shared(.count, entries.count))
         return entries
     }
 }

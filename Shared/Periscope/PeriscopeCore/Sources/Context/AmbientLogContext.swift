@@ -18,7 +18,7 @@ extension Log {
     /// The ambient logger, typed to `Scope`: the context bound by the
     /// nearest enclosing ``withContext(isolation:_:)``, or a root logger on
     /// ``Periscope/shared`` when none is bound. Freeform helpers use
-    /// `Log<Message>.current`.
+    /// `Log<FreeformLogScope>.current`.
     public static var current: Log<Scope> {
         guard let context = AmbientLogContext.current else {
             return Log()
