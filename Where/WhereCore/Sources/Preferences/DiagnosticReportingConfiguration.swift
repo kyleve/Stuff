@@ -1,7 +1,9 @@
 import PeriscopeCore
 
 /// The vendor-neutral choices controlling diagnostic data sent off-device.
-public struct DiagnosticReportingConfiguration: Equatable, Sendable {
+/// `WherePreferences` persists this value directly. Preserve decoding of every
+/// previously written shape when this type or its nested types change.
+public struct DiagnosticReportingConfiguration: Codable, Equatable, Sendable {
     public var sharesCrashReports: Bool
     public var sharesSessionReplays: Bool
     public var remoteLogging: RemoteLoggingConfiguration
@@ -40,7 +42,7 @@ public struct DiagnosticReportingConfiguration: Equatable, Sendable {
     public func effective(isDebugBuild: Bool) -> Self {
         guard !isDebugBuild else { return self }
         var copy = self
-        if case let .enabled(minimumLevel, _) = copy.remoteLogging {
+        if let minimumLevel = copy.remoteLogging.minimumLevel {
             copy.remoteLogging = .enabled(
                 minimumLevel: minimumLevel,
                 metadataPolicy: .approvedFields,
@@ -48,23 +50,49 @@ public struct DiagnosticReportingConfiguration: Equatable, Sendable {
         }
         return copy
     }
+
+    private enum CodingKeys: String, CodingKey {
+        case sharesCrashReports = "shares_crash_reports"
+        case sharesSessionReplays = "shares_session_replays"
+        case remoteLogging = "remote_logging"
+    }
 }
 
-public enum RemoteLoggingConfiguration: Equatable, Sendable {
-    case off
-    case enabled(minimumLevel: RemoteLogLevel, metadataPolicy: RemoteLogMetadataPolicy)
+/// A remote logging policy that is Off or contains one complete enabled configuration.
+public struct RemoteLoggingConfiguration: Codable, Equatable, Sendable {
+    private let enabledConfiguration: EnabledConfiguration?
+
+    public static let off = Self(enabledConfiguration: nil)
+
+    public static func enabled(
+        minimumLevel: RemoteLogLevel,
+        metadataPolicy: RemoteLogMetadataPolicy,
+    ) -> Self {
+        Self(enabledConfiguration: EnabledConfiguration(
+            minimumLevel: minimumLevel,
+            metadataPolicy: metadataPolicy,
+        ))
+    }
 
     public var minimumLevel: RemoteLogLevel? {
-        switch self {
-            case .off: nil
-            case let .enabled(minimumLevel, _): minimumLevel
-        }
+        enabledConfiguration?.minimumLevel
     }
 
     public var metadataPolicy: RemoteLogMetadataPolicy {
-        switch self {
-            case .off: .approvedFields
-            case let .enabled(_, metadataPolicy): metadataPolicy
+        enabledConfiguration?.metadataPolicy ?? .approvedFields
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case enabledConfiguration = "enabled"
+    }
+
+    private struct EnabledConfiguration: Codable, Equatable {
+        let minimumLevel: RemoteLogLevel
+        let metadataPolicy: RemoteLogMetadataPolicy
+
+        private enum CodingKeys: String, CodingKey {
+            case minimumLevel = "minimum_level"
+            case metadataPolicy = "metadata_policy"
         }
     }
 }

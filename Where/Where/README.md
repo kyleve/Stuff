@@ -42,7 +42,8 @@ session replay, or remote logs require it. Fatal reporting and replay stay at
 that launch snapshot. Remote Periscope forwarding attaches, updates, drains,
 and detaches live. The same `WherePreferences` instance feeds `WhereModel`.
 An all-Off launch never starts the SDK. Performance tracing is not enabled by
-this setup.
+this setup. If the provider does not start, the app records a typed local error
+event. The regular runtime also shows the error in Privacy & Diagnostics.
 
 The Inspector runtime returns its standalone `InspectorView` and starts none of the model, launch, CoreLocation, notification, Periscope pipeline, App Intents, or Spotlight systems.
 It opens Where and Periscope containers only through their schema adapters for inspection.

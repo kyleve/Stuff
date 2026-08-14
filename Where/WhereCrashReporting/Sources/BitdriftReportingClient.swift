@@ -72,7 +72,7 @@ public struct BitdriftLogWriter: BitdriftLogWriting {
 /// app composition so the vendor adapter never owns the application's logger.
 @MainActor
 public final class BitdriftReportingClient {
-    public typealias StartupFailureHandler = @MainActor (String) -> Void
+    public typealias StartupFailureHandler = @MainActor (any Error) -> Void
 
     private let apiKey: String
     private let environment: [String: String]
@@ -111,11 +111,10 @@ public final class BitdriftReportingClient {
             ),
             startResult: { [weak self] result in
                 guard case let .failure(error) = result else { return }
-                let description = String(describing: error)
                 Task { @MainActor [weak self] in
                     guard let self else { return }
                     hasStarted = false
-                    startupFailure(description)
+                    startupFailure(error)
                 }
             },
         )

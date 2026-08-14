@@ -32,6 +32,7 @@ private let whereServicesConstructionScope = RuleScope
 
 private let whereLoggingScope = RuleScope
     .under("Where/RegionKit/Sources/Logging")
+    .union(.under("Where/Where/Sources/Logging"))
     .union(.under("Where/WhereCore/Sources/Logging"))
     .union(.under("Where/WhereUI/Sources/Logging"))
     .union(.under("Where/WhereIntents/Sources/Logging"))

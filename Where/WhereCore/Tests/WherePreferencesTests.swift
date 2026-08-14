@@ -1,3 +1,4 @@
+import Foundation
 import RegionKit
 import Testing
 @testable import WhereCore
@@ -50,8 +51,9 @@ struct WherePreferencesTests {
         #expect(configuration.remoteLogging == expectedRemoteLogging)
     }
 
-    @Test func diagnosticConfigurationRoundTrips() {
-        let preferences = preferences()
+    @Test func diagnosticConfigurationRoundTrips() throws {
+        let store = InMemoryKeyValueStore()
+        let preferences = WherePreferences(store: store)
         let configuration = DiagnosticReportingConfiguration(
             sharesCrashReports: false,
             sharesSessionReplays: true,
@@ -64,28 +66,42 @@ struct WherePreferencesTests {
         preferences.diagnosticReportingConfiguration = configuration
 
         #expect(preferences.diagnosticReportingConfiguration == configuration)
+        let data = try #require(
+            store.object(forKey: "where.diagnostics.configuration") as? Data,
+        )
+        #expect(
+            try JSONDecoder().decode(DiagnosticReportingConfiguration.self, from: data)
+                == configuration,
+        )
     }
 
-    @Test func invalidDiagnosticValuesFailSafelyToRemoteLoggingOff() {
-        func verify(key: String, value: Any) {
+    @Test func invalidDiagnosticValuesFailSafelyToRemoteLoggingOff() throws {
+        let invalidLevel = try JSONSerialization.data(withJSONObject: [
+            "shares_crash_reports": false,
+            "shares_session_replays": true,
+            "remote_logging": [
+                "enabled": [
+                    "minimum_level": "verbose",
+                    "metadata_policy": "approvedFields",
+                ],
+            ],
+        ])
+
+        for value: Any in ["not data", Data("not JSON".utf8), invalidLevel] {
             let store = InMemoryKeyValueStore()
-            store.set("warning", forKey: "where.diagnostics.remoteLogLevel")
-            store.set("approvedFields", forKey: "where.diagnostics.remoteLogMetadataPolicy")
-            store.set(value, forKey: key)
+            store.set(value, forKey: "where.diagnostics.configuration")
             var messages: [String] = []
             let preferences = WherePreferences(
                 store: store,
-                invalidDiagnosticValue: { messages.append($0) },
+                invalidValue: { messages.append($0) },
             )
 
-            #expect(preferences.diagnosticReportingConfiguration.remoteLogging == .off)
+            let configuration = preferences.diagnosticReportingConfiguration
+            #expect(configuration.sharesCrashReports)
+            #expect(configuration.sharesSessionReplays == false)
+            #expect(configuration.remoteLogging == .off)
             #expect(messages.count == 1)
         }
-
-        verify(key: "where.diagnostics.remoteLogLevel", value: "verbose")
-        verify(key: "where.diagnostics.remoteLogMetadataPolicy", value: "everything")
-        verify(key: "where.diagnostics.sharesCrashReports", value: "yes")
-        verify(key: "where.diagnostics.sharesSessionReplays", value: "yes")
     }
 
     @Test func themeRoundTripsAndUnknownValuesFallBackToStandard() {
@@ -123,7 +139,8 @@ struct WherePreferencesTests {
     }
 
     @Test func recordingWarningRegistrationRoundTrips() {
-        let preferences = preferences()
+        let store = InMemoryKeyValueStore()
+        let preferences = WherePreferences(store: store)
         var registration = RecordingConfigurationWarningRegistration()
         registration.register(isWarningConditionActive: true)
         registration.acknowledgeCurrentGeneration()
@@ -131,6 +148,32 @@ struct WherePreferencesTests {
         preferences.recordingConfigurationWarningRegistration = registration
 
         #expect(preferences.recordingConfigurationWarningRegistration == registration)
+        #expect(
+            store.object(forKey: "where.recordingConfigurationWarningRegistration") is Data,
+        )
+    }
+
+    @Test func invalidRecordingWarningRegistrationsUseDefault() throws {
+        let invalidRegistration = try JSONSerialization.data(withJSONObject: [
+            "generation": -1,
+            "acknowledgedGeneration": 0,
+        ])
+
+        for value: Any in ["not data", Data("not JSON".utf8), invalidRegistration] {
+            let store = InMemoryKeyValueStore()
+            store.set(value, forKey: "where.recordingConfigurationWarningRegistration")
+            var messages: [String] = []
+            let preferences = WherePreferences(
+                store: store,
+                invalidValue: { messages.append($0) },
+            )
+
+            #expect(
+                preferences.recordingConfigurationWarningRegistration
+                    == RecordingConfigurationWarningRegistration(),
+            )
+            #expect(messages.count == 1)
+        }
     }
 
     @Test func resetRestoresEveryDefaultAndClearsLocationCounts() {

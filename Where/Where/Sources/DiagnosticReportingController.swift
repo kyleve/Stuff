@@ -50,7 +50,7 @@ final class DiagnosticReportingController: WhereReportingController {
             return
         }
         guard client.hasStarted else { return }
-        if case .enabled = launchConfiguration.remoteLogging {
+        if launchConfiguration.remoteLogging != .off {
             attachRemoteSink(configuration: launchConfiguration.remoteLogging)
         }
     }
@@ -68,28 +68,26 @@ final class DiagnosticReportingController: WhereReportingController {
             try startProviderIfNeeded()
         }
 
-        switch configuration {
-            case .off:
-                guard let token = remoteSinkToken else {
-                    sleepIfUnused(revision: revision)
-                    return
-                }
-                remoteSinkToken = nil
-                remoteSink = nil
-                await logSystem.remove(token)
-                guard revision == latestRevision else { return }
+        if configuration == .off {
+            guard let token = remoteSinkToken else {
                 sleepIfUnused(revision: revision)
-
-            case .enabled:
-                try startProviderIfNeeded()
-                guard client.hasStarted else { throw Failure.providerUnavailable }
-                client.setSleeping(false)
-                if let remoteSink {
-                    await remoteSink.update(configuration: configuration, effectiveFrom: now())
-                    guard revision == latestRevision else { return }
-                } else {
-                    attachRemoteSink(configuration: configuration)
-                }
+                return
+            }
+            remoteSinkToken = nil
+            remoteSink = nil
+            await logSystem.remove(token)
+            guard revision == latestRevision else { return }
+            sleepIfUnused(revision: revision)
+        } else {
+            try startProviderIfNeeded()
+            guard client.hasStarted else { throw Failure.providerUnavailable }
+            client.setSleeping(false)
+            if let remoteSink {
+                await remoteSink.update(configuration: configuration, effectiveFrom: now())
+                guard revision == latestRevision else { return }
+            } else {
+                attachRemoteSink(configuration: configuration)
+            }
         }
     }
 
@@ -166,7 +164,8 @@ actor BitdriftRemoteLogSink: LogSink {
     }
 
     func write(_ records: [LogRecord]) async {
-        guard case let .enabled(minimumLevel, metadataPolicy) = configuration else { return }
+        guard let minimumLevel = configuration.minimumLevel else { return }
+        let metadataPolicy = configuration.metadataPolicy
         for record in records
             where record.date >= effectiveFrom && record.level >= minimumLevel.periscopeLevel
         {

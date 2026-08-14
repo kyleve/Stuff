@@ -11,6 +11,8 @@ import WhereUI
 /// process callback to it without branching again.
 @MainActor
 final class AppDelegate: NSObject, UIApplicationDelegate {
+    private static let logger = WhereLog.root(WhereAppLog.self)
+
     let runtime: any WhereApplicationRuntime
     private let reportingControllers: [any WhereReportingController]
 
@@ -23,7 +25,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
             apiKey: "GiBBMbsJNDqIM9c5450IEHoYFLt025SQo5kN2Vj6evk3GyILRVl1MWRBWUFLcGso9Qw=",
             environment: ProcessInfo.processInfo.environment,
             writer: BitdriftLogWriter(),
-            startupFailure: { _ in },
+            startupFailure: { error in
+                Self.recordDiagnosticProviderFailure(error)
+            },
         )
         let reportingController = DiagnosticReportingController(
             launchConfiguration: launchConfiguration,
@@ -58,28 +62,23 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
                     WhereInspectorApplicationRuntime(modeController: modeController)
                 },
             )
-            if let regularRuntime = runtime as? RegularApplicationRuntime {
-                client.setStartupFailureHandler { [weak model = regularRuntime.model] message in
-                    Task {
-                        await reportingController.providerDidFail()
-                        model?.diagnosticReporting.recordRuntimeFailure(message)
-                    }
-                }
-            }
         #else
             let regularRuntime = RegularApplicationRuntime(
                 preferences: preferences,
                 effectiveDiagnosticReportingConfiguration: launchConfiguration,
                 applyRemoteLogging: applyRemoteLogging,
             )
-            client.setStartupFailureHandler { [weak model = regularRuntime.model] message in
-                Task {
-                    await reportingController.providerDidFail()
-                    model?.diagnosticReporting.recordRuntimeFailure(message)
-                }
-            }
             runtime = regularRuntime
         #endif
+        client.setStartupFailureHandler {
+            [weak model = (runtime as? RegularApplicationRuntime)?.model] error in
+            Self.recordDiagnosticProviderFailure(error)
+            let message = String(describing: error)
+            Task {
+                await reportingController.providerDidFail()
+                model?.diagnosticReporting.recordRuntimeFailure(message)
+            }
+        }
         super.init()
     }
 
@@ -89,6 +88,12 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         #else
             false
         #endif
+    }
+
+    private static func recordDiagnosticProviderFailure(_ error: any Error) {
+        logger(attachments: [.error(error, name: "provider-startup-error")]) {
+            .diagnosticProviderStartupFailed
+        }
     }
 
     init(runtime: any WhereApplicationRuntime) {
