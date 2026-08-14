@@ -1,47 +1,69 @@
 import PeriscopeCore
 
-/// Structured events for `FileLocationOutbox`, the durable mirror of the GPS
-/// retry queue. A missing Application Support directory is degraded-but-handled
-/// (`.warning`); read/write and backup-exclusion failures are surfaced as
-/// `.error`.
-enum LocationOutboxLog: LogEvent {
-    case noApplicationSupport
-    case droppedUnreadableBacklog(description: String)
-    case readBacklogFailed(description: String)
-    case recoveredTornJournal
-    case persistBacklogFailed(description: String)
-    case excludeFromBackupFailed(description: String)
-    case discardInsecureBacklogFailed(description: String)
+/// Structured events for `FileLocationOutbox`.
+@LogScope("LocationOutbox")
+enum LocationOutboxLog {
+    @LogEvent(
+        "no-application-support",
+        level: .warning,
+        message: "No Application Support directory; using in-memory retry queue (backlog won't survive relaunch)",
+    )
+    struct NoApplicationSupport {}
 
-    static let eventName = "LocationOutbox"
+    @LogEvent("dropped-unreadable-backlog", level: .error)
+    struct DroppedUnreadableBacklog {
+        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        var description: String
 
-    var level: LogLevel {
-        switch self {
-            case .noApplicationSupport, .recoveredTornJournal: .warning
-            case .droppedUnreadableBacklog,
-                 .readBacklogFailed,
-                 .persistBacklogFailed,
-                 .excludeFromBackupFailed,
-                 .discardInsecureBacklogFailed: .error
+        var message: String {
+            "Dropping unreadable location retry backlog: \(description)"
         }
     }
 
-    var message: String {
-        switch self {
-            case .noApplicationSupport:
-                "No Application Support directory; using in-memory retry queue (backlog won't survive relaunch)"
-            case let .droppedUnreadableBacklog(description):
-                "Dropping unreadable location retry backlog: \(description)"
-            case let .readBacklogFailed(description):
-                "Failed to read location retry backlog; preserving it for retry: \(description)"
-            case .recoveredTornJournal:
-                "Recovered the last intact location retry snapshot after a torn journal entry"
-            case let .persistBacklogFailed(description):
-                "Failed to persist location retry backlog: \(description)"
-            case let .excludeFromBackupFailed(description):
-                "Failed to exclude location retry backlog from device backup: \(description)"
-            case let .discardInsecureBacklogFailed(description):
-                "Failed to discard a backup-eligible location retry backlog: \(description)"
+    @LogEvent("read-backlog-failed", level: .error)
+    struct ReadBacklogFailed {
+        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        var description: String
+
+        var message: String {
+            "Failed to read location retry backlog; preserving it for retry: \(description)"
+        }
+    }
+
+    @LogEvent(
+        "recovered-torn-journal",
+        level: .warning,
+        message: "Recovered the last intact location retry snapshot after a torn journal entry",
+    )
+    struct RecoveredTornJournal {}
+
+    @LogEvent("persist-backlog-failed", level: .error)
+    struct PersistBacklogFailed {
+        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        var description: String
+
+        var message: String {
+            "Failed to persist location retry backlog: \(description)"
+        }
+    }
+
+    @LogEvent("exclude-from-backup-failed", level: .error)
+    struct ExcludeFromBackupFailed {
+        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        var description: String
+
+        var message: String {
+            "Failed to exclude location retry backlog from device backup: \(description)"
+        }
+    }
+
+    @LogEvent("discard-insecure-backlog-failed", level: .error)
+    struct DiscardInsecureBacklogFailed {
+        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        var description: String
+
+        var message: String {
+            "Failed to discard a backup-eligible location retry backlog: \(description)"
         }
     }
 }

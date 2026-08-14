@@ -1,19 +1,15 @@
 import PeriscopeCore
 
 /// Structured events for an unreadable widget presentation file.
-enum WidgetPresentationStoreLog: LogEvent {
-    case unreadablePresentation(description: String)
+@LogScope("WidgetPresentationStore")
+enum WidgetPresentationStoreLog {
+    @LogEvent("unreadable-presentation", level: .warning)
+    struct UnreadablePresentation {
+        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        var description: String
 
-    static let eventName = "WidgetPresentationStore"
-
-    var level: LogLevel {
-        .warning
-    }
-
-    var message: String {
-        switch self {
-            case let .unreadablePresentation(description):
-                "Discarded unreadable widget presentation: \(description)"
+        var message: String {
+            "Discarded unreadable widget presentation: \(description)"
         }
     }
 }

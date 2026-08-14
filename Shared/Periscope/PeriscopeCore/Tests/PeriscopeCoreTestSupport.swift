@@ -297,19 +297,25 @@ func makeSpanOverdue(spanID: SpanID, name: String, budget: Duration) -> SpanOver
 }
 
 /// Shared fixture events used across suites.
-struct AppLogs: LogEvent {
-    var message: String {
-        "app"
+@LogScope("AppLogs")
+enum AppLogs {
+    @LogEvent("event", message: "app")
+    struct Event {}
+}
+
+@LogScope("PhotoLogs")
+enum PhotoLogs {
+    @LogEvent("event", level: .notice)
+    struct Event {
+        @LogField("photo_id", exposure: .restricted, kind: .identifier)
+        var photoID: String
+
+        var message: String {
+            "photo \(photoID)"
+        }
     }
 }
 
-struct PhotoLogs: LogEvent {
-    var photoID: String
-    var level: LogLevel {
-        .notice
-    }
-
-    var message: String {
-        "photo \(photoID)"
-    }
+func makePhotoEvent(_ photoID: String) -> PhotoLogs.Event {
+    PhotoLogs.Event(photoID: .restricted(.identifier, photoID))
 }

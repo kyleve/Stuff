@@ -73,9 +73,10 @@ public actor DataIssueAlertReconciler {
                     body: Self.body(count: count),
                 )
             } catch {
-                Self.logger(attachments: [.error(error, name: "reconcile-error")]) {
-                    .reconcileFailed(description: error.localizedDescription)
-                }
+                Self.logger.reconcileFailed(
+                    description: .restricted(.errorDetails, error.localizedDescription),
+                    attachments: [.error(error, name: "reconcile-error")],
+                )
             }
         }
     }
