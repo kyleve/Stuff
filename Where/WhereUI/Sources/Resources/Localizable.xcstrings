@@ -8302,7 +8302,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Required technical app and device context is shared with Where's developer."
+            "value" : "Required technical context about the app and device helps Where's developer find and fix crashes."
           }
         }
       }
@@ -8336,7 +8336,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "May contain personal data."
+            "value" : "Extra metadata helps diagnose difficult problems, but it may contain personal data."
           }
         }
       }
@@ -8369,7 +8369,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Logs at all levels are shared."
+            "value" : "Logs at all levels help Where's developer diagnose app problems."
           }
         }
       }
@@ -8380,7 +8380,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Error- and fault-level logs are shared."
+            "value" : "Error- and fault-level logs help Where's developer diagnose app problems."
           }
         }
       }
@@ -8391,7 +8391,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Only fault-level logs are shared."
+            "value" : "Fault-level logs help Where's developer diagnose app problems."
           }
         }
       }
@@ -8402,7 +8402,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Info-level logs and above are shared."
+            "value" : "Info-level logs and above help Where's developer diagnose app problems."
           }
         }
       }
@@ -8413,7 +8413,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Notice-level logs and above are shared."
+            "value" : "Notice-level logs and above help Where's developer diagnose app problems."
           }
         }
       }
@@ -8435,7 +8435,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Warning-level logs and above are shared."
+            "value" : "Warning-level logs and above help Where's developer diagnose app problems."
           }
         }
       }
@@ -8446,7 +8446,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Crash reports, screen replays, and diagnostic logs are off."
+            "value" : "Where shares no crash reports, screen replays, or diagnostic logs."
           }
         }
       }
@@ -8468,7 +8468,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Text and images are redacted before sharing."
+            "value" : "Redacted text and images help Where's developer reproduce interface problems."
           }
         }
       }
@@ -8480,6 +8480,39 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Screen replays"
+          }
+        }
+      }
+    },
+    "settings.privacy.settings.action" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Change what Where shares."
+          }
+        }
+      }
+    },
+    "settings.privacy.settings.below" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Change what Where shares below."
+          }
+        }
+      }
+    },
+    "settings.privacy.settings.unavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Available outside demo mode."
           }
         }
       }

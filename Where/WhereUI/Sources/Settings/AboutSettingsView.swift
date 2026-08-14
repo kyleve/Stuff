@@ -49,10 +49,10 @@ struct AboutSettingsView: View {
             Form {
                 PrivacyPassportCard(presentation: PrivacyPassportPresentation(
                     configuration: diagnosticReportingConfiguration,
-                ))
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
-                .listRowInsets(EdgeInsets())
+                ), settingsReference: .link)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets())
                 versionSection
                 dependenciesSection
                 developmentToolsSection

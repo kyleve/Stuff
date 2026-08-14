@@ -3,6 +3,7 @@ import SwiftUI
 /// Reassures the reader that Where's location history stays in their Apple storage.
 struct PrivacyPassportCard: View {
     let presentation: PrivacyPassportPresentation
+    let settingsReference: PrivacyPassportSettingsReference
     @State private var tilt = TiltProvider()
 
     @Environment(\.stylesheet) private var stylesheet
@@ -23,6 +24,8 @@ struct PrivacyPassportCard: View {
                         PrivacyPassportDisclosureRow(disclosure: disclosure)
                     }
                 }
+
+                PrivacyPassportSettingsReferenceView(reference: settingsReference)
             }
             .padding(style.padding)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -37,10 +40,10 @@ struct PrivacyPassportCard: View {
         Form {
             PrivacyPassportCard(presentation: PrivacyPassportPresentation(
                 configuration: .defaults(isDebugBuild: false),
-            ))
-            .listRowBackground(Color.clear)
-            .listRowSeparator(.hidden)
-            .listRowInsets(EdgeInsets())
+            ), settingsReference: .link)
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+                .listRowInsets(EdgeInsets())
         }
         .whereBroadwayRoot()
     }

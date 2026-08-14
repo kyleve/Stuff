@@ -44,9 +44,11 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   redacted session replay, remote-log threshold, and Debug-only full metadata.
   Data, Privacy & Diagnostics, and About lead with the same full-width, flat
   passport-style privacy statement. It keeps the location promise separate
-  from icon-led rows for each active reporting channel. Those rows come from
-  the process's effective reporting state, so next-launch choices do not rewrite
-  the promise early. `AboutSettingsView` is the last Settings block —
+  from icon-led rows that explain the purpose and scope of each active reporting
+  channel. A final row links to Privacy & Diagnostics or points to its controls
+  on that screen. These rows come from the process's effective reporting state,
+  so next-launch choices do not rewrite the promise early. `AboutSettingsView`
+  is the last Settings block —
   build identity, the app's generated attribution report (linked libraries and
   development tools as separate sections), and bundled-data provenance, each
   vended by whoever owns it rather than listed in the view. It renders an
