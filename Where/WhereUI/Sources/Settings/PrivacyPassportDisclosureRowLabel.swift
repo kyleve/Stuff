@@ -1,4 +1,3 @@
-import SFSafeSymbols
 import SwiftUI
 
 /// Draws one disclosure row, including its optional in-card settings indicator.
@@ -14,28 +13,19 @@ struct PrivacyPassportDisclosureRowLabel: View {
         Group {
             if dynamicTypeSize.isAccessibilitySize {
                 VStack(alignment: .leading, spacing: style.contentSpacing) {
-                    HStack {
-                        PrivacyPassportDisclosureSymbol(disclosure: disclosure)
-                        Spacer(minLength: 0)
-                        if showsSettingsIndicator {
-                            Image(systemSymbol: .chevronRight)
-                                .font(style.statusFont)
-                                .foregroundStyle(.secondary)
-                                .accessibilityHidden(true)
-                        }
-                    }
-                    PrivacyPassportDisclosureText(disclosure: disclosure)
+                    PrivacyPassportDisclosureSymbol(disclosure: disclosure)
+                    PrivacyPassportDisclosureText(
+                        disclosure: disclosure,
+                        showsSettingsIndicator: showsSettingsIndicator,
+                    )
                 }
             } else {
                 HStack(alignment: .top, spacing: style.contentSpacing) {
                     PrivacyPassportDisclosureSymbol(disclosure: disclosure)
-                    PrivacyPassportDisclosureText(disclosure: disclosure)
-                    if showsSettingsIndicator {
-                        Image(systemSymbol: .chevronRight)
-                            .font(style.statusFont)
-                            .foregroundStyle(.secondary)
-                            .accessibilityHidden(true)
-                    }
+                    PrivacyPassportDisclosureText(
+                        disclosure: disclosure,
+                        showsSettingsIndicator: showsSettingsIndicator,
+                    )
                 }
             }
         }
