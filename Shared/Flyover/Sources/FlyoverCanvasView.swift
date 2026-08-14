@@ -4,7 +4,10 @@ import SwiftUI
 /// A two-axis, pinch-zoomable graph of all registered screens.
 struct FlyoverCanvasView<ScreenID: Hashable>: View {
     private enum ZoomChangeBehavior {
+        /// Adjust the scroll offset so the canvas point at the viewport center stays fixed.
         case preserveViewportCenter
+
+        /// Skip the offset adjustment for the initial fit, keeping the top-leading origin visible.
         case preserveContentOrigin
     }
 
