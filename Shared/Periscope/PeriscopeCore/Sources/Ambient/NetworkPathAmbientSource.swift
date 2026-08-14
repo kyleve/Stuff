@@ -69,7 +69,14 @@ public final class NetworkPathAmbientSource: AmbientEventSource {
             return true
         }
         guard changed else { return }
-        log { AmbientEvent(kind: .network, value: value) }
+        log {
+            AmbientEvent(
+                kind: .restricted(.technicalState, .network),
+                value: .restricted(.domainValue, value),
+                level: .restricted(.technicalState, .info),
+                reporting: .restricted(.technicalState, .state),
+            )
+        }
     }
 
     private static func describe(_ path: NWPath) -> [String: AmbientValue] {

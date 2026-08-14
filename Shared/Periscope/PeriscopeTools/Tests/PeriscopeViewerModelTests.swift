@@ -83,7 +83,7 @@ struct PeriscopeViewerModelTests {
         await store.write([
             LogRecord(
                 date: date(1),
-                event: SpanEnded(
+                event: classifiedSpanEnded(
                     spanID: SpanID(),
                     name: "save",
                     duration: .seconds(1),

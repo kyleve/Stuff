@@ -89,11 +89,16 @@
         @MainActor
         private static func summaryEvent() -> AmbientEvent {
             AmbientEvent(
-                kind: .accessibility,
-                value: Dictionary(
-                    uniqueKeysWithValues: settings
-                        .map { ($0.name, AmbientValue.bool($0.isEnabled())) },
+                kind: .restricted(.technicalState, .accessibility),
+                value: .restricted(
+                    .domainValue,
+                    Dictionary(
+                        uniqueKeysWithValues: settings
+                            .map { ($0.name, AmbientValue.bool($0.isEnabled())) },
+                    ),
                 ),
+                level: .restricted(.technicalState, .info),
+                reporting: .restricted(.technicalState, .state),
             )
         }
     }

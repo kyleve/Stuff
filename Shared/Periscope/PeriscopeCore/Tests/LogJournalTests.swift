@@ -88,7 +88,7 @@ struct LogJournalTests {
         system.install(journal: journal)
 
         let ambient = Log<AmbientEvent>(system: system)
-        ambient { AmbientEvent(kind: .network, value: ["status": "unsatisfied"]) }
+        ambient { makeAmbientEvent(kind: .network, value: ["status": "unsatisfied"]) }
         Log<AppLogs>(system: system).error("failed while offline")
 
         let records = try entries(in: directory).compactMap { entry -> LogJournalRecord? in
@@ -115,7 +115,7 @@ struct LogJournalTests {
                 return LogRecord(
                     id: record.id,
                     date: record.date,
-                    event: Message(level: record.level, "[redacted]"),
+                    event: makeMessage("[redacted]", level: record.level),
                     scopes: record.scopes,
                 )
             }),
