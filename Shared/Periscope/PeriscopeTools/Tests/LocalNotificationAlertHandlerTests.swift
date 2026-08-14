@@ -58,7 +58,7 @@ struct LocalNotificationAlertHandlerTests {
     private func makeRecord(_ message: String) -> LogRecord {
         LogRecord(
             date: Date(),
-            event: Message(level: .error, message),
+            event: classifiedMessage(message, level: .error),
             scopes: [LogScope.root(named: "app").id],
         )
     }
@@ -66,7 +66,7 @@ struct LocalNotificationAlertHandlerTests {
     @Test func requestsCarryTheRecordsSeverityAndMessage() {
         let record = LogRecord(
             date: Date(),
-            event: Message(level: .error, "Upload failed"),
+            event: classifiedMessage("Upload failed", level: .error),
             scopes: [LogScope.root(named: "app").id],
         )
 

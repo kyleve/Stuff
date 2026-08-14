@@ -1,7 +1,6 @@
 /// Defines a stable logging scope and generates typed event methods.
-@attached(member, names: named(scopeName))
+@attached(member, names: arbitrary)
 @attached(extension, conformances: LogScopeDefinition)
-@attached(peer, names: arbitrary)
 public macro LogScope(_ id: String) = #externalMacro(
     module: "PeriscopeMacros",
     type: "LogScopeMacro",

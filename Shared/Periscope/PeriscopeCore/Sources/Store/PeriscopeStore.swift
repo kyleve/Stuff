@@ -273,10 +273,11 @@ public actor PeriscopeStore: LogSink {
                 orphansBySession[row.sessionID, default: []].append(LogRecord(
                     date: Date(),
                     event: SpanEnded(
-                        spanID: SpanID(rawValue: spanID),
-                        name: event?.name ?? row.message,
-                        duration: nil,
-                        exit: .orphaned,
+                        spanID: .restricted(.identifier, SpanID(rawValue: spanID)),
+                        name: .restricted(.technicalState, event?.name ?? row.message),
+                        duration: .shared(.duration, nil),
+                        exitMode: .shared(.category, .orphaned),
+                        exitReason: .restricted(.errorDetails, nil),
                     ),
                     scopes: row.orderedScopeIDs.map(ScopeID.init(rawValue:)),
                     tags: Self.tags(from: row),
@@ -400,7 +401,10 @@ public actor PeriscopeStore: LogSink {
     private func persistWriteFailureMarker(lostRecordCount: Int, reason: String) {
         let marker = LogRecord(
             date: Date(),
-            event: StoreWriteFailed(lostRecordCount: lostRecordCount, reason: reason),
+            event: StoreWriteFailed(
+                lostRecordCount: .shared(.count, lostRecordCount),
+                reason: .restricted(.errorDetails, reason),
+            ),
             scopes: [],
         )
         do {

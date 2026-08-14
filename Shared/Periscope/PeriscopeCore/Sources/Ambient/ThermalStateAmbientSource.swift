@@ -43,9 +43,10 @@ public final class ThermalStateAmbientSource: NotificationAmbientSource {
                 logLevel = .info
         }
         return AmbientEvent(
-            kind: .thermalState,
-            value: ["level": .string(level)],
-            level: logLevel,
+            kind: .restricted(.technicalState, .thermalState),
+            value: .restricted(.domainValue, ["level": .string(level)]),
+            level: .restricted(.technicalState, logLevel),
+            reporting: .restricted(.technicalState, .state),
         )
     }
 }

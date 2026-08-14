@@ -18,7 +18,12 @@
 
         override public func event(for notification: Notification) -> AmbientEvent? {
             Self.values[notification.name].map {
-                AmbientEvent(kind: .appLifecycle, value: ["phase": .string($0)])
+                AmbientEvent(
+                    kind: .restricted(.technicalState, .appLifecycle),
+                    value: .restricted(.domainValue, ["phase": .string($0)]),
+                    level: .restricted(.technicalState, .info),
+                    reporting: .restricted(.technicalState, .state),
+                )
             }
         }
     }

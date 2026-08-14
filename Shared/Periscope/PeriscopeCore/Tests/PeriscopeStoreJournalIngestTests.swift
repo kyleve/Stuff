@@ -54,7 +54,10 @@ struct PeriscopeStoreJournalIngestTests {
             records: [
                 LogRecord(
                     date: date(1),
-                    event: Message(level: .error, "about to die"),
+                    event: Message(
+                        level: .restricted(.technicalState, .error),
+                        text: .restricted(.arbitraryText, "about to die"),
+                    ),
                     scopes: [scope.id],
                     tags: [LogTag(key: key, value: "pay_1")],
                     callSite: LogCallSite(function: "buy()", fileID: "App/Checkout.swift"),
@@ -103,12 +106,12 @@ struct PeriscopeStoreJournalIngestTests {
             records: [
                 LogRecord(
                     date: date(1),
-                    event: AmbientEvent(kind: .network, value: ["status": "unsatisfied"]),
+                    event: makeAmbientEvent(kind: .network, value: ["status": "unsatisfied"]),
                     scopes: [scope.id],
                 ),
                 LogRecord(
                     date: date(2),
-                    event: Message(level: .error, "died while offline"),
+                    event: makeMessage("died while offline", level: .error),
                     scopes: [scope.id],
                 ),
             ],
@@ -139,7 +142,7 @@ struct PeriscopeStoreJournalIngestTests {
         )
         let delivered = LogRecord(
             date: date(1),
-            event: Message(level: .info, "delivered"),
+            event: makeMessage("delivered"),
             scopes: [scope.id],
         )
         await firstStore.defineScopes([scope])
@@ -149,7 +152,7 @@ struct PeriscopeStoreJournalIngestTests {
         journal.append(
             LogRecord(
                 date: date(2),
-                event: Message(level: .info, "journal only"),
+                event: makeMessage("journal only"),
                 scopes: [scope.id],
             ),
             sequence: 2,
@@ -170,7 +173,7 @@ struct PeriscopeStoreJournalIngestTests {
         let root = try makeRoot()
         let crashed = LogSession.fixture(startedAt: date(0))
         let scope = LogScope.root(named: "app")
-        let began = SpanBegan(
+        let began = makeSpanBegan(
             spanID: SpanID(),
             name: "checkout",
             lifetime: .indefinite,
@@ -200,7 +203,7 @@ struct PeriscopeStoreJournalIngestTests {
         let root = try makeRoot()
         let crashed = LogSession.fixture(startedAt: date(0))
         let scope = LogScope.root(named: "app")
-        let began = SpanBegan(
+        let began = makeSpanBegan(
             spanID: SpanID(),
             name: "long-download",
             lifetime: .indefinite,
@@ -229,10 +232,10 @@ struct PeriscopeStoreJournalIngestTests {
             records: [
                 LogRecord(
                     date: date(1),
-                    event: Message(level: .info, "intact"),
+                    event: makeMessage("intact"),
                     scopes: [scope.id],
                 ),
-                LogRecord(date: date(2), event: Message(level: .info, "torn"), scopes: [scope.id]),
+                LogRecord(date: date(2), event: makeMessage("torn"), scopes: [scope.id]),
             ],
         )
         // Tear the final entry, as a crash mid-append would.
@@ -279,7 +282,7 @@ struct PeriscopeStoreJournalIngestTests {
         for index in 0 ..< 40 {
             let record = LogRecord(
                 date: date(TimeInterval(index)),
-                event: Message(level: .info, "storm-\(index)"),
+                event: makeMessage("storm-\(index)"),
                 scopes: [scope.id],
             )
             try journal.append(
