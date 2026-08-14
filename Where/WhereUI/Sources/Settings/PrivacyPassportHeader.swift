@@ -32,3 +32,14 @@ struct PrivacyPassportHeader: View {
         }
     }
 }
+
+#if DEBUG
+    #Preview {
+        PrivacyPassportCardSurface(tilt: .preview) {
+            PrivacyPassportHeader()
+                .padding()
+        }
+        .padding()
+        .whereBroadwayRoot()
+    }
+#endif

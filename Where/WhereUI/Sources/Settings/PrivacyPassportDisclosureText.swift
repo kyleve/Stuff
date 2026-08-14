@@ -18,3 +18,14 @@ struct PrivacyPassportDisclosureText: View {
         }
     }
 }
+
+#if DEBUG
+    #Preview {
+        PrivacyPassportCardSurface(tilt: .preview) {
+            PrivacyPassportDisclosureText(disclosure: .crashReports)
+                .padding()
+        }
+        .padding()
+        .whereBroadwayRoot()
+    }
+#endif

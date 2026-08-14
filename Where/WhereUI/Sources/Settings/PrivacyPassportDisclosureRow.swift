@@ -34,3 +34,14 @@ struct PrivacyPassportDisclosureRow: View {
         .accessibilityElement(children: .combine)
     }
 }
+
+#if DEBUG
+    #Preview {
+        PrivacyPassportCardSurface(tilt: .preview) {
+            PrivacyPassportDisclosureRow(disclosure: .crashReports)
+                .padding()
+        }
+        .padding()
+        .whereBroadwayRoot()
+    }
+#endif

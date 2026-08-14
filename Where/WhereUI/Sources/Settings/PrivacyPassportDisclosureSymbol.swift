@@ -17,3 +17,14 @@ struct PrivacyPassportDisclosureSymbol: View {
             .accessibilityHidden(true)
     }
 }
+
+#if DEBUG
+    #Preview {
+        PrivacyPassportCardSurface(tilt: .preview) {
+            PrivacyPassportDisclosureSymbol(disclosure: .crashReports)
+                .padding()
+        }
+        .padding()
+        .whereBroadwayRoot()
+    }
+#endif

@@ -17,3 +17,11 @@ struct AboutOpenSourceStampText: View {
         }
     }
 }
+
+#if DEBUG
+    #Preview {
+        AboutOpenSourceStampText()
+            .padding()
+            .whereBroadwayRoot()
+    }
+#endif

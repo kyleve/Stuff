@@ -42,3 +42,16 @@ struct PrivacyPassportSettingsReferenceLabel: View {
         .accessibilityElement(children: .combine)
     }
 }
+
+#if DEBUG
+    #Preview {
+        PrivacyPassportCardSurface(tilt: .preview) {
+            PrivacyPassportSettingsReferenceLabel(
+                detail: .settingsPrivacySettingsAction,
+            )
+            .padding()
+        }
+        .padding()
+        .whereBroadwayRoot()
+    }
+#endif

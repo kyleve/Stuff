@@ -22,3 +22,16 @@ struct PrivacyPassportSettingsReferenceView: View {
         }
     }
 }
+
+#if DEBUG
+    #Preview {
+        NavigationStack {
+            PrivacyPassportCardSurface(tilt: .preview) {
+                PrivacyPassportSettingsReferenceView(reference: .link)
+                    .padding()
+            }
+            .padding()
+        }
+        .whereBroadwayRoot()
+    }
+#endif

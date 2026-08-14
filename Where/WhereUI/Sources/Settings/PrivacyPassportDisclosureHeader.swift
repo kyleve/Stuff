@@ -44,3 +44,14 @@ struct PrivacyPassportDisclosureHeader: View {
         }
     }
 }
+
+#if DEBUG
+    #Preview {
+        PrivacyPassportCardSurface(tilt: .preview) {
+            PrivacyPassportDisclosureHeader(disclosure: .crashReports)
+                .padding()
+        }
+        .padding()
+        .whereBroadwayRoot()
+    }
+#endif
