@@ -8484,39 +8484,6 @@
         }
       }
     },
-    "settings.privacy.settings.action" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Change what Where shares."
-          }
-        }
-      }
-    },
-    "settings.privacy.settings.below" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Change what Where shares below."
-          }
-        }
-      }
-    },
-    "settings.privacy.settings.unavailable" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Available outside demo mode."
-          }
-        }
-      }
-    },
     "settings.privacy.status.notShared" : {
       "extractionState" : "manual",
       "localizations" : {

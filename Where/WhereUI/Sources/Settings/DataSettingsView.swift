@@ -26,7 +26,7 @@ struct DataSettingsView: View {
             Form {
                 PrivacyPassportCard(presentation: PrivacyPassportPresentation(
                     configuration: model.diagnosticReporting.effectiveConfiguration,
-                ), settingsReference: .link)
+                ), disclosureInteraction: .linkToSettings)
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
                     .listRowInsets(EdgeInsets())

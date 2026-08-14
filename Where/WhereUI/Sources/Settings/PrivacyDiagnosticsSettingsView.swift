@@ -14,7 +14,7 @@ struct PrivacyDiagnosticsSettingsView: View {
             Form {
                 PrivacyPassportCard(presentation: PrivacyPassportPresentation(
                     configuration: reporting.effectiveConfiguration,
-                ), settingsReference: .controlsBelow)
+                ), disclosureInteraction: .staticContent)
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
                     .listRowInsets(EdgeInsets())

@@ -3,45 +3,41 @@ import SwiftUI
 /// Presents one active privacy-reporting disclosure as a self-contained status row.
 struct PrivacyPassportDisclosureRow: View {
     let disclosure: PrivacyPassportPresentation.Disclosure
+    let interaction: PrivacyPassportDisclosureInteraction
 
-    @Environment(\.stylesheet) private var stylesheet
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.isInDemoMode) private var isInDemoMode
 
     var body: some View {
-        let style = stylesheet.privacyPassportCard.disclosure
-        Group {
-            if dynamicTypeSize.isAccessibilitySize {
-                VStack(alignment: .leading, spacing: style.contentSpacing) {
-                    PrivacyPassportDisclosureSymbol(disclosure: disclosure)
-                    PrivacyPassportDisclosureText(disclosure: disclosure)
-                }
-            } else {
-                HStack(alignment: .top, spacing: style.contentSpacing) {
-                    PrivacyPassportDisclosureSymbol(disclosure: disclosure)
-                    PrivacyPassportDisclosureText(disclosure: disclosure)
-                }
+        if interaction == .linkToSettings, !isInDemoMode {
+            NavigationLink(value: SettingsRoute(.privacyDiagnostics)) {
+                PrivacyPassportDisclosureRowLabel(
+                    disclosure: disclosure,
+                    showsSettingsIndicator: true,
+                )
             }
+            .buttonStyle(.plain)
+            .navigationLinkIndicatorVisibility(.hidden)
+        } else {
+            PrivacyPassportDisclosureRowLabel(
+                disclosure: disclosure,
+                showsSettingsIndicator: false,
+            )
         }
-        .padding(style.padding)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.white.opacity(style.fillOpacity), in: RoundedRectangle(
-            cornerRadius: style.cornerRadius,
-        ))
-        .overlay {
-            RoundedRectangle(cornerRadius: style.cornerRadius)
-                .strokeBorder(.tint.opacity(style.strokeOpacity), lineWidth: style.strokeWidth)
-        }
-        .accessibilityElement(children: .combine)
     }
 }
 
 #if DEBUG
     #Preview {
-        PrivacyPassportCardSurface(tilt: .preview) {
-            PrivacyPassportDisclosureRow(disclosure: .crashReports)
+        NavigationStack {
+            PrivacyPassportCardSurface(tilt: .preview) {
+                PrivacyPassportDisclosureRow(
+                    disclosure: .crashReports,
+                    interaction: .linkToSettings,
+                )
                 .padding()
+            }
+            .padding()
         }
-        .padding()
         .whereBroadwayRoot()
     }
 #endif

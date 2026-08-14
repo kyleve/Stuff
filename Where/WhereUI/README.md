@@ -45,8 +45,9 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   Data, Privacy & Diagnostics, and About lead with the same full-width, flat
   passport-style privacy statement. It keeps the location promise separate
   from icon-led rows that explain the purpose and scope of each active reporting
-  channel. A final row links to Privacy & Diagnostics or points to its controls
-  on that screen. These rows come from the process's effective reporting state,
+  channel. On About and Data, each row links to Privacy & Diagnostics with an
+  in-row chevron. The rows are static on the Privacy & Diagnostics screen.
+  These rows come from the process's effective reporting state,
   so next-launch choices do not rewrite the promise early. `AboutSettingsView`
   is the last Settings block —
   build identity, the app's generated attribution report (linked libraries and
