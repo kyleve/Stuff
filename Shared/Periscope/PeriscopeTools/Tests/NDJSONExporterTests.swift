@@ -107,7 +107,7 @@ struct NDJSONExporterTests {
     }
 
     @Test func linesCarryTheEventFields() throws {
-        let payload = try JSONEncoder().encode(PhotoLogs(photoID: "p1"))
+        let payload = try JSONEncoder().encode(makePhotoEvent("p1"))
         let line = NDJSONExporter.line(
             for: stored(
                 message: "hello",

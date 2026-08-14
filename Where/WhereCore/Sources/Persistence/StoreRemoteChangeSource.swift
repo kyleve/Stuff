@@ -127,9 +127,10 @@ final class PersistentStoreRemoteChangeSource: NSObject, StoreRemoteChangeSource
                     // Fail open: a missed remote refresh is less honest than a
                     // duplicate rebuild. Log the classification failure so the
                     // degraded behavior is observable.
-                    Self.logger(attachments: [.error(error, name: "history-error")]) {
-                        .remoteChangeClassificationFailed(description: error.localizedDescription)
-                    }
+                    Self.logger.remoteChangeClassificationFailed(
+                        description: .restricted(.errorDetails, error.localizedDescription),
+                        attachments: [.error(error, name: "history-error")],
+                    )
                     continuation.yield()
                 }
             }

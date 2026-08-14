@@ -87,7 +87,7 @@ actor LocationNamer {
     private static func reverseGeocode(_ coordinate: Coordinate) async -> String? {
         let location = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
         guard let request = MKReverseGeocodingRequest(location: location) else {
-            logger { .unusableCoordinate }
+            logger.unusableCoordinate()
             return nil
         }
         do {
@@ -99,9 +99,10 @@ actor LocationNamer {
             }
             return PlaceComponents(representations).displayName
         } catch {
-            logger(attachments: [.error(error, name: "geocode-error")]) {
-                .geocodeFailed(description: error.localizedDescription)
-            }
+            logger.geocodeFailed(
+                description: .restricted(.errorDetails, error.localizedDescription),
+                attachments: [.error(error, name: "geocode-error")],
+            )
             return nil
         }
     }

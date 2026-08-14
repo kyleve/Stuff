@@ -73,9 +73,10 @@ public struct WidgetSnapshotStore: Sendable {
         do {
             return try JSONDecoder().decode(WidgetSnapshot.self, from: data)
         } catch {
-            Self.logger(attachments: [.error(error, name: "decode-error")]) {
-                .unreadableSnapshot(description: error.localizedDescription)
-            }
+            Self.logger.unreadableSnapshot(
+                description: .restricted(.errorDetails, error.localizedDescription),
+                attachments: [.error(error, name: "decode-error")],
+            )
             return nil
         }
     }

@@ -78,7 +78,9 @@ public final class UserNotificationDailySummaryScheduler: DailySummaryScheduling
         do {
             return try await center.requestAuthorization(options: [.alert, .sound, .badge])
         } catch {
-            Self.logger { .authorizationRequestFailed(description: error.localizedDescription) }
+            Self.logger.authorizationRequestFailed(
+                description: .restricted(.errorDetails, error.localizedDescription),
+            )
             return false
         }
     }
@@ -104,11 +106,11 @@ public final class UserNotificationDailySummaryScheduler: DailySummaryScheduling
             case .authorized, .provisional, .ephemeral:
                 break
             case .notDetermined, .denied:
-                Self.logger { .authorizationNotGranted }
+                Self.logger.authorizationNotGranted()
                 await removeAllOwned()
                 return
             @unknown default:
-                Self.logger { .authorizationUnknown }
+                Self.logger.authorizationUnknown()
                 await removeAllOwned()
                 return
         }
@@ -150,13 +152,17 @@ public final class UserNotificationDailySummaryScheduler: DailySummaryScheduling
         )
         do {
             try await center.add(request)
-            Self.logger {
-                .scheduled(time: String(format: "%02d:%02d", time.hour, time.minute))
-            }
+            Self.logger.scheduled(
+                time: .restricted(
+                    .dateTime,
+                    String(format: "%02d:%02d", time.hour, time.minute),
+                ),
+            )
         } catch {
-            Self.logger(attachments: [.error(error, name: "schedule-error")]) {
-                .scheduleFailed(description: error.localizedDescription)
-            }
+            Self.logger.scheduleFailed(
+                description: .restricted(.errorDetails, error.localizedDescription),
+                attachments: [.error(error, name: "schedule-error")],
+            )
         }
     }
 
