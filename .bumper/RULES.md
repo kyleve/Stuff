@@ -1,8 +1,16 @@
 # Where Architecture Rules
 
-`BumperBowling.swift` turns the module boundaries already documented in
-`Where/**/AGENTS.md` into source-level checks. It scans production sources only;
-tests and generated files are outside the architecture graph.
+`BumperBowling.swift` turns documented module boundaries and classified-event authoring rules into source-level checks. The Where architecture rules scan production sources. The Periscope authoring rules also scan affected test targets.
+
+## Classified Periscope events
+
+Repository scopes use `@LogScope`. Their direct nested event structs use `@LogEvent`, and `@LogField` appears only in those event structs.
+
+The rules reject manual `LogEvent` and `LogScopeDefinition` conformances. They also reject the removed remote-field API names.
+
+Macro expansion strings are ordinary test data, not source declarations. The typed syntax rules inspect declarations and identifiers, so they need no path exceptions for macro tests.
+
+Repair a violation with the macro authoring API. Do not add a file exception. Mutation tests in `PeriscopeAuthoringRulesTests` cover each rule.
 
 ## Layer boundaries
 

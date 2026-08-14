@@ -1,7 +1,7 @@
 # Periscope
 
 Periscope is a typed, hierarchical observability stack.
-It provides structured `Codable` log events emitted through typed loggers (`Log<Event>`) arranged in a scope tree.
+It provides classified `Codable` events through scope-typed loggers (`Log<Scope>`).
 Events are timed with spans, persisted to SwiftData so days of history stay queryable on device, and browsable from inside the app.
 
 Each module has its own `README.md` with the narrative and API.
