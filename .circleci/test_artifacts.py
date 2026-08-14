@@ -9,7 +9,7 @@ import subprocess
 import sys
 
 
-FORMAT_VERSION = 1
+FORMAT_VERSION = 2
 
 
 def command_output(*command):
@@ -33,23 +33,26 @@ def environment_metadata():
 
 def create_manifest(root, schemes, metadata=None):
     root = root.resolve()
-    products = root / "DerivedData" / "Build" / "Products"
-    if not products.is_dir():
-        raise ValueError(f"test products do not exist: {products}")
+    products_root = root / "DerivedData" / "Build" / "Products"
+    built_products = products_root / "Debug-iphonesimulator"
+    if not built_products.is_dir():
+        raise ValueError(f"test products do not exist: {built_products}")
 
     resolved_schemes = {}
     for scheme in schemes:
-        candidates = sorted(products.glob(f"{scheme}_*.xctestrun"))
+        candidates = sorted(products_root.glob(f"{scheme}_*.xctestrun"))
         if len(candidates) != 1:
             raise ValueError(
-                f"expected one .xctestrun for {scheme}, found {len(candidates)} in {products}"
+                f"expected one .xctestrun for {scheme}, found {len(candidates)} "
+                f"in {products_root}"
             )
         resolved_schemes[scheme] = str(candidates[0].relative_to(root))
 
     manifest = {
         "formatVersion": FORMAT_VERSION,
         "artifactRoot": str(root),
-        "products": str(products.relative_to(root)),
+        "productsRoot": str(products_root.relative_to(root)),
+        "builtProducts": str(built_products.relative_to(root)),
         "schemes": resolved_schemes,
         **(metadata or environment_metadata()),
     }
@@ -78,10 +81,13 @@ def load_and_validate(root, metadata=None):
             f"test artifacts were built at {manifest.get('artifactRoot')}; attached at {root}"
         )
 
-    products_value = manifest.get("products")
+    products_root_value = manifest.get("productsRoot")
+    built_products_value = manifest.get("builtProducts")
     schemes = manifest.get("schemes")
-    if not isinstance(products_value, str) or not products_value:
-        raise ValueError("test artifact manifest has no products path")
+    if not isinstance(products_root_value, str) or not products_root_value:
+        raise ValueError("test artifact manifest has no products root")
+    if not isinstance(built_products_value, str) or not built_products_value:
+        raise ValueError("test artifact manifest has no built-products path")
     if not isinstance(schemes, dict) or not schemes:
         raise ValueError("test artifact manifest has no scheme mapping")
 
@@ -92,11 +98,13 @@ def load_and_validate(root, metadata=None):
                 f"test artifact {key} is {manifest.get(key)!r}; current value is {value!r}"
             )
 
-    products = (root / products_value).resolve()
-    if not products.is_relative_to(root):
-        raise ValueError(f"test products path leaves the artifact root: {products}")
-    if not products.is_dir():
-        raise ValueError(f"test products do not exist: {products}")
+    products_root = (root / products_root_value).resolve()
+    built_products = (root / built_products_value).resolve()
+    for name, path in (("products root", products_root), ("built products", built_products)):
+        if not path.is_relative_to(root):
+            raise ValueError(f"test {name} path leaves the artifact root: {path}")
+        if not path.is_dir():
+            raise ValueError(f"test {name} do not exist: {path}")
     for scheme, relative_path in schemes.items():
         if not isinstance(scheme, str) or not isinstance(relative_path, str):
             raise ValueError("test artifact scheme mapping must contain string paths")
@@ -114,7 +122,7 @@ def resolved_path(root, scheme, field, metadata=None):
     if scheme not in manifest["schemes"]:
         raise ValueError(f"test artifact manifest has no scheme named {scheme}")
     if field == "products":
-        return root / manifest["products"]
+        return root / manifest["builtProducts"]
     return root / manifest["schemes"][scheme]
 
 
