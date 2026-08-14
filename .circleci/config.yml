@@ -299,6 +299,7 @@ jobs:
 
   snapshot:
     executor: m4-pro-medium
+    parallelism: 2
     environment:
       SNAPSHOT_SETTLE_TIMEOUT_MULTIPLIER: "2"
     steps:
@@ -307,10 +308,29 @@ jobs:
           scheme: StuffSnapshotTests
           test_workdir: test-output-snapshots
       - run_with_timeout:
+          seconds: 600
+          command: >-
+            ./test --snapshots --shared --os 27.0
+            --test-artifacts "$CIRCLE_WORKING_DIRECTORY/ci-test-build"
+            --enumerate-suites "$TEST_WORKDIR/suites.txt"
+            --skip-architecture
+      - run:
+          name: Split snapshot suites by historical timing
+          command: |
+            circleci tests split --split-by=timings --timings-type=filename \
+              < "$TEST_WORKDIR/suites.txt" > "$TEST_WORKDIR/shard.txt"
+            python3 .circleci/shard_suites.py \
+              --all "$TEST_WORKDIR/suites.txt" \
+              --shard "$TEST_WORKDIR/shard.txt" \
+              --shard-count "$CIRCLE_NODE_TOTAL"
+            echo "Assigned snapshot suites:"
+            sed 's/^/  /' "$TEST_WORKDIR/shard.txt"
+      - run_with_timeout:
           seconds: 3600
           command: >-
             ./test --snapshots --shared --os 27.0 --review --timings
             --test-artifacts "$CIRCLE_WORKING_DIRECTORY/ci-test-build"
+            --only-file "$TEST_WORKDIR/shard.txt"
             --skip-architecture
       - export_test_results:
           test_workdir: test-output-snapshots
