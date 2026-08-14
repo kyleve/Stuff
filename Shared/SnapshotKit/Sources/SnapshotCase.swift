@@ -148,6 +148,10 @@ extension SnapshotCase: View {
                 content
                     .frame(width: width)
                     .frame(minHeight: minimumHeight)
+            case let .fullContent2D(minimumSize):
+                // Two-axis expansion is capture-only; preview the declared
+                // minimum viewport rather than an unbounded canvas.
+                content.frame(width: minimumSize.width, height: minimumSize.height)
         }
     }
 }

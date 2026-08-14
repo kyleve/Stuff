@@ -56,21 +56,7 @@ struct LifecycleContainerTests {
         #expect(!splash)
     }
 
-    @Test func minimumSplashDurationDoesNotHoldWhenNoSplashWasShown() async throws {
-        // The minimum only holds a splash that actually appeared. A launch that's
-        // already ready when the container mounts never showed one, so even a long
-        // minimum must reveal content immediately rather than stalling on a hold
-        // for a splash the user never saw.
-        //
-        // (The other half — holding a splash that *did* appear until the minimum
-        // elapses, then revealing — is a `.task`-driven async/timing behavior that
-        // `show`'s synchronous closure can't drive deterministically; like the
-        // splash caption's own delay it's exercised on device, not host-tested.)
-        //
-        // Asserted via the *splash*, not via `content`: content is built as soon
-        // as the runner produces its value — behind the splash while a hold is up,
-        // so that the hold warms the destination — so building it no longer
-        // distinguishes "revealed" from "held". An absent splash does.
+    @Test func positiveMinimumCoversAlreadyReadyContent() async throws {
         var content = false
         var splashShown = false
         let runner = await makeReadyRunner()
@@ -79,30 +65,6 @@ struct LifecycleContainerTests {
         let container = LifecycleContainer(
             runner,
             minimumSplashDuration: .seconds(60),
-            splash: { _ in ProbeView { splashShown = true } },
-            failure: { _ in EmptyView() },
-        ) { _ in
-            ProbeView { content = true }
-        }
-        try show(UIHostingController(rootView: container)) { _ in
-            try waitFor { content }
-        }
-        #expect(content)
-        // Nothing covering it: the reveal happened rather than stalling behind a
-        // 60-second hold for a splash the user never saw.
-        #expect(!splashShown)
-    }
-
-    @Test func splashBeforeFirstRevealCoversAlreadyReadyContent() async throws {
-        var content = false
-        var splashShown = false
-        let runner = await makeReadyRunner()
-        #expect(runner.phase.isReady)
-
-        let container = LifecycleContainer(
-            runner,
-            minimumSplashDuration: .seconds(60),
-            readyRevealPolicy: .splashBeforeFirstReveal,
             splash: { _ in ProbeView { splashShown = true } },
             failure: { _ in EmptyView() },
         ) { _ in
@@ -125,7 +87,6 @@ struct LifecycleContainerTests {
         let container = LifecycleContainer(
             runner,
             minimumSplashDuration: .zero,
-            readyRevealPolicy: .splashBeforeFirstReveal,
             splash: { _ in ProbeView { splashShown = true } },
             failure: { _ in EmptyView() },
         ) { _ in
@@ -211,7 +172,7 @@ struct LifecycleContainerTests {
         await task.value
     }
 
-    @Test func splashBeforeFirstRevealKeepsBackgroundReadyHeadless() async throws {
+    @Test func positiveMinimumKeepsBackgroundReadyHeadless() async throws {
         var content = false
         var splash = false
         let runner = await makeReadyRunner(reason: .background(.location))
@@ -220,7 +181,6 @@ struct LifecycleContainerTests {
         let container = LifecycleContainer(
             runner,
             minimumSplashDuration: .seconds(60),
-            readyRevealPolicy: .splashBeforeFirstReveal,
             splash: { _ in ProbeView { splash = true } },
         ) { _ in
             ProbeView { content = true }
@@ -262,7 +222,6 @@ struct LifecycleContainerTests {
         let container = LifecycleContainer(
             runner,
             minimumSplashDuration: .milliseconds(200),
-            readyRevealPolicy: .splashBeforeFirstReveal,
             splash: { _ in
                 ProbeView {
                     splashWasShown = true
@@ -301,7 +260,6 @@ struct LifecycleContainerTests {
             LifecycleContainer(
                 runner,
                 minimumSplashDuration: .milliseconds(100),
-                readyRevealPolicy: .splashBeforeFirstReveal,
                 isPresentationVisible: isVisible,
                 splash: { _ in
                     ProbeView {

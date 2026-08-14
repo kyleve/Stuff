@@ -30,7 +30,7 @@ Swift guards: [`DayJournalTests.addManualDayReconcilesAndPublishes`](../../Where
 [`WhereServicesTests.redundantGPSSamplesSkipRepublishingButNewRegionsStillPublish`](../../WhereCore/Tests/WhereServicesTests.swift).
 
 Single-sample ingest routes through `reconcileIssueState()` plus
-`publishAfterIngest(of:)` (skips redundant widget rebuilds); bulk ingest uses
+`publishAfterIngest(of:)` (skips redundant widget rebuilds). bulk ingest uses
 full `reconcileAfterDayDataChange()`.
 
 Out of model until routed: `DailySummaryReconciler`, `setPrimaryRegions` (see

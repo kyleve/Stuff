@@ -1,7 +1,7 @@
 # Log routing
 
 Models [`WhereScope.LogRouting`](../../WhereUI/Sources/Model/WhereScope.swift): only the
-active scope registers on the process-global log sink; a late store for a
+active scope registers on the process-global log sink. a late store for a
 shadowed scope is remembered but not attached.
 
 ## Correspondence

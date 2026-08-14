@@ -3,14 +3,14 @@
 The core of **Periscope**, a typed, hierarchical observability framework.
 Periscope logs **structured `Codable` events** (alongside freeform messages)
 through **typed loggers** (`Log<Event>`) arranged in a **scope tree**, stamps
-them with **tags**, times work with **spans**, and persists everything —
+them with **tags**, times work with **spans**, and persists everything — 
 hierarchy included — to **SwiftData** so days or weeks of history stay
 queryable on device.
 
 PeriscopeCore owns the model and the machinery: events, levels, scopes,
 links, tags, spans, attachments, the sink pipeline (OSLog + SwiftData
 built-in), ambient event sources, and the store. SwiftUI integration lives in
-[`PeriscopeUI`](../PeriscopeUI); the on-device viewer, tracer, toast, and
+[`PeriscopeUI`](../PeriscopeUI). The on-device viewer, tracer, toast, and
 inspect mode live in [`PeriscopeTools`](../PeriscopeTools).
 
 ## Vocabulary
@@ -82,23 +82,23 @@ Periscope.shared.startDefaultAmbientSources()
   `attachments:`). Scope IDs are deterministic (parent + name), so the same
   path is the same scope in any process or launch.
 - **Propagation** — `log.withContext { … }` binds the context to a
-  `@TaskLocal`; `Log<E>.current` reads it anywhere in the async call tree.
+  `@TaskLocal`. `Log<E>.current` reads it anywhere in the async call tree.
   `LogContextProviding` gives classes a derived per-instance `.log`.
 - **Spans** — `log.measure(.token) { … }` (sync/async) emits paired
   `SpanBegan`/`SpanEnded` events with the exit derived automatically
   (return → `.success`, throw → `.failure`, `CancellationError` →
   `.cancelled`), and an optional `budget:` fires a `SpanOverdue` warning
   while the closure hangs past it. Names resolve against `Event.SpanName`
-  (defaults to `String`); declare a `SpanName` enum on the event type for
+  (defaults to `String`). Declare a `SpanName` enum on the event type for
   compiler-checked tokens — the recommended style for structured events.
   Open-ended flows use `begin(for:lifetime:relaunch:)`/`end(for:exit:)`.
   Every span provably ends: bounded spans expire past
   their budget (watchdog, `.expired`), re-begins supersede the open span
   (`.superseded`), and a relaunch closes `endsWithProcess` spans the dead
   process left open (`.orphaned`, duration unknowable). Durations use
-  `ContinuousClock`; spans mirror to `OSSignposter`.
+  `ContinuousClock`. Spans mirror to `OSSignposter`.
 - **Attachments** — `LogAttachment` (+ `.error`, `.json`, `.image`
-  conveniences) rides along with any event; blobs persist externally and
+  conveniences) rides along with any event. Blobs persist externally and
   load on demand.
 - **Remote approval** — `remoteMessage` defaults to the stable event name and
   `remoteFields` defaults empty. Fields are restricted to booleans, counts,
@@ -146,7 +146,7 @@ Periscope.shared.startDefaultAmbientSources()
   Inspector runtime needs without starting a logging session or exposing the
   internal SwiftData model classes. The recovery URLs include the crash
   journals that would otherwise replay deleted history into a fresh store.
-  Periscope storage is always local-only; its model configurations disable
+  Periscope storage is always local-only. its model configurations disable
   CloudKit explicitly even when the host application has iCloud entitlements.
 
 ## How it works
@@ -154,7 +154,7 @@ Periscope.shared.startDefaultAmbientSources()
 Log call sites never block: records append to a lock-guarded pending queue
 and a background drain task delivers ordered batches to each sink (scope
 definitions always precede the records referencing them). Error-and-above
-events trigger an automatic flush; queue overflow drops oldest and reports
+events trigger an automatic flush. queue overflow drops oldest and reports
 the gap (scope definitions and span began/ended pairs are exempt). Event payloads persist as JSON keyed by `eventName` + `eventVersion`
 so old rows outlive their Swift types — `StoredLogEvent.decode(_:)` recovers
 the type, and tooling degrades to raw JSON when it can't.
@@ -188,7 +188,7 @@ on-disk store sink for an in-memory one, and exiting swaps back.
 ([JournalKit](../../JournalKit)) beside the database, and once the store is
 added as a sink, every record appends to it *synchronously* at emit
 (microseconds — a page-cache write that survives the process dying by any
-means; fault-level records `F_FULLFSYNC` for kernel-panic coverage). The
+means. fault-level records `F_FULLFSYNC` for kernel-panic coverage). The
 journal does **not** yet cover the whole process lifetime: it opens with the
 store, and `PeriscopeStore.make` is `async`, so records emitted between
 process launch and `add(sink:)` — early launch steps, ambient start-up
@@ -208,9 +208,9 @@ their own sessions and leave recovery to the app's next launch.
 
 - Messages mirror to OSLog as `.public` — keep PII out of messages, or scrub
   via the redaction hook. The hook may transform any record but cannot
-  suppress span began/ended records (a stripped copy records instead —
-  pairs never split); silence spans with level floors.
-- One database for every logging system in the process; scopes and types
+  suppress span began/ended records (a stripped copy records instead — 
+  pairs never split). silence spans with level floors.
+- One database for every logging system in the process. scopes and types
   make it easy to split later.
 - `LogContextProviding` caches one small entry per logging instance, evicted
   automatically when the instance deallocates (a tracker hangs off the
@@ -221,5 +221,5 @@ their own sessions and leave recovery to the app's next launch.
 
 Swift Testing in [`Tests/`](Tests), hosted in `StuffTestHost`
 (`PeriscopeCoreTests` bundle). Tests use fresh `Periscope` systems, in-memory
-stores (`@_spi(Testing) PeriscopeStore.inMemory`), and condition polling —
+stores (`@_spi(Testing) PeriscopeStore.inMemory`), and condition polling — 
 run with `./test PeriscopeCoreTests`.

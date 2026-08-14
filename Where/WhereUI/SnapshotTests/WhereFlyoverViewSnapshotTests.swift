@@ -13,7 +13,7 @@ struct WhereFlyoverViewSnapshotTests {
             of: FlyoverView(catalog: WhereFlyoverCatalog.make(world: world)),
             named: "WhereFlyover",
             configurations: SnapshotConfiguration.combinations(
-                devices: [.iPadFullContent],
+                devices: [.iPadFullContent2D],
                 colorSchemes: [.light],
             ),
             // Flyover intentionally hosts many independent screen trees whose

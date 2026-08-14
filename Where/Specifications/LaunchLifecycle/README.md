@@ -16,7 +16,7 @@ re-drive skips memoized steps while running foreground-only work.
 | `driveActive` | at most one in-flight `drive()` task |
 | `EnterForeground` | `LifecycleRunner.enterForeground()` |
 
-Background steps stand in for `sync-auth` and `reconcile-tracking`; the
+Background steps stand in for `sync-auth` and `reconcile-tracking`. the
 foreground step stands in for `capture-today`. Gates, detached fan-out, and
 teardown are out of scope for this narrow slice.
 
