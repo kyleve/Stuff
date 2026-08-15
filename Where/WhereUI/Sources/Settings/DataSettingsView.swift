@@ -87,7 +87,7 @@ struct DataSettingsView: View {
                 titleVisibility: .visible,
             ) {
                 Button(String(localized: .settingsResetConfirm), role: .destructive) {
-                    requestReset()
+                    requestAppReset()
                 }
                 Button(String(localized: .settingsDataCancel), role: .cancel) {}
             } message: {
@@ -98,7 +98,7 @@ struct DataSettingsView: View {
         }
     }
 
-    private func requestReset() {
+    private func requestAppReset() {
         Task { await lifecycle.teardown(WhereLaunch.resetPlan(for: model), input: session) }
     }
 }
