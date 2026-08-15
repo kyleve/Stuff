@@ -30,7 +30,7 @@ struct DataSettingsView: View {
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
                 BackupSettingsSection(backup: backup)
-                dataSection
+                eraseYearSection
                 resetSection
             }
         }
@@ -38,24 +38,24 @@ struct DataSettingsView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    private var eraseTitle: String {
+    private var eraseYearTitle: String {
         WhereFormat.settingsDataErase(year: report.selectedYear)
     }
 
-    private var dataSection: some View {
+    private var eraseYearSection: some View {
         Section {
             Button(role: .destructive) {
                 showClearConfirmation = true
             } label: {
-                Label(eraseTitle, systemSymbol: .trash)
+                Label(eraseYearTitle, systemSymbol: .trash)
             }
             .settingsRow(Item.eraseYear)
             .confirmationDialog(
-                eraseTitle,
+                eraseYearTitle,
                 isPresented: $showClearConfirmation,
                 titleVisibility: .visible,
             ) {
-                Button(eraseTitle, role: .destructive) {
+                Button(eraseYearTitle, role: .destructive) {
                     Task { await report.clearSelectedYear() }
                 }
                 Button(String(localized: .settingsDataCancel), role: .cancel) {}
