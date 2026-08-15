@@ -362,8 +362,7 @@ workflows:
   "iOS CI":
     when: >-
       (pipeline.event.name == "push" and pipeline.git.branch == "main") or
-      (pipeline.event.name == "pull_request" and
-      pipeline.event.github.pull_request.base.ref == "main")
+      pipeline.event.name == "pull_request"
     jobs:
       - build-ios-tests:
           name: Build iOS Tests
