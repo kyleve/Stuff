@@ -3,19 +3,35 @@
 
 import json
 import pathlib
+import re
 import subprocess
 import sys
 import xml.etree.ElementTree as ET
+
+
+DURATION_COMPONENT = re.compile(r"(?P<value>\d+(?:\.\d+)?)\s*(?P<unit>ms|h|m|s)")
+SECONDS_PER_UNIT = {"ms": 0.001, "s": 1.0, "m": 60.0, "h": 3600.0}
 
 
 def duration(node):
     value = node.get("duration", 0)
     if isinstance(value, (int, float)):
         return float(value)
+
+    text = str(value).strip()
     try:
-        return float(str(value).removesuffix("s"))
+        return float(text)
     except ValueError:
+        pass
+
+    components = list(DURATION_COMPONENT.finditer(text))
+    remainder = DURATION_COMPONENT.sub("", text).strip()
+    if not components or remainder:
         return 0.0
+    return sum(
+        float(component.group("value")) * SECONDS_PER_UNIT[component.group("unit")]
+        for component in components
+    )
 
 
 def test_cases_in(result):
