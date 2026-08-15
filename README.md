@@ -92,7 +92,8 @@ It only reports.
 It never fails on slow numbers.
 See `./profile --help` for the remaining scope, destination, and threshold flags.
 
-CI runs the complete snapshot suite serially on one isolated runner.
+CI assigns snapshot suites to isolated workers.
+Each worker runs its assigned suites serially on one simulator.
 Multiple snapshot simulators on one Mac contend for the same render server.
 Do not run snapshots concurrently locally.
 
@@ -109,6 +110,7 @@ See `./circleci-artifacts --help` to choose another destination or open it in Fi
 
 Use `./snapshot-shards check` to validate the deterministic snapshot assignment.
 Use `./snapshot-shards balance --junit PATH` to propose a new assignment from downloaded timing artifacts.
+Pass several `--junit PATH` arguments to use median durations from several pipelines.
 Use `./snapshot-shards balance --shards COUNT --junit PATH --write` to change the shard count.
 Set the snapshot job `parallelism` to the same count. CI rejects a count mismatch.
 
