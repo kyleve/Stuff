@@ -3,8 +3,10 @@ name: CI
 on:
   push:
     branches: [main]
+  # Stacked PRs target the branch below them rather than main. Run the same
+  # read-only validation for every PR head so each slice gets an integration
+  # result before the stack is merged.
   pull_request:
-    branches: [main]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
