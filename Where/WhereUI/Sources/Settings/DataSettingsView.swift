@@ -31,7 +31,7 @@ struct DataSettingsView: View {
                 .listRowSeparator(.hidden)
                 BackupSettingsSection(backup: backup)
                 eraseYearSection
-                resetSection
+                resetAppSection
             }
         }
         .navigationTitle(String(localized: .settingsDataHeader))
@@ -73,7 +73,7 @@ struct DataSettingsView: View {
     /// onboarding, run through the `LifecycleProxy` that `LifecycleContainer`
     /// publishes under `\.lifecycle`. The proxy asserts in debug / no-ops in
     /// release when no container is above (e.g. previews).
-    private var resetSection: some View {
+    private var resetAppSection: some View {
         Section {
             Button(role: .destructive) {
                 showResetConfirmation = true
