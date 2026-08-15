@@ -15,6 +15,14 @@ SPEC.loader.exec_module(MODULE)
 
 
 class JUnitTests(unittest.TestCase):
+    def test_duration_reads_xcode_compound_units(self):
+        self.assertEqual(MODULE.duration({"duration": "1m 12s"}), 72.0)
+        self.assertEqual(MODULE.duration({"duration": "1h 2m 3.5s"}), 3723.5)
+        self.assertEqual(MODULE.duration({"duration": "320ms"}), 0.32)
+
+    def test_duration_rejects_unknown_formats(self):
+        self.assertEqual(MODULE.duration({"duration": "not a duration"}), 0.0)
+
     def test_case_uses_bundle_and_suite_as_timing_file(self):
         with tempfile.TemporaryDirectory() as directory:
             output = pathlib.Path(directory) / "results.xml"
