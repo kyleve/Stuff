@@ -314,7 +314,7 @@ jobs:
 
   snapshot:
     executor: m4-pro-medium
-    parallelism: 3
+    parallelism: 4
     environment:
       SNAPSHOT_SETTLE_TIMEOUT_MULTIPLIER: "2"
     steps:
