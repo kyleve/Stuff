@@ -184,6 +184,31 @@ paths. Full-content sizing uses SnapshotKitTesting limits and convergence
 rules. A sizing failure stops the export; it never substitutes a viewport
 image.
 
+The website opens the first catalog group in canvas mode. The group navigator
+and overview map move between groups without recalculating the graph. Point to
+or focus a card to emphasize its connected routes. The site dims unrelated
+cards and routes until the focus moves.
+
+Search matches group, screen, state, and connected route names. Filters narrow
+the result by group, capture extent, or route state. List mode shows the same
+selection as a compact catalog. State and profile changes update the native
+image without changing the selected screen.
+
+The inspector shows capture dimensions, profile data, and incoming and
+outgoing routes. It also supplies previous-screen and next-screen actions.
+Full-content images use a device-width scroll area. The Fit and 100% controls
+change the image scale without changing the capture.
+
+The browser hash stores the view, screen, state, and profile. Browser Back and
+Forward restore these values. The site also supplies these keyboard controls:
+
+- Press `/` to focus search.
+- Press `F` to fit the complete canvas.
+- Press `0` to fit the current group.
+- Press `+` or `-` to change the canvas zoom.
+- Press `[` or `]` to move between screens in the inspector.
+- Press Escape to close the inspector.
+
 ## Testing
 
 Run unit coverage with:
