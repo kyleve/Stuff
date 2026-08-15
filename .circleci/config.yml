@@ -50,6 +50,7 @@ commands:
           command: |
             python3 .circleci/test_xcresult_to_junit.py
             python3 .circleci/test_test_artifacts.py
+            python3 .circleci/test_test_impact.py
             python3 Tools/Tests/test_snapshot_shards.py
             ./snapshot-shards check
 
@@ -104,6 +105,9 @@ commands:
       - restore_cache:
           keys:
             - swiftpm-artifacts-v2-{{ arch }}-{{ checksum "Package.resolved" }}
+      - restore_cache:
+          keys:
+            - test-impact-v1-{{ arch }}-{{ checksum "Package.resolved" }}
       - run:
           name: Install pinned tools
           command: |
@@ -119,6 +123,16 @@ commands:
       - configure_test_workdir:
           test_workdir: << parameters.test_workdir >>
       - test_ci_helpers
+      - run:
+          name: Test compiler-index selection
+          command: >-
+            STUFF_TEST_IMPACT_ONLY=1 swift test
+            --scratch-path .build/test-impact-tool
+            --filter TestImpactToolTests
+      - save_cache:
+          key: test-impact-v1-{{ arch }}-{{ checksum "Package.resolved" }}
+          paths:
+            - .build/test-impact-tool
       - run:
           name: Generate project and resolve Swift packages
           command: |
@@ -169,6 +183,12 @@ commands:
             python3 .circleci/test_artifacts.py resolve
             --root "$CIRCLE_WORKING_DIRECTORY/ci-test-build"
             --scheme "<< parameters.scheme >>" --field xctestrun
+      - run:
+          name: Validate shadow test selection
+          command: >-
+            python3 .circleci/test_impact.py validate
+            --selection "$CIRCLE_WORKING_DIRECTORY/ci-test-build/test-impact/selection.json"
+            --scheme "<< parameters.scheme >>"
       - validate_runner_environment
 
   run_with_timeout:
@@ -210,6 +230,9 @@ commands:
         type: string
       output_directory:
         type: string
+      assigned_file:
+        type: string
+        default: ""
     steps:
       - run:
           name: Convert Xcode results to JUnit
@@ -221,6 +244,33 @@ commands:
               "<< parameters.output_directory >>/results.xml"
       - store_test_results:
           path: << parameters.output_directory >>
+
+  audit_test_impact:
+    parameters:
+      scheme:
+        type: string
+      junit:
+        type: string
+      output_directory:
+        type: string
+    steps:
+      - run:
+          name: Audit shadow test selection
+          when: always
+          command: |
+            assigned_args=()
+            if [[ -n "<< parameters.assigned_file >>" ]]; then
+              assigned_args+=(--assigned-file "<< parameters.assigned_file >>")
+            fi
+            python3 .circleci/test_impact.py audit \
+              --selection "$CIRCLE_WORKING_DIRECTORY/ci-test-build/test-impact/selection.json" \
+              --scheme "<< parameters.scheme >>" \
+              --junit "<< parameters.junit >>" \
+              --output "<< parameters.output_directory >>/report.json" \
+              "${assigned_args[@]}"
+      - store_artifacts:
+          path: << parameters.output_directory >>
+          destination: test-impact
 
   collect_diagnostics:
     parameters:
@@ -271,6 +321,15 @@ jobs:
             --build-artifacts "$CIRCLE_WORKING_DIRECTORY/ci-test-build"
             --no-generate --skip-architecture
       - run:
+          name: Compute shadow test selection
+          command: |
+            ./test-impact select \
+              --base origin/main \
+              --index-store "$CIRCLE_WORKING_DIRECTORY/ci-test-build/DerivedData/Index.noindex/DataStore" \
+              --output "$CIRCLE_WORKING_DIRECTORY/ci-test-build/test-impact"
+            ./test-impact explain \
+              --selection "$CIRCLE_WORKING_DIRECTORY/ci-test-build/test-impact/selection.json"
+      - run:
           name: Validate changed snapshot inventory with Xcode
           command: |
             if git diff --quiet origin/main...HEAD -- \
@@ -289,6 +348,7 @@ jobs:
           paths:
             - manifest.json
             - DerivedData/Build/Products
+            - test-impact
       - collect_diagnostics:
           test_workdir: test-output-build
           artifact_name: build-ios-tests
@@ -308,6 +368,10 @@ jobs:
       - export_test_results:
           test_workdir: test-output-ios
           output_directory: test-results-ios
+      - audit_test_impact:
+          scheme: Stuff-iOS-Tests
+          junit: test-results-ios/results.xml
+          output_directory: test-impact-ios
       - collect_diagnostics:
           test_workdir: test-output-ios
           artifact_name: test-ios
@@ -343,6 +407,11 @@ jobs:
       - export_test_results:
           test_workdir: test-output-snapshots
           output_directory: test-results-snapshots
+      - audit_test_impact:
+          scheme: StuffSnapshotTests
+          junit: test-results-snapshots/results.xml
+          output_directory: test-impact-snapshots
+          assigned_file: test-output-snapshots/shard.txt
       - run:
           name: Stage snapshot suite timings
           when: always

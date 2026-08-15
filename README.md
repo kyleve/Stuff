@@ -43,7 +43,9 @@ If you manage `mise` yourself, run `brew install mise` (or the [official install
 Then run `mise install`.
 
 Run tests with `./test` (or open the generated workspace in Xcode).
-With no arguments, `./test` runs only the bundles your changes affect.
+With no arguments, `./test` builds affected bundles, then uses Xcode's compiler
+index to run only reachable test suites. If evidence is incomplete, it keeps
+the broader selection. Use `--explain-selection` to see why each suite ran.
 It uses the simulator this checkout owns.
 `./simulator` creates that device on its first run and boots it on every run.
 It streams progress while tests run:
@@ -96,6 +98,11 @@ CI assigns snapshot suites to isolated workers.
 Each worker runs its assigned suites serially on one simulator.
 Multiple snapshot simulators on one Mac contend for the same render server.
 Do not run snapshots concurrently locally.
+
+CircleCI also computes the compiler-index selection in shadow mode. Workers
+still run their complete assigned scopes. Each worker validates the selection
+before simulator execution and publishes a `test-impact` audit artifact after
+the run. Promote the selector only after those reports show no missed suites.
 
 To hunt down flaky tests, run `./flaky`.
 It runs the whole suite several times.
