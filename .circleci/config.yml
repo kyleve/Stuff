@@ -326,7 +326,8 @@ jobs:
           name: Select deterministic snapshot shard
           command: |
             shard="$((CIRCLE_NODE_INDEX + 1))"
-            ./snapshot-shards list "$shard" > "$TEST_WORKDIR/shard.txt"
+            ./snapshot-shards list "$shard" --total "$CIRCLE_NODE_TOTAL" \
+              > "$TEST_WORKDIR/shard.txt"
             suite_count="$(wc -l < "$TEST_WORKDIR/shard.txt" | tr -d ' ')"
             printf 'CI_SHARD {"index":%s,"shards":%s,"suites":%s}\n' \
               "$CIRCLE_NODE_INDEX" "$CIRCLE_NODE_TOTAL" "$suite_count"
