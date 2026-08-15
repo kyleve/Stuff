@@ -109,6 +109,8 @@ See `./circleci-artifacts --help` to choose another destination or open it in Fi
 
 Use `./snapshot-shards check` to validate the deterministic snapshot assignment.
 Use `./snapshot-shards balance --junit PATH` to propose a new assignment from downloaded timing artifacts.
+Use `./snapshot-shards balance --shards COUNT --junit PATH --write` to change the shard count.
+Set the snapshot job `parallelism` to the same count. CI rejects a count mismatch.
 
 The `./ide` script sets `core.hooksPath` to `.githooks`.
 The pre-commit hook formats staged Swift with SwiftFormat and runs `./sync-agents --git-add`.

@@ -124,6 +124,19 @@ def validate_plan(plan, repo):
     return inventory, partition
 
 
+def selected_shard(partition, shard_number, worker_count=None):
+    if worker_count is not None and worker_count != len(partition):
+        raise ValueError(
+            f"CircleCI started {worker_count} workers, but the plan has "
+            f"{len(partition)} shards"
+        )
+    if shard_number < 1 or shard_number > len(partition):
+        raise ValueError(
+            f"shard number {shard_number} is outside 1...{len(partition)}"
+        )
+    return partition[shard_number - 1]
+
+
 def read_suites(path):
     suites = [line.strip() for line in path.read_text().splitlines() if line.strip()]
     if len(suites) != len(set(suites)):
@@ -196,14 +209,14 @@ def balanced_partition(weights, shard_count):
     return shards, totals
 
 
-def rebalanced_plan(plan, repo, junit_paths):
+def rebalanced_plan(plan, repo, junit_paths, shard_count=None):
     inventory, partition = validate_plan(plan, repo)
     samples, document_count = junit_duration_samples(junit_paths, inventory)
     weights = {
         suite: round(statistics.median(values), 3)
         for suite, values in samples.items()
     }
-    shards, totals = balanced_partition(weights, len(partition))
+    shards, totals = balanced_partition(weights, shard_count or len(partition))
     return {
         "formatVersion": FORMAT_VERSION,
         "method": "longest-processing-time over median JUnit suite durations",
@@ -229,8 +242,9 @@ def parse_args():
     check.add_argument("--repo", type=pathlib.Path, default=ROOT)
 
     listing = subparsers.add_parser("list", help="print one shard")
-    listing.add_argument("shard", choices=("1", "2"))
+    listing.add_argument("shard", type=int)
     listing.add_argument("--repo", type=pathlib.Path, default=ROOT)
+    listing.add_argument("--total", type=int)
 
     compare = subparsers.add_parser("compare-enumeration")
     compare.add_argument("--enumeration", type=pathlib.Path, required=True)
@@ -240,6 +254,7 @@ def parse_args():
     )
     balance.add_argument("--repo", type=pathlib.Path, default=ROOT)
     balance.add_argument("--junit", type=pathlib.Path, action="append", required=True)
+    balance.add_argument("--shards", type=int)
     balance.add_argument("--write", action="store_true")
     return parser.parse_args()
 
@@ -259,12 +274,14 @@ def main():
             )
         elif args.command == "list":
             _, partition = validate_plan(plan, args.repo.resolve())
-            print("\n".join(partition[int(args.shard) - 1]))
+            print("\n".join(selected_shard(partition, args.shard, args.total)))
         elif args.command == "compare-enumeration":
             validate_enumeration(plan, args.enumeration)
             print("Snapshot enumeration matches the deterministic plan")
         elif args.command == "balance":
-            candidate = rebalanced_plan(plan, args.repo.resolve(), args.junit)
+            candidate = rebalanced_plan(
+                plan, args.repo.resolve(), args.junit, args.shards
+            )
             serialized = json.dumps(candidate, indent=2, sort_keys=True) + "\n"
             print(serialized, end="")
             if args.write:

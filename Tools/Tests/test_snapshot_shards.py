@@ -114,6 +114,12 @@ class ShardTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "does not match"):
                 MODULE.validate_enumeration(plan, path)
 
+    def test_rejects_a_worker_count_that_differs_from_the_plan(self):
+        partition = MODULE.plan_partition(self.make_plan())
+
+        with self.assertRaisesRegex(ValueError, "started 3 workers"):
+            MODULE.selected_shard(partition, 1, worker_count=3)
+
     def test_rebalances_by_median_duration_with_a_stable_tie_break(self):
         with tempfile.TemporaryDirectory() as directory:
             repo = self.make_repo(directory)
@@ -142,6 +148,14 @@ class ShardTests(unittest.TestCase):
             self.assertEqual(candidate["timings"]["ModuleSnapshotTests/FirstSnapshotTests"], 10)
             self.assertEqual(candidate["shards"][0]["estimatedSeconds"], 10)
             self.assertEqual(candidate["shards"][1]["estimatedSeconds"], 8)
+
+            candidate = MODULE.rebalanced_plan(
+                self.make_plan(), repo, documents, shard_count=3
+            )
+            self.assertEqual(
+                [shard["estimatedSeconds"] for shard in candidate["shards"]],
+                [10, 5, 3],
+            )
 
     def test_rejects_incomplete_timing_documents(self):
         with tempfile.TemporaryDirectory() as directory:
