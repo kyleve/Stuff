@@ -333,6 +333,13 @@ jobs:
       - prepare_builder:
           test_workdir: test-output-build
       - run:
+          name: Record committed test-impact diff
+          command: |
+            git diff --name-only "$TEST_IMPACT_BASE"...HEAD \
+              > "$TEST_WORKDIR/test-impact-changed-files.txt"
+            echo "Committed files considered for test selection:"
+            sed 's/^/  /' "$TEST_WORKDIR/test-impact-changed-files.txt"
+      - run:
           name: Test backup upgrader
           command: mise exec -- ruby Where/Tools/Tests/upgrade_backup_test.rb
       - run_with_timeout:
@@ -347,6 +354,7 @@ jobs:
             ./test-impact select \
               --base "$TEST_IMPACT_BASE" \
               --index-store "$CIRCLE_WORKING_DIRECTORY/ci-test-build/DerivedData/Index.noindex/DataStore" \
+              --changed-files "$TEST_WORKDIR/test-impact-changed-files.txt" \
               --output "$CIRCLE_WORKING_DIRECTORY/ci-test-build/test-impact"
             ./test-impact explain \
               --selection "$CIRCLE_WORKING_DIRECTORY/ci-test-build/test-impact/selection.json"
