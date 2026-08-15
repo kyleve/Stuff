@@ -25,7 +25,7 @@ Pick the **narrowest tier that covers the change**:
 
 | Tier | Command | When |
 |------|---------|------|
-| Affected | `./test` | Default — bundles touched by your diff against `origin/main` |
+| Affected | `./test` | Default — suites reached from your diff against `origin/main` |
 | One bundle | `./test WhereCoreTests` | You know exactly what you touched |
 | Unit suite | `./test --all` | Change spans modules; before a wide commit |
 | Image suite | `./test --snapshots` | Triggers below |
@@ -38,6 +38,11 @@ Examples:
 - Changed a stylesheet token that renders → `./test --snapshots` (or `./test` if the graph already pulls snapshots in)
 
 Compare against a ref other than `origin/main`: `./test --base REF`.
+After Xcode builds the affected schemes, this tier reads the compiler index and
+narrows the manifest-derived bundle set to reachable `Bundle/Suite` identifiers.
+Use `--explain-selection` to print the evidence. Use `--no-impact-selection` to
+keep the broader bundle selection. Missing or incomplete index evidence never
+skips tests; the script keeps or expands the broader scope.
 
 ## Architecture and host checks
 

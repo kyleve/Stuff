@@ -78,6 +78,8 @@ STATUS_FILE=""
 TIMINGS=false
 REVIEW=false
 BASE_REF="origin/main"
+IMPACT_SELECTION=true
+EXPLAIN_SELECTION=false
 SHARED=false
 RUN_ARCHITECTURE=true
 ARCHITECTURE_ONLY=false
@@ -104,6 +106,11 @@ Scope:
                     Bundle, Bundle/Suite, or 'Bundle/Suite/test()'
   --only-file PATH  Read newline-delimited Bundle/Suite identifiers from PATH
   --base REF        Compare against REF instead of origin/main
+  --explain-selection
+                    Print why changed-scope tests were selected
+  --no-impact-selection
+                    Keep the manifest-derived bundle selection for a changed
+                    scope; do not narrow it with compiler index data
 
 Architecture:
   --architecture-only  Run only the Bumper configuration, rule tests, and lint
@@ -164,6 +171,8 @@ while [ $# -gt 0 ]; do
             [ "$SCOPE" = changed ] && SCOPE=only
             ;;
         --base) HAS_TEST_ARGUMENTS=true; shift; BASE_REF="${1:?--base requires a git ref}" ;;
+        --explain-selection) EXPLAIN_SELECTION=true ;;
+        --no-impact-selection) IMPACT_SELECTION=false ;;
         --no-build) DO_BUILD=false; HAS_TEST_ARGUMENTS=true ;;
         --no-generate) DO_GENERATE=false; HAS_TEST_ARGUMENTS=true ;;
         --build-artifacts)
@@ -706,6 +715,8 @@ PROGRESS_PY
 SCHEMES=()
 UNIT_FILTERS=()
 SNAPSHOT_FILTERS=()
+changed_files=""
+base=""
 
 add_scheme() {
     local candidate="$1" existing
@@ -885,6 +896,7 @@ fi
 overall_status=0
 RESULTS=()
 LOGS=()
+IMPACT_EXPLAINED=false
 
 for scheme in "${SCHEMES[@]}"; do
     filters=()
@@ -921,6 +933,61 @@ for scheme in "${SCHEMES[@]}"; do
     fi
 
     [ -n "$BUILD_ARTIFACTS" ] && continue
+
+    # A changed-scope build gives the compiler-index selector the exact graph
+    # Xcode just compiled. The manifest-derived filters above are the safe
+    # fallback when the index is absent or the selector cannot explain a path.
+    if [ "$SCOPE" = changed ] && [ "$IMPACT_SELECTION" = true ] && [ "$DO_BUILD" = true ]; then
+        index_store="$(rg -m 1 --only-matching --replace '$1' -- \
+            '-index-store-path ([^ ]+)' "$WORKDIR/$scheme-build.log" || true)"
+        if [ -n "$index_store" ]; then
+            impact_dir="$WORKDIR/test-impact"
+            changed_file="$WORKDIR/test-impact-changed-files.txt"
+            mkdir -p "$impact_dir"
+            printf '%s\n' "$changed_files" >"$changed_file"
+            if ./test-impact select \
+                --base "$base" \
+                --index-store "$index_store" \
+                --changed-files "$changed_file" \
+                --output "$impact_dir"
+            then
+                impact_scope="$(python3 - "$impact_dir/selection.json" "$scheme" <<'PY'
+import json
+import pathlib
+import sys
+
+selection = json.loads(pathlib.Path(sys.argv[1]).read_text())
+print(selection["schemes"][sys.argv[2]]["scope"])
+PY
+)"
+                case "$impact_scope" in
+                    all)
+                        filters=()
+                        ;;
+                    suites)
+                        filters=("-only-testing" "@$impact_dir/$scheme.txt")
+                        ;;
+                    none)
+                        echo "==> Compiler index selected no tests in $scheme"
+                        continue
+                        ;;
+                    *)
+                        echo "warning: invalid test-impact scope '$impact_scope'; using bundle selection" >&2
+                        ;;
+                esac
+                if [ "$EXPLAIN_SELECTION" = true ] && [ "$IMPACT_EXPLAINED" = false ]; then
+                    ./test-impact explain --selection "$impact_dir/selection.json"
+                    IMPACT_EXPLAINED=true
+                fi
+            else
+                echo "warning: compiler-index selection failed; using affected bundles" >&2
+            fi
+        else
+            echo "warning: build emitted no compiler index path; using affected bundles" >&2
+        fi
+    elif [ "$SCOPE" = changed ] && [ "$IMPACT_SELECTION" = true ] && [ "$DO_BUILD" = false ]; then
+        echo "warning: --no-build has no fresh compiler index; using affected bundles" >&2
+    fi
 
     if [ -n "$TEST_ARTIFACTS" ]; then
         XCTESTRUN="$(python3 .circleci/test_artifacts.py resolve \
