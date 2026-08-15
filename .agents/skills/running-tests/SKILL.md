@@ -39,6 +39,18 @@ Examples:
 
 Compare against a ref other than `origin/main`: `./test --base REF`.
 
+## Architecture and host checks
+
+Every normal invocation runs the complete Bumper Bowling sequence first. Use
+`./test --architecture-only` to run only the configuration validation, rule
+tests, and architecture lint.
+
+CI test jobs use `--skip-architecture` because the dedicated Bumper job owns
+that sequence. Do not use this flag for normal local validation.
+
+Affected and unit-capable scopes run the backup-upgrader regression. A scope
+that contains only image bundles skips that host-side unit regression.
+
 ## Snapshots
 
 **Opt-in, not part of "done" by default.** Run `./test --snapshots` when the

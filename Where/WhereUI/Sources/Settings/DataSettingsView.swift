@@ -26,9 +26,10 @@ struct DataSettingsView: View {
             Form {
                 PrivacyPassportCard(presentation: PrivacyPassportPresentation(
                     configuration: model.diagnosticReporting.effectiveConfiguration,
-                ))
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
+                ), disclosureInteraction: .linkToSettings)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets())
                 BackupSettingsSection(backup: backup)
                 dataSection
                 resetSection

@@ -8302,7 +8302,18 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Crash reports and required technical app and device context are being shared with Where's developer."
+            "value" : "Required technical context about the app and device helps Where's developer find and fix crashes."
+          }
+        }
+      }
+    },
+    "settings.privacy.crashReports.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Crash reports"
           }
         }
       }
@@ -8325,7 +8336,18 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Full log metadata is active and may contain personal data."
+            "value" : "Extra metadata helps diagnose difficult problems, but it may contain personal data."
+          }
+        }
+      }
+    },
+    "settings.privacy.fullMetadata.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Full log metadata"
           }
         }
       }
@@ -8347,7 +8369,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Diagnostic logs at all levels are being shared."
+            "value" : "Logs at all levels help Where's developer diagnose app problems."
           }
         }
       }
@@ -8358,7 +8380,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Diagnostic logs at error and fault levels are being shared."
+            "value" : "Error- and fault-level logs help Where's developer diagnose app problems."
           }
         }
       }
@@ -8369,7 +8391,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Only fault-level diagnostic logs are being shared."
+            "value" : "Fault-level logs help Where's developer diagnose app problems."
           }
         }
       }
@@ -8380,7 +8402,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Diagnostic logs at info level and above are being shared."
+            "value" : "Info-level logs and above help Where's developer diagnose app problems."
           }
         }
       }
@@ -8391,7 +8413,18 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Diagnostic logs at notice level and above are being shared."
+            "value" : "Notice-level logs and above help Where's developer diagnose app problems."
+          }
+        }
+      }
+    },
+    "settings.privacy.logs.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Diagnostic logs"
           }
         }
       }
@@ -8402,7 +8435,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Diagnostic logs at warning level and above are being shared."
+            "value" : "Warning-level logs and above help Where's developer diagnose app problems."
           }
         }
       }
@@ -8413,7 +8446,18 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "No crash reports, screen replays, or diagnostic logs are being shared."
+            "value" : "Where shares no crash reports, screen replays, or diagnostic logs."
+          }
+        }
+      }
+    },
+    "settings.privacy.noDiagnostics.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "No diagnostics shared"
           }
         }
       }
@@ -8424,7 +8468,51 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Screen replays are being shared with text and images redacted."
+            "value" : "Redacted text and images help Where's developer reproduce interface problems."
+          }
+        }
+      }
+    },
+    "settings.privacy.sessionReplay.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Screen replays"
+          }
+        }
+      }
+    },
+    "settings.privacy.status.notShared" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Not shared"
+          }
+        }
+      }
+    },
+    "settings.privacy.status.shared" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Shared"
+          }
+        }
+      }
+    },
+    "settings.privacy.status.warning" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Warning"
           }
         }
       }

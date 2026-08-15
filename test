@@ -75,6 +75,9 @@ TIMINGS=false
 REVIEW=false
 BASE_REF="origin/main"
 SHARED=false
+RUN_ARCHITECTURE=true
+ARCHITECTURE_ONLY=false
+HAS_TEST_ARGUMENTS=false
 
 usage() {
     cat <<'USAGE'
@@ -82,8 +85,10 @@ Usage: ./test [options] [BundleName ...]
 
 Runs this repo's tests against the simulator this checkout owns, streaming
 progress as it goes. With no arguments it runs only the bundles affected by the
-working tree's changes. Every test run also runs the fast host-side tooling
-regression suites before selecting an iOS test scope.
+working tree's changes. Every normal invocation first validates and tests the
+Bumper Bowling rules, then enforces the architecture. Unit and affected scopes
+also run the fast host-side backup-upgrader regression suite. Every normal
+invocation runs the fast Flyover command regression suite.
 
 Scope:
   (no arguments)    Bundles affected by the diff against origin/main, including
@@ -95,6 +100,10 @@ Scope:
   --only ID         An xcodebuild test identifier, repeatable:
                     Bundle, Bundle/Suite, or 'Bundle/Suite/test()'
   --base REF        Compare against REF instead of origin/main
+
+Architecture:
+  --architecture-only  Run only the Bumper configuration, rule tests, and lint
+  --skip-architecture  Skip Bumper checks because another CI job owns them
 
 Running:
   --no-build        Reuse the last build (test-without-building)
@@ -129,28 +138,31 @@ USAGE
 
 while [ $# -gt 0 ]; do
     case "$1" in
-        --all) SCOPE=all ;;
-        --snapshots) SCOPE=snapshots ;;
-        --everything) SCOPE=everything ;;
+        --all) SCOPE=all; HAS_TEST_ARGUMENTS=true ;;
+        --snapshots) SCOPE=snapshots; HAS_TEST_ARGUMENTS=true ;;
+        --everything) SCOPE=everything; HAS_TEST_ARGUMENTS=true ;;
         --only)
+            HAS_TEST_ARGUMENTS=true
             shift
             ONLY+=("${1:?--only requires a test identifier}")
             [ "$SCOPE" = changed ] && SCOPE=only
             ;;
-        --base) shift; BASE_REF="${1:?--base requires a git ref}" ;;
-        --no-build) DO_BUILD=false ;;
-        --no-generate) DO_GENERATE=false ;;
-        --record) shift; RECORD="${1:?--record requires a mode}" ;;
-        --device) shift; DEVICE="${1:?--device requires a value}" ;;
-        --shared) SHARED=true ;;
-        --os) shift; OS="${1:?--os requires a value}" ;;
-        --timings) TIMINGS=true ;;
-        --review) REVIEW=true ;;
-        --heartbeat) shift; HEARTBEAT="${1:?--heartbeat requires a value}" ;;
-        --status-file) shift; STATUS_FILE="${1:?--status-file requires a path}" ;;
+        --base) HAS_TEST_ARGUMENTS=true; shift; BASE_REF="${1:?--base requires a git ref}" ;;
+        --no-build) DO_BUILD=false; HAS_TEST_ARGUMENTS=true ;;
+        --no-generate) DO_GENERATE=false; HAS_TEST_ARGUMENTS=true ;;
+        --record) HAS_TEST_ARGUMENTS=true; shift; RECORD="${1:?--record requires a mode}" ;;
+        --device) HAS_TEST_ARGUMENTS=true; shift; DEVICE="${1:?--device requires a value}" ;;
+        --shared) SHARED=true; HAS_TEST_ARGUMENTS=true ;;
+        --os) HAS_TEST_ARGUMENTS=true; shift; OS="${1:?--os requires a value}" ;;
+        --timings) TIMINGS=true; HAS_TEST_ARGUMENTS=true ;;
+        --review) REVIEW=true; HAS_TEST_ARGUMENTS=true ;;
+        --heartbeat) HAS_TEST_ARGUMENTS=true; shift; HEARTBEAT="${1:?--heartbeat requires a value}" ;;
+        --status-file) HAS_TEST_ARGUMENTS=true; shift; STATUS_FILE="${1:?--status-file requires a path}" ;;
+        --architecture-only) ARCHITECTURE_ONLY=true ;;
+        --skip-architecture) RUN_ARCHITECTURE=false ;;
         -h|--help) usage; exit 0 ;;
         -*) echo "error: unknown option '$1' (see ./test --help)" >&2; exit 1 ;;
-        *) BUNDLES+=("$1"); SCOPE=bundles ;;
+        *) BUNDLES+=("$1"); SCOPE=bundles; HAS_TEST_ARGUMENTS=true ;;
     esac
     shift
 done
@@ -163,8 +175,34 @@ case "$RECORD" in
        exit 1 ;;
 esac
 
-echo "==> Testing backup upgrader"
-mise exec -- ruby Where/Tools/Tests/upgrade_backup_test.rb
+if [ "$ARCHITECTURE_ONLY" = true ] && [ "$RUN_ARCHITECTURE" = false ]; then
+    echo "error: --architecture-only cannot be combined with --skip-architecture" >&2
+    exit 1
+fi
+if [ "$ARCHITECTURE_ONLY" = true ] && [ "$HAS_TEST_ARGUMENTS" = true ]; then
+    echo "error: --architecture-only cannot be combined with test options or bundles" >&2
+    exit 1
+fi
+
+run_architecture_checks() {
+    export BUMPER_CACHE_DIR="${BUMPER_CACHE_DIR:-.build/bumper-cache}"
+    export BUMPER_RUNNER_BUILD_CONFIGURATION="${BUMPER_RUNNER_BUILD_CONFIGURATION:-debug}"
+
+    echo "==> Validating Bumper Bowling configuration"
+    swift run bumper config .
+    echo "==> Testing Bumper Bowling rules"
+    swift run bumper test .
+    echo "==> Enforcing Where architecture"
+    swift run bumper lint . --timings
+}
+
+if [ "$RUN_ARCHITECTURE" = true ]; then
+    run_architecture_checks
+fi
+if [ "$ARCHITECTURE_ONLY" = true ]; then
+    exit 0
+fi
+
 echo "==> Testing flyover command"
 bash Shared/Flyover/Tools/Tests/flyover_test.sh
 
@@ -193,6 +231,40 @@ manifest = pathlib.Path('Project.swift').read_text()
 print('\n'.join(sorted(set(re.findall(r'name:\s*"(\w+SnapshotTests)"', manifest)))))
 PY
 }
+
+# The backup upgrader is a host-side unit regression, not an image test. Keep it
+# in affected and unit-capable runs, but do not make a snapshot-only invocation
+# repeat work owned by the unit CI job.
+backup_upgrader_is_needed() {
+    local image_bundles bundle identifier
+    image_bundles="$(snapshot_bundles)"
+
+    case "$SCOPE" in
+        changed|all|everything) return 0 ;;
+        snapshots|only) ;;
+        bundles)
+            for bundle in "${BUNDLES[@]}"; do
+                if ! printf '%s\n' "$image_bundles" | grep -qx "$bundle"; then
+                    return 0
+                fi
+            done
+            return 1
+            ;;
+    esac
+
+    for identifier in ${ONLY[@]+"${ONLY[@]}"}; do
+        bundle="${identifier%%/*}"
+        if ! printf '%s\n' "$image_bundles" | grep -qx "$bundle"; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+if backup_upgrader_is_needed; then
+    echo "==> Testing backup upgrader"
+    mise exec -- ruby Where/Tools/Tests/upgrade_backup_test.rb
+fi
 
 # Which bundles a set of changed paths affects.
 affected_bundles() {

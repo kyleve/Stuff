@@ -49,9 +49,10 @@ struct AboutSettingsView: View {
             Form {
                 PrivacyPassportCard(presentation: PrivacyPassportPresentation(
                     configuration: diagnosticReportingConfiguration,
-                ))
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
+                ), disclosureInteraction: .linkToSettings)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets())
                 versionSection
                 dependenciesSection
                 developmentToolsSection
@@ -59,6 +60,7 @@ struct AboutSettingsView: View {
                 AboutOpenSourceFooter()
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets())
             }
         }
         .navigationTitle(String(localized: .settingsAboutHeader))
@@ -245,6 +247,10 @@ extension AboutSettingsView: SettingsSection {
                 name: "Default",
                 configurations: .fullContentScreenDefaults,
                 measurementReadiness: .immediate,
+                // The navigation bar's scroll-edge shadow adapts after the
+                // form reaches its full-content height. Wait through that
+                // otherwise quiet transition before accessibility annotation.
+                settle: .settledAtLeast(minDuration: 0.75),
             ) {
                 NavigationStack {
                     AboutSettingsView(
