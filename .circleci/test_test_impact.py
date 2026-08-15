@@ -103,6 +103,45 @@ class TestImpactTests(unittest.TestCase):
             self.assertEqual(report["missingSelectedIdentifiers"], [])
             self.assertEqual(report["unexpectedExecutedSuites"], [])
 
+    def test_materialize_intersects_a_suite_selection_with_the_worker_assignment(self):
+        scheme = {
+            "scope": "suites",
+            "identifiers": ["SnapshotTests/SecondTests"],
+        }
+
+        identifiers = MODULE.materialize(
+            scheme,
+            assigned=["SnapshotTests/FirstTests", "SnapshotTests/SecondTests"],
+        )
+
+        self.assertEqual(identifiers, ["SnapshotTests/SecondTests"])
+
+    def test_materialize_keeps_a_full_worker_assignment(self):
+        scheme = {
+            "scope": "all",
+            "identifiers": ["SnapshotTests/FirstTests", "SnapshotTests/SecondTests"],
+        }
+
+        identifiers = MODULE.materialize(
+            scheme,
+            assigned=["SnapshotTests/SecondTests"],
+        )
+
+        self.assertEqual(identifiers, ["SnapshotTests/SecondTests"])
+
+    def test_materialize_allows_an_empty_shard_intersection(self):
+        scheme = {
+            "scope": "suites",
+            "identifiers": ["SnapshotTests/FirstTests"],
+        }
+
+        identifiers = MODULE.materialize(
+            scheme,
+            assigned=["SnapshotTests/SecondTests"],
+        )
+
+        self.assertEqual(identifiers, [])
+
 
 if __name__ == "__main__":
     unittest.main()

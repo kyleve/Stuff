@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate and audit compiler-index test selection in CircleCI shadow mode."""
+"""Validate, materialize, and audit compiler-index test selection in CircleCI."""
 
 import argparse
 import json
@@ -61,7 +61,20 @@ def suite_is_selected(suite, identifiers):
     return any(suite == identifier or suite.startswith(identifier + "/") for identifier in identifiers)
 
 
-def audit(selection, scheme_selection, junit, assigned=None):
+def materialize(scheme_selection, assigned=None):
+    identifiers = scheme_selection["identifiers"]
+    scope = scheme_selection["scope"]
+    if assigned is None:
+        return identifiers
+    assigned = sorted(set(assigned))
+    if scope == "all":
+        return assigned
+    if scope == "none":
+        return []
+    return [suite for suite in assigned if suite_is_selected(suite, identifiers)]
+
+
+def audit(selection, scheme_selection, junit, assigned=None, mode="shadow"):
     cases = []
     if junit.is_file():
         cases = list(ET.parse(junit).iterfind(".//testcase"))
@@ -85,7 +98,7 @@ def audit(selection, scheme_selection, junit, assigned=None):
     ]
     missing = sorted(set(expected) - set(observed))
     return {
-        "mode": "shadow",
+        "mode": mode,
         "fallback": bool(selection.get("fallback")),
         "scope": scope,
         "selectedIdentifierCount": len(identifiers),
@@ -101,14 +114,18 @@ def audit(selection, scheme_selection, junit, assigned=None):
 def parse_args():
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(dest="command", required=True)
-    for name in ("validate", "audit"):
+    for name in ("validate", "materialize", "audit"):
         command = subparsers.add_parser(name)
         command.add_argument("--selection", type=pathlib.Path, required=True)
         command.add_argument("--scheme", required=True)
+        if name == "materialize":
+            command.add_argument("--output", type=pathlib.Path, required=True)
+            command.add_argument("--assigned-file", type=pathlib.Path)
         if name == "audit":
             command.add_argument("--junit", type=pathlib.Path, required=True)
             command.add_argument("--output", type=pathlib.Path, required=True)
             command.add_argument("--assigned-file", type=pathlib.Path)
+            command.add_argument("--mode", choices=("shadow", "enforce"), default="shadow")
     return parser.parse_args()
 
 
@@ -127,9 +144,17 @@ def main():
             assigned = [
                 line.strip() for line in args.assigned_file.read_text().splitlines() if line.strip()
             ]
-            if not assigned:
-                raise ValueError("assigned suite file contains no identifiers")
-        report = audit(selection, scheme_selection, args.junit, assigned)
+        if args.command == "materialize":
+            identifiers = materialize(scheme_selection, assigned)
+            args.output.parent.mkdir(parents=True, exist_ok=True)
+            args.output.write_text("".join(f"{identifier}\n" for identifier in identifiers))
+            report = {
+                "scope": scheme_selection["scope"],
+                "selectedIdentifierCount": len(identifiers),
+            }
+            print("CI_TEST_IMPACT_FILTER " + json.dumps(report, separators=(",", ":")))
+            return
+        report = audit(selection, scheme_selection, args.junit, assigned, args.mode)
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
         print("CI_TEST_IMPACT " + json.dumps(report, separators=(",", ":")))

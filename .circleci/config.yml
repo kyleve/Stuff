@@ -1,5 +1,17 @@
 version: 2.1
 
+parameters:
+  run_ios_ci:
+    type: boolean
+    default: false
+  test_impact_base:
+    type: string
+    default: origin/main
+  test_impact_mode:
+    type: enum
+    enum: [shadow, enforce]
+    default: shadow
+
 executors:
   m4-pro-medium:
     macos:
@@ -184,7 +196,7 @@ commands:
             --root "$CIRCLE_WORKING_DIRECTORY/ci-test-build"
             --scheme "<< parameters.scheme >>" --field xctestrun
       - run:
-          name: Validate shadow test selection
+          name: Validate test selection
           command: >-
             python3 .circleci/test_impact.py validate
             --selection "$CIRCLE_WORKING_DIRECTORY/ci-test-build/test-impact/selection.json"
@@ -253,9 +265,15 @@ commands:
         type: string
       output_directory:
         type: string
+      assigned_file:
+        type: string
+        default: ""
+      mode:
+        type: string
+        default: shadow
     steps:
       - run:
-          name: Audit shadow test selection
+          name: Audit test selection
           when: always
           command: |
             assigned_args=()
@@ -267,6 +285,7 @@ commands:
               --scheme "<< parameters.scheme >>" \
               --junit "<< parameters.junit >>" \
               --output "<< parameters.output_directory >>/report.json" \
+              --mode "<< parameters.mode >>" \
               "${assigned_args[@]}"
       - store_artifacts:
           path: << parameters.output_directory >>
@@ -308,6 +327,8 @@ commands:
 jobs:
   build-ios-tests:
     executor: m4-pro-large
+    environment:
+      TEST_IMPACT_BASE: << pipeline.parameters.test_impact_base >>
     steps:
       - prepare_builder:
           test_workdir: test-output-build
@@ -321,10 +342,10 @@ jobs:
             --build-artifacts "$CIRCLE_WORKING_DIRECTORY/ci-test-build"
             --no-generate --skip-architecture
       - run:
-          name: Compute shadow test selection
+          name: Compute test selection
           command: |
             ./test-impact select \
-              --base origin/main \
+              --base "$TEST_IMPACT_BASE" \
               --index-store "$CIRCLE_WORKING_DIRECTORY/ci-test-build/DerivedData/Index.noindex/DataStore" \
               --output "$CIRCLE_WORKING_DIRECTORY/ci-test-build/test-impact"
             ./test-impact explain \
@@ -355,16 +376,33 @@ jobs:
 
   test-ios:
     executor: m4-pro-medium
+    environment:
+      TEST_IMPACT_MODE: << pipeline.parameters.test_impact_mode >>
     steps:
       - prepare_worker:
           scheme: Stuff-iOS-Tests
           test_workdir: test-output-ios
+      - run:
+          name: Materialize unit test selection
+          command: |
+            python3 .circleci/test_impact.py materialize \
+              --selection "$CIRCLE_WORKING_DIRECTORY/ci-test-build/test-impact/selection.json" \
+              --scheme Stuff-iOS-Tests \
+              --output "$TEST_WORKDIR/selected.txt"
       - run_with_timeout:
           seconds: 2700
-          command: >-
-            ./test --all --shared --os 27.0
-            --test-artifacts "$CIRCLE_WORKING_DIRECTORY/ci-test-build"
-            --skip-architecture
+          command: |
+            selection_args=()
+            if [[ "$TEST_IMPACT_MODE" == enforce ]]; then
+              if [[ ! -s "$TEST_WORKDIR/selected.txt" ]]; then
+                echo "Compiler-index selection contains no unit suites; skipping simulator execution."
+                exit 0
+              fi
+              selection_args+=(--only-file "$TEST_WORKDIR/selected.txt")
+            fi
+            ./test --all --shared --os 27.0 \
+              --test-artifacts "$CIRCLE_WORKING_DIRECTORY/ci-test-build" \
+              --skip-architecture "${selection_args[@]}"
       - export_test_results:
           test_workdir: test-output-ios
           output_directory: test-results-ios
@@ -372,6 +410,7 @@ jobs:
           scheme: Stuff-iOS-Tests
           junit: test-results-ios/results.xml
           output_directory: test-impact-ios
+          mode: << pipeline.parameters.test_impact_mode >>
       - collect_diagnostics:
           test_workdir: test-output-ios
           artifact_name: test-ios
@@ -381,6 +420,7 @@ jobs:
     parallelism: 3
     environment:
       SNAPSHOT_SETTLE_TIMEOUT_MULTIPLIER: "2"
+      TEST_IMPACT_MODE: << pipeline.parameters.test_impact_mode >>
     steps:
       - prepare_worker:
           hydrate_snapshots: true
@@ -397,13 +437,33 @@ jobs:
               "$CIRCLE_NODE_INDEX" "$CIRCLE_NODE_TOTAL" "$suite_count"
             echo "Assigned snapshot suites:"
             sed 's/^/  /' "$TEST_WORKDIR/shard.txt"
+            python3 .circleci/test_impact.py materialize \
+              --selection "$CIRCLE_WORKING_DIRECTORY/ci-test-build/test-impact/selection.json" \
+              --scheme StuffSnapshotTests \
+              --assigned-file "$TEST_WORKDIR/shard.txt" \
+              --output "$TEST_WORKDIR/selected-shard.txt"
+            echo "Selected snapshot suites on this shard:"
+            sed 's/^/  /' "$TEST_WORKDIR/selected-shard.txt"
+            if [[ "$TEST_IMPACT_MODE" == enforce ]]; then
+              cp "$TEST_WORKDIR/selected-shard.txt" "$TEST_WORKDIR/audit-shard.txt"
+            else
+              cp "$TEST_WORKDIR/shard.txt" "$TEST_WORKDIR/audit-shard.txt"
+            fi
       - run_with_timeout:
           seconds: 3600
-          command: >-
-            ./test --snapshots --shared --os 27.0 --review --timings
-            --test-artifacts "$CIRCLE_WORKING_DIRECTORY/ci-test-build"
-            --only-file "$TEST_WORKDIR/shard.txt"
-            --skip-architecture
+          command: |
+            assigned_file="$TEST_WORKDIR/shard.txt"
+            if [[ "$TEST_IMPACT_MODE" == enforce ]]; then
+              assigned_file="$TEST_WORKDIR/selected-shard.txt"
+              if [[ ! -s "$assigned_file" ]]; then
+                echo "Compiler-index selection contains no suites on this shard; skipping simulator execution."
+                exit 0
+              fi
+            fi
+            ./test --snapshots --shared --os 27.0 --review --timings \
+              --test-artifacts "$CIRCLE_WORKING_DIRECTORY/ci-test-build" \
+              --only-file "$assigned_file" \
+              --skip-architecture
       - export_test_results:
           test_workdir: test-output-snapshots
           output_directory: test-results-snapshots
@@ -411,7 +471,8 @@ jobs:
           scheme: StuffSnapshotTests
           junit: test-results-snapshots/results.xml
           output_directory: test-impact-snapshots
-          assigned_file: test-output-snapshots/shard.txt
+          assigned_file: test-output-snapshots/audit-shard.txt
+          mode: << pipeline.parameters.test_impact_mode >>
       - run:
           name: Stage snapshot suite timings
           when: always
@@ -431,7 +492,8 @@ workflows:
   "iOS CI":
     when: >-
       (pipeline.event.name == "push" and pipeline.git.branch == "main") or
-      pipeline.event.name == "pull_request"
+      pipeline.event.name == "pull_request" or
+      pipeline.parameters.run_ios_ci
     jobs:
       - build-ios-tests:
           name: Build iOS Tests
