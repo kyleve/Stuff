@@ -1,5 +1,8 @@
 // swift-tools-version: 6.2
+import Foundation
 import PackageDescription
+
+let testImpactOnly = ProcessInfo.processInfo.environment["STUFF_TEST_IMPACT_ONLY"] == "1"
 
 let package = Package(
     name: "Stuff",
@@ -8,7 +11,7 @@ let package = Package(
         .iOS(.v26),
         .macOS(.v26),
     ],
-    products: [
+    products: (testImpactOnly ? [] : [
         .library(name: "StuffCore", targets: ["StuffCore"]),
         .library(name: "CreditKit", targets: ["CreditKit"]),
         .library(name: "LedgerCore", targets: ["LedgerCore"]),
@@ -30,6 +33,8 @@ let package = Package(
         .library(name: "WhereIntents", targets: ["WhereIntents"]),
         .library(name: "BroadwayCore", targets: ["BroadwayCore"]),
         .library(name: "BroadwayUI", targets: ["BroadwayUI"]),
+    ]) + [
+        .executable(name: "test-impact-tool", targets: ["TestImpactTool"]),
     ],
     dependencies: [
         .package(
@@ -44,8 +49,13 @@ let package = Package(
         .package(url: "https://github.com/pointfreeco/swift-snapshot-testing", from: "1.18.0"),
         .package(url: "https://github.com/cashapp/AccessibilitySnapshot", from: "0.12.0"),
         .package(url: "https://github.com/SFSafeSymbols/SFSafeSymbols", from: "7.0.0"),
+        .package(url: "https://github.com/swiftlang/swift-syntax", exact: "603.0.2"),
+        .package(
+            url: "https://github.com/swiftlang/indexstore-db",
+            revision: "c993f4fb4f321fae1945e96a2377742f24e132f4",
+        ),
     ],
-    targets: [
+    targets: (testImpactOnly ? [] : [
         .target(
             name: "StuffCore",
             path: "Shared/StuffCore/Sources",
@@ -222,6 +232,21 @@ let package = Package(
                 .target(name: "BroadwayCore"),
             ],
             path: "Shared/Broadway/BroadwayUI/Sources",
+        ),
+    ]) + [
+        .executableTarget(
+            name: "TestImpactTool",
+            dependencies: [
+                .product(name: "IndexStore", package: "indexstore-db"),
+                .product(name: "SwiftParser", package: "swift-syntax"),
+                .product(name: "SwiftSyntax", package: "swift-syntax"),
+            ],
+            path: "Tools/TestImpact/Sources",
+        ),
+        .testTarget(
+            name: "TestImpactToolTests",
+            dependencies: ["TestImpactTool"],
+            path: "Tools/TestImpact/Tests",
         ),
     ],
 )

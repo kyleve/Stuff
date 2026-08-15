@@ -46,7 +46,7 @@ generating. Plain `./ide` fails fast and points at bootstrap.
 The executables in the repo root are the dev scripts. They are `ide`, `test`,
 `swiftformat`, `sf-symbols`, `sync-agents`, `profile`, `icons`, `flaky`, `simulator`,
 `worktree`, `xcstrings`, `attribution`, `codex-watchdog`, `tla-check`,
-`circleci-artifacts`, `snapshot-shards`, `loc`. Each takes `--help`. Use one of these scripts instead of
+`circleci-artifacts`, `snapshot-shards`, `test-impact`, `loc`. Each takes `--help`. Use one of these scripts instead of
 hand-rolling its job. `./test` is the only way to run tests (see [Running
 tests](#running-tests)). `./icons`, `./attribution`, and `./simulator` own state that is
 easy to corrupt by hand. `./simulator` owns a per-checkout device (see the

@@ -1,0 +1,12 @@
+#!/bin/bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")" && pwd -P)"
+SCRATCH="$ROOT/.build/test-impact-tool"
+
+export STUFF_TEST_IMPACT_ONLY=1
+
+exec swift run \
+    --package-path "$ROOT" \
+    --scratch-path "$SCRATCH" \
+    test-impact-tool "$@"
