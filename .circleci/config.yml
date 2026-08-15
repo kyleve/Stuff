@@ -2,8 +2,8 @@ version: 2.1
 
 parameters:
   run_ios_ci:
-    type: boolean
-    default: false
+    type: string
+    default: "false"
   test_impact_base:
     type: string
     default: origin/main
@@ -493,7 +493,7 @@ workflows:
     when: >-
       (pipeline.event.name == "push" and pipeline.git.branch == "main") or
       pipeline.event.name == "pull_request" or
-      pipeline.parameters.run_ios_ci
+      pipeline.parameters.run_ios_ci == "true"
     jobs:
       - build-ios-tests:
           name: Build iOS Tests
