@@ -528,10 +528,11 @@ management (`./simulator` resolves a UDID — never pass a device name to
   the applicable checks.
 - **Multi-step work lands one commit per step**, so history stays bisectable and
   can land piecewise — including pure-groundwork steps, which say so in the body.
-- **Commit completed work eagerly.** Once a coherent change is verified, commit
-  it without waiting for a separate request. Never hand back a finished task
-  with task-related changes left local, unpushed, or uncommitted. Honor an
-  explicit request to keep work uncommitted.
+- **Commit and push completed work eagerly.** Once a coherent change is
+  verified, commit it and push the current feature branch. Do not wait for a
+  separate request. Never hand back a finished task with task-related changes
+  left local, unpushed, or uncommitted. Honor an explicit request to keep work
+  local or uncommitted.
 
 ### GitHub
 
