@@ -109,10 +109,9 @@ enum AppIconCatalog {
 
     /// The preview-catalog image name of the currently selected icon, resolved
     /// from the live `UIApplication.shared.alternateIconName` against the
-    /// manifest and falling back to the base preview art if packaging is broken.
-    /// Shared by every
-    /// in-app surface that renders the selected icon (launch splash, the
-    /// recent-activity loading indicator) so they stay in lockstep.
+    /// manifest and falling back to the bundled "Classic" art. Shared by every
+    /// in-app surface that renders the selected icon (launch splash and shared
+    /// loading states) so they stay in lockstep.
     @MainActor static func liveSelectedPreviewImageName(
         primaryAppIconName: String,
     ) -> String {

@@ -1,3 +1,4 @@
+import SFSafeSymbols
 @_spi(Testing) import SnapshotKitTesting
 import SwiftUI
 import TestHostSupport
@@ -107,6 +108,99 @@ struct LargeViewCaptureTests {
         #expect(sample.bottom.blue > 0.5)
     }
 
+    @Test func capturesAHorizontalScrollViewsFullContentInMultipleTiles() async throws {
+        try waitFor { hostKeyWindow() != nil }
+        let scroll = ScrollView(.horizontal) {
+            HStack(spacing: 0) {
+                Color.red.frame(width: 1500)
+                Color.blue.frame(width: 1500)
+            }
+        }
+        let host = UIHostingController(rootView: scroll)
+        host.view.frame = CGRect(x: 0, y: 0, width: 402, height: 600)
+        let image = try await renderSnapshotImage(
+            of: host,
+            named: "two-axis-horizontal-scroll-probe",
+            sizing: .fullContent2D(minimumSize: CGSize(width: 402, height: 600)),
+            safeAreaInsets: .zero,
+        )
+
+        #expect(image.size == CGSize(width: 3000, height: 600))
+        #expect(image.probePixel(atUnitPoint: CGPoint(x: 0.1, y: 0.5)).red > 0.5)
+        #expect(image.probePixel(atUnitPoint: CGPoint(x: 0.9, y: 0.5)).blue > 0.5)
+    }
+
+    @Test func capturesASpatialScrollViewsFullContentAlongBothAxes() async throws {
+        try waitFor { hostKeyWindow() != nil }
+        let canvas = ScrollView([.horizontal, .vertical]) {
+            Grid(horizontalSpacing: 0, verticalSpacing: 0) {
+                GridRow {
+                    Color.red
+                    Color.green
+                }
+                GridRow {
+                    Color.blue
+                    Color.yellow
+                }
+            }
+            .frame(width: 2400, height: 2200)
+        }
+        let host = UIHostingController(rootView: canvas)
+        host.view.frame = CGRect(x: 0, y: 0, width: 834, height: 1194)
+        let image = try await renderSnapshotImage(
+            of: host,
+            named: "two-axis-spatial-scroll-probe",
+            sizing: .fullContent2D(minimumSize: CGSize(width: 834, height: 1194)),
+            safeAreaInsets: .zero,
+        )
+
+        #expect(image.size == CGSize(width: 2400, height: 2200))
+        #expect(image.probePixel(atUnitPoint: CGPoint(x: 0.1, y: 0.1)).red > 0.5)
+        #expect(image.probePixel(atUnitPoint: CGPoint(x: 0.9, y: 0.1)).green > 0.5)
+        #expect(image.probePixel(atUnitPoint: CGPoint(x: 0.1, y: 0.9)).blue > 0.5)
+        let bottomTrailing = image.probePixel(atUnitPoint: CGPoint(x: 0.9, y: 0.9))
+        #expect(bottomTrailing.red > 0.5)
+        #expect(bottomTrailing.green > 0.5)
+    }
+
+    @Test func rejectsUnsafeTwoAxisPixelAllocations() async throws {
+        try waitFor { hostKeyWindow() != nil }
+        let scale = try #require(hostKeyWindow()).screen.scale
+        let canvas = ScrollView([.horizontal, .vertical]) {
+            Color.red.frame(width: 20000, height: 20000)
+        }
+        let host = UIHostingController(rootView: canvas)
+        host.view.frame = CGRect(x: 0, y: 0, width: 402, height: 874)
+
+        do {
+            _ = try await renderSnapshotImage(
+                of: host,
+                named: "unsafe-two-axis-allocation-probe",
+                sizing: .fullContent2D(minimumSize: CGSize(width: 402, height: 874)),
+                safeAreaInsets: .zero,
+            )
+            Issue.record("Expected unsafe two-axis allocation to fail.")
+        } catch let error as SnapshotRenderingError {
+            guard case let .fullContentSizeExceedsLimit(
+                name,
+                pixelWidth,
+                pixelHeight,
+                maximumPixelDimension,
+                maximumPixelCount,
+            ) = error else {
+                Issue.record("Expected allocation limit failure, got \(error).")
+                return
+            }
+            #expect(name == "unsafe-two-axis-allocation-probe")
+            #expect(pixelWidth == Int(20000 * scale))
+            #expect(pixelHeight == Int(20000 * scale))
+            #expect(maximumPixelDimension == 32000)
+            #expect(maximumPixelCount == 100_000_000)
+        } catch {
+            Issue.record("Expected SnapshotRenderingError, got \(error).")
+        }
+    }
+
     @Test func preservesChromeAroundFullContentScrollingContent() async throws {
         try waitFor { hostKeyWindow() != nil }
         let screen = NavigationStack {
@@ -126,7 +220,7 @@ struct LargeViewCaptureTests {
             .toolbarBackground(.visible, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
-                    Button("Add", systemImage: "plus", action: {})
+                    Button("Add", systemSymbol: .plus, action: {})
                 }
             }
         }

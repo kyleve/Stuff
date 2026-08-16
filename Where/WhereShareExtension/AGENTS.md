@@ -1,6 +1,6 @@
 # WhereShareExtension – Module Shape
 
-The **Where** share extension: a Share-sheet action that writes shared content
+The **Where** share extension is a Share-sheet action. It writes shared content
 (PDFs, images, Wallet passes, emails, links) into the app's store as a new
 `Evidence`. See [`README.md`](README.md) for the data path and design.
 
@@ -11,15 +11,16 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
 
 - **Tuist app-extension target** ([`Project.swift`](../../Project.swift), with
   an audience-specific bundle ID and App Group), depending on **WhereCore**,
-  **WhereUI**, and **PeriscopeCore**. Embedded by the **Where** app. Logs via the `WhereLog` facade
-  (typed `ShareExtensionLog` events); as a separate process its
+  **WhereUI**, **PeriscopeCore**, and **SFSafeSymbols**. Embedded by the **Where**
+  app. Logs via the `WhereLog` facade (typed `ShareExtensionLog` events); as a
+  separate process its
   `Periscope.shared` is OSLog-only (no store).
-- Presentation reuses WhereUI's public `EvidenceKind.symbolName`/`displayName`;
-  only extension chrome lives in this target's catalog, referenced through its
+- Presentation reuses WhereUI's public `EvidenceKind.symbol`/`displayName`.
+  Only extension chrome lives in this target's catalog. Reference it through its
   generated `LocalizedStringResource` symbols.
-- No test bundle; the store write contract is covered from **WhereCore** store
+- No test bundle. The store write contract is covered from **WhereCore** store
   tests. This target's own compose/save model (`ShareEvidenceModel`) is
-  untested — tracked in [`Where/TODOs.md`](../TODOs.md).
+  untested. Tracked in [`Where/TODOs.md`](../TODOs.md).
 
 ## Invariants
 
@@ -44,5 +45,5 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
 ## Testing
 
 No hosted bundle. Exercise `EvidenceContentType.classify` and the store write
-contract in **WhereCore**; preview the compose sheet via the in-file `#Preview`
-(DEBUG), which uses an `.inMemory` model with no shared-container access.
+contract in **WhereCore**. Preview the compose sheet via the in-file `#Preview`
+(DEBUG). It uses an `.inMemory` model with no shared-container access.

@@ -1,9 +1,8 @@
 # JournalBenchmark
 
-A standalone prototype measuring the candidate implementations for
-Periscope's crash-durability journal — the synchronous write-ahead net that
-closes the emit-to-sink loss window. **Not a shipping target**: it is not
-wired into the root `Package.swift` or any scheme.
+A standalone prototype measuring the candidate implementations for Periscope's crash-durability journal.
+It is the synchronous write-ahead net that closes the emit-to-sink loss window.
+**Not a shipping target**: it is not wired into the root `Package.swift` or any scheme.
 
 ## Candidates
 
@@ -15,10 +14,9 @@ wired into the root `Package.swift` or any scheme.
 | `coredata` / `coredata-batched` | `NSManagedObjectContext.performAndWait` insert, `save()` per record / per 100 |
 | `swiftdata` / `swiftdata-batched` | `ModelContext` under a lock, `save()` per record / per 100 |
 
-Each run measures per-append latency distributions (single-threaded and
-4-thread contended), throughput, and *actual* crash durability: a child
-process appends 1050 records then `SIGKILL`s itself with no teardown; the
-parent reopens the journal and counts what survived.
+Each run measures per-append latency distributions (single-threaded and 4-thread contended), throughput, and *actual* crash durability.
+A child process appends 1050 records then `SIGKILL`s itself with no teardown.
+The parent reopens the journal and counts what survived.
 
 ## Running
 
@@ -28,10 +26,9 @@ swift build -c release && ./.build/release/JournalBenchmark
 
 ## Results (2026-07-15, M-series macOS, release build)
 
-Caveats: macOS NVMe/APFS, not iPhone storage — absolute numbers will shift
-on device, relative ordering should not. Darwin `fsync` does not force
-platter durability (that's `F_FULLFSYNC`); every variant here is measured
-at its app-crash-durable configuration, which is the design target.
+Caveats: macOS NVMe/APFS, not iPhone storage — absolute numbers will shift on device, relative ordering must not.
+Darwin `fsync` does not force platter durability (that is `F_FULLFSYNC`).
+Every variant here is measured at its app-crash-durable configuration, which is the design target.
 
 ### Emit-path latency — 5000 records, ~350-byte JSON entries, single thread
 
@@ -77,15 +74,12 @@ at its app-crash-durable configuration, which is the design target.
 
 ## Reading
 
-- Every **per-record-commit** variant survives SIGKILL fully — including
-  unfsynced appends and `synchronous=NORMAL` WAL: page-cache writes survive
-  process death, empirically. Both **batched** variants lose exactly their
-  unsaved tail: the reopened window, made visible.
-- The **file** append is the only variant whose worst case stays in
-  microseconds (max 40µs single-threaded, 363µs contended). Every
-  SQLite-backed variant — raw, GRDB, Core Data, SwiftData — has
-  multi-millisecond tails on the emit path (WAL checkpoints, save
-  machinery), i.e. an occasional log call that stalls for milliseconds.
-- **SwiftData** per-record is the slowest by far (167µs median, 2.5ms p99,
-  790ms contended max) and its context is not thread-safe; **Core Data**
-  per-record is ~40× the file's median with millisecond tails.
+- Every **per-record-commit** variant survives SIGKILL fully — including unfsynced appends and `synchronous=NORMAL` WAL.
+  Page-cache writes survive process death, empirically.
+  Both **batched** variants lose exactly their unsaved tail.
+  The reopened window makes the loss visible.
+- The **file** append is the only variant whose worst case stays in microseconds (max 40µs single-threaded, 363µs contended).
+  Every SQLite-backed variant — raw, GRDB, Core Data, SwiftData — has multi-millisecond tails on the emit path (WAL checkpoints, save machinery).
+  An occasional log call stalls for milliseconds.
+- **SwiftData** per-record is the slowest by far (167µs median, 2.5ms p99, 790ms contended max) and its context is not thread-safe.
+  **Core Data** per-record is ~40× the file's median with millisecond tails.

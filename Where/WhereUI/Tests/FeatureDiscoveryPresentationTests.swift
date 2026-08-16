@@ -26,8 +26,6 @@ struct FeatureDiscoveryPresentationTests {
         #expect(presentation.widgetSnapshot.dayRegions.isEmpty)
         #expect(presentation.siriExample(for: .daysInRegion) == nil)
         #expect(presentation.spotlightExample.query == Region.california.localizedName)
-        #expect(presentation.activityExample
-            .summary == String(localized: .settingsExploreInsightsActivityGeneric))
     }
 
     @Test func twoWeeksPersonalizesContent() throws {
@@ -47,7 +45,6 @@ struct FeatureDiscoveryPresentationTests {
         )
         let daysExample = try #require(presentation.siriExample(for: .daysInRegion))
         let todayExample = try #require(presentation.siriExample(for: .todayRegions))
-        let recentExample = try #require(presentation.siriExample(for: .recentActivity))
 
         #expect(presentation.usesUserData)
         #expect(presentation.widgetSnapshot.year == 2026)
@@ -56,40 +53,8 @@ struct FeatureDiscoveryPresentationTests {
         #expect(daysExample.response.contains(Region.california.localizedName))
         #expect(daysExample.response.contains("14"))
         #expect(todayExample.response.contains(Region.california.localizedName))
-        #expect(recentExample.request == String(localized: .settingsExploreSiriRecentRequest))
-        #expect(recentExample.response.contains(Region.california.localizedName))
         #expect(presentation.spotlightExample.query == Region.california.localizedName)
         #expect(presentation.spotlightExample.resultSubtitle.contains("14"))
-        #expect(presentation.activityExample.summary.contains("14"))
-        #expect(presentation.activityExample.summary.contains(Region.california.localizedName))
-    }
-
-    @Test func recentActivityUsesTheIntentsPastWeekWindow() throws {
-        let calendar = calendar()
-        let referenceDate = try referenceDate(in: calendar)
-        let days = (0 ..< FeatureDiscoveryPresentation.minimumLoggedDayCount).map { offset in
-            DayPresence(
-                day: CalendarDay(year: 2026, month: 7, day: 26).adding(days: offset),
-                regions: offset < 6 ? [.california] : [.newYork],
-            )
-        }
-        let report = YearReport(
-            year: 2026,
-            days: days,
-            totals: [.california: 6, .newYork: 8],
-        )
-
-        let presentation = FeatureDiscoveryPresentation(
-            report: report,
-            selectedYear: report.year,
-            referenceDate: referenceDate,
-            calendar: calendar,
-        )
-        let recentExample = try #require(presentation.siriExample(for: .recentActivity))
-
-        #expect(recentExample.request == String(localized: .settingsExploreSiriRecentRequest))
-        #expect(recentExample.response.contains(Region.newYork.localizedName))
-        #expect(recentExample.response.contains(Region.california.localizedName) == false)
     }
 
     @Test func futureDaysDoNotUnlockPersonalization() throws {

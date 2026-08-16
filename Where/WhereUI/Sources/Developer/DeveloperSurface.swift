@@ -1,3 +1,4 @@
+import SFSafeSymbols
 #if DEBUG
     import SwiftUI
 
@@ -24,7 +25,7 @@
                 HStack(spacing: 0) {
                     Button(
                         String(localized: .developerClose),
-                        systemImage: "xmark.circle.fill",
+                        systemSymbol: .xmarkCircleFill,
                         action: onClose,
                     )
                     .labelStyle(.iconOnly)
@@ -60,9 +61,9 @@
                         isFullScreen
                             ? String(localized: .developerCollapse)
                             : String(localized: .developerExpand),
-                        systemImage: isFullScreen
-                            ? "arrow.down.right.and.arrow.up.left"
-                            : "arrow.up.left.and.arrow.down.right",
+                        systemSymbol: isFullScreen
+                            ? .arrowDownRightAndArrowUpLeft
+                            : .arrowUpLeftAndArrowDownRight,
                         action: onToggleFullScreen,
                     )
                     .labelStyle(.iconOnly)
@@ -83,7 +84,7 @@
             }
             .overlay(alignment: .bottomTrailing) {
                 if isFullScreen == false {
-                    Image(systemName: "arrow.down.right")
+                    Image(systemSymbol: .arrowDownRight)
                         .font(.system(size: panel.resizeIconSize, weight: .bold))
                         .foregroundStyle(.secondary)
                         .frame(width: panel.resizeGripSize, height: panel.resizeGripSize)

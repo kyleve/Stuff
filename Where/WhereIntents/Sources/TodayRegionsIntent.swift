@@ -22,7 +22,8 @@ public struct TodayRegionsIntent: AppIntent {
 
     @MainActor
     public func perform() async throws -> some IntentResult & ProvidesDialog & ShowsSnippetView {
-        let services = try await intentServices.current()
+        let context = try await intentServices.currentContext()
+        let services = context.services
         let regions = try await measureIntent(.todayRegions) {
             try await WhereIntentReader(
                 services: services,
@@ -45,7 +46,8 @@ public struct TodayRegionsIntent: AppIntent {
         let ordered = orderedRegions(regions)
         return .result(
             dialog: IntentDialog("\(IntentStrings.today(regions: ordered))"),
-            view: RegionsSnippetView.today(regions: ordered).whereBroadwayRoot(),
+            view: RegionsSnippetView.today(regions: ordered)
+                .whereBroadwayRoot(theme: context.theme),
         )
     }
 }

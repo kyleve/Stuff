@@ -77,7 +77,6 @@
                 YearView.flyoverData,
                 CalendarContentView.yearFlyoverData,
                 PresenceTimelineList.flyoverData,
-                RecentActivitySummaryView.flyoverData,
             ]
         }
 
@@ -98,9 +97,11 @@
                 SiriFeaturesView.flyoverData,
                 WidgetFeaturesView.flyoverData,
                 ShareEvidenceFeaturesView.flyoverData,
+                EstimatedTimeFeaturesView.flyoverData,
                 InsightsAccuracyFeaturesView.flyoverData,
                 PersonalizationFeaturesView.flyoverData,
                 DataSettingsView.flyoverData,
+                PrivacyDiagnosticsSettingsView.flyoverData,
                 AboutSettingsView.flyoverData,
                 LicenseView.flyoverData,
             ]

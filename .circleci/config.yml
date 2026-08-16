@@ -1,0 +1,385 @@
+version: 2.1
+
+executors:
+  m4-pro-medium:
+    macos:
+      xcode: "27.0"
+    resource_class: m4pro.medium
+    shell: /bin/bash --login -eo pipefail
+    environment:
+      # Tool installation is required; local-development agent skills are not.
+      MISE_NO_HOOKS: "1"
+      GIT_LFS_SKIP_SMUDGE: "1"
+  m4-pro-large:
+    macos:
+      xcode: "27.0"
+    resource_class: m4pro.large
+    shell: /bin/bash --login -eo pipefail
+    environment:
+      MISE_NO_HOOKS: "1"
+      GIT_LFS_SKIP_SMUDGE: "1"
+
+commands:
+  checkout_without_lfs:
+    steps:
+      - run:
+          name: Checkout code without Git LFS
+          command: |
+            git clone --filter=blob:none --no-checkout \
+              "<< pipeline.git.repo_url >>" .
+            git checkout --detach "<< pipeline.git.revision >>"
+            git config gc.auto 0
+
+  hydrate_snapshot_references:
+    steps:
+      - run:
+          name: Hydrate snapshot references
+          command: |
+            env -u GIT_LFS_SKIP_SMUDGE git lfs pull
+            pointer_files="$(git grep -Il '^version https://git-lfs.github.com/spec/v1$' -- ':(glob)**/__Snapshots__/**/*.png' || true)"
+            if [[ -n "$pointer_files" ]]; then
+              echo "Snapshot references remain as Git LFS pointers:" >&2
+              printf '%s\n' "$pointer_files" >&2
+              exit 1
+            fi
+
+  configure_test_workdir:
+    parameters:
+      test_workdir:
+        type: string
+    steps:
+      - run:
+          name: Configure test work directory
+          command: |
+            printf '%s\n' 'export TEST_WORKDIR="$CIRCLE_WORKING_DIRECTORY/<< parameters.test_workdir >>"' >> "$BASH_ENV"
+            mkdir -p "$CIRCLE_WORKING_DIRECTORY/<< parameters.test_workdir >>"
+            chmod 700 "$CIRCLE_WORKING_DIRECTORY/<< parameters.test_workdir >>"
+
+  test_ci_helpers:
+    steps:
+      - run:
+          name: Test CI helpers
+          command: |
+            python3 .circleci/Tests/test_xcresult_to_junit.py
+            python3 .circleci/Tests/test_test_artifacts.py
+            python3 Tools/Tests/test_snapshot_shards.py
+            ./snapshot-shards check
+
+  validate_runner_environment:
+    steps:
+      - run:
+          name: Validate runner environment
+          command: |
+            echo "CPU: $(sysctl -n machdep.cpu.brand_string)"
+            echo "Logical CPUs: $(sysctl -n hw.logicalcpu)"
+            echo "Memory bytes: $(sysctl -n hw.memsize)"
+            echo "Architecture: $(uname -m)"
+            sw_vers
+            xcodebuild -version
+            echo "Available simulator runtimes:"
+            xcrun simctl list runtimes available
+
+            xcode_build="$(xcodebuild -version | awk '/Build version/{print $3}')"
+            if [[ "$xcode_build" != "27A5228h" ]]; then
+              echo "Expected Xcode build 27A5228h, found $xcode_build" >&2
+              exit 1
+            fi
+            if ! xcrun simctl list runtimes available | grep -Eq '^iOS 27(\.0)? '; then
+              echo "An available iOS 27 simulator runtime is required" >&2
+              exit 1
+            fi
+
+            selected_simulator="$(./simulator --shared --os 27.0 --no-boot)"
+            echo "Selected simulator: $selected_simulator"
+            xcrun simctl list devices available | grep "$selected_simulator"
+
+            echo "Checkout: $(git rev-parse HEAD)"
+            echo "Origin: $(git remote get-url origin)"
+            if git config --local --get-regexp 'credential|extraheader' >/tmp/git-credential-config.txt 2>/dev/null; then
+              echo "Unexpected persisted Git credential configuration:" >&2
+              sed -E 's/(authorization:).*/\1 [REDACTED]/I' /tmp/git-credential-config.txt >&2
+              exit 1
+            fi
+
+  prepare_builder:
+    parameters:
+      test_workdir:
+        type: string
+    steps:
+      - checkout_without_lfs
+      - restore_cache:
+          keys:
+            - mise-installs-v2-{{ arch }}-{{ checksum ".mise.toml" }}
+      - restore_cache:
+          keys:
+            - swiftpm-repositories-v2-{{ arch }}-{{ checksum "Package.resolved" }}
+      - restore_cache:
+          keys:
+            - swiftpm-artifacts-v2-{{ arch }}-{{ checksum "Package.resolved" }}
+      - run:
+          name: Install pinned tools
+          command: |
+            if ! command -v mise >/dev/null 2>&1; then
+              brew install mise
+            fi
+            mise trust .mise.toml
+            mise install
+      - save_cache:
+          key: mise-installs-v2-{{ arch }}-{{ checksum ".mise.toml" }}
+          paths:
+            - ~/.local/share/mise/installs
+      - configure_test_workdir:
+          test_workdir: << parameters.test_workdir >>
+      - test_ci_helpers
+      - run:
+          name: Generate project and resolve Swift packages
+          command: |
+            # Populate the immutable download caches before either test job saves them.
+            started="$(python3 -c 'import time; print(time.time_ns())')"
+            if mise exec -- tuist generate --no-open >"$TEST_WORKDIR/generate.log" 2>&1; then
+              python3 -c 'import json,sys,time; print("CI_TIMING " + json.dumps({"phase":"generate","seconds":round((time.time_ns()-int(sys.argv[1]))/1e9,3),"status":0}, separators=(",",":")))' "$started"
+            else
+              status=$?
+              python3 -c 'import json,sys,time; print("CI_TIMING " + json.dumps({"phase":"generate","seconds":round((time.time_ns()-int(sys.argv[1]))/1e9,3),"status":int(sys.argv[2])}, separators=(",",":")))' "$started" "$status"
+              echo "error: tuist generate failed. Tail of $TEST_WORKDIR/generate.log:" >&2
+              tail -n 20 "$TEST_WORKDIR/generate.log" >&2
+              exit "$status"
+            fi
+      - save_cache:
+          key: swiftpm-repositories-v2-{{ arch }}-{{ checksum "Package.resolved" }}
+          paths:
+            - ~/Library/Caches/org.swift.swiftpm/repositories
+      - save_cache:
+          key: swiftpm-artifacts-v2-{{ arch }}-{{ checksum "Package.resolved" }}
+          paths:
+            - ~/Library/Caches/org.swift.swiftpm/artifacts
+      - validate_runner_environment
+
+  prepare_worker:
+    parameters:
+      test_workdir:
+        type: string
+    steps:
+      - checkout_without_lfs
+      - attach_workspace:
+          at: ci-test-build
+      - configure_test_workdir:
+          test_workdir: << parameters.test_workdir >>
+      - validate_runner_environment
+
+  run_with_timeout:
+    parameters:
+      seconds:
+        type: integer
+      command:
+        type: string
+    steps:
+      - run:
+          name: Run tests
+          no_output_timeout: 45m
+          command: |
+            ruby -e '
+              timeout = Integer(ARGV.shift)
+              started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+              pid = Process.spawn(*ARGV, pgroup: true)
+              loop do
+                reaped = Process.waitpid(pid, Process::WNOHANG)
+                if reaped
+                  status = $?
+                  exit(status.exitstatus || 128 + status.termsig)
+                end
+                if Process.clock_gettime(Process::CLOCK_MONOTONIC) - started >= timeout
+                  warn "error: test command exceeded #{timeout} seconds"
+                  begin Process.kill("TERM", -pid); rescue Errno::ESRCH; end
+                  sleep 10
+                  begin Process.kill("KILL", -pid); rescue Errno::ESRCH; end
+                  begin Process.wait(pid); rescue Errno::ECHILD; end
+                  exit 124
+                end
+                sleep 1
+              end
+            ' << parameters.seconds >> /bin/bash -lc '<< parameters.command >>'
+
+  export_test_results:
+    parameters:
+      test_workdir:
+        type: string
+      output_directory:
+        type: string
+    steps:
+      - run:
+          name: Convert Xcode results to JUnit
+          when: always
+          command: |
+            mkdir -p "<< parameters.output_directory >>"
+            python3 .circleci/xcresult_to_junit.py \
+              "<< parameters.test_workdir >>" \
+              "<< parameters.output_directory >>/results.xml"
+      - store_test_results:
+          path: << parameters.output_directory >>
+
+  collect_diagnostics:
+    parameters:
+      test_workdir:
+        type: string
+      artifact_name:
+        type: string
+      include_snapshot_images:
+        type: boolean
+        default: false
+    steps:
+      - run:
+          name: Collect diagnostics
+          when: on_fail
+          command: |
+            mkdir -p diagnostics/crashes
+            cp -R "$HOME/Library/Logs/DiagnosticReports/." diagnostics/crashes/ 2>/dev/null || true
+            cp -R "<< parameters.test_workdir >>" diagnostics/test-output
+            if << parameters.include_snapshot_images >>; then
+              mkdir -p diagnostics/snapshot-images
+              { grep -hEo '/[^[:space:]]+\.png' "<< parameters.test_workdir >>"/*.log 2>/dev/null || true; } \
+                | sort -u \
+                | while IFS= read -r image; do
+                    [[ -f "$image" ]] || continue
+                    destination="diagnostics/snapshot-images/${image#/}"
+                    mkdir -p "$(dirname "$destination")"
+                    cp "$image" "$destination"
+                  done
+            fi
+            find diagnostics "<< parameters.test_workdir >>" -maxdepth 3 | head -200
+      - store_artifacts:
+          path: diagnostics
+          destination: << parameters.artifact_name >>/diagnostics
+
+jobs:
+  build-ios-tests:
+    executor: m4-pro-large
+    steps:
+      - prepare_builder:
+          test_workdir: test-output-build
+      - run:
+          name: Test backup upgrader
+          command: mise exec -- ruby Where/Tools/Tests/upgrade_backup_test.rb
+      - run_with_timeout:
+          seconds: 2700
+          command: >-
+            ./test --everything
+            --build-artifacts "$CIRCLE_WORKING_DIRECTORY/ci-test-build"
+            --no-generate --skip-architecture
+      - run:
+          name: Validate changed snapshot inventory with Xcode
+          command: |
+            if git diff --quiet origin/main...HEAD -- \
+              Project.swift ':(glob)**/SnapshotTests/**/*.swift'; then
+              echo "Snapshot definitions did not change. The source-plan validation is sufficient."
+              exit 0
+            fi
+            ./test --snapshots --shared --os 27.0 \
+              --test-artifacts "$CIRCLE_WORKING_DIRECTORY/ci-test-build" \
+              --enumerate-suites "$TEST_WORKDIR/suites.txt" \
+              --skip-architecture
+            ./snapshot-shards compare-enumeration \
+              --enumeration "$TEST_WORKDIR/suites.txt"
+      - persist_to_workspace:
+          root: ci-test-build
+          paths:
+            - manifest.json
+            - DerivedData/Build/Products
+      - collect_diagnostics:
+          test_workdir: test-output-build
+          artifact_name: build-ios-tests
+
+  test-ios:
+    executor: m4-pro-medium
+    steps:
+      - prepare_worker:
+          test_workdir: test-output-ios
+      - run_with_timeout:
+          seconds: 2700
+          command: >-
+            ./test --all --shared --os 27.0
+            --test-artifacts "$CIRCLE_WORKING_DIRECTORY/ci-test-build"
+            --skip-architecture
+      - export_test_results:
+          test_workdir: test-output-ios
+          output_directory: test-results-ios
+      - collect_diagnostics:
+          test_workdir: test-output-ios
+          artifact_name: test-ios
+
+  snapshot:
+    executor: m4-pro-medium
+    parallelism: 4
+    environment:
+      SNAPSHOT_SETTLE_TIMEOUT_MULTIPLIER: "2"
+    steps:
+      - checkout_without_lfs
+      - configure_test_workdir:
+          test_workdir: test-output-snapshots
+      - run:
+          name: Select deterministic snapshot shard
+          command: |
+            shard="$((CIRCLE_NODE_INDEX + 1))"
+            ./snapshot-shards list "$shard" --total "$CIRCLE_NODE_TOTAL" \
+              > "$TEST_WORKDIR/shard.txt"
+            suite_count="$(wc -l < "$TEST_WORKDIR/shard.txt" | tr -d ' ')"
+            printf 'CI_SHARD {"index":%s,"shards":%s,"suites":%s}\n' \
+              "$CIRCLE_NODE_INDEX" "$CIRCLE_NODE_TOTAL" "$suite_count"
+            echo "Assigned snapshot suites:"
+            sed 's/^/  /' "$TEST_WORKDIR/shard.txt"
+            if [[ ! -s "$TEST_WORKDIR/shard.txt" ]]; then
+              echo "The snapshot intake shard is empty."
+              circleci-agent step halt
+            fi
+      - hydrate_snapshot_references
+      - attach_workspace:
+          at: ci-test-build
+      - validate_runner_environment
+      - run_with_timeout:
+          seconds: 3600
+          command: >-
+            ./test --snapshots --shared --os 27.0 --review --timings
+            --test-artifacts "$CIRCLE_WORKING_DIRECTORY/ci-test-build"
+            --only-file "$TEST_WORKDIR/shard.txt"
+            --skip-architecture
+      - export_test_results:
+          test_workdir: test-output-snapshots
+          output_directory: test-results-snapshots
+      - run:
+          name: Validate snapshot shard execution
+          command: >-
+            ./snapshot-shards verify-execution
+            --assignment "$TEST_WORKDIR/shard.txt"
+            --junit test-results-snapshots/results.xml
+      - run:
+          name: Stage snapshot suite timings
+          when: always
+          command: |
+            mkdir -p snapshot-timing-artifact
+            cp test-results-snapshots/results.xml \
+              "snapshot-timing-artifact/results-$CIRCLE_NODE_INDEX.xml"
+      - store_artifacts:
+          path: snapshot-timing-artifact
+          destination: snapshot-timings
+      - collect_diagnostics:
+          test_workdir: test-output-snapshots
+          artifact_name: snapshots
+          include_snapshot_images: true
+
+workflows:
+  "iOS CI":
+    when: >-
+      (pipeline.event.name == "push" and pipeline.git.branch == "main") or
+      (pipeline.event.name == "pull_request" and
+      pipeline.event.github.pull_request.base.ref == "main")
+    jobs:
+      - build-ios-tests:
+          name: Build iOS Tests
+      - test-ios:
+          name: Build & Test (iOS)
+          requires:
+            - Build iOS Tests
+      - snapshot:
+          name: Snapshot Tests (iOS)
+          requires:
+            - Build iOS Tests

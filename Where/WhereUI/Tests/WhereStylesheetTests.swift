@@ -5,6 +5,7 @@ import SwiftUI
 import TestHostSupport
 import Testing
 import UIKit
+import WhereCore
 @testable import WhereUI
 
 /// `WhereStylesheet` currently ships the fixed geometry migrated from the former
@@ -12,6 +13,25 @@ import UIKit
 /// later trait-aware derivation — can't silently drift the defaults.
 struct WhereStylesheetTests {
     private let style = WhereStylesheet.default
+
+    @MainActor
+    @Test func themesRetainDistinctIdentityWithEquivalentTokens() throws {
+        var standardThemes = BThemes()
+        standardThemes[WhereTheme.self] = .standard
+        var alternateThemes = BThemes()
+        alternateThemes[WhereTheme.self] = .alternate
+
+        let standardContext = BContext(traits: .system, themes: standardThemes)
+        let alternateContext = BContext(traits: .system, themes: alternateThemes)
+        let standard = try standardContext.stylesheets.get(WhereStylesheet.self)
+        let alternate = try alternateContext.stylesheets.get(WhereStylesheet.self)
+
+        #expect(standard.theme == .standard)
+        #expect(alternate.theme == .alternate)
+        var normalizedStandard = standard
+        normalizedStandard.theme = WhereTheme.alternate
+        #expect(normalizedStandard == alternate)
+    }
 
     @Test func spacingScale() {
         #expect(style.spacing.xxSmall == 2)
@@ -27,6 +47,7 @@ struct WhereStylesheetTests {
 
     @Test func regularCardStyle() {
         let card = style.card.regular
+        #expect(style.card.estimatedProgressOpacity == 0.3)
         #expect(card.cornerRadius == 28)
         #expect(card.padding == 22)
         #expect(card.contentSpacing == 16)
@@ -216,6 +237,12 @@ struct WhereStylesheetTests {
         #expect(calendar.regionBand.cornerRadius == 14)
         #expect(calendar.regionBand.continuationRadius == 3)
         #expect(calendar.regionBand.verticalInset == 4)
+        #expect(calendar.regionBand.planned == .init(
+            fillOpacity: 0.07,
+            hatchOpacity: 0.32,
+            hatchSpacing: 6,
+            hatchLineWidth: 1,
+        ))
 
         let day = calendar.day
         #expect(day.minHeight == 44)
@@ -258,6 +285,21 @@ struct WhereStylesheetTests {
         #expect(month.unfocusedRowOpacity == 0.55)
     }
 
+    @Test func locationForecastStyle() {
+        let forecast = style.locationForecast
+        #expect(forecast.cornerRadius == 22)
+        #expect(forecast.padding == 16)
+        #expect(forecast.rowSpacing == 12)
+        #expect(forecast.estimateSpacing == 3)
+        #expect(forecast.collapsedLabelColor == Color.primary.opacity(0.5))
+        #expect(forecast.borderColor == Color.primary.opacity(0.06))
+        #expect(forecast.borderWidth == 0.5)
+        #expect(forecast.shadowColor == Color.black.opacity(0.06))
+        #expect(forecast.shadowRadius == 8)
+        #expect(forecast.shadowOffsetY == 2)
+        #expect(forecast.expansionAnimation == .easeInOut(duration: 0.2))
+    }
+
     @Test func appIconStyle() {
         let appIcon = style.appIcon
         #expect(appIcon.gridMax == 180)
@@ -295,6 +337,7 @@ struct WhereStylesheetTests {
         #expect(overview.border == Color.primary.opacity(0.1))
         #expect(overview.borderWidth == 1)
         #expect(overview.yearFont == .system(.title2, design: .serif).bold())
+        #expect(overview.pinsToViewport)
 
         let ribbon = timeline.ribbon
         #expect(ribbon.monthLabelSpacing == 6)
@@ -330,6 +373,14 @@ struct WhereStylesheetTests {
         #expect(row.countVerticalPadding == 6)
         #expect(row.countFillOpacity == 0.16)
         #expect(row.stacksDayCount == false)
+
+        let planned = timeline.planned
+        #expect(planned.fillOpacity == 0.035)
+        #expect(planned.borderOpacity == 0.14)
+        #expect(planned.hatchOpacity == 0.16)
+        #expect(planned.hatchSpacing == 8)
+        #expect(planned.hatchLineWidth == 1)
+        #expect(planned.labelOpacity == 0.7)
     }
 
     @Test func regionMapStyle() {
@@ -454,6 +505,13 @@ struct WhereStylesheetTests {
             lineWidth: 0.9,
             opacity: 0.12,
         ))
+        #expect(featureDiscovery.estimatedTime == .init(
+            timelineHeight: 18,
+            timelineSpacing: 3,
+            calculationSpacing: 8,
+            segmentCornerRadius: 5,
+            legendDotSize: 10,
+        ))
         #expect(featureDiscovery.siri == .init(
             card: .init(
                 cornerRadius: 20,
@@ -491,14 +549,8 @@ struct WhereStylesheetTests {
         #expect(featureDiscovery.widgets.contentWidth(in: 834) == 320)
     }
 
-    @Test func passportCardStyle() {
-        let source = style.passportCard
-        #expect(source.cornerRadius == 20)
-        #expect(source.padding == 16)
-        #expect(source.contentSpacing == 12)
-        #expect(source.titleFont == .headline)
-        #expect(source.detailFont == .subheadline)
-        #expect(source.seal == .init(
+    @Test func settingsPassportStyles() {
+        #expect(style.passportSeal == .init(
             size: 52,
             rotationDegrees: -8,
             outerLineWidth: 2,
@@ -508,7 +560,15 @@ struct WhereStylesheetTests {
             dashSpacing: 3,
             symbolFont: .title3,
         ))
-        #expect(source.rosette == .init(
+
+        let privacy = style.privacyPassportCard
+        #expect(privacy.cornerRadius == 20)
+        #expect(privacy.padding == 16)
+        #expect(privacy.sectionSpacing == 12)
+        #expect(privacy.headerSpacing == 12)
+        #expect(privacy.titleFont == .headline)
+        #expect(privacy.detailFont == .subheadline)
+        #expect(privacy.rosette == .init(
             wobble: 5,
             lineWidth: 0.75,
             primaryRingSpacing: 10,
@@ -516,18 +576,48 @@ struct WhereStylesheetTests {
             primaryOpacity: 0.1,
             secondaryOpacity: 0.06,
         ))
-        #expect(source.reflectiveSurface == .init(
+        #expect(privacy.reflectiveSurface == .init(
             backgroundTop: Color(red: 0.08, green: 0.18, blue: 0.34),
             backgroundBottom: Color(red: 0.02, green: 0.07, blue: 0.16),
             accent: Color(red: 0.88, green: 0.72, blue: 0.32),
-            glowOpacity: 0.12,
             intensity: 0.28,
             staticGlintIntensity: 0.28,
             staticPose: .init(roll: 0.3, pitch: -0.15),
         ))
-        #expect(source.glassTintOpacity == 0.06)
-        #expect(source.accentGlow == .init(opacity: 0.18, radius: 7))
-        #expect(source.liftShadow == .init(opacity: 0.08, radius: 5, offsetY: 2))
+        #expect(privacy.disclosure == .init(
+            rowSpacing: 8,
+            cornerRadius: 12,
+            padding: 10,
+            contentSpacing: 10,
+            textSpacing: 3,
+            iconSize: 32,
+            symbolFont: .subheadline,
+            titleFont: .subheadline,
+            detailFont: .footnote,
+            statusFont: .footnote,
+            statusHorizontalPadding: 8,
+            statusVerticalPadding: 4,
+            fillOpacity: 0.08,
+            strokeOpacity: 0.18,
+            strokeWidth: 0.75,
+            statusFillOpacity: 0.14,
+        ))
+        #expect(privacy.outlineOpacity == 0.32)
+        #expect(privacy.outlineWidth == 1)
+
+        let source = style.openSourceStamp
+        #expect(source.padding == 16)
+        #expect(source.contentSpacing == 12)
+        #expect(source.titleFont == .headline)
+        #expect(source.detailFont == .subheadline)
+        #expect(source.outlineWidth == 1.5)
+        #expect(source.rosette == .init(
+            wobble: 5,
+            lineWidth: 0.75,
+            primaryRingSpacing: 10,
+            secondaryRingSpacing: 16,
+        ))
+        #expect(source.ink == .standard)
     }
 
     @Test func developerOverlayStyle() {
@@ -604,6 +694,7 @@ struct WhereStylesheetTests {
         context.traitOverrides.contentSizeCategory = .accessibilityLarge
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
         #expect(resolved.calendar.day.minHeight == 56)
+        #expect(resolved.timeline.overview.pinsToViewport == false)
         #expect(resolved.timeline.row.stacksDayCount)
         #expect(resolved.featureDiscovery.siri.bubble.indent == 0)
         #expect(resolved.featureDiscovery.widgets.contentWidth(in: 834) == 320)
@@ -618,6 +709,15 @@ struct WhereStylesheetTests {
         #expect(resolved.card.compact.glow.radius == 0)
         #expect(resolved.card.constellation.haloOpacity == 0)
         #expect(resolved.card.constellation.coreOpacity == 0.92)
+        #expect(resolved.privacyPassportCard.disclosure.fillOpacity == 0.16)
+    }
+
+    @MainActor
+    @Test func strengthensTheSourceStampWithDarkerSystemColors() throws {
+        var context = BContext(traits: .system)
+        context.traitOverrides.accessibility = BAccessibility(isDarkerSystemColorsEnabled: true)
+        let resolved = try context.stylesheets.get(WhereStylesheet.self)
+        #expect(resolved.openSourceStamp.ink == .increasedContrast)
     }
 
     @MainActor
@@ -627,6 +727,7 @@ struct WhereStylesheetTests {
             shouldDifferentiateWithoutColor: true,
         )
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
+        #expect(resolved.timeline.overview.pinsToViewport == false)
         #expect(resolved.timeline.ribbon.separatesRegions)
     }
 
@@ -705,10 +806,22 @@ struct WhereStylesheetEnvironmentTests {
             try waitFor { box.calendarDayMinHeight == 56 }
         }
     }
+
+    @Test func whereBroadwayRootSeedsThemeIdentity() throws {
+        let box = StylesheetProbeBox()
+        let host = UIHostingController(
+            rootView: StylesheetProbe(box: box)
+                .whereBroadwayRoot(theme: .alternate),
+        )
+        try show(host) { _ in
+            try waitFor { box.theme == .alternate }
+        }
+    }
 }
 
 private final class StylesheetProbeBox {
     var calendarDayMinHeight: CGFloat?
+    var theme: WhereTheme?
 }
 
 private struct StylesheetProbe: View {
@@ -720,6 +833,9 @@ private struct StylesheetProbe: View {
         Color.clear
             .onChange(of: stylesheet.calendar.day.minHeight, initial: true) { _, newValue in
                 box.calendarDayMinHeight = newValue
+            }
+            .onChange(of: stylesheet.theme, initial: true) { _, newValue in
+                box.theme = newValue
             }
     }
 }

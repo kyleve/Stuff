@@ -5,6 +5,13 @@ import WidgetKit
 struct WhereWidgetEntry: TimelineEntry {
     let date: Date
     let snapshot: WidgetSnapshot
+    let theme: WhereTheme
+
+    init(date: Date, snapshot: WidgetSnapshot, theme: WhereTheme = .standard) {
+        self.date = date
+        self.snapshot = snapshot
+        self.theme = theme
+    }
 }
 
 /// Shared timeline provider for every Where widget. Reads the latest
@@ -48,12 +55,16 @@ struct WhereWidgetProvider: TimelineProvider {
     /// has rolled past today — slightly stale data beats showing nothing.
     private func loadEntry() -> WhereWidgetEntry {
         let now = Date()
+        var theme = WhereTheme.standard
         do {
             let store = try WidgetSnapshotStore.shared(
                 appGroupIdentifier: appGroupIdentifier,
             )
+            theme = try WidgetPresentationStore.shared(
+                appGroupIdentifier: appGroupIdentifier,
+            ).readTheme()
             if let snapshot = store.read() {
-                return WhereWidgetEntry(date: now, snapshot: snapshot)
+                return WhereWidgetEntry(date: now, snapshot: snapshot, theme: theme)
             }
             Self.logger { .noPublishedSnapshot }
         } catch {
@@ -64,6 +75,7 @@ struct WhereWidgetProvider: TimelineProvider {
         return WhereWidgetEntry(
             date: now,
             snapshot: WidgetSnapshotFixtures.emptySnapshot(referenceDate: now),
+            theme: theme,
         )
     }
 }
@@ -79,6 +91,7 @@ extension WhereWidgetEntry {
                 totals: [.california: 132, .newYork: 41, .canada: 9],
                 referenceDate: now,
             ),
+            theme: .standard,
         )
     }
 }

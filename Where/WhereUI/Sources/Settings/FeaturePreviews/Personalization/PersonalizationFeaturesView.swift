@@ -1,4 +1,5 @@
 import RegionKit
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 
@@ -35,7 +36,7 @@ struct PersonalizationFeaturesView: View {
                     FeatureMarketingHeader(
                         title: String(localized: .settingsExplorePersonalizationTitle),
                         tagline: String(localized: .settingsExplorePersonalizationTagline),
-                        systemImage: SettingsDestination.personalization.systemImage,
+                        systemSymbol: SettingsDestination.personalization.systemSymbol,
                         tint: SettingsDestination.personalization.iconColor,
                     )
                     .listRowInsets(.init())
@@ -52,7 +53,7 @@ struct PersonalizationFeaturesView: View {
                             Button(action: showRegions) {
                                 actionLabel(
                                     String(localized: .settingsExplorePersonalizationOpenRegions),
-                                    systemImage: "paintpalette",
+                                    systemSymbol: .paintpalette,
                                 )
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -70,7 +71,7 @@ struct PersonalizationFeaturesView: View {
                                 Button(action: showAppIcons) {
                                     actionLabel(
                                         String(localized: .settingsExplorePersonalizationOpenIcon),
-                                        systemImage: "app.badge",
+                                        systemSymbol: .appBadge,
                                     )
                                 }
                                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -112,12 +113,12 @@ struct PersonalizationFeaturesView: View {
         return Set(totals.filter { $0.key != .other && $0.value > 0 }.map(\.key))
     }
 
-    private func actionLabel(_ title: String, systemImage: String) -> some View {
+    private func actionLabel(_ title: String, systemSymbol: SFSymbol) -> some View {
         Label {
             Text(title)
                 .foregroundStyle(.primary)
         } icon: {
-            Image(systemName: systemImage)
+            Image(systemSymbol: systemSymbol)
                 .foregroundStyle(SettingsDestination.personalization.iconColor)
         }
     }

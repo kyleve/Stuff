@@ -1,3 +1,4 @@
+import SFSafeSymbols
 #if DEBUG
     import SwiftUI
     import UIKit
@@ -19,7 +20,7 @@
                 ) {
                     Label(
                         String(localized: .cardDesignerShareJSON),
-                        systemImage: "doc.badge.gearshape",
+                        systemSymbol: .docBadgeGearshape,
                     )
                 }
                 Button(action: copyJSON) {
@@ -29,7 +30,7 @@
                                 ? .cardDesignerCopiedJSON
                                 : .cardDesignerCopyJSON,
                         ),
-                        systemImage: copiedFormat == .json ? "checkmark" : "document.on.document",
+                        systemSymbol: copiedFormat == .json ? .checkmark : .documentOnDocument,
                     )
                 }
                 ShareLink(
@@ -43,7 +44,7 @@
                 ) {
                     Label(
                         String(localized: .cardDesignerShareSwift),
-                        systemImage: "swift",
+                        systemSymbol: .swift,
                     )
                 }
                 Button(action: copySwift) {
@@ -53,7 +54,7 @@
                                 ? .cardDesignerCopiedSwift
                                 : .cardDesignerCopySwift,
                         ),
-                        systemImage: copiedFormat == .swift ? "checkmark" : "document.on.document",
+                        systemSymbol: copiedFormat == .swift ? .checkmark : .documentOnDocument,
                     )
                 }
             } header: {

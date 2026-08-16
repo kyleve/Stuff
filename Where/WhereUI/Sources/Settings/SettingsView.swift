@@ -1,4 +1,5 @@
 import RegionKit
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 import WhereCore
@@ -16,6 +17,7 @@ import WhereCore
 /// `WhereModel` (reset) come from the environment via the sub-screens.
 struct SettingsView: View {
     let report: YearReportModel
+    let recordingWarning: RecordingConfigurationWarningModel
     @State private var backup: BackupModel
     @State private var reminders: RemindersSettingsModel
     @State private var searchText = ""
@@ -27,8 +29,14 @@ struct SettingsView: View {
     @Environment(\.isInDemoMode) private var isInDemoMode
     @Environment(\.primaryAppIconName) private var primaryAppIconName
 
-    init(report: YearReportModel) {
+    init(
+        report: YearReportModel,
+        recordingWarning: RecordingConfigurationWarningModel? = nil,
+    ) {
         self.report = report
+        self.recordingWarning = recordingWarning ?? RecordingConfigurationWarningModel(
+            preferences: report.preferences,
+        )
         _backup = State(initialValue: BackupModel(services: report.services))
         _reminders = State(initialValue: RemindersSettingsModel(
             services: report.services,
@@ -67,6 +75,9 @@ struct SettingsView: View {
                         searchNavigationRow(result)
                     }
                 } else {
+                    if recordingWarning.isPresented {
+                        recordingWarningSection
+                    }
                     if isInDemoMode {
                         demoSection
                     }
@@ -102,6 +113,29 @@ struct SettingsView: View {
         }
     }
 
+    private var recordingWarningSection: some View {
+        Section {
+            NavigationLink(value: SettingsRoute(.devices)) {
+                Label {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(.settingsRecordingWarningTitle)
+                            .font(.headline)
+                        Text(.settingsRecordingWarningMessage)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                } icon: {
+                    Image(systemSymbol: .exclamationmarkTriangleFill)
+                        .foregroundStyle(.yellow)
+                        .accessibilityHidden(true)
+                }
+            }
+            Button(.settingsRecordingWarningDismiss, role: .cancel) {
+                recordingWarning.dismiss()
+            }
+        }
+    }
+
     /// The way out of demo mode, at the very top of the list where a temporary
     /// state belongs — above the real settings rather than filed among them.
     ///
@@ -115,7 +149,7 @@ struct SettingsView: View {
             } label: {
                 Label(
                     String(localized: .settingsDemoExit),
-                    systemImage: "rectangle.portrait.and.arrow.right",
+                    systemSymbol: .rectanglePortraitAndArrowRight,
                 )
             }
         } header: {
@@ -163,7 +197,8 @@ struct SettingsView: View {
             case .regions:
                 showRegions = true
             case .attachments, .loggedDays, .devices, .alerts, .appearance, .year, .siri,
-                 .widgets, .shareEvidence, .insightsAccuracy, .personalization, .data, .about:
+                 .widgets, .shareEvidence, .estimatedTime, .insightsAccuracy, .personalization,
+                 .data, .privacyDiagnostics, .about:
                 assertionFailure("\(destination) is a push destination, not a sheet")
         }
     }
@@ -180,7 +215,7 @@ struct SettingsView: View {
             Label {
                 Text(destination.rowTitle)
             } icon: {
-                SettingsIcon(systemImage: destination.systemImage, color: destination.iconColor)
+                SettingsIcon(systemSymbol: destination.systemSymbol, color: destination.iconColor)
             }
         }
     }
@@ -197,7 +232,8 @@ struct SettingsView: View {
             case .year:
                 report.selectedYear.formatted(.number.grouping(.never))
             case .attachments, .loggedDays, .regions, .alerts, .appearance, .siri, .widgets,
-                 .shareEvidence, .insightsAccuracy, .personalization, .data, .about:
+                 .shareEvidence, .estimatedTime, .insightsAccuracy, .personalization, .data,
+                 .privacyDiagnostics, .about:
                 nil
         }
     }
@@ -214,7 +250,7 @@ struct SettingsView: View {
             }
         } icon: {
             SettingsIcon(
-                systemImage: result.destination.systemImage,
+                systemSymbol: result.destination.systemSymbol,
                 color: result.destination.iconColor,
             )
         }
@@ -255,11 +291,12 @@ struct SettingsView: View {
                     focus: route.focus,
                     presentation: featureDiscoveryPresentation,
                 )
+            case .estimatedTime:
+                EstimatedTimeFeaturesView(report: report, focus: route.focus)
             case .insightsAccuracy:
                 InsightsAccuracyFeaturesView(
                     report: report,
                     focus: route.focus,
-                    presentation: featureDiscoveryPresentation,
                 )
             case .personalization:
                 PersonalizationFeaturesView(
@@ -269,8 +306,14 @@ struct SettingsView: View {
                 )
             case .data:
                 DataSettingsView(report: report, backup: backup, focus: route.focus)
+            case .privacyDiagnostics:
+                PrivacyDiagnosticsSettingsView(focus: route.focus)
             case .about:
-                AboutSettingsView(focus: route.focus)
+                AboutSettingsView(
+                    focus: route.focus,
+                    diagnosticReportingConfiguration: model.diagnosticReporting
+                        .effectiveConfiguration,
+                )
         }
     }
 
@@ -323,6 +366,18 @@ struct SettingsView: View {
                     .environment(PreviewSupport.loadedSession())
                     .environment(\.isInDemoMode, true)
             }
+            whereSnapshot(
+                name: "RecordingConfigurationWarning",
+                configurations: .fullContentPhoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
+                SettingsView(
+                    report: PreviewSupport.loadedYearReportModel(),
+                    recordingWarning: PreviewSupport.recordingConfigurationWarningModel(),
+                )
+                .environment(PreviewSupport.loadedModel())
+                .environment(PreviewSupport.loadedSession())
+            }
         }
     }
 
@@ -348,9 +403,11 @@ struct SettingsView: View {
                 .push(to: SiriFeaturesView.flyoverID),
                 .push(to: WidgetFeaturesView.flyoverID),
                 .push(to: ShareEvidenceFeaturesView.flyoverID),
+                .push(to: EstimatedTimeFeaturesView.flyoverID),
                 .push(to: InsightsAccuracyFeaturesView.flyoverID),
                 .push(to: PersonalizationFeaturesView.flyoverID),
                 .push(to: DataSettingsView.flyoverID),
+                .push(to: PrivacyDiagnosticsSettingsView.flyoverID),
                 .push(to: AboutSettingsView.flyoverID),
             ],
         ) { world in

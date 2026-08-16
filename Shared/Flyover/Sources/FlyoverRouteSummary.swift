@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SwiftUI
 
 /// Compact forward routes and inferred reverse cues for one screen.
@@ -15,14 +16,14 @@ struct FlyoverRouteSummary<ScreenID: Hashable>: View {
             ForEach(Array(outgoing.enumerated()), id: \.offset) { _, transition in
                 Label(
                     transition.label ?? destinationTitle(for: transition),
-                    systemImage: transition
-                        .kind == .push ? "arrow.right" : "rectangle.portrait.on.rectangle.portrait",
+                    systemSymbol: transition
+                        .kind == .push ? .arrowRight : .rectanglePortraitOnRectanglePortrait,
                 )
             }
             ForEach(Array(incoming.enumerated()), id: \.offset) { _, transition in
                 Label(
                     transition.kind == .push ? "Back" : "Dismiss",
-                    systemImage: transition.kind == .push ? "arrow.left" : "xmark",
+                    systemSymbol: transition.kind == .push ? .arrowLeft : .xmark,
                 )
             }
         }

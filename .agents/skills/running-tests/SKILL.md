@@ -1,18 +1,18 @@
 ---
 name: running-tests
-description: Runs the test suite via ./test, picks the right tier, and manages the per-checkout simulator. Use when running tests, choosing a test scope, debugging simulator launch failures, or reviewing snapshot diffs.
+description: Run the test suite with ./test. Pick the right tier. Manage the per-checkout simulator. Use when you run tests, pick test scope, debug simulator launch failures, or review snapshot diffs.
 ---
 
 How to run tests in this repo. Read root [`AGENTS.md`](../../../AGENTS.md) for
-always-on rules: **use [`./test`](../../../test)** — never hand-roll `tuist test`
-or `xcodebuild`; validate in proportion to the change.
+always-on rules. **Use [`./test`](../../../test)**. Do not hand-roll `tuist test`
+or `xcodebuild`. Run checks in proportion to the change.
 Canonical flag list: `./test --help`. Rationale for `./test` over alternatives:
 header comment in [`test`](../../../test).
 
 ## Documentation-only changes
 
-Pure documentation or comment-only changes may skip `./test`. Skip
-`./swiftformat --lint` too when the changed files are outside the formatter's
+Pure documentation or comment-only changes can skip `./test`. Skip
+`./swiftformat --lint` when the changed files are outside the formatter's
 scope. Record skipped checks and the reason in the commit or PR validation.
 
 Do not classify a semantic change to configuration, scripts, generator inputs,
@@ -39,6 +39,18 @@ Examples:
 
 Compare against a ref other than `origin/main`: `./test --base REF`.
 
+## Architecture and host checks
+
+Every normal invocation runs the complete Bumper Bowling sequence first. Use
+`./test --architecture-only` to run only the configuration validation, rule
+tests, and architecture lint.
+
+CI test jobs use `--skip-architecture` because the dedicated Bumper job owns
+that sequence. Do not use this flag for normal local validation.
+
+Affected and unit-capable scopes run the backup-upgrader regression. A scope
+that contains only image bundles skips that host-side unit regression.
+
 ## Snapshots
 
 **Opt-in, not part of "done" by default.** Run `./test --snapshots` when the
@@ -50,16 +62,12 @@ dependency graph says they're affected.
 - **`--review`** — how each differing reference differs (pixel count, max delta,
   changed region); use to tell a broken render from antialiasing drift
 - **`--timings`** — where capture time went per phase
-- **`--timing-report PATH`** — write per-suite durations for
-  `./snapshot-shards balance --report PATH`
 - **`--record MODE`** — re-record references: `all`, `failed`, `missing`, or
   `never` (default). Fix the view first; re-record only when the render is
   correct
 
-Don't run multiple image shards concurrently on one Mac: its simulators share
-one render server, making captures slower and flaky. CI's two shards are safe
-because they run serially on separate runners; `--snapshot-shard 1/2` and
-`2/2` exist for that topology, not same-machine parallelism. See
+Do not parallelize the image suite. Simulators on one Mac share one render
+server. That makes captures slower and flaky. See
 [`Shared/SnapshotKitTesting/AGENTS.md`](../../../Shared/SnapshotKitTesting/AGENTS.md).
 
 ## Iterate faster
@@ -76,7 +84,7 @@ After a green build:
 
 ## When tests fail
 
-- Swift Testing's headline is often contentless ("Issue recorded"); read the
+- Swift Testing's headline is often contentless ("Issue recorded"). Read the
   **`↳` block** below it for the real reason, path, and snapshot paths.
 - Snapshot mismatch → `./test --snapshots --review` on the failing reference.
 - Green locally / red on CI → merge latest `main` and re-run before debugging
@@ -84,10 +92,10 @@ After a green build:
 
 ## Simulator
 
-`./test` resolves a UDID via [`./simulator`](../../../simulator) — don't pass a
-device *name* to `simctl` or hand-roll a `-destination`.
+`./test` resolves a UDID via [`./simulator`](../../../simulator). Do not pass a
+device *name* to `simctl`. Do not hand-roll a `-destination`.
 
-- **First `./simulator` run in a checkout** creates and boots a device — budget
+- **First `./simulator` run in a checkout** creates and boots a device. Budget
   a couple of minutes for the first boot.
 - **Launch failures that look like test failures** (suites that do run are
   green):
@@ -106,7 +114,7 @@ Raw one-off `xcodebuild` (rare):
 ## Environment
 
 - **macOS + Xcode required** for `./test`.
-- **Linux cloud agents** — `./swiftformat --lint` and `./sync-agents` only; no
+- **Linux cloud agents** — `./swiftformat --lint` and `./sync-agents` only. No
   simulator or test runs. Full validation matches CI on macOS.
 
 ## Full macOS validation (matches CI)

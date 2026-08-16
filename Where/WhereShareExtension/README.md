@@ -1,12 +1,10 @@
 # WhereShareExtension
 
-The **Where** share extension: a Share-sheet action that saves shared content —
-a boarding pass, a PDF receipt, a screenshot, a forwarded reservation email, a
-Wallet ticket — into Where as a new piece of [`Evidence`](../WhereCore/Sources/Evidence/Evidence.swift).
+The **Where** share extension.
+It is a Share-sheet action that saves shared content — a boarding pass, a PDF receipt, a screenshot, a forwarded reservation email, a Wallet ticket — into Where as a new piece of [`Evidence`](../WhereCore/Sources/Evidence/Evidence.swift).
 
-Pick "Where" from any app's Share sheet, confirm the kind / date / note in the
-compose sheet, and tap **Save**. The attachment bytes and metadata are written
-straight into the shared App Group SwiftData store the app reads.
+Pick "Where" from any app's Share sheet, confirm the kind / date / note in the compose sheet, and tap **Save**.
+The attachment bytes and metadata are written straight into the shared App Group SwiftData store the app reads.
 
 ## How it works
 
@@ -16,40 +14,24 @@ Host app Share sheet
             └─▶ SharedItemLoader           (extract bytes from NSItemProviders)
             └─▶ ShareEvidenceView + Model  (SwiftUI compose sheet)
                     └─▶ SwiftDataStore.perform { write(evidence:blob:) }
-                            └─▶ App Group store (group.com.stuff.where)
+                            └─▶ audience-selected App Group store
 ```
 
-- **`SharedItemLoader`** takes one attachment per `NSItemProvider` that yields
-  bytes (so a multi-item share — the activation rule allows up to 20 — keeps them
-  all), preferring the most preview-friendly representation each registered:
-  PDF → image → concrete file (`.pkpass`, `.eml`, …) → text → URL (kept as its
-  string). A share with nothing loadable still composes as a metadata-only note,
-  with whatever reason the provider gave logged as a warning. The whole load is
-  one Periscope span, since it's what the wait between tapping Share and seeing
-  the compose form is spent on.
-- **`ShareEvidenceModel`** holds the editable fields, classifies each attachment
-  with [`EvidenceContentType.classify`](../WhereCore/Sources/Evidence/EvidenceContentType+Classify.swift),
-  and persists one `Evidence` per attachment (all sharing the form's
-  kind/date/note) in a single transaction.
-- **`ShareEvidenceView`** is the compose form; kind names/symbols reuse
-  WhereUI's public `EvidenceKind` presentation helpers so they read identically
-  to the in-app "Add evidence" sheet. Extension-only chrome resolves through
-  this target's own catalog via its generated symbols
-  (`String(localized: .shareTitle)`).
+- **`SharedItemLoader`** takes one attachment per `NSItemProvider` that yields bytes (so a multi-item share — the activation rule allows up to 20 — keeps them all), preferring the most preview-friendly representation each registered: PDF → image → concrete file (`.pkpass`, `.eml`, …) → text → URL (kept as its string). A share with nothing loadable still composes as a metadata-only note, with whatever reason the provider gave logged as a warning. The whole load is one Periscope span, since it is what the wait between tapping Share and seeing the compose form is spent on.
+- **`ShareEvidenceModel`** holds the editable fields, classifies each attachment with [`EvidenceContentType.classify`](../WhereCore/Sources/Evidence/EvidenceContentType+Classify.swift), and persists one `Evidence` per attachment (all sharing the form's kind/date/note) in a single transaction.
+- **`ShareEvidenceView`** is the compose form.
+  Kind names/symbols reuse WhereUI's public `EvidenceKind` presentation helpers so they read identically to the in-app "Add evidence" sheet.
+  Extension-only chrome resolves through this target's own catalog via its generated symbols (`String(localized: .shareTitle)`).
 
 ## Why write to the store directly
 
-The extension opens the store and writes through
-`SwiftDataStore.perform { … }` rather than going through
-`WhereServices`/`DayJournal`. Those assemble a live GPS ingestor, notification
-reconcilers, and widget publishing — machinery with no place in a short-lived
-share process. The commit pings persistent history, so the app — observing
-`.NSPersistentStoreRemoteChange` on its shared store — reconciles badges/widgets
-when it's next active and (in production) mirrors the new row to CloudKit.
+The extension opens the store and writes through `SwiftDataStore.perform { … }` rather than going through `WhereServices`/`DayJournal`.
+Those assemble a live GPS ingestor, notification reconcilers, and widget publishing — machinery with no place in a short-lived share process.
+The commit pings persistent history, so the app — observing `.NSPersistentStoreRemoteChange` on its shared store — reconciles badges/widgets when it is next active and (in production) mirrors the new row to CloudKit.
 
-The extension opens `.localOnly` storage on purpose: it must not initialize
-CloudKit (it holds only the App Group entitlement, not iCloud), and the app's
-CloudKit container picks the write up from the shared store's history.
+The extension opens `.localOnly` storage on purpose.
+It must not initialize CloudKit (it holds only the App Group entitlement, not iCloud).
+The app's CloudKit container picks the write up from the shared store's history.
 
 ## Installation
 
@@ -58,17 +40,13 @@ CloudKit container picks the write up from the shared store's history.
 by the Where audience (Development is isolated; Beta and App Store share the
 production family),
 depending on **WhereCore**, **WhereUI**, and **PeriscopeCore**. The main **Where** app
-embeds the extension and shares the `group.com.stuff.where` App Group
-entitlement so both processes open the same SwiftData store.
+embeds the extension with the same audience-selected App Group entitlement so
+both processes open the same SwiftData store.
 
 ## Limitations
 
-- **No test bundle.** The build-and-write path is exercised indirectly by
-  **WhereCore** store tests and the **WhereUI** compose model; the loader and
-  view controller are thin glue over system APIs.
-- **In-app refresh is on the next foreground, not mid-scroll.** The app observes
-  `.NSPersistentStoreRemoteChange` for its on-disk store (both `.localOnly` debug
-  and `.cloudKit` release builds), so an extension write refreshes badges/lists
-  when the app is next active — no relaunch needed. It won't repaint while the
-  app is suspended behind the share sheet; Core Data delivers the change when the
-  app resumes.
+- **No test bundle.** The build-and-write path is exercised indirectly by **WhereCore** store tests and the **WhereUI** compose model.
+  The loader and view controller are thin glue over system APIs.
+- **In-app refresh is on the next foreground, not mid-scroll.** The app observes `.NSPersistentStoreRemoteChange` for its on-disk store (both `.localOnly` debug and `.cloudKit` release builds), so an extension write refreshes badges/lists when the app is next active — no relaunch needed.
+  It will not repaint while the app is suspended behind the share sheet.
+  Core Data delivers the change when the app resumes.

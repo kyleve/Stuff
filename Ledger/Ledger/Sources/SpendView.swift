@@ -1,4 +1,5 @@
 import LedgerCore
+import SFSafeSymbols
 import SwiftUI
 
 /// The menu-bar popover: the current billing cycle's Cursor spend, today's and
@@ -136,7 +137,7 @@ struct SpendView: View {
 
     private func deltaLabel(_ dollars: Double, label: String) -> some View {
         HStack(spacing: 2) {
-            Image(systemName: "arrow.up")
+            Image(systemSymbol: .arrowUp)
                 .imageScale(.small)
             Text("\(CurrencyFormat.dollars(dollars)) \(label)")
                 .monospacedDigit()
@@ -261,7 +262,7 @@ struct SpendView: View {
 
     private func failure(_ error: LedgerServices.LoadError) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Label(error.message, systemImage: "exclamationmark.triangle.fill")
+            Label(error.message, systemSymbol: .exclamationmarkTriangleFill)
                 .font(.callout)
                 .foregroundStyle(.secondary)
             if error == .missingCredentials || error == .notAuthenticated {
@@ -278,13 +279,13 @@ struct SpendView: View {
             Button {
                 session.refresh()
             } label: {
-                Image(systemName: "arrow.clockwise")
+                Image(systemSymbol: .arrowClockwise)
             }
             .help("Refresh")
             if let updated = session.lastUpdated {
                 HStack(spacing: 3) {
                     if session.isStale {
-                        Image(systemName: "exclamationmark.triangle.fill")
+                        Image(systemSymbol: .exclamationmarkTriangleFill)
                     }
                     Text("Updated \(updated.formatted(date: .omitted, time: .shortened))")
                 }
@@ -294,13 +295,13 @@ struct SpendView: View {
             }
             Spacer()
             SettingsLink {
-                Image(systemName: "gearshape")
+                Image(systemSymbol: .gearshape)
             }
             .help("Settings")
             Button {
                 NSApp.terminate(nil)
             } label: {
-                Image(systemName: "power")
+                Image(systemSymbol: .power)
             }
             .help("Quit Ledger")
         }

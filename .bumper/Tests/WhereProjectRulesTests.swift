@@ -124,6 +124,11 @@ struct WhereProjectRulesTests {
 
     @Test
     func `Log event types stay in logging directories`() throws {
+        let appAllowed = try evaluate(
+            path: "Where/Where/Sources/Logging/WhereAppLog.swift",
+            component: .app,
+            source: "enum WhereAppLog {}",
+        )
         let allowed = try evaluate(
             path: "Where/WhereUI/Sources/Logging/ScreenLog.swift",
             component: .whereUI,
@@ -137,6 +142,7 @@ struct WhereProjectRulesTests {
             source: "enum ScreenLog {}",
         )
 
+        #expect(appAllowed.violations.isEmpty)
         #expect(allowed.violations.isEmpty)
         let violation = try #require(rejected.violations.first)
         #expect(rejected.violations.count == 1)

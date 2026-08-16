@@ -1,5 +1,6 @@
 import PeriscopeCore
 import RegionKit
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 import WhereCore
@@ -12,6 +13,7 @@ struct LocationsView: View {
     let report: YearReportModel
 
     @State private var showingResolution = false
+    @State private var plannedStayEditorTarget: PlannedStayEditorTarget?
     @State private var isCardSurfaceVisible = false
     @State private var dayCountPresentation: LocationDayCountPresentationModel
 
@@ -71,6 +73,9 @@ struct LocationsView: View {
         .sheet(isPresented: $showingResolution) {
             ResolutionView(report: report)
         }
+        .sheet(item: $plannedStayEditorTarget) { target in
+            PlannedStayEditor(region: target.region, model: report.forecasts)
+        }
         // Log View Mode: reveal an inspect badge for the year-report events
         // backing this screen. A no-op in release.
         .debugLogInspectable(WhereLog.session(YearReportModelLog.self))
@@ -85,7 +90,7 @@ struct LocationsView: View {
                 ContentUnavailableView {
                     Label(
                         String(localized: .commonLoadErrorTitle),
-                        systemImage: "exclamationmark.icloud",
+                        systemSymbol: .exclamationmarkIcloud,
                     )
                 } description: {
                     Text(error.message)
@@ -122,6 +127,7 @@ struct LocationsView: View {
                                 regionDays: presentedItem,
                                 interactive: true,
                                 yearLength: report.daysInSelectedYear,
+                                estimatedDays: estimatedDays(for: item.region),
                                 year: report.selectedYear,
                                 tilt: tilt,
                                 recordedPoints: report.primaryRegionLocations?
@@ -183,6 +189,20 @@ struct LocationsView: View {
         .defaultScrollAnchor(.center)
         .scrollBounceBehavior(.basedOnSize)
         .accessibilityIdentifier("where_root_title")
+        .safeAreaInset(edge: .bottom) {
+            if report.showsEstimatedTimeAndPlanning, !topForecasts.isEmpty {
+                LocationForecastPanel(
+                    forecasts: topForecasts,
+                    plannedStay: report.forecasts.activePlannedStay,
+                    editableRegions: topForecasts.map(\.region),
+                    editAction: editPlannedStay,
+                    clearAction: report.forecasts.clear,
+                    isCollapsible: true,
+                )
+                .padding(.horizontal)
+                .padding(.bottom, stylesheet.spacing.small)
+            }
+        }
         .onAppear { isCardSurfaceVisible = true }
         .onDisappear { isCardSurfaceVisible = false }
         // The task belongs to the cards, and its ID includes explicit visibility
@@ -210,6 +230,29 @@ struct LocationsView: View {
         )
     }
 
+    /// Three forecast rows are independent from the two-card Primary split.
+    /// `.other` is a catch-all rather than a place a user can plan around.
+    private var topForecasts: [LocationForecast] {
+        report.forecasts.leadingForecasts(report: report.report)
+    }
+
+    private func estimatedDays(for region: Region) -> Int? {
+        guard report.showsEstimatedTimeAndPlanning else { return nil }
+        return report.forecasts.forecast(for: region, report: report.report)?.estimatedTotalDays
+    }
+
+    private func editPlannedStay(_ region: Region) {
+        plannedStayEditorTarget = PlannedStayEditorTarget(region: region)
+    }
+
+    private struct PlannedStayEditorTarget: Identifiable {
+        let region: Region
+
+        var id: Region {
+            region
+        }
+    }
+
     /// The region's calendar, pushed as a nested view. It's the zoom
     /// destination: the tapped card expands into it via matched geometry, and the
     /// stack's back gesture collapses it again.
@@ -224,7 +267,7 @@ struct LocationsView: View {
 
     private var emptyState: some View {
         ContentUnavailableView {
-            Label(WhereFormat.primaryEmptyTitle(year: report.selectedYear), systemImage: "map")
+            Label(WhereFormat.primaryEmptyTitle(year: report.selectedYear), systemSymbol: .map)
         } description: {
             Text(String(localized: .primaryEmptyDescription))
         }
@@ -232,7 +275,7 @@ struct LocationsView: View {
 
     private var elsewhereOnlyState: some View {
         ContentUnavailableView {
-            Label(String(localized: .primaryElsewhereOnlyTitle), systemImage: "globe.americas")
+            Label(String(localized: .primaryElsewhereOnlyTitle), systemSymbol: .globeAmericas)
         } description: {
             Text(WhereFormat.primaryElsewhereOnlyDescription(count: report.trackedDayCount))
         } actions: {
@@ -257,7 +300,7 @@ private struct ResolveToolbarLabel: View {
     @Environment(\.stylesheet) private var stylesheet
 
     var body: some View {
-        Image(systemName: "checklist")
+        Image(systemSymbol: .checklist)
             .overlay(alignment: .topTrailing) {
                 Text(count, format: .number)
                     .font(.caption2.weight(.bold))
@@ -286,6 +329,20 @@ private struct ResolveToolbarLabel: View {
                 settle: .settledAtLeast(minDuration: 1.0),
             ) {
                 LocationsView(report: PreviewSupport.loadedYearReportModel())
+            }
+            whereSnapshot(
+                name: "PlannedStay",
+                configurations: .fullContentPhoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
+                LocationsView(report: PreviewSupport.plannedStayYearReportModel())
+            }
+            whereSnapshot(
+                name: "ForecastsHidden",
+                configurations: .fullContentPhoneLightDark,
+                measurementReadiness: .immediate,
+            ) {
+                LocationsView(report: forecastsHiddenReport())
             }
             whereSnapshot(
                 name: "Empty",
@@ -317,6 +374,10 @@ private struct ResolveToolbarLabel: View {
                     report: PreviewSupport.loadedYearReportModelWithLocationDotsHidden(),
                 )
             }
+        }
+
+        private static func forecastsHiddenReport() -> YearReportModel {
+            PreviewSupport.loadedYearReportModelWithEstimatedTimeHidden()
         }
     }
 

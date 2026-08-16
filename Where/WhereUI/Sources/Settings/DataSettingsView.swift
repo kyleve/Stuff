@@ -1,4 +1,5 @@
 import LifecycleKitUI
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 import WhereCore
@@ -23,9 +24,12 @@ struct DataSettingsView: View {
     var body: some View {
         SettingsFocusScope(focus: focus) {
             Form {
-                PrivacyPassportCard()
+                PrivacyPassportCard(presentation: PrivacyPassportPresentation(
+                    configuration: model.diagnosticReporting.effectiveConfiguration,
+                ), disclosureInteraction: .linkToSettings)
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets())
                 BackupSettingsSection(backup: backup)
                 dataSection
                 resetSection
@@ -44,7 +48,7 @@ struct DataSettingsView: View {
             Button(role: .destructive) {
                 showClearConfirmation = true
             } label: {
-                Label(eraseTitle, systemImage: "trash")
+                Label(eraseTitle, systemSymbol: .trash)
             }
             .settingsRow(Item.eraseYear)
             .confirmationDialog(
@@ -75,7 +79,7 @@ struct DataSettingsView: View {
             Button(role: .destructive) {
                 showResetConfirmation = true
             } label: {
-                Label(String(localized: .settingsResetErase), systemImage: "arrow.counterclockwise")
+                Label(String(localized: .settingsResetErase), systemSymbol: .arrowCounterclockwise)
             }
             .settingsRow(Item.resetApp)
             .confirmationDialog(

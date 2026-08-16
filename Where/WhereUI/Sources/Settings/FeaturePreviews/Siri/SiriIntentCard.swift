@@ -1,10 +1,11 @@
+import SFSafeSymbols
 import SwiftUI
 
 /// A discoverability card that demonstrates one intent as a two-message Siri
 /// conversation without invoking the intent or reading the user's data.
 struct SiriIntentCard: View {
     let title: String
-    let systemImage: String
+    let systemSymbol: SFSymbol
     let request: String
     let response: String
 
@@ -17,7 +18,7 @@ struct SiriIntentCard: View {
                 Text(title)
                     .foregroundStyle(.primary)
             } icon: {
-                Image(systemName: systemImage)
+                Image(systemSymbol: systemSymbol)
                     .foregroundStyle(style.siri.accent)
             }
             .font(.headline)
@@ -44,7 +45,7 @@ struct SiriIntentCard: View {
     #Preview {
         SiriIntentCard(
             title: String(localized: .settingsExploreSiriTodayTitle),
-            systemImage: "location.fill",
+            systemSymbol: .locationFill,
             request: String(localized: .settingsExploreSiriTodayRequest),
             response: String(localized: .settingsExploreSiriTodayResponse),
         )

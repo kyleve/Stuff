@@ -1,163 +1,324 @@
+#!/usr/bin/env python3
+"""Tests for deterministic snapshot-suite shards."""
+
 import importlib.util
 import json
+import pathlib
+import subprocess
+import sys
 import tempfile
 import unittest
-from pathlib import Path
+import xml.etree.ElementTree as ET
 
 
-MODULE_PATH = Path(__file__).resolve().parents[1] / "snapshot_shards.py"
-SPEC = importlib.util.spec_from_file_location("snapshot_shards", MODULE_PATH)
-snapshot_shards = importlib.util.module_from_spec(SPEC)
-assert SPEC.loader
-SPEC.loader.exec_module(snapshot_shards)
+SCRIPT = pathlib.Path(__file__).parents[1] / "snapshot_shards.py"
+SPEC = importlib.util.spec_from_file_location("shard_suites", SCRIPT)
+MODULE = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(MODULE)
 
 
-class SnapshotShardsTests(unittest.TestCase):
-    def test_discovers_same_named_suites_from_snapshot_targets(self):
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            (root / "Project.swift").write_text(
-                '        unitTests(\n'
-                '            name: "FeatureSnapshotTests",\n'
-                '            sources: ["Feature/SnapshotTests/**"],\n'
-                '        ),\n'
+class ShardTests(unittest.TestCase):
+    def make_repo(self, directory):
+        repo = pathlib.Path(directory)
+        source = repo / "Module" / "SnapshotTests"
+        source.mkdir(parents=True)
+        (repo / "Project.swift").write_text(
+            '''
+            unitTests(
+                name: "ModuleSnapshotTests",
+                sources: ["Module/SnapshotTests/**"],
+            ),
+            '''
+        )
+        for suite in ("FirstSnapshotTests", "SecondSnapshotTests", "ThirdSnapshotTests"):
+            (source / f"{suite}.swift").write_text(
+                f"import Testing\nstruct {suite} {{ @Test func example() {{}} }}\n"
             )
-            sources = root / "Feature" / "SnapshotTests"
-            sources.mkdir(parents=True)
-            (sources / "CardSnapshotTests.swift").write_text(
-                "struct CardSnapshotTests {}\n"
-                "final class SnapshotAlbum {}\n"
-            )
+        return repo
 
-            self.assertEqual(
-                snapshot_shards.discover_catalog(root),
-                ["FeatureSnapshotTests/CardSnapshotTests"],
-            )
-
-    def test_discovery_rejects_a_suite_that_does_not_match_its_filename(self):
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            (root / "Project.swift").write_text(
-                '        unitTests(\n'
-                '            name: "FeatureSnapshotTests",\n'
-                '            sources: ["Feature/SnapshotTests/**"],\n'
-                '        ),\n'
-            )
-            sources = root / "Feature" / "SnapshotTests"
-            sources.mkdir(parents=True)
-            (sources / "CardSnapshotTests.swift").write_text("struct OtherTests {}\n")
-
-            with self.assertRaisesRegex(snapshot_shards.ShardError, "exactly one top-level"):
-                snapshot_shards.discover_catalog(root)
-
-    def test_discovery_rejects_an_additional_suite_in_the_same_file(self):
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            (root / "Project.swift").write_text(
-                '        unitTests(\n'
-                '            name: "FeatureSnapshotTests",\n'
-                '            sources: ["Feature/SnapshotTests/**"],\n'
-                '        ),\n'
-            )
-            sources = root / "Feature" / "SnapshotTests"
-            sources.mkdir(parents=True)
-            (sources / "CardSnapshotTests.swift").write_text(
-                "struct CardSnapshotTests {}\n"
-                "struct ExtraSnapshotTests {}\n"
-            )
-
-            with self.assertRaisesRegex(
-                snapshot_shards.ShardError,
-                "found CardSnapshotTests, ExtraSnapshotTests",
-            ):
-                snapshot_shards.discover_catalog(root)
-
-    def test_validation_reports_missing_duplicate_unknown_and_empty_assignments(self):
-        with self.assertRaises(snapshot_shards.ShardError) as raised:
-            snapshot_shards.validate_config(
-                ["Bundle/One", "Bundle/Two"],
-                {"1": ["Bundle/One", "Bundle/One", "Bundle/Unknown"], "2": []},
-            )
-        message = str(raised.exception)
-        self.assertIn("empty shards: 2", message)
-        self.assertIn("assigned more than once: Bundle/One", message)
-        self.assertIn("missing: Bundle/Two", message)
-        self.assertIn("unknown: Bundle/Unknown", message)
-
-    def test_load_config_rejects_an_unsupported_version(self):
-        with tempfile.TemporaryDirectory() as temporary:
-            path = Path(temporary) / "config.json"
-            path.write_text(json.dumps({"version": 2, "shards": {"1": [], "2": []}}))
-            with self.assertRaisesRegex(snapshot_shards.ShardError, "unsupported version"):
-                snapshot_shards.load_config(path)
-
-    def test_extracts_and_aggregates_test_cases_by_bundle_and_suite(self):
-        data = {
-            "testNodes": [
+    def make_plan(self):
+        return {
+            "formatVersion": 1,
+            "shards": [
                 {
-                    "nodeType": "Unit test bundle",
-                    "name": "FeatureSnapshotTests",
-                    "children": [
-                        {
-                            "nodeType": "Test Suite",
-                            "name": "CardSnapshotTests",
-                            "children": [
-                                {"nodeType": "Test Case", "name": "one()", "durationInSeconds": 2.5, "result": "Passed"},
-                                {"nodeType": "Test Case", "name": "two()", "durationInSeconds": 1.5, "result": "Passed"},
-                                {"nodeType": "Test Case", "name": "skip()", "durationInSeconds": 10, "result": "Skipped"},
-                            ],
-                        }
+                    "index": 0,
+                    "suites": [
+                        "ModuleSnapshotTests/FirstSnapshotTests",
+                        "ModuleSnapshotTests/ThirdSnapshotTests",
                     ],
-                }
-            ]
+                },
+                {
+                    "index": 1,
+                    "suites": ["ModuleSnapshotTests/SecondSnapshotTests"],
+                },
+            ],
         }
 
-        report = snapshot_shards.make_report([data])
+    def test_validates_a_complete_source_partition(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = self.make_repo(directory)
 
-        self.assertEqual(
-            report["suites"],
-            [{"identifier": "FeatureSnapshotTests/CardSnapshotTests", "durationSeconds": 4.0, "testCount": 2}],
-        )
+            inventory, partition = MODULE.validate_plan(self.make_plan(), repo)
 
-    def test_medians_combine_complete_ci_run_reports(self):
-        result = snapshot_shards.medians(
-            [
-                {"Bundle/One": 10.0, "Bundle/Two": 4.0},
-                {"Bundle/One": 20.0, "Bundle/Two": 8.0},
-                {"Bundle/One": 12.0, "Bundle/Two": 6.0},
-            ]
-        )
-        self.assertEqual(result, {"Bundle/One": 12.0, "Bundle/Two": 6.0})
+            self.assertEqual(len(inventory), 3)
+            self.assertEqual(len(partition), 2)
 
-    def test_ci_artifact_aggregation_requires_one_copy_of_every_suite(self):
-        expected = {"Bundle/One", "Bundle/Two"}
-        self.assertEqual(
-            snapshot_shards.combine_shard_reports(
-                [{"Bundle/One": 1.0}, {"Bundle/Two": 2.0}], expected
-            ),
-            {"Bundle/One": 1.0, "Bundle/Two": 2.0},
-        )
-        with self.assertRaisesRegex(snapshot_shards.ShardError, "repeat suites"):
-            snapshot_shards.combine_shard_reports(
-                [{"Bundle/One": 1.0}, {"Bundle/One": 2.0}], expected
+    def test_rejects_a_suite_that_is_missing_from_the_plan(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = self.make_repo(directory)
+            plan = self.make_plan()
+            plan["shards"][0]["suites"].remove(
+                "ModuleSnapshotTests/ThirdSnapshotTests"
             )
-        with self.assertRaisesRegex(snapshot_shards.ShardError, "missing Bundle/Two"):
-            snapshot_shards.combine_shard_reports([{"Bundle/One": 1.0}], expected)
 
-    def test_balancing_is_deterministic_and_uses_stable_tie_breaks(self):
-        shards, totals = snapshot_shards.balance(
-            {"Bundle/D": 4.0, "Bundle/B": 2.0, "Bundle/C": 3.0, "Bundle/A": 4.0}
-        )
-        self.assertEqual(shards, {"1": ["Bundle/A", "Bundle/C"], "2": ["Bundle/B", "Bundle/D"]})
-        self.assertEqual(totals, {"1": 7.0, "2": 6.0})
+            with self.assertRaisesRegex(ValueError, "omits suites"):
+                MODULE.validate_plan(plan, repo)
 
-    def test_load_report_rejects_duplicate_suite_rows(self):
-        with tempfile.TemporaryDirectory() as temporary:
-            path = Path(temporary) / "report.json"
-            row = {"identifier": "Bundle/Suite", "durationSeconds": 1, "testCount": 1}
-            path.write_text(json.dumps({"version": 1, "suites": [row, row]}))
-            with self.assertRaisesRegex(snapshot_shards.ShardError, "duplicate suite"):
-                snapshot_shards.load_report(path)
+    def test_assigns_a_new_suite_to_the_intake_shard(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = self.make_repo(directory)
+            source = repo / "Module" / "SnapshotTests"
+            (source / "FourthSnapshotTests.swift").write_text(
+                "import Testing\n"
+                "struct FourthSnapshotTests { @Test func example() {} }\n"
+            )
+
+            inventory, partition = MODULE.execution_partition(
+                self.make_plan(), repo
+            )
+
+            self.assertEqual(len(inventory), 4)
+            self.assertEqual(
+                partition[-1],
+                ["ModuleSnapshotTests/FourthSnapshotTests"],
+            )
+
+    def test_leaves_the_intake_shard_empty_for_a_complete_plan(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = self.make_repo(directory)
+
+            _, partition = MODULE.execution_partition(self.make_plan(), repo)
+
+            self.assertEqual(partition[-1], [])
+
+    def test_selects_an_empty_intake_shard(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = self.make_repo(directory)
+            _, partition = MODULE.execution_partition(self.make_plan(), repo)
+
+            selected = MODULE.selected_shard(
+                partition, shard_number=3, worker_count=3
+            )
+
+            self.assertEqual(selected, [])
+
+    def test_empty_intake_cli_writes_zero_bytes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = self.make_repo(directory)
+            plan = repo / "plan.json"
+            plan.write_text(json.dumps(self.make_plan()))
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    SCRIPT,
+                    "--plan",
+                    plan,
+                    "list",
+                    "3",
+                    "--repo",
+                    repo,
+                    "--total",
+                    "3",
+                ],
+                check=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(result.stdout, b"")
+
+    def test_rejects_an_empty_shard(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = self.make_repo(directory)
+            plan = self.make_plan()
+            plan["shards"][1]["suites"] = []
+
+            with self.assertRaisesRegex(ValueError, "shard 1 is empty"):
+                MODULE.validate_plan(plan, repo)
+
+    def test_rejects_overlapping_shards(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = self.make_repo(directory)
+            plan = self.make_plan()
+            plan["shards"][1]["suites"].append(
+                "ModuleSnapshotTests/FirstSnapshotTests"
+            )
+
+            with self.assertRaisesRegex(ValueError, "overlap"):
+                MODULE.validate_plan(plan, repo)
+
+    def test_rejects_a_test_file_with_a_different_suite_name(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = self.make_repo(directory)
+            path = repo / "Module" / "SnapshotTests" / "ThirdSnapshotTests.swift"
+            path.write_text("import Testing\nstruct RenamedTests { @Test func x() {} }\n")
+
+            with self.assertRaisesRegex(ValueError, "must declare one top-level suite"):
+                MODULE.source_inventory(repo)
+
+    def test_compares_the_plan_with_xcode_enumeration(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / "suites.txt"
+            plan = self.make_plan()
+            suites = sorted(
+                suite for shard in MODULE.plan_partition(plan) for suite in shard
+            )
+            path.write_text("".join(f"{suite}\n" for suite in suites))
+
+            MODULE.validate_enumeration(suites, path)
+
+            path.write_text("ModuleSnapshotTests/NewSnapshotTests\n")
+            with self.assertRaisesRegex(ValueError, "does not match"):
+                MODULE.validate_enumeration(suites, path)
+
+    def test_rejects_a_worker_count_that_differs_from_the_plan(self):
+        partition = MODULE.plan_partition(self.make_plan())
+
+        with self.assertRaisesRegex(ValueError, "started 3 workers"):
+            MODULE.selected_shard(partition, 1, worker_count=3)
+
+    def test_validates_that_each_assigned_suite_executed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            assignment = root / "shard.txt"
+            assignment.write_text(
+                "ModuleSnapshotTests/FirstSnapshotTests\n"
+                "ModuleSnapshotTests/SecondSnapshotTests\n"
+            )
+            junit = root / "results.xml"
+            self.write_junit(
+                junit,
+                [
+                    "ModuleSnapshotTests/FirstSnapshotTests",
+                    "ModuleSnapshotTests/FirstSnapshotTests",
+                    "ModuleSnapshotTests/SecondSnapshotTests",
+                ],
+            )
+
+            self.assertEqual(MODULE.validate_execution(assignment, junit), 2)
+
+    def test_rejects_an_assigned_suite_that_did_not_execute(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            assignment = root / "shard.txt"
+            assignment.write_text(
+                "ModuleSnapshotTests/FirstSnapshotTests\n"
+                "ModuleSnapshotTests/SecondSnapshotTests\n"
+            )
+            junit = root / "results.xml"
+            self.write_junit(junit, ["ModuleSnapshotTests/FirstSnapshotTests"])
+
+            with self.assertRaisesRegex(ValueError, "did not execute"):
+                MODULE.validate_execution(assignment, junit)
+
+    def test_rejects_an_executed_suite_that_was_not_assigned(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            assignment = root / "shard.txt"
+            assignment.write_text("ModuleSnapshotTests/FirstSnapshotTests\n")
+            junit = root / "results.xml"
+            self.write_junit(
+                junit,
+                [
+                    "ModuleSnapshotTests/FirstSnapshotTests",
+                    "ModuleSnapshotTests/SecondSnapshotTests",
+                ],
+            )
+
+            with self.assertRaisesRegex(ValueError, "unassigned suites"):
+                MODULE.validate_execution(assignment, junit)
+
+    def test_rebalances_by_median_duration_with_a_stable_tie_break(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = self.make_repo(directory)
+            documents = []
+            for index, durations in enumerate(((9, 5, 4), (11, 5, 2), (10, 5, 3))):
+                path = repo / f"results-{index}.xml"
+                path.write_text(
+                    "<testsuites><testsuite>"
+                    + "".join(
+                        f'<testcase file="ModuleSnapshotTests/{suite}" time="{elapsed}" />'
+                        for suite, elapsed in zip(
+                            (
+                                "FirstSnapshotTests",
+                                "SecondSnapshotTests",
+                                "ThirdSnapshotTests",
+                            ),
+                            durations,
+                        )
+                    )
+                    + "</testsuite></testsuites>"
+                )
+                documents.append(path)
+
+            candidate = MODULE.rebalanced_plan(self.make_plan(), repo, documents)
+
+            self.assertEqual(candidate["timings"]["ModuleSnapshotTests/FirstSnapshotTests"], 10)
+            self.assertEqual(candidate["shards"][0]["estimatedSeconds"], 10)
+            self.assertEqual(candidate["shards"][1]["estimatedSeconds"], 8)
+
+            candidate = MODULE.rebalanced_plan(
+                self.make_plan(), repo, documents, shard_count=3
+            )
+            self.assertEqual(
+                [shard["estimatedSeconds"] for shard in candidate["shards"]],
+                [10, 5, 3],
+            )
+
+    def test_rebalance_folds_an_intake_suite_into_the_plan(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = self.make_repo(directory)
+            source = repo / "Module" / "SnapshotTests"
+            (source / "FourthSnapshotTests.swift").write_text(
+                "import Testing\n"
+                "struct FourthSnapshotTests { @Test func example() {} }\n"
+            )
+            path = repo / "results.xml"
+            path.write_text(
+                "<testsuites>"
+                '<testcase file="ModuleSnapshotTests/FirstSnapshotTests" time="9" />'
+                '<testcase file="ModuleSnapshotTests/SecondSnapshotTests" time="5" />'
+                '<testcase file="ModuleSnapshotTests/ThirdSnapshotTests" time="4" />'
+                '<testcase file="ModuleSnapshotTests/FourthSnapshotTests" time="2" />'
+                "</testsuites>"
+            )
+
+            candidate = MODULE.rebalanced_plan(self.make_plan(), repo, [path])
+            assigned = {
+                suite
+                for shard in candidate["shards"]
+                for suite in shard["suites"]
+            }
+
+            self.assertIn("ModuleSnapshotTests/FourthSnapshotTests", assigned)
+
+    def test_rejects_incomplete_timing_documents(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = self.make_repo(directory)
+            path = repo / "results.xml"
+            path.write_text(
+                '<testsuites><testcase file="ModuleSnapshotTests/FirstSnapshotTests" '
+                'time="1" /></testsuites>'
+            )
+
+            with self.assertRaisesRegex(ValueError, "no durations"):
+                MODULE.rebalanced_plan(self.make_plan(), repo, [path])
+
+    def write_junit(self, path, suites):
+        root = ET.Element("testsuites")
+        for index, suite in enumerate(suites):
+            ET.SubElement(root, "testcase", file=suite, name=f"test{index}")
+        ET.ElementTree(root).write(path, encoding="utf-8", xml_declaration=True)
 
 
 if __name__ == "__main__":

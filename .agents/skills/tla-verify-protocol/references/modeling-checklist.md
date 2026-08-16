@@ -7,6 +7,8 @@
 - Map each action to an atomic source region.
 - Split actions at awaits, callbacks, lock release, task creation, actor hops,
   persistence completion, and cancellation observation.
+- Put an explicit PlusCal label at every modeled atomicity boundary.
+- Use parallel assignment when updated values must all read the same pre-state.
 - List callers and environment events that can enter the protocol concurrently.
 - Document every abstraction and atomicity assumption.
 
@@ -43,6 +45,7 @@
 ## Evidence to retain
 
 - TLC and Java versions plus downloaded-artifact checksums.
+- PlusCal translation status and the retained generated-module path.
 - Configurations, constant values, bounds, fairness, and state constraints.
 - Generated and distinct states, graph depth, deadlock result, and property
   results.

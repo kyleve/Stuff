@@ -25,15 +25,15 @@ struct WhereAppTests {
         #expect(runtime.rootCount == 1)
     }
 
-    @Test func delegateStartsEveryCrashReporterBeforeItsRuntime() {
+    @Test func delegateStartsEveryReportingControllerBeforeItsRuntime() {
         var events: [String] = []
         let runtime = RuntimeSpy()
         runtime.onLaunch = { events.append("runtime") }
         let delegate = AppDelegate(
             runtime: runtime,
-            crashReporters: [
-                CrashReporterSpy { events.append("sentry") },
-                CrashReporterSpy { events.append("bitdrift") },
+            reportingControllers: [
+                ReportingControllerSpy { events.append("first-reporter") },
+                ReportingControllerSpy { events.append("second-reporter") },
             ],
         )
 
@@ -42,10 +42,34 @@ struct WhereAppTests {
             didFinishLaunchingWithOptions: nil,
         )
 
-        #expect(events == ["sentry", "bitdrift", "runtime"])
+        #expect(events == ["first-reporter", "second-reporter", "runtime"])
     }
 
     #if DEBUG
+        @Test func regularRuntimeUsesTheProcessReportingPreferencesForItsModel() {
+            let preferences = WherePreferences(store: InMemoryKeyValueStore())
+            let effective = DiagnosticReportingConfiguration.defaults(isDebugBuild: true)
+            let runtime = RegularApplicationRuntime(
+                buildEnvironment: WhereBuildEnvironment(
+                    audience: .development,
+                    appGroupIdentifier: "group.com.stuff.where.tests",
+                    primaryAppIconName: "AppIcon",
+                    isRunningTests: true,
+                ),
+                preferences: preferences,
+                effectiveDiagnosticReportingConfiguration: effective,
+                applyRemoteLogging: { _, _ in },
+            )
+
+            preferences.hasOnboarded = true
+            runtime.model.diagnosticReporting.sharesCrashReports = false
+            runtime.model.diagnosticReporting.sharesSessionReplays = true
+
+            #expect(runtime.model.hasOnboarded)
+            #expect(preferences.diagnosticReportingConfiguration.sharesCrashReports == false)
+            #expect(preferences.diagnosticReportingConfiguration.sharesSessionReplays)
+        }
+
         @Test func selectingInspectorConstructsOnlyInspectorRuntime() throws {
             let fixture = try ModeFixture()
             defer { fixture.cleanup() }
@@ -295,7 +319,7 @@ private final class RuntimeSpy: WhereApplicationRuntime {
 }
 
 @MainActor
-private struct CrashReporterSpy: WhereCrashReporting {
+private struct ReportingControllerSpy: WhereReportingController {
     let onStart: () -> Void
 
     func start() {

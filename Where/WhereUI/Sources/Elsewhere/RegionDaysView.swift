@@ -1,4 +1,5 @@
 import RegionKit
+import SFSafeSymbols
 import SnapshotKit
 import SwiftUI
 import WhereCore
@@ -59,7 +60,7 @@ struct RegionDaysView: View {
             ContentUnavailableView {
                 Label(
                     String(localized: .secondaryRegionEmptyTitle),
-                    systemImage: "checkmark.circle",
+                    systemSymbol: .checkmarkCircle,
                 )
             } description: {
                 Text(String(localized: .secondaryRegionEmptyDescription))
@@ -105,7 +106,7 @@ private struct DayRow: View {
 
     var body: some View {
         HStack(spacing: stylesheet.spacing.large) {
-            Image(systemName: "calendar")
+            Image(systemSymbol: .calendar)
                 .foregroundStyle(.secondary)
                 .accessibilityHidden(true)
 
@@ -113,7 +114,7 @@ private struct DayRow: View {
                 Text(dateText)
                     .font(.headline)
                 if let placeName {
-                    Label(placeName, systemImage: "mappin.and.ellipse")
+                    Label(placeName, systemSymbol: .mappinAndEllipse)
                         .font(.subheadline)
                         .foregroundStyle(.primary)
                 }

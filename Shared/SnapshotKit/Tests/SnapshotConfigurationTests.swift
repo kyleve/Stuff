@@ -43,7 +43,7 @@ struct SnapshotConfigurationTests {
         #expect(configs.allSatisfy { configuration in
             switch configuration.device.size {
                 case .fullContent: true
-                case .fixed, .intrinsic: false
+                case .fixed, .intrinsic, .fullContent2D: false
             }
         })
     }
@@ -60,6 +60,23 @@ struct SnapshotConfigurationTests {
 
         let custom = SnapshotConfiguration.Frame.fullContent(name: "custom", width: 500)
         #expect(custom.size == .fullContent(width: 500, minimumHeight: nil))
+    }
+
+    @Test func twoAxisFullContentFramesRetainViewportMinimums() {
+        #expect(SnapshotConfiguration.Frame.iPhoneFullContent2D.size == .fullContent2D(
+            minimumSize: CGSize(width: 402, height: 874),
+        ))
+        #expect(SnapshotConfiguration.Frame.iPadFullContent2D.size == .fullContent2D(
+            minimumSize: CGSize(width: 834, height: 1194),
+        ))
+
+        let custom = SnapshotConfiguration.Frame.fullContent2D(
+            name: "spatial",
+            minimumSize: CGSize(width: 500, height: 600),
+        )
+        #expect(custom.size == .fullContent2D(
+            minimumSize: CGSize(width: 500, height: 600),
+        ))
     }
 
     @Test func baselineIdentifierIsEmpty() {

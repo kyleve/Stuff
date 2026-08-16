@@ -16,9 +16,11 @@ import SwiftUI
 /// `LifecycleContainer` renders the splash / onboarding UI while the
 /// `LifecycleRunner` runs, then the `TabView` (the real "logged-in" UI — the
 /// launch *destination*, not a step) once it reaches `.ready`, built from the
-/// session the launch's trunk produced. The model is built at launch (so
-/// CoreLocation is wired for background relaunch) and shared down through the
-/// environment.
+/// session the launch's trunk produced. The first visible ready reveal is
+/// always covered by the splash minimum, including after a headless launch
+/// whose foreground drive coalesces between renders. The model is built at
+/// launch (so CoreLocation is wired for background relaunch) and shared down
+/// through the environment.
 public struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -54,6 +56,10 @@ public struct RootView: View {
     private let primaryAppIconName: String
     #if DEBUG
         private let inspectorModeController: InspectorModeController?
+        /// Hosted snapshots have no active SwiftUI scene even though their
+        /// controller is on screen. Production leaves this nil and follows the
+        /// real scene phase; the testing SPI can explicitly model visibility.
+        private let presentationVisibilityOverride: Bool?
     #endif
 
     // Inject the app-owned model + runner built at launch. The app uses this.
@@ -68,6 +74,21 @@ public struct RootView: View {
             self.launcher = launcher
             self.primaryAppIconName = primaryAppIconName
             self.inspectorModeController = inspectorModeController
+            presentationVisibilityOverride = nil
+        }
+
+        @_spi(Testing)
+        public init(
+            model: WhereModel,
+            launcher: LifecycleRunner<WhereSession>,
+            primaryAppIconName: String,
+            presentationVisibilityOverride: Bool,
+        ) {
+            _model = State(initialValue: model)
+            self.launcher = launcher
+            self.primaryAppIconName = primaryAppIconName
+            inspectorModeController = nil
+            self.presentationVisibilityOverride = presentationVisibilityOverride
         }
     #else
         public init(
@@ -109,6 +130,7 @@ public struct RootView: View {
         primaryAppIconName = "AppIcon"
         #if DEBUG
             inspectorModeController = nil
+            presentationVisibilityOverride = nil
         #endif
     }
 
@@ -119,6 +141,7 @@ public struct RootView: View {
                 transition: revealTransition,
                 animation: revealAnimation,
                 minimumSplashDuration: stylesheet.launch.minimumSplashDuration,
+                isPresentationVisible: isLifecyclePresentationVisible,
                 splash: { _ in LaunchSplashView() },
                 failure: { WhereLifecycleFailureView(failure: $0) },
                 gates: {
@@ -130,6 +153,7 @@ public struct RootView: View {
                             gate: handle,
                             installationContext: model.installationRecordingContext,
                             startsAtRecordingChoice: model.hasOnboarded,
+                            initialTheme: model.theme,
                         )
                     }
                 },
@@ -244,7 +268,10 @@ public struct RootView: View {
             // styles (`\.regionStyles`) so cards/calendar/onboarding render the
             // user's picked looks. `.default` before the session exists (splash) and
             // reactive after, since reading `session.regionStyles` tracks it.
-            .whereBroadwayRoot(regionStyles: model.session?.regionStyles ?? .default)
+            .whereBroadwayRoot(
+                theme: model.theme,
+                regionStyles: model.session?.regionStyles ?? .default,
+            )
     }
 
     /// How the launch splash gives way to the app once the runner is `.ready`:
@@ -263,6 +290,14 @@ public struct RootView: View {
 
     private var revealAnimation: Animation {
         reduceMotion ? stylesheet.motion.reducedReveal : stylesheet.motion.reveal
+    }
+
+    private var isLifecyclePresentationVisible: Bool {
+        #if DEBUG
+            presentationVisibilityOverride ?? (scenePhase == .active)
+        #else
+            scenePhase == .active
+        #endif
     }
 
     #if DEBUG
@@ -307,6 +342,11 @@ public struct RootView: View {
         public static var snapshots: [SnapshotCase] {
             let model = PreviewSupport.loadedModel()
             let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
+            let recordingWarningModel = PreviewSupport.recordingConfigurationWarningAppModel()
+            let recordingWarningLauncher = WhereLaunch.makeLauncher(
+                model: recordingWarningModel,
+                reason: .userForeground,
+            )
             whereSnapshot(
                 name: "LoggedIn",
                 configurations: .fullContentPhoneLightDark,
@@ -317,6 +357,20 @@ public struct RootView: View {
                     model: model,
                     launcher: launcher,
                     primaryAppIconName: "AppIcon",
+                    presentationVisibilityOverride: true,
+                )
+            }
+            whereSnapshot(
+                name: "RecordingConfigurationWarning",
+                configurations: .fullContentPhoneLightDark,
+                settle: .settledAtLeast(minDuration: 1.5),
+                onReadyToSnapshot: { await recordingWarningLauncher.run() },
+            ) {
+                RootView(
+                    model: recordingWarningModel,
+                    launcher: recordingWarningLauncher,
+                    primaryAppIconName: "AppIcon",
+                    presentationVisibilityOverride: true,
                 )
             }
         }

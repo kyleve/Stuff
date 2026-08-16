@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SwiftUI
 
 /// The top-level Settings groups. Each drills into its own sub-screen; the
@@ -15,9 +16,11 @@ enum SettingsDestination: Hashable, CaseIterable {
     case siri
     case widgets
     case shareEvidence
+    case estimatedTime
     case insightsAccuracy
     case personalization
     case data
+    case privacyDiagnostics
     case about
 
     /// The localized title shown on the top-level drill-in row and as the parent
@@ -34,35 +37,39 @@ enum SettingsDestination: Hashable, CaseIterable {
             case .siri: String(localized: .settingsExploreSiriRow)
             case .widgets: String(localized: .settingsExploreWidgetsRow)
             case .shareEvidence: String(localized: .settingsExploreEvidenceRow)
+            case .estimatedTime: String(localized: .settingsExploreEstimatedTimeRow)
             case .insightsAccuracy: String(localized: .settingsExploreInsightsRow)
             case .personalization: String(localized: .settingsExplorePersonalizationRow)
             case .data: String(localized: .settingsDataHeader)
+            case .privacyDiagnostics: String(localized: .settingsDiagnosticsTitle)
             case .about: String(localized: .settingsAboutHeader)
         }
     }
 
     /// The SF Symbol shown as the row's leading icon.
-    var systemImage: String {
+    var systemSymbol: SFSymbol {
         switch self {
-            case .attachments: "paperclip"
-            case .loggedDays: "calendar.badge.plus"
-            case .devices: "iphone.and.arrow.forward"
-            case .regions: "map.fill"
-            case .alerts: "bell.badge"
-            case .appearance: "paintbrush.fill"
-            case .year: "calendar"
-            case .siri: "waveform"
-            case .widgets: "widget.small"
-            case .shareEvidence: "square.and.arrow.down.fill"
-            case .insightsAccuracy: "sparkles"
-            case .personalization: "paintpalette.fill"
-            case .data: "externaldrive.fill"
-            case .about: "info"
+            case .attachments: .paperclip
+            case .loggedDays: .calendarBadgePlus
+            case .devices: .iphoneAndArrowForward
+            case .regions: .mapFill
+            case .alerts: .bellBadge
+            case .appearance: .paintbrushFill
+            case .year: .calendar
+            case .siri: .waveform
+            case .widgets: .widgetSmall
+            case .shareEvidence: .squareAndArrowDownFill
+            case .estimatedTime: .chartLineUptrendXyaxis
+            case .insightsAccuracy: .sparkles
+            case .personalization: .paintpaletteFill
+            case .data: .externaldriveFill
+            case .privacyDiagnostics: .lockShieldFill
+            case .about: .info
         }
     }
 
     /// The fill color of the row's iOS-style icon chip. Lives here (like
-    /// `systemImage`) rather than in the stylesheet, which deliberately holds no
+    /// `systemSymbol`) rather than in the stylesheet, which deliberately holds no
     /// accent/adaptive colors.
     var iconColor: Color {
         switch self {
@@ -76,24 +83,26 @@ enum SettingsDestination: Hashable, CaseIterable {
             case .siri: .pink
             case .widgets: .cyan
             case .shareEvidence: .indigo
+            case .estimatedTime: .blue
             case .insightsAccuracy: .orange
             case .personalization: .purple
             case .data: .teal
+            case .privacyDiagnostics: .indigo
             case .about: .brown
         }
     }
 
     /// Whether the group is offered while the app is running on demo data.
     ///
-    /// The two that aren't would each reach past the demo and touch the device:
+    /// The groups that aren't available would reach past the demo and touch the device:
     /// **data** backs up, restores, erases, and resets, while **appearance**
     /// includes setting an alternate app icon, which outlives the process. A
     /// demo leaves no trace, so it doesn't offer the ways to leave one.
     var isAvailableInDemoMode: Bool {
         switch self {
-            case .data, .appearance: false
+            case .data, .appearance, .privacyDiagnostics: false
             case .attachments, .loggedDays, .devices, .regions, .alerts, .year, .siri, .widgets,
-                 .shareEvidence, .insightsAccuracy, .personalization, .about:
+                 .shareEvidence, .estimatedTime, .insightsAccuracy, .personalization, .about:
                 true
         }
     }
@@ -105,7 +114,8 @@ enum SettingsDestination: Hashable, CaseIterable {
         switch self {
             case .regions: true
             case .attachments, .loggedDays, .devices, .alerts, .appearance, .year, .siri, .widgets,
-                 .shareEvidence, .insightsAccuracy, .personalization, .data, .about:
+                 .shareEvidence, .estimatedTime, .insightsAccuracy, .personalization, .data,
+                 .privacyDiagnostics, .about:
                 false
         }
     }
@@ -133,8 +143,15 @@ enum SettingsListSection: CaseIterable {
             case .notifications: [.alerts]
             case .display: [.appearance, .year]
             case .exploreFeatures:
-                [.siri, .widgets, .shareEvidence, .insightsAccuracy, .personalization]
-            case .storage: [.data]
+                [
+                    .siri,
+                    .widgets,
+                    .shareEvidence,
+                    .estimatedTime,
+                    .insightsAccuracy,
+                    .personalization,
+                ]
+            case .storage: [.data, .privacyDiagnostics]
             case .about: [.about]
         }
     }
@@ -250,9 +267,11 @@ enum SettingsCatalog {
             + SiriFeaturesView.searchResults
             + WidgetFeaturesView.searchResults
             + ShareEvidenceFeaturesView.searchResults
+            + EstimatedTimeFeaturesView.searchResults
             + InsightsAccuracyFeaturesView.searchResults
             + PersonalizationFeaturesView.searchResults
             + DataSettingsView.searchResults
+            + PrivacyDiagnosticsSettingsView.searchResults
             + AboutSettingsView.searchResults
 
     /// The results matching a (trimmed, non-empty) query.

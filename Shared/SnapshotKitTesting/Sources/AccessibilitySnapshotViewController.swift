@@ -1,17 +1,19 @@
 import AccessibilitySnapshotCore
+import AccessibilitySnapshotPreviews
 import UIKit
 
-/// Wraps a content view controller in an `AccessibilitySnapshotView` so a capture
-/// is annotated with the VoiceOver reading order, labels, traits, and activation
-/// points. The content is inset first (via ``InsetView``) so an all-element view's
-/// region border isn't clipped, and the wrapper is sized to fit the annotations.
+/// Wraps a content view controller in AccessibilitySnapshot's SwiftUI renderer
+/// so a capture is annotated with the VoiceOver reading order, labels, traits,
+/// and activation points. The content is inset first (via ``InsetView``) so an
+/// all-element view's region border isn't clipped, and the wrapper is sized to
+/// fit the annotations.
 final class AccessibilitySnapshotViewController: UIViewController {
     private let content: UIViewController
 
-    private var snapshotView: AccessibilitySnapshotView {
-        guard let snapshotView = view as? AccessibilitySnapshotView else {
+    private var snapshotView: SwiftUIAccessibilitySnapshotContainerView {
+        guard let snapshotView = view as? SwiftUIAccessibilitySnapshotContainerView else {
             preconditionFailure(
-                "AccessibilitySnapshotViewController.view must be an AccessibilitySnapshotView.",
+                "AccessibilitySnapshotViewController.view must be a SwiftUIAccessibilitySnapshotContainerView.",
             )
         }
         return snapshotView
@@ -30,7 +32,7 @@ final class AccessibilitySnapshotViewController: UIViewController {
     }
 
     override func loadView() {
-        view = AccessibilitySnapshotView(
+        view = SwiftUIAccessibilitySnapshotContainerView(
             containedView: InsetView(content: content.view),
             snapshotConfiguration: AccessibilitySnapshotConfiguration(
                 viewRenderingMode: .drawHierarchyInRect,

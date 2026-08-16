@@ -1,3 +1,4 @@
+import SFSafeSymbols
 import SwiftUI
 
 /// A width-constrained bottom bar that preserves every global control.
@@ -19,7 +20,7 @@ struct FlyoverCompactControlBar<ScreenID: Hashable>: View {
                     .labelStyle(.iconOnly)
                 Button(
                     "Reset All",
-                    systemImage: "arrow.counterclockwise",
+                    systemSymbol: .arrowCounterclockwise,
                     action: resetAll,
                 )
                 .labelStyle(.iconOnly)

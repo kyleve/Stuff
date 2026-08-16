@@ -1,488 +1,344 @@
 #!/usr/bin/env python3
-"""Discover, measure, validate, and balance the snapshot test shards."""
-
-from __future__ import annotations
+"""Discover, validate, select, and rebalance snapshot-suite shards."""
 
 import argparse
 import json
+import pathlib
 import re
 import statistics
-import subprocess
 import sys
-import tempfile
-from collections import defaultdict
-from pathlib import Path
-from typing import Iterable
+import xml.etree.ElementTree as ET
 
 
-ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_CONFIG = ROOT / ".github" / "snapshot-shards.json"
-REPORT_VERSION = 1
-CONFIG_VERSION = 1
-SHARD_NAMES = ("1", "2")
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+DEFAULT_PLAN = ROOT / ".circleci" / "snapshot-shards.json"
+FORMAT_VERSION = 1
+SNAPSHOT_TARGET_PATTERN = re.compile(
+    r"unitTests\(\s*"
+    r'name:\s*"(?P<bundle>[^"]+SnapshotTests)",'
+    r".*?"
+    r'sources:\s*\["(?P<sources>[^"]+/SnapshotTests)/\*\*"\]',
+    re.DOTALL,
+)
 
 
-class ShardError(RuntimeError):
-    """A user-actionable snapshot shard configuration or timing error."""
-
-
-def _load_json(path: Path) -> dict:
+def load_plan(path):
     try:
-        return json.loads(path.read_text())
-    except OSError as error:
-        raise ShardError(f"could not read {path}: {error}") from error
+        plan = json.loads(path.read_text())
+    except FileNotFoundError as error:
+        raise ValueError(f"snapshot shard plan does not exist: {path}") from error
     except json.JSONDecodeError as error:
-        raise ShardError(f"invalid JSON in {path}: {error}") from error
+        raise ValueError(f"snapshot shard plan is not valid JSON: {error}") from error
+    if plan.get("formatVersion") != FORMAT_VERSION:
+        raise ValueError(
+            f"unsupported snapshot shard formatVersion {plan.get('formatVersion')}; "
+            f"expected {FORMAT_VERSION}"
+        )
+    if not isinstance(plan.get("shards"), list):
+        raise ValueError("snapshot shard plan has no shards")
+    return plan
 
 
-def discover_catalog(root: Path = ROOT) -> list[str]:
-    """Return every snapshot Bundle/Suite identifier declared by Project.swift."""
-    manifest_path = root / "Project.swift"
-    try:
-        manifest = manifest_path.read_text()
-    except OSError as error:
-        raise ShardError(f"could not read {manifest_path}: {error}") from error
+def snapshot_source_roots(repo):
+    project = (repo / "Project.swift").read_text()
+    roots = {}
+    for match in SNAPSHOT_TARGET_PATTERN.finditer(project):
+        bundle = match.group("bundle")
+        source = match.group("sources")
+        if source in roots:
+            raise ValueError(f"duplicate snapshot source path in Project.swift: {source}")
+        roots[source] = bundle
+    if not roots:
+        raise ValueError("Project.swift has no snapshot test targets")
+    return roots
 
-    declaration = re.compile(r"^ {8}unitTests\(", re.MULTILINE)
-    starts = [match.start() for match in declaration.finditer(manifest)] + [len(manifest)]
-    bundle_sources: dict[str, Path] = {}
-    for index, start in enumerate(starts[:-1]):
-        window = manifest[start : starts[index + 1]]
-        name = re.search(r'name:\s*"(\w+)"', window)
-        sources = re.search(r'sources:\s*\["([^"*]+)\/\*\*"\]', window)
-        if name and name.group(1).endswith("SnapshotTests") and sources:
-            bundle_sources[name.group(1)] = root / sources.group(1).rstrip("/")
 
-    if not bundle_sources:
-        raise ShardError("Project.swift declares no snapshot test bundles")
-
-    catalog: list[str] = []
-    for bundle, source_directory in sorted(bundle_sources.items()):
-        if not source_directory.is_dir():
-            raise ShardError(f"snapshot source directory does not exist: {source_directory}")
-        swift_files = sorted(source_directory.rglob("*.swift"))
-        if not swift_files:
-            raise ShardError(f"snapshot source directory is empty: {source_directory}")
-        for source in swift_files:
-            suite = source.stem
-            text = source.read_text()
-            declared_suites = re.findall(
+def source_inventory(repo):
+    suites = set()
+    for source, bundle in snapshot_source_roots(repo).items():
+        root = repo / source
+        if not root.is_dir():
+            raise ValueError(f"snapshot source path does not exist: {source}")
+        for path in sorted(root.rglob("*.swift")):
+            text = path.read_text()
+            suite = path.stem
+            declarations = re.findall(
                 r"^(?:(?:private|fileprivate|internal|package|public|final)\s+)*"
                 r"(?:struct|class|actor|enum)\s+(\w+Tests)\b",
                 text,
                 re.MULTILINE,
             )
-            if declared_suites != [suite]:
-                found = ", ".join(declared_suites) if declared_suites else "none"
-                raise ShardError(
-                    f"{source.relative_to(root)} must declare exactly one top-level "
-                    f"*Tests suite named {suite}; found {found}"
+            if declarations != [suite]:
+                relative = path.relative_to(repo)
+                found = ", ".join(declarations) if declarations else "none"
+                raise ValueError(
+                    f"{relative} must declare one top-level suite named {suite}; "
+                    f"found {found}"
                 )
-            catalog.append(f"{bundle}/{suite}")
-    return sorted(catalog)
-
-
-def load_config(path: Path = DEFAULT_CONFIG) -> dict[str, list[str]]:
-    data = _load_json(path)
-    if data.get("version") != CONFIG_VERSION:
-        raise ShardError(
-            f"{path} has unsupported version {data.get('version')!r}; "
-            f"expected {CONFIG_VERSION}"
-        )
-    shards = data.get("shards")
-    if not isinstance(shards, dict) or set(shards) != set(SHARD_NAMES):
-        raise ShardError(f"{path} must contain exactly shards 1 and 2")
-    if any(not isinstance(shards[name], list) for name in SHARD_NAMES):
-        raise ShardError(f"every shard in {path} must be an array")
-    return {name: list(shards[name]) for name in SHARD_NAMES}
-
-
-def validate_config(catalog: Iterable[str], shards: dict[str, list[str]]) -> None:
-    expected = set(catalog)
-    assigned = [identifier for name in SHARD_NAMES for identifier in shards[name]]
-    counts: dict[str, int] = defaultdict(int)
-    for identifier in assigned:
-        counts[identifier] += 1
-
-    problems = []
-    empty = [name for name in SHARD_NAMES if not shards[name]]
-    duplicates = sorted(identifier for identifier, count in counts.items() if count > 1)
-    missing = sorted(expected - set(assigned))
-    unknown = sorted(set(assigned) - expected)
-    if empty:
-        problems.append(f"empty shards: {', '.join(empty)}")
-    if duplicates:
-        problems.append(f"assigned more than once: {', '.join(duplicates)}")
-    if missing:
-        problems.append(f"missing: {', '.join(missing)}")
-    if unknown:
-        problems.append(f"unknown: {', '.join(unknown)}")
-    if problems:
-        raise ShardError("invalid snapshot shard configuration:\n  " + "\n  ".join(problems))
-
-
-def suites_from_test_results(data: dict) -> dict[str, dict[str, float | int]]:
-    suites: dict[str, dict[str, float | int]] = defaultdict(
-        lambda: {"durationSeconds": 0.0, "testCount": 0}
-    )
-
-    def walk(node: dict, bundle: str | None, suite: str | None) -> None:
-        kind = node.get("nodeType")
-        name = node.get("name", "")
-        if kind == "Unit test bundle":
-            bundle = name
-        elif kind == "Test Suite":
-            suite = name
-        elif (
-            kind == "Test Case"
-            and node.get("result") != "Skipped"
-            and bundle
-            and suite
-            and bundle.endswith("SnapshotTests")
-        ):
             identifier = f"{bundle}/{suite}"
-            suites[identifier]["durationSeconds"] += float(
-                node.get("durationInSeconds") or 0
-            )
-            suites[identifier]["testCount"] += 1
-        for child in node.get("children", []):
-            walk(child, bundle, suite)
-
-    for node in data.get("testNodes", []):
-        walk(node, None, None)
-    return dict(suites)
+            if identifier in suites:
+                raise ValueError(f"duplicate snapshot suite in source: {identifier}")
+            suites.add(identifier)
+    if not suites:
+        raise ValueError("snapshot sources contain no test suites")
+    return suites
 
 
-def make_report(test_results: Iterable[dict]) -> dict:
-    combined: dict[str, dict[str, float | int]] = defaultdict(
-        lambda: {"durationSeconds": 0.0, "testCount": 0}
+def plan_partition(plan):
+    shards = plan["shards"]
+    if len(shards) < 1:
+        raise ValueError("snapshot shard plan must contain a shard")
+    indices = [shard.get("index") for shard in shards]
+    if indices != list(range(len(shards))):
+        raise ValueError("snapshot shard indices must be consecutive and ordered")
+    partition = []
+    for shard in shards:
+        suites = shard.get("suites")
+        if not isinstance(suites, list) or not suites:
+            raise ValueError(f"snapshot shard {shard.get('index')} is empty")
+        if not all(isinstance(suite, str) and suite for suite in suites):
+            raise ValueError(f"snapshot shard {shard.get('index')} has an invalid suite")
+        partition.append(suites)
+    return partition
+
+
+def validate_partition(inventory, partition, allow_missing=False):
+    flattened = [suite for shard in partition for suite in shard]
+    duplicates = sorted(
+        suite for suite in set(flattened) if flattened.count(suite) > 1
     )
-    for data in test_results:
-        for identifier, row in suites_from_test_results(data).items():
-            combined[identifier]["durationSeconds"] += float(row["durationSeconds"])
-            combined[identifier]["testCount"] += int(row["testCount"])
-    if not combined:
-        raise ShardError("the supplied result contains no snapshot test suites")
+    if duplicates:
+        raise ValueError(f"snapshot shards overlap: {duplicates}")
+    missing = sorted(inventory - set(flattened))
+    unknown = sorted(set(flattened) - inventory)
+    if missing and not allow_missing:
+        raise ValueError(f"snapshot shard plan omits suites: {missing}")
+    if unknown:
+        raise ValueError(f"snapshot shard plan contains unknown suites: {unknown}")
+    return missing
+
+
+def validate_plan(plan, repo):
+    inventory = source_inventory(repo)
+    partition = plan_partition(plan)
+    validate_partition(inventory, partition)
+    return inventory, partition
+
+
+def execution_partition(plan, repo):
+    inventory = source_inventory(repo)
+    partition = plan_partition(plan)
+    intake = validate_partition(inventory, partition, allow_missing=True)
+    return inventory, [*partition, intake]
+
+
+def selected_shard(partition, shard_number, worker_count=None):
+    if worker_count is not None and worker_count != len(partition):
+        raise ValueError(
+            f"CircleCI started {worker_count} workers, but the plan has "
+            f"{len(partition)} shards"
+        )
+    if shard_number < 1 or shard_number > len(partition):
+        raise ValueError(
+            f"shard number {shard_number} is outside 1...{len(partition)}"
+        )
+    return partition[shard_number - 1]
+
+
+def read_suites(path):
+    suites = [line.strip() for line in path.read_text().splitlines() if line.strip()]
+    if len(suites) != len(set(suites)):
+        raise ValueError(f"suite list contains duplicate identifiers: {path}")
+    return suites
+
+
+def validate_enumeration(expected, path):
+    expected = set(expected)
+    actual = set(read_suites(path))
+    if expected != actual:
+        missing = sorted(actual - expected)
+        stale = sorted(expected - actual)
+        details = []
+        if missing:
+            details.append(f"plan omits {missing}")
+        if stale:
+            details.append(f"plan contains stale suites {stale}")
+        raise ValueError("snapshot enumeration does not match the plan: " + "; ".join(details))
+
+
+def validate_execution(assignment_path, junit_path):
+    expected = set(read_suites(assignment_path))
+    try:
+        root = ET.parse(junit_path).getroot()
+    except (ET.ParseError, OSError) as error:
+        raise ValueError(f"cannot read JUnit document {junit_path}: {error}") from error
+
+    actual = set()
+    for case in root.iter("testcase"):
+        suite = case.get("file")
+        if not suite:
+            raise ValueError(f"JUnit test case has no suite identifier: {junit_path}")
+        actual.add(suite)
+
+    missing = sorted(expected - actual)
+    unexpected = sorted(actual - expected)
+    if missing or unexpected:
+        details = []
+        if missing:
+            details.append(f"did not execute {missing}")
+        if unexpected:
+            details.append(f"executed unassigned suites {unexpected}")
+        raise ValueError("snapshot execution does not match the assignment: " + "; ".join(details))
+    return len(actual)
+
+
+def junit_duration_samples(paths, inventory):
+    samples = {suite: [] for suite in inventory}
+    documents = []
+    for candidate in paths:
+        if candidate.is_dir():
+            documents.extend(sorted(candidate.rglob("*.xml")))
+        else:
+            documents.append(candidate)
+    if not documents:
+        raise ValueError("no JUnit documents were provided")
+    for document in documents:
+        totals = {}
+        try:
+            root = ET.parse(document).getroot()
+        except (ET.ParseError, OSError) as error:
+            raise ValueError(f"cannot read JUnit document {document}: {error}") from error
+        for case in root.iter("testcase"):
+            suite = case.get("file")
+            if not suite:
+                continue
+            if suite not in inventory:
+                raise ValueError(f"JUnit document contains an unknown suite: {suite}")
+            try:
+                elapsed = float(case.get("time", "0"))
+            except ValueError as error:
+                raise ValueError(f"JUnit duration is invalid for {suite}") from error
+            totals[suite] = totals.get(suite, 0.0) + elapsed
+        for suite, elapsed in totals.items():
+            samples[suite].append(elapsed)
+    missing = sorted(suite for suite, values in samples.items() if not values)
+    if missing:
+        raise ValueError(f"JUnit documents contain no durations for suites: {missing}")
+    return samples, len(documents)
+
+
+def balanced_partition(weights, shard_count):
+    if shard_count < 1:
+        raise ValueError("shard count must be positive")
+    if len(weights) < shard_count:
+        raise ValueError("suite count is less than shard count")
+    shards = [[] for _ in range(shard_count)]
+    totals = [0.0 for _ in range(shard_count)]
+    for suite, elapsed in sorted(weights.items(), key=lambda item: (-item[1], item[0])):
+        index = min(range(shard_count), key=lambda value: (totals[value], value))
+        shards[index].append(suite)
+        totals[index] += elapsed
+    for shard in shards:
+        shard.sort()
+    return shards, totals
+
+
+def rebalanced_plan(plan, repo, junit_paths, shard_count=None):
+    inventory, partition = execution_partition(plan, repo)
+    samples, document_count = junit_duration_samples(junit_paths, inventory)
+    weights = {
+        suite: round(statistics.median(values), 3)
+        for suite, values in samples.items()
+    }
+    planned_shard_count = len(partition) - 1
+    shards, totals = balanced_partition(
+        weights, shard_count or planned_shard_count
+    )
     return {
-        "version": REPORT_VERSION,
-        "scheme": "StuffSnapshotTests",
-        "suites": [
+        "formatVersion": FORMAT_VERSION,
+        "method": "longest-processing-time over median JUnit suite durations",
+        "sampleDocuments": document_count,
+        "timings": dict(sorted(weights.items())),
+        "shards": [
             {
-                "identifier": identifier,
-                "durationSeconds": round(float(row["durationSeconds"]), 6),
-                "testCount": int(row["testCount"]),
+                "index": index,
+                "estimatedSeconds": round(totals[index], 3),
+                "suites": suites,
             }
-            for identifier, row in sorted(combined.items())
+            for index, suites in enumerate(shards)
         ],
     }
 
 
-def load_report(path: Path) -> dict[str, float]:
-    data = _load_json(path)
-    if data.get("version") != REPORT_VERSION:
-        raise ShardError(
-            f"{path} has unsupported report version {data.get('version')!r}; "
-            f"expected {REPORT_VERSION}"
-        )
-    rows = data.get("suites")
-    if not isinstance(rows, list):
-        raise ShardError(f"{path} has no suites array")
-    durations: dict[str, float] = {}
-    for row in rows:
-        try:
-            identifier = row["identifier"]
-            duration = float(row["durationSeconds"])
-            count = int(row["testCount"])
-        except (KeyError, TypeError, ValueError) as error:
-            raise ShardError(f"{path} contains an invalid suite row: {row!r}") from error
-        if identifier in durations:
-            raise ShardError(f"{path} contains duplicate suite {identifier}")
-        if duration < 0 or count < 1:
-            raise ShardError(f"{path} contains invalid timing for {identifier}")
-        durations[identifier] = duration
-    if not durations:
-        raise ShardError(f"{path} contains no suite timings")
-    return durations
+def parse_args():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--plan", type=pathlib.Path, default=DEFAULT_PLAN)
+    subparsers = parser.add_subparsers(dest="command", required=True)
 
+    check = subparsers.add_parser("check", help="validate the checked-in plan")
+    check.add_argument("--repo", type=pathlib.Path, default=ROOT)
 
-def balance(durations: dict[str, float]) -> tuple[dict[str, list[str]], dict[str, float]]:
-    shards = {name: [] for name in SHARD_NAMES}
-    totals = {name: 0.0 for name in SHARD_NAMES}
-    for identifier, duration in sorted(durations.items(), key=lambda row: (-row[1], row[0])):
-        target = min(SHARD_NAMES, key=lambda name: (totals[name], name))
-        shards[target].append(identifier)
-        totals[target] += duration
-    for name in SHARD_NAMES:
-        shards[name].sort()
-    return shards, totals
+    listing = subparsers.add_parser("list", help="print one shard")
+    listing.add_argument("shard", type=int)
+    listing.add_argument("--repo", type=pathlib.Path, default=ROOT)
+    listing.add_argument("--total", type=int)
 
+    compare = subparsers.add_parser("compare-enumeration")
+    compare.add_argument("--enumeration", type=pathlib.Path, required=True)
 
-def shard_totals(shards: dict[str, list[str]], durations: dict[str, float]) -> dict[str, float]:
-    return {
-        name: sum(durations[identifier] for identifier in shards[name])
-        for name in SHARD_NAMES
-    }
+    verify = subparsers.add_parser("verify-execution")
+    verify.add_argument("--assignment", type=pathlib.Path, required=True)
+    verify.add_argument("--junit", type=pathlib.Path, required=True)
 
-
-def medians(reports: Iterable[dict[str, float]]) -> dict[str, float]:
-    samples: dict[str, list[float]] = defaultdict(list)
-    for report in reports:
-        for identifier, duration in report.items():
-            samples[identifier].append(duration)
-    return {identifier: statistics.median(values) for identifier, values in samples.items()}
-
-
-def combine_shard_reports(
-    reports: Iterable[dict[str, float]], expected: set[str]
-) -> dict[str, float]:
-    combined: dict[str, float] = {}
-    for report in reports:
-        overlap = sorted(set(combined) & set(report))
-        if overlap:
-            raise ShardError(f"timing artifacts repeat suites: {', '.join(overlap)}")
-        combined.update(report)
-    missing = sorted(expected - set(combined))
-    unknown = sorted(set(combined) - expected)
-    if missing or unknown:
-        detail = []
-        if missing:
-            detail.append(f"missing {', '.join(missing)}")
-        if unknown:
-            detail.append(f"unknown {', '.join(unknown)}")
-        raise ShardError("timing artifacts do not match the catalog: " + "; ".join(detail))
-    return combined
-
-
-def write_config(path: Path, shards: dict[str, list[str]]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps({"version": CONFIG_VERSION, "shards": shards}, indent=2) + "\n")
-
-
-def _run(command: list[str], *, cwd: Path = ROOT) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(command, cwd=cwd, text=True, capture_output=True, check=True)
-
-
-def extract_xcresult(path: Path) -> dict:
-    try:
-        result = _run(
-            [
-                "xcrun",
-                "xcresulttool",
-                "get",
-                "test-results",
-                "tests",
-                "--path",
-                str(path),
-            ]
-        )
-        return json.loads(result.stdout)
-    except subprocess.CalledProcessError as error:
-        detail = error.stderr.strip() or error.stdout.strip() or f"exit {error.returncode}"
-        raise ShardError(f"could not read {path}: {detail}") from error
-    except json.JSONDecodeError as error:
-        raise ShardError(f"xcresulttool returned invalid JSON for {path}: {error}") from error
-
-
-def reports_from_ci(run_count: int, catalog: list[str]) -> tuple[dict[str, float], int]:
-    try:
-        listed = _run(
-            [
-                "gh",
-                "run",
-                "list",
-                "--workflow",
-                "CI",
-                "--branch",
-                "main",
-                "--status",
-                "success",
-                "--limit",
-                str(max(50, run_count * 5)),
-                "--json",
-                "databaseId",
-            ]
-        )
-        runs = json.loads(listed.stdout)
-    except (subprocess.CalledProcessError, json.JSONDecodeError) as error:
-        raise ShardError(f"could not list successful CI runs with gh: {error}") from error
-
-    complete: list[dict[str, float]] = []
-    expected = set(catalog)
-    with tempfile.TemporaryDirectory(prefix="snapshot-shards-ci-") as temporary:
-        base = Path(temporary)
-        for run in runs:
-            if len(complete) >= run_count:
-                break
-            run_id = str(run["databaseId"])
-            try:
-                shard_reports = []
-                for shard in SHARD_NAMES:
-                    destination = base / run_id / shard
-                    destination.mkdir(parents=True)
-                    _run(
-                        [
-                            "gh",
-                            "run",
-                            "download",
-                            run_id,
-                            "--name",
-                            f"snapshot-timings-{shard}",
-                            "--dir",
-                            str(destination),
-                        ]
-                    )
-                    reports = list(destination.rglob("*.json"))
-                    if len(reports) != 1:
-                        raise ShardError(
-                            f"artifact snapshot-timings-{shard} contains "
-                            f"{len(reports)} JSON reports"
-                        )
-                    shard_reports.append(load_report(reports[0]))
-                combined = combine_shard_reports(shard_reports, expected)
-            except (subprocess.CalledProcessError, ShardError):
-                continue
-            complete.append(combined)
-    if not complete:
-        raise ShardError(
-            "no successful main CI run has both complete snapshot timing artifacts; "
-            "run './snapshot-shards balance --local' instead"
-        )
-    return medians(complete), len(complete)
-
-
-def _ensure_complete(durations: dict[str, float], catalog: list[str], source: str) -> None:
-    missing = sorted(set(catalog) - set(durations))
-    unknown = sorted(set(durations) - set(catalog))
-    if missing or unknown:
-        detail = []
-        if missing:
-            detail.append(f"missing {', '.join(missing)}")
-        if unknown:
-            detail.append(f"unknown {', '.join(unknown)}")
-        raise ShardError(f"{source} does not match the current snapshot catalog: {'; '.join(detail)}")
-
-
-def command_check(args: argparse.Namespace) -> None:
-    catalog = discover_catalog()
-    shards = load_config(args.config)
-    validate_config(catalog, shards)
-    print(
-        f"Snapshot shard configuration is valid: {len(catalog)} suites "
-        f"({len(shards['1'])} in shard 1, {len(shards['2'])} in shard 2)."
+    balance = subparsers.add_parser(
+        "balance", help="propose a plan from JUnit timing artifacts"
     )
+    balance.add_argument("--repo", type=pathlib.Path, default=ROOT)
+    balance.add_argument("--junit", type=pathlib.Path, action="append", required=True)
+    balance.add_argument("--shards", type=int)
+    balance.add_argument("--write", action="store_true")
+    return parser.parse_args()
 
 
-def command_list(args: argparse.Namespace) -> None:
-    catalog = discover_catalog()
-    shards = load_config(args.config)
-    validate_config(catalog, shards)
-    for identifier in shards[args.shard]:
-        print(identifier)
-
-
-def command_report(args: argparse.Namespace) -> None:
-    test_results = [extract_xcresult(path) for path in args.xcresult]
-    report = make_report(test_results)
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(report, indent=2) + "\n")
-    print(f"Snapshot suite timing report: {args.output}")
-
-
-def command_balance(args: argparse.Namespace) -> None:
-    catalog = discover_catalog()
-    current = load_config(args.config)
-    current_error = None
+def main():
+    args = parse_args()
     try:
-        validate_config(catalog, current)
-    except ShardError as error:
-        # A newly added suite is exactly when balancing needs to repair the
-        # assignment, so an outdated but structurally readable config must not
-        # prevent --local/--report --write from producing its replacement.
-        current_error = error
-
-    if args.local:
-        with tempfile.TemporaryDirectory(prefix="snapshot-shards-local-") as temporary:
-            report = Path(temporary) / "snapshot-suite-durations.json"
-            subprocess.run(
-                ["./test", "--snapshots", "--timing-report", str(report)],
-                cwd=ROOT,
-                check=True,
+        plan = load_plan(args.plan)
+        if args.command == "check":
+            inventory, partition = execution_partition(plan, args.repo.resolve())
+            counts = ", ".join(
+                f"{index + 1}={len(suites)}" for index, suites in enumerate(partition)
             )
-            durations = load_report(report)
-        source = "local snapshot run"
-    elif args.ci:
-        durations, samples = reports_from_ci(args.runs, catalog)
-        source = f"median of {samples} complete successful main CI run(s)"
-    else:
-        durations = load_report(args.report)
-        source = str(args.report)
-
-    _ensure_complete(durations, catalog, source)
-    proposed, proposed_totals = balance(durations)
-    print(f"Timing source: {source}")
-    if current_error:
-        print(f"Current assignment is stale: {current_error}")
-    else:
-        current_totals = shard_totals(current, durations)
-        print(
-            "Current estimated shard time: "
-            f"1={current_totals['1']:.3f}s, 2={current_totals['2']:.3f}s"
-        )
-    print(
-        "Proposed estimated shard time: "
-        f"1={proposed_totals['1']:.3f}s, 2={proposed_totals['2']:.3f}s"
-    )
-    print(json.dumps({"version": CONFIG_VERSION, "shards": proposed}, indent=2))
-    if args.write:
-        write_config(args.config, proposed)
-        print(f"Updated {args.config}")
-    else:
-        print("Dry run; pass --write to update the configuration.")
-
-
-def parser() -> argparse.ArgumentParser:
-    result = argparse.ArgumentParser(description=__doc__)
-    result.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
-    commands = result.add_subparsers(dest="command", required=True)
-
-    check = commands.add_parser("check", help="validate the checked-in shard assignment")
-    check.set_defaults(function=command_check)
-
-    listing = commands.add_parser("list", help="print Bundle/Suite identifiers for one shard")
-    listing.add_argument("shard", choices=SHARD_NAMES)
-    listing.set_defaults(function=command_list)
-
-    report = commands.add_parser("report", help="write a timing report from .xcresult data")
-    report.add_argument("--xcresult", action="append", type=Path, required=True)
-    report.add_argument("--output", type=Path, required=True)
-    report.set_defaults(function=command_report)
-
-    balancing = commands.add_parser("balance", help="propose a duration-balanced assignment")
-    source = balancing.add_mutually_exclusive_group(required=True)
-    source.add_argument("--local", action="store_true", help="run the full local snapshot suite")
-    source.add_argument("--ci", action="store_true", help="use successful main CI artifacts")
-    source.add_argument("--report", type=Path, help="use an existing timing report")
-    balancing.add_argument("--runs", type=int, default=10, help="complete CI runs to sample (default: 10)")
-    balancing.add_argument("--write", action="store_true", help="update the config instead of only reporting")
-    balancing.set_defaults(function=command_balance)
-    return result
-
-
-def main() -> int:
-    args = parser().parse_args()
-    if getattr(args, "runs", 1) < 1:
-        print("error: --runs must be at least 1", file=sys.stderr)
-        return 2
-    try:
-        args.function(args)
-    except ShardError as error:
+            print(
+                f"Snapshot shard plan is valid: {len(inventory)} suites "
+                f"in {len(partition) - 1} planned shards plus intake ({counts})."
+            )
+        elif args.command == "list":
+            _, partition = execution_partition(plan, args.repo.resolve())
+            selected = selected_shard(partition, args.shard, args.total)
+            sys.stdout.write("".join(f"{suite}\n" for suite in selected))
+        elif args.command == "compare-enumeration":
+            inventory, _ = execution_partition(plan, ROOT)
+            validate_enumeration(inventory, args.enumeration)
+            print("Snapshot enumeration matches the deterministic plan")
+        elif args.command == "verify-execution":
+            count = validate_execution(args.assignment, args.junit)
+            print(f"Snapshot execution matches the assignment: {count} suites")
+        elif args.command == "balance":
+            candidate = rebalanced_plan(
+                plan, args.repo.resolve(), args.junit, args.shards
+            )
+            serialized = json.dumps(candidate, indent=2, sort_keys=True) + "\n"
+            print(serialized, end="")
+            if args.write:
+                args.plan.write_text(serialized)
+                print(f"Updated {args.plan}")
+            else:
+                print("Dry run; pass --write to update the plan.")
+    except (OSError, ValueError) as error:
         print(f"error: {error}", file=sys.stderr)
-        return 1
-    except subprocess.CalledProcessError as error:
-        print(f"error: command failed with exit {error.returncode}: {' '.join(error.cmd)}", file=sys.stderr)
-        return error.returncode or 1
-    return 0
+        raise SystemExit(1) from error
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    main()
