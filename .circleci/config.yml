@@ -65,10 +65,10 @@ commands:
             python3 Tools/Tests/test_snapshot_shards.py
             ./snapshot-shards check
 
-  validate_runner_environment:
+  validate_build_environment:
     steps:
       - run:
-          name: Validate runner environment
+          name: Validate build environment
           command: |
             echo "CPU: $(sysctl -n machdep.cpu.brand_string)"
             echo "Logical CPUs: $(sysctl -n hw.logicalcpu)"
@@ -84,14 +84,6 @@ commands:
               echo "Expected Xcode build 27A5228h, found $xcode_build" >&2
               exit 1
             fi
-            if ! xcrun simctl list runtimes available | grep -Eq '^iOS 27(\.0)? '; then
-              echo "An available iOS 27 simulator runtime is required" >&2
-              exit 1
-            fi
-
-            selected_simulator="$(./simulator --shared --os 27.0 --no-boot)"
-            echo "Selected simulator: $selected_simulator"
-            xcrun simctl list devices available | grep "$selected_simulator"
 
             echo "Checkout: $(git rev-parse HEAD)"
             echo "Origin: $(git remote get-url origin)"
@@ -101,10 +93,37 @@ commands:
               exit 1
             fi
 
+  validate_simulator_environment:
+    steps:
+      - run:
+          name: Validate simulator environment
+          command: |
+            echo "Available simulator runtimes:"
+            xcrun simctl list runtimes available
+            if ! xcrun simctl list runtimes available | grep -Eq '^iOS 27(\.0)? '; then
+              echo "An available iOS 27 simulator runtime is required" >&2
+              exit 1
+            fi
+
+            selected_simulator="$(./simulator --shared --os 27.0 --no-boot)"
+            echo "Selected simulator: $selected_simulator"
+            xcrun simctl list devices available | grep "$selected_simulator"
+
+  validate_runner_environment:
+    steps:
+      - validate_build_environment
+      - validate_simulator_environment
+
   prepare_builder:
     parameters:
       test_workdir:
         type: string
+      run_ci_helper_tests:
+        type: boolean
+        default: true
+      require_simulator:
+        type: boolean
+        default: true
     steps:
       - checkout_without_lfs
       - restore_cache:
@@ -130,7 +149,10 @@ commands:
             - ~/.local/share/mise/installs
       - configure_test_workdir:
           test_workdir: << parameters.test_workdir >>
-      - test_ci_helpers
+      - when:
+          condition: << parameters.run_ci_helper_tests >>
+          steps:
+            - test_ci_helpers
       - run:
           name: Generate project and resolve Swift packages
           command: |
@@ -153,7 +175,11 @@ commands:
           key: swiftpm-artifacts-v2-{{ arch }}-{{ checksum "Package.resolved" }}
           paths:
             - ~/Library/Caches/org.swift.swiftpm/artifacts
-      - validate_runner_environment
+      - validate_build_environment
+      - when:
+          condition: << parameters.require_simulator >>
+          steps:
+            - validate_simulator_environment
 
   prepare_worker:
     parameters:
@@ -169,13 +195,16 @@ commands:
 
   run_with_timeout:
     parameters:
+      step_name:
+        type: string
+        default: Run tests
       seconds:
         type: integer
       command:
         type: string
     steps:
       - run:
-          name: Run tests
+          name: << parameters.step_name >>
           no_output_timeout: 45m
           command: |
             ruby -e '
@@ -307,6 +336,39 @@ jobs:
           test_workdir: test-output-ios
           artifact_name: test-ios
 
+  build-where-audiences:
+    executor: m4-pro-medium
+    parallelism: 2
+    steps:
+      - prepare_builder:
+          test_workdir: test-output-audience-build
+          run_ci_helper_tests: false
+          require_simulator: false
+      - run:
+          name: Select Where audience
+          command: |
+            case "$CIRCLE_NODE_INDEX" in
+              0) scheme="Where Beta" ;;
+              1) scheme="Where App Store" ;;
+              *)
+                echo "No Where audience for shard $CIRCLE_NODE_INDEX" >&2
+                exit 1
+                ;;
+            esac
+            printf 'export WHERE_AUDIENCE_SCHEME=%q\n' "$scheme" >> "$BASH_ENV"
+            echo "Selected scheme: $scheme"
+      - run_with_timeout:
+          step_name: Build selected Where audience
+          seconds: 2700
+          command: >-
+            mise exec -- tuist xcodebuild build
+            -workspace Stuff.xcworkspace
+            -scheme "$WHERE_AUDIENCE_SCHEME"
+            -destination 'generic/platform=iOS Simulator'
+      - collect_diagnostics:
+          test_workdir: test-output-audience-build
+          artifact_name: where-audience-build
+
   snapshot:
     executor: m4-pro-medium
     parallelism: 4
@@ -377,6 +439,12 @@ workflows:
           name: Build iOS Tests
       - test-ios:
           name: Build & Test (iOS)
+          requires:
+            - Build iOS Tests
+      # Each release audience needs a complete compile. Separate workers keep
+      # two serial release builds out of the workflow's critical path.
+      - build-where-audiences:
+          name: Build Where Audiences
           requires:
             - Build iOS Tests
       - snapshot:
