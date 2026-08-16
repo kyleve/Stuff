@@ -66,9 +66,13 @@ OS="27.0"
 SCOPE=changed          # changed | all | snapshots | everything | bundles | only
 BUNDLES=()
 ONLY=()
+ONLY_FILE=""
 RECORD=""
 DO_BUILD=true
 DO_GENERATE=true
+BUILD_ARTIFACTS=""
+TEST_ARTIFACTS=""
+ENUMERATE_SUITES=""
 HEARTBEAT=15
 STATUS_FILE=""
 TIMINGS=false
@@ -98,6 +102,7 @@ Scope:
   --everything      Both suites — what CI runs
   --only ID         An xcodebuild test identifier, repeatable:
                     Bundle, Bundle/Suite, or 'Bundle/Suite/test()'
+  --only-file PATH  Read newline-delimited Bundle/Suite identifiers from PATH
   --base REF        Compare against REF instead of origin/main
 
 Architecture:
@@ -107,6 +112,12 @@ Architecture:
 Running:
   --no-build        Reuse the last build (test-without-building)
   --no-generate     Skip `tuist generate` (assumes the project is current)
+  --build-artifacts DIR
+                    Build the selected schemes into DIR without running tests
+  --test-artifacts DIR
+                    Run tests from the manifest and .xctestrun files in DIR
+  --enumerate-suites PATH
+                    Write the selected artifact's Bundle/Suite identifiers
   --record MODE     Re-record snapshots: all | failed | missing | never
   --device NAME     Simulator device name (default: "iPhone 17")
   --os VERSION      Simulator iOS version (default: "27.0")
@@ -146,9 +157,32 @@ while [ $# -gt 0 ]; do
             ONLY+=("${1:?--only requires a test identifier}")
             [ "$SCOPE" = changed ] && SCOPE=only
             ;;
+        --only-file)
+            HAS_TEST_ARGUMENTS=true
+            shift
+            ONLY_FILE="${1:?--only-file requires a path}"
+            [ "$SCOPE" = changed ] && SCOPE=only
+            ;;
         --base) HAS_TEST_ARGUMENTS=true; shift; BASE_REF="${1:?--base requires a git ref}" ;;
         --no-build) DO_BUILD=false; HAS_TEST_ARGUMENTS=true ;;
         --no-generate) DO_GENERATE=false; HAS_TEST_ARGUMENTS=true ;;
+        --build-artifacts)
+            HAS_TEST_ARGUMENTS=true
+            shift
+            BUILD_ARTIFACTS="${1:?--build-artifacts requires a directory}"
+            ;;
+        --test-artifacts)
+            HAS_TEST_ARGUMENTS=true
+            shift
+            TEST_ARTIFACTS="${1:?--test-artifacts requires a directory}"
+            DO_BUILD=false
+            DO_GENERATE=false
+            ;;
+        --enumerate-suites)
+            HAS_TEST_ARGUMENTS=true
+            shift
+            ENUMERATE_SUITES="${1:?--enumerate-suites requires a path}"
+            ;;
         --record) HAS_TEST_ARGUMENTS=true; shift; RECORD="${1:?--record requires a mode}" ;;
         --device) HAS_TEST_ARGUMENTS=true; shift; DEVICE="${1:?--device requires a value}" ;;
         --shared) SHARED=true; HAS_TEST_ARGUMENTS=true ;;
@@ -168,6 +202,20 @@ done
 
 cd "$(dirname "$0")"
 
+if [ -n "$ONLY_FILE" ]; then
+    if [ ! -f "$ONLY_FILE" ]; then
+        echo "error: --only-file does not exist: $ONLY_FILE" >&2
+        exit 1
+    fi
+    while IFS= read -r identifier || [ -n "$identifier" ]; do
+        [ -n "$identifier" ] && ONLY+=("$identifier")
+    done <"$ONLY_FILE"
+    if [ "${#ONLY[@]}" -eq 0 ]; then
+        echo "error: --only-file contains no test identifiers: $ONLY_FILE" >&2
+        exit 1
+    fi
+fi
+
 case "$RECORD" in
     ""|all|failed|missing|never) ;;
     *) echo "error: --record must be all, failed, missing or never (got '$RECORD')" >&2
@@ -180,6 +228,24 @@ if [ "$ARCHITECTURE_ONLY" = true ] && [ "$RUN_ARCHITECTURE" = false ]; then
 fi
 if [ "$ARCHITECTURE_ONLY" = true ] && [ "$HAS_TEST_ARGUMENTS" = true ]; then
     echo "error: --architecture-only cannot be combined with test options or bundles" >&2
+    exit 1
+fi
+if [ -n "$BUILD_ARTIFACTS" ] && [ -n "$TEST_ARTIFACTS" ]; then
+    echo "error: --build-artifacts cannot be combined with --test-artifacts" >&2
+    exit 1
+fi
+if [ -n "$BUILD_ARTIFACTS" ] && { [ "$DO_BUILD" = false ] || [ -n "$ONLY_FILE" ] ||
+    [ "${#ONLY[@]}" -gt 0 ] || [ -n "$ENUMERATE_SUITES" ]; }
+then
+    echo "error: --build-artifacts cannot be combined with test filters or test-only modes" >&2
+    exit 1
+fi
+if [ -n "$ENUMERATE_SUITES" ] && [ -z "$TEST_ARTIFACTS" ]; then
+    echo "error: --enumerate-suites requires --test-artifacts" >&2
+    exit 1
+fi
+if [ -n "$ENUMERATE_SUITES" ] && [ "$SCOPE" != snapshots ]; then
+    echo "error: --enumerate-suites requires --snapshots" >&2
     exit 1
 fi
 
@@ -217,6 +283,28 @@ mkdir -p "$WORKDIR" && chmod 700 "$WORKDIR"
 
 rule() { printf '%s\n' "============================================================"; }
 
+phase_started() {
+    python3 -c 'import time; print(time.time_ns())'
+}
+
+emit_phase_timing() {
+    python3 - "$1" "$2" "${3:-}" "${4:-0}" <<'PY'
+import json
+import sys
+import time
+
+phase, started, scheme, status = sys.argv[1:]
+payload = {
+    "phase": phase,
+    "seconds": round((time.time_ns() - int(started)) / 1_000_000_000, 3),
+    "status": int(status),
+}
+if scheme:
+    payload["scheme"] = scheme
+print("CI_TIMING " + json.dumps(payload, separators=(",", ":")), flush=True)
+PY
+}
+
 # The image bundles, read from the manifest rather than listed here: a bundle can
 # only run from a scheme that contains it, and StuffSnapshotTests is the only one
 # carrying the SNAPSHOT_EXPECTED_* / TZ pins the comparisons rely on.
@@ -234,6 +322,7 @@ PY
 backup_upgrader_is_needed() {
     local image_bundles bundle identifier
     image_bundles="$(snapshot_bundles)"
+    { [ -n "$BUILD_ARTIFACTS" ] || [ -n "$TEST_ARTIFACTS" ]; } && return 1
 
     case "$SCOPE" in
         changed|all|everything) return 0 ;;
@@ -689,12 +778,24 @@ if [ "${#ONLY[@]}" -gt 0 ]; then
     for identifier in "${ONLY[@]}"; do
         if printf '%s\n' "$only_images" | grep -qx "${identifier%%/*}"; then
             add_scheme "$SNAPSHOT_SCHEME"
-            SNAPSHOT_FILTERS+=("-only-testing:$identifier")
+            [ -z "$ONLY_FILE" ] && SNAPSHOT_FILTERS+=("-only-testing:$identifier")
         else
             add_scheme "$UNIT_SCHEME"
-            UNIT_FILTERS+=("-only-testing:$identifier")
+            [ -z "$ONLY_FILE" ] && UNIT_FILTERS+=("-only-testing:$identifier")
         fi
     done
+fi
+
+if [ -n "$ONLY_FILE" ]; then
+    if [ "${#SCHEMES[@]}" -ne 1 ]; then
+        echo "error: --only-file must contain identifiers for one test scheme" >&2
+        exit 1
+    fi
+    if [ "${SCHEMES[0]}" = "$SNAPSHOT_SCHEME" ]; then
+        SNAPSHOT_FILTERS=("-only-testing" "@$ONLY_FILE")
+    else
+        UNIT_FILTERS=("-only-testing" "@$ONLY_FILE")
+    fi
 fi
 
 if [ "${#SCHEMES[@]}" -eq 0 ]; then
@@ -704,17 +805,49 @@ fi
 
 if [ "$DO_GENERATE" = true ]; then
     echo "==> Regenerating project (tuist generate --no-open)"
-    if ! mise exec -- tuist generate --no-open >"$WORKDIR/generate.log" 2>&1; then
+    started="$(phase_started)"
+    if mise exec -- tuist generate --no-open >"$WORKDIR/generate.log" 2>&1; then
+        emit_phase_timing generate "$started"
+    else
+        status=$?
+        emit_phase_timing generate "$started" "" "$status"
         echo "error: tuist generate failed. Tail of $WORKDIR/generate.log:" >&2
         tail -n 20 "$WORKDIR/generate.log" >&2
-        exit 1
+        exit "$status"
     fi
 fi
 
-SIMULATOR_FLAGS=(--device "$DEVICE" --os "$OS")
-[ "$SHARED" = true ] && SIMULATOR_FLAGS+=(--shared)
-UDID="$(./simulator "${SIMULATOR_FLAGS[@]}")"
-DESTINATION="platform=iOS Simulator,id=$UDID"
+ARTIFACT_PATHS=""
+if [ -n "$TEST_ARTIFACTS" ]; then
+    ARTIFACT_PATHS="$WORKDIR/test-artifact-paths.json"
+    ARTIFACT_SCHEME_ARGS=()
+    for scheme in "${SCHEMES[@]}"; do
+        ARTIFACT_SCHEME_ARGS+=(--scheme "$scheme")
+    done
+    python3 .circleci/test_artifacts.py resolve-all \
+        --root "$TEST_ARTIFACTS" \
+        "${ARTIFACT_SCHEME_ARGS[@]}" >"$ARTIFACT_PATHS"
+    echo "Validated test artifacts before simulator boot."
+fi
+
+if [ -n "$BUILD_ARTIFACTS" ]; then
+    BUILD_ARTIFACTS="$(mkdir -p "$BUILD_ARTIFACTS" && cd "$BUILD_ARTIFACTS" && pwd -P)"
+    DESTINATION="generic/platform=iOS Simulator"
+    DERIVED_DATA_ARGS=(-derivedDataPath "$BUILD_ARTIFACTS/DerivedData")
+else
+    SIMULATOR_FLAGS=(--device "$DEVICE" --os "$OS")
+    [ "$SHARED" = true ] && SIMULATOR_FLAGS+=(--shared)
+    started="$(phase_started)"
+    if UDID="$(./simulator "${SIMULATOR_FLAGS[@]}")"; then
+        emit_phase_timing simulator "$started"
+    else
+        status=$?
+        emit_phase_timing simulator "$started" "" "$status"
+        exit "$status"
+    fi
+    DESTINATION="platform=iOS Simulator,id=$UDID"
+    DERIVED_DATA_ARGS=()
+fi
 
 # xcodebuild strips the TEST_RUNNER_ prefix on the way in, which is why the
 # pipeline reads SNAPSHOT_* rather than these names.
@@ -734,14 +867,22 @@ RUN_ENV=()
 # `packageResourceEnvironment` in Project.swift for why the lookup needs an
 # override at all (Xcode 27 beta 4's package linking orphans the resource
 # bundles copied into each .xctest).
-BUILT_PRODUCTS_DIR="$(xcodebuild -showBuildSettings \
-    -workspace "$WORKSPACE" \
-    -scheme "${SCHEMES[0]}" \
-    -destination "$DESTINATION" 2>/dev/null \
-    | awk -F' = ' '/ BUILT_PRODUCTS_DIR = /{print $2; exit}')"
+if [ -n "$TEST_ARTIFACTS" ]; then
+    BUILT_PRODUCTS_DIR="$(python3 -c \
+        'import json,sys; print(json.load(open(sys.argv[1]))["products"])' \
+        "$ARTIFACT_PATHS")"
+elif [ -n "$BUILD_ARTIFACTS" ]; then
+    BUILT_PRODUCTS_DIR=""
+else
+    BUILT_PRODUCTS_DIR="$(xcodebuild -showBuildSettings \
+        -workspace "$WORKSPACE" \
+        -scheme "${SCHEMES[0]}" \
+        -destination "$DESTINATION" 2>/dev/null \
+        | awk -F' = ' '/ BUILT_PRODUCTS_DIR = /{print $2; exit}')"
+fi
 if [ -n "$BUILT_PRODUCTS_DIR" ]; then
     RUN_ENV+=("TEST_RUNNER_PACKAGE_RESOURCE_BUNDLE_PATH=$BUILT_PRODUCTS_DIR")
-else
+elif [ -z "$BUILD_ARTIFACTS" ]; then
     echo "warning: could not resolve BUILT_PRODUCTS_DIR; package resource" \
         "bundle lookups will fall back to the linker's placement" >&2
 fi
@@ -763,15 +904,59 @@ for scheme in "${SCHEMES[@]}"; do
 
     if [ "$DO_BUILD" = true ]; then
         echo "==> Building $scheme for testing"
-        if ! xcodebuild build-for-testing \
+        started="$(phase_started)"
+        if xcodebuild build-for-testing \
             -workspace "$WORKSPACE" \
             -scheme "$scheme" \
+            -configuration Debug \
             -destination "$DESTINATION" \
+            ${DERIVED_DATA_ARGS[@]+"${DERIVED_DATA_ARGS[@]}"} \
+            ${BUILD_ARTIFACTS:+ARCHS=arm64} \
+            ${BUILD_ARTIFACTS:+ONLY_ACTIVE_ARCH=YES} \
             >"$WORKDIR/$scheme-build.log" 2>&1
         then
+            emit_phase_timing build "$started" "$scheme"
+        else
+            status=$?
+            emit_phase_timing build "$started" "$scheme" "$status"
             echo "error: build failed for $scheme. Tail of $WORKDIR/$scheme-build.log:" >&2
             tail -n 30 "$WORKDIR/$scheme-build.log" >&2
-            exit 1
+            exit "$status"
+        fi
+    fi
+
+    [ -n "$BUILD_ARTIFACTS" ] && continue
+
+    if [ -n "$TEST_ARTIFACTS" ]; then
+        XCTESTRUN="$(python3 -c \
+            'import json,sys; print(json.load(open(sys.argv[1]))["schemes"][sys.argv[2]])' \
+            "$ARTIFACT_PATHS" "$scheme")"
+        TEST_LOCATION=(-xctestrun "$XCTESTRUN")
+    else
+        TEST_LOCATION=(-workspace "$WORKSPACE" -scheme "$scheme")
+    fi
+
+    if [ -n "$ENUMERATE_SUITES" ]; then
+        raw_enumeration="$WORKDIR/$scheme-enumeration.json"
+        started="$(phase_started)"
+        if xcodebuild test-without-building \
+            ${TEST_LOCATION[@]+"${TEST_LOCATION[@]}"} \
+            -destination "$DESTINATION" \
+            -enumerate-tests \
+            -test-enumeration-style hierarchical \
+            -test-enumeration-format json \
+            -test-enumeration-output-path "$raw_enumeration" \
+            >"$WORKDIR/$scheme-enumeration.log" 2>&1
+        then
+            python3 .circleci/test_artifacts.py suites \
+                --input "$raw_enumeration" --output "$ENUMERATE_SUITES"
+            emit_phase_timing enumerate "$started" "$scheme"
+            exit 0
+        else
+            status=$?
+            emit_phase_timing enumerate "$started" "$scheme" "$status"
+            tail -n 30 "$WORKDIR/$scheme-enumeration.log" >&2
+            exit "$status"
         fi
     fi
 
@@ -783,11 +968,11 @@ for scheme in "${SCHEMES[@]}"; do
     counts="$WORKDIR/counts-$scheme-$scope_key.json"
 
     echo "==> Testing $scheme on $DEVICE / iOS $OS"
+    started="$(phase_started)"
     set +e
     env ${RUN_ENV[@]+"${RUN_ENV[@]}"} \
         xcodebuild test-without-building \
-        -workspace "$WORKSPACE" \
-        -scheme "$scheme" \
+        ${TEST_LOCATION[@]+"${TEST_LOCATION[@]}"} \
         -destination "$DESTINATION" \
         -resultBundlePath "$result" \
         -collect-test-diagnostics never \
@@ -802,6 +987,7 @@ for scheme in "${SCHEMES[@]}"; do
     # exiting 0 would otherwise mask a failed run.
     status="${PIPESTATUS[0]}"
     set -e
+    emit_phase_timing test "$started" "$scheme" "$status"
     RESULTS+=("$result")
     LOGS+=("$log")
     [ "$status" -ne 0 ] && overall_status="$status"
@@ -810,6 +996,19 @@ for scheme in "${SCHEMES[@]}"; do
         [ "$overall_status" -eq 0 ] && overall_status=1
     fi
 done
+
+if [ -n "$BUILD_ARTIFACTS" ]; then
+    manifest_args=()
+    for scheme in "${SCHEMES[@]}"; do
+        manifest_args+=(--scheme "$scheme")
+    done
+    python3 .circleci/test_artifacts.py create \
+        --root "$BUILD_ARTIFACTS" "${manifest_args[@]}"
+    artifact_bytes="$(du -sk "$BUILD_ARTIFACTS/DerivedData/Build/Products" | awk '{print $1 * 1024}')"
+    printf 'CI_ARTIFACT {"bytes":%s,"schemes":%s}\n' \
+        "$artifact_bytes" "${#SCHEMES[@]}"
+    exit 0
+fi
 
 # Failures, reprinted with the identifier that re-runs each one.
 if [ "$overall_status" -ne 0 ]; then
