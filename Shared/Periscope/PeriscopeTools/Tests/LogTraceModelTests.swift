@@ -67,7 +67,7 @@ struct LogTraceModelTests {
         await store.write([
             LogRecord(
                 date: date(1),
-                event: SpanBegan(
+                event: classifiedSpanBegan(
                     spanID: span,
                     name: "save",
                     lifetime: .indefinite,
@@ -77,7 +77,7 @@ struct LogTraceModelTests {
             ),
             LogRecord(
                 date: date(2),
-                event: SpanEnded(
+                event: classifiedSpanEnded(
                     spanID: span,
                     name: "save",
                     duration: .seconds(1),

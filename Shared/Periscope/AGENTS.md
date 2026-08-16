@@ -6,6 +6,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first. That file owns build, format
 
 ## Modules & dependencies
 
+- **PeriscopeMacros** — compile-time event generation. Depends on SwiftSyntax and runs only on the build host.
 - **PeriscopeCore** — the model and machinery. No SwiftUI, no app code.
 - **PeriscopeUI** — SwiftUI integration. Depends on PeriscopeCore.
 - **PeriscopeTools** — developer surfaces. Depends on PeriscopeCore, PeriscopeUI, BroadwayCore/BroadwayUI, and SFSafeSymbols.

@@ -6,7 +6,7 @@ import Testing
 /// A source that logs one event the moment it starts.
 private final class ImmediateSource: AmbientEventSource {
     func start(log: Log<AmbientEvent>) {
-        log { AmbientEvent(kind: AmbientKind("test-kind"), value: ["phase": "started"]) }
+        log { makeAmbientEvent(kind: AmbientKind("test-kind"), value: ["phase": "started"]) }
     }
 
     func stop() {}
@@ -28,7 +28,7 @@ private final class NotificationSource: NotificationAmbientSource {
     }
 
     override func event(for _: Notification) -> AmbientEvent? {
-        AmbientEvent(kind: AmbientKind("test-kind"), value: ["phase": "fired"])
+        makeAmbientEvent(kind: AmbientKind("test-kind"), value: ["phase": "fired"])
     }
 }
 

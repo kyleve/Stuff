@@ -15,11 +15,11 @@ enum AmbientLogContext {
 }
 
 extension Log {
-    /// The ambient logger, typed to `Event`: the context bound by the
+    /// The ambient logger, typed to `Scope`: the context bound by the
     /// nearest enclosing ``withContext(isolation:_:)``, or a root logger on
     /// ``Periscope/shared`` when none is bound. Freeform helpers use
     /// `Log<Message>.current`.
-    public static var current: Log<Event> {
+    public static var current: Log<Scope> {
         guard let context = AmbientLogContext.current else {
             return Log()
         }

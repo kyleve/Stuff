@@ -123,7 +123,7 @@ struct LogSpanTests {
     }
 
     @Test func overdueEventsRoundTripThroughCodable() throws {
-        let overdue = SpanOverdue(spanID: SpanID(), name: "save", budget: .seconds(1))
+        let overdue = makeSpanOverdue(spanID: SpanID(), name: "save", budget: .seconds(1))
         let data = try JSONEncoder().encode(overdue)
         let decoded = try JSONDecoder().decode(SpanOverdue.self, from: data)
         #expect(decoded.spanID == overdue.spanID)
@@ -235,7 +235,7 @@ struct LogSpanTests {
 
     @Test func spanEventsRoundTripThroughCodable() throws {
         let span = SpanID()
-        let ended = SpanEnded(
+        let ended = makeSpanEnded(
             spanID: span,
             name: "save",
             duration: .milliseconds(12),
@@ -247,7 +247,7 @@ struct LogSpanTests {
         #expect(decoded.duration == .milliseconds(12))
         #expect(decoded.exit == .failure("card declined"))
 
-        let began = SpanBegan(
+        let began = makeSpanBegan(
             spanID: span,
             name: "save",
             lifetime: .bounded(budget: .seconds(30)),
@@ -261,7 +261,7 @@ struct LogSpanTests {
 
     @Test func endedMessagesDescribeTheExit() {
         let span = SpanID()
-        let failed = SpanEnded(
+        let failed = makeSpanEnded(
             spanID: span,
             name: "save",
             duration: .seconds(2),
@@ -270,7 +270,7 @@ struct LogSpanTests {
         #expect(failed.message.contains("save failed: card declined"))
         #expect(failed.message.contains("("))
 
-        let orphaned = SpanEnded(spanID: span, name: "save", duration: nil, exit: .orphaned)
+        let orphaned = makeSpanEnded(spanID: span, name: "save", duration: nil, exit: .orphaned)
         #expect(orphaned.message == "◀ save orphaned")
     }
 
@@ -278,7 +278,7 @@ struct LogSpanTests {
     /// duration added, recovery gets the bare name back — that's what lets
     /// undecodable rows of one kind share one bucket instead of one per row.
     @Test func nameRecoversFromARenderedMessage() {
-        let ended = SpanEnded(
+        let ended = makeSpanEnded(
             spanID: SpanID(),
             name: "save",
             duration: .seconds(2),
@@ -286,14 +286,14 @@ struct LogSpanTests {
         )
         #expect(SpanEnded.nameRecovered(fromMessage: ended.message, exit: .failure) == "save")
 
-        let plain = SpanEnded(spanID: SpanID(), name: "save", duration: nil, exit: .orphaned)
+        let plain = makeSpanEnded(spanID: SpanID(), name: "save", duration: nil, exit: .orphaned)
         #expect(SpanEnded.nameRecovered(fromMessage: plain.message, exit: .orphaned) == "save")
     }
 
     /// Without a usable exit column the duration parenthetical — the part
     /// that varies per instance — still comes off.
     @Test func nameRecoveryWithoutAnExitStripsTheDuration() {
-        let ended = SpanEnded(
+        let ended = makeSpanEnded(
             spanID: SpanID(),
             name: "save",
             duration: .seconds(2),
