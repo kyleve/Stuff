@@ -345,6 +345,12 @@ jobs:
           test_workdir: test-output-snapshots
           output_directory: test-results-snapshots
       - run:
+          name: Validate snapshot shard execution
+          command: >-
+            ./snapshot-shards verify-execution
+            --assignment "$TEST_WORKDIR/shard.txt"
+            --junit test-results-snapshots/results.xml
+      - run:
           name: Stage snapshot suite timings
           when: always
           command: |

@@ -5,6 +5,7 @@ import importlib.util
 import pathlib
 import tempfile
 import unittest
+import xml.etree.ElementTree as ET
 
 
 SCRIPT = pathlib.Path(__file__).parents[1] / "snapshot_shards.py"
@@ -120,6 +121,57 @@ class ShardTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "started 3 workers"):
             MODULE.selected_shard(partition, 1, worker_count=3)
 
+    def test_validates_that_each_assigned_suite_executed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            assignment = root / "shard.txt"
+            assignment.write_text(
+                "ModuleSnapshotTests/FirstSnapshotTests\n"
+                "ModuleSnapshotTests/SecondSnapshotTests\n"
+            )
+            junit = root / "results.xml"
+            self.write_junit(
+                junit,
+                [
+                    "ModuleSnapshotTests/FirstSnapshotTests",
+                    "ModuleSnapshotTests/FirstSnapshotTests",
+                    "ModuleSnapshotTests/SecondSnapshotTests",
+                ],
+            )
+
+            self.assertEqual(MODULE.validate_execution(assignment, junit), 2)
+
+    def test_rejects_an_assigned_suite_that_did_not_execute(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            assignment = root / "shard.txt"
+            assignment.write_text(
+                "ModuleSnapshotTests/FirstSnapshotTests\n"
+                "ModuleSnapshotTests/SecondSnapshotTests\n"
+            )
+            junit = root / "results.xml"
+            self.write_junit(junit, ["ModuleSnapshotTests/FirstSnapshotTests"])
+
+            with self.assertRaisesRegex(ValueError, "did not execute"):
+                MODULE.validate_execution(assignment, junit)
+
+    def test_rejects_an_executed_suite_that_was_not_assigned(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            assignment = root / "shard.txt"
+            assignment.write_text("ModuleSnapshotTests/FirstSnapshotTests\n")
+            junit = root / "results.xml"
+            self.write_junit(
+                junit,
+                [
+                    "ModuleSnapshotTests/FirstSnapshotTests",
+                    "ModuleSnapshotTests/SecondSnapshotTests",
+                ],
+            )
+
+            with self.assertRaisesRegex(ValueError, "unassigned suites"):
+                MODULE.validate_execution(assignment, junit)
+
     def test_rebalances_by_median_duration_with_a_stable_tie_break(self):
         with tempfile.TemporaryDirectory() as directory:
             repo = self.make_repo(directory)
@@ -168,6 +220,12 @@ class ShardTests(unittest.TestCase):
 
             with self.assertRaisesRegex(ValueError, "no durations"):
                 MODULE.rebalanced_plan(self.make_plan(), repo, [path])
+
+    def write_junit(self, path, suites):
+        root = ET.Element("testsuites")
+        for index, suite in enumerate(suites):
+            ET.SubElement(root, "testcase", file=suite, name=f"test{index}")
+        ET.ElementTree(root).write(path, encoding="utf-8", xml_declaration=True)
 
 
 if __name__ == "__main__":

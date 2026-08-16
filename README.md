@@ -113,6 +113,7 @@ Use `./snapshot-shards balance --junit PATH` to propose a new assignment from do
 Pass several `--junit PATH` arguments to use median durations from several pipelines.
 Use `./snapshot-shards balance --shards COUNT --junit PATH --write` to change the shard count.
 Set the snapshot job `parallelism` to the same count. CI rejects a count mismatch.
+CI also rejects a snapshot worker that does not execute exactly its assigned suites.
 
 The `./ide` script sets `core.hooksPath` to `.githooks`.
 The pre-commit hook formats staged Swift with SwiftFormat and runs `./sync-agents --git-add`.

@@ -158,6 +158,32 @@ def validate_enumeration(plan, path):
         raise ValueError("snapshot enumeration does not match the plan: " + "; ".join(details))
 
 
+def validate_execution(assignment_path, junit_path):
+    expected = set(read_suites(assignment_path))
+    try:
+        root = ET.parse(junit_path).getroot()
+    except (ET.ParseError, OSError) as error:
+        raise ValueError(f"cannot read JUnit document {junit_path}: {error}") from error
+
+    actual = set()
+    for case in root.iter("testcase"):
+        suite = case.get("file")
+        if not suite:
+            raise ValueError(f"JUnit test case has no suite identifier: {junit_path}")
+        actual.add(suite)
+
+    missing = sorted(expected - actual)
+    unexpected = sorted(actual - expected)
+    if missing or unexpected:
+        details = []
+        if missing:
+            details.append(f"did not execute {missing}")
+        if unexpected:
+            details.append(f"executed unassigned suites {unexpected}")
+        raise ValueError("snapshot execution does not match the assignment: " + "; ".join(details))
+    return len(actual)
+
+
 def junit_duration_samples(paths, inventory):
     samples = {suite: [] for suite in inventory}
     documents = []
@@ -249,6 +275,10 @@ def parse_args():
     compare = subparsers.add_parser("compare-enumeration")
     compare.add_argument("--enumeration", type=pathlib.Path, required=True)
 
+    verify = subparsers.add_parser("verify-execution")
+    verify.add_argument("--assignment", type=pathlib.Path, required=True)
+    verify.add_argument("--junit", type=pathlib.Path, required=True)
+
     balance = subparsers.add_parser(
         "balance", help="propose a plan from JUnit timing artifacts"
     )
@@ -278,6 +308,9 @@ def main():
         elif args.command == "compare-enumeration":
             validate_enumeration(plan, args.enumeration)
             print("Snapshot enumeration matches the deterministic plan")
+        elif args.command == "verify-execution":
+            count = validate_execution(args.assignment, args.junit)
+            print(f"Snapshot execution matches the assignment: {count} suites")
         elif args.command == "balance":
             candidate = rebalanced_plan(
                 plan, args.repo.resolve(), args.junit, args.shards
