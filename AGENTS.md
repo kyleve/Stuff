@@ -624,6 +624,12 @@ being written off as untestable from a cloud agent.
 
 ### Full build & test (macOS only)
 
-Matches CI `.github/workflows/ci.yml` — see the
+**CI runs on two systems.** GitHub Actions
+([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs `format`,
+`architecture`, and `test-macos`. CircleCI
+([`.circleci/config.yml`](.circleci/config.yml)) runs the iOS `test-ios` and
+`snapshot` jobs, which moved there in PR #237. CircleCI passes
+`--skip-architecture` so Bumper does not run twice. Do not read either file as
+the whole of CI. See the
 [`running-tests`](.agents/skills/running-tests/SKILL.md) skill for simulator
 setup and the full validation recipe.
