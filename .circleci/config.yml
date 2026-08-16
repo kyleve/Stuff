@@ -76,9 +76,6 @@ commands:
             echo "Architecture: $(uname -m)"
             sw_vers
             xcodebuild -version
-            echo "Available simulator runtimes:"
-            xcrun simctl list runtimes available
-
             xcode_build="$(xcodebuild -version | awk '/Build version/{print $3}')"
             if [[ "$xcode_build" != "27A5228h" ]]; then
               echo "Expected Xcode build 27A5228h, found $xcode_build" >&2
@@ -361,10 +358,12 @@ jobs:
           step_name: Build selected Where audience
           seconds: 2700
           command: >-
+            set -o pipefail;
             mise exec -- tuist xcodebuild build
             -workspace Stuff.xcworkspace
             -scheme "$WHERE_AUDIENCE_SCHEME"
-            -destination 'generic/platform=iOS Simulator'
+            -destination "generic/platform=iOS Simulator"
+            2>&1 | tee "$TEST_WORKDIR/build.log"
       - collect_diagnostics:
           test_workdir: test-output-audience-build
           artifact_name: where-audience-build
