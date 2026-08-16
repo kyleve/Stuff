@@ -20,6 +20,16 @@ executors:
       GIT_LFS_SKIP_SMUDGE: "1"
 
 commands:
+  checkout_without_lfs:
+    steps:
+      - run:
+          name: Checkout code without Git LFS
+          command: |
+            git clone --filter=blob:none --no-checkout \
+              "<< pipeline.git.repo_url >>" .
+            git checkout --detach "<< pipeline.git.revision >>"
+            git config gc.auto 0
+
   hydrate_snapshot_references:
     steps:
       - run:
@@ -96,7 +106,7 @@ commands:
       test_workdir:
         type: string
     steps:
-      - checkout
+      - checkout_without_lfs
       - restore_cache:
           keys:
             - mise-installs-v2-{{ arch }}-{{ checksum ".mise.toml" }}
@@ -153,7 +163,7 @@ commands:
       test_workdir:
         type: string
     steps:
-      - checkout
+      - checkout_without_lfs
       - when:
           condition: << parameters.hydrate_snapshots >>
           steps:
