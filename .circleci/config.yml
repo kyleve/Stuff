@@ -9,6 +9,7 @@ executors:
     environment:
       # Tool installation is required; local-development agent skills are not.
       MISE_NO_HOOKS: "1"
+      GIT_LFS_SKIP_SMUDGE: "1"
   m4-pro-large:
     macos:
       xcode: "27.0"
@@ -16,6 +17,7 @@ executors:
     shell: /bin/bash --login -eo pipefail
     environment:
       MISE_NO_HOOKS: "1"
+      GIT_LFS_SKIP_SMUDGE: "1"
 
 commands:
   hydrate_snapshot_references:
@@ -23,7 +25,7 @@ commands:
       - run:
           name: Hydrate snapshot references
           command: |
-            git lfs pull
+            env -u GIT_LFS_SKIP_SMUDGE git lfs pull
             pointer_files="$(git grep -Il '^version https://git-lfs.github.com/spec/v1$' -- ':(glob)**/__Snapshots__/**/*.png' || true)"
             if [[ -n "$pointer_files" ]]; then
               echo "Snapshot references remain as Git LFS pointers:" >&2
@@ -249,8 +251,6 @@ commands:
 jobs:
   build-ios-tests:
     executor: m4-pro-large
-    environment:
-      GIT_LFS_SKIP_SMUDGE: "1"
     steps:
       - prepare_builder:
           test_workdir: test-output-build
@@ -288,8 +288,6 @@ jobs:
 
   test-ios:
     executor: m4-pro-medium
-    environment:
-      GIT_LFS_SKIP_SMUDGE: "1"
     steps:
       - prepare_worker:
           test_workdir: test-output-ios
