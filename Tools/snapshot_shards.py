@@ -102,7 +102,7 @@ def plan_partition(plan):
     return partition
 
 
-def validate_partition(inventory, partition):
+def validate_partition(inventory, partition, allow_missing=False):
     flattened = [suite for shard in partition for suite in shard]
     duplicates = sorted(
         suite for suite in set(flattened) if flattened.count(suite) > 1
@@ -111,10 +111,11 @@ def validate_partition(inventory, partition):
         raise ValueError(f"snapshot shards overlap: {duplicates}")
     missing = sorted(inventory - set(flattened))
     unknown = sorted(set(flattened) - inventory)
-    if missing:
+    if missing and not allow_missing:
         raise ValueError(f"snapshot shard plan omits suites: {missing}")
     if unknown:
         raise ValueError(f"snapshot shard plan contains unknown suites: {unknown}")
+    return missing
 
 
 def validate_plan(plan, repo):
@@ -122,6 +123,13 @@ def validate_plan(plan, repo):
     partition = plan_partition(plan)
     validate_partition(inventory, partition)
     return inventory, partition
+
+
+def execution_partition(plan, repo):
+    inventory = source_inventory(repo)
+    partition = plan_partition(plan)
+    intake = validate_partition(inventory, partition, allow_missing=True)
+    return inventory, [*partition, intake]
 
 
 def selected_shard(partition, shard_number, worker_count=None):
@@ -144,8 +152,8 @@ def read_suites(path):
     return suites
 
 
-def validate_enumeration(plan, path):
-    expected = set(suite for shard in plan_partition(plan) for suite in shard)
+def validate_enumeration(expected, path):
+    expected = set(expected)
     actual = set(read_suites(path))
     if expected != actual:
         missing = sorted(actual - expected)
@@ -236,13 +244,16 @@ def balanced_partition(weights, shard_count):
 
 
 def rebalanced_plan(plan, repo, junit_paths, shard_count=None):
-    inventory, partition = validate_plan(plan, repo)
+    inventory, partition = execution_partition(plan, repo)
     samples, document_count = junit_duration_samples(junit_paths, inventory)
     weights = {
         suite: round(statistics.median(values), 3)
         for suite, values in samples.items()
     }
-    shards, totals = balanced_partition(weights, shard_count or len(partition))
+    planned_shard_count = len(partition) - 1
+    shards, totals = balanced_partition(
+        weights, shard_count or planned_shard_count
+    )
     return {
         "formatVersion": FORMAT_VERSION,
         "method": "longest-processing-time over median JUnit suite durations",
@@ -294,19 +305,21 @@ def main():
     try:
         plan = load_plan(args.plan)
         if args.command == "check":
-            inventory, partition = validate_plan(plan, args.repo.resolve())
+            inventory, partition = execution_partition(plan, args.repo.resolve())
             counts = ", ".join(
                 f"{index + 1}={len(suites)}" for index, suites in enumerate(partition)
             )
             print(
                 f"Snapshot shard plan is valid: {len(inventory)} suites "
-                f"in {len(partition)} shards ({counts})."
+                f"in {len(partition) - 1} planned shards plus intake ({counts})."
             )
         elif args.command == "list":
-            _, partition = validate_plan(plan, args.repo.resolve())
-            print("\n".join(selected_shard(partition, args.shard, args.total)))
+            _, partition = execution_partition(plan, args.repo.resolve())
+            selected = selected_shard(partition, args.shard, args.total)
+            sys.stdout.write("".join(f"{suite}\n" for suite in selected))
         elif args.command == "compare-enumeration":
-            validate_enumeration(plan, args.enumeration)
+            inventory, _ = execution_partition(plan, ROOT)
+            validate_enumeration(inventory, args.enumeration)
             print("Snapshot enumeration matches the deterministic plan")
         elif args.command == "verify-execution":
             count = validate_execution(args.assignment, args.junit)

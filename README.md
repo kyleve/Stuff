@@ -112,7 +112,10 @@ Use `./snapshot-shards check` to validate the deterministic snapshot assignment.
 Use `./snapshot-shards balance --junit PATH` to propose a new assignment from downloaded timing artifacts.
 Pass several `--junit PATH` arguments to use median durations from several pipelines.
 Use `./snapshot-shards balance --shards COUNT --junit PATH --write` to change the shard count.
-Set the snapshot job `parallelism` to the same count. CI rejects a count mismatch.
+Set the snapshot job `parallelism` to the planned count plus one intake worker.
+The intake worker stops after checkout when it has no new suites.
+New suites run on the intake worker until rebalancing adds them to the plan.
+CI rejects a worker-count mismatch.
 CI also rejects a snapshot worker that does not execute exactly its assigned suites.
 
 The `./ide` script sets `core.hooksPath` to `.githooks`.

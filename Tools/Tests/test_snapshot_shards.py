@@ -2,7 +2,10 @@
 """Tests for deterministic snapshot-suite shards."""
 
 import importlib.util
+import json
 import pathlib
+import subprocess
+import sys
 import tempfile
 import unittest
 import xml.etree.ElementTree as ET
@@ -71,6 +74,69 @@ class ShardTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "omits suites"):
                 MODULE.validate_plan(plan, repo)
 
+    def test_assigns_a_new_suite_to_the_intake_shard(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = self.make_repo(directory)
+            source = repo / "Module" / "SnapshotTests"
+            (source / "FourthSnapshotTests.swift").write_text(
+                "import Testing\n"
+                "struct FourthSnapshotTests { @Test func example() {} }\n"
+            )
+
+            inventory, partition = MODULE.execution_partition(
+                self.make_plan(), repo
+            )
+
+            self.assertEqual(len(inventory), 4)
+            self.assertEqual(
+                partition[-1],
+                ["ModuleSnapshotTests/FourthSnapshotTests"],
+            )
+
+    def test_leaves_the_intake_shard_empty_for_a_complete_plan(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = self.make_repo(directory)
+
+            _, partition = MODULE.execution_partition(self.make_plan(), repo)
+
+            self.assertEqual(partition[-1], [])
+
+    def test_selects_an_empty_intake_shard(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = self.make_repo(directory)
+            _, partition = MODULE.execution_partition(self.make_plan(), repo)
+
+            selected = MODULE.selected_shard(
+                partition, shard_number=3, worker_count=3
+            )
+
+            self.assertEqual(selected, [])
+
+    def test_empty_intake_cli_writes_zero_bytes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = self.make_repo(directory)
+            plan = repo / "plan.json"
+            plan.write_text(json.dumps(self.make_plan()))
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    SCRIPT,
+                    "--plan",
+                    plan,
+                    "list",
+                    "3",
+                    "--repo",
+                    repo,
+                    "--total",
+                    "3",
+                ],
+                check=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(result.stdout, b"")
+
     def test_rejects_an_empty_shard(self):
         with tempfile.TemporaryDirectory() as directory:
             repo = self.make_repo(directory)
@@ -109,11 +175,11 @@ class ShardTests(unittest.TestCase):
             )
             path.write_text("".join(f"{suite}\n" for suite in suites))
 
-            MODULE.validate_enumeration(plan, path)
+            MODULE.validate_enumeration(suites, path)
 
             path.write_text("ModuleSnapshotTests/NewSnapshotTests\n")
             with self.assertRaisesRegex(ValueError, "does not match"):
-                MODULE.validate_enumeration(plan, path)
+                MODULE.validate_enumeration(suites, path)
 
     def test_rejects_a_worker_count_that_differs_from_the_plan(self):
         partition = MODULE.plan_partition(self.make_plan())
@@ -208,6 +274,33 @@ class ShardTests(unittest.TestCase):
                 [shard["estimatedSeconds"] for shard in candidate["shards"]],
                 [10, 5, 3],
             )
+
+    def test_rebalance_folds_an_intake_suite_into_the_plan(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = self.make_repo(directory)
+            source = repo / "Module" / "SnapshotTests"
+            (source / "FourthSnapshotTests.swift").write_text(
+                "import Testing\n"
+                "struct FourthSnapshotTests { @Test func example() {} }\n"
+            )
+            path = repo / "results.xml"
+            path.write_text(
+                "<testsuites>"
+                '<testcase file="ModuleSnapshotTests/FirstSnapshotTests" time="9" />'
+                '<testcase file="ModuleSnapshotTests/SecondSnapshotTests" time="5" />'
+                '<testcase file="ModuleSnapshotTests/ThirdSnapshotTests" time="4" />'
+                '<testcase file="ModuleSnapshotTests/FourthSnapshotTests" time="2" />'
+                "</testsuites>"
+            )
+
+            candidate = MODULE.rebalanced_plan(self.make_plan(), repo, [path])
+            assigned = {
+                suite
+                for shard in candidate["shards"]
+                for suite in shard["suites"]
+            }
+
+            self.assertIn("ModuleSnapshotTests/FourthSnapshotTests", assigned)
 
     def test_rejects_incomplete_timing_documents(self):
         with tempfile.TemporaryDirectory() as directory:

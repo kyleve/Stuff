@@ -157,17 +157,10 @@ commands:
 
   prepare_worker:
     parameters:
-      hydrate_snapshots:
-        type: boolean
-        default: false
       test_workdir:
         type: string
     steps:
       - checkout_without_lfs
-      - when:
-          condition: << parameters.hydrate_snapshots >>
-          steps:
-            - hydrate_snapshot_references
       - attach_workspace:
           at: ci-test-build
       - configure_test_workdir:
@@ -316,12 +309,12 @@ jobs:
 
   snapshot:
     executor: m4-pro-medium
-    parallelism: 3
+    parallelism: 4
     environment:
       SNAPSHOT_SETTLE_TIMEOUT_MULTIPLIER: "2"
     steps:
-      - prepare_worker:
-          hydrate_snapshots: true
+      - checkout_without_lfs
+      - configure_test_workdir:
           test_workdir: test-output-snapshots
       - run:
           name: Select deterministic snapshot shard
@@ -334,6 +327,14 @@ jobs:
               "$CIRCLE_NODE_INDEX" "$CIRCLE_NODE_TOTAL" "$suite_count"
             echo "Assigned snapshot suites:"
             sed 's/^/  /' "$TEST_WORKDIR/shard.txt"
+            if [[ ! -s "$TEST_WORKDIR/shard.txt" ]]; then
+              echo "The snapshot intake shard is empty."
+              circleci-agent step halt
+            fi
+      - hydrate_snapshot_references
+      - attach_workspace:
+          at: ci-test-build
+      - validate_runner_environment
       - run_with_timeout:
           seconds: 3600
           command: >-
