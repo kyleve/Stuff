@@ -90,48 +90,81 @@ struct WhereLogEventTests {
     @Test func dayJournalStampsTheAffectedDayAsExternalID() {
         // externalIDs are the canonical store:// identities (see WhereStoreIDTests
         // for the exact URL strings), so inspect-by-object shares the store's keys.
-        #expect(DayJournalLog.addedManualDay(day: "2026-06-05", regionCount: 2)
-            .externalID == WhereStoreID.day("2026-06-05"))
-        #expect(DayJournalLog.clearedYear(year: 2025).externalID == WhereStoreID.year(2025))
-        #expect(DayJournalLog.wroteEvidence(id: "abc", hasBlob: true)
-            .externalID == WhereStoreID.evidence("abc"))
-        #expect(DayJournalLog.erasedAllData.externalID == nil)
-        #expect(DayJournalLog.addedManualDay(day: "d", regionCount: 2).level == .info)
+        #expect(DayJournalLog.AddedManualDay(
+            day: .restricted(.dateTime, "2026-06-05"),
+            regionCount: .shared(.count, 2),
+        )
+        .externalID == WhereStoreID.day("2026-06-05"))
+        #expect(DayJournalLog.ClearedYear(
+            year: .restricted(.domainValue, 2025),
+        ).externalID == WhereStoreID.year(2025))
+        #expect(DayJournalLog.WroteEvidence(
+            id: .restricted(.identifier, "abc"),
+            hasBlob: .shared(.boolean, true),
+        )
+        .externalID == WhereStoreID.evidence("abc"))
+        #expect(DayJournalLog.ErasedAllData().externalID == nil)
+        #expect(DayJournalLog.AddedManualDay(
+            day: .restricted(.dateTime, "d"),
+            regionCount: .shared(.count, 2),
+        ).level == .info)
     }
 
     @Test func swiftDataStoreCorruptionIsAFault() {
-        #expect(SwiftDataStoreLog.droppedCorruptRecord(type: "SDEvidence").level == .fault)
-        #expect(SwiftDataStoreLog.openedInMemory(mode: "inMemory").level == .info)
+        #expect(SwiftDataStoreLog.DroppedCorruptRecord(
+            type: .restricted(.technicalState, "SDEvidence"),
+        ).level == .fault)
+        #expect(SwiftDataStoreLog.OpenedInMemory(
+            mode: .restricted(.technicalState, "inMemory"),
+        ).level == .info)
         #expect(
-            SwiftDataStoreLog.ignoredUnknownTrackedRegions(ids: ["zz"]).level == .warning,
+            SwiftDataStoreLog.IgnoredUnknownTrackedRegions(
+                ids: .restricted(.location, ["zz"]),
+                unknownRegionCount: .shared(.count, 1),
+            ).level == .warning,
         )
         #expect(
-            SwiftDataStoreLog.ignoredUnknownTrackedRegions(ids: ["us-CA", "us-NY"])
-                .message.contains("us-CA, us-NY"),
+            SwiftDataStoreLog.IgnoredUnknownTrackedRegions(
+                ids: .restricted(.location, ["us-CA", "us-NY"]),
+                unknownRegionCount: .shared(.count, 2),
+            )
+            .message.contains("us-CA, us-NY"),
         )
     }
 
     @Test func locationIngestorTracesSampleFailuresByID() {
         #expect(
-            LocationIngestorLog.persistFailed(sampleID: "abc", description: "x")
-                .externalID == WhereStoreID.sample("abc"),
+            LocationIngestorLog.PersistFailed(
+                sampleID: .restricted(.identifier, "abc"),
+                description: .restricted(.errorDetails, "x"),
+            )
+            .externalID == WhereStoreID.sample("abc"),
         )
-        #expect(LocationIngestorLog.persistFailed(sampleID: "abc", description: "x")
-            .level == .error)
-        #expect(LocationIngestorLog.monitoringStarted.externalID == nil)
+        #expect(LocationIngestorLog.PersistFailed(
+            sampleID: .restricted(.identifier, "abc"),
+            description: .restricted(.errorDetails, "x"),
+        )
+        .level == .error)
+        #expect(LocationIngestorLog.MonitoringStarted().externalID == nil)
     }
 
     @Test func schedulerAuthorizationOutcomesUseHonestLevels() {
-        #expect(LoggingReminderSchedulerLog.authorizationNotGranted.level == .warning)
+        #expect(LoggingReminderSchedulerLog.AuthorizationNotGranted().level == .warning)
         #expect(
-            LoggingReminderSchedulerLog.authorizationRequestFailed(description: "x")
-                .level == .error,
+            LoggingReminderSchedulerLog.AuthorizationRequestFailed(
+                description: .restricted(.errorDetails, "x"),
+            )
+            .level == .error,
         )
-        #expect(LoggingReminderSchedulerLog.reconciled(scheduled: 1, removed: 0, badge: 2)
-            .level == .info)
+        #expect(LoggingReminderSchedulerLog.Reconciled(
+            scheduled: .shared(.count, 1),
+            removed: .shared(.count, 0),
+            badge: .shared(.count, 2),
+        )
+        .level == .info)
     }
 
     @Test func widgetRefresherKeepsItsHistoricalEventName() {
-        #expect(WidgetTimelineRefresherLog.eventName == "WidgetRefresher")
+        #expect(WidgetTimelineRefresherLog.scopeName == "WidgetRefresher")
     }
 }

@@ -266,9 +266,10 @@ struct ManualDayView: View {
             let tracked = try await report.services.primaryRegions()
             activeRegions.applyGrouping(tracked: tracked, usedThisYear: usedThisYear)
         } catch {
-            Self.logger(attachments: [.error(error, name: "grouping-error")]) {
-                .regionGroupingLoadFailed(description: error.localizedDescription)
-            }
+            Self.logger.regionGroupingLoadFailed(
+                description: .restricted(.errorDetails, error.localizedDescription),
+                attachments: [.error(error, name: "grouping-error")],
+            )
         }
     }
 

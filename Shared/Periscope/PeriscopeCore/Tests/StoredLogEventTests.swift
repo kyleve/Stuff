@@ -10,8 +10,8 @@ struct StoredLogEventTests {
             date: Date(timeIntervalSinceReferenceDate: 100),
             sequence: 0,
             level: .notice,
-            eventName: PhotoLogs.eventName,
-            eventVersion: PhotoLogs.eventVersion,
+            eventName: PhotoLogs.Event.eventName,
+            eventVersion: PhotoLogs.Event.eventVersion,
             message: "photo p1",
             payload: payload,
             scopes: [scope.id],
@@ -27,10 +27,10 @@ struct StoredLogEventTests {
     }
 
     @Test func decodeRecoversTheOriginalEvent() throws {
-        let payload = try JSONEncoder().encode(PhotoLogs(photoID: "p1"))
+        let payload = try JSONEncoder().encode(makePhotoEvent("p1"))
         let stored = makeStored(payload: payload)
 
-        let decoded = try stored.decode(PhotoLogs.self)
+        let decoded = try stored.decode(PhotoLogs.Event.self)
         #expect(decoded.photoID == "p1")
     }
 
@@ -42,7 +42,7 @@ struct StoredLogEventTests {
         let stored = makeStored(payload: payload)
 
         #expect(throws: (any Error).self) {
-            try stored.decode(PhotoLogs.self)
+            try stored.decode(PhotoLogs.Event.self)
         }
     }
 

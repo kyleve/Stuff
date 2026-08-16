@@ -2,7 +2,7 @@
 
 The core of **Periscope**, a typed, hierarchical observability framework.
 Periscope logs **structured `Codable` events** (alongside freeform messages)
-through **typed loggers** (`Log<Event>`) arranged in a **scope tree**, stamps
+through **scope-typed loggers** (`Log<Scope>`) arranged in a **scope tree**, stamps
 them with **tags**, times work with **spans**, and persists everything — 
 hierarchy included — to **SwiftData** so days or weeks of history stay
 queryable on device.
@@ -36,23 +36,36 @@ inspect mode live in [`PeriscopeTools`](../PeriscopeTools).
 
 ## Quick start
 
-Define events, derive loggers, log:
+Define a scope and its events. Classify every payload field at declaration and emission:
 
 ```swift
 import PeriscopeCore
 
-struct PhotoLogs: LogEvent {
-    var photoID: String
-    var message: String { "Uploaded \(photoID)" }
+@LogScope("Photos")
+enum PhotoLog {
+    enum SpanName: Hashable { case upload }
+
+    @LogEvent("uploaded")
+    struct Uploaded {
+        @LogField("photo_id", exposure: .restricted, kind: .identifier)
+        var photoID: String
+
+        @LogField("byte_count", exposure: .shareable, kind: .count)
+        var byteCount: Int
+
+        var message: String { "Uploaded \(photoID)" }
+    }
 }
 
-let root = Log<AppLogs>()                  // records into Periscope.shared
-let photos = root(PhotoLogs.self)          // typed child scope
-let album = photos(for: album.id)          // child scope keyed by an entity
+let root = Log<AppLog>()                    // records into Periscope.shared
+let photos = root(PhotoLog.self)            // typed child scope
+let album = photos(for: album.id)           // child scope keyed by an entity
 
-album { PhotoLogs(photoID: photo.id) }     // structured event
-album.warning("thumbnail cache miss")      // freeform, any Log can
-photos(for: album.id) { PhotoLogs(photoID: photo.id) } // derive + emit in one call
+album.uploaded(
+    photoID: .restricted(.identifier, photo.id),
+    byteCount: .shared(.count, data.count),
+)
+album.warning("thumbnail cache miss")       // freeform text is restricted
 
 let joined = album + screenLog             // link model + UI contexts
 let tagged = joined.tagged(.paymentID, payment.id)  // stamps every event
@@ -72,24 +85,22 @@ Periscope.shared.startDefaultAmbientSources()
 
 ## Public API
 
-- **Events** — `LogEvent` (`Codable & Sendable`; `eventName`, `eventVersion`,
-  `level`, `message`, PII-free `remoteMessage`, approved `remoteFields`), the built-in freeform `Message`, and the extensible
+- **Events** — `@LogScope`, `@LogEvent`, and `@LogField` generate repository event code. `LogEvent` supplies the `Codable` and `Sendable` runtime contract. It includes identity, version, level, message, external ID, and classified fields. The module also provides freeform `Message` and the extensible
   `LogLevel` struct (`name` + `severity`; standard ladder `debug…fault`,
   custom levels slot between).
-- **Loggers** — `Log<Event>`: derive typed children (`log(PhotoLogs.self)`),
+- **Loggers** — `Log<Scope>` derives typed children (`log(PhotoLog.self)`),
   entity children (`log(for: id)`), link contexts (`+` / `linked(with:)`),
-  tag (`tagged(_:_:)`), and emit (trailing closure, level conveniences,
-  `attachments:`). Scope IDs are deterministic (parent + name), so the same
+  tag (`tagged(_:_:)`), and emit through generated methods or freeform helpers. Generated methods accept attachments and source-location arguments. Scope IDs are deterministic (parent + name), so the same
   path is the same scope in any process or launch.
 - **Propagation** — `log.withContext { … }` binds the context to a
   `@TaskLocal`. `Log<E>.current` reads it anywhere in the async call tree.
-  `LogContextProviding` gives classes a derived per-instance `.log`.
+  `LogContextProviding` gives classes a derived per-instance `.log`. `LogContext` carries scopes, tags, and the recorder without a scope generic.
 - **Spans** — `log.measure(.token) { … }` (sync/async) emits paired
   `SpanBegan`/`SpanEnded` events with the exit derived automatically
   (return → `.success`, throw → `.failure`, `CancellationError` →
   `.cancelled`), and an optional `budget:` fires a `SpanOverdue` warning
-  while the closure hangs past it. Names resolve against `Event.SpanName`
-  (defaults to `String`). Declare a `SpanName` enum on the event type for
+  while the closure hangs past it. Names resolve against `Scope.SpanName`
+  (defaults to `String`). Declare a `SpanName` enum on the scope namespace for
   compiler-checked tokens — the recommended style for structured events.
   Open-ended flows use `begin(for:lifetime:relaunch:)`/`end(for:exit:)`.
   Every span provably ends: bounded spans expire past
@@ -100,13 +111,8 @@ Periscope.shared.startDefaultAmbientSources()
 - **Attachments** — `LogAttachment` (+ `.error`, `.json`, `.image`
   conveniences) rides along with any event. Blobs persist externally and
   load on demand.
-- **Remote approval** — `remoteMessage` defaults to the stable event name and
-  `remoteFields` defaults empty. Fields are restricted to booleans, counts,
-  durations, and closed `RawRepresentable & CaseIterable` categories whose
-  selected value must be one of `allCases`; safe sinks never infer from the
-  Codable payload, tags, dynamic scopes, ambient state, external IDs, or attachments.
-  Debug full-metadata mode may add that context plus attachment names/MIME
-  types, but attachment bytes are never a remote-export input.
+- **Remote approval** — a shareable field needs `.shareable` in `@LogField` and `.shared` at its call site. This is author approval. It does not inspect strings or JSON for personal data. Baseline sinks use the stable event name and `classifiedFields`. They exclude messages, restricted values, payloads, tags, dynamic scopes, ambient state, external IDs, and attachments. Debug-full sinks can encode the complete payload and context after user opt-in. They can include attachment names and MIME types. They never include attachment bytes.
+- **Structured values** — `JSONValue` represents natural provider-neutral JSON. Construct it directly. For an existing `Encodable` value, use the throwing `JSONValue.encoding(_:)` helper. A shareable JSON field accepts `JSONValue` only.
 - **System** — `Periscope`: the recorder and `LogSink` pipeline (OSLog sink
   built in; `add(sink:)` returns a `SinkToken` that `remove(_:)` detaches —
   see [Detaching a sink](#detaching-a-sink)), level floors (`minimumLevel`,
@@ -159,6 +165,10 @@ the gap (scope definitions and span began/ended pairs are exempt). Event payload
 so old rows outlive their Swift types — `StoredLogEvent.decode(_:)` recovers
 the type, and tooling degrades to raw JSON when it can't.
 
+The classified-event migration changed the old enum payload shapes and event names. It has no decode fallback or store migration.
+Historical rows remain available as raw records. Delete the pre-release development store before validating new span pairing.
+Old `span-began` names do not match the new event names.
+
 Ambient state is stamped at buffer time, not resolved at read time: the
 pipeline keeps the current `AmbientSnapshot` and hands each record the one in
 force when it was emitted. A snapshot keeps its identity until a `.state`
@@ -206,6 +216,7 @@ their own sessions and leave recovery to the app's next launch.
 
 ## Contracts & limitations
 
+- Repository code must use the macros. External clients can use direct conformances when they need the safe runtime defaults.
 - Messages mirror to OSLog as `.public` — keep PII out of messages, or scrub
   via the redaction hook. The hook may transform any record but cannot
   suppress span began/ended records (a stripped copy records instead — pairs

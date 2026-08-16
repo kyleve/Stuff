@@ -65,7 +65,9 @@ public final class ResolveModel {
         } catch {
             // Surface the failure and keep the last good list rather than
             // silently blanking the tab (which would read as "all clear").
-            Self.logger { .dataIssueScanFailed(description: error.localizedDescription) }
+            Self.logger.dataIssueScanFailed(
+                description: .restricted(.errorDetails, error.localizedDescription),
+            )
         }
         // Mark loaded even on failure so the view leaves the spinner (the error
         // was logged and the last good list preserved); a stuck spinner would be
@@ -82,12 +84,10 @@ public final class ResolveModel {
             // recomputes the badge count a beat later.
             dataIssues.removeAll { $0.id == issue.id }
         } catch {
-            Self.logger {
-                .dismissFailed(
-                    issueID: issue.id.storeURL.absoluteString,
-                    description: error.localizedDescription,
-                )
-            }
+            Self.logger.dismissFailed(
+                issueID: .restricted(.identifier, issue.id.storeURL.absoluteString),
+                description: .restricted(.errorDetails, error.localizedDescription),
+            )
         }
     }
 }

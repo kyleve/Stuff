@@ -1,57 +1,36 @@
 import PeriscopeCore
 
-/// Structured events for `WidgetSnapshotPublisher`. A publish records the day
-/// and region count; a build failure surfaces as `.error`.
-enum WidgetSnapshotPublisherLog: LogEvent {
-    /// Names the publisher's timed spans.
+/// Structured events and spans for `WidgetSnapshotPublisher`.
+@LogScope("WidgetSnapshotPublisher")
+enum WidgetSnapshotPublisherLog {
     enum SpanName: Hashable {
-        /// Rebuilding the snapshot from the store and handing it to WidgetKit.
-        /// Spanned here rather than in `WidgetDataReader` because the reader is
-        /// only ever driven from this actor, and the WidgetKit reload the
-        /// publish ends with is part of what a caller waits for. The skip paths
-        /// (`refreshIfStale`, `publishAfterIngest`) are deliberately outside, so
-        /// the span history counts rebuilds rather than the far more numerous
-        /// times a rebuild was avoided.
         case publish
     }
 
-    case published(day: String, regionCount: Int)
-    case buildFailed(description: String)
+    @LogEvent("published", level: .info)
+    struct Published {
+        @LogField("day", exposure: .restricted, kind: .dateTime)
+        var day: String
 
-    static let eventName = "WidgetSnapshotPublisher"
+        @LogField("region_count", exposure: .shareable, kind: .count)
+        var regionCount: Int
 
-    var level: LogLevel {
-        switch self {
-            case .published: .info
-            case .buildFailed: .error
+        var message: String {
+            "Published widget snapshot for \(day) (\(regionCount) region(s))"
+        }
+
+        var externalID: String? {
+            WhereStoreID.day(day)
         }
     }
 
-    var message: String {
-        switch self {
-            case let .published(day, regionCount):
-                "Published widget snapshot for \(day) (\(regionCount) region(s))"
-            case let .buildFailed(description):
-                "Failed to build widget snapshot: \(description)"
-        }
-    }
+    @LogEvent("build-failed", level: .error)
+    struct BuildFailed {
+        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        var description: String
 
-    var externalID: String? {
-        switch self {
-            case let .published(day, _): WhereStoreID.day(day)
-            case .buildFailed: nil
-        }
-    }
-
-    var remoteFields: [RemoteLogField] {
-        switch self {
-            case let .published(_, regionCount):
-                [RemoteLogField(
-                    key: RemoteLogFieldKey("region_count"),
-                    value: .count(regionCount),
-                )]
-            case .buildFailed:
-                []
+        var message: String {
+            "Failed to build widget snapshot: \(description)"
         }
     }
 }

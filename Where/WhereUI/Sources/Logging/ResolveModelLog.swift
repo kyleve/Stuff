@@ -1,31 +1,30 @@
 import PeriscopeCore
 
-/// Structured events for `ResolveModel`, the data-issue resolution flow. Read /
-/// dismiss failures leave an honest UI error, so they log at `.warning`. A
-/// dismissed issue's id rides on `externalID`.
-enum ResolveModelLog: LogEvent {
-    case dataIssueScanFailed(description: String)
-    case dismissFailed(issueID: String, description: String)
-
-    static let eventName = "Resolve"
-
-    var level: LogLevel {
-        .warning
-    }
-
-    var message: String {
-        switch self {
-            case let .dataIssueScanFailed(description):
-                "Failed to scan for data issues: \(description)"
-            case let .dismissFailed(issueID, description):
-                "Failed to dismiss data issue \(issueID): \(description)"
+@LogScope("Resolve")
+enum ResolveModelLog {
+    @LogEvent("data-issue-scan-failed", level: .warning)
+    struct DataIssueScanFailed {
+        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        var description: String
+        var message: String {
+            "Failed to scan for data issues: \(description)"
         }
     }
 
-    var externalID: String? {
-        switch self {
-            case let .dismissFailed(issueID, _): issueID
-            case .dataIssueScanFailed: nil
+    @LogEvent("dismiss-failed", level: .warning)
+    struct DismissFailed {
+        @LogField("issue_id", exposure: .restricted, kind: .identifier)
+        var issueID: String
+
+        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        var description: String
+
+        var message: String {
+            "Failed to dismiss data issue \(issueID): \(description)"
+        }
+
+        var externalID: String? {
+            issueID
         }
     }
 }

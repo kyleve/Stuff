@@ -82,9 +82,12 @@ struct CalendarContentView: View {
                     Text(String(localized: .calendarUnavailableDescription))
                 }
                 .onAppear {
-                    Self.logger {
-                        .openedWithoutReport(loadState: String(describing: report.loadState))
-                    }
+                    Self.logger.openedWithoutReport(
+                        loadState: .restricted(
+                            .technicalState,
+                            String(describing: report.loadState),
+                        ),
+                    )
                 }
             }
         }
@@ -125,7 +128,9 @@ struct CalendarContentView: View {
             Text(String(localized: .calendarUnavailableDescription))
         }
         .onAppear {
-            Self.logger { .layoutFailed(description: String(describing: error)) }
+            Self.logger.layoutFailed(
+                description: .restricted(.errorDetails, String(describing: error)),
+            )
         }
     }
 

@@ -127,7 +127,9 @@ public final class UserNotificationReminderScheduler: LoggingReminderScheduling,
         do {
             return try await center.requestAuthorization(options: [.alert, .sound, .badge])
         } catch {
-            Self.logger { .authorizationRequestFailed(description: error.localizedDescription) }
+            Self.logger.authorizationRequestFailed(
+                description: .restricted(.errorDetails, error.localizedDescription),
+            )
             return false
         }
     }
@@ -181,12 +183,12 @@ public final class UserNotificationReminderScheduler: LoggingReminderScheduling,
             case .authorized, .provisional, .ephemeral:
                 break
             case .notDetermined, .denied:
-                Self.logger { .authorizationNotGranted }
+                Self.logger.authorizationNotGranted()
                 await removeAllOwnedReminders()
                 await setBadge(0)
                 return
             @unknown default:
-                Self.logger { .authorizationUnknown }
+                Self.logger.authorizationUnknown()
                 await removeAllOwnedReminders()
                 await setBadge(0)
                 return
@@ -235,13 +237,11 @@ public final class UserNotificationReminderScheduler: LoggingReminderScheduling,
         // every launch/foreground and after every user write, so a no-op
         // reconcile (the common case) stays quiet.
         if !pendingToRemove.isEmpty || !staleDelivered.isEmpty || !toSchedule.isEmpty {
-            Self.logger {
-                .reconciled(
-                    scheduled: toSchedule.count,
-                    removed: pendingToRemove.count,
-                    badge: badgeCount,
-                )
-            }
+            Self.logger.reconciled(
+                scheduled: .shared(.count, toSchedule.count),
+                removed: .shared(.count, pendingToRemove.count),
+                badge: .shared(.count, badgeCount),
+            )
         }
     }
 
@@ -264,9 +264,11 @@ public final class UserNotificationReminderScheduler: LoggingReminderScheduling,
         do {
             try await center.add(request)
         } catch {
-            Self.logger(attachments: [.error(error, name: "schedule-error")]) {
-                .scheduleFailed(identifier: identifier, description: error.localizedDescription)
-            }
+            Self.logger.scheduleFailed(
+                identifier: .restricted(.identifier, identifier),
+                description: .restricted(.errorDetails, error.localizedDescription),
+                attachments: [.error(error, name: "schedule-error")],
+            )
         }
     }
 
@@ -298,7 +300,9 @@ public final class UserNotificationReminderScheduler: LoggingReminderScheduling,
         do {
             try await center.setBadgeCount(max(0, count))
         } catch {
-            Self.logger { .badgeUpdateFailed(description: error.localizedDescription) }
+            Self.logger.badgeUpdateFailed(
+                description: .restricted(.errorDetails, error.localizedDescription),
+            )
         }
     }
 

@@ -38,7 +38,7 @@ struct LogTests {
         let root = Log<AppLogs>(recorder: recorder)
         let photos = root(PhotoLogs.self)
 
-        photos { PhotoLogs(photoID: "p1") }
+        photos.event(photoID: .restricted(.identifier, "p1"))
 
         let record = try #require(recorder.records.first)
         #expect(record.scopes == photos.scopes.map(\.id))
@@ -55,7 +55,7 @@ struct LogTests {
         #expect(joined.primaryScope == model.primaryScope)
         #expect(joined.scopes == model.scopes + ui.scopes)
 
-        joined { PhotoLogs(photoID: "p9") }
+        joined.event(photoID: .restricted(.identifier, "p9"))
         #expect(recorder.records.last?.scopes == (model.scopes + ui.scopes).map(\.id))
     }
 
@@ -82,7 +82,7 @@ struct LogTests {
     @Test func typedDeriveAndEmitWorksAsOneExpression() throws {
         let root = Log<AppLogs>(recorder: recorder)
 
-        root(PhotoLogs.self) { PhotoLogs(photoID: "p1") }
+        root(PhotoLogs.self).event(photoID: .restricted(.identifier, "p1"))
 
         let record = try #require(recorder.records.first)
         #expect(record.message == "photo p1")
@@ -92,7 +92,7 @@ struct LogTests {
     @Test func keyedDeriveAndEmitWorksAsOneExpression() throws {
         let photos = Log<AppLogs>(recorder: recorder)(PhotoLogs.self)
 
-        photos(for: "album-1") { PhotoLogs(photoID: "p2") }
+        photos(for: "album-1").event(photoID: .restricted(.identifier, "p2"))
 
         let record = try #require(recorder.records.first)
         #expect(record.message == "photo p2")
@@ -103,7 +103,7 @@ struct LogTests {
         let photos = Log<AppLogs>(recorder: recorder)(PhotoLogs.self)
             .tagged(LogTagKey("payment-id"), "pay_1")
 
-        let retyped = photos.retyped(to: Message.self)
+        let retyped = photos.retyped(to: FreeformLogScope.self)
 
         #expect(retyped.scopes == photos.scopes)
         #expect(retyped.tags == photos.tags)
@@ -120,7 +120,10 @@ struct LogTests {
             data: Data([9]),
         )
 
-        log(attachments: [attachment]) { PhotoLogs(photoID: "p1") }
+        log.event(
+            photoID: .restricted(.identifier, "p1"),
+            attachments: [attachment],
+        )
         log.error("boom", attachments: [attachment])
         log.info("bare")
 
@@ -135,7 +138,7 @@ struct LogTests {
         let tagged = root.tagged(LogTagKey("payment-id"), "pay_123")
 
         tagged.info("charged")
-        tagged { AppLogs() }
+        tagged.event()
 
         #expect(recorder.records.count == 2)
         #expect(recorder.records.allSatisfy { $0.tags == [LogTag(
@@ -167,7 +170,7 @@ struct LogTests {
     @Test func emitsCaptureTheirCallSite() {
         let log = Log<AppLogs>(recorder: recorder)
         log.info("freeform")
-        log { AppLogs() }
+        log.event()
 
         for record in recorder.records {
             #expect(record.callSite?.function == "emitsCaptureTheirCallSite()")

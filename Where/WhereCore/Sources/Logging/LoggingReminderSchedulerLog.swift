@@ -1,68 +1,66 @@
 import PeriscopeCore
 
-/// Structured events for `LoggingReminderScheduler` — authorization outcomes and
-/// the reconcile of scheduled/removed reminders + badge.
-enum LoggingReminderSchedulerLog: LogEvent {
-    /// Names the scheduler's timed span. The sibling summary/issue-alert
-    /// schedulers stay unspanned: each is a single add-or-remove, whereas this
-    /// one walks the pending *and* delivered sets and can add a week of
-    /// requests — several `UNUserNotificationCenter` round-trips, all of them
-    /// cross-process.
+/// Structured events and spans for `LoggingReminderScheduler`.
+@LogScope("LoggingReminderScheduler")
+enum LoggingReminderSchedulerLog {
     enum SpanName: Hashable {
         case reconcileNotifications
     }
 
-    case authorizationRequestFailed(description: String)
-    case authorizationNotGranted
-    case authorizationUnknown
-    case reconciled(scheduled: Int, removed: Int, badge: Int)
-    case scheduleFailed(identifier: String, description: String)
-    case badgeUpdateFailed(description: String)
-
-    static let eventName = "LoggingReminderScheduler"
-
-    var level: LogLevel {
-        switch self {
-            case .authorizationRequestFailed, .scheduleFailed, .badgeUpdateFailed:
-                .error
-            case .authorizationNotGranted, .authorizationUnknown:
-                .warning
-            case .reconciled:
-                .info
+    @LogEvent("authorization-request-failed", level: .error)
+    struct AuthorizationRequestFailed {
+        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        var description: String
+        var message: String {
+            "Notification authorization request failed: \(description)"
         }
     }
 
-    var message: String {
-        switch self {
-            case let .authorizationRequestFailed(description):
-                "Notification authorization request failed: \(description)"
-            case .authorizationNotGranted:
-                "Logging reminders enabled but notification authorization not granted; reminders disabled"
-            case .authorizationUnknown:
-                "Logging reminders enabled but notification authorization status is unknown; reminders disabled"
-            case let .reconciled(scheduled, removed, badge):
-                "Reconciled logging reminders (scheduled \(scheduled), removed \(removed); badge: \(badge))"
-            case let .scheduleFailed(identifier, description):
-                "Failed to schedule reminder \(identifier): \(description)"
-            case let .badgeUpdateFailed(description):
-                "Failed to set badge count: \(description)"
+    @LogEvent(
+        "authorization-not-granted",
+        level: .warning,
+        message: "Logging reminders enabled but notification authorization not granted; reminders disabled",
+    )
+    struct AuthorizationNotGranted {}
+
+    @LogEvent(
+        "authorization-unknown",
+        level: .warning,
+        message: "Logging reminders enabled but notification authorization status is unknown; reminders disabled",
+    )
+    struct AuthorizationUnknown {}
+
+    @LogEvent("reconciled", level: .info)
+    struct Reconciled {
+        @LogField("scheduled_count", exposure: .shareable, kind: .count)
+        var scheduled: Int
+        @LogField("removed_count", exposure: .shareable, kind: .count)
+        var removed: Int
+        @LogField("badge_count", exposure: .shareable, kind: .count)
+        var badge: Int
+
+        var message: String {
+            "Reconciled logging reminders (scheduled \(scheduled), removed \(removed); badge: \(badge))"
         }
     }
 
-    var remoteFields: [RemoteLogField] {
-        switch self {
-            case let .reconciled(scheduled, removed, badge):
-                [
-                    RemoteLogField(
-                        key: RemoteLogFieldKey("scheduled_count"),
-                        value: .count(scheduled),
-                    ),
-                    RemoteLogField(key: RemoteLogFieldKey("removed_count"), value: .count(removed)),
-                    RemoteLogField(key: RemoteLogFieldKey("badge_count"), value: .count(badge)),
-                ]
-            case .authorizationRequestFailed, .authorizationNotGranted, .authorizationUnknown,
-                 .scheduleFailed, .badgeUpdateFailed:
-                []
+    @LogEvent("schedule-failed", level: .error)
+    struct ScheduleFailed {
+        @LogField("identifier", exposure: .restricted, kind: .identifier)
+        var identifier: String
+        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        var description: String
+        var message: String {
+            "Failed to schedule reminder \(identifier): \(description)"
+        }
+    }
+
+    @LogEvent("badge-update-failed", level: .error)
+    struct BadgeUpdateFailed {
+        @LogField("description", exposure: .restricted, kind: .errorDetails)
+        var description: String
+        var message: String {
+            "Failed to set badge count: \(description)"
         }
     }
 }

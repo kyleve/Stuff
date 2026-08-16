@@ -23,7 +23,7 @@ private struct TypedProbe: View {
 
     var body: some View {
         Color.clear.onAppear {
-            log(PhotoLogs.self) { PhotoLogs(photoID: "p1") }
+            log(PhotoLogs.self).event(photoID: .restricted(.identifier, "p1"))
         }
     }
 }

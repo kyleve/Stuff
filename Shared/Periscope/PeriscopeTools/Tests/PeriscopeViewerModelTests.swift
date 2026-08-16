@@ -136,13 +136,13 @@ struct PeriscopeViewerModelTests {
         let (store, root, _, _) = try await makeSeededStore()
         await store.write([
             makeRecord("plain", date: date(1), scopes: [root.id]),
-            LogRecord(date: date(2), event: PhotoLogs(photoID: "p1"), scopes: [root.id]),
+            LogRecord(date: date(2), event: makePhotoEvent("p1"), scopes: [root.id]),
         ])
 
         let model = PeriscopeViewerModel(store: store)
         await model.load()
 
-        #expect(model.eventNames == ["PhotoLogs", "message"].sorted())
+        #expect(model.eventNames == ["PhotoLogs.event", "message.message"].sorted())
         #expect(model.sessions.count == 1)
         #expect(model.scopeChoices.map(\.path).contains("app / photos / album-1"))
         #expect(model.availableLevels == LogLevel.standardLevels)
