@@ -60,8 +60,8 @@ commands:
       - run:
           name: Test CI helpers
           command: |
-            python3 .circleci/test_xcresult_to_junit.py
-            python3 .circleci/test_test_artifacts.py
+            python3 .circleci/Tests/test_xcresult_to_junit.py
+            python3 .circleci/Tests/test_test_artifacts.py
             python3 Tools/Tests/test_snapshot_shards.py
             ./snapshot-shards check
 

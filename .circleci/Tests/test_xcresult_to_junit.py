@@ -8,7 +8,7 @@ import unittest
 import xml.etree.ElementTree as ET
 
 
-SCRIPT = pathlib.Path(__file__).with_name("xcresult_to_junit.py")
+SCRIPT = pathlib.Path(__file__).parents[1] / "xcresult_to_junit.py"
 SPEC = importlib.util.spec_from_file_location("xcresult_to_junit", SCRIPT)
 MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MODULE)

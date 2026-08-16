@@ -9,7 +9,7 @@ import unittest
 from unittest import mock
 
 
-SCRIPT = pathlib.Path(__file__).with_name("test_artifacts.py")
+SCRIPT = pathlib.Path(__file__).parents[1] / "test_artifacts.py"
 SPEC = importlib.util.spec_from_file_location("test_artifacts", SCRIPT)
 MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MODULE)
