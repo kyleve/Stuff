@@ -148,8 +148,6 @@ commands:
       hydrate_snapshots:
         type: boolean
         default: false
-      scheme:
-        type: string
       test_workdir:
         type: string
     steps:
@@ -162,13 +160,6 @@ commands:
           at: ci-test-build
       - configure_test_workdir:
           test_workdir: << parameters.test_workdir >>
-      - test_ci_helpers
-      - run:
-          name: Validate test artifact manifest
-          command: >-
-            python3 .circleci/test_artifacts.py resolve
-            --root "$CIRCLE_WORKING_DIRECTORY/ci-test-build"
-            --scheme "<< parameters.scheme >>" --field xctestrun
       - validate_runner_environment
 
   run_with_timeout:
@@ -258,6 +249,8 @@ commands:
 jobs:
   build-ios-tests:
     executor: m4-pro-large
+    environment:
+      GIT_LFS_SKIP_SMUDGE: "1"
     steps:
       - prepare_builder:
           test_workdir: test-output-build
@@ -295,9 +288,10 @@ jobs:
 
   test-ios:
     executor: m4-pro-medium
+    environment:
+      GIT_LFS_SKIP_SMUDGE: "1"
     steps:
       - prepare_worker:
-          scheme: Stuff-iOS-Tests
           test_workdir: test-output-ios
       - run_with_timeout:
           seconds: 2700
@@ -320,7 +314,6 @@ jobs:
     steps:
       - prepare_worker:
           hydrate_snapshots: true
-          scheme: StuffSnapshotTests
           test_workdir: test-output-snapshots
       - run:
           name: Select deterministic snapshot shard
@@ -362,7 +355,8 @@ workflows:
   "iOS CI":
     when: >-
       (pipeline.event.name == "push" and pipeline.git.branch == "main") or
-      pipeline.event.name == "pull_request"
+      (pipeline.event.name == "pull_request" and
+      pipeline.event.github.pull_request.base.ref == "main")
     jobs:
       - build-ios-tests:
           name: Build iOS Tests

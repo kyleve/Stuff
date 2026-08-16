@@ -6,6 +6,7 @@ import json
 import pathlib
 import tempfile
 import unittest
+from unittest import mock
 
 
 SCRIPT = pathlib.Path(__file__).with_name("test_artifacts.py")
@@ -41,6 +42,36 @@ class ArtifactTests(unittest.TestCase):
             )
 
             self.assertEqual(path.suffix, ".xctestrun")
+
+    def test_manifest_resolves_all_paths_after_one_validation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = self.make_artifacts(directory)
+            MODULE.create_manifest(root, ["StuffSnapshotTests"], METADATA)
+
+            with mock.patch.object(
+                MODULE,
+                "load_and_validate",
+                wraps=MODULE.load_and_validate,
+            ) as validate:
+                paths = MODULE.resolved_paths(
+                    root, ["StuffSnapshotTests"], METADATA
+                )
+
+            self.assertEqual(
+                paths["products"],
+                str(
+                    root
+                    / "DerivedData"
+                    / "Build"
+                    / "Products"
+                    / "Debug-iphonesimulator"
+                ),
+            )
+            self.assertEqual(
+                pathlib.Path(paths["schemes"]["StuffSnapshotTests"]).suffix,
+                ".xctestrun",
+            )
+            validate.assert_called_once_with(root, METADATA)
 
     def test_manifest_rejects_a_different_commit(self):
         with tempfile.TemporaryDirectory() as directory:

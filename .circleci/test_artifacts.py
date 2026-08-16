@@ -117,13 +117,27 @@ def load_and_validate(root, metadata=None):
 
 
 def resolved_path(root, scheme, field, metadata=None):
+    paths = resolved_paths(root, [scheme], metadata)
+    if field == "products":
+        return pathlib.Path(paths["products"])
+    return pathlib.Path(paths["schemes"][scheme])
+
+
+def resolved_paths(root, schemes, metadata=None):
     root = root.resolve()
     manifest = load_and_validate(root, metadata)
-    if scheme not in manifest["schemes"]:
-        raise ValueError(f"test artifact manifest has no scheme named {scheme}")
-    if field == "products":
-        return root / manifest["builtProducts"]
-    return root / manifest["schemes"][scheme]
+    missing = [scheme for scheme in schemes if scheme not in manifest["schemes"]]
+    if missing:
+        raise ValueError(
+            f"test artifact manifest has no scheme named {', '.join(missing)}"
+        )
+    return {
+        "products": str((root / manifest["builtProducts"]).resolve()),
+        "schemes": {
+            scheme: str((root / manifest["schemes"][scheme]).resolve())
+            for scheme in schemes
+        },
+    }
 
 
 def suite_identifiers(document):
@@ -181,6 +195,10 @@ def parse_args():
     resolve.add_argument("--scheme", required=True)
     resolve.add_argument("--field", choices=("products", "xctestrun"), required=True)
 
+    resolve_all = subparsers.add_parser("resolve-all")
+    resolve_all.add_argument("--root", type=pathlib.Path, required=True)
+    resolve_all.add_argument("--scheme", action="append", required=True)
+
     suites = subparsers.add_parser("suites")
     suites.add_argument("--input", type=pathlib.Path, required=True)
     suites.add_argument("--output", type=pathlib.Path, required=True)
@@ -195,6 +213,8 @@ def main():
             print(f"Created {args.root / 'manifest.json'} for {len(manifest['schemes'])} schemes")
         elif args.command == "resolve":
             print(resolved_path(args.root, args.scheme, args.field))
+        elif args.command == "resolve-all":
+            print(json.dumps(resolved_paths(args.root, args.scheme), sort_keys=True))
         elif args.command == "suites":
             suites = suite_identifiers(json.loads(args.input.read_text()))
             if not suites:

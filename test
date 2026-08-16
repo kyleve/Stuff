@@ -817,12 +817,16 @@ if [ "$DO_GENERATE" = true ]; then
     fi
 fi
 
+ARTIFACT_PATHS=""
 if [ -n "$TEST_ARTIFACTS" ]; then
+    ARTIFACT_PATHS="$WORKDIR/test-artifact-paths.json"
+    ARTIFACT_SCHEME_ARGS=()
     for scheme in "${SCHEMES[@]}"; do
-        python3 .circleci/test_artifacts.py resolve \
-            --root "$TEST_ARTIFACTS" --scheme "$scheme" --field xctestrun \
-            >/dev/null
+        ARTIFACT_SCHEME_ARGS+=(--scheme "$scheme")
     done
+    python3 .circleci/test_artifacts.py resolve-all \
+        --root "$TEST_ARTIFACTS" \
+        "${ARTIFACT_SCHEME_ARGS[@]}" >"$ARTIFACT_PATHS"
     echo "Validated test artifacts before simulator boot."
 fi
 
@@ -864,8 +868,9 @@ RUN_ENV=()
 # override at all (Xcode 27 beta 4's package linking orphans the resource
 # bundles copied into each .xctest).
 if [ -n "$TEST_ARTIFACTS" ]; then
-    BUILT_PRODUCTS_DIR="$(python3 .circleci/test_artifacts.py resolve \
-        --root "$TEST_ARTIFACTS" --scheme "${SCHEMES[0]}" --field products)"
+    BUILT_PRODUCTS_DIR="$(python3 -c \
+        'import json,sys; print(json.load(open(sys.argv[1]))["products"])' \
+        "$ARTIFACT_PATHS")"
 elif [ -n "$BUILD_ARTIFACTS" ]; then
     BUILT_PRODUCTS_DIR=""
 else
@@ -923,8 +928,9 @@ for scheme in "${SCHEMES[@]}"; do
     [ -n "$BUILD_ARTIFACTS" ] && continue
 
     if [ -n "$TEST_ARTIFACTS" ]; then
-        XCTESTRUN="$(python3 .circleci/test_artifacts.py resolve \
-            --root "$TEST_ARTIFACTS" --scheme "$scheme" --field xctestrun)"
+        XCTESTRUN="$(python3 -c \
+            'import json,sys; print(json.load(open(sys.argv[1]))["schemes"][sys.argv[2]])' \
+            "$ARTIFACT_PATHS" "$scheme")"
         TEST_LOCATION=(-xctestrun "$XCTESTRUN")
     else
         TEST_LOCATION=(-workspace "$WORKSPACE" -scheme "$scheme")
