@@ -7,7 +7,7 @@ here.
 # Open issues
 
 ## P2s (Nice to have)
-- test [quick-win]: Add a test that duplicate node IDs trap. `LaunchPlan.append` `precondition`s on a duplicate (`LaunchPlan.swift:137-140`), and `LifecycleContainer` — now in LifecycleKitUI — does the same for duplicate gate-view registrations (`LifecycleKitUI/Sources/LifecycleContainer.swift:101-104`), but nothing exercises either. (audit 2026-07-26)
+- test [quick-win]: Add a test that duplicate node IDs trap. `LaunchPlan.append` `precondition`s on a duplicate (`LaunchPlan.swift:137-140`), and `LifecycleContainer` — now in LifecycleKitUI — does the same for duplicate gate-view registrations (`LifecycleKitUI/Sources/LifecycleContainer.swift:109-115`), but nothing exercises either. (audit 2026-07-26; re-verified 2026-08-16)
 
 # Completed issues
 
