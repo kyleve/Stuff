@@ -7,6 +7,8 @@ import WhereCore
 struct PlannedStayLocationStatusRow: View {
     let check: LocationForecastModel.PlannedStayLocationCheck?
 
+    @Environment(\.stylesheet) private var stylesheet
+
     var body: some View {
         switch check?.status {
             case .checking:
@@ -18,17 +20,22 @@ struct PlannedStayLocationStatusRow: View {
                 .font(.subheadline)
             case .outside:
                 if let check {
-                    Label {
+                    let style = stylesheet.plannedStayWarningStamp
+                    StampBanner(
+                        systemSymbol: .exclamationmarkTriangleFill,
+                        style: style,
+                        showsAccessory: false,
+                    ) {
                         Text(WhereFormat.plannedStayOutsideLocation(
                             region: check.region,
                             driftThreshold: check.driftThreshold,
                         ))
-                    } icon: {
-                        Image(systemSymbol: .exclamationmarkTriangleFill)
-                            .foregroundStyle(.yellow)
-                            .accessibilityHidden(true)
+                        .font(style.detailFont)
+                        .foregroundStyle(.primary)
                     }
-                    .font(.subheadline)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets())
                 }
             case .unavailable:
                 Label(

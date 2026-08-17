@@ -33,7 +33,8 @@ struct WhereStylesheet: BStylesheet {
     var featureDiscovery = FeatureDiscoveryStyle.standard
     var passportSeal = PassportSealStyle.standard
     var privacyPassportCard = PrivacyPassportCardStyle.standard
-    var openSourceStamp = OpenSourceStampStyle.standard
+    var openSourceStamp = StampBannerStyle.openSource
+    var plannedStayWarningStamp = StampBannerStyle.plannedStayWarning
     var developerOverlay = DeveloperOverlayStyle.standard
 
     init() {}
@@ -71,6 +72,7 @@ struct WhereStylesheet: BStylesheet {
 
         if traits.accessibility.isDarkerSystemColorsEnabled {
             openSourceStamp.ink = .increasedContrast
+            plannedStayWarningStamp.ink = .increasedContrast
         }
 
         // Reduce Motion stops the cards' day count rolling its digits; it
@@ -1831,8 +1833,9 @@ extension WhereStylesheet {
         )
     }
 
-    /// Appearance for the flat, single-ink source stamp at the end of About.
-    struct OpenSourceStampStyle: Equatable {
+    /// Appearance for a flat, single-ink stamp banner.
+    struct StampBannerStyle: Equatable {
+        var tint: Color
         var padding: CGFloat
         var contentSpacing: CGFloat
         var titleFont: Font
@@ -1878,7 +1881,24 @@ extension WhereStylesheet {
             )
         }
 
-        static let standard = OpenSourceStampStyle(
+        static let openSource = StampBannerStyle(
+            tint: .accentColor,
+            padding: 16,
+            contentSpacing: 12,
+            titleFont: .headline,
+            detailFont: .subheadline,
+            outlineWidth: 1.5,
+            rosette: Rosette(
+                wobble: 5,
+                lineWidth: 0.75,
+                primaryRingSpacing: 10,
+                secondaryRingSpacing: 16,
+            ),
+            ink: .standard,
+        )
+
+        static let plannedStayWarning = StampBannerStyle(
+            tint: .orange,
             padding: 16,
             contentSpacing: 12,
             titleFont: .headline,
