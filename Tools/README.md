@@ -2,8 +2,9 @@
 
 This directory contains importable implementations and direct tests for the
 repository's retained Python and Ruby developer tooling. Public commands stay
-at their established paths in the repository root; shell launchers own process
-orchestration and bootstrap, while structured parsing and policy live here.
+at their established paths in the repository root; shell launchers own public
+argument handling, process orchestration, and bootstrap, while structured
+parsing and reporting policy live here.
 
 The existing CircleCI artifact, JUnit, and snapshot-shard helpers remain Python
 because they are already integrated and directly tested. `tla_check.py`

@@ -398,6 +398,8 @@ def main(arguments: Optional[Iterable[str]] = None) -> int:
         print("\n".join(snapshot_bundles(options.project.read_text())))
     elif options.command == "affected-bundles":
         changed = [line for line in sys.stdin.read().splitlines() if line.strip()]
+        if not changed:
+            return 0
         package = json.loads(
             subprocess.run(
                 ["swift", "package", "dump-package"],

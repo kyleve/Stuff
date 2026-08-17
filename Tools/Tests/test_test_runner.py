@@ -4,10 +4,17 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from test_runner import ProgressReporter, affected_bundles, failure_report, snapshot_bundles
+from test_runner import (
+    ProgressReporter,
+    affected_bundles,
+    failure_report,
+    main,
+    snapshot_bundles,
+)
 
 
 class Clock:
@@ -50,6 +57,13 @@ class TestRunnerTests(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "only found 0 test bundles"):
             affected_bundles(["Project.swift"], {"targets": []}, "")
+
+    def test_empty_affected_input_does_not_invoke_swift_package_manager(self):
+        with patch("sys.stdin", io.StringIO("")), patch(
+            "test_runner.subprocess.run"
+        ) as run:
+            self.assertEqual(main(["affected-bundles"]), 0)
+        run.assert_not_called()
 
     def test_progress_uses_images_without_a_cached_test_total(self):
         with tempfile.TemporaryDirectory() as directory:
