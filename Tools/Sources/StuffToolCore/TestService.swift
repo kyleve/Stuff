@@ -11,8 +11,10 @@ public struct TestRequest: Equatable, Sendable {
     public let scope: TestScope
     public let bundles: [String]
     public let only: [String]
+    public let onlyFile: String?
     public let baseReference: String
     public let architectureMode: TestArchitectureMode
+    public let artifactMode: TestArtifactMode
     public let build: Bool
     public let generate: Bool
     public let record: String?
@@ -28,8 +30,10 @@ public struct TestRequest: Equatable, Sendable {
         scope: TestScope,
         bundles: [String],
         only: [String],
+        onlyFile: String?,
         baseReference: String,
         architectureMode: TestArchitectureMode,
+        artifactMode: TestArtifactMode,
         build: Bool,
         generate: Bool,
         record: String?,
@@ -44,8 +48,10 @@ public struct TestRequest: Equatable, Sendable {
         self.scope = scope
         self.bundles = bundles
         self.only = only
+        self.onlyFile = onlyFile
         self.baseReference = baseReference
         self.architectureMode = architectureMode
+        self.artifactMode = artifactMode
         self.build = build
         self.generate = generate
         self.record = record
@@ -74,6 +80,7 @@ public struct TestService: Sendable {
     private let environment: [String: String]
     private let xcodeWorkspace: XcodeWorkspace
     private let architectureChecks: ArchitectureCheckService
+    private let testArtifacts: TestArtifactService
 
     public init(
         runner: any CommandRunning,
@@ -105,9 +112,31 @@ public struct TestService: Sendable {
             repository: repository,
             environment: environment,
         )
+        testArtifacts = TestArtifactService(
+            runner: runner,
+            terminal: terminal,
+            repository: repository,
+        )
     }
 
     public func run(_ request: TestRequest) async throws -> Int32 {
+        var only = request.only
+        let onlyFileURL = request.onlyFile.map(resolveUserPath)
+        if let onlyFileURL {
+            guard try fileSystem.kind(of: onlyFileURL) == .file else {
+                throw ToolFailure.message(
+                    "--only-file does not exist: \(request.onlyFile ?? onlyFileURL.path)",
+                )
+            }
+            try only += lines(in: String(decoding: fileSystem.read(onlyFileURL), as: UTF8.self))
+            guard only.isEmpty == false else {
+                throw ToolFailure.message(
+                    "--only-file contains no test identifiers: " +
+                        "\(request.onlyFile ?? onlyFileURL.path)",
+                )
+            }
+        }
+
         if request.architectureMode != .skip {
             let status = try await architectureChecks.run()
             guard status == 0 else { throw ToolFailure.exitCode(status) }
@@ -116,7 +145,7 @@ public struct TestService: Sendable {
             return 0
         }
 
-        if request.scope == .changed {
+        if request.scope == .changed, request.artifactMode == .local {
             try await runBackupUpgrader()
         }
 
@@ -134,8 +163,10 @@ public struct TestService: Sendable {
             }
         }
 
+        let fileUsesExplicitScheme = onlyFileURL != nil && request.only.isEmpty &&
+            (request.scope == .all || request.scope == .snapshots)
         let needsGraph = request.scope == .changed || request.scope == .bundles ||
-            request.scope == .only || request.only.isEmpty == false
+            request.scope == .only || (only.isEmpty == false && fileUsesExplicitScheme == false)
         let graph = needsGraph ? try await loadRepositoryGraph(in: workDirectory) : nil
         if request.scope == .changed {
             guard let graph else {
@@ -158,42 +189,123 @@ public struct TestService: Sendable {
             )
         }
 
-        let plan: TestRunPlan
+        var plan: TestRunPlan
         do {
             plan = try TestRunPlan(
                 scope: request.scope,
                 bundles: bundles,
-                only: request.only,
+                only: fileUsesExplicitScheme ? [] : only,
                 graph: graph,
             )
+            if let onlyFileURL {
+                plan = try plan.filtering(usingFile: onlyFileURL.path)
+            }
         } catch let failure as TestRunPlanFailure {
             throw ToolFailure.message(failure.description)
         }
-        if request.scope != .changed, plan.runsUnitTests {
+        if request.scope != .changed, plan.runsUnitTests, request.artifactMode == .local {
             try await runBackupUpgrader()
         }
         if request.generate {
-            try await generateProject(in: workDirectory)
+            let started = await clock.now()
+            let status: Int32
+            do {
+                status = try await generateProject(in: workDirectory)
+            } catch {
+                try await emitPhaseTiming(
+                    "generate",
+                    started: started,
+                    scheme: nil,
+                    status: exitStatus(for: error),
+                )
+                throw error
+            }
+            try await emitPhaseTiming(
+                "generate",
+                started: started,
+                scheme: nil,
+                status: status,
+            )
+            guard status == 0 else { throw ToolFailure.exitCode(status) }
         }
 
-        let udid = try await simulator.resolve(
-            device: request.device,
-            os: request.os,
-            shared: request.sharedSimulator,
-        )
-        let destination = "platform=iOS Simulator,id=\(udid)"
+        let artifactRoot: URL?
+        let artifactPaths: TestArtifactPaths?
+        switch request.artifactMode {
+            case .local:
+                artifactRoot = nil
+                artifactPaths = nil
+            case let .build(directory):
+                let root = resolveUserPath(directory)
+                try fileSystem.createDirectory(at: root, withIntermediateDirectories: true)
+                artifactRoot = root.resolvingSymlinksInPath()
+                artifactPaths = nil
+            case let .test(directory, _):
+                let root = resolveUserPath(directory)
+                artifactRoot = root
+                artifactPaths = try await testArtifacts.resolve(
+                    root: root,
+                    schemes: plan.schemes.map(\.name),
+                )
+                try await terminal.write(
+                    "Validated test artifacts before simulator boot.\n",
+                    to: .standardOutput,
+                )
+        }
+
+        let destination: String
+        if case .build = request.artifactMode {
+            destination = "generic/platform=iOS Simulator"
+        } else {
+            let started = await clock.now()
+            do {
+                let udid = try await simulator.resolve(
+                    device: request.device,
+                    os: request.os,
+                    shared: request.sharedSimulator,
+                )
+                try await emitPhaseTiming(
+                    "simulator",
+                    started: started,
+                    scheme: nil,
+                    status: 0,
+                )
+                destination = "platform=iOS Simulator,id=\(udid)"
+            } catch {
+                try await emitPhaseTiming(
+                    "simulator",
+                    started: started,
+                    scheme: nil,
+                    status: exitStatus(for: error),
+                )
+                throw error
+            }
+        }
+
         var runEnvironment = snapshotEnvironment(for: request)
-        if let productsDirectory = try await builtProductsDirectory(
-            scheme: plan.schemes[0].name,
-            destination: destination,
-        ) {
+        let productsDirectory: String? = switch request.artifactMode {
+            case .local:
+                try await builtProductsDirectory(
+                    scheme: plan.schemes[0].name,
+                    destination: destination,
+                )
+            case .build:
+                nil
+            case .test:
+                artifactPaths?.products
+        }
+        if let productsDirectory {
             runEnvironment["TEST_RUNNER_PACKAGE_RESOURCE_BUNDLE_PATH"] = productsDirectory
         } else {
-            try await terminal.write(
-                "warning: could not resolve BUILT_PRODUCTS_DIR; package resource " +
-                    "bundle lookups will fall back to the linker's placement\n",
-                to: .standardError,
-            )
+            if case .build = request.artifactMode {
+                // Build-only runs do not launch a test process that needs this path.
+            } else {
+                try await terminal.write(
+                    "warning: could not resolve BUILT_PRODUCTS_DIR; package resource " +
+                        "bundle lookups will fall back to the linker's placement\n",
+                    to: .standardError,
+                )
+            }
         }
 
         var overallStatus: Int32 = 0
@@ -209,11 +321,101 @@ public struct TestService: Sendable {
                 try fileSystem.removeItem(at: resultURL)
             }
             if request.build {
-                try await build(
+                let started = await clock.now()
+                let status: Int32
+                do {
+                    status = try await build(
+                        scheme: scheme.name,
+                        destination: destination,
+                        workDirectory: workDirectory,
+                        artifactRoot: artifactRoot,
+                    )
+                } catch {
+                    try await emitPhaseTiming(
+                        "build",
+                        started: started,
+                        scheme: scheme.name,
+                        status: exitStatus(for: error),
+                    )
+                    throw error
+                }
+                try await emitPhaseTiming(
+                    "build",
+                    started: started,
                     scheme: scheme.name,
-                    destination: destination,
-                    workDirectory: workDirectory,
+                    status: status,
                 )
+                guard status == 0 else { throw ToolFailure.exitCode(status) }
+            }
+
+            if case .build = request.artifactMode { continue }
+
+            let testLocation: [String]
+            if case .test = request.artifactMode {
+                guard let path = artifactPaths?.schemes[scheme.name] else {
+                    throw ToolFailure.message(
+                        "test artifact manifest has no scheme named \(scheme.name)",
+                    )
+                }
+                testLocation = ["-xctestrun", path]
+            } else {
+                testLocation = ["-workspace", Self.workspace, "-scheme", scheme.name]
+            }
+
+            if case let .test(_, enumerateSuites?) = request.artifactMode {
+                let rawEnumeration = workDirectory.appending(
+                    path: "\(scheme.name)-enumeration.json",
+                )
+                let logURL = workDirectory.appending(
+                    path: "\(scheme.name)-enumeration.log",
+                )
+                let started = await clock.now()
+                let result: CommandResult
+                do {
+                    result = try await xcodeWorkspace.xcodebuild(
+                        ["test-without-building"] + testLocation + [
+                            "-destination",
+                            destination,
+                            "-enumerate-tests",
+                            "-test-enumeration-style",
+                            "hierarchical",
+                            "-test-enumeration-format",
+                            "json",
+                            "-test-enumeration-output-path",
+                            rawEnumeration.path,
+                        ],
+                        environment: [:],
+                        logURL: logURL,
+                    )
+                } catch {
+                    try await emitPhaseTiming(
+                        "enumerate",
+                        started: started,
+                        scheme: scheme.name,
+                        status: exitStatus(for: error),
+                    )
+                    throw error
+                }
+                try await emitPhaseTiming(
+                    "enumerate",
+                    started: started,
+                    scheme: scheme.name,
+                    status: result.exitCode,
+                )
+                guard result.succeeded else {
+                    try await printLogFailure(
+                        "test enumeration failed for \(scheme.name)",
+                        logURL: logURL,
+                        tailLines: 30,
+                    )
+                    throw ToolFailure.exitCode(result.exitCode)
+                }
+                let status = try await testArtifacts.writeSuites(
+                    input: rawEnumeration,
+                    output: resolveUserPath(enumerateSuites),
+                )
+                guard status == 0 else { throw ToolFailure.exitCode(status) }
+                return 0
             }
 
             let countsURL = workDirectory.appending(
@@ -236,17 +438,13 @@ public struct TestService: Sendable {
                 clock: clock,
             )
             try await reporter.start()
+            let started = await clock.now()
             let result: CommandResult
             do {
                 result = try await runner.run(
                     CommandInvocation(
                         executable: "xcodebuild",
-                        arguments: [
-                            "test-without-building",
-                            "-workspace",
-                            Self.workspace,
-                            "-scheme",
-                            scheme.name,
+                        arguments: ["test-without-building"] + testLocation + [
                             "-destination",
                             destination,
                             "-resultBundlePath",
@@ -265,9 +463,21 @@ public struct TestService: Sendable {
                 )
             } catch {
                 _ = try? await reporter.finish()
+                try await emitPhaseTiming(
+                    "test",
+                    started: started,
+                    scheme: scheme.name,
+                    status: exitStatus(for: error),
+                )
                 throw error
             }
             let summary = try await reporter.finish()
+            try await emitPhaseTiming(
+                "test",
+                started: started,
+                scheme: scheme.name,
+                status: result.exitCode,
+            )
             resultBundles.append(resultURL)
             logs.append(logURL)
             if result.succeeded == false {
@@ -276,6 +486,23 @@ public struct TestService: Sendable {
             if summary.matchedTests == false, overallStatus == 0 {
                 overallStatus = 1
             }
+        }
+
+        if case .build = request.artifactMode {
+            guard let artifactRoot else {
+                throw ToolFailure.message("test artifact build directory is missing")
+            }
+            let status = try await testArtifacts.create(
+                root: artifactRoot,
+                schemes: plan.schemes.map(\.name),
+            )
+            guard status == 0 else { throw ToolFailure.exitCode(status) }
+            let bytes = try await testArtifacts.productBytes(root: artifactRoot)
+            try await terminal.write(
+                "CI_ARTIFACT {\"bytes\":\(bytes),\"schemes\":\(plan.schemes.count)}\n",
+                to: .standardOutput,
+            )
+            return 0
         }
 
         if overallStatus != 0 {
@@ -467,7 +694,7 @@ public struct TestService: Sendable {
         }
     }
 
-    private func generateProject(in workDirectory: URL) async throws {
+    private func generateProject(in workDirectory: URL) async throws -> Int32 {
         try await terminal.write(
             "==> Regenerating project (tuist generate --no-open)\n",
             to: .standardOutput,
@@ -477,14 +704,14 @@ public struct TestService: Sendable {
             logURL: logURL,
             outputHandler: nil,
         )
-        guard result.succeeded else {
+        if result.succeeded == false {
             try await printLogFailure(
                 "tuist generate failed",
                 logURL: logURL,
                 tailLines: 20,
             )
-            throw ToolFailure.reported
         }
+        return result.exitCode
     }
 
     private func builtProductsDirectory(
@@ -502,29 +729,69 @@ public struct TestService: Sendable {
         scheme: String,
         destination: String,
         workDirectory: URL,
-    ) async throws {
+        artifactRoot: URL?,
+    ) async throws -> Int32 {
         try await terminal.write("==> Building \(scheme) for testing\n", to: .standardOutput)
         let logURL = workDirectory.appending(path: "\(scheme)-build.log")
+        var arguments = [
+            "build-for-testing",
+            "-workspace",
+            Self.workspace,
+            "-scheme",
+            scheme,
+            "-configuration",
+            "Debug",
+            "-destination",
+            destination,
+        ]
+        if let artifactRoot {
+            arguments += [
+                "-derivedDataPath",
+                artifactRoot.appending(path: "DerivedData", directoryHint: .isDirectory).path,
+                "ARCHS=arm64",
+                "ONLY_ACTIVE_ARCH=YES",
+            ]
+        }
         let result = try await xcodeWorkspace.xcodebuild(
-            [
-                "build-for-testing",
-                "-workspace",
-                Self.workspace,
-                "-scheme",
-                scheme,
-                "-destination",
-                destination,
-            ],
+            arguments,
             environment: [:],
             logURL: logURL,
         )
-        guard result.succeeded else {
+        if result.succeeded == false {
             try await printLogFailure(
                 "build failed for \(scheme)",
                 logURL: logURL,
                 tailLines: 30,
             )
-            throw ToolFailure.reported
+        }
+        return result.exitCode
+    }
+
+    private func emitPhaseTiming(
+        _ phase: String,
+        started: TimeInterval,
+        scheme: String?,
+        status: Int32,
+    ) async throws {
+        let elapsed = await (clock.now()) - started
+        var payload: [String: Any] = [
+            "phase": phase,
+            "seconds": (elapsed * 1000).rounded() / 1000,
+            "status": status,
+        ]
+        if let scheme { payload["scheme"] = scheme }
+        let data = try JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys])
+        try await terminal.write(
+            "CI_TIMING \(String(decoding: data, as: UTF8.self))\n",
+            to: .standardOutput,
+        )
+    }
+
+    private func exitStatus(for error: any Error) -> Int32 {
+        switch error {
+            case let failure as ToolFailure: failure.exitStatus
+            case let failure as CommandLaunchFailure: failure.exitStatus
+            default: 1
         }
     }
 

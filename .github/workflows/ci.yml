@@ -94,7 +94,8 @@ jobs:
       - uses: jdx/mise-action@v3
       # The workspace mixes iOS targets and the native-macOS Ledger targets, and
       # no single xcodebuild destination can build both — so the macOS scheme
-      # runs here, in parallel with the iOS `test` job, rather than adding to it.
+      # runs here rather than alongside the iOS bundles. The iOS `test-ios` and
+      # `snapshot` jobs live in .circleci/config.yml (PR #237).
       - name: Build & Test (macOS)
         run: mise exec -- tuist test Ledger-macOS-Tests --no-selective-testing -- -destination 'platform=macOS'
       # Tests can crash the host process on CI without leaving any error in

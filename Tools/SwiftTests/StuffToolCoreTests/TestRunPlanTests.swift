@@ -90,6 +90,31 @@ struct TestRunPlanTests {
         )
         #expect(unitIdentifier.runsUnitTests)
     }
+
+    @Test func fileFilteringUsesXcodebuildsArgumentFileAndRequiresOneScheme() throws {
+        let snapshots = try TestRunPlan(
+            scope: .only,
+            bundles: [],
+            only: ["UISnapshotTests/Suite"],
+            graph: graph,
+        ).filtering(usingFile: "/tmp/shard.txt")
+        #expect(snapshots.schemes == [
+            TestSchemePlan(
+                name: RepositoryGraph.snapshotScheme,
+                filters: ["-only-testing", "@/tmp/shard.txt"],
+            ),
+        ])
+
+        let mixed = try TestRunPlan(
+            scope: .only,
+            bundles: [],
+            only: ["UISnapshotTests/Suite", "CoreTests/Suite"],
+            graph: graph,
+        )
+        #expect(throws: TestRunPlanFailure.filterFileSpansSchemes) {
+            _ = try mixed.filtering(usingFile: "/tmp/shard.txt")
+        }
+    }
 }
 
 private let testPlanTuistFixture = """

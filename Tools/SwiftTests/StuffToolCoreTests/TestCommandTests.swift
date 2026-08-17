@@ -29,8 +29,10 @@ struct TestCommandTests {
             scope: .snapshots,
             bundles: [],
             only: [],
+            onlyFile: nil,
             baseReference: "upstream/main",
             architectureMode: .run,
+            artifactMode: .local,
             build: false,
             generate: false,
             record: "missing",
@@ -76,9 +78,13 @@ struct TestCommandTests {
             ["--snapshots"],
             ["--everything"],
             ["--only", "WhereCoreTests/Suite"],
+            ["--only-file", "suites.txt"],
             ["--base", "origin/main"],
             ["--no-build"],
             ["--no-generate"],
+            ["--build-artifacts", "artifacts"],
+            ["--test-artifacts", "artifacts"],
+            ["--enumerate-suites", "suites.txt"],
             ["--record", "never"],
             ["--device", "iPhone 17"],
             ["--os", "27.0"],
@@ -119,6 +125,64 @@ struct TestCommandTests {
         #expect(throws: (any Error).self) {
             _ = try TestCommand.parse(["--only", ""])
         }
+        #expect(throws: (any Error).self) {
+            _ = try TestCommand.parse([
+                "--build-artifacts",
+                "build",
+                "--test-artifacts",
+                "build",
+            ])
+        }
+        #expect(throws: (any Error).self) {
+            _ = try TestCommand.parse(["--build-artifacts", "build", "--only", "Suite"])
+        }
+        #expect(throws: (any Error).self) {
+            _ = try TestCommand.parse(["--enumerate-suites", "suites.txt", "--snapshots"])
+        }
+        #expect(throws: (any Error).self) {
+            _ = try TestCommand.parse([
+                "--test-artifacts",
+                "build",
+                "--enumerate-suites",
+                "suites.txt",
+                "--all",
+            ])
+        }
+    }
+
+    @Test func parserModelsPortableArtifactModes() throws {
+        let build = try TestCommand.parse([
+            "--everything",
+            "--build-artifacts",
+            "build",
+            "--no-generate",
+        ])
+        #expect(build.makeRequest().artifactMode == .build(directory: "build"))
+        #expect(build.makeRequest().build)
+        #expect(build.makeRequest().generate == false)
+
+        let test = try TestCommand.parse([
+            "--snapshots",
+            "--test-artifacts",
+            "build",
+            "--enumerate-suites",
+            "suites.txt",
+        ])
+        #expect(test.makeRequest().artifactMode == .test(
+            directory: "build",
+            enumerateSuites: "suites.txt",
+        ))
+        #expect(test.makeRequest().build == false)
+        #expect(test.makeRequest().generate == false)
+
+        let filtered = try TestCommand.parse([
+            "--snapshots",
+            "--test-artifacts",
+            "build",
+            "--only-file",
+            "shard.txt",
+        ])
+        #expect(filtered.makeRequest().onlyFile == "shard.txt")
     }
 
     @Test func parserRejectsUnknownFlagsAndMissingValues() {

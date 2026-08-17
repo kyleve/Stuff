@@ -41,11 +41,15 @@ after its leader exits.
   package dump. Every normal run first uses `ArchitectureCheckService` for the
   complete Bumper configuration, rule-test, and lint sequence. Affected and
   unit-capable scopes then run the backup-upgrader regression; snapshot-only
-  scopes skip it. The command shares the simulator resolver and streams raw
-  `xcodebuild` output through a directly tested progress reporter. A successful
-  process that matched zero tests is still a failed run. Snapshot scopes forward
-  the optional CI settle-timeout multiplier. Git LFS hydration remains a
-  checkout/bootstrap responsibility rather than a per-run content inspection.
+  scopes skip it. CI can build portable test artifacts once, validate and run
+  their `.xctestrun` files on separate workers, enumerate snapshot suites, and
+  pass an `@file` suite filter without rebuilding. The artifact manifest remains
+  owned by the directly tested `.circleci/test_artifacts.py`; Swift owns only
+  orchestration and typed paths returned by that module. The command shares the
+  simulator resolver and streams raw `xcodebuild` output through a directly
+  tested progress reporter. A successful process that matched zero tests is
+  still a failed run. Snapshot scopes forward the optional CI settle-timeout
+  multiplier. Git LFS hydration remains a checkout/bootstrap responsibility.
 - `./profile` keeps clean-build, unit-test, and serial snapshot-test timing as
   separate legs. It reads typed xcresult test cases. It parses Xcode's
   build-timing summary and type-check warnings. It can retain CI-shaped separate

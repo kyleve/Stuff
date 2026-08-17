@@ -11,12 +11,12 @@ struct PrivacyPassportPresentationTests {
                 remoteLogging: .off,
             ))
 
-        #expect(presentation.detail.hasPrefix(String(localized: .settingsPrivacyLocation)))
-        #expect(presentation.detail.contains(String(localized: .settingsPrivacyNoDiagnostics)))
+        #expect(presentation.locationDetail == String(localized: .settingsPrivacyLocation))
+        #expect(presentation.disclosures == [.noDiagnostics])
     }
 
     @Test(arguments: RemoteLogLevel.allCases)
-    func everyRemoteThresholdHasHonestCopy(level: RemoteLogLevel) {
+    func everyRemoteThresholdProducesItsOwnDisclosure(level: RemoteLogLevel) {
         let presentation =
             PrivacyPassportPresentation(configuration: DiagnosticReportingConfiguration(
                 sharesCrashReports: false,
@@ -24,26 +24,40 @@ struct PrivacyPassportPresentationTests {
                 remoteLogging: .enabled(minimumLevel: level, metadataPolicy: .approvedFields),
             ))
 
-        #expect(presentation.detail.contains("Diagnostic logs") || presentation.detail
-            .contains("diagnostic logs"))
-        #expect(presentation.detail
-            .contains(String(localized: .settingsPrivacyNoDiagnostics)) == false)
+        #expect(presentation.disclosures == [.diagnosticLogs(level)])
     }
 
-    @Test func activeCrashAndReplayChannelsAreBothDisclosed() {
+    @Test func activeChannelsUseStableDisclosureOrder() {
         let presentation =
             PrivacyPassportPresentation(configuration: DiagnosticReportingConfiguration(
                 sharesCrashReports: true,
                 sharesSessionReplays: true,
+                remoteLogging: .enabled(
+                    minimumLevel: .notice,
+                    metadataPolicy: .approvedFields,
+                ),
+            ))
+
+        #expect(presentation.disclosures == [
+            .crashReports,
+            .sessionReplay,
+            .diagnosticLogs(.notice),
+        ])
+    }
+
+    @Test func disabledChannelsStayHidden() {
+        let presentation =
+            PrivacyPassportPresentation(configuration: DiagnosticReportingConfiguration(
+                sharesCrashReports: false,
+                sharesSessionReplays: true,
                 remoteLogging: .off,
             ))
 
-        #expect(presentation.detail.contains(String(localized: .settingsPrivacyCrashReports)))
-        #expect(presentation.detail.contains(String(localized: .settingsPrivacySessionReplay)))
+        #expect(presentation.disclosures == [.sessionReplay])
     }
 
     #if DEBUG
-        @Test func fullMetadataAddsThePersonalDataWarning() {
+        @Test func fullMetadataAddsASeparateWarningAfterLogs() {
             let presentation =
                 PrivacyPassportPresentation(configuration: DiagnosticReportingConfiguration(
                     sharesCrashReports: false,
@@ -54,7 +68,10 @@ struct PrivacyPassportPresentationTests {
                     ),
                 ))
 
-            #expect(presentation.detail.contains(String(localized: .settingsPrivacyFullMetadata)))
+            #expect(presentation.disclosures == [
+                .diagnosticLogs(.debug),
+                .fullMetadata,
+            ])
         }
     #endif
 }

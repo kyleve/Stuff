@@ -2,46 +2,68 @@ import WhereCore
 
 /// The privacy promise derived from what this process is actually sharing.
 struct PrivacyPassportPresentation: Equatable {
-    let detail: String
+    let locationDetail: String
+    let disclosures: [Disclosure]
+
+    enum Disclosure: Equatable, Identifiable {
+        case noDiagnostics
+        case crashReports
+        case sessionReplay
+        case diagnosticLogs(RemoteLogLevel)
+        #if DEBUG
+            case fullMetadata
+        #endif
+
+        enum ID: Hashable {
+            case noDiagnostics
+            case crashReports
+            case sessionReplay
+            case diagnosticLogs
+            #if DEBUG
+                case fullMetadata
+            #endif
+        }
+
+        var id: ID {
+            switch self {
+                case .noDiagnostics: .noDiagnostics
+                case .crashReports: .crashReports
+                case .sessionReplay: .sessionReplay
+                case .diagnosticLogs: .diagnosticLogs
+                #if DEBUG
+                    case .fullMetadata: .fullMetadata
+                #endif
+            }
+        }
+    }
 
     init(configuration: DiagnosticReportingConfiguration) {
-        var sentences = [String(localized: .settingsPrivacyLocation)]
+        locationDetail = String(localized: .settingsPrivacyLocation)
+
+        var disclosures: [Disclosure] = []
         if !configuration.sharesCrashReports,
            !configuration.sharesSessionReplays,
            configuration.remoteLogging == .off
         {
-            sentences.append(String(localized: .settingsPrivacyNoDiagnostics))
+            disclosures.append(.noDiagnostics)
         } else {
             if configuration.sharesCrashReports {
-                sentences.append(String(localized: .settingsPrivacyCrashReports))
+                disclosures.append(.crashReports)
             }
             if configuration.sharesSessionReplays {
-                sentences.append(String(localized: .settingsPrivacySessionReplay))
+                disclosures.append(.sessionReplay)
             }
             if let level = configuration.remoteLogging.minimumLevel {
-                sentences.append(level.privacySentence)
+                disclosures.append(.diagnosticLogs(level))
             }
             #if DEBUG
                 if configuration.remoteLogging.metadataPolicy
                     == .allMetadataExcludingAttachmentData
                 {
-                    sentences.append(String(localized: .settingsPrivacyFullMetadata))
+                    disclosures.append(.fullMetadata)
                 }
             #endif
         }
-        detail = sentences.joined(separator: " ")
-    }
-}
-
-extension RemoteLogLevel {
-    fileprivate var privacySentence: String {
-        switch self {
-            case .fault: String(localized: .settingsPrivacyLogsFault)
-            case .error: String(localized: .settingsPrivacyLogsError)
-            case .warning: String(localized: .settingsPrivacyLogsWarning)
-            case .notice: String(localized: .settingsPrivacyLogsNotice)
-            case .info: String(localized: .settingsPrivacyLogsInfo)
-            case .debug: String(localized: .settingsPrivacyLogsDebug)
-        }
+        self.disclosures = disclosures
     }
 }

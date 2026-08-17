@@ -20,11 +20,14 @@ public struct TestSchemePlan: Equatable, Sendable {
 }
 
 public enum TestRunPlanFailure: Error, Equatable, CustomStringConvertible, Sendable {
+    case filterFileSpansSchemes
     case unknownBundle(String)
     case nothingToRun
 
     public var description: String {
         switch self {
+            case .filterFileSpansSchemes:
+                "--only-file must contain identifiers for one test scheme"
             case let .unknownBundle(name): "no test bundle named \(name)"
             case .nothingToRun: "nothing to run (see ./test --help)"
         }
@@ -99,5 +102,21 @@ public struct TestRunPlan: Equatable, Sendable {
         guard schemes.isEmpty == false else {
             throw TestRunPlanFailure.nothingToRun
         }
+    }
+
+    public func filtering(usingFile path: String) throws -> TestRunPlan {
+        guard schemes.count == 1 else {
+            throw TestRunPlanFailure.filterFileSpansSchemes
+        }
+        return TestRunPlan(schemes: [
+            TestSchemePlan(
+                name: schemes[0].name,
+                filters: ["-only-testing", "@\(path)"],
+            ),
+        ])
+    }
+
+    private init(schemes: [TestSchemePlan]) {
+        self.schemes = schemes
     }
 }

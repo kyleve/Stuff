@@ -349,14 +349,261 @@ struct TestServiceTests {
         #expect(FileManager.default.fileExists(atPath: root.appending(path: "work").path) == false)
         #expect(await terminal.standardOutputText.contains("Testing backup upgrader") == false)
     }
+
+    @Test func buildArtifactsBuildsBothSchemesOnceWithoutBootingOrTesting() async throws {
+        let root = try makeTemporaryDirectory()
+        defer { removeTemporaryDirectory(root) }
+        let artifacts = root.appending(path: "artifacts", directoryHint: .isDirectory)
+        let runner = FakeCommandRunner(responses: [
+            .stub(),
+            .stub(),
+            .stub(standardOutput: "manifest created\n"),
+            .stub(standardOutput: "321\tproducts\n"),
+        ])
+        let simulator = StubSimulatorResolver(udid: "UNUSED")
+        let terminal = MemoryTerminal()
+        let service = TestService(
+            runner: runner,
+            simulator: simulator,
+            fileSystem: FoundationFileSystem(),
+            clock: ImmediateClock(),
+            terminal: terminal,
+            repository: root,
+            temporaryDirectory: root,
+            environment: ["TEST_WORKDIR": root.appending(path: "work").path],
+        )
+
+        let status = try await service.run(makeTestRequest(
+            scope: .everything,
+            artifactMode: .build(directory: artifacts.path),
+            generate: false,
+        ))
+
+        #expect(status == 0)
+        #expect(await simulator.calls.isEmpty)
+        let invocations = await runner.invocations
+        #expect(invocations.count == 4)
+        #expect(invocations[0].arguments == [
+            "build-for-testing",
+            "-workspace",
+            "Stuff.xcworkspace",
+            "-scheme",
+            "Stuff-iOS-Tests",
+            "-configuration",
+            "Debug",
+            "-destination",
+            "generic/platform=iOS Simulator",
+            "-derivedDataPath",
+            artifacts.appending(path: "DerivedData").path,
+            "ARCHS=arm64",
+            "ONLY_ACTIVE_ARCH=YES",
+        ])
+        #expect(invocations[1].arguments.contains("StuffSnapshotTests"))
+        #expect(invocations[2].arguments == [
+            ".circleci/test_artifacts.py",
+            "create",
+            "--root",
+            artifacts.path,
+            "--scheme",
+            "Stuff-iOS-Tests",
+            "--scheme",
+            "StuffSnapshotTests",
+        ])
+        #expect(await terminal.standardOutputText.contains(
+            "CI_ARTIFACT {\"bytes\":328704,\"schemes\":2}",
+        ))
+    }
+
+    @Test func artifactsUseValidatedXctestrunAndProductPaths() async throws {
+        let root = try makeTemporaryDirectory()
+        defer { removeTemporaryDirectory(root) }
+        let artifacts = root.appending(path: "artifacts", directoryHint: .isDirectory)
+        let testOutput = """
+        ◇ Suite ExampleTests started.
+        ◇ Test works() started.
+        ✔ Test works() passed after 0.001 seconds.
+        ** TEST SUCCEEDED **
+
+        """
+        let paths = """
+        {"products":"/artifacts/Products","schemes":{"Stuff-iOS-Tests":"/artifacts/tests.xctestrun"}}
+        """
+        let runner = FakeCommandRunner(responses: [
+            .stub(standardOutput: paths),
+            .stub(standardOutput: testOutput),
+        ])
+        let terminal = MemoryTerminal()
+        let service = TestService(
+            runner: runner,
+            simulator: StubSimulatorResolver(udid: "ARTIFACT-UDID"),
+            fileSystem: FoundationFileSystem(),
+            clock: ImmediateClock(),
+            terminal: terminal,
+            repository: root,
+            temporaryDirectory: root,
+            environment: ["TEST_WORKDIR": root.appending(path: "work").path],
+        )
+
+        let status = try await service.run(makeTestRequest(
+            scope: .all,
+            artifactMode: .test(directory: artifacts.path, enumerateSuites: nil),
+            build: false,
+            generate: false,
+        ))
+
+        #expect(status == 0)
+        let invocations = await runner.invocations
+        #expect(invocations.count == 2)
+        #expect(invocations[1].arguments.starts(with: [
+            "test-without-building",
+            "-xctestrun",
+            "/artifacts/tests.xctestrun",
+            "-destination",
+            "platform=iOS Simulator,id=ARTIFACT-UDID",
+        ]))
+        #expect(invocations[1].environment[
+            "TEST_RUNNER_PACKAGE_RESOURCE_BUNDLE_PATH",
+        ] == "/artifacts/Products")
+        #expect(await terminal.standardOutputText.contains(
+            "Validated test artifacts before simulator boot.",
+        ))
+    }
+
+    @Test func onlyFileFiltersArtifactSnapshotsWithoutLoadingTheRepositoryGraph() async throws {
+        let root = try makeTemporaryDirectory()
+        defer { removeTemporaryDirectory(root) }
+        let shard = root.appending(path: "shard.txt")
+        try Data("WhereUISnapshotTests/SettingsTests\n".utf8).write(to: shard)
+        let paths = """
+        {"products":"/artifacts/Products","schemes":{"StuffSnapshotTests":"/artifacts/snapshots.xctestrun"}}
+        """
+        let testOutput = """
+        ◇ Suite SettingsTests started.
+        ◇ Test image() started.
+        ✔ Test image() passed after 0.001 seconds.
+        ** TEST SUCCEEDED **
+
+        """
+        let runner = FakeCommandRunner(responses: [
+            .stub(standardOutput: paths),
+            .stub(standardOutput: testOutput),
+        ])
+        let service = TestService(
+            runner: runner,
+            simulator: StubSimulatorResolver(udid: "UDID"),
+            fileSystem: FoundationFileSystem(),
+            clock: ImmediateClock(),
+            terminal: MemoryTerminal(),
+            repository: root,
+            temporaryDirectory: root,
+            environment: ["TEST_WORKDIR": root.appending(path: "work").path],
+        )
+
+        let status = try await service.run(makeTestRequest(
+            scope: .snapshots,
+            onlyFile: shard.path,
+            artifactMode: .test(directory: "/artifacts", enumerateSuites: nil),
+            build: false,
+            generate: false,
+        ))
+
+        #expect(status == 0)
+        let invocations = await runner.invocations
+        #expect(invocations.count == 2)
+        #expect(invocations[1].arguments.suffix(2) == ["-only-testing", "@\(shard.path)"])
+    }
+
+    @Test func enumerationWritesSuitesAndStopsBeforeTheTestReporter() async throws {
+        let root = try makeTemporaryDirectory()
+        defer { removeTemporaryDirectory(root) }
+        let enumeration = root.appending(path: "suites.txt")
+        let paths = """
+        {"products":"/artifacts/Products","schemes":{"StuffSnapshotTests":"/artifacts/snapshots.xctestrun"}}
+        """
+        let runner = FakeCommandRunner(responses: [
+            .stub(standardOutput: paths),
+            .stub(),
+            .stub(standardOutput: "Wrote 45 suites\n"),
+        ])
+        let terminal = MemoryTerminal()
+        let service = TestService(
+            runner: runner,
+            simulator: StubSimulatorResolver(udid: "UDID"),
+            fileSystem: FoundationFileSystem(),
+            clock: ImmediateClock(),
+            terminal: terminal,
+            repository: root,
+            temporaryDirectory: root,
+            environment: ["TEST_WORKDIR": root.appending(path: "work").path],
+        )
+
+        let status = try await service.run(makeTestRequest(
+            scope: .snapshots,
+            artifactMode: .test(
+                directory: "/artifacts",
+                enumerateSuites: enumeration.path,
+            ),
+            build: false,
+            generate: false,
+        ))
+
+        #expect(status == 0)
+        let invocations = await runner.invocations
+        #expect(invocations.count == 3)
+        #expect(invocations[1].arguments.contains("-enumerate-tests"))
+        #expect(invocations[2].arguments == [
+            ".circleci/test_artifacts.py",
+            "suites",
+            "--input",
+            root.appending(path: "work/StuffSnapshotTests-enumeration.json").path,
+            "--output",
+            enumeration.path,
+        ])
+        #expect(await terminal.standardOutputText.contains("==> Testing") == false)
+    }
+
+    @Test func failedBuildEmitsTimingAndPreservesTheChildStatus() async throws {
+        let root = try makeTemporaryDirectory()
+        defer { removeTemporaryDirectory(root) }
+        let runner = FakeCommandRunner(responses: [
+            .stub(standardOutput: "    BUILT_PRODUCTS_DIR = /tmp/Products\n"),
+            .stub(exitCode: 23, standardError: "build failed\n"),
+        ])
+        let terminal = MemoryTerminal()
+        let service = TestService(
+            runner: runner,
+            simulator: StubSimulatorResolver(udid: "UDID"),
+            fileSystem: FoundationFileSystem(),
+            clock: ImmediateClock(),
+            terminal: terminal,
+            repository: root,
+            temporaryDirectory: root,
+            environment: ["TEST_WORKDIR": root.appending(path: "work").path],
+        )
+
+        do {
+            _ = try await service.run(makeTestRequest(
+                scope: .snapshots,
+                generate: false,
+            ))
+            Issue.record("expected build failure")
+        } catch let failure as ToolFailure {
+            #expect(failure == .exitCode(23))
+        }
+        #expect(await terminal.standardOutputText.contains("\"phase\":\"build\""))
+        #expect(await terminal.standardOutputText.contains("\"status\":23"))
+        #expect(await terminal.standardErrorText.contains("build failed"))
+    }
 }
 
 private func makeTestRequest(
     scope: TestScope,
     bundles: [String] = [],
     only: [String] = [],
+    onlyFile: String? = nil,
     baseReference: String = "origin/main",
     architectureMode: TestArchitectureMode = .skip,
+    artifactMode: TestArtifactMode = .local,
     build: Bool = true,
     generate: Bool = true,
     record: String? = nil,
@@ -372,8 +619,10 @@ private func makeTestRequest(
         scope: scope,
         bundles: bundles,
         only: only,
+        onlyFile: onlyFile,
         baseReference: baseReference,
         architectureMode: architectureMode,
+        artifactMode: artifactMode,
         build: build,
         generate: generate,
         record: record,

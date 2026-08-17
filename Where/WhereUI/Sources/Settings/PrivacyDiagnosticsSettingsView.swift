@@ -14,9 +14,10 @@ struct PrivacyDiagnosticsSettingsView: View {
             Form {
                 PrivacyPassportCard(presentation: PrivacyPassportPresentation(
                     configuration: reporting.effectiveConfiguration,
-                ))
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
+                ), disclosureInteraction: .staticContent)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets())
 
                 Section {
                     Toggle(

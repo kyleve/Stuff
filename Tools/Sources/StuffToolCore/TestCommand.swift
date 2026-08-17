@@ -27,6 +27,12 @@ public struct TestCommand: AsyncParsableCommand {
     @Option(help: "An xcodebuild test identifier; repeatable.")
     var only: [String] = []
 
+    @Option(
+        name: .customLong("only-file"),
+        help: "Read newline-delimited Bundle/Suite identifiers.",
+    )
+    var onlyFile: String?
+
     @Option(help: "Git reference used for affected-bundle selection (default: origin/main).")
     var base: String?
 
@@ -47,6 +53,24 @@ public struct TestCommand: AsyncParsableCommand {
 
     @Flag(name: .customLong("no-generate"), help: "Skip Tuist project generation.")
     var noGenerate = false
+
+    @Option(
+        name: .customLong("build-artifacts"),
+        help: "Build selected schemes into a portable artifact directory without testing.",
+    )
+    var buildArtifacts: String?
+
+    @Option(
+        name: .customLong("test-artifacts"),
+        help: "Run tests from a portable artifact directory.",
+    )
+    var testArtifacts: String?
+
+    @Option(
+        name: .customLong("enumerate-suites"),
+        help: "Write selected artifact Bundle/Suite identifiers to a path.",
+    )
+    var enumerateSuites: String?
 
     @Option(help: "Re-record snapshots: all, failed, missing, or never.")
     var record: String?
@@ -81,6 +105,18 @@ public struct TestCommand: AsyncParsableCommand {
         guard only.allSatisfy({ $0.isEmpty == false }) else {
             throw ValidationError("--only requires a test identifier")
         }
+        guard onlyFile?.isEmpty != true else {
+            throw ValidationError("--only-file requires a path")
+        }
+        guard buildArtifacts?.isEmpty != true else {
+            throw ValidationError("--build-artifacts requires a directory")
+        }
+        guard testArtifacts?.isEmpty != true else {
+            throw ValidationError("--test-artifacts requires a directory")
+        }
+        guard enumerateSuites?.isEmpty != true else {
+            throw ValidationError("--enumerate-suites requires a path")
+        }
         guard statusFile?.isEmpty != true else {
             throw ValidationError("--status-file requires a path")
         }
@@ -113,6 +149,24 @@ public struct TestCommand: AsyncParsableCommand {
                 "--architecture-only cannot be combined with test options or bundles",
             )
         }
+        guard buildArtifacts == nil || testArtifacts == nil else {
+            throw ValidationError(
+                "--build-artifacts cannot be combined with --test-artifacts",
+            )
+        }
+        guard buildArtifacts == nil ||
+            (noBuild == false && onlyFile == nil && only.isEmpty && enumerateSuites == nil)
+        else {
+            throw ValidationError(
+                "--build-artifacts cannot be combined with test filters or test-only modes",
+            )
+        }
+        guard enumerateSuites == nil || testArtifacts != nil else {
+            throw ValidationError("--enumerate-suites requires --test-artifacts")
+        }
+        guard enumerateSuites == nil || selectedScope == .snapshots else {
+            throw ValidationError("--enumerate-suites requires --snapshots")
+        }
     }
 
     public func makeRequest() -> TestRequest {
@@ -120,10 +174,12 @@ public struct TestCommand: AsyncParsableCommand {
             scope: selectedScope,
             bundles: bundles,
             only: only,
+            onlyFile: onlyFile,
             baseReference: base ?? "origin/main",
             architectureMode: architectureOnly ? .only : (skipArchitecture ? .skip : .run),
-            build: noBuild == false,
-            generate: noGenerate == false,
+            artifactMode: artifactMode,
+            build: testArtifacts == nil && noBuild == false,
+            generate: testArtifacts == nil && noGenerate == false,
             record: record,
             device: device ?? "iPhone 17",
             os: os ?? "27.0",
@@ -148,13 +204,22 @@ public struct TestCommand: AsyncParsableCommand {
         if all { return .all }
         if snapshots { return .snapshots }
         if everything { return .everything }
-        if only.isEmpty == false { return .only }
+        if only.isEmpty == false || onlyFile != nil { return .only }
         return .changed
+    }
+
+    private var artifactMode: TestArtifactMode {
+        if let buildArtifacts { return .build(directory: buildArtifacts) }
+        if let testArtifacts {
+            return .test(directory: testArtifacts, enumerateSuites: enumerateSuites)
+        }
+        return .local
     }
 
     private var hasTestArguments: Bool {
         bundles.isEmpty == false || all || snapshots || everything || only.isEmpty == false ||
-            base != nil || noBuild || noGenerate || record != nil || device != nil || os != nil ||
-            shared || timings || review || heartbeat != nil || statusFile != nil
+            onlyFile != nil || base != nil || noBuild || noGenerate || buildArtifacts != nil ||
+            testArtifacts != nil || enumerateSuites != nil || record != nil || device != nil ||
+            os != nil || shared || timings || review || heartbeat != nil || statusFile != nil
     }
 }
