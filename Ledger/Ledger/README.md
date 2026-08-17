@@ -26,11 +26,14 @@ It builds a Release build, installs it to `/Applications`, and launches it:
 ```bash
 Ledger/install            # build, install to /Applications, and launch
 Ledger/install --no-open  # build and install without launching
+Ledger/install --dry-run  # validate and report without changing anything
 ```
 
 The app is ad-hoc code-signed (no Apple Developer account needed) and built locally (no Gatekeeper quarantine).
 Re-run it to update your installed copy.
-It quits any running instance first.
+It terminates only the exact installed executable, stages and validates the new
+bundle beside `/Applications`, and rolls the old bundle back if replacement
+fails.
 
 ## Setup
 
