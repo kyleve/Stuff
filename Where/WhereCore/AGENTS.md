@@ -73,6 +73,9 @@ internal shape.
 - **The planned stay is a generation-scoped last-writer register with tombstones.** Resolve
   duplicate CloudKit revisions by `updatedAt` then UUID, and clear or expire by writing a newer
   `nil` value; deleting the winner can resurrect stale intent (`PlannedStayCoordinatorTests`).
+- **Keep planned-stay location checks advisory.** `PlannedStayLocationVerifier` accepts a fix
+  inside the region or within the configured drift threshold outside its boundary. Do not add
+  horizontal accuracy to the threshold.
 - **A logical day is a `CalendarDay`, not a `Date`.** `CalendarDay` (Y-M-D)
   is the timezone-independent identity every stored user record and day
   comparison keys on. Persisting a `Date` makes a day drift across time-zone
