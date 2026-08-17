@@ -40,6 +40,10 @@ struct PlannedStayEditor: View {
     var body: some View {
         NavigationStack {
             Form {
+                let locationCheck = model.plannedStayLocationCheck(
+                    for: region,
+                    driftThreshold: driftThreshold,
+                )
                 Section {
                     WhereDatePicker(
                         String(localized: .locationForecastEditorDate),
@@ -47,15 +51,18 @@ struct PlannedStayEditor: View {
                         earliest: model.minimumDepartureDate,
                         displayedComponents: .date,
                     )
-
-                    PlannedStayLocationStatusRow(
-                        check: model.plannedStayLocationCheck(
-                            for: region,
-                            driftThreshold: driftThreshold,
-                        ),
-                    )
                 } footer: {
-                    Text(String(localized: .locationForecastEditorFooter))
+                    if locationCheck == nil || locationCheck?.status == .accepted {
+                        Text(String(localized: .locationForecastEditorFooter))
+                    }
+                }
+
+                if let locationCheck, locationCheck.status != .accepted {
+                    Section {
+                        PlannedStayLocationStatusRow(check: locationCheck)
+                    } footer: {
+                        Text(String(localized: .locationForecastEditorFooter))
+                    }
                 }
 
                 if case let .failed(message) = saveState {
