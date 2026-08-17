@@ -28,6 +28,10 @@ jobs:
       - uses: jdx/mise-action@v3
       - name: ShellCheck
         run: ./shellcheck
+      - name: Retained tool tests
+        run: |
+          python3 -m unittest discover -s Tools/Tests -p 'test_*.py'
+          mise exec -- ruby -I Tools/Tests -e 'Dir["Tools/Tests/**/*_test.rb"].sort.each { |file| require File.expand_path(file) }'
       - run: ./swiftformat --lint
       - name: SF Symbol lint
         run: ./sf-symbols --lint

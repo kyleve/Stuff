@@ -137,8 +137,8 @@ PRODUCT_DEPENDENCY = /\.product\(\s*name:\s*"[^"]+",\s*package:\s*"([^"]+)"/
 
 # The manifest's target graph: each target with the sibling targets and the
 # external packages (by SPM identity — the lowercased `package:` name) it links.
-def package_targets(manifest_path)
-  path = File.join(ROOT, manifest_path)
+def package_targets(manifest_path, root: ROOT)
+  path = File.expand_path(manifest_path, root)
   fail_with("swiftPackageManager: no manifest at #{manifest_path}") unless File.exist?(path)
   text = File.read(path)
   declarations = text.to_enum(:scan, TARGET_DECLARATION).map { Regexp.last_match }
@@ -309,8 +309,8 @@ end
 # to — a notice is
 # fetched at the pinned revision, so a matching revision means matching text by
 # construction, and the notice being *present* is checked here directly.
-def check_report(credits, output_path)
-  path = File.join(ROOT, output_path)
+def check_report(credits, output_path, root: ROOT)
+  path = File.expand_path(output_path, root)
   fail_with("#{output_path} does not exist — run ./attribution") unless File.exist?(path)
   committed = JSON.parse(File.read(path))["credits"]
   fail_with("#{output_path} carries no credits — run ./attribution") if committed.nil? || committed.empty?
@@ -332,10 +332,14 @@ def check_report(credits, output_path)
   puts "#{output_path}: up to date (#{committed.count} credit(s))"
 end
 
-check = !ARGV.delete("--check").nil?
-configs = ARGV
-fail_with("usage: generate-attribution.rb [--check] <config.json>...") if configs.empty?
-configs.each do |config|
-  fail_with("no config at #{config}") unless File.exist?(config)
-  report(config, check: check)
+def main(arguments)
+  arguments = arguments.dup
+  check = !arguments.delete("--check").nil?
+  fail_with("usage: generate-attribution.rb [--check] <config.json>...") if arguments.empty?
+  arguments.each do |config|
+    fail_with("no config at #{config}") unless File.exist?(config)
+    report(config, check: check)
+  end
 end
+
+main(ARGV) if __FILE__ == $PROGRAM_NAME

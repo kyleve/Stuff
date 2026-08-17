@@ -32,7 +32,6 @@ require "fileutils"
 # into the bundled Resources directory.
 SOURCE = File.join(__dir__, "source")
 RESOURCES = File.expand_path("../Sources/Resources", __dir__)
-REGIONS_DIR = File.join(RESOURCES, "regions")
 
 # Census `NAME` -> USPS code, for the 50 states + DC + PR present in
 # `us-states.geojson`.
@@ -73,63 +72,90 @@ NON_US = [
   { source: "europeanUnion.geojson", id: "european-union", name: "European Union" }
 ].freeze
 
-def load_feature_collection(name)
-  JSON.parse(File.read(File.join(SOURCE, name)))
+class RegionGenerator
+  def initialize(
+    source: SOURCE,
+    resources: RESOURCES,
+    usps: USPS,
+    localization_keys: LOCALIZATION_KEYS,
+    non_us: NON_US
+  )
+    @source = source
+    @resources = resources
+    @regions_directory = File.join(resources, "regions")
+    @usps = usps
+    @localization_keys = localization_keys
+    @non_us = non_us
+  end
+
+  def run
+    FileUtils.rm_rf(@regions_directory)
+    FileUtils.mkdir_p(@regions_directory)
+
+    manifest = us_manifest_entries + non_us_manifest_entries
+    manifest_path = File.join(@resources, "regions.json")
+    File.write(manifest_path, JSON.pretty_generate(manifest) + "\n")
+
+    puts "Wrote #{manifest.length} region files to #{@regions_directory}"
+    puts "Wrote manifest with #{manifest.length} entries to #{manifest_path}"
+    manifest
+  end
+
+  private
+
+  def load_feature_collection(name)
+    JSON.parse(File.read(File.join(@source, name)))
+  end
+
+  # A single-feature FeatureCollection wrapping `geometry`, tagged with the
+  # region id and display name for provenance (the loader reads geometry only).
+  def region_document(id:, name:, geometry:)
+    {
+      "type" => "FeatureCollection",
+      "features" => [
+        {
+          "type" => "Feature",
+          "properties" => { "region" => id, "name" => name },
+          "geometry" => geometry
+        }
+      ]
+    }
+  end
+
+  def write_region_file(id:, name:, geometry:)
+    path = File.join(@regions_directory, "#{id}.geojson")
+    File.write(path, JSON.generate(region_document(id: id, name: name, geometry: geometry)) + "\n")
+  end
+
+  def manifest_entry(id:, name:)
+    entry = { "id" => id, "name" => name }
+    key = @localization_keys[id]
+    entry["localizationKey"] = key if key
+    entry["geometry"] = { "file" => "#{id}.geojson" }
+    entry
+  end
+
+  def us_manifest_entries
+    # US states, alphabetically by Census NAME.
+    us = load_feature_collection("us-states.geojson")
+    us.fetch("features").sort_by { |feature| feature.fetch("properties").fetch("NAME") }.map do |feature|
+      name = feature.fetch("properties").fetch("NAME")
+      usps = @usps.fetch(name) { abort("No USPS code for US feature #{name.inspect}") }
+      id = "us-#{usps}"
+      write_region_file(id: id, name: name, geometry: feature.fetch("geometry"))
+      manifest_entry(id: id, name: name)
+    end
+  end
+
+  def non_us_manifest_entries
+    # Countries / blocs preserve their declared order after the US states.
+    @non_us.map do |region|
+      feature_collection = load_feature_collection(region.fetch(:source))
+      geometry = feature_collection.fetch("features").fetch(0).fetch("geometry")
+      write_region_file(id: region.fetch(:id), name: region.fetch(:name), geometry: geometry)
+      manifest_entry(id: region.fetch(:id), name: region.fetch(:name))
+    end
+  end
 end
 
-# A single-feature FeatureCollection wrapping `geometry`, tagged with the
-# region id and display name for provenance (the loader reads geometry only).
-def region_document(id:, name:, geometry:)
-  {
-    "type" => "FeatureCollection",
-    "features" => [
-      {
-        "type" => "Feature",
-        "properties" => { "region" => id, "name" => name },
-        "geometry" => geometry
-      }
-    ]
-  }
-end
-
-def write_region_file(id:, name:, geometry:)
-  path = File.join(REGIONS_DIR, "#{id}.geojson")
-  File.write(path, JSON.generate(region_document(id: id, name: name, geometry: geometry)) + "\n")
-end
-
-def manifest_entry(id:, name:)
-  entry = { "id" => id, "name" => name }
-  key = LOCALIZATION_KEYS[id]
-  entry["localizationKey"] = key if key
-  entry["geometry"] = { "file" => "#{id}.geojson" }
-  entry
-end
-
-FileUtils.rm_rf(REGIONS_DIR)
-FileUtils.mkdir_p(REGIONS_DIR)
-
-manifest = []
-
-# US states, alphabetically by Census NAME.
-us = load_feature_collection("us-states.geojson")
-us_features = us["features"].sort_by { |f| f["properties"]["NAME"] }
-us_features.each do |feature|
-  name = feature["properties"]["NAME"]
-  usps = USPS.fetch(name) { abort("No USPS code for US feature #{name.inspect}") }
-  id = "us-#{usps}"
-  write_region_file(id: id, name: name, geometry: feature["geometry"])
-  manifest << manifest_entry(id: id, name: name)
-end
-
-# Countries / blocs.
-NON_US.each do |region|
-  fc = load_feature_collection(region[:source])
-  geometry = fc["features"].fetch(0)["geometry"]
-  write_region_file(id: region[:id], name: region[:name], geometry: geometry)
-  manifest << manifest_entry(id: region[:id], name: region[:name])
-end
-
-File.write(File.join(RESOURCES, "regions.json"), JSON.pretty_generate(manifest) + "\n")
-
-puts "Wrote #{manifest.length} region files to #{REGIONS_DIR}"
-puts "Wrote manifest with #{manifest.length} entries to #{File.join(RESOURCES, "regions.json")}"
+RegionGenerator.new.run if __FILE__ == $PROGRAM_NAME

@@ -63,7 +63,8 @@ commands:
             ./shellcheck
             python3 .circleci/Tests/test_xcresult_to_junit.py
             python3 .circleci/Tests/test_test_artifacts.py
-            python3 Tools/Tests/test_snapshot_shards.py
+            python3 -m unittest discover -s Tools/Tests -p 'test_*.py'
+            mise exec -- ruby -I Tools/Tests -e 'Dir["Tools/Tests/**/*_test.rb"].sort.each { |file| require File.expand_path(file) }'
             ./snapshot-shards check
 
   validate_runner_environment:
