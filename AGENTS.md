@@ -54,7 +54,8 @@ easy to corrupt by hand. `./simulator` owns a per-checkout device (see the
 [`running-tests`](.agents/skills/running-tests/SKILL.md) skill).
 
 Retained Python and Ruby implementations are importable and directly tested
-under `Tools/Tests`; shell around them is bootstrap only. In particular,
+under `Tools/Tests`; shell around them is bootstrap and process orchestration
+only. In particular,
 `tla-check` owns discovery and the pinned TLC download while
 `Tools/tla_check.py` owns manifest validation, TLC argv, and result policy.
 
