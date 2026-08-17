@@ -64,14 +64,6 @@ ensure_tools() {
     export MISE_CONFIG_DIR="$tool_root/mise/config"
 }
 
-run_java() {
-    if [[ -n "${TLA_JAVA:-}" ]]; then
-        "$TLA_JAVA" "$@"
-    else
-        mise --yes --no-config x "java@$java_version" -- java "$@"
-    fi
-}
-
 discover_specs() {
     find "$specs_root" -mindepth 2 -maxdepth 2 -name manifest.json -print \
         | while IFS= read -r manifest; do
@@ -102,265 +94,15 @@ run_spec() {
     local spec_name="$1"
     local spec_dir="$specs_root/$spec_name"
     local manifest="$spec_dir/manifest.json"
-    local run_dir generated_dir logs_dir states_dir
-    local module_path module_file source source_hash
-    local check_status
+    local run_dir
 
     validate_spec_name "$spec_name"
-
-    module_path="$(python3 - "$manifest" <<'PY'
-import json, sys
-with open(sys.argv[1]) as f:
-    print(json.load(f)["module"])
-PY
-)"
-    source="$(python3 - "$manifest" <<'PY'
-import json, sys
-with open(sys.argv[1]) as f:
-    manifest = json.load(f)
-source = manifest.get("source")
-if source not in {"pluscal", "tla"}:
-    print(
-        f"error: {sys.argv[1]}: 'source' must be 'pluscal' or 'tla'",
-        file=sys.stderr,
-    )
-    sys.exit(1)
-print(source)
-PY
-)"
-    module_file="$spec_dir/$module_path"
-    if [[ ! -f "$module_file" ]]; then
-        echo "error: $spec_name manifest module '$module_path' not found" >&2
-        exit 1
-    fi
-
     run_dir="$(mktemp -d "$runs_dir/${spec_name}.XXXXXX")"
-    generated_dir="$run_dir/generated"
-    logs_dir="$run_dir/logs"
-    states_dir="$run_dir/states"
-    mkdir -p "$generated_dir" "$logs_dir" "$states_dir"
-    cp -R "$spec_dir/." "$generated_dir/"
-    source_hash="$(checksum "$module_file")"
 
     echo "==> $spec_name"
-
-    if [[ "$source" == "pluscal" ]]; then
-        echo "  translating $module_path"
-        if ! (
-            cd "$generated_dir"
-            run_java -cp "$jar_path" pcal.trans -nocfg -unixEOL "$module_path"
-        ); then
-            python3 - "$run_dir/summary.json" "$spec_name" "$source" \
-                "$tlc_version" "$pcal_version" "$java_version" \
-                "$tlc_sha256" "$module_path" <<'PY'
-import json, sys
-
-summary_path, spec, source, tlc, pcal, java, checksum, module = sys.argv[1:9]
-summary = {
-    "spec": spec,
-    "source": source,
-    "tools": {
-        "tlc": tlc,
-        "pluscal": pcal,
-        "java": java,
-        "tla2toolsSHA256": checksum,
-    },
-    "translation": {"status": "failed", "module": f"generated/{module}"},
-    "cases": [],
-}
-with open(summary_path, "w") as f:
-    json.dump(summary, f, indent=2)
-    f.write("\n")
-PY
-            echo "  FAIL translation; see $run_dir" >&2
-            return 1
-        fi
-    fi
-
-    check_status=0
-    if python3 - "$manifest" "$generated_dir" "$module_path" "$logs_dir" \
-        "$states_dir" "$jar_path" "$run_dir/summary.json" "$spec_name" \
-        "$source" "$tlc_version" "$pcal_version" "$java_version" \
-        "$tlc_sha256" <<'PY'
-import json
-import os
-import re
-import subprocess
-import sys
-import time
-
-(
-    manifest_path,
-    generated_dir,
-    module_path,
-    logs_dir,
-    states_dir,
-    jar_path,
-    summary_path,
-    spec_name,
-    source,
-    tlc_version,
-    pcal_version,
-    java_version,
-    tlc_sha256,
-) = sys.argv[1:14]
-
-with open(manifest_path) as f:
-    manifest = json.load(f)
-
-java_cmd = os.environ.get("TLA_JAVA")
-if java_cmd:
-    java_base = [java_cmd]
-else:
-    java_version = "temurin-21.0.8+9.0.LTS"
-    java_base = ["mise", "--yes", "--no-config", "x", f"java@{java_version}", "--", "java"]
-
-summary = {
-    "spec": spec_name,
-    "source": source,
-    "tools": {
-        "tlc": tlc_version,
-        "pluscal": pcal_version,
-        "java": java_version,
-        "tla2toolsSHA256": tlc_sha256,
-    },
-    "translation": {
-        "status": "generated" if source == "pluscal" else "not-required",
-        "module": f"generated/{module_path}",
-    },
-    "cases": [],
-}
-
-def write_summary() -> None:
-    with open(summary_path, "w") as f:
-        json.dump(summary, f, indent=2)
-        f.write("\n")
-
-def run_tlc(config_name: str, metadir: str) -> tuple[int, str, float]:
-    os.makedirs(metadir, exist_ok=True)
-    cmd = java_base + [
-        "-XX:+UseParallelGC",
-        "-Xmx1g",
-        "-jar", jar_path,
-        "-cleanup",
-        "-difftrace",
-        "-metadir", metadir,
-        "-config", config_name,
-        module_path,
-    ]
-    started = time.monotonic()
-    result = subprocess.run(
-        cmd,
-        capture_output=True,
-        text=True,
-        cwd=generated_dir,
-    )
-    elapsed = time.monotonic() - started
-    output = result.stdout + result.stderr
-    return result.returncode, output, elapsed
-
-def parse_stats(output: str, elapsed: float) -> dict[str, object]:
-    state_matches = re.findall(
-        r"([0-9,]+) states generated, ([0-9,]+) distinct states found, "
-        r"([0-9,]+) states left on queue\.",
-        output,
-    )
-    depth_matches = re.findall(
-        r"The depth of the complete state graph search is ([0-9,]+)\.",
-        output,
-    )
-    stats: dict[str, object] = {"elapsedSeconds": round(elapsed, 3)}
-    if state_matches:
-        generated, distinct, queued = state_matches[-1]
-        stats.update(
-            generatedStates=int(generated.replace(",", "")),
-            distinctStates=int(distinct.replace(",", "")),
-            statesLeftOnQueue=int(queued.replace(",", "")),
-        )
-    if depth_matches:
-        stats["depth"] = int(depth_matches[-1].replace(",", ""))
-    return stats
-
-def stats_text(stats: dict[str, object]) -> str:
-    if "generatedStates" not in stats:
-        return f"{stats['elapsedSeconds']:.3f}s"
-    return (
-        f"{stats['generatedStates']} generated, "
-        f"{stats['distinctStates']} distinct, "
-        f"depth {stats.get('depth', '?')}, "
-        f"{stats['elapsedSeconds']:.3f}s"
-    )
-
-write_summary()
-
-for case in manifest["cases"]:
-    name = case["name"]
-    config_name = case["config"]
-    expect = case["expect"]
-    config_path = os.path.join(generated_dir, config_name)
-    log_path = os.path.join(logs_dir, f"{name}.log")
-    metadir = os.path.join(states_dir, name)
-
-    if not os.path.isfile(config_path):
-        print(f"error: {manifest_path}: case '{name}' config '{config_name}' not found", file=sys.stderr)
-        sys.exit(1)
-
-    status, output, elapsed = run_tlc(config_name, metadir)
-    with open(log_path, "w") as log:
-        log.write(output)
-
-    actual = "pass" if status == 0 else "fail"
-    needle = case.get("outputContains")
-    matched_output = needle is None or needle in output
-    stats = parse_stats(output, elapsed)
-    case_summary = {
-        "name": name,
-        "config": config_name,
-        "expected": expect,
-        "verdict": actual,
-        "matchedFailure": needle if needle and matched_output else None,
-        "stats": stats,
-        "log": f"logs/{name}.log",
-    }
-    summary["cases"].append(case_summary)
-    write_summary()
-
-    if expect == "pass":
-        if status != 0:
-            print(f"  FAIL {name}: expected pass, TLC exited {status}; see {log_path}", file=sys.stderr)
-            print(output[-4000:], file=sys.stderr)
-            sys.exit(1)
-        if "Model checking completed. No error has been found." not in output:
-            print(f"  FAIL {name}: TLC did not report a clean check; see {log_path}", file=sys.stderr)
-            sys.exit(1)
-        print(f"  ok   {name} (pass; {stats_text(stats)})")
-    elif expect == "fail":
-        if status == 0:
-            print(f"  FAIL {name}: expected failure, TLC passed; see {log_path}", file=sys.stderr)
-            sys.exit(1)
-        if not matched_output:
-            print(f"  FAIL {name}: expected output to contain {needle!r}; see {log_path}", file=sys.stderr)
-            print(output[-4000:], file=sys.stderr)
-            sys.exit(1)
-        print(f"  ok   {name} (expected failure; {stats_text(stats)})")
-    else:
-        print(f"error: {manifest_path}: case '{name}' has unknown expect {expect!r}", file=sys.stderr)
-        sys.exit(1)
-
-print(f"  artifacts: {os.path.dirname(logs_dir)}")
-PY
-    then
-        check_status=0
-    else
-        check_status=$?
-    fi
-
-    if [[ "$(checksum "$module_file")" != "$source_hash" ]]; then
-        echo "error: tracked model source changed while checking: $module_file" >&2
-        return 1
-    fi
-
-    return "$check_status"
+    python3 "$repo_root/Tools/tla_check.py" \
+        "$manifest" "$spec_dir" "$run_dir" "$jar_path" \
+        "$tlc_version" "$pcal_version" "$java_version" "$tlc_sha256"
 }
 
 main() {
@@ -369,7 +111,7 @@ main() {
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
-            -h|--help)
+            -h | --help)
                 usage
                 exit 0
                 ;;
