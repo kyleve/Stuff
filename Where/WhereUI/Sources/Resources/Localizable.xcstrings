@@ -3361,6 +3361,40 @@
         }
       }
     },
+    "locationForecast.editor.locationChecking" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Checking your current location"
+          }
+        }
+      }
+    },
+    "locationForecast.editor.locationOutside" : {
+      "comment" : "Advisory shown when the device is outside the selected planned-stay region and its configured border-drift threshold. The first placeholder is the region name. The second is a localized distance, for example '1 km'.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Your current location is not in %1$@ or within the %2$@ drift threshold. You can still save this plan."
+          }
+        }
+      }
+    },
+    "locationForecast.editor.locationUnavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Your current location is unavailable. You can still save this plan."
+          }
+        }
+      }
+    },
     "locationForecast.editor.title" : {
       "extractionState" : "manual",
       "localizations" : {

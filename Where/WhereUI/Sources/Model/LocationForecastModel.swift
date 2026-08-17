@@ -9,6 +9,19 @@ import WhereCore
 @MainActor
 @Observable
 final class LocationForecastModel {
+    struct PlannedStayLocationCheck: Equatable {
+        enum Status: Equatable {
+            case checking
+            case accepted
+            case outside
+            case unavailable
+        }
+
+        let region: Region
+        let driftThreshold: DriftThreshold
+        let status: Status
+    }
+
     /// The future slice of a planned stay that intersects a displayed year.
     struct PlannedInterval: Equatable {
         let region: Region
@@ -21,10 +34,12 @@ final class LocationForecastModel {
     }
 
     private(set) var activePlannedStay: PlannedStay?
+    private(set) var plannedStayLocationCheck: PlannedStayLocationCheck?
 
     private let services: WhereServices
     private let calendar: Calendar
     private let now: @Sendable () -> Date
+    private var plannedStayLocationCheckSequence: UInt64 = 0
     private static let logger = WhereLog.session(LocationForecastModelLog.self)
 
     init(
@@ -116,6 +131,49 @@ final class LocationForecastModel {
 
     var minimumDepartureDate: Date {
         calendar.startOfDay(for: now())
+    }
+
+    func checkCurrentLocation(
+        for region: Region,
+        driftThreshold: DriftThreshold,
+    ) async {
+        let (sequence, overflow) = plannedStayLocationCheckSequence.addingReportingOverflow(1)
+        precondition(!overflow, "Planned-stay location check sequence exhausted UInt64.")
+        plannedStayLocationCheckSequence = sequence
+        plannedStayLocationCheck = PlannedStayLocationCheck(
+            region: region,
+            driftThreshold: driftThreshold,
+            status: .checking,
+        )
+
+        let result = await services.plannedStayLocation.status(
+            for: region,
+            driftThreshold: driftThreshold,
+        )
+        guard !Task.isCancelled, sequence == plannedStayLocationCheckSequence else { return }
+
+        let status: PlannedStayLocationCheck.Status = switch result {
+            case .accepted: .accepted
+            case .outside: .outside
+            case .unavailable: .unavailable
+        }
+        plannedStayLocationCheck = PlannedStayLocationCheck(
+            region: region,
+            driftThreshold: driftThreshold,
+            status: status,
+        )
+    }
+
+    func plannedStayLocationCheck(
+        for region: Region,
+        driftThreshold: DriftThreshold,
+    ) -> PlannedStayLocationCheck? {
+        guard plannedStayLocationCheck?.region == region,
+              plannedStayLocationCheck?.driftThreshold == driftThreshold
+        else {
+            return nil
+        }
+        return plannedStayLocationCheck
     }
 
     func set(region: Region, through date: Date) async throws {

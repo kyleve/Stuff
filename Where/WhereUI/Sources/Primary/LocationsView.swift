@@ -74,7 +74,11 @@ struct LocationsView: View {
             ResolutionView(report: report)
         }
         .sheet(item: $plannedStayEditorTarget) { target in
-            PlannedStayEditor(region: target.region, model: report.forecasts)
+            PlannedStayEditor(
+                region: target.region,
+                model: report.forecasts,
+                driftThreshold: report.driftThreshold,
+            )
         }
         // Log View Mode: reveal an inspect badge for the year-report events
         // backing this screen. A no-op in release.

@@ -85,8 +85,9 @@ Layering, localization, preview, and testing conventions live in the feature
   minimum and active-scene visibility: the first foreground-visible `MainTabs`
   reveal stays covered when headless promotion coalesces or the first hold is
   interrupted, while warm resumes never replay it.
-- Keep planned-stay persistence and forecast math in WhereCore; `LocationForecastModel` only mirrors
-  the active register and orchestrates intents for the Locations, calendar, and timeline surfaces.
+- Keep planned-stay persistence, forecast math, and location verification in WhereCore.
+  `LocationForecastModel` mirrors the register and the advisory check for the Locations, calendar,
+  and timeline surfaces.
 - Hide every forecast and planned-stay visualization behind
   `YearReportModel.showsEstimatedTimeAndPlanning`; persist Off only after clearing the synced plan.
 - Continuous/looping motion (repeat-forever pulses, `TimelineView(.animation)`,

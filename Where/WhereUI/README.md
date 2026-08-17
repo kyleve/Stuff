@@ -108,7 +108,7 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   `refreshWidgetSnapshot()`). It holds no presentation state of its own.
 - **Scope-tiered models** — scene-scoped **`YearReportModel`** (the selected
   year's `YearReportDetails`, its `LoadState`, manual-day edit intents, and the shared
-  **`LocationForecastModel`** planned-stay mirror), plus
+  **`LocationForecastModel`** planned-stay mirror and current-location advisory), plus
   view-scoped **`ResolveModel`** (data-issue triage), **`BackupModel`**
   (Settings export progress and failures),
   **`RemindersSettingsModel`** (notification prefs),
