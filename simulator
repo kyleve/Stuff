@@ -29,6 +29,8 @@ set -euo pipefail
 #     -destination "platform=iOS Simulator,id=$(./simulator)"
 #
 # Progress and warnings go to stderr.
+# Registry-backed deletion requires an exact checkout, UDID, name, and runtime
+# match. A derived name without a registry claim is discoverable but unowned.
 
 DEVICE="iPhone 17"
 OS="27.0"
@@ -127,10 +129,10 @@ name_prefix="Stuff-"
 checkout_hash="$(printf '%s' "$checkout" | shasum -a 256 | cut -c1-8)"
 owned_name="$name_prefix$(slug "$(basename "$checkout")")-$checkout_hash-$(slug "$DEVICE")-$(slug "$OS")"
 
-# An index, not a source of truth: `simctl` still answers "does this device
-# exist", and the name is derived from the checkout rather than looked up here.
-# This only records which checkout a device belongs to, so --list and --prune
-# can map one back to the other.
+# The registry is the ownership authority; `simctl` remains the authority on
+# whether that exact UDID exists on the recorded runtime. The derived name lets
+# an unambiguous unclaimed device be recovered, but a name alone never permits
+# deletion.
 registry_dir="$HOME/Library/Application Support/Stuff/simulators"
 
 # `available` hides devices whose runtime has been uninstalled — right for
@@ -166,13 +168,14 @@ indexed_udids() { # every UDID the index knows, whatever checkout it belongs to
 }
 
 registry_write() { # <name> <udid>
-    mkdir -p "$registry_dir"
-    cat >"$registry_dir/$1" <<EOF
-checkout=$checkout
-udid=$2
-device=$DEVICE
-os=$OS
-EOF
+    mise exec -- ruby Tools/simulator_registry.rb record \
+        --registry-dir "$registry_dir" --name "$1" \
+        --checkout "$checkout" --udid "$2" --device "$DEVICE" --os "$OS"
+}
+
+registry_forget() { # <name>
+    mise exec -- ruby Tools/simulator_registry.rb forget \
+        --registry-dir "$registry_dir" --name "$1"
 }
 
 registry_field() { # <file> <key>
@@ -214,17 +217,46 @@ create_device() { # <name> -> udid on stdout
     printf '%s' "$udid"
 }
 
-delete_owned_device() { # reports what it did; safe when there's nothing to delete
-    local devices_json udid deleted=false
+registry_resolution() { # exact ownership decision from all + available inventories
+    local devices_json available_json
     devices_json="$(all_devices_json)"
-    while read -r udid; do
-        [ -n "$udid" ] || continue
-        echo "==> Deleting $owned_name ($udid)" >&2
-        xcrun simctl delete "$udid" >&2
-        deleted=true
-    done <<<"$(udids_named "$devices_json" "$owned_name")"
-    rm -f "$registry_dir/$owned_name"
-    [ "$deleted" = true ] || echo "==> No device for this checkout to delete" >&2
+    available_json="$(available_devices_json)"
+    printf '{"all":%s,"available":%s}\n' "$devices_json" "$available_json" \
+        | mise exec -- ruby Tools/simulator_registry.rb resolve \
+            --registry-dir "$registry_dir" --name "$owned_name" \
+            --checkout "$checkout" --device "$DEVICE" --os "$OS" \
+            --runtime-key "$runtime_key"
+}
+
+delete_owned_device() { # exact registry-owned target only
+    local devices_json decision action udid
+    devices_json="$(all_devices_json)"
+    decision="$(printf '%s' "$devices_json" \
+        | mise exec -- ruby Tools/simulator_registry.rb delete-target \
+            --registry-dir "$registry_dir" --name "$owned_name" \
+            --checkout "$checkout" --device "$DEVICE" --os "$OS" \
+            --runtime-key "$runtime_key")"
+    action="${decision%%$'\t'*}"
+    udid=""
+    [ "$decision" = "$action" ] || udid="${decision#*$'\t'}"
+    case "$action" in
+        delete)
+            echo "==> Deleting $owned_name ($udid)" >&2
+            xcrun simctl delete "$udid" >&2
+            registry_forget "$owned_name"
+            ;;
+        stale)
+            echo "warning: forgetting $owned_name — its registered device no longer exists" >&2
+            registry_forget "$owned_name"
+            ;;
+        none)
+            echo "==> No device for this checkout to delete" >&2
+            ;;
+        *)
+            echo "error: unknown registry deletion action '$action'" >&2
+            exit 1
+            ;;
+    esac
 }
 
 # Two first runs in one checkout would otherwise each miss the lookup and create
@@ -234,23 +266,32 @@ delete_owned_device() { # reports what it did; safe when there's nothing to dele
 # is fine, so the lock is released before it.
 lock_dir="${TMPDIR:-/tmp}/stuff-simulator-$checkout_hash.lock"
 lock_held=false
+lock_token=""
 
 acquire_lock() {
     if [ "$lock_held" = true ]; then
         return 0
     fi
-    local waited=0 stale_cleared=false owner
+    local waited=0 owner owner_token modified now age stale_path owner_tmp
     until mkdir "$lock_dir" 2>/dev/null; do
-        owner="$(cat "$lock_dir/pid" 2>/dev/null || true)"
+        owner="$(registry_field "$lock_dir/owner" pid 2>/dev/null || true)"
+        owner_token="$(registry_field "$lock_dir/owner" token 2>/dev/null || true)"
         # A run killed outright (SIGKILL, a reboot mid-run) leaves a lock its
-        # trap never removed. Its pid says whether anyone is still behind it, so
-        # take the lock over rather than making every later run wait out the
-        # timeout — but only once, so a lock we can't clear still times out.
-        if [ "$stale_cleared" = false ] && [ -n "$owner" ] && ! kill -0 "$owner" 2>/dev/null; then
-            echo "warning: clearing the lock left behind by process $owner" >&2
-            rm -rf "$lock_dir"
-            stale_cleared=true
-            continue
+        # trap never removed. Move a stale directory out of the lock path
+        # atomically before removing it, so no contender can delete a successor's
+        # newly acquired lock.
+        modified="$(stat -f %m "$lock_dir" 2>/dev/null || echo 0)"
+        now="$(date +%s)"
+        age=$((now - modified))
+        if { [ -n "$owner" ] && ! kill -0 "$owner" 2>/dev/null; } \
+            || { [ -z "$owner" ] && [ "$age" -ge 5 ]; }
+        then
+            stale_path="$lock_dir.stale.$$.$waited"
+            if mv "$lock_dir" "$stale_path" 2>/dev/null; then
+                echo "warning: clearing stale simulator lock${owner:+ from process $owner}${owner_token:+ ($owner_token)}" >&2
+                rm -rf "$stale_path"
+                continue
+            fi
         fi
         if [ "$waited" -ge 120 ]; then
             echo "error: timed out waiting for the ./simulator run holding $lock_dir${owner:+ (pid $owner)}." >&2
@@ -259,14 +300,26 @@ acquire_lock() {
         sleep 1
         waited=$((waited + 1))
     done
-    printf '%s\n' "$$" >"$lock_dir/pid"
+    lock_token="$$-$(date +%s)-$RANDOM"
+    owner_tmp="$lock_dir/.owner.$$"
+    (umask 077; printf 'pid=%s\ntoken=%s\n' "$$" "$lock_token" >"$owner_tmp")
+    mv "$owner_tmp" "$lock_dir/owner"
     lock_held=true
     trap release_lock EXIT
 }
 
 release_lock() {
     if [ "$lock_held" = true ]; then
-        rm -rf "$lock_dir"
+        local current_token stale_path
+        current_token="$(registry_field "$lock_dir/owner" token 2>/dev/null || true)"
+        if [ "$current_token" = "$lock_token" ]; then
+            stale_path="$lock_dir.released.$$"
+            if mv "$lock_dir" "$stale_path" 2>/dev/null; then
+                rm -rf "$stale_path"
+            fi
+        else
+            echo "warning: simulator lock ownership changed; leaving $lock_dir untouched" >&2
+        fi
         lock_held=false
     fi
 }
@@ -343,10 +396,27 @@ case "$MODE" in
                     if [ ! -d "$(dirname "$entry_checkout")" ]; then
                         echo "==> Skipping $(basename "$entry") — $entry_checkout is missing, but so is its parent (unmounted volume?)" >&2
                     else
-                        echo "==> $delete_verb $(basename "$entry") ($entry_udid) — $entry_checkout is gone" >&2
+                        entry_name="$(basename "$entry")"
+                        entry_os="$(registry_field "$entry" os)"
+                        entry_runtime_key="com.apple.CoreSimulator.SimRuntime.iOS-${entry_os//./-}"
+                        if ! prune_decision="$(printf '%s' "$devices_json" \
+                            | mise exec -- ruby Tools/simulator_registry.rb prune-target \
+                                --registry-dir "$registry_dir" --name "$entry_name" \
+                                --runtime-key "$entry_runtime_key")"
+                        then
+                            echo "==> Skipping $entry_name — its ownership record does not match simctl" >&2
+                            continue
+                        fi
+                        prune_action="${prune_decision%%$'\t'*}"
+                        prune_udid="${prune_decision#*$'\t'}"
+                        if [ "$prune_action" != delete ] || [ "$prune_udid" != "$entry_udid" ]; then
+                            echo "==> Skipping $entry_name — exact deletion target could not be proven" >&2
+                            continue
+                        fi
+                        echo "==> $delete_verb $entry_name ($entry_udid) — $entry_checkout is gone" >&2
                         if [ "$DRY_RUN" != true ]; then
                             xcrun simctl delete "$entry_udid" >&2
-                            rm -f "$entry"
+                            registry_forget "$entry_name"
                         fi
                         pruned=$((pruned + 1))
                     fi
@@ -402,14 +472,16 @@ if [ "$SHARED" = true ]; then
 else
     name="$owned_name"
     acquire_lock
-    # A device whose runtime has since been uninstalled drops out of the
-    # `available` list, so this misses it and falls through to creation — where
-    # the runtime check fails with that as the reason, rather than minting a
-    # same-named twin on a runtime nothing can boot.
-    udids="$(udids_named "$(available_devices_json)" "$name")"
-    if [ -z "$udids" ]; then
-        udids="$(create_device "$name")"
-    fi
+    resolution="$(registry_resolution)"
+    resolution_action="${resolution%%$'\t'*}"
+    resolution_udid=""
+    [ "$resolution" = "$resolution_action" ] \
+        || resolution_udid="${resolution#*$'\t'}"
+    case "$resolution_action" in
+        owned|claim) udids="$resolution_udid" ;;
+        create) udids="$(create_device "$name")" ;;
+        *) echo "error: unknown registry resolution action '$resolution_action'" >&2; exit 1 ;;
+    esac
 fi
 
 udid="$(printf '%s\n' "$udids" | head -1)"
