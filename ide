@@ -87,10 +87,12 @@ ensure_mise_activation() {
     case "$shell_name" in
         zsh)
             rc="$HOME/.zshrc"
+            # shellcheck disable=SC2016 # Write this expression literally to the rc file.
             activate_line='eval "$(mise activate zsh)"'
             ;;
         bash)
             rc="$HOME/.bashrc"
+            # shellcheck disable=SC2016 # Write this expression literally to the rc file.
             activate_line='eval "$(mise activate bash)"'
             ;;
         *)

@@ -26,6 +26,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: jdx/mise-action@v3
+      - name: ShellCheck
+        run: ./shellcheck
       - run: ./swiftformat --lint
       - name: SF Symbol lint
         run: ./sf-symbols --lint

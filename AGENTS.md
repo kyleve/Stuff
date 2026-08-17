@@ -25,6 +25,7 @@ Roughly, this file covers:
 |-------------|--------------|
 | Tuist       | `.mise.toml` |
 | SwiftFormat | `.mise.toml` |
+| ShellCheck  | `.mise.toml` |
 | Ruby        | `.mise.toml` |
 | Swift PM    | `Package.swift` (`swift-tools-version`) |
 | Bumper Bowling | `Package.swift` / `Package.resolved` |
@@ -45,7 +46,7 @@ generating. Plain `./ide` fails fast and points at bootstrap.
 
 The executables in the repo root are the dev scripts. They are `ide`, `test`,
 `swiftformat`, `sf-symbols`, `sync-agents`, `profile`, `icons`, `flaky`, `simulator`,
-`worktree`, `xcstrings`, `attribution`, `codex-watchdog`, `tla-check`,
+`worktree`, `xcstrings`, `attribution`, `shellcheck`, `codex-watchdog`, `tla-check`,
 `circleci-artifacts`, `snapshot-shards`, `loc`. Each takes `--help`. Use one of these scripts instead of
 hand-rolling its job. `./test` is the only way to run tests (see [Running
 tests](#running-tests)). `./icons`, `./attribution`, and `./simulator` own state that is
@@ -80,6 +81,8 @@ over a build setting Xcode didn't export.
 
 - **SwiftFormat** uses [`.swiftformat`](.swiftformat). Run `./swiftformat` to
   format the tree. Run `./swiftformat --lint` to make sure that formatting is correct (as in CI).
+- **ShellCheck** is pinned in [`.mise.toml`](.mise.toml). `./shellcheck` discovers
+  and lints every tracked shell file by its shebang.
 - The pre-commit hook (enabled by `./ide` via `core.hooksPath`) formats staged
   `*.swift` files in place and re-stages them.
 - **String Catalogs are stored exactly as Xcode serializes them**. `./xcstrings` (`--lint` in CI) enforces this. A catalog written by anything
