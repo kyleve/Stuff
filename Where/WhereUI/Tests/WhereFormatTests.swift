@@ -57,6 +57,13 @@ struct WhereFormatTests {
                 through: CalendarDay(year: 2026, month: 8, day: 15),
             ) == "Includes staying through August 15, 2026.",
         )
+        #expect(
+            WhereFormat.plannedStayOutsideLocation(
+                region: .newYork,
+                driftThreshold: .km1,
+            ) ==
+                "Your current location is not in New York or within the 1 km drift threshold. You can still save this plan.",
+        )
     }
 
     @Test func locationCardEstimateCopyComposesLocalizedDayCounts() {

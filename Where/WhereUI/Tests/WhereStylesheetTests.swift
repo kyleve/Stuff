@@ -606,6 +606,7 @@ struct WhereStylesheetTests {
         #expect(privacy.outlineWidth == 1)
 
         let source = style.openSourceStamp
+        #expect(source.tint == .accentColor)
         #expect(source.padding == 16)
         #expect(source.contentSpacing == 12)
         #expect(source.titleFont == .headline)
@@ -618,6 +619,16 @@ struct WhereStylesheetTests {
             secondaryRingSpacing: 16,
         ))
         #expect(source.ink == .standard)
+
+        let warning = style.plannedStayWarningStamp
+        #expect(warning.tint == .orange)
+        #expect(warning.padding == 16)
+        #expect(warning.contentSpacing == 12)
+        #expect(warning.titleFont == .headline)
+        #expect(warning.detailFont == .subheadline)
+        #expect(warning.outlineWidth == 1.5)
+        #expect(warning.rosette == source.rosette)
+        #expect(warning.ink == .standard)
     }
 
     @Test func developerOverlayStyle() {
@@ -718,6 +729,7 @@ struct WhereStylesheetTests {
         context.traitOverrides.accessibility = BAccessibility(isDarkerSystemColorsEnabled: true)
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
         #expect(resolved.openSourceStamp.ink == .increasedContrast)
+        #expect(resolved.plannedStayWarningStamp.ink == .increasedContrast)
     }
 
     @MainActor

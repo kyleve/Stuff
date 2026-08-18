@@ -92,7 +92,11 @@ struct CalendarContentView: View {
         // no-op in release.
         .debugLogInspectable(WhereLog.session(CalendarViewLog.self))
         .sheet(item: $plannedStayEditorTarget) { target in
-            PlannedStayEditor(region: target.region, model: report.forecasts)
+            PlannedStayEditor(
+                region: target.region,
+                model: report.forecasts,
+                driftThreshold: report.driftThreshold,
+            )
         }
     }
 

@@ -84,6 +84,16 @@ enum WhereFormat {
         ))
     }
 
+    static func plannedStayOutsideLocation(
+        region: Region,
+        driftThreshold: DriftThreshold,
+    ) -> String {
+        String(localized: .locationForecastEditorLocationOutside(
+            region.localizedName,
+            driftThresholdLabel(kilometers: driftThreshold.rawValue / 1000),
+        ))
+    }
+
     static func locationCardEstimatedDays(_ days: Int) -> String {
         String(localized: .locationCardEstimatedDays(dayCount(days)))
     }
