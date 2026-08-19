@@ -1,5 +1,11 @@
 version: 2.1
 
+parameters:
+  manual_full_gate:
+    type: enum
+    enum: ["false", "true"]
+    default: "false"
+
 executors:
   m4-pro-medium:
     macos:
@@ -371,6 +377,7 @@ jobs:
 workflows:
   "iOS CI":
     when: >-
+      pipeline.parameters.manual_full_gate == "true" or
       (pipeline.event.name == "push" and pipeline.git.branch == "main") or
       (pipeline.event.name == "pull_request" and
       pipeline.event.github.pull_request.base.ref == "main")
