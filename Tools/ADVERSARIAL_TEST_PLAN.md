@@ -256,4 +256,4 @@ was removed before commit:
 | Flatten runtimes before validating a registered simulator | `test_rejects_registry_metadata_or_runtime_drift` |
 | Let `--prune --dry-run` execute `simctl delete` | `test_prune_dry_run_and_delete_use_the_exact_registered_target` |
 | Replace observable registry removal with `FileUtils.rm_f` | `test_forget_ignores_a_missing_entry_but_surfaces_removal_failures` |
-| Reclaim an ownerless simulator lock after only five seconds | `test_ownerless_lock_inside_initialization_horizon_is_never_stolen` |
+| Bypass the kernel lock during concurrent first resolution | `test_concurrent_first_resolution_creates_and_records_exactly_one_device` |

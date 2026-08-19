@@ -56,39 +56,20 @@ class SimulatorCommandTest < Minitest::Test
     end
   end
 
-  def test_old_ownerless_lock_is_recovered_without_waiting_for_timeout
+  def test_abandoned_or_malformed_lock_file_does_not_block_resolution
     with_fixture do |fixture|
       fixture.write_inventory(
         all: { RUNTIME => [fixture.device("claimed", fixture.owned_name)] },
         available: { RUNTIME => [fixture.device("claimed", fixture.owned_name)] },
       )
-      FileUtils.mkdir_p(fixture.lock_directory)
-      old = Time.now - 180
-      File.utime(old, old, fixture.lock_directory)
+      fixture.lock_file.write("not owner metadata\n")
 
       stdout, stderr, status = fixture.run("--no-boot")
 
       assert status.success?, stderr
       assert_equal "claimed\n", stdout
-      assert_includes stderr, "clearing stale simulator lock"
-      refute_path_exists fixture.lock_directory
+      assert_path_exists fixture.lock_file
       assert_equal "claimed", fixture.registry.load_entry(fixture.owned_name).udid
-    end
-  end
-
-  def test_ownerless_lock_inside_initialization_horizon_is_never_stolen
-    with_fixture do |fixture|
-      FileUtils.mkdir_p(fixture.lock_directory)
-      initializing = Time.now - 10
-      File.utime(initializing, initializing, fixture.lock_directory)
-
-      _stdout, stderr, status = fixture.run("--no-boot")
-
-      refute status.success?
-      assert_includes stderr, "timed out waiting"
-      refute_includes stderr, "clearing stale simulator lock"
-      assert_path_exists fixture.lock_directory
-      refute_includes fixture.log, "simctl list"
     end
   end
 
@@ -100,22 +81,7 @@ class SimulatorCommandTest < Minitest::Test
 
       refute status.success?
       refute_path_exists fixture.registry_path
-      refute_path_exists fixture.lock_directory
-    end
-  end
-
-  def test_active_lock_is_never_stolen
-    with_fixture do |fixture|
-      FileUtils.mkdir_p(fixture.lock_directory)
-      owner = fixture.lock_directory / "owner"
-      owner.write("pid=#{Process.pid}\ntoken=active\n")
-
-      _stdout, stderr, status = fixture.run("--no-boot")
-
-      refute status.success?
-      assert_includes stderr, "timed out waiting"
-      assert_equal "pid=#{Process.pid}\ntoken=active\n", owner.read
-      refute_includes fixture.log, "simctl list"
+      assert_path_exists fixture.lock_file
     end
   end
 
@@ -239,7 +205,7 @@ class SimulatorCommandTest < Minitest::Test
       end
       assert_equal 1, fixture.log.scan("simctl create").length
       assert_equal "created", fixture.registry.load_entry(fixture.owned_name).udid
-      refute_path_exists fixture.lock_directory
+      assert_path_exists fixture.lock_file
     end
   end
 
@@ -269,7 +235,7 @@ class SimulatorCommandTest < Minitest::Test
   end
 
   class Fixture
-    attr_reader :owned_name, :repository, :registry, :registry_path, :lock_directory
+    attr_reader :lock_file, :owned_name, :repository, :registry, :registry_path
 
     def initialize(
       root,
@@ -292,7 +258,7 @@ class SimulatorCommandTest < Minitest::Test
       @registry_directory = home / "Library/Application Support/Stuff/simulators"
       @registry = SimulatorRegistry.new(directory: @registry_directory.to_s)
       @registry_path = @registry_directory / owned_name
-      @lock_directory = temporary / "stuff-simulator-#{checkout_hash}.lock"
+      @lock_file = temporary / "stuff-simulator-#{checkout_hash}.lock"
       @all_path = root / "all.json"
       @available_path = root / "available.json"
       @log_path = root / "xcrun.log"

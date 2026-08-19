@@ -263,65 +263,29 @@ delete_owned_device() { # exact registry-owned target only
 # a device, leaving twins that share a name — the ambiguity this script exists
 # to prevent. Serialize *resolve-or-create* per checkout, and only that: booting
 # takes minutes on a device's first launch, and two callers waiting on one boot
-# is fine, so the lock is released before it.
-lock_dir="${TMPDIR:-/tmp}/stuff-simulator-$checkout_hash.lock"
-lock_stale_after=120
+# is fine, so the lock is released before it. The kernel releases this advisory
+# lock after any process death; the persistent file itself carries no state.
+lock_file="${TMPDIR:-/tmp}/stuff-simulator-$checkout_hash.lock"
 lock_wait_limit=120
 lock_held=false
-lock_token=""
 
 acquire_lock() {
     if [ "$lock_held" = true ]; then
         return 0
     fi
-    local waited=0 owner owner_token modified now age stale_path owner_tmp
-    until mkdir "$lock_dir" 2>/dev/null; do
-        owner="$(registry_field "$lock_dir/owner" pid 2>/dev/null || true)"
-        owner_token="$(registry_field "$lock_dir/owner" token 2>/dev/null || true)"
-        # A run killed outright (SIGKILL, a reboot mid-run) leaves a lock its
-        # trap never removed. Move a stale directory out of the lock path
-        # atomically before removing it, so no contender can delete a successor's
-        # newly acquired lock.
-        modified="$(stat -f %m "$lock_dir" 2>/dev/null || echo 0)"
-        now="$(date +%s)"
-        age=$((now - modified))
-        if { [ -n "$owner" ] && ! kill -0 "$owner" 2>/dev/null; } \
-            || { [ -z "$owner" ] && [ "$age" -ge "$lock_stale_after" ]; }
-        then
-            stale_path="$lock_dir.stale.$$.$waited"
-            if mv "$lock_dir" "$stale_path" 2>/dev/null; then
-                echo "warning: clearing stale simulator lock${owner:+ from process $owner}${owner_token:+ ($owner_token)}" >&2
-                rm -rf "$stale_path"
-                continue
-            fi
-        fi
-        if [ "$waited" -ge "$lock_wait_limit" ]; then
-            echo "error: timed out waiting for the ./simulator run holding $lock_dir${owner:+ (pid $owner)}." >&2
-            exit 1
-        fi
-        sleep 1
-        waited=$((waited + 1))
-    done
-    lock_token="$$-$(date +%s)-$RANDOM"
-    owner_tmp="$lock_dir/.owner.$$"
-    (umask 077; printf 'pid=%s\ntoken=%s\n' "$$" "$lock_token" >"$owner_tmp")
-    mv "$owner_tmp" "$lock_dir/owner"
+    exec 9>>"$lock_file"
+    if ! /usr/bin/lockf -t "$lock_wait_limit" 9; then
+        exec 9>&-
+        echo "error: timed out waiting for the ./simulator run holding $lock_file." >&2
+        exit 1
+    fi
     lock_held=true
     trap release_lock EXIT
 }
 
 release_lock() {
     if [ "$lock_held" = true ]; then
-        local current_token stale_path
-        current_token="$(registry_field "$lock_dir/owner" token 2>/dev/null || true)"
-        if [ "$current_token" = "$lock_token" ]; then
-            stale_path="$lock_dir.released.$$"
-            if mv "$lock_dir" "$stale_path" 2>/dev/null; then
-                rm -rf "$stale_path"
-            fi
-        else
-            echo "warning: simulator lock ownership changed; leaving $lock_dir untouched" >&2
-        fi
+        exec 9>&-
         lock_held=false
     fi
 }
