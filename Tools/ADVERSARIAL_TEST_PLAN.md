@@ -252,3 +252,7 @@ was removed before commit:
 | Replace the `xcodebuild` pipeline status with zero | `test_test_preserves_xcode_failure_through_the_progress_pipeline` |
 | Ignore a failed `tee` or progress stage after successful Xcode | `test_test_surfaces_a_progress_process_failure_after_xcode_succeeds` |
 | Trust a schema-shifted xcresult root instead of validating it | `test_tolerates_unknown_nodes_parameterized_names_and_missing_fields` |
+| Match simulator names by substring | `test_near_match_name_never_counts_as_owned_or_claimable` |
+| Flatten runtimes before validating a registered simulator | `test_rejects_registry_metadata_or_runtime_drift` |
+| Let `--prune --dry-run` execute `simctl delete` | `test_prune_dry_run_and_delete_use_the_exact_registered_target` |
+| Replace observable registry removal with `FileUtils.rm_f` | `test_forget_ignores_a_missing_entry_but_surfaces_removal_failures` |

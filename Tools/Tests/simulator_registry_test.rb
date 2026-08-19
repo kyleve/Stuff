@@ -90,6 +90,18 @@ class SimulatorRegistryTest < Minitest::Test
     end
   end
 
+  def test_near_match_name_never_counts_as_owned_or_claimable
+    with_registry do |registry|
+      near = inventory(RUNTIME => [device("near", "#{NAME}-copy")])
+
+      resolution = registry.resolve(**identity, all: near, available: near)
+      deletion = registry.deletion_target(**identity, all: near)
+
+      assert_equal "create", resolution.action
+      assert_equal "none", deletion.action
+    end
+  end
+
   def test_record_is_private_atomic_and_require_safe
     Dir.mktmpdir do |directory|
       registry = SimulatorRegistry.new(directory: directory)
@@ -99,6 +111,32 @@ class SimulatorRegistryTest < Minitest::Test
       assert_equal 0o600, File.stat(path).mode & 0o777
       assert_equal [], Dir[File.join(directory, ".*.tmp")]
       assert_equal "owned", registry.load_entry(NAME).udid
+    end
+  end
+
+  def test_record_failure_leaves_no_partial_entry_or_temporary_file
+    Dir.mktmpdir do |directory|
+      registry = SimulatorRegistry.new(directory: directory)
+
+      File.stub(:rename, ->(*) { raise Errno::EIO, "injected rename failure" }) do
+        assert_raises(Errno::EIO) do
+          registry.record(name: NAME, checkout: "/repo", udid: "owned", device: "iPhone 17", os: "27.0")
+        end
+      end
+
+      refute_path_exists File.join(directory, NAME)
+      assert_empty Dir[File.join(directory, ".*.tmp")]
+    end
+  end
+
+  def test_malformed_entry_is_never_treated_as_an_ownership_claim
+    Dir.mktmpdir do |directory|
+      File.write(File.join(directory, NAME), "checkout=/repo\nudid=\nunknown=value\n")
+      registry = SimulatorRegistry.new(directory: directory)
+
+      error = assert_raises(RuntimeError) { registry.load_entry(NAME) }
+
+      assert_includes error.message, "missing udid, device, os"
     end
   end
 

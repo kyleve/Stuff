@@ -134,18 +134,134 @@ class SimulatorCommandTest < Minitest::Test
     end
   end
 
+  def test_malformed_inventory_and_an_uninstalled_runtime_fail_without_mutation
+    with_fixture do |fixture|
+      fixture.write_raw_inventory("{")
+
+      _stdout, stderr, status = fixture.run("--no-boot")
+
+      refute status.success?
+      assert_includes stderr, "unexpected token"
+      refute_includes fixture.log, "simctl create"
+      refute_includes fixture.log, "simctl delete"
+      refute_path_exists fixture.registry_path
+    end
+
+    with_fixture(runtime_available: false) do |fixture|
+      fixture.write_inventory(all: {}, available: {})
+
+      _stdout, stderr, status = fixture.run("--no-boot")
+
+      refute status.success?
+      assert_includes stderr, "isn't installed or isn't usable"
+      refute_includes fixture.log, "simctl create"
+      refute_path_exists fixture.registry_path
+    end
+  end
+
+  def test_failed_registry_record_and_device_delete_remain_observable
+    with_fixture(record_status: 44) do |fixture|
+      fixture.write_inventory(all: {}, available: {})
+
+      _stdout, _stderr, status = fixture.run("--no-boot")
+
+      assert_equal 44, status.exitstatus
+      assert_includes fixture.log, "simctl create"
+      refute_path_exists fixture.registry_path
+    end
+
+    with_fixture(delete_status: 53) do |fixture|
+      fixture.registry.record(
+        name: fixture.owned_name,
+        checkout: fixture.repository,
+        udid: "owned",
+        device: "iPhone 17",
+        os: "27.0",
+      )
+      fixture.write_inventory(all: { RUNTIME => [fixture.device("owned", fixture.owned_name)] })
+
+      _stdout, _stderr, status = fixture.run("--delete")
+
+      assert_equal 53, status.exitstatus
+      assert_includes fixture.log, "simctl delete owned"
+      assert_equal "owned", fixture.registry.load_entry(fixture.owned_name).udid
+    end
+  end
+
+  def test_recreate_deletes_the_exact_claim_then_records_the_new_device
+    with_fixture(dynamic_inventory: true) do |fixture|
+      fixture.registry.record(
+        name: fixture.owned_name,
+        checkout: fixture.repository,
+        udid: "old",
+        device: "iPhone 17",
+        os: "27.0",
+      )
+      fixture.write_inventory(all: { RUNTIME => [fixture.device("old", fixture.owned_name)] })
+
+      stdout, stderr, status = fixture.run("--recreate", "--no-boot")
+
+      assert status.success?, stderr
+      assert_equal "created\n", stdout
+      assert_includes fixture.log, "simctl delete old"
+      assert_equal 1, fixture.log.scan("simctl create").length
+      assert_equal "created", fixture.registry.load_entry(fixture.owned_name).udid
+    end
+  end
+
+  def test_concurrent_first_resolution_creates_and_records_exactly_one_device
+    with_fixture(dynamic_inventory: true, create_delay: 0.2) do |fixture|
+      fixture.write_inventory(all: {}, available: {})
+
+      results = 4.times.map do
+        Thread.new { fixture.run("--no-boot") }
+      end.map(&:value)
+
+      results.each do |stdout, stderr, status|
+        assert status.success?, stderr
+        assert_equal "created\n", stdout
+      end
+      assert_equal 1, fixture.log.scan("simctl create").length
+      assert_equal "created", fixture.registry.load_entry(fixture.owned_name).udid
+      refute_path_exists fixture.lock_directory
+    end
+  end
+
   private
 
-  def with_fixture(create_status: 0)
+  def with_fixture(
+    create_status: 0,
+    delete_status: 0,
+    record_status: 0,
+    runtime_available: true,
+    dynamic_inventory: false,
+    create_delay: 0
+  )
     Dir.mktmpdir do |directory|
-      yield Fixture.new(Pathname(directory), create_status: create_status)
+      yield Fixture.new(
+        Pathname(directory),
+        create_status: create_status,
+        delete_status: delete_status,
+        record_status: record_status,
+        runtime_available: runtime_available,
+        dynamic_inventory: dynamic_inventory,
+        create_delay: create_delay,
+      )
     end
   end
 
   class Fixture
     attr_reader :owned_name, :repository, :registry, :registry_path, :lock_directory
 
-    def initialize(root, create_status:)
+    def initialize(
+      root,
+      create_status:,
+      delete_status:,
+      record_status:,
+      runtime_available:,
+      dynamic_inventory:,
+      create_delay:
+    )
       @root = root
       @repository = File.expand_path("../..", __dir__)
       checkout_hash = Digest::SHA256.hexdigest(repository)[0, 8]
@@ -162,7 +278,12 @@ class SimulatorCommandTest < Minitest::Test
       @available_path = root / "available.json"
       @log_path = root / "xcrun.log"
       write_fake_mise(binary / "mise")
-      write_fake_xcrun(binary / "xcrun", create_status)
+      write_fake_xcrun(
+        binary / "xcrun",
+        create_status: create_status,
+        delete_status: delete_status,
+        runtime_available: runtime_available,
+      )
       write_fake_sleep(binary / "sleep")
       @environment = {
         "PATH" => "#{binary}:#{ENV.fetch('PATH')}",
@@ -171,6 +292,9 @@ class SimulatorCommandTest < Minitest::Test
         "FAKE_ALL_JSON" => @all_path.to_s,
         "FAKE_AVAILABLE_JSON" => @available_path.to_s,
         "FAKE_XCRUN_LOG" => @log_path.to_s,
+        "FAKE_RECORD_STATUS" => record_status.to_s,
+        "FAKE_DYNAMIC_INVENTORY" => dynamic_inventory ? "1" : "0",
+        "FAKE_CREATE_DELAY" => create_delay.to_s,
       }
       write_inventory(all: {}, available: {})
     end
@@ -178,6 +302,11 @@ class SimulatorCommandTest < Minitest::Test
     def write_inventory(all:, available: all)
       @all_path.write(JSON.generate("devices" => all))
       @available_path.write(JSON.generate("devices" => available))
+    end
+
+    def write_raw_inventory(contents)
+      @all_path.write(contents)
+      @available_path.write(contents)
     end
 
     def device(udid, name)
@@ -218,12 +347,15 @@ class SimulatorCommandTest < Minitest::Test
         shift 2
         [ "$1" = ruby ] || exit 91
         shift
+        if [ "$2" = record ] && [ "${FAKE_RECORD_STATUS:-0}" -ne 0 ]; then
+          exit "$FAKE_RECORD_STATUS"
+        fi
         exec #{RbConfig.ruby} "$@"
       SH
       path.chmod(0o755)
     end
 
-    def write_fake_xcrun(path, create_status)
+    def write_fake_xcrun(path, create_status:, delete_status:, runtime_available:)
       path.write(<<~SH)
         #!/bin/sh
         printf '%s\n' "$*" >>"$FAKE_XCRUN_LOG"
@@ -234,12 +366,29 @@ class SimulatorCommandTest < Minitest::Test
         elif [ "$1 $2 $3" = "simctl list devicetypes" ]; then
           printf '%s\n' '{"devicetypes":[{"name":"iPhone 17","identifier":"type-id"}]}'
         elif [ "$1 $2 $3" = "simctl list runtimes" ]; then
-          printf '%s\n' '{"runtimes":[{"identifier":"#{RUNTIME}","isAvailable":true}]}'
+          printf '%s\n' '{"runtimes":[{"identifier":"#{RUNTIME}","isAvailable":#{runtime_available}}]}'
         elif [ "$1 $2" = "simctl create" ]; then
-          [ #{create_status} -eq 0 ] && printf '%s\n' created
+          if [ #{create_status} -eq 0 ]; then
+            /bin/sleep "${FAKE_CREATE_DELAY:-0}"
+            if [ "${FAKE_DYNAMIC_INVENTORY:-0}" = 1 ]; then
+              /usr/bin/python3 - "$FAKE_ALL_JSON" "$FAKE_AVAILABLE_JSON" "$3" <<'PY'
+        import json
+        import sys
+        payload = {"devices": {"#{RUNTIME}": [{"udid": "created", "name": sys.argv[3], "state": "Shutdown"}]}}
+        for inventory_path in sys.argv[1:3]:
+            with open(inventory_path, "w") as stream:
+                json.dump(payload, stream)
+        PY
+            fi
+            printf '%s\n' created
+          fi
           exit #{create_status}
         elif [ "$1 $2" = "simctl delete" ]; then
-          exit 0
+          if [ #{delete_status} -eq 0 ] && [ "${FAKE_DYNAMIC_INVENTORY:-0}" = 1 ]; then
+            printf '%s\n' '{"devices":{}}' >"$FAKE_ALL_JSON"
+            printf '%s\n' '{"devices":{}}' >"$FAKE_AVAILABLE_JSON"
+          fi
+          exit #{delete_status}
         elif [ "$1 $2" = "simctl bootstatus" ]; then
           exit 0
         else
