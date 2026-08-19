@@ -5,10 +5,12 @@ require "securerandom"
 
 # Atomically replaces or removes several filesystem entries with rollback.
 class FileTransaction
-  class CleanupError < StandardError; end
+  class Error < StandardError; end
+  class CleanupError < Error; end
+  class RollbackError < Error; end
 
   Operation = Struct.new(:target, :staged, keyword_init: true)
-  AppliedOperation = Struct.new(:operation, :backup, :installed, keyword_init: true)
+  AppliedOperation = Struct.new(:operation, :backup, :had_original, :installed, keyword_init: true)
 
   def initialize
     @operations = []
@@ -28,8 +30,9 @@ class FileTransaction
     begin
       @operations.each_with_index do |operation, index|
         backup = backup_path(operation.target)
-        File.rename(operation.target, backup) if File.exist?(operation.target) || File.symlink?(operation.target)
-        entry = AppliedOperation.new(operation: operation, backup: backup, installed: false)
+        had_original = File.exist?(operation.target) || File.symlink?(operation.target)
+        File.rename(operation.target, backup) if had_original
+        entry = AppliedOperation.new(operation: operation, backup: backup, had_original: had_original, installed: false)
         applied << entry
         if operation.staged
           File.rename(operation.staged, operation.target)
@@ -37,9 +40,12 @@ class FileTransaction
         end
         after_apply(index)
       end
-    rescue StandardError
-      rollback(applied)
-      raise
+    rescue StandardError => error
+      rollback_failures = rollback(applied)
+      raise if rollback_failures.empty?
+
+      raise RollbackError,
+            "transaction failed (#{error.message}) and rollback failed: #{rollback_failures.join('; ')}"
     end
 
     cleanup_failures = applied.filter_map do |entry|
@@ -68,31 +74,53 @@ class FileTransaction
 
   def validate
     targets = @operations.map(&:target)
-    raise "transaction contains duplicate targets" unless targets.uniq.length == targets.length
+    raise Error, "transaction contains duplicate targets" unless targets.uniq.length == targets.length
 
     @operations.each do |operation|
-      raise "transaction target parent does not exist: #{operation.target}" unless Dir.exist?(File.dirname(operation.target))
+      parent = File.dirname(operation.target)
+      raise Error, "transaction target parent does not exist: #{operation.target}" unless Dir.exist?(parent)
+      raise Error, "transaction target parent is a symlink: #{parent}" if File.symlink?(parent)
+      raise Error, "transaction target is a symlink: #{operation.target}" if File.symlink?(operation.target)
       next unless operation.staged
 
-      raise "staged replacement does not exist: #{operation.staged}" unless File.exist?(operation.staged) || File.symlink?(operation.staged)
-      target_device = File.stat(File.dirname(operation.target)).dev
+      raise Error, "staged replacement does not exist: #{operation.staged}" unless File.exist?(operation.staged)
+      raise Error, "staged replacement is a symlink: #{operation.staged}" if File.symlink?(operation.staged)
+      raise Error, "staged replacement must differ from its target: #{operation.target}" if operation.staged == operation.target
+      target_device = File.stat(parent).dev
       staged_device = File.stat(File.dirname(operation.staged)).dev
-      raise "staged replacement is not on the target filesystem: #{operation.target}" unless target_device == staged_device
+      raise Error, "staged replacement is not on the target filesystem: #{operation.target}" unless target_device == staged_device
     end
   end
 
   def rollback(applied)
-    applied.reverse_each do |entry|
+    applied.reverse_each.filter_map do |entry|
       target = entry.operation.target
-      remove_path(target) if entry.installed && (File.exist?(target) || File.symlink?(target))
-      File.rename(entry.backup, target) if File.exist?(entry.backup) || File.symlink?(entry.backup)
+      unless entry.had_original
+        remove_path(target) if entry.installed && (File.exist?(target) || File.symlink?(target))
+        next
+      end
+
+      replacement = entry.installed ? temporary_path(target, label: "rollback") : nil
+      File.rename(target, replacement) if replacement && (File.exist?(target) || File.symlink?(target))
+      begin
+        File.rename(entry.backup, target)
+      rescue StandardError
+        File.rename(replacement, target) if replacement && (File.exist?(replacement) || File.symlink?(replacement))
+        raise
+      end
+      remove_path(replacement) if replacement
+      nil
     rescue StandardError => error
-      warn "error: rollback failed for #{target}: #{error.message}"
+      "#{target}: #{error.message}"
     end
   end
 
   def backup_path(target)
-    File.join(File.dirname(target), ".#{File.basename(target)}.backup-#{Process.pid}-#{SecureRandom.hex(6)}")
+    temporary_path(target, label: "backup")
+  end
+
+  def temporary_path(target, label:)
+    File.join(File.dirname(target), ".#{File.basename(target)}.#{label}-#{Process.pid}-#{SecureRandom.hex(6)}")
   end
 
   def remove_path(path)

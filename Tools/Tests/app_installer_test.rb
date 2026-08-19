@@ -40,6 +40,44 @@ class AppInstallerTest < Minitest::Test
     end
   end
 
+  def test_rejects_missing_malformed_and_symlinked_source_bundles
+    Dir.mktmpdir do |directory|
+      installer = build_installer
+      missing = File.join(directory, "missing", "Ledger.app")
+      assert_includes assert_raises(AppInstaller::Error) { installer.validate_app(missing) }.message, "does not exist"
+
+      malformed = File.join(directory, "malformed", "Ledger.app")
+      FileUtils.mkdir_p(File.join(malformed, "Contents"))
+      File.write(File.join(malformed, "Contents", "Info.plist"), "not a plist")
+      assert_includes assert_raises(AppInstaller::Error) { installer.validate_app(malformed) }.message, "couldn't read"
+
+      real = make_app(File.join(directory, "real"))
+      linked = File.join(directory, "linked", "Ledger.app")
+      FileUtils.mkdir_p(File.dirname(linked))
+      File.symlink(real, linked)
+      assert_includes assert_raises(AppInstaller::Error) { installer.validate_app(linked) }.message, "symlink"
+    end
+  end
+
+  def test_copy_failure_preserves_the_installed_app
+    Dir.mktmpdir do |directory|
+      source_parent = File.join(directory, "source")
+      destination_parent = File.join(directory, "destination")
+      FileUtils.mkdir_p([source_parent, destination_parent])
+      source = make_app(source_parent, marker: "new")
+      destination = make_app(destination_parent, marker: "old")
+
+      error = FileUtils.stub(:copy_entry, ->(*) { raise Errno::EIO, "copy" }) do
+        assert_raises(AppInstaller::Error) { build_installer.install(source: source, destination: destination) }
+      end
+
+      assert_includes error.message, "can't install"
+      assert_equal "old", File.read(File.join(destination, "marker"))
+      assert_empty Dir[File.join(destination_parent, ".Ledger.install-*")]
+      assert_empty Dir[File.join(destination_parent, ".Ledger.app.backup-*")]
+    end
+  end
+
   def test_install_stages_validates_and_replaces_the_app
     Dir.mktmpdir do |directory|
       source_parent = File.join(directory, "source")

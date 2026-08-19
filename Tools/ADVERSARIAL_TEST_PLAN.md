@@ -257,3 +257,7 @@ was removed before commit:
 | Let `--prune --dry-run` execute `simctl delete` | `test_prune_dry_run_and_delete_use_the_exact_registered_target` |
 | Replace observable registry removal with `FileUtils.rm_f` | `test_forget_ignores_a_missing_entry_but_surfaces_removal_failures` |
 | Bypass the kernel lock during concurrent first resolution | `test_concurrent_first_resolution_creates_and_records_exactly_one_device` |
+| Replace observable transaction cleanup with `FileUtils.rm_f` | `test_cleanup_failure_never_rolls_back_an_already_committed_value` |
+| Skip one applied entry while rolling an icon mutation back | `test_mid_commit_failure_restores_catalogs_and_manifest` |
+| Commit an icon add while `dry_run` is true | `test_add_dry_run_validates_every_output_without_mutating` |
+| Accept a symlinked source application bundle | `test_rejects_missing_malformed_and_symlinked_source_bundles` |

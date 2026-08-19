@@ -51,6 +51,7 @@ class AppInstaller
   end
 
   def validate_app(app)
+    raise Error, "app bundle is a symlink: #{app}" if File.symlink?(app)
     raise Error, "app bundle does not exist: #{app}" unless Dir.exist?(app)
 
     info = File.join(app, "Contents", "Info.plist")
@@ -118,7 +119,7 @@ def app_installer_main(arguments)
     raise AppInstaller::Error, "unknown app installer command: #{command || '(none)'}"
   end
   0
-rescue AppInstaller::Error, FileTransaction::CleanupError, KeyError, OptionParser::ParseError => error
+rescue AppInstaller::Error, FileTransaction::Error, KeyError, OptionParser::ParseError => error
   warn "error: #{error.message}"
   1
 end

@@ -225,7 +225,9 @@ class IconCatalog
     raise Error, "no such file: #{relative(path)}" unless File.file?(path)
 
     header = File.binread(path, 24)
-    raise Error, "not a PNG: #{relative(path)}" unless header.start_with?("\x89PNG\r\n\x1A\n".b)
+    unless header.bytesize == 24 && header.start_with?("\x89PNG\r\n\x1A\n".b)
+      raise Error, "not a PNG: #{relative(path)}"
+    end
 
     width, height = header.byteslice(16, 8).unpack("NN")
     raise Error, "#{relative(path)} is #{width}x#{height}; app icons must be 1024x1024" unless [width, height] == [1024, 1024]
@@ -307,7 +309,7 @@ def icon_catalog_main
     raise IconCatalog::Error, "unknown mode: #{ENV.fetch('MODE')}"
   end
   0
-rescue IconCatalog::Error, FileTransaction::CleanupError, SystemCallError => error
+rescue IconCatalog::Error, FileTransaction::Error, SystemCallError => error
   warn "error: #{error.message}"
   1
 end

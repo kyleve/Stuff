@@ -46,23 +46,39 @@ class IconCatalogTest < Minitest::Test
   end
 
   def test_mid_commit_failure_restores_catalogs_and_manifest
-    with_fixture(transaction_factory: -> { FailingTransaction.new(fail_after: 1) }) do |fixture|
-      before = fixture.snapshot
+    3.times do |fail_after|
+      with_fixture(transaction_factory: -> { FailingTransaction.new(fail_after: fail_after) }) do |fixture|
+        before = fixture.snapshot
 
-      error = assert_raises(RuntimeError) do
-        fixture.catalog.add(
-          light: fixture.png,
-          name: "Ocean",
-          id: "ocean",
-          dark: "",
-          tinted: "",
-          dry_run: false,
-        )
+        error = assert_raises(RuntimeError) do
+          fixture.catalog.add(
+            light: fixture.png,
+            name: "Ocean",
+            id: "ocean",
+            dark: "",
+            tinted: "",
+            dry_run: false,
+          )
+        end
+
+        assert_equal "injected commit failure", error.message
+        assert_equal before, fixture.snapshot
+        assert_empty Dir[File.join(fixture.root, ".icons-stage-*")]
       end
+    end
+  end
 
-      assert_equal "injected commit failure", error.message
-      assert_equal before, fixture.snapshot
-      assert_empty Dir[File.join(fixture.root, ".icons-stage-*")]
+  def test_remove_failure_after_each_boundary_restores_every_catalog
+    3.times do |fail_after|
+      with_fixture(transaction_factory: -> { FailingTransaction.new(fail_after: fail_after) }) do |fixture|
+        fixture.add_existing_ocean
+        before = fixture.snapshot
+
+        assert_raises(RuntimeError) { fixture.catalog.remove(target: "ocean", dry_run: false) }
+
+        assert_equal before, fixture.snapshot
+        assert_empty Dir[File.join(fixture.root, ".icons-stage-*")]
+      end
     end
   end
 
@@ -79,7 +95,9 @@ class IconCatalogTest < Minitest::Test
       assert_equal %(Removed "Ocean" (id: ocean).), message
       refute_path_exists File.join(fixture.app_catalog, "AppIconOcean.appiconset")
       refute_path_exists File.join(fixture.preview_catalog, "AppIconOcean.imageset")
-      assert_equal ["classic"], JSON.parse(File.read(fixture.manifest)).fetch("icons").map { |icon| icon.fetch("id") }
+      manifest = JSON.parse(File.read(fixture.manifest))
+      assert_equal ["classic"], manifest.fetch("icons").map { |icon| icon.fetch("id") }
+      assert_equal({ "contrast" => "high" }, manifest.fetch("icons").first.fetch("extensionMetadata"))
     end
   end
 
@@ -93,6 +111,65 @@ class IconCatalogTest < Minitest::Test
       end
 
       assert_includes error.message, "not a PNG"
+      assert_empty Dir[File.join(fixture.root, ".icons-stage-*")]
+    end
+  end
+
+  def test_rejects_truncated_and_wrong_size_pngs_before_mutating
+    with_fixture do |fixture|
+      before = fixture.snapshot
+      truncated = File.join(fixture.root, "truncated.png")
+      wrong_size = File.join(fixture.root, "wrong-size.png")
+      File.binwrite(truncated, "\x89PNG\r\n\x1A\n".b)
+      File.binwrite(wrong_size, "\x89PNG\r\n\x1A\n".b + ("\0" * 8) + [512, 1024].pack("NN"))
+
+      truncated_error = assert_raises(IconCatalog::Error) do
+        fixture.catalog.add(light: truncated, name: "Bad", id: "bad", dark: "", tinted: "", dry_run: false)
+      end
+      size_error = assert_raises(IconCatalog::Error) do
+        fixture.catalog.add(light: wrong_size, name: "Bad", id: "bad", dark: "", tinted: "", dry_run: false)
+      end
+
+      assert_includes truncated_error.message, "not a PNG"
+      assert_includes size_error.message, "512x1024"
+      assert_equal before.merge("truncated.png" => File.binread(truncated), "wrong-size.png" => File.binread(wrong_size)), fixture.snapshot
+    end
+  end
+
+  def test_rejects_symlinked_catalog_boundary_without_mutating
+    Dir.mktmpdir do |directory|
+      real_catalog = File.join(directory, "real-app-catalog")
+      linked_catalog = File.join(directory, "linked-app-catalog")
+      FileUtils.mkdir_p(real_catalog)
+      File.symlink(real_catalog, linked_catalog)
+      fixture = Fixture.new(directory, transaction_factory: -> { FileTransaction.new }, app_catalog: linked_catalog)
+      before = fixture.snapshot
+
+      error = assert_raises(FileTransaction::Error) do
+        fixture.catalog.add(light: fixture.png, name: "Ocean", id: "ocean", dark: "", tinted: "", dry_run: false)
+      end
+
+      assert_includes error.message, "parent is a symlink"
+      assert_equal before, fixture.snapshot
+    end
+  end
+
+  def test_staging_write_failure_leaves_every_destination_unchanged
+    with_fixture do |fixture|
+      before = fixture.snapshot
+      real_write = File.method(:write)
+
+      File.stub(:write, lambda { |path, *arguments|
+        raise Errno::EACCES, path if File.basename(path) == "Contents.json"
+
+        real_write.call(path, *arguments)
+      }) do
+        assert_raises(Errno::EACCES) do
+          fixture.catalog.add(light: fixture.png, name: "Ocean", id: "ocean", dark: "", tinted: "", dry_run: false)
+        end
+      end
+
+      assert_equal before, fixture.snapshot
       assert_empty Dir[File.join(fixture.root, ".icons-stage-*")]
     end
   end
@@ -121,13 +198,13 @@ class IconCatalogTest < Minitest::Test
   class Fixture
     attr_reader :root, :app_catalog, :preview_catalog, :manifest, :png, :catalog
 
-    def initialize(root, transaction_factory:)
+    def initialize(root, transaction_factory:, app_catalog: nil)
       @root = root
-      @app_catalog = File.join(root, "AppIcon.xcassets")
+      @app_catalog = app_catalog || File.join(root, "AppIcon.xcassets")
       @preview_catalog = File.join(root, "AppIconPreviews.xcassets")
       @manifest = File.join(root, "AppIcons.json")
       @png = File.join(root, "icon.png")
-      FileUtils.mkdir_p([app_catalog, preview_catalog])
+      FileUtils.mkdir_p([@app_catalog, @preview_catalog])
       File.binwrite(png, "\x89PNG\r\n\x1A\n".b + ("\0" * 8) + [1024, 1024].pack("NN"))
       File.write(manifest, JSON.pretty_generate(
         "formatVersion" => 3,
@@ -141,9 +218,9 @@ class IconCatalogTest < Minitest::Test
       ) + "\n")
       @catalog = IconCatalog.new(
         root: root,
-        app_catalog: app_catalog,
-        preview_catalog: preview_catalog,
-        manifest: manifest,
+        app_catalog: @app_catalog,
+        preview_catalog: @preview_catalog,
+        manifest: @manifest,
         transaction_factory: transaction_factory,
       )
     end
