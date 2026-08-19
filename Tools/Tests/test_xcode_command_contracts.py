@@ -378,6 +378,8 @@ exec /usr/bin/python3 "$@"
                         "--skip-architecture",
                         "--no-generate",
                         "--no-build",
+                        "--heartbeat",
+                        "0.05",
                         "CoreTests",
                     ],
                     cwd=fixture.outside,
