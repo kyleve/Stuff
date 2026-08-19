@@ -102,6 +102,21 @@ class SimulatorRegistryTest < Minitest::Test
     end
   end
 
+  def test_forget_ignores_a_missing_entry_but_surfaces_removal_failures
+    Dir.mktmpdir do |directory|
+      registry = SimulatorRegistry.new(directory: directory)
+      registry.forget(NAME)
+      registry.record(name: NAME, checkout: "/repo", udid: "owned", device: "iPhone 17", os: "27.0")
+      path = File.join(directory, NAME)
+
+      File.chmod(0o500, directory)
+      assert_raises(SystemCallError) { registry.forget(NAME) }
+      assert_path_exists path
+    ensure
+      File.chmod(0o700, directory)
+    end
+  end
+
   def test_prune_requires_the_registry_udid_name_and_runtime_to_match
     with_registry do |registry|
       registry.record(name: NAME, checkout: "/gone", udid: "owned", device: "iPhone 17", os: "27.0")

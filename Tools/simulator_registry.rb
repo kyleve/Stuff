@@ -99,7 +99,9 @@ class SimulatorRegistry
 
   def forget(name)
     validate_name(name)
-    FileUtils.rm_f(entry_path(name))
+    File.unlink(entry_path(name))
+  rescue Errno::ENOENT
+    nil
   end
 
   def load_entry(name)
