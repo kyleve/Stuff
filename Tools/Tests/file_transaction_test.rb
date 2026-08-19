@@ -54,10 +54,15 @@ class FileTransactionTest < Minitest::Test
       staged = File.join(directory, "staged")
       File.write(target, "old")
       File.write(staged, "new")
-      transaction = CleanupFailingTransaction.new
+      transaction = FileTransaction.new
       transaction.replace(target: target, staged: staged)
 
-      error = assert_raises(FileTransaction::CleanupError) { transaction.commit }
+      remove = lambda do |path|
+        raise Errno::EACCES, path
+      end
+      error = FileUtils.stub(:remove_entry, remove) do
+        assert_raises(FileTransaction::CleanupError) { transaction.commit }
+      end
 
       assert_includes error.message, "transaction committed"
       assert_equal "new", File.read(target)
@@ -78,13 +83,4 @@ class FileTransactionTest < Minitest::Test
     end
   end
 
-  class CleanupFailingTransaction < FileTransaction
-    private
-
-    def remove_path(path)
-      raise "injected cleanup failure" if File.basename(path).start_with?(".target.backup-")
-
-      super
-    end
-  end
 end

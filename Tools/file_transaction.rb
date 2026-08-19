@@ -98,6 +98,6 @@ class FileTransaction
   def remove_path(path)
     return unless File.exist?(path) || File.symlink?(path)
 
-    FileUtils.rm_rf(path)
+    FileUtils.remove_entry(path)
   end
 end
