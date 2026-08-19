@@ -341,4 +341,44 @@ class SyncAgents
   end
 end
 
-SyncAgents.new.run(ARGV) if __FILE__ == $PROGRAM_NAME
+def usage(output = $stdout)
+  output << <<~USAGE
+    Usage: ./sync-agents [--install | --update | --add URL [NAME]] [--git-add]
+
+    Generate Claude configuration from AGENTS.md and synchronize agent skills.
+
+    Options:
+      --install       Fetch missing external skills at their pinned revisions.
+      --update        Refresh external skills and their pinned revisions.
+      --add URL NAME  Add one external skill; NAME is optional for one-skill repos.
+      --git-add       Stage generated changes after synchronizing.
+      -h, --help      Show this help without changing files or using the network.
+  USAGE
+end
+
+def validate_arguments(arguments)
+  action_count = arguments.count { |argument| %w[--install --update --add].include?(argument) }
+  abort "error: choose only one of --install, --update, or --add" if action_count > 1
+
+  remaining = arguments.dup
+  if (index = remaining.index("--add"))
+    url = remaining[index + 1]
+    abort "error: --add requires a GitHub URL" if url.nil? || url.start_with?("-")
+    remaining.delete_at(index)
+    remaining.delete_at(index)
+    remaining.delete_at(index) if remaining[index] && !remaining[index].start_with?("-")
+  end
+  remaining.delete("--install")
+  remaining.delete("--update")
+  remaining.delete("--git-add")
+  abort "error: unknown option '#{remaining.first}'" unless remaining.empty?
+end
+
+if __FILE__ == $PROGRAM_NAME
+  if ARGV == ["--help"] || ARGV == ["-h"]
+    usage
+    exit 0
+  end
+  validate_arguments(ARGV)
+  SyncAgents.new.run(ARGV)
+end

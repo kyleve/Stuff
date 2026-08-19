@@ -22,3 +22,7 @@ mise exec -- ruby -I Tools/Tests -e 'Dir["Tools/Tests/**/*_test.rb"].sort.each {
 Tests must not require Xcode, Java/TLC, networking, or the developer's real
 repository state. Add shared fixtures under `Tools/Tests/Fixtures`; otherwise
 create the smallest useful input in the test's temporary directory.
+
+[`ADVERSARIAL_TEST_PLAN.md`](ADVERSARIAL_TEST_PLAN.md) records the public
+behavior contracts, portability matrix, destructive-operation boundaries, and
+mutation review used to accept changes to these tools.
