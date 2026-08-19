@@ -8,6 +8,8 @@ require "tmpdir"
 require File.expand_path("../../Where/RegionKit/Tools/generate-regions", __dir__)
 
 class GenerateRegionsTest < Minitest::Test
+  REPOSITORY = File.expand_path("../..", __dir__)
+
   def test_generates_ordered_manifest_and_exact_per_region_documents_idempotently
     Dir.mktmpdir do |root|
       source = File.join(root, "source")
@@ -79,6 +81,49 @@ class GenerateRegionsTest < Minitest::Test
       end
 
       assert_includes error, "No USPS code for US feature \"Atlantis\""
+    end
+  end
+
+  def test_real_inputs_reproduce_every_committed_resource_byte_for_byte
+    Dir.mktmpdir do |root|
+      resources = File.join(root, "resources")
+      capture_io { RegionGenerator.new(resources: resources).run }
+
+      committed = File.join(REPOSITORY, "Where", "RegionKit", "Sources", "Resources")
+      expected = generated_files(committed).select do |path, _contents|
+        path == "regions.json" || path.start_with?("regions/")
+      end
+      assert_equal expected, generated_files(resources)
+    end
+  end
+
+  def test_surfaces_a_manifest_write_failure
+    Dir.mktmpdir do |root|
+      source = File.join(root, "source")
+      resources = File.join(root, "resources")
+      FileUtils.mkdir_p(source)
+      write_collection(
+        File.join(source, "us-states.geojson"),
+        [feature("Alabama", [[[-88, 35], [-85, 35], [-85, 30], [-88, 35]]])],
+      )
+
+      generator = RegionGenerator.new(
+        source: source,
+        resources: resources,
+        usps: { "Alabama" => "AL" },
+        localization_keys: {},
+        non_us: [],
+      )
+      original_write = File.method(:write)
+      failing_write = lambda do |path, *arguments|
+        raise Errno::ENOSPC, path if path.end_with?("regions.json")
+        original_write.call(path, *arguments)
+      end
+
+      error = File.stub(:write, failing_write) do
+        assert_raises(Errno::ENOSPC) { capture_io { generator.run } }
+      end
+      assert_includes error.message, "regions.json"
     end
   end
 

@@ -45,8 +45,15 @@ ensure_tools() {
     if [[ ! -f "$jar_path" ]]; then
         download_path="$(mktemp "$jar_dir/tla2tools.jar.download.XXXXXX")"
         echo "Downloading TLC ${tlc_version}..."
-        curl --fail --location --retry 3 --output "$download_path" "$tlc_url"
+        if curl --fail --location --retry 3 --output "$download_path" "$tlc_url"; then
+            :
+        else
+            download_status=$?
+            rm -f "$download_path"
+            return "$download_status"
+        fi
         if [[ "$(checksum "$download_path")" != "$tlc_sha256" ]]; then
+            rm -f "$download_path"
             echo "TLC download checksum did not match ${tlc_sha256}." >&2
             exit 1
         fi

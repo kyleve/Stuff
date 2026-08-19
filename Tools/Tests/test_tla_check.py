@@ -6,6 +6,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 
 MODULE_PATH = Path(__file__).resolve().parents[1] / "tla_check.py"
@@ -333,6 +334,41 @@ class TlaCheckTests(unittest.TestCase):
             )
             with self.assertRaisesRegex(tla_check.TlaCheckError, "pluscal.*tla"):
                 tla_check.load_manifest(path)
+
+    def test_rejects_truncated_manifest_json(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "manifest.json"
+            path.write_text('{"source": "tla",')
+
+            with self.assertRaisesRegex(tla_check.TlaCheckError, "could not read"):
+                tla_check.load_manifest(path)
+
+    def test_main_surfaces_missing_mise_and_output_directory_failures(self):
+        cases = [{"name": "current", "config": "Current.cfg", "expect": "pass"}]
+        with tempfile.TemporaryDirectory() as temporary:
+            paths = self.fixture(Path(temporary), cases, source="tla")
+            arguments = [*(str(path) for path in paths[:4]), *paths[4].__dict__.values()]
+            stderr = io.StringIO()
+
+            with patch.object(
+                tla_check.subprocess,
+                "run",
+                side_effect=FileNotFoundError("mise is not installed"),
+            ), patch.object(tla_check.sys, "stderr", stderr):
+                self.assertEqual(1, tla_check.main(arguments))
+
+            self.assertIn("mise is not installed", stderr.getvalue())
+
+        with tempfile.TemporaryDirectory() as temporary:
+            paths = self.fixture(Path(temporary), cases, source="tla")
+            paths[2].write_text("not a directory")
+            arguments = [*(str(path) for path in paths[:4]), *paths[4].__dict__.values()]
+            stderr = io.StringIO()
+
+            with patch.object(tla_check.sys, "stderr", stderr):
+                self.assertEqual(1, tla_check.main(arguments))
+
+            self.assertIn("File exists", stderr.getvalue())
 
 
 if __name__ == "__main__":
