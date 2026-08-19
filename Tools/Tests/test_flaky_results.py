@@ -1,9 +1,11 @@
 from datetime import datetime, timezone
+import io
 import json
 from pathlib import Path
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -11,6 +13,7 @@ from flaky_results import (
     analyze_suite_documents,
     console_report,
     flaky_rows,
+    main,
     markdown_report,
     tight_counts,
 )
@@ -91,6 +94,38 @@ class FlakyResultsTests(unittest.TestCase):
         )
         self.assertIn("2026-08-17T12:00:00Z", markdown)
         self.assertIn("| `flaky` | CoreTests | 1/2 | 1/4 | 38% |", markdown)
+
+    def test_analyze_suite_keeps_valid_partial_results_and_warns_about_malformed_files(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            suite = root / "suite"
+            suite.mkdir()
+            (suite / "run_1.json").write_text(json.dumps(self.document("Failed")))
+            (suite / "run_2.json").write_text("{")
+            suspects = root / "suspects.txt"
+            counts = root / "counts.json"
+            stderr = io.StringIO()
+
+            with patch("sys.stderr", stderr):
+                status = main(
+                    [
+                        "analyze-suite",
+                        "--suite-dir",
+                        str(suite),
+                        "--suspects",
+                        str(suspects),
+                        "--counts",
+                        str(counts),
+                    ]
+                )
+
+            self.assertEqual(status, 0)
+            self.assertIn("couldn't read", stderr.getvalue())
+            self.assertEqual(suspects.read_text(), "CoreTests/ValueTests/works()\n")
+            self.assertEqual(
+                json.loads(counts.read_text())["CoreTests/ValueTests/works()"]["seen"],
+                1,
+            )
 
     def document(self, result):
         return {

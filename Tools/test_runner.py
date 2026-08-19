@@ -163,7 +163,12 @@ class ProgressReporter:
         self.expected = {"tests": 0, "images": 0}
         if counts_path.exists():
             try:
-                self.expected.update(json.loads(counts_path.read_text()))
+                cached = json.loads(counts_path.read_text())
+                if isinstance(cached, dict):
+                    for key in self.expected:
+                        value = cached.get(key)
+                        if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
+                            self.expected[key] = value
             except (OSError, ValueError):
                 pass
         self.started = clock()

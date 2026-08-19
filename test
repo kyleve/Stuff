@@ -623,9 +623,15 @@ for scheme in "${SCHEMES[@]}"; do
         2>&1 \
         | tee "$log" \
         | python3 -u Tools/test_runner.py progress "${progress_args[@]}"
-    # [0] is xcodebuild; [1] is tee and [2] the progress filter, either of which
-    # exiting 0 would otherwise mask a failed run.
-    status="${PIPESTATUS[0]}"
+    # [0] is xcodebuild; [1] is tee and [2] the progress filter. Prefer the
+    # authoritative test status, then surface a logging/reporting failure when
+    # Xcode itself succeeded. No pipeline stage may turn a broken run green.
+    pipeline_statuses=("${PIPESTATUS[@]}")
+    status="${pipeline_statuses[0]}"
+    [ "$status" -eq 0 ] && [ "${pipeline_statuses[1]}" -ne 0 ] \
+        && status="${pipeline_statuses[1]}"
+    [ "$status" -eq 0 ] && [ "${pipeline_statuses[2]}" -ne 0 ] \
+        && status="${pipeline_statuses[2]}"
     set -e
     emit_phase_timing test "$started" "$scheme" "$status"
     RESULTS+=("$result")

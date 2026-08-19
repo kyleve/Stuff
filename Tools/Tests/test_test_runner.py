@@ -106,6 +106,71 @@ class TestRunnerTests(unittest.TestCase):
             self.assertIn("0/34 tests", output.getvalue())
             self.assertNotIn("images", output.getvalue())
 
+    def test_progress_ignores_schema_shifted_cached_count_fields(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            counts = root / "counts.json"
+            counts.write_text(json.dumps({"tests": "34", "images": [9]}))
+            output = io.StringIO()
+            reporter = ProgressReporter(
+                heartbeat=0,
+                status_path=None,
+                counts_path=counts,
+                scheme="Unit",
+                is_terminal=False,
+                count_images=False,
+                output=output,
+                clock=Clock(),
+            )
+
+            reporter.consume("✔ Test works() passed after 0.001 seconds")
+
+            self.assertIn("1 tests", output.getvalue())
+            self.assertNotIn("/34", output.getvalue())
+
+    def test_progress_drops_a_stale_total_after_the_run_exceeds_it(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            counts = root / "counts.json"
+            counts.write_text(json.dumps({"tests": 1, "images": 0}))
+            output = io.StringIO()
+            reporter = ProgressReporter(
+                heartbeat=0,
+                status_path=root / "missing" / "status.txt",
+                counts_path=counts,
+                scheme="Unit",
+                is_terminal=False,
+                count_images=False,
+                output=output,
+                clock=Clock(),
+            )
+
+            for name in ("first()", "second()"):
+                reporter.consume(f"◇ Test {name} started")
+                reporter.consume(f"✔ Test {name} passed after 0.001 seconds")
+
+            self.assertIn("2 tests", output.getvalue())
+            self.assertNotIn("2/1", output.getvalue())
+
+    def test_terminal_progress_redraws_in_place(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = io.StringIO()
+            reporter = ProgressReporter(
+                heartbeat=15,
+                status_path=None,
+                counts_path=Path(directory) / "counts.json",
+                scheme="Unit",
+                is_terminal=True,
+                count_images=False,
+                output=output,
+                clock=Clock(),
+            )
+
+            reporter.consume("◇ Test works() started")
+
+            self.assertIn("\r\033[K", output.getvalue())
+            self.assertIn("works()", output.getvalue())
+
     def test_progress_marks_an_empty_filter_and_clears_it_after_tests_run(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

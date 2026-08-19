@@ -46,7 +46,12 @@ class TestCase:
 def test_cases(document: Mapping[str, object]) -> Iterator[TestCase]:
     """Yield every test case in document order, tolerating unknown node kinds."""
 
-    for node in document.get("testNodes", []):
+    if not isinstance(document, Mapping):
+        return
+    nodes = document.get("testNodes", [])
+    if not isinstance(nodes, Sequence) or isinstance(nodes, (str, bytes)):
+        return
+    for node in nodes:
         if isinstance(node, Mapping):
             yield from _walk(node, bundle="?", suites=())
 
