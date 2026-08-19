@@ -63,7 +63,7 @@ class SimulatorCommandTest < Minitest::Test
         available: { RUNTIME => [fixture.device("claimed", fixture.owned_name)] },
       )
       FileUtils.mkdir_p(fixture.lock_directory)
-      old = Time.now - 10
+      old = Time.now - 180
       File.utime(old, old, fixture.lock_directory)
 
       stdout, stderr, status = fixture.run("--no-boot")
@@ -73,6 +73,22 @@ class SimulatorCommandTest < Minitest::Test
       assert_includes stderr, "clearing stale simulator lock"
       refute_path_exists fixture.lock_directory
       assert_equal "claimed", fixture.registry.load_entry(fixture.owned_name).udid
+    end
+  end
+
+  def test_ownerless_lock_inside_initialization_horizon_is_never_stolen
+    with_fixture do |fixture|
+      FileUtils.mkdir_p(fixture.lock_directory)
+      initializing = Time.now - 10
+      File.utime(initializing, initializing, fixture.lock_directory)
+
+      _stdout, stderr, status = fixture.run("--no-boot")
+
+      refute status.success?
+      assert_includes stderr, "timed out waiting"
+      refute_includes stderr, "clearing stale simulator lock"
+      assert_path_exists fixture.lock_directory
+      refute_includes fixture.log, "simctl list"
     end
   end
 
@@ -210,7 +226,7 @@ class SimulatorCommandTest < Minitest::Test
   end
 
   def test_concurrent_first_resolution_creates_and_records_exactly_one_device
-    with_fixture(dynamic_inventory: true, create_delay: 0.2) do |fixture|
+    with_fixture(dynamic_inventory: true, create_delay: 0.2, sleep_delay: 0.01) do |fixture|
       fixture.write_inventory(all: {}, available: {})
 
       results = 4.times.map do
@@ -235,7 +251,8 @@ class SimulatorCommandTest < Minitest::Test
     record_status: 0,
     runtime_available: true,
     dynamic_inventory: false,
-    create_delay: 0
+    create_delay: 0,
+    sleep_delay: 0
   )
     Dir.mktmpdir do |directory|
       yield Fixture.new(
@@ -246,6 +263,7 @@ class SimulatorCommandTest < Minitest::Test
         runtime_available: runtime_available,
         dynamic_inventory: dynamic_inventory,
         create_delay: create_delay,
+        sleep_delay: sleep_delay,
       )
     end
   end
@@ -260,7 +278,8 @@ class SimulatorCommandTest < Minitest::Test
       record_status:,
       runtime_available:,
       dynamic_inventory:,
-      create_delay:
+      create_delay:,
+      sleep_delay:
     )
       @root = root
       @repository = File.expand_path("../..", __dir__)
@@ -284,7 +303,7 @@ class SimulatorCommandTest < Minitest::Test
         delete_status: delete_status,
         runtime_available: runtime_available,
       )
-      write_fake_sleep(binary / "sleep")
+      write_fake_sleep(binary / "sleep", delay: sleep_delay)
       @environment = {
         "PATH" => "#{binary}:#{ENV.fetch('PATH')}",
         "HOME" => home.to_s,
@@ -398,8 +417,9 @@ class SimulatorCommandTest < Minitest::Test
       path.chmod(0o755)
     end
 
-    def write_fake_sleep(path)
-      path.write("#!/bin/sh\nexit 0\n")
+    def write_fake_sleep(path, delay:)
+      command = delay.positive? ? "/bin/sleep #{delay}" : "exit 0"
+      path.write("#!/bin/sh\n#{command}\n")
       path.chmod(0o755)
     end
   end

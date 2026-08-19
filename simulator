@@ -265,6 +265,8 @@ delete_owned_device() { # exact registry-owned target only
 # takes minutes on a device's first launch, and two callers waiting on one boot
 # is fine, so the lock is released before it.
 lock_dir="${TMPDIR:-/tmp}/stuff-simulator-$checkout_hash.lock"
+lock_stale_after=120
+lock_wait_limit=120
 lock_held=false
 lock_token=""
 
@@ -284,7 +286,7 @@ acquire_lock() {
         now="$(date +%s)"
         age=$((now - modified))
         if { [ -n "$owner" ] && ! kill -0 "$owner" 2>/dev/null; } \
-            || { [ -z "$owner" ] && [ "$age" -ge 5 ]; }
+            || { [ -z "$owner" ] && [ "$age" -ge "$lock_stale_after" ]; }
         then
             stale_path="$lock_dir.stale.$$.$waited"
             if mv "$lock_dir" "$stale_path" 2>/dev/null; then
@@ -293,7 +295,7 @@ acquire_lock() {
                 continue
             fi
         fi
-        if [ "$waited" -ge 120 ]; then
+        if [ "$waited" -ge "$lock_wait_limit" ]; then
             echo "error: timed out waiting for the ./simulator run holding $lock_dir${owner:+ (pid $owner)}." >&2
             exit 1
         fi
