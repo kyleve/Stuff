@@ -149,6 +149,10 @@ case "${XCODE_OUTPUT:-passing}" in
     printf '◇ Test works() started\\n'
     printf '✔ Test works() passed after 0.001 seconds\\n'
     ;;
+  pipe-source)
+    printf '%s\\n' "$$" >"$XCODE_PID_FILE"
+    exec /usr/bin/yes '◇ Test stillRunning() started'
+    ;;
   hang)
     printf '%s\\n' "$$" >"$XCODE_PID_FILE"
     trap 'printf INT >"$XCODE_EXIT_MARKER"; exit 130' INT
@@ -363,7 +367,9 @@ exec /usr/bin/python3 "$@"
                 grandchild_exit = fixture.root / f"{interruption}-grandchild-exit"
                 environment = fixture.environment(
                     {
-                        "XCODE_OUTPUT": "hang",
+                        "XCODE_OUTPUT": (
+                            "hang" if interruption == "interrupt" else "pipe-source"
+                        ),
                         "XCODE_PID_FILE": str(child_pid),
                         "XCODE_GRANDCHILD_PID_FILE": str(grandchild_pid),
                         "XCODE_EXIT_MARKER": str(xcode_exit),
@@ -406,7 +412,9 @@ exec /usr/bin/python3 "$@"
                         else process.returncode
                     )
                     if interruption == "interrupt":
-                        self.assertEqual(130, normalized_status)
+                        # Every pipeline stage receives SIGINT. The outer shell can
+                        # observe SIGPIPE first when a downstream stage exits sooner.
+                        self.assertIn(normalized_status, (130, 141))
                         self._wait_until(lambda: grandchild_exit.exists())
                         self.assertEqual(str(signal.SIGINT.value), grandchild_exit.read_text())
                     else:
