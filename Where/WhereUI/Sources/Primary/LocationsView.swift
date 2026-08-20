@@ -15,7 +15,7 @@ struct LocationsView: View {
     @State private var showingResolution = false
     @State private var plannedStayEditorTarget: PlannedStayEditorTarget?
     @State private var isCardSurfaceVisible = false
-    @State private var dayCountPresentation: LocationDayCountPresentationModel
+    @State private var cardPresentation: LocationCardsPresentationModel
 
     /// Drives the region cards' tilt-reactive light sheen. Started/stopped
     /// with the view's lifecycle; a no-op on hardware without device motion.
@@ -29,17 +29,9 @@ struct LocationsView: View {
     @Environment(\.stylesheet) private var stylesheet
     @Environment(\.regionStyles) private var regionStyles
 
-    private var dayCountReconciliationID: LocationDayCountPresentationModel.ReconciliationID {
-        LocationDayCountPresentationModel.ReconciliationID(
-            counts: report.ranking.primary,
-            year: report.selectedYear,
-            isVisible: isCardSurfaceVisible && !showingResolution,
-        )
-    }
-
     init(report: YearReportModel) {
         self.report = report
-        _dayCountPresentation = State(initialValue: LocationDayCountPresentationModel(
+        _cardPresentation = State(initialValue: LocationCardsPresentationModel(
             preferences: report.preferences,
             year: report.selectedYear,
         ))
@@ -67,9 +59,6 @@ struct LocationsView: View {
         }
         .onAppear { tilt.start() }
         .onDisappear { tilt.stop() }
-        .onChange(of: report.selectedYear) { _, year in
-            dayCountPresentation.prepare(for: year)
-        }
         .sheet(isPresented: $showingResolution) {
             ResolutionView(report: report)
         }
@@ -122,13 +111,12 @@ struct LocationsView: View {
         ScrollView {
             GlassEffectContainer(spacing: stylesheet.spacing.xxLarge) {
                 VStack(spacing: stylesheet.spacing.xxLarge) {
-                    ForEach(report.ranking.primary) { item in
-                        let presentedItem = dayCountPresentation.presented(item)
+                    ForEach(cardPresentation.presented(report.ranking.primary)) { item in
                         NavigationLink {
                             calendarDestination(item.region)
                         } label: {
                             RegionSummaryCard(
-                                regionDays: presentedItem,
+                                regionDays: item,
                                 interactive: true,
                                 yearLength: report.daysInSelectedYear,
                                 estimatedDays: estimatedDays(for: item.region),
@@ -173,6 +161,11 @@ struct LocationsView: View {
                                 )
                         }
                         .accessibilityHint(String(localized: .primaryCardCalendarHint))
+                        .locationCardOvertakeEffect(
+                            region: item.region,
+                            presentation: cardPresentation,
+                            motion: stylesheet.locationCardStack.overtake,
+                        )
                     }
 
                     // Fold Elsewhere in at the bottom — only when there's
@@ -209,28 +202,13 @@ struct LocationsView: View {
         }
         .onAppear { isCardSurfaceVisible = true }
         .onDisappear { isCardSurfaceVisible = false }
-        // The task belongs to the cards, and its ID includes explicit visibility
-        // so a covering sheet cannot consume their baseline behind itself.
-        .task(id: dayCountReconciliationID) {
-            let reconciliation = dayCountReconciliationID
-            guard reconciliation.isVisible else { return }
-            do {
-                try await Task.sleep(for: stylesheet.card.dayCount.revealDelay)
-            } catch is CancellationError {
-                return
-            } catch {
-                assertionFailure("Unexpected day-count reveal delay failure: \(error)")
-                return
-            }
-            dayCountPresentation.reconcile(
-                reconciliation.counts,
-                in: reconciliation.year,
-                isVisible: true,
-            )
-        }
-        .sensoryFeedback(
-            .impact(weight: .light),
-            trigger: dayCountPresentation.feedbackTrigger,
+        // Count, order, flourish, persistence, and haptic all share this one
+        // visibility-aware delayed reconciliation.
+        .reconcilesLocationCards(
+            current: report.ranking.primary,
+            year: report.selectedYear,
+            isVisible: isCardSurfaceVisible && !showingResolution,
+            presentation: cardPresentation,
         )
     }
 

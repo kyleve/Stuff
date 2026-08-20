@@ -1632,7 +1632,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tune card presentation live and export the result for implementation."
+            "value" : "Tune and export card content, or preview the ranked-card animation."
           }
         }
       }
@@ -4432,6 +4432,160 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Timeline"
+          }
+        }
+      }
+    },
+    "rankingAnimation.bounce" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spring Bounce"
+          }
+        }
+      }
+    },
+    "rankingAnimation.delay.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The count and card order wait 0.5 seconds, then update together."
+          }
+        }
+      }
+    },
+    "rankingAnimation.duration" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Duration"
+          }
+        }
+      }
+    },
+    "rankingAnimation.lateralArc" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passing Arc"
+          }
+        }
+      }
+    },
+    "rankingAnimation.liftScale" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lift Scale"
+          }
+        }
+      }
+    },
+    "rankingAnimation.motion" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Motion"
+          }
+        }
+      }
+    },
+    "rankingAnimation.play" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Play Next Overtake"
+          }
+        }
+      }
+    },
+    "rankingAnimation.preview" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Live Preview"
+          }
+        }
+      }
+    },
+    "rankingAnimation.reduceMotion.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reduce Motion is on. The preview uses a fade instead of spatial motion."
+          }
+        }
+      }
+    },
+    "rankingAnimation.resetDemo" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset Demo"
+          }
+        }
+      }
+    },
+    "rankingAnimation.rotation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rotation"
+          }
+        }
+      }
+    },
+    "rankingAnimation.settings.keywords" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ranking animation motion cards overtake spring passport"
+          }
+        }
+      }
+    },
+    "rankingAnimation.settleScale" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stamp Compression"
+          }
+        }
+      }
+    },
+    "rankingAnimation.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ranking Animation Lab"
           }
         }
       }

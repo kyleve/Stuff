@@ -97,6 +97,16 @@ struct AppearanceSettingsView: View {
                                 )
                             }
                             .settingsRow(Item.cardDesigner)
+
+                            NavigationLink {
+                                RankingAnimationLabView()
+                            } label: {
+                                Label(
+                                    String(localized: .rankingAnimationTitle),
+                                    systemSymbol: .arrowUpArrowDown,
+                                )
+                            }
+                            .settingsRow(Item.rankingAnimation)
                         } header: {
                             Text(String(localized: .cardDesignerSettingsHeader))
                         } footer: {
@@ -135,6 +145,7 @@ extension AppearanceSettingsView: SettingsSection {
         case appIcon
         #if DEBUG
             case cardDesigner
+            case rankingAnimation
         #endif
 
         var title: String {
@@ -147,6 +158,7 @@ extension AppearanceSettingsView: SettingsSection {
                 case .appIcon: String(localized: .settingsAppIconLink)
                 #if DEBUG
                     case .cardDesigner: String(localized: .cardDesignerTitle)
+                    case .rankingAnimation: String(localized: .rankingAnimationTitle)
                 #endif
             }
         }
@@ -163,6 +175,8 @@ extension AppearanceSettingsView: SettingsSection {
                 #if DEBUG
                     case .cardDesigner:
                         splitKeywords(String(localized: .cardDesignerSettingsKeywords))
+                    case .rankingAnimation:
+                        splitKeywords(String(localized: .rankingAnimationSettingsKeywords))
                 #endif
             }
         }
@@ -181,6 +195,10 @@ extension AppearanceSettingsView: SettingsSection {
                     AppearanceSettingsView(report: PreviewSupport.loadedYearReportModel())
                 }
                 .environment(PreviewSupport.loadedModel())
+                .environment(
+                    \.cardDesignerModel,
+                    CardDesignerModel(configuration: .standard),
+                )
             }
         }
     }
@@ -198,6 +216,7 @@ extension AppearanceSettingsView: SettingsSection {
             routes: [
                 .modal(to: AppIconView.flyoverID),
                 .push(to: CardDesignerStudioView.flyoverID),
+                .push(to: RankingAnimationLabView.flyoverID),
             ],
         ) { world in
             AppearanceSettingsView(report: world.report)

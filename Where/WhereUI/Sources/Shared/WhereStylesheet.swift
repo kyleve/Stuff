@@ -17,6 +17,7 @@ struct WhereStylesheet: BStylesheet {
     var spacing = Spacing()
     var size = Size()
     var card = CardStyles.standard
+    var locationCardStack = LocationCardStackStyle.standard
     var calendar = CalendarStyle.standard
     var appIcon = AppIconStyle.standard
     var timeline = TimelineStyle.standard
@@ -79,6 +80,7 @@ struct WhereStylesheet: BStylesheet {
         // crossfades to the new number instead.
         if traits.accessibility.isReduceMotionEnabled {
             card.dayCount = .reducedMotion
+            locationCardStack.overtake = .reducedMotion
             developerOverlay.menu.motion = .reduced
         }
 
@@ -93,6 +95,69 @@ struct WhereStylesheet: BStylesheet {
     /// The fixed token set: the fallback used off the `View` tree (layout
     /// helpers, tests) and when no Broadway root has seeded a context.
     static let `default` = WhereStylesheet()
+}
+
+// MARK: - Location card stack
+
+extension WhereStylesheet {
+    /// Motion owned by the ranked Locations-card container. Card appearance
+    /// remains in ``CardStyles``; this style describes how complete cards move
+    /// when the same two regions reverse rank while the surface is visible.
+    struct LocationCardStackStyle: Equatable {
+        var overtake: OvertakeMotion
+
+        /// The winner's lift, passing arc, and rubber-stamp settle. The stored
+        /// primitives keep the DEBUG lab directly tunable while the production
+        /// layout animation remains derived from one coordinated duration.
+        struct OvertakeMotion: Equatable {
+            var duration: Double
+            var bounce: Double
+            var lateralArc: CGFloat
+            var liftScale: CGFloat
+            var rotationDegrees: Double
+            var settleScale: CGFloat
+            var minimumOpacity: Double
+            var usesSpatialMotion: Bool
+
+            var layoutAnimation: Animation? {
+                guard usesSpatialMotion else { return nil }
+                return .spring(duration: duration, bounce: bounce)
+            }
+
+            static let durationRange = 0.3 ... 1.2
+            static let bounceRange = 0.0 ... 0.5
+            static let lateralArcRange: ClosedRange<CGFloat> = 0 ... 48
+            static let liftScaleRange: ClosedRange<CGFloat> = 1 ... 1.08
+            static let rotationRange = 0.0 ... 6.0
+            static let settleScaleRange: ClosedRange<CGFloat> = 0.92 ... 1
+
+            static let standard = OvertakeMotion(
+                duration: 0.72,
+                bounce: 0.18,
+                lateralArc: 18,
+                liftScale: 1.03,
+                rotationDegrees: 1.5,
+                settleScale: 0.975,
+                minimumOpacity: 1,
+                usesSpatialMotion: true,
+            )
+
+            /// Reduce Motion keeps the delayed data reveal but removes travel,
+            /// scale, and rotation. A brief fade still emphasizes the new lead.
+            static let reducedMotion = OvertakeMotion(
+                duration: 0.2,
+                bounce: 0,
+                lateralArc: 0,
+                liftScale: 1,
+                rotationDegrees: 0,
+                settleScale: 1,
+                minimumOpacity: 0.82,
+                usesSpatialMotion: false,
+            )
+        }
+
+        static let standard = LocationCardStackStyle(overtake: .standard)
+    }
 }
 
 // MARK: - Location forecast

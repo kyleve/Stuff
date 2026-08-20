@@ -213,6 +213,27 @@ struct WhereStylesheetTests {
         ))
     }
 
+    @Test func locationCardOvertakeMotion() {
+        let motion = style.locationCardStack.overtake
+        #expect(motion == .standard)
+        #expect(motion.duration == 0.72)
+        #expect(motion.bounce == 0.18)
+        #expect(motion.lateralArc == 18)
+        #expect(motion.liftScale == 1.03)
+        #expect(motion.rotationDegrees == 1.5)
+        #expect(motion.settleScale == 0.975)
+        #expect(motion.minimumOpacity == 1)
+        #expect(motion.usesSpatialMotion)
+        #expect(motion.layoutAnimation == .spring(duration: 0.72, bounce: 0.18))
+        #expect(WhereStylesheet.LocationCardStackStyle.OvertakeMotion.durationRange == 0.3 ... 1.2)
+        #expect(WhereStylesheet.LocationCardStackStyle.OvertakeMotion.bounceRange == 0 ... 0.5)
+        #expect(WhereStylesheet.LocationCardStackStyle.OvertakeMotion.lateralArcRange == 0 ... 48)
+        #expect(WhereStylesheet.LocationCardStackStyle.OvertakeMotion.liftScaleRange == 1 ... 1.08)
+        #expect(WhereStylesheet.LocationCardStackStyle.OvertakeMotion.rotationRange == 0 ... 6)
+        #expect(WhereStylesheet.LocationCardStackStyle.OvertakeMotion
+            .settleScaleRange == 0.92 ... 1)
+    }
+
     /// The roll carries the count so it knows which way to spin the digits; the
     /// Reduce-Motion pairing drops the roll for a fade and ignores the count.
     @Test func dayCountTransitions() {
@@ -749,6 +770,10 @@ struct WhereStylesheetTests {
         context.traitOverrides.accessibility = BAccessibility(isReduceMotionEnabled: true)
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
         #expect(resolved.card.dayCount == .reducedMotion)
+        #expect(resolved.locationCardStack.overtake == .reducedMotion)
+        #expect(resolved.locationCardStack.overtake.layoutAnimation == nil)
+        #expect(resolved.locationCardStack.overtake.minimumOpacity == 0.82)
+        #expect(resolved.locationCardStack.overtake.usesSpatialMotion == false)
         #expect(resolved.developerOverlay.menu.motion == .reduced)
         #expect(resolved.developerOverlay.menu.motion.usesSpatialMotion == false)
     }

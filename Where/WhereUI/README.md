@@ -118,12 +118,13 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   status, and irreversible removal), plus **`OnboardingFlowModel`** (first-run phase, restore,
   demo, and completion orchestration) and **`OnboardingImportRecoveryModel`** (the sidecar/store
   recovery handshake after an interrupted onboarding import), and
-  **`LocationDayCountPresentationModel`** (the last primary-card counts the
-  user saw). The Location model holds saved values until the card surface is
-  visible and unobscured, holds them there for another half second, then
-  advances every changed number in one animated beat, adding one light haptic
-  when any count increased. Decreases, first visits, and newly appearing cards
-  stay silent. Each model orchestrates Core services or presentation state.
+  **`LocationCardsPresentationModel`** (the last primary-card counts and order
+  the user saw). The Location model holds saved values until the card surface
+  is visible and unobscured, holds them there for another half second, then
+  advances every changed number and any live two-card reversal in one animated
+  beat, adding one light haptic. Decreases, first visits, hidden updates, and
+  newly appearing cards stay spatially quiet. Each model orchestrates Core
+  services or presentation state.
   None reimplements Core rules.
 
 ### Reusable views & styling
@@ -323,12 +324,24 @@ calendar places the estimate after the current month and renders planned future 
 continuous hatched band, distinct from recorded presence. Settings > Appearance disables every
 estimate and planning visualization only after clearing the synced plan succeeds.
 
+While the Locations cards are visible, a live reversal between the same two
+primary regions holds the previous counts and order through the existing reveal
+delay. The winning card then passes above the other card and settles with the
+count morph and one haptic in the same beat. Initial loads, year changes, hidden
+updates, and a different region entering the primary pair update without the
+spatial flourish. Reduce Motion replaces the pass with a brief fade emphasis.
+
 DEBUG builds include Card Designer Studio under Settings → Appearance. It
 edits a versioned, persisted draft of the regular, compact, and shared card
 presentation, previews both appearances with live tilt, and exports the full
 result—or only its changes from the app defaults—as shareable or clipboard JSON
 and Swift. The draft affects the rest of the app only while “Apply to App” is
 enabled. That switch intentionally resets on every launch.
+
+The separate DEBUG Ranking Animation Lab appears directly below Card Designer
+Studio. It replays the production ranked-card coordinator and provides
+session-only controls for the pass motion. It does not modify Card Designer
+drafts, exports, or the app-wide card override.
 
 ## Previews
 
