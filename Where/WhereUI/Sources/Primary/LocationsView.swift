@@ -25,7 +25,6 @@ struct LocationsView: View {
     /// matched-geometry zoom (the card expands into the calendar) rather than a
     /// plain slide.
     @Namespace private var calendarTransition
-    @Namespace private var rankingTransition
 
     @Environment(\.stylesheet) private var stylesheet
     @Environment(\.regionStyles) private var regionStyles
@@ -106,13 +105,19 @@ struct LocationsView: View {
     }
 
     private var content: some View {
+        let presentedCards = cardPresentation.presented(report.ranking.primary)
+
         // `.defaultScrollAnchor(.center)` vertically centers a short list (one or
         // two cards) rather than pinning it to the top, while a longer list still
         // scrolls from the top.
-        ScrollView {
-            GlassEffectContainer(spacing: stylesheet.spacing.xxLarge) {
-                VStack(spacing: stylesheet.spacing.xxLarge) {
-                    ForEach(cardPresentation.presented(report.ranking.primary)) { item in
+        return ScrollView {
+            VStack(spacing: stylesheet.spacing.xxLarge) {
+                LocationCardRankingStack(
+                    spacing: stylesheet.spacing.xxLarge,
+                    presentation: cardPresentation,
+                    motion: stylesheet.locationCardStack.overtake,
+                ) {
+                    ForEach(presentedCards) { item in
                         NavigationLink {
                             calendarDestination(item.region)
                         } label: {
@@ -164,22 +169,22 @@ struct LocationsView: View {
                         .accessibilityHint(String(localized: .primaryCardCalendarHint))
                         .locationCardOvertakeEffect(
                             region: item.region,
-                            namespace: rankingTransition,
                             presentation: cardPresentation,
                             motion: stylesheet.locationCardStack.overtake,
                         )
+                        .locationCardRankingRegion(item.region)
                     }
+                }
 
-                    // Fold Elsewhere in at the bottom — only when there's
-                    // something in it — as an entry card into the full list.
-                    if !report.ranking.secondary.isEmpty {
-                        NavigationLink {
-                            ElsewhereView(report: report)
-                        } label: {
-                            ElsewhereSummaryCard(regionCount: report.ranking.secondary.count)
-                        }
-                        .buttonStyle(.plain)
+                // Fold Elsewhere in at the bottom — only when there's
+                // something in it — as an entry card into the full list.
+                if !report.ranking.secondary.isEmpty {
+                    NavigationLink {
+                        ElsewhereView(report: report)
+                    } label: {
+                        ElsewhereSummaryCard(regionCount: report.ranking.secondary.count)
                     }
+                    .buttonStyle(.plain)
                 }
             }
             .padding()

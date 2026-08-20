@@ -50,11 +50,13 @@ import SFSafeSymbols
     }
 
     extension RankingAnimationLabView: SnapshotProviding {
+        /// The raised floor outlasts native navigation glass's quiet-start adaptation.
         static var snapshots: [SnapshotCase] {
             whereSnapshot(
                 name: "Default",
                 configurations: .fullContentPhoneLightDark,
                 measurementReadiness: .immediate,
+                settle: .settledAtLeast(minDuration: 1.0),
             ) {
                 NavigationStack {
                     RankingAnimationLabView()

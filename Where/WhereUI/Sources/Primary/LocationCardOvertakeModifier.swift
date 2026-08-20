@@ -5,7 +5,6 @@ import SwiftUI
 /// the stack's layout animation moves it into first place.
 struct LocationCardOvertakeModifier: ViewModifier {
     let region: Region
-    let namespace: Namespace.ID
     let presentation: LocationCardsPresentationModel
     let motion: WhereStylesheet.LocationCardStackStyle.OvertakeMotion
 
@@ -21,66 +20,81 @@ struct LocationCardOvertakeModifier: ViewModifier {
     }
 
     func body(content: Content) -> some View {
-        content
-            // Resolve the card's position and size at this boundary. Without a
-            // geometry group, SwiftUI pushes the stack's animated reorder down
-            // to the card's individual drawing leaves; the outer glass can jump
-            // to its destination while an inner layer scales into place.
-            .geometryGroup()
-            // Liquid Glass and Canvas artwork otherwise remain separate render
-            // layers. Flatten the complete card before applying the passing
-            // transform so its glass, microprint, and foreground stay aligned.
-            .compositingGroup()
-            .zIndex(isLatestWinner ? 1 : 0)
-            .keyframeAnimator(
-                initialValue: AnimationValues(),
-                trigger: presentation.overtakeTrigger(for: region),
-            ) { content, values in
-                content
-                    .offset(x: values.lateralOffset)
-                    .scaleEffect(values.scale)
-                    .rotationEffect(.degrees(values.rotationDegrees))
-                    .opacity(values.opacity)
-            } keyframes: { _ in
-                KeyframeTrack(\.lateralOffset) {
-                    CubicKeyframe(motion.lateralArc, duration: motion.duration * 0.3)
-                    CubicKeyframe(0, duration: motion.duration * 0.3)
-                    LinearKeyframe(0, duration: motion.duration * 0.4)
-                }
-                KeyframeTrack(\.scale) {
-                    CubicKeyframe(motion.liftScale, duration: motion.duration * 0.55)
-                    CubicKeyframe(motion.settleScale, duration: motion.duration * 0.15)
-                    SpringKeyframe(1, duration: motion.duration * 0.3, spring: .bouncy)
-                }
-                KeyframeTrack(\.rotationDegrees) {
-                    CubicKeyframe(motion.rotationDegrees, duration: motion.duration * 0.3)
-                    CubicKeyframe(0, duration: motion.duration * 0.3)
-                    LinearKeyframe(0, duration: motion.duration * 0.4)
-                }
-                KeyframeTrack(\.opacity) {
-                    CubicKeyframe(motion.minimumOpacity, duration: motion.duration * 0.35)
-                    CubicKeyframe(1, duration: motion.duration * 0.65)
-                }
+        let isWinner = isLatestWinner
+        let releasedMotion = presentation.latestOvertake?.motion ?? motion
+        GlassEffectContainer {
+            content
+                // This is a stable ranked view, not a newly inserted glass
+                // shape. Disable Liquid Glass's own materialization transition.
+                .glassEffectTransition(.identity)
+        }
+        // Resolve the complete one-card glass container as one geometry
+        // before the authored rank layout and flourish transform it.
+        .geometryGroup()
+        .zIndex(isWinner ? 1 : 0)
+        .keyframeAnimator(
+            initialValue: AnimationValues(),
+            trigger: presentation.overtakeTrigger,
+        ) { content, values in
+            content
+                .offset(x: values.lateralOffset)
+                .scaleEffect(values.scale)
+                .rotationEffect(.degrees(values.rotationDegrees))
+                .opacity(values.opacity)
+        } keyframes: { _ in
+            KeyframeTrack(\.lateralOffset) {
+                CubicKeyframe(
+                    isWinner ? releasedMotion.lateralArc : 0,
+                    duration: releasedMotion.duration * 0.3,
+                )
+                CubicKeyframe(0, duration: releasedMotion.duration * 0.3)
+                LinearKeyframe(0, duration: releasedMotion.duration * 0.4)
             }
-            // A ranked `ForEach` legitimately changes hierarchy order. Give
-            // both the complete card and the separately rendered Liquid Glass
-            // effect the region's identity so neither materializes as a new
-            // bottom card on the next reversal.
-            .matchedGeometryEffect(id: region, in: namespace, properties: .position)
-            .glassEffectID(region, in: namespace)
+            KeyframeTrack(\.scale) {
+                CubicKeyframe(
+                    isWinner ? releasedMotion.liftScale : 1,
+                    duration: releasedMotion.duration * 0.55,
+                )
+                CubicKeyframe(
+                    isWinner ? releasedMotion.settleScale : 1,
+                    duration: releasedMotion.duration * 0.15,
+                )
+                SpringKeyframe(
+                    1,
+                    duration: releasedMotion.duration * 0.3,
+                    spring: Spring(
+                        duration: releasedMotion.duration * 0.3,
+                        bounce: releasedMotion.bounce,
+                    ),
+                )
+            }
+            KeyframeTrack(\.rotationDegrees) {
+                CubicKeyframe(
+                    isWinner ? releasedMotion.rotationDegrees : 0,
+                    duration: releasedMotion.duration * 0.3,
+                )
+                CubicKeyframe(0, duration: releasedMotion.duration * 0.3)
+                LinearKeyframe(0, duration: releasedMotion.duration * 0.4)
+            }
+            KeyframeTrack(\.opacity) {
+                CubicKeyframe(
+                    isWinner ? releasedMotion.minimumOpacity : 1,
+                    duration: releasedMotion.duration * 0.35,
+                )
+                CubicKeyframe(1, duration: releasedMotion.duration * 0.65)
+            }
+        }
     }
 }
 
 extension View {
     func locationCardOvertakeEffect(
         region: Region,
-        namespace: Namespace.ID,
         presentation: LocationCardsPresentationModel,
         motion: WhereStylesheet.LocationCardStackStyle.OvertakeMotion,
     ) -> some View {
         modifier(LocationCardOvertakeModifier(
             region: region,
-            namespace: namespace,
             presentation: presentation,
             motion: motion,
         ))

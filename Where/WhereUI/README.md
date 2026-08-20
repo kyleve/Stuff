@@ -310,9 +310,10 @@ year are projected through that same geometry and reduced to a clipped,
 static constellation of glowing pinpricks. Manually logged days add no invented
 points. Settings > Appearance can hide or restore that constellation without
 altering the recorded data. Security-print layers use normal compositing in
-light mode and Screen in dark mode, so the same tinted details darken pale glass
-but lighten dark glass. Reduce Transparency removes the constellation halos
-while retaining the crisp centers.
+light mode. Dark mode mixes the region tint 65% toward white and uses luminosity
+blending, which keeps the ink legible without oversaturating it when interactive
+glass illuminates. Reduce Transparency removes the constellation halos while
+retaining the crisp centers.
 Live tilt is observed only by the sheen overlay, so its 60 Hz updates do not
 invalidate the card's text or Canvas artwork. The card adds no standalone edge
 stroke. Its containing Liquid Glass surface owns the subtle outer border so

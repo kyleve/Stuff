@@ -17,18 +17,15 @@ struct LocationCardOvertakeModifierTests {
         )
 
         #expect(controller.view != nil)
-        #expect(presentation.overtakeTrigger(for: .california) == 0)
+        #expect(presentation.overtakeTrigger == 0)
     }
 
     private struct OvertakeProbe: View {
         let presentation: LocationCardsPresentationModel
-        @Namespace private var namespace
-
         var body: some View {
             Text("Probe")
                 .locationCardOvertakeEffect(
                     region: .california,
-                    namespace: namespace,
                     presentation: presentation,
                     motion: .standard,
                 )

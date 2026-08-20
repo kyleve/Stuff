@@ -4,7 +4,7 @@
 
     @MainActor
     struct RankingAnimationLabModelTests {
-        @Test func everyPlayProducesTheNextOvertake() {
+        @Test func everyPlayQueuesTheNextOvertakeUntilTheActiveOneFinishes() throws {
             let model = RankingAnimationLabModel()
             model.presentation.updateReconciliationTarget(.init(
                 counts: model.current,
@@ -22,7 +22,10 @@
             #expect(model.current.map(\.region) == [.newYork, .california])
             #expect(model.current.first?.days == 129)
             #expect(model.presentation.willOvertake(reconciliation))
-            #expect(model.presentation.reconcile(reconciliation) != nil)
+            let firstEvent = try #require(model.presentation.reconcile(
+                reconciliation,
+                overtakeMotion: .standard,
+            ))
 
             model.playNextOvertake()
             reconciliation = LocationCardsPresentationModel.ReconciliationID(
@@ -33,8 +36,27 @@
             model.presentation.updateReconciliationTarget(reconciliation)
             #expect(model.current.map(\.region) == [.california, .newYork])
             #expect(model.current.first?.days == 130)
+            #expect(model.presentation.willOvertake(reconciliation) == false)
+            #expect(model.presentation.overtakeMovement?.sequence == 1)
+            #expect(model.presentation.overtakeMovement?.releasedMotion == .standard)
+            #expect(model.presentation.reconcile(
+                reconciliation,
+                overtakeMotion: .standard,
+            ) == nil)
+
+            model.presentation.finishOvertakeMovement(sequence: firstEvent.sequence)
+
             #expect(model.presentation.willOvertake(reconciliation))
-            #expect(model.presentation.reconcile(reconciliation) != nil)
+            #expect(model.presentation.overtakeMovement == .init(
+                sequence: 2,
+                fromOrder: [.newYork, .california],
+                toOrder: [.california, .newYork],
+                phase: .pending,
+            ))
+            #expect(model.presentation.reconcile(
+                reconciliation,
+                overtakeMotion: .standard,
+            ) != nil)
         }
     }
 #endif

@@ -110,11 +110,24 @@ Layering, localization, preview, and testing conventions live in the feature
   card surface after its stylesheet-owned reveal delay. If another tab, covering
   sheet, or pushed destination is visible, cancel the delay. Leave its persisted
   baseline untouched so returning can animate and haptically signal the change.
-- Release Location-card counts and order through the same delayed reconciliation.
-  Flourish only when the same two primary regions reverse during one visible,
-  same-year session; synchronize initial, hidden, year, and membership changes quietly.
-- Keep each Location card in displayed rank order. Give its geometry and Liquid
-  Glass effect the region identity.
+- Release Location-card counts and rank motion through the same delayed
+  reconciliation. Flourish only when the same two primary regions reverse
+  during one visible, same-year session. Synchronize initial, hidden, year,
+  and membership changes quietly.
+- Keep settled Location cards in displayed rank source order. Use each card's
+  `Region` for the `ForEach` and ranking-layout identity.
+- Give each ranked card an independent `GlassEffectContainer`. Apply ranking
+  and overtake motion outside the complete link and card surface.
+- Keep the source hierarchy stable while the cards cross. Commit the real
+  displayed order without animation after the ranking keyframes finish.
+- Keep the explicit ranking layout as the only reorder animation. Use the
+  identity glass transition. Do not add `matchedGeometryEffect` or
+  `glassEffectID`.
+- Keep the ranking layout separate from the calendar zoom namespace. Preserve
+  exactly one calendar transition source for each visible region.
+- Play at least two overtakes in the lab after each ranking-motion change.
+  Inspect Reduce Motion and VoiceOver order because settled snapshots do not
+  prove the transition. See PR #289.
 
 ## Design system — `WhereStylesheet`
 

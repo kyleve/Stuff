@@ -8,26 +8,29 @@
         let motion: WhereStylesheet.LocationCardStackStyle.OvertakeMotion
         let isVisible: Bool
 
-        @Namespace private var rankingTransition
         @Environment(\.stylesheet) private var stylesheet
 
         var body: some View {
-            GlassEffectContainer(spacing: stylesheet.spacing.xxLarge) {
-                VStack(spacing: stylesheet.spacing.xxLarge) {
-                    ForEach(model.presentation.presented(model.current)) { item in
-                        RegionSummaryCard(
-                            regionDays: item,
-                            interactive: false,
-                            yearLength: 365,
-                            year: RankingAnimationLabModel.year,
-                        )
-                        .locationCardOvertakeEffect(
-                            region: item.region,
-                            namespace: rankingTransition,
-                            presentation: model.presentation,
-                            motion: motion,
-                        )
-                    }
+            let presentedCards = model.presentation.presented(model.current)
+
+            LocationCardRankingStack(
+                spacing: stylesheet.spacing.xxLarge,
+                presentation: model.presentation,
+                motion: motion,
+            ) {
+                ForEach(presentedCards) { item in
+                    RegionSummaryCard(
+                        regionDays: item,
+                        interactive: false,
+                        yearLength: 365,
+                        year: RankingAnimationLabModel.year,
+                    )
+                    .locationCardOvertakeEffect(
+                        region: item.region,
+                        presentation: model.presentation,
+                        motion: motion,
+                    )
+                    .locationCardRankingRegion(item.region)
                 }
             }
             .reconcilesLocationCards(

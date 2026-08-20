@@ -60,15 +60,41 @@ struct LocationCardsPresentationModelTests {
         model.updateReconciliationTarget(reconciliation)
         #expect(model.presented(current) == baseline)
         #expect(model.willOvertake(reconciliation))
+        #expect(model.overtakeMovement == .init(
+            sequence: 1,
+            fromOrder: [.california, .newYork],
+            toOrder: [.newYork, .california],
+            phase: .pending,
+        ))
 
-        let event = try #require(model.reconcile(reconciliation))
+        var releasedMotion = WhereStylesheet.LocationCardStackStyle.OvertakeMotion.standard
+        releasedMotion.duration = 1.1
+        releasedMotion.bounce = 0.4
+        let event = try #require(model.reconcile(
+            reconciliation,
+            overtakeMotion: releasedMotion,
+        ))
 
-        #expect(model.presented(current) == current)
+        #expect(model.presented(current) == [
+            item(.california, 100),
+            item(.newYork, 101),
+        ])
         #expect(event.winner == .newYork)
         #expect(event.passedRegion == .california)
+        #expect(event.motion == releasedMotion)
         #expect(model.feedbackTrigger == 1)
-        #expect(model.overtakeTrigger(for: .newYork) == 1)
-        #expect(model.overtakeTrigger(for: .california) == 0)
+        #expect(model.overtakeTrigger == 1)
+        #expect(model.overtakeMovement == .init(
+            sequence: 1,
+            fromOrder: [.california, .newYork],
+            toOrder: [.newYork, .california],
+            phase: .released(releasedMotion),
+        ))
+
+        model.finishOvertakeMovement(sequence: event.sequence)
+
+        #expect(model.presented(current) == current)
+        #expect(model.overtakeMovement == nil)
     }
 
     @Test func increasedCountWithoutReorderTriggersOnlyCountFeedback() {
@@ -91,9 +117,10 @@ struct LocationCardsPresentationModelTests {
         #expect(event == nil)
         #expect(model.feedbackTrigger == 1)
         #expect(model.latestOvertake == nil)
+        #expect(model.overtakeMovement == nil)
     }
 
-    @Test func consecutiveReversalsTriggerEachRegionsAnimatorOnce() throws {
+    @Test func consecutiveReversalsAdvanceOneSharedAnimatorTrigger() throws {
         let preferences = preferences()
         let model = LocationCardsPresentationModel(preferences: preferences, year: 2026)
         let baseline = [item(.california, 100), item(.newYork, 99)]
@@ -104,18 +131,28 @@ struct LocationCardsPresentationModelTests {
         let newYorkWins = [item(.newYork, 101), item(.california, 100)]
         let firstOvertake = target(newYorkWins)
         model.updateReconciliationTarget(firstOvertake)
-        _ = try #require(model.reconcile(firstOvertake))
+        let firstEvent = try #require(model.reconcile(firstOvertake))
+        model.finishOvertakeMovement(sequence: firstEvent.sequence)
 
         let californiaWins = [item(.california, 102), item(.newYork, 101)]
         let secondOvertake = target(californiaWins)
         model.updateReconciliationTarget(secondOvertake)
+        #expect(model.overtakeMovement?.phase == .pending)
         let event = try #require(model.reconcile(secondOvertake))
 
         #expect(event.sequence == 2)
         #expect(event.winner == .california)
+        #expect(model.presented(californiaWins).map(\.region) == [.newYork, .california])
+        #expect(model.overtakeTrigger == 2)
+        #expect(model.overtakeMovement == .init(
+            sequence: 2,
+            fromOrder: [.newYork, .california],
+            toOrder: [.california, .newYork],
+            phase: .released(.standard),
+        ))
+
+        model.finishOvertakeMovement(sequence: event.sequence)
         #expect(model.presented(californiaWins) == californiaWins)
-        #expect(model.overtakeTrigger(for: .newYork) == 1)
-        #expect(model.overtakeTrigger(for: .california) == 1)
     }
 
     @Test func multipleChangedCardsProduceOneFeedbackEvent() {
@@ -158,6 +195,7 @@ struct LocationCardsPresentationModelTests {
         #expect(model.reconcile(reconciliation) == nil)
         #expect(model.presented(current) == current)
         #expect(model.latestOvertake == nil)
+        #expect(model.overtakeMovement == nil)
     }
 
     @Test func updateReceivedWhileHiddenSynchronizesOrderQuietlyOnReturn() {
@@ -180,6 +218,7 @@ struct LocationCardsPresentationModelTests {
         #expect(!model.willOvertake(visibleReconciliation))
         #expect(model.reconcile(visibleReconciliation) == nil)
         #expect(model.latestOvertake == nil)
+        #expect(model.overtakeMovement == nil)
     }
 
     @Test func preparingAnotherYearUsesOnlyThatYearsBaselineAndSuppressesOvertake() {
@@ -199,9 +238,10 @@ struct LocationCardsPresentationModelTests {
         #expect(model.presented(current) == [item(.newYork, 20), item(.california, 25)])
         #expect(!model.willOvertake(reconciliation))
         #expect(model.feedbackTrigger == 0)
+        #expect(model.overtakeMovement == nil)
     }
 
-    @Test func latestPendingReportCanSupersedeAnEarlierOneBeforeReconciliation() {
+    @Test func latestPendingReportCanSupersedeAnEarlierOneBeforeReconciliation() throws {
         let preferences = preferences()
         preferences.setLastSeenLocationDayCounts([
             .california: 100,
@@ -220,10 +260,82 @@ struct LocationCardsPresentationModelTests {
         #expect(model.presented(firstPending) == baseline)
         model.updateReconciliationTarget(latestReconciliation)
         #expect(model.presented(latestPending) == baseline)
+        #expect(model.overtakeMovement == .init(
+            sequence: 1,
+            fromOrder: [.california, .newYork],
+            toOrder: [.newYork, .california],
+            phase: .pending,
+        ))
         #expect(model.reconcile(firstReconciliation) == nil)
-        model.reconcile(latestReconciliation)
+        let event = try #require(model.reconcile(latestReconciliation))
 
-        #expect(model.presented(latestPending) == latestPending)
+        #expect(model.presented(latestPending).map(\.region) == [.california, .newYork])
         #expect(preferences.lastSeenLocationDayCounts(in: 2026)?[.newYork] == 102)
+
+        model.finishOvertakeMovement(sequence: event.sequence)
+        #expect(model.presented(latestPending) == latestPending)
+    }
+
+    @Test func reportArrivingMidFlightWaitsAndStagesOnlyTheLatestTarget() throws {
+        let model = LocationCardsPresentationModel(preferences: preferences(), year: 2026)
+        let baseline = [item(.california, 100), item(.newYork, 99)]
+        let baselineReconciliation = target(baseline)
+        model.updateReconciliationTarget(baselineReconciliation)
+        model.reconcile(baselineReconciliation)
+
+        let newYorkWins = [item(.newYork, 101), item(.california, 100)]
+        let firstTarget = target(newYorkWins)
+        model.updateReconciliationTarget(firstTarget)
+        let firstEvent = try #require(model.reconcile(firstTarget))
+
+        let superseded = [item(.california, 102), item(.newYork, 101)]
+        let latest = [item(.california, 103), item(.newYork, 101)]
+        let supersededTarget = target(superseded)
+        let latestTarget = target(latest)
+        model.updateReconciliationTarget(supersededTarget)
+        model.updateReconciliationTarget(latestTarget)
+
+        #expect(model.overtakeMovement == .init(
+            sequence: 1,
+            fromOrder: [.california, .newYork],
+            toOrder: [.newYork, .california],
+            phase: .released(.standard),
+        ))
+        #expect(model.presented(latest) == [
+            item(.california, 100),
+            item(.newYork, 101),
+        ])
+        #expect(model.reconcile(latestTarget) == nil)
+
+        model.finishOvertakeMovement(sequence: firstEvent.sequence)
+
+        #expect(model.presented(latest) == [
+            item(.newYork, 101),
+            item(.california, 100),
+        ])
+        #expect(model.overtakeMovement == .init(
+            sequence: 2,
+            fromOrder: [.newYork, .california],
+            toOrder: [.california, .newYork],
+            phase: .pending,
+        ))
+        #expect(model.reconcile(supersededTarget) == nil)
+
+        let latestEvent = try #require(model.reconcile(latestTarget))
+        #expect(latestEvent.sequence == 2)
+        #expect(latestEvent.winner == .california)
+        #expect(model.presented(latest) == [
+            item(.newYork, 101),
+            item(.california, 103),
+        ])
+
+        model.finishOvertakeMovement(sequence: latestEvent.sequence)
+        #expect(model.presented(latest) == latest)
+    }
+}
+
+extension LocationCardsPresentationModel {
+    fileprivate func reconcile(_ target: ReconciliationID) -> OvertakeEvent? {
+        reconcile(target, overtakeMotion: .standard)
     }
 }

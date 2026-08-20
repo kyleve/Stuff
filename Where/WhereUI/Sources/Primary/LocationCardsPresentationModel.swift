@@ -12,6 +12,29 @@ final class LocationCardsPresentationModel {
         let sequence: Int
         let winner: Region
         let passedRegion: Region
+        let motion: WhereStylesheet.LocationCardStackStyle.OvertakeMotion
+    }
+
+    /// The measured rank-layout endpoints for one released overtake.
+    struct OvertakeMovement: Equatable {
+        enum Phase: Equatable {
+            case pending
+            case released(WhereStylesheet.LocationCardStackStyle.OvertakeMotion)
+        }
+
+        let sequence: Int
+        let fromOrder: [Region]
+        let toOrder: [Region]
+        let phase: Phase
+
+        var releasedMotion: WhereStylesheet.LocationCardStackStyle.OvertakeMotion? {
+            switch phase {
+                case .pending:
+                    nil
+                case let .released(motion):
+                    motion
+            }
+        }
     }
 
     /// Everything that decides whether SwiftUI should restart the card-surface
@@ -28,12 +51,12 @@ final class LocationCardsPresentationModel {
     private var displayedOrder: [Region] = []
     private var isRankingSurfaceVisible = false
     private var reconciliationTarget: ReconciliationID?
-    private var overtakeSequence = 0
-    private var winnerTriggers: [Region: Int] = [:]
 
     private(set) var year: Int
     private(set) var feedbackTrigger = 0
     private(set) var latestOvertake: OvertakeEvent?
+    private(set) var overtakeMovement: OvertakeMovement?
+    private(set) var overtakeTrigger = 0
 
     init(preferences: WherePreferences, year: Int) {
         self.preferences = preferences
@@ -54,6 +77,7 @@ final class LocationCardsPresentationModel {
         displayedOrder = []
         isRankingSurfaceVisible = false
         latestOvertake = nil
+        overtakeMovement = nil
     }
 
     /// Registers the latest surface state before its keyed task waits. Becoming
@@ -67,15 +91,25 @@ final class LocationCardsPresentationModel {
 
         guard target.isVisible else {
             isRankingSurfaceVisible = false
+            overtakeMovement = nil
             return
         }
 
         isRankingSurfaceVisible = true
-        guard yearChanged || !wasVisible else { return }
-        displayedOrder = target.counts.map(\.region)
-        for item in target.counts where displayedCounts[item.region] == nil {
-            displayedCounts[item.region] = item.days
+        if yearChanged || !wasVisible {
+            displayedOrder = target.counts.map(\.region)
+            overtakeMovement = nil
+            for item in target.counts where displayedCounts[item.region] == nil {
+                displayedCounts[item.region] = item.days
+            }
+            return
         }
+
+        // Keep an in-flight movement intact. `reconciliationTarget` already
+        // retains only this latest report; finishing the movement stages it
+        // from the exact visual endpoint.
+        guard overtakeMovement?.releasedMotion == nil else { return }
+        stagePendingMovement(for: target)
     }
 
     /// Cards rendered before reconciliation retain the prior membership, count,
@@ -104,21 +138,28 @@ final class LocationCardsPresentationModel {
               target.year == year
         else { return false }
         let currentOrder = target.counts.map(\.region)
-        return currentOrder.count == RegionRanking.primaryCount
-            && displayedOrder.count == RegionRanking.primaryCount
-            && Set(currentOrder) == Set(displayedOrder)
-            && currentOrder != displayedOrder
+        return overtakeMovement?.fromOrder == displayedOrder
+            && overtakeMovement?.toOrder == currentOrder
+            && overtakeMovement?.phase == .pending
+            && isReversal(from: displayedOrder, to: currentOrder)
     }
 
     /// Advances counts and order to the report, persists the presentation, and
     /// emits one feedback trigger for an increased count or live overtake.
     @discardableResult
-    func reconcile(_ target: ReconciliationID) -> OvertakeEvent? {
+    func reconcile(
+        _ target: ReconciliationID,
+        overtakeMotion: WhereStylesheet.LocationCardStackStyle.OvertakeMotion,
+    ) -> OvertakeEvent? {
         guard target == reconciliationTarget,
               target.isVisible,
               isRankingSurfaceVisible,
               target.year == year
         else { return nil }
+        // A newer report can finish its 500 ms gate while the prior overtake
+        // is still moving. It must wait at the model boundary too, so an early
+        // caller cannot clear the active frames.
+        guard overtakeMovement?.releasedMotion == nil else { return nil }
         let current = target.counts
         let isOvertake = willOvertake(target)
 
@@ -131,20 +172,32 @@ final class LocationCardsPresentationModel {
         }
 
         let event: OvertakeEvent?
-        if isOvertake, let winner = current.first?.region, let passedRegion = displayedOrder.first {
-            overtakeSequence += 1
-            winnerTriggers[winner, default: 0] += 1
-            event = OvertakeEvent(
-                sequence: overtakeSequence,
+        if isOvertake,
+           let movement = overtakeMovement,
+           let winner = current.first?.region,
+           let passedRegion = displayedOrder.first
+        {
+            let overtake = OvertakeEvent(
+                sequence: movement.sequence,
                 winner: winner,
                 passedRegion: passedRegion,
+                motion: overtakeMotion,
             )
-            latestOvertake = event
+            event = overtake
+            latestOvertake = overtake
+            overtakeTrigger = overtake.sequence
+            overtakeMovement = OvertakeMovement(
+                sequence: overtake.sequence,
+                fromOrder: movement.fromOrder,
+                toOrder: movement.toOrder,
+                phase: .released(overtakeMotion),
+            )
         } else {
             event = nil
+            overtakeMovement = nil
+            displayedOrder = current.map(\.region)
         }
 
-        displayedOrder = current.map(\.region)
         if displayedCounts != currentCounts {
             displayedCounts = currentCounts
         }
@@ -158,9 +211,39 @@ final class LocationCardsPresentationModel {
         return event
     }
 
-    /// A region-local trigger that changes only when that region wins. Losing a
-    /// later overtake must not replay the previous winner's keyframes.
-    func overtakeTrigger(for region: Region) -> Int {
-        winnerTriggers[region, default: 0]
+    /// Commits the real semantic rank after the authored layout reaches the
+    /// same visual endpoint. A stale completion cannot finish a newer overtake.
+    func finishOvertakeMovement(sequence: Int) {
+        guard let movement = overtakeMovement,
+              movement.sequence == sequence,
+              movement.releasedMotion != nil
+        else { return }
+        displayedOrder = movement.toOrder
+        overtakeMovement = nil
+        guard let target = reconciliationTarget,
+              target.isVisible,
+              isRankingSurfaceVisible,
+              target.year == year
+        else { return }
+        stagePendingMovement(for: target)
+    }
+
+    private func stagePendingMovement(for target: ReconciliationID) {
+        let currentOrder = target.counts.map(\.region)
+        overtakeMovement = isReversal(from: displayedOrder, to: currentOrder)
+            ? OvertakeMovement(
+                sequence: overtakeTrigger + 1,
+                fromOrder: displayedOrder,
+                toOrder: currentOrder,
+                phase: .pending,
+            )
+            : nil
+    }
+
+    private func isReversal(from oldOrder: [Region], to newOrder: [Region]) -> Bool {
+        newOrder.count == RegionRanking.primaryCount
+            && oldOrder.count == RegionRanking.primaryCount
+            && Set(newOrder) == Set(oldOrder)
+            && newOrder != oldOrder
     }
 }
