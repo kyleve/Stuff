@@ -25,6 +25,7 @@ struct LocationsView: View {
     /// matched-geometry zoom (the card expands into the calendar) rather than a
     /// plain slide.
     @Namespace private var calendarTransition
+    @Namespace private var rankingTransition
 
     @Environment(\.stylesheet) private var stylesheet
     @Environment(\.regionStyles) private var regionStyles
@@ -163,6 +164,7 @@ struct LocationsView: View {
                         .accessibilityHint(String(localized: .primaryCardCalendarHint))
                         .locationCardOvertakeEffect(
                             region: item.region,
+                            namespace: rankingTransition,
                             presentation: cardPresentation,
                             motion: stylesheet.locationCardStack.overtake,
                         )

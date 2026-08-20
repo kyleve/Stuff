@@ -113,6 +113,8 @@ Layering, localization, preview, and testing conventions live in the feature
 - Release Location-card counts and order through the same delayed reconciliation.
   Flourish only when the same two primary regions reverse during one visible,
   same-year session; synchronize initial, hidden, year, and membership changes quietly.
+- Keep each Location card in displayed rank order. Give its geometry and Liquid
+  Glass effect the region identity.
 
 ## Design system — `WhereStylesheet`
 

@@ -93,6 +93,31 @@ struct LocationCardsPresentationModelTests {
         #expect(model.latestOvertake == nil)
     }
 
+    @Test func consecutiveReversalsTriggerEachRegionsAnimatorOnce() throws {
+        let preferences = preferences()
+        let model = LocationCardsPresentationModel(preferences: preferences, year: 2026)
+        let baseline = [item(.california, 100), item(.newYork, 99)]
+        let baselineReconciliation = target(baseline)
+        model.updateReconciliationTarget(baselineReconciliation)
+        model.reconcile(baselineReconciliation)
+
+        let newYorkWins = [item(.newYork, 101), item(.california, 100)]
+        let firstOvertake = target(newYorkWins)
+        model.updateReconciliationTarget(firstOvertake)
+        _ = try #require(model.reconcile(firstOvertake))
+
+        let californiaWins = [item(.california, 102), item(.newYork, 101)]
+        let secondOvertake = target(californiaWins)
+        model.updateReconciliationTarget(secondOvertake)
+        let event = try #require(model.reconcile(secondOvertake))
+
+        #expect(event.sequence == 2)
+        #expect(event.winner == .california)
+        #expect(model.presented(californiaWins) == californiaWins)
+        #expect(model.overtakeTrigger(for: .newYork) == 1)
+        #expect(model.overtakeTrigger(for: .california) == 1)
+    }
+
     @Test func multipleChangedCardsProduceOneFeedbackEvent() {
         let preferences = preferences()
         preferences.setLastSeenLocationDayCounts([

@@ -8,6 +8,7 @@
         let motion: WhereStylesheet.LocationCardStackStyle.OvertakeMotion
         let isVisible: Bool
 
+        @Namespace private var rankingTransition
         @Environment(\.stylesheet) private var stylesheet
 
         var body: some View {
@@ -22,6 +23,7 @@
                         )
                         .locationCardOvertakeEffect(
                             region: item.region,
+                            namespace: rankingTransition,
                             presentation: model.presentation,
                             motion: motion,
                         )

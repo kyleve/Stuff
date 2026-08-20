@@ -5,6 +5,7 @@ import SwiftUI
 /// the stack's layout animation moves it into first place.
 struct LocationCardOvertakeModifier: ViewModifier {
     let region: Region
+    let namespace: Namespace.ID
     let presentation: LocationCardsPresentationModel
     let motion: WhereStylesheet.LocationCardStackStyle.OvertakeMotion
 
@@ -61,17 +62,25 @@ struct LocationCardOvertakeModifier: ViewModifier {
                     CubicKeyframe(1, duration: motion.duration * 0.65)
                 }
             }
+            // A ranked `ForEach` legitimately changes hierarchy order. Give
+            // both the complete card and the separately rendered Liquid Glass
+            // effect the region's identity so neither materializes as a new
+            // bottom card on the next reversal.
+            .matchedGeometryEffect(id: region, in: namespace, properties: .position)
+            .glassEffectID(region, in: namespace)
     }
 }
 
 extension View {
     func locationCardOvertakeEffect(
         region: Region,
+        namespace: Namespace.ID,
         presentation: LocationCardsPresentationModel,
         motion: WhereStylesheet.LocationCardStackStyle.OvertakeMotion,
     ) -> some View {
         modifier(LocationCardOvertakeModifier(
             region: region,
+            namespace: namespace,
             presentation: presentation,
             motion: motion,
         ))
