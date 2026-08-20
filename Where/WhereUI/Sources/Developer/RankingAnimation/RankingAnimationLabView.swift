@@ -38,6 +38,9 @@ import SFSafeSymbols
 
                 RankingAnimationControls(motion: $motion, reset: resetMotion)
             }
+            // Keep settled Form clipping unchanged, but let every tunable arc,
+            // scale, and rotation remain visible during the live crossing.
+            .scrollClipDisabled(model.presentation.isSpatialOvertakeActive)
             .navigationTitle(String(localized: .rankingAnimationTitle))
             .navigationBarTitleDisplayMode(.inline)
             .onAppear { isPreviewVisible = true }

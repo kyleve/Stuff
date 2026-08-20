@@ -60,6 +60,7 @@ struct LocationCardsPresentationModelTests {
         model.updateReconciliationTarget(reconciliation)
         #expect(model.presented(current) == baseline)
         #expect(model.willOvertake(reconciliation))
+        #expect(model.isSpatialOvertakeActive == false)
         #expect(model.overtakeMovement == .init(
             sequence: 1,
             fromOrder: [.california, .newYork],
@@ -84,6 +85,7 @@ struct LocationCardsPresentationModelTests {
         #expect(event.motion == releasedMotion)
         #expect(model.feedbackTrigger == 1)
         #expect(model.overtakeTrigger == 1)
+        #expect(model.isSpatialOvertakeActive)
         #expect(model.overtakeMovement == .init(
             sequence: 1,
             fromOrder: [.california, .newYork],
@@ -94,6 +96,7 @@ struct LocationCardsPresentationModelTests {
         model.finishOvertakeMovement(sequence: event.sequence)
 
         #expect(model.presented(current) == current)
+        #expect(model.isSpatialOvertakeActive == false)
         #expect(model.overtakeMovement == nil)
     }
 

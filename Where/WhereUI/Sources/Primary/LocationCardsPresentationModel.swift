@@ -58,6 +58,12 @@ final class LocationCardsPresentationModel {
     private(set) var overtakeMovement: OvertakeMovement?
     private(set) var overtakeTrigger = 0
 
+    /// Whether the ranked-card host needs to reveal drawing outside its normal
+    /// scroll bounds for the released passing arc, scale, and rotation.
+    var isSpatialOvertakeActive: Bool {
+        overtakeMovement?.releasedMotion?.usesSpatialMotion == true
+    }
+
     init(preferences: WherePreferences, year: Int) {
         self.preferences = preferences
         self.year = year

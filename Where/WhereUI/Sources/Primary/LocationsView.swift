@@ -29,6 +29,12 @@ struct LocationsView: View {
     @Environment(\.stylesheet) private var stylesheet
     @Environment(\.regionStyles) private var regionStyles
 
+    private var isCardSurfaceUncovered: Bool {
+        isCardSurfaceVisible
+            && !showingResolution
+            && plannedStayEditorTarget == nil
+    }
+
     init(report: YearReportModel) {
         self.report = report
         _cardPresentation = State(initialValue: LocationCardsPresentationModel(
@@ -192,6 +198,9 @@ struct LocationsView: View {
         }
         .defaultScrollAnchor(.center)
         .scrollBounceBehavior(.basedOnSize)
+        // The card normally stays clipped to the scrolling viewport. Reveal
+        // overflow only while the authored arc, scale, and rotation need it.
+        .scrollClipDisabled(cardPresentation.isSpatialOvertakeActive)
         .accessibilityIdentifier("where_root_title")
         .safeAreaInset(edge: .bottom) {
             if report.showsEstimatedTimeAndPlanning, !topForecasts.isEmpty {
@@ -214,7 +223,7 @@ struct LocationsView: View {
         .reconcilesLocationCards(
             current: report.ranking.primary,
             year: report.selectedYear,
-            isVisible: isCardSurfaceVisible && !showingResolution,
+            isVisible: isCardSurfaceUncovered,
             presentation: cardPresentation,
         )
     }
