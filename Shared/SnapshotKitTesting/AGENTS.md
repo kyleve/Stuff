@@ -54,11 +54,13 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **The explicit CI multiplier may scale only maximum settle/hook ceilings.** Never scale the floor, quiet proof, cadence, or image tolerance.
 - **Guards: `SnapshotSettleTimeoutPolicyTests` and `SnapshotRenderingSupportTests`.**
 - **A settled capture is not a ready capture.** The loop proves the pixels stopped changing, not that intended content arrived.
-- **Do not use `.immediate` for screens with native navigation or tab glass.**
-  That material can start adapting after an earlier frame is pixel-stable.
-- **Keep a measured `.settledAtLeast` floor for delayed native-glass adaptation.**
+- **For native navigation or tab glass, do not use `SnapshotSettle.immediate`.**
+- **Keep a measured `SnapshotSettle.settledAtLeast` floor for delayed native-glass adaptation.**
   Remove it only after a toolchain remeasurement or a system readiness signal.
   See PRs #101, #144, #151, and #232.
+- **Use `SnapshotMeasurementReadiness.immediate` only for a fixture with a synchronous final height.**
+  This option skips only measurement settling. It does not change the final
+  `SnapshotSettle`.
 - **A loading placeholder is perfectly pixel-stable.** A gap between async phases settles clean and bakes the spinner. Then the suite reports green.
 - **Pixel stability cannot become a readiness signal.** Nothing public sees pending dispatch or Swift-concurrency work — see below.
 - **If content arrives asynchronously, make the case deterministic instead.**
