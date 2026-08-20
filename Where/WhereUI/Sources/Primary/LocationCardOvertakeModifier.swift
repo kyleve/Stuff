@@ -21,6 +21,10 @@ struct LocationCardOvertakeModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
+            // Liquid Glass and Canvas artwork otherwise remain separate render
+            // layers. Flatten the complete card before applying the passing
+            // transform so its glass, microprint, and foreground stay aligned.
+            .compositingGroup()
             .zIndex(isLatestWinner ? 1 : 0)
             .keyframeAnimator(
                 initialValue: AnimationValues(),
