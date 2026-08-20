@@ -21,6 +21,11 @@ struct LocationCardOvertakeModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
+            // Resolve the card's position and size at this boundary. Without a
+            // geometry group, SwiftUI pushes the stack's animated reorder down
+            // to the card's individual drawing leaves; the outer glass can jump
+            // to its destination while an inner layer scales into place.
+            .geometryGroup()
             // Liquid Glass and Canvas artwork otherwise remain separate render
             // layers. Flatten the complete card before applying the passing
             // transform so its glass, microprint, and foreground stay aligned.
