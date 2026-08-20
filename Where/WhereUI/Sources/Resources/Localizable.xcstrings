@@ -4535,17 +4535,6 @@
         }
       }
     },
-    "rankingAnimation.resetDemo" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reset Demo"
-          }
-        }
-      }
-    },
     "rankingAnimation.rotation" : {
       "extractionState" : "manual",
       "localizations" : {

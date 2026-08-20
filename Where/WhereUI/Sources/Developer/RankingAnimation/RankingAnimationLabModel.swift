@@ -42,11 +42,6 @@
             )
         }
 
-        func resetDemo() {
-            current = Self.initialRanking
-            presentation = Self.makePresentation()
-        }
-
         private static func makePresentation() -> LocationCardsPresentationModel {
             let preferences = WherePreferences(store: InMemoryKeyValueStore())
             preferences.setLastSeenLocationDayCounts(

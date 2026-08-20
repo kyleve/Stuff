@@ -8,7 +8,7 @@ import SFSafeSymbols
     struct RankingAnimationLabView: View {
         @State private var model = RankingAnimationLabModel()
         @State private var motion = WhereStylesheet.LocationCardStackStyle.OvertakeMotion.standard
-        @State private var isPreviewVisible = false
+        @State private var isPreviewVisible = true
         @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
         private var previewMotion: WhereStylesheet.LocationCardStackStyle.OvertakeMotion {
@@ -30,13 +30,6 @@ import SFSafeSymbols
                             systemSymbol: .playFill,
                         )
                     }
-
-                    Button(action: resetDemo) {
-                        Label(
-                            String(localized: .rankingAnimationResetDemo),
-                            systemSymbol: .arrowCounterclockwise,
-                        )
-                    }
                 } header: {
                     Text(String(localized: .rankingAnimationPreview))
                 } footer: {
@@ -49,15 +42,6 @@ import SFSafeSymbols
             .navigationBarTitleDisplayMode(.inline)
             .onAppear { isPreviewVisible = true }
             .onDisappear { isPreviewVisible = false }
-        }
-
-        private func resetDemo() {
-            model.resetDemo()
-            model.presentation.updateReconciliationTarget(.init(
-                counts: model.current,
-                year: RankingAnimationLabModel.year,
-                isVisible: isPreviewVisible,
-            ))
         }
 
         private func resetMotion() {
