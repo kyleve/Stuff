@@ -4,12 +4,29 @@ import SwiftUI
 /// Runs the one visibility-aware delay that releases Location-card counts,
 /// ranking order, flourish, persistence, and haptic feedback together.
 struct LocationCardsReconciliationModifier: ViewModifier {
+    /// A stable handoff from current view inputs to an already-running reveal
+    /// task. Motion changes must not become part of the task's delay identity.
+    @MainActor
+    private final class ReleaseMotionRelay {
+        private(set) var current: WhereStylesheet.LocationCardStackStyle.OvertakeMotion
+
+        init(_ current: WhereStylesheet.LocationCardStackStyle.OvertakeMotion) {
+            self.current = current
+        }
+
+        func update(_ current: WhereStylesheet.LocationCardStackStyle.OvertakeMotion) {
+            guard current != self.current else { return }
+            self.current = current
+        }
+    }
+
     let current: [RegionDays]
     let year: Int
     let isVisible: Bool
     let presentation: LocationCardsPresentationModel
     let motionOverride: WhereStylesheet.LocationCardStackStyle.OvertakeMotion?
 
+    @State private var releaseMotionRelay = ReleaseMotionRelay(.standard)
     @Environment(\.stylesheet) private var stylesheet
 
     private var reconciliationID: LocationCardsPresentationModel.ReconciliationID {
@@ -25,7 +42,12 @@ struct LocationCardsReconciliationModifier: ViewModifier {
     }
 
     func body(content: Content) -> some View {
+        let motionRelay = releaseMotionRelay
+
         content
+            .onChange(of: motion, initial: true) { _, motion in
+                motionRelay.update(motion)
+            }
             .onChange(of: reconciliationID, initial: true) { _, reconciliation in
                 presentation.updateReconciliationTarget(reconciliation)
             }
@@ -42,7 +64,10 @@ struct LocationCardsReconciliationModifier: ViewModifier {
                     assertionFailure("Unexpected Location-card reveal delay failure: \(error)")
                     return
                 }
-                release(reconciliation)
+                release(
+                    reconciliation,
+                    overtakeMotion: motionRelay.current,
+                )
             }
             // Reconciliation IDs change when a newer report restarts the
             // 500 ms gate. Keep completion on the released event's own key so
@@ -58,13 +83,13 @@ struct LocationCardsReconciliationModifier: ViewModifier {
 
     private func release(
         _ reconciliation: LocationCardsPresentationModel.ReconciliationID,
+        overtakeMotion: WhereStylesheet.LocationCardStackStyle.OvertakeMotion,
     ) {
-        let releasedMotion = motion
         let event = presentation.reconcile(
             reconciliation,
-            overtakeMotion: releasedMotion,
+            overtakeMotion: overtakeMotion,
         )
-        if let event, releasedMotion.usesSpatialMotion == false {
+        if let event, overtakeMotion.usesSpatialMotion == false {
             finishOvertake(sequence: event.sequence)
         }
     }
