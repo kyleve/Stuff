@@ -107,8 +107,7 @@ extension WhereStylesheet {
         var overtake: OvertakeMotion
 
         /// The winner's lift, passing arc, and rubber-stamp settle. The stored
-        /// primitives keep the DEBUG lab directly tunable while the production
-        /// layout animation remains derived from one coordinated duration.
+        /// primitives keep the DEBUG lab directly tunable.
         struct OvertakeMotion: Equatable {
             var duration: Double
             var bounce: Double
@@ -118,11 +117,6 @@ extension WhereStylesheet {
             var settleScale: CGFloat
             var minimumOpacity: Double
             var usesSpatialMotion: Bool
-
-            var layoutAnimation: Animation? {
-                guard usesSpatialMotion else { return nil }
-                return .spring(duration: duration, bounce: bounce)
-            }
 
             static let durationRange = 0.3 ... 1.2
             static let bounceRange = 0.0 ... 0.5

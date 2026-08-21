@@ -81,7 +81,6 @@ struct LocationCardsPresentationModelTests {
             item(.newYork, 101),
         ])
         #expect(event.winner == .newYork)
-        #expect(event.passedRegion == .california)
         #expect(event.motion == releasedMotion)
         #expect(model.feedbackTrigger == 1)
         #expect(model.overtakeTrigger == 1)

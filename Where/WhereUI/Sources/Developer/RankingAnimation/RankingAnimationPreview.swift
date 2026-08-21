@@ -38,7 +38,7 @@
                 year: RankingAnimationLabModel.year,
                 isVisible: isVisible,
                 presentation: model.presentation,
-                motionOverride: motion,
+                motion: motion,
             )
         }
     }

@@ -225,6 +225,7 @@ struct LocationsView: View {
             year: report.selectedYear,
             isVisible: isCardSurfaceUncovered,
             presentation: cardPresentation,
+            motion: stylesheet.locationCardStack.overtake,
         )
     }
 

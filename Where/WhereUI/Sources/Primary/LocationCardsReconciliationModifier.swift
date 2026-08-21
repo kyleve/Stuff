@@ -4,29 +4,16 @@ import SwiftUI
 /// Runs the one visibility-aware delay that releases Location-card counts,
 /// ranking order, flourish, persistence, and haptic feedback together.
 struct LocationCardsReconciliationModifier: ViewModifier {
-    /// A stable handoff from current view inputs to an already-running reveal
-    /// task. Motion changes must not become part of the task's delay identity.
-    @MainActor
-    private final class ReleaseMotionRelay {
-        private(set) var current: WhereStylesheet.LocationCardStackStyle.OvertakeMotion
-
-        init(_ current: WhereStylesheet.LocationCardStackStyle.OvertakeMotion) {
-            self.current = current
-        }
-
-        func update(_ current: WhereStylesheet.LocationCardStackStyle.OvertakeMotion) {
-            guard current != self.current else { return }
-            self.current = current
-        }
-    }
-
     let current: [RegionDays]
     let year: Int
     let isVisible: Bool
     let presentation: LocationCardsPresentationModel
-    let motionOverride: WhereStylesheet.LocationCardStackStyle.OvertakeMotion?
+    let motion: WhereStylesheet.LocationCardStackStyle.OvertakeMotion
 
-    @State private var releaseMotionRelay = ReleaseMotionRelay(.standard)
+    /// Current motion stays outside the task identity so an accessibility
+    /// change does not restart the fixed reveal delay.
+    @State private var releaseMotion =
+        WhereStylesheet.LocationCardStackStyle.OvertakeMotion.standard
     @Environment(\.stylesheet) private var stylesheet
 
     private var reconciliationID: LocationCardsPresentationModel.ReconciliationID {
@@ -37,16 +24,10 @@ struct LocationCardsReconciliationModifier: ViewModifier {
         )
     }
 
-    private var motion: WhereStylesheet.LocationCardStackStyle.OvertakeMotion {
-        motionOverride ?? stylesheet.locationCardStack.overtake
-    }
-
     func body(content: Content) -> some View {
-        let motionRelay = releaseMotionRelay
-
         content
             .onChange(of: motion, initial: true) { _, motion in
-                motionRelay.update(motion)
+                releaseMotion = motion
             }
             .onChange(of: reconciliationID, initial: true) { _, reconciliation in
                 presentation.updateReconciliationTarget(reconciliation)
@@ -66,7 +47,7 @@ struct LocationCardsReconciliationModifier: ViewModifier {
                 }
                 release(
                     reconciliation,
-                    overtakeMotion: motionRelay.current,
+                    overtakeMotion: releaseMotion,
                 )
             }
             // Reconciliation IDs change when a newer report restarts the
@@ -143,14 +124,14 @@ extension View {
         year: Int,
         isVisible: Bool,
         presentation: LocationCardsPresentationModel,
-        motionOverride: WhereStylesheet.LocationCardStackStyle.OvertakeMotion? = nil,
+        motion: WhereStylesheet.LocationCardStackStyle.OvertakeMotion,
     ) -> some View {
         modifier(LocationCardsReconciliationModifier(
             current: current,
             year: year,
             isVisible: isVisible,
             presentation: presentation,
-            motionOverride: motionOverride,
+            motion: motion,
         ))
     }
 }

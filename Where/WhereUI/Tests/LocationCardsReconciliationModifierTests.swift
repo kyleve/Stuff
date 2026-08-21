@@ -9,24 +9,6 @@ import WhereCore
 
 @MainActor
 struct LocationCardsReconciliationModifierTests {
-    @Test func hostsTheSharedReconciliationSurface() {
-        let preferences = WherePreferences(store: InMemoryKeyValueStore())
-        let presentation = LocationCardsPresentationModel(preferences: preferences, year: 2026)
-        let current = [RegionDays(region: .california, days: 10)]
-        let controller = UIHostingController(
-            rootView: Text("Probe")
-                .reconcilesLocationCards(
-                    current: current,
-                    year: 2026,
-                    isVisible: false,
-                    presentation: presentation,
-                ),
-        )
-
-        #expect(controller.view != nil)
-        #expect(presentation.feedbackTrigger == 0)
-    }
-
     @Test func releasesWithMotionChangedWhileTheGateIsPending() async throws {
         let preferences = WherePreferences(store: InMemoryKeyValueStore())
         let baseline = [
@@ -124,7 +106,7 @@ struct LocationCardsReconciliationModifierTests {
             year: 2026,
             isVisible: true,
             presentation: presentation,
-            motionOverride: .standard,
+            motion: .standard,
         )
         let completingProbe = WaitProbe()
         let cancellingProbe = WaitProbe()
@@ -177,7 +159,7 @@ struct LocationCardsReconciliationModifierTests {
                     year: 2026,
                     isVisible: true,
                     presentation: presentation,
-                    motionOverride: state.motion,
+                    motion: state.motion,
                 )
         }
     }

@@ -11,7 +11,6 @@ final class LocationCardsPresentationModel {
     struct OvertakeEvent: Equatable {
         let sequence: Int
         let winner: Region
-        let passedRegion: Region
         let motion: WhereStylesheet.LocationCardStackStyle.OvertakeMotion
     }
 
@@ -49,7 +48,6 @@ final class LocationCardsPresentationModel {
     private var lastSeenCounts: [Region: Int]?
     private var displayedCounts: [Region: Int]
     private var displayedOrder: [Region] = []
-    private var isRankingSurfaceVisible = false
     private var reconciliationTarget: ReconciliationID?
 
     private(set) var year: Int
@@ -81,7 +79,7 @@ final class LocationCardsPresentationModel {
         lastSeenCounts = savedCounts
         displayedCounts = savedCounts ?? [:]
         displayedOrder = []
-        isRankingSurfaceVisible = false
+        reconciliationTarget = nil
         latestOvertake = nil
         overtakeMovement = nil
     }
@@ -90,18 +88,16 @@ final class LocationCardsPresentationModel {
     /// visible synchronizes order quietly; reports arriving during one visible
     /// session remain pending until reconciliation.
     func updateReconciliationTarget(_ target: ReconciliationID) {
-        let wasVisible = isRankingSurfaceVisible
+        let wasVisible = reconciliationTarget?.isVisible == true
         let yearChanged = target.year != year
         prepare(for: target.year)
         reconciliationTarget = target
 
         guard target.isVisible else {
-            isRankingSurfaceVisible = false
             overtakeMovement = nil
             return
         }
 
-        isRankingSurfaceVisible = true
         if yearChanged || !wasVisible {
             displayedOrder = target.counts.map(\.region)
             overtakeMovement = nil
@@ -140,7 +136,6 @@ final class LocationCardsPresentationModel {
     func willOvertake(_ target: ReconciliationID) -> Bool {
         guard target == reconciliationTarget,
               target.isVisible,
-              isRankingSurfaceVisible,
               target.year == year
         else { return false }
         let currentOrder = target.counts.map(\.region)
@@ -159,7 +154,6 @@ final class LocationCardsPresentationModel {
     ) -> OvertakeEvent? {
         guard target == reconciliationTarget,
               target.isVisible,
-              isRankingSurfaceVisible,
               target.year == year
         else { return nil }
         // A newer report can finish its 500 ms gate while the prior overtake
@@ -180,13 +174,11 @@ final class LocationCardsPresentationModel {
         let event: OvertakeEvent?
         if isOvertake,
            let movement = overtakeMovement,
-           let winner = current.first?.region,
-           let passedRegion = displayedOrder.first
+           let winner = current.first?.region
         {
             let overtake = OvertakeEvent(
                 sequence: movement.sequence,
                 winner: winner,
-                passedRegion: passedRegion,
                 motion: overtakeMotion,
             )
             event = overtake
@@ -228,7 +220,6 @@ final class LocationCardsPresentationModel {
         overtakeMovement = nil
         guard let target = reconciliationTarget,
               target.isVisible,
-              isRankingSurfaceVisible,
               target.year == year
         else { return }
         stagePendingMovement(for: target)
