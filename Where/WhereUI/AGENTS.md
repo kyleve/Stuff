@@ -106,10 +106,28 @@ Layering, localization, preview, and testing conventions live in the feature
   renders relative to *today*. No reference containing one is stable across
   days. Views do not read `\.isCapturingSnapshot` to branch themselves. Capture
   handling stays inside the shared component.
-- Reconcile `LocationDayCountPresentationModel` only from the visible primary
+- Reconcile `LocationCardsPresentationModel` only from the visible primary
   card surface after its stylesheet-owned reveal delay. If another tab, covering
   sheet, or pushed destination is visible, cancel the delay. Leave its persisted
   baseline untouched so returning can animate and haptically signal the change.
+- Release Location-card counts and rank motion through the same delayed
+  reconciliation. Flourish only when the same two primary regions reverse
+  during one visible, same-year session. Synchronize initial, hidden, year,
+  and membership changes quietly.
+- Keep settled Location cards in displayed rank source order. Use each card's
+  `Region` for the `ForEach` and ranking-layout identity.
+- Give each ranked card an independent `GlassEffectContainer`. Apply ranking
+  and overtake motion outside the complete link and card surface.
+- Keep the source hierarchy stable while the cards cross. Commit the real
+  displayed order without animation after the ranking keyframes finish.
+- Keep the explicit ranking layout as the only reorder animation. Use the
+  identity glass transition. Do not add `matchedGeometryEffect` or
+  `glassEffectID`.
+- Keep the ranking layout separate from the calendar zoom namespace. Preserve
+  exactly one calendar transition source for each visible region.
+- Play at least two overtakes in the lab after each ranking-motion change.
+  Inspect Reduce Motion and VoiceOver order because settled snapshots do not
+  prove the transition. See PR #289.
 
 ## Design system — `WhereStylesheet`
 
@@ -133,6 +151,8 @@ worked examples.
 - The DEBUG card designer may override only presentation values already owned
   by `CardStyles`. It must not add a second production styling system or alter
   count animation and outline-cache behavior.
+- Keep the DEBUG Ranking Animation Lab session-only. It tunes the containing
+  Location-card stack, never Card Designer persistence, exports, or app overrides.
 
 ## Testing
 
