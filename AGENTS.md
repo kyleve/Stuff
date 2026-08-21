@@ -397,39 +397,6 @@ view/model boundary, reuse, binding, Broadway stylesheet, layout,
 accessibility, localization, UIKit-bridge, preview, and image-snapshot
 procedures. Module `AGENTS.md` files add only their local seams and invariants.
 
-#### Liquid Glass
-
-- Put related glass effects in one nearest `GlassEffectContainer` only when
-  they must blend or morph. Give independently moving surfaces separate
-  containers when they must cross with distinct z-order.
-- Treat a glass container's `spacing` as its blend threshold, not as layout.
-  Keep it at or below the layout gap unless effects must merge at rest.
-- Apply `glassEffect` after modifiers that define its captured appearance. Put
-  exact opaque content above a clear glass background layer.
-- Use one `Shape` for glass, final clipping, content hit testing, and matched
-  transitions. Disable hit testing on decorative material overlays.
-- Use interactive glass only for controls. Use a plain button style when glass
-  supplies the press feedback, and cover the visible surface with `contentShape`.
-- Reserve `glassEffectID` for insertion and removal morphs. Use
-  `.glassEffectTransition(.identity)` when an authored layout owns a stable
-  collection reorder.
-- Treat Liquid Glass as a separate render layer. `geometryGroup` and
-  `compositingGroup` do not preserve its identity across hierarchy changes.
-- Keep each settled collection's source order equal to its visual and
-  accessibility order. Do not leave a reordered collection on permanent offsets.
-- Keep a crossing collection's hierarchy stable until the motion ends. Commit
-  its real source order without animation at the identical visual endpoint.
-- Preview reusable glass views inside their production container. Exercise
-  each transition twice on a supported runtime because static snapshots prove
-  only its settled state. Also inspect Reduce Motion, edge taps, VoiceOver
-  order, and focus.
-
-Proof: [Apple's custom-glass guidance](https://developer.apple.com/documentation/swiftui/applying-liquid-glass-to-custom-views)
-and regression history in PRs [#48](https://github.com/kyleve/Stuff/pull/48),
-[#115](https://github.com/kyleve/Stuff/pull/115),
-[#170](https://github.com/kyleve/Stuff/pull/170), and
-[#289](https://github.com/kyleve/Stuff/pull/289).
-
 SF Symbols use SFSafeSymbols' `SFSymbol` and `systemSymbol` overloads. Never
 spell a symbol as a raw string or construct an unchecked `SFSymbol`. Run
 `./sf-symbols --lint`. `WhereShortcuts.swift` is the sole exception because the
