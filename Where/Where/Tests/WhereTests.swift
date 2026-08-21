@@ -46,24 +46,16 @@ struct WhereAppTests {
     }
 
     #if DEBUG
-        @Test func ordinaryDebugBuildUsesLocalOnlyStorageAcrossRelaunches() {
-            #expect(
-                RegularApplicationRuntime.storeStorage(forCloudKitValidationBuild: false)
-                    == .localOnly,
-            )
-        }
-
-        @Test func cloudKitValidationBuildUsesCloudKitStorageAcrossRelaunches() {
-            #expect(
-                RegularApplicationRuntime.storeStorage(forCloudKitValidationBuild: true)
-                    == .cloudKit,
-            )
-        }
-
         @Test func regularRuntimeUsesTheProcessReportingPreferencesForItsModel() {
             let preferences = WherePreferences(store: InMemoryKeyValueStore())
             let effective = DiagnosticReportingConfiguration.defaults(isDebugBuild: true)
             let runtime = RegularApplicationRuntime(
+                buildEnvironment: WhereBuildEnvironment(
+                    audience: .development,
+                    appGroupIdentifier: "group.com.stuff.where.tests",
+                    primaryAppIconName: "AppIcon",
+                    isRunningTests: true,
+                ),
                 preferences: preferences,
                 effectiveDiagnosticReportingConfiguration: effective,
                 applyRemoteLogging: { _, _ in },
@@ -258,6 +250,7 @@ struct WhereAppTests {
                 fileManager: .default,
                 userDefaults: defaults,
                 bundleIdentifier: suiteName,
+                appGroupIdentifier: "group.com.stuff.where.tests",
                 groupURL: groupURL,
                 whereStoreURL: whereStoreURL,
                 periscopeStoreURL: periscopeStoreURL,

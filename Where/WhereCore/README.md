@@ -31,10 +31,12 @@ one it belongs to rather than to a god-object:
   URL, excluding other stores such as Periscope. `remoteChanges()` uses
   persistent-history transaction authors to emit only the external-import subset,
   so headless notifications and widgets rebuild without duplicating local work.
-  `SwiftDataStore.make(storage:)` opens an explicitly selected
-  CloudKit, local-only, or in-memory store. `SwiftDataStore.inMemory()` is the
-  convenience used by tests and previews. Each
-  process opens its on-disk store **once** and injects it where it's needed — 
+  `SwiftDataStore.make(storage:)` opens an explicitly selected CloudKit,
+  local-only, or in-memory store. On-disk modes carry their App Group identifier;
+  the host chooses that policy and group, so WhereCore contains no audience
+  default. `SwiftDataStore.inMemory()` is the convenience used by tests and
+  previews. Each
+  process opens its on-disk store **once** and injects it where it's needed —
   in the app, the launch's `resolve-scope` step opens it and the App Intents
   stack shares it via `WhereServices.forIntents(sharingStoreOf:)` — so two
   subsystems never race to create/open the same store file. It also
@@ -226,7 +228,9 @@ import WhereCore
 // previews use the synchronous `@_spi(Testing)` `init` instead (an explicit
 // attributor, default four) via `@_spi(Testing) import WhereCore`.
 let services = try await WhereServices.make(
-    store: try SwiftDataStore.make(storage: .cloudKit),
+    store: try SwiftDataStore.make(storage: .cloudKit(
+        appGroupIdentifier: "group.com.stuff.where"
+    )),
     locationSource: CoreLocationSource(),
     installationContext: installationContext, // resolved once by the app composition root
 )

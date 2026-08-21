@@ -13,7 +13,8 @@ For the rules that apply when editing this target, see [`AGENTS.md`](AGENTS.md).
 | File | Role |
 |------|------|
 | `Sources/WhereApp.swift` | `@main` `App`. One `WindowGroup` rendering the selected runtime's type-erased root. |
-| `Sources/AppDelegate.swift` | The boot router. Resolves process reporting preferences, starts the reporting controller, selects one `WhereApplicationRuntime`, and forwards lifecycle callbacks. |
+| `Sources/AppDelegate.swift` | The boot router. Resolves the audience and process reporting preferences, starts the reporting controller, selects one `WhereApplicationRuntime`, and forwards lifecycle callbacks. |
+| `Sources/WhereBuildEnvironment.swift` | Validates the host-only audience condition and maps the generated Info.plist values to storage, App Group, widget refresh, and primary-icon dependencies. |
 | `Sources/DiagnosticReportingController.swift` | Owns the launch-only Bitdrift channels and revisioned Periscope remote sink for the process. |
 | `Sources/RegularApplicationRuntime.swift` | Owns the app's single `WhereModel`, `IntentServices`, and `LifecycleRunner`. Starts logging, installs the App Intents handoff, and indexes Spotlight. |
 | `Sources/WhereInspectorApplicationRuntime.swift` | DEBUG-only alternate runtime. Configures the standalone Inspector without constructing regular app systems. |
@@ -54,18 +55,29 @@ Neither runtime swaps live.
 
 ## Build & run
 
-The target is declared in [`Project.swift`](../../Project.swift).
-Generate and open the workspace with `./ide`, or install to a connected iPhone from the command line with [`./Where/install`](../install) (macOS only, needs a signing team — see [`Where/AGENTS.md`](../AGENTS.md#installing-to-a-device)).
+The target is declared once in [`Project.swift`](../../Project.swift), with
+three audience schemes: **Where Development** (`Debug`, isolated bundle/App
+Group, local-only data), **Where Beta** (`Beta`, production identity and
+CloudKit), and **Where App Store** (`Release`, production identity and
+CloudKit). The manifest injects audience values into the app and extensions;
+only those host targets receive the matching `WHERE_*` compiler condition.
+Generate the workspace with `./ide --no-open`, or install to a connected iPhone
+from the command line with [`./Where/install`](../install) (macOS only, needs a
+signing team — see [`Where/AGENTS.md`](../AGENTS.md#installing-to-a-device)).
 
 ## CloudKit rollout and device validation
 
-The app target owns `iCloud.com.stuff.where`, the Push Notifications entitlement, and the remote-notification background mode.
-Widgets and the share extension have only the App Group entitlement.
-They write/read local shared artifacts, while the app's single SwiftData container owns CloudKit mirroring.
-Debug uses `.localOnly`.
-Exercise sync with a Release-signed build or use `./Where/install --cloudkit`.
-Release always selects `.cloudKit`.
-The installer compiles the validation choice into that Debug app, so manual, background, and CloudKit-push relaunches keep using CloudKit until another build is installed without `--cloudkit`.
+The app target owns `iCloud.com.stuff.where`, the Push Notifications
+entitlement, and the remote-notification background mode. Widgets and the share
+extension intentionally have only the App Group entitlement: they write/read
+local shared artifacts, while the app's single SwiftData container owns
+CloudKit mirroring. Development uses `.localOnly`; exercise sync with
+`./Where/install --cloudkit`, which keeps the isolated Development bundle and
+App Group while selecting `.cloudKit`. Beta and App Store always select
+`.cloudKit` with the production App Group. The installer compiles the
+validation choice into that Development app, so manual, background, and
+CloudKit-push relaunches keep using CloudKit until another build is installed
+without `--cloudkit`.
 
 Before shipping a schema change:
 

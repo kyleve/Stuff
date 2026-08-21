@@ -6,6 +6,7 @@ import WhereCore
 /// Settings drill-in for presentation choices: theme, Locations-card overlays,
 /// and alternate app icon.
 struct AppearanceSettingsView: View {
+    @Environment(\.primaryAppIconName) private var primaryAppIconName
     let report: YearReportModel
     var focus: SettingsFocus?
 
@@ -119,7 +120,7 @@ struct AppearanceSettingsView: View {
         .navigationTitle(String(localized: .settingsAppearanceGroup))
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showAppIcon) {
-            AppIconView()
+            AppIconView(primaryAppIconName: primaryAppIconName)
         }
         .alert(
             String(localized: .settingsAppearanceLocationForecastsDisableErrorTitle),

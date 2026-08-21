@@ -377,17 +377,20 @@ private enum GenerationScopedFetch {
 /// one-shot capture) queue instead of clobbering each other.
 @ModelActor
 public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
-    /// Backing storage for a `SwiftDataStore`. Callers choose explicitly so a
-    /// developer build cannot accidentally validate local-only persistence
-    /// while appearing to exercise CloudKit.
+    /// Backing storage for a `SwiftDataStore`.
+    ///
+    /// On-disk cases carry their App Group identifier so a host can't select
+    /// local or CloudKit persistence without also naming the container it is
+    /// entitled to use. Audience selection stays in the app/extension targets;
+    /// WhereCore receives the finished storage configuration by injection.
     public enum Storage: Sendable, Equatable {
         /// In-memory only. No disk, no CloudKit. Used by tests and previews.
         case inMemory
         /// On-disk SwiftData store with CloudKit sync disabled.
-        case localOnly
+        case localOnly(appGroupIdentifier: String)
         /// On-disk SwiftData store backed by the user's private
         /// CloudKit database.
-        case cloudKit
+        case cloudKit(appGroupIdentifier: String)
 
         /// Whether a store of this mode can receive writes from outside this
         /// process — a sibling App Group process (the share extension) for any
@@ -400,13 +403,23 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
                 case .localOnly, .cloudKit: true
             }
         }
-    }
 
-    /// App Group the on-disk store lives in, shared by the Where app, its
-    /// widget extension, and the share extension so every process opens the
-    /// *same* SwiftData store. Must match the `com.apple.security.application-groups`
-    /// entitlement each of those targets declares (see `Project.swift`).
-    public static let appGroupIdentifier = "group.com.stuff.where"
+        fileprivate var appGroupIdentifier: String? {
+            switch self {
+                case .inMemory: nil
+                case let .localOnly(appGroupIdentifier),
+                     let .cloudKit(appGroupIdentifier): appGroupIdentifier
+            }
+        }
+
+        /// Whether this mode opens a CloudKit-backed container.
+        public var usesCloudKit: Bool {
+            switch self {
+                case .inMemory, .localOnly: false
+                case .cloudKit: true
+            }
+        }
+    }
 
     public static func makeContainer(storage: Storage) throws -> ModelContainer {
         // A plain `Schema` of the live models. SwiftData runs implicit
@@ -438,7 +451,8 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         // the app reads. An in-memory store has no container — leave it default.
         let groupContainer: ModelConfiguration.GroupContainer = switch storage {
             case .inMemory: .none
-            case .localOnly, .cloudKit: .identifier(appGroupIdentifier)
+            case let .localOnly(appGroupIdentifier),
+                 let .cloudKit(appGroupIdentifier): .identifier(appGroupIdentifier)
         }
         // CloudKit mode backs the container with `NSPersistentCloudKitContainer`,
         // which enables persistent-history tracking and posts
@@ -449,7 +463,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             schema: schema,
             isStoredInMemoryOnly: storage == .inMemory,
             groupContainer: groupContainer,
-            cloudKitDatabase: storage == .cloudKit ? .automatic : .none,
+            cloudKitDatabase: storage.usesCloudKit ? .automatic : .none,
         )
     }
 
@@ -487,8 +501,12 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             // SwiftData falls back to the per-process sandbox — which reads as
             // "my old data is still here / the store didn't move" rather than an
             // error. Logging both makes that diagnosable instead of a guess.
-            let groupResolved = FileManager.default
-                .containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier) != nil
+            let appGroupIdentifier = storage.appGroupIdentifier
+            let groupResolved = appGroupIdentifier.flatMap {
+                FileManager.default.containerURL(
+                    forSecurityApplicationGroupIdentifier: $0,
+                )
+            } != nil
             let url = container.configurations.first?.url.path(percentEncoded: false) ?? "unknown"
             logger {
                 .openedOnDisk(
@@ -527,7 +545,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         /// Test seam: an `.inMemory` store wired to drive its `changes()`
         /// fan-out from `remoteChangeSource`, so the remote-import path is
         /// exercisable without CloudKit or a device. The production equivalent
-        /// is `make(storage: .cloudKit)`, which wires a
+        /// is `make(storage: .cloudKit(appGroupIdentifier:))`, which wires a
         /// `PersistentStoreRemoteChangeSource`. `@_spi(Testing)` (per the
         /// agents.md) so the remote-change wiring stays folded into a factory —
         /// there's no public `startObservingRemoteChanges` to call twice.

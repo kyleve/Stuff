@@ -4,7 +4,7 @@ set -euo pipefail
 # icons — add or remove a selectable Where app icon, reproducibly.
 #
 # Edits only data + asset folders (never Swift):
-#   - the app's AppIcon.xcassets        (the alternate appiconset iOS swaps to)
+#   - the app's AppIcon.xcassets        (the appiconsets each audience can use)
 #   - WhereUI's AppIconPreviews.xcassets (the imageset the picker renders, since
 #                                         SwiftUI Image() can't load appiconsets)
 #   - AppIcons.json                      (the manifest the picker reads)
@@ -19,6 +19,7 @@ cd "$(dirname "$0")"
 APP_CATALOG="Where/Where/Resources/AppIcon.xcassets"
 PREVIEW_CATALOG="Where/WhereUI/Sources/Resources/AppIconPreviews.xcassets"
 MANIFEST="Where/WhereUI/Sources/Resources/AppIcons.json"
+PROJECT_MANIFEST="Project.swift"
 
 usage() {
     cat <<'USAGE'
@@ -39,8 +40,10 @@ WhereUI preview catalog, and AppIcons.json in sync.
   --dark <png>    1024x1024 PNG for the dark appearance.
   --tinted <png>  1024x1024 PNG for the tinted (monochrome) appearance.
 
-The primary "Classic" icon (AppIcon / id "classic") is reserved: it can't be
-added or removed.
+The base "Classic" icon (AppIcon / id "classic") is reserved: it can't be
+added or removed. Which appiconset is primary is selected per audience in
+Project.swift; the script refuses to remove any configured primary and manages
+the assets available to every audience.
 
 Examples:
   ./icons --add art/ocean.png --name Ocean --dark art/ocean-dark.png
@@ -113,6 +116,7 @@ fi
 
 MODE="$MODE" \
     APP_CATALOG="$APP_CATALOG" PREVIEW_CATALOG="$PREVIEW_CATALOG" MANIFEST="$MANIFEST" \
+    PROJECT_MANIFEST="$PROJECT_MANIFEST" \
     LIGHT="$LIGHT" NAME="$NAME" ID="$ID" DARK="$DARK" TINTED="$TINTED" TARGET="$TARGET" \
     python3 - <<'PY'
 import json
@@ -126,6 +130,7 @@ MODE = os.environ["MODE"]
 APP_CATALOG = os.environ["APP_CATALOG"]
 PREVIEW_CATALOG = os.environ["PREVIEW_CATALOG"]
 MANIFEST = os.environ["MANIFEST"]
+PROJECT_MANIFEST = os.environ["PROJECT_MANIFEST"]
 
 PRIMARY_SET = "AppIcon"
 PRIMARY_ID = "classic"
@@ -139,7 +144,7 @@ def die(msg):
 def require_repo_layout():
     missing = [
         path
-        for path in (MANIFEST, APP_CATALOG, PREVIEW_CATALOG)
+        for path in (MANIFEST, PROJECT_MANIFEST, APP_CATALOG, PREVIEW_CATALOG)
         if not os.path.exists(path)
     ]
     if missing:
@@ -153,6 +158,16 @@ def load_manifest():
             return json.load(f)
     except json.JSONDecodeError as error:
         die(f"{MANIFEST} is not valid JSON: {error}")
+
+
+def configured_primary_sets():
+    require_repo_layout()
+    with open(PROJECT_MANIFEST) as f:
+        source = f.read()
+    names = set(re.findall(r'primaryAppIconName:\s*"([^"]+)"', source))
+    if not names:
+        die(f"couldn't find any Where audience primary icons in {PROJECT_MANIFEST}")
+    return names
 
 
 def save_manifest(data):
@@ -197,8 +212,10 @@ def do_list():
     id_width = max(len(i["id"]) for i in icons)
     name_width = max(len(i["displayName"]) for i in icons)
     for icon in icons:
-        alt = icon.get("alternateIconName") or "(primary)"
-        print(f"  {icon['id']:<{id_width}}  {icon['displayName']:<{name_width}}  {alt}")
+        print(
+            f"  {icon['id']:<{id_width}}  "
+            f"{icon['displayName']:<{name_width}}  {icon['assetName']}"
+        )
 
 
 def do_add():
@@ -215,7 +232,7 @@ def do_add():
     set_name = PRIMARY_SET + pascal_case(name)
 
     if set_name == PRIMARY_SET or icon_id == PRIMARY_ID:
-        die(f'"{PRIMARY_ID}" / "{PRIMARY_SET}" is the reserved primary icon')
+        die(f'"{PRIMARY_ID}" / "{PRIMARY_SET}" is the reserved base icon')
 
     require_1024(light)
     if dark:
@@ -228,7 +245,7 @@ def do_add():
     for icon in icons:
         if icon["id"] == icon_id:
             die(f'an icon with id "{icon_id}" already exists (use --id to pick another)')
-        if icon.get("alternateIconName") == set_name:
+        if icon["assetName"] == set_name:
             die(f'an icon named "{set_name}" already exists')
 
     appiconset = os.path.join(APP_CATALOG, set_name + ".appiconset")
@@ -274,7 +291,7 @@ def do_add():
     icons.append({
         "id": icon_id,
         "displayName": name,
-        "alternateIconName": set_name,
+        "assetName": set_name,
         "previewImageName": set_name,
     })
     save_manifest(data)
@@ -285,7 +302,7 @@ def do_add():
 def do_remove():
     target = os.environ["TARGET"]
     if target.lower() in (PRIMARY_ID, PRIMARY_SET.lower()):
-        die('the primary "Classic" icon can\'t be removed')
+        die('the base "Classic" icon can\'t be removed')
 
     data = load_manifest()
     icons = data.get("icons", [])
@@ -297,17 +314,22 @@ def do_remove():
             in {
                 icon["id"].lower(),
                 icon["displayName"].lower(),
-                (icon.get("alternateIconName") or "").lower(),
+                icon["assetName"].lower(),
             }
         ),
         None,
     )
     if match is None:
         die(f'no icon matching "{target}" (try ./icons --list)')
-    if match.get("alternateIconName") is None:
-        die('the primary "Classic" icon can\'t be removed')
+    if match["assetName"] == PRIMARY_SET:
+        die('the base "Classic" icon can\'t be removed')
 
-    set_name = match["alternateIconName"]
+    set_name = match["assetName"]
+    if set_name in configured_primary_sets():
+        die(
+            f'"{set_name}" is configured as a Where audience primary icon; '
+            f'change {PROJECT_MANIFEST} before removing it'
+        )
     for path in (
         os.path.join(APP_CATALOG, set_name + ".appiconset"),
         os.path.join(PREVIEW_CATALOG, set_name + ".imageset"),
@@ -318,7 +340,7 @@ def do_remove():
     data["icons"] = [icon for icon in icons if icon is not match]
     save_manifest(data)
     print(f'Removed "{match["displayName"]}" (id: {match["id"]}).')
-    print("If it was the active icon, the app falls back to Classic on next launch.")
+    print("If it was active, the app falls back to its configured primary on next launch.")
     print("Run `./ide --no-open` to regenerate.")
 
 

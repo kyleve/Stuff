@@ -14,9 +14,9 @@ layering, and the domain rules this target merely starts up.
 
 - **Keep it tiny.** Domain behavior goes in `WhereCore`. Presentation goes in
   `WhereUI`. If a change here is more than wiring, it belongs in a module. The
-  target is a Tuist `.app` ([`Project.swift`](../../Project.swift), bundle ID
-  `com.stuff.where`). Its Info.plist keys, entitlements, and build settings
-  live in that manifest. There is no checked-in plist to edit.
+  target is a Tuist `.app` ([`Project.swift`](../../Project.swift)); its bundle
+  ID, Info.plist keys, entitlements, build settings, and audience schemes live
+  in that manifest — there is no checked-in plist to edit.
 - `Scripts/` holds this target's build-phase scripts, not dev commands (those
   are the repo-root executables). Today that is
   [`stamp-build-info.sh`](Scripts/stamp-build-info.sh). It stamps the commit
@@ -40,6 +40,10 @@ layering, and the domain rules this target merely starts up.
   `WhereApp` forward through `WhereApplicationRuntime`. Never add mode switches
   to lifecycle callbacks, `RootView`, or feature code. In DEBUG, finish
   Inspector's latched store-family recovery before constructing that runtime.
+- **Resolve `WhereBuildEnvironment.current` once in `AppDelegate.init`.** Its
+  audience condition must match the generated Info.plist, and the selected App
+  Group, storage policy, widget refresher, App Intents handoff, and primary icon
+  must be injected from that one value.
 - **Release always builds `RegularApplicationRuntime`.** Boot preference reads,
   Inspector configuration, and menu integration stay under `#if DEBUG`.
 - **Wire regular launch in `didFinishLaunching`, not a SwiftUI `.task`.** When
@@ -65,12 +69,12 @@ layering, and the domain rules this target merely starts up.
   `onServicesReady` hook.
 - **Only the app owns the CloudKit capability.** Keep its App Group, CloudKit
   container (`iCloud.com.stuff.where`), Push Notifications entitlement, and
-  remote-notification background mode together in `Project.swift`. Widgets and
-  the share extension stay App Group-only. They must never open a CloudKit
-  container.
-- **Choose the regular runtime's store explicitly.** Release uses `.cloudKit`.
-  Debug uses `.localOnly` unless built with `WHERE_CLOUDKIT_VALIDATION`
-  (`./Where/install --cloudkit`). The choice must survive every process relaunch.
+  remote-notification background mode together in `Project.swift`; widgets and
+  the share extension stay App Group-only and never open a CloudKit container.
+- **Choose the regular runtime's store explicitly.** Beta and App Store use
+  `.cloudKit`; Development uses `.localOnly` unless built with
+  `WHERE_CLOUDKIT_VALIDATION` (`./Where/install --cloudkit`); the choice must
+  survive every process relaunch.
 - **Nothing here may assume the user has a store.** `didFinishLaunching` starts
   the ambient log sources and drives the launch. Anything wanting the user's
   data waits for `.ready` and checks what it got. The Spotlight indexing after

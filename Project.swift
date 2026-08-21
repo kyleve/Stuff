@@ -23,6 +23,114 @@ private let sfSafeSymbolsPackage = Package.remote(
 /// Xcode falls back to its defaults.
 private let developmentTeam = Environment.developmentTeam.getString(default: "")
 
+private struct WhereAudience {
+    enum Variant {
+        case debug
+        case release
+    }
+
+    let schemeName: String
+    let configurationName: ConfigurationName
+    let variant: Variant
+    let condition: String
+    let value: String
+    let displayName: String
+    let appBundleID: String
+    let widgetBundleID: String
+    let shareBundleID: String
+    let appGroupIdentifier: String
+    let primaryAppIconName: String
+
+    func configuration(settings: SettingsDictionary = [:]) -> Configuration {
+        switch variant {
+            case .debug: .debug(name: configurationName, settings: settings)
+            case .release: .release(name: configurationName, settings: settings)
+        }
+    }
+}
+
+private let whereAudiences: [WhereAudience] = [
+    WhereAudience(
+        schemeName: "Where Development",
+        configurationName: "Debug",
+        variant: .debug,
+        condition: "WHERE_DEVELOPMENT",
+        value: "development",
+        displayName: "Where Dev",
+        appBundleID: "com.stuff.where.development",
+        widgetBundleID: "com.stuff.where.development.widgets",
+        shareBundleID: "com.stuff.where.development.share",
+        appGroupIdentifier: "group.com.stuff.where.development",
+        primaryAppIconName: "AppIcon",
+    ),
+    WhereAudience(
+        schemeName: "Where Beta",
+        configurationName: "Beta",
+        variant: .release,
+        condition: "WHERE_BETA",
+        value: "beta",
+        displayName: "Where",
+        appBundleID: "com.stuff.where",
+        widgetBundleID: "com.stuff.where.widgets",
+        shareBundleID: "com.stuff.where.share",
+        appGroupIdentifier: "group.com.stuff.where",
+        primaryAppIconName: "AppIcon",
+    ),
+    WhereAudience(
+        schemeName: "Where App Store",
+        configurationName: "Release",
+        variant: .release,
+        condition: "WHERE_APP_STORE",
+        value: "appStore",
+        displayName: "Where",
+        appBundleID: "com.stuff.where",
+        widgetBundleID: "com.stuff.where.widgets",
+        shareBundleID: "com.stuff.where.share",
+        appGroupIdentifier: "group.com.stuff.where",
+        primaryAppIconName: "AppIcon",
+    ),
+]
+
+private enum WhereHostTarget {
+    case app
+    case widget
+    case share
+
+    func bundleID(for audience: WhereAudience) -> String {
+        switch self {
+            case .app: audience.appBundleID
+            case .widget: audience.widgetBundleID
+            case .share: audience.shareBundleID
+        }
+    }
+}
+
+private func whereHostSettings(
+    _ target: WhereHostTarget,
+    base: SettingsDictionary = [:],
+) -> Settings {
+    .settings(
+        base: base,
+        configurations: whereAudiences.map { audience in
+            var settings: SettingsDictionary = [
+                "PRODUCT_BUNDLE_IDENTIFIER": .string(target.bundleID(for: audience)),
+                "SWIFT_ACTIVE_COMPILATION_CONDITIONS": .string(
+                    "$(inherited) \(audience.condition)",
+                ),
+                "WHERE_APP_GROUP_IDENTIFIER": .string(audience.appGroupIdentifier),
+                "WHERE_AUDIENCE": .string(audience.value),
+                "WHERE_DISPLAY_NAME": .string(audience.displayName),
+                "WHERE_PRIMARY_APP_ICON_NAME": .string(audience.primaryAppIconName),
+            ]
+            if case .app = target {
+                settings["ASSETCATALOG_COMPILER_APPICON_NAME"] = .string(audience
+                    .primaryAppIconName)
+            }
+            return audience.configuration(settings: settings)
+        },
+    )
+}
+
 /// Base build settings applied to every Tuist-generated target.
 ///
 /// `STRING_CATALOG_GENERATE_SYMBOLS` turns on Xcode's type-safe String Catalog
@@ -40,14 +148,18 @@ private let projectSettings: Settings = .settings(
             "STRING_CATALOG_GENERATE_SYMBOLS": "YES",
             "DEVELOPMENT_TEAM": .string(developmentTeam),
         ],
+    configurations: whereAudiences.map { $0.configuration() },
+    defaultConfiguration: "Debug",
 )
 
 /// App Group shared by the Where app, its widget extension, and its share
-/// extension so every process sees the same on-disk SwiftData store (see
-/// `SwiftDataStore.appGroupIdentifier`, which must match) and the widget
-/// snapshot JSON.
+/// extension so every audience's processes see the same on-disk SwiftData
+/// store and widget snapshot JSON. The host injects the matching build setting
+/// into WhereCore; no package target owns a global App Group identifier.
 let whereAppGroupEntitlements: Entitlements = .dictionary([
-    "com.apple.security.application-groups": .array([.string("group.com.stuff.where")]),
+    "com.apple.security.application-groups": .array([
+        .string("$(WHERE_APP_GROUP_IDENTIFIER)"),
+    ]),
 ])
 
 /// The app additionally owns the CloudKit container that mirrors its
@@ -59,7 +171,9 @@ let whereAppEntitlements: Entitlements = .dictionary([
     // the selected provisioning profile. Keeping the entitlement in the
     // target is what makes automatic signing request Push Notifications.
     "aps-environment": .string("development"),
-    "com.apple.security.application-groups": .array([.string("group.com.stuff.where")]),
+    "com.apple.security.application-groups": .array([
+        .string("$(WHERE_APP_GROUP_IDENTIFIER)"),
+    ]),
     "com.apple.developer.icloud-container-identifiers": .array([
         .string("iCloud.com.stuff.where"),
     ]),
@@ -175,6 +289,38 @@ func testScheme(
     )
 }
 
+private let whereAudienceSchemes: [Scheme] = [
+    // Reserve the autogenerated target scheme's name but keep audience-neutral
+    // entry points out of Xcode's visible scheme picker.
+    .scheme(
+        name: "Where",
+        shared: true,
+        hidden: true,
+        buildAction: .buildAction(targets: ["Where"]),
+        runAction: .runAction(configuration: "Debug", executable: "Where"),
+    ),
+] + whereAudiences.map { audience in
+    let testAction: TestAction? = switch audience.variant {
+        case .debug: .targets(
+                ["WhereTests"],
+                arguments: .arguments(environmentVariables: packageResourceEnvironment),
+                configuration: audience.configurationName,
+            )
+        case .release: nil
+    }
+    return .scheme(
+        name: audience.schemeName,
+        shared: true,
+        buildAction: .buildAction(targets: ["Where"]),
+        testAction: testAction,
+        runAction: .runAction(
+            configuration: audience.configurationName,
+            executable: "Where",
+        ),
+        archiveAction: .archiveAction(configuration: audience.configurationName),
+    )
+}
+
 let project = Project(
     name: "Stuff",
     options: .options(
@@ -191,6 +337,7 @@ let project = Project(
             bundleId: "com.stuff.where",
             deploymentTargets: deployment,
             infoPlist: .extendingDefault(with: [
+                "CFBundleDisplayName": .string("$(WHERE_DISPLAY_NAME)"),
                 "UILaunchScreen": .dictionary([:]),
                 "UIApplicationSupportsIndirectInputEvents": .boolean(true),
                 "UIBackgroundModes": .array([.string("remote-notification")]),
@@ -199,6 +346,9 @@ let project = Project(
                 // user reads off the screen should be one this manifest chose.
                 "CFBundleShortVersionString": .string("1.0"),
                 "CFBundleVersion": .string("1"),
+                "WhereAudience": .string("$(WHERE_AUDIENCE)"),
+                "WhereAppGroupIdentifier": .string("$(WHERE_APP_GROUP_IDENTIFIER)"),
+                "WherePrimaryAppIconName": .string("$(WHERE_PRIMARY_APP_ICON_NAME)"),
                 "NSLocationWhenInUseUsageDescription": .string(
                     "Where uses your location to figure out which region you're in.",
                 ),
@@ -234,10 +384,11 @@ let project = Project(
             // auto-write the `CFBundleAlternateIcons` plist entries, so the asset
             // catalog itself is the source of truth for which alternate icons exist
             // (the `./icons` script just adds/removes sets — no names list to keep
-            // in sync here). The primary stays `AppIcon`. Where ships no custom
-            // global accent color (it tints per-region in SwiftUI), so clear the
-            // name actool otherwise looks for — an unset `AccentColor` warns.
-            settings: .settings(base: [
+            // in sync here). Each audience descriptor chooses its primary from
+            // those sets. Where ships no custom global accent color (it tints
+            // per-region in SwiftUI), so clear the name actool otherwise looks
+            // for — an unset `AccentColor` warns.
+            settings: whereHostSettings(.app, base: [
                 "ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS": "YES",
                 "ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME": "",
             ]),
@@ -249,7 +400,9 @@ let project = Project(
             bundleId: "com.stuff.where.widgets",
             deploymentTargets: deployment,
             infoPlist: .extendingDefault(with: [
-                "CFBundleDisplayName": .string("Where"),
+                "CFBundleDisplayName": .string("$(WHERE_DISPLAY_NAME)"),
+                "WhereAudience": .string("$(WHERE_AUDIENCE)"),
+                "WhereAppGroupIdentifier": .string("$(WHERE_APP_GROUP_IDENTIFIER)"),
                 "NSExtension": .dictionary([
                     "NSExtensionPointIdentifier": .string("com.apple.widgetkit-extension"),
                 ]),
@@ -263,6 +416,7 @@ let project = Project(
                 .package(product: "WhereCore"),
                 .package(product: "WhereUI"),
             ],
+            settings: whereHostSettings(.widget),
         ),
         .target(
             name: "WhereShareExtension",
@@ -271,7 +425,9 @@ let project = Project(
             bundleId: "com.stuff.where.share",
             deploymentTargets: deployment,
             infoPlist: .extendingDefault(with: [
-                "CFBundleDisplayName": .string("Where"),
+                "CFBundleDisplayName": .string("$(WHERE_DISPLAY_NAME)"),
+                "WhereAudience": .string("$(WHERE_AUDIENCE)"),
+                "WhereAppGroupIdentifier": .string("$(WHERE_APP_GROUP_IDENTIFIER)"),
                 "NSExtension": .dictionary([
                     "NSExtensionPointIdentifier": .string("com.apple.share-services"),
                     "NSExtensionPrincipalClass": .string(
@@ -299,6 +455,7 @@ let project = Project(
                 .package(product: "WhereCore"),
                 .package(product: "WhereUI"),
             ],
+            settings: whereHostSettings(.share),
         ),
         .target(
             name: "RegionViewer",
@@ -695,7 +852,7 @@ let project = Project(
     // runs them), so declare them explicitly. This lets `tuist test
     // WhereCoreTests` / `tuist test WhereTests` / `tuist test WhereUITests`
     // target a single bundle without building the whole workspace.
-    schemes: [
+    schemes: whereAudienceSchemes + [
         // App target schemes are normally autogenerated, but declare the
         // RegionViewer one explicitly so `tuist build RegionViewer` (and a
         // Run that launches the Catalyst app) is always available.

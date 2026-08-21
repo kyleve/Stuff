@@ -36,6 +36,9 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
   `current()` (cancellation-aware). There is deliberately no self-open
   fallback. A `LogDayIntent` write therefore pings the same `changes()`
   signal the running UI refreshes from.
+- **Inject the host App Group into `IntentServices`.** The Today intent's
+  optional widget-snapshot fast path uses it; no package target owns an
+  audience default.
 - **Resolve snippet services and `WhereTheme` together through
   `IntentServices.currentContext()`.** A view must never combine different handoff states.
 - **Every `perform()` wraps its work in `measureIntent(_:)`.** Each

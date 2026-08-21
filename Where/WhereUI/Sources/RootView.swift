@@ -53,6 +53,7 @@ public struct RootView: View {
         )
     #endif
     private let launcher: LifecycleRunner<WhereSession>
+    private let primaryAppIconName: String
     #if DEBUG
         private let inspectorModeController: InspectorModeController?
         /// Hosted snapshots have no active SwiftUI scene even though their
@@ -66,10 +67,12 @@ public struct RootView: View {
         public init(
             model: WhereModel,
             launcher: LifecycleRunner<WhereSession>,
+            primaryAppIconName: String,
             inspectorModeController: InspectorModeController? = nil,
         ) {
             _model = State(initialValue: model)
             self.launcher = launcher
+            self.primaryAppIconName = primaryAppIconName
             self.inspectorModeController = inspectorModeController
             presentationVisibilityOverride = nil
         }
@@ -78,10 +81,12 @@ public struct RootView: View {
         public init(
             model: WhereModel,
             launcher: LifecycleRunner<WhereSession>,
+            primaryAppIconName: String,
             presentationVisibilityOverride: Bool,
         ) {
             _model = State(initialValue: model)
             self.launcher = launcher
+            self.primaryAppIconName = primaryAppIconName
             inspectorModeController = nil
             self.presentationVisibilityOverride = presentationVisibilityOverride
         }
@@ -89,9 +94,11 @@ public struct RootView: View {
         public init(
             model: WhereModel,
             launcher: LifecycleRunner<WhereSession>,
+            primaryAppIconName: String,
         ) {
             _model = State(initialValue: model)
             self.launcher = launcher
+            self.primaryAppIconName = primaryAppIconName
         }
     #endif
 
@@ -112,6 +119,7 @@ public struct RootView: View {
                 WhereBootstrap(
                     installationContextStore: $0,
                     storeStorage: .inMemory,
+                    widgetRefresher: NoopWidgetTimelineRefresher(),
                     locationOutbox: NoOpLocationOutbox(),
                 )
             },
@@ -119,6 +127,7 @@ public struct RootView: View {
         )
         _model = State(initialValue: model)
         launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
+        primaryAppIconName = "AppIcon"
         #if DEBUG
             inspectorModeController = nil
             presentationVisibilityOverride = nil
@@ -206,6 +215,7 @@ public struct RootView: View {
             // re-inject when a reset rebuilds it. The DEBUG developer overlay
             // reads it optionally — it can appear before login.
             .environment(model.session)
+            .environment(\.primaryAppIconName, primaryAppIconName)
         #if DEBUG
             .environment(inspectorModeController)
             .environment(\.cardDesignerModel, cardDesigner)
@@ -346,6 +356,7 @@ public struct RootView: View {
                 RootView(
                     model: model,
                     launcher: launcher,
+                    primaryAppIconName: "AppIcon",
                     presentationVisibilityOverride: true,
                 )
             }
@@ -358,6 +369,7 @@ public struct RootView: View {
                 RootView(
                     model: recordingWarningModel,
                     launcher: recordingWarningLauncher,
+                    primaryAppIconName: "AppIcon",
                     presentationVisibilityOverride: true,
                 )
             }

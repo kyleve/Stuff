@@ -22,9 +22,15 @@ struct AppIconActivityIndicator: View {
     private let imageName: String
 
     @MainActor
-    init(size: CGFloat = 88, previewImageName: String? = nil) {
+    init(
+        primaryAppIconName: String,
+        size: CGFloat = 88,
+        previewImageName: String? = nil,
+    ) {
         self.size = size
-        imageName = previewImageName ?? AppIconCatalog.liveSelectedPreviewImageName()
+        imageName = previewImageName ?? AppIconCatalog.liveSelectedPreviewImageName(
+            primaryAppIconName: primaryAppIconName,
+        )
     }
 
     var body: some View {
@@ -53,12 +59,18 @@ struct AppIconActivityIndicator: View {
 
 #if DEBUG
     #Preview("Light") {
-        AppIconActivityIndicator(previewImageName: "AppIconClassic")
-            .environment(\.colorScheme, .light)
+        AppIconActivityIndicator(
+            primaryAppIconName: "AppIcon",
+            previewImageName: "AppIconClassic",
+        )
+        .environment(\.colorScheme, .light)
     }
 
     #Preview("Dark") {
-        AppIconActivityIndicator(previewImageName: "AppIconClassic")
-            .environment(\.colorScheme, .dark)
+        AppIconActivityIndicator(
+            primaryAppIconName: "AppIcon",
+            previewImageName: "AppIconClassic",
+        )
+        .environment(\.colorScheme, .dark)
     }
 #endif

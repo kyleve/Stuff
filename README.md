@@ -58,6 +58,9 @@ It streams progress while tests run:
 
 See `./test --help` for the rest, including `--timings` and `--review` for reading a snapshot run.
 
+CircleCI also compiles the `Where Beta` and `Where App Store` schemes on two
+build-only shards. These shards do not run tests or start a simulator.
+
 Each checkout gets a device of its own (a second clone, a worktree, and so on).
 Two runs on one machine never fight over booting, installing to, or erasing the same simulator.
 `./simulator --list` shows devices with their owning checkouts.

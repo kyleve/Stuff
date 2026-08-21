@@ -266,9 +266,12 @@ synchronous, in-memory fixtures. Never use disk, CloudKit, or CoreLocation.
 ## Installing to a device
 
 `./Where/install` builds, signs, and installs the app onto a connected iPhone
-from the CLI. It is macOS-only. It needs one-time `./ide --team-id <id>` setup.
-It defaults to Debug with compiler optimizations forced on. DEBUG-only developer
-surfaces survive at near-Release speed. Options: `./Where/install --help`.
+from the CLI — macOS-only, one-time `./ide --team-id <id>` setup. It defaults
+to the **Where Development** scheme with compiler optimizations forced on, so
+DEBUG-only developer surfaces survive at near-Release speed. Pass
+`--configuration Beta` for the TestFlight-style production identity or
+`--configuration Release` for the App Store audience. Options:
+`./Where/install --help`.
 
 ## Testing
 

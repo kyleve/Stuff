@@ -19,11 +19,14 @@ struct PersonalizationFeaturesView: View {
     init(
         report: YearReportModel,
         focus: SettingsFocus?,
-        iconModel: AppIconModel = AppIconModel(),
+        primaryAppIconName: String,
+        iconModel: AppIconModel? = nil,
     ) {
         self.report = report
         self.focus = focus
-        _iconModel = State(initialValue: iconModel)
+        _iconModel = State(initialValue: iconModel ?? AppIconModel(
+            primaryAppIconName: primaryAppIconName,
+        ))
     }
 
     var body: some View {
@@ -171,6 +174,7 @@ extension PersonalizationFeaturesView: SettingsSection {
                 PersonalizationFeaturesView(
                     report: PreviewSupport.loadedYearReportModel(),
                     focus: nil,
+                    primaryAppIconName: "AppIcon",
                     iconModel: .preview(activeAlternateIconName: "AppIconPride"),
                 )
             }

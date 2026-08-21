@@ -46,7 +46,7 @@ final class ShareEvidenceModel {
 
     init(
         items: [NSExtensionItem],
-        storage: SwiftDataStore.Storage = .localOnly,
+        storage: SwiftDataStore.Storage,
         now: @Sendable () -> Date = { Date() },
     ) {
         self.items = items
