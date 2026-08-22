@@ -14,7 +14,10 @@ commands keep process and simulator orchestration in shell; `xcode_results.py`
 shares xcresult traversal, `snapshot_reports.py` shares capture reports, and
 the command-specific Python modules retain each command's distinct policy.
 Filesystem-heavy Ruby generators are require-safe so their behavior can be
-exercised against temporary repositories.
+exercised against temporary repositories. `SimulatorRegistry` validates exact
+runtime ownership from captured `simctl` JSON and persists private claims
+atomically; its command-level tests replace `xcrun` rather than touching a
+developer's devices.
 
 ## Testing
 
