@@ -1,5 +1,11 @@
 version: 2.1
 
+parameters:
+  manual_full_gate:
+    type: enum
+    enum: ["false", "true"]
+    default: "false"
+
 executors:
   m4-pro-medium:
     macos:
@@ -60,9 +66,11 @@ commands:
       - run:
           name: Test CI helpers
           command: |
+            ./shellcheck
             python3 .circleci/Tests/test_xcresult_to_junit.py
             python3 .circleci/Tests/test_test_artifacts.py
-            python3 Tools/Tests/test_snapshot_shards.py
+            python3 -m unittest discover -s Tools/Tests -p 'test_*.py'
+            mise exec -- ruby -I Tools/Tests -e 'Dir["Tools/Tests/**/*_test.rb"].sort.each { |file| require File.expand_path(file) }'
             ./snapshot-shards check
 
   validate_runner_environment:
@@ -369,6 +377,7 @@ jobs:
 workflows:
   "iOS CI":
     when: >-
+      pipeline.parameters.manual_full_gate == "true" or
       (pipeline.event.name == "push" and pipeline.git.branch == "main") or
       (pipeline.event.name == "pull_request" and
       pipeline.event.github.pull_request.base.ref == "main")

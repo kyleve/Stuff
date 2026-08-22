@@ -90,6 +90,7 @@ done
 # Pre-flight: a device build must be signed by a real team. Read the value mise
 # injects (TUIST_DEVELOPMENT_TEAM from .mise.local.toml) and fail early with an
 # actionable hint rather than deep inside xcodebuild's signing phase.
+# shellcheck disable=SC2016 # Expand in mise's child shell, not this one.
 TEAM_ID="$(mise exec -- sh -c 'printf "%s" "${TUIST_DEVELOPMENT_TEAM:-}"')"
 if [ -z "$TEAM_ID" ]; then
     cat >&2 <<'EOF'

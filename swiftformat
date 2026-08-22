@@ -1,6 +1,30 @@
 #!/bin/bash
 set -euo pipefail
 
+usage() {
+    cat <<'EOF'
+Usage: ./swiftformat [SwiftFormat options] [paths ...]
+
+Run the repository's pinned SwiftFormat. With no path, formats the repository.
+All arguments other than this wrapper's help flag are forwarded to SwiftFormat.
+
+Options:
+  -h, --help  Show this help without requiring mise or SwiftFormat.
+EOF
+}
+
+if [ $# -eq 1 ]; then
+    case "$1" in
+        -h|--help)
+            usage
+            exit 0
+            ;;
+    esac
+fi
+
+script_root=$(CDPATH='' cd "$(dirname "$0")" && pwd)
+cd "$script_root"
+
 has_positional=false
 
 for arg in "$@"; do
