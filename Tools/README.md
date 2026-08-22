@@ -2,15 +2,19 @@
 
 This directory contains importable implementations and direct tests for the
 repository's retained Python and Ruby developer tooling. Public commands stay
-at their established paths in the repository root; shell launchers own process
-orchestration and bootstrap, while structured parsing and policy live here.
+at their established paths in the repository root; shell launchers own public
+argument handling, process orchestration, and bootstrap, while structured
+parsing and reporting policy live here.
 
 The existing CircleCI artifact, JUnit, and snapshot-shard helpers remain Python
 because they are already integrated and directly tested. `tla_check.py`
 similarly owns TLA+ manifest validation, isolated translation, TLC argv, and
-result reporting without requiring Java in its tests. Filesystem-heavy Ruby
-generators are require-safe so their behavior can be exercised against
-temporary repositories.
+result reporting without requiring Java in its tests. The Xcode-facing root
+commands keep process and simulator orchestration in shell; `xcode_results.py`
+shares xcresult traversal, `snapshot_reports.py` shares capture reports, and
+the command-specific Python modules retain each command's distinct policy.
+Filesystem-heavy Ruby generators are require-safe so their behavior can be
+exercised against temporary repositories.
 
 ## Testing
 

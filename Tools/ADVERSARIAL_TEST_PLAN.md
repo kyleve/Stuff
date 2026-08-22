@@ -240,3 +240,15 @@ The stack is ready only when:
 - Apple Bash 3.2, system Python 3.9, and pinned Ruby all pass.
 - Commands work from local and CI-style environments.
 - Every rebased PR has fresh required checks.
+
+## Mutation evidence
+
+These mutations were applied locally, the named test failed, and the mutation
+was removed before commit:
+
+| Removed or weakened behavior | Test that killed the mutation |
+|---|---|
+| Treat a successful Xcode run with zero tests as success | `test_test_rejects_a_successful_xcode_run_that_matched_zero_tests` |
+| Replace the `xcodebuild` pipeline status with zero | `test_test_preserves_xcode_failure_through_the_progress_pipeline` |
+| Ignore a failed `tee` or progress stage after successful Xcode | `test_test_surfaces_a_progress_process_failure_after_xcode_succeeds` |
+| Trust a schema-shifted xcresult root instead of validating it | `test_tolerates_unknown_nodes_parameterized_names_and_missing_fields` |

@@ -206,47 +206,8 @@ if [ "$DO_BUILD" = true ]; then
     # Parsing is best-effort: if xcodebuild's log format ever shifts, warn and
     # keep going rather than aborting the run with a traceback.
     set +e
-    BUILD_LOG="$BUILD_LOG" TC_THRESHOLD="$TC_THRESHOLD" python3 - <<'PY'
-import os, re, sys
-
-
-def main():
-    log = open(os.environ['BUILD_LOG'], errors='replace').read()
-
-    phase_re = re.compile(r'^(.+?) \((\d+) tasks?\) \| ([\d.]+) seconds$', re.M)
-    phases = [(m.group(1).strip(), int(m.group(2)), float(m.group(3)))
-              for m in phase_re.finditer(log)]
-    if phases:
-        total = sum(p[2] for p in phases)
-        print("Build phases (summed task-time across cores; wall is lower thanks to")
-        print("parallelism — use the shares, not the absolute seconds):")
-        for name, n, secs in sorted(phases, key=lambda x: -x[2]):
-            pct = 100 * secs / total if total else 0
-            print(f"  {secs:8.2f}s  {pct:4.0f}%  {name} ({n})")
-    else:
-        print("  (no build-timing summary found — was this a no-op incremental build?)")
-
-    limit = int(os.environ['TC_THRESHOLD'])
-    tc = re.findall(r'(/[^:\n]+:\d+:\d+): warning: (.*?took (\d+)ms to type-check.*)$',
-                    log, re.M)
-    print()
-    if tc:
-        print(f"Slow type-check sites (limit {limit}ms):")
-        for loc, _msg, ms in sorted(tc, key=lambda x: -int(x[2])):
-            short = re.sub(r'^.*?/((?:Where|Shared)/)', r'\1', loc)
-            print(f"  {int(ms):6d}ms  {short}")
-    else:
-        print(f"Slow type-check sites (limit {limit}ms): none — no expression or")
-        print("function body exceeded the threshold.")
-
-
-try:
-    main()
-except Exception as exc:  # never hard-fail a reporting tool
-    print(f"warning: couldn't parse build timing from {os.environ['BUILD_LOG']} ({exc})",
-          file=sys.stderr)
-    sys.exit(1)
-PY
+    python3 Tools/profile_results.py build \
+        --log "$BUILD_LOG" --typecheck-threshold "$TC_THRESHOLD"
     set -e
     echo
 fi
@@ -351,48 +312,8 @@ if [ "$DO_TESTS" = true ]; then
         rule
         echo "SNAPSHOT CAPTURE PHASES"
         rule
-        LINES="$SNAPSHOT_TIMINGS" python3 - <<'PY'
-import collections, json, os, sys
-
-rows = [json.loads(line) for line in open(os.environ['LINES']) if line.strip()]
-if not rows:
-    print('  (no timing lines found)')
-    sys.exit(0)
-
-grand = sum(row['total'] for row in rows)
-phases = collections.Counter()
-for row in rows:
-    phases.update(row['phases'])
-
-print(f'  {len(rows)} captures, {grand:.1f}s total, {grand / len(rows):.3f}s per image\n')
-print(f"  {'phase':20s} {'total':>9s} {'share':>7s} {'mean':>9s}")
-for phase, seconds in phases.most_common():
-    print(f'  {phase:20s} {seconds:8.2f}s {100 * seconds / grand:6.1f}% '
-          f'{seconds / len(rows):8.3f}s')
-
-def print_counts(title, key):
-    counts = collections.Counter(row.get(key, 'unknown') for row in rows)
-    print(f'\n  {title}:')
-    for value, count in sorted(counts.items(), key=lambda item: (-item[1], item[0])):
-        print(f'    {count:4d}  {value}')
-
-print_counts('sizing', 'sizing')
-print_counts('measurement readiness', 'measurementReadiness')
-print_counts('capture settle', 'captureSettle')
-
-print('\n  intrinsic measurement by readiness:')
-for readiness in sorted(set(row.get('measurementReadiness', 'unknown') for row in rows)):
-    selected = [row for row in rows if row.get('measurementReadiness', 'unknown') == readiness]
-    seconds = sum(row['phases'].get('intrinsicMeasure', 0) for row in selected)
-    print(f'    {seconds:8.2f}s  {readiness} ({len(selected)} captures)')
-
-passes = [row['settlePasses'] for row in rows]
-print(f'\n  settle passes: min {min(passes)}, max {max(passes)}, '
-      f'mean {sum(passes) / len(passes):.1f}')
-print('\n  slowest captures:')
-for row in sorted(rows, key=lambda row: -row['total'])[:8]:
-    print(f"    {row['total']:6.3f}s  {row['id']}")
-PY
+        python3 Tools/snapshot_reports.py timings "$SNAPSHOT_TIMINGS" \
+            --detailed --empty-message "no timing lines found"
         TEST_JSON_PATHS="$TESTS_JSON:$SNAPSHOT_TESTS_JSON"
         WALL_SUMMARY="$TEST_WALL_LABEL: ${test_wall}s (unit) + ${snapshot_wall}s (snapshot)"
     fi
@@ -403,67 +324,9 @@ PY
     rule
     # Best-effort parse: warn and continue if the xcresult schema shifts.
     set +e
-    TESTS_JSON="$TEST_JSON_PATHS" TOP="$TOP" TEST_THRESHOLD="$TEST_THRESHOLD" python3 - <<'PY'
-import json, os, sys
-from collections import defaultdict
-
-
-def main():
-    cases = []  # (bundle, name, seconds)
-
-    def walk(node, bundle):
-        nt = node.get('nodeType')
-        if nt == 'Unit test bundle':
-            bundle = node.get('name', bundle)
-        # Exclude skipped parameterized cases from the real run counts.
-        if nt == 'Test Case' and node.get('result') != 'Skipped':
-            cases.append((bundle, node.get('name', '?'),
-                          float(node.get('durationInSeconds') or 0)))
-        for child in node.get('children', []):
-            walk(child, bundle)
-
-    # One JSON per test leg (unit + snapshot), colon-separated; the bundles
-    # are disjoint across legs, so the merged rows stay per-bundle exact.
-    for path in os.environ['TESTS_JSON'].split(':'):
-        data = json.load(open(path))
-        for n in data.get('testNodes', []):
-            walk(n, '?')
-
-    top = int(os.environ['TOP'])
-    thr = float(os.environ['TEST_THRESHOLD'])
-    total = sum(d for _, _, d in cases)
-    print(f"{len(cases)} tests, summed self-time {total:.2f}s")
-
-    print()
-    print(f"Slowest {top} tests:")
-    for b, n, d in sorted(cases, key=lambda x: -x[2])[:top]:
-        flag = '  <== over threshold' if d >= thr else ''
-        print(f"  {d:7.3f}s  {b} / {n}{flag}")
-
-    by = defaultdict(lambda: [0.0, 0])
-    for b, _n, d in cases:
-        by[b][0] += d
-        by[b][1] += 1
-    print()
-    print("Per-bundle self-time:")
-    for b, (d, c) in sorted(by.items(), key=lambda x: -x[1][0]):
-        print(f"  {d:7.3f}s  {b} ({c} tests)")
-
-    over = [c for c in cases if c[2] >= thr]
-    print()
-    if over:
-        print(f"{len(over)} test(s) at/over the {thr}s threshold (flagged above).")
-    else:
-        print(f"No tests at/over the {thr}s threshold.")
-
-
-try:
-    main()
-except Exception as exc:  # never hard-fail a reporting tool
-    print(f"warning: couldn't parse test results from {os.environ['TESTS_JSON']} ({exc})",
-          file=sys.stderr)
-    sys.exit(1)
-PY
+    python3 Tools/profile_results.py tests \
+        --tests-json-paths "$TEST_JSON_PATHS" \
+        --top "$TOP" --threshold "$TEST_THRESHOLD"
     set -e
     echo
 fi
