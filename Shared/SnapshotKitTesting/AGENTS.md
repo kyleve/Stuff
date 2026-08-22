@@ -23,6 +23,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **The rendering pipeline is one async function.** All captures (standard and accessibility) flow through `renderSnapshotImage(...)`.
 - **Its `async` is load-bearing.** A synchronous `Snapshotting` pullback could never settle `.task`-driven content.
 - **Accessibility annotations use AccessibilitySnapshot's SwiftUI renderer.** Keep the focused `AccessibilitySnapshotCore` + `AccessibilitySnapshotPreviews` products.
+- **Raised-floor accessibility captures parse twice.** Settle between passes and keep only the second render (`AccessibilitySnapshotViewControllerTests`).
 - **The umbrella also links the upstream SnapshotTesting integration that this module replaces.**
 - **The compare sees on-disk bytes.** Every capture round-trips through PNG encoding before comparison.
 - **Removing PNG encoding re-opens the wide-gamut vs. sRGB flake.** See `renderSnapshotImage`'s doc.
