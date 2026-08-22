@@ -63,8 +63,9 @@ bootstrap, and process orchestration. In particular,
 
 `./icons` is the single command for the Where app's alternate icons (see
 `./icons --help`). It keeps both asset catalogs and the picker's
-`AppIcons.json` manifest in sync. Never hand-edit those files. Never add icon Swift.
-Run `./ide --no-open` after adding one.
+`AppIcons.json` manifest in sync. It stages and validates the whole change
+before replacing anything and supports `--dry-run`. Never hand-edit those
+files. Never add icon Swift. Run `./ide --no-open` after adding one.
 
 ### Version and build metadata
 
@@ -213,9 +214,13 @@ targets and the native-macOS **Ledger** app are there. That is why the package d
 both platforms. To get the app onto a connected iPhone without the Xcode UI, use
 [`./Where/install`](Where/install). That command is macOS-only. It needs a signing team
 configured once via `./ide --team-id` (see
-[`Where/AGENTS.md`](Where/AGENTS.md#installing-to-a-device)).
+[`Where/AGENTS.md`](Where/AGENTS.md#installing-to-a-device)). Its `--dry-run`
+resolves the exact physical device without generating, building, installing,
+or launching.
 [`./Ledger/install`](Ledger/install) is the equivalent for Ledger. It builds a
-Release and installs it to `/Applications` (ad-hoc signed, no team needed).
+Release and transactionally installs it to `/Applications` (ad-hoc signed, no
+team needed). Its `--dry-run` validates and reports the replacement without
+building, stopping, replacing, or launching anything.
 
 ## Per-module docs
 

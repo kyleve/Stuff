@@ -3,21 +3,8 @@ set -euo pipefail
 
 # install — build the Where app and install it on a connected iPhone, no Xcode UI.
 #
-# It regenerates the project (so the build reflects the current manifests),
-# builds + code-signs the `Where` scheme with xcodebuild, then copies the
-# resulting .app to a physically-connected (or network-paired) device with
-# `xcrun devicectl` — Apple's first-party replacement for ios-deploy. By
-# default it builds the Debug configuration with compiler optimizations forced
-# on (so the DEBUG-only developer surfaces survive but the app still runs at
-# roughly Release speed) and launches the app after installing.
-#
-# macOS-only: Tuist and on-device install/launch don't exist on Linux/CI.
-#
-# Prerequisites:
-#   - A full Xcode (see ./ide --bootstrap).
-#   - An Apple Developer team configured for signing. The generated project
-#     stamps DEVELOPMENT_TEAM from TUIST_DEVELOPMENT_TEAM (set once via
-#     `./ide --team-id <ABCDE12345>` into the gitignored .mise.local.toml).
+# Shell owns project/build/process orchestration. Tools/device_selection.rb owns
+# exact physical-device decoding so the policy is directly tested without Xcode.
 
 cd "$(dirname "$0")/.."
 
@@ -26,11 +13,12 @@ SCHEME="Where"
 BUNDLE_ID="com.stuff.where"
 
 CONFIGURATION="Debug"
-OPTIMIZE=true   # force compiler optimizations on regardless of configuration
-DEVICE=""       # name, UDID, or identifier; empty = auto-pick the sole device
+OPTIMIZE=true
+DEVICE=""
 LAUNCH=true
 ASSUME_YES=false
 CLOUDKIT=false
+DRY_RUN=false
 
 usage() {
     cat <<'USAGE'
@@ -51,6 +39,8 @@ Options:
   --cloudkit               Build Debug against CloudKit instead of its normal
                            local-only store (persists across every relaunch)
   --no-launch              Install only; don't launch the app afterwards
+  --dry-run                Resolve the exact device and report the build,
+                           install, and launch without performing them
   -y, --yes                Skip the "unlock your device" confirmation prompt
   -h, --help               Show this help
 
@@ -60,11 +50,10 @@ Examples:
   ./Where/install --device "Kai's iPhone"
   ./Where/install --configuration Release
   ./Where/install --no-optimize --no-launch
+  ./Where/install --device "Kai's iPhone" --dry-run
 USAGE
 }
 
-# Exit with the same `error:`-prefixed style as the unknown-option branch when a
-# value-taking flag is missing its argument.
 require_value() {
     if [ -z "${2:-}" ]; then
         echo "error: $1 requires a value (see ./Where/install --help)" >&2
@@ -80,6 +69,7 @@ while [ $# -gt 0 ]; do
         --no-optimize) OPTIMIZE=false ;;
         --cloudkit) CLOUDKIT=true ;;
         --no-launch) LAUNCH=false ;;
+        --dry-run) DRY_RUN=true ;;
         -y|--yes) ASSUME_YES=true ;;
         -h|--help) usage; exit 0 ;;
         *) echo "error: unknown option '$1' (see ./Where/install --help)" >&2; exit 1 ;;
@@ -87,10 +77,9 @@ while [ $# -gt 0 ]; do
     shift
 done
 
-# Pre-flight: a device build must be signed by a real team. Read the value mise
-# injects (TUIST_DEVELOPMENT_TEAM from .mise.local.toml) and fail early with an
-# actionable hint rather than deep inside xcodebuild's signing phase.
-# shellcheck disable=SC2016 # Expand in mise's child shell, not this one.
+# A device build must be signed by a real team. Preserve mise failures so a
+# malformed configuration remains distinguishable from an unset variable.
+# shellcheck disable=SC2016
 TEAM_ID="$(mise exec -- sh -c 'printf "%s" "${TUIST_DEVELOPMENT_TEAM:-}"')"
 if [ -z "$TEAM_ID" ]; then
     cat >&2 <<'EOF'
@@ -102,138 +91,69 @@ EOF
     exit 1
 fi
 
-# Under Xcode's DerivedData, not `$TMPDIR` and not the checkout. `$TMPDIR` is
-# swept by macOS after ~3 days — it deletes *files* while leaving directories,
-# stranding a package checkout with no `Package.swift` and failing the next
-# build with "the package manifest … cannot be accessed". Inside the checkout
-# is worse: the repo's tree-walking scripts (`./swiftformat`, `./xcstrings`,
-# `./sync-agents`) would descend into the vendored package sources. Suffixed
-# per checkout so clones don't share. Nothing prunes it; delete by hand.
+# Persistent DerivedData avoids package-checkout damage from macOS cleaning
+# TMPDIR. A dry run creates no build directory and uses only a disposable JSON
+# file for devicectl's read-only device inventory.
 WORKDIR="$HOME/Library/Developer/Xcode/DerivedData/where-install-$(basename "$PWD")"
 DERIVED="$WORKDIR/DerivedData"
-DEVICES_JSON="$WORKDIR/devices.json"
-mkdir -p "$WORKDIR"
+if [ "$DRY_RUN" = true ]; then
+    DEVICES_JSON="$(mktemp "${TMPDIR:-/tmp}/where-install-devices.XXXXXX")"
+    trap 'rm -f "$DEVICES_JSON"' EXIT
+else
+    DEVICES_JSON="$WORKDIR/devices.json"
+    mkdir -p "$WORKDIR"
+fi
 
-# Regenerate so the build always reflects the current Package.swift/Project.swift
-# (same reflex as ./profile). --no-open: agents/scripts must never steal focus.
-echo "==> tuist generate --no-open"
-mise exec -- tuist generate --no-open >/dev/null
-
-# Force compiler optimizations on when requested (the default). This lets a
-# Debug build — which keeps the DEBUG active-compilation conditions, and thus
-# the developer-only surfaces — still run at roughly Release speed by overriding
-# the configuration's optimization levels at the xcodebuild command line. With
-# --no-optimize we pass nothing and let the configuration use its own levels.
 OPTIMIZATION_OVERRIDES=()
 if [ "$OPTIMIZE" = true ]; then
     OPTIMIZATION_OVERRIDES=(SWIFT_OPTIMIZATION_LEVEL=-O GCC_OPTIMIZATION_LEVEL=s)
 fi
 
-# CloudKit validation is a property of the installed Debug binary, not its first
-# process invocation. iOS does not preserve custom argv for later foreground,
-# background, or push-driven relaunches, while this compilation condition does.
 CLOUDKIT_OVERRIDES=()
 if [ "$CLOUDKIT" = true ]; then
     CLOUDKIT_OVERRIDES=("SWIFT_ACTIVE_COMPILATION_CONDITIONS=\$(inherited) WHERE_CLOUDKIT_VALIDATION")
 fi
 
-# Build + sign for a generic iOS device. -allowProvisioningUpdates lets xcodebuild
-# create/download the profiles for the app and its extensions (App Groups,
-# location) instead of requiring them to exist already.
-echo "==> xcodebuild ($CONFIGURATION$([ "$OPTIMIZE" = true ] && echo ', optimized')) for device"
-mise exec -- xcodebuild build \
-    -workspace "$WORKSPACE" \
-    -scheme "$SCHEME" \
-    -configuration "$CONFIGURATION" \
-    -destination 'generic/platform=iOS' \
-    -derivedDataPath "$DERIVED" \
-    -allowProvisioningUpdates \
-    ${OPTIMIZATION_OVERRIDES[@]+"${OPTIMIZATION_OVERRIDES[@]}"} \
-    ${CLOUDKIT_OVERRIDES[@]+"${CLOUDKIT_OVERRIDES[@]}"}
+if [ "$DRY_RUN" = true ]; then
+    echo "==> Would run tuist generate --no-open"
+    echo "==> Would build $SCHEME ($CONFIGURATION$([ "$OPTIMIZE" = true ] && echo ', optimized')) for device"
+else
+    echo "==> tuist generate --no-open"
+    mise exec -- tuist generate --no-open >/dev/null
+
+    echo "==> xcodebuild ($CONFIGURATION$([ "$OPTIMIZE" = true ] && echo ', optimized')) for device"
+    mise exec -- xcodebuild build \
+        -workspace "$WORKSPACE" \
+        -scheme "$SCHEME" \
+        -configuration "$CONFIGURATION" \
+        -destination 'generic/platform=iOS' \
+        -derivedDataPath "$DERIVED" \
+        -allowProvisioningUpdates \
+        ${OPTIMIZATION_OVERRIDES[@]+"${OPTIMIZATION_OVERRIDES[@]}"} \
+        ${CLOUDKIT_OVERRIDES[@]+"${CLOUDKIT_OVERRIDES[@]}"}
+fi
 
 APP="$DERIVED/Build/Products/$CONFIGURATION-iphoneos/Where.app"
-if [ ! -d "$APP" ]; then
+if [ "$DRY_RUN" != true ] && [ ! -d "$APP" ]; then
     echo "error: built app not found at $APP" >&2
     exit 1
 fi
 
-# Resolve the target device. devicectl's JSON is the stable, parseable source;
-# we filter to physical iOS devices and let the user disambiguate when needed.
 echo "==> resolving device"
 xcrun devicectl list devices --json-output "$DEVICES_JSON" >/dev/null
-
-DEVICE_SELECTION="$(DEVICES_JSON="$DEVICES_JSON" DEVICE_FILTER="$DEVICE" python3 - <<'PY'
-import json, os, sys
-
-
-def fail(msg):
-    print("error: " + msg, file=sys.stderr)
-    sys.exit(1)
-
-
-try:
-    with open(os.environ["DEVICES_JSON"]) as f:
-        data = json.load(f)
-except (OSError, ValueError) as error:
-    fail(f"couldn't read devicectl's device list ({error}). "
-         "Run `xcrun devicectl list devices` to check your setup.")
-
-wanted = os.environ.get("DEVICE_FILTER", "").strip().lower()
-
-# Read the non-deprecated `properties` dictionary — the flat
-# hardwareProperties/deviceProperties/connectionProperties fields devicectl
-# also emits are deprecated and slated for removal.
-#
-# We match physical iOS devices but deliberately DON'T gate on connection
-# state: `list devices` reports a device's last-known state, which is
-# routinely "disconnected" for a network-paired (or even a freshly-plugged)
-# device until a command opens a tunnel — devicectl connects on demand when we
-# install. Gating here would hide a perfectly reachable phone, so any genuine
-# reachability failure surfaces from the install/launch step instead.
-candidates = []  # (identifier, name, connection_state)
-for dev in data.get("result", {}).get("devices", []):
-    props = dev.get("properties", {})
-    hardware = props.get("hardware", {})
-    connection = props.get("connection", {})
-    state = props.get("state", {})
-    if (hardware.get("platform") or "").lower() not in ("ios", "ipados"):
-        continue
-    # devicectl also lists booted simulators (reality "simulated",
-    # visibilityClass "simulators"); we only install to real hardware.
-    if (hardware.get("reality") or "").lower() != "physical":
-        continue
-    identifier = dev.get("identifier") or hardware.get("udid") or ""
-    name = state.get("name") or "(unnamed)"
-    udid = hardware.get("udid") or ""
-    if wanted and wanted not in (name.lower(), udid.lower(), identifier.lower()):
-        continue
-    candidates.append((identifier, name, connection.get("state") or "unknown"))
-
-if not candidates:
-    if wanted:
-        fail(f'no physical iOS device matching "{os.environ["DEVICE_FILTER"]}". '
-             "Run `xcrun devicectl list devices` to see what's paired.")
-    fail("no physical iOS device found. Pair or plug in an iPhone, unlock it, "
-         "and trust this Mac.")
-
-if len(candidates) > 1:
-    listing = "\n".join(f"  - {name} ({identifier}) [{conn}]"
-                        for identifier, name, conn in candidates)
-    fail("multiple physical iOS devices; pass --device <name|udid>:\n" + listing)
-
-identifier, name, conn = candidates[0]
-print(f"    using: {name} ({identifier})", file=sys.stderr)
-# Tab-separated so the caller can prompt with the human-readable name; a device
-# name never contains a tab.
-sys.stdout.write(f"{identifier}\t{name}")
-PY
-)"
+DEVICE_SELECTION="$(mise exec -- ruby Tools/device_selection.rb --filter "$DEVICE" <"$DEVICES_JSON")"
 DEVICE_UDID="${DEVICE_SELECTION%%$'\t'*}"
 DEVICE_NAME="${DEVICE_SELECTION#*$'\t'}"
 
-# devicectl needs the device unlocked (and this Mac trusted); a locked phone
-# fails partway through the install. Give the user a beat to unlock it first.
-# Skip when non-interactive (no TTY) or when --yes is passed.
+if [ "$DRY_RUN" = true ]; then
+    echo "==> Would install $APP to $DEVICE_NAME ($DEVICE_UDID)"
+    if [ "$LAUNCH" = true ]; then
+        echo "==> Would launch $BUNDLE_ID$([ "$CLOUDKIT" = true ] && echo ' with CloudKit validation enabled')"
+    fi
+    echo "Dry run — no project, build, app install, or process launch was performed."
+    exit 0
+fi
+
 if [ "$ASSUME_YES" = false ] && [ -t 0 ]; then
     printf 'Make sure "%s" is unlocked and trusts this Mac.\n' "$DEVICE_NAME"
     read -r -p "Press Enter to install, or Ctrl-C to cancel... " _

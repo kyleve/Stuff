@@ -17,7 +17,11 @@ Filesystem-heavy Ruby generators are require-safe so their behavior can be
 exercised against temporary repositories. `SimulatorRegistry` validates exact
 runtime ownership from captured `simctl` JSON and persists private claims
 atomically; its command-level tests replace `xcrun` rather than touching a
-developer's devices.
+developer's devices. `FileTransaction` supplies staged multi-path replacement
+with rollback to the icon catalogs and Ledger installer. The icon, physical
+device-selection, and app-install policies are likewise tested with temporary
+catalogs and captured command output rather than tracked assets, devices, or
+`/Applications`.
 
 ## Testing
 
