@@ -616,7 +616,7 @@ external agent skills. Those skills are gitignored and absent from a bare checko
 |-------|---------|
 | Install the pinned tools | `mise install` (Ruby + SwiftFormat; skips Tuist) |
 | Format lint (CI `format` job equivalent) | `./swiftformat --lint` |
-| Agent file sync | `./sync-agents` or `./sync-agents --install` |
+| Agent file sync | `mise exec -- ./sync-agents` (or `--install`) — the `mise exec` prefix is **required** here: `sync-agents` is the one root command with a `#!/usr/bin/env ruby` shebang, so a bare call exits 127 where no system Ruby is on `PATH` |
 | Git LFS | `apt-get install git-lfs` — required by `.githooks/` |
 | Pre-commit hook | works — `mise exec --` no longer pulls in Tuist |
 

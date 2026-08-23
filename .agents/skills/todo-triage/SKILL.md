@@ -129,5 +129,12 @@ content belongs in a `TODOs.md`.
 
 The weekly automation runs on Linux, where Tuist and the simulator are
 unavailable, so the audit pass is static analysis only. Say so in its
-Limitations section rather than implying the suite was run. `./swiftformat
---lint` and `./sync-agents` do work there.
+Limitations section rather than implying the suite was run.
+
+What does work there: `./swiftformat --lint`, `./attribution --check`,
+`./shellcheck`, and the direct tooling suites (`python3 -m unittest discover -s
+Tools/Tests -p 'test_*.py'` and the Ruby equivalent — expect a handful of
+macOS-only failures, filed in the root [`TODOs.md`](../../../TODOs.md)).
+`sync-agents` works but needs `mise exec -- ./sync-agents`; it has a
+`#!/usr/bin/env ruby` shebang, so a bare call exits 127 with
+`/usr/bin/env: 'ruby': No such file or directory`.
