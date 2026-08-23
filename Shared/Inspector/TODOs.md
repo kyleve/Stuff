@@ -14,8 +14,10 @@ The item format and placement rule live in the root
   (`SnapshotTests/InspectorSnapshotTests.swift:61-73`); the likely fix is a
   measured capture-pipeline warm-up in SnapshotKitTesting, not re-recording one
   bistable state. It is one of only two `withKnownIssue` quarantines in the repo
-  (the other guards the Elsewhere inflection bug in WhereUI).
-  (agent 2026-07-28; re-verified 2026-08-09)
+  (the other guards the Elsewhere inflection bug in WhereUI, at
+  `Where/WhereUI/Tests/WhereFormatTests.swift:89`) — re-counted repo-wide
+  2026-08-23 and still exactly two.
+  (agent 2026-07-28; re-verified 2026-08-23)
 - test [quick-win]: Cover the bare-`PersistentIdentifier` relationship branch
   in `SwiftDataReflection.swift:132-137` (`classify` when the relationship value
   is a bare identifier); `InspectorSwiftDataRelationshipTests` materializes
