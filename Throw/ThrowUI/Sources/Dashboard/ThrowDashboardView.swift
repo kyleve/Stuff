@@ -33,14 +33,16 @@ struct ThrowDashboardView: View {
                         value: session.sourceDisplayName,
                     )
                     LabeledContent(String(localized: .dashboardCalibration)) {
-                        Label(
-                            String(localized: session.calibrationVerified
-                                ? .calibrationHealthVerified
-                                : .calibrationHealthUnverified),
-                            systemSymbol: session.calibrationVerified
+                        // `Label` here greedily expands the row on iOS 27.
+                        HStack {
+                            Image(systemSymbol: session.calibrationVerified
                                 ? .checkmarkCircleFill
-                                : .exclamationmarkTriangleFill,
-                        )
+                                : .exclamationmarkTriangleFill)
+                                .accessibilityHidden(true)
+                            Text(session.calibrationVerified
+                                ? .calibrationHealthVerified
+                                : .calibrationHealthUnverified)
+                        }
                         .foregroundStyle(session.calibrationVerified ? .green : .orange)
                     }
                     LabeledContent(String(localized: .dashboardAircraftVisible)) {
