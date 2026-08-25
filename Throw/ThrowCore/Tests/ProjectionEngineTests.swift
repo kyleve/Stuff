@@ -247,6 +247,53 @@ struct ProjectionEngineTests {
         #expect(angularDifference(actual, expected) < 0.000_001)
     }
 
+    @Test func apparentOrientationPersistsAfterPredictionStops() throws {
+        let observer = try ThrowCoreFixture.observer(latitude: 0, longitude: 0, altitudeFeet: 0)
+        let velocity = try ProjectionVelocity(
+            groundTrack: Bearing(degrees: 90),
+            groundSpeedKnots: 360,
+            verticalRateFeetPerMinute: nil,
+        )
+        let movingMark = try mark(
+            rawID: "moving",
+            latitude: 0.1,
+            longitude: 0,
+            velocity: velocity,
+        )
+        let layerFrame = LayerFrame(
+            layerID: .flights,
+            observedAt: ThrowCoreFixture.date,
+            content: .marks([movingMark]),
+        )
+        let viewport = try ProjectionViewport.map(
+            MapViewport(radius: NauticalMiles(value: 50)),
+        )
+        let geometry = try ProjectionGeometry(width: 1000, height: 1000)
+        let atPredictionLimit = try engine.frame(
+            layerFrames: [layerFrame],
+            geography: nil,
+            observer: observer,
+            viewport: viewport,
+            calibration: .defaultValue,
+            geometry: geometry,
+            generatedAt: ThrowCoreFixture.date.addingTimeInterval(15),
+        )
+        let fiveMinutesLater = try engine.frame(
+            layerFrames: [layerFrame],
+            geography: nil,
+            observer: observer,
+            viewport: viewport,
+            calibration: .defaultValue,
+            geometry: geometry,
+            generatedAt: ThrowCoreFixture.date.addingTimeInterval(300),
+        )
+        let expected = try #require(atPredictionLimit.marks.first?.orientationDegrees)
+        let actual = try #require(fiveMinutesLater.marks.first?.orientationDegrees)
+
+        #expect(angularDifference(actual, expected) < 0.000_001)
+        #expect(angularDifference(actual, 90) < 0.1)
+    }
+
     @Test func extremeVerticalPredictionDoesNotDropNeighboringMarks() throws {
         let observer = try ThrowCoreFixture.observer(latitude: 0, longitude: 0, altitudeFeet: 0)
         let extremeVelocity = try ProjectionVelocity(
