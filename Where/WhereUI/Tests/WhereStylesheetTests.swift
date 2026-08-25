@@ -309,15 +309,57 @@ struct WhereStylesheetTests {
         let forecast = style.locationForecast
         #expect(forecast.cornerRadius == 22)
         #expect(forecast.padding == 16)
-        #expect(forecast.rowSpacing == 12)
-        #expect(forecast.estimateSpacing == 3)
-        #expect(forecast.collapsedLabelColor == Color.primary.opacity(0.5))
-        #expect(forecast.borderColor == Color.primary.opacity(0.06))
-        #expect(forecast.borderWidth == 0.5)
-        #expect(forecast.shadowColor == Color.black.opacity(0.06))
-        #expect(forecast.shadowRadius == 8)
-        #expect(forecast.shadowOffsetY == 2)
+        #expect(forecast.rowSpacing == 16)
         #expect(forecast.expansionAnimation == .easeInOut(duration: 0.2))
+        #expect(forecast.surface == .init(
+            outlineWidth: 1.25,
+            inset: 5,
+            insetOutlineWidth: 0.75,
+            insetDashLength: 4,
+            insetDashSpacing: 4,
+            rosetteWobble: 5,
+            rosetteLineWidth: 0.75,
+            primaryRingSpacing: 10,
+            secondaryRingSpacing: 16,
+            shadowColor: Color.black.opacity(0.08),
+            shadowRadius: 10,
+            shadowOffsetY: 3,
+        ))
+        #expect(forecast.header == .init(
+            contentSpacing: 12,
+            textSpacing: 2,
+            titleFont: .system(.headline, design: .serif),
+            elapsedFont: .footnote,
+            minimumHeight: 52,
+        ))
+        #expect(forecast.row == .init(
+            cornerRadius: 14,
+            padding: 12,
+            contentSpacing: 8,
+            estimateSpacing: 3,
+            regionFont: .system(.headline, design: .serif),
+            estimateFont: .system(.title2, design: .rounded),
+            detailFont: .footnote,
+            separatorHeight: 1,
+            separatorLineWidth: 1,
+            separatorDashLength: 4,
+            separatorDashSpacing: 5,
+        ))
+        #expect(forecast.progress == .init(
+            height: 8,
+            hatchSpacing: 6,
+            hatchLineWidth: 1,
+        ))
+        #expect(forecast.controls == .init(
+            sectionSpacing: 10,
+            layoutSpacing: 8,
+            cornerRadius: 12,
+            horizontalPadding: 12,
+            minimumHeight: 44,
+            strokeWidth: 1,
+            font: .subheadline,
+        ))
+        #expect(forecast.ink == .standard)
     }
 
     @Test func appIconStyle() {
@@ -744,10 +786,11 @@ struct WhereStylesheetTests {
     }
 
     @MainActor
-    @Test func strengthensTheSourceStampWithDarkerSystemColors() throws {
+    @Test func strengthensSecurityInkWithDarkerSystemColors() throws {
         var context = BContext(traits: .system)
         context.traitOverrides.accessibility = BAccessibility(isDarkerSystemColorsEnabled: true)
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
+        #expect(resolved.locationForecast.ink == .increasedContrast)
         #expect(resolved.openSourceStamp.ink == .increasedContrast)
         #expect(resolved.plannedStayWarningStamp.ink == .increasedContrast)
     }
@@ -781,6 +824,7 @@ struct WhereStylesheetTests {
         var context = BContext(traits: .system)
         context.traitOverrides.mode = .dark
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
+        #expect(resolved.locationForecast == style.locationForecast)
         #expect(resolved.card.securityPrint == .dark)
         #expect(resolved.featureDiscovery.siri.accent == Color(white: 0.42))
         #expect(resolved.card.securityPrint.backgroundBlendMode == .luminosity)

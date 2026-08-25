@@ -2,8 +2,9 @@ import RegionKit
 import SwiftUI
 import WhereCore
 
-/// Annual location estimates shared by the Locations summary and calendar
-/// surfaces. Calendar hosts can offer one or more regions for stay planning.
+/// Annual location estimates presented as one passport-style visa endorsement.
+/// Locations collapses the endorsement; calendars and feature discovery show
+/// its complete region rows and optional stay-planning controls.
 struct LocationForecastPanel: View {
     let forecasts: [LocationForecast]
     var plannedStay: PlannedStay?
@@ -21,11 +22,14 @@ struct LocationForecastPanel: View {
     }
 
     var body: some View {
+        let shape = RoundedRectangle(cornerRadius: style.cornerRadius)
+        let showsContent = !isCollapsible || isExpanded
+
         VStack(alignment: .leading, spacing: style.rowSpacing) {
             if isCollapsible {
                 LocationForecastHeader(
                     elapsedDays: forecasts.first?.elapsedDays,
-                    isExpanded: isExpanded,
+                    isExpanded: showsContent,
                     expansionAction: toggleExpansion,
                 )
             } else {
@@ -35,84 +39,91 @@ struct LocationForecastPanel: View {
                 )
             }
 
-            if !isCollapsible || isExpanded {
-                forecastContent
-                    .transition(.move(edge: .top).combined(with: .opacity))
+            if showsContent {
+                VStack(alignment: .leading, spacing: style.rowSpacing) {
+                    ForEach(forecasts, id: \.region) { forecast in
+                        if forecast.region != forecasts.first?.region {
+                            LocationForecastPerforation()
+                        }
+
+                        LocationForecastRow(
+                            forecast: forecast,
+                            plannedStay: plannedStay,
+                        )
+                    }
+
+                    if !editableRegions.isEmpty, let editAction {
+                        LocationForecastPerforation()
+                        LocationForecastControls(
+                            editableRegions: editableRegions,
+                            plannedStay: plannedStay,
+                            editAction: editAction,
+                            clearAction: clearAction,
+                        )
+                    }
+                }
+                .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
         .padding(style.padding)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background {
-            let shape = RoundedRectangle(cornerRadius: style.cornerRadius)
-            if isCollapsible {
-                shape
-                    .fill(.background)
-                    .overlay {
-                        shape.strokeBorder(style.borderColor, lineWidth: style.borderWidth)
-                    }
-                    .shadow(
-                        color: style.shadowColor,
-                        radius: style.shadowRadius,
-                        y: style.shadowOffsetY,
-                    )
-            } else {
-                Color.clear.glassEffect(.regular, in: shape)
+            ZStack {
+                shape.fill(.background)
+                LinearGradient(
+                    colors: [
+                        Color.primary.opacity(style.ink.surfaceWashOpacity),
+                        .clear,
+                        Color.primary.opacity(style.ink.surfaceWashOpacity * 0.45),
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing,
+                )
+                SecurityPrintRosette(
+                    tint: .primary,
+                    wobble: style.surface.rosetteWobble,
+                    lineWidth: style.surface.rosetteLineWidth,
+                    primaryRingSpacing: style.surface.primaryRingSpacing,
+                    secondaryRingSpacing: style.surface.secondaryRingSpacing,
+                    primaryOpacity: style.ink.rosettePrimaryOpacity,
+                    secondaryOpacity: style.ink.rosetteSecondaryOpacity,
+                )
             }
+            .clipShape(shape)
+            .allowsHitTesting(false)
         }
-    }
-
-    @ViewBuilder
-    private var forecastContent: some View {
-        ForEach(forecasts, id: \.region) { forecast in
-            LocationForecastRow(
-                forecast: forecast,
-                plannedStay: plannedStay,
-            )
+        .overlay {
+            ZStack {
+                shape.strokeBorder(
+                    Color.primary.opacity(style.ink.surfaceOutlineOpacity),
+                    lineWidth: style.surface.outlineWidth,
+                )
+                shape
+                    .inset(by: style.surface.inset)
+                    .strokeBorder(
+                        Color.primary.opacity(style.ink.insetOutlineOpacity),
+                        style: StrokeStyle(
+                            lineWidth: style.surface.insetOutlineWidth,
+                            dash: [
+                                style.surface.insetDashLength,
+                                style.surface.insetDashSpacing,
+                            ],
+                        ),
+                    )
+            }
+            .allowsHitTesting(false)
         }
-
-        if !editableRegions.isEmpty, let editAction {
-            LocationForecastControls(
-                editableRegions: editableRegions,
-                plannedStay: plannedStay,
-                editAction: editAction,
-                clearAction: clearAction,
-            )
-        }
+        .shadow(
+            color: style.surface.shadowColor,
+            radius: style.surface.shadowRadius,
+            y: style.surface.shadowOffsetY,
+        )
     }
 
     private func toggleExpansion() {
         withAnimation(style.expansionAnimation) {
             isExpanded.toggle()
         }
-    }
-}
-
-private struct LocationForecastRow: View {
-    let forecast: LocationForecast
-    var plannedStay: PlannedStay?
-
-    @Environment(\.stylesheet) private var stylesheet
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: stylesheet.locationForecast.estimateSpacing) {
-            Text(WhereFormat.locationForecastEstimate(
-                region: forecast.region,
-                days: forecast.estimatedTotalDays,
-            ))
-            .font(.subheadline)
-            Text(WhereFormat.locationForecastBasis(
-                yearToDateDays: forecast.yearToDateDays,
-            ))
-            .font(.footnote)
-            .foregroundStyle(.secondary)
-
-            if let plannedStay, plannedStay.region == forecast.region {
-                Text(WhereFormat.locationForecastPlan(through: plannedStay.through))
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .accessibilityElement(children: .combine)
     }
 }
 
@@ -127,5 +138,6 @@ private struct LocationForecastRow: View {
             clearAction: {},
         )
         .padding()
+        .whereBroadwayRoot()
     }
 #endif
