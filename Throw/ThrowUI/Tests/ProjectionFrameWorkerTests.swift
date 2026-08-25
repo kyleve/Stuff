@@ -442,7 +442,7 @@ struct ProjectionFrameWorkerTests {
                         altitude: Altitude(feet: 10000),
                         altitudeQuality: .geometric,
                     )),
-                    glyph: .aircraft(isGrounded: false),
+                    glyph: .aircraft(.unknownAirborne),
                     label: ProjectionLabel(primary: label, secondary: nil),
                     velocity: nil,
                     freshness: MarkFreshness(
@@ -476,7 +476,7 @@ struct ProjectionFrameWorkerTests {
                         altitude: Altitude(feet: 10000),
                         altitudeQuality: .geometric,
                     )),
-                    glyph: .aircraft(isGrounded: false),
+                    glyph: .aircraft(.unknownAirborne),
                     label: ProjectionLabel(primary: "TARGET", secondary: nil),
                     velocity: ProjectionVelocity(
                         groundTrack: Bearing(degrees: 90),

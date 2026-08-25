@@ -37,6 +37,16 @@ struct ThrowAboutView: View {
                 {
                     Link(String(localized: .aboutAdsbExchangeAUP), destination: acceptableUseURL)
                 }
+                if let aircraftDatabaseURL =
+                    URL(string: "https://github.com/Mictronics/aircraft-database")
+                {
+                    Link(
+                        String(localized: .aboutAircraftTypeDatabase),
+                        destination: aircraftDatabaseURL,
+                    )
+                }
+                Text(.aboutAircraftTypeDatabaseCredit)
+                    .foregroundStyle(.secondary)
             }
 
             Section(String(localized: .aboutGeographicData)) {

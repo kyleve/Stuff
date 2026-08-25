@@ -50,6 +50,14 @@ simplifies linework. It then quantizes coordinates and assigns wide, standard,
 or local visibility. The committed archive lets every app build stay offline.
 Raw source archives stay outside the tracked tree.
 
+`Tools/generate-aircraft-types.rb` creates the bundled ICAO type lookup from a
+pinned Mictronics aircraft-database archive. Throw keeps only the designator,
+airframe and engine description, and wake category. The visual classifier uses
+that lookup with the provider's emitter category to select one of six stable
+silhouette families. A small curated callsign-prefix table can add a carrier
+identity. It does not perform online, route, registration, or operator-name
+lookups.
+
 ## Privacy and limitations
 
 Cloud requests use ephemeral sessions. Logging is typed and redacted: no
@@ -60,6 +68,7 @@ mean-sea-level approximations and is not an optical ceiling registration.
 The offline map sends no request. Its generalized boundaries are not
 authoritative. Natural Earth uses its default de facto view. Census boundaries
 support statistical work and are not legal land descriptions.
+Aircraft classifications and carrier identities are not persisted or logged.
 
 ## Testing
 

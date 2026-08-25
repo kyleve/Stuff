@@ -61,6 +61,7 @@ public struct ThrowPreferences: Equatable, Sendable, CustomStringConvertible,
                 skyViewport: .defaultValue,
                 selectedProjectionMode: nil,
                 flightsEnabled: true,
+                airlineAccentsEnabled: true,
                 geography: .defaultValue,
                 labelMode: .adaptive,
                 includeGroundAircraft: false,
@@ -83,6 +84,7 @@ public struct ThrowPreferences: Equatable, Sendable, CustomStringConvertible,
     public let skyViewport: SkyViewport
     public let selectedProjectionMode: ProjectionMode?
     public let flightsEnabled: Bool
+    public let airlineAccentsEnabled: Bool
     public let geography: GeographyPreferences
     public let labelMode: FlightLabelMode
     public let includeGroundAircraft: Bool
@@ -101,6 +103,7 @@ public struct ThrowPreferences: Equatable, Sendable, CustomStringConvertible,
         skyViewport: SkyViewport,
         selectedProjectionMode: ProjectionMode?,
         flightsEnabled: Bool,
+        airlineAccentsEnabled: Bool,
         geography: GeographyPreferences,
         labelMode: FlightLabelMode,
         includeGroundAircraft: Bool,
@@ -139,6 +142,7 @@ public struct ThrowPreferences: Equatable, Sendable, CustomStringConvertible,
         self.skyViewport = skyViewport
         self.selectedProjectionMode = selectedProjectionMode
         self.flightsEnabled = flightsEnabled
+        self.airlineAccentsEnabled = airlineAccentsEnabled
         self.geography = geography
         self.labelMode = labelMode
         self.includeGroundAircraft = includeGroundAircraft
@@ -235,6 +239,7 @@ enum ThrowPreferencesCodec {
         let skyMinimumElevation: Double
         let selectedProjectionMode: String?
         let flightsEnabled: Bool
+        let airlineAccentsEnabled: Bool?
         let geography: GeographyStorage?
         let labelMode: String
         let includeGroundAircraft: Bool
@@ -254,6 +259,7 @@ enum ThrowPreferencesCodec {
             skyMinimumElevation = preferences.skyViewport.minimumElevation.degrees
             selectedProjectionMode = preferences.selectedProjectionMode?.rawValue
             flightsEnabled = preferences.flightsEnabled
+            airlineAccentsEnabled = preferences.airlineAccentsEnabled
             geography = GeographyStorage(preferences.geography)
             labelMode = preferences.labelMode.rawValue
             includeGroundAircraft = preferences.includeGroundAircraft
@@ -296,6 +302,7 @@ enum ThrowPreferencesCodec {
                 ),
                 selectedProjectionMode: selectedMode,
                 flightsEnabled: flightsEnabled,
+                airlineAccentsEnabled: airlineAccentsEnabled ?? true,
                 geography: geography?.value() ?? .defaultValue,
                 labelMode: labelMode,
                 includeGroundAircraft: includeGroundAircraft,

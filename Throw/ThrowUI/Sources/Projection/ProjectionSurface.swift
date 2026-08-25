@@ -20,6 +20,7 @@ public struct ProjectionSurface: View {
         let markOpacity = session.projectionMarkOpacity
         let markSizeMultiplier = session.markSizeMultiplier
         let intensityMultiplier = session.intensityMultiplier
+        let airlineAccentsEnabled = session.airlineAccentsEnabled
         let geographyIntensityMultiplier = session.geographyIntensityMultiplier
         let projectionStyle = stylesheet.projection
         let descriptors = session.layerCatalog.descriptors.sorted { lhs, rhs in
@@ -57,6 +58,7 @@ public struct ProjectionSurface: View {
                                 opacity: markOpacity,
                                 markSizeMultiplier: markSizeMultiplier,
                                 intensityMultiplier: intensityMultiplier,
+                                airlineAccentsEnabled: airlineAccentsEnabled,
                                 style: projectionStyle,
                             )
                             .zIndex(Double(descriptor.zOrder))
@@ -90,13 +92,14 @@ private struct ProjectionMarksCanvas: View {
     let opacity: Double
     let markSizeMultiplier: Double
     let intensityMultiplier: Double
+    let airlineAccentsEnabled: Bool
     let style: ThrowStylesheet.ProjectionStyle
 
     var body: some View {
         Canvas(rendersAsynchronously: true) { context, size in
             let side = min(size.width, size.height)
             let origin = CGPoint(x: (size.width - side) / 2, y: (size.height - side) / 2)
-            let markSize = max(
+            let standardMarkSize = max(
                 style.minimumMarkSize,
                 style.standardMarkSize * markSizeMultiplier,
             )
@@ -105,6 +108,25 @@ private struct ProjectionMarksCanvas: View {
                 white: style.markLuminance * style.label.luminanceMultiplier *
                     intensityMultiplier,
             )
+
+            var aircraftPaths: [AircraftVisualFamily: AircraftPaths] = [:]
+            for family in AircraftVisualFamily.allCases {
+                let markSize = max(
+                    style.minimumMarkSize,
+                    standardMarkSize * family.sizeMultiplier,
+                )
+                let rect = CGRect(
+                    x: -markSize / 2,
+                    y: -markSize / 2,
+                    width: markSize,
+                    height: markSize,
+                )
+                aircraftPaths[family] = AircraftPaths(
+                    size: markSize,
+                    body: AircraftGlyphShape(family: family).path(in: rect),
+                    accent: AircraftAccentShape(family: family).path(in: rect),
+                )
+            }
 
             for mark in marks {
                 let point = CGPoint(
@@ -116,21 +138,42 @@ private struct ProjectionMarksCanvas: View {
                 markContext.opacity = effectiveOpacity
                 markContext.translateBy(x: point.x, y: point.y)
                 markContext.rotate(by: .degrees(mark.orientationDegrees ?? 0))
-                let rect = CGRect(
-                    x: -markSize / 2,
-                    y: -markSize / 2,
-                    width: markSize,
-                    height: markSize,
-                )
+                var renderedMarkSize = standardMarkSize
                 switch mark.glyph {
-                    case .aircraft:
+                    case let .aircraft(descriptor):
+                        guard let paths = aircraftPaths[descriptor.family] else { continue }
+                        renderedMarkSize = paths.size
                         markContext.fill(
-                            AircraftGlyphShape().path(in: rect),
+                            paths.body,
                             with: .color(markColor),
                         )
+                        if airlineAccentsEnabled,
+                           let brand = descriptor.brand,
+                           let rgb = style.aircraft[brand]
+                        {
+                            markContext.fill(
+                                paths.accent,
+                                with: .color(rgb.color(
+                                    markLuminance: style.markLuminance,
+                                    intensity: intensityMultiplier,
+                                )),
+                            )
+                        }
                     case .star:
+                        let rect = CGRect(
+                            x: -standardMarkSize / 2,
+                            y: -standardMarkSize / 2,
+                            width: standardMarkSize,
+                            height: standardMarkSize,
+                        )
                         markContext.fill(Path(ellipseIn: rect), with: .color(markColor))
                     case .satellite:
+                        let rect = CGRect(
+                            x: -standardMarkSize / 2,
+                            y: -standardMarkSize / 2,
+                            width: standardMarkSize,
+                            height: standardMarkSize,
+                        )
                         markContext.stroke(
                             Path(ellipseIn: rect),
                             with: .color(markColor),
@@ -140,7 +183,7 @@ private struct ProjectionMarksCanvas: View {
 
                 if let label = mark.label {
                     let labelPoint = CGPoint(
-                        x: point.x + markSize / 2 + style.label.offset,
+                        x: point.x + renderedMarkSize / 2 + style.label.offset,
                         y: point.y,
                     )
                     let labelValue = label.secondary.map { "\(label.primary) · \($0)" }
@@ -154,6 +197,12 @@ private struct ProjectionMarksCanvas: View {
                 }
             }
         }
+    }
+
+    private struct AircraftPaths {
+        let size: CGFloat
+        let body: Path
+        let accent: Path
     }
 }
 
@@ -246,6 +295,16 @@ private struct GeographyProjectionCanvas: View, Equatable {
                 settle: .immediate,
             ) {
                 ProjectionSurface(session: .fixture(), presentation: .preview)
+                    .throwBroadwayRoot()
+            }
+            SnapshotCase(
+                name: "Airline Accents Off",
+                configurations: statusConfigurations,
+                settle: .immediate,
+            ) {
+                let session = ThrowSession.fixture()
+                session.airlineAccentsEnabled = false
+                return ProjectionSurface(session: session, presentation: .preview)
                     .throwBroadwayRoot()
             }
             SnapshotCase(

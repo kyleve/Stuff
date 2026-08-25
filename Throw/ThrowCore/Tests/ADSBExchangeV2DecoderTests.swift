@@ -13,7 +13,7 @@ struct ADSBExchangeV2DecoderTests {
               "lat":37.1, "lon":-122.2, "alt_baro":12000, "alt_geom":12100,
               "gs":420.5, "track":361, "true_heading":359, "mag_heading":350,
               "baro_rate":-640, "seen":2, "seen_pos":4, "messages":99,
-              "type":"adsb_icao", "future_additive_field":{"safe":true}
+              "type":"adsb_icao", "category":"A3", "future_additive_field":{"safe":true}
             }
             """,
         )
@@ -25,6 +25,21 @@ struct ADSBExchangeV2DecoderTests {
         #expect(observation.groundTrack?.degrees == 1)
         #expect(observation.positionObservedAt == ThrowCoreFixture.date.addingTimeInterval(-4))
         #expect(observation.messageObservedAt == ThrowCoreFixture.date.addingTimeInterval(-2))
+        #expect(observation.aircraftType?.rawValue == "B738")
+        #expect(observation.emitterCategory == .large)
+    }
+
+    @Test(arguments: ["", "not-a-category", "D7"])
+    func malformedOrUnsupportedEmitterCategoryIsIgnored(_ category: String) throws {
+        let data = ThrowCoreFixture.adsbEnvelope(
+            aircraftJSON: """
+            {"hex":"abc123", "lat":37, "lon":-122, "category":"\(category)"}
+            """,
+        )
+        let observation = try #require(
+            decoder.decode(data, source: .adsbLol, fetchedAt: .now).observations.first,
+        )
+        #expect(observation.emitterCategory == nil)
     }
 
     @Test func recognizesGroundAndProviderMarkedNonICAOIdentity() throws {

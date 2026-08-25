@@ -88,7 +88,7 @@ struct ProjectionLabelCollisionResolverTests {
             id: LayerMarkID(layerID: .flights, namespace: .aircraft, rawValue: id),
             point: ProjectionPoint(x: x, y: 0.5),
             range: NauticalMiles(value: range),
-            glyph: .aircraft(isGrounded: false),
+            glyph: .aircraft(.unknownAirborne),
             label: ProjectionLabel(primary: id, secondary: nil),
             orientationDegrees: nil,
             opacity: opacity,

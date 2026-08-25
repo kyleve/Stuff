@@ -28,6 +28,9 @@ location, and scheduling; see [`README.md`](README.md). Read the root
   Never use Mercator placement or draw it in True Sky.
 - Change the pinned source manifest, generator, and generated archive together.
   Keep the archive free of names and unused source attributes.
+- Keep aircraft-family classification provider-neutral and deterministic. Use
+  only bundled type characteristics, emitter category, and curated direct
+  callsign prefixes; never add an online or per-tail lookup.
 - Keep downloaded source archives outside the tracked tree. Require an exact
   digest before the generator reads an archive.
 - Keep `ThrowLog` payloads redacted according to the group privacy invariant.

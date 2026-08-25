@@ -14,7 +14,7 @@ struct FlightLayerFrameBuilderTests {
             fetchedAt: ThrowCoreFixture.date,
             observations: [observation],
         )
-        let frame = try FlightLayerFrameBuilder().frame(
+        let frame = try builder.frame(
             snapshot: snapshot,
             observer: observer,
             labelMode: .adaptive,
@@ -22,11 +22,18 @@ struct FlightLayerFrameBuilderTests {
         let label = try #require(frame.marks.first?.label)
         #expect(label.primary == "THROW1")
         #expect(label.secondary == "1,200 ft")
+        #expect(
+            frame.marks.first?.glyph == .aircraft(AircraftGlyphDescriptor(
+                family: .airliner,
+                brand: nil,
+                isGrounded: false,
+            )),
+        )
     }
 
     @Test func callsignModeNeverFallsBackToHexIdentity() throws {
         let observation = try ThrowCoreFixture.observation(callsign: nil)
-        let frame = try FlightLayerFrameBuilder().frame(
+        let frame = try builder.frame(
             snapshot: AircraftSnapshot(
                 source: .adsbLol,
                 fetchedAt: ThrowCoreFixture.date,
@@ -36,5 +43,11 @@ struct FlightLayerFrameBuilderTests {
             labelMode: .callsigns,
         )
         #expect(frame.marks.first?.label == nil)
+    }
+
+    private var builder: FlightLayerFrameBuilder {
+        FlightLayerFrameBuilder(
+            visualClassifier: AircraftVisualClassifier(catalog: .bundled),
+        )
     }
 }

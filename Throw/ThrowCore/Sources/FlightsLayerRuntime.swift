@@ -22,8 +22,10 @@ public struct FlightsLayerInput: Sendable {
 public struct FlightsLayerRuntime: ProjectionLayerRuntime {
     private let frameBuilder: FlightLayerFrameBuilder
 
-    public init() {
-        frameBuilder = FlightLayerFrameBuilder()
+    public init(typeCatalog: AircraftTypeCatalog) {
+        frameBuilder = FlightLayerFrameBuilder(
+            visualClassifier: AircraftVisualClassifier(catalog: typeCatalog),
+        )
     }
 
     public func frame(for input: FlightsLayerInput) async throws -> LayerFrame {

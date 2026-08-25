@@ -35,7 +35,7 @@ struct ProjectionModelsTests {
             id: LayerMarkID(layerID: .flights, namespace: .aircraft, rawValue: "a"),
             point: ProjectionPoint(x: 0.5, y: 0.5),
             range: NauticalMiles(value: 1),
-            glyph: .aircraft(isGrounded: false),
+            glyph: .aircraft(.unknownAirborne),
             label: nil,
             orientationDegrees: nil,
             opacity: 1,
@@ -82,7 +82,7 @@ struct ProjectionModelsTests {
         let mark = ProjectionMark(
             id: markID,
             anchor: anchor,
-            glyph: .aircraft(isGrounded: false),
+            glyph: .aircraft(.unknownAirborne),
             label: label,
             velocity: nil,
             freshness: MarkFreshness(
@@ -99,7 +99,7 @@ struct ProjectionModelsTests {
             id: markID,
             point: ProjectionPoint(x: 0.4, y: 0.6),
             range: NauticalMiles(value: 5),
-            glyph: .aircraft(isGrounded: false),
+            glyph: .aircraft(.unknownAirborne),
             label: label,
             orientationDegrees: nil,
             opacity: 1,

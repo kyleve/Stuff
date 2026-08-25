@@ -17,6 +17,17 @@ struct ThrowStylesheetTests {
         #expect(projection.label.offset > 0)
     }
 
+    @Test func everyCuratedCarrierHasABoundedMutedAccentColor() {
+        let style = ThrowStylesheet.AircraftStyle.standard
+
+        #expect(style.brandColors.count == AirlineBrand.allCases.count)
+        for color in style.brandColors.values {
+            #expect((0 ... 1).contains(color.red))
+            #expect((0 ... 1).contains(color.green))
+            #expect((0 ... 1).contains(color.blue))
+        }
+    }
+
     @Test(arguments: GeographyLineKind.allCases)
     func everyGeographyKindHasAVisibleBoundedStyle(_ kind: GeographyLineKind) {
         let line = ThrowStylesheet.GeographyStyle.standard[kind]

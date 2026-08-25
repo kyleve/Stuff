@@ -56,6 +56,28 @@
         }
       }
     },
+    "about.aircraftTypeDatabase" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mictronics Aircraft Type Database"
+          }
+        }
+      }
+    },
+    "about.aircraftTypeDatabaseCredit" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aircraft type characteristics are from the Mictronics aircraft-database under the Open Data Commons Attribution License."
+          }
+        }
+      }
+    },
     "about.creditsUnavailable" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -228,6 +250,72 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "2025 TIGER/Line Legal and Citation Information"
+          }
+        }
+      }
+    },
+    "aircraft.family.airliner" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Airliner"
+          }
+        }
+      }
+    },
+    "aircraft.family.heavyJet" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Heavy Jet"
+          }
+        }
+      }
+    },
+    "aircraft.family.helicopter" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Helicopter"
+          }
+        }
+      }
+    },
+    "aircraft.family.propeller" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Propeller"
+          }
+        }
+      }
+    },
+    "aircraft.family.regionalBusinessJet" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Regional / Business Jet"
+          }
+        }
+      }
+    },
+    "aircraft.family.unknown" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unknown"
           }
         }
       }
@@ -1724,6 +1812,39 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Wake for 60 Minutes"
+          }
+        }
+      }
+    },
+    "settings.aircraftAppearance" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aircraft Appearance"
+          }
+        }
+      }
+    },
+    "settings.airlineAccents" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Airline Color Accents"
+          }
+        }
+      }
+    },
+    "settings.airlineAccentsDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Known airlines get a muted tail accent. Shapes identify aircraft families without color. Some aircraft remain neutral when their operator or type is uncertain."
           }
         }
       }

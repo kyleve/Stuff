@@ -53,6 +53,13 @@ public final class ThrowSession {
         }
     }
 
+    public var airlineAccentsEnabled: Bool {
+        didSet {
+            guard oldValue != airlineAccentsEnabled, isApplyingPreferences == false else { return }
+            settingsChanged(reconcilesDemand: false)
+        }
+    }
+
     public var geographyEnabled: Bool {
         didSet {
             guard oldValue != geographyEnabled, isApplyingPreferences == false else { return }
@@ -238,6 +245,7 @@ public final class ThrowSession {
         mapRadius = preferences.mapViewport.radius.value
         minimumElevation = preferences.skyViewport.minimumElevation.degrees
         flightsEnabled = preferences.flightsEnabled
+        airlineAccentsEnabled = preferences.airlineAccentsEnabled
         geographyEnabled = preferences.geography.isEnabled
         labelMode = preferences.labelMode
         includeGroundAircraft = preferences.includeGroundAircraft

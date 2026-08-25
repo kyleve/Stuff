@@ -167,6 +167,50 @@ public enum AircraftAirborneState: String, Hashable, Sendable {
     case unknown
 }
 
+/// A normalized ICAO aircraft type designator supplied by an observation provider.
+public struct AircraftTypeDesignator: Hashable, Sendable, CustomStringConvertible {
+    public let rawValue: String
+
+    public init?(rawValue: String) {
+        let normalized = rawValue.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        guard (2 ... 4).contains(normalized.count),
+              normalized.unicodeScalars.allSatisfy({ CharacterSet.alphanumerics.contains($0) })
+        else { return nil }
+        self.rawValue = normalized
+    }
+
+    public var description: String {
+        rawValue
+    }
+}
+
+/// The semantic ADS-B emitter category used as a classification hint.
+public enum AircraftEmitterCategory: String, Hashable, Sendable {
+    case noInformation = "A0"
+    case light = "A1"
+    case small = "A2"
+    case large = "A3"
+    case highVortexLarge = "A4"
+    case heavy = "A5"
+    case highPerformance = "A6"
+    case rotorcraft = "A7"
+    case glider = "B1"
+    case lighterThanAir = "B2"
+    case parachutist = "B3"
+    case ultralight = "B4"
+    case unmanned = "B6"
+    case spaceVehicle = "B7"
+    case emergencySurface = "C1"
+    case serviceSurface = "C2"
+    case pointObstacle = "C3"
+
+    public init?(providerValue: String) {
+        self
+            .init(rawValue: providerValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                .uppercased())
+    }
+}
+
 public struct AircraftObservationMetadata: Hashable, Sendable {
     public let source: AircraftSourceKind
     public let positionSource: String?
@@ -194,7 +238,8 @@ public struct AircraftObservation: Hashable, Sendable, CustomStringConvertible,
     public let verticalRateFeetPerMinute: Double?
     public let callsign: String?
     public let registration: String?
-    public let aircraftType: String?
+    public let aircraftType: AircraftTypeDesignator?
+    public let emitterCategory: AircraftEmitterCategory?
     public let messageObservedAt: Date
     public let positionObservedAt: Date
     public let fetchedAt: Date
@@ -213,7 +258,8 @@ public struct AircraftObservation: Hashable, Sendable, CustomStringConvertible,
         verticalRateFeetPerMinute: Double?,
         callsign: String?,
         registration: String?,
-        aircraftType: String?,
+        aircraftType: AircraftTypeDesignator?,
+        emitterCategory: AircraftEmitterCategory?,
         messageObservedAt: Date,
         positionObservedAt: Date,
         fetchedAt: Date,
@@ -244,7 +290,8 @@ public struct AircraftObservation: Hashable, Sendable, CustomStringConvertible,
         self.verticalRateFeetPerMinute = verticalRateFeetPerMinute
         self.callsign = callsign?.nilIfTrimmedEmpty
         self.registration = registration?.nilIfTrimmedEmpty
-        self.aircraftType = aircraftType?.nilIfTrimmedEmpty
+        self.aircraftType = aircraftType
+        self.emitterCategory = emitterCategory
         self.messageObservedAt = messageObservedAt
         self.positionObservedAt = positionObservedAt
         self.fetchedAt = fetchedAt

@@ -107,7 +107,12 @@ public struct ADSBExchangeV2Decoder: Sendable {
                             .barometricRate?.value,
                         callsign: aircraft.flight,
                         registration: aircraft.registration,
-                        aircraftType: aircraft.aircraftType,
+                        aircraftType: aircraft.aircraftType.flatMap(
+                            AircraftTypeDesignator.init(rawValue:),
+                        ),
+                        emitterCategory: aircraft.emitterCategory.flatMap(
+                            AircraftEmitterCategory.init(providerValue:),
+                        ),
                         messageObservedAt: referenceDate.addingTimeInterval(
                             -(aircraft.seen?.value ?? 0),
                         ),
@@ -205,6 +210,7 @@ private struct AircraftDTO: Decodable {
     let flight: String?
     let registration: String?
     let aircraftType: String?
+    let emitterCategory: String?
     let barometricAltitude: BarometricAltitudeDTO?
     let geometricAltitude: FlexibleDouble?
     let groundSpeed: FlexibleDouble?
@@ -225,6 +231,7 @@ private struct AircraftDTO: Decodable {
         case flight
         case registration = "r"
         case aircraftType = "t"
+        case emitterCategory = "category"
         case barometricAltitude = "alt_baro"
         case geometricAltitude = "alt_geom"
         case groundSpeed = "gs"
