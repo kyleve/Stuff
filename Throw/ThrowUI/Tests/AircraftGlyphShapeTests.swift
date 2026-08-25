@@ -20,4 +20,19 @@ struct AircraftGlyphShapeTests {
         #expect(accent.isEmpty == false)
         #expect(rect.contains(accent.boundingRect))
     }
+
+    @Test
+    func familiesRemainDistinctAtTheStandardMarkSize() {
+        let rect = CGRect(x: 0, y: 0, width: 12, height: 12)
+        let masks = AircraftVisualFamily.allCases.map { family in
+            let path = AircraftGlyphShape(family: family).path(in: rect)
+            return (0 ..< 12).flatMap { y in
+                (0 ..< 12).map { x in
+                    path.contains(CGPoint(x: Double(x) + 0.5, y: Double(y) + 0.5))
+                }
+            }
+        }
+
+        #expect(Set(masks).count == AircraftVisualFamily.allCases.count)
+    }
 }
