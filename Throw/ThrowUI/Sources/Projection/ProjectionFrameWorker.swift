@@ -271,7 +271,10 @@ actor ProjectionFrameWorker {
             // Source labels fade to zero, then resolved target labels replace
             // them at black and fade back in without a visible placement jump.
             let resolvedTarget = labelResolver.resolve(target)
-            let progress = min(1, max(0, date.timeIntervalSince(transition.startedAt) / 1.2))
+            let progress = min(
+                1,
+                max(0, date.timeIntervalSince(transition.startedAt) / AnimationDuration.mode),
+            )
             if progress >= 1 {
                 modeTransition = nil
                 return resolvedTarget
@@ -287,32 +290,34 @@ actor ProjectionFrameWorker {
                 source: transition.source,
                 target: resolvedTarget,
                 progress: progress,
+                interpolatesPosition: true,
                 transitionsLabels: true,
             )
         }
 
         if observationChanged {
-            correctionTransition = reduceMotion
-                ? nil
-                : CorrectionTransition(startedAt: date, source: previousFrame)
-        }
-        guard reduceMotion == false else {
-            correctionTransition = nil
-            return labelResolver.resolve(target)
+            correctionTransition = CorrectionTransition(startedAt: date, source: previousFrame)
         }
         if let transition = correctionTransition {
-            let progress = min(1, max(0, date.timeIntervalSince(transition.startedAt) / 0.75))
+            let progress = min(
+                1,
+                max(
+                    0,
+                    date.timeIntervalSince(transition.startedAt) / AnimationDuration.correction,
+                ),
+            )
             if progress >= 1 {
                 correctionTransition = nil
                 return labelResolver.resolve(target)
             }
-            let corrected = morph(
+            let resolvedTarget = labelResolver.resolve(target)
+            return morph(
                 source: transition.source,
-                target: target,
+                target: resolvedTarget,
                 progress: progress,
+                interpolatesPosition: reduceMotion == false,
                 transitionsLabels: false,
             )
-            return labelResolver.resolve(corrected)
         }
         return labelResolver.resolve(target)
     }
@@ -321,12 +326,17 @@ actor ProjectionFrameWorker {
         source: ProjectionFrame,
         target: ProjectionFrame,
         progress: Double,
+        interpolatesPosition: Bool,
         transitionsLabels: Bool,
     ) -> ProjectionFrame {
         let sourceByID = Dictionary(uniqueKeysWithValues: source.marks.map { ($0.id, $0) })
+        let targetIDs = Set(target.marks.map(\.id))
         let usesSourceLabels = transitionsLabels && progress < 0.5
         let labelPhaseOpacity = transitionsLabels ? modeLabelOpacity(at: progress) : 1
-        let marks = target.marks.map { mark in
+        let presenceProgress = transitionsLabels
+            ? 1
+            : min(1, progress * AnimationDuration.correction / AnimationDuration.presence)
+        var marks = target.marks.map { mark in
             guard let old = sourceByID[mark.id] else {
                 return ProjectedMark(
                     id: mark.id,
@@ -335,31 +345,59 @@ actor ProjectionFrameWorker {
                     glyph: mark.glyph,
                     label: usesSourceLabels ? nil : mark.label,
                     orientationDegrees: mark.orientationDegrees,
-                    opacity: mark.opacity,
-                    labelOpacity: usesSourceLabels ? 0 : mark.labelOpacity * labelPhaseOpacity,
+                    opacity: mark.opacity * presenceProgress,
+                    labelOpacity: usesSourceLabels
+                        ? 0
+                        : mark.labelOpacity * labelPhaseOpacity,
                     altitudeIsApproximate: mark.altitudeIsApproximate,
                 )
             }
-            let label = usesSourceLabels ? old.label : mark.label
-            let baseLabelOpacity = usesSourceLabels ? old.labelOpacity : mark.labelOpacity
+            let transitionedLabel = transitionsLabels
+                ? TransitionedLabel(
+                    label: usesSourceLabels ? old.label : mark.label,
+                    opacity: usesSourceLabels ? old.labelOpacity : mark.labelOpacity,
+                )
+                : transitionLabel(from: old, to: mark, progress: presenceProgress)
             return ProjectedMark(
                 id: mark.id,
-                point: ProjectionPoint(
-                    x: old.point.x + (mark.point.x - old.point.x) * progress,
-                    y: old.point.y + (mark.point.y - old.point.y) * progress,
-                ),
+                point: interpolatesPosition
+                    ? ProjectionPoint(
+                        x: old.point.x + (mark.point.x - old.point.x) * progress,
+                        y: old.point.y + (mark.point.y - old.point.y) * progress,
+                    )
+                    : mark.point,
                 range: mark.range,
                 glyph: mark.glyph,
-                label: label,
-                orientationDegrees: interpolatedAngle(
-                    from: old.orientationDegrees,
-                    to: mark.orientationDegrees,
-                    progress: progress,
-                ),
-                opacity: old.opacity + (mark.opacity - old.opacity) * progress,
-                labelOpacity: baseLabelOpacity * labelPhaseOpacity,
+                label: transitionedLabel.label,
+                orientationDegrees: interpolatesPosition
+                    ? interpolatedAngle(
+                        from: old.orientationDegrees,
+                        to: mark.orientationDegrees,
+                        progress: progress,
+                    )
+                    : mark.orientationDegrees,
+                opacity: interpolatesPosition
+                    ? old.opacity + (mark.opacity - old.opacity) * progress
+                    : mark.opacity,
+                labelOpacity: transitionedLabel.opacity * labelPhaseOpacity,
                 altitudeIsApproximate: mark.altitudeIsApproximate,
             )
+        }
+        if transitionsLabels == false, presenceProgress < 1 {
+            marks.append(contentsOf: source.marks.compactMap { mark in
+                guard targetIDs.contains(mark.id) == false else { return nil }
+                return ProjectedMark(
+                    id: mark.id,
+                    point: mark.point,
+                    range: mark.range,
+                    glyph: mark.glyph,
+                    label: mark.label,
+                    orientationDegrees: mark.orientationDegrees,
+                    opacity: mark.opacity * (1 - presenceProgress),
+                    labelOpacity: mark.labelOpacity,
+                    altitudeIsApproximate: mark.altitudeIsApproximate,
+                )
+            })
         }
         let geography = transitionGeography(
             source: source,
@@ -434,6 +472,41 @@ actor ProjectionFrameWorker {
         }
     }
 
+    private func transitionLabel(
+        from source: ProjectedMark,
+        to target: ProjectedMark,
+        progress: Double,
+    ) -> TransitionedLabel {
+        guard source.label != target.label else {
+            return TransitionedLabel(label: target.label, opacity: target.labelOpacity)
+        }
+        switch (source.label, target.label) {
+            case (nil, let targetLabel?):
+                return TransitionedLabel(
+                    label: targetLabel,
+                    opacity: target.labelOpacity * progress,
+                )
+            case (let sourceLabel?, nil):
+                return TransitionedLabel(
+                    label: progress < 1 ? sourceLabel : nil,
+                    opacity: source.labelOpacity * (1 - progress),
+                )
+            case let (sourceLabel?, targetLabel?):
+                if progress < 0.5 {
+                    return TransitionedLabel(
+                        label: sourceLabel,
+                        opacity: source.labelOpacity * (1 - progress * 2),
+                    )
+                }
+                return TransitionedLabel(
+                    label: targetLabel,
+                    opacity: target.labelOpacity * (progress - 0.5) * 2,
+                )
+            case (nil, nil):
+                return TransitionedLabel(label: nil, opacity: 0)
+        }
+    }
+
     private func interpolatedAngle(
         from: Double?,
         to: Double?,
@@ -466,6 +539,17 @@ private struct ModeTransition {
 private struct CorrectionTransition {
     let startedAt: Date
     let source: ProjectionFrame
+}
+
+private struct TransitionedLabel {
+    let label: ProjectionLabel?
+    let opacity: Double
+}
+
+private enum AnimationDuration {
+    static let mode = 1.2
+    static let correction = 0.75
+    static let presence = 0.25
 }
 
 private struct GeographyProjectionCacheKey: Equatable {
