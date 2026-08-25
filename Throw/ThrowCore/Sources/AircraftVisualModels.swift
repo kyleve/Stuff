@@ -60,16 +60,24 @@ public struct AircraftGlyphDescriptor: Hashable, Sendable {
     public let family: AircraftVisualFamily
     public let brand: AirlineBrand?
     public let isGrounded: Bool
+    public let activity: FlightActivity
 
-    public init(family: AircraftVisualFamily, brand: AirlineBrand?, isGrounded: Bool) {
+    public init(
+        family: AircraftVisualFamily,
+        brand: AirlineBrand?,
+        isGrounded: Bool,
+        activity: FlightActivity,
+    ) {
         self.family = family
         self.brand = brand
         self.isGrounded = isGrounded
+        self.activity = activity
     }
 
     public static let unknownAirborne = AircraftGlyphDescriptor(
         family: .unknown,
         brand: nil,
         isGrounded: false,
+        activity: .overflight,
     )
 }

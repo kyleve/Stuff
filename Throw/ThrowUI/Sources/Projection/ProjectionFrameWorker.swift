@@ -24,6 +24,7 @@ actor ProjectionFrameWorker {
     private var lastPresentationSignature: ProjectionPresentationSignature?
     private var modeTransition: ModeTransition?
     private var correctionTransition: CorrectionTransition?
+    private var presentationState = PresentationState()
 
     init(
         flightsRuntime: FlightsLayerRuntime,
@@ -98,9 +99,17 @@ actor ProjectionFrameWorker {
         try Task.checkCancellation()
         previousFrame = frame
         lastLayerObservedAt = layerFrame?.observedAt
+        let effects = presentationState.effects(
+            layerFrame: layerFrame,
+            projectedFrame: frame,
+            at: generatedAt,
+            observationChanged: observationChanged,
+            reduceMotion: reduceMotion,
+        )
         return ProjectionFrameWorkerOutput(
             frame: frame,
             geographyHealth: geographyResult.health,
+            effects: effects,
         )
     }
 
@@ -224,6 +233,7 @@ actor ProjectionFrameWorker {
         lastPresentationSignature = nil
         modeTransition = nil
         correctionTransition = nil
+        presentationState = PresentationState()
         labelResolver = ProjectionLabelCollisionResolver()
     }
 
@@ -354,6 +364,14 @@ actor ProjectionFrameWorker {
             : min(1, progress * AnimationDuration.correction / AnimationDuration.presence)
         var marks = target.marks.map { mark in
             guard let old = sourceByID[mark.id] else {
+                let duration = if case .airport = mark.glyph {
+                    AnimationDuration.anchor
+                } else {
+                    AnimationDuration.presence
+                }
+                let insertionProgress = transitionsLabels
+                    ? 1
+                    : min(1, progress * AnimationDuration.correction / duration)
                 return ProjectedMark(
                     id: mark.id,
                     point: mark.point,
@@ -361,7 +379,7 @@ actor ProjectionFrameWorker {
                     glyph: mark.glyph,
                     label: usesSourceLabels ? nil : mark.label,
                     orientationDegrees: mark.orientationDegrees,
-                    opacity: mark.opacity * presenceProgress,
+                    opacity: mark.opacity * insertionProgress,
                     labelOpacity: usesSourceLabels
                         ? 0
                         : mark.labelOpacity * labelPhaseOpacity,
@@ -374,12 +392,13 @@ actor ProjectionFrameWorker {
                     opacity: usesSourceLabels ? old.labelOpacity : mark.labelOpacity,
                 )
                 : transitionLabel(from: old, to: mark, progress: presenceProgress)
+            let positionProgress = interpolatesPosition ? cubicEaseOut(progress) : progress
             return ProjectedMark(
                 id: mark.id,
                 point: interpolatesPosition
                     ? ProjectionPoint(
-                        x: old.point.x + (mark.point.x - old.point.x) * progress,
-                        y: old.point.y + (mark.point.y - old.point.y) * progress,
+                        x: old.point.x + (mark.point.x - old.point.x) * positionProgress,
+                        y: old.point.y + (mark.point.y - old.point.y) * positionProgress,
                     )
                     : mark.point,
                 range: mark.range,
@@ -389,7 +408,7 @@ actor ProjectionFrameWorker {
                     ? interpolatedAngle(
                         from: old.orientationDegrees,
                         to: mark.orientationDegrees,
-                        progress: progress,
+                        progress: positionProgress,
                     )
                     : mark.orientationDegrees,
                 opacity: interpolatesPosition
@@ -399,9 +418,15 @@ actor ProjectionFrameWorker {
                 altitudeIsApproximate: mark.altitudeIsApproximate,
             )
         }
-        if transitionsLabels == false, presenceProgress < 1 {
+        if transitionsLabels == false, progress < 1 {
             marks.append(contentsOf: source.marks.compactMap { mark in
                 guard targetIDs.contains(mark.id) == false else { return nil }
+                let duration = removalDuration(for: mark)
+                let removalProgress = min(
+                    1,
+                    progress * AnimationDuration.correction / duration,
+                )
+                guard removalProgress < 1 else { return nil }
                 return ProjectedMark(
                     id: mark.id,
                     point: mark.point,
@@ -409,7 +434,7 @@ actor ProjectionFrameWorker {
                     glyph: mark.glyph,
                     label: mark.label,
                     orientationDegrees: mark.orientationDegrees,
-                    opacity: mark.opacity * (1 - presenceProgress),
+                    opacity: mark.opacity * (1 - removalProgress),
                     labelOpacity: mark.labelOpacity,
                     altitudeIsApproximate: mark.altitudeIsApproximate,
                 )
@@ -428,6 +453,21 @@ actor ProjectionFrameWorker {
             geographyOpacity: geography.opacity,
             marks: marks,
         )
+    }
+
+    private func cubicEaseOut(_ progress: Double) -> Double {
+        1 - pow(1 - progress, 3)
+    }
+
+    private func removalDuration(for mark: ProjectedMark) -> TimeInterval {
+        if case let .aircraft(descriptor) = mark.glyph,
+           case let .arrival(context, .approach, _) = descriptor.activity,
+           context.aircraftDistance.value <= 8
+        {
+            return AnimationDuration.completion
+        }
+        if case .airport = mark.glyph { return AnimationDuration.anchor }
+        return AnimationDuration.presence
     }
 
     private func fadeThroughBlack(
@@ -587,6 +627,8 @@ private enum AnimationDuration {
     static let mode = 1.2
     static let correction = 0.75
     static let presence = 0.25
+    static let anchor = 0.4
+    static let completion = 0.5
 }
 
 private struct GeographyProjectionCacheKey: Equatable {
@@ -615,6 +657,207 @@ private struct GeographyTransitionFrame {
 struct ProjectionFrameWorkerOutput {
     let frame: ProjectionFrame
     let geographyHealth: GeographyLayerHealth
+    let effects: [LayerMarkID: ProjectionMarkEffect]
+}
+
+extension ProjectionFrameWorker {
+    fileprivate struct PresentationState {
+        private static let absenceForReplay: TimeInterval = 60
+        private static let acquisitionDuration: TimeInterval = 0.9
+        private static let cueDuration: TimeInterval = 0.35
+        private static let completionDuration: TimeInterval = 0.5
+
+        private struct AircraftEntry {
+            var lastSemanticPresence: Date
+            var absentSince: Date?
+            var acquisitionStartedAt: Date?
+            var activity: FlightActivity
+            var previousActivity: FlightActivity?
+            var activityChangedAt: Date?
+            var completionStartedAt: Date?
+        }
+
+        private struct PulseEntry {
+            let direction: AirportPulseDirection
+            let startedAt: Date
+        }
+
+        private var aircraft: [LayerMarkID: AircraftEntry] = [:]
+        private var pulses: [AirportID: PulseEntry] = [:]
+        private var lastSemanticIDs: Set<LayerMarkID> = []
+
+        mutating func effects(
+            layerFrame: LayerFrame?,
+            projectedFrame: ProjectionFrame,
+            at date: Date,
+            observationChanged: Bool,
+            reduceMotion: Bool,
+        ) -> [LayerMarkID: ProjectionMarkEffect] {
+            let semanticAircraft = layerFrame?.marks.compactMap { mark -> (
+                LayerMarkID,
+                FlightActivity
+            )? in
+                guard case let .aircraft(descriptor) = mark.glyph else { return nil }
+                return (mark.id, descriptor.activity)
+            } ?? []
+            let semanticIDs = Set(semanticAircraft.map(\.0))
+
+            if observationChanged {
+                for id in lastSemanticIDs.subtracting(semanticIDs) {
+                    guard var entry = aircraft[id] else { continue }
+                    entry.absentSince = date
+                    if case let .arrival(context, .approach, _) = entry.activity,
+                       context.aircraftDistance.value <= 8
+                    {
+                        entry.completionStartedAt = date
+                        pulses[context.airport.id] = PulseEntry(direction: .inward, startedAt: date)
+                    }
+                    aircraft[id] = entry
+                }
+            }
+
+            for (id, activity) in semanticAircraft {
+                if var entry = aircraft[id] {
+                    let canReplay = entry.absentSince.map {
+                        date.timeIntervalSince($0) >= Self.absenceForReplay
+                    } ?? false
+                    if canReplay { entry.acquisitionStartedAt = date }
+                    entry.absentSince = nil
+                    entry.lastSemanticPresence = date
+                    if entry.activity != activity {
+                        entry.previousActivity = entry.activity
+                        entry.activity = activity
+                        entry.activityChangedAt = date
+                    }
+                    aircraft[id] = entry
+                } else {
+                    aircraft[id] = AircraftEntry(
+                        lastSemanticPresence: date,
+                        absentSince: nil,
+                        acquisitionStartedAt: date,
+                        activity: activity,
+                        previousActivity: nil,
+                        activityChangedAt: nil,
+                        completionStartedAt: nil,
+                    )
+                    if observationChanged,
+                       case let .departure(context, .initialClimb, _) = activity,
+                       context.aircraftDistance.value <= 8
+                    {
+                        pulses[context.airport.id] = PulseEntry(
+                            direction: .outward,
+                            startedAt: date,
+                        )
+                    }
+                }
+            }
+            if observationChanged { lastSemanticIDs = semanticIDs }
+
+            var result: [LayerMarkID: ProjectionMarkEffect] = [:]
+            for mark in projectedFrame.marks {
+                switch mark.glyph {
+                    case .aircraft:
+                        guard let entry = aircraft[mark.id] else { continue }
+                        let acquisition = reduceMotion ? nil : progress(
+                            from: entry.acquisitionStartedAt,
+                            at: date,
+                            duration: Self.acquisitionDuration,
+                        )
+                        let cue = cueEffect(entry: entry, at: date, reduceMotion: reduceMotion)
+                        let scale: Double = if reduceMotion {
+                            1
+                        } else if let completion = progress(
+                            from: entry.completionStartedAt,
+                            at: date,
+                            duration: Self.completionDuration,
+                        ) {
+                            1 - 0.3 * completion
+                        } else if case let .departure(context, .initialClimb, _) = entry.activity,
+                                  context.aircraftDistance.value <= 8,
+                                  let acquisition
+                        {
+                            0.7 + 0.3 * acquisition
+                        } else {
+                            1
+                        }
+                        result[mark.id] = ProjectionMarkEffect(
+                            scale: scale,
+                            acquisitionProgress: acquisition,
+                            activityCue: cue,
+                            airportPulse: nil,
+                        )
+                    case let .airport(descriptor):
+                        guard reduceMotion == false,
+                              let pulse = pulses[descriptor.airportID],
+                              let pulseProgress = progress(
+                                  from: pulse.startedAt,
+                                  at: date,
+                                  duration: Self.completionDuration,
+                              )
+                        else { continue }
+                        result[mark.id] = ProjectionMarkEffect(
+                            scale: 1,
+                            acquisitionProgress: nil,
+                            activityCue: nil,
+                            airportPulse: AirportPulseEffect(
+                                direction: pulse.direction,
+                                progress: pulseProgress,
+                            ),
+                        )
+                    case .star, .satellite:
+                        break
+                }
+            }
+            pulses = pulses.filter {
+                date.timeIntervalSince($0.value.startedAt) < Self.completionDuration
+            }
+            aircraft = aircraft.filter { _, entry in
+                entry.absentSince
+                    .map { date.timeIntervalSince($0) < Self.absenceForReplay * 2 } ?? true
+            }
+            return result
+        }
+
+        private func cueEffect(
+            entry: AircraftEntry,
+            at date: Date,
+            reduceMotion: Bool,
+        ) -> ActivityCueEffect? {
+            guard entry.activity != .overflight else { return nil }
+            guard reduceMotion == false,
+                  let transition = progress(
+                      from: entry.activityChangedAt,
+                      at: date,
+                      duration: Self.cueDuration,
+                  ),
+                  let previous = entry.previousActivity
+            else {
+                return ActivityCueEffect(
+                    previous: nil,
+                    previousOpacity: 0,
+                    current: entry.activity,
+                    currentOpacity: 1,
+                )
+            }
+            return ActivityCueEffect(
+                previous: previous,
+                previousOpacity: 1 - transition,
+                current: entry.activity,
+                currentOpacity: transition,
+            )
+        }
+
+        private func progress(
+            from start: Date?,
+            at date: Date,
+            duration: TimeInterval,
+        ) -> Double? {
+            guard let start else { return nil }
+            let value = date.timeIntervalSince(start) / duration
+            guard value < 0.999_999 else { return nil }
+            return min(1, max(0, value))
+        }
+    }
 }
 
 private enum GeographyProjectionResult {

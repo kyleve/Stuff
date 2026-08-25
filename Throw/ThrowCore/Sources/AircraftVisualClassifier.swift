@@ -59,6 +59,13 @@ public struct AircraftVisualClassifier: Sendable {
     }
 
     public func descriptor(for observation: AircraftObservation) -> AircraftGlyphDescriptor {
+        descriptor(for: observation, activity: .overflight)
+    }
+
+    public func descriptor(
+        for observation: AircraftObservation,
+        activity: FlightActivity,
+    ) -> AircraftGlyphDescriptor {
         AircraftGlyphDescriptor(
             family: family(
                 designator: observation.aircraftType,
@@ -66,6 +73,7 @@ public struct AircraftVisualClassifier: Sendable {
             ),
             brand: AirlineBrand.identify(callsign: observation.callsign),
             isGrounded: observation.airborneState == .ground,
+            activity: activity,
         )
     }
 

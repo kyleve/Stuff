@@ -17,6 +17,7 @@ public struct ProjectionSurface: View {
 
     public var body: some View {
         let frame = session.projectionFrame
+        let effects = session.projectionMarkEffects
         let markOpacity = session.projectionMarkOpacity
         let markSizeMultiplier = session.markSizeMultiplier
         let intensityMultiplier = session.intensityMultiplier
@@ -55,6 +56,7 @@ public struct ProjectionSurface: View {
                         } else {
                             ProjectionMarksCanvas(
                                 marks: frame.marks.filter { $0.id.layerID == descriptor.id },
+                                effects: effects,
                                 opacity: markOpacity,
                                 markSizeMultiplier: markSizeMultiplier,
                                 intensityMultiplier: intensityMultiplier,
@@ -89,6 +91,7 @@ public struct ProjectionSurface: View {
 
 private struct ProjectionMarksCanvas: View {
     let marks: [ProjectedMark]
+    let effects: [LayerMarkID: ProjectionMarkEffect]
     let opacity: Double
     let markSizeMultiplier: Double
     let intensityMultiplier: Double
@@ -133,6 +136,7 @@ private struct ProjectionMarksCanvas: View {
             }
 
             for mark in marks {
+                let effect = effects[mark.id] ?? .identity
                 let point = CGPoint(
                     x: origin.x + mark.point.x * side,
                     y: origin.y + mark.point.y * side,
@@ -142,15 +146,72 @@ private struct ProjectionMarksCanvas: View {
                 markContext.opacity = effectiveOpacity
                 markContext.translateBy(x: point.x, y: point.y)
                 markContext.rotate(by: .degrees(mark.orientationDegrees ?? 0))
+                markContext.scaleBy(x: effect.scale, y: effect.scale)
                 var renderedMarkSize = standardMarkSize
                 switch mark.glyph {
                     case let .aircraft(descriptor):
                         guard let paths = aircraftPaths[descriptor.family] else { continue }
                         renderedMarkSize = paths.size
+                        if let cue = effect.activityCue {
+                            drawCue(
+                                cue.previous,
+                                opacity: cue.previousOpacity,
+                                in: &markContext,
+                                markSize: paths.size,
+                                color: markColor,
+                            )
+                            drawCue(
+                                cue.current,
+                                opacity: cue.currentOpacity,
+                                in: &markContext,
+                                markSize: paths.size,
+                                color: markColor,
+                            )
+                        } else {
+                            drawCue(
+                                descriptor.activity,
+                                opacity: 1,
+                                in: &markContext,
+                                markSize: paths.size,
+                                color: markColor,
+                            )
+                        }
+                        if let progress = effect.acquisitionProgress {
+                            let diameter = paths.size * (1 + 1.4 * progress)
+                            var ringContext = markContext
+                            ringContext.opacity *= 0.16 * (1 - progress)
+                            ringContext.stroke(
+                                Path(ellipseIn: CGRect(
+                                    x: -diameter / 2,
+                                    y: -diameter / 2,
+                                    width: diameter,
+                                    height: diameter,
+                                )),
+                                with: .color(markColor),
+                                lineWidth: 0.75,
+                            )
+                        }
                         markContext.fill(
                             paths.body,
                             with: .color(markColor),
                         )
+                        if let pulse = effect.airportPulse {
+                            let outward = pulse.direction == .outward
+                            let phase = outward ? pulse.progress : 1 - pulse.progress
+                            let diameter = style.activity.airportLineLength * (0.8 + 1.8 * phase)
+                            var pulseContext = markContext
+                            pulseContext.opacity *= 0.18 * sin(.pi * pulse.progress)
+                            pulseContext.stroke(
+                                Path(ellipseIn: CGRect(
+                                    x: -diameter / 2,
+                                    y: -diameter / 2,
+                                    width: diameter,
+                                    height: diameter,
+                                )),
+                                with: .color(markColor),
+                                lineWidth: 0.75,
+                            )
+                        }
                         if airlineAccentsEnabled,
                            let brand = descriptor.brand,
                            let rgb = style.aircraft[brand]
@@ -163,6 +224,28 @@ private struct ProjectionMarksCanvas: View {
                                 )),
                             )
                         }
+                    case let .airport(descriptor):
+                        renderedMarkSize = style.activity.airportLineLength
+                        markContext.opacity *= style.activity.airportOpacity *
+                            (descriptor.certainty == .inferred
+                                ? style.activity.inferredOpacityMultiplier
+                                : 1)
+                        let halfLength = style.activity.airportLineLength / 2
+                        var runway = Path()
+                        runway.move(to: CGPoint(x: 0, y: -halfLength))
+                        runway.addLine(to: CGPoint(x: 0, y: halfLength))
+                        markContext.stroke(
+                            runway,
+                            with: .color(markColor),
+                            style: StrokeStyle(
+                                lineWidth: style.activity.airportLineWidth,
+                                lineCap: .round,
+                            ),
+                        )
+                        markContext.fill(
+                            Path(ellipseIn: CGRect(x: -1.5, y: -1.5, width: 3, height: 3)),
+                            with: .color(markColor),
+                        )
                     case .star:
                         let rect = CGRect(
                             x: -standardMarkSize / 2,
@@ -210,6 +293,40 @@ private struct ProjectionMarksCanvas: View {
         let size: CGFloat
         let body: Path
         let accent: Path
+    }
+
+    private func drawCue(
+        _ activity: FlightActivity?,
+        opacity: Double,
+        in context: inout GraphicsContext,
+        markSize: CGFloat,
+        color: Color,
+    ) {
+        guard let activity, activity != .overflight, opacity > 0 else { return }
+        let stage: FlightActivityStage = switch activity {
+            case .overflight: .inbound
+            case let .arrival(_, stage, _), let .departure(_, stage, _): stage
+        }
+        let certaintyMultiplier = activity.certainty == .inferred
+            ? style.activity.inferredOpacityMultiplier
+            : 1
+        var cueContext = context
+        cueContext.opacity *= style.activity.confirmedOpacity * certaintyMultiplier * opacity
+        let rect = CGRect(
+            x: -markSize / 2,
+            y: -markSize / 2,
+            width: markSize,
+            height: markSize,
+        )
+        cueContext.stroke(
+            AircraftActivityCueShape(stage: stage).path(in: rect),
+            with: .color(color),
+            style: StrokeStyle(
+                lineWidth: style.activity.cueLineWidth,
+                lineCap: .round,
+                lineJoin: .round,
+            ),
+        )
     }
 }
 
@@ -353,6 +470,28 @@ private struct GeographyProjectionCanvas: View, Equatable {
             ) {
                 ProjectionSurface(session: .denseAdaptiveSnapshotFixture(), presentation: .preview)
                     .throwBroadwayRoot()
+            }
+            SnapshotCase(
+                name: "Flight Activity Map",
+                configurations: projectorAspectConfigurations,
+                settle: .immediate,
+            ) {
+                ProjectionSurface(
+                    session: .activitySnapshotFixture(mode: .map),
+                    presentation: .preview,
+                )
+                .throwBroadwayRoot()
+            }
+            SnapshotCase(
+                name: "Flight Activity True Sky",
+                configurations: projectorAspectConfigurations,
+                settle: .immediate,
+            ) {
+                ProjectionSurface(
+                    session: .activitySnapshotFixture(mode: .trueSky),
+                    presentation: .preview,
+                )
+                .throwBroadwayRoot()
             }
             SnapshotCase(
                 name: "Failed And Blank",

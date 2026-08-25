@@ -2,9 +2,14 @@ import Foundation
 
 public struct FlightLayerFrameBuilder: Sendable {
     private let visualClassifier: AircraftVisualClassifier
+    private let activityClassifier: FlightActivityClassifier
 
-    public init(visualClassifier: AircraftVisualClassifier) {
+    public init(
+        visualClassifier: AircraftVisualClassifier,
+        activityClassifier: FlightActivityClassifier,
+    ) {
         self.visualClassifier = visualClassifier
+        self.activityClassifier = activityClassifier
     }
 
     public func frame(
@@ -14,17 +19,29 @@ public struct FlightLayerFrameBuilder: Sendable {
         routes: [FlightCallsign: FlightRoute],
         availability: MarkAvailability,
     ) throws -> LayerFrame {
-        let marks = try snapshot.observations.map { observation in
+        var airportMarks: [AirportID: ProjectionMark] = [:]
+        var aircraftMarks: [ProjectionMark] = []
+        for observation in snapshot.observations {
+            let callsign = observation.callsign.flatMap(FlightCallsign.init(rawValue:))
+            let route = callsign.flatMap { routes[$0] }
+            let activity = try activityClassifier.activity(
+                for: observation,
+                observer: observer,
+                route: route,
+            )
             let altitude = observation.preferredSkyAltitude
             let anchor = GeodeticAnchor(
                 coordinate: observation.coordinate,
                 altitude: altitude,
                 altitudeQuality: observation.skyAltitudeQuality,
             )
-            return try ProjectionMark(
+            try aircraftMarks.append(ProjectionMark(
                 id: observation.id.layerMarkID,
                 anchor: .geodetic(anchor),
-                glyph: .aircraft(visualClassifier.descriptor(for: observation)),
+                glyph: .aircraft(visualClassifier.descriptor(
+                    for: observation,
+                    activity: activity,
+                )),
                 label: label(
                     for: observation,
                     observer: observer,
@@ -41,12 +58,56 @@ public struct FlightLayerFrameBuilder: Sendable {
                     fetchedAt: observation.fetchedAt,
                     availability: availability,
                 ),
-            )
+            ))
+            if let context = activity.airportContext {
+                let airport = context.airport
+                let runwayBearing: Bearing? = if let runway = airport.longestOpenRunway {
+                    try ProjectionEngine().greatCirclePosition(
+                        from: runway.lowEnd,
+                        to: runway.highEnd,
+                    ).initialBearing
+                } else {
+                    nil
+                }
+                let code = activity.certainty == .confirmed && labelMode != .marksOnly
+                    ? airport.displayCode
+                    : nil
+                if let existing = airportMarks[airport.id],
+                   case let .airport(existingDescriptor) = existing.glyph,
+                   existingDescriptor.certainty == .confirmed,
+                   activity.certainty == .inferred
+                {
+                    continue
+                }
+                airportMarks[airport.id] = ProjectionMark(
+                    id: airport.id.layerMarkID,
+                    anchor: .geodetic(GeodeticAnchor(
+                        coordinate: airport.coordinate,
+                        altitude: airport.elevation,
+                        altitudeQuality: airport.elevation == nil ? .unavailable : .geometric,
+                    )),
+                    glyph: .airport(AirportGlyphDescriptor(
+                        airportID: airport.id,
+                        code: code,
+                        runwayBearing: runwayBearing,
+                        certainty: activity.certainty ?? .inferred,
+                    )),
+                    label: code.map { ProjectionLabel(primary: $0.rawValue, secondary: nil) },
+                    velocity: nil,
+                    freshness: MarkFreshness(
+                        positionObservedAt: observation.positionObservedAt,
+                        fetchedAt: observation.fetchedAt,
+                        availability: availability,
+                    ),
+                )
+            }
         }
         return LayerFrame(
             layerID: .flights,
             observedAt: snapshot.fetchedAt,
-            content: .marks(marks),
+            content: .marks(aircraftMarks + airportMarks.values.sorted {
+                $0.id.rawValue < $1.id.rawValue
+            }),
         )
     }
 

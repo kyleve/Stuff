@@ -61,6 +61,7 @@ extension ThrowStylesheet {
         var background: Color
         var markLuminance: Double
         var aircraft: AircraftStyle
+        var activity: ActivityStyle
         var geography: GeographyStyle
         var statusLuminance: Double
         var minimumMarkSize: CGFloat
@@ -73,6 +74,7 @@ extension ThrowStylesheet {
             background: .black,
             markLuminance: 0.95,
             aircraft: .standard,
+            activity: .standard,
             geography: .standard,
             statusLuminance: 0.55,
             minimumMarkSize: 6,
@@ -86,6 +88,32 @@ extension ThrowStylesheet {
             ),
             correctionDuration: 0.75,
             modeChangeDuration: 1.2,
+        )
+    }
+
+    struct ActivityStyle: Equatable {
+        var cueLineWidth: CGFloat
+        var confirmedOpacity: Double
+        var inferredOpacityMultiplier: Double
+        var airportOpacity: Double
+        var airportLineWidth: CGFloat
+        var airportLineLength: CGFloat
+        var acquisitionDuration: Double
+        var cueTransitionDuration: Double
+        var anchorTransitionDuration: Double
+        var completionDuration: Double
+
+        static let standard = ActivityStyle(
+            cueLineWidth: 0.8,
+            confirmedOpacity: 0.36,
+            inferredOpacityMultiplier: 0.6,
+            airportOpacity: 0.28,
+            airportLineWidth: 1,
+            airportLineLength: 16,
+            acquisitionDuration: 0.9,
+            cueTransitionDuration: 0.35,
+            anchorTransitionDuration: 0.4,
+            completionDuration: 0.5,
         )
     }
 

@@ -37,6 +37,15 @@ constant screen-space widths and a separate restrained intensity. Roads and
 county boundaries remain dimmer than coastlines and major boundaries. True Sky
 and quiet output remain free of geography.
 
+Aircraft activity cues use geometry and luminance without replacing airline
+accents. The projection worker tracks acquisition rings, cue transitions,
+airport-anchor fades, and completion pulses in memory. Reduce Motion removes
+rings, pulses, scale changes, and moving corrections. Static phase geometry
+and opacity changes remain.
+
+Map mode draws contextual airport centers and the longest open runway below
+aircraft labels. True Sky draws aircraft cues without airport geometry.
+
 Appearance is resolved through `ThrowStylesheet` at `throwBroadwayRoot()`.
 Preview and snapshot fixtures use memory-only dependencies and deterministic
 frames.

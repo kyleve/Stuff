@@ -18,6 +18,7 @@ public final class ThrowSession {
     public internal(set) var feedHealth: FeedHealth = .idle
     public internal(set) var locationHealth: LocationHealth = .missing
     public internal(set) var projectionFrame: ProjectionFrame
+    var projectionMarkEffects: [LayerMarkID: ProjectionMarkEffect] = [:]
     public internal(set) var projectionMarkOpacity = 1.0
     public internal(set) var geographyLayerHealth: GeographyLayerHealth = .idle
     public internal(set) var projectionOutputCount = 0

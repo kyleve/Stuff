@@ -29,6 +29,7 @@ struct FlightLayerFrameBuilderTests {
                 family: .airliner,
                 brand: nil,
                 isGrounded: false,
+                activity: .overflight,
             )),
         )
     }
@@ -76,6 +77,9 @@ struct FlightLayerFrameBuilderTests {
     private var builder: FlightLayerFrameBuilder {
         FlightLayerFrameBuilder(
             visualClassifier: AircraftVisualClassifier(catalog: .bundled),
+            activityClassifier: FlightActivityClassifier(
+                airportCatalog: AirportCatalog(airports: []),
+            ),
         )
     }
 }
