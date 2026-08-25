@@ -51,6 +51,7 @@ extension ThrowStylesheet {
     struct ProjectionStyle: Equatable {
         var background: Color
         var markLuminance: Double
+        var geography: GeographyStyle
         var statusLuminance: Double
         var minimumMarkSize: CGFloat
         var standardMarkSize: CGFloat
@@ -61,12 +62,41 @@ extension ThrowStylesheet {
         static let standard = ProjectionStyle(
             background: .black,
             markLuminance: 0.95,
+            geography: .standard,
             statusLuminance: 0.55,
             minimumMarkSize: 6,
             standardMarkSize: 12,
             labelOffset: 8,
             correctionDuration: 0.75,
             modeChangeDuration: 1.2,
+        )
+    }
+
+    struct GeographyStyle: Equatable {
+        var coastlineLineWidth: CGFloat
+        var lakeLineWidth: CGFloat
+        var riverLineWidth: CGFloat
+        var boundaryLineWidth: CGFloat
+        var coastlineLuminance: Double
+        var lakeLuminance: Double
+        var riverLuminance: Double
+        var nationalBoundaryLuminance: Double
+        var disputedBoundaryLuminance: Double
+        var regionalBoundaryLuminance: Double
+        var disputedDash: [CGFloat]
+
+        static let standard = GeographyStyle(
+            coastlineLineWidth: 0.8,
+            lakeLineWidth: 0.65,
+            riverLineWidth: 0.55,
+            boundaryLineWidth: 0.5,
+            coastlineLuminance: 1,
+            lakeLuminance: 0.8,
+            riverLuminance: 0.65,
+            nationalBoundaryLuminance: 0.7,
+            disputedBoundaryLuminance: 0.7,
+            regionalBoundaryLuminance: 0.45,
+            disputedDash: [3, 4],
         )
     }
 

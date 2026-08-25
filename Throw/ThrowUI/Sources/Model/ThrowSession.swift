@@ -3,6 +3,13 @@ import Observation
 import SwiftUI
 import ThrowCore
 
+/// Controller-visible availability of Throw's bundled Geography layer.
+public enum GeographyLayerHealth: Equatable, Sendable {
+    case idle
+    case available
+    case unavailable
+}
+
 /// The single main-actor presentation session shared by every Throw scene.
 @MainActor
 @Observable
@@ -11,7 +18,8 @@ public final class ThrowSession {
     public internal(set) var feedHealth: FeedHealth = .idle
     public internal(set) var locationHealth: LocationHealth = .missing
     public internal(set) var projectionFrame: ProjectionFrame
-    public internal(set) var projectionContentOpacity = 1.0
+    public internal(set) var projectionMarkOpacity = 1.0
+    public internal(set) var geographyLayerHealth: GeographyLayerHealth = .idle
     public internal(set) var projectionOutputCount = 0
     public internal(set) var rapidAPICredentialState: CredentialState = .missing
     public internal(set) var softwareCredits: [SoftwareCredit]
@@ -45,6 +53,28 @@ public final class ThrowSession {
         }
     }
 
+    public var geographyEnabled: Bool {
+        didSet {
+            guard oldValue != geographyEnabled, isApplyingPreferences == false else { return }
+            if geographyEnabled == false {
+                geographyLayerHealth = .idle
+                projectionFrame = ProjectionFrame(
+                    mode: projectionFrame.mode,
+                    generatedAt: projectionFrame.generatedAt,
+                    geography: nil,
+                    geographyOpacity: 1,
+                    marks: projectionFrame.marks,
+                )
+            }
+            settingsChanged(reconcilesDemand: false)
+            if flightsEnabled {
+                restartRenderer()
+            } else {
+                scheduleDemandReconciliation()
+            }
+        }
+    }
+
     public var labelMode: FlightLabelMode {
         didSet {
             guard oldValue != labelMode, isApplyingPreferences == false else { return }
@@ -69,6 +99,15 @@ public final class ThrowSession {
     public var intensityPercent: Double {
         didSet {
             guard oldValue != intensityPercent, isApplyingPreferences == false else { return }
+            settingsChanged(reconcilesDemand: false)
+        }
+    }
+
+    public var geographyIntensityPercent: Double {
+        didSet {
+            guard oldValue != geographyIntensityPercent,
+                  isApplyingPreferences == false
+            else { return }
             settingsChanged(reconcilesDemand: false)
         }
     }
@@ -191,6 +230,7 @@ public final class ThrowSession {
         locationSource: any ThrowLocationSource,
         calendar: Calendar,
         layerCatalog: LayerCatalog,
+        geographyLogger: any GeographyLogging,
         softwareCredits: [SoftwareCredit],
     ) {
         setupCompleted = preferences.setupCompleted
@@ -198,10 +238,12 @@ public final class ThrowSession {
         mapRadius = preferences.mapViewport.radius.value
         minimumElevation = preferences.skyViewport.minimumElevation.degrees
         flightsEnabled = preferences.flightsEnabled
+        geographyEnabled = preferences.geography.isEnabled
         labelMode = preferences.labelMode
         includeGroundAircraft = preferences.includeGroundAircraft
         markSizePercent = preferences.markSizePercent
         intensityPercent = preferences.intensityPercent
+        geographyIntensityPercent = preferences.geography.intensityPercent
         screenTopBearing = preferences.calibration.screenTopBearing.degrees
         screenRotation = preferences.calibration.rotation
         flipHorizontal = preferences.calibration.flipHorizontal
@@ -222,6 +264,8 @@ public final class ThrowSession {
         projectionFrame = ProjectionFrame(
             mode: preferences.selectedProjectionMode ?? .map,
             generatedAt: dateProvider.now(),
+            geography: nil,
+            geographyOpacity: 1,
             marks: [],
         )
         self.preferenceStore = preferenceStore
@@ -235,6 +279,8 @@ public final class ThrowSession {
         self.layerCatalog = layerCatalog
         projectionWorker = ProjectionFrameWorker(
             flightsRuntime: layerCatalog.flights.runtimeFactory(),
+            geographyRuntime: layerCatalog.geography.runtimeFactory(),
+            geographyLogger: geographyLogger,
         )
         self.softwareCredits = softwareCredits
         selectedSourceConfiguration = preferences.selectedSource
@@ -268,6 +314,10 @@ public final class ThrowSession {
         intensityPercent / 100
     }
 
+    public var geographyIntensityMultiplier: Double {
+        geographyIntensityPercent / 100
+    }
+
     public var lastUpdate: Date? {
         switch feedHealth {
             case let .healthy(lastUpdate, _): lastUpdate
@@ -293,7 +343,11 @@ public final class ThrowSession {
 
     public var projectionAccessibilitySummary: String {
         let count = projectionFrame.visibleAircraftCount.formatted(.number)
-        return "\(String(localized: .projectionPreviewSummary)), \(count) \(String(localized: .dashboardAircraftVisible)), \(feedHealth.accessibilityDescription)"
+        var summary = "\(String(localized: .projectionPreviewSummary)), \(count) \(String(localized: .dashboardAircraftVisible)), \(feedHealth.accessibilityDescription)"
+        if geographyLayerHealth == .unavailable {
+            summary += ", \(String(localized: .layerGeographyUnavailableHint))"
+        }
+        return summary
     }
 
     public func start() async {

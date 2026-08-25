@@ -35,6 +35,26 @@ struct ThrowPreferenceStoreTests {
         }
     }
 
+    @Test func payloadFromBeforeGeographyUsesTheNewDefault() throws {
+        let encoded = try ThrowPreferencesCodec.encode(populatedPreferences())
+        let propertyList = try PropertyListSerialization.propertyList(
+            from: encoded,
+            options: [],
+            format: nil,
+        )
+        var storage = try #require(propertyList as? [String: Any])
+        storage.removeValue(forKey: "geography")
+        let legacyData = try PropertyListSerialization.data(
+            fromPropertyList: storage,
+            format: .binary,
+            options: 0,
+        )
+
+        let decoded = try ThrowPreferencesCodec.decode(legacyData)
+
+        #expect(decoded.geography == .defaultValue)
+    }
+
     @Test func completedSetupRequiresAValidatedSourceLocationAndMode() throws {
         let source = AircraftSourceConfiguration.adsbLol
         #expect(throws: ThrowValidationError.invalidPreferencePayload) {
@@ -49,6 +69,7 @@ struct ThrowPreferenceStoreTests {
                 skyViewport: .defaultValue,
                 selectedProjectionMode: nil,
                 flightsEnabled: true,
+                geography: .defaultValue,
                 labelMode: .adaptive,
                 includeGroundAircraft: false,
                 markSizePercent: 100,
@@ -81,6 +102,7 @@ struct ThrowPreferenceStoreTests {
                 skyViewport: .defaultValue,
                 selectedProjectionMode: .map,
                 flightsEnabled: true,
+                geography: .defaultValue,
                 labelMode: .adaptive,
                 includeGroundAircraft: false,
                 markSizePercent: 100,
@@ -128,6 +150,7 @@ struct ThrowPreferenceStoreTests {
             skyViewport: .defaultValue,
             selectedProjectionMode: .map,
             flightsEnabled: true,
+            geography: .defaultValue,
             labelMode: .adaptive,
             includeGroundAircraft: false,
             markSizePercent: 100,
@@ -186,6 +209,7 @@ struct ThrowPreferenceStoreTests {
             skyViewport: SkyViewport(minimumElevation: ElevationAngle(degrees: 20)),
             selectedProjectionMode: .trueSky,
             flightsEnabled: false,
+            geography: GeographyPreferences(isEnabled: false, intensityPercent: 12),
             labelMode: .callsigns,
             includeGroundAircraft: true,
             markSizePercent: 150,

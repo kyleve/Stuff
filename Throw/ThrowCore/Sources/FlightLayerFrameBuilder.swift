@@ -35,7 +35,11 @@ public struct FlightLayerFrameBuilder: Sendable {
                 ),
             )
         }
-        return LayerFrame(layerID: .flights, observedAt: snapshot.fetchedAt, marks: marks)
+        return LayerFrame(
+            layerID: .flights,
+            observedAt: snapshot.fetchedAt,
+            content: .marks(marks),
+        )
     }
 
     private func label(

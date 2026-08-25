@@ -29,6 +29,8 @@ struct ProjectionLabelCollisionResolver {
         return ProjectionFrame(
             mode: frame.mode,
             generatedAt: frame.generatedAt,
+            geography: frame.geography,
+            geographyOpacity: frame.geographyOpacity,
             marks: frame.marks.map { mark in
                 ProjectedMark(
                     id: mark.id,

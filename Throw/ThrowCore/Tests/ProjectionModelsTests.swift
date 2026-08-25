@@ -53,7 +53,13 @@ struct ProjectionModelsTests {
             labelOpacity: 1,
             altitudeIsApproximate: false,
         )
-        let frame = ProjectionFrame(mode: .map, generatedAt: .now, marks: [aircraft, star])
+        let frame = ProjectionFrame(
+            mode: .map,
+            generatedAt: .now,
+            geography: nil,
+            geographyOpacity: 1,
+            marks: [aircraft, star],
+        )
         #expect(frame.visibleAircraftCount == 1)
     }
 
@@ -87,7 +93,7 @@ struct ProjectionModelsTests {
         let layerFrame = LayerFrame(
             layerID: .flights,
             observedAt: ThrowCoreFixture.date,
-            marks: [mark],
+            content: .marks([mark]),
         )
         let projectedMark = try ProjectedMark(
             id: markID,
@@ -103,6 +109,8 @@ struct ProjectionModelsTests {
         let projectionFrame = ProjectionFrame(
             mode: .map,
             generatedAt: ThrowCoreFixture.date,
+            geography: nil,
+            geographyOpacity: 1,
             marks: [projectedMark],
         )
         let renderings = [

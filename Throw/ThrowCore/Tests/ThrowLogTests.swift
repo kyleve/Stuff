@@ -21,4 +21,13 @@ struct ThrowLogTests {
                 "transport-local-network-denied",
         )
     }
+
+    @Test func geographyFailureIsRedactedAndClosed() {
+        #expect(GeographyLogEvent.FailureCategory.allCases.count == 3)
+        let event = GeographyLogEvent(failureCategory: .invalidArchive)
+
+        #expect(event.message == "Bundled geography load failed: invalid-archive")
+        #expect(event.remoteMessage == "Bundled geography load failed")
+        #expect(event.remoteFields.isEmpty)
+    }
 }

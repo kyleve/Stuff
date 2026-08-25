@@ -30,8 +30,11 @@ they never access UserDefaults, Keychain, location, or the network directly.
 `ProjectionFrame` values and has presentation-specific accessibility only—the
 projector is decorative, while Preview exposes one status summary.
 The controller enumerates `LayerCatalog` descriptors instead of maintaining a
-second layer roster. Projection invokes the catalog's typed Flights runtime.
-Runtime type erasure does not enter the rendering pipeline.
+second layer roster. Projection invokes the catalog's typed Flights and
+Geography runtimes. Runtime type erasure does not enter the rendering pipeline.
+In Map mode, the surface draws cached geography before aircraft. Lines use
+constant screen-space widths and a separate restrained intensity. True Sky and
+quiet output remain free of geography.
 
 Appearance is resolved through `ThrowStylesheet` at `throwBroadwayRoot()`.
 Preview and snapshot fixtures use memory-only dependencies and deterministic

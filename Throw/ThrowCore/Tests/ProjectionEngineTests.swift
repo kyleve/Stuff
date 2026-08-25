@@ -58,13 +58,14 @@ struct ProjectionEngineTests {
         let frame = try LayerFrame(
             layerID: .flights,
             observedAt: ThrowCoreFixture.date,
-            marks: [
+            content: .marks([
                 mark(rawID: "north", latitude: 0.1, longitude: 0),
                 mark(rawID: "east", latitude: 0, longitude: 0.1),
-            ],
+            ]),
         )
         let projection = try engine.frame(
             layerFrames: [frame],
+            geography: nil,
             observer: observer,
             viewport: .map(MapViewport(radius: NauticalMiles(value: 50))),
             calibration: .defaultValue,
@@ -98,9 +99,10 @@ struct ProjectionEngineTests {
                 LayerFrame(
                     layerID: .flights,
                     observedAt: ThrowCoreFixture.date,
-                    marks: [mark(rawID: "north", latitude: 0.1, longitude: 0)],
+                    content: .marks([mark(rawID: "north", latitude: 0.1, longitude: 0)]),
                 ),
             ],
+            geography: nil,
             observer: observer,
             viewport: .map(MapViewport(radius: NauticalMiles(value: 50))),
             calibration: calibration,
@@ -117,10 +119,13 @@ struct ProjectionEngineTests {
         let frame = try LayerFrame(
             layerID: .flights,
             observedAt: ThrowCoreFixture.date,
-            marks: [mark(rawID: "low", latitude: 0, longitude: 1, altitudeFeet: 1000)],
+            content: .marks([
+                mark(rawID: "low", latitude: 0, longitude: 1, altitudeFeet: 1000),
+            ]),
         )
         let projection = try engine.frame(
             layerFrames: [frame],
+            geography: nil,
             observer: observer,
             viewport: .trueSky(
                 SkyViewport(minimumElevation: ElevationAngle(degrees: 10)),
@@ -137,10 +142,13 @@ struct ProjectionEngineTests {
         let frame = try LayerFrame(
             layerID: .flights,
             observedAt: ThrowCoreFixture.date,
-            marks: [mark(rawID: "overhead", latitude: 0, longitude: 0, altitudeFeet: 10000)],
+            content: .marks([
+                mark(rawID: "overhead", latitude: 0, longitude: 0, altitudeFeet: 10000),
+            ]),
         )
         let projection = try engine.frame(
             layerFrames: [frame],
+            geography: nil,
             observer: observer,
             viewport: .trueSky(
                 SkyViewport(minimumElevation: ElevationAngle(degrees: 10)),
@@ -185,8 +193,9 @@ struct ProjectionEngineTests {
             layerFrames: [LayerFrame(
                 layerID: .flights,
                 observedAt: observedAt,
-                marks: [movingMark],
+                content: .marks([movingMark]),
             )],
+            geography: nil,
             observer: observer,
             viewport: viewport,
             calibration: .defaultValue,
@@ -208,11 +217,12 @@ struct ProjectionEngineTests {
             layerFrames: [LayerFrame(
                 layerID: .flights,
                 observedAt: generatedAt,
-                marks: [
+                content: .marks([
                     positionMark(id: "current", anchor: current.mark.anchor, at: generatedAt),
                     positionMark(id: "next", anchor: next.mark.anchor, at: generatedAt),
-                ],
+                ]),
             )],
+            geography: nil,
             observer: observer,
             viewport: viewport,
             calibration: .defaultValue,
@@ -245,7 +255,7 @@ struct ProjectionEngineTests {
                 LayerFrame(
                     layerID: .flights,
                     observedAt: ThrowCoreFixture.date,
-                    marks: [
+                    content: .marks([
                         mark(
                             rawID: "extreme",
                             latitude: 0.1,
@@ -253,9 +263,10 @@ struct ProjectionEngineTests {
                             velocity: extremeVelocity,
                         ),
                         mark(rawID: "neighbor", latitude: 0, longitude: 0.1),
-                    ],
+                    ]),
                 ),
             ],
+            geography: nil,
             observer: observer,
             viewport: .map(MapViewport(radius: NauticalMiles(value: 50))),
             calibration: .defaultValue,
@@ -278,16 +289,17 @@ struct ProjectionEngineTests {
                 LayerFrame(
                     layerID: .flights,
                     observedAt: ThrowCoreFixture.date,
-                    marks: [
+                    content: .marks([
                         mark(
                             rawID: "vertical",
                             latitude: 0,
                             longitude: 0.05,
                             velocity: verticalVelocity,
                         ),
-                    ],
+                    ]),
                 ),
             ],
+            geography: nil,
             observer: observer,
             viewport: .trueSky(
                 SkyViewport(minimumElevation: ElevationAngle(degrees: 0)),
@@ -298,6 +310,173 @@ struct ProjectionEngineTests {
         )
 
         #expect(frame.marks.first?.orientationDegrees != nil)
+    }
+
+    @Test func geographyClipsAThroughLineWithBothEndpointsOutsideTheMap() throws {
+        let observer = try ThrowCoreFixture.observer(latitude: 0, longitude: 0, altitudeFeet: 0)
+        let line = try geographicLine(
+            kind: .coastline,
+            minimumZoomTenths: 0,
+            scaleRank: 0,
+            coordinates: [
+                GeoCoordinate(latitude: 0, longitude: -1),
+                GeoCoordinate(latitude: 0, longitude: 1),
+            ],
+        )
+
+        let segments = try engine.geographySegments(
+            lines: [line],
+            observer: observer,
+            viewport: .map(MapViewport(radius: NauticalMiles(value: 50))),
+            calibration: .defaultValue,
+            geometry: ProjectionGeometry(width: 1, height: 1),
+        )
+
+        let segment = try #require(segments.first)
+        #expect(segments.count == 1)
+        #expect(abs(segment.start.x - 0.05) < 0.000_001)
+        #expect(abs(segment.end.x - 0.95) < 0.000_001)
+        #expect(abs(segment.start.y - 0.5) < 0.000_001)
+        #expect(abs(segment.end.y - 0.5) < 0.000_001)
+    }
+
+    @Test func geographyIsNeverProjectedIntoTrueSky() throws {
+        let observer = try ThrowCoreFixture.observer(latitude: 0, longitude: 0, altitudeFeet: 0)
+        let line = try geographicLine(
+            kind: .river,
+            minimumZoomTenths: 0,
+            scaleRank: 0,
+            coordinates: [
+                GeoCoordinate(latitude: 0, longitude: 0),
+                GeoCoordinate(latitude: 0.1, longitude: 0),
+            ],
+        )
+
+        let segments = try engine.geographySegments(
+            lines: [line],
+            observer: observer,
+            viewport: .trueSky(
+                SkyViewport(minimumElevation: ElevationAngle(degrees: 10)),
+            ),
+            calibration: .defaultValue,
+            geometry: ProjectionGeometry(width: 1, height: 1),
+        )
+
+        #expect(segments.isEmpty)
+    }
+
+    @Test func geographyDetailIncreasesOnlyWhenTheMapZoomsIn() throws {
+        let observer = try ThrowCoreFixture.observer(latitude: 0, longitude: 0, altitudeFeet: 0)
+        let line = try geographicLine(
+            kind: .regionalBoundary,
+            minimumZoomTenths: 100,
+            scaleRank: 0,
+            coordinates: [
+                GeoCoordinate(latitude: 0, longitude: 0),
+                GeoCoordinate(latitude: 0.01, longitude: 0),
+            ],
+        )
+        let geometry = try ProjectionGeometry(width: 1, height: 1)
+
+        let wide = try engine.geographySegments(
+            lines: [line],
+            observer: observer,
+            viewport: .map(MapViewport(radius: NauticalMiles(value: 240))),
+            calibration: .defaultValue,
+            geometry: geometry,
+        )
+        let close = try engine.geographySegments(
+            lines: [line],
+            observer: observer,
+            viewport: .map(MapViewport(radius: NauticalMiles(value: 5))),
+            calibration: .defaultValue,
+            geometry: geometry,
+        )
+
+        #expect(wide.isEmpty)
+        #expect(close.isEmpty == false)
+    }
+
+    @Test func geographyScaleRankRemovesMinorDetailOnlyFromWideMaps() throws {
+        let observer = try ThrowCoreFixture.observer(latitude: 0, longitude: 0, altitudeFeet: 0)
+        let line = try geographicLine(
+            kind: .river,
+            minimumZoomTenths: 0,
+            scaleRank: 6,
+            coordinates: [
+                GeoCoordinate(latitude: 0, longitude: 0),
+                GeoCoordinate(latitude: 0.01, longitude: 0),
+            ],
+        )
+        let geometry = try ProjectionGeometry(width: 1, height: 1)
+
+        let wide = try engine.geographySegments(
+            lines: [line],
+            observer: observer,
+            viewport: .map(MapViewport(radius: NauticalMiles(value: 240))),
+            calibration: .defaultValue,
+            geometry: geometry,
+        )
+        let close = try engine.geographySegments(
+            lines: [line],
+            observer: observer,
+            viewport: .map(MapViewport(radius: NauticalMiles(value: 50))),
+            calibration: .defaultValue,
+            geometry: geometry,
+        )
+
+        #expect(wide.isEmpty)
+        #expect(close.isEmpty == false)
+    }
+
+    @Test func geographyBoundsRemainConservativeNearThePoles() throws {
+        let observer = try ThrowCoreFixture.observer(latitude: 85, longitude: 0, altitudeFeet: 0)
+        let line = try geographicLine(
+            kind: .coastline,
+            minimumZoomTenths: 0,
+            scaleRank: 0,
+            coordinates: [
+                GeoCoordinate(latitude: 86, longitude: 49),
+                GeoCoordinate(latitude: 86, longitude: 50),
+            ],
+        )
+
+        let segments = try engine.geographySegments(
+            lines: [line],
+            observer: observer,
+            viewport: .map(MapViewport(radius: NauticalMiles(value: 240))),
+            calibration: .defaultValue,
+            geometry: ProjectionGeometry(width: 1, height: 1),
+        )
+
+        #expect(segments.isEmpty == false)
+    }
+
+    @Test func geographyBoundsFindNearbyDataAcrossTheAntimeridian() throws {
+        let observer = try ThrowCoreFixture.observer(
+            latitude: 0,
+            longitude: 179.9,
+            altitudeFeet: 0,
+        )
+        let line = try geographicLine(
+            kind: .nationalBoundary,
+            minimumZoomTenths: 0,
+            scaleRank: 0,
+            coordinates: [
+                GeoCoordinate(latitude: -0.1, longitude: -180),
+                GeoCoordinate(latitude: 0.1, longitude: -180),
+            ],
+        )
+
+        let segments = try engine.geographySegments(
+            lines: [line],
+            observer: observer,
+            viewport: .map(MapViewport(radius: NauticalMiles(value: 50))),
+            calibration: .defaultValue,
+            geometry: ProjectionGeometry(width: 1, height: 1),
+        )
+
+        #expect(segments.isEmpty == false)
     }
 
     private func positionMark(
@@ -312,6 +491,28 @@ struct ProjectionEngineTests {
             label: nil,
             velocity: nil,
             freshness: MarkFreshness(positionObservedAt: date, fetchedAt: date),
+        )
+    }
+
+    private func geographicLine(
+        kind: GeographyLineKind,
+        minimumZoomTenths: Int,
+        scaleRank: Int,
+        coordinates: [GeoCoordinate],
+    ) throws -> GeographicPolyline {
+        let latitudes = coordinates.map(\.latitude)
+        let longitudes = coordinates.map(\.longitude)
+        return try GeographicPolyline(
+            kind: kind,
+            minimumZoomTenths: minimumZoomTenths,
+            scaleRank: scaleRank,
+            bounds: GeographicBounds(
+                southLatitude: latitudes.min() ?? 0,
+                westLongitude: longitudes.min() ?? 0,
+                northLatitude: latitudes.max() ?? 0,
+                eastLongitude: longitudes.max() ?? 0,
+            ),
+            coordinates: coordinates,
         )
     }
 

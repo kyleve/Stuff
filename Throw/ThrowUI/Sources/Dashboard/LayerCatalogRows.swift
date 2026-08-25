@@ -4,6 +4,7 @@ import ThrowCore
 
 struct LayerCatalogRows: View {
     @Bindable var session: ThrowSession
+    @Environment(\.throwStylesheet) private var stylesheet
 
     var body: some View {
         ForEach(session.layerCatalog.descriptors) { descriptor in
@@ -17,6 +18,31 @@ struct LayerCatalogRows: View {
                 layerLabel(descriptor.id)
             }
             .disabled(descriptor.availability.isEnabled == false)
+        } else if descriptor.id == .geography {
+            Toggle(isOn: $session.geographyEnabled) {
+                HStack {
+                    layerLabel(descriptor.id)
+                    if session.projectionMode != .map {
+                        Spacer()
+                        Text(.layerMapOnly)
+                            .foregroundStyle(.secondary)
+                    } else if session.geographyLayerHealth == .unavailable {
+                        Spacer()
+                        Text(.layerUnavailable)
+                            .foregroundStyle(stylesheet.status.failed)
+                    }
+                }
+            }
+            .disabled(
+                descriptor.availability.isEnabled == false ||
+                    session.projectionMode != .map,
+            )
+            .accessibilityHint(
+                Text(session.geographyLayerHealth == .unavailable
+                    && session.projectionMode == .map
+                    ? .layerGeographyUnavailableHint
+                    : .layerMapOnlyHint),
+            )
         } else {
             LabeledContent {
                 availabilityLabel(descriptor.availability)
@@ -29,6 +55,8 @@ struct LayerCatalogRows: View {
     @ViewBuilder private func layerLabel(_ id: LayerID) -> some View {
         if id == .flights {
             Label(String(localized: .layerFlights), systemSymbol: .airplane)
+        } else if id == .geography {
+            Label(String(localized: .layerGeography), systemSymbol: .mapFill)
         } else if id == .stars {
             Label(String(localized: .layerStars), systemSymbol: .sparkles)
         } else if id == .satellites {

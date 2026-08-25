@@ -1,3 +1,4 @@
+import SnapshotKit
 import SwiftUI
 
 struct AppearanceSettingsView: View {
@@ -28,7 +29,46 @@ struct AppearanceSettingsView: View {
                         Text(session.intensityPercent / 100, format: .percent),
                     )
             }
+            Section {
+                LabeledContent(String(localized: .settingsGeographyIntensity)) {
+                    Text(session.geographyIntensityPercent / 100, format: .percent)
+                }
+                Slider(
+                    value: $session.geographyIntensityPercent,
+                    in: 0 ... 20,
+                    step: 1,
+                )
+                .accessibilityLabel(Text(.settingsGeographyIntensity))
+                .accessibilityValue(
+                    Text(session.geographyIntensityPercent / 100, format: .percent),
+                )
+            } header: {
+                Text(.layerGeography)
+            } footer: {
+                Text(.settingsGeographyIntensityDescription)
+            }
         }
         .navigationTitle(Text(.settingsAppearance))
     }
 }
+
+#if DEBUG
+    extension AppearanceSettingsView: SnapshotProviding {
+        static var snapshots: [SnapshotCase] {
+            SnapshotCase(
+                name: "Geography",
+                configurations: [SnapshotConfiguration(device: .iPhoneFullContent)],
+                settle: .immediate,
+            ) {
+                NavigationStack {
+                    AppearanceSettingsView(session: .fixture())
+                }
+                .throwBroadwayRoot()
+            }
+        }
+    }
+
+    #Preview {
+        AppearanceSettingsView.snapshotPreviews
+    }
+#endif

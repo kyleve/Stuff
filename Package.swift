@@ -231,6 +231,9 @@ let package = Package(
                 .target(name: "PeriscopeCore"),
             ],
             path: "Throw/ThrowCore/Sources",
+            resources: [
+                .process("Resources"),
+            ],
         ),
         .target(
             name: "ThrowUI",

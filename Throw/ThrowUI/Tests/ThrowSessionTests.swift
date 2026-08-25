@@ -48,7 +48,46 @@ struct ThrowSessionTests {
         #expect(health.visibleAircraft == 4)
     }
 
-    @Test func invalidSourceReconciliationMakesBlankFrameAuthoritative() async {
+    @Test func geographyDefaultsPersistWithoutRestartingAircraftDemand() throws {
+        let session = ThrowSession.fixture()
+        let demandGeneration = session.demandGeneration
+
+        #expect(session.geographyEnabled)
+        #expect(session.geographyIntensityPercent == 8)
+
+        session.geographyEnabled = false
+        session.geographyIntensityPercent = 12
+        let preferences = try session.makePreferences(setupCompleted: session.setupCompleted)
+
+        #expect(session.demandGeneration == demandGeneration)
+        #expect(preferences.geography.isEnabled == false)
+        #expect(preferences.geography.intensityPercent == 12)
+    }
+
+    @Test func disablingGeographyImmediatelyRemovesAPublishedStaticFrame() {
+        let session = ThrowSession.fixture()
+
+        #expect(session.projectionFrame.geography != nil)
+        session.currentLayerFrame = nil
+        session.geographyEnabled = false
+
+        #expect(session.projectionFrame.geography == nil)
+        #expect(session.projectionFrame.marks.isEmpty == false)
+        #expect(session.geographyLayerHealth == .idle)
+    }
+
+    @Test func aircraftSourceDiscardPreservesIndependentGeography() async throws {
+        let session = ThrowSession.fixture()
+        let geography = try #require(session.projectionFrame.geography)
+        session.updateReduceMotion(true)
+
+        try await session.discardOldFrame()
+
+        #expect(session.projectionFrame.geography == geography)
+        #expect(session.projectionFrame.marks.isEmpty)
+    }
+
+    @Test func invalidAircraftSourceKeepsIndependentGeographyRendering() async {
         let session = ThrowSession.fixture()
         let output = ProjectionOutput.preview(
             ProjectionOutputID(rawValue: "invalid-source-test"),
@@ -61,12 +100,39 @@ struct ThrowSessionTests {
         session.demandGeneration = 1
 
         await session.reconcileDemand(generation: 1)
+        let renderTask = session.renderTask
+        await renderTask?.value
 
         #expect(session.projectionFrame.marks.isEmpty)
+        #expect(session.projectionFrame.geography != nil)
         #expect(session.currentSnapshot == nil)
         #expect(session.currentLayerFrame == nil)
         #expect(session.renderTask == nil)
         #expect(session.feedHealth == .failed(.sourceNotValidated))
+    }
+
+    @Test func geographyCanProjectWhileFlightsAndPollingAreOff() async {
+        let session = ThrowSession.fixture()
+        let output = ProjectionOutput.preview(
+            ProjectionOutputID(rawValue: "geography-only-test"),
+        )
+        session.hasStarted = true
+        session.locationMode = .manual
+        session.isApplyingPreferences = true
+        session.flightsEnabled = false
+        session.isApplyingPreferences = false
+        session.outputDemands.insert(output)
+        session.projectionOutputCount = 1
+        session.demandGeneration = 1
+
+        await session.reconcileDemand(generation: 1)
+        let renderTask = session.renderTask
+        await renderTask?.value
+
+        #expect(session.activePollingSignature == nil)
+        #expect(session.feedHealth == .idle)
+        #expect(session.projectionFrame.geography != nil)
+        #expect(session.renderTask == nil)
     }
 
     @Test func GPSAltitudeEditPreservesAcceptedFixAndStaleHealth() async throws {

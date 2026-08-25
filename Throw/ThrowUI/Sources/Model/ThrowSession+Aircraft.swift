@@ -147,7 +147,7 @@ extension ThrowSession {
         if deletesActiveSource {
             await pollingCoordinator.deactivate()
             activePollingSignature = nil
-            await clearProjectionState()
+            await clearProjectionState(restartsGeography: true)
         }
         do {
             try await credentialStore.delete(.rapidAPI)
@@ -187,7 +187,7 @@ extension ThrowSession {
                 } catch {
                     guard generation == pollingStateGeneration else { return }
                     feedHealth = .failed(.decoding)
-                    await clearProjectionState()
+                    await clearProjectionState(restartsGeography: true)
                 }
             case let .retrying(lastGoodSnapshot, failure, nextRetryAt):
                 currentSnapshot = lastGoodSnapshot
@@ -208,10 +208,10 @@ extension ThrowSession {
                     } catch {
                         guard generation == pollingStateGeneration else { return }
                         feedHealth = .failed(.decoding)
-                        await clearProjectionState()
+                        await clearProjectionState(restartsGeography: true)
                     }
                 } else {
-                    await clearProjectionState()
+                    await clearProjectionState(restartsGeography: true)
                     guard generation == pollingStateGeneration else { return }
                     feedHealth = .retrying(
                         lastUpdate: nil,
@@ -221,11 +221,11 @@ extension ThrowSession {
                     )
                 }
             case let .failed(failure):
-                await clearProjectionState()
+                await clearProjectionState(restartsGeography: true)
                 guard generation == pollingStateGeneration else { return }
                 feedHealth = .failed(failure.presentationCategory)
             case .quiet:
-                await clearProjectionState()
+                await clearProjectionState(restartsGeography: true)
                 guard generation == pollingStateGeneration else { return }
                 feedHealth = .quiet
         }
@@ -246,41 +246,21 @@ extension ThrowSession {
         expireTemporaryWakeIfNeeded()
         scheduleQuietBoundary()
         let quiet = isQuietNow
+        let hasEnabledLayer = flightsEnabled || (geographyEnabled && projectionMode == .map)
         guard hasStarted,
               isForeground,
               outputDemands.isEmpty == false,
               isCalibrating == false,
-              flightsEnabled,
+              hasEnabledLayer,
               quiet == false
         else {
             cancelProjectionSessionLocationAcquisition(restoringPreviousHealth: true)
             activePollingSignature = nil
             await pollingCoordinator.deactivate()
             guard generation == demandGeneration else { return }
-            await clearProjectionState()
+            await clearProjectionState(restartsGeography: true)
             guard generation == demandGeneration else { return }
             feedHealth = quiet ? .quiet : .idle
-            return
-        }
-
-        guard let configuration = selectedSourceConfiguration,
-              configuration == validatedSourceConfiguration
-        else {
-            activePollingSignature = nil
-            await pollingCoordinator.deactivate()
-            guard generation == demandGeneration else { return }
-            await clearProjectionState()
-            guard generation == demandGeneration else { return }
-            feedHealth = .failed(.sourceNotValidated)
-            return
-        }
-        if configuration.kind == .adsbExchangeRapidAPI, rapidAPICredentialState == .missing {
-            activePollingSignature = nil
-            await pollingCoordinator.deactivate()
-            guard generation == demandGeneration else { return }
-            await clearProjectionState()
-            guard generation == demandGeneration else { return }
-            feedHealth = .failed(.missingCredential)
             return
         }
 
@@ -291,11 +271,43 @@ extension ThrowSession {
                 activePollingSignature = nil
                 await pollingCoordinator.deactivate()
                 guard generation == demandGeneration else { return }
-                await clearProjectionState()
+                await clearProjectionState(restartsGeography: true)
                 guard generation == demandGeneration else { return }
                 feedHealth = .failed(.locationUnavailable)
                 return
             }
+        }
+
+        guard flightsEnabled else {
+            activePollingSignature = nil
+            await pollingCoordinator.deactivate()
+            guard generation == demandGeneration else { return }
+            currentSnapshot = nil
+            currentLayerFrame = nil
+            feedHealth = .idle
+            restartRenderer()
+            return
+        }
+
+        guard let configuration = selectedSourceConfiguration,
+              configuration == validatedSourceConfiguration
+        else {
+            activePollingSignature = nil
+            await pollingCoordinator.deactivate()
+            guard generation == demandGeneration else { return }
+            await clearProjectionState(restartsGeography: true)
+            guard generation == demandGeneration else { return }
+            feedHealth = .failed(.sourceNotValidated)
+            return
+        }
+        if configuration.kind == .adsbExchangeRapidAPI, rapidAPICredentialState == .missing {
+            activePollingSignature = nil
+            await pollingCoordinator.deactivate()
+            guard generation == demandGeneration else { return }
+            await clearProjectionState(restartsGeography: true)
+            guard generation == demandGeneration else { return }
+            feedHealth = .failed(.missingCredential)
+            return
         }
 
         let query: AircraftQuery
@@ -305,7 +317,7 @@ extension ThrowSession {
             activePollingSignature = nil
             await pollingCoordinator.deactivate()
             guard generation == demandGeneration else { return }
-            await clearProjectionState()
+            await clearProjectionState(restartsGeography: true)
             guard generation == demandGeneration else { return }
             feedHealth = .failed(.locationUnavailable)
             return
@@ -318,6 +330,7 @@ extension ThrowSession {
         activePollingSignature = signature
         await pollingCoordinator.activate(configuration: configuration, query: query, quiet: false)
         guard generation == demandGeneration else { return }
+        restartRenderer()
     }
 
     func restartRenderer() {
@@ -328,7 +341,7 @@ extension ThrowSession {
               isForeground,
               isCalibrating == false,
               isQuietNow == false,
-              let currentLayerFrame,
+              currentLayerFrame != nil || (geographyEnabled && projectionMode == .map),
               let confirmedLocation
         else {
             return
@@ -337,8 +350,9 @@ extension ThrowSession {
             guard let self else { return }
             while Task.isCancelled == false {
                 do {
-                    let frame = try await projectionWorker.frame(
-                        layerFrame: currentLayerFrame,
+                    let output = try await projectionWorker.frame(
+                        layerFrame: flightsEnabled ? currentLayerFrame : nil,
+                        geographyEnabled: geographyEnabled,
                         observer: confirmedLocation.position,
                         viewport: projectionViewport(),
                         calibration: projectionCalibration(),
@@ -347,15 +361,20 @@ extension ThrowSession {
                     )
                     try Task.checkCancellation()
                     guard generation == renderGeneration else { return }
-                    projectionFrame = frame
-                    updateVisibleCount(frame.visibleAircraftCount)
+                    projectionFrame = output.frame
+                    geographyLayerHealth = output.geographyHealth
+                    updateVisibleCount(output.frame.visibleAircraftCount)
+                    if currentLayerFrame == nil {
+                        renderTask = nil
+                        return
+                    }
                     try await Task.sleep(for: .seconds(1.0 / 30.0))
                 } catch is CancellationError {
                     return
                 } catch {
                     guard generation == renderGeneration else { return }
                     feedHealth = .failed(.decoding)
-                    await clearProjectionState()
+                    await clearProjectionState(restartsGeography: false)
                     return
                 }
             }
@@ -368,7 +387,7 @@ extension ThrowSession {
         renderTask = nil
     }
 
-    func clearProjectionState() async {
+    func clearProjectionState(restartsGeography: Bool) async {
         currentSnapshot = nil
         currentLayerFrame = nil
         stopRenderer()
@@ -376,9 +395,12 @@ extension ThrowSession {
         var transaction = Transaction()
         transaction.disablesAnimations = true
         withTransaction(transaction) {
-            projectionContentOpacity = 1
+            projectionMarkOpacity = 1
         }
         await projectionWorker.reset()
+        if restartsGeography, geographyEnabled, projectionMode == .map {
+            restartRenderer()
+        }
     }
 
     func rebuildCurrentLayerFrame() {
@@ -397,7 +419,7 @@ extension ThrowSession {
             } catch {
                 guard generation == pollingStateGeneration else { return }
                 feedHealth = .failed(.decoding)
-                await clearProjectionState()
+                await clearProjectionState(restartsGeography: true)
             }
         }
     }
@@ -493,31 +515,47 @@ extension ThrowSession {
     }
 
     func emptyProjectionFrame() -> ProjectionFrame {
-        ProjectionFrame(mode: projectionMode, generatedAt: dateProvider.now(), marks: [])
+        ProjectionFrame(
+            mode: projectionMode,
+            generatedAt: dateProvider.now(),
+            geography: nil,
+            geographyOpacity: 1,
+            marks: [],
+        )
+    }
+
+    func projectionFrameWithoutMarks() -> ProjectionFrame {
+        ProjectionFrame(
+            mode: projectionFrame.mode,
+            generatedAt: dateProvider.now(),
+            geography: projectionFrame.geography,
+            geographyOpacity: projectionFrame.geographyOpacity,
+            marks: [],
+        )
     }
 
     func discardOldFrame() async throws {
         currentSnapshot = nil
         currentLayerFrame = nil
         stopRenderer()
-        let empty = emptyProjectionFrame()
+        let empty = projectionFrameWithoutMarks()
         if reduceMotion {
             projectionFrame = empty
             await projectionWorker.reset()
         } else {
             withAnimation(.linear(duration: 0.25)) {
-                projectionContentOpacity = 0
+                projectionMarkOpacity = 0
             }
             do {
                 try await Task.sleep(for: .milliseconds(250))
             } catch is CancellationError {
                 projectionFrame = empty
-                projectionContentOpacity = 1
+                projectionMarkOpacity = 1
                 await projectionWorker.reset()
                 throw CancellationError()
             } catch {
                 projectionFrame = empty
-                projectionContentOpacity = 1
+                projectionMarkOpacity = 1
                 await projectionWorker.reset()
                 throw error
             }
@@ -525,7 +563,7 @@ extension ThrowSession {
             var transaction = Transaction()
             transaction.disablesAnimations = true
             withTransaction(transaction) {
-                projectionContentOpacity = 1
+                projectionMarkOpacity = 1
             }
             await projectionWorker.reset()
         }

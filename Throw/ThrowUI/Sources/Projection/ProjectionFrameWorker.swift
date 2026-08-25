@@ -5,14 +5,26 @@ import ThrowCore
 actor ProjectionFrameWorker {
     private let engine = ProjectionEngine()
     private let flightsRuntime: FlightsLayerRuntime
+    private let geographyRuntime: GeographyLayerRuntime
+    private let geographyLogger: any GeographyLogging
     private var labelResolver = ProjectionLabelCollisionResolver()
+    private var geographyLayerLoadTask: Task<LayerFrame, Error>?
+    private var geographyLoadFailed = false
+    private var geographyProjectionCache: GeographyProjectionCache?
+    private var geographyProjectionSequence: UInt64 = 0
     private var previousFrame: ProjectionFrame?
     private var lastLayerObservedAt: Date?
     private var modeTransition: ModeTransition?
     private var correctionTransition: CorrectionTransition?
 
-    init(flightsRuntime: FlightsLayerRuntime) {
+    init(
+        flightsRuntime: FlightsLayerRuntime,
+        geographyRuntime: GeographyLayerRuntime,
+        geographyLogger: any GeographyLogging,
+    ) {
         self.flightsRuntime = flightsRuntime
+        self.geographyRuntime = geographyRuntime
+        self.geographyLogger = geographyLogger
     }
 
     func layerFrame(
@@ -30,31 +42,111 @@ actor ProjectionFrameWorker {
     }
 
     func frame(
-        layerFrame: LayerFrame,
+        layerFrame: LayerFrame?,
+        geographyEnabled: Bool,
         observer: ObserverPosition,
         viewport: ProjectionViewport,
         calibration: ProjectionCalibration,
         generatedAt: Date,
         reduceMotion: Bool,
-    ) throws -> ProjectionFrame {
-        let observationChanged = lastLayerObservedAt.map { $0 != layerFrame.observedAt } ?? false
+    ) async throws -> ProjectionFrameWorkerOutput {
+        try Task.checkCancellation()
+        let observationChanged = lastLayerObservedAt != layerFrame?.observedAt
+        let geographyResult: GeographyProjectionResult
+        do {
+            geographyResult = try await projectedGeography(
+                isEnabled: geographyEnabled,
+                observer: observer,
+                viewport: viewport,
+                calibration: calibration,
+            )
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            geographyLoadFailed = true
+            geographyResult = .unavailable
+        }
+        try Task.checkCancellation()
         let target = try engine.frame(
-            layerFrames: [layerFrame],
+            layerFrames: layerFrame.map { [$0] } ?? [],
+            geography: geographyResult.projection,
             observer: observer,
             viewport: viewport,
             calibration: calibration,
             geometry: ProjectionGeometry(width: 1, height: 1),
             generatedAt: generatedAt,
         )
+        try Task.checkCancellation()
         let frame = animate(
             target: target,
             at: generatedAt,
             observationChanged: observationChanged,
             reduceMotion: reduceMotion,
         )
+        try Task.checkCancellation()
         previousFrame = frame
-        lastLayerObservedAt = layerFrame.observedAt
-        return frame
+        lastLayerObservedAt = layerFrame?.observedAt
+        return ProjectionFrameWorkerOutput(
+            frame: frame,
+            geographyHealth: geographyResult.health,
+        )
+    }
+
+    private func projectedGeography(
+        isEnabled: Bool,
+        observer: ObserverPosition,
+        viewport: ProjectionViewport,
+        calibration: ProjectionCalibration,
+    ) async throws -> GeographyProjectionResult {
+        guard isEnabled, case .map = viewport else { return .notRequested }
+        guard geographyLoadFailed == false else { return .unavailable }
+        let key = GeographyProjectionCacheKey(
+            observer: observer,
+            viewport: viewport,
+            calibration: calibration,
+        )
+        if geographyProjectionCache?.key == key {
+            guard let projection = geographyProjectionCache?.projection else {
+                preconditionFailure("A matching geography cache must contain a projection")
+            }
+            return .projected(projection)
+        }
+        let loadTask: Task<LayerFrame, Error>
+        if let geographyLayerLoadTask {
+            loadTask = geographyLayerLoadTask
+        } else {
+            loadTask = Task(name: "Throw load bundled geography") {
+                [geographyRuntime, geographyLogger] in
+                do {
+                    return try await geographyRuntime.frame(for: GeographyLayerInput())
+                } catch is CancellationError {
+                    throw CancellationError()
+                } catch {
+                    geographyLogger.record(
+                        GeographyLogEvent(failureCategory: geographyFailureCategory(for: error)),
+                    )
+                    throw error
+                }
+            }
+            geographyLayerLoadTask = loadTask
+        }
+        let layerFrame = try await loadTask.value
+        try Task.checkCancellation()
+        let segments = try engine.geographySegments(
+            lines: layerFrame.geographicLines,
+            observer: observer,
+            viewport: viewport,
+            calibration: calibration,
+            geometry: ProjectionGeometry(width: 1, height: 1),
+        )
+        try Task.checkCancellation()
+        geographyProjectionSequence &+= 1
+        let projection = ProjectedGeography(
+            id: GeographyProjectionID(rawValue: geographyProjectionSequence),
+            segments: segments,
+        )
+        geographyProjectionCache = GeographyProjectionCache(key: key, projection: projection)
+        return .projected(projection)
     }
 
     func reset() {
@@ -177,7 +269,19 @@ actor ProjectionFrameWorker {
                 altitudeIsApproximate: mark.altitudeIsApproximate,
             )
         }
-        return ProjectionFrame(mode: target.mode, generatedAt: target.generatedAt, marks: marks)
+        let geography = transitionGeography(
+            source: source,
+            target: target,
+            progress: progress,
+            transitionsMode: transitionsLabels,
+        )
+        return ProjectionFrame(
+            mode: target.mode,
+            generatedAt: target.generatedAt,
+            geography: geography.projection,
+            geographyOpacity: geography.opacity,
+            marks: marks,
+        )
     }
 
     private func fadeThroughBlack(
@@ -191,6 +295,8 @@ actor ProjectionFrameWorker {
         return ProjectionFrame(
             mode: target.mode,
             generatedAt: target.generatedAt,
+            geography: frame.geography,
+            geographyOpacity: frame.geographyOpacity * opacity,
             marks: frame.marks.map { mark in
                 ProjectedMark(
                     id: mark.id,
@@ -204,6 +310,27 @@ actor ProjectionFrameWorker {
                     altitudeIsApproximate: mark.altitudeIsApproximate,
                 )
             },
+        )
+    }
+
+    private func transitionGeography(
+        source: ProjectionFrame,
+        target: ProjectionFrame,
+        progress: Double,
+        transitionsMode: Bool,
+    ) -> GeographyTransitionFrame {
+        guard transitionsMode else {
+            return GeographyTransitionFrame(
+                projection: target.geography,
+                opacity: target.geographyOpacity,
+            )
+        }
+        let usesSource = progress < 0.5
+        let frame = usesSource ? source : target
+        let opacity = usesSource ? 1 - progress * 2 : (progress - 0.5) * 2
+        return GeographyTransitionFrame(
+            projection: frame.geography,
+            opacity: frame.geographyOpacity * opacity,
         )
     }
 
@@ -228,6 +355,16 @@ actor ProjectionFrameWorker {
     }
 }
 
+private func geographyFailureCategory(
+    for error: any Error,
+) -> GeographyLogEvent.FailureCategory {
+    guard let geographyError = error as? GeographyDataError else { return .unexpected }
+    switch geographyError {
+        case .resourceMissing: return .resourceMissing
+        case .invalidArchive: return .invalidArchive
+    }
+}
+
 private struct ModeTransition {
     let startedAt: Date
     let source: ProjectionFrame
@@ -237,4 +374,46 @@ private struct ModeTransition {
 private struct CorrectionTransition {
     let startedAt: Date
     let source: ProjectionFrame
+}
+
+private struct GeographyProjectionCacheKey: Equatable {
+    let observer: ObserverPosition
+    let viewport: ProjectionViewport
+    let calibration: ProjectionCalibration
+}
+
+private struct GeographyProjectionCache {
+    let key: GeographyProjectionCacheKey
+    let projection: ProjectedGeography
+}
+
+private struct GeographyTransitionFrame {
+    let projection: ProjectedGeography?
+    let opacity: Double
+}
+
+struct ProjectionFrameWorkerOutput {
+    let frame: ProjectionFrame
+    let geographyHealth: GeographyLayerHealth
+}
+
+private enum GeographyProjectionResult {
+    case notRequested
+    case projected(ProjectedGeography)
+    case unavailable
+
+    var projection: ProjectedGeography? {
+        switch self {
+            case .notRequested, .unavailable: nil
+            case let .projected(projection): projection
+        }
+    }
+
+    var health: GeographyLayerHealth {
+        switch self {
+            case .notRequested: .idle
+            case .projected: .available
+            case .unavailable: .unavailable
+        }
+    }
 }
