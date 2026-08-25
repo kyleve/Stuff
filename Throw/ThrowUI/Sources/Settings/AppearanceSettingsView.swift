@@ -30,6 +30,17 @@ struct AppearanceSettingsView: View {
                     )
             }
             Section {
+                Toggle(
+                    String(localized: .settingsAirlineAccents),
+                    isOn: $session.airlineAccentsEnabled,
+                )
+                AircraftFamilyLegend()
+            } header: {
+                Text(.settingsAircraftAppearance)
+            } footer: {
+                Text(.settingsAirlineAccentsDescription)
+            }
+            Section {
                 LabeledContent(String(localized: .settingsGeographyIntensity)) {
                     Text(session.geographyIntensityPercent / 100, format: .percent)
                 }

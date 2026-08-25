@@ -128,7 +128,7 @@ struct FlightPredictorTests {
                     altitudeQuality: .geometric,
                 ),
             ),
-            glyph: .aircraft(isGrounded: false),
+            glyph: .aircraft(.unknownAirborne),
             label: nil,
             velocity: velocity,
             freshness: MarkFreshness(

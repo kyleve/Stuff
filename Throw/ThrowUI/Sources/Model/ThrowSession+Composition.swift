@@ -294,6 +294,7 @@ extension ThrowSession {
                     skyViewport: .defaultValue,
                     selectedProjectionMode: setupCompleted ? .map : nil,
                     flightsEnabled: true,
+                    airlineAccentsEnabled: true,
                     geography: .defaultValue,
                     labelMode: .adaptive,
                     includeGroundAircraft: false,
@@ -412,6 +413,8 @@ extension ThrowSession {
                     altitude: nil,
                     orientation: 35,
                     range: 9.22,
+                    family: .airliner,
+                    brand: .united,
                 ),
                 SnapshotAircraft(
                     rawID: "fixture-two",
@@ -421,6 +424,8 @@ extension ThrowSession {
                     altitude: nil,
                     orientation: 35,
                     range: 9.22,
+                    family: .airliner,
+                    brand: .southwest,
                 ),
                 SnapshotAircraft(
                     rawID: "fixture-three",
@@ -430,6 +435,8 @@ extension ThrowSession {
                     altitude: nil,
                     orientation: 35,
                     range: 13.79,
+                    family: .regionalBusinessJet,
+                    brand: .alaska,
                 ),
             ]
             return fixtureProjectionFrame(
@@ -450,6 +457,8 @@ extension ThrowSession {
                     altitude: "8,000 ft",
                     orientation: nil,
                     range: 8,
+                    family: .helicopter,
+                    brand: nil,
                 ),
                 SnapshotAircraft(
                     rawID: "fixture-northeast",
@@ -459,6 +468,8 @@ extension ThrowSession {
                     altitude: nil,
                     orientation: 130,
                     range: 34,
+                    family: .airliner,
+                    brand: .delta,
                 ),
                 SnapshotAircraft(
                     rawID: "fixture-south",
@@ -468,6 +479,8 @@ extension ThrowSession {
                     altitude: "21,400 ft",
                     orientation: 8,
                     range: 76,
+                    family: .regionalBusinessJet,
+                    brand: .spirit,
                 ),
                 SnapshotAircraft(
                     rawID: "fixture-west",
@@ -477,6 +490,8 @@ extension ThrowSession {
                     altitude: nil,
                     orientation: 272,
                     range: 101,
+                    family: .heavyJet,
+                    brand: .jetBlue,
                 ),
             ]
             return fixtureProjectionFrame(
@@ -512,7 +527,11 @@ extension ThrowSession {
                         ),
                         point: ProjectionPoint(x: value.x, y: value.y),
                         range: fixtureRange(value.range),
-                        glyph: .aircraft(isGrounded: false),
+                        glyph: .aircraft(AircraftGlyphDescriptor(
+                            family: value.family,
+                            brand: value.brand,
+                            isGrounded: false,
+                        )),
                         label: value.callsign.map {
                             ProjectionLabel(primary: $0, secondary: value.altitude)
                         },
@@ -595,6 +614,8 @@ extension ThrowSession {
             let altitude: String?
             let orientation: Double?
             let range: Double
+            var family: AircraftVisualFamily = .unknown
+            var brand: AirlineBrand?
         }
     }
 #endif

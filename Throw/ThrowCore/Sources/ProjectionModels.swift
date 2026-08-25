@@ -158,7 +158,7 @@ public enum ProjectionAnchor: Hashable, Sendable, CustomStringConvertible,
 }
 
 public enum ProjectionGlyph: Hashable, Sendable {
-    case aircraft(isGrounded: Bool)
+    case aircraft(AircraftGlyphDescriptor)
     case star
     case satellite
 }

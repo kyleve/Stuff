@@ -14,6 +14,7 @@ extension ThrowSession {
         mapRadius = preferences.mapViewport.radius.value
         minimumElevation = preferences.skyViewport.minimumElevation.degrees
         flightsEnabled = preferences.flightsEnabled
+        airlineAccentsEnabled = preferences.airlineAccentsEnabled
         geographyEnabled = preferences.geography.isEnabled
         labelMode = preferences.labelMode
         includeGroundAircraft = preferences.includeGroundAircraft
@@ -117,6 +118,7 @@ extension ThrowSession {
             ),
             selectedProjectionMode: projectionMode,
             flightsEnabled: flightsEnabled,
+            airlineAccentsEnabled: airlineAccentsEnabled,
             geography: GeographyPreferences(
                 isEnabled: geographyEnabled,
                 intensityPercent: geographyIntensityPercent,

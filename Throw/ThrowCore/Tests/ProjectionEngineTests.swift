@@ -177,7 +177,7 @@ struct ProjectionEngineTests {
                 altitude: Altitude(feet: 30000),
                 altitudeQuality: .geometric,
             )),
-            glyph: .aircraft(isGrounded: false),
+            glyph: .aircraft(.unknownAirborne),
             label: nil,
             velocity: ProjectionVelocity(
                 groundTrack: Bearing(degrees: 35),
@@ -517,7 +517,7 @@ struct ProjectionEngineTests {
         ProjectionMark(
             id: LayerMarkID(layerID: .flights, namespace: .aircraft, rawValue: id),
             anchor: anchor,
-            glyph: .aircraft(isGrounded: false),
+            glyph: .aircraft(.unknownAirborne),
             label: nil,
             velocity: nil,
             freshness: MarkFreshness(positionObservedAt: date, fetchedAt: date),
@@ -565,7 +565,7 @@ struct ProjectionEngineTests {
                     altitudeQuality: .geometric,
                 ),
             ),
-            glyph: .aircraft(isGrounded: false),
+            glyph: .aircraft(.unknownAirborne),
             label: nil,
             velocity: velocity,
             freshness: MarkFreshness(

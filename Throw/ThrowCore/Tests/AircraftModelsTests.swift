@@ -15,6 +15,12 @@ struct AircraftModelsTests {
         #expect(original.callsign == "TEST1")
     }
 
+    @Test func aircraftTypeDesignatorNormalizesProviderText() {
+        #expect(AircraftTypeDesignator(rawValue: " b738 ")?.rawValue == "B738")
+        #expect(AircraftTypeDesignator(rawValue: "too-long") == nil)
+        #expect(AircraftEmitterCategory(providerValue: " a5 ") == .heavy)
+    }
+
     @Test func sourceConfigurationNeverFallsBackToAnotherKind() throws {
         let rapid = try AircraftSourceConfiguration.adsbExchangeRapidAPI(
             ADSBExchangeConfiguration(
@@ -78,6 +84,7 @@ struct AircraftModelsTests {
             callsign: callsignSentinel,
             registration: nil,
             aircraftType: nil,
+            emitterCategory: nil,
             messageObservedAt: ThrowCoreFixture.date,
             positionObservedAt: ThrowCoreFixture.date,
             fetchedAt: ThrowCoreFixture.date,

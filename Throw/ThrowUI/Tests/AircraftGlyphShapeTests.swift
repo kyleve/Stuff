@@ -1,16 +1,23 @@
 import CoreGraphics
 import SwiftUI
 import Testing
+import ThrowCore
 @testable import ThrowUI
 
 struct AircraftGlyphShapeTests {
-    @Test func pathUsesTheRequestedRectangleOriginAndExtent() {
+    @Test(arguments: AircraftVisualFamily.allCases)
+    func everyFamilyUsesTheRequestedRectangleAndHasAnAccent(
+        _ family: AircraftVisualFamily,
+    ) {
         let rect = CGRect(x: -12, y: -8, width: 24, height: 16)
-        let bounds = AircraftGlyphShape().path(in: rect).boundingRect
+        let body = AircraftGlyphShape(family: family).path(in: rect)
+        let accent = AircraftAccentShape(family: family).path(in: rect)
+        let bounds = body.boundingRect
 
-        #expect(abs(bounds.minX - rect.minX) < 0.000_001)
-        #expect(abs(bounds.minY - rect.minY) < 0.000_001)
-        #expect(abs(bounds.maxX - rect.maxX) < 0.000_001)
-        #expect(abs(bounds.maxY - rect.maxY) < 0.000_001)
+        #expect(body.isEmpty == false)
+        #expect(rect.contains(bounds))
+        #expect(abs(bounds.midX - rect.midX) < 0.000_001)
+        #expect(accent.isEmpty == false)
+        #expect(rect.contains(accent.boundingRect))
     }
 }

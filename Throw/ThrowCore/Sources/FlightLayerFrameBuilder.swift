@@ -1,7 +1,11 @@
 import Foundation
 
 public struct FlightLayerFrameBuilder: Sendable {
-    public init() {}
+    private let visualClassifier: AircraftVisualClassifier
+
+    public init(visualClassifier: AircraftVisualClassifier) {
+        self.visualClassifier = visualClassifier
+    }
 
     public func frame(
         snapshot: AircraftSnapshot,
@@ -18,7 +22,7 @@ public struct FlightLayerFrameBuilder: Sendable {
             return try ProjectionMark(
                 id: observation.id.layerMarkID,
                 anchor: .geodetic(anchor),
-                glyph: .aircraft(isGrounded: observation.airborneState == .ground),
+                glyph: .aircraft(visualClassifier.descriptor(for: observation)),
                 label: label(
                     for: observation,
                     observer: observer,

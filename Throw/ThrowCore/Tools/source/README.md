@@ -8,6 +8,12 @@ The raw archives are not tracked. The default cache is `cache/`, which this
 directory ignores. A clean app build uses only the committed
 `geography-v2.json` archive and does not use the network.
 
+`aircraft-types-manifest.json` separately pins the Mictronics aircraft type
+archive used by `../generate-aircraft-types.rb`. Pass a downloaded archive with
+`--archive`. The generator verifies its digest before it reads the ZIP. The
+generated resource contains no registrations, operators, aircraft identities,
+or live observations.
+
 ## Required archives
 
 The default archive uses these inputs:
