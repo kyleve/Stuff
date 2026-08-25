@@ -35,4 +35,13 @@ struct AircraftGlyphShapeTests {
 
         #expect(Set(masks).count == AircraftVisualFamily.allCases.count)
     }
+
+    @Test(arguments: AircraftVisualFamily.allCases)
+    func overlappingPartsRemainSolid(_ family: AircraftVisualFamily) {
+        let rect = CGRect(x: 0, y: 0, width: 100, height: 100)
+        let path = AircraftGlyphShape(family: family).path(in: rect)
+
+        #expect(path.contains(CGPoint(x: 50, y: 45)))
+        #expect(path.contains(CGPoint(x: 50, y: 88)))
+    }
 }

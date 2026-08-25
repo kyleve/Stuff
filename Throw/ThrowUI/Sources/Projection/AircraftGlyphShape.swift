@@ -116,12 +116,14 @@ struct AircraftGlyphShape: Shape {
         var path = Path()
         addRoundedBar(to: &path, in: rect, x: 0.00, y: 0.39, width: 1.00, height: 0.11)
         addRoundedBar(to: &path, in: rect, x: 0.445, y: 0.02, width: 0.11, height: 0.74)
-        path.addEllipse(in: CGRect(
+        var cabin = Path()
+        cabin.addEllipse(in: CGRect(
             x: rect.minX + rect.width * 0.31,
             y: rect.minY + rect.height * 0.20,
             width: rect.width * 0.38,
             height: rect.height * 0.45,
         ))
+        path.addSolid(cabin)
         addPolygon(to: &path, in: rect, points: [
             (0.45, 0.57),
             (0.55, 0.57),
@@ -162,10 +164,12 @@ struct AircraftGlyphShape: Shape {
             width: rect.width * width,
             height: rect.height * bottom,
         )
-        path.addRoundedRect(
+        var component = Path()
+        component.addRoundedRect(
             in: fuselage,
             cornerSize: CGSize(width: fuselage.width / 2, height: fuselage.width / 2),
         )
+        path.addSolid(component)
     }
 
     private func addRoundedBar(
@@ -182,10 +186,12 @@ struct AircraftGlyphShape: Shape {
             width: rect.width * width,
             height: rect.height * height,
         )
-        path.addRoundedRect(
+        var component = Path()
+        component.addRoundedRect(
             in: bar,
             cornerSize: CGSize(width: bar.height / 2, height: bar.height / 2),
         )
+        path.addSolid(component)
     }
 
     private func addPolygon(
@@ -194,11 +200,13 @@ struct AircraftGlyphShape: Shape {
         points: [(Double, Double)],
     ) {
         guard let first = points.first else { return }
-        path.move(to: point(first.0, first.1, rect))
+        var component = Path()
+        component.move(to: point(first.0, first.1, rect))
         for value in points.dropFirst() {
-            path.addLine(to: point(value.0, value.1, rect))
+            component.addLine(to: point(value.0, value.1, rect))
         }
-        path.closeSubpath()
+        component.closeSubpath()
+        path.addSolid(component)
     }
 
     private func point(_ x: Double, _ y: Double, _ rect: CGRect) -> CGPoint {
@@ -228,10 +236,12 @@ struct AircraftAccentShape: Shape {
                     width: rect.width * 0.14,
                     height: rect.height * 0.26,
                 )
-                path.addRoundedRect(
+                var tailComponent = Path()
+                tailComponent.addRoundedRect(
                     in: tail,
                     cornerSize: CGSize(width: tail.width / 2, height: tail.width / 2),
                 )
+                path.addSolid(tailComponent)
                 addRoundedBar(to: &path, in: rect, x: 0.29, y: 0.87, width: 0.42, height: 0.09)
             case .unknown:
                 addTail(to: &path, in: rect, width: 0.40, top: 0.82)
@@ -251,20 +261,24 @@ struct AircraftAccentShape: Shape {
             width: rect.width * width,
             height: rect.height * 0.11,
         )
-        path.addRoundedRect(
+        var barComponent = Path()
+        barComponent.addRoundedRect(
             in: bar,
             cornerSize: CGSize(width: bar.height / 2, height: bar.height / 2),
         )
+        path.addSolid(barComponent)
         let fuselage = CGRect(
             x: rect.minX + rect.width * 0.42,
             y: rect.minY + rect.height * top,
             width: rect.width * 0.16,
             height: rect.height * (0.98 - top),
         )
-        path.addRoundedRect(
+        var fuselageComponent = Path()
+        fuselageComponent.addRoundedRect(
             in: fuselage,
             cornerSize: CGSize(width: fuselage.width / 2, height: fuselage.width / 2),
         )
+        path.addSolid(fuselageComponent)
     }
 
     private func addRoundedBar(
@@ -281,9 +295,23 @@ struct AircraftAccentShape: Shape {
             width: rect.width * width,
             height: rect.height * height,
         )
-        path.addRoundedRect(
+        var component = Path()
+        component.addRoundedRect(
             in: bar,
             cornerSize: CGSize(width: bar.height / 2, height: bar.height / 2),
         )
+        path.addSolid(component)
+    }
+}
+
+extension Path {
+    /// Adds a component as a geometric union so overlapping subpaths cannot cancel.
+    fileprivate mutating func addSolid(_ component: Path) {
+        guard component.isEmpty == false else { return }
+        guard isEmpty == false else {
+            self = component
+            return
+        }
+        self = Path(cgPath.union(component.cgPath))
     }
 }
