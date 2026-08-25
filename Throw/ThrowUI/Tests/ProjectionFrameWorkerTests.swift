@@ -124,6 +124,40 @@ struct ProjectionFrameWorkerTests {
         #expect(end.label == nil)
     }
 
+    @Test func routeEnrichmentFadesThroughBlackWithoutANewObservation() async throws {
+        let frames = try await labelPresenceFrames(
+            sourceLabel: "UA123",
+            targetLabel: "JFK → SFO",
+        )
+        let start = try #require(frames.start.marks.first)
+        let midpoint = try #require(frames.midpoint.marks.first)
+        let end = try #require(frames.end.marks.first)
+
+        #expect(start.label?.primary == "UA123")
+        #expect(abs(start.labelOpacity - 1) < 0.000_001)
+        #expect(midpoint.label?.primary == "JFK → SFO")
+        #expect(midpoint.labelOpacity < 0.000_001)
+        #expect(end.label?.primary == "JFK → SFO")
+        #expect(abs(end.labelOpacity - 1) < 0.000_001)
+    }
+
+    @Test(arguments: [true, false])
+    func aircraftCrossingTheViewportBoundaryFades(appears: Bool) async throws {
+        let frames = try await viewportBoundaryFrames(appears: appears)
+        let start = try #require(frames.start.marks.first)
+        let midpoint = try #require(frames.midpoint.marks.first)
+
+        if appears {
+            #expect(start.opacity < 0.000_001)
+            #expect(abs(midpoint.opacity - 0.5) < 0.000_001)
+            #expect(try abs(#require(frames.end.marks.first).opacity - 1) < 0.000_001)
+        } else {
+            #expect(abs(start.opacity - 1) < 0.000_001)
+            #expect(abs(midpoint.opacity - 0.5) < 0.000_001)
+            #expect(frames.end.marks.isEmpty)
+        }
+    }
+
     @Test func resetPreventsCorrectionEasingAcrossSourcesWithMatchingIDs() async throws {
         let date = Date(timeIntervalSince1970: 3000)
         let observer = try observer()
@@ -527,7 +561,7 @@ struct ProjectionFrameWorkerTests {
         )
         let target = try layerFrame(
             label: targetLabel,
-            observedAt: changedAt,
+            observedAt: date,
             observer: observer,
         )
         let start = try await worker.frame(
@@ -560,6 +594,66 @@ struct ProjectionFrameWorkerTests {
         return (start, midpoint, end)
     }
 
+    private func viewportBoundaryFrames(
+        appears: Bool,
+    ) async throws -> (start: ProjectionFrame, midpoint: ProjectionFrame, end: ProjectionFrame) {
+        let date = Date(timeIntervalSince1970: 2900)
+        let changedAt = date.addingTimeInterval(1)
+        let observer = try observer()
+        let nearViewport = try ProjectionViewport.map(
+            MapViewport(radius: NauticalMiles(value: 5)),
+        )
+        let farViewport = try ProjectionViewport.map(
+            MapViewport(radius: NauticalMiles(value: 50)),
+        )
+        let layer = try layerFrame(
+            label: "FLIGHT",
+            observedAt: date,
+            observer: observer,
+            longitudeOffset: 0.25,
+        )
+        let worker = projectionFrameWorker()
+        _ = try await worker.frame(
+            layerFrame: layer,
+            geographyEnabled: false,
+            observer: observer,
+            viewport: appears ? nearViewport : farViewport,
+            calibration: .defaultValue,
+            generatedAt: date,
+            reduceMotion: false,
+        )
+
+        let targetViewport = appears ? farViewport : nearViewport
+        let start = try await worker.frame(
+            layerFrame: layer,
+            geographyEnabled: false,
+            observer: observer,
+            viewport: targetViewport,
+            calibration: .defaultValue,
+            generatedAt: changedAt,
+            reduceMotion: false,
+        ).frame
+        let midpoint = try await worker.frame(
+            layerFrame: layer,
+            geographyEnabled: false,
+            observer: observer,
+            viewport: targetViewport,
+            calibration: .defaultValue,
+            generatedAt: changedAt.addingTimeInterval(0.125),
+            reduceMotion: false,
+        ).frame
+        let end = try await worker.frame(
+            layerFrame: layer,
+            geographyEnabled: false,
+            observer: observer,
+            viewport: targetViewport,
+            calibration: .defaultValue,
+            generatedAt: changedAt.addingTimeInterval(0.25),
+            reduceMotion: false,
+        ).frame
+        return (start, midpoint, end)
+    }
+
     private func projectionFrameWorker() -> ProjectionFrameWorker {
         ProjectionFrameWorker(
             flightsRuntime: LayerCatalog.standard.flights.runtimeFactory(),
@@ -579,6 +673,7 @@ struct ProjectionFrameWorkerTests {
         label: String?,
         observedAt: Date,
         observer: ObserverPosition,
+        longitudeOffset: Double = 0,
     ) throws -> LayerFrame {
         try LayerFrame(
             layerID: .flights,
@@ -591,7 +686,10 @@ struct ProjectionFrameWorkerTests {
                         rawValue: "matching-aircraft",
                     ),
                     anchor: .geodetic(GeodeticAnchor(
-                        coordinate: observer.coordinate,
+                        coordinate: GeoCoordinate(
+                            latitude: observer.coordinate.latitude,
+                            longitude: observer.coordinate.longitude + longitudeOffset,
+                        ),
                         altitude: Altitude(feet: 10000),
                         altitudeQuality: .geometric,
                     )),

@@ -21,6 +21,7 @@ actor ProjectionFrameWorker {
     private var geographyProjectionSequence: UInt64 = 0
     private var previousFrame: ProjectionFrame?
     private var lastLayerObservedAt: Date?
+    private var lastPresentationSignature: ProjectionPresentationSignature?
     private var modeTransition: ModeTransition?
     private var correctionTransition: CorrectionTransition?
 
@@ -220,6 +221,7 @@ actor ProjectionFrameWorker {
     func reset() {
         previousFrame = nil
         lastLayerObservedAt = nil
+        lastPresentationSignature = nil
         modeTransition = nil
         correctionTransition = nil
         labelResolver = ProjectionLabelCollisionResolver()
@@ -259,7 +261,11 @@ actor ProjectionFrameWorker {
         observationChanged: Bool,
         reduceMotion: Bool,
     ) -> ProjectionFrame {
-        guard let previousFrame else { return labelResolver.resolve(target) }
+        guard let previousFrame else {
+            let resolvedTarget = labelResolver.resolve(target)
+            lastPresentationSignature = ProjectionPresentationSignature(frame: resolvedTarget)
+            return resolvedTarget
+        }
         if previousFrame.mode != target.mode, modeTransition?.targetMode != target.mode {
             modeTransition = ModeTransition(
                 startedAt: date,
@@ -269,12 +275,15 @@ actor ProjectionFrameWorker {
             correctionTransition = nil
             labelResolver = ProjectionLabelCollisionResolver()
         }
+        let resolvedTarget = labelResolver.resolve(target)
+        let presentationSignature = ProjectionPresentationSignature(frame: resolvedTarget)
+        let presentationChanged = lastPresentationSignature != presentationSignature
+        lastPresentationSignature = presentationSignature
 
         if let transition = modeTransition {
             // Resolve the destination layout before it can become visible.
             // Source labels fade to zero, then resolved target labels replace
             // them at black and fade back in without a visible placement jump.
-            let resolvedTarget = labelResolver.resolve(target)
             let progress = min(
                 1,
                 max(0, date.timeIntervalSince(transition.startedAt) / AnimationDuration.mode),
@@ -299,8 +308,12 @@ actor ProjectionFrameWorker {
             )
         }
 
-        if observationChanged {
-            correctionTransition = CorrectionTransition(startedAt: date, source: previousFrame)
+        if observationChanged || presentationChanged {
+            correctionTransition = CorrectionTransition(
+                startedAt: date,
+                source: previousFrame,
+                interpolatesPosition: observationChanged,
+            )
         }
         if let transition = correctionTransition {
             let progress = min(
@@ -312,18 +325,17 @@ actor ProjectionFrameWorker {
             )
             if progress >= 1 {
                 correctionTransition = nil
-                return labelResolver.resolve(target)
+                return resolvedTarget
             }
-            let resolvedTarget = labelResolver.resolve(target)
             return morph(
                 source: transition.source,
                 target: resolvedTarget,
                 progress: progress,
-                interpolatesPosition: reduceMotion == false,
+                interpolatesPosition: transition.interpolatesPosition && reduceMotion == false,
                 transitionsLabels: false,
             )
         }
-        return labelResolver.resolve(target)
+        return resolvedTarget
     }
 
     private func morph(
@@ -543,6 +555,27 @@ private struct ModeTransition {
 private struct CorrectionTransition {
     let startedAt: Date
     let source: ProjectionFrame
+    let interpolatesPosition: Bool
+}
+
+private struct ProjectionPresentationSignature: Equatable {
+    let marks: Set<Mark>
+
+    init(frame: ProjectionFrame) {
+        marks = Set(frame.marks.map(Mark.init))
+    }
+
+    struct Mark: Hashable {
+        let id: LayerMarkID
+        let glyph: ProjectionGlyph
+        let label: ProjectionLabel?
+
+        init(mark: ProjectedMark) {
+            id = mark.id
+            glyph = mark.glyph
+            label = mark.label
+        }
+    }
 }
 
 private struct TransitionedLabel {
