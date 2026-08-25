@@ -38,12 +38,14 @@ actor ProjectionFrameWorker {
         snapshot: AircraftSnapshot,
         observer: ObserverPosition,
         labelMode: FlightLabelMode,
+        routes: [FlightCallsign: FlightRoute],
     ) async throws -> LayerFrame {
         try await flightsRuntime.frame(
             for: FlightsLayerInput(
                 snapshot: snapshot,
                 observer: observer,
                 labelMode: labelMode,
+                routes: routes,
             ),
         )
     }

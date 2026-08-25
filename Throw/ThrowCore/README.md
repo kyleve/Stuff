@@ -56,7 +56,10 @@ airframe and engine description, and wake category. The visual classifier uses
 that lookup with the provider's emitter category to select one of six stable
 silhouette families. A small curated callsign-prefix table can add a carrier
 identity. It does not perform online, route, registration, or operator-name
-lookups.
+lookups for aircraft classification. Separately, the route resolver batches up
+to 100 newly seen callsigns through adsb.lol, caches successful routes for six
+hours, and caches unknown routes for one hour. Aircraft rendering does not wait
+for this optional enrichment.
 
 ## Privacy and limitations
 
@@ -69,6 +72,9 @@ The offline map sends no request. Its generalized boundaries are not
 authoritative. Natural Earth uses its default de facto view. Census boundaries
 support statistical work and are not legal land descriptions.
 Aircraft classifications and carrier identities are not persisted or logged.
+Route enrichment sends broadcast callsigns and aircraft positions to adsb.lol.
+It never sends the observer position, persists route history, or logs route
+request or response values.
 
 ## Testing
 

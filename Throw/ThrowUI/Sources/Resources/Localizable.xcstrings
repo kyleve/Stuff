@@ -210,6 +210,17 @@
         }
       }
     },
+    "about.routeDataCredit" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flight routes are resolved through adsb.lol from broadcast callsigns and aircraft positions. Route lookups do not include your observer position."
+          }
+        }
+      }
+    },
     "about.software" : {
       "extractionState" : "manual",
       "localizations" : {

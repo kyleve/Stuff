@@ -182,6 +182,7 @@ extension ThrowSession {
                         visibleAircraft: projectionFrame.visibleAircraftCount,
                     )
                     restartRenderer()
+                    scheduleRouteEnrichment(for: snapshot)
                 } catch is CancellationError {
                     return
                 } catch {
@@ -203,6 +204,7 @@ extension ThrowSession {
                             visibleAircraft: projectionFrame.visibleAircraftCount,
                         )
                         restartRenderer()
+                        scheduleRouteEnrichment(for: lastGoodSnapshot)
                     } catch is CancellationError {
                         return
                     } catch {
@@ -388,6 +390,7 @@ extension ThrowSession {
     }
 
     func clearProjectionState(restartsGeography: Bool) async {
+        cancelRouteEnrichment()
         currentSnapshot = nil
         currentLayerFrame = nil
         stopRenderer()
@@ -426,11 +429,74 @@ extension ThrowSession {
 
     func makeLayerFrame(_ snapshot: AircraftSnapshot) async throws -> LayerFrame {
         guard let confirmedLocation else { throw ThrowValidationError.invalidPreferencePayload }
+        let routes = await routeResolver.cachedRoutes(
+            for: snapshot.observations,
+            at: dateProvider.now(),
+        )
         return try await projectionWorker.layerFrame(
             snapshot: snapshot,
             observer: confirmedLocation.position,
             labelMode: labelMode,
+            routes: routes,
         )
+    }
+
+    func scheduleRouteEnrichment(for snapshot: AircraftSnapshot) {
+        guard labelMode != .marksOnly, routeTask == nil else { return }
+        routeGeneration &+= 1
+        let generation = routeGeneration
+        routeTask = Task(name: "Throw resolve flight routes") { [weak self] in
+            guard let self else { return }
+            do {
+                let result = try await routeResolver.resolveMissing(
+                    for: snapshot.observations,
+                    at: dateProvider.now(),
+                )
+                try Task.checkCancellation()
+                guard generation == routeGeneration else { return }
+                routeTask = nil
+                switch result {
+                    case .noRequestNeeded:
+                        break
+                    case let .completed(hasNewRoutes):
+                        routeLogger.record(FlightRouteLogEvent(outcome: .succeeded))
+                        if hasNewRoutes {
+                            rebuildCurrentLayerFrame()
+                        }
+                }
+                if let currentSnapshot, currentSnapshot.fetchedAt != snapshot.fetchedAt {
+                    scheduleRouteEnrichment(for: currentSnapshot)
+                }
+            } catch is CancellationError {
+                guard generation == routeGeneration else { return }
+                routeTask = nil
+            } catch let error as FlightRouteLookupError {
+                guard generation == routeGeneration else { return }
+                routeTask = nil
+                routeLogger.record(FlightRouteLogEvent(outcome: routeOutcome(for: error)))
+                if let currentSnapshot, currentSnapshot.fetchedAt != snapshot.fetchedAt {
+                    scheduleRouteEnrichment(for: currentSnapshot)
+                }
+            } catch {
+                guard generation == routeGeneration else { return }
+                routeTask = nil
+                routeLogger.record(FlightRouteLogEvent(outcome: .decodingFailed))
+            }
+        }
+    }
+
+    func cancelRouteEnrichment() {
+        routeGeneration &+= 1
+        routeTask?.cancel()
+        routeTask = nil
+    }
+
+    private func routeOutcome(for error: FlightRouteLookupError) -> FlightRouteLogEvent.Outcome {
+        switch error {
+            case .provider: .providerFailed
+            case .transport: .transportFailed
+            case .decoding: .decodingFailed
+        }
     }
 
     func updateVisibleCount(_ count: Int) {

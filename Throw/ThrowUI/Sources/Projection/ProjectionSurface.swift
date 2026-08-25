@@ -104,8 +104,12 @@ private struct ProjectionMarksCanvas: View {
                 style.standardMarkSize * markSizeMultiplier,
             )
             let markColor = Color(white: style.markLuminance * intensityMultiplier)
-            let labelColor = Color(
-                white: style.markLuminance * style.label.luminanceMultiplier *
+            let primaryLabelColor = Color(
+                white: style.markLuminance * style.label.primaryLuminanceMultiplier *
+                    intensityMultiplier,
+            )
+            let secondaryLabelColor = Color(
+                white: style.markLuminance * style.label.secondaryLuminanceMultiplier *
                     intensityMultiplier,
             )
 
@@ -186,11 +190,14 @@ private struct ProjectionMarksCanvas: View {
                         x: point.x + renderedMarkSize / 2 + style.label.offset,
                         y: point.y,
                     )
-                    let labelValue = label.secondary.map { "\(label.primary) · \($0)" }
-                        ?? label.primary
-                    let text = Text(verbatim: labelValue)
-                        .font(style.label.font)
-                        .foregroundStyle(labelColor)
+                    var text = Text(verbatim: label.primary)
+                        .font(style.label.primaryFont)
+                        .foregroundStyle(primaryLabelColor)
+                    if let secondary = label.secondary {
+                        text = text + Text(verbatim: "\n\(secondary)")
+                            .font(style.label.secondaryFont)
+                            .foregroundStyle(secondaryLabelColor)
+                    }
                     var labelContext = context
                     labelContext.opacity = effectiveOpacity * mark.labelOpacity
                     labelContext.draw(text, at: labelPoint, anchor: .leading)

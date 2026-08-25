@@ -91,15 +91,17 @@ struct ProjectionLabelCollisionResolver {
     }
 
     private func labelRect(for mark: ProjectedMark) -> CGRect {
-        let characterCount = Double(
-            (mark.label?.primary.count ?? 0) + (mark.label?.secondary?.count ?? 0),
-        )
+        let characterCount = Double(max(
+            mark.label?.primary.count ?? 0,
+            mark.label?.secondary?.count ?? 0,
+        ))
         let width = min(0.24, max(0.055, 0.008 * characterCount + 0.02))
+        let hasSecondaryLine = mark.label?.secondary != nil
         return CGRect(
             x: mark.point.x + 0.016,
-            y: mark.point.y - 0.014,
+            y: mark.point.y - (hasSecondaryLine ? 0.021 : 0.014),
             width: width,
-            height: 0.028,
+            height: hasSecondaryLine ? 0.042 : 0.028,
         )
     }
 }

@@ -30,4 +30,12 @@ struct ThrowLogTests {
         #expect(event.remoteMessage == "Bundled geography load failed")
         #expect(event.remoteFields.isEmpty)
     }
+
+    @Test func routeOutcomesAreClosedAndCarryNoRouteValues() {
+        #expect(FlightRouteLogEvent.Outcome.allCases.count == 4)
+        let event = FlightRouteLogEvent(outcome: .transportFailed)
+
+        #expect(event.message == "Flight route enrichment transport-failed")
+        #expect(event.remoteFields.isEmpty)
+    }
 }
