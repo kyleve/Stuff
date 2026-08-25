@@ -103,14 +103,7 @@ if [ "$OPTIMIZE" = true ]; then
     OPTIMIZATION_OVERRIDES=(SWIFT_OPTIMIZATION_LEVEL=-O GCC_OPTIMIZATION_LEVEL=s)
 fi
 
-if [ "$DRY_RUN" = true ]; then
-    echo "==> Would run tuist generate --no-open"
-    echo "==> Would build $SCHEME ($CONFIGURATION$([ "$OPTIMIZE" = true ] && echo ', optimized')) for device"
-else
-    echo "==> tuist generate --no-open"
-    mise exec -- tuist generate --no-open >/dev/null
-
-    echo "==> xcodebuild ($CONFIGURATION$([ "$OPTIMIZE" = true ] && echo ', optimized')) for device"
+build_app() {
     mise exec -- xcodebuild build \
         -workspace "$WORKSPACE" \
         -scheme "$SCHEME" \
@@ -119,12 +112,60 @@ else
         -derivedDataPath "$DERIVED" \
         -allowProvisioningUpdates \
         ${OPTIMIZATION_OVERRIDES[@]+"${OPTIMIZATION_OVERRIDES[@]}"}
+}
+
+missing_throw_core_resources() {
+    local resource
+    local resource_name
+    local built_resources="$APP/Stuff_ThrowCore.bundle"
+
+    for resource in Throw/ThrowCore/Sources/Resources/*; do
+        [ -f "$resource" ] || continue
+        resource_name="$(basename "$resource")"
+        if [ ! -f "$built_resources/$resource_name" ]; then
+            printf '%s\n' "$resource_name"
+        fi
+    done
+}
+
+if [ "$DRY_RUN" = true ]; then
+    echo "==> Would run tuist generate --no-open"
+    echo "==> Would build $SCHEME ($CONFIGURATION$([ "$OPTIMIZE" = true ] && echo ', optimized')) for device"
+else
+    echo "==> tuist generate --no-open"
+    mise exec -- tuist generate --no-open >/dev/null
+
+    echo "==> xcodebuild ($CONFIGURATION$([ "$OPTIMIZE" = true ] && echo ', optimized')) for device"
+    build_app
 fi
 
 APP="$DERIVED/Build/Products/$CONFIGURATION-iphoneos/$APP_NAME.app"
 if [ "$DRY_RUN" != true ] && [ ! -d "$APP" ]; then
     echo "error: built app not found at $APP" >&2
     exit 1
+fi
+
+if [ "$DRY_RUN" != true ]; then
+    MISSING_RESOURCES="$(missing_throw_core_resources)"
+    if [ -n "$MISSING_RESOURCES" ]; then
+        echo "==> stale package resources detected; cleaning and rebuilding"
+        mise exec -- xcodebuild clean \
+            -workspace "$WORKSPACE" \
+            -scheme "$SCHEME" \
+            -configuration "$CONFIGURATION" \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$DERIVED"
+        build_app
+        MISSING_RESOURCES="$(missing_throw_core_resources)"
+    fi
+
+    if [ -n "$MISSING_RESOURCES" ]; then
+        echo "error: built ThrowCore resource bundle is incomplete:" >&2
+        while IFS= read -r RESOURCE; do
+            printf '  %s\n' "$RESOURCE" >&2
+        done <<<"$MISSING_RESOURCES"
+        exit 1
+    fi
 fi
 
 echo "==> resolving device"

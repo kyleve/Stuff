@@ -42,6 +42,7 @@ class IOSDeviceInstallFixture
       "FAKE_LIST_STATUS" => statuses.fetch(:list, 0).to_s,
       "FAKE_INSTALL_STATUS" => statuses.fetch(:install, 0).to_s,
       "FAKE_LAUNCH_STATUS" => statuses.fetch(:launch, 0).to_s,
+      "FAKE_STALE_THROW_RESOURCES" => statuses.fetch(:stale_throw_resources, false) ? "1" : "0",
     }
     write_devices
   end
@@ -128,7 +129,21 @@ class IOSDeviceInstallFixture
             fi
             previous="$argument"
           done
-          mkdir -p "$derived/Build/Products/$configuration-iphoneos/#{app_name}.app"
+          app="$derived/Build/Products/$configuration-iphoneos/#{app_name}.app"
+          if [ "$2" = clean ]; then
+            rm -rf "$app"
+            touch "$derived/.fake-cleaned"
+          else
+            mkdir -p "$app"
+            if [ "#{app_name}" = Throw ]; then
+              resources="$app/Stuff_ThrowCore.bundle"
+              mkdir -p "$resources"
+              touch "$resources/geography-v2.json"
+              if [ "$FAKE_STALE_THROW_RESOURCES" != 1 ] || [ -f "$derived/.fake-cleaned" ]; then
+                touch "$resources/aircraft-types-v1.json"
+              fi
+            fi
+          fi
         fi
         exit "$status"
       fi
