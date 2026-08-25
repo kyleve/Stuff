@@ -98,6 +98,7 @@ public struct ReadsbSource: AircraftObservationSource, CustomStringConvertible,
             method: .get,
             url: configuration.aircraftJSONURL,
             headers: [.accept: "application/json"],
+            body: nil,
             timeoutSeconds: 3,
         )
     }
@@ -109,6 +110,7 @@ public struct ReadsbSource: AircraftObservationSource, CustomStringConvertible,
                 for: configuration.aircraftJSONURL,
             ),
             headers: [.accept: "application/json"],
+            body: nil,
             timeoutSeconds: 3,
         )
     }

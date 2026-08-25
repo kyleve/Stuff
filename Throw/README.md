@@ -52,6 +52,11 @@ Throw never mixes frames or silently falls back to another source. RapidAPI
 credentials belong to the user and remain in this device's Keychain; the
 selected source and non-secret settings live in Throw preferences.
 
+When labels are enabled, Throw optionally sends newly seen broadcast callsigns
+and aircraft positions to adsb.lol in batches to resolve origin and destination.
+The observer position is not included. Route results stay in a short-lived
+memory cache and do not delay or affect the selected aircraft feed.
+
 The ADS-B Exchange path is for a personal beta using each user's own
 personal/non-commercial subscription. Public distribution requires written
 provider authorization, the applicable commercial terms, and a

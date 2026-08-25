@@ -47,6 +47,8 @@ struct ThrowAboutView: View {
                 }
                 Text(.aboutAircraftTypeDatabaseCredit)
                     .foregroundStyle(.secondary)
+                Text(.aboutRouteDataCredit)
+                    .foregroundStyle(.secondary)
             }
 
             Section(String(localized: .aboutGeographicData)) {

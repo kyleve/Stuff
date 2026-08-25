@@ -86,6 +86,11 @@ public final class ThrowSession {
         didSet {
             guard oldValue != labelMode, isApplyingPreferences == false else { return }
             projectionInputsChanged(restartsPolling: false)
+            if labelMode == .marksOnly {
+                cancelRouteEnrichment()
+            } else if let currentSnapshot {
+                scheduleRouteEnrichment(for: currentSnapshot)
+            }
         }
     }
 
@@ -197,6 +202,8 @@ public final class ThrowSession {
     let calendar: Calendar
     let layerCatalog: LayerCatalog
     let projectionWorker: ProjectionFrameWorker
+    let routeResolver: FlightRouteResolver
+    let routeLogger: any FlightRouteLogging
 
     @ObservationIgnored var isApplyingPreferences = false
     @ObservationIgnored var hasStarted = false
@@ -224,7 +231,9 @@ public final class ThrowSession {
     @ObservationIgnored var preferenceSaveTask: Task<Void, Never>?
     @ObservationIgnored var locationTask: Task<Void, Never>?
     @ObservationIgnored var quietBoundaryTask: Task<Void, Never>?
+    @ObservationIgnored var routeTask: Task<Void, Never>?
     @ObservationIgnored var timeChangeTasks: [Task<Void, Never>] = []
+    @ObservationIgnored var routeGeneration: UInt64 = 0
 
     public init(
         preferences: ThrowPreferences,
@@ -238,6 +247,8 @@ public final class ThrowSession {
         calendar: Calendar,
         layerCatalog: LayerCatalog,
         geographyLogger: any GeographyLogging,
+        routeResolver: FlightRouteResolver,
+        routeLogger: any FlightRouteLogging,
         softwareCredits: [SoftwareCredit],
     ) {
         setupCompleted = preferences.setupCompleted
@@ -285,6 +296,8 @@ public final class ThrowSession {
         self.locationSource = locationSource
         self.calendar = calendar
         self.layerCatalog = layerCatalog
+        self.routeResolver = routeResolver
+        self.routeLogger = routeLogger
         projectionWorker = ProjectionFrameWorker(
             flightsRuntime: layerCatalog.flights.runtimeFactory(),
             geographyRuntime: layerCatalog.geography.runtimeFactory(),

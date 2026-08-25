@@ -7,13 +7,24 @@ struct ThrowStylesheetTests {
         let projection = ThrowStylesheet.ProjectionStyle.standard
 
         #expect(
-            projection.label.font == .system(
+            projection.label.primaryFont == .system(
                 size: 10,
                 weight: .regular,
                 design: .monospaced,
             ),
         )
-        #expect((0 ..< 1).contains(projection.label.luminanceMultiplier))
+        #expect(
+            projection.label.secondaryFont == .system(
+                size: 7,
+                weight: .regular,
+                design: .monospaced,
+            ),
+        )
+        #expect((0 ..< 1).contains(projection.label.primaryLuminanceMultiplier))
+        #expect(
+            projection.label.secondaryLuminanceMultiplier <
+                projection.label.primaryLuminanceMultiplier,
+        )
         #expect(projection.label.offset > 0)
     }
 

@@ -15,6 +15,7 @@ struct FlightsLayerRuntimeTests {
                 snapshot: snapshot,
                 observer: ThrowCoreFixture.observer(),
                 labelMode: .callsigns,
+                routes: [:],
             ),
         )
 

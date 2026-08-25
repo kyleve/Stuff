@@ -109,10 +109,39 @@ public struct GeographyLogEvent: LogEvent {
     }
 }
 
+/// A redacted outcome from optional flight-route enrichment.
+public struct FlightRouteLogEvent: LogEvent {
+    public enum Outcome: String, CaseIterable, Codable, Hashable, Sendable {
+        case succeeded
+        case providerFailed = "provider-failed"
+        case transportFailed = "transport-failed"
+        case decodingFailed = "decoding-failed"
+    }
+
+    public let outcome: Outcome
+
+    public init(outcome: Outcome) {
+        self.outcome = outcome
+    }
+
+    public var level: LogLevel {
+        outcome == .succeeded ? .info : .warning
+    }
+
+    public var message: String {
+        "Flight route enrichment \(outcome.rawValue)"
+    }
+
+    public var remoteMessage: String {
+        message
+    }
+}
+
 public enum ThrowLog {
     public static let root = Log<ThrowRootLogEvent>(system: .shared)
     public static let aircraft = root(AircraftPollingLogEvent.self)
     public static let geography = root(GeographyLogEvent.self)
+    public static let flightRoutes = root(FlightRouteLogEvent.self)
 }
 
 public protocol AircraftPollingLogging: Sendable {
@@ -157,4 +186,26 @@ public struct DiscardingGeographyLogger: GeographyLogging {
     public init() {}
 
     public func record(_: GeographyLogEvent) {}
+}
+
+public protocol FlightRouteLogging: Sendable {
+    func record(_ event: FlightRouteLogEvent)
+}
+
+public struct PeriscopeFlightRouteLogger: FlightRouteLogging {
+    private let log: Log<FlightRouteLogEvent>
+
+    public init(log: Log<FlightRouteLogEvent>) {
+        self.log = log
+    }
+
+    public func record(_ event: FlightRouteLogEvent) {
+        log { event }
+    }
+}
+
+public struct DiscardingFlightRouteLogger: FlightRouteLogging {
+    public init() {}
+
+    public func record(_: FlightRouteLogEvent) {}
 }

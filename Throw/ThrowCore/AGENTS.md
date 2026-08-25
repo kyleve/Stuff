@@ -31,6 +31,8 @@ location, and scheduling; see [`README.md`](README.md). Read the root
 - Keep aircraft-family classification provider-neutral and deterministic. Use
   only bundled type characteristics, emitter category, and curated direct
   callsign prefixes; never add an online or per-tail lookup.
+- Keep route enrichment optional, batch-bounded, and off the aircraft rendering
+  path. Never persist or log its callsigns, positions, routes, or response body.
 - Keep downloaded source archives outside the tracked tree. Require an exact
   digest before the generator reads an archive.
 - Keep `ThrowLog` payloads redacted according to the group privacy invariant.

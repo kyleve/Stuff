@@ -32,6 +32,7 @@ struct HTTPTransportTests {
                 URL(string: "https://example.test/v2/lat/\(coordinateSentinel)/lon/-122/dist/5"),
             ),
             headers: [.rapidAPIKey: credentialSentinel],
+            body: Data(bodySentinel.utf8),
             timeoutSeconds: 8,
         )
         let response = HTTPResponse(

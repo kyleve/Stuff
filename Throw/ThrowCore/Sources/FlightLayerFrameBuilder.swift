@@ -11,6 +11,7 @@ public struct FlightLayerFrameBuilder: Sendable {
         snapshot: AircraftSnapshot,
         observer: ObserverPosition,
         labelMode: FlightLabelMode,
+        routes: [FlightCallsign: FlightRoute],
     ) throws -> LayerFrame {
         let marks = try snapshot.observations.map { observation in
             let altitude = observation.preferredSkyAltitude
@@ -27,6 +28,7 @@ public struct FlightLayerFrameBuilder: Sendable {
                     for: observation,
                     observer: observer,
                     mode: labelMode,
+                    routes: routes,
                 ),
                 velocity: ProjectionVelocity(
                     groundTrack: observation.groundTrack,
@@ -50,12 +52,16 @@ public struct FlightLayerFrameBuilder: Sendable {
         for observation: AircraftObservation,
         observer: ObserverPosition,
         mode: FlightLabelMode,
+        routes: [FlightCallsign: FlightRoute],
     ) throws -> ProjectionLabel? {
+        let callsign = observation.callsign
+            .flatMap(FlightCallsign.init(rawValue:))
+        let route = callsign.flatMap { routes[$0] }
         switch mode {
             case .marksOnly:
                 return nil
             case .callsigns:
-                return observation.callsign.map { ProjectionLabel(primary: $0, secondary: nil) }
+                return label(route: route, callsign: observation.callsign)
             case .adaptive:
                 let altitudeText = observation.preferredSkyAltitude.map(Self.altitudeText)
                 let isNearby: Bool
@@ -73,17 +79,23 @@ public struct FlightLayerFrameBuilder: Sendable {
                     isNearby = false
                 }
 
-                if let callsign = observation.callsign {
-                    return ProjectionLabel(
-                        primary: callsign,
-                        secondary: isNearby ? altitudeText : nil,
-                    )
+                if observation.callsign != nil {
+                    return label(route: route, callsign: observation.callsign)
                 }
                 if isNearby, let altitudeText {
                     return ProjectionLabel(primary: altitudeText, secondary: nil)
                 }
                 return nil
         }
+    }
+
+    private func label(route: FlightRoute?, callsign: String?) -> ProjectionLabel? {
+        guard let callsign else { return nil }
+        guard let route else { return ProjectionLabel(primary: callsign, secondary: nil) }
+        return ProjectionLabel(
+            primary: "\(route.origin.rawValue) → \(route.destination.rawValue)",
+            secondary: callsign,
+        )
     }
 
     private static func altitudeText(_ altitude: Altitude) -> String {

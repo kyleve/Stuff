@@ -51,8 +51,10 @@ extension ThrowStylesheet {
 
     struct ProjectionStyle: Equatable {
         struct LabelStyle: Equatable {
-            var font: Font
-            var luminanceMultiplier: Double
+            var primaryFont: Font
+            var secondaryFont: Font
+            var primaryLuminanceMultiplier: Double
+            var secondaryLuminanceMultiplier: Double
             var offset: CGFloat
         }
 
@@ -76,8 +78,10 @@ extension ThrowStylesheet {
             minimumMarkSize: 6,
             standardMarkSize: 12,
             label: LabelStyle(
-                font: .system(size: 10, weight: .regular, design: .monospaced),
-                luminanceMultiplier: 0.7,
+                primaryFont: .system(size: 10, weight: .regular, design: .monospaced),
+                secondaryFont: .system(size: 7, weight: .regular, design: .monospaced),
+                primaryLuminanceMultiplier: 0.7,
+                secondaryLuminanceMultiplier: 0.42,
                 offset: 8,
             ),
             correctionDuration: 0.75,

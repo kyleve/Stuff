@@ -2,7 +2,7 @@ import Testing
 @testable import ThrowCore
 
 struct FlightLayerFrameBuilderTests {
-    @Test func adaptiveLabelUsesCallsignAndNearbyRoundedAltitude() throws {
+    @Test func adaptiveLabelUsesCallsignWhileRouteIsUnavailable() throws {
         let observer = try ThrowCoreFixture.observer()
         let observation = try ThrowCoreFixture.observation(
             latitude: 37.01,
@@ -18,10 +18,11 @@ struct FlightLayerFrameBuilderTests {
             snapshot: snapshot,
             observer: observer,
             labelMode: .adaptive,
+            routes: [:],
         )
         let label = try #require(frame.marks.first?.label)
         #expect(label.primary == "THROW1")
-        #expect(label.secondary == "1,200 ft")
+        #expect(label.secondary == nil)
         #expect(
             frame.marks.first?.glyph == .aircraft(AircraftGlyphDescriptor(
                 family: .airliner,
@@ -29,6 +30,29 @@ struct FlightLayerFrameBuilderTests {
                 isGrounded: false,
             )),
         )
+    }
+
+    @Test func resolvedRouteLeadsWithAirportsAndSubordinatesCallsign() throws {
+        let observation = try ThrowCoreFixture.observation(callsign: "UAL123")
+        let routeCallsign = try #require(FlightCallsign(rawValue: "UAL123"))
+        let route = try FlightRoute(
+            origin: #require(AirportCode(rawValue: "JFK")),
+            destination: #require(AirportCode(rawValue: "SFO")),
+        )
+        let frame = try builder.frame(
+            snapshot: AircraftSnapshot(
+                source: .adsbLol,
+                fetchedAt: ThrowCoreFixture.date,
+                observations: [observation],
+            ),
+            observer: ThrowCoreFixture.observer(),
+            labelMode: .adaptive,
+            routes: [routeCallsign: route],
+        )
+
+        let label = try #require(frame.marks.first?.label)
+        #expect(label.primary == "JFK → SFO")
+        #expect(label.secondary == "UAL123")
     }
 
     @Test func callsignModeNeverFallsBackToHexIdentity() throws {
@@ -41,6 +65,7 @@ struct FlightLayerFrameBuilderTests {
             ),
             observer: ThrowCoreFixture.observer(),
             labelMode: .callsigns,
+            routes: [:],
         )
         #expect(frame.marks.first?.label == nil)
     }

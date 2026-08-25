@@ -47,6 +47,10 @@ extension ThrowSession {
             calendar: .autoupdatingCurrent,
             layerCatalog: .standard,
             geographyLogger: PeriscopeGeographyLogger(log: ThrowLog.geography),
+            routeResolver: FlightRouteResolver(
+                source: AdsBLolFlightRouteSource(transport: cloudTransport),
+            ),
+            routeLogger: PeriscopeFlightRouteLogger(log: ThrowLog.flightRoutes),
             softwareCredits: credits,
         )
         session.settingsFailure = creditFailure
@@ -157,9 +161,6 @@ extension ThrowSession {
             session.isApplyingPreferences = true
             session.labelMode = .callsigns
             session.isApplyingPreferences = false
-            session.projectionFrame = mapLabels(in: session.projectionFrame) { label in
-                label.map { ProjectionLabel(primary: $0.primary, secondary: nil) }
-            }
             return session
         }
 
@@ -338,6 +339,10 @@ extension ThrowSession {
                     calendar: Calendar(identifier: .gregorian),
                     layerCatalog: .standard,
                     geographyLogger: DiscardingGeographyLogger(),
+                    routeResolver: FlightRouteResolver(
+                        source: EmptyFlightRouteSource(),
+                    ),
+                    routeLogger: DiscardingFlightRouteLogger(),
                     softwareCredits: [],
                 )
                 session.projectionFrame = quiet
@@ -352,6 +357,14 @@ extension ThrowSession {
                 return session
             } catch {
                 preconditionFailure("Throw fixture must be valid: \(error)")
+            }
+        }
+
+        private struct EmptyFlightRouteSource: FlightRouteSource {
+            func routes(
+                for _: [FlightRouteQuery],
+            ) async throws -> [FlightCallsign: FlightRoute] {
+                [:]
             }
         }
 
@@ -532,9 +545,7 @@ extension ThrowSession {
                             brand: value.brand,
                             isGrounded: false,
                         )),
-                        label: value.callsign.map {
-                            ProjectionLabel(primary: $0, secondary: value.altitude)
-                        },
+                        label: fixtureLabel(for: value),
                         orientationDegrees: value.orientation,
                         opacity: opacity,
                         labelOpacity: 1,
@@ -542,6 +553,23 @@ extension ThrowSession {
                     )
                 },
             )
+        }
+
+        private static func fixtureLabel(for aircraft: SnapshotAircraft) -> ProjectionLabel? {
+            guard let callsign = aircraft.callsign else { return nil }
+            let route: String? = switch callsign {
+                case "UAL123": "JFK → SFO"
+                case "SWA42": "OAK → SAN"
+                case "ASA8": "SEA → SJC"
+                case "DAL308": "LAX → JFK"
+                case "NKS72": "LAS → BUR"
+                case "JBU6": "BOS → LAX"
+                default: nil
+            }
+            if let route {
+                return ProjectionLabel(primary: route, secondary: callsign)
+            }
+            return ProjectionLabel(primary: callsign, secondary: nil)
         }
 
         private static func mapLabels(
