@@ -82,9 +82,37 @@ public struct AircraftPollingLogEvent: LogEvent {
     }
 }
 
+/// A redacted failure loading Throw's bundled geographic archive.
+public struct GeographyLogEvent: LogEvent {
+    public enum FailureCategory: String, CaseIterable, Codable, Hashable, Sendable {
+        case resourceMissing = "resource-missing"
+        case invalidArchive = "invalid-archive"
+        case unexpected
+    }
+
+    public let failureCategory: FailureCategory
+
+    public init(failureCategory: FailureCategory) {
+        self.failureCategory = failureCategory
+    }
+
+    public var level: LogLevel {
+        .error
+    }
+
+    public var message: String {
+        "Bundled geography load failed: \(failureCategory.rawValue)"
+    }
+
+    public var remoteMessage: String {
+        "Bundled geography load failed"
+    }
+}
+
 public enum ThrowLog {
     public static let root = Log<ThrowRootLogEvent>(system: .shared)
     public static let aircraft = root(AircraftPollingLogEvent.self)
+    public static let geography = root(GeographyLogEvent.self)
 }
 
 public protocol AircraftPollingLogging: Sendable {
@@ -107,4 +135,26 @@ public struct DiscardingAircraftPollingLogger: AircraftPollingLogging {
     public init() {}
 
     public func record(_: AircraftPollingLogEvent) {}
+}
+
+public protocol GeographyLogging: Sendable {
+    func record(_ event: GeographyLogEvent)
+}
+
+public struct PeriscopeGeographyLogger: GeographyLogging {
+    private let log: Log<GeographyLogEvent>
+
+    public init(log: Log<GeographyLogEvent>) {
+        self.log = log
+    }
+
+    public func record(_ event: GeographyLogEvent) {
+        log { event }
+    }
+}
+
+public struct DiscardingGeographyLogger: GeographyLogging {
+    public init() {}
+
+    public func record(_: GeographyLogEvent) {}
 }

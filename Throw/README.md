@@ -59,6 +59,18 @@ provider-approved credential architecture that does not ship a shared secret
 in the app. Those and the remaining physical release checks are tracked in
 [`TODOs.md`](TODOs.md).
 
+## Offline geography
+
+Map mode draws a dim Geography layer behind aircraft. It includes generalized
+coastlines, lakes, major rivers, national boundaries, and regional boundaries.
+The layer is on by default. You can turn it off or set its intensity from zero
+through 20 percent. True Sky does not draw geography.
+
+Throw bundles Natural Earth Vector 1:50m data. Map rendering does not request
+tiles or send a location to a map provider. The data is generalized and is not
+authoritative. Boundaries use Natural Earth's default de facto view. See the
+[Natural Earth terms](https://www.naturalearthdata.com/about/terms-of-use/).
+
 ## External scenes
 
 iOS 26 discovers noninteractive external displays through the declared scene

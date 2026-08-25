@@ -10,6 +10,8 @@ struct ProjectionLabelCollisionResolverTests {
         let frame = try ProjectionFrame(
             mode: mode,
             generatedAt: .init(timeIntervalSince1970: 100),
+            geography: nil,
+            geographyOpacity: 1,
             marks: [
                 mark(id: "far", x: 0.51, range: 50),
                 mark(id: "near", x: 0.55, range: 5),
@@ -29,6 +31,8 @@ struct ProjectionLabelCollisionResolverTests {
         _ = try resolver.resolve(ProjectionFrame(
             mode: .map,
             generatedAt: date,
+            geography: nil,
+            geographyOpacity: 1,
             marks: [
                 mark(id: "alpha", x: 0.51, range: 10),
                 mark(id: "bravo", x: 0.55, range: 10.1),
@@ -38,6 +42,8 @@ struct ProjectionLabelCollisionResolverTests {
         let withinTolerance = try resolver.resolve(ProjectionFrame(
             mode: .map,
             generatedAt: date.addingTimeInterval(1),
+            geography: nil,
+            geographyOpacity: 1,
             marks: [
                 mark(id: "alpha", x: 0.51, range: 10.2),
                 mark(id: "bravo", x: 0.55, range: 10),
@@ -61,6 +67,8 @@ struct ProjectionLabelCollisionResolverTests {
         let resolved = resolver.resolve(ProjectionFrame(
             mode: .map,
             generatedAt: .init(timeIntervalSince1970: 100),
+            geography: nil,
+            geographyOpacity: 1,
             marks: [stale],
         ))
 

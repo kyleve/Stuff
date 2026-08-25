@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 import Testing
 import ThrowCore
 @testable import ThrowUI
@@ -89,6 +90,7 @@ struct ProjectionFrameWorkerTests {
         let worker = projectionFrameWorker()
         _ = try await worker.frame(
             layerFrame: source,
+            geographyEnabled: false,
             observer: observer,
             viewport: viewport,
             calibration: .defaultValue,
@@ -99,25 +101,181 @@ struct ProjectionFrameWorkerTests {
         await worker.reset()
         let resetFrame = try await worker.frame(
             layerFrame: replacement,
+            geographyEnabled: false,
             observer: observer,
             viewport: viewport,
             calibration: .defaultValue,
             generatedAt: date.addingTimeInterval(1),
             reduceMotion: false,
-        )
+        ).frame
         let freshWorker = projectionFrameWorker()
         let freshFrame = try await freshWorker.frame(
             layerFrame: replacement,
+            geographyEnabled: false,
             observer: observer,
             viewport: viewport,
             calibration: .defaultValue,
             generatedAt: date.addingTimeInterval(1),
             reduceMotion: false,
-        )
+        ).frame
 
         let resetMark = try #require(resetFrame.marks.first)
         let freshMark = try #require(freshFrame.marks.first)
         #expect(pointDistance(resetMark.point, freshMark.point) < 0.000_001)
+    }
+
+    @Test func geographyIsMapOnlyAndLoadsItsStaticArchiveOnce() async throws {
+        let source = CountingGeographyDataSource()
+        let worker = ProjectionFrameWorker(
+            flightsRuntime: LayerCatalog.standard.flights.runtimeFactory(),
+            geographyRuntime: GeographyLayerRuntime(dataSource: source),
+            geographyLogger: DiscardingGeographyLogger(),
+        )
+        let observer = try observer()
+        let date = Date(timeIntervalSince1970: 5000)
+        let flights = try layerFrame(label: "FLIGHT", observedAt: date, observer: observer)
+
+        let firstMap = try await worker.frame(
+            layerFrame: flights,
+            geographyEnabled: true,
+            observer: observer,
+            viewport: .map(MapViewport(radius: NauticalMiles(value: 50))),
+            calibration: .defaultValue,
+            generatedAt: date,
+            reduceMotion: false,
+        ).frame
+        let secondMap = try await worker.frame(
+            layerFrame: flights,
+            geographyEnabled: true,
+            observer: observer,
+            viewport: .map(MapViewport(radius: NauticalMiles(value: 50))),
+            calibration: .defaultValue,
+            generatedAt: date.addingTimeInterval(1.0 / 30.0),
+            reduceMotion: false,
+        ).frame
+        _ = try await worker.frame(
+            layerFrame: flights,
+            geographyEnabled: true,
+            observer: observer,
+            viewport: .trueSky(
+                SkyViewport(minimumElevation: ElevationAngle(degrees: 10)),
+            ),
+            calibration: .defaultValue,
+            generatedAt: date.addingTimeInterval(2.0 / 30.0),
+            reduceMotion: false,
+        )
+        let trueSky = try await worker.frame(
+            layerFrame: flights,
+            geographyEnabled: true,
+            observer: observer,
+            viewport: .trueSky(
+                SkyViewport(minimumElevation: ElevationAngle(degrees: 10)),
+            ),
+            calibration: .defaultValue,
+            generatedAt: date.addingTimeInterval(1.3),
+            reduceMotion: false,
+        ).frame
+        let loadCount = await source.loadCount
+
+        #expect(firstMap.geographySegments.isEmpty == false)
+        #expect(secondMap.geographySegments == firstMap.geographySegments)
+        #expect(trueSky.geographySegments.isEmpty)
+        #expect(loadCount == 1)
+    }
+
+    @Test func disablingGeographyLeavesAircraftProjectionIntact() async throws {
+        let worker = projectionFrameWorker()
+        let observer = try observer()
+        let date = Date(timeIntervalSince1970: 6000)
+        let flights = try layerFrame(label: "FLIGHT", observedAt: date, observer: observer)
+
+        let frame = try await worker.frame(
+            layerFrame: flights,
+            geographyEnabled: false,
+            observer: observer,
+            viewport: .map(MapViewport(radius: NauticalMiles(value: 50))),
+            calibration: .defaultValue,
+            generatedAt: date,
+            reduceMotion: false,
+        ).frame
+
+        #expect(frame.geographySegments.isEmpty)
+        #expect(frame.marks.count == 1)
+    }
+
+    @Test func overlappingFramesShareTheFirstGeographyLoad() async throws {
+        let source = SuspendingGeographyDataSource()
+        let worker = ProjectionFrameWorker(
+            flightsRuntime: LayerCatalog.standard.flights.runtimeFactory(),
+            geographyRuntime: GeographyLayerRuntime(dataSource: source),
+            geographyLogger: DiscardingGeographyLogger(),
+        )
+        let observer = try observer()
+        let date = Date(timeIntervalSince1970: 7000)
+        let flights = try layerFrame(label: "FLIGHT", observedAt: date, observer: observer)
+
+        let first = Task {
+            try await worker.frame(
+                layerFrame: flights,
+                geographyEnabled: true,
+                observer: observer,
+                viewport: .map(MapViewport(radius: NauticalMiles(value: 50))),
+                calibration: .defaultValue,
+                generatedAt: date,
+                reduceMotion: false,
+            )
+        }
+        await source.waitUntilLoadStarts()
+        first.cancel()
+        let second = Task {
+            try await worker.frame(
+                layerFrame: flights,
+                geographyEnabled: true,
+                observer: observer,
+                viewport: .map(MapViewport(radius: NauticalMiles(value: 50))),
+                calibration: .defaultValue,
+                generatedAt: date.addingTimeInterval(1.0 / 30.0),
+                reduceMotion: false,
+            )
+        }
+        await Task.yield()
+        await source.release()
+
+        await #expect(throws: CancellationError.self) {
+            try await first.value
+        }
+        let output = try await second.value
+        let loadCount = await source.loadCount
+
+        #expect(output.frame.geographySegments.isEmpty == false)
+        #expect(loadCount == 1)
+    }
+
+    @Test func unavailableGeographyDoesNotBlankOrMisreportFlights() async throws {
+        let logger = RecordingGeographyLogger()
+        let worker = ProjectionFrameWorker(
+            flightsRuntime: LayerCatalog.standard.flights.runtimeFactory(),
+            geographyRuntime: GeographyLayerRuntime(dataSource: FailingGeographyDataSource()),
+            geographyLogger: logger,
+        )
+        let observer = try observer()
+        let date = Date(timeIntervalSince1970: 8000)
+        let flights = try layerFrame(label: "FLIGHT", observedAt: date, observer: observer)
+
+        let output = try await worker.frame(
+            layerFrame: flights,
+            geographyEnabled: true,
+            observer: observer,
+            viewport: .map(MapViewport(radius: NauticalMiles(value: 50))),
+            calibration: .defaultValue,
+            generatedAt: date,
+            reduceMotion: false,
+        )
+
+        #expect(output.frame.marks.count == 1)
+        #expect(output.frame.geography == nil)
+        #expect(output.geographyHealth == .unavailable)
+        #expect(logger.failureCategories() == [.resourceMissing])
     }
 
     private func modeMorphFrame(
@@ -137,6 +295,7 @@ struct ProjectionFrameWorkerTests {
 
         _ = try await worker.frame(
             layerFrame: source,
+            geographyEnabled: false,
             observer: observer,
             viewport: .map(MapViewport(radius: NauticalMiles(value: 50))),
             calibration: .defaultValue,
@@ -145,6 +304,7 @@ struct ProjectionFrameWorkerTests {
         )
         _ = try await worker.frame(
             layerFrame: target,
+            geographyEnabled: false,
             observer: observer,
             viewport: .trueSky(
                 SkyViewport(minimumElevation: ElevationAngle(degrees: 10)),
@@ -155,6 +315,7 @@ struct ProjectionFrameWorkerTests {
         )
         return try await worker.frame(
             layerFrame: target,
+            geographyEnabled: false,
             observer: observer,
             viewport: .trueSky(
                 SkyViewport(minimumElevation: ElevationAngle(degrees: 10)),
@@ -162,7 +323,7 @@ struct ProjectionFrameWorkerTests {
             calibration: .defaultValue,
             generatedAt: transitionStartedAt.addingTimeInterval(1.2 * progress),
             reduceMotion: reduceMotion,
-        )
+        ).frame
     }
 
     private func correctionFrames(
@@ -194,14 +355,16 @@ struct ProjectionFrameWorkerTests {
         )
         let source = try await worker.frame(
             layerFrame: sourceLayer,
+            geographyEnabled: false,
             observer: observer,
             viewport: viewport,
             calibration: .defaultValue,
             generatedAt: date,
             reduceMotion: reduceMotion,
-        )
+        ).frame
         _ = try await worker.frame(
             layerFrame: targetLayer,
+            geographyEnabled: false,
             observer: observer,
             viewport: viewport,
             calibration: .defaultValue,
@@ -212,6 +375,7 @@ struct ProjectionFrameWorkerTests {
         while intermediateElapsed < sampledElapsed {
             _ = try await worker.frame(
                 layerFrame: targetLayer,
+                geographyEnabled: false,
                 observer: observer,
                 viewport: viewport,
                 calibration: .defaultValue,
@@ -222,14 +386,16 @@ struct ProjectionFrameWorkerTests {
         }
         let displayed = try await worker.frame(
             layerFrame: targetLayer,
+            geographyEnabled: false,
             observer: observer,
             viewport: viewport,
             calibration: .defaultValue,
             generatedAt: sampledAt,
             reduceMotion: reduceMotion,
-        )
+        ).frame
         let target = try ProjectionEngine().frame(
             layerFrames: [targetLayer],
+            geography: nil,
             observer: observer,
             viewport: viewport,
             calibration: .defaultValue,
@@ -242,6 +408,8 @@ struct ProjectionFrameWorkerTests {
     private func projectionFrameWorker() -> ProjectionFrameWorker {
         ProjectionFrameWorker(
             flightsRuntime: LayerCatalog.standard.flights.runtimeFactory(),
+            geographyRuntime: GeographyLayerRuntime(dataSource: EmptyGeographyDataSource()),
+            geographyLogger: DiscardingGeographyLogger(),
         )
     }
 
@@ -260,7 +428,7 @@ struct ProjectionFrameWorkerTests {
         try LayerFrame(
             layerID: .flights,
             observedAt: observedAt,
-            marks: [
+            content: .marks([
                 ProjectionMark(
                     id: LayerMarkID(
                         layerID: .flights,
@@ -280,7 +448,7 @@ struct ProjectionFrameWorkerTests {
                         fetchedAt: observedAt,
                     ),
                 ),
-            ],
+            ]),
         )
     }
 
@@ -291,7 +459,7 @@ struct ProjectionFrameWorkerTests {
         try LayerFrame(
             layerID: .flights,
             observedAt: observedAt,
-            marks: [
+            content: .marks([
                 ProjectionMark(
                     id: LayerMarkID(
                         layerID: .flights,
@@ -318,11 +486,29 @@ struct ProjectionFrameWorkerTests {
                         fetchedAt: observedAt,
                     ),
                 ),
-            ],
+            ]),
         )
     }
 
     private func pointDistance(_ lhs: ProjectionPoint, _ rhs: ProjectionPoint) -> Double {
         hypot(lhs.x - rhs.x, lhs.y - rhs.y)
+    }
+}
+
+private struct FailingGeographyDataSource: GeographyDataSource {
+    func data() async throws -> Data {
+        throw GeographyDataError.resourceMissing
+    }
+}
+
+private final class RecordingGeographyLogger: GeographyLogging {
+    private let events = Mutex<[GeographyLogEvent]>([])
+
+    func record(_ event: GeographyLogEvent) {
+        events.withLock { $0.append(event) }
+    }
+
+    func failureCategories() -> [GeographyLogEvent.FailureCategory] {
+        events.withLock { $0.map(\.failureCategory) }
     }
 }

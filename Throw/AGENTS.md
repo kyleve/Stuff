@@ -25,6 +25,8 @@ WhereCore, RegionKit, or LifecycleKit into this feature.
   response body.
 - Keep the external surface opaque black and noninteractive. Calibration may
   bypass quiet output without starting a feed.
+- Keep Geography offline and Map-only. Never add online map tiles or transmit
+  the observer location to a map provider.
 - Revalidate the availability-gated iOS 27 scene-accessory adapter against the
   GM SDK before release.
 

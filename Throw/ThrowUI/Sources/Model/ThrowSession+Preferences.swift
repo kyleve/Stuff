@@ -14,10 +14,12 @@ extension ThrowSession {
         mapRadius = preferences.mapViewport.radius.value
         minimumElevation = preferences.skyViewport.minimumElevation.degrees
         flightsEnabled = preferences.flightsEnabled
+        geographyEnabled = preferences.geography.isEnabled
         labelMode = preferences.labelMode
         includeGroundAircraft = preferences.includeGroundAircraft
         markSizePercent = preferences.markSizePercent
         intensityPercent = preferences.intensityPercent
+        geographyIntensityPercent = preferences.geography.intensityPercent
         screenTopBearing = preferences.calibration.screenTopBearing.degrees
         screenRotation = preferences.calibration.rotation
         flipHorizontal = preferences.calibration.flipHorizontal
@@ -44,6 +46,8 @@ extension ThrowSession {
         projectionFrame = ProjectionFrame(
             mode: projectionMode,
             generatedAt: dateProvider.now(),
+            geography: nil,
+            geographyOpacity: 1,
             marks: [],
         )
     }
@@ -113,6 +117,10 @@ extension ThrowSession {
             ),
             selectedProjectionMode: projectionMode,
             flightsEnabled: flightsEnabled,
+            geography: GeographyPreferences(
+                isEnabled: geographyEnabled,
+                intensityPercent: geographyIntensityPercent,
+            ),
             labelMode: labelMode,
             includeGroundAircraft: includeGroundAircraft,
             markSizePercent: markSizePercent,

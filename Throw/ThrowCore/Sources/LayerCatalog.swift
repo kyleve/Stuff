@@ -83,21 +83,35 @@ public struct AnyLayerDescriptor: Identifiable, Sendable {
 public struct LayerCatalog: Sendable {
     public static let standard = LayerCatalog(
         flightsFactory: LayerRuntimeFactory { FlightsLayerRuntime() },
+        geographyFactory: LayerRuntimeFactory {
+            GeographyLayerRuntime(dataSource: BundledGeographyDataSource())
+        },
     )
 
-    /// The typed descriptor used to construct the enabled production layer.
+    /// Typed descriptors used to construct the enabled production layers.
     public let flights: LayerDescriptor<FlightsLayerRuntime>
+    public let geography: LayerDescriptor<GeographyLayerRuntime>
 
     /// The heterogeneous catalog used for discovery and presentation only.
     public let descriptors: [AnyLayerDescriptor]
 
-    public init(flightsFactory: LayerRuntimeFactory<FlightsLayerRuntime>) {
+    public init(
+        flightsFactory: LayerRuntimeFactory<FlightsLayerRuntime>,
+        geographyFactory: LayerRuntimeFactory<GeographyLayerRuntime>,
+    ) {
         let flights = LayerDescriptor(
             id: LayerID.flights,
             availability: LayerAvailability.enabled,
             supportedModes: Set([ProjectionMode.map, ProjectionMode.trueSky]),
             zOrder: 100,
             runtimeFactory: flightsFactory,
+        )
+        let geography = LayerDescriptor(
+            id: LayerID.geography,
+            availability: LayerAvailability.enabled,
+            supportedModes: Set([ProjectionMode.map]),
+            zOrder: 0,
+            runtimeFactory: geographyFactory,
         )
         let stars = LayerDescriptor(
             id: LayerID.stars,
@@ -123,8 +137,10 @@ public struct LayerCatalog: Sendable {
         )
 
         self.flights = flights
+        self.geography = geography
         descriptors = [
             AnyLayerDescriptor(flights),
+            AnyLayerDescriptor(geography),
             AnyLayerDescriptor(stars),
             AnyLayerDescriptor(satellites),
         ]
@@ -135,6 +151,6 @@ private struct EmptyLayerRuntime: ProjectionLayerRuntime {
     let layerID: LayerID
 
     func frame(for date: Date) async throws -> LayerFrame {
-        LayerFrame(layerID: layerID, observedAt: date, marks: [])
+        LayerFrame(layerID: layerID, observedAt: date, content: .marks([]))
     }
 }

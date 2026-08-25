@@ -61,6 +61,7 @@ public struct ThrowPreferences: Equatable, Sendable, CustomStringConvertible,
                 skyViewport: .defaultValue,
                 selectedProjectionMode: nil,
                 flightsEnabled: true,
+                geography: .defaultValue,
                 labelMode: .adaptive,
                 includeGroundAircraft: false,
                 markSizePercent: 100,
@@ -82,6 +83,7 @@ public struct ThrowPreferences: Equatable, Sendable, CustomStringConvertible,
     public let skyViewport: SkyViewport
     public let selectedProjectionMode: ProjectionMode?
     public let flightsEnabled: Bool
+    public let geography: GeographyPreferences
     public let labelMode: FlightLabelMode
     public let includeGroundAircraft: Bool
     public let markSizePercent: Double
@@ -99,6 +101,7 @@ public struct ThrowPreferences: Equatable, Sendable, CustomStringConvertible,
         skyViewport: SkyViewport,
         selectedProjectionMode: ProjectionMode?,
         flightsEnabled: Bool,
+        geography: GeographyPreferences,
         labelMode: FlightLabelMode,
         includeGroundAircraft: Bool,
         markSizePercent: Double,
@@ -136,6 +139,7 @@ public struct ThrowPreferences: Equatable, Sendable, CustomStringConvertible,
         self.skyViewport = skyViewport
         self.selectedProjectionMode = selectedProjectionMode
         self.flightsEnabled = flightsEnabled
+        self.geography = geography
         self.labelMode = labelMode
         self.includeGroundAircraft = includeGroundAircraft
         self.markSizePercent = markSizePercent
@@ -231,6 +235,7 @@ enum ThrowPreferencesCodec {
         let skyMinimumElevation: Double
         let selectedProjectionMode: String?
         let flightsEnabled: Bool
+        let geography: GeographyStorage?
         let labelMode: String
         let includeGroundAircraft: Bool
         let markSizePercent: Double
@@ -249,6 +254,7 @@ enum ThrowPreferencesCodec {
             skyMinimumElevation = preferences.skyViewport.minimumElevation.degrees
             selectedProjectionMode = preferences.selectedProjectionMode?.rawValue
             flightsEnabled = preferences.flightsEnabled
+            geography = GeographyStorage(preferences.geography)
             labelMode = preferences.labelMode.rawValue
             includeGroundAircraft = preferences.includeGroundAircraft
             markSizePercent = preferences.markSizePercent
@@ -290,11 +296,29 @@ enum ThrowPreferencesCodec {
                 ),
                 selectedProjectionMode: selectedMode,
                 flightsEnabled: flightsEnabled,
+                geography: geography?.value() ?? .defaultValue,
                 labelMode: labelMode,
                 includeGroundAircraft: includeGroundAircraft,
                 markSizePercent: markSizePercent,
                 intensityPercent: intensityPercent,
                 quietSchedule: schedule,
+            )
+        }
+    }
+
+    private struct GeographyStorage: Codable {
+        let isEnabled: Bool
+        let intensityPercent: Double
+
+        init(_ preferences: GeographyPreferences) {
+            isEnabled = preferences.isEnabled
+            intensityPercent = preferences.intensityPercent
+        }
+
+        func value() throws -> GeographyPreferences {
+            try GeographyPreferences(
+                isEnabled: isEnabled,
+                intensityPercent: intensityPercent,
             )
         }
     }

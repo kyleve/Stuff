@@ -18,8 +18,10 @@ owned by the root [`TODOs.md`](../TODOs.md).
   quota-exhausted, and replaced dedicated credentials; compare usage estimates
   with observed request counts; verify source switching never mixes frames;
   profile dense 240-NM traffic at a stable 30 Hz; and finish with an overnight
-  powered soak. Record the devices, OS builds, projectors, provider states, and
-  results in the release checklist. (human 2026-08-24)
+  powered soak. Verify that Geography stays subtle and readable at 5, 50, and
+  240 NM on each projector aspect ratio. Record the devices, OS builds,
+  projectors, provider states, and results in the release checklist. (human
+  2026-08-24)
 - test(Throw) [needs-design]: Revalidate and physically exercise the iOS 27
   external-scene accessory against the GM SDK — the availability-gated adapter
   constructs, retains, unregisters, and migrates `UISceneAccessory` registration

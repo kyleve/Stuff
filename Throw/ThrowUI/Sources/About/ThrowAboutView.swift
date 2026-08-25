@@ -39,6 +39,22 @@ struct ThrowAboutView: View {
                 }
             }
 
+            Section(String(localized: .aboutGeographicData)) {
+                Text(.aboutGeographicDataDescription)
+                    .foregroundStyle(.secondary)
+                if let naturalEarthURL = URL(string: "https://www.naturalearthdata.com/") {
+                    Link(String(localized: .aboutNaturalEarth), destination: naturalEarthURL)
+                }
+                if let naturalEarthTermsURL =
+                    URL(string: "https://www.naturalearthdata.com/about/terms-of-use/")
+                {
+                    Link(
+                        String(localized: .aboutNaturalEarthTerms),
+                        destination: naturalEarthTermsURL,
+                    )
+                }
+            }
+
             Section(String(localized: .aboutLibraries)) {
                 if credits.libraries.isEmpty {
                     Label(

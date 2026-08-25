@@ -12,6 +12,8 @@ Read the root [`AGENTS.md`](../../AGENTS.md) and group
   output scene. A view or scene delegate must never create a second poller.
 - Render projector, Preview, and full-screen fallback through
   `ProjectionSurface`. Do not add a parallel renderer.
+- Draw cached Geography below marks in Map mode. Keep it absent from True Sky,
+  calibration, and quiet output.
 - Keep external projection opaque black and free of interactive chrome.
 - Seed `ThrowStylesheet` with `throwBroadwayRoot()` at every independent root.
 - Keep previews and snapshots on deterministic in-memory dependencies. Never

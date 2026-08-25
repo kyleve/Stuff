@@ -144,7 +144,7 @@ struct ReadyStepView: View {
                 )
                 LabeledContent(
                     String(localized: .settingsLayers),
-                    value: String(localized: .layerFlights),
+                    value: layerSummary,
                 )
                 LabeledContent(
                     String(localized: .settingsGroundAircraft),
@@ -231,5 +231,13 @@ struct ReadyStepView: View {
 
     private var quietName: String {
         model.quietEnabled ? String(localized: .quietEnabled) : String(localized: .quietDisabled)
+    }
+
+    private var layerSummary: String {
+        switch model.selectedMode {
+            case .map: String(localized: .onboardingDefaultLayersMap)
+            case .trueSky: String(localized: .onboardingDefaultLayersTrueSky)
+            case nil: String(localized: .layerFlights)
+        }
     }
 }

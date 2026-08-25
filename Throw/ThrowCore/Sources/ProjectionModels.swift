@@ -1,6 +1,7 @@
 import Foundation
 
 public struct LayerID: Hashable, Sendable {
+    public static let geography = LayerID(rawValue: "geography")
     public static let flights = LayerID(rawValue: "flights")
     public static let stars = LayerID(rawValue: "stars")
     public static let satellites = LayerID(rawValue: "satellites")
@@ -257,22 +258,42 @@ public struct ProjectionMark: Hashable, Sendable, CustomStringConvertible,
     }
 }
 
+/// One semantic payload for a layer frame; layers cannot mix mark and line data.
+public enum LayerFrameContent: Hashable, Sendable {
+    case marks([ProjectionMark])
+    case geographicLines([GeographicPolyline])
+}
+
 public struct LayerFrame: Hashable, Sendable, CustomStringConvertible,
     CustomDebugStringConvertible
 {
     public let layerID: LayerID
     public let observedAt: Date
-    public let marks: [ProjectionMark]
+    public let content: LayerFrameContent
 
-    public init(layerID: LayerID, observedAt: Date, marks: [ProjectionMark]) {
-        precondition(marks.allSatisfy { $0.id.layerID == layerID })
+    public init(
+        layerID: LayerID,
+        observedAt: Date,
+        content: LayerFrameContent,
+    ) {
+        if case let .marks(marks) = content {
+            precondition(marks.allSatisfy { $0.id.layerID == layerID })
+        }
         self.layerID = layerID
         self.observedAt = observedAt
-        self.marks = marks
+        self.content = content
+    }
+
+    public var marks: [ProjectionMark] {
+        if case let .marks(marks) = content { marks } else { [] }
+    }
+
+    public var geographicLines: [GeographicPolyline] {
+        if case let .geographicLines(lines) = content { lines } else { [] }
     }
 
     public var description: String {
-        "<LayerFrame layer=\(layerID.rawValue) count=\(marks.count)>"
+        "<LayerFrame layer=\(layerID.rawValue) marks=\(marks.count) lines=\(geographicLines.count)>"
     }
 
     public var debugDescription: String {
@@ -339,17 +360,64 @@ public struct ProjectedMark: Hashable, Sendable, CustomStringConvertible,
     }
 }
 
+public struct ProjectedGeographySegment: Hashable, Sendable {
+    public let kind: GeographyLineKind
+    public let start: ProjectionPoint
+    public let end: ProjectionPoint
+
+    public init(kind: GeographyLineKind, start: ProjectionPoint, end: ProjectionPoint) {
+        self.kind = kind
+        self.start = start
+        self.end = end
+    }
+}
+
+/// Identifies one cached geography projection for UI path reuse.
+public struct GeographyProjectionID: Hashable, Sendable {
+    public let rawValue: UInt64
+
+    public init(rawValue: UInt64) {
+        self.rawValue = rawValue
+    }
+}
+
+/// Cached normalized geography segments and their stable render identity.
+public struct ProjectedGeography: Hashable, Sendable {
+    public let id: GeographyProjectionID
+    public let segments: [ProjectedGeographySegment]
+
+    public init(id: GeographyProjectionID, segments: [ProjectedGeographySegment]) {
+        self.id = id
+        self.segments = segments
+    }
+}
+
 public struct ProjectionFrame: Hashable, Sendable, CustomStringConvertible,
     CustomDebugStringConvertible
 {
     public let mode: ProjectionMode
     public let generatedAt: Date
+    public let geography: ProjectedGeography?
+    public let geographyOpacity: Double
     public let marks: [ProjectedMark]
 
-    public init(mode: ProjectionMode, generatedAt: Date, marks: [ProjectedMark]) {
+    public init(
+        mode: ProjectionMode,
+        generatedAt: Date,
+        geography: ProjectedGeography?,
+        geographyOpacity: Double,
+        marks: [ProjectedMark],
+    ) {
+        precondition((0 ... 1).contains(geographyOpacity))
         self.mode = mode
         self.generatedAt = generatedAt
+        self.geography = geography
+        self.geographyOpacity = geographyOpacity
         self.marks = marks
+    }
+
+    public var geographySegments: [ProjectedGeographySegment] {
+        geography?.segments ?? []
     }
 
     public var visibleAircraftCount: Int {
@@ -359,7 +427,7 @@ public struct ProjectionFrame: Hashable, Sendable, CustomStringConvertible,
     }
 
     public var description: String {
-        "<ProjectionFrame mode=\(mode.rawValue) count=\(marks.count)>"
+        "<ProjectionFrame mode=\(mode.rawValue) marks=\(marks.count) geography=\(geographySegments.count)>"
     }
 
     public var debugDescription: String {

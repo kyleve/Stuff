@@ -89,6 +89,28 @@
         }
       }
     },
+    "about.geographicData" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geographic Data"
+          }
+        }
+      }
+    },
+    "about.geographicDataDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Made with Natural Earth. The bundled 1:50m data is generalized and non-authoritative. Boundaries use Natural Earth’s default de facto view."
+          }
+        }
+      }
+    },
     "about.libraries" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -107,6 +129,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Local readsb receiver"
+          }
+        }
+      }
+    },
+    "about.naturalEarth" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Natural Earth"
+          }
+        }
+      }
+    },
+    "about.naturalEarthTerms" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Natural Earth Terms of Use"
           }
         }
       }
@@ -859,6 +903,50 @@
         }
       }
     },
+    "layer.geography" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geography"
+          }
+        }
+      }
+    },
+    "layer.geographyUnavailableHint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bundled geographic data is unavailable."
+          }
+        }
+      }
+    },
+    "layer.mapOnly" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Map only"
+          }
+        }
+      }
+    },
+    "layer.mapOnlyHint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geography appears only in Map mode."
+          }
+        }
+      }
+    },
     "layer.planned" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -888,6 +976,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Stars"
+          }
+        }
+      }
+    },
+    "layer.unavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unavailable"
           }
         }
       }
@@ -1096,7 +1195,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Choose label brightness and optional quiet hours. Projection always uses an absolute-black background."
+            "value" : "Review the default layers and set optional quiet hours. Projection always uses an absolute-black background."
           }
         }
       }
@@ -1141,6 +1240,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Output & Calibration"
+          }
+        }
+      }
+    },
+    "onboarding.defaultLayersMap" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flights, Geography"
+          }
+        }
+      }
+    },
+    "onboarding.defaultLayersTrueSky" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flights; Geography is available in Map mode."
           }
         }
       }
@@ -1603,6 +1724,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Throw needs attention"
+          }
+        }
+      }
+    },
+    "settings.geographyIntensity" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geography Intensity"
+          }
+        }
+      }
+    },
+    "settings.geographyIntensityDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geography appears only in Map mode. Its brightness is relative to the overall projection intensity."
           }
         }
       }

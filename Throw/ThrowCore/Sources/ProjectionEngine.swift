@@ -52,15 +52,20 @@ public struct ProjectionEngine: Sendable {
 
     public func frame(
         layerFrames: [LayerFrame],
+        geography: ProjectedGeography?,
         observer: ObserverPosition,
         viewport: ProjectionViewport,
         calibration: ProjectionCalibration,
         geometry: ProjectionGeometry,
         generatedAt: Date,
     ) throws -> ProjectionFrame {
+        try Task.checkCancellation()
         var projected: [ProjectedMark] = []
         for layerFrame in layerFrames {
-            for mark in layerFrame.marks {
+            for (markIndex, mark) in layerFrame.marks.enumerated() {
+                if markIndex.isMultiple(of: 64) {
+                    try Task.checkCancellation()
+                }
                 guard let prediction = try FlightPredictor.prediction(for: mark, at: generatedAt)
                 else {
                     continue
@@ -108,7 +113,86 @@ public struct ProjectionEngine: Sendable {
                 )
             }
         }
-        return ProjectionFrame(mode: viewport.mode, generatedAt: generatedAt, marks: projected)
+        return ProjectionFrame(
+            mode: viewport.mode,
+            generatedAt: generatedAt,
+            geography: geography,
+            geographyOpacity: 1,
+            marks: projected,
+        )
+    }
+
+    /// Projects and clips static geographic lines for a Map viewport. Callers
+    /// can cache the result until the observer, viewport, or calibration changes.
+    public func geographySegments(
+        lines: [GeographicPolyline],
+        observer: ObserverPosition,
+        viewport: ProjectionViewport,
+        calibration: ProjectionCalibration,
+        geometry: ProjectionGeometry,
+    ) throws -> [ProjectedGeographySegment] {
+        try Task.checkCancellation()
+        guard case let .map(mapViewport) = viewport else { return [] }
+        let maximumZoomTenths = mapDetailZoomTenths(for: mapViewport)
+        let maximumScaleRank = mapDetailScaleRank(for: mapViewport)
+        var segments: [ProjectedGeographySegment] = []
+        for (lineIndex, line) in lines.enumerated() {
+            if lineIndex.isMultiple(of: 64) {
+                try Task.checkCancellation()
+            }
+            guard line.minimumZoomTenths <= maximumZoomTenths,
+                  line.scaleRank <= maximumScaleRank
+            else {
+                continue
+            }
+            guard line.bounds.mayIntersect(
+                observer: observer.coordinate,
+                radius: mapViewport.radius,
+            ) else {
+                continue
+            }
+            var previousIndex = line.coordinates.startIndex
+            var currentIndex = line.coordinates.index(after: previousIndex)
+            var segmentIndex = 0
+            while currentIndex != line.coordinates.endIndex {
+                if segmentIndex.isMultiple(of: 256) {
+                    try Task.checkCancellation()
+                }
+                let start = try mapRadialPosition(
+                    for: line.coordinates[previousIndex],
+                    observer: observer,
+                    viewport: mapViewport,
+                    screenTopBearing: calibration.screenTopBearing,
+                )
+                let end = try mapRadialPosition(
+                    for: line.coordinates[currentIndex],
+                    observer: observer,
+                    viewport: mapViewport,
+                    screenTopBearing: calibration.screenTopBearing,
+                )
+                if let clipped = clippedToUnitCircle(start: start, end: end) {
+                    segments.append(
+                        ProjectedGeographySegment(
+                            kind: line.kind,
+                            start: calibratedPoint(
+                                radial: clipped.start,
+                                calibration: calibration,
+                                geometry: geometry,
+                            ),
+                            end: calibratedPoint(
+                                radial: clipped.end,
+                                calibration: calibration,
+                                geometry: geometry,
+                            ),
+                        ),
+                    )
+                }
+                previousIndex = currentIndex
+                line.coordinates.formIndex(after: &currentIndex)
+                segmentIndex += 1
+            }
+        }
+        return segments
     }
 
     public func greatCirclePosition(
@@ -182,17 +266,14 @@ public struct ProjectionEngine: Sendable {
         let range: NauticalMiles?
         switch (viewport, anchor) {
             case let (.map(mapViewport), .geodetic(geodetic)):
-                let geographic = try greatCirclePosition(
-                    from: observer.coordinate,
-                    to: geodetic.coordinate,
+                let radial = try mapRadialPosition(
+                    for: geodetic.coordinate,
+                    observer: observer,
+                    viewport: mapViewport,
+                    screenTopBearing: screenTopBearing,
                 )
-                guard geographic.distance <= mapViewport.radius else { return nil }
-                horizontal = try HorizontalAnchor(
-                    azimuth: geographic.initialBearing,
-                    elevation: ElevationAngle(degrees: 0),
-                )
-                radius = geographic.distance.value / mapViewport.radius.value
-                range = geographic.distance
+                guard let range = radial.range, range <= mapViewport.radius else { return nil }
+                return radial
             case let (.trueSky(skyViewport), .geodetic(geodetic)):
                 guard let position = try horizontalPosition(observer: observer, target: geodetic),
                       position.elevation.degrees >= skyViewport.minimumElevation.degrees
@@ -223,6 +304,69 @@ public struct ProjectionEngine: Sendable {
             x: sin(relativeBearing) * radius,
             y: -cos(relativeBearing) * radius,
             range: range,
+        )
+    }
+
+    private func mapRadialPosition(
+        for coordinate: GeoCoordinate,
+        observer: ObserverPosition,
+        viewport: MapViewport,
+        screenTopBearing: Bearing,
+    ) throws -> RadialPosition {
+        let geographic = try greatCirclePosition(
+            from: observer.coordinate,
+            to: coordinate,
+        )
+        let relativeBearing = (
+            geographic.initialBearing.degrees - screenTopBearing.degrees,
+        ).radians
+        let radius = geographic.distance.value / viewport.radius.value
+        return RadialPosition(
+            x: sin(relativeBearing) * radius,
+            y: -cos(relativeBearing) * radius,
+            range: geographic.distance,
+        )
+    }
+
+    private func mapDetailZoomTenths(for viewport: MapViewport) -> Int {
+        Int(floor((5 + log2(240 / viewport.radius.value)) * 10))
+    }
+
+    private func mapDetailScaleRank(for viewport: MapViewport) -> Int {
+        max(4, min(6, Int(floor(6 - log2(viewport.radius.value / 60)))))
+    }
+
+    private func clippedToUnitCircle(
+        start: RadialPosition,
+        end: RadialPosition,
+    ) -> RadialSegment? {
+        let deltaX = end.x - start.x
+        let deltaY = end.y - start.y
+        let coefficientA = deltaX * deltaX + deltaY * deltaY
+        guard coefficientA > 1e-16 else { return nil }
+        let coefficientB = 2 * (start.x * deltaX + start.y * deltaY)
+        let coefficientC = start.x * start.x + start.y * start.y - 1
+        let discriminant = coefficientB * coefficientB - 4 * coefficientA * coefficientC
+        guard discriminant >= 0 else { return nil }
+
+        let root = sqrt(discriminant)
+        let firstIntersection = (-coefficientB - root) / (2 * coefficientA)
+        let secondIntersection = (-coefficientB + root) / (2 * coefficientA)
+        let lower = max(0, min(firstIntersection, secondIntersection))
+        let upper = min(1, max(firstIntersection, secondIntersection))
+        guard upper - lower > 1e-12 else { return nil }
+
+        return RadialSegment(
+            start: RadialPosition(
+                x: start.x + deltaX * lower,
+                y: start.y + deltaY * lower,
+                range: nil,
+            ),
+            end: RadialPosition(
+                x: start.x + deltaX * upper,
+                y: start.y + deltaY * upper,
+                range: nil,
+            ),
         )
     }
 
@@ -317,6 +461,37 @@ private struct RadialPosition {
     let x: Double
     let y: Double
     let range: NauticalMiles?
+}
+
+private struct RadialSegment {
+    let start: RadialPosition
+    let end: RadialPosition
+}
+
+extension GeographicBounds {
+    fileprivate func mayIntersect(observer: GeoCoordinate, radius: NauticalMiles) -> Bool {
+        let earthMeanRadiusNauticalMiles = 6_371_008.8 / 1852
+        let angularRadius = radius.value / earthMeanRadiusNauticalMiles
+        let latitudeDelta = angularRadius.degrees
+        let querySouth = max(-90, observer.latitude - latitudeDelta)
+        let queryNorth = min(90, observer.latitude + latitudeDelta)
+        guard northLatitude >= querySouth, southLatitude <= queryNorth else { return false }
+
+        let observerLatitude = observer.latitude.radians
+        guard abs(observerLatitude) + angularRadius < .pi / 2 else { return true }
+        let longitudeDelta = asin(
+            min(1, sin(angularRadius) / cos(observerLatitude)),
+        ).degrees
+        let queryWest = observer.longitude - longitudeDelta
+        let queryEast = observer.longitude + longitudeDelta
+        if queryWest < -180 {
+            return eastLongitude >= queryWest + 360 || westLongitude <= queryEast
+        }
+        if queryEast > 180 {
+            return eastLongitude >= queryWest || westLongitude <= queryEast - 360
+        }
+        return eastLongitude >= queryWest && westLongitude <= queryEast
+    }
 }
 
 private struct CartesianPoint {

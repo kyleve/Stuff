@@ -24,6 +24,10 @@ location, and scheduling; see [`README.md`](README.md). Read the root
 - Store only the RapidAPI key in device-only Keychain storage. Persist no live
   aircraft data or credential in preferences.
 - Keep projection functions deterministic and independent of SwiftUI layout.
+- Project Geography with the observer-centred Map math and saved calibration.
+  Never use Mercator placement or draw it in True Sky.
+- Change Natural Earth source files, the generator, and the generated archive
+  together. Keep the archive free of names and unused source attributes.
 - Keep `ThrowLog` payloads redacted according to the group privacy invariant.
 
 ## Testing

@@ -46,6 +46,7 @@ extension ThrowSession {
             locationSource: CoreLocationThrowSource(),
             calendar: .autoupdatingCurrent,
             layerCatalog: .standard,
+            geographyLogger: PeriscopeGeographyLogger(log: ThrowLog.geography),
             softwareCredits: credits,
         )
         session.settingsFailure = creditFailure
@@ -293,6 +294,7 @@ extension ThrowSession {
                     skyViewport: .defaultValue,
                     selectedProjectionMode: setupCompleted ? .map : nil,
                     flightsEnabled: true,
+                    geography: .defaultValue,
                     labelMode: .adaptive,
                     includeGroundAircraft: false,
                     markSizePercent: 100,
@@ -334,6 +336,7 @@ extension ThrowSession {
                     locationSource: resolvedLocationSource,
                     calendar: Calendar(identifier: .gregorian),
                     layerCatalog: .standard,
+                    geographyLogger: DiscardingGeographyLogger(),
                     softwareCredits: [],
                 )
                 session.projectionFrame = quiet
@@ -387,7 +390,13 @@ extension ThrowSession {
             mode: ProjectionMode,
             at date: Date,
         ) -> ProjectionFrame {
-            ProjectionFrame(mode: mode, generatedAt: date, marks: [])
+            ProjectionFrame(
+                mode: mode,
+                generatedAt: date,
+                geography: nil,
+                geographyOpacity: 1,
+                marks: [],
+            )
         }
 
         private static func fixtureProjectionFrame(
@@ -487,6 +496,13 @@ extension ThrowSession {
             ProjectionFrame(
                 mode: mode,
                 generatedAt: date,
+                geography: mode == .map
+                    ? ProjectedGeography(
+                        id: GeographyProjectionID(rawValue: 1),
+                        segments: fixtureGeographySegments(),
+                    )
+                    : nil,
+                geographyOpacity: 1,
                 marks: aircraft.map { value in
                     ProjectedMark(
                         id: LayerMarkID(
@@ -516,6 +532,8 @@ extension ThrowSession {
             ProjectionFrame(
                 mode: frame.mode,
                 generatedAt: frame.generatedAt,
+                geography: frame.geography,
+                geographyOpacity: frame.geographyOpacity,
                 marks: frame.marks.map { mark in
                     ProjectedMark(
                         id: mark.id,
@@ -530,6 +548,30 @@ extension ThrowSession {
                     )
                 },
             )
+        }
+
+        private static func fixtureGeographySegments() -> [ProjectedGeographySegment] {
+            func segment(
+                _ kind: GeographyLineKind,
+                _ startX: Double,
+                _ startY: Double,
+                _ endX: Double,
+                _ endY: Double,
+            ) -> ProjectedGeographySegment {
+                ProjectedGeographySegment(
+                    kind: kind,
+                    start: ProjectionPoint(x: startX, y: startY),
+                    end: ProjectionPoint(x: endX, y: endY),
+                )
+            }
+            return [
+                segment(.coastline, 0.18, 0.22, 0.34, 0.42),
+                segment(.coastline, 0.34, 0.42, 0.29, 0.76),
+                segment(.lake, 0.58, 0.27, 0.63, 0.38),
+                segment(.river, 0.72, 0.18, 0.61, 0.66),
+                segment(.nationalBoundary, 0.23, 0.62, 0.77, 0.71),
+                segment(.regionalBoundary, 0.42, 0.14, 0.50, 0.85),
+            ]
         }
 
         private static func fixtureRange(_ value: Double) -> NauticalMiles {
