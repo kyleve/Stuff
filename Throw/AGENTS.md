@@ -28,6 +28,12 @@ WhereCore, RegionKit, or LifecycleKit into this feature.
 - Revalidate the availability-gated iOS 27 scene-accessory adapter against the
   GM SDK before release.
 
+## Installing to a device
+
+`./Throw/install` builds, signs, installs, and launches Throw on a connected
+iPhone or iPad. It is macOS-only. Configure the signing team once with
+`./ide --team-id <id>`. Run `./Throw/install --help` for all options.
+
 ## Testing
 
 Use `./test ThrowCoreTests`, `./test ThrowUITests`, and `./test ThrowTests` for

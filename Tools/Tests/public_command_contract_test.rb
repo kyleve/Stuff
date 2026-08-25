@@ -14,6 +14,7 @@ class PublicCommandContractTest < Minitest::Test
     simulator
     icons
     Where/install
+    Throw/install
     Ledger/install
     tla-check
     ide

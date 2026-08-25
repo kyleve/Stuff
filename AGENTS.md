@@ -211,10 +211,12 @@ Measured symbol-coalescing detail and the correction history: PR #145.
 
 Platforms and minimum OS live in [`Project.swift`](Project.swift). The iOS
 targets and the native-macOS **Ledger** app are there. That is why the package declares
-both platforms. To get the app onto a connected iPhone without the Xcode UI, use
-[`./Where/install`](Where/install). That command is macOS-only. It needs a signing team
-configured once via `./ide --team-id` (see
-[`Where/AGENTS.md`](Where/AGENTS.md#installing-to-a-device)). Its `--dry-run`
+both platforms. Use [`./Where/install`](Where/install) or
+[`./Throw/install`](Throw/install) to install an iOS app without the Xcode UI.
+Both commands are macOS-only. Each command needs a signing team configured once
+with `./ide --team-id`. Read the device-install section for
+[`Where`](Where/AGENTS.md#installing-to-a-device) or
+[`Throw`](Throw/AGENTS.md#installing-to-a-device). The `--dry-run` option
 resolves the exact physical device without generating, building, installing,
 or launching.
 [`./Ledger/install`](Ledger/install) is the equivalent for Ledger. It builds a

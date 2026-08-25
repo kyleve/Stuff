@@ -28,6 +28,17 @@ newer iPhone or iPad:
 ./ide --no-open
 ```
 
+You can also build, install, and launch Throw on a connected device:
+
+```bash
+./ide --team-id <ABCDE12345> # one-time signing setup
+./Throw/install
+```
+
+Run `./Throw/install --dry-run` to resolve the device without generating,
+building, installing, or launching. Run `./Throw/install --help` for all
+options.
+
 The guaranteed physical-output path is a powered USB-C-to-HDMI connection.
 AirPlay through Apple TV is supported by the system; if it mirrors instead of
 creating a distinct external scene, use Throw's explicit full-screen output.
