@@ -26,8 +26,10 @@ location, and scheduling; see [`README.md`](README.md). Read the root
 - Keep projection functions deterministic and independent of SwiftUI layout.
 - Project Geography with the observer-centred Map math and saved calibration.
   Never use Mercator placement or draw it in True Sky.
-- Change Natural Earth source files, the generator, and the generated archive
-  together. Keep the archive free of names and unused source attributes.
+- Change the pinned source manifest, generator, and generated archive together.
+  Keep the archive free of names and unused source attributes.
+- Keep downloaded source archives outside the tracked tree. Require an exact
+  digest before the generator reads an archive.
 - Keep `ThrowLog` payloads redacted according to the group privacy invariant.
 
 ## Testing

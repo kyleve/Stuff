@@ -41,10 +41,14 @@ and caches projected lines by location, viewport, and calibration. It does not
 rebuild static lines at the 30 Hz aircraft frame rate. Expensive decode and
 projection work stays off the main actor. Generation checks reject late work.
 
-`Tools/generate-geography.rb` creates the bundled archive from the pinned
-Natural Earth Vector 1:50m inputs. The archive contains quantized line geometry
-and display ranks. It contains no place names. The source README records the
-release, hashes, terms, and generation command.
+`Tools/generate-geography.rb` creates the bundled archive from pinned Natural
+Earth Vector 1:10m and U.S. Census Bureau inputs. A source manifest records each
+official URL, release, file member, and SHA-256 digest.
+
+The generator filters features, removes names, splits antimeridian paths, and
+simplifies linework. It then quantizes coordinates and assigns wide, standard,
+or local visibility. The committed archive lets every app build stay offline.
+Raw source archives stay outside the tracked tree.
 
 ## Privacy and limitations
 
@@ -54,7 +58,8 @@ bodies, callsigns, or aircraft IDs. Aircraft data is incomplete and
 non-safety-critical. True Sky treats provider altitudes as compatible
 mean-sea-level approximations and is not an optical ceiling registration.
 The offline map sends no request. Its generalized boundaries are not
-authoritative and use Natural Earth's default de facto view.
+authoritative. Natural Earth uses its default de facto view. Census boundaries
+support statistical work and are not legal land descriptions.
 
 ## Testing
 

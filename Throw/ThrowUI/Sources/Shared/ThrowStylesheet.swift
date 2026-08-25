@@ -1,5 +1,6 @@
 import BroadwayCore
 import SwiftUI
+import ThrowCore
 
 /// Throw's trait-aware design tokens.
 struct ThrowStylesheet: BStylesheet {
@@ -72,31 +73,57 @@ extension ThrowStylesheet {
         )
     }
 
+    /// Constant-screen-space strokes for Map geography. Luminance is relative
+    /// to both the global projection intensity and Geography's own intensity.
     struct GeographyStyle: Equatable {
-        var coastlineLineWidth: CGFloat
-        var lakeLineWidth: CGFloat
-        var riverLineWidth: CGFloat
-        var boundaryLineWidth: CGFloat
-        var coastlineLuminance: Double
-        var lakeLuminance: Double
-        var riverLuminance: Double
-        var nationalBoundaryLuminance: Double
-        var disputedBoundaryLuminance: Double
-        var regionalBoundaryLuminance: Double
-        var disputedDash: [CGFloat]
+        struct LineStyle: Equatable {
+            var lineWidth: CGFloat
+            var luminance: Double
+            var dash: [CGFloat]
+        }
+
+        var coastline: LineStyle
+        var lake: LineStyle
+        var river: LineStyle
+        var nationalBoundary: LineStyle
+        var disputedBoundary: LineStyle
+        var regionalBoundary: LineStyle
+        var countyBoundary: LineStyle
+        var primaryRoad: LineStyle
+        var renderOrder: [GeographyLineKind]
+
+        subscript(kind: GeographyLineKind) -> LineStyle {
+            switch kind {
+                case .coastline: coastline
+                case .lake: lake
+                case .river: river
+                case .nationalBoundary: nationalBoundary
+                case .disputedBoundary: disputedBoundary
+                case .regionalBoundary: regionalBoundary
+                case .countyBoundary: countyBoundary
+                case .primaryRoad: primaryRoad
+            }
+        }
 
         static let standard = GeographyStyle(
-            coastlineLineWidth: 1.25,
-            lakeLineWidth: 1,
-            riverLineWidth: 1,
-            boundaryLineWidth: 1,
-            coastlineLuminance: 1,
-            lakeLuminance: 0.8,
-            riverLuminance: 0.65,
-            nationalBoundaryLuminance: 0.7,
-            disputedBoundaryLuminance: 0.7,
-            regionalBoundaryLuminance: 0.45,
-            disputedDash: [3, 4],
+            coastline: LineStyle(lineWidth: 1.4, luminance: 1, dash: []),
+            lake: LineStyle(lineWidth: 1, luminance: 0.9, dash: []),
+            river: LineStyle(lineWidth: 0.75, luminance: 0.68, dash: []),
+            nationalBoundary: LineStyle(lineWidth: 1, luminance: 0.85, dash: []),
+            disputedBoundary: LineStyle(lineWidth: 1, luminance: 0.85, dash: [3, 4]),
+            regionalBoundary: LineStyle(lineWidth: 0.75, luminance: 0.55, dash: []),
+            countyBoundary: LineStyle(lineWidth: 0.5, luminance: 0.3, dash: [1, 3]),
+            primaryRoad: LineStyle(lineWidth: 0.75, luminance: 0.45, dash: []),
+            renderOrder: [
+                .countyBoundary,
+                .primaryRoad,
+                .river,
+                .regionalBoundary,
+                .disputedBoundary,
+                .nationalBoundary,
+                .lake,
+                .coastline,
+            ],
         )
     }
 

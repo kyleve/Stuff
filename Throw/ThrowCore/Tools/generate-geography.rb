@@ -1,115 +1,200 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# Generates ThrowCore's compact offline geography archive from pinned Natural
-# Earth GeoJSON inputs. Run this file from the repository root.
+# Generates ThrowCore's compact offline geography archive from pinned source
+# archives. Run this file from the repository root.
 
 require "digest"
-require "json"
 require "fileutils"
+require "json"
+require "optparse"
+
+require_relative "geography/geometry_encoder"
+require_relative "geography/manifest"
+require_relative "geography/shapefile"
+require_relative "geography/source_archive"
 
 module ThrowGeography
-  SOURCE_DIRECTORY = File.join(__dir__, "source", "natural-earth-v5.1.2")
-  OUTPUT = File.expand_path("../Sources/Resources/geography-v1.json", __dir__)
-  COORDINATE_SCALE = 10_000
-  MAXIMUM_SEGMENT_NAUTICAL_MILES = 10.0
-  MAXIMUM_OUTPUT_BYTES = 2_000_000
-
-  SOURCE_SPECS = [
-    {
-      file: "ne_50m_coastline.geojson",
-      kind: "coastline",
-      sha256: "271f1c4c1908312bac6b29d158ea1356544beafc129f260005300913aa5ea283"
-    },
-    {
-      file: "ne_50m_lakes.geojson",
-      kind: "lake",
-      sha256: "d350b75978b26fe839b797c2c529b2fb8f47fb3983c03f4964e36d5df9378a52"
-    },
-    {
-      file: "ne_50m_rivers_lake_centerlines.geojson",
-      kind: "river",
-      sha256: "f286e0ce978fde999ca2d7a78c764be08542e19b63cded52b05c12d5173ccc51"
-    },
-    {
-      file: "ne_50m_admin_0_boundary_lines_land.geojson",
-      kind: "national-boundary",
-      sha256: "2faac4f6b34386f3d21b6e018cf151f241f00e5c936d44dd17d7d9bfb147fa48"
-    },
-    {
-      file: "ne_50m_admin_1_states_provinces_lines.geojson",
-      kind: "regional-boundary",
-      sha256: "72cca93c850d412628a5da4bc5ebfe21ba4d376eb34611bde6b623ee73f0fdcf"
-    }
-  ].freeze
-
+  MANIFEST = File.join(__dir__, "source", "manifest.json")
+  SOURCE_DIRECTORY = File.join(__dir__, "source", "cache")
+  OUTPUT = File.expand_path("../Sources/Resources/geography-v2.json", __dir__)
+  # Builds archive paths from the declarative source manifest.
   class Generator
-    def initialize(source_directory: SOURCE_DIRECTORY, output: OUTPUT)
+    attr_reader :report
+
+    def initialize(
+      manifest: MANIFEST,
+      source_directory: SOURCE_DIRECTORY,
+      output: OUTPUT,
+      fetch: false
+    )
+      @manifest_path = manifest
       @source_directory = source_directory
       @output = output
+      @fetch = fetch
+      @report = nil
     end
 
     def run
-      paths = SOURCE_SPECS.flat_map { |spec| paths_for(spec) }
+      manifest = SourceManifest.load(@manifest_path)
+      archive_specification = manifest.archive
+      coordinate_scale = Integer(archive_specification.fetch("coordinateScale"))
+      maximum_segment_nm = Float(archive_specification.fetch("maximumSegmentNauticalMiles"))
+      @geometry_encoder = GeometryEncoder.new(
+        coordinate_scale: coordinate_scale,
+        maximum_segment_nautical_miles: maximum_segment_nm,
+        detail_order: SourceManifest::DETAIL_ORDER,
+      )
+      inputs = manifest.inputs.sort_by do |input|
+        [-Integer(input.fetch("priority")), input.fetch("id")]
+      end
+      output_paths = []
+      input_reports = {}
+
+      inputs.each do |input|
+        input_report = empty_report
+        input_paths(input) do |path|
+          output_paths << path
+          input_report["pathCount"] += 1
+          input_report["coordinateCount"] += path.fetch("coordinates").length / 2
+          input_report["detailLevels"][path.fetch("detailLevel")]["pathCount"] += 1
+          input_report["detailLevels"][path.fetch("detailLevel")]["coordinateCount"] +=
+            path.fetch("coordinates").length / 2
+        end
+        input_reports[input.fetch("id")] = input_report
+      end
+
+      output_paths.sort_by! do |path|
+        [
+          path.fetch("kind"),
+          SourceManifest::DETAIL_ORDER.fetch(path.fetch("detailLevel")),
+          path.fetch("bounds"),
+          path.fetch("coordinates"),
+        ]
+      end
       archive = {
-        "version" => 1,
-        "coordinateScale" => COORDINATE_SCALE,
-        "source" => {
-          "name" => "Natural Earth Vector",
-          "release" => "5.1.2",
-          "scale" => "1:50m",
-          "credit" => "Made with Natural Earth.",
-          "homepageURL" => "https://www.naturalearthdata.com/",
-          "termsURL" => "https://www.naturalearthdata.com/about/terms-of-use/"
-        },
-        "paths" => paths
+        "version" => Integer(archive_specification.fetch("version")),
+        "coordinateScale" => coordinate_scale,
+        "sources" => manifest.archive_sources,
+        "paths" => output_paths,
       }
       data = JSON.generate(archive) + "\n"
-      abort("Generated geography exceeds #{MAXIMUM_OUTPUT_BYTES} bytes") if data.bytesize > MAXIMUM_OUTPUT_BYTES
+      @report = build_report(data, output_paths, input_reports)
+      enforce_count_limit(
+        "path count",
+        @report.fetch("pathCount"),
+        Integer(archive_specification.fetch("maximumPathCount")),
+      )
+      enforce_count_limit(
+        "coordinate count",
+        @report.fetch("coordinateCount"),
+        Integer(archive_specification.fetch("maximumCoordinateCount")),
+      )
+      maximum_output_bytes = Integer(archive_specification.fetch("maximumOutputBytes"))
+      if data.bytesize > maximum_output_bytes
+        print_report("Generated")
+        raise SourceError,
+          "Generated geography is #{data.bytesize} bytes; limit is #{maximum_output_bytes} bytes"
+      end
 
       FileUtils.mkdir_p(File.dirname(@output))
       File.binwrite(@output, data)
-      puts "Wrote #{paths.length} paths and #{data.bytesize} bytes to #{@output}"
+      print_report("Wrote")
       data
     end
 
     private
 
-    def paths_for(spec)
-      path = File.join(@source_directory, spec.fetch(:file))
-      verify_digest(path, spec.fetch(:sha256))
-      document = JSON.parse(File.binread(path))
-      document.fetch("features").flat_map do |feature|
-        properties = feature.fetch("properties")
-        kind = line_kind(spec.fetch(:kind), properties)
-        minimum_zoom = properties["min_zoom"] || properties["MIN_ZOOM"] || 0
-        scale_rank = properties["scalerank"] || properties["SCALERANK"] || 0
-        geometry_paths(feature.fetch("geometry")).flat_map do |coordinates|
-          split_antimeridian(coordinates).filter_map do |split_path|
-            encoded_path(
-              split_path,
+    def enforce_count_limit(label, actual, maximum)
+      return if actual <= maximum
+
+      print_report("Generated")
+      raise SourceError, "Generated geography #{label} is #{actual}; limit is #{maximum}"
+    end
+
+    def input_paths(input)
+      if input["boundaryMode"] == "shared-edges"
+        candidates = @geometry_encoder.shared_boundary_candidates(
+          kind: kind_for(input.fetch("kind"), {}),
+          deduplication_group: input.fetch("deduplicationGroup"),
+          input_id: input.fetch("id"),
+        ) do |collector|
+          each_feature(input) do |feature|
+            next unless included_feature?(input, feature.properties)
+
+            detail_level = detail_level_for(input.fetch("detailLevel"), feature.properties)
+            collector.call(feature.paths, detail_level)
+          end
+        end
+        ordered_candidates(candidates).each do |candidate|
+          encoded_candidate(candidate, input).each { |path| yield path }
+        end
+        return
+      end
+
+      candidates = []
+      each_feature(input) do |feature|
+        next unless included_feature?(input, feature.properties)
+
+        kind = kind_for(input.fetch("kind"), feature.properties)
+        detail_level = detail_level_for(input.fetch("detailLevel"), feature.properties)
+        feature.paths.each do |coordinates|
+          @geometry_encoder.split_antimeridian(coordinates).each do |split_path|
+            candidate = Candidate.new(
+              coordinates: split_path,
               kind: kind,
-              minimum_zoom: minimum_zoom,
-              scale_rank: scale_rank
+              detail_level: detail_level,
+              deduplication_group: input.fetch("deduplicationGroup"),
+              input_id: input.fetch("id"),
             )
+            candidates << candidate
           end
         end
       end
+      candidates = @geometry_encoder.merge_connected_candidates(candidates) if input["mergeConnectedPaths"]
+      ordered_candidates(candidates).each do |candidate|
+        encoded_candidate(candidate, input).each { |path| yield path }
+      end
     end
 
-    def verify_digest(path, expected)
-      actual = Digest::SHA256.file(path).hexdigest
-      return if actual == expected
-
-      abort("Unexpected SHA-256 for #{path}: #{actual}")
+    def encoded_candidate(candidate, input)
+      @geometry_encoder.encode(
+        candidate,
+        simplification_nautical_miles: Float(input.fetch("simplificationNauticalMiles")),
+        deduplication_mode: input.fetch("deduplicationMode", "path"),
+      )
     end
 
-    def line_kind(default_kind, properties)
-      return default_kind unless default_kind == "national-boundary"
-      return default_kind if properties["featurecla"] == "International boundary (verify)"
-      return default_kind if properties["FEATURECLA"] == "International boundary (verify)"
+    def ordered_candidates(candidates)
+      candidates.sort_by do |candidate|
+        [SourceManifest::DETAIL_ORDER.fetch(candidate.detail_level), candidate.kind, candidate.coordinates]
+      end
+    end
 
-      "disputed-boundary"
+    def each_feature(input)
+      archive = SourceArchive.new(
+        source_directory: @source_directory,
+        specification: input.fetch("archive"),
+        fetch: @fetch,
+      )
+      format = input.fetch("format")
+      case format
+      when "shapefile"
+        shapefile_data, dbase_data = archive.shapefile_members
+        ShapefileReader.new(
+          shapefile_data: shapefile_data,
+          dbase_data: dbase_data,
+        ).each_feature { |feature| yield feature }
+      when "geojson"
+        document = JSON.parse(archive.bytes)
+        document.fetch("features").each do |feature|
+          properties = feature.fetch("properties", {})
+          paths = geometry_paths(feature.fetch("geometry"))
+          yield ShapefileReader::Feature.new(properties: properties, paths: paths)
+        end
+      else
+        raise SourceError, "Unsupported source format #{format}"
+      end
     end
 
     def geometry_paths(geometry)
@@ -122,99 +207,153 @@ module ThrowGeography
       when "MultiPolygon"
         coordinates.flatten(1)
       else
-        abort("Unsupported Natural Earth geometry: #{geometry.fetch("type")}")
+        raise SourceError, "Unsupported GeoJSON geometry #{geometry.fetch("type")}"
       end
     end
 
-    def split_antimeridian(coordinates)
-      return [] if coordinates.length < 2
+    def included_feature?(input, properties)
+      included = input.fetch("includeProperties", {}).all? do |field, values|
+        values.include?(property(properties, field))
+      end
+      excluded = input.fetch("excludeProperties", {}).any? do |field, values|
+        values.include?(property(properties, field))
+      end
+      included && !excluded
+    end
 
-      paths = []
-      current = [coordinates.first]
-      coordinates.each_cons(2) do |start_point, end_point|
-        start_longitude, start_latitude = start_point
-        end_longitude, end_latitude = end_point
-        delta = end_longitude - start_longitude
-        if delta.abs <= 180
-          current << end_point
-          next
+    def kind_for(specification, properties)
+      return specification if specification.is_a?(String)
+
+      value = property(properties, specification.fetch("property"))
+      specification.fetch("values", {}).fetch(value.to_s, specification.fetch("default"))
+    end
+
+    def detail_level_for(specification, properties)
+      return specification if specification.is_a?(String)
+
+      case specification.fetch("strategy")
+      when "natural-earth"
+        natural_earth_detail(specification, properties)
+      when "property"
+        value = property(properties, specification.fetch("property"))
+        specification.fetch("values", {}).fetch(value.to_s, specification.fetch("default"))
+      when "numeric-property"
+        value = Float(property(properties, specification.fetch("property")))
+        rule = specification.fetch("rules").find do |candidate|
+          (!candidate.key?("minimum") || value >= Float(candidate.fetch("minimum"))) &&
+            (!candidate.key?("maximum") || value <= Float(candidate.fetch("maximum")))
         end
-
-        adjusted_end = delta > 180 ? end_longitude - 360 : end_longitude + 360
-        boundary = delta > 180 ? -180.0 : 180.0
-        fraction = (boundary - start_longitude) / (adjusted_end - start_longitude)
-        boundary_latitude = start_latitude + (end_latitude - start_latitude) * fraction
-        current << [boundary, boundary_latitude]
-        paths << current if current.length >= 2
-        opposite_boundary = boundary == 180.0 ? -180.0 : 180.0
-        current = [[opposite_boundary, boundary_latitude], end_point]
+        rule ? rule.fetch("value") : specification.fetch("default")
+      end.tap do |detail_level|
+        unless SourceManifest::DETAIL_ORDER.key?(detail_level)
+          raise SourceError, "Unknown detail level #{detail_level}"
+        end
       end
-      paths << current if current.length >= 2
-      paths
     end
 
-    def encoded_path(coordinates, kind:, minimum_zoom:, scale_rank:)
-      densified = densify(coordinates)
-      quantized = densified.map { |longitude, latitude| quantized_point(latitude, longitude) }
-      quantized = quantized.each_with_object([]) do |point, unique|
-        unique << point if unique.last != point
+    def natural_earth_detail(specification, properties)
+      minimum_zoom = Float(property(properties, specification.fetch("minimumZoomProperty")) || 0)
+      scale_rank = Integer(property(properties, specification.fetch("scaleRankProperty")) || 0)
+      wide = specification.fetch("wide")
+      standard = specification.fetch("standard")
+      if minimum_zoom <= Float(wide.fetch("maximumMinimumZoom")) &&
+          scale_rank <= Integer(wide.fetch("maximumScaleRank"))
+        "wide"
+      elsif minimum_zoom <= Float(standard.fetch("maximumMinimumZoom")) &&
+          scale_rank <= Integer(standard.fetch("maximumScaleRank"))
+        "standard"
+      else
+        "local"
       end
-      return nil if quantized.length < 2
+    end
 
-      latitudes = quantized.map(&:first)
-      longitudes = quantized.map(&:last)
+    def property(properties, requested_name)
+      key = properties.keys.find { |candidate| candidate.casecmp?(requested_name) }
+      key ? properties[key] : nil
+    end
+
+    def empty_report
       {
-        "kind" => kind,
-        "minimumZoomTenths" => (Float(minimum_zoom) * 10).round,
-        "scaleRank" => Integer(scale_rank),
-        "bounds" => [latitudes.min, longitudes.min, latitudes.max, longitudes.max],
-        "coordinates" => delta_coordinates(quantized)
+        "pathCount" => 0,
+        "coordinateCount" => 0,
+        "detailLevels" => SourceManifest::DETAIL_ORDER.keys.to_h do |detail_level|
+          [detail_level, { "pathCount" => 0, "coordinateCount" => 0 }]
+        end,
       }
     end
 
-    def densify(coordinates)
-      result = [coordinates.first]
-      coordinates.each_cons(2) do |start_point, end_point|
-        segment_count = [(distance_nautical_miles(start_point, end_point) /
-          MAXIMUM_SEGMENT_NAUTICAL_MILES).ceil, 1].max
-        (1..segment_count).each do |index|
-          fraction = index.fdiv(segment_count)
-          result << [
-            start_point[0] + (end_point[0] - start_point[0]) * fraction,
-            start_point[1] + (end_point[1] - start_point[1]) * fraction
-          ]
+    def build_report(data, paths, input_reports)
+      tier_reports = SourceManifest::DETAIL_ORDER.keys.to_h do |detail_level|
+        selected = paths.select { |path| path.fetch("detailLevel") == detail_level }
+        [
+          detail_level,
+          {
+            "pathCount" => selected.length,
+            "coordinateCount" => selected.sum { |path| path.fetch("coordinates").length / 2 },
+          },
+        ]
+      end
+      {
+        "encodedBytes" => data.bytesize,
+        "sha256" => Digest::SHA256.hexdigest(data),
+        "pathCount" => paths.length,
+        "coordinateCount" => paths.sum { |path| path.fetch("coordinates").length / 2 },
+        "detailLevels" => tier_reports,
+        "inputs" => input_reports,
+      }
+    end
+
+    def print_report(action)
+      puts "#{action} #{@report.fetch("pathCount")} paths, #{@report.fetch("coordinateCount")} coordinates, " \
+        "and #{@report.fetch("encodedBytes")} bytes to #{@output}"
+      puts "SHA-256: #{@report.fetch("sha256")}"
+      @report.fetch("detailLevels").each do |detail_level, counts|
+        puts "  #{detail_level}: #{counts.fetch("pathCount")} paths, " \
+          "#{counts.fetch("coordinateCount")} coordinates"
+      end
+      @report.fetch("inputs").each do |input_id, counts|
+        puts "  #{input_id}: #{counts.fetch("pathCount")} paths, " \
+          "#{counts.fetch("coordinateCount")} coordinates"
+        counts.fetch("detailLevels").each do |detail_level, detail_counts|
+          next if detail_counts.fetch("pathCount").zero?
+
+          puts "    #{detail_level}: #{detail_counts.fetch("pathCount")} paths, " \
+            "#{detail_counts.fetch("coordinateCount")} coordinates"
         end
       end
-      result
     end
+  end
 
-    def distance_nautical_miles(start_point, end_point)
-      longitude1, latitude1 = start_point.map { |value| value * Math::PI / 180 }
-      longitude2, latitude2 = end_point.map { |value| value * Math::PI / 180 }
-      delta_latitude = latitude2 - latitude1
-      delta_longitude = longitude2 - longitude1
-      haversine = Math.sin(delta_latitude / 2)**2 +
-        Math.cos(latitude1) * Math.cos(latitude2) * Math.sin(delta_longitude / 2)**2
-      central_angle = 2 * Math.asin(Math.sqrt([[haversine, 0].max, 1].min))
-      3_440.069_546_436_138 * central_angle
-    end
-
-    def quantized_point(latitude, longitude)
-      [(latitude * COORDINATE_SCALE).round, (longitude * COORDINATE_SCALE).round]
-    end
-
-    def delta_coordinates(points)
-      previous_latitude, previous_longitude = points.first
-      values = [previous_latitude, previous_longitude]
-      points.drop(1).each do |latitude, longitude|
-        values << latitude - previous_latitude
-        values << longitude - previous_longitude
-        previous_latitude = latitude
-        previous_longitude = longitude
+  # Parses the standalone generator command.
+  class Command
+    def self.run(arguments)
+      options = {
+        manifest: MANIFEST,
+        source_directory: SOURCE_DIRECTORY,
+        output: OUTPUT,
+        fetch: false,
+      }
+      parser = OptionParser.new do |option|
+        option.banner = "Usage: ruby Throw/ThrowCore/Tools/generate-geography.rb [options]"
+        option.on("--fetch", "Fetch missing or mismatched pinned archives") { options[:fetch] = true }
+        option.on("--manifest PATH", "Use a different source manifest") { |path| options[:manifest] = path }
+        option.on("--source-directory PATH", "Use a different source cache") do |path|
+          options[:source_directory] = path
+        end
+        option.on("--output PATH", "Write the archive to a different path") { |path| options[:output] = path }
       end
-      values
+      parser.parse!(arguments)
+      raise SourceError, "Unexpected arguments: #{arguments.join(" ")}" unless arguments.empty?
+
+      Generator.new(**options).run
+    rescue OptionParser::ParseError, SourceError => error
+      warn error.message
+      warn parser
+      1
+    else
+      0
     end
   end
 end
 
-ThrowGeography::Generator.new.run if __FILE__ == $PROGRAM_NAME
+exit ThrowGeography::Command.run(ARGV) if __FILE__ == $PROGRAM_NAME

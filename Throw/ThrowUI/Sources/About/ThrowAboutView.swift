@@ -53,6 +53,16 @@ struct ThrowAboutView: View {
                         destination: naturalEarthTermsURL,
                     )
                 }
+                if let censusGeographyURL = URL(
+                    string: "https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.2025.html",
+                ) {
+                    Link(String(localized: .aboutUSCensusBureau), destination: censusGeographyURL)
+                }
+                if let censusTermsURL = URL(
+                    string: "https://www2.census.gov/geo/pdfs/maps-data/data/tiger/tgrshp2025/TGRSHP2025_TechDoc_Ch1.pdf",
+                ) {
+                    Link(String(localized: .aboutUSCensusTerms), destination: censusTermsURL)
+                }
             }
 
             Section(String(localized: .aboutLibraries)) {

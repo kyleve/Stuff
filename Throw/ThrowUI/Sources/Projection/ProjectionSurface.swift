@@ -173,9 +173,11 @@ private struct GeographyProjectionCanvas: View, Equatable {
             let origin = CGPoint(x: (size.width - side) / 2, y: (size.height - side) / 2)
             var paths: [GeographyLineKind: Path] = [:]
             for segment in geography.segments {
-                paths[segment.kind, default: Path()].move(
-                    to: point(segment.start, origin: origin, side: side),
-                )
+                if segment.startsNewSubpath {
+                    paths[segment.kind, default: Path()].move(
+                        to: point(segment.start, origin: origin, side: side),
+                    )
+                }
                 paths[segment.kind, default: Path()].addLine(
                     to: point(segment.end, origin: origin, side: side),
                 )
@@ -183,9 +185,9 @@ private struct GeographyProjectionCanvas: View, Equatable {
 
             var geographyContext = context
             geographyContext.opacity = opacity
-            for kind in GeographyLineKind.allCases {
+            for kind in style.geography.renderOrder {
                 guard let path = paths[kind], path.isEmpty == false else { continue }
-                let appearance = geographyAppearance(kind, style: style.geography)
+                let appearance = style.geography[kind]
                 let color = Color(
                     white: intensityMultiplier * geographyIntensityMultiplier *
                         appearance.luminance,
@@ -204,50 +206,6 @@ private struct GeographyProjectionCanvas: View, Equatable {
         }
     }
 
-    private func geographyAppearance(
-        _ kind: GeographyLineKind,
-        style: ThrowStylesheet.GeographyStyle,
-    ) -> GeographyAppearance {
-        switch kind {
-            case .coastline:
-                GeographyAppearance(
-                    lineWidth: style.coastlineLineWidth,
-                    luminance: style.coastlineLuminance,
-                    dash: [],
-                )
-            case .lake:
-                GeographyAppearance(
-                    lineWidth: style.lakeLineWidth,
-                    luminance: style.lakeLuminance,
-                    dash: [],
-                )
-            case .river:
-                GeographyAppearance(
-                    lineWidth: style.riverLineWidth,
-                    luminance: style.riverLuminance,
-                    dash: [],
-                )
-            case .nationalBoundary:
-                GeographyAppearance(
-                    lineWidth: style.boundaryLineWidth,
-                    luminance: style.nationalBoundaryLuminance,
-                    dash: [],
-                )
-            case .disputedBoundary:
-                GeographyAppearance(
-                    lineWidth: style.boundaryLineWidth,
-                    luminance: style.disputedBoundaryLuminance,
-                    dash: style.disputedDash,
-                )
-            case .regionalBoundary:
-                GeographyAppearance(
-                    lineWidth: style.boundaryLineWidth,
-                    luminance: style.regionalBoundaryLuminance,
-                    dash: [],
-                )
-        }
-    }
-
     private func point(
         _ point: ProjectionPoint,
         origin: CGPoint,
@@ -258,12 +216,6 @@ private struct GeographyProjectionCanvas: View, Equatable {
             y: origin.y + point.y * side,
         )
     }
-}
-
-private struct GeographyAppearance {
-    let lineWidth: CGFloat
-    let luminance: Double
-    let dash: [CGFloat]
 }
 
 #if DEBUG

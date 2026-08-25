@@ -557,20 +557,25 @@ extension ThrowSession {
                 _ startY: Double,
                 _ endX: Double,
                 _ endY: Double,
+                _ startsNewSubpath: Bool,
             ) -> ProjectedGeographySegment {
                 ProjectedGeographySegment(
                     kind: kind,
                     start: ProjectionPoint(x: startX, y: startY),
                     end: ProjectionPoint(x: endX, y: endY),
+                    startsNewSubpath: startsNewSubpath,
                 )
             }
             return [
-                segment(.coastline, 0.18, 0.22, 0.34, 0.42),
-                segment(.coastline, 0.34, 0.42, 0.29, 0.76),
-                segment(.lake, 0.58, 0.27, 0.63, 0.38),
-                segment(.river, 0.72, 0.18, 0.61, 0.66),
-                segment(.nationalBoundary, 0.23, 0.62, 0.77, 0.71),
-                segment(.regionalBoundary, 0.42, 0.14, 0.50, 0.85),
+                segment(.coastline, 0.18, 0.22, 0.34, 0.42, true),
+                segment(.coastline, 0.34, 0.42, 0.29, 0.76, false),
+                segment(.lake, 0.58, 0.27, 0.63, 0.38, true),
+                segment(.river, 0.72, 0.18, 0.61, 0.66, true),
+                segment(.nationalBoundary, 0.23, 0.62, 0.77, 0.71, true),
+                segment(.disputedBoundary, 0.22, 0.52, 0.43, 0.58, true),
+                segment(.regionalBoundary, 0.42, 0.14, 0.50, 0.85, true),
+                segment(.countyBoundary, 0.54, 0.20, 0.56, 0.80, true),
+                segment(.primaryRoad, 0.20, 0.78, 0.78, 0.30, true),
             ]
         }
 

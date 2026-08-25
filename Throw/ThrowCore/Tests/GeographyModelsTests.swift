@@ -2,6 +2,21 @@ import Testing
 @testable import ThrowCore
 
 struct GeographyModelsTests {
+    @Test(
+        arguments: [
+            DetailVisibilityCase(level: .wide, limit: 240),
+            DetailVisibilityCase(level: .standard, limit: 80),
+            DetailVisibilityCase(level: .local, limit: 20),
+        ],
+    )
+    func detailLevelUsesAnInclusiveExplicitRadiusLimit(testCase: DetailVisibilityCase) throws {
+        let limit = try NauticalMiles(value: testCase.limit)
+        let beyondLimit = try NauticalMiles(value: testCase.limit + 0.000_001)
+
+        #expect(testCase.level.includes(mapRadius: limit))
+        #expect(testCase.level.includes(mapRadius: beyondLimit) == false)
+    }
+
     @Test func boundsRejectAnAntimeridianWrappingPath() {
         #expect(throws: GeographyDataError.invalidArchive) {
             try GeographicBounds(
@@ -23,8 +38,7 @@ struct GeographyModelsTests {
         #expect(throws: GeographyDataError.invalidArchive) {
             try GeographicPolyline(
                 kind: .coastline,
-                minimumZoomTenths: 0,
-                scaleRank: 0,
+                detailLevel: .wide,
                 bounds: bounds,
                 coordinates: [GeoCoordinate(latitude: 0, longitude: 0)],
             )
@@ -41,8 +55,7 @@ struct GeographyModelsTests {
         #expect(throws: GeographyDataError.invalidArchive) {
             try GeographicPolyline(
                 kind: .river,
-                minimumZoomTenths: 0,
-                scaleRank: 0,
+                detailLevel: .wide,
                 bounds: bounds,
                 coordinates: [
                     GeoCoordinate(latitude: 0, longitude: 0),
@@ -50,5 +63,10 @@ struct GeographyModelsTests {
                 ],
             )
         }
+    }
+
+    struct DetailVisibilityCase {
+        let level: GeographyDetailLevel
+        let limit: Double
     }
 }

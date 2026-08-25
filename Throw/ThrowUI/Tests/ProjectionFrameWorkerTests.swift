@@ -226,7 +226,6 @@ struct ProjectionFrameWorkerTests {
             )
         }
         await source.waitUntilLoadStarts()
-        first.cancel()
         let second = Task {
             try await worker.frame(
                 layerFrame: flights,
@@ -238,12 +237,15 @@ struct ProjectionFrameWorkerTests {
                 reduceMotion: false,
             )
         }
-        await Task.yield()
-        await source.release()
+        await worker.waitUntilGeographyLoadWaiterCount(2)
 
+        first.cancel()
+        await worker.waitUntilGeographyLoadWaiterCount(1)
         await #expect(throws: CancellationError.self) {
             try await first.value
         }
+        await source.release()
+
         let output = try await second.value
         let loadCount = await source.loadCount
 

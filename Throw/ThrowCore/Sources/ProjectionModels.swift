@@ -364,11 +364,20 @@ public struct ProjectedGeographySegment: Hashable, Sendable {
     public let kind: GeographyLineKind
     public let start: ProjectionPoint
     public let end: ProjectionPoint
+    /// Whether the renderer must move to `start` instead of continuing the
+    /// current path. This preserves joins and dash phase within a polyline.
+    public let startsNewSubpath: Bool
 
-    public init(kind: GeographyLineKind, start: ProjectionPoint, end: ProjectionPoint) {
+    public init(
+        kind: GeographyLineKind,
+        start: ProjectionPoint,
+        end: ProjectionPoint,
+        startsNewSubpath: Bool,
+    ) {
         self.kind = kind
         self.start = start
         self.end = end
+        self.startsNewSubpath = startsNewSubpath
     }
 }
 
