@@ -106,7 +106,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Made with Natural Earth. The bundled 1:50m data is generalized and non-authoritative. Boundaries use Natural Earth’s default de facto view."
+            "value" : "Made with Natural Earth. Throw uses generalized 1:10m global data and selected 2025 U.S. Census Bureau boundaries and roads. The data is non-authoritative. Natural Earth uses its default de facto boundary view. Census boundaries support statistical work and are not legal land descriptions. TIGER/Line® is a registered trademark of the U.S. Census Bureau. Throw uses the name only to identify its source data."
           }
         }
       }
@@ -206,6 +206,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "About Throw"
+          }
+        }
+      }
+    },
+    "about.uSCensusBureau" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "U.S. Census Bureau Geography"
+          }
+        }
+      }
+    },
+    "about.uSCensusTerms" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "2025 TIGER/Line Legal and Citation Information"
           }
         }
       }

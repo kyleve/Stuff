@@ -133,16 +133,12 @@ public struct ProjectionEngine: Sendable {
     ) throws -> [ProjectedGeographySegment] {
         try Task.checkCancellation()
         guard case let .map(mapViewport) = viewport else { return [] }
-        let maximumZoomTenths = mapDetailZoomTenths(for: mapViewport)
-        let maximumScaleRank = mapDetailScaleRank(for: mapViewport)
         var segments: [ProjectedGeographySegment] = []
         for (lineIndex, line) in lines.enumerated() {
             if lineIndex.isMultiple(of: 64) {
                 try Task.checkCancellation()
             }
-            guard line.minimumZoomTenths <= maximumZoomTenths,
-                  line.scaleRank <= maximumScaleRank
-            else {
+            guard line.detailLevel.includes(mapRadius: mapViewport.radius) else {
                 continue
             }
             guard line.bounds.mayIntersect(
@@ -153,6 +149,7 @@ public struct ProjectionEngine: Sendable {
             }
             var previousIndex = line.coordinates.startIndex
             var currentIndex = line.coordinates.index(after: previousIndex)
+            var previousProjectedEnd: RadialPosition?
             var segmentIndex = 0
             while currentIndex != line.coordinates.endIndex {
                 if segmentIndex.isMultiple(of: 256) {
@@ -171,6 +168,9 @@ public struct ProjectionEngine: Sendable {
                     screenTopBearing: calibration.screenTopBearing,
                 )
                 if let clipped = clippedToUnitCircle(start: start, end: end) {
+                    let startsNewSubpath = previousProjectedEnd.map {
+                        radialPointsMatch($0, clipped.start) == false
+                    } ?? true
                     segments.append(
                         ProjectedGeographySegment(
                             kind: line.kind,
@@ -184,8 +184,12 @@ public struct ProjectionEngine: Sendable {
                                 calibration: calibration,
                                 geometry: geometry,
                             ),
+                            startsNewSubpath: startsNewSubpath,
                         ),
                     )
+                    previousProjectedEnd = clipped.end
+                } else {
+                    previousProjectedEnd = nil
                 }
                 previousIndex = currentIndex
                 line.coordinates.formIndex(after: &currentIndex)
@@ -193,6 +197,10 @@ public struct ProjectionEngine: Sendable {
             }
         }
         return segments
+    }
+
+    private func radialPointsMatch(_ lhs: RadialPosition, _ rhs: RadialPosition) -> Bool {
+        abs(lhs.x - rhs.x) <= 1e-12 && abs(lhs.y - rhs.y) <= 1e-12
     }
 
     public func greatCirclePosition(
@@ -326,14 +334,6 @@ public struct ProjectionEngine: Sendable {
             y: -cos(relativeBearing) * radius,
             range: geographic.distance,
         )
-    }
-
-    private func mapDetailZoomTenths(for viewport: MapViewport) -> Int {
-        Int(floor((5 + log2(240 / viewport.radius.value)) * 10))
-    }
-
-    private func mapDetailScaleRank(for viewport: MapViewport) -> Int {
-        max(4, min(6, Int(floor(6 - log2(viewport.radius.value / 60)))))
     }
 
     private func clippedToUnitCircle(

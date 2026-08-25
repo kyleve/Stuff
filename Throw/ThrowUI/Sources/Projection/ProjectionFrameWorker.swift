@@ -8,7 +8,14 @@ actor ProjectionFrameWorker {
     private let geographyRuntime: GeographyLayerRuntime
     private let geographyLogger: any GeographyLogging
     private var labelResolver = ProjectionLabelCollisionResolver()
-    private var geographyLayerLoadTask: Task<LayerFrame, Error>?
+    private var loadedGeographyLayerFrame: LayerFrame?
+    private var geographyLayerLoadTask: Task<Void, Never>?
+    private var geographyLoadWaiters: [UInt64: CheckedContinuation<LayerFrame, any Error>] = [:]
+    #if DEBUG
+        private var geographyWaiterCountObservers: [GeographyWaiterCountObserver] = []
+    #endif
+    private var nextGeographyWaiterID: UInt64 = 0
+    private var geographyLoadGeneration: UInt64 = 0
     private var geographyLoadFailed = false
     private var geographyProjectionCache: GeographyProjectionCache?
     private var geographyProjectionSequence: UInt64 = 0
@@ -111,26 +118,7 @@ actor ProjectionFrameWorker {
             }
             return .projected(projection)
         }
-        let loadTask: Task<LayerFrame, Error>
-        if let geographyLayerLoadTask {
-            loadTask = geographyLayerLoadTask
-        } else {
-            loadTask = Task(name: "Throw load bundled geography") {
-                [geographyRuntime, geographyLogger] in
-                do {
-                    return try await geographyRuntime.frame(for: GeographyLayerInput())
-                } catch is CancellationError {
-                    throw CancellationError()
-                } catch {
-                    geographyLogger.record(
-                        GeographyLogEvent(failureCategory: geographyFailureCategory(for: error)),
-                    )
-                    throw error
-                }
-            }
-            geographyLayerLoadTask = loadTask
-        }
-        let layerFrame = try await loadTask.value
+        let layerFrame = try await loadGeographyLayerFrame()
         try Task.checkCancellation()
         let segments = try engine.geographySegments(
             lines: layerFrame.geographicLines,
@@ -149,12 +137,116 @@ actor ProjectionFrameWorker {
         return .projected(projection)
     }
 
+    private func loadGeographyLayerFrame() async throws -> LayerFrame {
+        if let loadedGeographyLayerFrame {
+            return loadedGeographyLayerFrame
+        }
+        startGeographyLoadIfNeeded()
+        let waiterID = nextGeographyWaiterID
+        nextGeographyWaiterID &+= 1
+        return try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                if Task.isCancelled {
+                    continuation.resume(throwing: CancellationError())
+                } else if let loadedGeographyLayerFrame {
+                    continuation.resume(returning: loadedGeographyLayerFrame)
+                } else {
+                    geographyLoadWaiters[waiterID] = continuation
+                    notifyGeographyWaiterCountObservers()
+                }
+            }
+        } onCancel: {
+            Task { await self.cancelGeographyWaiter(waiterID) }
+        }
+    }
+
+    private func startGeographyLoadIfNeeded() {
+        guard loadedGeographyLayerFrame == nil, geographyLayerLoadTask == nil else { return }
+        geographyLoadGeneration &+= 1
+        let generation = geographyLoadGeneration
+        geographyLayerLoadTask = Task(name: "Throw load bundled geography") {
+            [geographyRuntime, geographyLogger, weak self] in
+            let result: Result<LayerFrame, any Error>
+            do {
+                result = try await .success(
+                    geographyRuntime.frame(for: GeographyLayerInput()),
+                )
+            } catch is CancellationError {
+                result = .failure(CancellationError())
+            } catch {
+                geographyLogger.record(
+                    GeographyLogEvent(failureCategory: geographyFailureCategory(for: error)),
+                )
+                result = .failure(error)
+            }
+            await self?.finishGeographyLoad(result, generation: generation)
+        }
+    }
+
+    private func finishGeographyLoad(
+        _ result: Result<LayerFrame, any Error>,
+        generation: UInt64,
+    ) {
+        guard generation == geographyLoadGeneration else { return }
+        geographyLayerLoadTask = nil
+        if case let .success(frame) = result {
+            loadedGeographyLayerFrame = frame
+        } else if case let .failure(error) = result, !(error is CancellationError) {
+            geographyLoadFailed = true
+        }
+        let waiters = geographyLoadWaiters
+        geographyLoadWaiters = [:]
+        notifyGeographyWaiterCountObservers()
+        for continuation in waiters.values {
+            continuation.resume(with: result)
+        }
+    }
+
+    private func cancelGeographyWaiter(_ waiterID: UInt64) {
+        geographyLoadWaiters.removeValue(forKey: waiterID)?.resume(
+            throwing: CancellationError(),
+        )
+        notifyGeographyWaiterCountObservers()
+        guard geographyLoadWaiters.isEmpty, loadedGeographyLayerFrame == nil else { return }
+        geographyLayerLoadTask?.cancel()
+        geographyLayerLoadTask = nil
+        geographyLoadGeneration &+= 1
+    }
+
     func reset() {
         previousFrame = nil
         lastLayerObservedAt = nil
         modeTransition = nil
         correctionTransition = nil
         labelResolver = ProjectionLabelCollisionResolver()
+    }
+
+    #if DEBUG
+        func waitUntilGeographyLoadWaiterCount(_ expectedCount: Int) async {
+            guard geographyLoadWaiters.count != expectedCount else { return }
+            await withCheckedContinuation { continuation in
+                geographyWaiterCountObservers.append(
+                    GeographyWaiterCountObserver(
+                        expectedCount: expectedCount,
+                        continuation: continuation,
+                    ),
+                )
+            }
+        }
+    #endif
+
+    private func notifyGeographyWaiterCountObservers() {
+        #if DEBUG
+            let matching = geographyWaiterCountObservers.filter {
+                $0.expectedCount == geographyLoadWaiters.count
+            }
+            geographyWaiterCountObservers.removeAll {
+                $0.expectedCount == geographyLoadWaiters.count
+            }
+            for observer in matching {
+                observer.continuation.resume()
+            }
+        #endif
     }
 
     private func animate(
@@ -386,6 +478,13 @@ private struct GeographyProjectionCache {
     let key: GeographyProjectionCacheKey
     let projection: ProjectedGeography
 }
+
+#if DEBUG
+    private struct GeographyWaiterCountObserver {
+        let expectedCount: Int
+        let continuation: CheckedContinuation<Void, Never>
+    }
+#endif
 
 private struct GeographyTransitionFrame {
     let projection: ProjectedGeography?

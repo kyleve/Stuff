@@ -316,8 +316,7 @@ struct ProjectionEngineTests {
         let observer = try ThrowCoreFixture.observer(latitude: 0, longitude: 0, altitudeFeet: 0)
         let line = try geographicLine(
             kind: .coastline,
-            minimumZoomTenths: 0,
-            scaleRank: 0,
+            detailLevel: .wide,
             coordinates: [
                 GeoCoordinate(latitude: 0, longitude: -1),
                 GeoCoordinate(latitude: 0, longitude: 1),
@@ -340,12 +339,47 @@ struct ProjectionEngineTests {
         #expect(abs(segment.end.y - 0.5) < 0.000_001)
     }
 
+    @Test func geographyPreservesConnectedSubpathsAndRestartsAfterAClippedGap() throws {
+        let observer = try ThrowCoreFixture.observer(latitude: 0, longitude: 0, altitudeFeet: 0)
+        let connected = try geographicLine(
+            kind: .coastline,
+            detailLevel: .wide,
+            coordinates: [
+                GeoCoordinate(latitude: 0, longitude: 0),
+                GeoCoordinate(latitude: 0, longitude: 0.1),
+                GeoCoordinate(latitude: 0.1, longitude: 0.1),
+            ],
+        )
+        let clippedGap = try geographicLine(
+            kind: .river,
+            detailLevel: .wide,
+            coordinates: [
+                GeoCoordinate(latitude: 0, longitude: 0),
+                GeoCoordinate(latitude: 0, longitude: 2),
+                GeoCoordinate(latitude: 0, longitude: 3),
+                GeoCoordinate(latitude: 0.1, longitude: 0),
+            ],
+        )
+
+        let segments = try engine.geographySegments(
+            lines: [connected, clippedGap],
+            observer: observer,
+            viewport: .map(MapViewport(radius: NauticalMiles(value: 50))),
+            calibration: .defaultValue,
+            geometry: ProjectionGeometry(width: 1, height: 1),
+        )
+
+        let coastlineSegments = segments.filter { $0.kind == .coastline }
+        let riverSegments = segments.filter { $0.kind == .river }
+        #expect(coastlineSegments.map(\.startsNewSubpath) == [true, false])
+        #expect(riverSegments.map(\.startsNewSubpath) == [true, true])
+    }
+
     @Test func geographyIsNeverProjectedIntoTrueSky() throws {
         let observer = try ThrowCoreFixture.observer(latitude: 0, longitude: 0, altitudeFeet: 0)
         let line = try geographicLine(
             kind: .river,
-            minimumZoomTenths: 0,
-            scaleRank: 0,
+            detailLevel: .wide,
             coordinates: [
                 GeoCoordinate(latitude: 0, longitude: 0),
                 GeoCoordinate(latitude: 0.1, longitude: 0),
@@ -365,12 +399,11 @@ struct ProjectionEngineTests {
         #expect(segments.isEmpty)
     }
 
-    @Test func geographyDetailIncreasesOnlyWhenTheMapZoomsIn() throws {
+    @Test func localGeographyAppearsOnlyWhenTheMapZoomsIn() throws {
         let observer = try ThrowCoreFixture.observer(latitude: 0, longitude: 0, altitudeFeet: 0)
         let line = try geographicLine(
             kind: .regionalBoundary,
-            minimumZoomTenths: 100,
-            scaleRank: 0,
+            detailLevel: .local,
             coordinates: [
                 GeoCoordinate(latitude: 0, longitude: 0),
                 GeoCoordinate(latitude: 0.01, longitude: 0),
@@ -397,12 +430,11 @@ struct ProjectionEngineTests {
         #expect(close.isEmpty == false)
     }
 
-    @Test func geographyScaleRankRemovesMinorDetailOnlyFromWideMaps() throws {
+    @Test func standardGeographyIsRemovedFromWideMaps() throws {
         let observer = try ThrowCoreFixture.observer(latitude: 0, longitude: 0, altitudeFeet: 0)
         let line = try geographicLine(
             kind: .river,
-            minimumZoomTenths: 0,
-            scaleRank: 6,
+            detailLevel: .standard,
             coordinates: [
                 GeoCoordinate(latitude: 0, longitude: 0),
                 GeoCoordinate(latitude: 0.01, longitude: 0),
@@ -433,8 +465,7 @@ struct ProjectionEngineTests {
         let observer = try ThrowCoreFixture.observer(latitude: 85, longitude: 0, altitudeFeet: 0)
         let line = try geographicLine(
             kind: .coastline,
-            minimumZoomTenths: 0,
-            scaleRank: 0,
+            detailLevel: .wide,
             coordinates: [
                 GeoCoordinate(latitude: 86, longitude: 49),
                 GeoCoordinate(latitude: 86, longitude: 50),
@@ -460,8 +491,7 @@ struct ProjectionEngineTests {
         )
         let line = try geographicLine(
             kind: .nationalBoundary,
-            minimumZoomTenths: 0,
-            scaleRank: 0,
+            detailLevel: .wide,
             coordinates: [
                 GeoCoordinate(latitude: -0.1, longitude: -180),
                 GeoCoordinate(latitude: 0.1, longitude: -180),
@@ -496,16 +526,14 @@ struct ProjectionEngineTests {
 
     private func geographicLine(
         kind: GeographyLineKind,
-        minimumZoomTenths: Int,
-        scaleRank: Int,
+        detailLevel: GeographyDetailLevel,
         coordinates: [GeoCoordinate],
     ) throws -> GeographicPolyline {
         let latitudes = coordinates.map(\.latitude)
         let longitudes = coordinates.map(\.longitude)
         return try GeographicPolyline(
             kind: kind,
-            minimumZoomTenths: minimumZoomTenths,
-            scaleRank: scaleRank,
+            detailLevel: detailLevel,
             bounds: GeographicBounds(
                 southLatitude: latitudes.min() ?? 0,
                 westLongitude: longitudes.min() ?? 0,

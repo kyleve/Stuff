@@ -62,14 +62,22 @@ in the app. Those and the remaining physical release checks are tracked in
 ## Offline geography
 
 Map mode draws a dim Geography layer behind aircraft. It includes generalized
-coastlines, lakes, major rivers, national boundaries, and regional boundaries.
+coastlines, lakes, rivers, national boundaries, and regional boundaries. The
+United States layer also includes state boundaries, county boundaries, and
+primary roads.
+
 The layer is on by default. You can turn it off or set its intensity from zero
 through 20 percent. True Sky does not draw geography.
 
-Throw bundles Natural Earth Vector 1:50m data. Map rendering does not request
-tiles or send a location to a map provider. The data is generalized and is not
-authoritative. Boundaries use Natural Earth's default de facto view. See the
-[Natural Earth terms](https://www.naturalearthdata.com/about/terms-of-use/).
+Throw bundles Natural Earth Vector 1:10m data and selected 2025 U.S. Census
+Bureau data. Map rendering does not request tiles or send a location to a map
+provider. The generated archive contains no place names or road names.
+
+The data is generalized and is not authoritative. Natural Earth boundaries use
+the default de facto view. Census boundaries support statistical work and are
+not legal land descriptions. See the [Natural Earth
+terms](https://www.naturalearthdata.com/about/terms-of-use/) and the [2025
+TIGER/Line documentation](https://www2.census.gov/geo/pdfs/maps-data/data/tiger/tgrshp2025/TGRSHP2025_TechDoc_Ch1.pdf).
 
 ## External scenes
 

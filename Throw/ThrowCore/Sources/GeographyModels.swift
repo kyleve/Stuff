@@ -7,6 +7,26 @@ public enum GeographyLineKind: String, CaseIterable, Codable, Hashable, Sendable
     case nationalBoundary = "national-boundary"
     case disputedBoundary = "disputed-boundary"
     case regionalBoundary = "regional-boundary"
+    case countyBoundary = "county-boundary"
+    case primaryRoad = "primary-road"
+}
+
+/// Controls the largest Map radius at which a geographic line can appear.
+public enum GeographyDetailLevel: String, CaseIterable, Codable, Hashable, Sendable {
+    case wide
+    case standard
+    case local
+
+    public func includes(mapRadius: NauticalMiles) -> Bool {
+        switch self {
+            case .wide:
+                mapRadius.value <= 240
+            case .standard:
+                mapRadius.value <= 80
+            case .local:
+                mapRadius.value <= 20
+        }
+    }
 }
 
 /// A non-wrapping WGS84 bounding box. Bundled paths split at the antimeridian.
@@ -43,21 +63,17 @@ public struct GeographicBounds: Hashable, Sendable {
 /// A generalized geographic line with enough metadata for local detail pruning.
 public struct GeographicPolyline: Hashable, Sendable {
     public let kind: GeographyLineKind
-    public let minimumZoomTenths: Int
-    public let scaleRank: Int
+    public let detailLevel: GeographyDetailLevel
     public let bounds: GeographicBounds
     public let coordinates: [GeoCoordinate]
 
     public init(
         kind: GeographyLineKind,
-        minimumZoomTenths: Int,
-        scaleRank: Int,
+        detailLevel: GeographyDetailLevel,
         bounds: GeographicBounds,
         coordinates: [GeoCoordinate],
     ) throws {
-        guard (0 ... 200).contains(minimumZoomTenths),
-              (0 ... 100).contains(scaleRank),
-              coordinates.count >= 2,
+        guard coordinates.count >= 2,
               coordinates.allSatisfy({ coordinate in
                   (bounds.southLatitude ... bounds.northLatitude).contains(coordinate.latitude) &&
                       (bounds.westLongitude ... bounds.eastLongitude).contains(
@@ -68,8 +84,7 @@ public struct GeographicPolyline: Hashable, Sendable {
             throw GeographyDataError.invalidArchive
         }
         self.kind = kind
-        self.minimumZoomTenths = minimumZoomTenths
-        self.scaleRank = scaleRank
+        self.detailLevel = detailLevel
         self.bounds = bounds
         self.coordinates = coordinates
     }
