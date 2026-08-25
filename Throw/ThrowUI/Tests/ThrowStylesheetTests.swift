@@ -3,6 +3,20 @@ import ThrowCore
 @testable import ThrowUI
 
 struct ThrowStylesheetTests {
+    @Test func projectionLabelsStayVisuallySubordinateToMarks() {
+        let projection = ThrowStylesheet.ProjectionStyle.standard
+
+        #expect(
+            projection.label.font == .system(
+                size: 10,
+                weight: .regular,
+                design: .monospaced,
+            ),
+        )
+        #expect((0 ..< 1).contains(projection.label.luminanceMultiplier))
+        #expect(projection.label.offset > 0)
+    }
+
     @Test(arguments: GeographyLineKind.allCases)
     func everyGeographyKindHasAVisibleBoundedStyle(_ kind: GeographyLineKind) {
         let line = ThrowStylesheet.GeographyStyle.standard[kind]

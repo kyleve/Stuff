@@ -50,13 +50,19 @@ extension ThrowStylesheet {
     }
 
     struct ProjectionStyle: Equatable {
+        struct LabelStyle: Equatable {
+            var font: Font
+            var luminanceMultiplier: Double
+            var offset: CGFloat
+        }
+
         var background: Color
         var markLuminance: Double
         var geography: GeographyStyle
         var statusLuminance: Double
         var minimumMarkSize: CGFloat
         var standardMarkSize: CGFloat
-        var labelOffset: CGFloat
+        var label: LabelStyle
         var correctionDuration: Double
         var modeChangeDuration: Double
 
@@ -67,7 +73,11 @@ extension ThrowStylesheet {
             statusLuminance: 0.55,
             minimumMarkSize: 6,
             standardMarkSize: 12,
-            labelOffset: 8,
+            label: LabelStyle(
+                font: .system(size: 10, weight: .regular, design: .monospaced),
+                luminanceMultiplier: 0.7,
+                offset: 8,
+            ),
             correctionDuration: 0.75,
             modeChangeDuration: 1.2,
         )
