@@ -409,27 +409,41 @@ public struct ProjectionEngine: Sendable {
         let hasHorizontalMotion = mark.velocity?.groundTrack != nil &&
             (mark.velocity?.groundSpeedKnots ?? 0) > 0
         let hasVerticalMotion = (mark.velocity?.verticalRateFeetPerMinute ?? 0) != 0
-        guard hasHorizontalMotion || hasVerticalMotion,
-              let next = try FlightPredictor.prediction(
-                  for: mark,
-                  at: date.addingTimeInterval(1),
-              ),
-              let nextRadial = try radialPosition(
-                  for: next.mark.anchor,
-                  observer: observer,
-                  viewport: viewport,
-                  screenTopBearing: calibration.screenTopBearing,
-              )
+        guard hasHorizontalMotion || hasVerticalMotion else { return nil }
+        guard let observationAge = FlightPredictor.observationAge(
+            positionObservedAt: mark.freshness.positionObservedAt,
+            at: date,
+        ) else { return nil }
+        let usesPreviousPosition = observationAge >= FlightPredictor.predictionLimit - 1
+        let comparisonDate = if usesPreviousPosition {
+            mark.freshness.positionObservedAt.addingTimeInterval(
+                max(0, min(observationAge, FlightPredictor.predictionLimit) - 1),
+            )
+        } else {
+            date.addingTimeInterval(1)
+        }
+        guard let comparisonMark = try FlightPredictor.predictedMark(
+            for: mark,
+            at: comparisonDate,
+        ),
+            let comparisonRadial = try radialPosition(
+                for: comparisonMark.anchor,
+                observer: observer,
+                viewport: viewport,
+                screenTopBearing: calibration.screenTopBearing,
+            )
         else {
             return nil
         }
-        let nextPoint = calibratedPoint(
-            radial: nextRadial,
+        let comparisonPoint = calibratedPoint(
+            radial: comparisonRadial,
             calibration: calibration,
             geometry: geometry,
         )
-        let deltaX = (nextPoint.x - currentPoint.x) * geometry.width
-        let deltaY = (nextPoint.y - currentPoint.y) * geometry.height
+        let startPoint = usesPreviousPosition ? comparisonPoint : currentPoint
+        let endPoint = usesPreviousPosition ? currentPoint : comparisonPoint
+        let deltaX = (endPoint.x - startPoint.x) * geometry.width
+        let deltaY = (endPoint.y - startPoint.y) * geometry.height
         guard hypot(deltaX, deltaY) > 1e-8 else { return nil }
         let radians = atan2(deltaX, -deltaY)
         let bearing = try Bearing(degrees: radians.degrees)

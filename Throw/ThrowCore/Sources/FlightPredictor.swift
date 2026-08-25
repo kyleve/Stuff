@@ -42,11 +42,32 @@ public enum FlightPredictor {
             for: mark.freshness.availability,
             at: date,
         ) else { return nil }
-        let predictionAge = min(age, predictionLimit)
+        let predictedMark = try predictedMark(for: mark, observationAge: age)
+        return FlightPrediction(mark: predictedMark, opacity: opacity)
+    }
+
+    static func predictedMark(
+        for mark: ProjectionMark,
+        at date: Date,
+    ) throws -> ProjectionMark? {
+        guard let age = observationAge(
+            positionObservedAt: mark.freshness.positionObservedAt,
+            at: date,
+        ) else {
+            return nil
+        }
+        return try predictedMark(for: mark, observationAge: age)
+    }
+
+    private static func predictedMark(
+        for mark: ProjectionMark,
+        observationAge: TimeInterval,
+    ) throws -> ProjectionMark {
+        let predictionAge = min(observationAge, predictionLimit)
         guard predictionAge > 0,
               case let .geodetic(anchor) = mark.anchor
         else {
-            return FlightPrediction(mark: mark, opacity: opacity)
+            return mark
         }
 
         let coordinate: GeoCoordinate = if let track = mark.velocity?.groundTrack,
@@ -76,7 +97,7 @@ public enum FlightPredictor {
             altitude: altitude,
             altitudeQuality: anchor.altitudeQuality,
         )
-        let predictedMark = ProjectionMark(
+        return ProjectionMark(
             id: mark.id,
             anchor: .geodetic(predictedAnchor),
             glyph: mark.glyph,
@@ -84,7 +105,6 @@ public enum FlightPredictor {
             velocity: mark.velocity,
             freshness: mark.freshness,
         )
-        return FlightPrediction(mark: predictedMark, opacity: opacity)
     }
 
     static func observationAge(positionObservedAt: Date, at date: Date) -> TimeInterval? {
