@@ -77,6 +77,53 @@ struct ProjectionFrameWorkerTests {
         #expect(pointDistance(displayed.point, target.point) < 0.000_001)
     }
 
+    @Test func newAircraftAndItsLabelFadeInOverQuarterSecond() async throws {
+        let frames = try await aircraftPresenceFrames(appears: true)
+        let start = try #require(frames.start.marks.first)
+        let midpoint = try #require(frames.midpoint.marks.first)
+        let end = try #require(frames.end.marks.first)
+
+        #expect(start.opacity < 0.000_001)
+        #expect(abs(midpoint.opacity - 0.5) < 0.000_001)
+        #expect(abs(midpoint.labelOpacity - 1) < 0.000_001)
+        #expect(abs(end.opacity - 1) < 0.000_001)
+    }
+
+    @Test func removedAircraftAndItsLabelFadeOutOverQuarterSecond() async throws {
+        let frames = try await aircraftPresenceFrames(appears: false)
+        let start = try #require(frames.start.marks.first)
+        let midpoint = try #require(frames.midpoint.marks.first)
+
+        #expect(abs(start.opacity - 1) < 0.000_001)
+        #expect(abs(midpoint.opacity - 0.5) < 0.000_001)
+        #expect(abs(midpoint.labelOpacity - 1) < 0.000_001)
+        #expect(frames.end.marks.isEmpty)
+    }
+
+    @Test func aLabelAddedToAnExistingAircraftFadesIn() async throws {
+        let frames = try await labelPresenceFrames(sourceLabel: nil, targetLabel: "TARGET")
+        let start = try #require(frames.start.marks.first)
+        let midpoint = try #require(frames.midpoint.marks.first)
+        let end = try #require(frames.end.marks.first)
+
+        #expect(start.label?.primary == "TARGET")
+        #expect(start.labelOpacity < 0.000_001)
+        #expect(abs(midpoint.labelOpacity - 0.5) < 0.000_001)
+        #expect(abs(end.labelOpacity - 1) < 0.000_001)
+    }
+
+    @Test func aLabelRemovedFromAnExistingAircraftFadesOut() async throws {
+        let frames = try await labelPresenceFrames(sourceLabel: "SOURCE", targetLabel: nil)
+        let start = try #require(frames.start.marks.first)
+        let midpoint = try #require(frames.midpoint.marks.first)
+        let end = try #require(frames.end.marks.first)
+
+        #expect(start.label?.primary == "SOURCE")
+        #expect(abs(start.labelOpacity - 1) < 0.000_001)
+        #expect(abs(midpoint.labelOpacity - 0.5) < 0.000_001)
+        #expect(end.label == nil)
+    }
+
     @Test func resetPreventsCorrectionEasingAcrossSourcesWithMatchingIDs() async throws {
         let date = Date(timeIntervalSince1970: 3000)
         let observer = try observer()
@@ -407,6 +454,112 @@ struct ProjectionFrameWorkerTests {
         return (source, displayed, target)
     }
 
+    private func aircraftPresenceFrames(
+        appears: Bool,
+    ) async throws -> (start: ProjectionFrame, midpoint: ProjectionFrame, end: ProjectionFrame) {
+        let date = Date(timeIntervalSince1970: 2500)
+        let changedAt = date.addingTimeInterval(1)
+        let observer = try observer()
+        let viewport = try ProjectionViewport.map(MapViewport(radius: NauticalMiles(value: 50)))
+        let populated = try layerFrame(label: "FLIGHT", observedAt: date, observer: observer)
+        let empty = emptyLayerFrame(observedAt: date)
+        let worker = projectionFrameWorker()
+        _ = try await worker.frame(
+            layerFrame: appears ? empty : populated,
+            geographyEnabled: false,
+            observer: observer,
+            viewport: viewport,
+            calibration: .defaultValue,
+            generatedAt: date,
+            reduceMotion: false,
+        )
+        let target = appears
+            ? try layerFrame(label: "FLIGHT", observedAt: changedAt, observer: observer)
+            : emptyLayerFrame(observedAt: changedAt)
+
+        let start = try await worker.frame(
+            layerFrame: target,
+            geographyEnabled: false,
+            observer: observer,
+            viewport: viewport,
+            calibration: .defaultValue,
+            generatedAt: changedAt,
+            reduceMotion: false,
+        ).frame
+        let midpoint = try await worker.frame(
+            layerFrame: target,
+            geographyEnabled: false,
+            observer: observer,
+            viewport: viewport,
+            calibration: .defaultValue,
+            generatedAt: changedAt.addingTimeInterval(0.125),
+            reduceMotion: false,
+        ).frame
+        let end = try await worker.frame(
+            layerFrame: target,
+            geographyEnabled: false,
+            observer: observer,
+            viewport: viewport,
+            calibration: .defaultValue,
+            generatedAt: changedAt.addingTimeInterval(0.25),
+            reduceMotion: false,
+        ).frame
+        return (start, midpoint, end)
+    }
+
+    private func labelPresenceFrames(
+        sourceLabel: String?,
+        targetLabel: String?,
+    ) async throws -> (start: ProjectionFrame, midpoint: ProjectionFrame, end: ProjectionFrame) {
+        let date = Date(timeIntervalSince1970: 2750)
+        let changedAt = date.addingTimeInterval(1)
+        let observer = try observer()
+        let viewport = try ProjectionViewport.map(MapViewport(radius: NauticalMiles(value: 50)))
+        let worker = projectionFrameWorker()
+        _ = try await worker.frame(
+            layerFrame: layerFrame(label: sourceLabel, observedAt: date, observer: observer),
+            geographyEnabled: false,
+            observer: observer,
+            viewport: viewport,
+            calibration: .defaultValue,
+            generatedAt: date,
+            reduceMotion: false,
+        )
+        let target = try layerFrame(
+            label: targetLabel,
+            observedAt: changedAt,
+            observer: observer,
+        )
+        let start = try await worker.frame(
+            layerFrame: target,
+            geographyEnabled: false,
+            observer: observer,
+            viewport: viewport,
+            calibration: .defaultValue,
+            generatedAt: changedAt,
+            reduceMotion: false,
+        ).frame
+        let midpoint = try await worker.frame(
+            layerFrame: target,
+            geographyEnabled: false,
+            observer: observer,
+            viewport: viewport,
+            calibration: .defaultValue,
+            generatedAt: changedAt.addingTimeInterval(0.125),
+            reduceMotion: false,
+        ).frame
+        let end = try await worker.frame(
+            layerFrame: target,
+            geographyEnabled: false,
+            observer: observer,
+            viewport: viewport,
+            calibration: .defaultValue,
+            generatedAt: changedAt.addingTimeInterval(0.25),
+            reduceMotion: false,
+        ).frame
+        return (start, midpoint, end)
+    }
+
     private func projectionFrameWorker() -> ProjectionFrameWorker {
         ProjectionFrameWorker(
             flightsRuntime: LayerCatalog.standard.flights.runtimeFactory(),
@@ -423,7 +576,7 @@ struct ProjectionFrameWorkerTests {
     }
 
     private func layerFrame(
-        label: String,
+        label: String?,
         observedAt: Date,
         observer: ObserverPosition,
     ) throws -> LayerFrame {
@@ -443,7 +596,7 @@ struct ProjectionFrameWorkerTests {
                         altitudeQuality: .geometric,
                     )),
                     glyph: .aircraft(.unknownAirborne),
-                    label: ProjectionLabel(primary: label, secondary: nil),
+                    label: label.map { ProjectionLabel(primary: $0, secondary: nil) },
                     velocity: nil,
                     freshness: MarkFreshness(
                         positionObservedAt: observedAt,
@@ -452,6 +605,10 @@ struct ProjectionFrameWorkerTests {
                 ),
             ]),
         )
+    }
+
+    private func emptyLayerFrame(observedAt: Date) -> LayerFrame {
+        LayerFrame(layerID: .flights, observedAt: observedAt, content: .marks([]))
     }
 
     private func correctionLayerFrame(
