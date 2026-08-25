@@ -40,6 +40,9 @@ catalog that the controller presents. The worker decodes bundled geography once
 and caches projected lines by location, viewport, and calibration. It does not
 rebuild static lines at the 30 Hz aircraft frame rate. Expensive decode and
 projection work stays off the main actor. Generation checks reject late work.
+Position prediction stops after 15 seconds, but a successful snapshot stays
+visible until a later successful poll replaces it. A retryable poll failure
+starts a 15-second grace period and a 15-second fade.
 
 `Tools/generate-geography.rb` creates the bundled archive from pinned Natural
 Earth Vector 1:10m and U.S. Census Bureau inputs. A source manifest records each

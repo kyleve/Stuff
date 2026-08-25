@@ -21,11 +21,12 @@ public struct FlightPrediction: Hashable, Sendable, CustomStringConvertible,
     }
 }
 
-/// Dead-reckons aircraft for at most 15 seconds, then fades the last predicted
-/// position until it expires at 30 seconds.
+/// Dead-reckons aircraft for at most 15 seconds. A retryable feed failure keeps
+/// the last position for 15 seconds, then fades it for 15 seconds.
 public enum FlightPredictor {
     public static let predictionLimit: TimeInterval = 15
-    public static let expirationAge: TimeInterval = 30
+    public static let failureGracePeriod: TimeInterval = 15
+    public static let failureFadeDuration: TimeInterval = 15
 
     public static func prediction(
         for mark: ProjectionMark,
@@ -37,9 +38,10 @@ public enum FlightPredictor {
         ) else {
             return nil
         }
-        guard age < expirationAge else { return nil }
-        let opacity = age <= predictionLimit ? 1 :
-            1 - (age - predictionLimit) / (expirationAge - predictionLimit)
+        guard let opacity = availabilityOpacity(
+            for: mark.freshness.availability,
+            at: date,
+        ) else { return nil }
         let predictionAge = min(age, predictionLimit)
         guard predictionAge > 0,
               case let .geodetic(anchor) = mark.anchor
@@ -89,6 +91,24 @@ public enum FlightPredictor {
         let age = date.timeIntervalSince(positionObservedAt)
         guard age.isFinite, age >= 0 else { return nil }
         return age
+    }
+
+    private static func availabilityOpacity(
+        for availability: MarkAvailability,
+        at date: Date,
+    ) -> Double? {
+        switch availability {
+            case .current:
+                return 1
+            case let .retrying(since):
+                guard let age = observationAge(positionObservedAt: since, at: date) else {
+                    return nil
+                }
+                let expiration = failureGracePeriod + failureFadeDuration
+                guard age < expiration else { return nil }
+                guard age > failureGracePeriod else { return 1 }
+                return 1 - (age - failureGracePeriod) / failureFadeDuration
+        }
     }
 
     private static func predictedAltitude(

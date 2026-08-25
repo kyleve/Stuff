@@ -184,7 +184,11 @@ struct ProjectionEngineTests {
                 groundSpeedKnots: 2000,
                 verticalRateFeetPerMinute: nil,
             ),
-            freshness: MarkFreshness(positionObservedAt: observedAt, fetchedAt: observedAt),
+            freshness: MarkFreshness(
+                positionObservedAt: observedAt,
+                fetchedAt: observedAt,
+                availability: .current,
+            ),
         )
         let viewport = try ProjectionViewport.map(
             MapViewport(radius: NauticalMiles(value: 240)),
@@ -520,7 +524,11 @@ struct ProjectionEngineTests {
             glyph: .aircraft(.unknownAirborne),
             label: nil,
             velocity: nil,
-            freshness: MarkFreshness(positionObservedAt: date, fetchedAt: date),
+            freshness: MarkFreshness(
+                positionObservedAt: date,
+                fetchedAt: date,
+                availability: .current,
+            ),
         )
     }
 
@@ -571,6 +579,7 @@ struct ProjectionEngineTests {
             freshness: MarkFreshness(
                 positionObservedAt: ThrowCoreFixture.date,
                 fetchedAt: ThrowCoreFixture.date,
+                availability: .current,
             ),
         )
     }

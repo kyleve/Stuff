@@ -213,13 +213,24 @@ public struct ProjectionVelocity: Hashable, Sendable {
     }
 }
 
+public enum MarkAvailability: Hashable, Sendable {
+    case current
+    case retrying(since: Date)
+}
+
 public struct MarkFreshness: Hashable, Sendable {
     public let positionObservedAt: Date
     public let fetchedAt: Date
+    public let availability: MarkAvailability
 
-    public init(positionObservedAt: Date, fetchedAt: Date) {
+    public init(
+        positionObservedAt: Date,
+        fetchedAt: Date,
+        availability: MarkAvailability,
+    ) {
         self.positionObservedAt = positionObservedAt
         self.fetchedAt = fetchedAt
+        self.availability = availability
     }
 }
 

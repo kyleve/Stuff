@@ -216,6 +216,7 @@ public final class ThrowSession {
     @ObservationIgnored var mayApplyTrueHeadingHint = true
     @ObservationIgnored var currentLayerFrame: LayerFrame?
     @ObservationIgnored var currentSnapshot: AircraftSnapshot?
+    @ObservationIgnored var currentMarkAvailability: MarkAvailability = .current
     @ObservationIgnored var outputDemands: Set<ProjectionOutput> = []
     @ObservationIgnored var temporaryWakeUntil: Date?
     @ObservationIgnored var activePollingSignature: PollingSignature?

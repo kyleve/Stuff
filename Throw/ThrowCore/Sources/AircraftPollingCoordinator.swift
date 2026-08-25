@@ -26,6 +26,7 @@ public enum AircraftPollingState: Equatable, Sendable, CustomStringConvertible,
     case retrying(
         lastGoodSnapshot: AircraftSnapshot?,
         failure: AircraftSourceFailure,
+        failureStartedAt: Date,
         nextRetryAt: Date,
     )
     case failed(AircraftSourceFailure)
@@ -34,7 +35,7 @@ public enum AircraftPollingState: Equatable, Sendable, CustomStringConvertible,
     public var snapshot: AircraftSnapshot? {
         switch self {
             case let .healthy(snapshot, _): snapshot
-            case let .retrying(lastGoodSnapshot, _, _): lastGoodSnapshot
+            case let .retrying(lastGoodSnapshot, _, _, _): lastGoodSnapshot
             case .idle, .loading, .failed, .quiet: nil
         }
     }
@@ -343,6 +344,7 @@ public actor AircraftPollingCoordinator {
         guard generation == runGeneration, Task.isCancelled == false else { return }
 
         var failureCount = 0
+        var failureStartedAt: Date?
         logger.record(
             AircraftPollingLogEvent(
                 kind: .sourceActivated,
@@ -366,6 +368,7 @@ public actor AircraftPollingCoordinator {
                 let completedAt = await clock.now()
                 guard generation == runGeneration else { return }
                 failureCount = 0
+                failureStartedAt = nil
                 lastGood = snapshot
                 let nextPollAt = completedAt.addingTimeInterval(
                     configuredSource.baseCadence.secondsValue,
@@ -394,6 +397,8 @@ public actor AircraftPollingCoordinator {
                 failureCount += 1
                 let completedAt = await clock.now()
                 guard generation == runGeneration else { return }
+                let startedAt = failureStartedAt ?? completedAt
+                failureStartedAt = startedAt
                 logger.record(
                     AircraftPollingLogEvent(
                         kind: .requestFailed,
@@ -418,12 +423,12 @@ public actor AircraftPollingCoordinator {
                     failureCount: failureCount,
                     retryAfterSeconds: failure.retryAfterSeconds,
                 )
-                let freshLastGood = Self.freshSnapshot(lastGood, at: completedAt)
                 let retryAt = completedAt.addingTimeInterval(delay.secondsValue)
                 publish(
                     .retrying(
-                        lastGoodSnapshot: freshLastGood,
+                        lastGoodSnapshot: lastGood,
                         failure: failure,
+                        failureStartedAt: startedAt,
                         nextRetryAt: retryAt,
                     ),
                 )
@@ -434,7 +439,7 @@ public actor AircraftPollingCoordinator {
                         requestCount: requestCount,
                         durationMilliseconds: nil,
                         httpStatus: Self.statusCode(failure),
-                        decodedAircraftCount: freshLastGood?.observations.count,
+                        decodedAircraftCount: lastGood?.observations.count,
                         backoffSeconds: delay.secondsValue,
                         failureCategory: Self.category(failure),
                     ),
@@ -451,6 +456,8 @@ public actor AircraftPollingCoordinator {
                 failureCount += 1
                 let completedAt = await clock.now()
                 guard generation == runGeneration else { return }
+                let startedAt = failureStartedAt ?? completedAt
+                failureStartedAt = startedAt
                 let failure = AircraftSourceFailure.transport(.other)
                 logger.record(
                     AircraftPollingLogEvent(
@@ -472,11 +479,11 @@ public actor AircraftPollingCoordinator {
                     failureCount: failureCount,
                     retryAfterSeconds: nil,
                 )
-                let freshLastGood = Self.freshSnapshot(lastGood, at: completedAt)
                 publish(
                     .retrying(
-                        lastGoodSnapshot: freshLastGood,
+                        lastGoodSnapshot: lastGood,
                         failure: failure,
+                        failureStartedAt: startedAt,
                         nextRetryAt: completedAt.addingTimeInterval(delay.secondsValue),
                     ),
                 )
@@ -487,7 +494,7 @@ public actor AircraftPollingCoordinator {
                         requestCount: requestCount,
                         durationMilliseconds: nil,
                         httpStatus: Self.statusCode(failure),
-                        decodedAircraftCount: freshLastGood?.observations.count,
+                        decodedAircraftCount: lastGood?.observations.count,
                         backoffSeconds: delay.secondsValue,
                         failureCategory: Self.category(failure),
                     ),
@@ -507,29 +514,6 @@ public actor AircraftPollingCoordinator {
         guard state != newState else { return }
         state = newState
         continuation.yield(newState)
-    }
-
-    private static func freshSnapshot(
-        _ snapshot: AircraftSnapshot?,
-        at date: Date,
-    ) -> AircraftSnapshot? {
-        guard let snapshot else { return nil }
-        let fresh = snapshot.observations.filter {
-            guard let age = FlightPredictor.observationAge(
-                positionObservedAt: $0.positionObservedAt,
-                at: date,
-            ) else {
-                return false
-            }
-            return age < FlightPredictor.expirationAge
-        }
-        guard fresh.isEmpty == false else { return nil }
-        return AircraftSnapshot(
-            source: snapshot.source,
-            fetchedAt: snapshot.fetchedAt,
-            observations: fresh,
-            successfulHTTPStatus: snapshot.successfulHTTPStatus,
-        )
     }
 
     private func recordFactoryFailure(

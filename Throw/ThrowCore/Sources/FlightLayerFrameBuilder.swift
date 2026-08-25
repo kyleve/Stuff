@@ -12,6 +12,7 @@ public struct FlightLayerFrameBuilder: Sendable {
         observer: ObserverPosition,
         labelMode: FlightLabelMode,
         routes: [FlightCallsign: FlightRoute],
+        availability: MarkAvailability,
     ) throws -> LayerFrame {
         let marks = try snapshot.observations.map { observation in
             let altitude = observation.preferredSkyAltitude
@@ -38,6 +39,7 @@ public struct FlightLayerFrameBuilder: Sendable {
                 freshness: MarkFreshness(
                     positionObservedAt: observation.positionObservedAt,
                     fetchedAt: observation.fetchedAt,
+                    availability: availability,
                 ),
             )
         }

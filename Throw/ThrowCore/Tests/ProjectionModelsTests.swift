@@ -88,6 +88,7 @@ struct ProjectionModelsTests {
             freshness: MarkFreshness(
                 positionObservedAt: ThrowCoreFixture.date,
                 fetchedAt: ThrowCoreFixture.date,
+                availability: .current,
             ),
         )
         let layerFrame = LayerFrame(
