@@ -26,15 +26,15 @@ struct FlightPredictorTests {
         #expect(tenCoordinate.longitude > 0)
         #expect(fifteenCoordinate.longitude > tenCoordinate.longitude)
         #expect(twentyCoordinate == fifteenCoordinate)
-        #expect(abs(twentySeconds.opacity - (2.0 / 3.0)) < 0.000_001)
+        #expect(twentySeconds.opacity == 1)
     }
 
-    @Test func removesAtThirtySeconds() throws {
+    @Test func successfulPollRemainsVisibleAtFiveMinuteCadence() throws {
         let prediction = try FlightPredictor.prediction(
             for: movingMark(positionAge: 0),
-            at: ThrowCoreFixture.date.addingTimeInterval(30),
+            at: ThrowCoreFixture.date.addingTimeInterval(300),
         )
-        #expect(prediction == nil)
+        #expect(prediction?.opacity == 1)
     }
 
     @Test func rejectsFuturePositionFreshness() throws {
@@ -45,15 +45,40 @@ struct FlightPredictorTests {
         #expect(prediction == nil)
     }
 
-    @Test func missingVelocityHoldsThenFades() throws {
+    @Test func missingVelocityHoldsBetweenSuccessfulPolls() throws {
         let mark = try stationaryMark()
         let optionalPrediction = try FlightPredictor.prediction(
             for: mark,
-            at: ThrowCoreFixture.date.addingTimeInterval(22.5),
+            at: ThrowCoreFixture.date.addingTimeInterval(300),
         )
         let prediction = try #require(optionalPrediction)
         #expect(try coordinate(prediction.mark) == GeoCoordinate(latitude: 0, longitude: 0))
-        #expect(abs(prediction.opacity - 0.5) < 0.000_001)
+        #expect(prediction.opacity == 1)
+    }
+
+    @Test func failedPollHasGracePeriodThenFades() throws {
+        let failureStartedAt = ThrowCoreFixture.date.addingTimeInterval(300)
+        let mark = try movingMark(
+            positionAge: 0,
+            availability: .retrying(since: failureStartedAt),
+        )
+
+        let duringGrace = try FlightPredictor.prediction(
+            for: mark,
+            at: failureStartedAt.addingTimeInterval(15),
+        )
+        let duringFade = try FlightPredictor.prediction(
+            for: mark,
+            at: failureStartedAt.addingTimeInterval(22.5),
+        )
+        let expired = try FlightPredictor.prediction(
+            for: mark,
+            at: failureStartedAt.addingTimeInterval(30),
+        )
+
+        #expect(duringGrace?.opacity == 1)
+        #expect(duringFade?.opacity == 0.5)
+        #expect(expired == nil)
     }
 
     @Test func verticalRatePredictsAltitudeWithoutHorizontalVelocity() throws {
@@ -100,7 +125,10 @@ struct FlightPredictorTests {
         #expect(anchor.altitude?.feet == Altitude.allowedFeet.upperBound)
     }
 
-    private func movingMark(positionAge: TimeInterval) throws -> ProjectionMark {
+    private func movingMark(
+        positionAge: TimeInterval,
+        availability: MarkAvailability = .current,
+    ) throws -> ProjectionMark {
         try mark(
             velocity: ProjectionVelocity(
                 groundTrack: Bearing(degrees: 90),
@@ -108,6 +136,7 @@ struct FlightPredictorTests {
                 verticalRateFeetPerMinute: 600,
             ),
             positionAge: positionAge,
+            availability: availability,
         )
     }
 
@@ -118,6 +147,7 @@ struct FlightPredictorTests {
     private func mark(
         velocity: ProjectionVelocity?,
         positionAge: TimeInterval,
+        availability: MarkAvailability = .current,
     ) throws -> ProjectionMark {
         try ProjectionMark(
             id: LayerMarkID(layerID: .flights, namespace: .aircraft, rawValue: "a"),
@@ -134,6 +164,7 @@ struct FlightPredictorTests {
             freshness: MarkFreshness(
                 positionObservedAt: ThrowCoreFixture.date.addingTimeInterval(-positionAge),
                 fetchedAt: ThrowCoreFixture.date,
+                availability: availability,
             ),
         )
     }

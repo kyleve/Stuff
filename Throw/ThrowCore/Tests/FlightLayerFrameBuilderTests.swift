@@ -19,6 +19,7 @@ struct FlightLayerFrameBuilderTests {
             observer: observer,
             labelMode: .adaptive,
             routes: [:],
+            availability: .current,
         )
         let label = try #require(frame.marks.first?.label)
         #expect(label.primary == "THROW1")
@@ -48,6 +49,7 @@ struct FlightLayerFrameBuilderTests {
             observer: ThrowCoreFixture.observer(),
             labelMode: .adaptive,
             routes: [routeCallsign: route],
+            availability: .current,
         )
 
         let label = try #require(frame.marks.first?.label)
@@ -66,6 +68,7 @@ struct FlightLayerFrameBuilderTests {
             observer: ThrowCoreFixture.observer(),
             labelMode: .callsigns,
             routes: [:],
+            availability: .current,
         )
         #expect(frame.marks.first?.label == nil)
     }

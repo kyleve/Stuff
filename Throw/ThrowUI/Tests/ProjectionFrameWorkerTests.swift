@@ -601,6 +601,7 @@ struct ProjectionFrameWorkerTests {
                     freshness: MarkFreshness(
                         positionObservedAt: observedAt,
                         fetchedAt: observedAt,
+                        availability: .current,
                     ),
                 ),
             ]),
@@ -643,6 +644,7 @@ struct ProjectionFrameWorkerTests {
                     freshness: MarkFreshness(
                         positionObservedAt: observedAt,
                         fetchedAt: observedAt,
+                        availability: .current,
                     ),
                 ),
             ]),

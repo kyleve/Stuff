@@ -168,7 +168,7 @@ struct AircraftPollingCoordinatorTests {
         await coordinator.deactivate()
     }
 
-    @Test func retryStateRejectsFutureLastGoodObservations() async throws {
+    @Test func retryStatePreservesLastGoodObservationsUntilPresentationFadesThem() async throws {
         let source = FutureThenFailingSource()
         let coordinator = AircraftPollingCoordinator(
             sourceFactory: SingleSourceFactory(source: source),
@@ -188,13 +188,44 @@ struct AircraftPollingCoordinatorTests {
             }
         }
 
-        guard case let .retrying(lastGoodSnapshot, failure, _) = await coordinator.currentState()
+        guard case let .retrying(lastGoodSnapshot, failure, _, _) =
+            await coordinator.currentState()
         else {
             Issue.record("Expected retrying state")
             return
         }
-        #expect(lastGoodSnapshot == nil)
+        #expect(lastGoodSnapshot?.observations.count == 1)
         #expect(failure == .transport(.offline))
+        await coordinator.deactivate()
+    }
+
+    @Test func repeatedFailuresDoNotRestartTheVisibilityGracePeriod() async throws {
+        let coordinator = AircraftPollingCoordinator(
+            sourceFactory: SingleSourceFactory(source: SuccessfulThenFailingSource()),
+            clock: TwoImmediateSleepPollingClock(),
+            logger: DiscardingAircraftPollingLogger(),
+        )
+        let stream = await coordinator.stateUpdates()
+        let recorder = PollingStateRecorder()
+        let recordingTask = Task(name: "Record retry visibility dates") {
+            for await state in stream {
+                guard Task.isCancelled == false else { return }
+                await recorder.record(state)
+            }
+        }
+        defer { recordingTask.cancel() }
+
+        try await coordinator.activate(
+            configuration: .adsbLol,
+            query: ThrowCoreFixture.mapQuery(),
+            quiet: false,
+        )
+        try await waitUntil {
+            await recorder.retryFailureDates().count >= 2
+        }
+
+        let dates = await recorder.retryFailureDates()
+        #expect(dates[0] == dates[1])
         await coordinator.deactivate()
     }
 
@@ -502,8 +533,8 @@ struct AircraftPollingCoordinatorTests {
         }
     }
 
-    private struct SingleSourceFactory: AircraftSourceProducing {
-        let source: FutureThenFailingSource
+    private struct SingleSourceFactory<Source: AircraftObservationSource>: AircraftSourceProducing {
+        let source: Source
 
         func makeSource(
             configuration _: AircraftSourceConfiguration,
@@ -528,6 +559,22 @@ struct AircraftPollingCoordinatorTests {
                 source: .adsbLol,
                 fetchedAt: ThrowCoreFixture.date,
                 observations: [ThrowCoreFixture.observation(positionAge: -1)],
+            )
+        }
+    }
+
+    private actor SuccessfulThenFailingSource: AircraftObservationSource {
+        private var requestCount = 0
+
+        func snapshot(for _: AircraftQuery) async throws -> AircraftSnapshot {
+            requestCount += 1
+            guard requestCount == 1 else {
+                throw AircraftSourceFailure.transport(.offline)
+            }
+            return try AircraftSnapshot(
+                source: .adsbLol,
+                fetchedAt: ThrowCoreFixture.date,
+                observations: [ThrowCoreFixture.observation()],
             )
         }
     }
@@ -709,6 +756,22 @@ private actor SingleImmediateSleepPollingClock: AircraftPollingClock {
     }
 }
 
+private actor TwoImmediateSleepPollingClock: AircraftPollingClock {
+    private var dateOffset: TimeInterval = 0
+    private var sleepCount = 0
+
+    func now() async -> Date {
+        defer { dateOffset += 1 }
+        return ThrowCoreFixture.date.addingTimeInterval(dateOffset)
+    }
+
+    func sleep(for duration: Duration) async throws {
+        sleepCount += 1
+        guard sleepCount > 2 else { return }
+        try await Task.sleep(for: duration)
+    }
+}
+
 private actor PollingStateRecorder {
     private var recordedStates: [AircraftPollingState] = []
 
@@ -718,5 +781,12 @@ private actor PollingStateRecorder {
 
     func states() -> [AircraftPollingState] {
         recordedStates
+    }
+
+    func retryFailureDates() -> [Date] {
+        recordedStates.compactMap { state in
+            guard case let .retrying(_, _, failureStartedAt, _) = state else { return nil }
+            return failureStartedAt
+        }
     }
 }

@@ -173,6 +173,7 @@ extension ThrowSession {
                 feedHealth = .loading
             case let .healthy(snapshot, _):
                 currentSnapshot = snapshot
+                currentMarkAvailability = .current
                 do {
                     let layer = try await makeLayerFrame(snapshot)
                     guard generation == pollingStateGeneration else { return }
@@ -190,8 +191,9 @@ extension ThrowSession {
                     feedHealth = .failed(.decoding)
                     await clearProjectionState(restartsGeography: true)
                 }
-            case let .retrying(lastGoodSnapshot, failure, nextRetryAt):
+            case let .retrying(lastGoodSnapshot, failure, failureStartedAt, nextRetryAt):
                 currentSnapshot = lastGoodSnapshot
+                currentMarkAvailability = .retrying(since: failureStartedAt)
                 if let lastGoodSnapshot {
                     do {
                         let layer = try await makeLayerFrame(lastGoodSnapshot)
@@ -286,6 +288,7 @@ extension ThrowSession {
             guard generation == demandGeneration else { return }
             currentSnapshot = nil
             currentLayerFrame = nil
+            currentMarkAvailability = .current
             feedHealth = .idle
             restartRenderer()
             return
@@ -393,6 +396,7 @@ extension ThrowSession {
         cancelRouteEnrichment()
         currentSnapshot = nil
         currentLayerFrame = nil
+        currentMarkAvailability = .current
         stopRenderer()
         projectionFrame = emptyProjectionFrame()
         var transaction = Transaction()
@@ -438,6 +442,7 @@ extension ThrowSession {
             observer: confirmedLocation.position,
             labelMode: labelMode,
             routes: routes,
+            availability: currentMarkAvailability,
         )
     }
 
@@ -603,6 +608,7 @@ extension ThrowSession {
     func discardOldFrame() async throws {
         currentSnapshot = nil
         currentLayerFrame = nil
+        currentMarkAvailability = .current
         stopRenderer()
         let empty = projectionFrameWithoutMarks()
         if reduceMotion {
