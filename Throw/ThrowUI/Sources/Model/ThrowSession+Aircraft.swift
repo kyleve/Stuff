@@ -456,7 +456,7 @@ extension ThrowSession {
                 guard generation == routeGeneration else { return }
                 routeTask = nil
                 switch result {
-                    case .noRequestNeeded:
+                    case .noRequestNeeded, .coolingDown:
                         break
                     case let .completed(hasNewRoutes):
                         routeLogger.record(FlightRouteLogEvent(outcome: .succeeded))

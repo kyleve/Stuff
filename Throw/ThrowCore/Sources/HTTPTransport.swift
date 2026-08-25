@@ -2,13 +2,11 @@ import Foundation
 
 public enum HTTPMethod: String, Hashable, Sendable {
     case get = "GET"
-    case post = "POST"
 }
 
 public enum HTTPHeaderField: String, Hashable, Sendable {
     case accept = "Accept"
     case acceptEncoding = "Accept-Encoding"
-    case contentType = "Content-Type"
     case rapidAPIHost = "X-RapidAPI-Host"
     case rapidAPIKey = "X-RapidAPI-Key"
 }
@@ -19,21 +17,18 @@ public struct HTTPRequest: Equatable, Sendable, CustomStringConvertible,
     public let method: HTTPMethod
     public let url: URL
     public let headers: [HTTPHeaderField: String]
-    public let body: Data?
     public let timeoutSeconds: TimeInterval
 
     public init(
         method: HTTPMethod,
         url: URL,
         headers: [HTTPHeaderField: String],
-        body: Data?,
         timeoutSeconds: TimeInterval,
     ) {
         precondition(timeoutSeconds > 0 && timeoutSeconds.isFinite)
         self.method = method
         self.url = url
         self.headers = headers
-        self.body = body
         self.timeoutSeconds = timeoutSeconds
     }
 
@@ -130,7 +125,6 @@ public struct URLSessionHTTPTransport: HTTPTransport {
         urlRequest.httpMethod = request.method.rawValue
         urlRequest.timeoutInterval = request.timeoutSeconds
         urlRequest.cachePolicy = .reloadIgnoringLocalCacheData
-        urlRequest.httpBody = request.body
         for (field, value) in request.headers {
             urlRequest.setValue(value, forHTTPHeaderField: field.rawValue)
         }

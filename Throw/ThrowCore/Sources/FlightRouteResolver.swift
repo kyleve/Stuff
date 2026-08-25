@@ -2,6 +2,7 @@ import Foundation
 
 public enum FlightRouteResolution: Equatable, Sendable {
     case noRequestNeeded
+    case coolingDown
     case completed(hasNewRoutes: Bool)
 }
 
@@ -14,9 +15,12 @@ public actor FlightRouteResolver {
 
     private static let positiveLifetime: TimeInterval = 6 * 60 * 60
     private static let negativeLifetime: TimeInterval = 60 * 60
+    private static let failureCooldown: TimeInterval = 5 * 60
+    private static let maximumQueriesPerPass = 12
 
     private let source: any FlightRouteSource
     private var entries: [FlightCallsign: Entry] = [:]
+    private var retryNotBefore: Date?
 
     public init(source: any FlightRouteSource) {
         self.source = source
@@ -42,19 +46,31 @@ public actor FlightRouteResolver {
         at date: Date,
     ) async throws -> FlightRouteResolution {
         removeExpiredEntries(at: date)
+        if let retryNotBefore, retryNotBefore > date {
+            return .coolingDown
+        }
+        retryNotBefore = nil
         var seen: Set<FlightCallsign> = []
         let queries = observations.compactMap { observation -> FlightRouteQuery? in
             guard let callsign = observation.callsign.flatMap(FlightCallsign.init(rawValue:)),
                   entries[callsign] == nil,
                   seen.insert(callsign).inserted
             else { return nil }
-            return FlightRouteQuery(callsign: callsign, coordinate: observation.coordinate)
+            return FlightRouteQuery(callsign: callsign)
         }
-        .prefix(AdsBLolFlightRouteSource.maximumBatchSize)
+        .prefix(Self.maximumQueriesPerPass)
         guard queries.isEmpty == false else { return .noRequestNeeded }
 
         let queryArray = Array(queries)
-        let routes = try await source.routes(for: queryArray)
+        let routes: [FlightCallsign: FlightRoute]
+        do {
+            routes = try await source.routes(for: queryArray)
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            retryNotBefore = date.addingTimeInterval(Self.failureCooldown)
+            throw error
+        }
         try Task.checkCancellation()
         let queriedCallsigns = Set(queryArray.map(\.callsign))
         for callsign in queriedCallsigns {
