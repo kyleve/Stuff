@@ -45,6 +45,17 @@
         }
       }
     },
+    "about.adsbdb" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ADSBDB Route Data"
+          }
+        }
+      }
+    },
     "about.aircraftData" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -216,7 +227,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Flight routes are resolved through adsb.lol from broadcast callsigns and aircraft positions. Route lookups do not include your observer position."
+            "value" : "Flight routes are resolved through ADSBDB from broadcast callsigns. Route lookups do not include aircraft or observer positions."
           }
         }
       }

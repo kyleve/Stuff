@@ -47,6 +47,9 @@ struct ThrowAboutView: View {
                 }
                 Text(.aboutAircraftTypeDatabaseCredit)
                     .foregroundStyle(.secondary)
+                if let adsbdbURL = URL(string: "https://www.adsbdb.com/") {
+                    Link(String(localized: .aboutAdsbdb), destination: adsbdbURL)
+                }
                 Text(.aboutRouteDataCredit)
                     .foregroundStyle(.secondary)
             }

@@ -77,7 +77,6 @@ public struct AdsBLolSource: AircraftObservationSource, CustomStringConvertible,
             method: .get,
             url: url,
             headers: [.accept: "application/json"],
-            body: nil,
             timeoutSeconds: 8,
         )
     }

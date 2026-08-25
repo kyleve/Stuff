@@ -14,9 +14,8 @@ struct FlightRouteModelsTests {
         #expect(FlightCallsign(rawValue: value) == nil)
     }
 
-    @Test func descriptionsRedactCallsignsRoutesAndCoordinates() throws {
+    @Test func descriptionsRedactCallsignsAndRoutes() throws {
         let callsignSentinel = "UAL123"
-        let coordinateSentinel = "37.123456"
         let callsign = try #require(FlightCallsign(rawValue: callsignSentinel))
         let origin = try #require(AirportCode(rawValue: "JFK"))
         let destination = try #require(AirportCode(rawValue: "SFO"))
@@ -24,19 +23,12 @@ struct FlightRouteModelsTests {
             callsign,
             origin,
             FlightRoute(origin: origin, destination: destination),
-            FlightRouteQuery(
-                callsign: callsign,
-                coordinate: GeoCoordinate(
-                    latitude: 37.123456,
-                    longitude: -122,
-                ),
-            ),
+            FlightRouteQuery(callsign: callsign),
         ]
         for value in values {
             let descriptions = [String(describing: value), String(reflecting: value)]
             for description in descriptions {
                 #expect(description.contains(callsignSentinel) == false)
-                #expect(description.contains(coordinateSentinel) == false)
                 #expect(description.contains("JFK") == false)
                 #expect(description.contains("SFO") == false)
             }

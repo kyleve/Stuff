@@ -48,7 +48,7 @@ extension ThrowSession {
             layerCatalog: .standard,
             geographyLogger: PeriscopeGeographyLogger(log: ThrowLog.geography),
             routeResolver: FlightRouteResolver(
-                source: AdsBLolFlightRouteSource(transport: cloudTransport),
+                source: ADSBDBFlightRouteSource(transport: cloudTransport),
             ),
             routeLogger: PeriscopeFlightRouteLogger(log: ThrowLog.flightRoutes),
             softwareCredits: credits,

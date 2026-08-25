@@ -125,7 +125,6 @@ public struct ADSBExchangeRapidAPISource: AircraftObservationSource, CustomStrin
                 .rapidAPIHost: Self.host,
                 .rapidAPIKey: credential.authenticationHeaderValue,
             ],
-            body: nil,
             timeoutSeconds: 8,
         )
     }

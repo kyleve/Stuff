@@ -71,11 +71,9 @@ public struct FlightRouteQuery: Hashable, Sendable, CustomStringConvertible,
     CustomDebugStringConvertible
 {
     public let callsign: FlightCallsign
-    public let coordinate: GeoCoordinate
 
-    public init(callsign: FlightCallsign, coordinate: GeoCoordinate) {
+    public init(callsign: FlightCallsign) {
         self.callsign = callsign
-        self.coordinate = coordinate
     }
 
     public var description: String {
