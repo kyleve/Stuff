@@ -187,8 +187,8 @@ private struct GeographyProjectionCanvas: View, Equatable {
                 guard let path = paths[kind], path.isEmpty == false else { continue }
                 let appearance = geographyAppearance(kind, style: style.geography)
                 let color = Color(
-                    white: style.markLuminance * intensityMultiplier *
-                        geographyIntensityMultiplier * appearance.luminance,
+                    white: intensityMultiplier * geographyIntensityMultiplier *
+                        appearance.luminance,
                 )
                 geographyContext.stroke(
                     path,
@@ -272,6 +272,14 @@ private struct GeographyAppearance {
             SnapshotCase(
                 name: "Map",
                 configurations: projectionConfigurations,
+                settle: .immediate,
+            ) {
+                ProjectionSurface(session: .fixture(), presentation: .preview)
+                    .throwBroadwayRoot()
+            }
+            SnapshotCase(
+                name: "Map Dark",
+                configurations: [darkWidescreenConfiguration],
                 settle: .immediate,
             ) {
                 ProjectionSurface(session: .fixture(), presentation: .preview)
@@ -365,6 +373,13 @@ private struct GeographyAppearance {
 
         private static var widescreenConfiguration: SnapshotConfiguration {
             projectorConfiguration(name: "16x9", size: CGSize(width: 960, height: 540))
+        }
+
+        private static var darkWidescreenConfiguration: SnapshotConfiguration {
+            SnapshotConfiguration(
+                colorScheme: .dark,
+                device: .init(name: "16x9", size: .fixed(CGSize(width: 960, height: 540))),
+            )
         }
 
         private static var sixteenByTenConfiguration: SnapshotConfiguration {
