@@ -1,13 +1,16 @@
 import SFSafeSymbols
+import SnapshotKit
 import SwiftUI
+import UIKit
 
 public struct FullScreenProjectionView: View {
     private let session: ThrowSession
     private let outputID: ProjectionOutputID
     private let onExit: () -> Void
 
-    @State private var controlsVisible = false
+    @State private var controlsVisible = true
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverEnabled
 
     public init(
         session: ThrowSession,
@@ -42,9 +45,21 @@ public struct FullScreenProjectionView: View {
         .background(.black)
         .accessibilityAddTraits(.isModal)
         .accessibilityAction(named: Text(.projectionExit), onExit)
-        .onAppear { session.projectionOutputConnected(.fullScreen(outputID)) }
-        .onDisappear { session.projectionOutputDisconnected(.fullScreen(outputID)) }
-        .task(id: controlsVisible) {
+        .onAppear {
+            controlsVisible = true
+            session.projectionOutputConnected(.fullScreen(outputID))
+            UIAccessibility.post(notification: .screenChanged, argument: nil)
+        }
+        .onDisappear {
+            session.projectionOutputDisconnected(.fullScreen(outputID))
+            UIAccessibility.post(notification: .screenChanged, argument: nil)
+        }
+        .onChange(of: voiceOverEnabled) { _, isEnabled in
+            if isEnabled {
+                controlsVisible = true
+            }
+        }
+        .task(id: controlAutoHideState) {
             await hideControlsAfterDelay()
         }
         .animation(
@@ -58,7 +73,7 @@ public struct FullScreenProjectionView: View {
     }
 
     private func hideControlsAfterDelay() async {
-        guard controlsVisible else { return }
+        guard controlsVisible, voiceOverEnabled == false else { return }
         do {
             try await Task.sleep(for: .seconds(4))
         } catch is CancellationError {
@@ -67,7 +82,43 @@ public struct FullScreenProjectionView: View {
             assertionFailure("Unexpected projection-control timer failure: \(error)")
             return
         }
-        guard Task.isCancelled == false else { return }
+        guard Task.isCancelled == false, voiceOverEnabled == false else { return }
         controlsVisible = false
     }
+
+    private var controlAutoHideState: ControlAutoHideState {
+        if voiceOverEnabled {
+            return .disabled
+        }
+        return controlsVisible ? .scheduled : .idle
+    }
+
+    private enum ControlAutoHideState: Equatable {
+        case idle
+        case scheduled
+        case disabled
+    }
 }
+
+#if DEBUG
+    extension FullScreenProjectionView: SnapshotProviding {
+        public static var snapshots: [SnapshotCase] {
+            SnapshotCase(
+                name: "Initial Controls",
+                configurations: [SnapshotConfiguration(device: .iPhone)],
+                settle: .immediate,
+            ) {
+                FullScreenProjectionView(
+                    session: .calibrationSnapshotFixture(),
+                    outputID: ProjectionOutputID(rawValue: "snapshot-full-screen"),
+                    onExit: {},
+                )
+                .throwBroadwayRoot()
+            }
+        }
+
+        #Preview("Snapshot matrix") {
+            FullScreenProjectionView.snapshotPreviews
+        }
+    }
+#endif
