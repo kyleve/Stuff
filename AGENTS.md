@@ -647,6 +647,8 @@ being written off as untestable from a cloud agent.
 ([`.circleci/config.yml`](.circleci/config.yml)) runs the iOS `test-ios` and
 `snapshot` jobs, which moved there in PR #237. CircleCI passes
 `--skip-architecture` so Bumper does not run twice. Do not read either file as
-the whole of CI. See the
+the whole of CI. PRs with `NO-CI` in their title skip both CI systems. Use this
+marker only for prototypes and exploratory work. The marker does not skip
+pushes to `main` or manual CircleCI full-gate runs. See the
 [`running-tests`](.agents/skills/running-tests/SKILL.md) skill for simulator
 setup and the full validation recipe.

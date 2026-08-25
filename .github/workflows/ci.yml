@@ -19,7 +19,10 @@ env:
   MISE_NO_HOOKS: "1"
 
 jobs:
+  # Prototype and exploratory PRs opt out with `NO-CI` in their title. Main
+  # pushes still run every job.
   format:
+    if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.title, 'NO-CI') }}
     name: SwiftFormat Lint
     runs-on: xcode-27
     timeout-minutes: 20
@@ -50,6 +53,7 @@ jobs:
       - name: Attribution report check
         run: ./attribution --check
   architecture:
+    if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.title, 'NO-CI') }}
     name: Bumper Bowling
     runs-on: xcode-27
     env:
@@ -78,6 +82,7 @@ jobs:
           key: ${{ steps.bumper-cache.outputs.cache-primary-key }}
 
   test-macos:
+    if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.title, 'NO-CI') }}
     name: Build & Test (macOS)
     # Keep the native-macOS target on GitHub's pinned Xcode image.
     runs-on: xcode-27

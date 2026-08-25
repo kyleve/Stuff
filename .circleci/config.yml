@@ -376,11 +376,14 @@ jobs:
 
 workflows:
   "iOS CI":
+    # Prototype and exploratory PRs opt out with `NO-CI` in their title. Main
+    # pushes and explicit full-gate runs remain mandatory.
     when: >-
       pipeline.parameters.manual_full_gate == "true" or
       (pipeline.event.name == "push" and pipeline.git.branch == "main") or
       (pipeline.event.name == "pull_request" and
-      pipeline.event.github.pull_request.base.ref == "main")
+      pipeline.event.github.pull_request.base.ref == "main" and
+      not (pipeline.event.github.pull_request.title matches /.*NO-CI.*/))
     jobs:
       - build-ios-tests:
           name: Build iOS Tests
