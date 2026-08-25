@@ -30,6 +30,8 @@ let package = Package(
         .library(name: "WhereIntents", targets: ["WhereIntents"]),
         .library(name: "BroadwayCore", targets: ["BroadwayCore"]),
         .library(name: "BroadwayUI", targets: ["BroadwayUI"]),
+        .library(name: "ThrowCore", targets: ["ThrowCore"]),
+        .library(name: "ThrowUI", targets: ["ThrowUI"]),
     ],
     dependencies: [
         .package(
@@ -222,6 +224,28 @@ let package = Package(
                 .target(name: "BroadwayCore"),
             ],
             path: "Shared/Broadway/BroadwayUI/Sources",
+        ),
+        .target(
+            name: "ThrowCore",
+            dependencies: [
+                .target(name: "PeriscopeCore"),
+            ],
+            path: "Throw/ThrowCore/Sources",
+        ),
+        .target(
+            name: "ThrowUI",
+            dependencies: [
+                .target(name: "BroadwayCore"),
+                .target(name: "BroadwayUI"),
+                .target(name: "CreditKit"),
+                .target(name: "SnapshotKit"),
+                .target(name: "ThrowCore"),
+                .product(name: "SFSafeSymbols", package: "SFSafeSymbols"),
+            ],
+            path: "Throw/ThrowUI/Sources",
+            resources: [
+                .process("Resources"),
+            ],
         ),
     ],
 )
