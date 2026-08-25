@@ -4,11 +4,14 @@ import Testing
 
 @MainActor
 struct OnboardingFlowModelTests {
-    @Test func calibrationDemandSynchronizesDraftAndRequiresChosenOutput() {
+    @Test func calibrationDemandSynchronizesDraftAndAcceptsFullScreenOutputChoice() {
         let session = ThrowSession.fixture()
         let outputs = ControllerProjectionOutputs()
         let model = OnboardingFlowModel(session: session, outputs: outputs)
         model.step = .calibration
+
+        #expect(model.canContinue == false)
+
         model.calibrationOutputChoice = .fullScreenPreview
 
         model.beginCalibration()
@@ -18,10 +21,16 @@ struct OnboardingFlowModelTests {
         #expect(session.isCalibrating)
         #expect(session.screenTopBearing == 123)
         #expect(session.safeInsetPercent == 12)
-        #expect(model.canContinue == false)
+        #expect(model.canContinue)
+        #expect(model.didVerifyFullScreenPreview == false)
 
         model.markFullScreenPreviewPresented()
+        #expect(model.didVerifyFullScreenPreview)
         #expect(model.canContinue)
+
+        model.calibrationOutputChoice = .externalDisplay
+        #expect(model.didVerifyFullScreenPreview == false)
+        #expect(model.canContinue == false)
 
         model.endCalibration()
         #expect(session.isCalibrating == false)

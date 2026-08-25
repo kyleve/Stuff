@@ -335,7 +335,7 @@ final class OnboardingFlowModel {
             case .externalDisplay:
                 hasConnectedExternalDisplay
             case .fullScreenPreview:
-                didPresentFullScreenPreview
+                true
             case nil:
                 false
         }
