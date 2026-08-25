@@ -48,6 +48,9 @@ struct ProjectionLabelCollisionResolver {
     }
 
     private func precedes(_ lhs: ProjectedMark, _ rhs: ProjectedMark) -> Bool {
+        let leftIsAirport = if case .airport = lhs.glyph { true } else { false }
+        let rightIsAirport = if case .airport = rhs.glyph { true } else { false }
+        if leftIsAirport != rightIsAirport { return rightIsAirport }
         switch (lhs.range, rhs.range) {
             case let (left?, right?):
                 let difference = abs(left.value - right.value)

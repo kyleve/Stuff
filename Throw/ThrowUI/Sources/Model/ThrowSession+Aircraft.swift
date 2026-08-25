@@ -367,6 +367,7 @@ extension ThrowSession {
                     try Task.checkCancellation()
                     guard generation == renderGeneration else { return }
                     projectionFrame = output.frame
+                    projectionMarkEffects = output.effects
                     geographyLayerHealth = output.geographyHealth
                     updateVisibleCount(output.frame.visibleAircraftCount)
                     if currentLayerFrame == nil {

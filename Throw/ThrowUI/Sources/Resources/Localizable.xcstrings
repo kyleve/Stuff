@@ -89,6 +89,17 @@
         }
       }
     },
+    "about.airportGeometryCredit" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Airport and runway geometry is from the public-domain OurAirports data set. Activity phases are ambient estimates, not authoritative landing or takeoff status."
+          }
+        }
+      }
+    },
     "about.creditsUnavailable" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -195,6 +206,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No development-tool credits are included in this build."
+          }
+        }
+      }
+    },
+    "about.ourAirports" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OurAirports Airport and Runway Data"
           }
         }
       }

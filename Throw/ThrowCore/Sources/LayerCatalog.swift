@@ -83,7 +83,7 @@ public struct AnyLayerDescriptor: Identifiable, Sendable {
 public struct LayerCatalog: Sendable {
     public static let standard = LayerCatalog(
         flightsFactory: LayerRuntimeFactory {
-            FlightsLayerRuntime(typeCatalog: .bundled)
+            FlightsLayerRuntime(typeCatalog: .bundled, airportCatalog: .bundled)
         },
         geographyFactory: LayerRuntimeFactory {
             GeographyLayerRuntime(dataSource: BundledGeographyDataSource())

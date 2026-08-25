@@ -66,6 +66,7 @@ public struct ProjectionEngine: Sendable {
                 if markIndex.isMultiple(of: 64) {
                     try Task.checkCancellation()
                 }
+                if case .airport = mark.glyph, viewport.mode != .map { continue }
                 guard let prediction = try FlightPredictor.prediction(for: mark, at: generatedAt)
                 else {
                     continue
@@ -83,15 +84,26 @@ public struct ProjectionEngine: Sendable {
                     calibration: calibration,
                     geometry: geometry,
                 )
-                let orientation = try apparentOrientation(
-                    for: mark,
-                    at: generatedAt,
-                    observer: observer,
-                    viewport: viewport,
-                    calibration: calibration,
-                    geometry: geometry,
-                    currentPoint: point,
-                )
+                let orientation = switch mark.glyph {
+                    case let .airport(descriptor): try projectedOrientation(
+                            bearing: descriptor.runwayBearing,
+                            anchor: prediction.mark.anchor,
+                            observer: observer,
+                            viewport: viewport,
+                            calibration: calibration,
+                            geometry: geometry,
+                            currentPoint: point,
+                        )
+                    case .aircraft, .star, .satellite: try apparentOrientation(
+                            for: mark,
+                            at: generatedAt,
+                            observer: observer,
+                            viewport: viewport,
+                            calibration: calibration,
+                            geometry: geometry,
+                            currentPoint: point,
+                        )
+                }
                 let altitudeIsApproximate: Bool = switch prediction.mark.anchor {
                     case let .geodetic(anchor):
                         anchor.altitudeQuality == .barometricApproximation
@@ -448,6 +460,65 @@ public struct ProjectionEngine: Sendable {
         let radians = atan2(deltaX, -deltaY)
         let bearing = try Bearing(degrees: radians.degrees)
         return bearing.degrees
+    }
+
+    private func projectedOrientation(
+        bearing: Bearing?,
+        anchor: ProjectionAnchor,
+        observer: ObserverPosition,
+        viewport: ProjectionViewport,
+        calibration: ProjectionCalibration,
+        geometry: ProjectionGeometry,
+        currentPoint: ProjectionPoint,
+    ) throws -> Double? {
+        guard let bearing, case let .geodetic(anchor) = anchor else { return nil }
+        let comparisonCoordinate = try destination(
+            from: anchor.coordinate,
+            bearing: bearing,
+            distanceNauticalMiles: 0.25,
+        )
+        let comparisonAnchor = GeodeticAnchor(
+            coordinate: comparisonCoordinate,
+            altitude: anchor.altitude,
+            altitudeQuality: anchor.altitudeQuality,
+        )
+        guard let radial = try radialPosition(
+            for: .geodetic(comparisonAnchor),
+            observer: observer,
+            viewport: viewport,
+            screenTopBearing: calibration.screenTopBearing,
+        ) else { return nil }
+        let comparisonPoint = calibratedPoint(
+            radial: radial,
+            calibration: calibration,
+            geometry: geometry,
+        )
+        let deltaX = (comparisonPoint.x - currentPoint.x) * geometry.width
+        let deltaY = (comparisonPoint.y - currentPoint.y) * geometry.height
+        guard hypot(deltaX, deltaY) > 1e-8 else { return nil }
+        return try Bearing(degrees: atan2(deltaX, -deltaY).degrees).degrees
+    }
+
+    private func destination(
+        from origin: GeoCoordinate,
+        bearing: Bearing,
+        distanceNauticalMiles: Double,
+    ) throws -> GeoCoordinate {
+        let angularDistance = distanceNauticalMiles / 3440.0695
+        let latitude = origin.latitude.radians
+        let longitude = origin.longitude.radians
+        let direction = bearing.degrees.radians
+        let resultLatitude = asin(
+            sin(latitude) * cos(angularDistance) +
+                cos(latitude) * sin(angularDistance) * cos(direction),
+        )
+        let resultLongitude = longitude + atan2(
+            sin(direction) * sin(angularDistance) * cos(latitude),
+            cos(angularDistance) - sin(latitude) * sin(resultLatitude),
+        )
+        var longitudeDegrees = resultLongitude.degrees
+        longitudeDegrees = (longitudeDegrees + 540).truncatingRemainder(dividingBy: 360) - 180
+        return try GeoCoordinate(latitude: resultLatitude.degrees, longitude: longitudeDegrees)
     }
 
     private func ecef(coordinate: GeoCoordinate, altitudeMeters: Double) -> CartesianPoint {

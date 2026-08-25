@@ -65,6 +65,17 @@ requests. It caches successful routes for six hours and unknown routes for one
 hour. A provider failure pauses lookups for five minutes. Aircraft rendering
 does not wait for this optional enrichment.
 
+`Tools/generate-airports.rb` creates the bundled airport catalog from a pinned
+OurAirports revision. The manifest fixes both source-file digests and the
+generated-resource digest. The catalog includes active coded airports,
+elevations, code aliases, and open runway endpoints.
+
+The activity classifier treats an airport within 50 NM of the observer as
+local. Route data can confirm an arrival or departure estimate. Strict motion,
+altitude, distance, and runway-alignment rules can infer an estimate without a
+route. Ground aircraft and observations without altitude or vertical rate do
+not receive inferred activity.
+
 ## Privacy and limitations
 
 Cloud requests use ephemeral sessions. Logging is typed and redacted: no

@@ -48,14 +48,14 @@ struct ProjectionFrameWorkerTests {
         #expect(pointDistance(displayed.point, target.point) > 0.000_1)
     }
 
-    @Test func feedCorrectionMidpointBlendsTheCapturedSourceTowardThePredictedTarget() async throws {
+    @Test func feedCorrectionMidpointUsesCubicEaseOutTowardThePredictedTarget() async throws {
         let frames = try await correctionFrames(progress: 0.5, reduceMotion: false)
         let source = try #require(frames.source.marks.first)
         let displayed = try #require(frames.displayed.marks.first)
         let target = try #require(frames.target.marks.first)
         let expected = ProjectionPoint(
-            x: source.point.x + (target.point.x - source.point.x) * 0.5,
-            y: source.point.y + (target.point.y - source.point.y) * 0.5,
+            x: source.point.x + (target.point.x - source.point.x) * 0.875,
+            y: source.point.y + (target.point.y - source.point.y) * 0.875,
         )
 
         #expect(pointDistance(displayed.point, expected) < 0.000_001)
@@ -203,6 +203,67 @@ struct ProjectionFrameWorkerTests {
         let resetMark = try #require(resetFrame.marks.first)
         let freshMark = try #require(freshFrame.marks.first)
         #expect(pointDistance(resetMark.point, freshMark.point) < 0.000_001)
+    }
+
+    @Test func acquisitionRingExpandsOnceForASemanticIdentity() async throws {
+        let date = Date(timeIntervalSince1970: 3500)
+        let worker = projectionFrameWorker()
+        let observer = try observer()
+        let viewport = try ProjectionViewport.map(MapViewport(radius: NauticalMiles(value: 50)))
+        let layer = try layerFrame(label: nil, observedAt: date, observer: observer)
+        let markID = try #require(layer.marks.first?.id)
+
+        let start = try await worker.frame(
+            layerFrame: layer,
+            geographyEnabled: false,
+            observer: observer,
+            viewport: viewport,
+            calibration: .defaultValue,
+            generatedAt: date,
+            reduceMotion: false,
+        )
+        let midpoint = try await worker.frame(
+            layerFrame: layer,
+            geographyEnabled: false,
+            observer: observer,
+            viewport: viewport,
+            calibration: .defaultValue,
+            generatedAt: date.addingTimeInterval(0.45),
+            reduceMotion: false,
+        )
+        let finished = try await worker.frame(
+            layerFrame: layer,
+            geographyEnabled: false,
+            observer: observer,
+            viewport: viewport,
+            calibration: .defaultValue,
+            generatedAt: date.addingTimeInterval(0.9),
+            reduceMotion: false,
+        )
+
+        #expect(start.effects[markID]?.acquisitionProgress == 0)
+        #expect(abs((midpoint.effects[markID]?.acquisitionProgress ?? 0) - 0.5) < 0.000_001)
+        #expect(finished.effects[markID]?.acquisitionProgress == nil)
+    }
+
+    @Test func reduceMotionRemovesAcquisitionRingAndScaleMotion() async throws {
+        let date = Date(timeIntervalSince1970: 3600)
+        let worker = projectionFrameWorker()
+        let observer = try observer()
+        let layer = try layerFrame(label: nil, observedAt: date, observer: observer)
+        let output = try await worker.frame(
+            layerFrame: layer,
+            geographyEnabled: false,
+            observer: observer,
+            viewport: .map(MapViewport(radius: NauticalMiles(value: 50))),
+            calibration: .defaultValue,
+            generatedAt: date,
+            reduceMotion: true,
+        )
+        let markID = try #require(layer.marks.first?.id)
+
+        #expect(output.effects[markID]?.acquisitionProgress == nil)
+        #expect(output.effects[markID]?.scale == 1)
     }
 
     @Test func geographyIsMapOnlyAndLoadsItsStaticArchiveOnce() async throws {

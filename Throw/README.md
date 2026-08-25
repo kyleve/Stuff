@@ -58,6 +58,22 @@ not included. Route results stay in a short-lived memory cache and do not delay
 or affect the selected aircraft feed. Failed lookups pause for five minutes
 before Throw tries the provider again.
 
+## Ambient flight activity
+
+Throw estimates local arrivals and departures from route data and aircraft motion.
+A local airport is within 50 NM of the observer.
+Inbound and outbound cues stay dim until aircraft enter an approach or initial-climb stage.
+These cues use small guide marks around each aircraft in Map and True Sky.
+
+Map mode also shows the longest open runway for each relevant airport.
+Confirmed airports show a code when labels are enabled.
+Inferred airports stay graphical.
+Throw bundles public-domain airport and runway geometry from OurAirports.
+
+The activity stages are ambient estimates.
+They do not identify literal touchdown or liftoff times.
+This limitation is more visible when the selected aircraft source uses a slow polling interval.
+
 The ADS-B Exchange path is for a personal beta using each user's own
 personal/non-commercial subscription. Public distribution requires written
 provider authorization, the applicable commercial terms, and a

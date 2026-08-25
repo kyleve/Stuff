@@ -16,6 +16,7 @@ public struct LayerID: Hashable, Sendable {
 
 public enum LayerMarkNamespace: String, Hashable, Sendable {
     case aircraft
+    case airport
     case star
     case satellite
 }
@@ -159,6 +160,7 @@ public enum ProjectionAnchor: Hashable, Sendable, CustomStringConvertible,
 
 public enum ProjectionGlyph: Hashable, Sendable {
     case aircraft(AircraftGlyphDescriptor)
+    case airport(AirportGlyphDescriptor)
     case star
     case satellite
 }

@@ -192,6 +192,111 @@ extension ThrowSession {
             return session
         }
 
+        static func activitySnapshotFixture(mode: ProjectionMode) -> ThrowSession {
+            let session = fixture()
+            let airport = try! AirportRecord(
+                id: AirportID(rawValue: 99),
+                coordinate: GeoCoordinate(latitude: 37.62, longitude: -122.38),
+                elevation: Altitude(feet: 13),
+                codes: [AirportCode(rawValue: "SFO")!],
+                runways: [RunwayRecord(
+                    id: 990,
+                    lengthFeet: 11870,
+                    lowEnd: GeoCoordinate(latitude: 37.61, longitude: -122.40),
+                    highEnd: GeoCoordinate(latitude: 37.63, longitude: -122.36),
+                )],
+            )
+            let activities: [FlightActivity] = [
+                .arrival(
+                    AirportActivityContext(
+                        airport: airport,
+                        aircraftDistance: try! NauticalMiles(value: 18),
+                    ),
+                    .inbound,
+                    .confirmed,
+                ),
+                .arrival(
+                    AirportActivityContext(
+                        airport: airport,
+                        aircraftDistance: try! NauticalMiles(value: 6),
+                    ),
+                    .approach,
+                    .confirmed,
+                ),
+                .departure(
+                    AirportActivityContext(
+                        airport: airport,
+                        aircraftDistance: try! NauticalMiles(value: 14),
+                    ),
+                    .outbound,
+                    .inferred,
+                ),
+                .departure(
+                    AirportActivityContext(
+                        airport: airport,
+                        aircraftDistance: try! NauticalMiles(value: 4),
+                    ),
+                    .initialClimb,
+                    .confirmed,
+                ),
+            ]
+            let points = [(0.30, 0.38), (0.45, 0.58), (0.67, 0.36), (0.62, 0.68)]
+            let aircraft = activities.enumerated().map { index, activity in
+                ProjectedMark(
+                    id: LayerMarkID(
+                        layerID: .flights,
+                        namespace: .aircraft,
+                        rawValue: "activity-\(index)",
+                    ),
+                    point: ProjectionPoint(x: points[index].0, y: points[index].1),
+                    range: try! NauticalMiles(value: Double(5 + index * 8)),
+                    glyph: .aircraft(AircraftGlyphDescriptor(
+                        family: index.isMultiple(of: 2) ? .airliner : .regionalBusinessJet,
+                        brand: index.isMultiple(of: 2) ? .united : .southwest,
+                        isGrounded: false,
+                        activity: activity,
+                    )),
+                    label: ProjectionLabel(
+                        primary: index < 2 ? "LAX → SFO" : "SFO → SAN",
+                        secondary: "FLT\(210 + index)",
+                    ),
+                    orientationDegrees: [45, 135, 250, 325][index],
+                    opacity: 1,
+                    labelOpacity: 1,
+                    altitudeIsApproximate: false,
+                )
+            }
+            let airportMark = ProjectedMark(
+                id: airport.id.layerMarkID,
+                point: ProjectionPoint(x: 0.5, y: 0.5),
+                range: try! NauticalMiles(value: 12),
+                glyph: .airport(AirportGlyphDescriptor(
+                    airportID: airport.id,
+                    code: airport.displayCode,
+                    runwayBearing: try! Bearing(degrees: 100),
+                    certainty: .confirmed,
+                )),
+                label: ProjectionLabel(primary: "SFO", secondary: nil),
+                orientationDegrees: 100,
+                opacity: 1,
+                labelOpacity: 1,
+                altitudeIsApproximate: false,
+            )
+            session.projectionFrame = ProjectionFrame(
+                mode: mode,
+                generatedAt: session.dateProvider.now(),
+                geography: mode == .map
+                    ? ProjectedGeography(
+                        id: GeographyProjectionID(rawValue: 1),
+                        segments: fixtureGeographySegments(),
+                    )
+                    : nil,
+                geographyOpacity: 1,
+                marks: aircraft + (mode == .map ? [airportMark] : []),
+            )
+            return session
+        }
+
         static func calibrationSnapshotFixture() -> ThrowSession {
             let session = fixture()
             session.previewCalibration(
@@ -544,6 +649,7 @@ extension ThrowSession {
                             family: value.family,
                             brand: value.brand,
                             isGrounded: false,
+                            activity: .overflight,
                         )),
                         label: fixtureLabel(for: value),
                         orientationDegrees: value.orientation,

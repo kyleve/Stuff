@@ -52,6 +52,11 @@ struct ThrowAboutView: View {
                 }
                 Text(.aboutRouteDataCredit)
                     .foregroundStyle(.secondary)
+                if let ourAirportsURL = URL(string: "https://ourairports.com/data/") {
+                    Link(String(localized: .aboutOurAirports), destination: ourAirportsURL)
+                }
+                Text(.aboutAirportGeometryCredit)
+                    .foregroundStyle(.secondary)
             }
 
             Section(String(localized: .aboutGeographicData)) {
