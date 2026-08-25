@@ -51,6 +51,22 @@ class ThrowInstallCommandTest < Minitest::Test
     end
   end
 
+  def test_stale_package_resources_trigger_one_clean_rebuild_before_install
+    with_fixture(statuses: { stale_throw_resources: true }) do |fixture|
+      fixture.write_devices(
+        fixture.device(identifier: "tablet-id", udid: "tablet-udid", name: "Kai's iPad"),
+      )
+
+      stdout, stderr, status = fixture.run("--device", "Kai's iPad", "--yes")
+
+      assert status.success?, stderr
+      assert_includes stdout, "stale package resources detected; cleaning and rebuilding"
+      assert_includes fixture.log, "xcodebuild clean -workspace Stuff.xcworkspace -scheme Throw"
+      assert_equal 2, fixture.log.scan("xcodebuild build -workspace Stuff.xcworkspace -scheme Throw").count
+      assert_includes fixture.log, "device install app"
+    end
+  end
+
   def test_rejects_the_where_only_cloudkit_option_before_running_dependencies
     with_fixture do |fixture|
       _stdout, stderr, status = fixture.run("--cloudkit")
