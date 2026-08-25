@@ -100,7 +100,11 @@ private struct ProjectionMarksCanvas: View {
                 style.minimumMarkSize,
                 style.standardMarkSize * markSizeMultiplier,
             )
-            let color = Color(white: style.markLuminance * intensityMultiplier)
+            let markColor = Color(white: style.markLuminance * intensityMultiplier)
+            let labelColor = Color(
+                white: style.markLuminance * style.label.luminanceMultiplier *
+                    intensityMultiplier,
+            )
 
             for mark in marks {
                 let point = CGPoint(
@@ -120,23 +124,30 @@ private struct ProjectionMarksCanvas: View {
                 )
                 switch mark.glyph {
                     case .aircraft:
-                        markContext.fill(AircraftGlyphShape().path(in: rect), with: .color(color))
+                        markContext.fill(
+                            AircraftGlyphShape().path(in: rect),
+                            with: .color(markColor),
+                        )
                     case .star:
-                        markContext.fill(Path(ellipseIn: rect), with: .color(color))
+                        markContext.fill(Path(ellipseIn: rect), with: .color(markColor))
                     case .satellite:
-                        markContext.stroke(Path(ellipseIn: rect), with: .color(color), lineWidth: 1)
+                        markContext.stroke(
+                            Path(ellipseIn: rect),
+                            with: .color(markColor),
+                            lineWidth: 1,
+                        )
                 }
 
                 if let label = mark.label {
                     let labelPoint = CGPoint(
-                        x: point.x + markSize / 2 + style.labelOffset,
+                        x: point.x + markSize / 2 + style.label.offset,
                         y: point.y,
                     )
                     let labelValue = label.secondary.map { "\(label.primary) · \($0)" }
                         ?? label.primary
                     let text = Text(verbatim: labelValue)
-                        .font(.caption)
-                        .foregroundStyle(color)
+                        .font(style.label.font)
+                        .foregroundStyle(labelColor)
                     var labelContext = context
                     labelContext.opacity = effectiveOpacity * mark.labelOpacity
                     labelContext.draw(text, at: labelPoint, anchor: .leading)
