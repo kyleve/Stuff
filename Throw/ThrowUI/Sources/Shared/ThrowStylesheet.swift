@@ -86,10 +86,10 @@ extension ThrowStylesheet {
         var disputedDash: [CGFloat]
 
         static let standard = GeographyStyle(
-            coastlineLineWidth: 0.8,
-            lakeLineWidth: 0.65,
-            riverLineWidth: 0.55,
-            boundaryLineWidth: 0.5,
+            coastlineLineWidth: 1.25,
+            lakeLineWidth: 1,
+            riverLineWidth: 1,
+            boundaryLineWidth: 1,
             coastlineLuminance: 1,
             lakeLuminance: 0.8,
             riverLuminance: 0.65,

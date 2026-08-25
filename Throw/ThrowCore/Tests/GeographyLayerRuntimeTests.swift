@@ -67,4 +67,24 @@ struct GeographyLayerRuntimeTests {
         #expect(frame.geographicLines.count == 3774)
         #expect(Set(frame.geographicLines.map(\.kind)) == Set(GeographyLineKind.allCases))
     }
+
+    @Test func bundledArchiveProjectsRecognizableLocalContext() async throws {
+        let runtime = GeographyLayerRuntime(dataSource: BundledGeographyDataSource())
+        let frame = try await runtime.frame(for: GeographyLayerInput())
+        let observer = try ObserverPosition(
+            coordinate: GeoCoordinate(latitude: 37.7749, longitude: -122.4194),
+            altitude: Altitude(feet: 0),
+        )
+
+        let segments = try ProjectionEngine().geographySegments(
+            lines: frame.geographicLines,
+            observer: observer,
+            viewport: .map(MapViewport(radius: NauticalMiles(value: 50))),
+            calibration: .defaultValue,
+            geometry: ProjectionGeometry(width: 960, height: 540),
+        )
+
+        #expect(segments.count >= 50)
+        #expect(Set(segments.map(\.kind)).contains(.coastline))
+    }
 }
