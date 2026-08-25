@@ -1,0 +1,553 @@
+import CreditKit
+import Foundation
+import ThrowCore
+
+extension ThrowSession {
+    /// Builds the live session once at the app composition root.
+    public static func live() -> ThrowSession {
+        let dateProvider = SystemDateProvider()
+        let cloudTransport = URLSessionHTTPTransport.makeCloud()
+        let localTransport = URLSessionHTTPTransport.makeLocal()
+        let credentialStore = KeychainAircraftCredentialStore(
+            service: "com.stuff.throw",
+            accountPrefix: "aircraft-source",
+        )
+        let sourceFactory = AircraftSourceFactory(
+            cloudTransport: cloudTransport,
+            localTransport: localTransport,
+            credentialStore: credentialStore,
+            dateProvider: dateProvider,
+        )
+        let coordinator = AircraftPollingCoordinator(
+            sourceFactory: sourceFactory,
+            clock: SystemAircraftPollingClock(),
+            logger: PeriscopeAircraftPollingLogger(log: ThrowLog.aircraft),
+        )
+        let credits: [SoftwareCredit]
+        let creditFailure: String?
+        do {
+            credits = try AttributionManifest.load(
+                from: .main,
+                resource: "attribution",
+            ).credits
+            creditFailure = nil
+        } catch {
+            credits = []
+            creditFailure = String(localized: .aboutCreditsUnavailable)
+        }
+        let session = ThrowSession(
+            preferences: .defaultValue,
+            preferenceStore: UserDefaultsThrowPreferenceStore(userDefaults: .standard),
+            credentialStore: credentialStore,
+            sourceFactory: sourceFactory,
+            pollingCoordinator: coordinator,
+            cloudTransport: cloudTransport,
+            dateProvider: dateProvider,
+            locationSource: CoreLocationThrowSource(),
+            calendar: .autoupdatingCurrent,
+            layerCatalog: .standard,
+            softwareCredits: credits,
+        )
+        session.settingsFailure = creditFailure
+        return session
+    }
+}
+
+#if DEBUG
+    extension ThrowSession {
+        @_spi(Testing) public static func fixture() -> ThrowSession {
+            makeFixture(
+                setupCompleted: true,
+                quiet: false,
+                transport: FixtureHTTPTransport(),
+            )
+        }
+
+        @_spi(Testing) public static func fixture(
+            cloudTransport: any HTTPTransport,
+        ) -> ThrowSession {
+            makeFixture(
+                setupCompleted: true,
+                quiet: false,
+                transport: cloudTransport,
+            )
+        }
+
+        @_spi(Testing) public static func fixture(
+            locationSource: any ThrowLocationSource,
+        ) -> ThrowSession {
+            makeFixture(
+                setupCompleted: true,
+                quiet: false,
+                transport: FixtureHTTPTransport(),
+                locationSource: locationSource,
+            )
+        }
+
+        static func onboardingFixture() -> ThrowSession {
+            makeFixture(
+                setupCompleted: false,
+                quiet: false,
+                transport: FixtureHTTPTransport(),
+            )
+        }
+
+        static func quietFixture() -> ThrowSession {
+            makeFixture(
+                setupCompleted: true,
+                quiet: true,
+                transport: FixtureHTTPTransport(),
+            )
+        }
+
+        static func trueSkySnapshotFixture() -> ThrowSession {
+            let session = fixture()
+            session.isApplyingPreferences = true
+            session.projectionMode = .trueSky
+            session.minimumElevation = 10
+            session.isApplyingPreferences = false
+            session.projectionFrame = fixtureTrueSkyProjectionFrame(
+                at: session.projectionFrame.generatedAt,
+            )
+            session.feedHealth = .healthy(
+                lastUpdate: session.dateProvider.now(),
+                visibleAircraft: session.projectionFrame.visibleAircraftCount,
+            )
+            return session
+        }
+
+        static func retryingSnapshotFixture() -> ThrowSession {
+            let session = fixture()
+            let now = session.dateProvider.now()
+            session.projectionFrame = fixtureProjectionFrame(
+                at: session.projectionFrame.generatedAt,
+                opacity: 0.55,
+            )
+            session.feedHealth = .retrying(
+                lastUpdate: now,
+                nextRetry: now.addingTimeInterval(3600),
+                failure: .transport,
+                visibleAircraft: session.projectionFrame.visibleAircraftCount,
+            )
+            return session
+        }
+
+        static func failedSnapshotFixture() -> ThrowSession {
+            let session = fixture()
+            session.projectionFrame = emptyProjectionFrame(
+                mode: session.projectionMode,
+                at: session.projectionFrame.generatedAt,
+            )
+            session.feedHealth = .failed(.missingCredential)
+            return session
+        }
+
+        static func marksOnlySnapshotFixture() -> ThrowSession {
+            let session = fixture()
+            session.isApplyingPreferences = true
+            session.labelMode = .marksOnly
+            session.isApplyingPreferences = false
+            session.projectionFrame = mapLabels(in: session.projectionFrame) { _ in nil }
+            return session
+        }
+
+        static func callsignsSnapshotFixture() -> ThrowSession {
+            let session = fixture()
+            session.isApplyingPreferences = true
+            session.labelMode = .callsigns
+            session.isApplyingPreferences = false
+            session.projectionFrame = mapLabels(in: session.projectionFrame) { label in
+                label.map { ProjectionLabel(primary: $0.primary, secondary: nil) }
+            }
+            return session
+        }
+
+        static func denseAdaptiveSnapshotFixture() -> ThrowSession {
+            let session = fixture()
+            let values = (0 ..< 28).map { index in
+                let column = index % 7
+                let row = index / 7
+                return SnapshotAircraft(
+                    rawID: "dense-\(index)",
+                    x: 0.20 + Double(column) * 0.095,
+                    y: 0.32 + Double(row) * 0.12,
+                    callsign: index.isMultiple(of: 3) ? "FLT\(100 + index)" : nil,
+                    altitude: index.isMultiple(of: 9) ? "12,000 ft" : nil,
+                    orientation: Double((index * 37) % 360),
+                    range: Double(index + 3),
+                )
+            }
+            session.projectionFrame = fixtureProjectionFrame(
+                mode: .map,
+                at: session.projectionFrame.generatedAt,
+                aircraft: values,
+                opacity: 1,
+            )
+            session.feedHealth = .healthy(
+                lastUpdate: session.dateProvider.now(),
+                visibleAircraft: session.projectionFrame.visibleAircraftCount,
+            )
+            return session
+        }
+
+        static func calibrationSnapshotFixture() -> ThrowSession {
+            let session = fixture()
+            session.previewCalibration(
+                screenTopBearing: 287,
+                rotation: .degrees90,
+                flipsHorizontally: true,
+                flipsVertically: false,
+                safeInsetPercent: 12,
+                calibrationVerified: false,
+            )
+            session.projectionOutputConnected(
+                .calibration(ProjectionOutputID(rawValue: "snapshot-calibration")),
+            )
+            return session
+        }
+
+        static func healthyDashboardSnapshotFixture() -> ThrowSession {
+            let session = fixture()
+            prepareDashboardSnapshot(session)
+            session.feedHealth = .healthy(
+                lastUpdate: session.dateProvider.now(),
+                visibleAircraft: session.projectionFrame.visibleAircraftCount,
+            )
+            return session
+        }
+
+        static func rootDashboardSnapshotFixture() -> ThrowSession {
+            let session = fixture()
+            session.hasStarted = true
+            session.locationHealth = .missing
+            session.projectionFrame = emptyProjectionFrame(
+                mode: session.projectionMode,
+                at: session.projectionFrame.generatedAt,
+            )
+            session.feedHealth = .loading
+            return session
+        }
+
+        static func retryingDashboardSnapshotFixture() -> ThrowSession {
+            let session = retryingSnapshotFixture()
+            prepareDashboardSnapshot(session)
+            return session
+        }
+
+        static func quietDashboardSnapshotFixture() -> ThrowSession {
+            let session = quietFixture()
+            prepareDashboardSnapshot(session)
+            return session
+        }
+
+        static func adsbExchangeMissingCredentialSnapshotFixture() -> ThrowSession {
+            let session = adsbExchangeSnapshotFixture(intervalSeconds: 300)
+            session.rapidAPICredentialState = .missing
+            session.feedHealth = .failed(.missingCredential)
+            return session
+        }
+
+        static func adsbExchangeQuotaSnapshotFixture() -> ThrowSession {
+            let session = adsbExchangeSnapshotFixture(intervalSeconds: 10)
+            session.rapidAPICredentialState = .saved(lastFour: "4242")
+            session.feedHealth = .failed(.quota)
+            return session
+        }
+
+        static func adsbExchangeFastCadenceSnapshotFixture() -> ThrowSession {
+            let session = adsbExchangeSnapshotFixture(intervalSeconds: 5)
+            session.rapidAPICredentialState = .saved(lastFour: "4242")
+            session.feedHealth = .healthy(
+                lastUpdate: session.dateProvider.now(),
+                visibleAircraft: 0,
+            )
+            return session
+        }
+
+        private static func makeFixture(
+            setupCompleted: Bool,
+            quiet: Bool,
+            transport: any HTTPTransport,
+            locationSource: (any ThrowLocationSource)? = nil,
+        ) -> ThrowSession {
+            do {
+                let now = Date(timeIntervalSince1970: 1_787_594_400)
+                let position = try ObserverPosition(
+                    coordinate: GeoCoordinate(latitude: 37.7749, longitude: -122.4194),
+                    altitude: Altitude(feet: 52),
+                )
+                let confirmed = try ConfirmedObserverLocation(
+                    position: position,
+                    horizontalAccuracyMeters: 18,
+                    confirmedAt: now,
+                )
+                let source: AircraftSourceConfiguration = .adsbLol
+                let preferences = try ThrowPreferences(
+                    setupCompleted: setupCompleted,
+                    selectedSource: setupCompleted ? source : nil,
+                    validatedSource: setupCompleted ? source : nil,
+                    locationMode: .gps,
+                    confirmedLocation: confirmed,
+                    calibration: .defaultValue,
+                    mapViewport: .defaultValue,
+                    skyViewport: .defaultValue,
+                    selectedProjectionMode: setupCompleted ? .map : nil,
+                    flightsEnabled: true,
+                    labelMode: .adaptive,
+                    includeGroundAircraft: false,
+                    markSizePercent: 100,
+                    intensityPercent: 80,
+                    quietSchedule: .disabled,
+                )
+                let preferenceStore = try MemoryThrowPreferenceStore(initialValue: preferences)
+                let credentialStore = MemoryAircraftCredentialStore(credentials: [:])
+                let dateProvider = FixtureDateProvider(date: now)
+                let sourceFactory = AircraftSourceFactory(
+                    cloudTransport: transport,
+                    localTransport: transport,
+                    credentialStore: credentialStore,
+                    dateProvider: dateProvider,
+                )
+                let coordinator = AircraftPollingCoordinator(
+                    sourceFactory: sourceFactory,
+                    clock: SystemAircraftPollingClock(),
+                    logger: DiscardingAircraftPollingLogger(),
+                )
+                let fix = try LocationFix(
+                    position: position,
+                    horizontalAccuracyMeters: 18,
+                    observedAt: now,
+                )
+                let resolvedLocationSource: any ThrowLocationSource = if let locationSource {
+                    locationSource
+                } else {
+                    FixtureLocationSource(fix: fix)
+                }
+                let session = ThrowSession(
+                    preferences: preferences,
+                    preferenceStore: preferenceStore,
+                    credentialStore: credentialStore,
+                    sourceFactory: sourceFactory,
+                    pollingCoordinator: coordinator,
+                    cloudTransport: transport,
+                    dateProvider: dateProvider,
+                    locationSource: resolvedLocationSource,
+                    calendar: Calendar(identifier: .gregorian),
+                    layerCatalog: .standard,
+                    softwareCredits: [],
+                )
+                session.projectionFrame = quiet
+                    ? emptyProjectionFrame(mode: .map, at: now)
+                    : fixtureProjectionFrame(at: now, opacity: 1)
+                session.feedHealth = quiet
+                    ? .quiet
+                    : .healthy(
+                        lastUpdate: now,
+                        visibleAircraft: session.projectionFrame.visibleAircraftCount,
+                    )
+                return session
+            } catch {
+                preconditionFailure("Throw fixture must be valid: \(error)")
+            }
+        }
+
+        private static func adsbExchangeSnapshotFixture(intervalSeconds: Int) -> ThrowSession {
+            let session = fixture()
+            let pollingInterval: PollingInterval
+            do {
+                pollingInterval = try PollingInterval(seconds: intervalSeconds)
+            } catch {
+                preconditionFailure("Snapshot polling interval must be valid: \(error)")
+            }
+            let configuration = AircraftSourceConfiguration.adsbExchangeRapidAPI(
+                ADSBExchangeConfiguration(
+                    pollingInterval: pollingInterval,
+                    credentialID: .rapidAPI,
+                ),
+            )
+            prepareDashboardSnapshot(session)
+            session.selectedSourceConfiguration = configuration
+            session.validatedSourceConfiguration = configuration
+            session.projectionFrame = emptyProjectionFrame(
+                mode: session.projectionMode,
+                at: session.projectionFrame.generatedAt,
+            )
+            return session
+        }
+
+        private static func prepareDashboardSnapshot(_ session: ThrowSession) {
+            session.hasStarted = true
+            session.locationHealth = .confirmed(
+                accuracyMeters: 18,
+                acceptedAt: session.dateProvider.now(),
+            )
+        }
+
+        private static func emptyProjectionFrame(
+            mode: ProjectionMode,
+            at date: Date,
+        ) -> ProjectionFrame {
+            ProjectionFrame(mode: mode, generatedAt: date, marks: [])
+        }
+
+        private static func fixtureProjectionFrame(
+            at date: Date,
+            opacity: Double,
+        ) -> ProjectionFrame {
+            let values = [
+                SnapshotAircraft(
+                    rawID: "fixture-one",
+                    x: 0.46,
+                    y: 0.32,
+                    callsign: "UAL123",
+                    altitude: nil,
+                    orientation: 35,
+                    range: 9.22,
+                ),
+                SnapshotAircraft(
+                    rawID: "fixture-two",
+                    x: 0.68,
+                    y: 0.54,
+                    callsign: "SWA42",
+                    altitude: nil,
+                    orientation: 35,
+                    range: 9.22,
+                ),
+                SnapshotAircraft(
+                    rawID: "fixture-three",
+                    x: 0.31,
+                    y: 0.70,
+                    callsign: "ASA8",
+                    altitude: nil,
+                    orientation: 35,
+                    range: 13.79,
+                ),
+            ]
+            return fixtureProjectionFrame(
+                mode: .map,
+                at: date,
+                aircraft: values,
+                opacity: opacity,
+            )
+        }
+
+        private static func fixtureTrueSkyProjectionFrame(at date: Date) -> ProjectionFrame {
+            let values = [
+                SnapshotAircraft(
+                    rawID: "fixture-overhead",
+                    x: 0.50,
+                    y: 0.50,
+                    callsign: "SKY1",
+                    altitude: "8,000 ft",
+                    orientation: nil,
+                    range: 8,
+                ),
+                SnapshotAircraft(
+                    rawID: "fixture-northeast",
+                    x: 0.69,
+                    y: 0.29,
+                    callsign: "DAL308",
+                    altitude: nil,
+                    orientation: 130,
+                    range: 34,
+                ),
+                SnapshotAircraft(
+                    rawID: "fixture-south",
+                    x: 0.47,
+                    y: 0.82,
+                    callsign: "NKS72",
+                    altitude: "21,400 ft",
+                    orientation: 8,
+                    range: 76,
+                ),
+                SnapshotAircraft(
+                    rawID: "fixture-west",
+                    x: 0.18,
+                    y: 0.52,
+                    callsign: "JBU6",
+                    altitude: nil,
+                    orientation: 272,
+                    range: 101,
+                ),
+            ]
+            return fixtureProjectionFrame(
+                mode: .trueSky,
+                at: date,
+                aircraft: values,
+                opacity: 1,
+            )
+        }
+
+        private static func fixtureProjectionFrame(
+            mode: ProjectionMode,
+            at date: Date,
+            aircraft: [SnapshotAircraft],
+            opacity: Double,
+        ) -> ProjectionFrame {
+            ProjectionFrame(
+                mode: mode,
+                generatedAt: date,
+                marks: aircraft.map { value in
+                    ProjectedMark(
+                        id: LayerMarkID(
+                            layerID: .flights,
+                            namespace: .aircraft,
+                            rawValue: value.rawID,
+                        ),
+                        point: ProjectionPoint(x: value.x, y: value.y),
+                        range: fixtureRange(value.range),
+                        glyph: .aircraft(isGrounded: false),
+                        label: value.callsign.map {
+                            ProjectionLabel(primary: $0, secondary: value.altitude)
+                        },
+                        orientationDegrees: value.orientation,
+                        opacity: opacity,
+                        labelOpacity: 1,
+                        altitudeIsApproximate: value.altitude != nil,
+                    )
+                },
+            )
+        }
+
+        private static func mapLabels(
+            in frame: ProjectionFrame,
+            transform: (ProjectionLabel?) -> ProjectionLabel?,
+        ) -> ProjectionFrame {
+            ProjectionFrame(
+                mode: frame.mode,
+                generatedAt: frame.generatedAt,
+                marks: frame.marks.map { mark in
+                    ProjectedMark(
+                        id: mark.id,
+                        point: mark.point,
+                        range: mark.range,
+                        glyph: mark.glyph,
+                        label: transform(mark.label),
+                        orientationDegrees: mark.orientationDegrees,
+                        opacity: mark.opacity,
+                        labelOpacity: mark.labelOpacity,
+                        altitudeIsApproximate: mark.altitudeIsApproximate,
+                    )
+                },
+            )
+        }
+
+        private static func fixtureRange(_ value: Double) -> NauticalMiles {
+            do {
+                return try NauticalMiles(value: value)
+            } catch {
+                preconditionFailure("Snapshot range must be valid: \(error)")
+            }
+        }
+
+        private struct SnapshotAircraft {
+            let rawID: String
+            let x: Double
+            let y: Double
+            let callsign: String?
+            let altitude: String?
+            let orientation: Double?
+            let range: Double
+        }
+    }
+#endif

@@ -1,0 +1,21 @@
+{
+  "output": "Throw/Throw/Resources/attribution.json",
+  "sources": [
+    {
+      "type": "swiftPackageManager",
+      "manifest": "Package.swift",
+      "resolved": "Package.resolved",
+      "shippedFrom": ["ThrowUI"]
+    },
+    {
+      "type": "agentSkills",
+      "kind": "developmentTool",
+      "manifest": ".agents/external-skills.json"
+    },
+    {
+      "type": "developmentTools",
+      "kind": "developmentTool",
+      "manifest": ".agents/development-tools.json"
+    }
+  ]
+}
