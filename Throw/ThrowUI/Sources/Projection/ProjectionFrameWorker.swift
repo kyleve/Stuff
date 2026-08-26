@@ -7,6 +7,7 @@ actor ProjectionFrameWorker {
     private let flightsRuntime: FlightsLayerRuntime
     private let geographyRuntime: GeographyLayerRuntime
     private let geographyLogger: any GeographyLogging
+    private let motionLogger: any ProjectionMotionLogging
     private var labelResolver = ProjectionLabelCollisionResolver()
     private var loadedGeographyLayerFrame: LayerFrame?
     private var geographyLayerLoadTask: Task<Void, Never>?
@@ -24,16 +25,20 @@ actor ProjectionFrameWorker {
     private var lastPresentationSignature: ProjectionPresentationSignature?
     private var modeTransition: ModeTransition?
     private var correctionTransition: CorrectionTransition?
+    private var targetHistory = ProjectionTargetHistory()
+    private var motionDiagnostics = ProjectionMotionDiagnosticsAccumulator()
     private var presentationState = PresentationState()
 
     init(
         flightsRuntime: FlightsLayerRuntime,
         geographyRuntime: GeographyLayerRuntime,
         geographyLogger: any GeographyLogging,
+        motionLogger: any ProjectionMotionLogging,
     ) {
         self.flightsRuntime = flightsRuntime
         self.geographyRuntime = geographyRuntime
         self.geographyLogger = geographyLogger
+        self.motionLogger = motionLogger
     }
 
     func layerFrame(
@@ -119,6 +124,14 @@ actor ProjectionFrameWorker {
             observationChanged: observationChanged,
             reduceMotion: reduceMotion,
         )
+        if let event = motionDiagnostics.record(
+            layerFrame: layerFrame,
+            target: target,
+            at: generatedAt,
+            observationChanged: observationChanged,
+        ) {
+            motionLogger.record(event)
+        }
         try Task.checkCancellation()
         previousFrame = frame
         lastLayerObservedAt = layerFrame?.observedAt
@@ -268,6 +281,8 @@ actor ProjectionFrameWorker {
         lastPresentationSignature = nil
         modeTransition = nil
         correctionTransition = nil
+        targetHistory = ProjectionTargetHistory()
+        motionDiagnostics = ProjectionMotionDiagnosticsAccumulator()
         presentationState = PresentationState()
         labelResolver = ProjectionLabelCollisionResolver()
     }
@@ -309,6 +324,7 @@ actor ProjectionFrameWorker {
         guard let previousFrame else {
             let resolvedTarget = labelResolver.resolve(target)
             lastPresentationSignature = ProjectionPresentationSignature(frame: resolvedTarget)
+            targetHistory.record(resolvedTarget)
             return resolvedTarget
         }
         if previousFrame.mode != target.mode, modeTransition?.targetMode != target.mode {
@@ -318,9 +334,11 @@ actor ProjectionFrameWorker {
                 targetMode: target.mode,
             )
             correctionTransition = nil
+            targetHistory = ProjectionTargetHistory()
             labelResolver = ProjectionLabelCollisionResolver()
         }
         let resolvedTarget = labelResolver.resolve(target)
+        defer { targetHistory.record(resolvedTarget) }
         let presentationSignature = ProjectionPresentationSignature(frame: resolvedTarget)
         let presentationChanged = lastPresentationSignature != presentationSignature
         lastPresentationSignature = presentationSignature
@@ -350,6 +368,8 @@ actor ProjectionFrameWorker {
                 progress: progress,
                 interpolatesPosition: true,
                 transitionsLabels: true,
+                sourceVelocities: nil,
+                elapsed: date.timeIntervalSince(transition.startedAt),
             )
         }
 
@@ -358,6 +378,9 @@ actor ProjectionFrameWorker {
                 startedAt: date,
                 source: previousFrame,
                 interpolatesPosition: observationChanged,
+                sourceVelocities: observationChanged
+                    ? targetHistory.velocities(at: date)
+                    : [:],
             )
         }
         if let transition = correctionTransition {
@@ -378,6 +401,8 @@ actor ProjectionFrameWorker {
                 progress: progress,
                 interpolatesPosition: transition.interpolatesPosition && reduceMotion == false,
                 transitionsLabels: false,
+                sourceVelocities: transition.sourceVelocities,
+                elapsed: date.timeIntervalSince(transition.startedAt),
             )
         }
         return resolvedTarget
@@ -389,6 +414,8 @@ actor ProjectionFrameWorker {
         progress: Double,
         interpolatesPosition: Bool,
         transitionsLabels: Bool,
+        sourceVelocities: [LayerMarkID: ProjectedPointVelocity]?,
+        elapsed: TimeInterval,
     ) -> ProjectionFrame {
         let sourceByID = Dictionary(uniqueKeysWithValues: source.marks.map { ($0.id, $0) })
         let targetIDs = Set(target.marks.map(\.id))
@@ -428,13 +455,27 @@ actor ProjectionFrameWorker {
                     opacity: usesSourceLabels ? old.labelOpacity : mark.labelOpacity,
                 )
                 : transitionLabel(from: old, to: mark, progress: presenceProgress)
-            let positionProgress = interpolatesPosition ? cubicEaseOut(progress) : progress
+            let positionProgress: Double = if interpolatesPosition {
+                sourceVelocities == nil ? cubicEaseOut(progress) : smoothStep(progress)
+            } else {
+                progress
+            }
+            let sourcePoint: ProjectionPoint = if interpolatesPosition,
+                                                  let velocity = sourceVelocities?[mark.id]
+            {
+                ProjectionPoint(
+                    x: old.point.x + velocity.xPerSecond * elapsed,
+                    y: old.point.y + velocity.yPerSecond * elapsed,
+                )
+            } else {
+                old.point
+            }
             return ProjectedMark(
                 id: mark.id,
                 point: interpolatesPosition
                     ? ProjectionPoint(
-                        x: old.point.x + (mark.point.x - old.point.x) * positionProgress,
-                        y: old.point.y + (mark.point.y - old.point.y) * positionProgress,
+                        x: sourcePoint.x + (mark.point.x - sourcePoint.x) * positionProgress,
+                        y: sourcePoint.y + (mark.point.y - sourcePoint.y) * positionProgress,
                     )
                     : mark.point,
                 range: mark.range,
@@ -494,6 +535,10 @@ actor ProjectionFrameWorker {
 
     private func cubicEaseOut(_ progress: Double) -> Double {
         1 - pow(1 - progress, 3)
+    }
+
+    private func smoothStep(_ progress: Double) -> Double {
+        progress * progress * (3 - 2 * progress)
     }
 
     private func removalDuration(for mark: ProjectedMark) -> TimeInterval {
@@ -634,6 +679,40 @@ private struct CorrectionTransition {
     let startedAt: Date
     let source: ProjectionFrame
     let interpolatesPosition: Bool
+    let sourceVelocities: [LayerMarkID: ProjectedPointVelocity]
+}
+
+private struct ProjectedPointVelocity {
+    let xPerSecond: Double
+    let yPerSecond: Double
+}
+
+private struct ProjectionTargetHistory {
+    private var previous: ProjectionFrame?
+    private var latest: ProjectionFrame?
+
+    mutating func record(_ frame: ProjectionFrame) {
+        previous = latest
+        latest = frame
+    }
+
+    func velocities(at date: Date) -> [LayerMarkID: ProjectedPointVelocity] {
+        guard let previous, let latest, previous.mode == latest.mode else { return [:] }
+        let interval = latest.generatedAt.timeIntervalSince(previous.generatedAt)
+        guard interval > 0, interval <= 0.25,
+              date.timeIntervalSince(latest.generatedAt) <= 0.25
+        else { return [:] }
+        let previousByID = Dictionary(
+            uniqueKeysWithValues: previous.marks.map { ($0.id, $0.point) },
+        )
+        return latest.marks.reduce(into: [:]) { velocities, mark in
+            guard let old = previousByID[mark.id] else { return }
+            velocities[mark.id] = ProjectedPointVelocity(
+                xPerSecond: (mark.point.x - old.x) / interval,
+                yPerSecond: (mark.point.y - old.y) / interval,
+            )
+        }
+    }
 }
 
 private struct ProjectionPresentationSignature: Equatable {

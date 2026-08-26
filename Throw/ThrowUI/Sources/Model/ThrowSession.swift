@@ -254,6 +254,7 @@ public final class ThrowSession {
         calendar: Calendar,
         layerCatalog: LayerCatalog,
         geographyLogger: any GeographyLogging,
+        motionLogger: any ProjectionMotionLogging,
         routeResolver: FlightRouteResolver,
         routeLogger: any FlightRouteLogging,
         softwareCredits: [SoftwareCredit],
@@ -311,6 +312,7 @@ public final class ThrowSession {
             flightsRuntime: layerCatalog.flights.runtimeFactory(),
             geographyRuntime: layerCatalog.geography.runtimeFactory(),
             geographyLogger: geographyLogger,
+            motionLogger: motionLogger,
         )
         self.softwareCredits = softwareCredits
         selectedSourceConfiguration = preferences.selectedSource

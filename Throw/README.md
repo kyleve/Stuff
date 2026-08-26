@@ -66,6 +66,11 @@ page reads the saved token's last 24 hours from FR24's usage report. Throw uses
 the observed credits per request to estimate hourly and 30-day use. The report
 can include requests that other clients make with the same token.
 
+Throw keeps aircraft snapshots, routes, and motion history only in memory.
+The app predicts from the last successful snapshot until the next poll.
+A force quit removes that snapshot. The next launch requests current data.
+At a five-minute cadence, the new result can differ from the previous display.
+
 ## Ambient flight activity
 
 Throw estimates local arrivals and departures from route data and aircraft motion.

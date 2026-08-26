@@ -16,6 +16,7 @@ public struct FlightActivityClassifier: Sendable {
         for observation: AircraftObservation,
         observer: ObserverPosition,
         route: FlightRoute?,
+        motion: AircraftMotion,
     ) throws -> FlightActivity {
         guard observation.airborneState != .ground else { return .overflight }
         if let route,
@@ -23,17 +24,19 @@ public struct FlightActivityClassifier: Sendable {
                observation: observation,
                observer: observer,
                route: route,
+               motion: motion,
            )
         {
             return confirmed
         }
-        return try inferredActivity(observation: observation) ?? .overflight
+        return try inferredActivity(observation: observation, motion: motion) ?? .overflight
     }
 
     private func confirmedActivity(
         observation: AircraftObservation,
         observer: ObserverPosition,
         route: FlightRoute,
+        motion: AircraftMotion,
     ) throws -> FlightActivity? {
         let origin = try localAirport(for: route.origin, observer: observer)
         let destination = try localAirport(for: route.destination, observer: observer)
@@ -43,17 +46,20 @@ public struct FlightActivityClassifier: Sendable {
                     observation,
                     airport: origin,
                     certainty: .confirmed,
+                    motion: motion,
                 )
             case let (nil, destination?): return try arrival(
                     observation,
                     airport: destination,
                     certainty: .confirmed,
+                    motion: motion,
                 )
             case let (origin?, destination?):
                 return try chooseBothLocal(
                     observation,
                     origin: origin,
                     destination: destination,
+                    motion: motion,
                 )
         }
     }
@@ -75,20 +81,23 @@ public struct FlightActivityClassifier: Sendable {
         _ observation: AircraftObservation,
         origin: AirportRecord,
         destination: AirportRecord,
+        motion: AircraftMotion,
     ) throws -> FlightActivity {
-        if let verticalRate = observation.verticalRateFeetPerMinute {
+        if let verticalRate = motion.verticalRateFeetPerMinute {
             if verticalRate <= -200 { return try arrival(
                 observation,
                 airport: destination,
                 certainty: .confirmed,
+                motion: motion,
             ) }
             if verticalRate >= 200 { return try departure(
                 observation,
                 airport: origin,
                 certainty: .confirmed,
+                motion: motion,
             ) }
         }
-        if let track = observation.groundTrack {
+        if let track = motion.groundTrack {
             let towardDestination = try courseDifference(
                 track,
                 engine.greatCirclePosition(
@@ -105,22 +114,45 @@ public struct FlightActivityClassifier: Sendable {
             )
             if towardDestination != awayFromOrigin {
                 return towardDestination < awayFromOrigin
-                    ? try arrival(observation, airport: destination, certainty: .confirmed)
-                    : try departure(observation, airport: origin, certainty: .confirmed)
+                    ? try arrival(
+                        observation,
+                        airport: destination,
+                        certainty: .confirmed,
+                        motion: motion,
+                    )
+                    : try departure(
+                        observation,
+                        airport: origin,
+                        certainty: .confirmed,
+                        motion: motion,
+                    )
             }
         }
         let originDistance = try distance(observation, airport: origin)
         let destinationDistance = try distance(observation, airport: destination)
         return originDistance <= destinationDistance
-            ? try departure(observation, airport: origin, certainty: .confirmed)
-            : try arrival(observation, airport: destination, certainty: .confirmed)
+            ? try departure(
+                observation,
+                airport: origin,
+                certainty: .confirmed,
+                motion: motion,
+            )
+            : try arrival(
+                observation,
+                airport: destination,
+                certainty: .confirmed,
+                motion: motion,
+            )
     }
 
-    private func inferredActivity(observation: AircraftObservation) throws -> FlightActivity? {
+    private func inferredActivity(
+        observation: AircraftObservation,
+        motion: AircraftMotion,
+    ) throws -> FlightActivity? {
         guard let altitude = observation.preferredSkyAltitude,
-              let verticalRate = observation.verticalRateFeetPerMinute,
+              let verticalRate = motion.verticalRateFeetPerMinute,
               abs(verticalRate) >= 300,
-              let track = observation.groundTrack
+              let track = motion.groundTrack
         else { return nil }
         let nearby = try airportCatalog.airports(
             within: Self.inferredRadius,
@@ -157,20 +189,36 @@ public struct FlightActivityClassifier: Sendable {
             return $0.airport.id.rawValue < $1.airport.id.rawValue
         }) else { return nil }
         return verticalRate < 0
-            ? try arrival(observation, airport: selected.airport, certainty: .inferred)
-            : try departure(observation, airport: selected.airport, certainty: .inferred)
+            ? try arrival(
+                observation,
+                airport: selected.airport,
+                certainty: .inferred,
+                motion: motion,
+            )
+            : try departure(
+                observation,
+                airport: selected.airport,
+                certainty: .inferred,
+                motion: motion,
+            )
     }
 
     private func arrival(
         _ observation: AircraftObservation,
         airport: AirportRecord,
         certainty: FlightActivityCertainty,
+        motion: AircraftMotion,
     ) throws -> FlightActivity {
         let context = try context(observation, airport: airport)
         let isClose = context.aircraftDistance.value <= 25
         let isLow = agl(observation, airport: airport).map { $0 <= 10000 } ?? false
-        let descends = (observation.verticalRateFeetPerMinute ?? 0) <= -200
-        let pointsToward = try aligned(observation, toward: airport.coordinate, tolerance: 30)
+        let descends = (motion.verticalRateFeetPerMinute ?? 0) <= -200
+        let pointsToward = try aligned(
+            observation,
+            track: motion.groundTrack,
+            toward: airport.coordinate,
+            tolerance: 30,
+        )
         return .arrival(
             context,
             isClose && isLow && (descends || pointsToward) ? .approach : .inbound,
@@ -182,12 +230,18 @@ public struct FlightActivityClassifier: Sendable {
         _ observation: AircraftObservation,
         airport: AirportRecord,
         certainty: FlightActivityCertainty,
+        motion: AircraftMotion,
     ) throws -> FlightActivity {
         let context = try context(observation, airport: airport)
         let isClose = context.aircraftDistance.value <= 25
         let isLow = agl(observation, airport: airport).map { $0 <= 10000 } ?? false
-        let climbs = (observation.verticalRateFeetPerMinute ?? 0) >= 200
-        let pointsAway = try aligned(observation, awayFrom: airport.coordinate, tolerance: 30)
+        let climbs = (motion.verticalRateFeetPerMinute ?? 0) >= 200
+        let pointsAway = try aligned(
+            observation,
+            track: motion.groundTrack,
+            awayFrom: airport.coordinate,
+            tolerance: 30,
+        )
         return .departure(
             context,
             isClose && isLow && (climbs || pointsAway) ? .initialClimb : .outbound,
@@ -221,10 +275,11 @@ public struct FlightActivityClassifier: Sendable {
 
     private func aligned(
         _ observation: AircraftObservation,
+        track: Bearing?,
         toward coordinate: GeoCoordinate,
         tolerance: Double,
     ) throws -> Bool {
-        guard let track = observation.groundTrack else { return false }
+        guard let track else { return false }
         let bearing = try engine.greatCirclePosition(from: observation.coordinate, to: coordinate)
             .initialBearing
         return courseDifference(track, bearing) <= tolerance
@@ -232,10 +287,11 @@ public struct FlightActivityClassifier: Sendable {
 
     private func aligned(
         _ observation: AircraftObservation,
+        track: Bearing?,
         awayFrom coordinate: GeoCoordinate,
         tolerance: Double,
     ) throws -> Bool {
-        guard let track = observation.groundTrack else { return false }
+        guard let track else { return false }
         let bearing = try engine.greatCirclePosition(from: coordinate, to: observation.coordinate)
             .initialBearing
         return courseDifference(track, bearing) <= tolerance

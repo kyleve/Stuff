@@ -48,14 +48,14 @@ struct ProjectionFrameWorkerTests {
         #expect(pointDistance(displayed.point, target.point) > 0.000_1)
     }
 
-    @Test func feedCorrectionMidpointUsesCubicEaseOutTowardThePredictedTarget() async throws {
+    @Test func feedCorrectionMidpointDecaysHalfTheResidualToThePredictedTarget() async throws {
         let frames = try await correctionFrames(progress: 0.5, reduceMotion: false)
         let source = try #require(frames.source.marks.first)
         let displayed = try #require(frames.displayed.marks.first)
         let target = try #require(frames.target.marks.first)
         let expected = ProjectionPoint(
-            x: source.point.x + (target.point.x - source.point.x) * 0.875,
-            y: source.point.y + (target.point.y - source.point.y) * 0.875,
+            x: source.point.x + (target.point.x - source.point.x) * 0.5,
+            y: source.point.y + (target.point.y - source.point.y) * 0.5,
         )
 
         #expect(pointDistance(displayed.point, expected) < 0.000_001)
@@ -67,6 +67,94 @@ struct ProjectionFrameWorkerTests {
         let target = try #require(frames.target.marks.first)
 
         #expect(pointDistance(displayed.point, target.point) < 0.000_001)
+    }
+
+    @Test func feedCorrectionPreservesThePrePollProjectedVelocity() async throws {
+        let date = Date(timeIntervalSince1970: 2200)
+        let frameInterval = 1.0 / 30.0
+        let correctionStartedAt = date.addingTimeInterval(frameInterval * 2)
+        let sampledAt = correctionStartedAt.addingTimeInterval(frameInterval)
+        let observer = try observer()
+        let viewport = try ProjectionViewport.map(
+            MapViewport(radius: NauticalMiles(value: 50)),
+        )
+        let oldLayer = try correctionLayerFrame(
+            observedAt: date,
+            observer: observer,
+            longitudeOffset: 0.01,
+        )
+        let newLayer = try correctionLayerFrame(
+            observedAt: correctionStartedAt,
+            observer: observer,
+            longitudeOffset: 0.04,
+        )
+        let worker = projectionFrameWorker()
+        let first = try await worker.frame(
+            layerFrame: oldLayer,
+            geographyEnabled: false,
+            observer: observer,
+            viewport: viewport,
+            calibration: .defaultValue,
+            generatedAt: date,
+            reduceMotion: false,
+        ).frame
+        let second = try await worker.frame(
+            layerFrame: oldLayer,
+            geographyEnabled: false,
+            observer: observer,
+            viewport: viewport,
+            calibration: .defaultValue,
+            generatedAt: date.addingTimeInterval(frameInterval),
+            reduceMotion: false,
+        ).frame
+        _ = try await worker.frame(
+            layerFrame: newLayer,
+            geographyEnabled: false,
+            observer: observer,
+            viewport: viewport,
+            calibration: .defaultValue,
+            generatedAt: correctionStartedAt,
+            reduceMotion: false,
+        )
+        let displayed = try await worker.frame(
+            layerFrame: newLayer,
+            geographyEnabled: false,
+            observer: observer,
+            viewport: viewport,
+            calibration: .defaultValue,
+            generatedAt: sampledAt,
+            reduceMotion: false,
+        ).frame
+        let target = try ProjectionEngine().frame(
+            layerFrames: [newLayer],
+            geography: nil,
+            observer: observer,
+            viewport: viewport,
+            calibration: .defaultValue,
+            geometry: ProjectionGeometry(width: 1, height: 1),
+            generatedAt: sampledAt,
+        )
+        let firstPoint = try #require(first.marks.first?.point)
+        let secondPoint = try #require(second.marks.first?.point)
+        let displayedPoint = try #require(displayed.marks.first?.point)
+        let targetPoint = try #require(target.marks.first?.point)
+        let continuedSource = ProjectionPoint(
+            x: secondPoint.x + (secondPoint.x - firstPoint.x),
+            y: secondPoint.y + (secondPoint.y - firstPoint.y),
+        )
+        let progress = frameInterval / 0.75
+        let blend = progress * progress * (3 - 2 * progress)
+        let expected = ProjectionPoint(
+            x: continuedSource.x + (targetPoint.x - continuedSource.x) * blend,
+            y: continuedSource.y + (targetPoint.y - continuedSource.y) * blend,
+        )
+        let stationarySource = ProjectionPoint(
+            x: secondPoint.x + (targetPoint.x - secondPoint.x) * blend,
+            y: secondPoint.y + (targetPoint.y - secondPoint.y) * blend,
+        )
+
+        #expect(pointDistance(displayedPoint, expected) < 0.000_000_1)
+        #expect(pointDistance(displayedPoint, stationarySource) > 0.000_001)
     }
 
     @Test func reduceMotionAppliesFeedCorrectionImmediately() async throws {
@@ -226,6 +314,7 @@ struct ProjectionFrameWorkerTests {
         let replacement = try correctionLayerFrame(
             observedAt: date.addingTimeInterval(1),
             observer: observer,
+            longitudeOffset: 0.02,
         )
         let worker = projectionFrameWorker()
         _ = try await worker.frame(
@@ -331,6 +420,7 @@ struct ProjectionFrameWorkerTests {
             flightsRuntime: LayerCatalog.standard.flights.runtimeFactory(),
             geographyRuntime: GeographyLayerRuntime(dataSource: source),
             geographyLogger: DiscardingGeographyLogger(),
+            motionLogger: DiscardingProjectionMotionLogger(),
         )
         let observer = try observer()
         let date = Date(timeIntervalSince1970: 5000)
@@ -410,6 +500,7 @@ struct ProjectionFrameWorkerTests {
             flightsRuntime: LayerCatalog.standard.flights.runtimeFactory(),
             geographyRuntime: GeographyLayerRuntime(dataSource: source),
             geographyLogger: DiscardingGeographyLogger(),
+            motionLogger: DiscardingProjectionMotionLogger(),
         )
         let observer = try observer()
         let date = Date(timeIntervalSince1970: 7000)
@@ -460,6 +551,7 @@ struct ProjectionFrameWorkerTests {
             flightsRuntime: LayerCatalog.standard.flights.runtimeFactory(),
             geographyRuntime: GeographyLayerRuntime(dataSource: FailingGeographyDataSource()),
             geographyLogger: logger,
+            motionLogger: DiscardingProjectionMotionLogger(),
         )
         let observer = try observer()
         let date = Date(timeIntervalSince1970: 8000)
@@ -555,6 +647,7 @@ struct ProjectionFrameWorkerTests {
         let targetLayer = try correctionLayerFrame(
             observedAt: correctionStartedAt,
             observer: observer,
+            longitudeOffset: 0.02,
         )
         let source = try await worker.frame(
             layerFrame: sourceLayer,
@@ -779,6 +872,7 @@ struct ProjectionFrameWorkerTests {
             flightsRuntime: LayerCatalog.standard.flights.runtimeFactory(),
             geographyRuntime: GeographyLayerRuntime(dataSource: EmptyGeographyDataSource()),
             geographyLogger: DiscardingGeographyLogger(),
+            motionLogger: DiscardingProjectionMotionLogger(),
         )
     }
 
@@ -841,6 +935,7 @@ struct ProjectionFrameWorkerTests {
     private func correctionLayerFrame(
         observedAt: Date,
         observer: ObserverPosition,
+        longitudeOffset: Double,
     ) throws -> LayerFrame {
         try LayerFrame(
             layerID: .flights,
@@ -855,7 +950,7 @@ struct ProjectionFrameWorkerTests {
                     anchor: .geodetic(GeodeticAnchor(
                         coordinate: GeoCoordinate(
                             latitude: observer.coordinate.latitude,
-                            longitude: observer.coordinate.longitude + 0.02,
+                            longitude: observer.coordinate.longitude + longitudeOffset,
                         ),
                         altitude: Altitude(feet: 10000),
                         altitudeQuality: .geometric,
@@ -871,6 +966,8 @@ struct ProjectionFrameWorkerTests {
                         groundTrack: Bearing(degrees: 90),
                         groundSpeedKnots: 600,
                         verticalRateFeetPerMinute: nil,
+                        turnRateDegreesPerSecond: nil,
+                        horizontalSource: .provider,
                     ),
                     freshness: MarkFreshness(
                         positionObservedAt: observedAt,

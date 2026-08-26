@@ -48,6 +48,8 @@ struct AircraftModelsTests {
                 groundTrack: nil,
                 groundSpeedKnots: 2001,
                 verticalRateFeetPerMinute: nil,
+                turnRateDegreesPerSecond: nil,
+                horizontalSource: .unavailable,
             )
         }
         #expect(throws: ThrowValidationError.self) {

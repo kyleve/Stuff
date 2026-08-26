@@ -50,6 +50,13 @@ Position prediction continues until a later successful poll replaces the
 snapshot. A retryable poll failure starts a 15-second grace period and a
 15-second fade.
 
+The Flights runtime compares consecutive positions for each aircraft.
+Valid provider track and speed remain authoritative.
+Observed positions supply motion when provider values are missing or clearly inconsistent.
+Recent provider tracks can supply a bounded turn rate.
+Throw uses that turn rate for the first 12 seconds of a prediction.
+The runtime removes this history when the source changes or the app runtime ends.
+
 `Tools/generate-geography.rb` creates the bundled archive from pinned Natural
 Earth Vector 1:10m and U.S. Census Bureau inputs. A source manifest records each
 official URL, release, file member, and SHA-256 digest.
@@ -97,6 +104,8 @@ support statistical work and are not legal land descriptions.
 Cloud aircraft sources receive the coarse query center. In Map mode, this value
 can differ from the observer location. True Sky always uses the observer location.
 Aircraft classifications and carrier identities are not persisted or logged.
+Aircraft snapshots, routes, and motion history are not persisted.
+Projection logs contain only aggregate cadence, age, motion, correction, and snapshot-overlap values.
 Route enrichment sends broadcast callsigns to ADSBDB. It never sends aircraft
 or observer positions, persists route history, or logs route request or
 response values.

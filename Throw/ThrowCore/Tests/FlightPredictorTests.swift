@@ -56,6 +56,29 @@ struct FlightPredictorTests {
         #expect(prediction.opacity == 1)
     }
 
+    @Test func shortLivedTurnRateCurvesPredictionThenContinuesOnFinalTrack() throws {
+        let mark = try mark(
+            velocity: ProjectionVelocity(
+                groundTrack: Bearing(degrees: 90),
+                groundSpeedKnots: 360,
+                verticalRateFeetPerMinute: nil,
+                turnRateDegreesPerSecond: 1,
+                horizontalSource: .provider,
+            ),
+            positionAge: 0,
+        )
+
+        let optionalPrediction = try FlightPredictor.prediction(
+            for: mark,
+            at: ThrowCoreFixture.date.addingTimeInterval(30),
+        )
+        let prediction = try #require(optionalPrediction)
+        let predicted = try coordinate(prediction.mark)
+
+        #expect(predicted.longitude > 0)
+        #expect(predicted.latitude < 0)
+    }
+
     @Test func failedPollHasGracePeriodThenFades() throws {
         let failureStartedAt = ThrowCoreFixture.date.addingTimeInterval(300)
         let mark = try movingMark(
@@ -87,6 +110,8 @@ struct FlightPredictorTests {
                 groundTrack: nil,
                 groundSpeedKnots: nil,
                 verticalRateFeetPerMinute: 600,
+                turnRateDegreesPerSecond: nil,
+                horizontalSource: .unavailable,
             ),
             positionAge: 0,
         )
@@ -110,6 +135,8 @@ struct FlightPredictorTests {
                 groundTrack: nil,
                 groundSpeedKnots: nil,
                 verticalRateFeetPerMinute: .greatestFiniteMagnitude,
+                turnRateDegreesPerSecond: nil,
+                horizontalSource: .unavailable,
             ),
             positionAge: 0,
         )
@@ -134,6 +161,8 @@ struct FlightPredictorTests {
                 groundTrack: Bearing(degrees: 90),
                 groundSpeedKnots: 360,
                 verticalRateFeetPerMinute: 600,
+                turnRateDegreesPerSecond: nil,
+                horizontalSource: .provider,
             ),
             positionAge: positionAge,
             availability: availability,

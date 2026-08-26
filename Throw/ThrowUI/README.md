@@ -48,6 +48,11 @@ airport-anchor fades, and completion pulses in memory. Reduce Motion removes
 rings, pulses, scale changes, and moving corrections. Static phase geometry
 and opacity changes remain.
 
+The renderer uses fixed 30 Hz deadlines and skips elapsed slots after slow work.
+Feed corrections preserve the previous projected velocity while their position residual decreases.
+The correction reaches the new predicted path in 750 milliseconds.
+Aggregate diagnostics record cadence, sample age, projected speed, correction distance, and snapshot overlap.
+
 Map mode draws contextual airport centers and the longest open runway below
 aircraft labels. True Sky draws aircraft cues without airport geometry.
 Each source resolves route availability. FR24 resolves it in the position

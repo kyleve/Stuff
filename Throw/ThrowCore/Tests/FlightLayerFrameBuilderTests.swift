@@ -25,6 +25,7 @@ struct FlightLayerFrameBuilderTests {
             observer: ThrowCoreFixture.observer(),
             labelMode: .adaptive,
             routeResults: [#require(FlightCallsign(rawValue: "UAL817")): .route(staleRoute)],
+            motions: [observation.id: .reported(by: observation)],
             availability: .current,
         )
         let mark = try #require(frame.marks.first { $0.id == observation.id.layerMarkID })
@@ -50,6 +51,7 @@ struct FlightLayerFrameBuilderTests {
             observer: ThrowCoreFixture.observer(),
             labelMode: .adaptive,
             routeResults: [:],
+            motions: [observation.id: .reported(by: observation)],
             availability: .current,
         )
 
@@ -74,6 +76,7 @@ struct FlightLayerFrameBuilderTests {
             observer: observer,
             labelMode: .adaptive,
             routeResults: [:],
+            motions: [observation.id: .reported(by: observation)],
             availability: .current,
         )
         let label = try #require(frame.marks.first?.label)
@@ -107,6 +110,7 @@ struct FlightLayerFrameBuilderTests {
             observer: ThrowCoreFixture.observer(),
             labelMode: .adaptive,
             routeResults: [routeCallsign: .route(route)],
+            motions: [observation.id: .reported(by: observation)],
             availability: .current,
         )
 
@@ -129,6 +133,7 @@ struct FlightLayerFrameBuilderTests {
             observer: ThrowCoreFixture.observer(),
             labelMode: .adaptive,
             routeResults: [callsign: .unavailable],
+            motions: [observation.id: .reported(by: observation)],
             availability: .current,
         )
 
@@ -148,6 +153,7 @@ struct FlightLayerFrameBuilderTests {
             observer: ThrowCoreFixture.observer(),
             labelMode: .marksOnly,
             routeResults: [callsign: .unavailable],
+            motions: [observation.id: .reported(by: observation)],
             availability: .current,
         )
 
@@ -166,6 +172,7 @@ struct FlightLayerFrameBuilderTests {
             observer: ThrowCoreFixture.observer(),
             labelMode: .callsigns,
             routeResults: [:],
+            motions: [observation.id: .reported(by: observation)],
             availability: .current,
         )
         #expect(frame.marks.first?.label == nil)

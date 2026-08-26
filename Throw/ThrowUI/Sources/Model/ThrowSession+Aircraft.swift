@@ -470,6 +470,8 @@ extension ThrowSession {
         }
         renderTask = Task(name: "Throw projection 30Hz") { [weak self] in
             guard let self else { return }
+            let clock = ContinuousClock()
+            var schedule = ProjectionFrameSchedule(startingAt: clock.now)
             while Task.isCancelled == false {
                 do {
                     let output = try await projectionWorker.frame(
@@ -493,7 +495,8 @@ extension ThrowSession {
                         renderTask = nil
                         return
                     }
-                    try await Task.sleep(for: .seconds(1.0 / 30.0))
+                    let deadline = schedule.advance(past: clock.now)
+                    try await clock.sleep(until: deadline)
                 } catch is CancellationError {
                     return
                 } catch {

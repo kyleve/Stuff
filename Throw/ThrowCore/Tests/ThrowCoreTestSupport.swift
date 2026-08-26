@@ -85,7 +85,7 @@ enum ThrowCoreFixture {
         positionAge: TimeInterval = 0,
         source: AircraftSourceKind = .adsbLol,
         callsign: String? = "THROW1",
-        groundSpeedKnots: Double = 360,
+        groundSpeedKnots: Double? = 360,
         groundTrackDegrees: Double? = 90,
         verticalRateFeetPerMinute: Double? = 600,
         aircraftType: String? = "B738",

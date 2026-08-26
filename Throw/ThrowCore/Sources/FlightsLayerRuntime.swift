@@ -24,9 +24,11 @@ public struct FlightsLayerInput: Sendable {
     }
 }
 
-/// The typed runtime for the enabled Flights catalog entry.
-public struct FlightsLayerRuntime: ProjectionLayerRuntime {
+/// The typed runtime for the enabled Flights catalog entry. Its actor-isolated
+/// estimator retains only the consecutive samples needed for smooth motion.
+public actor FlightsLayerRuntime: ProjectionLayerRuntime {
     private let frameBuilder: FlightLayerFrameBuilder
+    private var motionEstimator = FlightMotionEstimator()
 
     public init(typeCatalog: AircraftTypeCatalog, airportCatalog: AirportCatalog) {
         frameBuilder = FlightLayerFrameBuilder(
@@ -36,11 +38,13 @@ public struct FlightsLayerRuntime: ProjectionLayerRuntime {
     }
 
     public func frame(for input: FlightsLayerInput) async throws -> LayerFrame {
-        try frameBuilder.frame(
+        let motions = try motionEstimator.motions(for: input.snapshot)
+        return try frameBuilder.frame(
             snapshot: input.snapshot,
             observer: input.observer,
             labelMode: input.labelMode,
             routeResults: input.routeResults,
+            motions: motions,
             availability: input.availability,
         )
     }

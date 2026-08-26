@@ -22,6 +22,7 @@ struct FlightActivityClassifierTests {
             for: observation,
             observer: ThrowCoreFixture.observer(),
             route: route,
+            motion: .reported(by: observation),
         ) else {
             Issue.record("Expected an arrival estimate")
             return
@@ -47,12 +48,43 @@ struct FlightActivityClassifierTests {
             for: observation,
             observer: ThrowCoreFixture.observer(),
             route: nil,
+            motion: .reported(by: observation),
         ) else {
             Issue.record("Expected an inferred arrival estimate")
             return
         }
         #expect(stage == .approach)
         #expect(certainty == .inferred)
+    }
+
+    @Test func localDestinationNeverBecomesDepartureFromClimbOrAwayTrack() throws {
+        let airport = try fixtureAirport()
+        let classifier = FlightActivityClassifier(
+            airportCatalog: AirportCatalog(airports: [airport]),
+        )
+        let observation = try ThrowCoreFixture.observation(
+            latitude: 37,
+            longitude: -122.1,
+            altitudeFeet: 4000,
+            groundTrackDegrees: 270,
+            verticalRateFeetPerMinute: 800,
+        )
+        let route = try FlightRoute(
+            origin: #require(AirportCode(rawValue: "LAX")),
+            destination: #require(AirportCode(rawValue: "SFO")),
+        )
+
+        guard case let .arrival(_, stage, certainty) = try classifier.activity(
+            for: observation,
+            observer: ThrowCoreFixture.observer(),
+            route: route,
+            motion: .reported(by: observation),
+        ) else {
+            Issue.record("A local destination must remain an arrival")
+            return
+        }
+        #expect(stage == .inbound)
+        #expect(certainty == .confirmed)
     }
 
     @Test func groundAircraftAndMissingMotionStayUncued() throws {
@@ -73,11 +105,13 @@ struct FlightActivityClassifierTests {
             for: ground,
             observer: ThrowCoreFixture.observer(),
             route: nil,
+            motion: .reported(by: ground),
         ) == .overflight)
         #expect(try classifier.activity(
             for: missingVerticalRate,
             observer: ThrowCoreFixture.observer(),
             route: nil,
+            motion: .reported(by: missingVerticalRate),
         ) == .overflight)
     }
 

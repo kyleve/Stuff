@@ -21,6 +21,8 @@ location, and scheduling; see [`README.md`](README.md). Read the root
 - Keep one structured poll task. Cancel and drain before replacement, and
   reject responses from an old generation.
 - Never fall back between aircraft sources or merge their frames.
+- Keep consecutive motion state inside the Flights runtime actor. Clear it when
+  the selected source changes, and never persist it.
 - Store only the RapidAPI key in device-only Keychain storage. Persist no live
   aircraft data or credential in preferences.
 - Keep projection functions deterministic and independent of SwiftUI layout.
