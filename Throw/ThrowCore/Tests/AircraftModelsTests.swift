@@ -67,6 +67,7 @@ struct AircraftModelsTests {
         )
         let query = try AircraftQuery(
             observer: observer,
+            center: observer.coordinate,
             viewport: .map(MapViewport(radius: NauticalMiles(value: 50))),
             includeGroundAircraft: false,
         )

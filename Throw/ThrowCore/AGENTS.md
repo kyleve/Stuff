@@ -24,8 +24,10 @@ location, and scheduling; see [`README.md`](README.md). Read the root
 - Store only the RapidAPI key in device-only Keychain storage. Persist no live
   aircraft data or credential in preferences.
 - Keep projection functions deterministic and independent of SwiftUI layout.
-- Project Geography with the observer-centred Map math and saved calibration.
+- Project Geography with the selected regional Map center and saved calibration.
   Never use Mercator placement or draw it in True Sky.
+- Keep observer and Map-center semantics separate. True Sky and local activity
+  use the observer. Map projection, filtering, and cloud queries use its center.
 - Change the pinned source manifest, generator, and generated archive together.
   Keep the archive free of names and unused source attributes.
 - Keep aircraft-family and airline-brand classification provider-neutral and

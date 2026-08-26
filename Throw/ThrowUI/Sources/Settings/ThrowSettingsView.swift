@@ -15,6 +15,9 @@ struct ThrowSettingsView: View {
             NavigationLink(value: ThrowSettingsDestination.location) {
                 Label(String(localized: .settingsLocation), systemSymbol: .locationFill)
             }
+            NavigationLink(value: ThrowSettingsDestination.mapCenter) {
+                Label(String(localized: .settingsMapCenter), systemSymbol: .mapFill)
+            }
             NavigationLink(value: ThrowSettingsDestination.source) {
                 Label(
                     String(localized: .settingsSource),
@@ -42,6 +45,8 @@ struct ThrowSettingsView: View {
             switch destination {
                 case .location:
                     LocationSettingsView(session: session)
+                case .mapCenter:
+                    MapCenterSettingsView(session: session)
                 case .source:
                     AircraftSourceSettingsView(session: session)
                 case .calibration:

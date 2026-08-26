@@ -59,7 +59,35 @@ public struct ProjectionEngine: Sendable {
         geometry: ProjectionGeometry,
         generatedAt: Date,
     ) throws -> ProjectionFrame {
+        try frame(
+            layerFrames: layerFrames,
+            geography: geography,
+            observer: observer,
+            mapCenter: observer.coordinate,
+            viewport: viewport,
+            calibration: calibration,
+            geometry: geometry,
+            generatedAt: generatedAt,
+        )
+    }
+
+    public func frame(
+        layerFrames: [LayerFrame],
+        geography: ProjectedGeography?,
+        observer: ObserverPosition,
+        mapCenter: GeoCoordinate,
+        viewport: ProjectionViewport,
+        calibration: ProjectionCalibration,
+        geometry: ProjectionGeometry,
+        generatedAt: Date,
+    ) throws -> ProjectionFrame {
         try Task.checkCancellation()
+        let projectionObserver = switch viewport {
+            case .map:
+                ObserverPosition(coordinate: mapCenter, altitude: observer.altitude)
+            case .trueSky:
+                observer
+        }
         var projected: [ProjectedMark] = []
         for layerFrame in layerFrames {
             for (markIndex, mark) in layerFrame.marks.enumerated() {
@@ -73,7 +101,7 @@ public struct ProjectionEngine: Sendable {
                 }
                 guard let radial = try radialPosition(
                     for: prediction.mark.anchor,
-                    observer: observer,
+                    observer: projectionObserver,
                     viewport: viewport,
                     screenTopBearing: calibration.screenTopBearing,
                 ) else {
@@ -88,7 +116,7 @@ public struct ProjectionEngine: Sendable {
                     case let .airport(descriptor): try projectedOrientation(
                             bearing: descriptor.runwayBearing,
                             anchor: prediction.mark.anchor,
-                            observer: observer,
+                            observer: projectionObserver,
                             viewport: viewport,
                             calibration: calibration,
                             geometry: geometry,
@@ -97,7 +125,7 @@ public struct ProjectionEngine: Sendable {
                     case .aircraft, .star, .satellite: try apparentOrientation(
                             for: mark,
                             at: generatedAt,
-                            observer: observer,
+                            observer: projectionObserver,
                             viewport: viewport,
                             calibration: calibration,
                             geometry: geometry,
@@ -136,10 +164,10 @@ public struct ProjectionEngine: Sendable {
     }
 
     /// Projects and clips static geographic lines for a Map viewport. Callers
-    /// can cache the result until the observer, viewport, or calibration changes.
+    /// can cache the result until the Map center, viewport, or calibration changes.
     public func geographySegments(
         lines: [GeographicPolyline],
-        observer: ObserverPosition,
+        mapCenter: GeoCoordinate,
         viewport: ProjectionViewport,
         calibration: ProjectionCalibration,
         geometry: ProjectionGeometry,
@@ -155,7 +183,7 @@ public struct ProjectionEngine: Sendable {
                 continue
             }
             guard line.bounds.mayIntersect(
-                observer: observer.coordinate,
+                observer: mapCenter,
                 radius: mapViewport.radius,
             ) else {
                 continue
@@ -170,13 +198,13 @@ public struct ProjectionEngine: Sendable {
                 }
                 let start = try mapRadialPosition(
                     for: line.coordinates[previousIndex],
-                    observer: observer,
+                    center: mapCenter,
                     viewport: mapViewport,
                     screenTopBearing: calibration.screenTopBearing,
                 )
                 let end = try mapRadialPosition(
                     for: line.coordinates[currentIndex],
-                    observer: observer,
+                    center: mapCenter,
                     viewport: mapViewport,
                     screenTopBearing: calibration.screenTopBearing,
                 )
@@ -212,6 +240,22 @@ public struct ProjectionEngine: Sendable {
         return segments
     }
 
+    public func geographySegments(
+        lines: [GeographicPolyline],
+        observer: ObserverPosition,
+        viewport: ProjectionViewport,
+        calibration: ProjectionCalibration,
+        geometry: ProjectionGeometry,
+    ) throws -> [ProjectedGeographySegment] {
+        try geographySegments(
+            lines: lines,
+            mapCenter: observer.coordinate,
+            viewport: viewport,
+            calibration: calibration,
+            geometry: geometry,
+        )
+    }
+
     private func radialPointsMatch(_ lhs: RadialPosition, _ rhs: RadialPosition) -> Bool {
         abs(lhs.x - rhs.x) <= 1e-12 && abs(lhs.y - rhs.y) <= 1e-12
     }
@@ -241,6 +285,35 @@ public struct ProjectionEngine: Sendable {
             distance: distance,
             initialBearing: Bearing(degrees: bearingRadians.degrees),
         )
+    }
+
+    public func destination(
+        from origin: GeoCoordinate,
+        bearing: Bearing,
+        distance: NauticalMiles,
+    ) throws -> GeoCoordinate {
+        try destination(
+            from: origin,
+            bearing: bearing,
+            distanceNauticalMiles: distance.value,
+        )
+    }
+
+    public func mapPoint(
+        for coordinate: GeoCoordinate,
+        center: GeoCoordinate,
+        viewport: MapViewport,
+        calibration: ProjectionCalibration,
+        geometry: ProjectionGeometry,
+    ) throws -> ProjectionPoint? {
+        let radial = try mapRadialPosition(
+            for: coordinate,
+            center: center,
+            viewport: viewport,
+            screenTopBearing: calibration.screenTopBearing,
+        )
+        guard let range = radial.range, range <= viewport.radius else { return nil }
+        return calibratedPoint(radial: radial, calibration: calibration, geometry: geometry)
     }
 
     public func horizontalPosition(
@@ -289,7 +362,7 @@ public struct ProjectionEngine: Sendable {
             case let (.map(mapViewport), .geodetic(geodetic)):
                 let radial = try mapRadialPosition(
                     for: geodetic.coordinate,
-                    observer: observer,
+                    center: observer.coordinate,
                     viewport: mapViewport,
                     screenTopBearing: screenTopBearing,
                 )
@@ -330,12 +403,12 @@ public struct ProjectionEngine: Sendable {
 
     private func mapRadialPosition(
         for coordinate: GeoCoordinate,
-        observer: ObserverPosition,
+        center: GeoCoordinate,
         viewport: MapViewport,
         screenTopBearing: Bearing,
     ) throws -> RadialPosition {
         let geographic = try greatCirclePosition(
-            from: observer.coordinate,
+            from: center,
             to: coordinate,
         )
         let relativeBearing = (
@@ -423,18 +496,11 @@ public struct ProjectionEngine: Sendable {
             (mark.velocity?.groundSpeedKnots ?? 0) > 0
         let hasVerticalMotion = (mark.velocity?.verticalRateFeetPerMinute ?? 0) != 0
         guard hasHorizontalMotion || hasVerticalMotion else { return nil }
-        guard let observationAge = FlightPredictor.observationAge(
+        guard FlightPredictor.observationAge(
             positionObservedAt: mark.freshness.positionObservedAt,
             at: date,
-        ) else { return nil }
-        let usesPreviousPosition = observationAge >= FlightPredictor.predictionLimit - 1
-        let comparisonDate = if usesPreviousPosition {
-            mark.freshness.positionObservedAt.addingTimeInterval(
-                max(0, min(observationAge, FlightPredictor.predictionLimit) - 1),
-            )
-        } else {
-            date.addingTimeInterval(1)
-        }
+        ) != nil else { return nil }
+        let comparisonDate = date.addingTimeInterval(1)
         guard let comparisonMark = try FlightPredictor.predictedMark(
             for: mark,
             at: comparisonDate,
@@ -453,10 +519,8 @@ public struct ProjectionEngine: Sendable {
             calibration: calibration,
             geometry: geometry,
         )
-        let startPoint = usesPreviousPosition ? comparisonPoint : currentPoint
-        let endPoint = usesPreviousPosition ? currentPoint : comparisonPoint
-        let deltaX = (endPoint.x - startPoint.x) * geometry.width
-        let deltaY = (endPoint.y - startPoint.y) * geometry.height
+        let deltaX = (comparisonPoint.x - currentPoint.x) * geometry.width
+        let deltaY = (comparisonPoint.y - currentPoint.y) * geometry.height
         guard hypot(deltaX, deltaY) > 1e-8 else { return nil }
         let radians = atan2(deltaX, -deltaY)
         let bearing = try Bearing(degrees: radians.degrees)

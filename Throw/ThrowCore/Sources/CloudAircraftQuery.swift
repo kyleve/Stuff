@@ -26,8 +26,8 @@ public enum CloudAircraftQuery {
     public static let trueSkyGroundRangeNauticalMiles = 240.0
 
     public static func plan(for query: AircraftQuery) throws -> CloudAircraftQueryPlan {
-        let latitude = roundedTenth(query.observer.coordinate.latitude)
-        let longitude = min(180, max(-180, roundedTenth(query.observer.coordinate.longitude)))
+        let latitude = roundedTenth(query.center.latitude)
+        let longitude = min(180, max(-180, roundedTenth(query.center.longitude)))
         let radius: Double = switch query.viewport {
             case let .map(viewport):
                 min(
@@ -58,7 +58,7 @@ public enum CloudAircraftQuery {
                         continue
                     }
                     let position = try engine.greatCirclePosition(
-                        from: query.observer.coordinate,
+                        from: query.center,
                         to: observation.coordinate,
                     )
                     if position.distance <= viewport.radius {

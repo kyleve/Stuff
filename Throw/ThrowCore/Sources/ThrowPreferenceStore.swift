@@ -58,6 +58,7 @@ public struct ThrowPreferences: Equatable, Sendable, CustomStringConvertible,
                 confirmedLocation: nil,
                 calibration: .defaultValue,
                 mapViewport: .defaultValue,
+                mapCenters: .defaultValue,
                 skyViewport: .defaultValue,
                 selectedProjectionMode: nil,
                 flightsEnabled: true,
@@ -81,6 +82,7 @@ public struct ThrowPreferences: Equatable, Sendable, CustomStringConvertible,
     public let confirmedLocation: ConfirmedObserverLocation?
     public let calibration: ProjectionCalibration
     public let mapViewport: MapViewport
+    public let mapCenters: MapCenterPreferences
     public let skyViewport: SkyViewport
     public let selectedProjectionMode: ProjectionMode?
     public let flightsEnabled: Bool
@@ -100,6 +102,7 @@ public struct ThrowPreferences: Equatable, Sendable, CustomStringConvertible,
         confirmedLocation: ConfirmedObserverLocation?,
         calibration: ProjectionCalibration,
         mapViewport: MapViewport,
+        mapCenters: MapCenterPreferences,
         skyViewport: SkyViewport,
         selectedProjectionMode: ProjectionMode?,
         flightsEnabled: Bool,
@@ -139,6 +142,7 @@ public struct ThrowPreferences: Equatable, Sendable, CustomStringConvertible,
         self.confirmedLocation = confirmedLocation
         self.calibration = calibration
         self.mapViewport = mapViewport
+        self.mapCenters = mapCenters
         self.skyViewport = skyViewport
         self.selectedProjectionMode = selectedProjectionMode
         self.flightsEnabled = flightsEnabled
@@ -236,6 +240,7 @@ enum ThrowPreferencesCodec {
         let confirmedLocation: LocationStorage?
         let calibration: CalibrationStorage
         let mapRadius: Double
+        let mapCenters: [MapCenterStorage]?
         let skyMinimumElevation: Double
         let selectedProjectionMode: String?
         let flightsEnabled: Bool
@@ -256,6 +261,7 @@ enum ThrowPreferencesCodec {
             confirmedLocation = preferences.confirmedLocation.map(LocationStorage.init)
             calibration = CalibrationStorage(preferences.calibration)
             mapRadius = preferences.mapViewport.radius.value
+            mapCenters = preferences.mapCenters.profiles.map(MapCenterStorage.init)
             skyMinimumElevation = preferences.skyViewport.minimumElevation.degrees
             selectedProjectionMode = preferences.selectedProjectionMode?.rawValue
             flightsEnabled = preferences.flightsEnabled
@@ -297,6 +303,9 @@ enum ThrowPreferencesCodec {
                 confirmedLocation: confirmedLocation?.location(),
                 calibration: calibration.value(),
                 mapViewport: MapViewport(radius: NauticalMiles(value: mapRadius)),
+                mapCenters: MapCenterPreferences(
+                    profiles: (mapCenters ?? []).map { try $0.value() },
+                ),
                 skyViewport: SkyViewport(
                     minimumElevation: ElevationAngle(degrees: skyMinimumElevation),
                 ),
@@ -309,6 +318,30 @@ enum ThrowPreferencesCodec {
                 markSizePercent: markSizePercent,
                 intensityPercent: intensityPercent,
                 quietSchedule: schedule,
+            )
+        }
+    }
+
+    private struct MapCenterStorage: Codable {
+        let latitudeBand: Int
+        let longitudeBand: Int
+        let latitude: Double
+        let longitude: Double
+
+        init(_ profile: MapCenterProfile) {
+            latitudeBand = profile.regionID.latitudeBand
+            longitudeBand = profile.regionID.longitudeBand
+            latitude = profile.center.latitude
+            longitude = profile.center.longitude
+        }
+
+        func value() throws -> MapCenterProfile {
+            try MapCenterProfile(
+                regionID: MapRegionID(
+                    latitudeBand: latitudeBand,
+                    longitudeBand: longitudeBand,
+                ),
+                center: GeoCoordinate(latitude: latitude, longitude: longitude),
             )
         }
     }

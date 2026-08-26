@@ -436,6 +436,7 @@ extension ThrowSession {
                     confirmedLocation: confirmed,
                     calibration: .defaultValue,
                     mapViewport: .defaultValue,
+                    mapCenters: .defaultValue,
                     skyViewport: .defaultValue,
                     selectedProjectionMode: setupCompleted ? .map : nil,
                     flightsEnabled: true,

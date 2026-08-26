@@ -9,8 +9,10 @@ struct AdsBLolSourceTests {
             decoder: ADSBExchangeV2Decoder(),
             dateProvider: FixedDateProvider(date: ThrowCoreFixture.date),
         )
+        let observer = try ThrowCoreFixture.observer(latitude: 37.04, longitude: -122.06)
         let query = try AircraftQuery(
-            observer: ThrowCoreFixture.observer(latitude: 37.04, longitude: -122.06),
+            observer: observer,
+            center: observer.coordinate,
             viewport: .map(MapViewport(radius: NauticalMiles(value: 50))),
             includeGroundAircraft: false,
         )

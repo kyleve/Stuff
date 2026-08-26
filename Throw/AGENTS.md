@@ -20,9 +20,8 @@ WhereCore, RegionKit, or LifecycleKit into this feature.
   another; never combine or automatically fall back between providers.
 - Render Preview, full-screen fallback, and external displays with the same
   `ProjectionSurface`.
-- Keep secrets in `AircraftCredentialStore` only. Never persist or log a key,
-  observer coordinate, receiver URL, request URL, aircraft identity, or
-  response body.
+- Keep secrets in `AircraftCredentialStore` only. Never log a key, observer or
+  Map-center coordinate, receiver URL, request URL, aircraft identity, or response body.
 - Keep the external surface opaque black and noninteractive. Calibration may
   bypass quiet output without starting a feed.
 - Keep Geography offline and Map-only. Never add online map tiles or transmit

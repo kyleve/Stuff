@@ -18,6 +18,7 @@ public final class ThrowSession {
     public internal(set) var feedHealth: FeedHealth = .idle
     public internal(set) var locationHealth: LocationHealth = .missing
     public internal(set) var projectionFrame: ProjectionFrame
+    public internal(set) var observerMapPoint: ProjectionPoint?
     var projectionMarkEffects: [LayerMarkID: ProjectionMarkEffect] = [:]
     public internal(set) var projectionMarkOpacity = 1.0
     public internal(set) var geographyLayerHealth: GeographyLayerHealth = .idle
@@ -40,6 +41,8 @@ public final class ThrowSession {
             projectionInputsChanged(restartsPolling: true)
         }
     }
+
+    public internal(set) var mapCenters: MapCenterPreferences
 
     public var minimumElevation: Double {
         didSet {
@@ -258,6 +261,7 @@ public final class ThrowSession {
         setupCompleted = preferences.setupCompleted
         projectionMode = preferences.selectedProjectionMode ?? .map
         mapRadius = preferences.mapViewport.radius.value
+        mapCenters = preferences.mapCenters
         minimumElevation = preferences.skyViewport.minimumElevation.degrees
         flightsEnabled = preferences.flightsEnabled
         airlineAccentsEnabled = preferences.airlineAccentsEnabled
@@ -291,6 +295,7 @@ public final class ThrowSession {
             geographyOpacity: 1,
             marks: [],
         )
+        observerMapPoint = nil
         self.preferenceStore = preferenceStore
         self.credentialStore = credentialStore
         self.sourceFactory = sourceFactory

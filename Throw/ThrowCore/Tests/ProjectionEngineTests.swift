@@ -84,6 +84,49 @@ struct ProjectionEngineTests {
         #expect(abs(eastRange.value - 6.004) < 0.01)
     }
 
+    @Test func mapUsesIndependentCenterAndCanProjectObserverMarker() throws {
+        let observer = try ThrowCoreFixture.observer(latitude: 0, longitude: 0)
+        let mapCenter = try engine.destination(
+            from: observer.coordinate,
+            bearing: Bearing(degrees: 90),
+            distance: NauticalMiles(value: 10),
+        )
+        let frame = try LayerFrame(
+            layerID: .flights,
+            observedAt: ThrowCoreFixture.date,
+            content: .marks([mark(
+                rawID: "center",
+                latitude: mapCenter.latitude,
+                longitude: mapCenter.longitude,
+            )]),
+        )
+        let viewport = try MapViewport(radius: NauticalMiles(value: 20))
+        let projection = try engine.frame(
+            layerFrames: [frame],
+            geography: nil,
+            observer: observer,
+            mapCenter: mapCenter,
+            viewport: .map(viewport),
+            calibration: .defaultValue,
+            geometry: ProjectionGeometry(width: 1, height: 1),
+            generatedAt: ThrowCoreFixture.date,
+        )
+        let marker = try engine.mapPoint(
+            for: observer.coordinate,
+            center: mapCenter,
+            viewport: viewport,
+            calibration: .defaultValue,
+            geometry: ProjectionGeometry(width: 1, height: 1),
+        )
+
+        let centeredAircraft = try #require(projection.marks.first)
+        let observerMarker = try #require(marker)
+        #expect(abs(centeredAircraft.point.x - 0.5) < 0.000_001)
+        #expect(abs(centeredAircraft.point.y - 0.5) < 0.000_001)
+        #expect(observerMarker.x < 0.5)
+        #expect(abs(observerMarker.y - 0.5) < 0.000_001)
+    }
+
     @Test func ninetyDegreeRotationMovesNorthToRight() throws {
         let observer = try ThrowCoreFixture.observer(latitude: 0, longitude: 0, altitudeFeet: 0)
         let calibration = try ProjectionCalibration(
@@ -248,7 +291,7 @@ struct ProjectionEngineTests {
         #expect(angularDifference(actual, expected) < 0.000_001)
     }
 
-    @Test func apparentOrientationPersistsAfterPredictionStops() throws {
+    @Test func apparentOrientationRemainsStableDuringContinuousPrediction() throws {
         let observer = try ThrowCoreFixture.observer(latitude: 0, longitude: 0, altitudeFeet: 0)
         let velocity = try ProjectionVelocity(
             groundTrack: Bearing(degrees: 90),
@@ -290,9 +333,12 @@ struct ProjectionEngineTests {
         )
         let expected = try #require(atPredictionLimit.marks.first?.orientationDegrees)
         let actual = try #require(fiveMinutesLater.marks.first?.orientationDegrees)
+        let earlyPoint = try #require(atPredictionLimit.marks.first?.point)
+        let laterPoint = try #require(fiveMinutesLater.marks.first?.point)
 
-        #expect(angularDifference(actual, expected) < 0.000_001)
+        #expect(angularDifference(actual, expected) < 0.01)
         #expect(angularDifference(actual, 90) < 0.1)
+        #expect(laterPoint.x > earlyPoint.x)
     }
 
     @Test func extremeVerticalPredictionDoesNotDropNeighboringMarks() throws {

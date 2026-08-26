@@ -56,16 +56,20 @@ enum ThrowCoreFixture {
         radius: Double = 50,
         includeGround: Bool = false,
     ) throws -> AircraftQuery {
-        try AircraftQuery(
-            observer: observer(),
+        let observer = try observer()
+        return try AircraftQuery(
+            observer: observer,
+            center: observer.coordinate,
             viewport: .map(MapViewport(radius: NauticalMiles(value: radius))),
             includeGroundAircraft: includeGround,
         )
     }
 
     static func skyQuery(minimumElevation: Double = 0) throws -> AircraftQuery {
-        try AircraftQuery(
-            observer: observer(),
+        let observer = try observer()
+        return try AircraftQuery(
+            observer: observer,
+            center: observer.coordinate,
             viewport: .trueSky(
                 SkyViewport(minimumElevation: ElevationAngle(degrees: minimumElevation)),
             ),
