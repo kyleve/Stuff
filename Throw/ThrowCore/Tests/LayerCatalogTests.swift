@@ -2,9 +2,18 @@ import Testing
 @testable import ThrowCore
 
 struct LayerCatalogTests {
-    @Test func v1CatalogEnablesFlightsAndMapOnlyGeography() {
+    @Test func catalogEnablesAirLayersAndReservesTransitLayers() {
         let catalog = LayerCatalog.standard
-        #expect(catalog.descriptors.map(\.id) == [.flights, .geography, .stars, .satellites])
+        #expect(
+            catalog.descriptors.map(\.id) == [
+                .flights,
+                .geography,
+                .stars,
+                .satellites,
+                .transitNetwork,
+                .transitVehicles,
+            ],
+        )
         #expect(catalog.descriptors.first?.supportedModes == [.map, .trueSky])
         #expect(catalog.descriptors[0].runtimeFactory() is FlightsLayerRuntime)
         #expect(catalog.descriptors[1].supportedModes == [.map])

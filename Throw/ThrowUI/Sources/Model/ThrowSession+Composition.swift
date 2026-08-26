@@ -52,6 +52,7 @@ extension ThrowSession {
                 source: ADSBDBFlightRouteSource(transport: cloudTransport),
             ),
             routeLogger: PeriscopeFlightRouteLogger(log: ThrowLog.flightRoutes),
+            rotationClock: SystemProjectionRotationClock(),
             softwareCredits: credits,
         )
         session.settingsFailure = creditFailure
@@ -60,6 +61,13 @@ extension ThrowSession {
 }
 
 #if DEBUG
+    enum ExperienceDashboardSnapshotState {
+        case rotating
+        case paused
+        case prewarming
+        case failedSelection
+    }
+
     extension ThrowSession {
         @_spi(Testing) public static func fixture() -> ThrowSession {
             makeFixture(
@@ -117,7 +125,7 @@ extension ThrowSession {
             )
             session.feedHealth = .healthy(
                 lastUpdate: session.dateProvider.now(),
-                visibleAircraft: session.projectionFrame.visibleAircraftCount,
+                visibleContentCount: session.projectionFrame.visibleAircraftCount,
             )
             return session
         }
@@ -133,7 +141,7 @@ extension ThrowSession {
                 lastUpdate: now,
                 nextRetry: now.addingTimeInterval(3600),
                 failure: .transport,
-                visibleAircraft: session.projectionFrame.visibleAircraftCount,
+                visibleContentCount: session.projectionFrame.visibleAircraftCount,
             )
             return session
         }
@@ -188,7 +196,7 @@ extension ThrowSession {
             )
             session.feedHealth = .healthy(
                 lastUpdate: session.dateProvider.now(),
-                visibleAircraft: session.projectionFrame.visibleAircraftCount,
+                visibleContentCount: session.projectionFrame.visibleAircraftCount,
             )
             return session
         }
@@ -357,7 +365,7 @@ extension ThrowSession {
             prepareDashboardSnapshot(session)
             session.feedHealth = .healthy(
                 lastUpdate: session.dateProvider.now(),
-                visibleAircraft: session.projectionFrame.visibleAircraftCount,
+                visibleContentCount: session.projectionFrame.visibleAircraftCount,
             )
             return session
         }
@@ -405,8 +413,61 @@ extension ThrowSession {
             session.rapidAPICredentialState = .saved(lastFour: "4242")
             session.feedHealth = .healthy(
                 lastUpdate: session.dateProvider.now(),
-                visibleAircraft: 0,
+                visibleContentCount: 0,
             )
+            return session
+        }
+
+        static func experienceDashboardSnapshotFixture(
+            _ state: ExperienceDashboardSnapshotState,
+        ) -> ThrowSession {
+            let session = healthyDashboardSnapshotFixture()
+            do {
+                let dwell = try ProjectionDwellDuration(seconds: 120)
+                session.projectionPlaylist = try ProjectionPlaylist(
+                    entries: [
+                        ProjectionPlaylistEntry(
+                            experienceID: .airAndSpace,
+                            dwellDuration: dwell,
+                        ),
+                        ProjectionPlaylistEntry(
+                            experienceID: .transit,
+                            dwellDuration: dwell,
+                        ),
+                    ],
+                    automaticRotationEnabled: true,
+                    selectedExperienceID: .airAndSpace,
+                    configuredExperienceIDs: [.airAndSpace, .transit],
+                    catalog: enabledExperienceSnapshotCatalog,
+                )
+            } catch {
+                preconditionFailure("Snapshot View playlist must be valid: \(error)")
+            }
+
+            let now = session.dateProvider.now()
+            session.activeExperienceID = .airAndSpace
+            session.nextExperienceID = .transit
+            session.experienceDwellEndsAt = now.addingTimeInterval(75)
+            session.experienceHealth = [
+                .airAndSpace: session.feedHealth,
+                .transit: .idle,
+            ]
+
+            switch state {
+                case .rotating:
+                    break
+                case .paused:
+                    session.isExperienceRotationPaused = true
+                    session.experienceDwellEndsAt = nil
+                case .prewarming:
+                    session.requestedExperienceID = .transit
+                    session.prewarmingExperienceID = .transit
+                    session.experienceDwellEndsAt = now.addingTimeInterval(15)
+                    session.experienceHealth[.transit] = .loading
+                case .failedSelection:
+                    session.experienceSelectionFailure = .transport
+                    session.experienceHealth[.transit] = .failed(.transport)
+            }
             return session
         }
 
@@ -490,6 +551,7 @@ extension ThrowSession {
                         source: EmptyFlightRouteSource(),
                     ),
                     routeLogger: DiscardingFlightRouteLogger(),
+                    rotationClock: SystemProjectionRotationClock(),
                     softwareCredits: [],
                 )
                 session.projectionFrame = quiet
@@ -499,7 +561,7 @@ extension ThrowSession {
                     ? .quiet
                     : .healthy(
                         lastUpdate: now,
-                        visibleAircraft: session.projectionFrame.visibleAircraftCount,
+                        visibleContentCount: session.projectionFrame.visibleAircraftCount,
                     )
                 return session
             } catch {
@@ -544,6 +606,24 @@ extension ThrowSession {
             session.locationHealth = .confirmed(
                 accuracyMeters: 18,
                 acceptedAt: session.dateProvider.now(),
+            )
+        }
+
+        private static var enabledExperienceSnapshotCatalog: ProjectionExperienceCatalog {
+            let descriptors = ProjectionExperienceCatalog.standard.descriptors.map { descriptor in
+                guard descriptor.id == .transit else { return descriptor }
+                return ProjectionExperienceDescriptor(
+                    id: descriptor.id,
+                    availability: .enabled,
+                    supportedModes: descriptor.supportedModes,
+                    layerIDs: descriptor.layerIDs,
+                    visibleContentKind: descriptor.visibleContentKind,
+                    zOrder: descriptor.zOrder,
+                )
+            }
+            return ProjectionExperienceCatalog(
+                descriptors: descriptors,
+                layerCatalog: .standard,
             )
         }
 

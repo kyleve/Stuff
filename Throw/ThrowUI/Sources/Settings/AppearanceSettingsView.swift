@@ -20,14 +20,6 @@ struct AppearanceSettingsView: View {
                     .accessibilityValue(
                         Text(session.markSizePercent / 100, format: .percent),
                     )
-                LabeledContent(String(localized: .settingsIntensity)) {
-                    Text(session.intensityPercent / 100, format: .percent)
-                }
-                Slider(value: $session.intensityPercent, in: 20 ... 100, step: 5)
-                    .accessibilityLabel(Text(.settingsIntensity))
-                    .accessibilityValue(
-                        Text(session.intensityPercent / 100, format: .percent),
-                    )
             }
             Section {
                 Toggle(
@@ -66,7 +58,7 @@ struct AppearanceSettingsView: View {
                 Text(.settingsGeographyIntensityDescription)
             }
         }
-        .navigationTitle(Text(.settingsAppearance))
+        .navigationTitle(Text(.settingsAirAndSpaceAppearance))
     }
 }
 

@@ -1,4 +1,5 @@
 import Foundation
+import SFSafeSymbols
 import SwiftUI
 import ThrowCore
 
@@ -7,6 +8,20 @@ struct ReadyStepView: View {
 
     var body: some View {
         Form {
+            Section(String(localized: .viewsTitle)) {
+                let presentation = ProjectionExperiencePresentation(id: .airAndSpace)
+                Label {
+                    VStack(alignment: .leading) {
+                        Text(presentation.name)
+                        Text(presentation.description)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                } icon: {
+                    Image(systemSymbol: presentation.symbol)
+                }
+            }
+
             Section(String(localized: .dashboardSource)) {
                 LabeledContent(String(localized: .dashboardSource), value: sourceName)
                 if model.sourceChoice == .readsb {

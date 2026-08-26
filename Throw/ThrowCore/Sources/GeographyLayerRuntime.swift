@@ -41,7 +41,7 @@ public struct GeographyLayerRuntime: ProjectionLayerRuntime {
         return LayerFrame(
             layerID: .geography,
             observedAt: Date(timeIntervalSince1970: 0),
-            content: .geographicLines(lines),
+            content: .lines(lines),
         )
     }
 }

@@ -353,6 +353,57 @@ struct ProjectionFrameWorkerTests {
         #expect(pointDistance(resetMark.point, freshMark.point) < 0.000_001)
     }
 
+    @Test func prewarmingAnotherExperienceDoesNotDisturbVisiblePresentationState() async throws {
+        let date = Date(timeIntervalSince1970: 3200)
+        let observer = try observer()
+        let viewport = try ProjectionViewport.map(MapViewport(radius: NauticalMiles(value: 50)))
+        let worker = projectionFrameWorker()
+        let visible = try layerFrame(label: "VISIBLE", observedAt: date, observer: observer)
+        let prewarming = try layerFrame(
+            label: "PREWARM",
+            observedAt: date.addingTimeInterval(1),
+            observer: observer,
+        )
+
+        _ = try await worker.frame(
+            experienceID: .airAndSpace,
+            layerFrames: [visible],
+            geographyEnabled: false,
+            observer: observer,
+            mapCenter: observer.coordinate,
+            viewport: viewport,
+            calibration: .defaultValue,
+            generatedAt: date,
+            reduceMotion: false,
+        )
+        _ = try await worker.frame(
+            experienceID: .transit,
+            layerFrames: [prewarming],
+            geographyEnabled: false,
+            observer: observer,
+            mapCenter: observer.coordinate,
+            viewport: viewport,
+            calibration: .defaultValue,
+            generatedAt: date.addingTimeInterval(1),
+            reduceMotion: false,
+        )
+        let resumed = try await worker.frame(
+            experienceID: .airAndSpace,
+            layerFrames: [visible],
+            geographyEnabled: false,
+            observer: observer,
+            mapCenter: observer.coordinate,
+            viewport: viewport,
+            calibration: .defaultValue,
+            generatedAt: date.addingTimeInterval(2),
+            reduceMotion: false,
+        ).frame
+
+        #expect(resumed.experienceID == .airAndSpace)
+        #expect(resumed.marks.first?.label?.primary == "VISIBLE")
+        #expect(resumed.marks.first?.labelOpacity == 1)
+    }
+
     @Test func acquisitionRingExpandsOnceForASemanticIdentity() async throws {
         let date = Date(timeIntervalSince1970: 3500)
         let worker = projectionFrameWorker()
@@ -392,6 +443,56 @@ struct ProjectionFrameWorkerTests {
         #expect(start.effects[markID]?.acquisitionProgress == 0)
         #expect(abs((midpoint.effects[markID]?.acquisitionProgress ?? 0) - 0.5) < 0.000_001)
         #expect(finished.effects[markID]?.acquisitionProgress == nil)
+    }
+
+    @Test func acquisitionRingReplaysOnlyAfterExperienceFeedWasAbsentForOneMinute() async throws {
+        let date = Date(timeIntervalSince1970: 3550)
+        let worker = projectionFrameWorker()
+        let observer = try observer()
+        let viewport = try ProjectionViewport.map(MapViewport(radius: NauticalMiles(value: 50)))
+        let firstLayer = try layerFrame(label: nil, observedAt: date, observer: observer)
+        let markID = try #require(firstLayer.marks.first?.id)
+        _ = try await worker.frame(
+            layerFrame: firstLayer,
+            geographyEnabled: false,
+            observer: observer,
+            viewport: viewport,
+            calibration: .defaultValue,
+            generatedAt: date.addingTimeInterval(1),
+            reduceMotion: false,
+        )
+
+        await worker.experienceBecameInactive(.airAndSpace, at: date.addingTimeInterval(2))
+        let shortAbsence = try await worker.frame(
+            layerFrame: layerFrame(
+                label: nil,
+                observedAt: date.addingTimeInterval(40),
+                observer: observer,
+            ),
+            geographyEnabled: false,
+            observer: observer,
+            viewport: viewport,
+            calibration: .defaultValue,
+            generatedAt: date.addingTimeInterval(40),
+            reduceMotion: false,
+        )
+        #expect(shortAbsence.effects[markID]?.acquisitionProgress == nil)
+
+        await worker.experienceBecameInactive(.airAndSpace, at: date.addingTimeInterval(41))
+        let longAbsence = try await worker.frame(
+            layerFrame: layerFrame(
+                label: nil,
+                observedAt: date.addingTimeInterval(102),
+                observer: observer,
+            ),
+            geographyEnabled: false,
+            observer: observer,
+            viewport: viewport,
+            calibration: .defaultValue,
+            generatedAt: date.addingTimeInterval(102),
+            reduceMotion: false,
+        )
+        #expect(longAbsence.effects[markID]?.acquisitionProgress == 0)
     }
 
     @Test func reduceMotionRemovesAcquisitionRingAndScaleMotion() async throws {
@@ -492,6 +593,77 @@ struct ProjectionFrameWorkerTests {
 
         #expect(frame.geographySegments.isEmpty)
         #expect(frame.marks.count == 1)
+    }
+
+    @Test func genericLineLayerUsesTypedStyleAndRevisionCache() async throws {
+        let worker = projectionFrameWorker()
+        let observer = try observer()
+        let date = Date(timeIntervalSince1970: 6500)
+        let bounds = try GeographicBounds(
+            southLatitude: 37,
+            westLongitude: -122,
+            northLatitude: 37.1,
+            eastLongitude: -121.9,
+        )
+        let line = try ProjectionPolyline(
+            styleID: .transitRoute,
+            detailLevel: .wide,
+            bounds: bounds,
+            coordinates: [
+                GeoCoordinate(latitude: 37, longitude: -122),
+                GeoCoordinate(latitude: 37.1, longitude: -121.9),
+            ],
+        )
+        func layer(at observedAt: Date) -> LayerFrame {
+            LayerFrame(
+                layerID: .transitNetwork,
+                observedAt: observedAt,
+                content: .lines([line]),
+            )
+        }
+
+        let first = try await worker.frame(
+            experienceID: .transit,
+            layerFrames: [layer(at: date)],
+            geographyEnabled: false,
+            observer: observer,
+            mapCenter: observer.coordinate,
+            viewport: .map(MapViewport(radius: NauticalMiles(value: 50))),
+            calibration: .defaultValue,
+            generatedAt: date,
+            reduceMotion: false,
+        ).frame
+        let cached = try await worker.frame(
+            experienceID: .transit,
+            layerFrames: [layer(at: date)],
+            geographyEnabled: false,
+            observer: observer,
+            mapCenter: observer.coordinate,
+            viewport: .map(MapViewport(radius: NauticalMiles(value: 50))),
+            calibration: .defaultValue,
+            generatedAt: date.addingTimeInterval(1),
+            reduceMotion: false,
+        ).frame
+        let revised = try await worker.frame(
+            experienceID: .transit,
+            layerFrames: [layer(at: date.addingTimeInterval(2))],
+            geographyEnabled: false,
+            observer: observer,
+            mapCenter: observer.coordinate,
+            viewport: .map(MapViewport(radius: NauticalMiles(value: 50))),
+            calibration: .defaultValue,
+            generatedAt: date.addingTimeInterval(2),
+            reduceMotion: false,
+        ).frame
+
+        let firstLines = try #require(first.layers.first?.lines)
+        let cachedLines = try #require(cached.layers.first?.lines)
+        let revisedLines = try #require(revised.layers.first?.lines)
+        #expect(first.experienceID == .transit)
+        #expect(first.layers.map(\.id) == [.transitNetwork])
+        #expect(firstLines.segments.first?.styleID == .transitRoute)
+        #expect(cachedLines.id == firstLines.id)
+        #expect(revisedLines.id != firstLines.id)
     }
 
     @Test func overlappingFramesShareTheFirstGeographyLoad() async throws {

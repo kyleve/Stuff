@@ -41,19 +41,66 @@ struct ThrowPreferenceStoreTests {
         }
     }
 
-    @Test func payloadFromBeforeGeographyUsesTheNewDefault() throws {
+    @Test func writesVersionTwoNestedPreferencesUnderTheExistingCodec() throws {
+        let propertyList = try propertyList(for: ThrowPreferencesCodec
+            .encode(populatedPreferences()))
+
+        #expect(propertyList["version"] as? Int == 2)
+        #expect(propertyList["global"] != nil)
+        #expect(propertyList["playlist"] != nil)
+        #expect(propertyList["airAndSpace"] != nil)
+        #expect(propertyList["locationMode"] == nil)
+        #expect(propertyList["selectedSource"] == nil)
+    }
+
+    @Test func completeVersionOnePayloadMigratesWithoutOnboardingAgain() throws {
+        let original = try populatedPreferences()
+        let migrated = try ThrowPreferencesCodec.decode(versionOnePayload(from: original))
+
+        #expect(migrated == original)
+        #expect(migrated.setupCompleted)
+        #expect(migrated.playlist.selectedExperienceID == .airAndSpace)
+        #expect(migrated.playlist.entries == [
+            ProjectionPlaylistEntry(
+                experienceID: .airAndSpace,
+                dwellDuration: .defaultValue,
+            ),
+        ])
+        #expect(migrated.playlist.rotatesAutomatically == false)
+    }
+
+    @Test func incompleteVersionOnePayloadPreservesDraftAndHasNoConfiguredView() throws {
+        let original = ThrowPreferences.defaultValue
+        let migrated = try ThrowPreferencesCodec.decode(versionOnePayload(from: original))
+
+        #expect(migrated == original)
+        #expect(migrated.setupCompleted == false)
+        #expect(migrated.playlist.entries.isEmpty)
+        #expect(migrated.playlist.selectedExperienceID == nil)
+    }
+
+    @Test func corruptVersionTwoPlaylistEntersRepair() throws {
         let encoded = try ThrowPreferencesCodec.encode(populatedPreferences())
-        let propertyList = try PropertyListSerialization.propertyList(
-            from: encoded,
-            options: [],
-            format: nil,
-        )
-        var storage = try #require(propertyList as? [String: Any])
-        storage.removeValue(forKey: "geography")
-        let legacyData = try PropertyListSerialization.data(
+        var storage = try propertyList(for: encoded)
+        var playlist = try #require(storage["playlist"] as? [String: Any])
+        let entries = try #require(playlist["entries"] as? [[String: Any]])
+        playlist["entries"] = entries + entries
+        storage["playlist"] = playlist
+        let corruptData = try PropertyListSerialization.data(
             fromPropertyList: storage,
             format: .binary,
             options: 0,
+        )
+
+        #expect(throws: ThrowPreferenceStoreError.invalidPayload) {
+            try ThrowPreferencesCodec.decode(corruptData)
+        }
+    }
+
+    @Test func payloadFromBeforeGeographyUsesTheNewDefault() throws {
+        let legacyData = try versionOnePayload(
+            from: populatedPreferences(),
+            includeGeography: false,
         )
 
         let decoded = try ThrowPreferencesCodec.decode(legacyData)
@@ -62,18 +109,9 @@ struct ThrowPreferenceStoreTests {
     }
 
     @Test func payloadFromBeforeAirlineAccentsKeepsAccentsEnabled() throws {
-        let encoded = try ThrowPreferencesCodec.encode(populatedPreferences())
-        let propertyList = try PropertyListSerialization.propertyList(
-            from: encoded,
-            options: [],
-            format: nil,
-        )
-        var storage = try #require(propertyList as? [String: Any])
-        storage.removeValue(forKey: "airlineAccentsEnabled")
-        let legacyData = try PropertyListSerialization.data(
-            fromPropertyList: storage,
-            format: .binary,
-            options: 0,
+        let legacyData = try versionOnePayload(
+            from: populatedPreferences(),
+            includeAirlineAccents: false,
         )
 
         #expect(try ThrowPreferencesCodec.decode(legacyData).airlineAccentsEnabled)
@@ -255,5 +293,66 @@ struct ThrowPreferenceStoreTests {
                 end: LocalTime(hour: 6, minute: 30),
             ),
         )
+    }
+
+    private func propertyList(for data: Data) throws -> [String: Any] {
+        try #require(
+            PropertyListSerialization.propertyList(
+                from: data,
+                options: [],
+                format: nil,
+            ) as? [String: Any],
+        )
+    }
+
+    /// Builds the exact flat format shipped before projection experiences.
+    private func versionOnePayload(
+        from preferences: ThrowPreferences,
+        includeGeography: Bool = true,
+        includeAirlineAccents: Bool = true,
+    ) throws -> Data {
+        let versionTwo = try propertyList(for: ThrowPreferencesCodec.encode(preferences))
+        let global = try #require(versionTwo["global"] as? [String: Any])
+        let airAndSpace = try #require(versionTwo["airAndSpace"] as? [String: Any])
+        var versionOne: [String: Any] = try [
+            "version": 1,
+            "setupCompleted": preferences.setupCompleted,
+            "locationMode": #require(global["locationMode"]),
+            "calibration": #require(global["calibration"]),
+            "mapRadius": #require(airAndSpace["mapRadius"]),
+            "mapCenters": #require(airAndSpace["mapCenters"]),
+            "skyMinimumElevation": #require(airAndSpace["skyMinimumElevation"]),
+            "flightsEnabled": #require(airAndSpace["flightsEnabled"]),
+            "labelMode": #require(airAndSpace["labelMode"]),
+            "includeGroundAircraft": #require(airAndSpace["includeGroundAircraft"]),
+            "markSizePercent": #require(airAndSpace["markSizePercent"]),
+            "intensityPercent": #require(global["intensityPercent"]),
+        ]
+        copy("confirmedLocation", from: global, to: &versionOne)
+        copy("quietInterval", from: global, to: &versionOne)
+        copy("selectedSource", from: airAndSpace, to: &versionOne)
+        copy("validatedSource", from: airAndSpace, to: &versionOne)
+        copy("selectedProjectionMode", from: airAndSpace, to: &versionOne)
+        if includeGeography {
+            copy("geography", from: airAndSpace, to: &versionOne)
+        }
+        if includeAirlineAccents {
+            copy("airlineAccentsEnabled", from: airAndSpace, to: &versionOne)
+        }
+        return try PropertyListSerialization.data(
+            fromPropertyList: versionOne,
+            format: .binary,
+            options: 0,
+        )
+    }
+
+    private func copy(
+        _ key: String,
+        from source: [String: Any],
+        to destination: inout [String: Any],
+    ) {
+        if let value = source[key] {
+            destination[key] = value
+        }
     }
 }

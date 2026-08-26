@@ -15,12 +15,27 @@ public enum GeographyLayerHealth: Equatable, Sendable {
 @Observable
 public final class ThrowSession {
     public internal(set) var setupCompleted: Bool
-    public internal(set) var feedHealth: FeedHealth = .idle
+    /// Compatibility access for Air & Space callers while health remains keyed by experience.
+    public internal(set) var feedHealth: FeedHealth {
+        get { experienceHealth[.airAndSpace] ?? .idle }
+        set { experienceHealth[.airAndSpace] = newValue }
+    }
+
+    public internal(set) var projectionPlaylist: ProjectionPlaylist
+    public internal(set) var activeExperienceID: ProjectionExperienceID?
+    public internal(set) var requestedExperienceID: ProjectionExperienceID?
+    public internal(set) var nextExperienceID: ProjectionExperienceID?
+    public internal(set) var prewarmingExperienceID: ProjectionExperienceID?
+    public internal(set) var experienceDwellEndsAt: Date?
+    public internal(set) var isExperienceRotationPaused = false
+    public internal(set) var experienceHealth: [ProjectionExperienceID: FeedHealth] = [:]
+    public internal(set) var experienceSelectionFailure: ThrowFailureCategory?
     public internal(set) var locationHealth: LocationHealth = .missing
     public internal(set) var projectionFrame: ProjectionFrame
     public internal(set) var observerMapPoint: ProjectionPoint?
     var projectionMarkEffects: [LayerMarkID: ProjectionMarkEffect] = [:]
     public internal(set) var projectionMarkOpacity = 1.0
+    public internal(set) var projectionSurfaceOpacity = 1.0
     public internal(set) var geographyLayerHealth: GeographyLayerHealth = .idle
     public internal(set) var projectionOutputCount = 0
     public internal(set) var rapidAPICredentialState: CredentialState = .missing
@@ -91,9 +106,6 @@ public final class ThrowSession {
         didSet {
             guard oldValue != labelMode, isApplyingPreferences == false else { return }
             projectionInputsChanged(restartsPolling: false)
-            if let currentSnapshot {
-                scheduleRouteEnrichment(for: currentSnapshot)
-            }
         }
     }
 
@@ -198,15 +210,14 @@ public final class ThrowSession {
     let preferenceStore: any ThrowPreferenceStore
     let credentialStore: any AircraftCredentialStore
     let sourceFactory: any AircraftSourceProducing
-    let pollingCoordinator: AircraftPollingCoordinator
+    let airAndSpaceRuntime: AirAndSpaceRuntime
+    let experienceCoordinator: ProjectionExperienceCoordinator
     let cloudTransport: any HTTPTransport
     let dateProvider: any DateProvider
     let locationSource: any ThrowLocationSource
     let calendar: Calendar
     let layerCatalog: LayerCatalog
     let projectionWorker: ProjectionFrameWorker
-    let routeResolver: FlightRouteResolver
-    let routeLogger: any FlightRouteLogging
 
     @ObservationIgnored var isApplyingPreferences = false
     @ObservationIgnored var hasStarted = false
@@ -218,26 +229,33 @@ public final class ThrowSession {
     @ObservationIgnored var pendingLocationFix: LocationFix?
     @ObservationIgnored var mayApplyTrueHeadingHint = true
     @ObservationIgnored var currentLayerFrame: LayerFrame?
+    @ObservationIgnored var currentExperienceFrame: ProjectionExperienceFrame
+    @ObservationIgnored var semanticFramesByExperience: [
+        ProjectionExperienceID: ProjectionExperienceFrame
+    ] = [:]
+    @ObservationIgnored var preparedOutputsByExperience: [
+        ProjectionExperienceID: ProjectionFrameWorkerOutput
+    ] = [:]
     @ObservationIgnored var currentSnapshot: AircraftSnapshot?
-    @ObservationIgnored var currentMarkAvailability: MarkAvailability = .current
     @ObservationIgnored var outputDemands: Set<ProjectionOutput> = []
     @ObservationIgnored var temporaryWakeUntil: Date?
     @ObservationIgnored var activePollingSignature: PollingSignature?
     @ObservationIgnored var demandGeneration: UInt64 = 0
-    @ObservationIgnored var pollingStateGeneration: UInt64 = 0
     @ObservationIgnored var renderGeneration: UInt64 = 0
     @ObservationIgnored var locationGeneration: UInt64 = 0
     @ObservationIgnored var projectionSessionLocationGeneration: UInt64 = 0
     @ObservationIgnored var projectionSessionLocationGate: ProjectionSessionLocationGate = .required
-    @ObservationIgnored var updateTask: Task<Void, Never>?
+    @ObservationIgnored var airAndSpaceUpdateTask: Task<Void, Never>?
+    @ObservationIgnored var experienceStateTask: Task<Void, Never>?
+    @ObservationIgnored var experienceActionTask: Task<Void, Never>?
+    @ObservationIgnored var airAndSpaceActivationGeneration: UInt64 = 0
     @ObservationIgnored var demandTask: Task<Void, Never>?
+    @ObservationIgnored var isReconcilingDemand = false
     @ObservationIgnored var renderTask: Task<Void, Never>?
     @ObservationIgnored var preferenceSaveTask: Task<Void, Never>?
     @ObservationIgnored var locationTask: Task<Void, Never>?
     @ObservationIgnored var quietBoundaryTask: Task<Void, Never>?
-    @ObservationIgnored var routeTask: Task<Void, Never>?
     @ObservationIgnored var timeChangeTasks: [Task<Void, Never>] = []
-    @ObservationIgnored var routeGeneration: UInt64 = 0
     @ObservationIgnored var cachedFlightradar24Usage: CachedFlightradar24Usage?
     @ObservationIgnored var lastFlightradar24UsageRequestAt: Date?
     @ObservationIgnored var flightradar24UsageGeneration: UInt64 = 0
@@ -257,9 +275,19 @@ public final class ThrowSession {
         motionLogger: any ProjectionMotionLogging,
         routeResolver: FlightRouteResolver,
         routeLogger: any FlightRouteLogging,
+        rotationClock: any ProjectionRotationClock,
         softwareCredits: [SoftwareCredit],
     ) {
         setupCompleted = preferences.setupCompleted
+        projectionPlaylist = preferences.playlist
+        activeExperienceID = preferences.playlist.selectedExperienceID
+        requestedExperienceID = nil
+        nextExperienceID = preferences.playlist.selectedExperienceID.flatMap(
+            preferences.playlist.experience(after:),
+        )
+        prewarmingExperienceID = nil
+        experienceDwellEndsAt = nil
+        experienceSelectionFailure = nil
         projectionMode = preferences.selectedProjectionMode ?? .map
         mapRadius = preferences.mapViewport.radius.value
         mapCenters = preferences.mapCenters
@@ -297,19 +325,32 @@ public final class ThrowSession {
             marks: [],
         )
         observerMapPoint = nil
+        currentExperienceFrame = ProjectionExperienceFrame(
+            experienceID: .airAndSpace,
+            layers: [],
+        )
+        semanticFramesByExperience[.airAndSpace] = currentExperienceFrame
         self.preferenceStore = preferenceStore
         self.credentialStore = credentialStore
         self.sourceFactory = sourceFactory
-        self.pollingCoordinator = pollingCoordinator
         self.cloudTransport = cloudTransport
         self.dateProvider = dateProvider
         self.locationSource = locationSource
         self.calendar = calendar
         self.layerCatalog = layerCatalog
-        self.routeResolver = routeResolver
-        self.routeLogger = routeLogger
+        let flightsRuntime = layerCatalog.flights.runtimeFactory()
+        airAndSpaceRuntime = AirAndSpaceRuntime(
+            pollingCoordinator: pollingCoordinator,
+            flightsRuntime: flightsRuntime,
+            routeResolver: routeResolver,
+            routeLogger: routeLogger,
+            dateProvider: dateProvider,
+        )
+        experienceCoordinator = ProjectionExperienceCoordinator(
+            playlist: preferences.playlist,
+            clock: rotationClock,
+        )
         projectionWorker = ProjectionFrameWorker(
-            flightsRuntime: layerCatalog.flights.runtimeFactory(),
             geographyRuntime: layerCatalog.geography.runtimeFactory(),
             geographyLogger: geographyLogger,
             motionLogger: motionLogger,
@@ -351,7 +392,7 @@ public final class ThrowSession {
     }
 
     public var lastUpdate: Date? {
-        switch feedHealth {
+        switch activeExperienceHealth {
             case let .healthy(lastUpdate, _): lastUpdate
             case let .retrying(lastUpdate, _, _, _): lastUpdate
             case .idle, .loading, .failed, .quiet: nil
@@ -359,7 +400,11 @@ public final class ThrowSession {
     }
 
     public var nextRetry: Date? {
-        if case let .retrying(_, nextRetry, _, _) = feedHealth { nextRetry } else { nil }
+        if case let .retrying(_, nextRetry, _, _) = activeExperienceHealth {
+            nextRetry
+        } else {
+            nil
+        }
     }
 
     public var outputHealth: OutputHealth {
@@ -374,8 +419,11 @@ public final class ThrowSession {
     }
 
     public var projectionAccessibilitySummary: String {
-        let count = projectionFrame.visibleAircraftCount.formatted(.number)
-        var summary = "\(String(localized: .projectionPreviewSummary)), \(count) \(String(localized: .dashboardAircraftVisible)), \(feedHealth.accessibilityDescription)"
+        let presentation = ProjectionExperiencePresentation(
+            id: activeExperienceID ?? projectionFrame.experienceID,
+        )
+        let count = activeExperienceHealth.visibleContentCount.formatted(.number)
+        var summary = "\(presentation.name), \(String(localized: .projectionPreviewSummary)), \(count) \(presentation.visibleContentLabel), \(activeExperienceHealth.accessibilityDescription)"
         if geographyLayerHealth == .unavailable {
             summary += ", \(String(localized: .layerGeographyUnavailableHint))"
         }
@@ -388,6 +436,7 @@ public final class ThrowSession {
         do {
             let preferences = try await preferenceStore.load()
             apply(preferences)
+            await experienceCoordinator.configure(preferences.playlist)
         } catch is CancellationError {
             hasStarted = false
             return
@@ -409,12 +458,32 @@ public final class ThrowSession {
             settingsFailure = error.localizedDescription
         }
 
-        let updates = await pollingCoordinator.stateUpdates()
-        updateTask?.cancel()
-        updateTask = Task(name: "Throw observe aircraft polling") { [weak self] in
-            for await state in updates {
+        let experienceStates = await experienceCoordinator.stateUpdates()
+        experienceStateTask?.cancel()
+        experienceStateTask = Task(name: "Throw observe projection experience state") {
+            [weak self] in
+            for await state in experienceStates {
                 guard Task.isCancelled == false else { return }
-                await self?.applyPollingState(state)
+                self?.applyExperienceCoordinatorState(state)
+            }
+        }
+        let experienceActions = await experienceCoordinator.actions()
+        experienceActionTask?.cancel()
+        experienceActionTask = Task(name: "Throw perform projection experience actions") {
+            [weak self] in
+            for await action in experienceActions {
+                guard Task.isCancelled == false, let self else { return }
+                await applyExperienceCoordinatorAction(action)
+            }
+        }
+
+        let updates = await airAndSpaceRuntime.stateUpdates()
+        airAndSpaceUpdateTask?.cancel()
+        airAndSpaceUpdateTask = Task(name: "Throw observe Air & Space runtime") {
+            [weak self] in
+            for await update in updates {
+                guard Task.isCancelled == false else { return }
+                await self?.applyAirAndSpaceUpdate(update)
             }
         }
         installTimeChangeObservers()
@@ -469,7 +538,9 @@ public final class ThrowSession {
     }
 
     isolated deinit {
-        updateTask?.cancel()
+        airAndSpaceUpdateTask?.cancel()
+        experienceStateTask?.cancel()
+        experienceActionTask?.cancel()
         demandTask?.cancel()
         renderTask?.cancel()
         preferenceSaveTask?.cancel()

@@ -45,42 +45,51 @@ public struct ConfirmedObserverLocation: Hashable, Sendable, CustomStringConvert
     }
 }
 
-public struct ThrowPreferences: Equatable, Sendable, CustomStringConvertible,
+/// Preferences shared by every projection experience.
+public struct ThrowGlobalPreferences: Equatable, Sendable, CustomStringConvertible,
     CustomDebugStringConvertible
 {
-    public static var defaultValue: ThrowPreferences {
-        do {
-            return try ThrowPreferences(
-                setupCompleted: false,
-                selectedSource: nil,
-                validatedSource: nil,
-                locationMode: .gps,
-                confirmedLocation: nil,
-                calibration: .defaultValue,
-                mapViewport: .defaultValue,
-                mapCenters: .defaultValue,
-                skyViewport: .defaultValue,
-                selectedProjectionMode: nil,
-                flightsEnabled: true,
-                airlineAccentsEnabled: true,
-                geography: .defaultValue,
-                labelMode: .adaptive,
-                includeGroundAircraft: false,
-                markSizePercent: 100,
-                intensityPercent: 100,
-                quietSchedule: .disabled,
-            )
-        } catch {
-            preconditionFailure("Throw's default preferences must be valid: \(error)")
-        }
-    }
-
-    public let setupCompleted: Bool
-    public let selectedSource: AircraftSourceConfiguration?
-    public let validatedSource: AircraftSourceConfiguration?
     public let locationMode: ObserverLocationMode
     public let confirmedLocation: ConfirmedObserverLocation?
     public let calibration: ProjectionCalibration
+    public let intensityPercent: Double
+    public let quietSchedule: QuietSchedule
+
+    public init(
+        locationMode: ObserverLocationMode,
+        confirmedLocation: ConfirmedObserverLocation?,
+        calibration: ProjectionCalibration,
+        intensityPercent: Double,
+        quietSchedule: QuietSchedule,
+    ) throws {
+        guard intensityPercent.isFinite else {
+            throw ThrowValidationError.nonFiniteValue(field: "intensity")
+        }
+        guard (20.0 ... 100.0).contains(intensityPercent) else {
+            throw ThrowValidationError.outOfRange(field: "intensity", closedRange: 20 ... 100)
+        }
+        self.locationMode = locationMode
+        self.confirmedLocation = confirmedLocation
+        self.calibration = calibration
+        self.intensityPercent = intensityPercent
+        self.quietSchedule = quietSchedule
+    }
+
+    public var description: String {
+        "<ThrowGlobalPreferences sensitive-values=<redacted>>"
+    }
+
+    public var debugDescription: String {
+        description
+    }
+}
+
+/// Preferences owned by the Air & Space experience.
+public struct AirAndSpacePreferences: Equatable, Sendable, CustomStringConvertible,
+    CustomDebugStringConvertible
+{
+    public let selectedSource: AircraftSourceConfiguration?
+    public let validatedSource: AircraftSourceConfiguration?
     public let mapViewport: MapViewport
     public let mapCenters: MapCenterPreferences
     public let skyViewport: SkyViewport
@@ -91,9 +100,136 @@ public struct ThrowPreferences: Equatable, Sendable, CustomStringConvertible,
     public let labelMode: FlightLabelMode
     public let includeGroundAircraft: Bool
     public let markSizePercent: Double
-    public let intensityPercent: Double
-    public let quietSchedule: QuietSchedule
 
+    public init(
+        selectedSource: AircraftSourceConfiguration?,
+        validatedSource: AircraftSourceConfiguration?,
+        mapViewport: MapViewport,
+        mapCenters: MapCenterPreferences,
+        skyViewport: SkyViewport,
+        selectedProjectionMode: ProjectionMode?,
+        flightsEnabled: Bool,
+        airlineAccentsEnabled: Bool,
+        geography: GeographyPreferences,
+        labelMode: FlightLabelMode,
+        includeGroundAircraft: Bool,
+        markSizePercent: Double,
+    ) throws {
+        guard markSizePercent.isFinite else {
+            throw ThrowValidationError.nonFiniteValue(field: "markSize")
+        }
+        guard (50.0 ... 200.0).contains(markSizePercent) else {
+            throw ThrowValidationError.outOfRange(field: "markSize", closedRange: 50 ... 200)
+        }
+        self.selectedSource = selectedSource
+        self.validatedSource = validatedSource
+        self.mapViewport = mapViewport
+        self.mapCenters = mapCenters
+        self.skyViewport = skyViewport
+        self.selectedProjectionMode = selectedProjectionMode
+        self.flightsEnabled = flightsEnabled
+        self.airlineAccentsEnabled = airlineAccentsEnabled
+        self.geography = geography
+        self.labelMode = labelMode
+        self.includeGroundAircraft = includeGroundAircraft
+        self.markSizePercent = markSizePercent
+    }
+
+    public var isConfigured: Bool {
+        guard let selectedSource else { return false }
+        return validatedSource == selectedSource && selectedProjectionMode != nil
+    }
+
+    public var description: String {
+        "<AirAndSpacePreferences sensitive-values=<redacted>>"
+    }
+
+    public var debugDescription: String {
+        description
+    }
+}
+
+/// Throw's version-two preference model, grouped by global and experience ownership.
+public struct ThrowPreferences: Equatable, Sendable, CustomStringConvertible,
+    CustomDebugStringConvertible
+{
+    public static var defaultValue: ThrowPreferences {
+        do {
+            let global = try ThrowGlobalPreferences(
+                locationMode: .gps,
+                confirmedLocation: nil,
+                calibration: .defaultValue,
+                intensityPercent: 100,
+                quietSchedule: .disabled,
+            )
+            let airAndSpace = try AirAndSpacePreferences(
+                selectedSource: nil,
+                validatedSource: nil,
+                mapViewport: .defaultValue,
+                mapCenters: .defaultValue,
+                skyViewport: .defaultValue,
+                selectedProjectionMode: nil,
+                flightsEnabled: true,
+                airlineAccentsEnabled: true,
+                geography: .defaultValue,
+                labelMode: .adaptive,
+                includeGroundAircraft: false,
+                markSizePercent: 100,
+            )
+            let playlist = try ProjectionPlaylist(
+                entries: [],
+                automaticRotationEnabled: false,
+                selectedExperienceID: nil,
+                configuredExperienceIDs: [],
+                catalog: .standard,
+            )
+            return try ThrowPreferences(
+                setupCompleted: false,
+                global: global,
+                playlist: playlist,
+                airAndSpace: airAndSpace,
+            )
+        } catch {
+            preconditionFailure("Throw's default preferences must be valid: \(error)")
+        }
+    }
+
+    public let setupCompleted: Bool
+    public let global: ThrowGlobalPreferences
+    public let playlist: ProjectionPlaylist
+    public let airAndSpace: AirAndSpacePreferences
+
+    public init(
+        setupCompleted: Bool,
+        global: ThrowGlobalPreferences,
+        playlist: ProjectionPlaylist,
+        airAndSpace: AirAndSpacePreferences,
+    ) throws {
+        let configuredExperienceIDs: Set<ProjectionExperienceID> = airAndSpace.isConfigured
+            ? [.airAndSpace]
+            : []
+        let validatedPlaylist = try ProjectionPlaylist(
+            entries: playlist.entries,
+            automaticRotationEnabled: playlist.automaticRotationEnabled,
+            selectedExperienceID: playlist.selectedExperienceID,
+            configuredExperienceIDs: configuredExperienceIDs,
+            catalog: .standard,
+        )
+        if setupCompleted {
+            guard global.confirmedLocation != nil,
+                  airAndSpace.isConfigured,
+                  validatedPlaylist.selectedExperienceID == .airAndSpace
+            else {
+                throw ThrowValidationError.invalidPreferencePayload
+            }
+        }
+        self.setupCompleted = setupCompleted
+        self.global = global
+        self.playlist = validatedPlaylist
+        self.airAndSpace = airAndSpace
+    }
+
+    /// Compatibility initializer while presentation call sites move to nested settings.
     public init(
         setupCompleted: Bool,
         selectedSource: AircraftSourceConfiguration?,
@@ -114,45 +250,116 @@ public struct ThrowPreferences: Equatable, Sendable, CustomStringConvertible,
         intensityPercent: Double,
         quietSchedule: QuietSchedule,
     ) throws {
-        guard markSizePercent.isFinite else {
-            throw ThrowValidationError.nonFiniteValue(field: "markSize")
-        }
-        guard intensityPercent.isFinite else {
-            throw ThrowValidationError.nonFiniteValue(field: "intensity")
-        }
-        guard (50.0 ... 200.0).contains(markSizePercent) else {
-            throw ThrowValidationError.outOfRange(field: "markSize", closedRange: 50 ... 200)
-        }
-        guard (20.0 ... 100.0).contains(intensityPercent) else {
-            throw ThrowValidationError.outOfRange(field: "intensity", closedRange: 20 ... 100)
-        }
-        if setupCompleted {
-            guard let selectedSource,
-                  validatedSource == selectedSource,
-                  confirmedLocation != nil,
-                  selectedProjectionMode != nil
-            else {
-                throw ThrowValidationError.invalidPreferencePayload
-            }
-        }
-        self.setupCompleted = setupCompleted
-        self.selectedSource = selectedSource
-        self.validatedSource = validatedSource
-        self.locationMode = locationMode
-        self.confirmedLocation = confirmedLocation
-        self.calibration = calibration
-        self.mapViewport = mapViewport
-        self.mapCenters = mapCenters
-        self.skyViewport = skyViewport
-        self.selectedProjectionMode = selectedProjectionMode
-        self.flightsEnabled = flightsEnabled
-        self.airlineAccentsEnabled = airlineAccentsEnabled
-        self.geography = geography
-        self.labelMode = labelMode
-        self.includeGroundAircraft = includeGroundAircraft
-        self.markSizePercent = markSizePercent
-        self.intensityPercent = intensityPercent
-        self.quietSchedule = quietSchedule
+        let global = try ThrowGlobalPreferences(
+            locationMode: locationMode,
+            confirmedLocation: confirmedLocation,
+            calibration: calibration,
+            intensityPercent: intensityPercent,
+            quietSchedule: quietSchedule,
+        )
+        let airAndSpace = try AirAndSpacePreferences(
+            selectedSource: selectedSource,
+            validatedSource: validatedSource,
+            mapViewport: mapViewport,
+            mapCenters: mapCenters,
+            skyViewport: skyViewport,
+            selectedProjectionMode: selectedProjectionMode,
+            flightsEnabled: flightsEnabled,
+            airlineAccentsEnabled: airlineAccentsEnabled,
+            geography: geography,
+            labelMode: labelMode,
+            includeGroundAircraft: includeGroundAircraft,
+            markSizePercent: markSizePercent,
+        )
+        let entries = airAndSpace.isConfigured
+            ? [
+                ProjectionPlaylistEntry(
+                    experienceID: .airAndSpace,
+                    dwellDuration: .defaultValue,
+                ),
+            ]
+            : []
+        let playlist = try ProjectionPlaylist(
+            entries: entries,
+            automaticRotationEnabled: false,
+            selectedExperienceID: airAndSpace.isConfigured ? .airAndSpace : nil,
+            configuredExperienceIDs: airAndSpace.isConfigured ? [.airAndSpace] : [],
+            catalog: .standard,
+        )
+        try self.init(
+            setupCompleted: setupCompleted,
+            global: global,
+            playlist: playlist,
+            airAndSpace: airAndSpace,
+        )
+    }
+
+    public var selectedSource: AircraftSourceConfiguration? {
+        airAndSpace.selectedSource
+    }
+
+    public var validatedSource: AircraftSourceConfiguration? {
+        airAndSpace.validatedSource
+    }
+
+    public var locationMode: ObserverLocationMode {
+        global.locationMode
+    }
+
+    public var confirmedLocation: ConfirmedObserverLocation? {
+        global.confirmedLocation
+    }
+
+    public var calibration: ProjectionCalibration {
+        global.calibration
+    }
+
+    public var mapViewport: MapViewport {
+        airAndSpace.mapViewport
+    }
+
+    public var mapCenters: MapCenterPreferences {
+        airAndSpace.mapCenters
+    }
+
+    public var skyViewport: SkyViewport {
+        airAndSpace.skyViewport
+    }
+
+    public var selectedProjectionMode: ProjectionMode? {
+        airAndSpace.selectedProjectionMode
+    }
+
+    public var flightsEnabled: Bool {
+        airAndSpace.flightsEnabled
+    }
+
+    public var airlineAccentsEnabled: Bool {
+        airAndSpace.airlineAccentsEnabled
+    }
+
+    public var geography: GeographyPreferences {
+        airAndSpace.geography
+    }
+
+    public var labelMode: FlightLabelMode {
+        airAndSpace.labelMode
+    }
+
+    public var includeGroundAircraft: Bool {
+        airAndSpace.includeGroundAircraft
+    }
+
+    public var markSizePercent: Double {
+        airAndSpace.markSizePercent
+    }
+
+    public var intensityPercent: Double {
+        global.intensityPercent
+    }
+
+    public var quietSchedule: QuietSchedule {
+        global.quietSchedule
     }
 
     public var description: String {
@@ -234,50 +441,96 @@ enum ThrowPreferencesCodec {
     private struct Storage: Codable {
         let version: Int
         let setupCompleted: Bool
+
+        let global: GlobalStorage?
+        let playlist: PlaylistStorage?
+        let airAndSpace: AirAndSpaceStorage?
+
+        // Version-one fields. Keep them decodable while the storage key remains stable.
         let selectedSource: SourceStorage?
         let validatedSource: SourceStorage?
-        let locationMode: String
+        let locationMode: String?
         let confirmedLocation: LocationStorage?
-        let calibration: CalibrationStorage
-        let mapRadius: Double
+        let calibration: CalibrationStorage?
+        let mapRadius: Double?
         let mapCenters: [MapCenterStorage]?
-        let skyMinimumElevation: Double
+        let skyMinimumElevation: Double?
         let selectedProjectionMode: String?
-        let flightsEnabled: Bool
+        let flightsEnabled: Bool?
         let airlineAccentsEnabled: Bool?
         let geography: GeographyStorage?
-        let labelMode: String
-        let includeGroundAircraft: Bool
-        let markSizePercent: Double
-        let intensityPercent: Double
+        let labelMode: String?
+        let includeGroundAircraft: Bool?
+        let markSizePercent: Double?
+        let intensityPercent: Double?
         let quietInterval: QuietStorage?
 
         init(_ preferences: ThrowPreferences) {
-            version = 1
+            version = 2
             setupCompleted = preferences.setupCompleted
-            selectedSource = preferences.selectedSource.map(SourceStorage.init)
-            validatedSource = preferences.validatedSource.map(SourceStorage.init)
-            locationMode = preferences.locationMode.rawValue
-            confirmedLocation = preferences.confirmedLocation.map(LocationStorage.init)
-            calibration = CalibrationStorage(preferences.calibration)
-            mapRadius = preferences.mapViewport.radius.value
-            mapCenters = preferences.mapCenters.profiles.map(MapCenterStorage.init)
-            skyMinimumElevation = preferences.skyViewport.minimumElevation.degrees
-            selectedProjectionMode = preferences.selectedProjectionMode?.rawValue
-            flightsEnabled = preferences.flightsEnabled
-            airlineAccentsEnabled = preferences.airlineAccentsEnabled
-            geography = GeographyStorage(preferences.geography)
-            labelMode = preferences.labelMode.rawValue
-            includeGroundAircraft = preferences.includeGroundAircraft
-            markSizePercent = preferences.markSizePercent
-            intensityPercent = preferences.intensityPercent
-            quietInterval = preferences.quietSchedule.interval.map(QuietStorage.init)
+            global = GlobalStorage(preferences.global)
+            playlist = PlaylistStorage(preferences.playlist)
+            airAndSpace = AirAndSpaceStorage(preferences.airAndSpace)
+            selectedSource = nil
+            validatedSource = nil
+            locationMode = nil
+            confirmedLocation = nil
+            calibration = nil
+            mapRadius = nil
+            mapCenters = nil
+            skyMinimumElevation = nil
+            selectedProjectionMode = nil
+            flightsEnabled = nil
+            airlineAccentsEnabled = nil
+            geography = nil
+            labelMode = nil
+            includeGroundAircraft = nil
+            markSizePercent = nil
+            intensityPercent = nil
+            quietInterval = nil
         }
 
         func preferences() throws -> ThrowPreferences {
-            guard version == 1,
+            switch version {
+                case 1:
+                    try versionOnePreferences()
+                case 2:
+                    try versionTwoPreferences()
+                default:
+                    throw ThrowPreferenceStoreError.invalidPayload
+            }
+        }
+
+        private func versionTwoPreferences() throws -> ThrowPreferences {
+            guard let global, let playlist, let airAndSpace else {
+                throw ThrowPreferenceStoreError.invalidPayload
+            }
+            let globalPreferences = try global.value()
+            let airAndSpacePreferences = try airAndSpace.value()
+            let configuredIDs: Set<ProjectionExperienceID> = airAndSpacePreferences.isConfigured
+                ? [.airAndSpace]
+                : []
+            let projectionPlaylist = try playlist.value(configuredExperienceIDs: configuredIDs)
+            return try ThrowPreferences(
+                setupCompleted: setupCompleted,
+                global: globalPreferences,
+                playlist: projectionPlaylist,
+                airAndSpace: airAndSpacePreferences,
+            )
+        }
+
+        private func versionOnePreferences() throws -> ThrowPreferences {
+            guard let locationMode,
                   let locationMode = ObserverLocationMode(rawValue: locationMode),
-                  let labelMode = FlightLabelMode(rawValue: labelMode)
+                  let calibration,
+                  let mapRadius,
+                  let skyMinimumElevation,
+                  let flightsEnabled,
+                  let labelMode,
+                  let labelMode = FlightLabelMode(rawValue: labelMode),
+                  let includeGroundAircraft,
+                  let markSizePercent,
+                  let intensityPercent
             else {
                 throw ThrowPreferenceStoreError.invalidPayload
             }
@@ -295,13 +548,16 @@ enum ThrowPreferencesCodec {
             } else {
                 .disabled
             }
-            return try ThrowPreferences(
-                setupCompleted: setupCompleted,
-                selectedSource: selectedSource?.configuration(),
-                validatedSource: validatedSource?.configuration(),
+            let globalPreferences = try ThrowGlobalPreferences(
                 locationMode: locationMode,
                 confirmedLocation: confirmedLocation?.location(),
                 calibration: calibration.value(),
+                intensityPercent: intensityPercent,
+                quietSchedule: schedule,
+            )
+            let airAndSpacePreferences = try AirAndSpacePreferences(
+                selectedSource: selectedSource?.configuration(),
+                validatedSource: validatedSource?.configuration(),
                 mapViewport: MapViewport(radius: NauticalMiles(value: mapRadius)),
                 mapCenters: MapCenterPreferences(
                     profiles: (mapCenters ?? []).map { try $0.value() },
@@ -316,8 +572,166 @@ enum ThrowPreferencesCodec {
                 labelMode: labelMode,
                 includeGroundAircraft: includeGroundAircraft,
                 markSizePercent: markSizePercent,
+            )
+            let entries = airAndSpacePreferences.isConfigured
+                ? [
+                    ProjectionPlaylistEntry(
+                        experienceID: .airAndSpace,
+                        dwellDuration: .defaultValue,
+                    ),
+                ]
+                : []
+            let playlist = try ProjectionPlaylist(
+                entries: entries,
+                automaticRotationEnabled: false,
+                selectedExperienceID: airAndSpacePreferences.isConfigured ? .airAndSpace : nil,
+                configuredExperienceIDs: airAndSpacePreferences.isConfigured
+                    ? [.airAndSpace]
+                    : [],
+                catalog: .standard,
+            )
+            return try ThrowPreferences(
+                setupCompleted: setupCompleted,
+                global: globalPreferences,
+                playlist: playlist,
+                airAndSpace: airAndSpacePreferences,
+            )
+        }
+    }
+
+    private struct GlobalStorage: Codable {
+        let locationMode: String
+        let confirmedLocation: LocationStorage?
+        let calibration: CalibrationStorage
+        let intensityPercent: Double
+        let quietInterval: QuietStorage?
+
+        init(_ preferences: ThrowGlobalPreferences) {
+            locationMode = preferences.locationMode.rawValue
+            confirmedLocation = preferences.confirmedLocation.map(LocationStorage.init)
+            calibration = CalibrationStorage(preferences.calibration)
+            intensityPercent = preferences.intensityPercent
+            quietInterval = preferences.quietSchedule.interval.map(QuietStorage.init)
+        }
+
+        func value() throws -> ThrowGlobalPreferences {
+            guard let locationMode = ObserverLocationMode(rawValue: locationMode) else {
+                throw ThrowPreferenceStoreError.invalidPayload
+            }
+            let schedule: QuietSchedule = if let quietInterval {
+                try quietInterval.schedule()
+            } else {
+                .disabled
+            }
+            return try ThrowGlobalPreferences(
+                locationMode: locationMode,
+                confirmedLocation: confirmedLocation?.location(),
+                calibration: calibration.value(),
                 intensityPercent: intensityPercent,
                 quietSchedule: schedule,
+            )
+        }
+    }
+
+    private struct AirAndSpaceStorage: Codable {
+        let selectedSource: SourceStorage?
+        let validatedSource: SourceStorage?
+        let mapRadius: Double
+        let mapCenters: [MapCenterStorage]
+        let skyMinimumElevation: Double
+        let selectedProjectionMode: String?
+        let flightsEnabled: Bool
+        let airlineAccentsEnabled: Bool?
+        let geography: GeographyStorage?
+        let labelMode: String
+        let includeGroundAircraft: Bool
+        let markSizePercent: Double
+
+        init(_ preferences: AirAndSpacePreferences) {
+            selectedSource = preferences.selectedSource.map(SourceStorage.init)
+            validatedSource = preferences.validatedSource.map(SourceStorage.init)
+            mapRadius = preferences.mapViewport.radius.value
+            mapCenters = preferences.mapCenters.profiles.map(MapCenterStorage.init)
+            skyMinimumElevation = preferences.skyViewport.minimumElevation.degrees
+            selectedProjectionMode = preferences.selectedProjectionMode?.rawValue
+            flightsEnabled = preferences.flightsEnabled
+            airlineAccentsEnabled = preferences.airlineAccentsEnabled
+            geography = GeographyStorage(preferences.geography)
+            labelMode = preferences.labelMode.rawValue
+            includeGroundAircraft = preferences.includeGroundAircraft
+            markSizePercent = preferences.markSizePercent
+        }
+
+        func value() throws -> AirAndSpacePreferences {
+            guard let labelMode = FlightLabelMode(rawValue: labelMode) else {
+                throw ThrowPreferenceStoreError.invalidPayload
+            }
+            let selectedMode: ProjectionMode?
+            if let selectedProjectionMode {
+                guard let mode = ProjectionMode(rawValue: selectedProjectionMode) else {
+                    throw ThrowPreferenceStoreError.invalidPayload
+                }
+                selectedMode = mode
+            } else {
+                selectedMode = nil
+            }
+            return try AirAndSpacePreferences(
+                selectedSource: selectedSource?.configuration(),
+                validatedSource: validatedSource?.configuration(),
+                mapViewport: MapViewport(radius: NauticalMiles(value: mapRadius)),
+                mapCenters: MapCenterPreferences(profiles: mapCenters.map { try $0.value() }),
+                skyViewport: SkyViewport(
+                    minimumElevation: ElevationAngle(degrees: skyMinimumElevation),
+                ),
+                selectedProjectionMode: selectedMode,
+                flightsEnabled: flightsEnabled,
+                airlineAccentsEnabled: airlineAccentsEnabled ?? true,
+                geography: geography?.value() ?? .defaultValue,
+                labelMode: labelMode,
+                includeGroundAircraft: includeGroundAircraft,
+                markSizePercent: markSizePercent,
+            )
+        }
+    }
+
+    private struct PlaylistStorage: Codable {
+        let entries: [PlaylistEntryStorage]
+        let automaticRotationEnabled: Bool
+        let selectedExperienceID: String?
+
+        init(_ playlist: ProjectionPlaylist) {
+            entries = playlist.entries.map(PlaylistEntryStorage.init)
+            automaticRotationEnabled = playlist.automaticRotationEnabled
+            selectedExperienceID = playlist.selectedExperienceID?.rawValue
+        }
+
+        func value(
+            configuredExperienceIDs: Set<ProjectionExperienceID>,
+        ) throws -> ProjectionPlaylist {
+            let selectedID = selectedExperienceID.map(ProjectionExperienceID.init(rawValue:))
+            return try ProjectionPlaylist(
+                entries: entries.map { try $0.value() },
+                automaticRotationEnabled: automaticRotationEnabled,
+                selectedExperienceID: selectedID,
+                configuredExperienceIDs: configuredExperienceIDs,
+                catalog: .standard,
+            )
+        }
+    }
+
+    private struct PlaylistEntryStorage: Codable {
+        let experienceID: String
+        let dwellSeconds: Int
+
+        init(_ entry: ProjectionPlaylistEntry) {
+            experienceID = entry.experienceID.rawValue
+            dwellSeconds = entry.dwellDuration.seconds
+        }
+
+        func value() throws -> ProjectionPlaylistEntry {
+            try ProjectionPlaylistEntry(
+                experienceID: ProjectionExperienceID(rawValue: experienceID),
+                dwellDuration: ProjectionDwellDuration(seconds: dwellSeconds),
             )
         }
     }

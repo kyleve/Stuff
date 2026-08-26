@@ -5,6 +5,16 @@ import ThrowCore
 
 @MainActor
 struct ThrowSessionTests {
+    @Test func startKeepsAllRuntimeObserversAttached() async {
+        let session = ThrowSession.fixture()
+
+        await session.start()
+
+        #expect(session.airAndSpaceUpdateTask?.isCancelled == false)
+        #expect(session.experienceStateTask?.isCancelled == false)
+        #expect(session.experienceActionTask?.isCancelled == false)
+    }
+
     @Test func independentControllerWindowsMaintainDemandUntilBothDisconnect() {
         let session = ThrowSession.fixture()
         let first = ControllerProjectionOutputs()
@@ -36,16 +46,16 @@ struct ThrowSessionTests {
         #expect(session.projectionOutputCount == 1)
     }
 
-    @Test func retryingVisibleCountReflectsLastGoodProjection() {
+    @Test func retryingVisibleContentCountReflectsLastGoodProjection() {
         let now = Date(timeIntervalSince1970: 100)
         let health = FeedHealth.retrying(
             lastUpdate: now,
             nextRetry: now.addingTimeInterval(10),
             failure: .transport,
-            visibleAircraft: 4,
+            visibleContentCount: 4,
         )
 
-        #expect(health.visibleAircraft == 4)
+        #expect(health.visibleContentCount == 4)
     }
 
     @Test func geographyDefaultsPersistWithoutRestartingAircraftDemand() throws {
@@ -74,6 +84,16 @@ struct ThrowSessionTests {
         #expect(session.projectionFrame.geography == nil)
         #expect(session.projectionFrame.marks.isEmpty == false)
         #expect(session.geographyLayerHealth == .idle)
+    }
+
+    @Test func clearingProjectionStateRemovesTheObserverMarkerForQuietBlack() async {
+        let session = ThrowSession.fixture()
+        session.observerMapPoint = ProjectionPoint(x: 0.5, y: 0.5)
+
+        await session.clearProjectionState(restartsGeography: false)
+
+        #expect(session.projectionFrame.layers.isEmpty)
+        #expect(session.observerMapPoint == nil)
     }
 
     @Test func aircraftSourceDiscardPreservesIndependentGeography() async throws {
