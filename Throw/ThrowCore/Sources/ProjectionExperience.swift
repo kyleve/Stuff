@@ -2,15 +2,35 @@ import Foundation
 
 /// A stable identity for one user-facing projection View.
 public struct ProjectionExperienceID: Hashable, Sendable {
-    public static let airAndSpace = ProjectionExperienceID(rawValue: "air-and-space")
-    public static let transit = ProjectionExperienceID(rawValue: "transit")
+    public static let airAndSpace = ProjectionExperienceID(uncheckedRawValue: "air-and-space")
+    public static let transit = ProjectionExperienceID(uncheckedRawValue: "transit")
 
     public let rawValue: String
 
-    public init(rawValue: String) {
-        precondition(rawValue.isEmpty == false, "An experience ID must not be empty")
+    /// Decodes one of the experience identities compiled into this version of Throw.
+    public init?(rawValue: String) {
+        switch rawValue {
+            case Self.airAndSpace.rawValue:
+                self = .airAndSpace
+            case Self.transit.rawValue:
+                self = .transit
+            default:
+                return nil
+        }
+    }
+
+    private init(uncheckedRawValue rawValue: String) {
         self.rawValue = rawValue
     }
+
+    #if DEBUG
+        @_spi(Testing)
+        public init?(testingRawValue rawValue: String) {
+            let normalized = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard normalized.isEmpty == false else { return nil }
+            self.init(uncheckedRawValue: normalized)
+        }
+    #endif
 }
 
 public enum ProjectionExperienceAvailability: Hashable, Sendable {

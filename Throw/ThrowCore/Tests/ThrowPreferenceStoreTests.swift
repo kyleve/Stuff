@@ -97,6 +97,44 @@ struct ThrowPreferenceStoreTests {
         }
     }
 
+    @Test(arguments: ["", "   ", "unknown-experience"])
+    func unknownPersistedPlaylistEntryEntersRepair(experienceID: String) throws {
+        let encoded = try ThrowPreferencesCodec.encode(populatedPreferences())
+        var storage = try propertyList(for: encoded)
+        var playlist = try #require(storage["playlist"] as? [String: Any])
+        var entries = try #require(playlist["entries"] as? [[String: Any]])
+        entries[0]["experienceID"] = experienceID
+        playlist["entries"] = entries
+        storage["playlist"] = playlist
+        let corruptData = try PropertyListSerialization.data(
+            fromPropertyList: storage,
+            format: .binary,
+            options: 0,
+        )
+
+        #expect(throws: ThrowPreferenceStoreError.invalidPayload) {
+            try ThrowPreferencesCodec.decode(corruptData)
+        }
+    }
+
+    @Test(arguments: ["", "   ", "unknown-experience"])
+    func unknownPersistedPlaylistSelectionEntersRepair(experienceID: String) throws {
+        let encoded = try ThrowPreferencesCodec.encode(populatedPreferences())
+        var storage = try propertyList(for: encoded)
+        var playlist = try #require(storage["playlist"] as? [String: Any])
+        playlist["selectedExperienceID"] = experienceID
+        storage["playlist"] = playlist
+        let corruptData = try PropertyListSerialization.data(
+            fromPropertyList: storage,
+            format: .binary,
+            options: 0,
+        )
+
+        #expect(throws: ThrowPreferenceStoreError.invalidPayload) {
+            try ThrowPreferencesCodec.decode(corruptData)
+        }
+    }
+
     @Test func payloadFromBeforeGeographyUsesTheNewDefault() throws {
         let legacyData = try versionOnePayload(
             from: populatedPreferences(),

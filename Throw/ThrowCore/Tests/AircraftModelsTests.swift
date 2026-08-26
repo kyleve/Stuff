@@ -3,11 +3,18 @@ import Testing
 @testable import ThrowCore
 
 struct AircraftModelsTests {
-    @Test func aircraftIdentityDistinguishesICAOAndProviderMarkedValues() {
-        let icao = AircraftID(kind: .icao, rawValue: "ABC123")
-        let other = AircraftID(kind: .providerMarkedNonICAO, rawValue: "ABC123")
+    @Test func aircraftIdentityDistinguishesICAOAndProviderMarkedValues() throws {
+        let icao = try #require(AircraftID(kind: .icao, rawValue: "ABC123"))
+        let other = try #require(
+            AircraftID(kind: .providerMarkedNonICAO, rawValue: "ABC123"),
+        )
         #expect(icao != other)
         #expect(icao.rawValue == "abc123")
+    }
+
+    @Test(arguments: ["", "   ", "\n\t"])
+    func aircraftIdentityRejectsEmptyProviderValues(rawValue: String) {
+        #expect(AircraftID(kind: .icao, rawValue: rawValue) == nil)
     }
 
     @Test func observationTrimsDisplayFields() throws {
@@ -74,7 +81,7 @@ struct AircraftModelsTests {
             includeGroundAircraft: false,
         )
         let observation = try AircraftObservation(
-            id: AircraftID(kind: .icao, rawValue: aircraftIDSentinel),
+            id: #require(AircraftID(kind: .icao, rawValue: aircraftIDSentinel)),
             coordinate: GeoCoordinate(latitude: 41.334567, longitude: -72.345678),
             geometricAltitude: Altitude(feet: 10000),
             barometricAltitude: nil,

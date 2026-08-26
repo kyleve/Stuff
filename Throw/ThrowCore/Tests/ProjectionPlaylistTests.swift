@@ -1,5 +1,5 @@
 import Testing
-@testable import ThrowCore
+@_spi(Testing) @testable import ThrowCore
 
 struct ProjectionPlaylistTests {
     private let airEntry = ProjectionPlaylistEntry(
@@ -61,7 +61,7 @@ struct ProjectionPlaylistTests {
     }
 
     @Test func enabledButUnconfiguredEntryIsRejected() throws {
-        let customID = ProjectionExperienceID(rawValue: "custom")
+        let customID = try #require(ProjectionExperienceID(testingRawValue: "custom"))
         let customCatalog = ProjectionExperienceCatalog(
             descriptors: [
                 ProjectionExperienceDescriptor(
@@ -117,20 +117,7 @@ struct ProjectionPlaylistTests {
         #expect(playlist.rotatesAutomatically)
     }
 
-    @Test func unknownEntryAndInvalidSelectionAreRejected() {
-        let unknown = ProjectionPlaylistEntry(
-            experienceID: ProjectionExperienceID(rawValue: "unknown"),
-            dwellDuration: .defaultValue,
-        )
-        #expect(throws: ProjectionPlaylistError.unknownExperience) {
-            try ProjectionPlaylist(
-                entries: [unknown],
-                automaticRotationEnabled: false,
-                selectedExperienceID: unknown.experienceID,
-                configuredExperienceIDs: [unknown.experienceID],
-                catalog: .standard,
-            )
-        }
+    @Test func invalidSelectionIsRejected() {
         #expect(throws: ProjectionPlaylistError.invalidSelection) {
             try ProjectionPlaylist(
                 entries: [airEntry],

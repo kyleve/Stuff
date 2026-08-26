@@ -708,7 +708,16 @@ enum ThrowPreferencesCodec {
         func value(
             configuredExperienceIDs: Set<ProjectionExperienceID>,
         ) throws -> ProjectionPlaylist {
-            let selectedID = selectedExperienceID.map(ProjectionExperienceID.init(rawValue:))
+            let selectedID: ProjectionExperienceID?
+            if let selectedExperienceID {
+                guard let decodedID = ProjectionExperienceID(rawValue: selectedExperienceID)
+                else {
+                    throw ThrowPreferenceStoreError.invalidPayload
+                }
+                selectedID = decodedID
+            } else {
+                selectedID = nil
+            }
             return try ProjectionPlaylist(
                 entries: entries.map { try $0.value() },
                 automaticRotationEnabled: automaticRotationEnabled,
@@ -729,8 +738,11 @@ enum ThrowPreferencesCodec {
         }
 
         func value() throws -> ProjectionPlaylistEntry {
-            try ProjectionPlaylistEntry(
-                experienceID: ProjectionExperienceID(rawValue: experienceID),
+            guard let experienceID = ProjectionExperienceID(rawValue: experienceID) else {
+                throw ThrowPreferenceStoreError.invalidPayload
+            }
+            return try ProjectionPlaylistEntry(
+                experienceID: experienceID,
                 dwellDuration: ProjectionDwellDuration(seconds: dwellSeconds),
             )
         }

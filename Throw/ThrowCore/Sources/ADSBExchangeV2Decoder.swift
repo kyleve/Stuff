@@ -45,13 +45,20 @@ public struct ADSBExchangeV2Decoder: Sendable {
             let identity: AircraftID
             if rawID.hasPrefix("~") {
                 let value = String(rawID.dropFirst())
-                guard value.isEmpty == false else {
+                guard let decodedIdentity = AircraftID(
+                    kind: .providerMarkedNonICAO,
+                    rawValue: value,
+                ) else {
                     malformedRecordCount += 1
                     continue
                 }
-                identity = AircraftID(kind: .providerMarkedNonICAO, rawValue: value)
+                identity = decodedIdentity
             } else {
-                identity = AircraftID(kind: .icao, rawValue: rawID)
+                guard let decodedIdentity = AircraftID(kind: .icao, rawValue: rawID) else {
+                    malformedRecordCount += 1
+                    continue
+                }
+                identity = decodedIdentity
             }
 
             guard (aircraft.seen?.value ?? 0) >= 0,
