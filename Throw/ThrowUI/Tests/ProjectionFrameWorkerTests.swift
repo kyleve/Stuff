@@ -5,6 +5,49 @@ import ThrowCore
 @testable import ThrowUI
 
 struct ProjectionFrameWorkerTests {
+    @Test func duplicateSemanticMarksStayUniqueAcrossAnimationFrames() async throws {
+        let date = Date(timeIntervalSince1970: 1000)
+        let observer = try observer()
+        let first = try layerFrame(label: "FIRST", observedAt: date, observer: observer)
+        let replacement = try layerFrame(
+            label: "REPLACEMENT",
+            observedAt: date,
+            observer: observer,
+        )
+        let layer = LayerFrame(
+            layerID: .flights,
+            observedAt: date,
+            content: .marks(first.marks + replacement.marks),
+        )
+        let worker = projectionFrameWorker()
+        let viewport = try ProjectionViewport.map(
+            MapViewport(radius: NauticalMiles(value: 50)),
+        )
+
+        let firstFrame = try await worker.frame(
+            layerFrame: layer,
+            geographyEnabled: false,
+            observer: observer,
+            viewport: viewport,
+            calibration: .defaultValue,
+            generatedAt: date,
+            reduceMotion: false,
+        ).frame
+        let secondFrame = try await worker.frame(
+            layerFrame: layer,
+            geographyEnabled: false,
+            observer: observer,
+            viewport: viewport,
+            calibration: .defaultValue,
+            generatedAt: date.addingTimeInterval(1.0 / 30.0),
+            reduceMotion: false,
+        ).frame
+
+        #expect(firstFrame.marks.count == 1)
+        #expect(secondFrame.marks.count == 1)
+        #expect(secondFrame.marks.first?.label?.primary == "REPLACEMENT")
+    }
+
     @Test func modeMorphStartsWithSourceLabelsVisible() async throws {
         let frame = try await modeMorphFrame(progress: 0, reduceMotion: false)
         let mark = try #require(frame.marks.first)

@@ -415,6 +415,7 @@ public struct AircraftSnapshot: Hashable, Sendable, CustomStringConvertible,
         routeResultsByAircraft: [AircraftID: FlightRouteResult],
         successfulHTTPStatus: Int?,
     ) {
+        let observations = Self.canonicalObservations(observations)
         precondition(observations.allSatisfy { $0.metadata.source == source })
         let observationIDs = Set(observations.map(\.id))
         precondition(routeResultsByAircraft.keys.allSatisfy(observationIDs.contains))
@@ -427,6 +428,45 @@ public struct AircraftSnapshot: Hashable, Sendable, CustomStringConvertible,
         self.observations = observations
         self.routeResultsByAircraft = routeResultsByAircraft
         self.successfulHTTPStatus = successfulHTTPStatus
+    }
+
+    /// Selects the freshest position while retaining the first-seen order of identities.
+    static func canonicalObservations(
+        _ observations: [AircraftObservation],
+    ) -> [AircraftObservation] {
+        var result: [AircraftObservation] = []
+        result.reserveCapacity(observations.count)
+        var indexByID: [AircraftID: Int] = [:]
+        indexByID.reserveCapacity(observations.count)
+
+        for observation in observations {
+            if let index = indexByID[observation.id] {
+                if prefers(observation, over: result[index]) {
+                    result[index] = observation
+                }
+            } else {
+                indexByID[observation.id] = result.count
+                result.append(observation)
+            }
+        }
+        return result
+    }
+
+    /// Applies the tie-break order shared by snapshot and route-envelope normalization.
+    static func prefers(
+        _ candidate: AircraftObservation,
+        over existing: AircraftObservation,
+    ) -> Bool {
+        if candidate.positionObservedAt != existing.positionObservedAt {
+            return candidate.positionObservedAt > existing.positionObservedAt
+        }
+        if candidate.messageObservedAt != existing.messageObservedAt {
+            return candidate.messageObservedAt > existing.messageObservedAt
+        }
+        if candidate.fetchedAt != existing.fetchedAt {
+            return candidate.fetchedAt > existing.fetchedAt
+        }
+        return true
     }
 
     public var description: String {

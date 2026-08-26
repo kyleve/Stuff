@@ -153,6 +153,31 @@ struct Flightradar24SourceTests {
         }
     }
 
+    @Test func duplicateProviderRowsKeepTheFreshestMatchingRoute() throws {
+        let data = Data(
+            """
+            {"data":[
+              {"fr24_id":"same-leg","lat":37.01,"lon":-122.0,
+               "timestamp":"2023-11-14T22:13:20Z","orig_iata":"SFO","dest_iata":"MEX"},
+              {"fr24_id":"same-leg","lat":38.01,"lon":-121.0,
+               "timestamp":"2023-11-14T21:13:20Z","orig_iata":"DEL","dest_iata":"EWR"}
+            ]}
+            """.utf8,
+        )
+
+        let snapshot = try Flightradar24Decoder().decode(
+            data,
+            fetchedAt: ThrowCoreFixture.date,
+        )
+        let observation = try #require(snapshot.observations.first)
+        let route = try #require(snapshot.routeResultsByAircraft[observation.id]?.route)
+
+        #expect(snapshot.observations.count == 1)
+        #expect(observation.coordinate.latitude == 37.01)
+        #expect(route.origin.rawValue == "SFO")
+        #expect(route.destination.rawValue == "MEX")
+    }
+
     @Test func zeroAltitudeAircraftIsNormalizedAsGroundAndFilteredByQuery() async throws {
         let data = Data(
             """

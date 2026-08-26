@@ -90,9 +90,11 @@ struct ProjectionMotionDiagnosticsAccumulator {
         guard let previousTarget, previousTarget.mode == target.mode else { return }
         let interval = target.generatedAt.timeIntervalSince(previousTarget.generatedAt)
         guard interval > 0, interval <= 0.25 else { return }
-        let previousByID = Dictionary(
-            uniqueKeysWithValues: previousTarget.marks.map { ($0.id, $0) },
-        )
+        let previousByID = previousTarget.marks.reduce(
+            into: [LayerMarkID: ProjectedMark](),
+        ) {
+            $0[$1.id] = $1
+        }
         for mark in target.marks {
             guard case .aircraft = mark.glyph,
                   let previous = previousByID[mark.id]
@@ -144,9 +146,11 @@ struct ProjectionMotionDiagnosticsAccumulator {
         previousSemanticIDs = semanticIDs
 
         guard let previousTarget, previousTarget.mode == target.mode else { return }
-        let previousByID = Dictionary(
-            uniqueKeysWithValues: previousTarget.marks.map { ($0.id, $0) },
-        )
+        let previousByID = previousTarget.marks.reduce(
+            into: [LayerMarkID: ProjectedMark](),
+        ) {
+            $0[$1.id] = $1
+        }
         for mark in target.marks {
             guard case .aircraft = mark.glyph,
                   let previous = previousByID[mark.id]
