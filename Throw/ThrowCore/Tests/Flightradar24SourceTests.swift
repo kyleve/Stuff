@@ -17,6 +17,38 @@ struct Flightradar24SourceTests {
         #expect(request.timeoutSeconds == 8)
     }
 
+    @Test func usageRequestUsesBearerContractAndPeriod() throws {
+        let token = "fr24-secret-token"
+        let source = try makeSource(token: token, outcomes: [])
+        let request = try source.makeUsageRequest(period: .last24Hours)
+
+        #expect(request.url.path() == "/api/usage")
+        #expect(request.url.query() == "period=24h")
+        #expect(request.url.absoluteString.contains(token) == false)
+        #expect(request.headers[.acceptVersion] == "v1")
+        #expect(request.headers[.authorization] == "Bearer \(token)")
+        #expect(request.timeoutSeconds == 8)
+    }
+
+    @Test func usageReturnsTheLiveFullPositionReport() async throws {
+        let data = Data(
+            """
+            {"data":[
+              {"endpoint":"live/flight-positions/full?{filters}","request_count":12,"credits":2400}
+            ]}
+            """.utf8,
+        )
+        let source = try makeSource(
+            token: "token",
+            outcomes: [.response(ThrowCoreFixture.response(data: data))],
+        )
+
+        let report = try await source.usage(period: .last24Hours)
+
+        #expect(report.requestCount == 12)
+        #expect(report.credits == 2400)
+    }
+
     @Test func decodesPositionAndRouteFromSameRecord() async throws {
         let data = Data(
             """
@@ -144,6 +176,27 @@ struct Flightradar24SourceTests {
         )
         await #expect(throws: expected) {
             try await source.snapshot(for: ThrowCoreFixture.mapQuery())
+        }
+    }
+
+    @Test func mapsUsageRateLimitSeparatelyFromThePositionQuota() async throws {
+        let source = try makeSource(
+            token: "token",
+            outcomes: [
+                .response(
+                    ThrowCoreFixture.response(
+                        statusCode: 429,
+                        headers: ["Retry-After": "45"],
+                        data: Data(),
+                    ),
+                ),
+            ],
+        )
+
+        await #expect(
+            throws: Flightradar24UsageError.rateLimited(retryAfterSeconds: 45),
+        ) {
+            try await source.usage(period: .last24Hours)
         }
     }
 

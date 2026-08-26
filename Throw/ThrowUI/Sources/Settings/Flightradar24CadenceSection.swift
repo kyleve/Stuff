@@ -16,6 +16,7 @@ struct Flightradar24CadenceSection: View {
             LabeledContent(String(localized: .sourceRequestsPerHour)) {
                 Text(model.requestsPerHour, format: .number)
             }
+            Flightradar24UsageContent(model: model)
             Text(.sourceFr24Pricing)
                 .font(.footnote)
                 .foregroundStyle(.secondary)

@@ -52,6 +52,12 @@ primary. Callsign-only labels use the smaller detail typography reserved for
 the callsign below a resolved route. These labels also use smaller collision
 bounds.
 
+The FR24 source settings page reads the saved token's 24-hour usage report.
+The session caches this report for one minute to obey the provider's rate limit.
+The page shows reported totals and cadence estimates. It does not treat these
+values as an account balance. A usage-report rate limit is not shown as a
+flight-position quota failure.
+
 Appearance is resolved through `ThrowStylesheet` at `throwBroadwayRoot()`.
 Preview and snapshot fixtures use memory-only dependencies and deterministic
 frames.

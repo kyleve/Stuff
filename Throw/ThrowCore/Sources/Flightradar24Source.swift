@@ -192,6 +192,52 @@ public struct Flightradar24Source: AircraftObservationSource, CustomStringConver
         return try makeRequest(for: query, radius: plan.transmittedRadius.value)
     }
 
+    public func usage(period: Flightradar24UsagePeriod) async throws
+        -> Flightradar24UsageReport
+    {
+        do {
+            let response = try await transport.response(for: makeUsageRequest(period: period))
+            let receivedAt = dateProvider.now()
+            try SourceHTTPValidation.validate(
+                response,
+                source: .flightradar24,
+                receivedAt: receivedAt,
+            )
+            return try Flightradar24UsageDecoder.decode(response.data, period: period)
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch let AircraftSourceFailure.quotaReached(retryAfterSeconds) {
+            throw Flightradar24UsageError.rateLimited(
+                retryAfterSeconds: retryAfterSeconds,
+            )
+        } catch let failure as AircraftSourceFailure {
+            throw failure
+        } catch let failure as HTTPTransportFailure {
+            throw AircraftSourceFailure.transport(failure.category)
+        } catch {
+            throw AircraftSourceFailure.decoding
+        }
+    }
+
+    public func makeUsageRequest(period: Flightradar24UsagePeriod) throws -> HTTPRequest {
+        var components = URLComponents(
+            url: Self.baseURL.appending(path: "usage"),
+            resolvingAgainstBaseURL: false,
+        )
+        components?.queryItems = [URLQueryItem(name: "period", value: period.rawValue)]
+        guard let url = components?.url else { throw AircraftSourceFailure.invalidConfiguration }
+        return HTTPRequest(
+            method: .get,
+            url: url,
+            headers: [
+                .accept: "application/json",
+                .acceptVersion: "v1",
+                .authorization: "Bearer \(credential.authenticationHeaderValue)",
+            ],
+            timeoutSeconds: 8,
+        )
+    }
+
     private func makeRequest(for query: AircraftQuery, radius: Double) throws -> HTTPRequest {
         let plan = try CloudAircraftQuery.plan(for: query)
         let latitudeSpan = radius / 60

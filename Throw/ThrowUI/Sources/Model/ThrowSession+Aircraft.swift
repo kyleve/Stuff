@@ -62,6 +62,68 @@ extension ThrowSession {
         }
     }
 
+    func flightradar24CreditEstimate(
+        report: Flightradar24UsageReport,
+        intervalSeconds: Int,
+    ) -> Flightradar24CreditEstimate? {
+        do {
+            let schedule = quietScheduleIsValid ? try quietSchedule() : .disabled
+            return try Flightradar24CreditEstimator.estimate(
+                report: report,
+                pollingInterval: PollingInterval(seconds: intervalSeconds),
+                quietSchedule: schedule,
+            )
+        } catch {
+            assertionFailure("Validated settings must produce a credit estimate: \(error)")
+            return nil
+        }
+    }
+
+    func loadFlightradar24Usage() async throws -> Flightradar24UsageReport {
+        let now = dateProvider.now()
+        if let cachedFlightradar24Usage,
+           now.timeIntervalSince(cachedFlightradar24Usage.fetchedAt) < 60
+        {
+            return cachedFlightradar24Usage.report
+        }
+        if let lastFlightradar24UsageRequestAt {
+            let elapsed = max(0, now.timeIntervalSince(lastFlightradar24UsageRequestAt))
+            guard elapsed >= 60 else {
+                throw Flightradar24UsageError.rateLimited(
+                    retryAfterSeconds: 60 - elapsed,
+                )
+            }
+        }
+
+        flightradar24UsageGeneration &+= 1
+        let generation = flightradar24UsageGeneration
+        lastFlightradar24UsageRequestAt = now
+        let configuration = AircraftSourceConfiguration.flightradar24(
+            Flightradar24Configuration(
+                pollingInterval: .defaultValue,
+                credentialID: .flightradar24,
+            ),
+        )
+        let configured = try await sourceFactory.makeSource(configuration: configuration)
+        guard let source = configured.source as? Flightradar24Source else {
+            throw AircraftSourceFailure.invalidConfiguration
+        }
+        let report = try await source.usage(period: .last24Hours)
+        try Task.checkCancellation()
+        guard generation == flightradar24UsageGeneration else { throw CancellationError() }
+        cachedFlightradar24Usage = CachedFlightradar24Usage(
+            report: report,
+            fetchedAt: dateProvider.now(),
+        )
+        return report
+    }
+
+    func invalidateFlightradar24Usage() {
+        flightradar24UsageGeneration &+= 1
+        cachedFlightradar24Usage = nil
+        lastFlightradar24UsageRequestAt = nil
+    }
+
     func testSource(
         choice: AircraftSourceChoice,
         readsbURL: String,
@@ -141,6 +203,7 @@ extension ThrowSession {
                         try await credentialStore.save(replacementCredential, for: .rapidAPI)
                         rapidAPICredentialState = .saved(lastFour: replacementCredential.lastFour)
                     case .flightradar24:
+                        invalidateFlightradar24Usage()
                         try await credentialStore.save(replacementCredential, for: .flightradar24)
                         flightradar24CredentialState = .saved(
                             lastFour: replacementCredential.lastFour,
@@ -196,6 +259,7 @@ extension ThrowSession {
             await clearProjectionState(restartsGeography: true)
         }
         do {
+            invalidateFlightradar24Usage()
             try await credentialStore.delete(.flightradar24)
             flightradar24CredentialState = .missing
             if deletesActiveSource { feedHealth = .failed(.missingCredential) }

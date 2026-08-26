@@ -1,4 +1,5 @@
 import SFSafeSymbols
+import SnapshotKit
 import SwiftUI
 
 struct AircraftSourceSettingsView: View {
@@ -50,6 +51,9 @@ struct AircraftSourceSettingsView: View {
             AircraftSourceApplySection(model: model)
         }
         .navigationTitle(Text(.settingsSource))
+        .task(id: model.choice) {
+            await model.loadFlightradar24Usage()
+        }
         .onDisappear(perform: model.discardTestedDraft)
     }
 
@@ -64,10 +68,23 @@ struct AircraftSourceSettingsView: View {
 }
 
 #if DEBUG
-    #Preview("Aircraft source settings") {
-        NavigationStack {
-            AircraftSourceSettingsView(session: .fixture())
+    extension AircraftSourceSettingsView: SnapshotProviding {
+        static var snapshots: [SnapshotCase] {
+            SnapshotCase(
+                name: "FR24 recent credit usage",
+                configurations: [SnapshotConfiguration(device: .iPhoneFullContent)],
+            ) {
+                NavigationStack {
+                    AircraftSourceSettingsView(
+                        session: .flightradar24SourceSettingsSnapshotFixture(),
+                    )
+                }
+                .throwBroadwayRoot()
+            }
         }
-        .throwBroadwayRoot()
+    }
+
+    #Preview("Aircraft source settings") {
+        AircraftSourceSettingsView.snapshotPreviews
     }
 #endif

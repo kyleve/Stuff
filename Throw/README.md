@@ -61,7 +61,10 @@ before Throw tries the provider again.
 When Flightradar24 is selected, origin and destination come from the same FR24
 record as the aircraft position. Throw does not contact ADSBDB for that source.
 FR24 bills the live full-position endpoint by returned aircraft, so credit use
-depends on both polling cadence and local traffic density.
+depends on both polling cadence and local traffic density. The source settings
+page reads the saved token's last 24 hours from FR24's usage report. Throw uses
+the observed credits per request to estimate hourly and 30-day use. The report
+can include requests that other clients make with the same token.
 
 ## Ambient flight activity
 
