@@ -28,9 +28,10 @@ location, and scheduling; see [`README.md`](README.md). Read the root
   Never use Mercator placement or draw it in True Sky.
 - Change the pinned source manifest, generator, and generated archive together.
   Keep the archive free of names and unused source attributes.
-- Keep aircraft-family classification provider-neutral and deterministic. Use
-  only bundled type characteristics, emitter category, and curated direct
-  callsign prefixes; never add an online or per-tail lookup.
+- Keep aircraft-family and airline-brand classification provider-neutral and
+  deterministic. Use only bundled type characteristics, emitter category,
+  explicit ICAO airline designators, and curated direct callsign prefixes;
+  never add an online or per-tail lookup.
 - Keep route enrichment optional, request-bounded, and off the aircraft rendering
   path. Never persist or log its callsigns, routes, or response body.
 - Keep downloaded source archives outside the tracked tree. Require an exact

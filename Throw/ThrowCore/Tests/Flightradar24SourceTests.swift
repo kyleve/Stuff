@@ -25,6 +25,7 @@ struct Flightradar24SourceTests {
               "lat":37.01,"lon":-122.0,"track":182,"alt":12000,
               "gspeed":410,"vspeed":-800,"timestamp":"2023-11-14T22:13:20Z",
               "source":"ADSB","hex":"A1B2C3","type":"B789","reg":"N123UA",
+              "painted_as":"UAL","operating_as":"UAL",
               "orig_iata":"SFO","orig_icao":"KSFO","dest_iata":"MEX","dest_icao":"MMMX"
             }]}
             """.utf8,
@@ -42,9 +43,57 @@ struct Flightradar24SourceTests {
         #expect(observation.barometricAltitude?.feet == 12000)
         #expect(observation.airborneState == .airborne)
         #expect(observation.metadata.source == .flightradar24)
+        #expect(observation.airlineDesignator?.rawValue == "UAL")
         let route = try #require(snapshot.routeResultsByAircraft[observation.id]?.route)
         #expect(route.origin.rawValue == "SFO")
         #expect(route.destination.rawValue == "MEX")
+    }
+
+    @Test func paintedCarrierTakesPrecedenceOverOperatingCarrier() throws {
+        let data = Data(
+            """
+            {"data":[{
+              "fr24_id":"leg-123","flight":"UA5399","callsign":"SKW5399",
+              "lat":37.01,"lon":-122.0,"painted_as":"UAL","operating_as":"SKW"
+            }]}
+            """.utf8,
+        )
+
+        let snapshot = try Flightradar24Decoder().decode(data, fetchedAt: ThrowCoreFixture.date)
+        let observation = try #require(snapshot.observations.first)
+        #expect(observation.callsign == "UA5399")
+        #expect(observation.airlineDesignator?.rawValue == "UAL")
+    }
+
+    @Test func operatingCarrierIsUsedWhenPaintedCarrierIsMissing() throws {
+        let data = Data(
+            """
+            {"data":[{
+              "fr24_id":"leg-123","flight":"DL3746","callsign":"SKW3746",
+              "lat":37.01,"lon":-122.0,"operating_as":"DAL"
+            }]}
+            """.utf8,
+        )
+
+        let snapshot = try Flightradar24Decoder().decode(data, fetchedAt: ThrowCoreFixture.date)
+        let observation = try #require(snapshot.observations.first)
+        #expect(observation.airlineDesignator?.rawValue == "DAL")
+    }
+
+    @Test func radioCallsignSuppliesCarrierWhenExplicitFieldsAreMissing() throws {
+        let data = Data(
+            """
+            {"data":[{
+              "fr24_id":"leg-123","flight":"UA817","callsign":"UAL817",
+              "lat":37.01,"lon":-122.0
+            }]}
+            """.utf8,
+        )
+
+        let snapshot = try Flightradar24Decoder().decode(data, fetchedAt: ThrowCoreFixture.date)
+        let observation = try #require(snapshot.observations.first)
+        #expect(observation.callsign == "UA817")
+        #expect(observation.airlineDesignator?.rawValue == "UAL")
     }
 
     @Test func fallsBackToProviderIdentityWhenHexIsMissing() throws {

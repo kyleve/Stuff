@@ -53,6 +53,10 @@ public enum AirlineBrand: String, CaseIterable, Hashable, Sendable {
         guard normalized.count >= 3 else { return nil }
         return AirlineBrand(rawValue: String(normalized.prefix(3)))
     }
+
+    public static func identify(designator: AirlineICAODesignator?) -> AirlineBrand? {
+        designator.flatMap { AirlineBrand(rawValue: $0.rawValue) }
+    }
 }
 
 /// Provider-neutral visual semantics carried into the projection renderer.

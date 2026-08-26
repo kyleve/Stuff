@@ -85,6 +85,7 @@ struct AircraftModelsTests {
             registration: nil,
             aircraftType: nil,
             emitterCategory: nil,
+            airlineDesignator: nil,
             messageObservedAt: ThrowCoreFixture.date,
             positionObservedAt: ThrowCoreFixture.date,
             fetchedAt: ThrowCoreFixture.date,

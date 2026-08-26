@@ -210,6 +210,23 @@ public struct AircraftTypeDesignator: Hashable, Sendable, CustomStringConvertibl
     }
 }
 
+/// A normalized three-character ICAO airline designator supplied by a provider.
+public struct AirlineICAODesignator: Hashable, Sendable, CustomStringConvertible {
+    public let rawValue: String
+
+    public init?(rawValue: String) {
+        let normalized = rawValue.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        guard normalized.count == 3,
+              normalized.unicodeScalars.allSatisfy({ CharacterSet.alphanumerics.contains($0) })
+        else { return nil }
+        self.rawValue = normalized
+    }
+
+    public var description: String {
+        rawValue
+    }
+}
+
 /// The semantic ADS-B emitter category used as a classification hint.
 public enum AircraftEmitterCategory: String, Hashable, Sendable {
     case noInformation = "A0"
@@ -266,6 +283,7 @@ public struct AircraftObservation: Hashable, Sendable, CustomStringConvertible,
     public let registration: String?
     public let aircraftType: AircraftTypeDesignator?
     public let emitterCategory: AircraftEmitterCategory?
+    public let airlineDesignator: AirlineICAODesignator?
     public let messageObservedAt: Date
     public let positionObservedAt: Date
     public let fetchedAt: Date
@@ -286,6 +304,7 @@ public struct AircraftObservation: Hashable, Sendable, CustomStringConvertible,
         registration: String?,
         aircraftType: AircraftTypeDesignator?,
         emitterCategory: AircraftEmitterCategory?,
+        airlineDesignator: AirlineICAODesignator?,
         messageObservedAt: Date,
         positionObservedAt: Date,
         fetchedAt: Date,
@@ -318,6 +337,7 @@ public struct AircraftObservation: Hashable, Sendable, CustomStringConvertible,
         self.registration = registration?.nilIfTrimmedEmpty
         self.aircraftType = aircraftType
         self.emitterCategory = emitterCategory
+        self.airlineDesignator = airlineDesignator
         self.messageObservedAt = messageObservedAt
         self.positionObservedAt = positionObservedAt
         self.fetchedAt = fetchedAt

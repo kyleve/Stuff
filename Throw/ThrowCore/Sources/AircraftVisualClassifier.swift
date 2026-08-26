@@ -71,7 +71,8 @@ public struct AircraftVisualClassifier: Sendable {
                 designator: observation.aircraftType,
                 emitterCategory: observation.emitterCategory,
             ),
-            brand: AirlineBrand.identify(callsign: observation.callsign),
+            brand: AirlineBrand.identify(designator: observation.airlineDesignator)
+                ?? AirlineBrand.identify(callsign: observation.callsign),
             isGrounded: observation.airborneState == .ground,
             activity: activity,
         )

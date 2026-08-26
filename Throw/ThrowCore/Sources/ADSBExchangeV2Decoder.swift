@@ -113,6 +113,7 @@ public struct ADSBExchangeV2Decoder: Sendable {
                         emitterCategory: aircraft.emitterCategory.flatMap(
                             AircraftEmitterCategory.init(providerValue:),
                         ),
+                        airlineDesignator: nil,
                         messageObservedAt: referenceDate.addingTimeInterval(
                             -(aircraft.seen?.value ?? 0),
                         ),

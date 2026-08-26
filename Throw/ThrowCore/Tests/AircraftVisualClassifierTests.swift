@@ -52,4 +52,13 @@ struct AircraftVisualClassifierTests {
         #expect(classifier.descriptor(for: united).brand == .united)
         #expect(classifier.descriptor(for: affiliate).brand == nil)
     }
+
+    @Test func explicitCarrierDesignatorDoesNotDependOnDisplayFlightNumber() throws {
+        let observation = try ThrowCoreFixture.observation(
+            callsign: "UA817",
+            airlineDesignator: "UAL",
+        )
+
+        #expect(classifier.descriptor(for: observation).brand == .united)
+    }
 }

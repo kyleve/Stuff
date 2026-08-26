@@ -86,6 +86,7 @@ enum ThrowCoreFixture {
         verticalRateFeetPerMinute: Double? = 600,
         aircraftType: String? = "B738",
         emitterCategory: AircraftEmitterCategory? = .large,
+        airlineDesignator: String? = nil,
     ) throws -> AircraftObservation {
         try AircraftObservation(
             id: AircraftID(kind: .icao, rawValue: "abc123"),
@@ -102,6 +103,7 @@ enum ThrowCoreFixture {
             registration: "N123TH",
             aircraftType: aircraftType.flatMap(AircraftTypeDesignator.init(rawValue:)),
             emitterCategory: emitterCategory,
+            airlineDesignator: airlineDesignator.flatMap(AirlineICAODesignator.init(rawValue:)),
             messageObservedAt: date.addingTimeInterval(-positionAge),
             positionObservedAt: date.addingTimeInterval(-positionAge),
             fetchedAt: date,
