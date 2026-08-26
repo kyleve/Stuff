@@ -106,6 +106,19 @@ enum Flightradar24UsageDecoder {
 
 private struct Envelope: Decodable {
     let data: [Entry]
+
+    private enum CodingKeys: String, CodingKey {
+        case data
+    }
+
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        guard container.contains(.data) else {
+            data = []
+            return
+        }
+        data = try container.decode([Entry].self, forKey: .data)
+    }
 }
 
 private struct Entry: Decodable {

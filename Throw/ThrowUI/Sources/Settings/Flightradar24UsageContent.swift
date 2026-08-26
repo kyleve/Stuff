@@ -56,6 +56,13 @@ struct Flightradar24UsageContent: View {
                 )
                 .foregroundStyle(.secondary)
                 retryButton
+            case .unexpectedResponse:
+                Label(
+                    String(localized: .sourceFr24UsageUnexpectedResponse),
+                    systemSymbol: .exclamationmarkTriangleFill,
+                )
+                .foregroundStyle(.red)
+                retryButton
             case let .failed(failure):
                 Label(failure.localizedDescription, systemSymbol: .exclamationmarkTriangleFill)
                     .foregroundStyle(.red)

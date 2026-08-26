@@ -56,7 +56,8 @@ The FR24 source settings page reads the saved token's 24-hour usage report.
 The session caches this report for one minute to obey the provider's rate limit.
 The page shows reported totals and cadence estimates. It does not treat these
 values as an account balance. A usage-report rate limit is not shown as a
-flight-position quota failure.
+flight-position quota failure. A malformed usage report is scoped to this
+estimate instead of implying that the live feed failed.
 
 Appearance is resolved through `ThrowStylesheet` at `throwBroadwayRoot()`.
 Preview and snapshot fixtures use memory-only dependencies and deterministic

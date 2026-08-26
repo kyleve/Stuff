@@ -132,6 +132,23 @@ struct AircraftSourceSettingsModelTests {
         await model.loadFlightradar24Usage()
         #expect(await transport.requestCount() == 1)
     }
+
+    @Test func malformedUsageReportDoesNotClaimTheLiveFeedChanged() async throws {
+        let session = ThrowSession.fixture(
+            cloudTransport: Flightradar24MalformedUsageTransport(),
+        )
+        try await session.credentialStore.save(
+            AircraftCredential(secret: "fr24-token"),
+            for: .flightradar24,
+        )
+        session.flightradar24CredentialState = .saved(lastFour: "oken")
+        let model = AircraftSourceSettingsModel(session: session)
+        model.choice = .flightradar24
+
+        await model.loadFlightradar24Usage()
+
+        #expect(model.flightradar24UsageState == .unexpectedResponse)
+    }
 }
 
 private actor DeferredSourceTestTransport: HTTPTransport {
@@ -200,5 +217,15 @@ private actor Flightradar24UsageRateLimitTransport: HTTPTransport {
 
     func requestCount() -> Int {
         requests
+    }
+}
+
+private struct Flightradar24MalformedUsageTransport: HTTPTransport {
+    func response(for _: HTTPRequest) async throws -> HTTPResponse {
+        HTTPResponse(
+            statusCode: 200,
+            headers: [:],
+            data: Data(#"{"data":[{"endpoint":false}]}"#.utf8),
+        )
     }
 }
