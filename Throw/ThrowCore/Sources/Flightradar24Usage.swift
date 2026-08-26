@@ -130,4 +130,43 @@ private struct Entry: Decodable {
         case endpoint, credits
         case requestCount = "request_count"
     }
+
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        endpoint = try container.decode(String.self, forKey: .endpoint)
+        requestCount = try container.decode(ProviderInteger.self, forKey: .requestCount).value
+        credits = try container.decode(ProviderInteger.self, forKey: .credits).value
+    }
+}
+
+/// Matches the integer coercion used by FR24's official Pydantic response model.
+private struct ProviderInteger: Decodable {
+    let value: Int
+
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let value = try? container.decode(Int.self) {
+            self.value = value
+            return
+        }
+        if let value = try? container.decode(String.self),
+           let integer = Int(value.trimmingCharacters(in: .whitespacesAndNewlines))
+        {
+            self.value = integer
+            return
+        }
+        if let value = try? container.decode(Double.self),
+           let integer = Int(exactly: value)
+        {
+            self.value = integer
+            return
+        }
+        throw DecodingError.typeMismatch(
+            Int.self,
+            DecodingError.Context(
+                codingPath: decoder.codingPath,
+                debugDescription: "Expected an integer-compatible provider value",
+            ),
+        )
+    }
 }

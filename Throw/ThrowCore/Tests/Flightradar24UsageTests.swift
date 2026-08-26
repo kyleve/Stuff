@@ -30,6 +30,39 @@ struct Flightradar24UsageTests {
         #expect(report.credits == 2880)
     }
 
+    @Test func decoderMatchesOfficialSDKIntegerCoercion() throws {
+        let data = Data(
+            """
+            {"data":[
+              {"endpoint":"live/flight-positions/full","request_count":"12","credits":"2400"},
+              {"endpoint":"live/flight-positions/full","request_count":3.0,"credits":480.0}
+            ]}
+            """.utf8,
+        )
+
+        let report = try Flightradar24UsageDecoder.decode(data, period: .last24Hours)
+
+        #expect(report.requestCount == 15)
+        #expect(report.credits == 2880)
+    }
+
+    @Test(arguments: ["3.5", "true", "null", #""three""#])
+    func decoderRejectsValuesThatAreNotIntegers(providerValue: String) {
+        let data = Data(
+            """
+            {"data":[{
+              "endpoint":"live/flight-positions/full",
+              "request_count":1,
+              "credits":\(providerValue)
+            }]}
+            """.utf8,
+        )
+
+        #expect(throws: Flightradar24DecodingError.invalidEnvelope) {
+            try Flightradar24UsageDecoder.decode(data, period: .last24Hours)
+        }
+    }
+
     @Test func estimatorUsesObservedCostAndQuietSchedule() throws {
         let report = Flightradar24UsageReport(
             period: .last24Hours,
