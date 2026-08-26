@@ -174,28 +174,49 @@ struct ThrowPreferenceStoreTests {
         #expect(try ThrowPreferencesCodec.decode(legacyData).airlineAccentsEnabled)
     }
 
-    @Test func completedSetupRequiresAValidatedSourceLocationAndMode() throws {
-        let source = AircraftSourceConfiguration.adsbLol
-        #expect(throws: ThrowValidationError.invalidPreferencePayload) {
-            try ThrowPreferences(
-                setupCompleted: true,
-                sourceSelection: .awaitingValidation(source),
-                locationMode: .gps,
-                confirmedLocation: nil,
-                calibration: .defaultValue,
-                mapViewport: .defaultValue,
-                mapCenters: .defaultValue,
-                skyViewport: .defaultValue,
-                selectedProjectionMode: nil,
-                flightsEnabled: true,
-                airlineAccentsEnabled: true,
-                geography: .defaultValue,
-                labelMode: .adaptive,
-                includeGroundAircraft: false,
-                markSizePercent: 100,
-                intensityPercent: 100,
-                quietSchedule: .disabled,
-            )
+    @Test func completedSetupPayloadRequiresAValidatedSourceLocationAndMode() throws {
+        let encoded = try ThrowPreferencesCodec.encode(populatedPreferences())
+        var storage = try propertyList(for: encoded)
+        var global = try #require(storage["global"] as? [String: Any])
+        var airAndSpace = try #require(storage["airAndSpace"] as? [String: Any])
+        global.removeValue(forKey: "confirmedLocation")
+        airAndSpace.removeValue(forKey: "validatedSource")
+        airAndSpace.removeValue(forKey: "selectedProjectionMode")
+        storage["global"] = global
+        storage["airAndSpace"] = airAndSpace
+        let invalidData = try PropertyListSerialization.data(
+            fromPropertyList: storage,
+            format: .binary,
+            options: 0,
+        )
+
+        #expect(throws: ThrowPreferenceStoreError.invalidPayload) {
+            try ThrowPreferencesCodec.decode(invalidData)
+        }
+    }
+
+    @Test func completedSetupPayloadRejectsMismatchedSourceValidation() throws {
+        let adsbLolStorage = try propertyList(
+            for: ThrowPreferencesCodec.encode(preferences(selectedSource: .adsbLol)),
+        )
+        let rapidAPIStorage = try propertyList(
+            for: ThrowPreferencesCodec.encode(populatedPreferences()),
+        )
+        var storage = adsbLolStorage
+        var airAndSpace = try #require(storage["airAndSpace"] as? [String: Any])
+        let rapidAPIAirAndSpace = try #require(
+            rapidAPIStorage["airAndSpace"] as? [String: Any],
+        )
+        airAndSpace["validatedSource"] = rapidAPIAirAndSpace["validatedSource"]
+        storage["airAndSpace"] = airAndSpace
+        let invalidData = try PropertyListSerialization.data(
+            fromPropertyList: storage,
+            format: .binary,
+            options: 0,
+        )
+
+        #expect(throws: ThrowPreferenceStoreError.invalidPayload) {
+            try ThrowPreferencesCodec.decode(invalidData)
         }
     }
 
@@ -247,24 +268,38 @@ struct ThrowPreferenceStoreTests {
                 URL(string: "http://\(receiverSentinel)/data/aircraft.json"),
             ),
         )
+        let setupState = ThrowSetupState.onboarding(
+            ThrowOnboardingSetup(
+                sourceSelection: .awaitingValidation(.readsb(readsb)),
+                location: .confirmed(mode: .manual, location: location),
+                projection: .selected(.map),
+            ),
+        )
         let preferences = try ThrowPreferences(
-            setupCompleted: false,
-            sourceSelection: .awaitingValidation(.readsb(readsb)),
-            locationMode: .manual,
-            confirmedLocation: location,
-            calibration: .defaultValue,
-            mapViewport: .defaultValue,
-            mapCenters: .defaultValue,
-            skyViewport: .defaultValue,
-            selectedProjectionMode: .map,
-            flightsEnabled: true,
-            airlineAccentsEnabled: true,
-            geography: .defaultValue,
-            labelMode: .adaptive,
-            includeGroundAircraft: false,
-            markSizePercent: 100,
-            intensityPercent: 100,
-            quietSchedule: .disabled,
+            setupState: setupState,
+            global: ThrowGlobalPreferences(
+                calibration: .defaultValue,
+                intensityPercent: 100,
+                quietSchedule: .disabled,
+            ),
+            playlist: ProjectionPlaylist(
+                entries: [],
+                automaticRotationEnabled: false,
+                selectedExperienceID: nil,
+                configuredExperienceIDs: setupState.configuredExperienceIDs,
+                catalog: .standard,
+            ),
+            airAndSpace: AirAndSpacePreferences(
+                mapViewport: .defaultValue,
+                mapCenters: .defaultValue,
+                skyViewport: .defaultValue,
+                flightsEnabled: true,
+                airlineAccentsEnabled: true,
+                geography: .defaultValue,
+                labelMode: .adaptive,
+                includeGroundAircraft: false,
+                markSizePercent: 100,
+            ),
         )
         let renderings = [
             String(describing: location),
@@ -308,15 +343,20 @@ struct ThrowPreferenceStoreTests {
         observer: ObserverPosition,
         mapCenter: GeoCoordinate,
     ) throws -> ThrowPreferences {
-        try ThrowPreferences(
-            setupCompleted: true,
-            sourceSelection: .configured(selectedSource),
-            locationMode: .manual,
-            confirmedLocation: ConfirmedObserverLocation(
-                position: observer,
-                horizontalAccuracyMeters: nil,
-                confirmedAt: ThrowCoreFixture.date,
+        let confirmedLocation = try ConfirmedObserverLocation(
+            position: observer,
+            horizontalAccuracyMeters: nil,
+            confirmedAt: ThrowCoreFixture.date,
+        )
+        let setupState = ThrowSetupState.configured(
+            ThrowConfiguredSetup(
+                source: selectedSource,
+                locationMode: .manual,
+                confirmedLocation: confirmedLocation,
+                projectionMode: .trueSky,
             ),
+        )
+        let global = try ThrowGlobalPreferences(
             calibration: ProjectionCalibration(
                 screenTopBearing: Bearing(degrees: 123),
                 rotation: .degrees90,
@@ -325,24 +365,43 @@ struct ThrowPreferenceStoreTests {
                 safeInsetFraction: 0.1,
                 verifiedOnExternalDisplay: true,
             ),
+            intensityPercent: 50,
+            quietSchedule: QuietSchedule(
+                start: LocalTime(hour: 23, minute: 0),
+                end: LocalTime(hour: 6, minute: 30),
+            ),
+        )
+        let airAndSpace = try AirAndSpacePreferences(
             mapViewport: MapViewport(radius: NauticalMiles(value: 100)),
-            mapCenters: .defaultValue.setting(
+            mapCenters: MapCenterPreferences.defaultValue.setting(
                 center: mapCenter,
                 for: observer.coordinate,
             ),
             skyViewport: SkyViewport(minimumElevation: ElevationAngle(degrees: 20)),
-            selectedProjectionMode: .trueSky,
             flightsEnabled: false,
             airlineAccentsEnabled: false,
             geography: GeographyPreferences(isEnabled: false, intensityPercent: 12),
             labelMode: .callsigns,
             includeGroundAircraft: true,
             markSizePercent: 150,
-            intensityPercent: 50,
-            quietSchedule: QuietSchedule(
-                start: LocalTime(hour: 23, minute: 0),
-                end: LocalTime(hour: 6, minute: 30),
-            ),
+        )
+        let playlist = try ProjectionPlaylist(
+            entries: [
+                ProjectionPlaylistEntry(
+                    experienceID: .airAndSpace,
+                    dwellDuration: .defaultValue,
+                ),
+            ],
+            automaticRotationEnabled: false,
+            selectedExperienceID: .airAndSpace,
+            configuredExperienceIDs: setupState.configuredExperienceIDs,
+            catalog: .standard,
+        )
+        return try ThrowPreferences(
+            setupState: setupState,
+            global: global,
+            playlist: playlist,
+            airAndSpace: airAndSpace,
         )
     }
 

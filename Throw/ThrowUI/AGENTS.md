@@ -28,6 +28,8 @@ Read the root [`AGENTS.md`](../../AGENTS.md) and group
   generation. Exchange that frame only at black, and never mix experiences.
 - Send only `ProjectionExperienceInput` to the production projection worker.
   Keep raw layer-array entry points inside DEBUG test support.
+- Keep setup lifecycle data in the session's single `ThrowSetupState`. Change
+  validated source and location values atomically through that state.
 - Render projector, Preview, and full-screen fallback through
   `ProjectionSurface`. Do not add a parallel renderer.
 - Keep the render loop on fixed deadlines. Skip elapsed frame slots instead of

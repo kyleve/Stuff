@@ -78,11 +78,21 @@ struct ThrowSessionTests {
 
         session.geographyEnabled = false
         session.geographyIntensityPercent = 12
-        let preferences = try session.makePreferences(setupCompleted: session.setupCompleted)
+        let preferences = try session.makePreferences()
 
         #expect(session.demandGeneration == demandGeneration)
         #expect(preferences.geography.isEnabled == false)
         #expect(preferences.geography.intensityPercent == 12)
+    }
+
+    @Test func configuredProjectionChangeUpdatesTheTypedSetup() throws {
+        let session = ThrowSession.fixture()
+
+        session.projectionMode = .trueSky
+
+        let preferences = try session.makePreferences()
+        #expect(preferences.setupCompleted)
+        #expect(preferences.selectedProjectionMode == .trueSky)
     }
 
     @Test func disablingGeographyImmediatelyRemovesAPublishedStaticFrame() {

@@ -5,13 +5,10 @@ extension ThrowSession {
     func apply(_ preferences: ThrowPreferences) {
         isApplyingPreferences = true
         defer { isApplyingPreferences = false }
-        setupCompleted = preferences.setupCompleted
+        setupState = preferences.setupState
         projectionPlaylist = preferences.playlist
         activeExperienceID = preferences.playlist.selectedExperienceID
         nextExperienceID = activeExperienceID.flatMap(preferences.playlist.experience(after:))
-        aircraftSourceSelection = preferences.airAndSpace.sourceSelection
-        locationMode = preferences.locationMode
-        confirmedLocation = preferences.confirmedLocation
         projectionMode = preferences.selectedProjectionMode ?? .map
         mapRadius = preferences.mapViewport.radius.value
         mapCenters = preferences.mapCenters
@@ -80,7 +77,7 @@ extension ThrowSession {
         }
         let preferences: ThrowPreferences
         do {
-            preferences = try makePreferences(setupCompleted: setupCompleted)
+            preferences = try makePreferences()
         } catch {
             settingsFailure = error.localizedDescription
             return
@@ -106,39 +103,31 @@ extension ThrowSession {
         preferenceSaveTask = nil
         pendingSave?.cancel()
         await pendingSave?.value
-        let preferences = try makePreferences(setupCompleted: setupCompleted)
+        let preferences = try makePreferences()
         try await preferenceStore.save(preferences)
         projectionPlaylist = preferences.playlist
         await configureExperienceCoordinator(with: projectionPlaylist)
         settingsFailure = nil
     }
 
-    func makePreferences(setupCompleted: Bool) throws -> ThrowPreferences {
-        try makePreferences(
-            setupCompleted: setupCompleted,
-            sourceSelection: aircraftSourceSelection,
-        )
+    func makePreferences() throws -> ThrowPreferences {
+        try makePreferences(setupState: setupState)
     }
 
     func makePreferences(
-        setupCompleted: Bool,
-        sourceSelection: AircraftSourceSelection,
+        setupState: ThrowSetupState,
     ) throws -> ThrowPreferences {
         let global = try ThrowGlobalPreferences(
-            locationMode: locationMode,
-            confirmedLocation: confirmedLocation,
             calibration: projectionCalibration(),
             intensityPercent: intensityPercent,
             quietSchedule: quietSchedule(),
         )
         let airAndSpace = try AirAndSpacePreferences(
-            sourceSelection: sourceSelection,
             mapViewport: MapViewport(radius: NauticalMiles(value: mapRadius)),
             mapCenters: mapCenters,
             skyViewport: SkyViewport(
                 minimumElevation: ElevationAngle(degrees: minimumElevation),
             ),
-            selectedProjectionMode: projectionMode,
             flightsEnabled: flightsEnabled,
             airlineAccentsEnabled: airlineAccentsEnabled,
             geography: GeographyPreferences(
@@ -149,8 +138,9 @@ extension ThrowSession {
             includeGroundAircraft: includeGroundAircraft,
             markSizePercent: markSizePercent,
         )
-        let playlist: ProjectionPlaylist = if airAndSpace.isConfigured,
-                                              projectionPlaylist.entry(for: .airAndSpace) == nil
+        let playlist: ProjectionPlaylist = if setupState.configuredExperienceIDs
+            .contains(.airAndSpace),
+            projectionPlaylist.entry(for: .airAndSpace) == nil
         {
             try ProjectionPlaylist(
                 entries: [
@@ -168,7 +158,7 @@ extension ThrowSession {
             projectionPlaylist
         }
         return try ThrowPreferences(
-            setupCompleted: setupCompleted,
+            setupState: setupState,
             global: global,
             playlist: playlist,
             airAndSpace: airAndSpace,
@@ -189,6 +179,152 @@ extension ThrowSession {
         return try QuietSchedule(
             start: LocalTime(hour: startHour, minute: startMinute),
             end: LocalTime(hour: endHour, minute: endMinute),
+        )
+    }
+}
+
+extension ThrowSetupState {
+    func updatingSourceSelection(_ sourceSelection: AircraftSourceSelection) -> Self {
+        switch self {
+            case let .onboarding(setup):
+                return .onboarding(
+                    ThrowOnboardingSetup(
+                        sourceSelection: sourceSelection,
+                        location: setup.location,
+                        projection: setup.projection,
+                    ),
+                )
+            case let .configured(setup):
+                if case let .configured(source) = sourceSelection,
+                   source == setup.source
+                {
+                    return self
+                }
+                return .onboarding(
+                    ThrowOnboardingSetup(
+                        sourceSelection: sourceSelection,
+                        location: .confirmed(
+                            mode: setup.locationMode,
+                            location: setup.confirmedLocation,
+                        ),
+                        projection: .selected(setup.projectionMode),
+                    ),
+                )
+        }
+    }
+
+    func selectingSource(_ source: AircraftSourceConfiguration?) -> Self {
+        if source == selectedSource { return self }
+        let sourceSelection = source.map(AircraftSourceSelection.awaitingValidation)
+            ?? .unconfigured
+        return updatingSourceSelection(sourceSelection)
+    }
+
+    func validatingSource(_ source: AircraftSourceConfiguration?) -> Self {
+        guard let source else {
+            let sourceSelection = selectedSource.map(AircraftSourceSelection.awaitingValidation)
+                ?? .unconfigured
+            return updatingSourceSelection(sourceSelection)
+        }
+        guard selectedSource == source else { return self }
+        return updatingSourceSelection(.configured(source))
+    }
+
+    func replacingSource(_ source: AircraftSourceConfiguration) -> Self {
+        switch self {
+            case let .onboarding(setup):
+                .onboarding(
+                    ThrowOnboardingSetup(
+                        sourceSelection: .configured(source),
+                        location: setup.location,
+                        projection: setup.projection,
+                    ),
+                )
+            case let .configured(setup):
+                .configured(
+                    ThrowConfiguredSetup(
+                        source: source,
+                        locationMode: setup.locationMode,
+                        confirmedLocation: setup.confirmedLocation,
+                        projectionMode: setup.projectionMode,
+                    ),
+                )
+        }
+    }
+
+    func updatingLocation(
+        mode: ObserverLocationMode,
+        confirmedLocation: ConfirmedObserverLocation?,
+    ) -> Self {
+        let locationState: ObserverLocationSetupState = if let confirmedLocation {
+            .confirmed(mode: mode, location: confirmedLocation)
+        } else {
+            .unconfirmed(mode: mode)
+        }
+        switch self {
+            case let .onboarding(setup):
+                return .onboarding(
+                    ThrowOnboardingSetup(
+                        sourceSelection: setup.sourceSelection,
+                        location: locationState,
+                        projection: setup.projection,
+                    ),
+                )
+            case let .configured(setup):
+                guard let confirmedLocation else {
+                    return .onboarding(
+                        ThrowOnboardingSetup(
+                            sourceSelection: .configured(setup.source),
+                            location: locationState,
+                            projection: .selected(setup.projectionMode),
+                        ),
+                    )
+                }
+                return .configured(
+                    ThrowConfiguredSetup(
+                        source: setup.source,
+                        locationMode: mode,
+                        confirmedLocation: confirmedLocation,
+                        projectionMode: setup.projectionMode,
+                    ),
+                )
+        }
+    }
+
+    func updatingProjectionMode(_ projectionMode: ProjectionMode) -> Self {
+        switch self {
+            case let .onboarding(setup):
+                .onboarding(
+                    ThrowOnboardingSetup(
+                        sourceSelection: setup.sourceSelection,
+                        location: setup.location,
+                        projection: .selected(projectionMode),
+                    ),
+                )
+            case let .configured(setup):
+                .configured(
+                    ThrowConfiguredSetup(
+                        source: setup.source,
+                        locationMode: setup.locationMode,
+                        confirmedLocation: setup.confirmedLocation,
+                        projectionMode: projectionMode,
+                    ),
+                )
+        }
+    }
+
+    func completing(projectionMode: ProjectionMode) -> Self? {
+        guard case let .onboarding(setup) = self,
+              case let .configured(source) = setup.sourceSelection,
+              case let .confirmed(locationMode, confirmedLocation) = setup.location
+        else { return nil }
+        return .configured(
+            ThrowConfiguredSetup(
+                source: source,
+                locationMode: locationMode,
+                confirmedLocation: confirmedLocation,
+                projectionMode: projectionMode,
+            ),
         )
     }
 }
