@@ -28,16 +28,28 @@ struct ThrowStylesheetTests {
         #expect(projection.label.offset > 0)
     }
 
-    @Test func everyCuratedCarrierHasABoundedMutedAccentColor() {
+    @Test func everyCuratedCarrierHasABoundedMutedBrandDotColor() {
         let style = ThrowStylesheet.AircraftStyle.standard
 
         #expect(style.secondaryOpacityMultiplier == 0.35)
+        #expect((0 ..< 1).contains(style.brandDotBrightnessMultiplier))
         #expect(style.brandColors.count == AirlineBrand.allCases.count)
         for color in style.brandColors.values {
             #expect((0 ... 1).contains(color.red))
             #expect((0 ... 1).contains(color.green))
             #expect((0 ... 1).contains(color.blue))
         }
+    }
+
+    @Test func brandDotProjectionPreservesPrimaryColorRatios() throws {
+        let style = ThrowStylesheet.AircraftStyle.standard
+        let primary = try #require(style.brandColors[.united])
+        let projected = primary.projected(brightness: 0.65, intensity: 0.8)
+
+        #expect(abs(max(projected.red, projected.green, projected.blue) - 0.52) < 0.000_001)
+        #expect(
+            abs(projected.green / projected.blue - primary.green / primary.blue) < 0.000_001,
+        )
     }
 
     @Test(arguments: GeographyLineKind.allCases)

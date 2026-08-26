@@ -127,7 +127,6 @@ private struct ProjectionMarksCanvas: View {
                 aircraftPaths[family] = AircraftPaths(
                     size: markSize,
                     body: AircraftGlyphShape(family: family).path(in: rect),
-                    accent: AircraftAccentShape(family: family).path(in: rect),
                 )
             }
 
@@ -146,6 +145,7 @@ private struct ProjectionMarksCanvas: View {
                 markContext.rotate(by: .degrees(mark.orientationDegrees ?? 0))
                 markContext.scaleBy(x: effect.scale, y: effect.scale)
                 var renderedMarkSize = standardMarkSize
+                var brandDotColor: Color?
                 switch mark.glyph {
                     case let .aircraft(descriptor):
                         guard let paths = aircraftPaths[descriptor.family] else { continue }
@@ -214,12 +214,10 @@ private struct ProjectionMarksCanvas: View {
                            let brand = descriptor.brand,
                            let rgb = style.aircraft[brand]
                         {
-                            markContext.fill(
-                                paths.accent,
-                                with: .color(rgb.color(
-                                    markLuminance: style.markLuminance,
-                                    intensity: intensityMultiplier,
-                                )),
+                            brandDotColor = rgb.color(
+                                brightness: style.markLuminance *
+                                    style.aircraft.brandDotBrightnessMultiplier,
+                                intensity: intensityMultiplier,
                             )
                         }
                     case let .airport(descriptor):
@@ -276,13 +274,22 @@ private struct ProjectionMarksCanvas: View {
                         x: point.x + renderedMarkSize / 2 + style.label.offset,
                         y: point.y,
                     )
-                    var text = Text(verbatim: label.primary)
+                    var text = label.primaryRole == .detail
+                        ? detailText(
+                            label.primary,
+                            color: detailLabelColor,
+                            brandDotColor: brandDotColor,
+                        )
+                        : Text(verbatim: label.primary)
                         .font(primaryStyle.font)
                         .foregroundStyle(primaryLabelColor)
                     if let secondary = label.secondary {
-                        text = text + Text(verbatim: "\n\(secondary)")
-                            .font(style.label.detail.font)
-                            .foregroundStyle(detailLabelColor)
+                        let secondaryText = detailText(
+                            secondary,
+                            color: detailLabelColor,
+                            brandDotColor: brandDotColor,
+                        )
+                        text = Text("\(text)\n\(secondaryText)")
                     }
                     var labelContext = context
                     labelContext.opacity = effectiveOpacity * mark.labelOpacity
@@ -295,7 +302,21 @@ private struct ProjectionMarksCanvas: View {
     private struct AircraftPaths {
         let size: CGFloat
         let body: Path
-        let accent: Path
+    }
+
+    private func detailText(
+        _ value: String,
+        color: Color,
+        brandDotColor: Color?,
+    ) -> Text {
+        let valueText = Text(verbatim: value)
+            .font(style.label.detail.font)
+            .foregroundStyle(color)
+        guard let brandDotColor else { return valueText }
+        let dotText = Text(verbatim: "● ")
+            .font(style.label.detail.font)
+            .foregroundStyle(brandDotColor)
+        return Text("\(dotText)\(valueText)")
     }
 
     private func drawCue(

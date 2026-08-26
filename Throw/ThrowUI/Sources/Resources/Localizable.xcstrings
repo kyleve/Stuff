@@ -1976,7 +1976,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Airline Color Accents"
+            "value" : "Airline Brand Dots"
           }
         }
       }
@@ -1987,7 +1987,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Known airlines get a muted tail accent. Shapes identify aircraft families without color. Some aircraft remain neutral when their operator or type is uncertain."
+            "value" : "Known airlines get a muted color dot beside their flight number or ID. Aircraft shapes remain neutral, and some flights have no dot when their operator is uncertain."
           }
         }
       }

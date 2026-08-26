@@ -21,7 +21,7 @@ public enum AircraftVisualFamily: String, CaseIterable, Hashable, Sendable {
     }
 }
 
-/// A carrier with a deliberately curated, logo-free color accent.
+/// A carrier with a deliberately curated, logo-free metadata color.
 public enum AirlineBrand: String, CaseIterable, Hashable, Sendable {
     case alaska = "ASA"
     case allegiant = "AAY"
