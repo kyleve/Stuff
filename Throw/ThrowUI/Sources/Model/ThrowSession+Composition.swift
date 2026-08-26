@@ -47,6 +47,7 @@ extension ThrowSession {
             calendar: .autoupdatingCurrent,
             layerCatalog: .standard,
             geographyLogger: PeriscopeGeographyLogger(log: ThrowLog.geography),
+            motionLogger: PeriscopeProjectionMotionLogger(log: ThrowLog.projectionMotion),
             routeResolver: FlightRouteResolver(
                 source: ADSBDBFlightRouteSource(transport: cloudTransport),
             ),
@@ -484,6 +485,7 @@ extension ThrowSession {
                     calendar: Calendar(identifier: .gregorian),
                     layerCatalog: .standard,
                     geographyLogger: DiscardingGeographyLogger(),
+                    motionLogger: DiscardingProjectionMotionLogger(),
                     routeResolver: FlightRouteResolver(
                         source: EmptyFlightRouteSource(),
                     ),

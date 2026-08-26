@@ -12,6 +12,10 @@ Read the root [`AGENTS.md`](../../AGENTS.md) and group
   output scene. A view or scene delegate must never create a second poller.
 - Render projector, Preview, and full-screen fallback through
   `ProjectionSurface`. Do not add a parallel renderer.
+- Keep the render loop on fixed deadlines. Skip elapsed frame slots instead of
+  starting delayed work in a burst.
+- Keep motion correction and its aggregate diagnostics inside the projection
+  worker. Never log aircraft identities or coordinates.
 - Draw cached Geography below marks in Map mode. Keep it absent from True Sky,
   calibration, and quiet output.
 - Keep external projection opaque black and free of interactive chrome.

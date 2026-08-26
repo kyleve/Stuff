@@ -17,11 +17,15 @@ public struct FlightLayerFrameBuilder: Sendable {
         observer: ObserverPosition,
         labelMode: FlightLabelMode,
         routeResults: [FlightCallsign: FlightRouteResult],
+        motions: [AircraftID: AircraftMotion],
         availability: MarkAvailability,
     ) throws -> LayerFrame {
         var airportMarks: [AirportID: ProjectionMark] = [:]
         var aircraftMarks: [ProjectionMark] = []
         for observation in snapshot.observations {
+            guard let motion = motions[observation.id] else {
+                preconditionFailure("Every observation must have resolved motion")
+            }
             let callsign = observation.callsign.flatMap(FlightCallsign.init(rawValue:))
             let routeResult = snapshot.routeResultsByAircraft[observation.id]
                 ?? callsign.flatMap { routeResults[$0] }
@@ -37,6 +41,7 @@ public struct FlightLayerFrameBuilder: Sendable {
                 for: observation,
                 observer: observer,
                 route: route,
+                motion: motion,
             )
             let altitude = observation.preferredSkyAltitude
             let anchor = GeodeticAnchor(
@@ -59,9 +64,11 @@ public struct FlightLayerFrameBuilder: Sendable {
                 ),
                 prominence: prominence,
                 velocity: ProjectionVelocity(
-                    groundTrack: observation.groundTrack,
-                    groundSpeedKnots: observation.groundSpeedKnots,
-                    verticalRateFeetPerMinute: observation.verticalRateFeetPerMinute,
+                    groundTrack: motion.groundTrack,
+                    groundSpeedKnots: motion.groundSpeedKnots,
+                    verticalRateFeetPerMinute: motion.verticalRateFeetPerMinute,
+                    turnRateDegreesPerSecond: motion.turnRateDegreesPerSecond,
+                    horizontalSource: motion.horizontalSource,
                 ),
                 freshness: MarkFreshness(
                     positionObservedAt: observation.positionObservedAt,

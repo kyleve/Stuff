@@ -26,6 +26,7 @@ public struct FlightPrediction: Hashable, Sendable, CustomStringConvertible,
 public enum FlightPredictor {
     public static let failureGracePeriod: TimeInterval = 15
     public static let failureFadeDuration: TimeInterval = 15
+    static let turnPredictionDuration: TimeInterval = 12
 
     public static func prediction(
         for mark: ProjectionMark,
@@ -72,10 +73,12 @@ public enum FlightPredictor {
         let coordinate: GeoCoordinate = if let track = mark.velocity?.groundTrack,
                                            let speed = mark.velocity?.groundSpeedKnots
         {
-            try destination(
+            try predictedCoordinate(
                 from: anchor.coordinate,
-                bearing: track,
-                distanceNauticalMiles: speed * predictionAge / 3600,
+                track: track,
+                speedKnots: speed,
+                turnRateDegreesPerSecond: mark.velocity?.turnRateDegreesPerSecond,
+                predictionAge: predictionAge,
             )
         } else {
             anchor.coordinate
@@ -169,6 +172,48 @@ public enum FlightPredictor {
         return try GeoCoordinate(
             latitude: latitude2 * 180 / .pi,
             longitude: longitudeDegrees,
+        )
+    }
+
+    private static func predictedCoordinate(
+        from origin: GeoCoordinate,
+        track: Bearing,
+        speedKnots: Double,
+        turnRateDegreesPerSecond: Double?,
+        predictionAge: TimeInterval,
+    ) throws -> GeoCoordinate {
+        guard let turnRateDegreesPerSecond,
+              abs(turnRateDegreesPerSecond) >= 0.03
+        else {
+            return try destination(
+                from: origin,
+                bearing: track,
+                distanceNauticalMiles: speedKnots * predictionAge / 3600,
+            )
+        }
+
+        let turnDuration = min(predictionAge, turnPredictionDuration)
+        let angularRate = turnRateDegreesPerSecond * .pi / 180
+        let initialTrack = track.degrees * .pi / 180
+        let finalTrack = initialTrack + angularRate * turnDuration
+        let speedNauticalMilesPerSecond = speedKnots / 3600
+        let north = speedNauticalMilesPerSecond / angularRate *
+            (sin(finalTrack) - sin(initialTrack))
+        let east = speedNauticalMilesPerSecond / angularRate *
+            (cos(initialTrack) - cos(finalTrack))
+        let arcDistance = hypot(east, north)
+        let arcBearing = try Bearing(degrees: atan2(east, north) * 180 / .pi)
+        let afterTurn = try destination(
+            from: origin,
+            bearing: arcBearing,
+            distanceNauticalMiles: arcDistance,
+        )
+        let remainingAge = predictionAge - turnDuration
+        guard remainingAge > 0 else { return afterTurn }
+        return try destination(
+            from: afterTurn,
+            bearing: Bearing(degrees: finalTrack * 180 / .pi),
+            distanceNauticalMiles: speedKnots * remainingAge / 3600,
         )
     }
 }

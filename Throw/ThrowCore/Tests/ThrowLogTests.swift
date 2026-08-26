@@ -38,4 +38,20 @@ struct ThrowLogTests {
         #expect(event.message == "Flight route enrichment transport-failed")
         #expect(event.remoteFields.isEmpty)
     }
+
+    @Test func projectionMotionContainsOnlyAggregateValues() {
+        let event = ProjectionMotionLogEvent(
+            framesPerSecond: 29.8,
+            aircraftCount: 42,
+            usableHorizontalMotionPercent: 95,
+            positionDerivedMotionPercent: 5,
+            meanSampleAgeSeconds: 3,
+            meanProjectedSpeedPerSecond: 0.001,
+            meanCorrectionDistance: 0.002,
+            previousSnapshotRetainedPercent: 80,
+        )
+
+        #expect(event.message == "Projection motion aggregate")
+        #expect(event.remoteFields.isEmpty)
+    }
 }

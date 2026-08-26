@@ -137,11 +137,56 @@ public struct FlightRouteLogEvent: LogEvent {
     }
 }
 
+/// A privacy-safe aggregate sample of the projection motion pipeline.
+public struct ProjectionMotionLogEvent: LogEvent, Equatable {
+    public let framesPerSecond: Double
+    public let aircraftCount: Int
+    public let usableHorizontalMotionPercent: Double?
+    public let positionDerivedMotionPercent: Double?
+    public let meanSampleAgeSeconds: Double?
+    public let meanProjectedSpeedPerSecond: Double?
+    public let meanCorrectionDistance: Double?
+    public let previousSnapshotRetainedPercent: Double?
+
+    public init(
+        framesPerSecond: Double,
+        aircraftCount: Int,
+        usableHorizontalMotionPercent: Double?,
+        positionDerivedMotionPercent: Double?,
+        meanSampleAgeSeconds: Double?,
+        meanProjectedSpeedPerSecond: Double?,
+        meanCorrectionDistance: Double?,
+        previousSnapshotRetainedPercent: Double?,
+    ) {
+        self.framesPerSecond = framesPerSecond
+        self.aircraftCount = aircraftCount
+        self.usableHorizontalMotionPercent = usableHorizontalMotionPercent
+        self.positionDerivedMotionPercent = positionDerivedMotionPercent
+        self.meanSampleAgeSeconds = meanSampleAgeSeconds
+        self.meanProjectedSpeedPerSecond = meanProjectedSpeedPerSecond
+        self.meanCorrectionDistance = meanCorrectionDistance
+        self.previousSnapshotRetainedPercent = previousSnapshotRetainedPercent
+    }
+
+    public var level: LogLevel {
+        .info
+    }
+
+    public var message: String {
+        "Projection motion aggregate"
+    }
+
+    public var remoteMessage: String {
+        message
+    }
+}
+
 public enum ThrowLog {
     public static let root = Log<ThrowRootLogEvent>(system: .shared)
     public static let aircraft = root(AircraftPollingLogEvent.self)
     public static let geography = root(GeographyLogEvent.self)
     public static let flightRoutes = root(FlightRouteLogEvent.self)
+    public static let projectionMotion = root(ProjectionMotionLogEvent.self)
 }
 
 public protocol AircraftPollingLogging: Sendable {
@@ -208,4 +253,26 @@ public struct DiscardingFlightRouteLogger: FlightRouteLogging {
     public init() {}
 
     public func record(_: FlightRouteLogEvent) {}
+}
+
+public protocol ProjectionMotionLogging: Sendable {
+    func record(_ event: ProjectionMotionLogEvent)
+}
+
+public struct PeriscopeProjectionMotionLogger: ProjectionMotionLogging {
+    private let log: Log<ProjectionMotionLogEvent>
+
+    public init(log: Log<ProjectionMotionLogEvent>) {
+        self.log = log
+    }
+
+    public func record(_ event: ProjectionMotionLogEvent) {
+        log { event }
+    }
+}
+
+public struct DiscardingProjectionMotionLogger: ProjectionMotionLogging {
+    public init() {}
+
+    public func record(_: ProjectionMotionLogEvent) {}
 }

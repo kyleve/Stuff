@@ -201,11 +201,15 @@ public struct ProjectionVelocity: Hashable, Sendable {
     public let groundTrack: Bearing?
     public let groundSpeedKnots: Double?
     public let verticalRateFeetPerMinute: Double?
+    public let turnRateDegreesPerSecond: Double?
+    public let horizontalSource: AircraftHorizontalMotionSource
 
     public init(
         groundTrack: Bearing?,
         groundSpeedKnots: Double?,
         verticalRateFeetPerMinute: Double?,
+        turnRateDegreesPerSecond: Double?,
+        horizontalSource: AircraftHorizontalMotionSource,
     ) throws {
         if let groundSpeedKnots {
             guard groundSpeedKnots.isFinite, (0 ... 2000).contains(groundSpeedKnots) else {
@@ -220,9 +224,32 @@ public struct ProjectionVelocity: Hashable, Sendable {
                 throw ThrowValidationError.nonFiniteValue(field: "verticalRate")
             }
         }
+        if let turnRateDegreesPerSecond {
+            guard turnRateDegreesPerSecond.isFinite else {
+                throw ThrowValidationError.nonFiniteValue(field: "turnRate")
+            }
+            guard (-3 ... 3).contains(turnRateDegreesPerSecond) else {
+                throw ThrowValidationError.outOfRange(
+                    field: "turnRate",
+                    closedRange: -3 ... 3,
+                )
+            }
+        }
+        precondition(
+            horizontalSource == .unavailable ||
+                (groundTrack != nil && groundSpeedKnots != nil),
+            "Available horizontal motion requires both track and speed",
+        )
+        precondition(
+            turnRateDegreesPerSecond == nil ||
+                (groundTrack != nil && groundSpeedKnots != nil),
+            "Turn-rate prediction requires horizontal motion",
+        )
         self.groundTrack = groundTrack
         self.groundSpeedKnots = groundSpeedKnots
         self.verticalRateFeetPerMinute = verticalRateFeetPerMinute
+        self.turnRateDegreesPerSecond = turnRateDegreesPerSecond
+        self.horizontalSource = horizontalSource
     }
 }
 

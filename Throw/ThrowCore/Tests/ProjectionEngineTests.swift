@@ -227,6 +227,8 @@ struct ProjectionEngineTests {
                 groundTrack: Bearing(degrees: 35),
                 groundSpeedKnots: 2000,
                 verticalRateFeetPerMinute: nil,
+                turnRateDegreesPerSecond: nil,
+                horizontalSource: .provider,
             ),
             freshness: MarkFreshness(
                 positionObservedAt: observedAt,
@@ -297,6 +299,8 @@ struct ProjectionEngineTests {
             groundTrack: Bearing(degrees: 90),
             groundSpeedKnots: 360,
             verticalRateFeetPerMinute: nil,
+            turnRateDegreesPerSecond: nil,
+            horizontalSource: .provider,
         )
         let movingMark = try mark(
             rawID: "moving",
@@ -347,6 +351,8 @@ struct ProjectionEngineTests {
             groundTrack: nil,
             groundSpeedKnots: nil,
             verticalRateFeetPerMinute: .greatestFiniteMagnitude,
+            turnRateDegreesPerSecond: nil,
+            horizontalSource: .unavailable,
         )
         let frame = try engine.frame(
             layerFrames: [
@@ -381,6 +387,8 @@ struct ProjectionEngineTests {
             groundTrack: nil,
             groundSpeedKnots: nil,
             verticalRateFeetPerMinute: 600,
+            turnRateDegreesPerSecond: nil,
+            horizontalSource: .unavailable,
         )
         let frame = try engine.frame(
             layerFrames: [
