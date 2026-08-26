@@ -47,6 +47,7 @@ public struct Flightradar24Decoder: Sendable {
                     aircraftType: record.aircraftType
                         .flatMap(AircraftTypeDesignator.init(rawValue:)),
                     emitterCategory: nil,
+                    airlineDesignator: Self.airlineDesignator(record),
                     messageObservedAt: observedAt,
                     positionObservedAt: observedAt,
                     fetchedAt: fetchedAt,
@@ -88,6 +89,21 @@ public struct Flightradar24Decoder: Sendable {
             origin != destination
         else { return nil }
         return FlightRoute(origin: origin, destination: destination)
+    }
+
+    private static func airlineDesignator(_ record: Record) -> AirlineICAODesignator? {
+        for providerValue in [record.paintedAs, record.operatingAs] {
+            if let providerValue,
+               let designator = AirlineICAODesignator(rawValue: providerValue)
+            {
+                return designator
+            }
+        }
+
+        guard let radioCallsign = record.callsign?.trimmedNonempty,
+              radioCallsign.count >= 3
+        else { return nil }
+        return AirlineICAODesignator(rawValue: String(radioCallsign.prefix(3)))
     }
 
     private static func timestamp(_ value: String) -> Date? {
@@ -261,6 +277,8 @@ private struct Record: Decodable {
     let hex: String?
     let aircraftType: String?
     let registration: String?
+    let paintedAs: String?
+    let operatingAs: String?
     let originIATA: String?
     let originICAO: String?
     let destinationIATA: String?
@@ -273,6 +291,8 @@ private struct Record: Decodable {
         case verticalSpeed = "vspeed"
         case aircraftType = "type"
         case registration = "reg"
+        case paintedAs = "painted_as"
+        case operatingAs = "operating_as"
         case originIATA = "orig_iata"
         case originICAO = "orig_icao"
         case destinationIATA = "dest_iata"

@@ -18,4 +18,14 @@ struct AircraftVisualModelsTests {
         #expect(AirlineBrand.identify(callsign: "SKW1") == nil)
         #expect(AirlineBrand.identify(callsign: nil) == nil)
     }
+
+    @Test func carrierMatchingAcceptsAnExplicitICAODesignator() {
+        #expect(
+            AirlineBrand.identify(designator: AirlineICAODesignator(rawValue: " ual "))
+                == .united,
+        )
+        #expect(
+            AirlineBrand.identify(designator: AirlineICAODesignator(rawValue: "skw")) == nil,
+        )
+    }
 }
