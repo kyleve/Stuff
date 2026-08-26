@@ -143,49 +143,70 @@ extension ThrowStylesheet {
                 blue = Double(hex & 0xFF) / 255
             }
 
-            func color(markLuminance: Double, intensity: Double) -> Color {
-                let brandWeight = 0.55
-                let neutralWeight = 1 - brandWeight
+            private init(red: Double, green: Double, blue: Double) {
+                self.red = red
+                self.green = green
+                self.blue = blue
+            }
+
+            func color(brightness: Double, intensity: Double) -> Color {
+                let projected = projected(brightness: brightness, intensity: intensity)
                 return Color(
-                    red: (brandWeight * red + neutralWeight) * markLuminance * intensity,
-                    green: (brandWeight * green + neutralWeight) * markLuminance * intensity,
-                    blue: (brandWeight * blue + neutralWeight) * markLuminance * intensity,
+                    red: projected.red,
+                    green: projected.green,
+                    blue: projected.blue,
+                )
+            }
+
+            func projected(brightness: Double, intensity: Double) -> RGB {
+                let peak = max(red, green, blue)
+                guard peak > 0 else { return self }
+                let multiplier = brightness * intensity / peak
+                return RGB(
+                    red: red * multiplier,
+                    green: green * multiplier,
+                    blue: blue * multiplier,
                 )
             }
         }
 
         let secondaryOpacityMultiplier: Double
+        let brandDotBrightnessMultiplier: Double
         let brandColors: [AirlineBrand: RGB]
 
         subscript(brand: AirlineBrand) -> RGB? {
             brandColors[brand]
         }
 
-        static let standard = AircraftStyle(secondaryOpacityMultiplier: 0.35, brandColors: [
-            .alaska: RGB(hex: 0x01426A),
-            .allegiant: RGB(hex: 0x025DAA),
-            .american: RGB(hex: 0xC3002F),
-            .airCanada: RGB(hex: 0xD8292F),
-            .aeromexico: RGB(hex: 0x003B5C),
-            .avelo: RGB(hex: 0x552583),
-            .breeze: RGB(hex: 0x00A9CE),
-            .delta: RGB(hex: 0xC8102E),
-            .frontier: RGB(hex: 0x008C45),
-            .flair: RGB(hex: 0x7AC143),
-            .hawaiian: RGB(hex: 0x5C2D91),
-            .jetBlue: RGB(hex: 0x003876),
-            .porter: RGB(hex: 0x00263A),
-            .southwest: RGB(hex: 0x304CB2),
-            .spirit: RGB(hex: 0xFFD100),
-            .sunCountry: RGB(hex: 0xF15A24),
-            .airTransat: RGB(hex: 0x00AEEF),
-            .united: RGB(hex: 0x005DAA),
-            .westJet: RGB(hex: 0x00A4B4),
-            .volaris: RGB(hex: 0x6C1D7C),
-            .vivaAerobus: RGB(hex: 0x00A651),
-            .fedEx: RGB(hex: 0x4D148C),
-            .ups: RGB(hex: 0xFFB500),
-        ])
+        static let standard = AircraftStyle(
+            secondaryOpacityMultiplier: 0.35,
+            brandDotBrightnessMultiplier: 0.65,
+            brandColors: [
+                .alaska: RGB(hex: 0x01426A),
+                .allegiant: RGB(hex: 0x025DAA),
+                .american: RGB(hex: 0xC3002F),
+                .airCanada: RGB(hex: 0xD8292F),
+                .aeromexico: RGB(hex: 0x003B5C),
+                .avelo: RGB(hex: 0x552583),
+                .breeze: RGB(hex: 0x00A9CE),
+                .delta: RGB(hex: 0xC8102E),
+                .frontier: RGB(hex: 0x008C45),
+                .flair: RGB(hex: 0x7AC143),
+                .hawaiian: RGB(hex: 0x5C2D91),
+                .jetBlue: RGB(hex: 0x003876),
+                .porter: RGB(hex: 0x00263A),
+                .southwest: RGB(hex: 0x304CB2),
+                .spirit: RGB(hex: 0xFFD100),
+                .sunCountry: RGB(hex: 0xF15A24),
+                .airTransat: RGB(hex: 0x00AEEF),
+                .united: RGB(hex: 0x005DAA),
+                .westJet: RGB(hex: 0x00A4B4),
+                .volaris: RGB(hex: 0x6C1D7C),
+                .vivaAerobus: RGB(hex: 0x00A651),
+                .fedEx: RGB(hex: 0x4D148C),
+                .ups: RGB(hex: 0xFFB500),
+            ],
+        )
     }
 
     /// Constant-screen-space strokes for Map geography. Luminance is relative
