@@ -30,6 +30,43 @@ struct ProjectionModelsTests {
         #expect(aircraft != satellite)
     }
 
+    @Test func semanticAndProjectedLayersRetainOneValuePerMarkIdentity() throws {
+        let id = LayerMarkID(
+            layerID: .flights,
+            namespace: .aircraft,
+            rawValue: "duplicate",
+        )
+        let first = try semanticMark(id: id, label: "FIRST")
+        let replacement = try semanticMark(id: id, label: "REPLACEMENT")
+        let semanticLayer = LayerFrame(
+            layerID: .flights,
+            observedAt: ThrowCoreFixture.date,
+            content: .marks([first, replacement]),
+        )
+
+        let firstProjected = try projectedMark(
+            layerID: .flights,
+            rawID: "duplicate",
+            x: 0.2,
+        )
+        let replacementProjected = try projectedMark(
+            layerID: .flights,
+            rawID: "duplicate",
+            x: 0.8,
+        )
+        let projectedLayer = ProjectedLayer(
+            id: .flights,
+            zOrder: 10,
+            opacity: 1,
+            content: .marks([firstProjected, replacementProjected]),
+        )
+
+        #expect(semanticLayer.marks.count == 1)
+        #expect(semanticLayer.marks.first?.label?.primary == "REPLACEMENT")
+        #expect(projectedLayer.marks.count == 1)
+        #expect(projectedLayer.marks.first?.point.x == 0.8)
+    }
+
     @Test func visibleAircraftCountExcludesOtherGlyphs() throws {
         let aircraft = try ProjectedMark(
             id: LayerMarkID(layerID: .flights, namespace: .aircraft, rawValue: "a"),
@@ -230,10 +267,38 @@ struct ProjectionModelsTests {
         }
     }
 
-    private func projectedMark(layerID: LayerID, rawID: String) throws -> ProjectedMark {
+    private func semanticMark(id: LayerMarkID, label: String) throws -> ProjectionMark {
+        try ProjectionMark(
+            id: id,
+            anchor: .geodetic(GeodeticAnchor(
+                coordinate: GeoCoordinate(latitude: 37, longitude: -122),
+                altitude: Altitude(feet: 10000),
+                altitudeQuality: .geometric,
+            )),
+            glyph: .aircraft(.unknownAirborne),
+            label: ProjectionLabel(
+                primary: label,
+                primaryRole: .headline,
+                secondary: nil,
+            ),
+            prominence: .primary,
+            velocity: nil,
+            freshness: MarkFreshness(
+                positionObservedAt: ThrowCoreFixture.date,
+                fetchedAt: ThrowCoreFixture.date,
+                availability: .current,
+            ),
+        )
+    }
+
+    private func projectedMark(
+        layerID: LayerID,
+        rawID: String,
+        x: Double = 0.5,
+    ) throws -> ProjectedMark {
         try ProjectedMark(
             id: LayerMarkID(layerID: layerID, namespace: .aircraft, rawValue: rawID),
-            point: ProjectionPoint(x: 0.5, y: 0.5),
+            point: ProjectionPoint(x: x, y: 0.5),
             range: NauticalMiles(value: 1),
             glyph: .aircraft(.unknownAirborne),
             label: nil,

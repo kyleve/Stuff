@@ -325,6 +325,27 @@ public enum LayerFrameContent: Hashable, Sendable {
     case lines([ProjectionPolyline])
 }
 
+private func retainingLastMarkByIdentity<Mark>(
+    _ marks: [Mark],
+    identity: (Mark) -> LayerMarkID,
+) -> [Mark] {
+    var result: [Mark] = []
+    result.reserveCapacity(marks.count)
+    var indexByID: [LayerMarkID: Int] = [:]
+    indexByID.reserveCapacity(marks.count)
+
+    for mark in marks {
+        let id = identity(mark)
+        if let index = indexByID[id] {
+            result[index] = mark
+        } else {
+            indexByID[id] = result.count
+            result.append(mark)
+        }
+    }
+    return result
+}
+
 public struct LayerFrame: Hashable, Sendable, CustomStringConvertible,
     CustomDebugStringConvertible
 {
@@ -337,12 +358,16 @@ public struct LayerFrame: Hashable, Sendable, CustomStringConvertible,
         observedAt: Date,
         content: LayerFrameContent,
     ) {
-        if case let .marks(marks) = content {
+        let canonicalContent: LayerFrameContent = switch content {
+            case let .marks(marks): .marks(retainingLastMarkByIdentity(marks, identity: \.id))
+            case let .lines(lines): .lines(lines)
+        }
+        if case let .marks(marks) = canonicalContent {
             precondition(marks.allSatisfy { $0.id.layerID == layerID })
         }
         self.layerID = layerID
         self.observedAt = observedAt
-        self.content = content
+        self.content = canonicalContent
     }
 
     public var marks: [ProjectionMark] {
@@ -517,13 +542,17 @@ public struct ProjectedLayer: Identifiable, Hashable, Sendable {
         content: ProjectedLayerContent,
     ) {
         precondition((0 ... 1).contains(opacity))
-        if case let .marks(marks) = content {
+        let canonicalContent: ProjectedLayerContent = switch content {
+            case let .marks(marks): .marks(retainingLastMarkByIdentity(marks, identity: \.id))
+            case let .lines(lines): .lines(lines)
+        }
+        if case let .marks(marks) = canonicalContent {
             precondition(marks.allSatisfy { $0.id.layerID == id })
         }
         self.id = id
         self.zOrder = zOrder
         self.opacity = opacity
-        self.content = content
+        self.content = canonicalContent
     }
 
     public var marks: [ProjectedMark] {

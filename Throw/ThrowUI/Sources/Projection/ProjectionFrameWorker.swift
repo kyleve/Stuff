@@ -504,7 +504,9 @@ actor ProjectionFrameWorker {
         sourceVelocities: [LayerMarkID: ProjectedPointVelocity]?,
         elapsed: TimeInterval,
     ) -> ProjectionFrame {
-        let sourceByID = Dictionary(uniqueKeysWithValues: source.marks.map { ($0.id, $0) })
+        let sourceByID = source.marks.reduce(into: [LayerMarkID: ProjectedMark]()) {
+            $0[$1.id] = $1
+        }
         let targetIDs = Set(target.marks.map(\.id))
         let usesSourceLabels = transitionsLabels && progress < 0.5
         let labelPhaseOpacity = transitionsLabels ? modeLabelOpacity(at: progress) : 1
@@ -798,9 +800,9 @@ private struct ProjectionTargetHistory {
         guard interval > 0, interval <= 0.25,
               date.timeIntervalSince(latest.generatedAt) <= 0.25
         else { return [:] }
-        let previousByID = Dictionary(
-            uniqueKeysWithValues: previous.marks.map { ($0.id, $0.point) },
-        )
+        let previousByID = previous.marks.reduce(into: [LayerMarkID: ProjectionPoint]()) {
+            $0[$1.id] = $1.point
+        }
         return latest.marks.reduce(into: [:]) { velocities, mark in
             guard let old = previousByID[mark.id] else { return }
             velocities[mark.id] = ProjectedPointVelocity(

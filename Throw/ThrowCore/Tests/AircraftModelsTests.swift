@@ -22,6 +22,20 @@ struct AircraftModelsTests {
         #expect(original.callsign == "TEST1")
     }
 
+    @Test func snapshotKeepsTheFreshestObservationForEachIdentity() throws {
+        let newest = try ThrowCoreFixture.observation(positionAge: 0, callsign: "NEWEST")
+        let older = try ThrowCoreFixture.observation(positionAge: 30, callsign: "OLDER")
+
+        let snapshot = AircraftSnapshot(
+            source: .adsbLol,
+            fetchedAt: ThrowCoreFixture.date,
+            observations: [newest, older],
+        )
+
+        #expect(snapshot.observations.count == 1)
+        #expect(snapshot.observations.first?.callsign == "NEWEST")
+    }
+
     @Test func aircraftTypeDesignatorNormalizesProviderText() {
         #expect(AircraftTypeDesignator(rawValue: " b738 ")?.rawValue == "B738")
         #expect(AircraftTypeDesignator(rawValue: "too-long") == nil)

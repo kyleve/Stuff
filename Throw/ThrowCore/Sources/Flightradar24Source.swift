@@ -17,6 +17,7 @@ public struct Flightradar24Decoder: Sendable {
         }
 
         var observations: [AircraftObservation] = []
+        var observationIndexByID: [AircraftID: Int] = [:]
         var routeResults: [AircraftID: FlightRouteResult] = [:]
         var malformedCount = 0
         observations.reserveCapacity(envelope.data.count)
@@ -61,9 +62,17 @@ public struct Flightradar24Decoder: Sendable {
                         messageCount: nil,
                     ),
                 )
-                observations.append(observation)
-                routeResults[identity] = Self.route(record)
-                    .map(FlightRouteResult.route) ?? .unavailable
+                let routeResult = Self.route(record).map(FlightRouteResult.route) ?? .unavailable
+                if let existingIndex = observationIndexByID[identity] {
+                    if AircraftSnapshot.prefers(observation, over: observations[existingIndex]) {
+                        observations[existingIndex] = observation
+                        routeResults[identity] = routeResult
+                    }
+                } else {
+                    observationIndexByID[identity] = observations.count
+                    observations.append(observation)
+                    routeResults[identity] = routeResult
+                }
             } catch {
                 malformedCount += 1
             }
