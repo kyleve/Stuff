@@ -28,7 +28,7 @@ struct FlightLayerFrameBuilderTests {
             availability: .current,
         )
         let mark = try #require(frame.marks.first { $0.id == observation.id.layerMarkID })
-        #expect(mark.label?.primary == "SFO → MEX")
+        #expect(mark.label?.primary == "SFO→MEX")
         #expect(mark.label?.secondary == "UAL817")
     }
 
@@ -111,7 +111,7 @@ struct FlightLayerFrameBuilderTests {
         )
 
         let label = try #require(frame.marks.first?.label)
-        #expect(label.primary == "JFK → SFO")
+        #expect(label.primary == "JFK→SFO")
         #expect(label.primaryRole == .headline)
         #expect(label.secondary == "UAL123")
         #expect(frame.marks.first?.prominence == .primary)

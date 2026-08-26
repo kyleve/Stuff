@@ -25,6 +25,7 @@ struct ThrowStylesheetTests {
             projection.label.detail.luminanceMultiplier <
                 projection.label.headline.luminanceMultiplier,
         )
+        #expect(projection.label.routeTracking < 0)
         #expect(projection.label.offset > 0)
     }
 
