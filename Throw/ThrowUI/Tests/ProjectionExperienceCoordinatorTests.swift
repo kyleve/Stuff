@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import ThrowCore
+@_spi(Testing) @testable import ThrowCore
 @testable import ThrowUI
 
 struct ProjectionExperienceCoordinatorTests {
@@ -226,7 +226,9 @@ struct ProjectionExperienceCoordinatorTests {
     }
 
     @Test func terminalPrewarmFailureSkipsToTheNextCandidateWithoutBlanking() async throws {
-        let thirdID = ProjectionExperienceID(rawValue: "third-snapshot-experience")
+        let thirdID = try #require(
+            ProjectionExperienceID(testingRawValue: "third-snapshot-experience"),
+        )
         let clock = ManualProjectionRotationClock(now: start)
         let coordinator = try ProjectionExperienceCoordinator(
             playlist: rotatingPlaylist(thirdExperienceID: thirdID),

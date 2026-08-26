@@ -140,6 +140,19 @@ struct Flightradar24SourceTests {
         #expect(snapshot.routeResultsByAircraft[observation.id] == .unavailable)
     }
 
+    @Test(arguments: ["", "   "])
+    func ignoresEmptyProviderIdentityWithoutCrashing(fr24ID: String) throws {
+        let data = Data(
+            """
+            {"data":[{"fr24_id":"\(fr24ID)","lat":37.01,"lon":-122.0}]}
+            """.utf8,
+        )
+
+        #expect(throws: Flightradar24DecodingError.invalidEnvelope) {
+            try Flightradar24Decoder().decode(data, fetchedAt: ThrowCoreFixture.date)
+        }
+    }
+
     @Test func zeroAltitudeAircraftIsNormalizedAsGroundAndFilteredByQuery() async throws {
         let data = Data(
             """

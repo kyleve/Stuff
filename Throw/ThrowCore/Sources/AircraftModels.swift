@@ -11,9 +11,9 @@ public struct AircraftID: Hashable, Sendable, CustomStringConvertible,
     public let kind: Kind
     public let rawValue: String
 
-    public init(kind: Kind, rawValue: String) {
+    public init?(kind: Kind, rawValue: String) {
         let normalized = rawValue.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        precondition(normalized.isEmpty == false, "An aircraft ID must not be empty")
+        guard normalized.isEmpty == false else { return nil }
         self.kind = kind
         self.rawValue = normalized
     }

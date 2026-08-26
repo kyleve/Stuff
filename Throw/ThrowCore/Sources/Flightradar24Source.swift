@@ -25,10 +25,14 @@ public struct Flightradar24Decoder: Sendable {
             try Task.checkCancellation()
             do {
                 let coordinate = try GeoCoordinate(latitude: record.lat, longitude: record.lon)
-                let identity = if let hex = record.hex?.trimmedNonempty {
+                let identity: AircraftID? = if let hex = record.hex?.trimmedNonempty {
                     AircraftID(kind: .icao, rawValue: hex)
                 } else {
                     AircraftID(kind: .providerMarkedNonICAO, rawValue: record.fr24ID)
+                }
+                guard let identity else {
+                    malformedCount += 1
+                    continue
                 }
                 let observedAt = record.timestamp.flatMap(Self.timestamp) ?? fetchedAt
                 let observation = try AircraftObservation(

@@ -92,8 +92,11 @@ enum ThrowCoreFixture {
         emitterCategory: AircraftEmitterCategory? = .large,
         airlineDesignator: String? = nil,
     ) throws -> AircraftObservation {
-        try AircraftObservation(
-            id: AircraftID(kind: .icao, rawValue: "abc123"),
+        guard let aircraftID = AircraftID(kind: .icao, rawValue: "abc123") else {
+            throw ThrowValidationError.invalidPreferencePayload
+        }
+        return try AircraftObservation(
+            id: aircraftID,
             coordinate: GeoCoordinate(latitude: latitude, longitude: longitude),
             geometricAltitude: altitudeFeet.map { try Altitude(feet: $0) },
             barometricAltitude: nil,
