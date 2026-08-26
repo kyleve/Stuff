@@ -117,6 +117,7 @@ public struct ProjectionEngine: Sendable {
                         range: radial.range,
                         glyph: prediction.mark.glyph,
                         label: prediction.mark.label,
+                        secondaryProminence: prediction.mark.prominence == .secondary ? 1 : 0,
                         orientationDegrees: orientation,
                         opacity: prediction.opacity,
                         labelOpacity: 1,

@@ -31,6 +31,7 @@ struct SourceChoiceLabel: View {
             case .adsbLol: .sourceAdsbLol
             case .readsb: .sourceReadsb
             case .adsbExchange: .sourceAdsbExchange
+            case .flightradar24: .sourceFlightradar24
         }
     }
 
@@ -39,6 +40,7 @@ struct SourceChoiceLabel: View {
             case .adsbLol: .sourceAdsbLolDescription
             case .readsb: .sourceReadsbDescription
             case .adsbExchange: .sourceAdsbExchangeDescription
+            case .flightradar24: .sourceFlightradar24Description
         }
     }
 }

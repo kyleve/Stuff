@@ -7,23 +7,23 @@ struct ThrowStylesheetTests {
         let projection = ThrowStylesheet.ProjectionStyle.standard
 
         #expect(
-            projection.label.primaryFont == .system(
+            projection.label.headline.font == .system(
                 size: 10,
                 weight: .regular,
                 design: .monospaced,
             ),
         )
         #expect(
-            projection.label.secondaryFont == .system(
+            projection.label.detail.font == .system(
                 size: 7,
                 weight: .regular,
                 design: .monospaced,
             ),
         )
-        #expect((0 ..< 1).contains(projection.label.primaryLuminanceMultiplier))
+        #expect((0 ..< 1).contains(projection.label.headline.luminanceMultiplier))
         #expect(
-            projection.label.secondaryLuminanceMultiplier <
-                projection.label.primaryLuminanceMultiplier,
+            projection.label.detail.luminanceMultiplier <
+                projection.label.headline.luminanceMultiplier,
         )
         #expect(projection.label.offset > 0)
     }
@@ -31,6 +31,7 @@ struct ThrowStylesheetTests {
     @Test func everyCuratedCarrierHasABoundedMutedAccentColor() {
         let style = ThrowStylesheet.AircraftStyle.standard
 
+        #expect(style.secondaryOpacityMultiplier == 0.35)
         #expect(style.brandColors.count == AirlineBrand.allCases.count)
         for color in style.brandColors.values {
             #expect((0 ... 1).contains(color.red))

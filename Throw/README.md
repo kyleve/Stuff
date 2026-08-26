@@ -47,16 +47,21 @@ Preview runs the same projection renderer on the device.
 ## Aircraft sources
 
 Setup requires an explicit, tested choice of `adsb.lol`, a user-owned local
-`readsb` `aircraft.json`, or the ADS-B Exchange Personal API through RapidAPI.
-Throw never mixes frames or silently falls back to another source. RapidAPI
-credentials belong to the user and remain in this device's Keychain; the
-selected source and non-secret settings live in Throw preferences.
+`readsb` `aircraft.json`, the ADS-B Exchange Personal API through RapidAPI, or
+the paid Flightradar24 API. Throw never mixes frames or silently falls back to
+another source. API credentials belong to the user and remain in this device's
+Keychain; the selected source and non-secret settings live in Throw preferences.
 
 When labels are enabled, Throw optionally sends newly seen broadcast callsigns
 to ADSBDB to resolve origin and destination. Aircraft and observer positions are
 not included. Route results stay in a short-lived memory cache and do not delay
 or affect the selected aircraft feed. Failed lookups pause for five minutes
 before Throw tries the provider again.
+
+When Flightradar24 is selected, origin and destination come from the same FR24
+record as the aircraft position. Throw does not contact ADSBDB for that source.
+FR24 bills the live full-position endpoint by returned aircraft, so credit use
+depends on both polling cadence and local traffic density.
 
 ## Ambient flight activity
 

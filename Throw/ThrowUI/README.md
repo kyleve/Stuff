@@ -45,6 +45,12 @@ and opacity changes remain.
 
 Map mode draws contextual airport centers and the longest open runway below
 aircraft labels. True Sky draws aircraft cues without airport geometry.
+Each source resolves route availability. FR24 resolves it in the position
+response. The ADS-B sources resolve it through enrichment. Aircraft without an
+origin and destination render at 35% opacity. Pending and failed lookups stay
+primary. Callsign-only labels use the smaller detail typography reserved for
+the callsign below a resolved route. These labels also use smaller collision
+bounds.
 
 Appearance is resolved through `ThrowStylesheet` at `throwBroadwayRoot()`.
 Preview and snapshot fixtures use memory-only dependencies and deterministic

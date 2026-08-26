@@ -23,6 +23,7 @@ public final class ThrowSession {
     public internal(set) var geographyLayerHealth: GeographyLayerHealth = .idle
     public internal(set) var projectionOutputCount = 0
     public internal(set) var rapidAPICredentialState: CredentialState = .missing
+    public internal(set) var flightradar24CredentialState: CredentialState = .missing
     public internal(set) var softwareCredits: [SoftwareCredit]
     public internal(set) var settingsFailure: String?
 
@@ -87,9 +88,7 @@ public final class ThrowSession {
         didSet {
             guard oldValue != labelMode, isApplyingPreferences == false else { return }
             projectionInputsChanged(restartsPolling: false)
-            if labelMode == .marksOnly {
-                cancelRouteEnrichment()
-            } else if let currentSnapshot {
+            if let currentSnapshot {
                 scheduleRouteEnrichment(for: currentSnapshot)
             }
         }
@@ -390,11 +389,13 @@ public final class ThrowSession {
 
         do {
             rapidAPICredentialState = try await credentialStore.state(for: .rapidAPI)
+            flightradar24CredentialState = try await credentialStore.state(for: .flightradar24)
         } catch is CancellationError {
             hasStarted = false
             return
         } catch {
             rapidAPICredentialState = .missing
+            flightradar24CredentialState = .missing
             settingsFailure = error.localizedDescription
         }
 

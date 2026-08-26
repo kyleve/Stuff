@@ -7,6 +7,8 @@ public enum HTTPMethod: String, Hashable, Sendable {
 public enum HTTPHeaderField: String, Hashable, Sendable {
     case accept = "Accept"
     case acceptEncoding = "Accept-Encoding"
+    case acceptVersion = "Accept-Version"
+    case authorization = "Authorization"
     case rapidAPIHost = "X-RapidAPI-Host"
     case rapidAPIKey = "X-RapidAPI-Key"
 }

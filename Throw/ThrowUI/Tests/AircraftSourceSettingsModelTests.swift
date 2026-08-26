@@ -23,6 +23,36 @@ struct AircraftSourceSettingsModelTests {
         #expect(session.sourceChoice == .adsbExchange)
     }
 
+    @Test func andApplySavesAFlightradar24CredentialInOneAction() async {
+        let session = ThrowSession.fixture()
+        let model = AircraftSourceSettingsModel(session: session)
+        model.choice = .flightradar24
+        model.rapidAPIKey = "fr24-replacement-1234"
+
+        #expect(model.isEditingCredential)
+        #expect(model.canTestAndApply)
+
+        await model.testAndApply()
+
+        #expect(session.flightradar24CredentialState == .saved(lastFour: "1234"))
+        #expect(session.sourceChoice == .flightradar24)
+        #expect(model.isEditingCredential == false)
+        #expect(model.validation == .succeeded)
+    }
+
+    @Test func switchingToAMisconfiguredCredentialSourceOpensItsEditor() {
+        let session = ThrowSession.fixture()
+        session.rapidAPICredentialState = .saved(lastFour: "9999")
+        let model = AircraftSourceSettingsModel(session: session)
+
+        model.choice = .adsbExchange
+        #expect(model.isEditingCredential == false)
+
+        model.choice = .flightradar24
+        #expect(model.isEditingCredential)
+        #expect(model.canTestAndApply == false)
+    }
+
     @Test func editingTestedConfigurationInvalidatesValidatedDraft() async {
         let session = ThrowSession.fixture()
         let model = AircraftSourceSettingsModel(session: session)

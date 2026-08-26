@@ -16,14 +16,23 @@ public struct FlightLayerFrameBuilder: Sendable {
         snapshot: AircraftSnapshot,
         observer: ObserverPosition,
         labelMode: FlightLabelMode,
-        routes: [FlightCallsign: FlightRoute],
+        routeResults: [FlightCallsign: FlightRouteResult],
         availability: MarkAvailability,
     ) throws -> LayerFrame {
         var airportMarks: [AirportID: ProjectionMark] = [:]
         var aircraftMarks: [ProjectionMark] = []
         for observation in snapshot.observations {
             let callsign = observation.callsign.flatMap(FlightCallsign.init(rawValue:))
-            let route = callsign.flatMap { routes[$0] }
+            let routeResult = snapshot.routeResultsByAircraft[observation.id]
+                ?? callsign.flatMap { routeResults[$0] }
+            let route = routeResult?.route
+            let prominence: ProjectionProminence = if callsign == nil || routeResult ==
+                .unavailable
+            {
+                .secondary
+            } else {
+                .primary
+            }
             let activity = try activityClassifier.activity(
                 for: observation,
                 observer: observer,
@@ -46,8 +55,9 @@ public struct FlightLayerFrameBuilder: Sendable {
                     for: observation,
                     observer: observer,
                     mode: labelMode,
-                    routes: routes,
+                    routeResult: routeResult,
                 ),
+                prominence: prominence,
                 velocity: ProjectionVelocity(
                     groundTrack: observation.groundTrack,
                     groundSpeedKnots: observation.groundSpeedKnots,
@@ -92,7 +102,14 @@ public struct FlightLayerFrameBuilder: Sendable {
                         runwayBearing: runwayBearing,
                         certainty: activity.certainty ?? .inferred,
                     )),
-                    label: code.map { ProjectionLabel(primary: $0.rawValue, secondary: nil) },
+                    label: code.map {
+                        ProjectionLabel(
+                            primary: $0.rawValue,
+                            primaryRole: .headline,
+                            secondary: nil,
+                        )
+                    },
+                    prominence: .primary,
                     velocity: nil,
                     freshness: MarkFreshness(
                         positionObservedAt: observation.positionObservedAt,
@@ -115,11 +132,9 @@ public struct FlightLayerFrameBuilder: Sendable {
         for observation: AircraftObservation,
         observer: ObserverPosition,
         mode: FlightLabelMode,
-        routes: [FlightCallsign: FlightRoute],
+        routeResult: FlightRouteResult?,
     ) throws -> ProjectionLabel? {
-        let callsign = observation.callsign
-            .flatMap(FlightCallsign.init(rawValue:))
-        let route = callsign.flatMap { routes[$0] }
+        let route = routeResult?.route
         switch mode {
             case .marksOnly:
                 return nil
@@ -146,7 +161,11 @@ public struct FlightLayerFrameBuilder: Sendable {
                     return label(route: route, callsign: observation.callsign)
                 }
                 if isNearby, let altitudeText {
-                    return ProjectionLabel(primary: altitudeText, secondary: nil)
+                    return ProjectionLabel(
+                        primary: altitudeText,
+                        primaryRole: .headline,
+                        secondary: nil,
+                    )
                 }
                 return nil
         }
@@ -154,9 +173,16 @@ public struct FlightLayerFrameBuilder: Sendable {
 
     private func label(route: FlightRoute?, callsign: String?) -> ProjectionLabel? {
         guard let callsign else { return nil }
-        guard let route else { return ProjectionLabel(primary: callsign, secondary: nil) }
+        guard let route else {
+            return ProjectionLabel(
+                primary: callsign,
+                primaryRole: .detail,
+                secondary: nil,
+            )
+        }
         return ProjectionLabel(
             primary: "\(route.origin.rawValue) → \(route.destination.rawValue)",
+            primaryRole: .headline,
             secondary: callsign,
         )
     }

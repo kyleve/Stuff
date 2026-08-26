@@ -141,6 +141,65 @@ struct ProjectionFrameWorkerTests {
         #expect(abs(end.labelOpacity - 1) < 0.000_001)
     }
 
+    @Test func unavailableRouteCrossfadesAircraftToSecondaryProminence() async throws {
+        let date = Date(timeIntervalSince1970: 2800)
+        let changedAt = date.addingTimeInterval(1)
+        let observer = try observer()
+        let viewport = try ProjectionViewport.map(MapViewport(radius: NauticalMiles(value: 50)))
+        let worker = projectionFrameWorker()
+        _ = try await worker.frame(
+            layerFrame: layerFrame(
+                label: "THROW1",
+                observedAt: date,
+                observer: observer,
+                prominence: .primary,
+            ),
+            geographyEnabled: false,
+            observer: observer,
+            viewport: viewport,
+            calibration: .defaultValue,
+            generatedAt: date,
+            reduceMotion: false,
+        )
+        let target = try layerFrame(
+            label: "THROW1",
+            observedAt: date,
+            observer: observer,
+            prominence: .secondary,
+        )
+        let start = try await worker.frame(
+            layerFrame: target,
+            geographyEnabled: false,
+            observer: observer,
+            viewport: viewport,
+            calibration: .defaultValue,
+            generatedAt: changedAt,
+            reduceMotion: false,
+        ).frame
+        let midpoint = try await worker.frame(
+            layerFrame: target,
+            geographyEnabled: false,
+            observer: observer,
+            viewport: viewport,
+            calibration: .defaultValue,
+            generatedAt: changedAt.addingTimeInterval(0.375),
+            reduceMotion: false,
+        ).frame
+        let end = try await worker.frame(
+            layerFrame: target,
+            geographyEnabled: false,
+            observer: observer,
+            viewport: viewport,
+            calibration: .defaultValue,
+            generatedAt: changedAt.addingTimeInterval(0.75),
+            reduceMotion: false,
+        ).frame
+
+        #expect(try #require(start.marks.first).secondaryProminence == 0)
+        #expect(try abs(#require(midpoint.marks.first).secondaryProminence - 0.5) < 0.000_001)
+        #expect(try #require(end.marks.first).secondaryProminence == 1)
+    }
+
     @Test(arguments: [true, false])
     func aircraftCrossingTheViewportBoundaryFades(appears: Bool) async throws {
         let frames = try await viewportBoundaryFrames(appears: appears)
@@ -734,6 +793,7 @@ struct ProjectionFrameWorkerTests {
         label: String?,
         observedAt: Date,
         observer: ObserverPosition,
+        prominence: ProjectionProminence = .primary,
         longitudeOffset: Double = 0,
     ) throws -> LayerFrame {
         try LayerFrame(
@@ -755,7 +815,14 @@ struct ProjectionFrameWorkerTests {
                         altitudeQuality: .geometric,
                     )),
                     glyph: .aircraft(.unknownAirborne),
-                    label: label.map { ProjectionLabel(primary: $0, secondary: nil) },
+                    label: label.map {
+                        ProjectionLabel(
+                            primary: $0,
+                            primaryRole: .headline,
+                            secondary: nil,
+                        )
+                    },
+                    prominence: prominence,
                     velocity: nil,
                     freshness: MarkFreshness(
                         positionObservedAt: observedAt,
@@ -794,7 +861,12 @@ struct ProjectionFrameWorkerTests {
                         altitudeQuality: .geometric,
                     )),
                     glyph: .aircraft(.unknownAirborne),
-                    label: ProjectionLabel(primary: "TARGET", secondary: nil),
+                    label: ProjectionLabel(
+                        primary: "TARGET",
+                        primaryRole: .headline,
+                        secondary: nil,
+                    ),
+                    prominence: .primary,
                     velocity: ProjectionVelocity(
                         groundTrack: Bearing(degrees: 90),
                         groundSpeedKnots: 600,

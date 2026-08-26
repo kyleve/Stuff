@@ -37,6 +37,7 @@ struct ProjectionModelsTests {
             range: NauticalMiles(value: 1),
             glyph: .aircraft(.unknownAirborne),
             label: nil,
+            secondaryProminence: 0,
             orientationDegrees: nil,
             opacity: 1,
             labelOpacity: 1,
@@ -48,6 +49,7 @@ struct ProjectionModelsTests {
             range: nil,
             glyph: .star,
             label: nil,
+            secondaryProminence: 0,
             orientationDegrees: nil,
             opacity: 1,
             labelOpacity: 1,
@@ -78,12 +80,17 @@ struct ProjectionModelsTests {
             altitudeQuality: .geometric,
         )
         let anchor = ProjectionAnchor.geodetic(geodeticAnchor)
-        let label = ProjectionLabel(primary: labelSentinel, secondary: "12,300 ft")
+        let label = ProjectionLabel(
+            primary: labelSentinel,
+            primaryRole: .headline,
+            secondary: "12,300 ft",
+        )
         let mark = ProjectionMark(
             id: markID,
             anchor: anchor,
             glyph: .aircraft(.unknownAirborne),
             label: label,
+            prominence: .primary,
             velocity: nil,
             freshness: MarkFreshness(
                 positionObservedAt: ThrowCoreFixture.date,
@@ -102,6 +109,7 @@ struct ProjectionModelsTests {
             range: NauticalMiles(value: 5),
             glyph: .aircraft(.unknownAirborne),
             label: label,
+            secondaryProminence: 0,
             orientationDegrees: nil,
             opacity: 1,
             labelOpacity: 1,

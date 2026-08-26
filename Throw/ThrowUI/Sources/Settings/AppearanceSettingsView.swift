@@ -41,6 +41,13 @@ struct AppearanceSettingsView: View {
                 Text(.settingsAirlineAccentsDescription)
             }
             Section {
+                AircraftActivityLegend()
+            } header: {
+                Text(.settingsFlightActivityCues)
+            } footer: {
+                Text(.settingsFlightActivityCuesDescription)
+            }
+            Section {
                 LabeledContent(String(localized: .settingsGeographyIntensity)) {
                     Text(session.geographyIntensityPercent / 100, format: .percent)
                 }

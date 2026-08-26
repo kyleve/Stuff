@@ -100,6 +100,42 @@ struct SourceStepView: View {
                 }
             }
 
+            if model.sourceChoice == .flightradar24 {
+                Section {
+                    Text(.sourceFr24CredentialGuidance)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    if let url = URL(
+                        string: "https://fr24api.flightradar24.com/subscriptions-and-credits",
+                    ) {
+                        Link(String(localized: .sourceSubscribe), destination: url)
+                    }
+                    credentialState
+                    SecureField(String(localized: .sourceFr24Credential), text: $model.rapidAPIKey)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                    Text(.sourceFr24TestConsumesCredits)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    LabeledContent(String(localized: .sourceInterval)) {
+                        Text(
+                            Duration.seconds(Int(model.pollingIntervalSeconds)),
+                            format: .time(pattern: .minuteSecond),
+                        )
+                    }
+                    Slider(value: $model.pollingIntervalSeconds, in: 5 ... 300, step: 1)
+                        .accessibilityLabel(Text(.sourceInterval))
+                    Text(.sourceFr24Pricing)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    Text(.sourceFr24UsageGuidance)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                } header: {
+                    Text(.sourceFr24Credential)
+                }
+            }
+
             if model.sourceChoice != nil {
                 Section {
                     Button(

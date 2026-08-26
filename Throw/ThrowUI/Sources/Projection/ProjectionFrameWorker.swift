@@ -40,7 +40,7 @@ actor ProjectionFrameWorker {
         snapshot: AircraftSnapshot,
         observer: ObserverPosition,
         labelMode: FlightLabelMode,
-        routes: [FlightCallsign: FlightRoute],
+        routeResults: [FlightCallsign: FlightRouteResult],
         availability: MarkAvailability,
     ) async throws -> LayerFrame {
         try await flightsRuntime.frame(
@@ -48,7 +48,7 @@ actor ProjectionFrameWorker {
                 snapshot: snapshot,
                 observer: observer,
                 labelMode: labelMode,
-                routes: routes,
+                routeResults: routeResults,
                 availability: availability,
             ),
         )
@@ -378,6 +378,7 @@ actor ProjectionFrameWorker {
                     range: mark.range,
                     glyph: mark.glyph,
                     label: usesSourceLabels ? nil : mark.label,
+                    secondaryProminence: mark.secondaryProminence,
                     orientationDegrees: mark.orientationDegrees,
                     opacity: mark.opacity * insertionProgress,
                     labelOpacity: usesSourceLabels
@@ -404,6 +405,8 @@ actor ProjectionFrameWorker {
                 range: mark.range,
                 glyph: mark.glyph,
                 label: transitionedLabel.label,
+                secondaryProminence: old.secondaryProminence +
+                    (mark.secondaryProminence - old.secondaryProminence) * progress,
                 orientationDegrees: interpolatesPosition
                     ? interpolatedAngle(
                         from: old.orientationDegrees,
@@ -411,9 +414,7 @@ actor ProjectionFrameWorker {
                         progress: positionProgress,
                     )
                     : mark.orientationDegrees,
-                opacity: interpolatesPosition
-                    ? old.opacity + (mark.opacity - old.opacity) * progress
-                    : mark.opacity,
+                opacity: old.opacity + (mark.opacity - old.opacity) * progress,
                 labelOpacity: transitionedLabel.opacity * labelPhaseOpacity,
                 altitudeIsApproximate: mark.altitudeIsApproximate,
             )
@@ -433,6 +434,7 @@ actor ProjectionFrameWorker {
                     range: mark.range,
                     glyph: mark.glyph,
                     label: mark.label,
+                    secondaryProminence: mark.secondaryProminence,
                     orientationDegrees: mark.orientationDegrees,
                     opacity: mark.opacity * (1 - removalProgress),
                     labelOpacity: mark.labelOpacity,
@@ -490,6 +492,7 @@ actor ProjectionFrameWorker {
                     range: mark.range,
                     glyph: mark.glyph,
                     label: mark.label,
+                    secondaryProminence: mark.secondaryProminence,
                     orientationDegrees: mark.orientationDegrees,
                     opacity: mark.opacity * opacity,
                     labelOpacity: mark.labelOpacity,
@@ -609,11 +612,13 @@ private struct ProjectionPresentationSignature: Equatable {
         let id: LayerMarkID
         let glyph: ProjectionGlyph
         let label: ProjectionLabel?
+        let secondaryProminence: Double
 
         init(mark: ProjectedMark) {
             id = mark.id
             glyph = mark.glyph
             label = mark.label
+            secondaryProminence = mark.secondaryProminence
         }
     }
 }

@@ -6,20 +6,20 @@ public struct FlightsLayerInput: Sendable {
     public let snapshot: AircraftSnapshot
     public let observer: ObserverPosition
     public let labelMode: FlightLabelMode
-    public let routes: [FlightCallsign: FlightRoute]
+    public let routeResults: [FlightCallsign: FlightRouteResult]
     public let availability: MarkAvailability
 
     public init(
         snapshot: AircraftSnapshot,
         observer: ObserverPosition,
         labelMode: FlightLabelMode,
-        routes: [FlightCallsign: FlightRoute],
+        routeResults: [FlightCallsign: FlightRouteResult],
         availability: MarkAvailability,
     ) {
         self.snapshot = snapshot
         self.observer = observer
         self.labelMode = labelMode
-        self.routes = routes
+        self.routeResults = routeResults
         self.availability = availability
     }
 }
@@ -40,7 +40,7 @@ public struct FlightsLayerRuntime: ProjectionLayerRuntime {
             snapshot: input.snapshot,
             observer: input.observer,
             labelMode: input.labelMode,
-            routes: input.routes,
+            routeResults: input.routeResults,
             availability: input.availability,
         )
     }

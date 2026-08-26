@@ -3,7 +3,7 @@ import Foundation
 public enum FlightRouteResolution: Equatable, Sendable {
     case noRequestNeeded
     case coolingDown
-    case completed(hasNewRoutes: Bool)
+    case completed(hasNewRoutes: Bool, hasMoreRequests: Bool)
 }
 
 /// Keeps route enrichment off the projection hot path and bounds provider traffic.
@@ -26,17 +26,17 @@ public actor FlightRouteResolver {
         self.source = source
     }
 
-    public func cachedRoutes(
+    public func cachedResults(
         for observations: [AircraftObservation],
         at date: Date,
-    ) -> [FlightCallsign: FlightRoute] {
+    ) -> [FlightCallsign: FlightRouteResult] {
         removeExpiredEntries(at: date)
         let callsigns = Set(observations.compactMap { observation in
             observation.callsign.flatMap(FlightCallsign.init(rawValue:))
         })
-        return entries.reduce(into: [:]) { routes, item in
-            guard callsigns.contains(item.key), let route = item.value.route else { return }
-            routes[item.key] = route
+        return entries.reduce(into: [:]) { results, item in
+            guard callsigns.contains(item.key) else { return }
+            results[item.key] = item.value.route.map(FlightRouteResult.route) ?? .unavailable
         }
     }
 
@@ -82,7 +82,15 @@ public actor FlightRouteResolver {
                 ),
             )
         }
-        return .completed(hasNewRoutes: routes.isEmpty == false)
+        let hasMoreRequests = observations.contains { observation in
+            guard let callsign = observation.callsign.flatMap(FlightCallsign.init(rawValue:))
+            else { return false }
+            return entries[callsign] == nil
+        }
+        return .completed(
+            hasNewRoutes: routes.isEmpty == false,
+            hasMoreRequests: hasMoreRequests,
+        )
     }
 
     private func removeExpiredEntries(at date: Date) {

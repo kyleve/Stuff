@@ -165,15 +165,26 @@ public enum ProjectionGlyph: Hashable, Sendable {
     case satellite
 }
 
+public enum ProjectionLabelRole: Hashable, Sendable {
+    case headline
+    case detail
+}
+
 public struct ProjectionLabel: Hashable, Sendable, CustomStringConvertible,
     CustomDebugStringConvertible
 {
     public let primary: String
+    public let primaryRole: ProjectionLabelRole
     public let secondary: String?
 
-    public init(primary: String, secondary: String?) {
+    public init(
+        primary: String,
+        primaryRole: ProjectionLabelRole,
+        secondary: String?,
+    ) {
         precondition(primary.isEmpty == false, "A projection label must have primary text")
         self.primary = primary
+        self.primaryRole = primaryRole
         self.secondary = secondary
     }
 
@@ -236,6 +247,11 @@ public struct MarkFreshness: Hashable, Sendable {
     }
 }
 
+public enum ProjectionProminence: Hashable, Sendable {
+    case primary
+    case secondary
+}
+
 public struct ProjectionMark: Hashable, Sendable, CustomStringConvertible,
     CustomDebugStringConvertible
 {
@@ -243,6 +259,7 @@ public struct ProjectionMark: Hashable, Sendable, CustomStringConvertible,
     public let anchor: ProjectionAnchor
     public let glyph: ProjectionGlyph
     public let label: ProjectionLabel?
+    public let prominence: ProjectionProminence
     public let velocity: ProjectionVelocity?
     public let freshness: MarkFreshness
 
@@ -251,6 +268,7 @@ public struct ProjectionMark: Hashable, Sendable, CustomStringConvertible,
         anchor: ProjectionAnchor,
         glyph: ProjectionGlyph,
         label: ProjectionLabel?,
+        prominence: ProjectionProminence,
         velocity: ProjectionVelocity?,
         freshness: MarkFreshness,
     ) {
@@ -258,6 +276,7 @@ public struct ProjectionMark: Hashable, Sendable, CustomStringConvertible,
         self.anchor = anchor
         self.glyph = glyph
         self.label = label
+        self.prominence = prominence
         self.velocity = velocity
         self.freshness = freshness
     }
@@ -335,6 +354,9 @@ public struct ProjectedMark: Hashable, Sendable, CustomStringConvertible,
     public let range: NauticalMiles?
     public let glyph: ProjectionGlyph
     public let label: ProjectionLabel?
+    /// Zero for primary marks and one for fully secondary marks. Intermediate
+    /// values exist only while presentation interpolates between the states.
+    public let secondaryProminence: Double
     public let orientationDegrees: Double?
     public let opacity: Double
     public let labelOpacity: Double
@@ -346,6 +368,7 @@ public struct ProjectedMark: Hashable, Sendable, CustomStringConvertible,
         range: NauticalMiles?,
         glyph: ProjectionGlyph,
         label: ProjectionLabel?,
+        secondaryProminence: Double,
         orientationDegrees: Double?,
         opacity: Double,
         labelOpacity: Double,
@@ -353,11 +376,13 @@ public struct ProjectedMark: Hashable, Sendable, CustomStringConvertible,
     ) {
         precondition((0 ... 1).contains(opacity))
         precondition((0 ... 1).contains(labelOpacity))
+        precondition((0 ... 1).contains(secondaryProminence))
         self.id = id
         self.point = point
         self.range = range
         self.glyph = glyph
         self.label = label
+        self.secondaryProminence = secondaryProminence
         self.orientationDegrees = orientationDegrees
         self.opacity = opacity
         self.labelOpacity = labelOpacity

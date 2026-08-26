@@ -70,6 +70,16 @@ struct ThrowDashboardView: View {
                     )
                 }
 
+                if session.sourceChoice == .flightradar24 {
+                    Flightradar24DashboardSection(
+                        credentialState: session.flightradar24CredentialState,
+                        intervalSeconds: session.pollingIntervalSeconds,
+                        requestsPerHour: session.adsbExchangeUsageEstimate(
+                            intervalSeconds: session.pollingIntervalSeconds,
+                        ).displayedRequestsPerHour,
+                    )
+                }
+
                 Section(String(localized: .settingsMode)) {
                     ProjectionModeControl(session: session)
                 }

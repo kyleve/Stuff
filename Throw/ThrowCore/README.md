@@ -28,8 +28,11 @@ important boundaries are:
 
 `adsb.lol`, local `readsb`, and ADS-B Exchange RapidAPI use separate request
 and envelope adapters around the reusable ADS-B Exchange-v2 aircraft decoder.
-Configuration carries a typed credential reference, never the credential
-itself.
+Flightradar24 has its own live-position decoder. Each FR24 snapshot carries a
+completed route result for each aircraft. The result is unavailable when the
+same record has no usable route. FR24 zero-altitude positions normalize as
+ground because its position schema has no separate airborne-state field.
+Configuration carries a typed credential reference, never the credential itself.
 
 ## Composition
 
@@ -63,7 +66,9 @@ lookups for aircraft classification. Separately, the route resolver sends up to
 12 newly seen callsigns per pass to ADSBDB, with at most four concurrent
 requests. It caches successful routes for six hours and unknown routes for one
 hour. A provider failure pauses lookups for five minutes. Aircraft rendering
-does not wait for this optional enrichment.
+does not wait for this optional enrichment. The resolver is not used for
+Flightradar24 snapshots because FR24 supplies position and route fields in one
+response.
 
 `Tools/generate-airports.rb` creates the bundled airport catalog from a pinned
 OurAirports revision. The manifest fixes both source-file digests and the
