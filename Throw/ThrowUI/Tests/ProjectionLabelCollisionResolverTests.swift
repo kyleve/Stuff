@@ -77,19 +77,50 @@ struct ProjectionLabelCollisionResolverTests {
         #expect(resolved.marks.first?.label != nil)
     }
 
+    @Test func detailOnlyLabelsUseSmallerCollisionBounds() throws {
+        let date = Date(timeIntervalSince1970: 100)
+        let headline = try ProjectionFrame(
+            mode: .map,
+            generatedAt: date,
+            geography: nil,
+            geographyOpacity: 1,
+            marks: [
+                mark(id: "alpha", x: 0.5, range: 1, labelRole: .headline),
+                mark(id: "bravo", x: 0.557, range: 2, labelRole: .headline),
+            ],
+        )
+        let detail = try ProjectionFrame(
+            mode: .map,
+            generatedAt: date,
+            geography: nil,
+            geographyOpacity: 1,
+            marks: [
+                mark(id: "alpha", x: 0.5, range: 1, labelRole: .detail),
+                mark(id: "bravo", x: 0.557, range: 2, labelRole: .detail),
+            ],
+        )
+
+        var headlineResolver = ProjectionLabelCollisionResolver()
+        var detailResolver = ProjectionLabelCollisionResolver()
+        #expect(headlineResolver.resolve(headline).marks.compactMap(\.label).count == 1)
+        #expect(detailResolver.resolve(detail).marks.compactMap(\.label).count == 2)
+    }
+
     private func mark(
         id: String,
         x: Double,
         range: Double,
         opacity: Double = 1,
         labelOpacity: Double = 1,
+        labelRole: ProjectionLabelRole = .headline,
     ) throws -> ProjectedMark {
         try ProjectedMark(
             id: LayerMarkID(layerID: .flights, namespace: .aircraft, rawValue: id),
             point: ProjectionPoint(x: x, y: 0.5),
             range: NauticalMiles(value: range),
             glyph: .aircraft(.unknownAirborne),
-            label: ProjectionLabel(primary: id, secondary: nil),
+            label: ProjectionLabel(primary: id, primaryRole: labelRole, secondary: nil),
+            secondaryProminence: 0,
             orientationDegrees: nil,
             opacity: opacity,
             labelOpacity: labelOpacity,

@@ -67,6 +67,20 @@ public struct FlightRoute: Hashable, Sendable, CustomStringConvertible,
     }
 }
 
+/// A completed route-enrichment result. Absence from a resolver snapshot means
+/// that enrichment has not completed for the callsign yet.
+public enum FlightRouteResult: Hashable, Sendable {
+    case route(FlightRoute)
+    case unavailable
+
+    public var route: FlightRoute? {
+        switch self {
+            case let .route(route): route
+            case .unavailable: nil
+        }
+    }
+}
+
 public struct FlightRouteQuery: Hashable, Sendable, CustomStringConvertible,
     CustomDebugStringConvertible
 {

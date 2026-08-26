@@ -37,6 +37,9 @@ struct ThrowAboutView: View {
                 {
                     Link(String(localized: .aboutAdsbExchangeAUP), destination: acceptableUseURL)
                 }
+                if let flightradar24URL = URL(string: "https://fr24api.flightradar24.com") {
+                    Link(String(localized: .aboutFlightradar24), destination: flightradar24URL)
+                }
                 if let aircraftDatabaseURL =
                     URL(string: "https://github.com/Mictronics/aircraft-database")
                 {

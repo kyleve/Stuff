@@ -102,6 +102,7 @@ public enum FlightPredictor {
             anchor: .geodetic(predictedAnchor),
             glyph: mark.glyph,
             label: mark.label,
+            prominence: mark.prominence,
             velocity: mark.velocity,
             freshness: mark.freshness,
         )

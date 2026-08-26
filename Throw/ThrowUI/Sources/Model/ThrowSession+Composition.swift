@@ -258,8 +258,10 @@ extension ThrowSession {
                     )),
                     label: ProjectionLabel(
                         primary: index < 2 ? "LAX → SFO" : "SFO → SAN",
+                        primaryRole: .headline,
                         secondary: "FLT\(210 + index)",
                     ),
+                    secondaryProminence: 0,
                     orientationDegrees: [45, 135, 250, 325][index],
                     opacity: 1,
                     labelOpacity: 1,
@@ -276,7 +278,12 @@ extension ThrowSession {
                     runwayBearing: try! Bearing(degrees: 100),
                     certainty: .confirmed,
                 )),
-                label: ProjectionLabel(primary: "SFO", secondary: nil),
+                label: ProjectionLabel(
+                    primary: "SFO",
+                    primaryRole: .headline,
+                    secondary: nil,
+                ),
+                secondaryProminence: 0,
                 orientationDegrees: 100,
                 opacity: 1,
                 labelOpacity: 1,
@@ -652,6 +659,7 @@ extension ThrowSession {
                             activity: .overflight,
                         )),
                         label: fixtureLabel(for: value),
+                        secondaryProminence: fixtureRoute(for: value) == nil ? 1 : 0,
                         orientationDegrees: value.orientation,
                         opacity: opacity,
                         labelOpacity: 1,
@@ -663,7 +671,22 @@ extension ThrowSession {
 
         private static func fixtureLabel(for aircraft: SnapshotAircraft) -> ProjectionLabel? {
             guard let callsign = aircraft.callsign else { return nil }
-            let route: String? = switch callsign {
+            if let route = fixtureRoute(for: aircraft) {
+                return ProjectionLabel(
+                    primary: route,
+                    primaryRole: .headline,
+                    secondary: callsign,
+                )
+            }
+            return ProjectionLabel(
+                primary: callsign,
+                primaryRole: .detail,
+                secondary: nil,
+            )
+        }
+
+        private static func fixtureRoute(for aircraft: SnapshotAircraft) -> String? {
+            switch aircraft.callsign {
                 case "UAL123": "JFK → SFO"
                 case "SWA42": "OAK → SAN"
                 case "ASA8": "SEA → SJC"
@@ -672,10 +695,6 @@ extension ThrowSession {
                 case "JBU6": "BOS → LAX"
                 default: nil
             }
-            if let route {
-                return ProjectionLabel(primary: route, secondary: callsign)
-            }
-            return ProjectionLabel(primary: callsign, secondary: nil)
         }
 
         private static func mapLabels(
@@ -694,6 +713,7 @@ extension ThrowSession {
                         range: mark.range,
                         glyph: mark.glyph,
                         label: transform(mark.label),
+                        secondaryProminence: mark.secondaryProminence,
                         orientationDegrees: mark.orientationDegrees,
                         opacity: mark.opacity,
                         labelOpacity: mark.labelOpacity,

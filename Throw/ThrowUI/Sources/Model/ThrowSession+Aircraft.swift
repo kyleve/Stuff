@@ -9,6 +9,7 @@ extension ThrowSession {
             case .adsbLol: return .adsbLol
             case .readsb: return .readsb
             case .adsbExchangeRapidAPI: return .adsbExchange
+            case .flightradar24: return .flightradar24
         }
     }
 
@@ -21,10 +22,10 @@ extension ThrowSession {
     }
 
     public var pollingIntervalSeconds: Int {
-        if case let .adsbExchangeRapidAPI(configuration) = selectedSourceConfiguration {
-            configuration.pollingInterval.seconds
-        } else {
-            PollingInterval.defaultValue.seconds
+        switch selectedSourceConfiguration {
+            case let .adsbExchangeRapidAPI(configuration): configuration.pollingInterval.seconds
+            case let .flightradar24(configuration): configuration.pollingInterval.seconds
+            case .adsbLol, .readsb, nil: PollingInterval.defaultValue.seconds
         }
     }
 
@@ -33,6 +34,7 @@ extension ThrowSession {
             case .adsbLol: String(localized: .sourceAdsbLol)
             case .readsb: String(localized: .sourceReadsb)
             case .adsbExchangeRapidAPI: String(localized: .sourceAdsbExchange)
+            case .flightradar24: String(localized: .sourceFlightradar24)
             case nil: String(localized: .statusDisconnected)
         }
     }
@@ -75,22 +77,36 @@ extension ThrowSession {
             )
             let query = try validationQuery()
             let replacementCredential: AircraftCredential?
-            if choice == .adsbExchange,
+            if choice == .adsbExchange || choice == .flightradar24,
                rapidAPIKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
             {
                 let credential = try AircraftCredential(secret: rapidAPIKey)
-                let source = ADSBExchangeRapidAPISource(
-                    transport: cloudTransport,
-                    decoder: ADSBExchangeV2Decoder(),
-                    credential: credential,
-                    dateProvider: dateProvider,
-                )
-                _ = try await source.credentialTestSnapshot(observer: query.observer)
+                if choice == .adsbExchange {
+                    let source = ADSBExchangeRapidAPISource(
+                        transport: cloudTransport,
+                        decoder: ADSBExchangeV2Decoder(),
+                        credential: credential,
+                        dateProvider: dateProvider,
+                    )
+                    _ = try await source.credentialTestSnapshot(observer: query.observer)
+                } else {
+                    let source = Flightradar24Source(
+                        transport: cloudTransport,
+                        decoder: Flightradar24Decoder(),
+                        credential: credential,
+                        dateProvider: dateProvider,
+                    )
+                    _ = try await source.credentialTestSnapshot(observer: query.observer)
+                }
                 replacementCredential = credential
             } else {
                 let configured = try await sourceFactory.makeSource(configuration: configuration)
                 if let rapidAPISource = configured.source as? ADSBExchangeRapidAPISource {
                     _ = try await rapidAPISource.credentialTestSnapshot(observer: query.observer)
+                } else if let flightradar24Source = configured.source as? Flightradar24Source {
+                    _ = try await flightradar24Source.credentialTestSnapshot(
+                        observer: query.observer,
+                    )
                 } else {
                     _ = try await configured.source.snapshot(for: query)
                 }
@@ -120,8 +136,18 @@ extension ThrowSession {
             try await discardOldFrame()
 
             if let replacementCredential = draft.replacementCredential {
-                try await credentialStore.save(replacementCredential, for: .rapidAPI)
-                rapidAPICredentialState = .saved(lastFour: replacementCredential.lastFour)
+                switch draft.configuration.kind {
+                    case .adsbExchangeRapidAPI:
+                        try await credentialStore.save(replacementCredential, for: .rapidAPI)
+                        rapidAPICredentialState = .saved(lastFour: replacementCredential.lastFour)
+                    case .flightradar24:
+                        try await credentialStore.save(replacementCredential, for: .flightradar24)
+                        flightradar24CredentialState = .saved(
+                            lastFour: replacementCredential.lastFour,
+                        )
+                    case .adsbLol, .readsb:
+                        assertionFailure("A credential-free source supplied a credential")
+                }
             }
 
             selectedSourceConfiguration = draft.configuration
@@ -155,6 +181,24 @@ extension ThrowSession {
             if deletesActiveSource {
                 feedHealth = .failed(.missingCredential)
             }
+        } catch is CancellationError {
+            return
+        } catch {
+            settingsFailure = error.localizedDescription
+        }
+    }
+
+    public func deleteFlightradar24Credential() async {
+        let deletesActiveSource = selectedSourceConfiguration?.kind == .flightradar24
+        if deletesActiveSource {
+            await pollingCoordinator.deactivate()
+            activePollingSignature = nil
+            await clearProjectionState(restartsGeography: true)
+        }
+        do {
+            try await credentialStore.delete(.flightradar24)
+            flightradar24CredentialState = .missing
+            if deletesActiveSource { feedHealth = .failed(.missingCredential) }
         } catch is CancellationError {
             return
         } catch {
@@ -314,6 +358,15 @@ extension ThrowSession {
             feedHealth = .failed(.missingCredential)
             return
         }
+        if configuration.kind == .flightradar24, flightradar24CredentialState == .missing {
+            activePollingSignature = nil
+            await pollingCoordinator.deactivate()
+            guard generation == demandGeneration else { return }
+            await clearProjectionState(restartsGeography: true)
+            guard generation == demandGeneration else { return }
+            feedHealth = .failed(.missingCredential)
+            return
+        }
 
         let query: AircraftQuery
         do {
@@ -434,21 +487,31 @@ extension ThrowSession {
 
     func makeLayerFrame(_ snapshot: AircraftSnapshot) async throws -> LayerFrame {
         guard let confirmedLocation else { throw ThrowValidationError.invalidPreferencePayload }
-        let routes = await routeResolver.cachedRoutes(
-            for: snapshot.observations,
-            at: dateProvider.now(),
-        )
+        let routeResults: [FlightCallsign: FlightRouteResult] = if snapshot.source ==
+            .flightradar24
+        {
+            [:]
+        } else {
+            await routeResolver.cachedResults(
+                for: snapshot.observations,
+                at: dateProvider.now(),
+            )
+        }
         return try await projectionWorker.layerFrame(
             snapshot: snapshot,
             observer: confirmedLocation.position,
             labelMode: labelMode,
-            routes: routes,
+            routeResults: routeResults,
             availability: currentMarkAvailability,
         )
     }
 
     func scheduleRouteEnrichment(for snapshot: AircraftSnapshot) {
-        guard labelMode != .marksOnly, routeTask == nil else { return }
+        guard snapshot.source != .flightradar24 else {
+            cancelRouteEnrichment()
+            return
+        }
+        guard routeTask == nil else { return }
         routeGeneration &+= 1
         let generation = routeGeneration
         routeTask = Task(name: "Throw resolve flight routes") { [weak self] in
@@ -461,16 +524,18 @@ extension ThrowSession {
                 try Task.checkCancellation()
                 guard generation == routeGeneration else { return }
                 routeTask = nil
+                let continuesEnrichment: Bool
                 switch result {
                     case .noRequestNeeded, .coolingDown:
-                        break
-                    case let .completed(hasNewRoutes):
+                        continuesEnrichment = false
+                    case let .completed(_, hasMoreRequests):
                         routeLogger.record(FlightRouteLogEvent(outcome: .succeeded))
-                        if hasNewRoutes {
-                            rebuildCurrentLayerFrame()
-                        }
+                        rebuildCurrentLayerFrame()
+                        continuesEnrichment = hasMoreRequests
                 }
-                if let currentSnapshot, currentSnapshot.fetchedAt != snapshot.fetchedAt {
+                if let currentSnapshot,
+                   continuesEnrichment || currentSnapshot.fetchedAt != snapshot.fetchedAt
+                {
                     scheduleRouteEnrichment(for: currentSnapshot)
                 }
             } catch is CancellationError {
@@ -539,6 +604,13 @@ extension ThrowSession {
                     ADSBExchangeConfiguration(
                         pollingInterval: PollingInterval(seconds: pollingIntervalSeconds),
                         credentialID: .rapidAPI,
+                    ),
+                )
+            case .flightradar24:
+                return try .flightradar24(
+                    Flightradar24Configuration(
+                        pollingInterval: PollingInterval(seconds: pollingIntervalSeconds),
+                        credentialID: .flightradar24,
                     ),
                 )
         }

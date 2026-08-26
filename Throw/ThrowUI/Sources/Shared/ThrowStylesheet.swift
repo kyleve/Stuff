@@ -51,11 +51,21 @@ extension ThrowStylesheet {
 
     struct ProjectionStyle: Equatable {
         struct LabelStyle: Equatable {
-            var primaryFont: Font
-            var secondaryFont: Font
-            var primaryLuminanceMultiplier: Double
-            var secondaryLuminanceMultiplier: Double
+            struct LineStyle: Equatable {
+                var font: Font
+                var luminanceMultiplier: Double
+            }
+
+            var headline: LineStyle
+            var detail: LineStyle
             var offset: CGFloat
+
+            subscript(role: ProjectionLabelRole) -> LineStyle {
+                switch role {
+                    case .headline: headline
+                    case .detail: detail
+                }
+            }
         }
 
         var background: Color
@@ -80,10 +90,14 @@ extension ThrowStylesheet {
             minimumMarkSize: 6,
             standardMarkSize: 12,
             label: LabelStyle(
-                primaryFont: .system(size: 10, weight: .regular, design: .monospaced),
-                secondaryFont: .system(size: 7, weight: .regular, design: .monospaced),
-                primaryLuminanceMultiplier: 0.7,
-                secondaryLuminanceMultiplier: 0.42,
+                headline: LabelStyle.LineStyle(
+                    font: .system(size: 10, weight: .regular, design: .monospaced),
+                    luminanceMultiplier: 0.7,
+                ),
+                detail: LabelStyle.LineStyle(
+                    font: .system(size: 7, weight: .regular, design: .monospaced),
+                    luminanceMultiplier: 0.42,
+                ),
                 offset: 8,
             ),
             correctionDuration: 0.75,
@@ -140,13 +154,14 @@ extension ThrowStylesheet {
             }
         }
 
+        let secondaryOpacityMultiplier: Double
         let brandColors: [AirlineBrand: RGB]
 
         subscript(brand: AirlineBrand) -> RGB? {
             brandColors[brand]
         }
 
-        static let standard = AircraftStyle(brandColors: [
+        static let standard = AircraftStyle(secondaryOpacityMultiplier: 0.35, brandColors: [
             .alaska: RGB(hex: 0x01426A),
             .allegiant: RGB(hex: 0x025DAA),
             .american: RGB(hex: 0xC3002F),

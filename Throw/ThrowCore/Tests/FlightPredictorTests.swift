@@ -160,6 +160,7 @@ struct FlightPredictorTests {
             ),
             glyph: .aircraft(.unknownAirborne),
             label: nil,
+            prominence: .primary,
             velocity: velocity,
             freshness: MarkFreshness(
                 positionObservedAt: ThrowCoreFixture.date.addingTimeInterval(-positionAge),

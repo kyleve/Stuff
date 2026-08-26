@@ -94,6 +94,22 @@ public struct AircraftSourceFactory: AircraftSourceProducing {
                     baseCadence: rapidConfiguration.pollingInterval.duration,
                     metadataWarning: nil,
                 )
+            case let .flightradar24(configuration):
+                guard let credential = try await credentialStore.credential(
+                    for: configuration.credentialID,
+                ) else {
+                    throw AircraftSourceFailure.missingCredential
+                }
+                return ConfiguredAircraftSource(
+                    source: Flightradar24Source(
+                        transport: cloudTransport,
+                        decoder: Flightradar24Decoder(),
+                        credential: credential,
+                        dateProvider: dateProvider,
+                    ),
+                    baseCadence: configuration.pollingInterval.duration,
+                    metadataWarning: nil,
+                )
         }
     }
 }

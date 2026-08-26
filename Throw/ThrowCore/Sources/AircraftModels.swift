@@ -39,12 +39,14 @@ public enum AircraftSourceKind: String, CaseIterable, Codable, Hashable, Sendabl
     case adsbLol = "adsb-lol"
     case readsb
     case adsbExchangeRapidAPI = "adsb-exchange-rapidapi"
+    case flightradar24
 }
 
 public struct AircraftCredentialID: Hashable, Sendable, CustomStringConvertible,
     CustomDebugStringConvertible
 {
     public static let rapidAPI = AircraftCredentialID(rawValue: "rapidapi-personal-key")
+    public static let flightradar24 = AircraftCredentialID(rawValue: "flightradar24-api-token")
 
     public let rawValue: String
 
@@ -100,16 +102,38 @@ public struct ADSBExchangeConfiguration: Equatable, Sendable, CustomStringConver
     }
 }
 
+public struct Flightradar24Configuration: Equatable, Sendable, CustomStringConvertible,
+    CustomDebugStringConvertible
+{
+    public let pollingInterval: PollingInterval
+    public let credentialID: AircraftCredentialID
+
+    public init(pollingInterval: PollingInterval, credentialID: AircraftCredentialID) {
+        self.pollingInterval = pollingInterval
+        self.credentialID = credentialID
+    }
+
+    public var description: String {
+        "<Flightradar24Configuration credential=<redacted>>"
+    }
+
+    public var debugDescription: String {
+        description
+    }
+}
+
 public enum AircraftSourceConfiguration: Equatable, Sendable {
     case adsbLol
     case readsb(ReadsbConfiguration)
     case adsbExchangeRapidAPI(ADSBExchangeConfiguration)
+    case flightradar24(Flightradar24Configuration)
 
     public var kind: AircraftSourceKind {
         switch self {
             case .adsbLol: .adsbLol
             case .readsb: .readsb
             case .adsbExchangeRapidAPI: .adsbExchangeRapidAPI
+            case .flightradar24: .flightradar24
         }
     }
 
@@ -120,6 +144,8 @@ public enum AircraftSourceConfiguration: Equatable, Sendable {
             case .readsb:
                 .seconds(1)
             case let .adsbExchangeRapidAPI(configuration):
+                configuration.pollingInterval.duration
+            case let .flightradar24(configuration):
                 configuration.pollingInterval.duration
         }
     }
@@ -323,6 +349,9 @@ public struct AircraftSnapshot: Hashable, Sendable, CustomStringConvertible,
     public let source: AircraftSourceKind
     public let fetchedAt: Date
     public let observations: [AircraftObservation]
+    /// Completed route results supplied with the matching source observation.
+    /// Absence means that the source did not resolve route availability.
+    public let routeResultsByAircraft: [AircraftID: FlightRouteResult]
     public let successfulHTTPStatus: Int?
 
     public init(
@@ -334,6 +363,7 @@ public struct AircraftSnapshot: Hashable, Sendable, CustomStringConvertible,
             source: source,
             fetchedAt: fetchedAt,
             observations: observations,
+            routeResultsByAircraft: [:],
             successfulHTTPStatus: nil,
         )
     }
@@ -344,7 +374,25 @@ public struct AircraftSnapshot: Hashable, Sendable, CustomStringConvertible,
         observations: [AircraftObservation],
         successfulHTTPStatus: Int?,
     ) {
+        self.init(
+            source: source,
+            fetchedAt: fetchedAt,
+            observations: observations,
+            routeResultsByAircraft: [:],
+            successfulHTTPStatus: successfulHTTPStatus,
+        )
+    }
+
+    public init(
+        source: AircraftSourceKind,
+        fetchedAt: Date,
+        observations: [AircraftObservation],
+        routeResultsByAircraft: [AircraftID: FlightRouteResult],
+        successfulHTTPStatus: Int?,
+    ) {
         precondition(observations.allSatisfy { $0.metadata.source == source })
+        let observationIDs = Set(observations.map(\.id))
+        precondition(routeResultsByAircraft.keys.allSatisfy(observationIDs.contains))
         precondition(
             successfulHTTPStatus.map { (200 ..< 300).contains($0) } ?? true,
             "A successful snapshot can only carry a successful HTTP status",
@@ -352,6 +400,7 @@ public struct AircraftSnapshot: Hashable, Sendable, CustomStringConvertible,
         self.source = source
         self.fetchedAt = fetchedAt
         self.observations = observations
+        self.routeResultsByAircraft = routeResultsByAircraft
         self.successfulHTTPStatus = successfulHTTPStatus
     }
 

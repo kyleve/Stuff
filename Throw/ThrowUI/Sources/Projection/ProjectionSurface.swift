@@ -107,12 +107,8 @@ private struct ProjectionMarksCanvas: View {
                 style.standardMarkSize * markSizeMultiplier,
             )
             let markColor = Color(white: style.markLuminance * intensityMultiplier)
-            let primaryLabelColor = Color(
-                white: style.markLuminance * style.label.primaryLuminanceMultiplier *
-                    intensityMultiplier,
-            )
-            let secondaryLabelColor = Color(
-                white: style.markLuminance * style.label.secondaryLuminanceMultiplier *
+            let detailLabelColor = Color(
+                white: style.markLuminance * style.label.detail.luminanceMultiplier *
                     intensityMultiplier,
             )
 
@@ -142,7 +138,9 @@ private struct ProjectionMarksCanvas: View {
                     y: origin.y + mark.point.y * side,
                 )
                 var markContext = context
-                let effectiveOpacity = mark.opacity * opacity
+                let prominenceOpacity = 1 +
+                    (style.aircraft.secondaryOpacityMultiplier - 1) * mark.secondaryProminence
+                let effectiveOpacity = mark.opacity * opacity * prominenceOpacity
                 markContext.opacity = effectiveOpacity
                 markContext.translateBy(x: point.x, y: point.y)
                 markContext.rotate(by: .degrees(mark.orientationDegrees ?? 0))
@@ -269,17 +267,22 @@ private struct ProjectionMarksCanvas: View {
                 }
 
                 if let label = mark.label {
+                    let primaryStyle = style.label[label.primaryRole]
+                    let primaryLabelColor = Color(
+                        white: style.markLuminance * primaryStyle.luminanceMultiplier *
+                            intensityMultiplier,
+                    )
                     let labelPoint = CGPoint(
                         x: point.x + renderedMarkSize / 2 + style.label.offset,
                         y: point.y,
                     )
                     var text = Text(verbatim: label.primary)
-                        .font(style.label.primaryFont)
+                        .font(primaryStyle.font)
                         .foregroundStyle(primaryLabelColor)
                     if let secondary = label.secondary {
                         text = text + Text(verbatim: "\n\(secondary)")
-                            .font(style.label.secondaryFont)
-                            .foregroundStyle(secondaryLabelColor)
+                            .font(style.label.detail.font)
+                            .foregroundStyle(detailLabelColor)
                     }
                     var labelContext = context
                     labelContext.opacity = effectiveOpacity * mark.labelOpacity

@@ -38,6 +38,7 @@ struct ProjectionLabelCollisionResolver {
                     range: mark.range,
                     glyph: mark.glyph,
                     label: visible.contains(mark.id) ? mark.label : nil,
+                    secondaryProminence: mark.secondaryProminence,
                     orientationDegrees: mark.orientationDegrees,
                     opacity: mark.opacity,
                     labelOpacity: mark.labelOpacity,
@@ -98,13 +99,21 @@ struct ProjectionLabelCollisionResolver {
             mark.label?.primary.count ?? 0,
             mark.label?.secondary?.count ?? 0,
         ))
-        let width = min(0.24, max(0.055, 0.008 * characterCount + 0.02))
+        let isDetailOnly = mark.label?.primaryRole == .detail
+        let characterWidth = isDetailOnly ? 0.006 : 0.008
+        let horizontalPadding = isDetailOnly ? 0.016 : 0.02
+        let minimumWidth = isDetailOnly ? 0.045 : 0.055
+        let width = min(0.24, max(
+            minimumWidth,
+            characterWidth * characterCount + horizontalPadding,
+        ))
         let hasSecondaryLine = mark.label?.secondary != nil
+        let singleLineHeight = isDetailOnly ? 0.022 : 0.028
         return CGRect(
             x: mark.point.x + 0.016,
-            y: mark.point.y - (hasSecondaryLine ? 0.021 : 0.014),
+            y: mark.point.y - (hasSecondaryLine ? 0.021 : singleLineHeight / 2),
             width: width,
-            height: hasSecondaryLine ? 0.042 : 0.028,
+            height: hasSecondaryLine ? 0.042 : singleLineHeight,
         )
     }
 }

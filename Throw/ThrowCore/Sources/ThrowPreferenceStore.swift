@@ -353,6 +353,11 @@ enum ThrowPreferencesCodec {
                     readsbURL = nil
                     cadenceSeconds = configuration.pollingInterval.seconds
                     credentialID = configuration.credentialID.rawValue
+                case let .flightradar24(configuration):
+                    kind = AircraftSourceKind.flightradar24.rawValue
+                    readsbURL = nil
+                    cadenceSeconds = configuration.pollingInterval.seconds
+                    credentialID = configuration.credentialID.rawValue
             }
         }
 
@@ -379,6 +384,16 @@ enum ThrowPreferencesCodec {
                     }
                     return try .adsbExchangeRapidAPI(
                         ADSBExchangeConfiguration(
+                            pollingInterval: PollingInterval(seconds: cadenceSeconds),
+                            credentialID: AircraftCredentialID(rawValue: credentialID),
+                        ),
+                    )
+                case .flightradar24:
+                    guard readsbURL == nil, let cadenceSeconds, let credentialID else {
+                        throw ThrowPreferenceStoreError.invalidPayload
+                    }
+                    return try .flightradar24(
+                        Flightradar24Configuration(
                             pollingInterval: PollingInterval(seconds: cadenceSeconds),
                             credentialID: AircraftCredentialID(rawValue: credentialID),
                         ),

@@ -21,6 +21,12 @@ struct ThrowPreferenceStoreTests {
                     credentialID: .rapidAPI,
                 ),
             ),
+            .flightradar24(
+                Flightradar24Configuration(
+                    pollingInterval: PollingInterval(seconds: 300),
+                    credentialID: .flightradar24,
+                ),
+            ),
         ]
         for configuration in configurations {
             let preferences = try preferences(selectedSource: configuration)

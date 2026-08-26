@@ -179,7 +179,10 @@ final class OnboardingFlowModel {
         if let replacementCredential = validatedSourceDraft?.replacementCredential {
             return .saved(lastFour: replacementCredential.lastFour)
         }
-        return session.rapidAPICredentialState
+        switch sourceChoice {
+            case .flightradar24: return session.flightradar24CredentialState
+            case .adsbExchange, .adsbLol, .readsb, nil: return session.rapidAPICredentialState
+        }
     }
 
     var hasStagedRapidAPICredential: Bool {

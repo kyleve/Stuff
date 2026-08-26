@@ -21,6 +21,7 @@ struct AircraftSourceSettingsView: View {
                     Text(.sourceAdsbLol).tag(AircraftSourceChoice.adsbLol)
                     Text(.sourceReadsb).tag(AircraftSourceChoice.readsb)
                     Text(.sourceAdsbExchange).tag(AircraftSourceChoice.adsbExchange)
+                    Text(.sourceFlightradar24).tag(AircraftSourceChoice.flightradar24)
                 }
                 Text(sourceDescription)
                     .font(.footnote)
@@ -37,25 +38,16 @@ struct AircraftSourceSettingsView: View {
             }
 
             if model.choice == .adsbExchange {
-                RapidAPICredentialSection(model: model)
                 RapidAPICadenceSection(model: model)
+                RapidAPICredentialSection(model: model)
             }
 
-            Section {
-                Button(
-                    String(localized: .sourceTestConnection),
-                    systemSymbol: .antennaRadiowavesLeftAndRight,
-                ) {
-                    Task(name: "Throw settings test source") { await model.test() }
-                }
-                .disabled(model.validation == .testing)
-                SourceValidationLabel(state: model.validation)
-
-                Button(String(localized: .sourceUseSource), systemSymbol: .checkmarkCircle) {
-                    Task(name: "Throw switch source") { await model.useSource() }
-                }
-                .disabled(model.canUseSource == false)
+            if model.choice == .flightradar24 {
+                Flightradar24CadenceSection(model: model)
+                Flightradar24CredentialSection(model: model)
             }
+
+            AircraftSourceApplySection(model: model)
         }
         .navigationTitle(Text(.settingsSource))
         .onDisappear(perform: model.discardTestedDraft)
@@ -66,6 +58,16 @@ struct AircraftSourceSettingsView: View {
             case .adsbLol: .sourceAdsbLolDescription
             case .readsb: .sourceReadsbDescription
             case .adsbExchange: .sourceAdsbExchangeDescription
+            case .flightradar24: .sourceFlightradar24Description
         }
     }
 }
+
+#if DEBUG
+    #Preview("Aircraft source settings") {
+        NavigationStack {
+            AircraftSourceSettingsView(session: .fixture())
+        }
+        .throwBroadwayRoot()
+    }
+#endif

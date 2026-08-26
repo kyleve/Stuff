@@ -133,6 +133,17 @@
         }
       }
     },
+    "about.flightradar24" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flightradar24 API"
+          }
+        }
+      }
+    },
     "about.geographicData" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -294,6 +305,94 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "2025 TIGER/Line Legal and Citation Information"
+          }
+        }
+      }
+    },
+    "activity.approach.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Near its destination airport"
+          }
+        }
+      }
+    },
+    "activity.approach.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Approach"
+          }
+        }
+      }
+    },
+    "activity.inbound.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Heading toward a nearby destination"
+          }
+        }
+      }
+    },
+    "activity.inbound.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inbound"
+          }
+        }
+      }
+    },
+    "activity.initialClimb.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Near its origin airport and climbing away"
+          }
+        }
+      }
+    },
+    "activity.initialClimb.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Initial Climb"
+          }
+        }
+      }
+    },
+    "activity.outbound.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Moving away from a nearby origin"
+          }
+        }
+      }
+    },
+    "activity.outbound.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Outbound"
           }
         }
       }
@@ -1915,6 +2014,28 @@
         }
       }
     },
+    "settings.flightActivityCues" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flight Activity Cues"
+          }
+        }
+      }
+    },
+    "settings.flightActivityCuesDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "These cues are ambient estimates, not authoritative landing or takeoff status. Dimmer cues are inferred from aircraft motion when route data is unavailable."
+          }
+        }
+      }
+    },
     "settings.geographyIntensity" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2102,6 +2223,17 @@
         }
       }
     },
+    "source.applyExplanation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Throw tests the selected source first. If the test succeeds, it saves any new credential and applies these settings."
+          }
+        }
+      }
+    },
     "source.credential" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2164,6 +2296,94 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Estimates use the selected cadence and configured quiet interval. The RapidAPI dashboard is authoritative because plan terms, billing periods, and use by other apps can differ."
+          }
+        }
+      }
+    },
+    "source.flightradar24" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flightradar24"
+          }
+        }
+      }
+    },
+    "source.flightradar24Description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A paid FR24 API feed. Positions, flight numbers, and available origin and destination codes come from the same response. Throw transmits coarse geographic bounds to Flightradar24."
+          }
+        }
+      }
+    },
+    "source.fr24Credential" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FR24 API Token"
+          }
+        }
+      }
+    },
+    "source.fr24CredentialGuidance" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Create a dedicated API token for Throw. The token stays in device-only Keychain storage and is sent only to the Flightradar24 API."
+          }
+        }
+      }
+    },
+    "source.fr24Dashboard" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open FR24 API Dashboard"
+          }
+        }
+      }
+    },
+    "source.fr24Pricing" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The live full-position endpoint currently costs 8 credits for each returned aircraft. An empty response costs 1 credit."
+          }
+        }
+      }
+    },
+    "source.fr24TestConsumesCredits" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Testing sends one small-area request. It consumes at least 1 credit and 8 credits for each returned aircraft. An empty response is a successful test."
+          }
+        }
+      }
+    },
+    "source.fr24UsageGuidance" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Credit use depends on traffic density. At a five-minute interval, 25 returned aircraft use about 2,400 credits per active hour; 50 use about 4,800. The FR24 dashboard is authoritative."
           }
         }
       }
@@ -2263,6 +2483,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Open Personal API Subscription"
+          }
+        }
+      }
+    },
+    "source.testAndApply" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Test & Apply Settings"
+          }
+        }
+      }
+    },
+    "source.testAndSaveCredential" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Test & Save Credential"
           }
         }
       }

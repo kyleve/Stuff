@@ -16,13 +16,13 @@ struct FlightRouteResolverTests {
             try await resolver.resolveMissing(
                 for: [observation],
                 at: ThrowCoreFixture.date,
-            ) == .completed(hasNewRoutes: true),
+            ) == .completed(hasNewRoutes: true, hasMoreRequests: false),
         )
         #expect(
-            await resolver.cachedRoutes(
+            await resolver.cachedResults(
                 for: [observation],
                 at: ThrowCoreFixture.date,
-            )[callsign] == route,
+            )[callsign] == .route(route),
         )
         #expect(
             try await resolver.resolveMissing(
@@ -42,13 +42,20 @@ struct FlightRouteResolverTests {
             try await resolver.resolveMissing(
                 for: [observation],
                 at: ThrowCoreFixture.date,
-            ) == .completed(hasNewRoutes: false),
+            ) == .completed(hasNewRoutes: false, hasMoreRequests: false),
         )
         #expect(
             try await resolver.resolveMissing(
                 for: [observation],
                 at: ThrowCoreFixture.date.addingTimeInterval(60),
             ) == .noRequestNeeded,
+        )
+        let callsign = try #require(FlightCallsign(rawValue: "THROW1"))
+        #expect(
+            await resolver.cachedResults(
+                for: [observation],
+                at: ThrowCoreFixture.date,
+            )[callsign] == .unavailable,
         )
         #expect(await source.requestCount() == 1)
     }
@@ -73,6 +80,13 @@ struct FlightRouteResolverTests {
                 at: ThrowCoreFixture.date.addingTimeInterval(60),
             ) == .coolingDown,
         )
+        let callsign = try #require(FlightCallsign(rawValue: "THROW1"))
+        #expect(
+            await resolver.cachedResults(
+                for: [observation],
+                at: ThrowCoreFixture.date.addingTimeInterval(60),
+            )[callsign] == nil,
+        )
         #expect(await source.requestCount() == 1)
 
         do {
@@ -94,12 +108,18 @@ struct FlightRouteResolverTests {
             try ThrowCoreFixture.observation(callsign: "THROW\(index)")
         }
 
-        _ = try await resolver.resolveMissing(
+        #expect(try await resolver.resolveMissing(
             for: observations,
             at: ThrowCoreFixture.date,
-        )
+        ) == .completed(hasNewRoutes: false, hasMoreRequests: true))
 
         #expect(await source.lastQueryCount() == 12)
+
+        #expect(try await resolver.resolveMissing(
+            for: observations,
+            at: ThrowCoreFixture.date,
+        ) == .completed(hasNewRoutes: false, hasMoreRequests: false))
+        #expect(await source.lastQueryCount() == 8)
     }
 }
 

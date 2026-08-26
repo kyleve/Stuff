@@ -15,6 +15,12 @@ enum SourceHTTPValidation {
                     throw AircraftSourceFailure.subscriptionRequired
                 case (.adsbExchangeRapidAPI, 403):
                     throw AircraftSourceFailure.entitlementRejected
+                case (.flightradar24, 401):
+                    throw AircraftSourceFailure.invalidCredential
+                case (.flightradar24, 402):
+                    throw AircraftSourceFailure.subscriptionRequired
+                case (.flightradar24, 403):
+                    throw AircraftSourceFailure.entitlementRejected
                 case (_, 429):
                     throw AircraftSourceFailure.quotaReached(retryAfterSeconds: retryAfter)
                 case let (_, statusCode):

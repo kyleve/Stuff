@@ -179,6 +179,7 @@ struct ProjectionEngineTests {
             )),
             glyph: .aircraft(.unknownAirborne),
             label: nil,
+            prominence: .primary,
             velocity: ProjectionVelocity(
                 groundTrack: Bearing(degrees: 35),
                 groundSpeedKnots: 2000,
@@ -570,6 +571,7 @@ struct ProjectionEngineTests {
             anchor: anchor,
             glyph: .aircraft(.unknownAirborne),
             label: nil,
+            prominence: .primary,
             velocity: nil,
             freshness: MarkFreshness(
                 positionObservedAt: date,
@@ -622,6 +624,7 @@ struct ProjectionEngineTests {
             ),
             glyph: .aircraft(.unknownAirborne),
             label: nil,
+            prominence: .primary,
             velocity: velocity,
             freshness: MarkFreshness(
                 positionObservedAt: ThrowCoreFixture.date,

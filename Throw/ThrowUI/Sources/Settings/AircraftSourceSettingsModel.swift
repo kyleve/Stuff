@@ -9,7 +9,9 @@ final class AircraftSourceSettingsModel {
     var choice: AircraftSourceChoice {
         didSet {
             guard oldValue != choice else { return }
+            rapidAPIKey = ""
             invalidateTestedDraft()
+            synchronizeCredentialEditingState()
         }
     }
 
@@ -35,25 +37,26 @@ final class AircraftSourceSettingsModel {
     }
 
     var validation: SourceValidationState = .untested
-    var isEditingCredential: Bool
+    var isEditingCredential = false
 
     private var validatedDraft: ValidatedAircraftSourceDraft?
     private var testGeneration: UInt64 = 0
 
     init(session: ThrowSession) {
         self.session = session
-        choice = session.sourceChoice
+        let initialChoice = session.sourceChoice
+        choice = initialChoice
         readsbURL = session.readsbURL
         pollingIntervalSeconds = Double(session.pollingIntervalSeconds)
-        if case .missing = session.rapidAPICredentialState {
-            isEditingCredential = true
-        } else {
-            isEditingCredential = false
-        }
+        synchronizeCredentialEditingState()
     }
 
     var credentialState: CredentialState {
-        session.rapidAPICredentialState
+        switch choice {
+            case .adsbExchange: session.rapidAPICredentialState
+            case .flightradar24: session.flightradar24CredentialState
+            case .adsbLol, .readsb: .missing
+        }
     }
 
     var settingsFailure: String? {
@@ -78,6 +81,18 @@ final class AircraftSourceSettingsModel {
 
     var canUseSource: Bool {
         validation.isSuccessful && validatedDraft != nil
+    }
+
+    var canTestAndApply: Bool {
+        guard validation != .testing else { return false }
+        if isCredentialSource, isEditingCredential {
+            return rapidAPIKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+        }
+        return true
+    }
+
+    var isCredentialSource: Bool {
+        choice == .adsbExchange || choice == .flightradar24
     }
 
     func test() async {
@@ -110,12 +125,23 @@ final class AircraftSourceSettingsModel {
             isEditingCredential = false
             rapidAPIKey = ""
             self.validatedDraft = nil
-            validation = .untested
+            validation = .succeeded
         }
     }
 
+    func testAndApply() async {
+        guard canTestAndApply else { return }
+        await test()
+        guard canUseSource else { return }
+        await useSource()
+    }
+
     func deleteCredential() async {
-        await session.deleteRapidAPICredential()
+        switch choice {
+            case .adsbExchange: await session.deleteRapidAPICredential()
+            case .flightradar24: await session.deleteFlightradar24Credential()
+            case .adsbLol, .readsb: break
+        }
         rapidAPIKey = ""
         invalidateTestedDraft()
         isEditingCredential = true
@@ -144,5 +170,17 @@ final class AircraftSourceSettingsModel {
         testGeneration &+= 1
         validatedDraft = nil
         validation = .untested
+    }
+
+    private func synchronizeCredentialEditingState() {
+        guard isCredentialSource else {
+            isEditingCredential = false
+            return
+        }
+        if case .missing = credentialState {
+            isEditingCredential = true
+        } else {
+            isEditingCredential = false
+        }
     }
 }

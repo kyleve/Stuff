@@ -15,7 +15,7 @@ struct ReadyStepView: View {
                             .lineLimit(2)
                     }
                 }
-                if model.sourceChoice == .adsbExchange {
+                if model.sourceChoice == .adsbExchange || model.sourceChoice == .flightradar24 {
                     LabeledContent(String(localized: .sourceCredential)) {
                         Text(verbatim: credentialName)
                             .privacySensitive()
@@ -173,6 +173,7 @@ struct ReadyStepView: View {
             case .adsbLol: String(localized: .sourceAdsbLol)
             case .readsb: String(localized: .sourceReadsb)
             case .adsbExchange: String(localized: .sourceAdsbExchange)
+            case .flightradar24: String(localized: .sourceFlightradar24)
             case nil: "—"
         }
     }
