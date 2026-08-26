@@ -367,7 +367,7 @@ extension ThrowSession {
                     pollingInterval: pollingInterval,
                 ),
             )
-            session.aircraftSourceSelection = .configured(configuration)
+            session.setupState = session.setupState.replacingSource(configuration)
             session.flightradar24CredentialState = .saved(lastFour: credential.lastFour)
             return session
         }
@@ -504,24 +504,59 @@ extension ThrowSession {
                     confirmedAt: now,
                 )
                 let source: AircraftSourceConfiguration = .adsbLol
-                let preferences = try ThrowPreferences(
-                    setupCompleted: setupCompleted,
-                    sourceSelection: setupCompleted ? .configured(source) : .unconfigured,
-                    locationMode: .gps,
-                    confirmedLocation: confirmed,
+                let setupState: ThrowSetupState = if setupCompleted {
+                    .configured(
+                        ThrowConfiguredSetup(
+                            source: source,
+                            locationMode: .gps,
+                            confirmedLocation: confirmed,
+                            projectionMode: .map,
+                        ),
+                    )
+                } else {
+                    .onboarding(
+                        ThrowOnboardingSetup(
+                            sourceSelection: .unconfigured,
+                            location: .confirmed(mode: .gps, location: confirmed),
+                            projection: .unselected,
+                        ),
+                    )
+                }
+                let global = try ThrowGlobalPreferences(
                     calibration: .defaultValue,
+                    intensityPercent: 80,
+                    quietSchedule: .disabled,
+                )
+                let airAndSpace = try AirAndSpacePreferences(
                     mapViewport: .defaultValue,
                     mapCenters: .defaultValue,
                     skyViewport: .defaultValue,
-                    selectedProjectionMode: setupCompleted ? .map : nil,
                     flightsEnabled: true,
                     airlineAccentsEnabled: true,
                     geography: .defaultValue,
                     labelMode: .adaptive,
                     includeGroundAircraft: false,
                     markSizePercent: 100,
-                    intensityPercent: 80,
-                    quietSchedule: .disabled,
+                )
+                let playlist = try ProjectionPlaylist(
+                    entries: setupCompleted
+                        ? [
+                            ProjectionPlaylistEntry(
+                                experienceID: .airAndSpace,
+                                dwellDuration: .defaultValue,
+                            ),
+                        ]
+                        : [],
+                    automaticRotationEnabled: false,
+                    selectedExperienceID: setupCompleted ? .airAndSpace : nil,
+                    configuredExperienceIDs: setupState.configuredExperienceIDs,
+                    catalog: .standard,
+                )
+                let preferences = try ThrowPreferences(
+                    setupState: setupState,
+                    global: global,
+                    playlist: playlist,
+                    airAndSpace: airAndSpace,
                 )
                 let preferenceStore: any ThrowPreferenceStore = if let preferenceStoreOverride {
                     preferenceStoreOverride
@@ -617,7 +652,7 @@ extension ThrowSession {
                 ),
             )
             prepareDashboardSnapshot(session)
-            session.aircraftSourceSelection = .configured(configuration)
+            session.setupState = session.setupState.replacingSource(configuration)
             session.projectionFrame = emptyProjectionFrame(
                 mode: session.projectionMode,
                 at: session.projectionFrame.generatedAt,

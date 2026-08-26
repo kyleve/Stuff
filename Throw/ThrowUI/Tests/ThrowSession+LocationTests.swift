@@ -42,7 +42,7 @@ struct ThrowSessionLocationTests {
         await session.demandTask?.value
     }
 
-    @Test func manualProjectionSessionDoesNotRequestGPS() async {
+    @Test func manualProjectionSessionDoesNotRequestGPS() async throws {
         let locationSource = ControlledThrowLocationSource()
         let session = ThrowSession.fixture(locationSource: locationSource)
         await session.start()
@@ -65,6 +65,13 @@ struct ThrowSessionLocationTests {
         #expect(locationSource.startCount == 0)
         #expect(session.observerLocationMode == .manual)
         #expect(session.activePollingSignature != nil)
+        guard case let .configured(setup) = session.setupState else {
+            Issue.record("Saving a manual location must preserve configured setup")
+            return
+        }
+        let confirmedLocation = try #require(session.confirmedLocation)
+        #expect(setup.locationMode == .manual)
+        #expect(setup.confirmedLocation == confirmedLocation)
 
         session.projectionOutputDisconnected(output)
         await session.demandTask?.value

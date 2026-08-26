@@ -14,7 +14,7 @@ public enum GeographyLayerHealth: Equatable, Sendable {
 @MainActor
 @Observable
 public final class ThrowSession {
-    public internal(set) var setupCompleted: Bool
+    public internal(set) var setupState: ThrowSetupState
     /// Compatibility access for Air & Space callers while health remains keyed by experience.
     public internal(set) var feedHealth: FeedHealth {
         get { experienceHealth[.airAndSpace] ?? .idle }
@@ -46,6 +46,7 @@ public final class ThrowSession {
     public var projectionMode: ProjectionMode {
         didSet {
             guard oldValue != projectionMode, isApplyingPreferences == false else { return }
+            setupState = setupState.updatingProjectionMode(projectionMode)
             projectionInputsChanged(restartsPolling: true)
         }
     }
@@ -221,9 +222,41 @@ public final class ThrowSession {
     @ObservationIgnored var isApplyingPreferences = false
     @ObservationIgnored var hasStarted = false
     @ObservationIgnored var isForeground = true
-    @ObservationIgnored var aircraftSourceSelection: AircraftSourceSelection = .unconfigured
-    @ObservationIgnored var confirmedLocation: ConfirmedObserverLocation?
-    @ObservationIgnored var locationMode: ObserverLocationMode = .gps
+    var aircraftSourceSelection: AircraftSourceSelection {
+        get { setupState.sourceSelection }
+        set { setupState = setupState.updatingSourceSelection(newValue) }
+    }
+
+    var selectedSourceConfiguration: AircraftSourceConfiguration? {
+        get { setupState.selectedSource }
+        set { setupState = setupState.selectingSource(newValue) }
+    }
+
+    var validatedSourceConfiguration: AircraftSourceConfiguration? {
+        get { setupState.validatedSource }
+        set { setupState = setupState.validatingSource(newValue) }
+    }
+
+    var confirmedLocation: ConfirmedObserverLocation? {
+        get { setupState.confirmedLocation }
+        set {
+            setupState = setupState.updatingLocation(
+                mode: setupState.locationMode,
+                confirmedLocation: newValue,
+            )
+        }
+    }
+
+    var locationMode: ObserverLocationMode {
+        get { setupState.locationMode }
+        set {
+            setupState = setupState.updatingLocation(
+                mode: newValue,
+                confirmedLocation: setupState.confirmedLocation,
+            )
+        }
+    }
+
     @ObservationIgnored var pendingLocationFix: LocationFix?
     @ObservationIgnored var mayApplyTrueHeadingHint = true
     @ObservationIgnored var currentLayerFrame: LayerFrame?
@@ -284,7 +317,7 @@ public final class ThrowSession {
         rotationClock: any ProjectionRotationClock,
         softwareCredits: [SoftwareCredit],
     ) {
-        setupCompleted = preferences.setupCompleted
+        setupState = preferences.setupState
         projectionPlaylist = preferences.playlist
         activeExperienceID = preferences.playlist.selectedExperienceID
         requestedExperienceID = nil
@@ -358,9 +391,6 @@ public final class ThrowSession {
             motionLogger: motionLogger,
         )
         self.softwareCredits = softwareCredits
-        aircraftSourceSelection = preferences.airAndSpace.sourceSelection
-        confirmedLocation = preferences.confirmedLocation
-        locationMode = preferences.locationMode
         locationHealth = Self.locationHealth(
             for: preferences.confirmedLocation,
             now: dateProvider.now(),
@@ -373,8 +403,8 @@ public final class ThrowSession {
         projectionOutputCount > 0
     }
 
-    var selectedSourceConfiguration: AircraftSourceConfiguration? {
-        aircraftSourceSelection.selectedSource
+    public var setupCompleted: Bool {
+        setupState.setupCompleted
     }
 
     public var hasExternalDisplayOutput: Bool {
@@ -447,7 +477,7 @@ public final class ThrowSession {
             return
         } catch {
             settingsFailure = error.localizedDescription
-            setupCompleted = false
+            setupState = .defaultValue
             feedHealth = .failed(.unknown)
         }
 

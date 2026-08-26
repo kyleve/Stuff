@@ -35,6 +35,8 @@ location, and scheduling; see [`README.md`](README.md). Read the root
   carries track, speed, source, and optional turn rate as one validated value.
 - Store only the RapidAPI key in device-only Keychain storage. Persist no live
   aircraft data or credential in preferences.
+- Represent setup as `ThrowSetupState`. A configured setup carries its validated
+  source, confirmed location, and projection mode as required values.
 - Keep projection functions deterministic and independent of SwiftUI layout.
 - Keep experience and layer catalogs compile-time and free of UI values. Add no
   runtime plugin or `AnyView` boundary.

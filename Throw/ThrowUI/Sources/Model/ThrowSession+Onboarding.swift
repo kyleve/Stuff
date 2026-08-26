@@ -50,7 +50,13 @@ extension ThrowSession {
         quietHoursEnabled = quietEnabled
         self.quietStart = quietStart
         self.quietEnd = quietEnd
-        setupCompleted = true
+        let incompleteSetup = setupState
+        guard let completedSetup = setupState.completing(projectionMode: mode) else {
+            assertionFailure("Onboarding completion requires validated setup inputs")
+            isApplyingPreferences = false
+            return
+        }
+        setupState = completedSetup
         isApplyingPreferences = false
         do {
             try await savePreferencesImmediately()
@@ -58,7 +64,7 @@ extension ThrowSession {
         } catch is CancellationError {
             return
         } catch {
-            setupCompleted = false
+            setupState = incompleteSetup
             settingsFailure = error.localizedDescription
         }
     }

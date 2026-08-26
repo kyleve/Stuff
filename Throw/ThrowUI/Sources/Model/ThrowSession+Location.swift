@@ -275,7 +275,10 @@ extension ThrowSession {
                         horizontalAccuracyMeters: acceptedGPSLocation.horizontalAccuracyMeters,
                         confirmedAt: acceptedGPSLocation.confirmedAt,
                     )
-                    confirmedLocation = confirmed
+                    setupState = setupState.updatingLocation(
+                        mode: .gps,
+                        confirmedLocation: confirmed,
+                    )
                     projectionSessionLocationGate = .ready
                     switch locationHealth {
                         case .confirmed:
@@ -302,8 +305,10 @@ extension ThrowSession {
                         confirmedAt: dateProvider.now(),
                     )
                     cancelProjectionSessionLocationAcquisition(restoringPreviousHealth: false)
-                    confirmedLocation = confirmed
-                    locationMode = .manual
+                    setupState = setupState.updatingLocation(
+                        mode: .manual,
+                        confirmedLocation: confirmed,
+                    )
                     projectionSessionLocationGate = .ready
                     pendingLocationFix = nil
                     locationHealth = .confirmed(
@@ -329,8 +334,10 @@ extension ThrowSession {
                 horizontalAccuracyMeters: fix.horizontalAccuracyMeters,
                 confirmedAt: dateProvider.now(),
             )
-            confirmedLocation = confirmed
-            locationMode = mode
+            setupState = setupState.updatingLocation(
+                mode: mode,
+                confirmedLocation: confirmed,
+            )
             projectionSessionLocationGate = .ready
             pendingLocationFix = nil
             locationHealth = .confirmed(

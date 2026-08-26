@@ -171,15 +171,13 @@ extension ThrowSession {
         pendingSave?.cancel()
         await pendingSave?.value
 
+        let replacementSetupState = setupState.replacingSource(draft.configuration)
         let preferences: ThrowPreferences
         var replacedCredentialID: AircraftCredentialID?
         var previousCredential: AircraftCredential?
         var credentialMutationAttempted = false
         do {
-            preferences = try makePreferences(
-                setupCompleted: setupCompleted,
-                sourceSelection: .configured(draft.configuration),
-            )
+            preferences = try makePreferences(setupState: replacementSetupState)
             if let replacementCredential = draft.replacementCredential {
                 let credentialID: AircraftCredentialID
                 switch draft.configuration.kind {
@@ -216,7 +214,7 @@ extension ThrowSession {
 
         await airAndSpaceRuntime.deactivate(reporting: .idle)
         activePollingSignature = nil
-        aircraftSourceSelection = .configured(draft.configuration)
+        setupState = replacementSetupState
         projectionPlaylist = preferences.playlist
         await configureExperienceCoordinator(with: projectionPlaylist)
 
