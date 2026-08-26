@@ -58,6 +58,7 @@ extension ThrowStylesheet {
 
             var headline: LineStyle
             var detail: LineStyle
+            var routeTracking: CGFloat
             var offset: CGFloat
 
             subscript(role: ProjectionLabelRole) -> LineStyle {
@@ -100,6 +101,7 @@ extension ThrowStylesheet {
                     font: .system(size: 7, weight: .regular, design: .monospaced),
                     luminanceMultiplier: 0.42,
                 ),
+                routeTracking: -0.4,
                 offset: 8,
             ),
             correctionDuration: 0.75,

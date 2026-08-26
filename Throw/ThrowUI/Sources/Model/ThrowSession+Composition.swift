@@ -257,7 +257,7 @@ extension ThrowSession {
                         activity: activity,
                     )),
                     label: ProjectionLabel(
-                        primary: index < 2 ? "LAX → SFO" : "SFO → SAN",
+                        primary: index < 2 ? "LAX→SFO" : "SFO→SAN",
                         primaryRole: .headline,
                         secondary: "FLT\(210 + index)",
                     ),
@@ -720,12 +720,12 @@ extension ThrowSession {
 
         private static func fixtureRoute(for aircraft: SnapshotAircraft) -> String? {
             switch aircraft.callsign {
-                case "UAL123": "JFK → SFO"
-                case "SWA42": "OAK → SAN"
-                case "ASA8": "SEA → SJC"
-                case "DAL308": "LAX → JFK"
-                case "NKS72": "LAS → BUR"
-                case "JBU6": "BOS → LAX"
+                case "UAL123": "JFK→SFO"
+                case "SWA42": "OAK→SAN"
+                case "ASA8": "SEA→SJC"
+                case "DAL308": "LAX→JFK"
+                case "NKS72": "LAS→BUR"
+                case "JBU6": "BOS→LAX"
                 default: nil
             }
         }

@@ -333,6 +333,7 @@ private struct ProjectionMarksCanvas: View {
                         )
                         : Text(verbatim: label.primary)
                         .font(primaryStyle.font)
+                        .tracking(label.secondary == nil ? 0 : style.label.routeTracking)
                         .foregroundStyle(primaryLabelColor)
                     if let secondary = label.secondary {
                         let secondaryText = detailText(

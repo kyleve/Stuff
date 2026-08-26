@@ -181,7 +181,7 @@ public struct FlightLayerFrameBuilder: Sendable {
             )
         }
         return ProjectionLabel(
-            primary: "\(route.origin.rawValue) → \(route.destination.rawValue)",
+            primary: "\(route.origin.rawValue)→\(route.destination.rawValue)",
             primaryRole: .headline,
             secondary: callsign,
         )

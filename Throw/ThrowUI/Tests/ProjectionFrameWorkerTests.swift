@@ -127,7 +127,7 @@ struct ProjectionFrameWorkerTests {
     @Test func routeEnrichmentFadesThroughBlackWithoutANewObservation() async throws {
         let frames = try await labelPresenceFrames(
             sourceLabel: "UA123",
-            targetLabel: "JFK → SFO",
+            targetLabel: "JFK→SFO",
         )
         let start = try #require(frames.start.marks.first)
         let midpoint = try #require(frames.midpoint.marks.first)
@@ -135,9 +135,9 @@ struct ProjectionFrameWorkerTests {
 
         #expect(start.label?.primary == "UA123")
         #expect(abs(start.labelOpacity - 1) < 0.000_001)
-        #expect(midpoint.label?.primary == "JFK → SFO")
+        #expect(midpoint.label?.primary == "JFK→SFO")
         #expect(midpoint.labelOpacity < 0.000_001)
-        #expect(end.label?.primary == "JFK → SFO")
+        #expect(end.label?.primary == "JFK→SFO")
         #expect(abs(end.labelOpacity - 1) < 0.000_001)
     }
 
