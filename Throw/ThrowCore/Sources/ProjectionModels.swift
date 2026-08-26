@@ -5,6 +5,8 @@ public struct LayerID: Hashable, Sendable {
     public static let flights = LayerID(rawValue: "flights")
     public static let stars = LayerID(rawValue: "stars")
     public static let satellites = LayerID(rawValue: "satellites")
+    public static let transitNetwork = LayerID(rawValue: "transit-network")
+    public static let transitVehicles = LayerID(rawValue: "transit-vehicles")
 
     public let rawValue: String
 
@@ -320,7 +322,7 @@ public struct ProjectionMark: Hashable, Sendable, CustomStringConvertible,
 /// One semantic payload for a layer frame; layers cannot mix mark and line data.
 public enum LayerFrameContent: Hashable, Sendable {
     case marks([ProjectionMark])
-    case geographicLines([GeographicPolyline])
+    case lines([ProjectionPolyline])
 }
 
 public struct LayerFrame: Hashable, Sendable, CustomStringConvertible,
@@ -347,12 +349,16 @@ public struct LayerFrame: Hashable, Sendable, CustomStringConvertible,
         if case let .marks(marks) = content { marks } else { [] }
     }
 
+    public var lines: [ProjectionPolyline] {
+        if case let .lines(lines) = content { lines } else { [] }
+    }
+
     public var geographicLines: [GeographicPolyline] {
-        if case let .geographicLines(lines) = content { lines } else { [] }
+        lines
     }
 
     public var description: String {
-        "<LayerFrame layer=\(layerID.rawValue) marks=\(marks.count) lines=\(geographicLines.count)>"
+        "<LayerFrame layer=\(layerID.rawValue) marks=\(marks.count) lines=\(lines.count)>"
     }
 
     public var debugDescription: String {
@@ -425,8 +431,8 @@ public struct ProjectedMark: Hashable, Sendable, CustomStringConvertible,
     }
 }
 
-public struct ProjectedGeographySegment: Hashable, Sendable {
-    public let kind: GeographyLineKind
+public struct ProjectedLineSegment: Hashable, Sendable {
+    public let styleID: ProjectionLineStyleID
     public let start: ProjectionPoint
     public let end: ProjectionPoint
     /// Whether the renderer must move to `start` instead of continuing the
@@ -434,20 +440,43 @@ public struct ProjectedGeographySegment: Hashable, Sendable {
     public let startsNewSubpath: Bool
 
     public init(
+        styleID: ProjectionLineStyleID,
+        start: ProjectionPoint,
+        end: ProjectionPoint,
+        startsNewSubpath: Bool,
+    ) {
+        self.styleID = styleID
+        self.start = start
+        self.end = end
+        self.startsNewSubpath = startsNewSubpath
+    }
+
+    public init(
         kind: GeographyLineKind,
         start: ProjectionPoint,
         end: ProjectionPoint,
         startsNewSubpath: Bool,
     ) {
-        self.kind = kind
-        self.start = start
-        self.end = end
-        self.startsNewSubpath = startsNewSubpath
+        self.init(
+            styleID: ProjectionLineStyleID(geographyKind: kind),
+            start: start,
+            end: end,
+            startsNewSubpath: startsNewSubpath,
+        )
+    }
+
+    public var kind: GeographyLineKind {
+        guard let kind = styleID.geographyKind else {
+            preconditionFailure("A non-geographic line style has no Geography kind")
+        }
+        return kind
     }
 }
 
-/// Identifies one cached geography projection for UI path reuse.
-public struct GeographyProjectionID: Hashable, Sendable {
+public typealias ProjectedGeographySegment = ProjectedLineSegment
+
+/// Identifies one cached static-line projection for UI path reuse.
+public struct ProjectionLineRevisionID: Hashable, Sendable {
     public let rawValue: UInt64
 
     public init(rawValue: UInt64) {
@@ -455,26 +484,97 @@ public struct GeographyProjectionID: Hashable, Sendable {
     }
 }
 
-/// Cached normalized geography segments and their stable render identity.
-public struct ProjectedGeography: Hashable, Sendable {
-    public let id: GeographyProjectionID
-    public let segments: [ProjectedGeographySegment]
+public typealias GeographyProjectionID = ProjectionLineRevisionID
 
-    public init(id: GeographyProjectionID, segments: [ProjectedGeographySegment]) {
+/// Cached normalized line segments and their stable render identity.
+public struct ProjectedLineCollection: Hashable, Sendable {
+    public let id: ProjectionLineRevisionID
+    public let segments: [ProjectedLineSegment]
+
+    public init(id: ProjectionLineRevisionID, segments: [ProjectedLineSegment]) {
         self.id = id
         self.segments = segments
+    }
+}
+
+public typealias ProjectedGeography = ProjectedLineCollection
+
+public enum ProjectedLayerContent: Hashable, Sendable {
+    case marks([ProjectedMark])
+    case lines(ProjectedLineCollection)
+}
+
+public struct ProjectedLayer: Identifiable, Hashable, Sendable {
+    public let id: LayerID
+    public let zOrder: Int
+    public let opacity: Double
+    public let content: ProjectedLayerContent
+
+    public init(
+        id: LayerID,
+        zOrder: Int,
+        opacity: Double,
+        content: ProjectedLayerContent,
+    ) {
+        precondition((0 ... 1).contains(opacity))
+        if case let .marks(marks) = content {
+            precondition(marks.allSatisfy { $0.id.layerID == id })
+        }
+        self.id = id
+        self.zOrder = zOrder
+        self.opacity = opacity
+        self.content = content
+    }
+
+    public var marks: [ProjectedMark] {
+        if case let .marks(marks) = content { marks } else { [] }
+    }
+
+    public var lines: ProjectedLineCollection? {
+        if case let .lines(lines) = content { lines } else { nil }
+    }
+}
+
+/// One experience's semantic layers before geometry projection.
+public struct ProjectionExperienceFrame: Hashable, Sendable {
+    public let experienceID: ProjectionExperienceID
+    public let layers: [LayerFrame]
+
+    public init(experienceID: ProjectionExperienceID, layers: [LayerFrame]) {
+        precondition(Set(layers.map(\.layerID)).count == layers.count)
+        self.experienceID = experienceID
+        self.layers = layers
     }
 }
 
 public struct ProjectionFrame: Hashable, Sendable, CustomStringConvertible,
     CustomDebugStringConvertible
 {
+    public let experienceID: ProjectionExperienceID
     public let mode: ProjectionMode
     public let generatedAt: Date
-    public let geography: ProjectedGeography?
-    public let geographyOpacity: Double
-    public let marks: [ProjectedMark]
+    public let layers: [ProjectedLayer]
 
+    public init(
+        experienceID: ProjectionExperienceID,
+        mode: ProjectionMode,
+        generatedAt: Date,
+        layers: [ProjectedLayer],
+    ) {
+        precondition(Set(layers.map(\.id)).count == layers.count)
+        self.experienceID = experienceID
+        self.mode = mode
+        self.generatedAt = generatedAt
+        self.layers = layers.sorted { lhs, rhs in
+            if lhs.zOrder == rhs.zOrder {
+                lhs.id.rawValue < rhs.id.rawValue
+            } else {
+                lhs.zOrder < rhs.zOrder
+            }
+        }
+    }
+
+    /// Compatibility initializer while fixtures move to generic projected layers.
     public init(
         mode: ProjectionMode,
         generatedAt: Date,
@@ -483,11 +583,44 @@ public struct ProjectionFrame: Hashable, Sendable, CustomStringConvertible,
         marks: [ProjectedMark],
     ) {
         precondition((0 ... 1).contains(geographyOpacity))
-        self.mode = mode
-        self.generatedAt = generatedAt
-        self.geography = geography
-        self.geographyOpacity = geographyOpacity
-        self.marks = marks
+        var layers: [ProjectedLayer] = []
+        if let geography {
+            layers.append(
+                ProjectedLayer(
+                    id: .geography,
+                    zOrder: 0,
+                    opacity: geographyOpacity,
+                    content: .lines(geography),
+                ),
+            )
+        }
+        let marksByLayer = Dictionary(grouping: marks, by: { $0.id.layerID })
+        layers.append(contentsOf: marksByLayer.map { id, marks in
+            ProjectedLayer(
+                id: id,
+                zOrder: Self.standardZOrder(for: id),
+                opacity: 1,
+                content: .marks(marks),
+            )
+        })
+        self.init(
+            experienceID: .airAndSpace,
+            mode: mode,
+            generatedAt: generatedAt,
+            layers: layers,
+        )
+    }
+
+    public var marks: [ProjectedMark] {
+        layers.flatMap(\.marks)
+    }
+
+    public var geography: ProjectedGeography? {
+        layers.first { $0.id == .geography }?.lines
+    }
+
+    public var geographyOpacity: Double {
+        layers.first { $0.id == .geography }?.opacity ?? 1
     }
 
     public var geographySegments: [ProjectedGeographySegment] {
@@ -506,5 +639,95 @@ public struct ProjectionFrame: Hashable, Sendable, CustomStringConvertible,
 
     public var debugDescription: String {
         description
+    }
+
+    public func replacingMarks(_ marks: [ProjectedMark]) -> ProjectionFrame {
+        let marksByLayer = Dictionary(grouping: marks, by: { $0.id.layerID })
+        var replacedLayerIDs: Set<LayerID> = []
+        var newLayers = layers.map { layer in
+            guard case .marks = layer.content else { return layer }
+            replacedLayerIDs.insert(layer.id)
+            return ProjectedLayer(
+                id: layer.id,
+                zOrder: layer.zOrder,
+                opacity: layer.opacity,
+                content: .marks(marksByLayer[layer.id] ?? []),
+            )
+        }
+        for (id, layerMarks) in marksByLayer where replacedLayerIDs.contains(id) == false {
+            newLayers.append(
+                ProjectedLayer(
+                    id: id,
+                    zOrder: Self.standardZOrder(for: id),
+                    opacity: 1,
+                    content: .marks(layerMarks),
+                ),
+            )
+        }
+        return ProjectionFrame(
+            experienceID: experienceID,
+            mode: mode,
+            generatedAt: generatedAt,
+            layers: newLayers,
+        )
+    }
+
+    public func replacingLineLayer(
+        id: LayerID,
+        lines: ProjectedLineCollection?,
+        opacity: Double,
+    ) -> ProjectionFrame {
+        precondition((0 ... 1).contains(opacity))
+        var replaced = false
+        var newLayers = layers.compactMap { layer -> ProjectedLayer? in
+            guard layer.id == id else { return layer }
+            replaced = true
+            guard let lines else { return nil }
+            return ProjectedLayer(
+                id: id,
+                zOrder: layer.zOrder,
+                opacity: opacity,
+                content: .lines(lines),
+            )
+        }
+        if replaced == false, let lines {
+            newLayers.append(
+                ProjectedLayer(
+                    id: id,
+                    zOrder: Self.standardZOrder(for: id),
+                    opacity: opacity,
+                    content: .lines(lines),
+                ),
+            )
+        }
+        return ProjectionFrame(
+            experienceID: experienceID,
+            mode: mode,
+            generatedAt: generatedAt,
+            layers: newLayers,
+        )
+    }
+
+    public func replacingLineLayers(_ lineLayers: [ProjectedLayer]) -> ProjectionFrame {
+        precondition(lineLayers.allSatisfy { layer in
+            if case .lines = layer.content { true } else { false }
+        })
+        precondition(Set(lineLayers.map(\.id)).count == lineLayers.count)
+        return ProjectionFrame(
+            experienceID: experienceID,
+            mode: mode,
+            generatedAt: generatedAt,
+            layers: layers.filter { layer in
+                if case .lines = layer.content { false } else { true }
+            } + lineLayers,
+        )
+    }
+
+    private static func standardZOrder(for id: LayerID) -> Int {
+        if id == .geography { return 0 }
+        if id == .stars { return 10 }
+        if id == .transitNetwork { return 20 }
+        if id == .satellites { return 50 }
+        return 100
     }
 }

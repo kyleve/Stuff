@@ -2,8 +2,8 @@
 
 ThrowCore is Throw's UI-independent domain and services module. It normalizes
 aircraft observations from the explicitly selected provider, maintains one
-polling stream, predicts short motion windows, and projects semantic layer
-marks and bundled geographic lines into immutable frames for the UI.
+polling stream, predicts motion, and projects semantic experience layers into
+immutable frames for the UI.
 
 ## Install
 
@@ -16,11 +16,11 @@ not depend on SwiftUI, UIKit, WhereCore, or RegionKit.
 The live catalog and public declarations in `Sources/` are authoritative. The
 important boundaries are:
 
-- validated geographic, viewport, calibration, source, layer, and frame
-  values;
+- validated geographic, viewport, calibration, source, experience, playlist,
+  layer, and frame values;
 - fixed Map centers that are stored by coarse observer region;
-- `LayerCatalog.standard`, whose typed Flights and Geography descriptors
-  construct live runtimes and whose erased list is the catalog boundary;
+- `ProjectionExperienceCatalog.standard` and `LayerCatalog.standard`, which
+  define fixed View and layer membership at compile time;
 - `AircraftObservationSource`, the provider-neutral one-shot feed contract;
 - HTTP, preference, credential, location, and clock protocols, with live and
   deterministic in-memory implementations;
@@ -40,12 +40,17 @@ Configuration carries a typed credential reference, never the credential itself.
 ## Composition
 
 The app creates live preference and credential stores once. ThrowUI's shared
-session drives the polling coordinator according to foreground state, quiet
-state, and output demand. The session constructs typed runtimes from the same
-catalog that the controller presents. The worker decodes bundled geography once
-and caches projected lines by Map center, viewport, and calibration. It does not
-rebuild static lines at the 30 Hz aircraft frame rate. Expensive decode and
-projection work stays off the main actor. Generation checks reject late work.
+session drives the polling coordinator according to foreground, quiet, and
+output demand. Version-two preferences separate global, playlist, and Air &
+Space state. The codec migrates version-one data under the existing storage key.
+Keychain credential IDs do not change.
+
+`ProjectionExperienceFrame` contains semantic layer frames. `ProjectionFrame`
+contains ordered projected mark and line layers. Line styles are typed, so
+Geography and future transit routes use one projection path. The worker caches
+static lines by layer, revision, Map center, viewport, and calibration. It does
+not rebuild them at the 30 Hz mark rate. Expensive work stays off the main actor.
+Generation checks reject late work.
 Position prediction continues until a later successful poll replaces the
 snapshot. A retryable poll failure starts a 15-second grace period and a
 15-second fade.

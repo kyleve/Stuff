@@ -11,6 +11,28 @@ public enum GeographyLineKind: String, CaseIterable, Codable, Hashable, Sendable
     case primaryRoad = "primary-road"
 }
 
+/// A stable style identity shared by geographic and future network line layers.
+public struct ProjectionLineStyleID: Hashable, Sendable {
+    public static let transitRoute = ProjectionLineStyleID(rawValue: "transit.route")
+
+    public let rawValue: String
+
+    public init(rawValue: String) {
+        precondition(rawValue.isEmpty == false)
+        self.rawValue = rawValue
+    }
+
+    public init(geographyKind: GeographyLineKind) {
+        self.init(rawValue: "geography.\(geographyKind.rawValue)")
+    }
+
+    public var geographyKind: GeographyLineKind? {
+        let prefix = "geography."
+        guard rawValue.hasPrefix(prefix) else { return nil }
+        return GeographyLineKind(rawValue: String(rawValue.dropFirst(prefix.count)))
+    }
+}
+
 /// Controls the largest Map radius at which a geographic line can appear.
 public enum GeographyDetailLevel: String, CaseIterable, Codable, Hashable, Sendable {
     case wide
@@ -60,15 +82,15 @@ public struct GeographicBounds: Hashable, Sendable {
     }
 }
 
-/// A generalized geographic line with enough metadata for local detail pruning.
-public struct GeographicPolyline: Hashable, Sendable {
-    public let kind: GeographyLineKind
+/// A generalized geographic line used by static context and future route layers.
+public struct ProjectionPolyline: Hashable, Sendable {
+    public let styleID: ProjectionLineStyleID
     public let detailLevel: GeographyDetailLevel
     public let bounds: GeographicBounds
     public let coordinates: [GeoCoordinate]
 
     public init(
-        kind: GeographyLineKind,
+        styleID: ProjectionLineStyleID,
         detailLevel: GeographyDetailLevel,
         bounds: GeographicBounds,
         coordinates: [GeoCoordinate],
@@ -83,12 +105,35 @@ public struct GeographicPolyline: Hashable, Sendable {
         else {
             throw GeographyDataError.invalidArchive
         }
-        self.kind = kind
+        self.styleID = styleID
         self.detailLevel = detailLevel
         self.bounds = bounds
         self.coordinates = coordinates
     }
+
+    public init(
+        kind: GeographyLineKind,
+        detailLevel: GeographyDetailLevel,
+        bounds: GeographicBounds,
+        coordinates: [GeoCoordinate],
+    ) throws {
+        try self.init(
+            styleID: ProjectionLineStyleID(geographyKind: kind),
+            detailLevel: detailLevel,
+            bounds: bounds,
+            coordinates: coordinates,
+        )
+    }
+
+    public var kind: GeographyLineKind {
+        guard let kind = styleID.geographyKind else {
+            preconditionFailure("A non-geographic line style has no Geography kind")
+        }
+        return kind
+    }
 }
+
+public typealias GeographicPolyline = ProjectionPolyline
 
 public enum GeographyDataError: Error, Equatable, Sendable {
     case resourceMissing

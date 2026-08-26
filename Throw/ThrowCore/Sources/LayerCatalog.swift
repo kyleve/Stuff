@@ -78,7 +78,7 @@ public struct AnyLayerDescriptor: Identifiable, Sendable {
     }
 }
 
-/// The fixed v1 layer catalog. New layers are source changes, never downloaded
+/// The fixed layer catalog. New layers are source changes, never downloaded
 /// runtime plugins.
 public struct LayerCatalog: Sendable {
     public static let standard = LayerCatalog(
@@ -137,6 +137,28 @@ public struct LayerCatalog: Sendable {
                 EmptyLayerRuntime(layerID: .satellites)
             },
         )
+        let transitNetwork = LayerDescriptor(
+            id: LayerID.transitNetwork,
+            availability: LayerAvailability.planned(
+                explanation: "Transit network context is planned for a future release.",
+            ),
+            supportedModes: Set([ProjectionMode.map]),
+            zOrder: 20,
+            runtimeFactory: LayerRuntimeFactory {
+                EmptyLayerRuntime(layerID: .transitNetwork)
+            },
+        )
+        let transitVehicles = LayerDescriptor(
+            id: LayerID.transitVehicles,
+            availability: LayerAvailability.planned(
+                explanation: "Live transit vehicles are planned for a future release.",
+            ),
+            supportedModes: Set([ProjectionMode.map]),
+            zOrder: 100,
+            runtimeFactory: LayerRuntimeFactory {
+                EmptyLayerRuntime(layerID: .transitVehicles)
+            },
+        )
 
         self.flights = flights
         self.geography = geography
@@ -145,6 +167,8 @@ public struct LayerCatalog: Sendable {
             AnyLayerDescriptor(geography),
             AnyLayerDescriptor(stars),
             AnyLayerDescriptor(satellites),
+            AnyLayerDescriptor(transitNetwork),
+            AnyLayerDescriptor(transitVehicles),
         ]
     }
 }

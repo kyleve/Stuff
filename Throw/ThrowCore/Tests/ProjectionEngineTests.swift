@@ -84,6 +84,69 @@ struct ProjectionEngineTests {
         #expect(abs(eastRange.value - 6.004) < 0.01)
     }
 
+    @Test func genericExperienceProjectionKeepsLineAndMarkLayersSeparate() throws {
+        let observer = try ThrowCoreFixture.observer(latitude: 0, longitude: 0, altitudeFeet: 0)
+        let vehicle = try ProjectionMark(
+            id: LayerMarkID(
+                layerID: .transitVehicles,
+                namespace: .aircraft,
+                rawValue: "vehicle",
+            ),
+            anchor: .geodetic(GeodeticAnchor(
+                coordinate: GeoCoordinate(latitude: 0.1, longitude: 0),
+                altitude: Altitude(feet: 0),
+                altitudeQuality: .geometric,
+            )),
+            glyph: .aircraft(.unknownAirborne),
+            label: nil,
+            prominence: .primary,
+            velocity: nil,
+            freshness: MarkFreshness(
+                positionObservedAt: ThrowCoreFixture.date,
+                fetchedAt: ThrowCoreFixture.date,
+                availability: .current,
+            ),
+        )
+        let network = ProjectedLineCollection(
+            id: ProjectionLineRevisionID(rawValue: 4),
+            segments: [ProjectedLineSegment(
+                styleID: .transitRoute,
+                start: ProjectionPoint(x: 0.2, y: 0.2),
+                end: ProjectionPoint(x: 0.8, y: 0.8),
+                startsNewSubpath: true,
+            )],
+        )
+
+        let frame = try engine.frame(
+            experienceFrame: ProjectionExperienceFrame(
+                experienceID: .transit,
+                layers: [LayerFrame(
+                    layerID: .transitVehicles,
+                    observedAt: ThrowCoreFixture.date,
+                    content: .marks([vehicle]),
+                )],
+            ),
+            projectedLineLayers: [ProjectedLayer(
+                id: .transitNetwork,
+                zOrder: 10,
+                opacity: 0.3,
+                content: .lines(network),
+            )],
+            layerZOrders: [.transitVehicles: 20],
+            observer: observer,
+            mapCenter: observer.coordinate,
+            viewport: .map(MapViewport(radius: NauticalMiles(value: 50))),
+            calibration: .defaultValue,
+            geometry: ProjectionGeometry(width: 1920, height: 1080),
+            generatedAt: ThrowCoreFixture.date,
+        )
+
+        #expect(frame.experienceID == .transit)
+        #expect(frame.layers.map(\.id) == [.transitNetwork, .transitVehicles])
+        #expect(frame.layers[0].lines == network)
+        #expect(frame.layers[1].marks.map(\.id.rawValue) == ["vehicle"])
+    }
+
     @Test func mapUsesIndependentCenterAndCanProjectObserverMarker() throws {
         let observer = try ThrowCoreFixture.observer(latitude: 0, longitude: 0)
         let mapCenter = try engine.destination(

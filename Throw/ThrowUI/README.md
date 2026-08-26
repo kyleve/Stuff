@@ -23,15 +23,25 @@ scene ownership and the idle timer.
 
 ## Architecture
 
-`ThrowSession` is a `@MainActor` observable mirror over the injected ThrowCore
-stores and polling actor. Views render its state and send intents back to it;
-they never access UserDefaults, Keychain, location, or the network directly.
-`ProjectionSurface` is the sole renderer. It draws immutable
-`ProjectionFrame` values and has presentation-specific accessibility only—the
-projector is decorative, while Preview exposes one status summary.
-The controller enumerates `LayerCatalog` descriptors instead of maintaining a
-second layer roster. Projection invokes the catalog's typed Flights and
-Geography runtimes. Runtime type erasure does not enter the rendering pipeline.
+`ThrowSession` is a `@MainActor` observable mirror over injected stores and
+focused actors. `AirAndSpaceRuntime` owns aircraft polling, semantic Flights
+frames, motion, and route enrichment. `ProjectionExperienceCoordinator` owns
+selection, one rotation clock, prewarming, and lifecycle reconciliation. Every
+scene observes the same coordinator and active experience.
+
+Views render session state and send intents back to it. They never access
+UserDefaults, Keychain, location, or the network. `ProjectionSurface` is the
+sole renderer. It iterates the ordered layers in an immutable generic
+`ProjectionFrame`. It does not enumerate a global catalog or special-case
+Flights. The projector is decorative. Preview exposes the active experience
+name, health, and one status summary.
+
+The worker keeps independent animation, collision, correction, acquisition,
+and static-line state for each experience. Prewarming prepares a complete
+target frame without changing the visible frame. A switch fades the surface to
+black, exchanges frames at black, and fades back in. Reduce Motion keeps this
+opacity fade but removes experience-specific movement.
+
 In Map mode, the surface draws cached geography before aircraft. Lines use
 constant screen-space widths and a separate restrained intensity. Roads and
 county boundaries remain dimmer than coastlines and major boundaries. True Sky
@@ -72,6 +82,13 @@ estimate instead of implying that the live feed failed.
 Appearance is resolved through `ThrowStylesheet` at `throwBroadwayRoot()`.
 Preview and snapshot fixtures use memory-only dependencies and deterministic
 frames.
+
+The controller calls experiences “Views.” Root settings keep location,
+calibration, master intensity, quiet hours, and About global. The Views screen
+owns playlist order, dwell values, rotation, health, and experience setup. Air
+& Space owns its source, mode, Map centers, layers, labels, marks, accents,
+activity cues, and Geography intensity. Transit stays disabled until a provider
+is implemented.
 
 ## Limitations
 

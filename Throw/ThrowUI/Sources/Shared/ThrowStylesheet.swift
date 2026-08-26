@@ -50,6 +50,12 @@ extension ThrowStylesheet {
     }
 
     struct ProjectionStyle: Equatable {
+        struct ExperienceTransitionStyle: Equatable {
+            var fadeDuration: Double
+
+            static let standard = ExperienceTransitionStyle(fadeDuration: 0.4)
+        }
+
         struct LabelStyle: Equatable {
             struct LineStyle: Equatable {
                 var font: Font
@@ -79,6 +85,7 @@ extension ThrowStylesheet {
         var minimumMarkSize: CGFloat
         var standardMarkSize: CGFloat
         var label: LabelStyle
+        var experienceTransition: ExperienceTransitionStyle
         var correctionDuration: Double
         var modeChangeDuration: Double
 
@@ -104,6 +111,7 @@ extension ThrowStylesheet {
                 routeTracking: -0.4,
                 offset: 8,
             ),
+            experienceTransition: .standard,
             correctionDuration: 0.75,
             modeChangeDuration: 1.2,
         )

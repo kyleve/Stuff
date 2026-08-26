@@ -22,15 +22,10 @@ struct ThrowDashboardView: View {
                     }
                 }
 
-                Section {
-                    FeedHealthRow(health: session.feedHealth)
+                Section(String(localized: .dashboardGlobalStatus)) {
                     LabeledContent(
                         String(localized: .dashboardOutput),
                         value: session.outputHealth.localizedDescription,
-                    )
-                    LabeledContent(
-                        String(localized: .dashboardSource),
-                        value: session.sourceDisplayName,
                     )
                     LabeledContent(String(localized: .dashboardCalibration)) {
                         // `Label` here greedily expands the row on iOS 27.
@@ -45,8 +40,18 @@ struct ThrowDashboardView: View {
                         }
                         .foregroundStyle(session.calibrationVerified ? .green : .orange)
                     }
-                    LabeledContent(String(localized: .dashboardAircraftVisible)) {
-                        Text(session.feedHealth.visibleAircraft, format: .number)
+                    LocationHealthRow(health: session.locationHealth)
+                }
+
+                Section(String(localized: .dashboardNowProjecting)) {
+                    let presentation = ProjectionExperiencePresentation(
+                        id: session.activeExperienceID ?? .airAndSpace,
+                    )
+                    Label(presentation.name, systemSymbol: presentation.symbol)
+                        .font(.headline)
+                    FeedHealthRow(health: session.activeExperienceHealth)
+                    LabeledContent(presentation.visibleContentLabel) {
+                        Text(session.activeExperienceHealth.visibleContentCount, format: .number)
                     }
                     if let lastUpdate = session.lastUpdate {
                         LabeledContent(String(localized: .dashboardLastUpdate)) {
@@ -58,6 +63,84 @@ struct ThrowDashboardView: View {
                             Text(verbatim: relativeDescription(for: nextRetry))
                         }
                     }
+                    if let dwellEndsAt = session.experienceDwellEndsAt {
+                        LabeledContent(String(localized: .dashboardRemainingDwell)) {
+                            RemainingDwellText(end: dwellEndsAt)
+                        }
+                    }
+                    if let nextExperienceID = session.nextExperienceID {
+                        LabeledContent(
+                            String(localized: .dashboardNextView),
+                            value: ProjectionExperiencePresentation(id: nextExperienceID).name,
+                        )
+                    }
+                    if let prewarmingExperienceID = session.prewarmingExperienceID {
+                        LabeledContent(
+                            String(localized: .dashboardPreparingView),
+                            value: ProjectionExperiencePresentation(id: prewarmingExperienceID)
+                                .name,
+                        )
+                    }
+                    if let failure = session.experienceSelectionFailure {
+                        Label {
+                            Text(failure.localizedDescription)
+                        } icon: {
+                            Image(systemSymbol: .exclamationmarkTriangleFill)
+                        }
+                        .foregroundStyle(.red)
+                    }
+                    if session.experienceRotationHasControls {
+                        ControlGroup {
+                            Button(
+                                String(localized: .dashboardPreviousView),
+                                systemSymbol: .backwardFill,
+                            ) {
+                                Task(name: "Throw select previous View") {
+                                    await session.selectPreviousExperience()
+                                }
+                            }
+                            if session.isExperienceRotationPaused {
+                                Button(
+                                    String(localized: .dashboardResumeRotation),
+                                    systemSymbol: .playFill,
+                                ) {
+                                    Task(name: "Throw resume View rotation") {
+                                        await session.resumeExperienceRotation()
+                                    }
+                                }
+                            } else {
+                                Button(
+                                    String(localized: .dashboardPauseRotation),
+                                    systemSymbol: .pauseFill,
+                                ) {
+                                    session.pauseExperienceRotation()
+                                }
+                            }
+                            Button(
+                                String(localized: .dashboardNextViewAction),
+                                systemSymbol: .forwardFill,
+                            ) {
+                                Task(name: "Throw select next View") {
+                                    await session.selectNextExperience()
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Section(ProjectionExperiencePresentation(id: .airAndSpace).name) {
+                    LabeledContent(
+                        String(localized: .dashboardSource),
+                        value: session.sourceDisplayName,
+                    )
+                    LabeledContent(String(localized: .sourceInterval)) {
+                        Text(
+                            Duration.seconds(session.pollingIntervalSeconds),
+                            format: .time(pattern: .minuteSecond),
+                        )
+                    }
+                    ProjectionModeControl(session: session)
+                    LayerCatalogRows(session: session, experienceID: .airAndSpace)
                 }
 
                 if session.sourceChoice == .adsbExchange {
@@ -80,16 +163,7 @@ struct ThrowDashboardView: View {
                     )
                 }
 
-                Section(String(localized: .settingsMode)) {
-                    ProjectionModeControl(session: session)
-                }
-
-                Section(String(localized: .settingsLayers)) {
-                    LayerCatalogRows(session: session)
-                }
-
                 Section(String(localized: .dashboardLocation)) {
-                    LocationHealthRow(health: session.locationHealth)
                     Button(
                         String(localized: .dashboardRefreshLocation),
                         systemSymbol: .locationFill,
@@ -205,6 +279,22 @@ struct ThrowDashboardView: View {
     }
 }
 
+private struct RemainingDwellText: View {
+    let end: Date
+
+    @Environment(\.throwDateProvider) private var dateProvider
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { _ in
+            let seconds = max(0, Int(ceil(end.timeIntervalSince(dateProvider.now()))))
+            Text(
+                Duration.seconds(seconds),
+                format: .time(pattern: .minuteSecond),
+            )
+        }
+    }
+}
+
 #if DEBUG
     extension ThrowDashboardView: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
@@ -249,6 +339,34 @@ struct ThrowDashboardView: View {
                 settle: .immediate,
             ) {
                 snapshotView(session: .adsbExchangeFastCadenceSnapshotFixture())
+            }
+            SnapshotCase(
+                name: "View Rotation Enabled",
+                configurations: focusedConfigurations,
+                settle: .immediate,
+            ) {
+                snapshotView(session: .experienceDashboardSnapshotFixture(.rotating))
+            }
+            SnapshotCase(
+                name: "View Rotation Paused",
+                configurations: focusedConfigurations,
+                settle: .immediate,
+            ) {
+                snapshotView(session: .experienceDashboardSnapshotFixture(.paused))
+            }
+            SnapshotCase(
+                name: "Prewarming Transit",
+                configurations: focusedConfigurations,
+                settle: .immediate,
+            ) {
+                snapshotView(session: .experienceDashboardSnapshotFixture(.prewarming))
+            }
+            SnapshotCase(
+                name: "Failed View Selection",
+                configurations: focusedConfigurations,
+                settle: .immediate,
+            ) {
+                snapshotView(session: .experienceDashboardSnapshotFixture(.failedSelection))
             }
         }
 

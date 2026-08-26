@@ -3,12 +3,22 @@ import ThrowCore
 
 /// Off-main-actor projection, label layout, correction easing, and mode morphing.
 actor ProjectionFrameWorker {
+    private struct ExperienceState {
+        var labelResolver = ProjectionLabelCollisionResolver()
+        var previousFrame: ProjectionFrame?
+        var lastMarkRevisions: [LayerID: Date] = [:]
+        var lastPresentationSignature: ProjectionPresentationSignature?
+        var modeTransition: ModeTransition?
+        var correctionTransition: CorrectionTransition?
+        var targetHistory = ProjectionTargetHistory()
+        var motionDiagnostics = ProjectionMotionDiagnosticsAccumulator()
+        var presentationState = PresentationState()
+    }
+
     private let engine = ProjectionEngine()
-    private let flightsRuntime: FlightsLayerRuntime
     private let geographyRuntime: GeographyLayerRuntime
     private let geographyLogger: any GeographyLogging
     private let motionLogger: any ProjectionMotionLogging
-    private var labelResolver = ProjectionLabelCollisionResolver()
     private var loadedGeographyLayerFrame: LayerFrame?
     private var geographyLayerLoadTask: Task<Void, Never>?
     private var geographyLoadWaiters: [UInt64: CheckedContinuation<LayerFrame, any Error>] = [:]
@@ -18,44 +28,32 @@ actor ProjectionFrameWorker {
     private var nextGeographyWaiterID: UInt64 = 0
     private var geographyLoadGeneration: UInt64 = 0
     private var geographyLoadFailed = false
-    private var geographyProjectionCache: GeographyProjectionCache?
-    private var geographyProjectionSequence: UInt64 = 0
-    private var previousFrame: ProjectionFrame?
-    private var lastLayerObservedAt: Date?
-    private var lastPresentationSignature: ProjectionPresentationSignature?
-    private var modeTransition: ModeTransition?
-    private var correctionTransition: CorrectionTransition?
-    private var targetHistory = ProjectionTargetHistory()
-    private var motionDiagnostics = ProjectionMotionDiagnosticsAccumulator()
-    private var presentationState = PresentationState()
+    private var staticLineProjectionCache: [StaticLineProjectionCacheKey: ProjectedLineCollection] =
+        [:]
+    private var lineProjectionSequence: UInt64 = 0
+    private var experienceStates: [ProjectionExperienceID: ExperienceState] = [:]
 
     init(
-        flightsRuntime: FlightsLayerRuntime,
         geographyRuntime: GeographyLayerRuntime,
         geographyLogger: any GeographyLogging,
         motionLogger: any ProjectionMotionLogging,
     ) {
-        self.flightsRuntime = flightsRuntime
         self.geographyRuntime = geographyRuntime
         self.geographyLogger = geographyLogger
         self.motionLogger = motionLogger
     }
 
-    func layerFrame(
-        snapshot: AircraftSnapshot,
-        observer: ObserverPosition,
-        labelMode: FlightLabelMode,
-        routeResults: [FlightCallsign: FlightRouteResult],
-        availability: MarkAvailability,
-    ) async throws -> LayerFrame {
-        try await flightsRuntime.frame(
-            for: FlightsLayerInput(
-                snapshot: snapshot,
-                observer: observer,
-                labelMode: labelMode,
-                routeResults: routeResults,
-                availability: availability,
-            ),
+    /// Compatibility initializer for focused worker tests that still build a Flights runtime.
+    init(
+        flightsRuntime _: FlightsLayerRuntime,
+        geographyRuntime: GeographyLayerRuntime,
+        geographyLogger: any GeographyLogging,
+        motionLogger: any ProjectionMotionLogging,
+    ) {
+        self.init(
+            geographyRuntime: geographyRuntime,
+            geographyLogger: geographyLogger,
+            motionLogger: motionLogger,
         )
     }
 
@@ -90,8 +88,37 @@ actor ProjectionFrameWorker {
         generatedAt: Date,
         reduceMotion: Bool,
     ) async throws -> ProjectionFrameWorkerOutput {
+        try await frame(
+            experienceID: .airAndSpace,
+            layerFrames: layerFrame.map { [$0] } ?? [],
+            geographyEnabled: geographyEnabled,
+            observer: observer,
+            mapCenter: mapCenter,
+            viewport: viewport,
+            calibration: calibration,
+            generatedAt: generatedAt,
+            reduceMotion: reduceMotion,
+        )
+    }
+
+    func frame(
+        experienceID: ProjectionExperienceID,
+        layerFrames: [LayerFrame],
+        geographyEnabled: Bool,
+        observer: ObserverPosition,
+        mapCenter: GeoCoordinate,
+        viewport: ProjectionViewport,
+        calibration: ProjectionCalibration,
+        generatedAt: Date,
+        reduceMotion: Bool,
+    ) async throws -> ProjectionFrameWorkerOutput {
         try Task.checkCancellation()
-        let observationChanged = lastLayerObservedAt != layerFrame?.observedAt
+        var experienceState = experienceStates[experienceID] ?? ExperienceState()
+        let flightsLayerFrame = layerFrames.first { $0.layerID == .flights }
+        let markRevisions = Dictionary(uniqueKeysWithValues: layerFrames.compactMap { frame in
+            if case .marks = frame.content { (frame.layerID, frame.observedAt) } else { nil }
+        })
+        let observationChanged = experienceState.lastMarkRevisions != markRevisions
         let geographyResult: GeographyProjectionResult
         do {
             geographyResult = try await projectedGeography(
@@ -107,9 +134,45 @@ actor ProjectionFrameWorker {
             geographyResult = .unavailable
         }
         try Task.checkCancellation()
+        let zOrders = Dictionary(
+            uniqueKeysWithValues: LayerCatalog.standard.descriptors.map { ($0.id, $0.zOrder) },
+        )
+        var projectedLineLayers: [ProjectedLayer] = geographyResult.projection.map {
+            [
+                ProjectedLayer(
+                    id: .geography,
+                    zOrder: zOrders[.geography] ?? 0,
+                    opacity: 1,
+                    content: .lines($0),
+                ),
+            ]
+        } ?? []
+        for lineFrame in layerFrames {
+            guard case .lines = lineFrame.content,
+                  projectedLineLayers.contains(where: { $0.id == lineFrame.layerID }) == false
+            else { continue }
+            let projection = try projectedLineCollection(
+                for: lineFrame,
+                mapCenter: mapCenter,
+                viewport: viewport,
+                calibration: calibration,
+            )
+            projectedLineLayers.append(
+                ProjectedLayer(
+                    id: lineFrame.layerID,
+                    zOrder: zOrders[lineFrame.layerID] ?? 0,
+                    opacity: 1,
+                    content: .lines(projection),
+                ),
+            )
+        }
         let target = try engine.frame(
-            layerFrames: layerFrame.map { [$0] } ?? [],
-            geography: geographyResult.projection,
+            experienceFrame: ProjectionExperienceFrame(
+                experienceID: experienceID,
+                layers: layerFrames,
+            ),
+            projectedLineLayers: projectedLineLayers,
+            layerZOrders: zOrders,
             observer: observer,
             mapCenter: mapCenter,
             viewport: viewport,
@@ -123,9 +186,10 @@ actor ProjectionFrameWorker {
             at: generatedAt,
             observationChanged: observationChanged,
             reduceMotion: reduceMotion,
+            state: &experienceState,
         )
-        if let event = motionDiagnostics.record(
-            layerFrame: layerFrame,
+        if let event = experienceState.motionDiagnostics.record(
+            layerFrame: flightsLayerFrame,
             target: target,
             at: generatedAt,
             observationChanged: observationChanged,
@@ -133,15 +197,16 @@ actor ProjectionFrameWorker {
             motionLogger.record(event)
         }
         try Task.checkCancellation()
-        previousFrame = frame
-        lastLayerObservedAt = layerFrame?.observedAt
-        let effects = presentationState.effects(
-            layerFrame: layerFrame,
+        experienceState.previousFrame = frame
+        experienceState.lastMarkRevisions = markRevisions
+        let effects = experienceState.presentationState.effects(
+            layerFrame: flightsLayerFrame,
             projectedFrame: frame,
             at: generatedAt,
             observationChanged: observationChanged,
             reduceMotion: reduceMotion,
         )
+        experienceStates[experienceID] = experienceState
         let observerPoint: ProjectionPoint? = if case let .map(mapViewport) = viewport {
             try engine.mapPoint(
                 for: observer.coordinate,
@@ -169,34 +234,49 @@ actor ProjectionFrameWorker {
     ) async throws -> GeographyProjectionResult {
         guard isEnabled, case .map = viewport else { return .notRequested }
         guard geographyLoadFailed == false else { return .unavailable }
-        let key = GeographyProjectionCacheKey(
+        let layerFrame = try await loadGeographyLayerFrame()
+        try Task.checkCancellation()
+        return try .projected(
+            projectedLineCollection(
+                for: layerFrame,
+                mapCenter: mapCenter,
+                viewport: viewport,
+                calibration: calibration,
+            ),
+        )
+    }
+
+    private func projectedLineCollection(
+        for layerFrame: LayerFrame,
+        mapCenter: GeoCoordinate,
+        viewport: ProjectionViewport,
+        calibration: ProjectionCalibration,
+    ) throws -> ProjectedLineCollection {
+        let key = StaticLineProjectionCacheKey(
+            layerID: layerFrame.layerID,
+            revision: layerFrame.observedAt,
             mapCenter: mapCenter,
             viewport: viewport,
             calibration: calibration,
         )
-        if geographyProjectionCache?.key == key {
-            guard let projection = geographyProjectionCache?.projection else {
-                preconditionFailure("A matching geography cache must contain a projection")
-            }
-            return .projected(projection)
+        if let projection = staticLineProjectionCache[key] {
+            return projection
         }
-        let layerFrame = try await loadGeographyLayerFrame()
-        try Task.checkCancellation()
-        let segments = try engine.geographySegments(
-            lines: layerFrame.geographicLines,
+        let segments = try engine.lineSegments(
+            lines: layerFrame.lines,
             mapCenter: mapCenter,
             viewport: viewport,
             calibration: calibration,
             geometry: ProjectionGeometry(width: 1, height: 1),
         )
         try Task.checkCancellation()
-        geographyProjectionSequence &+= 1
-        let projection = ProjectedGeography(
-            id: GeographyProjectionID(rawValue: geographyProjectionSequence),
+        lineProjectionSequence &+= 1
+        let projection = ProjectedLineCollection(
+            id: ProjectionLineRevisionID(rawValue: lineProjectionSequence),
             segments: segments,
         )
-        geographyProjectionCache = GeographyProjectionCache(key: key, projection: projection)
-        return .projected(projection)
+        staticLineProjectionCache[key] = projection
+        return projection
     }
 
     private func loadGeographyLayerFrame() async throws -> LayerFrame {
@@ -276,15 +356,17 @@ actor ProjectionFrameWorker {
     }
 
     func reset() {
-        previousFrame = nil
-        lastLayerObservedAt = nil
-        lastPresentationSignature = nil
-        modeTransition = nil
-        correctionTransition = nil
-        targetHistory = ProjectionTargetHistory()
-        motionDiagnostics = ProjectionMotionDiagnosticsAccumulator()
-        presentationState = PresentationState()
-        labelResolver = ProjectionLabelCollisionResolver()
+        experienceStates = [:]
+    }
+
+    func reset(experienceID: ProjectionExperienceID) {
+        experienceStates.removeValue(forKey: experienceID)
+    }
+
+    func experienceBecameInactive(_ id: ProjectionExperienceID, at date: Date) {
+        guard var state = experienceStates[id] else { return }
+        state.presentationState.semanticFeedBecameInactive(at: date)
+        experienceStates[id] = state
     }
 
     #if DEBUG
@@ -320,30 +402,35 @@ actor ProjectionFrameWorker {
         at date: Date,
         observationChanged: Bool,
         reduceMotion: Bool,
+        state: inout ExperienceState,
     ) -> ProjectionFrame {
-        guard let previousFrame else {
-            let resolvedTarget = labelResolver.resolve(target)
-            lastPresentationSignature = ProjectionPresentationSignature(frame: resolvedTarget)
-            targetHistory.record(resolvedTarget)
+        guard let previousFrame = state.previousFrame else {
+            let resolvedTarget = state.labelResolver.resolve(target)
+            state.lastPresentationSignature = ProjectionPresentationSignature(
+                frame: resolvedTarget,
+            )
+            state.targetHistory.record(resolvedTarget)
             return resolvedTarget
         }
-        if previousFrame.mode != target.mode, modeTransition?.targetMode != target.mode {
-            modeTransition = ModeTransition(
+        if previousFrame.mode != target.mode,
+           state.modeTransition?.targetMode != target.mode
+        {
+            state.modeTransition = ModeTransition(
                 startedAt: date,
                 source: previousFrame,
                 targetMode: target.mode,
             )
-            correctionTransition = nil
-            targetHistory = ProjectionTargetHistory()
-            labelResolver = ProjectionLabelCollisionResolver()
+            state.correctionTransition = nil
+            state.targetHistory = ProjectionTargetHistory()
+            state.labelResolver = ProjectionLabelCollisionResolver()
         }
-        let resolvedTarget = labelResolver.resolve(target)
-        defer { targetHistory.record(resolvedTarget) }
+        let resolvedTarget = state.labelResolver.resolve(target)
+        defer { state.targetHistory.record(resolvedTarget) }
         let presentationSignature = ProjectionPresentationSignature(frame: resolvedTarget)
-        let presentationChanged = lastPresentationSignature != presentationSignature
-        lastPresentationSignature = presentationSignature
+        let presentationChanged = state.lastPresentationSignature != presentationSignature
+        state.lastPresentationSignature = presentationSignature
 
-        if let transition = modeTransition {
+        if let transition = state.modeTransition {
             // Resolve the destination layout before it can become visible.
             // Source labels fade to zero, then resolved target labels replace
             // them at black and fade back in without a visible placement jump.
@@ -352,7 +439,7 @@ actor ProjectionFrameWorker {
                 max(0, date.timeIntervalSince(transition.startedAt) / AnimationDuration.mode),
             )
             if progress >= 1 {
-                modeTransition = nil
+                state.modeTransition = nil
                 return resolvedTarget
             }
             if reduceMotion {
@@ -374,16 +461,16 @@ actor ProjectionFrameWorker {
         }
 
         if observationChanged || presentationChanged {
-            correctionTransition = CorrectionTransition(
+            state.correctionTransition = CorrectionTransition(
                 startedAt: date,
                 source: previousFrame,
                 interpolatesPosition: observationChanged,
                 sourceVelocities: observationChanged
-                    ? targetHistory.velocities(at: date)
+                    ? state.targetHistory.velocities(at: date)
                     : [:],
             )
         }
-        if let transition = correctionTransition {
+        if let transition = state.correctionTransition {
             let progress = min(
                 1,
                 max(
@@ -392,7 +479,7 @@ actor ProjectionFrameWorker {
                 ),
             )
             if progress >= 1 {
-                correctionTransition = nil
+                state.correctionTransition = nil
                 return resolvedTarget
             }
             return morph(
@@ -518,19 +605,13 @@ actor ProjectionFrameWorker {
                 )
             })
         }
-        let geography = transitionGeography(
+        let lineLayers = transitionedLineLayers(
             source: source,
             target: target,
             progress: progress,
             transitionsMode: transitionsLabels,
         )
-        return ProjectionFrame(
-            mode: target.mode,
-            generatedAt: target.generatedAt,
-            geography: geography.projection,
-            geographyOpacity: geography.opacity,
-            marks: marks,
-        )
+        return target.replacingMarks(marks).replacingLineLayers(lineLayers)
     }
 
     private func cubicEaseOut(_ progress: Double) -> Double {
@@ -560,12 +641,8 @@ actor ProjectionFrameWorker {
         let usesSource = progress < 0.5
         let frame = usesSource ? source : target
         let opacity = usesSource ? 1 - progress * 2 : (progress - 0.5) * 2
-        return ProjectionFrame(
-            mode: target.mode,
-            generatedAt: target.generatedAt,
-            geography: frame.geography,
-            geographyOpacity: frame.geographyOpacity * opacity,
-            marks: frame.marks.map { mark in
+        let faded = frame.replacingMarks(
+            frame.marks.map { mark in
                 ProjectedMark(
                     id: mark.id,
                     point: mark.point,
@@ -580,27 +657,46 @@ actor ProjectionFrameWorker {
                 )
             },
         )
+        .replacingLineLayers(frame.layers.compactMap { layer in
+            guard case let .lines(lines) = layer.content else { return nil }
+            return ProjectedLayer(
+                id: layer.id,
+                zOrder: layer.zOrder,
+                opacity: layer.opacity * opacity,
+                content: .lines(lines),
+            )
+        })
+        return ProjectionFrame(
+            experienceID: target.experienceID,
+            mode: target.mode,
+            generatedAt: target.generatedAt,
+            layers: faded.layers,
+        )
     }
 
-    private func transitionGeography(
+    private func transitionedLineLayers(
         source: ProjectionFrame,
         target: ProjectionFrame,
         progress: Double,
         transitionsMode: Bool,
-    ) -> GeographyTransitionFrame {
+    ) -> [ProjectedLayer] {
         guard transitionsMode else {
-            return GeographyTransitionFrame(
-                projection: target.geography,
-                opacity: target.geographyOpacity,
-            )
+            return target.layers.filter { layer in
+                if case .lines = layer.content { true } else { false }
+            }
         }
         let usesSource = progress < 0.5
         let frame = usesSource ? source : target
         let opacity = usesSource ? 1 - progress * 2 : (progress - 0.5) * 2
-        return GeographyTransitionFrame(
-            projection: frame.geography,
-            opacity: frame.geographyOpacity * opacity,
-        )
+        return frame.layers.compactMap { layer in
+            guard case let .lines(lines) = layer.content else { return nil }
+            return ProjectedLayer(
+                id: layer.id,
+                zOrder: layer.zOrder,
+                opacity: layer.opacity * opacity,
+                content: .lines(lines),
+            )
+        }
     }
 
     private func modeLabelOpacity(at progress: Double) -> Double {
@@ -750,15 +846,12 @@ private enum AnimationDuration {
     static let completion = 0.5
 }
 
-private struct GeographyProjectionCacheKey: Equatable {
+private struct StaticLineProjectionCacheKey: Hashable {
+    let layerID: LayerID
+    let revision: Date
     let mapCenter: GeoCoordinate
     let viewport: ProjectionViewport
     let calibration: ProjectionCalibration
-}
-
-private struct GeographyProjectionCache {
-    let key: GeographyProjectionCacheKey
-    let projection: ProjectedGeography
 }
 
 #if DEBUG
@@ -767,11 +860,6 @@ private struct GeographyProjectionCache {
         let continuation: CheckedContinuation<Void, Never>
     }
 #endif
-
-private struct GeographyTransitionFrame {
-    let projection: ProjectedGeography?
-    let opacity: Double
-}
 
 struct ProjectionFrameWorkerOutput {
     let frame: ProjectionFrame
@@ -805,6 +893,14 @@ extension ProjectionFrameWorker {
         private var aircraft: [LayerMarkID: AircraftEntry] = [:]
         private var pulses: [AirportID: PulseEntry] = [:]
         private var lastSemanticIDs: Set<LayerMarkID> = []
+
+        mutating func semanticFeedBecameInactive(at date: Date) {
+            for id in lastSemanticIDs {
+                guard var entry = aircraft[id] else { continue }
+                entry.absentSince = entry.absentSince ?? date
+                aircraft[id] = entry
+            }
+        }
 
         mutating func effects(
             layerFrame: LayerFrame?,

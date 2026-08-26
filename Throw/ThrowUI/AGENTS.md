@@ -10,6 +10,12 @@ Read the root [`AGENTS.md`](../../AGENTS.md) and group
   persistence, projection math, polling, and credential access in ThrowCore.
 - Keep one app-root-owned `ThrowSession`; pass it to every controller and
   output scene. A view or scene delegate must never create a second poller.
+- Keep aircraft behavior in the one injected `AirAndSpaceRuntime`. Keep
+  selection, prewarming, and rotation in `ProjectionExperienceCoordinator`.
+- Keep one coordinator timer across all scenes. Run at most the active and
+  prewarming experience runtimes.
+- Prepare a fresh target generation before switching. Exchange the complete
+  frame only at black, and never mix layers from two experiences.
 - Render projector, Preview, and full-screen fallback through
   `ProjectionSurface`. Do not add a parallel renderer.
 - Keep the render loop on fixed deadlines. Skip elapsed frame slots instead of
@@ -18,6 +24,8 @@ Read the root [`AGENTS.md`](../../AGENTS.md) and group
   worker. Never log aircraft identities or coordinates.
 - Draw cached Geography below marks in Map mode. Keep it absent from True Sky,
   calibration, and quiet output.
+- Iterate the layers supplied by `ProjectionFrame`. Do not restore catalog
+  enumeration or a Geography special case in the surface.
 - Keep external projection opaque black and free of interactive chrome.
 - Seed `ThrowStylesheet` with `throwBroadwayRoot()` at every independent root.
 - Keep previews and snapshots on deterministic in-memory dependencies. Never

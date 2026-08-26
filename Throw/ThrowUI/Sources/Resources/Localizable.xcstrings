@@ -881,6 +881,17 @@
         }
       }
     },
+    "dashboard.globalStatus" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Global Status"
+          }
+        }
+      }
+    },
     "dashboard.lastUpdate" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -914,6 +925,39 @@
         }
       }
     },
+    "dashboard.nextView" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Next View"
+          }
+        }
+      }
+    },
+    "dashboard.nextViewAction" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Next View"
+          }
+        }
+      }
+    },
+    "dashboard.nowProjecting" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Now Projecting"
+          }
+        }
+      }
+    },
     "dashboard.output" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -925,6 +969,28 @@
         }
       }
     },
+    "dashboard.pauseRotation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pause Rotation"
+          }
+        }
+      }
+    },
+    "dashboard.preparingView" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preparing"
+          }
+        }
+      }
+    },
     "dashboard.preview" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -932,6 +998,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Preview Projection"
+          }
+        }
+      }
+    },
+    "dashboard.previousView" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Previous View"
           }
         }
       }
@@ -954,6 +1031,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Refresh Location"
+          }
+        }
+      }
+    },
+    "dashboard.remainingDwell" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Changes"
+          }
+        }
+      }
+    },
+    "dashboard.resumeRotation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resume Rotation"
           }
         }
       }
@@ -987,6 +1086,72 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Throw"
+          }
+        }
+      }
+    },
+    "experience.airAndSpace" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Air & Space"
+          }
+        }
+      }
+    },
+    "experience.airAndSpaceDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flights and Geography, with Stars and Satellites planned for later."
+          }
+        }
+      }
+    },
+    "experience.transit" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transit"
+          }
+        }
+      }
+    },
+    "experience.transitDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nearby moving buses, trains, and ferries."
+          }
+        }
+      }
+    },
+    "experience.unknown" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "View"
+          }
+        }
+      }
+    },
+    "experience.unknownDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Projection content"
           }
         }
       }
@@ -1723,7 +1888,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Project nearby flights onto your ceiling from an iPhone or iPad using powered USB-C to HDMI, AirPlay through Apple TV, or Preview. Keep the device powered, unlocked, and in the foreground while projecting."
+            "value" : "Throw projects ambient Views onto your ceiling. Air & Space is the first View. It contains nearby flights and Geography. Use powered USB-C to HDMI, AirPlay through Apple TV, or Preview. Keep the device powered, unlocked, and in the foreground."
           }
         }
       }
@@ -2036,6 +2201,17 @@
         }
       }
     },
+    "settings.airAndSpaceAppearance" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Air & Space Appearance"
+          }
+        }
+      }
+    },
     "settings.aircraftAppearance" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2135,6 +2311,17 @@
         }
       }
     },
+    "settings.global" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Global"
+          }
+        }
+      }
+    },
     "settings.groundAircraft" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2219,6 +2406,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Projection Mode"
+          }
+        }
+      }
+    },
+    "settings.projectionIntensity" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Projection Intensity"
+          }
+        }
+      }
+    },
+    "settings.projectionIntensityDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This setting changes every View on every connected output."
           }
         }
       }
@@ -2846,6 +3055,127 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Minimum elevation (degrees)"
+          }
+        }
+      }
+    },
+    "views.automaticRotation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatic Rotation"
+          }
+        }
+      }
+    },
+    "views.automaticRotationDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Throw prepares the next View before it changes the projector."
+          }
+        }
+      }
+    },
+    "views.automaticRotationDormant" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rotation starts when at least two Views are configured."
+          }
+        }
+      }
+    },
+    "views.available" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Available Later"
+          }
+        }
+      }
+    },
+    "views.configured" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Configured Views"
+          }
+        }
+      }
+    },
+    "views.configuredStatus" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Configured"
+          }
+        }
+      }
+    },
+    "views.contentVisible" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Visible content"
+          }
+        }
+      }
+    },
+    "views.dwell" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Time per View"
+          }
+        }
+      }
+    },
+    "views.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Views"
+          }
+        }
+      }
+    },
+    "views.transitPlanned" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Planned — live transit data is not included yet."
+          }
+        }
+      }
+    },
+    "views.vehiclesVisible" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vehicles visible"
           }
         }
       }

@@ -49,4 +49,16 @@ owned by the root [`TODOs.md`](../TODOs.md).
   commercial terms, and a provider-approved backend or other architecture that
   does not distribute a shared credential in the client. (human 2026-08-24)
 
+## P1s (Should do)
+
+- feat(Throw) [needs-design]: Implement the planned Transit View — the catalog
+  reserves Network and Vehicles layers
+  (`ThrowCore/Sources/ProjectionExperience.swift:67-74`), and Views presents
+  Transit as unavailable
+  (`ThrowUI/Sources/Settings/ProjectionViewsSettingsView.swift:38-42,95-102`).
+  Select a live provider, define GTFS or equivalent route geometry, and add
+  setup and credentials if required. Give its Map runtime independent polling.
+  Keep vehicles brighter than dim network and Geography context. (human
+  2026-08-26)
+
 # Completed issues

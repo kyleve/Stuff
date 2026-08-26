@@ -48,4 +48,9 @@ public actor FlightsLayerRuntime: ProjectionLayerRuntime {
             availability: input.availability,
         )
     }
+
+    /// Clears consecutive-sample motion when a source activation is replaced.
+    public func reset() {
+        motionEstimator = FlightMotionEstimator()
+    }
 }

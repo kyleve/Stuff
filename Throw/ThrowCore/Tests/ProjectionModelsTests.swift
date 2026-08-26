@@ -65,6 +65,88 @@ struct ProjectionModelsTests {
         #expect(frame.visibleAircraftCount == 1)
     }
 
+    @Test func lineStyleIdentitySupportsGeographyAndFutureNetworks() {
+        let coastline = ProjectionLineStyleID(geographyKind: .coastline)
+
+        #expect(coastline.geographyKind == .coastline)
+        #expect(ProjectionLineStyleID.transitRoute.geographyKind == nil)
+        #expect(coastline != .transitRoute)
+    }
+
+    @Test func projectedFrameOrdersGenericLayersWithinItsExperience() throws {
+        let mark = try projectedMark(layerID: .transitVehicles, rawID: "vehicle")
+        let lines = ProjectedLineCollection(
+            id: ProjectionLineRevisionID(rawValue: 7),
+            segments: [ProjectedLineSegment(
+                styleID: .transitRoute,
+                start: ProjectionPoint(x: 0.1, y: 0.2),
+                end: ProjectionPoint(x: 0.8, y: 0.9),
+                startsNewSubpath: true,
+            )],
+        )
+        let frame = ProjectionFrame(
+            experienceID: .transit,
+            mode: .map,
+            generatedAt: ThrowCoreFixture.date,
+            layers: [
+                ProjectedLayer(
+                    id: .transitVehicles,
+                    zOrder: 40,
+                    opacity: 1,
+                    content: .marks([mark]),
+                ),
+                ProjectedLayer(
+                    id: .transitNetwork,
+                    zOrder: 20,
+                    opacity: 0.4,
+                    content: .lines(lines),
+                ),
+            ],
+        )
+
+        #expect(frame.experienceID == .transit)
+        #expect(frame.layers.map(\.id) == [.transitNetwork, .transitVehicles])
+        #expect(frame.layers.first?.lines == lines)
+    }
+
+    @Test func replacingMarksPreservesExperienceAndLineLayers() throws {
+        let original = try projectedMark(layerID: .transitVehicles, rawID: "old")
+        let replacement = try projectedMark(layerID: .transitVehicles, rawID: "new")
+        let lines = ProjectedLineCollection(
+            id: ProjectionLineRevisionID(rawValue: 9),
+            segments: [],
+        )
+        let frame = ProjectionFrame(
+            experienceID: .transit,
+            mode: .map,
+            generatedAt: ThrowCoreFixture.date,
+            layers: [
+                ProjectedLayer(
+                    id: .transitNetwork,
+                    zOrder: 10,
+                    opacity: 0.25,
+                    content: .lines(lines),
+                ),
+                ProjectedLayer(
+                    id: .transitVehicles,
+                    zOrder: 20,
+                    opacity: 1,
+                    content: .marks([original]),
+                ),
+            ],
+        )
+
+        let replaced = frame.replacingMarks([replacement])
+
+        #expect(replaced.experienceID == .transit)
+        #expect(replaced.layers.first?.lines == lines)
+        #expect(replaced.marks.map(\.id.rawValue) == ["new"])
+
+        let noLines = frame.replacingLineLayers([])
+        #expect(noLines.experienceID == .transit)
+        #expect(noLines.layers.map(\.id) == [.transitVehicles])
+    }
+
     @Test func frameDescriptionsRedactMarksLabelsIdentitiesAndCoordinates() throws {
         let markIDSentinel = "mark-id-do-not-leak"
         let labelSentinel = "LABEL-DO-NOT-LEAK"
@@ -146,5 +228,20 @@ struct ProjectionModelsTests {
             #expect(rendering.contains(labelSentinel) == false)
             #expect(rendering.contains(coordinateSentinel) == false)
         }
+    }
+
+    private func projectedMark(layerID: LayerID, rawID: String) throws -> ProjectedMark {
+        try ProjectedMark(
+            id: LayerMarkID(layerID: layerID, namespace: .aircraft, rawValue: rawID),
+            point: ProjectionPoint(x: 0.5, y: 0.5),
+            range: NauticalMiles(value: 1),
+            glyph: .aircraft(.unknownAirborne),
+            label: nil,
+            secondaryProminence: 0,
+            orientationDegrees: nil,
+            opacity: 1,
+            labelOpacity: 1,
+            altitudeIsApproximate: false,
+        )
     }
 }

@@ -6,6 +6,9 @@ extension ThrowSession {
         isApplyingPreferences = true
         defer { isApplyingPreferences = false }
         setupCompleted = preferences.setupCompleted
+        projectionPlaylist = preferences.playlist
+        activeExperienceID = preferences.playlist.selectedExperienceID
+        nextExperienceID = activeExperienceID.flatMap(preferences.playlist.experience(after:))
         selectedSourceConfiguration = preferences.selectedSource
         validatedSourceConfiguration = preferences.validatedSource
         locationMode = preferences.locationMode
@@ -102,17 +105,21 @@ extension ThrowSession {
         await pendingSave?.value
         let preferences = try makePreferences(setupCompleted: setupCompleted)
         try await preferenceStore.save(preferences)
+        await experienceCoordinator.configure(projectionPlaylist)
         settingsFailure = nil
     }
 
     func makePreferences(setupCompleted: Bool) throws -> ThrowPreferences {
-        try ThrowPreferences(
-            setupCompleted: setupCompleted,
-            selectedSource: selectedSourceConfiguration,
-            validatedSource: validatedSourceConfiguration,
+        let global = try ThrowGlobalPreferences(
             locationMode: locationMode,
             confirmedLocation: confirmedLocation,
             calibration: projectionCalibration(),
+            intensityPercent: intensityPercent,
+            quietSchedule: quietSchedule(),
+        )
+        let airAndSpace = try AirAndSpacePreferences(
+            selectedSource: selectedSourceConfiguration,
+            validatedSource: validatedSourceConfiguration,
             mapViewport: MapViewport(radius: NauticalMiles(value: mapRadius)),
             mapCenters: mapCenters,
             skyViewport: SkyViewport(
@@ -128,8 +135,28 @@ extension ThrowSession {
             labelMode: labelMode,
             includeGroundAircraft: includeGroundAircraft,
             markSizePercent: markSizePercent,
-            intensityPercent: intensityPercent,
-            quietSchedule: quietSchedule(),
+        )
+        if airAndSpace.isConfigured,
+           projectionPlaylist.entry(for: .airAndSpace) == nil
+        {
+            projectionPlaylist = try ProjectionPlaylist(
+                entries: [
+                    ProjectionPlaylistEntry(
+                        experienceID: .airAndSpace,
+                        dwellDuration: .defaultValue,
+                    ),
+                ],
+                automaticRotationEnabled: false,
+                selectedExperienceID: .airAndSpace,
+                configuredExperienceIDs: [.airAndSpace],
+                catalog: .standard,
+            )
+        }
+        return try ThrowPreferences(
+            setupCompleted: setupCompleted,
+            global: global,
+            playlist: projectionPlaylist,
+            airAndSpace: airAndSpace,
         )
     }
 

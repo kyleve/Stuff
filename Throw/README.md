@@ -1,8 +1,8 @@
 # Throw
 
-Throw is an iPhone and iPad ceiling-projector app. It places nearby aircraft on
-a geographic map or a directional sky dome. The device remains the controller,
-and an attached display shows an opaque-black projection surface.
+Throw is an iPhone and iPad ceiling-projector app. Its Air & Space View places
+nearby aircraft on a geographic map or a directional sky dome. The device
+remains the controller, and an attached display shows an opaque-black surface.
 Aircraft data is ambient and incomplete; Throw is not a navigation or safety
 tool.
 
@@ -10,7 +10,7 @@ tool.
 
 - [`ThrowCore`](ThrowCore) owns typed coordinates, projection math, ADS-B
   normalization and providers, polling, preferences, credentials, location,
-  quiet scheduling, and the compile-time layer catalog.
+  quiet scheduling, and the compile-time View and layer catalogs.
 - [`ThrowUI`](ThrowUI) owns the controller, onboarding and settings flows,
   calibration, and the one projection renderer shared by every output.
 - [`Throw`](Throw) is the iOS composition root. It creates one runtime and
@@ -43,6 +43,23 @@ The guaranteed physical-output path is a powered USB-C-to-HDMI connection.
 AirPlay through Apple TV is supported by the system; if it mirrors instead of
 creating a distinct external scene, use Throw's explicit full-screen output.
 Preview runs the same projection renderer on the device.
+
+## Projection Views
+
+“View” is the user-facing name for a `ProjectionExperience`. Air & Space is the
+first enabled View. It contains Geography, Flights, and the planned Stars and
+Satellites layers. Transit is planned for nearby moving buses, trains, and
+ferries. This change does not include a live transit provider.
+
+One playlist controls every projector, full-screen output, and Preview. Each
+View has a dwell duration. Automatic rotation starts only when two Views are
+configured. Throw prepares the next View before a change. It keeps the current
+View visible until the new View has fresh data. The surface fades to black,
+exchanges atomically, and fades back in. Two Views never share one frame.
+
+Air & Space is the only configurable View in this release. Automatic rotation
+therefore remains dormant. The controller and preference model can add a second
+runtime without changing the renderer or global setup again.
 
 ## Aircraft sources
 

@@ -12,37 +12,45 @@ struct ThrowSettingsView: View {
                     SettingsFailureMessage(detail: settingsFailure)
                 }
             }
-            NavigationLink(value: ThrowSettingsDestination.location) {
-                Label(String(localized: .settingsLocation), systemSymbol: .locationFill)
+            Section {
+                NavigationLink(value: ThrowSettingsDestination.views) {
+                    Label(String(localized: .viewsTitle), systemSymbol: .rectangleStack)
+                }
             }
-            NavigationLink(value: ThrowSettingsDestination.mapCenter) {
-                Label(String(localized: .settingsMapCenter), systemSymbol: .mapFill)
-            }
-            NavigationLink(value: ThrowSettingsDestination.source) {
-                Label(
-                    String(localized: .settingsSource),
-                    systemSymbol: .antennaRadiowavesLeftAndRight,
-                )
-            }
-            NavigationLink(value: ThrowSettingsDestination.calibration) {
-                Label(String(localized: .calibrationTitle), systemSymbol: .viewfinder)
-            }
-            NavigationLink(value: ThrowSettingsDestination.appearance) {
-                Label(String(localized: .settingsAppearance), systemSymbol: .paintbrushFill)
-            }
-            NavigationLink(value: ThrowSettingsDestination.labels) {
-                Label(String(localized: .settingsLabels), systemSymbol: .textformat)
-            }
-            NavigationLink(value: ThrowSettingsDestination.quiet) {
-                Label(String(localized: .settingsQuiet), systemSymbol: .moonStarsFill)
-            }
-            NavigationLink(value: ThrowSettingsDestination.about) {
-                Label(String(localized: .aboutTitle), systemSymbol: .infoCircle)
+            Section(String(localized: .settingsGlobal)) {
+                NavigationLink(value: ThrowSettingsDestination.location) {
+                    Label(String(localized: .settingsLocation), systemSymbol: .locationFill)
+                }
+                NavigationLink(value: ThrowSettingsDestination.calibration) {
+                    Label(String(localized: .calibrationTitle), systemSymbol: .viewfinder)
+                }
+                NavigationLink(value: ThrowSettingsDestination.projectionIntensity) {
+                    Label(
+                        String(localized: .settingsProjectionIntensity),
+                        systemSymbol: .sunMaxFill,
+                    )
+                }
+                NavigationLink(value: ThrowSettingsDestination.quiet) {
+                    Label(String(localized: .settingsQuiet), systemSymbol: .moonStarsFill)
+                }
+                NavigationLink(value: ThrowSettingsDestination.about) {
+                    Label(String(localized: .aboutTitle), systemSymbol: .infoCircle)
+                }
             }
         }
         .navigationTitle(Text(.settingsTitle))
         .navigationDestination(for: ThrowSettingsDestination.self) { destination in
             switch destination {
+                case .views:
+                    ProjectionViewsSettingsView(session: session)
+                case .airAndSpace:
+                    AirAndSpaceSettingsView(session: session)
+                case .airAndSpaceProjection:
+                    AirAndSpaceProjectionSettingsView(session: session)
+                case .airAndSpaceLayers:
+                    AirAndSpaceLayersSettingsView(session: session)
+                case .airAndSpaceAppearance:
+                    AppearanceSettingsView(session: session)
                 case .location:
                     LocationSettingsView(session: session)
                 case .mapCenter:
@@ -51,8 +59,8 @@ struct ThrowSettingsView: View {
                     AircraftSourceSettingsView(session: session)
                 case .calibration:
                     CalibrationSettingsView(session: session, outputID: outputs.calibration)
-                case .appearance:
-                    AppearanceSettingsView(session: session)
+                case .projectionIntensity:
+                    ProjectionIntensitySettingsView(session: session)
                 case .labels:
                     LabelSettingsView(session: session)
                 case .quiet:

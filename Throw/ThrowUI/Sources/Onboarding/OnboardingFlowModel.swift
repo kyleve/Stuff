@@ -14,38 +14,64 @@ final class OnboardingFlowModel {
     var latitude = 0.0
     var longitude = 0.0
     var observerAltitudeFeet = 0.0
+    var airAndSpaceDraft = AirAndSpaceSetupDraft()
     var sourceChoice: AircraftSourceChoice? {
-        didSet {
-            guard oldValue != sourceChoice else { return }
+        get { airAndSpaceDraft.sourceChoice }
+        set {
+            guard airAndSpaceDraft.sourceChoice != newValue else { return }
+            airAndSpaceDraft.sourceChoice = newValue
             invalidateTestedSource()
         }
     }
 
-    var readsbURL = "http://readsb.local/tar1090/data/aircraft.json" {
-        didSet {
-            guard oldValue != readsbURL else { return }
+    var readsbURL: String {
+        get { airAndSpaceDraft.readsbURL }
+        set {
+            guard airAndSpaceDraft.readsbURL != newValue else { return }
+            airAndSpaceDraft.readsbURL = newValue
             invalidateTestedSource()
         }
     }
 
-    var rapidAPIKey = "" {
-        didSet {
-            guard oldValue != rapidAPIKey, rapidAPIKey.isEmpty == false else { return }
+    var rapidAPIKey: String {
+        get { airAndSpaceDraft.rapidAPIKey }
+        set {
+            let oldValue = airAndSpaceDraft.rapidAPIKey
+            airAndSpaceDraft.rapidAPIKey = newValue
+            guard oldValue != newValue, newValue.isEmpty == false else { return }
             invalidateTestedSource()
         }
     }
 
-    var pollingIntervalSeconds = Double(PollingInterval.defaultValue.seconds) {
-        didSet {
-            guard oldValue != pollingIntervalSeconds else { return }
+    var pollingIntervalSeconds: Double {
+        get { airAndSpaceDraft.pollingIntervalSeconds }
+        set {
+            guard airAndSpaceDraft.pollingIntervalSeconds != newValue else { return }
+            airAndSpaceDraft.pollingIntervalSeconds = newValue
             invalidateTestedSource()
         }
     }
 
-    var sourceValidation: SourceValidationState = .untested
-    var selectedMode: ProjectionMode?
-    var mapRadius = MapViewport.defaultValue.radius.value
-    var minimumElevation = SkyViewport.defaultValue.minimumElevation.degrees
+    var sourceValidation: SourceValidationState {
+        get { airAndSpaceDraft.sourceValidation }
+        set { airAndSpaceDraft.sourceValidation = newValue }
+    }
+
+    var selectedMode: ProjectionMode? {
+        get { airAndSpaceDraft.selectedMode }
+        set { airAndSpaceDraft.selectedMode = newValue }
+    }
+
+    var mapRadius: Double {
+        get { airAndSpaceDraft.mapRadius }
+        set { airAndSpaceDraft.mapRadius = newValue }
+    }
+
+    var minimumElevation: Double {
+        get { airAndSpaceDraft.minimumElevation }
+        set { airAndSpaceDraft.minimumElevation = newValue }
+    }
+
     var screenTopBearing = ProjectionCalibration.defaultValue.screenTopBearing.degrees {
         didSet {
             guard oldValue != screenTopBearing else { return }
@@ -102,7 +128,6 @@ final class OnboardingFlowModel {
     var quietStart: Date
     var quietEnd: Date
 
-    private var validatedSourceDraft: ValidatedAircraftSourceDraft?
     private var sourceTestGeneration: UInt64 = 0
     private var calibrationDemandIsActive = false
     private var didPresentFullScreenPreview = false
@@ -149,6 +174,11 @@ final class OnboardingFlowModel {
             case .appearance:
                 quietEnabled == false || quietScheduleIsValid
         }
+    }
+
+    private var validatedSourceDraft: ValidatedAircraftSourceDraft? {
+        get { airAndSpaceDraft.validatedSource }
+        set { airAndSpaceDraft.validatedSource = newValue }
     }
 
     var locationHealth: LocationHealth {

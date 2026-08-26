@@ -3,6 +3,10 @@ import ThrowCore
 @testable import ThrowUI
 
 struct ThrowStylesheetTests {
+    @Test func experienceTransitionsUseTheProjectorFadeToken() {
+        #expect(ThrowStylesheet.ProjectionStyle.standard.experienceTransition.fadeDuration == 0.4)
+    }
+
     @Test func projectionLabelsStayVisuallySubordinateToMarks() {
         let projection = ThrowStylesheet.ProjectionStyle.standard
 

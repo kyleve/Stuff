@@ -16,6 +16,12 @@ WhereCore, RegionKit, or LifecycleKit into this feature.
 
 - Create one `ThrowRuntime` in the app delegate and inject its one
   `ThrowSession` into every scene. A scene delegate must never create services.
+- Keep the View catalog compile-time. Use `ProjectionExperience` in code and
+  “View” in user-facing text. Never add runtime plugins or `AnyView` boundaries.
+- Keep one experience coordinator for all scenes. Only the active and
+  prewarming experience runtimes may run at the same time.
+- Exchange complete experience frames only while the projection is black.
+  Never draw layers from two experiences together.
 - Select exactly one aircraft source. Cancel and drain it before starting
   another; never combine or automatically fall back between providers.
 - Render Preview, full-screen fallback, and external displays with the same

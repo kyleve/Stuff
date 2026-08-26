@@ -24,13 +24,6 @@ public struct ProjectionSurface: View {
         let airlineAccentsEnabled = session.airlineAccentsEnabled
         let geographyIntensityMultiplier = session.geographyIntensityMultiplier
         let projectionStyle = stylesheet.projection
-        let descriptors = session.layerCatalog.descriptors.sorted { lhs, rhs in
-            if lhs.zOrder == rhs.zOrder {
-                lhs.id.rawValue < rhs.id.rawValue
-            } else {
-                lhs.zOrder < rhs.zOrder
-            }
-        }
         Group {
             if session.isCalibrating {
                 CalibrationPatternView(
@@ -42,28 +35,30 @@ public struct ProjectionSurface: View {
                 )
             } else {
                 ZStack {
-                    ForEach(descriptors) { descriptor in
-                        if descriptor.id == .geography {
-                            GeographyProjectionCanvas(
-                                geography: frame.geography,
-                                opacity: frame.geographyOpacity,
-                                intensityMultiplier: intensityMultiplier,
-                                geographyIntensityMultiplier: geographyIntensityMultiplier,
-                                style: projectionStyle,
-                            )
-                            .equatable()
-                            .zIndex(Double(descriptor.zOrder))
-                        } else {
-                            ProjectionMarksCanvas(
-                                marks: frame.marks.filter { $0.id.layerID == descriptor.id },
-                                effects: effects,
-                                opacity: markOpacity,
-                                markSizeMultiplier: markSizeMultiplier,
-                                intensityMultiplier: intensityMultiplier,
-                                airlineAccentsEnabled: airlineAccentsEnabled,
-                                style: projectionStyle,
-                            )
-                            .zIndex(Double(descriptor.zOrder))
+                    ForEach(frame.layers) { layer in
+                        switch layer.content {
+                            case let .lines(lines):
+                                ProjectionLinesCanvas(
+                                    layerID: layer.id,
+                                    lines: lines,
+                                    opacity: layer.opacity,
+                                    intensityMultiplier: intensityMultiplier,
+                                    geographyIntensityMultiplier: geographyIntensityMultiplier,
+                                    style: projectionStyle,
+                                )
+                                .equatable()
+                                .zIndex(Double(layer.zOrder))
+                            case let .marks(marks):
+                                ProjectionMarksCanvas(
+                                    marks: marks,
+                                    effects: effects,
+                                    opacity: markOpacity * layer.opacity,
+                                    markSizeMultiplier: markSizeMultiplier,
+                                    intensityMultiplier: intensityMultiplier,
+                                    airlineAccentsEnabled: airlineAccentsEnabled,
+                                    style: projectionStyle,
+                                )
+                                .zIndex(Double(layer.zOrder))
                         }
                     }
                     ObserverMarkerCanvas(
@@ -75,13 +70,14 @@ public struct ProjectionSurface: View {
                 }
             }
         }
-        .background(stylesheet.projection.background)
         .overlay(alignment: .topTrailing) {
             if session.isCalibrating == false {
-                ProjectionStatusIndicator(health: session.feedHealth)
+                ProjectionStatusIndicator(health: session.activeExperienceHealth)
                     .padding(stylesheet.spacing.large)
             }
         }
+        .opacity(session.projectionSurfaceOpacity)
+        .background(stylesheet.projection.background)
         .ignoresSafeArea()
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(.projectionPreviewSummary))
@@ -407,15 +403,17 @@ private struct ProjectionMarksCanvas: View {
 }
 
 /// An equatable static surface whose paths change only with projected geography.
-private struct GeographyProjectionCanvas: View, Equatable {
-    let geography: ProjectedGeography?
+private struct ProjectionLinesCanvas: View, Equatable {
+    let layerID: LayerID
+    let lines: ProjectedLineCollection
     let opacity: Double
     let intensityMultiplier: Double
     let geographyIntensityMultiplier: Double
     let style: ThrowStylesheet.ProjectionStyle
 
     nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.geography?.id == rhs.geography?.id &&
+        lhs.layerID == rhs.layerID &&
+            lhs.lines.id == rhs.lines.id &&
             lhs.opacity == rhs.opacity &&
             lhs.intensityMultiplier == rhs.intensityMultiplier &&
             lhs.geographyIntensityMultiplier == rhs.geographyIntensityMultiplier &&
@@ -424,35 +422,40 @@ private struct GeographyProjectionCanvas: View, Equatable {
 
     var body: some View {
         Canvas(rendersAsynchronously: true) { context, size in
-            guard let geography,
-                  geography.segments.isEmpty == false,
-                  geographyIntensityMultiplier > 0
+            let layerIntensity = layerID == .geography ? geographyIntensityMultiplier : 1
+            guard lines.segments.isEmpty == false, layerIntensity > 0
             else { return }
 
             let side = min(size.width, size.height)
             let origin = CGPoint(x: (size.width - side) / 2, y: (size.height - side) / 2)
-            var paths: [GeographyLineKind: Path] = [:]
-            for segment in geography.segments {
+            var paths: [ProjectionLineStyleID: Path] = [:]
+            for segment in lines.segments {
                 if segment.startsNewSubpath {
-                    paths[segment.kind, default: Path()].move(
+                    paths[segment.styleID, default: Path()].move(
                         to: point(segment.start, origin: origin, side: side),
                     )
                 }
-                paths[segment.kind, default: Path()].addLine(
+                paths[segment.styleID, default: Path()].addLine(
                     to: point(segment.end, origin: origin, side: side),
                 )
             }
 
-            var geographyContext = context
-            geographyContext.opacity = opacity
-            for kind in style.geography.renderOrder {
-                guard let path = paths[kind], path.isEmpty == false else { continue }
-                let appearance = style.geography[kind]
+            var lineContext = context
+            lineContext.opacity = opacity
+            let geographyOrder = style.geography.renderOrder.map(
+                ProjectionLineStyleID.init(geographyKind:),
+            )
+            let otherStyles = paths.keys
+                .filter { $0.geographyKind == nil }
+                .sorted { $0.rawValue < $1.rawValue }
+            for styleID in geographyOrder + otherStyles {
+                guard let path = paths[styleID], path.isEmpty == false else { continue }
+                let appearance = style.geography[styleID.geographyKind ?? .primaryRoad]
                 let color = Color(
-                    white: intensityMultiplier * geographyIntensityMultiplier *
+                    white: intensityMultiplier * layerIntensity *
                         appearance.luminance,
                 )
-                geographyContext.stroke(
+                lineContext.stroke(
                     path,
                     with: .color(color),
                     style: StrokeStyle(
@@ -513,6 +516,16 @@ private struct GeographyProjectionCanvas: View, Equatable {
                 settle: .immediate,
             ) {
                 ProjectionSurface(session: .trueSkySnapshotFixture(), presentation: .preview)
+                    .throwBroadwayRoot()
+            }
+            SnapshotCase(
+                name: "Experience Exchange At Black",
+                configurations: projectorAspectConfigurations,
+                settle: .immediate,
+            ) {
+                let session = ThrowSession.fixture()
+                session.projectionSurfaceOpacity = 0
+                return ProjectionSurface(session: session, presentation: .preview)
                     .throwBroadwayRoot()
             }
             SnapshotCase(

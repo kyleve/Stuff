@@ -193,7 +193,7 @@ extension ThrowSession {
     @discardableResult
     func useSource(_ draft: ValidatedAircraftSourceDraft) async -> Bool {
         do {
-            await pollingCoordinator.deactivate()
+            await airAndSpaceRuntime.deactivate(reporting: .idle)
             activePollingSignature = nil
             try await discardOldFrame()
 
@@ -234,7 +234,7 @@ extension ThrowSession {
     public func deleteRapidAPICredential() async {
         let deletesActiveSource = selectedSourceConfiguration?.kind == .adsbExchangeRapidAPI
         if deletesActiveSource {
-            await pollingCoordinator.deactivate()
+            await airAndSpaceRuntime.deactivate(reporting: .failed(.missingCredential))
             activePollingSignature = nil
             await clearProjectionState(restartsGeography: true)
         }
@@ -254,7 +254,7 @@ extension ThrowSession {
     public func deleteFlightradar24Credential() async {
         let deletesActiveSource = selectedSourceConfiguration?.kind == .flightradar24
         if deletesActiveSource {
-            await pollingCoordinator.deactivate()
+            await airAndSpaceRuntime.deactivate(reporting: .failed(.missingCredential))
             activePollingSignature = nil
             await clearProjectionState(restartsGeography: true)
         }
@@ -270,76 +270,48 @@ extension ThrowSession {
         }
     }
 
-    func applyPollingState(_ state: AircraftPollingState) async {
-        pollingStateGeneration &+= 1
-        let generation = pollingStateGeneration
-        switch state {
-            case .idle:
-                guard activePollingSignature == nil else { return }
-                feedHealth = .idle
-            case .loading:
-                feedHealth = .loading
-            case let .healthy(snapshot, _):
-                currentSnapshot = snapshot
-                currentMarkAvailability = .current
-                do {
-                    let layer = try await makeLayerFrame(snapshot)
-                    guard generation == pollingStateGeneration else { return }
-                    currentLayerFrame = layer
-                    feedHealth = .healthy(
-                        lastUpdate: snapshot.fetchedAt,
-                        visibleAircraft: projectionFrame.visibleAircraftCount,
-                    )
-                    restartRenderer()
-                    scheduleRouteEnrichment(for: snapshot)
-                } catch is CancellationError {
-                    return
-                } catch {
-                    guard generation == pollingStateGeneration else { return }
-                    feedHealth = .failed(.decoding)
-                    await clearProjectionState(restartsGeography: true)
-                }
-            case let .retrying(lastGoodSnapshot, failure, failureStartedAt, nextRetryAt):
-                currentSnapshot = lastGoodSnapshot
-                currentMarkAvailability = .retrying(since: failureStartedAt)
-                if let lastGoodSnapshot {
-                    do {
-                        let layer = try await makeLayerFrame(lastGoodSnapshot)
-                        guard generation == pollingStateGeneration else { return }
-                        currentLayerFrame = layer
-                        feedHealth = .retrying(
-                            lastUpdate: lastGoodSnapshot.fetchedAt,
-                            nextRetry: nextRetryAt,
-                            failure: failure.presentationCategory,
-                            visibleAircraft: projectionFrame.visibleAircraftCount,
-                        )
-                        restartRenderer()
-                        scheduleRouteEnrichment(for: lastGoodSnapshot)
-                    } catch is CancellationError {
-                        return
-                    } catch {
-                        guard generation == pollingStateGeneration else { return }
-                        feedHealth = .failed(.decoding)
-                        await clearProjectionState(restartsGeography: true)
-                    }
-                } else {
-                    await clearProjectionState(restartsGeography: true)
-                    guard generation == pollingStateGeneration else { return }
-                    feedHealth = .retrying(
-                        lastUpdate: nil,
-                        nextRetry: nextRetryAt,
-                        failure: failure.presentationCategory,
-                        visibleAircraft: 0,
-                    )
-                }
-            case let .failed(failure):
-                await clearProjectionState(restartsGeography: true)
-                guard generation == pollingStateGeneration else { return }
-                feedHealth = .failed(failure.presentationCategory)
-            case .quiet:
-                await clearProjectionState(restartsGeography: true)
-                guard generation == pollingStateGeneration else { return }
-                feedHealth = .quiet
+    func applyAirAndSpaceUpdate(_ update: AirAndSpaceRuntimeUpdate) async {
+        semanticFramesByExperience[.airAndSpace] = update.experienceFrame
+        activePollingSignature = update.activePollingSignature
+        let preparesHiddenExperience = activeExperienceID != .airAndSpace &&
+            (requestedExperienceID == .airAndSpace || prewarmingExperienceID == .airAndSpace) &&
+            update.successfulActivationGeneration == update.activationGeneration
+        if preparesHiddenExperience {
+            do {
+                preparedOutputsByExperience[.airAndSpace] = try await projectedOutput(
+                    for: update.experienceFrame,
+                    generatedAt: dateProvider.now(),
+                )
+            } catch is CancellationError {
+                return
+            } catch {
+                await experienceCoordinator.reportRuntimeUpdate(
+                    id: .airAndSpace,
+                    generation: update.activationGeneration,
+                    successfulGeneration: nil,
+                    health: .failed(.decoding),
+                )
+                return
+            }
+        }
+        await experienceCoordinator.reportRuntimeUpdate(
+            id: .airAndSpace,
+            generation: update.activationGeneration,
+            successfulGeneration: update.successfulActivationGeneration,
+            health: update.health,
+        )
+        guard activeExperienceID == .airAndSpace else { return }
+        let previousLayer = currentLayerFrame
+        currentSnapshot = update.snapshot
+        currentLayerFrame = update.layerFrame
+        currentExperienceFrame = update.experienceFrame
+        feedHealth = update.health
+
+        if update.layerFrame != nil {
+            restartRenderer()
+        } else if previousLayer != nil || update.health.visibleContentCount == 0 {
+            await clearProjectionState(restartsGeography: true)
+            feedHealth = update.health
         }
     }
 
@@ -354,10 +326,14 @@ extension ThrowSession {
     }
 
     func reconcileDemand(generation: UInt64) async {
+        isReconcilingDemand = true
+        defer { isReconcilingDemand = false }
         guard generation == demandGeneration else { return }
         expireTemporaryWakeIfNeeded()
         scheduleQuietBoundary()
         let quiet = isQuietNow
+        await reconcileExperienceDemand(isQuiet: quiet)
+        guard generation == demandGeneration else { return }
         let hasEnabledLayer = flightsEnabled || (geographyEnabled && projectionMode == .map)
         guard hasStarted,
               isForeground,
@@ -368,7 +344,7 @@ extension ThrowSession {
         else {
             cancelProjectionSessionLocationAcquisition(restoringPreviousHealth: true)
             activePollingSignature = nil
-            await pollingCoordinator.deactivate()
+            await airAndSpaceRuntime.deactivate(reporting: quiet ? .quiet : .idle)
             guard generation == demandGeneration else { return }
             await clearProjectionState(restartsGeography: true)
             guard generation == demandGeneration else { return }
@@ -381,7 +357,7 @@ extension ThrowSession {
             guard generation == demandGeneration else { return }
             guard case .ready = projectionSessionLocationGate else {
                 activePollingSignature = nil
-                await pollingCoordinator.deactivate()
+                await airAndSpaceRuntime.deactivate(reporting: .failed(.locationUnavailable))
                 guard generation == demandGeneration else { return }
                 await clearProjectionState(restartsGeography: true)
                 guard generation == demandGeneration else { return }
@@ -392,11 +368,14 @@ extension ThrowSession {
 
         guard flightsEnabled else {
             activePollingSignature = nil
-            await pollingCoordinator.deactivate()
+            await airAndSpaceRuntime.deactivate(reporting: .idle)
             guard generation == demandGeneration else { return }
             currentSnapshot = nil
             currentLayerFrame = nil
-            currentMarkAvailability = .current
+            currentExperienceFrame = ProjectionExperienceFrame(
+                experienceID: .airAndSpace,
+                layers: [],
+            )
             feedHealth = .idle
             restartRenderer()
             return
@@ -406,7 +385,7 @@ extension ThrowSession {
               configuration == validatedSourceConfiguration
         else {
             activePollingSignature = nil
-            await pollingCoordinator.deactivate()
+            await airAndSpaceRuntime.deactivate(reporting: .failed(.sourceNotValidated))
             guard generation == demandGeneration else { return }
             await clearProjectionState(restartsGeography: true)
             guard generation == demandGeneration else { return }
@@ -415,7 +394,7 @@ extension ThrowSession {
         }
         if configuration.kind == .adsbExchangeRapidAPI, rapidAPICredentialState == .missing {
             activePollingSignature = nil
-            await pollingCoordinator.deactivate()
+            await airAndSpaceRuntime.deactivate(reporting: .failed(.missingCredential))
             guard generation == demandGeneration else { return }
             await clearProjectionState(restartsGeography: true)
             guard generation == demandGeneration else { return }
@@ -424,7 +403,7 @@ extension ThrowSession {
         }
         if configuration.kind == .flightradar24, flightradar24CredentialState == .missing {
             activePollingSignature = nil
-            await pollingCoordinator.deactivate()
+            await airAndSpaceRuntime.deactivate(reporting: .failed(.missingCredential))
             guard generation == demandGeneration else { return }
             await clearProjectionState(restartsGeography: true)
             guard generation == demandGeneration else { return }
@@ -437,7 +416,7 @@ extension ThrowSession {
             query = try aircraftQuery()
         } catch {
             activePollingSignature = nil
-            await pollingCoordinator.deactivate()
+            await airAndSpaceRuntime.deactivate(reporting: .failed(.locationUnavailable))
             guard generation == demandGeneration else { return }
             await clearProjectionState(restartsGeography: true)
             guard generation == demandGeneration else { return }
@@ -450,7 +429,12 @@ extension ThrowSession {
             return
         }
         activePollingSignature = signature
-        await pollingCoordinator.activate(configuration: configuration, query: query, quiet: false)
+        await airAndSpaceRuntime.activate(
+            configuration: configuration,
+            query: query,
+            labelMode: labelMode,
+            activationGeneration: airAndSpaceActivationGeneration,
+        )
         guard generation == demandGeneration else { return }
         restartRenderer()
     }
@@ -464,7 +448,7 @@ extension ThrowSession {
               isCalibrating == false,
               isQuietNow == false,
               currentLayerFrame != nil || (geographyEnabled && projectionMode == .map),
-              let confirmedLocation
+              confirmedLocation != nil
         else {
             return
         }
@@ -474,15 +458,9 @@ extension ThrowSession {
             var schedule = ProjectionFrameSchedule(startingAt: clock.now)
             while Task.isCancelled == false {
                 do {
-                    let output = try await projectionWorker.frame(
-                        layerFrame: flightsEnabled ? currentLayerFrame : nil,
-                        geographyEnabled: geographyEnabled,
-                        observer: confirmedLocation.position,
-                        mapCenter: activeMapCenter,
-                        viewport: projectionViewport(),
-                        calibration: projectionCalibration(),
+                    let output = try await projectedOutput(
+                        for: currentExperienceFrame,
                         generatedAt: dateProvider.now(),
-                        reduceMotion: reduceMotion,
                     )
                     try Task.checkCancellation()
                     guard generation == renderGeneration else { return }
@@ -509,6 +487,33 @@ extension ThrowSession {
         }
     }
 
+    func projectedOutput(
+        for experienceFrame: ProjectionExperienceFrame,
+        generatedAt: Date,
+    ) async throws -> ProjectionFrameWorkerOutput {
+        guard let confirmedLocation else {
+            throw ThrowValidationError.invalidPreferencePayload
+        }
+        let enabledLayerFrames = if experienceFrame.experienceID == .airAndSpace,
+                                    flightsEnabled == false
+        {
+            experienceFrame.layers.filter { $0.layerID != .flights }
+        } else {
+            experienceFrame.layers
+        }
+        return try await projectionWorker.frame(
+            experienceID: experienceFrame.experienceID,
+            layerFrames: enabledLayerFrames,
+            geographyEnabled: experienceFrame.experienceID == .airAndSpace && geographyEnabled,
+            observer: confirmedLocation.position,
+            mapCenter: activeMapCenter,
+            viewport: projectionViewport(),
+            calibration: projectionCalibration(),
+            generatedAt: generatedAt,
+            reduceMotion: reduceMotion,
+        )
+    }
+
     func stopRenderer() {
         renderGeneration &+= 1
         renderTask?.cancel()
@@ -516,10 +521,13 @@ extension ThrowSession {
     }
 
     func clearProjectionState(restartsGeography: Bool) async {
-        cancelRouteEnrichment()
         currentSnapshot = nil
         currentLayerFrame = nil
-        currentMarkAvailability = .current
+        observerMapPoint = nil
+        currentExperienceFrame = ProjectionExperienceFrame(
+            experienceID: activeExperienceID ?? .airAndSpace,
+            layers: [],
+        )
         stopRenderer()
         projectionFrame = emptyProjectionFrame()
         var transaction = Transaction()
@@ -535,123 +543,16 @@ extension ThrowSession {
 
     func rebuildCurrentLayerFrame() {
         guard let currentSnapshot else { return }
-        pollingStateGeneration &+= 1
-        let generation = pollingStateGeneration
         Task(name: "Throw rebuild flight labels") { [weak self] in
             guard let self else { return }
-            do {
-                let layer = try await makeLayerFrame(currentSnapshot)
-                guard generation == pollingStateGeneration else { return }
-                currentLayerFrame = layer
-                restartRenderer()
-            } catch is CancellationError {
-                return
-            } catch {
-                guard generation == pollingStateGeneration else { return }
-                feedHealth = .failed(.decoding)
-                await clearProjectionState(restartsGeography: true)
-            }
-        }
-    }
-
-    func makeLayerFrame(_ snapshot: AircraftSnapshot) async throws -> LayerFrame {
-        guard let confirmedLocation else { throw ThrowValidationError.invalidPreferencePayload }
-        let routeResults: [FlightCallsign: FlightRouteResult] = if snapshot.source ==
-            .flightradar24
-        {
-            [:]
-        } else {
-            await routeResolver.cachedResults(
-                for: snapshot.observations,
-                at: dateProvider.now(),
-            )
-        }
-        return try await projectionWorker.layerFrame(
-            snapshot: snapshot,
-            observer: confirmedLocation.position,
-            labelMode: labelMode,
-            routeResults: routeResults,
-            availability: currentMarkAvailability,
-        )
-    }
-
-    func scheduleRouteEnrichment(for snapshot: AircraftSnapshot) {
-        guard snapshot.source != .flightradar24 else {
-            cancelRouteEnrichment()
-            return
-        }
-        guard routeTask == nil else { return }
-        routeGeneration &+= 1
-        let generation = routeGeneration
-        routeTask = Task(name: "Throw resolve flight routes") { [weak self] in
-            guard let self else { return }
-            do {
-                let result = try await routeResolver.resolveMissing(
-                    for: snapshot.observations,
-                    at: dateProvider.now(),
-                )
-                try Task.checkCancellation()
-                guard generation == routeGeneration else { return }
-                routeTask = nil
-                let continuesEnrichment: Bool
-                switch result {
-                    case .noRequestNeeded, .coolingDown:
-                        continuesEnrichment = false
-                    case let .completed(_, hasMoreRequests):
-                        routeLogger.record(FlightRouteLogEvent(outcome: .succeeded))
-                        rebuildCurrentLayerFrame()
-                        continuesEnrichment = hasMoreRequests
-                }
-                if let currentSnapshot,
-                   continuesEnrichment || currentSnapshot.fetchedAt != snapshot.fetchedAt
-                {
-                    scheduleRouteEnrichment(for: currentSnapshot)
-                }
-            } catch is CancellationError {
-                guard generation == routeGeneration else { return }
-                routeTask = nil
-            } catch let error as FlightRouteLookupError {
-                guard generation == routeGeneration else { return }
-                routeTask = nil
-                routeLogger.record(FlightRouteLogEvent(outcome: routeOutcome(for: error)))
-                if let currentSnapshot, currentSnapshot.fetchedAt != snapshot.fetchedAt {
-                    scheduleRouteEnrichment(for: currentSnapshot)
-                }
-            } catch {
-                guard generation == routeGeneration else { return }
-                routeTask = nil
-                routeLogger.record(FlightRouteLogEvent(outcome: .decodingFailed))
-            }
-        }
-    }
-
-    func cancelRouteEnrichment() {
-        routeGeneration &+= 1
-        routeTask?.cancel()
-        routeTask = nil
-    }
-
-    private func routeOutcome(for error: FlightRouteLookupError) -> FlightRouteLogEvent.Outcome {
-        switch error {
-            case .provider: .providerFailed
-            case .transport: .transportFailed
-            case .decoding: .decodingFailed
+            await airAndSpaceRuntime.refreshPresentation(labelMode: labelMode)
         }
     }
 
     func updateVisibleCount(_ count: Int) {
-        switch feedHealth {
-            case let .healthy(lastUpdate, oldCount) where oldCount != count:
-                feedHealth = .healthy(lastUpdate: lastUpdate, visibleAircraft: count)
-            case let .retrying(lastUpdate, nextRetry, failure, oldCount) where oldCount != count:
-                feedHealth = .retrying(
-                    lastUpdate: lastUpdate,
-                    nextRetry: nextRetry,
-                    failure: failure,
-                    visibleAircraft: count,
-                )
-            case .idle, .loading, .healthy, .retrying, .failed, .quiet:
-                break
+        guard feedHealth.visibleContentCount != count else { return }
+        Task(name: "Throw update Air & Space visible count") { [airAndSpaceRuntime] in
+            await airAndSpaceRuntime.updateVisibleContentCount(count)
         }
     }
 
@@ -733,28 +634,30 @@ extension ThrowSession {
 
     func emptyProjectionFrame() -> ProjectionFrame {
         ProjectionFrame(
+            experienceID: activeExperienceID ?? .airAndSpace,
             mode: projectionMode,
             generatedAt: dateProvider.now(),
-            geography: nil,
-            geographyOpacity: 1,
-            marks: [],
+            layers: [],
         )
     }
 
     func projectionFrameWithoutMarks() -> ProjectionFrame {
-        ProjectionFrame(
+        let withoutMarks = projectionFrame.replacingMarks([])
+        return ProjectionFrame(
+            experienceID: projectionFrame.experienceID,
             mode: projectionFrame.mode,
             generatedAt: dateProvider.now(),
-            geography: projectionFrame.geography,
-            geographyOpacity: projectionFrame.geographyOpacity,
-            marks: [],
+            layers: withoutMarks.layers,
         )
     }
 
     func discardOldFrame() async throws {
         currentSnapshot = nil
         currentLayerFrame = nil
-        currentMarkAvailability = .current
+        currentExperienceFrame = ProjectionExperienceFrame(
+            experienceID: activeExperienceID ?? .airAndSpace,
+            layers: [],
+        )
         stopRenderer()
         let empty = projectionFrameWithoutMarks()
         if reduceMotion {

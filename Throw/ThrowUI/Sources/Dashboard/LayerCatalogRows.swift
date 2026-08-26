@@ -4,11 +4,19 @@ import ThrowCore
 
 struct LayerCatalogRows: View {
     @Bindable var session: ThrowSession
+    let experienceID: ProjectionExperienceID
     @Environment(\.throwStylesheet) private var stylesheet
 
     var body: some View {
-        ForEach(session.layerCatalog.descriptors) { descriptor in
+        ForEach(descriptors) { descriptor in
             layerRow(descriptor)
+        }
+    }
+
+    private var descriptors: [AnyLayerDescriptor] {
+        let layerIDs = ProjectionExperienceCatalog.standard[experienceID]?.layerIDs ?? []
+        return layerIDs.compactMap { id in
+            session.layerCatalog.descriptors.first { $0.id == id }
         }
     }
 

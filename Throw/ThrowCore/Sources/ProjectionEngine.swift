@@ -81,6 +81,46 @@ public struct ProjectionEngine: Sendable {
         geometry: ProjectionGeometry,
         generatedAt: Date,
     ) throws -> ProjectionFrame {
+        let zOrders = Dictionary(
+            uniqueKeysWithValues: LayerCatalog.standard.descriptors.map { ($0.id, $0.zOrder) },
+        )
+        let lineLayers: [ProjectedLayer] = geography.map {
+            [
+                ProjectedLayer(
+                    id: .geography,
+                    zOrder: zOrders[.geography] ?? 0,
+                    opacity: 1,
+                    content: .lines($0),
+                ),
+            ]
+        } ?? []
+        return try frame(
+            experienceFrame: ProjectionExperienceFrame(
+                experienceID: .airAndSpace,
+                layers: layerFrames,
+            ),
+            projectedLineLayers: lineLayers,
+            layerZOrders: zOrders,
+            observer: observer,
+            mapCenter: mapCenter,
+            viewport: viewport,
+            calibration: calibration,
+            geometry: geometry,
+            generatedAt: generatedAt,
+        )
+    }
+
+    public func frame(
+        experienceFrame: ProjectionExperienceFrame,
+        projectedLineLayers: [ProjectedLayer],
+        layerZOrders: [LayerID: Int],
+        observer: ObserverPosition,
+        mapCenter: GeoCoordinate,
+        viewport: ProjectionViewport,
+        calibration: ProjectionCalibration,
+        geometry: ProjectionGeometry,
+        generatedAt: Date,
+    ) throws -> ProjectionFrame {
         try Task.checkCancellation()
         let projectionObserver = switch viewport {
             case .map:
@@ -88,8 +128,9 @@ public struct ProjectionEngine: Sendable {
             case .trueSky:
                 observer
         }
-        var projected: [ProjectedMark] = []
-        for layerFrame in layerFrames {
+        var projectedLayers = projectedLineLayers
+        for layerFrame in experienceFrame.layers {
+            var projected: [ProjectedMark] = []
             for (markIndex, mark) in layerFrame.marks.enumerated() {
                 if markIndex.isMultiple(of: 64) {
                     try Task.checkCancellation()
@@ -153,20 +194,29 @@ public struct ProjectionEngine: Sendable {
                     ),
                 )
             }
+            if case .marks = layerFrame.content {
+                projectedLayers.append(
+                    ProjectedLayer(
+                        id: layerFrame.layerID,
+                        zOrder: layerZOrders[layerFrame.layerID] ?? 0,
+                        opacity: 1,
+                        content: .marks(projected),
+                    ),
+                )
+            }
         }
         return ProjectionFrame(
+            experienceID: experienceFrame.experienceID,
             mode: viewport.mode,
             generatedAt: generatedAt,
-            geography: geography,
-            geographyOpacity: 1,
-            marks: projected,
+            layers: projectedLayers,
         )
     }
 
-    /// Projects and clips static geographic lines for a Map viewport. Callers
+    /// Projects and clips static geographic or network lines for a Map viewport. Callers
     /// can cache the result until the Map center, viewport, or calibration changes.
-    public func geographySegments(
-        lines: [GeographicPolyline],
+    public func lineSegments(
+        lines: [ProjectionPolyline],
         mapCenter: GeoCoordinate,
         viewport: ProjectionViewport,
         calibration: ProjectionCalibration,
@@ -213,8 +263,8 @@ public struct ProjectionEngine: Sendable {
                         radialPointsMatch($0, clipped.start) == false
                     } ?? true
                     segments.append(
-                        ProjectedGeographySegment(
-                            kind: line.kind,
+                        ProjectedLineSegment(
+                            styleID: line.styleID,
                             start: calibratedPoint(
                                 radial: clipped.start,
                                 calibration: calibration,
@@ -238,6 +288,22 @@ public struct ProjectionEngine: Sendable {
             }
         }
         return segments
+    }
+
+    public func geographySegments(
+        lines: [GeographicPolyline],
+        mapCenter: GeoCoordinate,
+        viewport: ProjectionViewport,
+        calibration: ProjectionCalibration,
+        geometry: ProjectionGeometry,
+    ) throws -> [ProjectedGeographySegment] {
+        try lineSegments(
+            lines: lines,
+            mapCenter: mapCenter,
+            viewport: viewport,
+            calibration: calibration,
+            geometry: geometry,
+        )
     }
 
     public func geographySegments(

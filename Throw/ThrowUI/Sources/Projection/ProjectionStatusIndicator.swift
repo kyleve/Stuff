@@ -7,7 +7,7 @@ struct ProjectionStatusIndicator: View {
 
     var body: some View {
         switch health {
-            case let .retrying(_, _, _, visibleAircraft) where visibleAircraft > 0:
+            case let .retrying(_, _, _, visibleContentCount) where visibleContentCount > 0:
                 Circle()
                     .stroke(stylesheet.status.retrying, lineWidth: 2)
                     .frame(width: 12, height: 12)
