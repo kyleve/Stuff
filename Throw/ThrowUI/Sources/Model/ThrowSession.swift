@@ -235,6 +235,9 @@ public final class ThrowSession {
     @ObservationIgnored var routeTask: Task<Void, Never>?
     @ObservationIgnored var timeChangeTasks: [Task<Void, Never>] = []
     @ObservationIgnored var routeGeneration: UInt64 = 0
+    @ObservationIgnored var cachedFlightradar24Usage: CachedFlightradar24Usage?
+    @ObservationIgnored var lastFlightradar24UsageRequestAt: Date?
+    @ObservationIgnored var flightradar24UsageGeneration: UInt64 = 0
 
     public init(
         preferences: ThrowPreferences,

@@ -12,6 +12,7 @@ final class AircraftSourceSettingsModel {
             rapidAPIKey = ""
             invalidateTestedDraft()
             synchronizeCredentialEditingState()
+            flightradar24UsageState = .idle
         }
     }
 
@@ -38,6 +39,7 @@ final class AircraftSourceSettingsModel {
 
     var validation: SourceValidationState = .untested
     var isEditingCredential = false
+    var flightradar24UsageState: Flightradar24UsageLoadState = .idle
 
     private var validatedDraft: ValidatedAircraftSourceDraft?
     private var testGeneration: UInt64 = 0
@@ -77,6 +79,14 @@ final class AircraftSourceSettingsModel {
 
     var exceedsPublishedAllowance: Bool {
         usageEstimate.exceedsPublishedAllowance
+    }
+
+    var flightradar24CreditEstimate: Flightradar24CreditEstimate? {
+        guard case let .loaded(report) = flightradar24UsageState else { return nil }
+        return session.flightradar24CreditEstimate(
+            report: report,
+            intervalSeconds: Int(pollingIntervalSeconds),
+        )
     }
 
     var canUseSource: Bool {
@@ -119,6 +129,28 @@ final class AircraftSourceSettingsModel {
         }
     }
 
+    func loadFlightradar24Usage() async {
+        guard choice == .flightradar24, case .saved = credentialState else {
+            flightradar24UsageState = .idle
+            return
+        }
+        guard flightradar24UsageState != .loading else { return }
+        flightradar24UsageState = .loading
+        do {
+            let report = try await session.loadFlightradar24Usage()
+            try Task.checkCancellation()
+            flightradar24UsageState = .loaded(report)
+        } catch is CancellationError {
+            flightradar24UsageState = .idle
+        } catch Flightradar24UsageError.rateLimited {
+            flightradar24UsageState = .rateLimited
+        } catch let failure as AircraftSourceFailure {
+            flightradar24UsageState = .failed(failure.presentationCategory)
+        } catch {
+            flightradar24UsageState = .failed(.unknown)
+        }
+    }
+
     func useSource() async {
         guard validation.isSuccessful, let validatedDraft else { return }
         if await session.useSource(validatedDraft) {
@@ -126,6 +158,10 @@ final class AircraftSourceSettingsModel {
             rapidAPIKey = ""
             self.validatedDraft = nil
             validation = .succeeded
+            if choice == .flightradar24 {
+                flightradar24UsageState = .idle
+                await loadFlightradar24Usage()
+            }
         }
     }
 
@@ -145,6 +181,7 @@ final class AircraftSourceSettingsModel {
         rapidAPIKey = ""
         invalidateTestedDraft()
         isEditingCredential = true
+        flightradar24UsageState = .idle
     }
 
     func replaceCredential() {

@@ -87,6 +87,51 @@ struct AircraftSourceSettingsModelTests {
         #expect(model.validation == .untested)
         #expect(model.canUseSource == false)
     }
+
+    @Test func recentFlightradar24UsageProjectsTheSelectedCadence() async throws {
+        let transport = Flightradar24UsageTransport()
+        let session = ThrowSession.fixture(cloudTransport: transport)
+        try await session.credentialStore.save(
+            AircraftCredential(secret: "fr24-token"),
+            for: .flightradar24,
+        )
+        session.flightradar24CredentialState = .saved(lastFour: "oken")
+        let model = AircraftSourceSettingsModel(session: session)
+        model.choice = .flightradar24
+        model.pollingIntervalSeconds = 300
+
+        await model.loadFlightradar24Usage()
+
+        guard case let .loaded(report) = model.flightradar24UsageState else {
+            Issue.record("Expected loaded FR24 usage")
+            return
+        }
+        #expect(report.requestCount == 12)
+        #expect(report.credits == 2400)
+        #expect(model.flightradar24CreditEstimate?.averageCreditsPerRequest == 200)
+        #expect(model.flightradar24CreditEstimate?.creditsPerActiveHour == 2400)
+
+        await model.loadFlightradar24Usage()
+        #expect(await transport.requestCount() == 1)
+    }
+
+    @Test func usageRateLimitDoesNotClaimTheAccountQuotaWasReached() async throws {
+        let transport = Flightradar24UsageRateLimitTransport()
+        let session = ThrowSession.fixture(cloudTransport: transport)
+        try await session.credentialStore.save(
+            AircraftCredential(secret: "fr24-token"),
+            for: .flightradar24,
+        )
+        session.flightradar24CredentialState = .saved(lastFour: "oken")
+        let model = AircraftSourceSettingsModel(session: session)
+        model.choice = .flightradar24
+
+        await model.loadFlightradar24Usage()
+
+        #expect(model.flightradar24UsageState == .rateLimited)
+        await model.loadFlightradar24Usage()
+        #expect(await transport.requestCount() == 1)
+    }
 }
 
 private actor DeferredSourceTestTransport: HTTPTransport {
@@ -112,5 +157,48 @@ private actor DeferredSourceTestTransport: HTTPTransport {
         )
         continuation?.resume(returning: response)
         continuation = nil
+    }
+}
+
+private actor Flightradar24UsageTransport: HTTPTransport {
+    private var requests = 0
+
+    func response(for request: HTTPRequest) async throws -> HTTPResponse {
+        requests += 1
+        #expect(request.url.path() == "/api/usage")
+        return HTTPResponse(
+            statusCode: 200,
+            headers: [:],
+            data: Data(
+                """
+                {"data":[{
+                  "endpoint":"live/flight-positions/full?{filters}",
+                  "request_count":12,
+                  "credits":2400
+                }]}
+                """.utf8,
+            ),
+        )
+    }
+
+    func requestCount() -> Int {
+        requests
+    }
+}
+
+private actor Flightradar24UsageRateLimitTransport: HTTPTransport {
+    private var requests = 0
+
+    func response(for _: HTTPRequest) async throws -> HTTPResponse {
+        requests += 1
+        return HTTPResponse(
+            statusCode: 429,
+            headers: ["Retry-After": "60"],
+            data: Data(),
+        )
+    }
+
+    func requestCount() -> Int {
+        requests
     }
 }

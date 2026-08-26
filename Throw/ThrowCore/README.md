@@ -31,7 +31,9 @@ and envelope adapters around the reusable ADS-B Exchange-v2 aircraft decoder.
 Flightradar24 has its own live-position decoder. Each FR24 snapshot carries a
 completed route result for each aircraft. The result is unavailable when the
 same record has no usable route. FR24 zero-altitude positions normalize as
-ground because its position schema has no separate airborne-state field.
+ground because its position schema has no separate airborne-state field. The
+FR24 adapter also reads the account's 24-hour usage report. Its estimator uses
+the reported credits per request, the selected cadence, and quiet hours.
 Configuration carries a typed credential reference, never the credential itself.
 
 ## Composition

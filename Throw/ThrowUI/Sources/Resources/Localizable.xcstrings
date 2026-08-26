@@ -2322,6 +2322,17 @@
         }
       }
     },
+    "source.fr24AverageCredits" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Average Credits per Request"
+          }
+        }
+      }
+    },
     "source.fr24Credential" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2355,6 +2366,39 @@
         }
       }
     },
+    "source.fr24LoadingUsage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading recent credit usage"
+          }
+        }
+      }
+    },
+    "source.fr24NoRecentUsage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No live full-position requests were reported for this token in the last 24 hours. Throw needs at least one recent request to calculate a projection."
+          }
+        }
+      }
+    },
+    "source.fr24NoSavedUsage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save an FR24 API token to load recent credit usage."
+          }
+        }
+      }
+    },
     "source.fr24Pricing" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2362,6 +2406,50 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The live full-position endpoint currently costs 8 credits for each returned aircraft. An empty response costs 1 credit."
+          }
+        }
+      }
+    },
+    "source.fr24ProjectedCredits30Days" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estimated Credits per 30 Days"
+          }
+        }
+      }
+    },
+    "source.fr24ProjectedCreditsHour" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estimated Credits per Active Hour"
+          }
+        }
+      }
+    },
+    "source.fr24RecentCredits" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Credits in Last 24 Hours"
+          }
+        }
+      }
+    },
+    "source.fr24RecentRequests" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Requests in Last 24 Hours"
           }
         }
       }
@@ -2383,7 +2471,18 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Credit use depends on traffic density. At a five-minute interval, 25 returned aircraft use about 2,400 credits per active hour; 50 use about 4,800. The FR24 dashboard is authoritative."
+            "value" : "Estimates use this token’s last 24 hours of live full-position usage. They can include requests made outside Throw. Projections apply the selected interval and configured quiet hours. The FR24 dashboard is authoritative."
+          }
+        }
+      }
+    },
+    "source.fr24UsageRateLimited" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FR24 allows one usage report per minute. This does not mean that your flight-position credit quota is exhausted. Try again shortly."
           }
         }
       }

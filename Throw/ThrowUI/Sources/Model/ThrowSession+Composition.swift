@@ -320,6 +320,37 @@ extension ThrowSession {
             return session
         }
 
+        static func flightradar24SourceSettingsSnapshotFixture() -> ThrowSession {
+            let credential: AircraftCredential
+            do {
+                credential = try AircraftCredential(secret: "fixture-fr24-token")
+            } catch {
+                preconditionFailure("Snapshot credential must be valid: \(error)")
+            }
+            let pollingInterval: PollingInterval
+            do {
+                pollingInterval = try PollingInterval(seconds: 300)
+            } catch {
+                preconditionFailure("Snapshot polling interval must be valid: \(error)")
+            }
+            let session = makeFixture(
+                setupCompleted: true,
+                quiet: false,
+                transport: FixtureHTTPTransport(),
+                credentials: [.flightradar24: credential],
+            )
+            let configuration = AircraftSourceConfiguration.flightradar24(
+                Flightradar24Configuration(
+                    pollingInterval: pollingInterval,
+                    credentialID: .flightradar24,
+                ),
+            )
+            session.selectedSourceConfiguration = configuration
+            session.validatedSourceConfiguration = configuration
+            session.flightradar24CredentialState = .saved(lastFour: credential.lastFour)
+            return session
+        }
+
         static func healthyDashboardSnapshotFixture() -> ThrowSession {
             let session = fixture()
             prepareDashboardSnapshot(session)
@@ -383,6 +414,7 @@ extension ThrowSession {
             quiet: Bool,
             transport: any HTTPTransport,
             locationSource: (any ThrowLocationSource)? = nil,
+            credentials: [AircraftCredentialID: AircraftCredential] = [:],
         ) -> ThrowSession {
             do {
                 let now = Date(timeIntervalSince1970: 1_787_594_400)
@@ -416,7 +448,7 @@ extension ThrowSession {
                     quietSchedule: .disabled,
                 )
                 let preferenceStore = try MemoryThrowPreferenceStore(initialValue: preferences)
-                let credentialStore = MemoryAircraftCredentialStore(credentials: [:])
+                let credentialStore = MemoryAircraftCredentialStore(credentials: credentials)
                 let dateProvider = FixtureDateProvider(date: now)
                 let sourceFactory = AircraftSourceFactory(
                     cloudTransport: transport,
