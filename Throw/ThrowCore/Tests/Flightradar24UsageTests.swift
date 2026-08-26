@@ -3,6 +3,16 @@ import Testing
 @testable import ThrowCore
 
 struct Flightradar24UsageTests {
+    @Test func missingDataCollectionIsAnEmptyReport() throws {
+        let report = try Flightradar24UsageDecoder.decode(
+            Data(#"{"metadata":{"period":"24h"}}"#.utf8),
+            period: .last24Hours,
+        )
+
+        #expect(report.requestCount == 0)
+        #expect(report.credits == 0)
+    }
+
     @Test func decoderSumsOnlyLiveFullPositionUsage() throws {
         let data = Data(
             """

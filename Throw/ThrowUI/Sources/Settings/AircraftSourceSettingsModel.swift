@@ -144,6 +144,8 @@ final class AircraftSourceSettingsModel {
             flightradar24UsageState = .idle
         } catch Flightradar24UsageError.rateLimited {
             flightradar24UsageState = .rateLimited
+        } catch AircraftSourceFailure.decoding {
+            flightradar24UsageState = .unexpectedResponse
         } catch let failure as AircraftSourceFailure {
             flightradar24UsageState = .failed(failure.presentationCategory)
         } catch {
