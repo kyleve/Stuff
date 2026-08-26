@@ -59,7 +59,7 @@ struct MapCenterSettingsView: View {
                 )
                 .monospacedDigit()
             }
-            Slider(value: value, in: -240 ... 240, step: 5)
+            Slider(value: value, in: -50 ... 50, step: 5)
                 .accessibilityLabel(title)
                 .accessibilityValue(
                     Text(
