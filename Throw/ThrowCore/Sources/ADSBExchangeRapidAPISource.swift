@@ -42,6 +42,7 @@ public struct ADSBExchangeRapidAPISource: AircraftObservationSource, CustomStrin
     ) async throws -> AircraftSnapshot {
         let query = try AircraftQuery(
             observer: observer,
+            center: observer.coordinate,
             viewport: .map(MapViewport(radius: NauticalMiles(value: 5))),
             includeGroundAircraft: false,
         )
@@ -96,6 +97,7 @@ public struct ADSBExchangeRapidAPISource: AircraftObservationSource, CustomStrin
     func makeCredentialTestRequest(observer: ObserverPosition) throws -> HTTPRequest {
         let query = try AircraftQuery(
             observer: observer,
+            center: observer.coordinate,
             viewport: .map(MapViewport(radius: NauticalMiles(value: 5))),
             includeGroundAircraft: false,
         )

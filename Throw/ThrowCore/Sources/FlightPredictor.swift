@@ -21,10 +21,9 @@ public struct FlightPrediction: Hashable, Sendable, CustomStringConvertible,
     }
 }
 
-/// Dead-reckons aircraft for at most 15 seconds. A retryable feed failure keeps
-/// the last position for 15 seconds, then fades it for 15 seconds.
+/// Dead-reckons a successful observation until a later poll replaces it. A
+/// retryable feed failure keeps predicting for 15 seconds, then fades for 15 seconds.
 public enum FlightPredictor {
-    public static let predictionLimit: TimeInterval = 15
     public static let failureGracePeriod: TimeInterval = 15
     public static let failureFadeDuration: TimeInterval = 15
 
@@ -63,7 +62,7 @@ public enum FlightPredictor {
         for mark: ProjectionMark,
         observationAge: TimeInterval,
     ) throws -> ProjectionMark {
-        let predictionAge = min(observationAge, predictionLimit)
+        let predictionAge = observationAge
         guard predictionAge > 0,
               case let .geodetic(anchor) = mark.anchor
         else {

@@ -26,6 +26,65 @@ extension ThrowSession {
         confirmedLocation?.position.altitude.feet ?? 0
     }
 
+    public var activeMapCenter: GeoCoordinate {
+        guard let observer = confirmedLocation?.position.coordinate else {
+            preconditionFailure("A Map center requires a confirmed observer location")
+        }
+        return mapCenters.center(for: observer)
+    }
+
+    public var mapCenterEastOffset: Double {
+        get { mapCenterOffset.east }
+        set { setMapCenterOffset(east: newValue, north: mapCenterOffset.north) }
+    }
+
+    public var mapCenterNorthOffset: Double {
+        get { mapCenterOffset.north }
+        set { setMapCenterOffset(east: mapCenterOffset.east, north: newValue) }
+    }
+
+    public var hasCustomMapCenter: Bool {
+        guard let observer = confirmedLocation?.position.coordinate else { return false }
+        return activeMapCenter != observer
+    }
+
+    public func resetMapCenter() {
+        guard let observer = confirmedLocation?.position.coordinate else { return }
+        mapCenters = mapCenters.resetting(for: observer)
+        projectionInputsChanged(restartsPolling: true)
+    }
+
+    private var mapCenterOffset: MapCenterOffset {
+        guard let observer = confirmedLocation?.position.coordinate,
+              let position = try? ProjectionEngine().greatCirclePosition(
+                  from: observer,
+                  to: activeMapCenter,
+              )
+        else { return MapCenterOffset(east: 0, north: 0) }
+        let bearing = position.initialBearing.degrees * .pi / 180
+        return MapCenterOffset(
+            east: position.distance.value * sin(bearing),
+            north: position.distance.value * cos(bearing),
+        )
+    }
+
+    private func setMapCenterOffset(east: Double, north: Double) {
+        guard let observer = confirmedLocation?.position.coordinate else { return }
+        do {
+            let distance = try NauticalMiles(value: hypot(east, north))
+            let bearing = try Bearing(degrees: atan2(east, north) * 180 / .pi)
+            let center = try ProjectionEngine().destination(
+                from: observer,
+                bearing: bearing,
+                distance: distance,
+            )
+            mapCenters = mapCenters.setting(center: center, for: observer)
+            projectionInputsChanged(restartsPolling: true)
+        } catch {
+            settingsFailure = error.localizedDescription
+        }
+    }
+
     func prepareProjectionSessionGPSLocation() async {
         guard locationMode == .gps else { return }
         switch projectionSessionLocationGate {
@@ -284,4 +343,9 @@ extension ThrowSession {
             locationHealth = .failed
         }
     }
+}
+
+private struct MapCenterOffset {
+    let east: Double
+    let north: Double
 }

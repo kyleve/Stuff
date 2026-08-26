@@ -1398,6 +1398,83 @@
         }
       }
     },
+    "mapCenter.eastWest" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "East / West offset"
+          }
+        }
+      }
+    },
+    "mapCenter.explanation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Positive values move the view east or north. Throw fixes this center within your current coarse region, so a location refresh does not move the map. Another region keeps a separate center."
+          }
+        }
+      }
+    },
+    "mapCenter.latitude" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Center latitude"
+          }
+        }
+      }
+    },
+    "mapCenter.longitude" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Center longitude"
+          }
+        }
+      }
+    },
+    "mapCenter.northSouth" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "North / South offset"
+          }
+        }
+      }
+    },
+    "mapCenter.observerMarkerExplanation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A small, dim ring marks your actual location when it is inside the visible Map. True Sky always remains centered on your actual location."
+          }
+        }
+      }
+    },
+    "mapCenter.reset" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Center on My Location"
+          }
+        }
+      }
+    },
     "mode.map" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2109,6 +2186,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Location"
+          }
+        }
+      }
+    },
+    "settings.mapCenter" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Map Center"
           }
         }
       }

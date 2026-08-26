@@ -72,6 +72,7 @@ extension ThrowStylesheet {
         var markLuminance: Double
         var aircraft: AircraftStyle
         var activity: ActivityStyle
+        var observer: ObserverStyle
         var geography: GeographyStyle
         var statusLuminance: Double
         var minimumMarkSize: CGFloat
@@ -85,6 +86,7 @@ extension ThrowStylesheet {
             markLuminance: 0.95,
             aircraft: .standard,
             activity: .standard,
+            observer: .standard,
             geography: .standard,
             statusLuminance: 0.55,
             minimumMarkSize: 6,
@@ -102,6 +104,18 @@ extension ThrowStylesheet {
             ),
             correctionDuration: 0.75,
             modeChangeDuration: 1.2,
+        )
+    }
+
+    struct ObserverStyle: Equatable {
+        var diameter: CGFloat
+        var lineWidth: CGFloat
+        var luminanceMultiplier: Double
+
+        static let standard = ObserverStyle(
+            diameter: 7,
+            lineWidth: 0.8,
+            luminanceMultiplier: 0.3,
         )
     }
 

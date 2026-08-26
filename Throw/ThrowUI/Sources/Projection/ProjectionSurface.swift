@@ -66,6 +66,12 @@ public struct ProjectionSurface: View {
                             .zIndex(Double(descriptor.zOrder))
                         }
                     }
+                    ObserverMarkerCanvas(
+                        point: session.observerMapPoint,
+                        intensityMultiplier: intensityMultiplier,
+                        style: projectionStyle,
+                    )
+                    .zIndex(Double(Int.max))
                 }
             }
         }
@@ -86,6 +92,51 @@ public struct ProjectionSurface: View {
         .onChange(of: reduceMotion) { _, newValue in
             session.updateReduceMotion(newValue)
         }
+    }
+}
+
+private struct ObserverMarkerCanvas: View {
+    let point: ProjectionPoint?
+    let intensityMultiplier: Double
+    let style: ThrowStylesheet.ProjectionStyle
+
+    var body: some View {
+        Canvas { context, size in
+            guard let point else { return }
+            let side = min(size.width, size.height)
+            let origin = CGPoint(x: (size.width - side) / 2, y: (size.height - side) / 2)
+            let center = CGPoint(
+                x: origin.x + point.x * side,
+                y: origin.y + point.y * side,
+            )
+            let diameter = style.observer.diameter
+            let color = Color(
+                white: style.markLuminance * style.observer.luminanceMultiplier *
+                    intensityMultiplier,
+            )
+            let rect = CGRect(
+                x: center.x - diameter / 2,
+                y: center.y - diameter / 2,
+                width: diameter,
+                height: diameter,
+            )
+            context.stroke(
+                Path(ellipseIn: rect),
+                with: .color(color),
+                lineWidth: style.observer.lineWidth,
+            )
+            context.fill(
+                Path(ellipseIn: CGRect(
+                    x: center.x - 0.75,
+                    y: center.y - 0.75,
+                    width: 1.5,
+                    height: 1.5,
+                )),
+                with: .color(color),
+            )
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }
 

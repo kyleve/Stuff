@@ -63,13 +63,35 @@ actor ProjectionFrameWorker {
         generatedAt: Date,
         reduceMotion: Bool,
     ) async throws -> ProjectionFrameWorkerOutput {
+        try await frame(
+            layerFrame: layerFrame,
+            geographyEnabled: geographyEnabled,
+            observer: observer,
+            mapCenter: observer.coordinate,
+            viewport: viewport,
+            calibration: calibration,
+            generatedAt: generatedAt,
+            reduceMotion: reduceMotion,
+        )
+    }
+
+    func frame(
+        layerFrame: LayerFrame?,
+        geographyEnabled: Bool,
+        observer: ObserverPosition,
+        mapCenter: GeoCoordinate,
+        viewport: ProjectionViewport,
+        calibration: ProjectionCalibration,
+        generatedAt: Date,
+        reduceMotion: Bool,
+    ) async throws -> ProjectionFrameWorkerOutput {
         try Task.checkCancellation()
         let observationChanged = lastLayerObservedAt != layerFrame?.observedAt
         let geographyResult: GeographyProjectionResult
         do {
             geographyResult = try await projectedGeography(
                 isEnabled: geographyEnabled,
-                observer: observer,
+                mapCenter: mapCenter,
                 viewport: viewport,
                 calibration: calibration,
             )
@@ -84,6 +106,7 @@ actor ProjectionFrameWorker {
             layerFrames: layerFrame.map { [$0] } ?? [],
             geography: geographyResult.projection,
             observer: observer,
+            mapCenter: mapCenter,
             viewport: viewport,
             calibration: calibration,
             geometry: ProjectionGeometry(width: 1, height: 1),
@@ -106,23 +129,35 @@ actor ProjectionFrameWorker {
             observationChanged: observationChanged,
             reduceMotion: reduceMotion,
         )
+        let observerPoint: ProjectionPoint? = if case let .map(mapViewport) = viewport {
+            try engine.mapPoint(
+                for: observer.coordinate,
+                center: mapCenter,
+                viewport: mapViewport,
+                calibration: calibration,
+                geometry: ProjectionGeometry(width: 1, height: 1),
+            )
+        } else {
+            nil
+        }
         return ProjectionFrameWorkerOutput(
             frame: frame,
             geographyHealth: geographyResult.health,
             effects: effects,
+            observerPoint: observerPoint,
         )
     }
 
     private func projectedGeography(
         isEnabled: Bool,
-        observer: ObserverPosition,
+        mapCenter: GeoCoordinate,
         viewport: ProjectionViewport,
         calibration: ProjectionCalibration,
     ) async throws -> GeographyProjectionResult {
         guard isEnabled, case .map = viewport else { return .notRequested }
         guard geographyLoadFailed == false else { return .unavailable }
         let key = GeographyProjectionCacheKey(
-            observer: observer,
+            mapCenter: mapCenter,
             viewport: viewport,
             calibration: calibration,
         )
@@ -136,7 +171,7 @@ actor ProjectionFrameWorker {
         try Task.checkCancellation()
         let segments = try engine.geographySegments(
             lines: layerFrame.geographicLines,
-            observer: observer,
+            mapCenter: mapCenter,
             viewport: viewport,
             calibration: calibration,
             geometry: ProjectionGeometry(width: 1, height: 1),
@@ -637,7 +672,7 @@ private enum AnimationDuration {
 }
 
 private struct GeographyProjectionCacheKey: Equatable {
-    let observer: ObserverPosition
+    let mapCenter: GeoCoordinate
     let viewport: ProjectionViewport
     let calibration: ProjectionCalibration
 }
@@ -663,6 +698,7 @@ struct ProjectionFrameWorkerOutput {
     let frame: ProjectionFrame
     let geographyHealth: GeographyLayerHealth
     let effects: [LayerMarkID: ProjectionMarkEffect]
+    let observerPoint: ProjectionPoint?
 }
 
 extension ProjectionFrameWorker {

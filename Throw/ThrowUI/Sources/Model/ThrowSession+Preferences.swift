@@ -12,6 +12,7 @@ extension ThrowSession {
         confirmedLocation = preferences.confirmedLocation
         projectionMode = preferences.selectedProjectionMode ?? .map
         mapRadius = preferences.mapViewport.radius.value
+        mapCenters = preferences.mapCenters
         minimumElevation = preferences.skyViewport.minimumElevation.degrees
         flightsEnabled = preferences.flightsEnabled
         airlineAccentsEnabled = preferences.airlineAccentsEnabled
@@ -113,6 +114,7 @@ extension ThrowSession {
             confirmedLocation: confirmedLocation,
             calibration: projectionCalibration(),
             mapViewport: MapViewport(radius: NauticalMiles(value: mapRadius)),
+            mapCenters: mapCenters,
             skyViewport: SkyViewport(
                 minimumElevation: ElevationAngle(degrees: minimumElevation),
             ),

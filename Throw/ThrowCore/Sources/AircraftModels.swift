@@ -165,15 +165,20 @@ public struct AircraftQuery: Hashable, Sendable, CustomStringConvertible,
     CustomDebugStringConvertible
 {
     public let observer: ObserverPosition
+    /// The center of the requested region. It equals the observer in True Sky
+    /// and may be a fixed regional Map center in Map mode.
+    public let center: GeoCoordinate
     public let viewport: ProjectionViewport
     public let includeGroundAircraft: Bool
 
     public init(
         observer: ObserverPosition,
+        center: GeoCoordinate,
         viewport: ProjectionViewport,
         includeGroundAircraft: Bool,
     ) {
         self.observer = observer
+        self.center = center
         self.viewport = viewport
         self.includeGroundAircraft = includeGroundAircraft
     }

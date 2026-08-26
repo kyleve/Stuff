@@ -1,8 +1,8 @@
 # Throw
 
 Throw is an iPhone and iPad ceiling-projector app. It places nearby aircraft on
-an observer-centred map or a directional sky dome, while the device remains the
-controller and an attached display renders an opaque-black projection surface.
+a geographic map or a directional sky dome. The device remains the controller,
+and an attached display shows an opaque-black projection surface.
 Aircraft data is ambient and incomplete; Throw is not a navigation or safety
 tool.
 
@@ -98,6 +98,14 @@ primary roads.
 
 The layer is on by default. You can turn it off or set its intensity from zero
 through 20 percent. True Sky does not draw geography.
+
+Map mode can use a center that differs from the observer location. Throw saves
+one fixed center for each coarse observer region. A location refresh within
+that region does not move the map. A small dim ring shows the observer location
+when it is inside the visible Map. True Sky always uses the observer location.
+
+Cloud aircraft sources receive a coarse version of the Map center and the query
+radius. They do not receive the exact observer location when the centers differ.
 
 Throw bundles Natural Earth Vector 1:10m data and selected 2025 U.S. Census
 Bureau data. Map rendering does not request tiles or send a location to a map

@@ -3,7 +3,7 @@ import Testing
 @testable import ThrowCore
 
 struct FlightPredictorTests {
-    @Test func predictsAlongGroundTrackUntilFifteenSeconds() throws {
+    @Test func predictsAlongGroundTrackUntilNextSuccessfulPoll() throws {
         let mark = try movingMark(positionAge: 0)
         let tenSecondPrediction = try FlightPredictor.prediction(
             for: mark,
@@ -13,20 +13,20 @@ struct FlightPredictorTests {
             for: mark,
             at: ThrowCoreFixture.date.addingTimeInterval(15),
         )
-        let twentySecondPrediction = try FlightPredictor.prediction(
+        let fiveMinutePrediction = try FlightPredictor.prediction(
             for: mark,
-            at: ThrowCoreFixture.date.addingTimeInterval(20),
+            at: ThrowCoreFixture.date.addingTimeInterval(300),
         )
         let tenSeconds = try #require(tenSecondPrediction)
         let fifteenSeconds = try #require(fifteenSecondPrediction)
-        let twentySeconds = try #require(twentySecondPrediction)
+        let fiveMinutes = try #require(fiveMinutePrediction)
         let tenCoordinate = try coordinate(tenSeconds.mark)
         let fifteenCoordinate = try coordinate(fifteenSeconds.mark)
-        let twentyCoordinate = try coordinate(twentySeconds.mark)
+        let fiveMinuteCoordinate = try coordinate(fiveMinutes.mark)
         #expect(tenCoordinate.longitude > 0)
         #expect(fifteenCoordinate.longitude > tenCoordinate.longitude)
-        #expect(twentyCoordinate == fifteenCoordinate)
-        #expect(twentySeconds.opacity == 1)
+        #expect(fiveMinuteCoordinate.longitude > fifteenCoordinate.longitude)
+        #expect(fiveMinutes.opacity == 1)
     }
 
     @Test func successfulPollRemainsVisibleAtFiveMinuteCadence() throws {

@@ -181,6 +181,7 @@ public struct Flightradar24Source: AircraftObservationSource, CustomStringConver
     {
         let query = try AircraftQuery(
             observer: observer,
+            center: observer.coordinate,
             viewport: .map(MapViewport(radius: NauticalMiles(value: 5))),
             includeGroundAircraft: false,
         )

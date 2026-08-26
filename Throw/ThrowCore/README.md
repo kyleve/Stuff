@@ -18,6 +18,7 @@ important boundaries are:
 
 - validated geographic, viewport, calibration, source, layer, and frame
   values;
+- fixed Map centers that are stored by coarse observer region;
 - `LayerCatalog.standard`, whose typed Flights and Geography descriptors
   construct live runtimes and whose erased list is the catalog boundary;
 - `AircraftObservationSource`, the provider-neutral one-shot feed contract;
@@ -42,12 +43,12 @@ The app creates live preference and credential stores once. ThrowUI's shared
 session drives the polling coordinator according to foreground state, quiet
 state, and output demand. The session constructs typed runtimes from the same
 catalog that the controller presents. The worker decodes bundled geography once
-and caches projected lines by location, viewport, and calibration. It does not
+and caches projected lines by Map center, viewport, and calibration. It does not
 rebuild static lines at the 30 Hz aircraft frame rate. Expensive decode and
 projection work stays off the main actor. Generation checks reject late work.
-Position prediction stops after 15 seconds, but a successful snapshot stays
-visible until a later successful poll replaces it. A retryable poll failure
-starts a 15-second grace period and a 15-second fade.
+Position prediction continues until a later successful poll replaces the
+snapshot. A retryable poll failure starts a 15-second grace period and a
+15-second fade.
 
 `Tools/generate-geography.rb` creates the bundled archive from pinned Natural
 Earth Vector 1:10m and U.S. Census Bureau inputs. A source manifest records each
@@ -93,6 +94,8 @@ mean-sea-level approximations and is not an optical ceiling registration.
 The offline map sends no request. Its generalized boundaries are not
 authoritative. Natural Earth uses its default de facto view. Census boundaries
 support statistical work and are not legal land descriptions.
+Cloud aircraft sources receive the coarse query center. In Map mode, this value
+can differ from the observer location. True Sky always uses the observer location.
 Aircraft classifications and carrier identities are not persisted or logged.
 Route enrichment sends broadcast callsigns to ADSBDB. It never sends aircraft
 or observer positions, persists route history, or logs route request or

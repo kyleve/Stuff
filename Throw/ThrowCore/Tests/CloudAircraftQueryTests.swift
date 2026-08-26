@@ -14,8 +14,10 @@ struct CloudAircraftQueryTests {
     }
 
     @Test func snapsCenterAndAddsTenMilePadding() throws {
+        let observer = try ThrowCoreFixture.observer(latitude: 37.04, longitude: -122.06)
         let query = try AircraftQuery(
-            observer: ThrowCoreFixture.observer(latitude: 37.04, longitude: -122.06),
+            observer: observer,
+            center: observer.coordinate,
             viewport: .map(MapViewport(radius: NauticalMiles(value: 50))),
             includeGroundAircraft: false,
         )
@@ -28,6 +30,25 @@ struct CloudAircraftQueryTests {
     @Test func capsPaddedMapQueryAtProviderMaximum() throws {
         let plan = try CloudAircraftQuery.plan(for: ThrowCoreFixture.mapQuery(radius: 240))
         #expect(plan.transmittedRadius.value == 250)
+    }
+
+    @Test func shiftedMapUsesItsCenterForRequestAndFiltering() throws {
+        let observer = try ThrowCoreFixture.observer(latitude: 37, longitude: -122)
+        let center = try GeoCoordinate(latitude: 37, longitude: -121)
+        let query = try AircraftQuery(
+            observer: observer,
+            center: center,
+            viewport: .map(MapViewport(radius: NauticalMiles(value: 10))),
+            includeGroundAircraft: false,
+        )
+        let nearCenter = try ThrowCoreFixture.observation(latitude: 37, longitude: -121.02)
+        let nearObserver = try ThrowCoreFixture.observation(latitude: 37, longitude: -122.02)
+
+        let plan = try CloudAircraftQuery.plan(for: query)
+        let filtered = try CloudAircraftQuery.postFilter([nearCenter, nearObserver], for: query)
+
+        #expect(plan.coarseCenter == center)
+        #expect(filtered.map(\.coordinate) == [nearCenter.coordinate])
     }
 
     @Test func trueSkyAlwaysQueriesProviderMaximum() throws {

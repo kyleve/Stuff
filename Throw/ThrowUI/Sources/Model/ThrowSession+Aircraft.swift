@@ -476,6 +476,7 @@ extension ThrowSession {
                         layerFrame: flightsEnabled ? currentLayerFrame : nil,
                         geographyEnabled: geographyEnabled,
                         observer: confirmedLocation.position,
+                        mapCenter: activeMapCenter,
                         viewport: projectionViewport(),
                         calibration: projectionCalibration(),
                         generatedAt: dateProvider.now(),
@@ -485,6 +486,7 @@ extension ThrowSession {
                     guard generation == renderGeneration else { return }
                     projectionFrame = output.frame
                     projectionMarkEffects = output.effects
+                    observerMapPoint = output.observerPoint
                     geographyLayerHealth = output.geographyHealth
                     updateVisibleCount(output.frame.visibleAircraftCount)
                     if currentLayerFrame == nil {
@@ -684,6 +686,7 @@ extension ThrowSession {
         guard let confirmedLocation else { throw AircraftSourceFailure.invalidConfiguration }
         return try AircraftQuery(
             observer: confirmedLocation.position,
+            center: confirmedLocation.position.coordinate,
             viewport: .map(MapViewport(radius: NauticalMiles(value: 5))),
             includeGroundAircraft: false,
         )
@@ -693,6 +696,9 @@ extension ThrowSession {
         guard let confirmedLocation else { throw AircraftSourceFailure.invalidConfiguration }
         return try AircraftQuery(
             observer: confirmedLocation.position,
+            center: projectionMode == .map
+                ? activeMapCenter
+                : confirmedLocation.position.coordinate,
             viewport: projectionViewport(),
             includeGroundAircraft: projectionMode == .map && includeGroundAircraft,
         )

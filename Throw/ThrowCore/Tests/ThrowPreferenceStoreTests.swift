@@ -90,6 +90,7 @@ struct ThrowPreferenceStoreTests {
                 confirmedLocation: nil,
                 calibration: .defaultValue,
                 mapViewport: .defaultValue,
+                mapCenters: .defaultValue,
                 skyViewport: .defaultValue,
                 selectedProjectionMode: nil,
                 flightsEnabled: true,
@@ -124,6 +125,7 @@ struct ThrowPreferenceStoreTests {
                 ),
                 calibration: .defaultValue,
                 mapViewport: .defaultValue,
+                mapCenters: .defaultValue,
                 skyViewport: .defaultValue,
                 selectedProjectionMode: .map,
                 flightsEnabled: true,
@@ -173,6 +175,7 @@ struct ThrowPreferenceStoreTests {
             confirmedLocation: location,
             calibration: .defaultValue,
             mapViewport: .defaultValue,
+            mapCenters: .defaultValue,
             skyViewport: .defaultValue,
             selectedProjectionMode: .map,
             flightsEnabled: true,
@@ -214,6 +217,7 @@ struct ThrowPreferenceStoreTests {
         selectedSource: AircraftSourceConfiguration,
     ) throws -> ThrowPreferences {
         let observer = try ThrowCoreFixture.observer()
+        let mapCenter = try GeoCoordinate(latitude: 37.2, longitude: -121.7)
         return try ThrowPreferences(
             setupCompleted: true,
             selectedSource: selectedSource,
@@ -233,6 +237,10 @@ struct ThrowPreferenceStoreTests {
                 verifiedOnExternalDisplay: true,
             ),
             mapViewport: MapViewport(radius: NauticalMiles(value: 100)),
+            mapCenters: .defaultValue.setting(
+                center: mapCenter,
+                for: observer.coordinate,
+            ),
             skyViewport: SkyViewport(minimumElevation: ElevationAngle(degrees: 20)),
             selectedProjectionMode: .trueSky,
             flightsEnabled: false,

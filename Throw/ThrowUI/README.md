@@ -37,6 +37,11 @@ constant screen-space widths and a separate restrained intensity. Roads and
 county boundaries remain dimmer than coastlines and major boundaries. True Sky
 and quiet output remain free of geography.
 
+Map settings store one fixed center for each coarse observer region. The map,
+geography cache, and aircraft query use this center. Activity classification
+and True Sky continue to use the observer location. The projection shows a dim
+observer ring when the observer is inside the visible Map.
+
 Aircraft activity cues use geometry and luminance without replacing airline
 accents. The projection worker tracks acquisition rings, cue transitions,
 airport-anchor fades, and completion pulses in memory. Reduce Motion removes
