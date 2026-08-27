@@ -43,7 +43,8 @@ location, and scheduling; see [`README.md`](README.md). Read the root
 - Keep every derived `MapRegionID` inside its persisted band ranges. Treat
   positive 180° longitude as the negative-dateline band.
 - Change the pinned source manifest, generator, and generated archive together.
-  Keep the archive free of names and unused source attributes.
+  Keep expected counts scoped to emitted records, and keep the archive free of
+  names and unused source attributes.
 - Keep aircraft-family and airline-brand classification provider-neutral and
   deterministic. Use only bundled type characteristics, emitter category,
   explicit ICAO airline designators, and curated direct callsign prefixes;

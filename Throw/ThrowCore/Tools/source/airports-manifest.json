@@ -6,7 +6,7 @@
   "license": "Public domain",
   "expectedOutput": {
     "airportCount": 49545,
-    "runwayCount": 14850,
+    "runwayCount": 14262,
     "sha256": "c295c1289c0b8df8a5e4e9c49fdd2541b543d4cd8edd756f2bead9f0c9b22659"
   },
   "inputs": {
