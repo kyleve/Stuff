@@ -115,6 +115,7 @@ actor ProjectionExperienceCoordinator {
     private struct RuntimeState {
         var generation: UInt64 = 0
         var successfulGeneration: UInt64?
+        var preparedGeneration: UInt64?
         var health: FeedHealth = .idle
         var isRunning = false
     }
@@ -333,13 +334,62 @@ actor ProjectionExperienceCoordinator {
         else { return }
         if case let .failed(failure) = health {
             await rejectRequestedExperience(failure: failure)
-            return
         }
-        guard runtime.successfulGeneration == generation else { return }
+    }
+
+    func isAwaitingPreparation(
+        id: ProjectionExperienceID,
+        generation: UInt64,
+    ) -> Bool {
+        guard demand.permitsProjection,
+              case let .awaiting(request) = requestState,
+              request.id == id,
+              request.generation == generation,
+              let runtime = runtimeStates[id],
+              runtime.isRunning,
+              runtime.generation == generation,
+              runtime.successfulGeneration == generation
+        else { return false }
+        return true
+    }
+
+    /// Marks a complete projected frame as ready for the current activation.
+    func reportRuntimePrepared(
+        id: ProjectionExperienceID,
+        generation: UInt64,
+    ) async -> Bool {
+        guard isAwaitingPreparation(id: id, generation: generation),
+              case let .awaiting(request) = requestState,
+              var runtime = runtimeStates[id]
+        else { return false }
+        runtime.preparedGeneration = generation
+        runtimeStates[id] = runtime
+
         let now = await clock.now()
-        if request.canTransition(at: now) {
+        guard demand.permitsProjection,
+              case let .awaiting(currentRequest) = requestState,
+              currentRequest.id == request.id,
+              currentRequest.generation == request.generation,
+              runtimeStates[id]?.generation == generation,
+              runtimeStates[id]?.successfulGeneration == generation,
+              runtimeStates[id]?.preparedGeneration == generation
+        else { return false }
+        if currentRequest.canTransition(at: now) {
             beginTransitionIfReady()
         }
+        return true
+    }
+
+    func rejectPreparedTransition(
+        id: ProjectionExperienceID,
+        generation: UInt64,
+        failure: ThrowFailureCategory,
+    ) async {
+        guard let request = requestState?.request,
+              request.id == id,
+              request.generation == generation
+        else { return }
+        await rejectRequestedExperience(failure: failure)
     }
 
     func select(_ id: ProjectionExperienceID) async {
@@ -409,7 +459,8 @@ actor ProjectionExperienceCoordinator {
         guard case let .transitioning(request) = requestState,
               request.id == id,
               request.generation == generation,
-              runtimeStates[id]?.successfulGeneration == generation
+              runtimeStates[id]?.successfulGeneration == generation,
+              runtimeStates[id]?.preparedGeneration == generation
         else { return false }
         let oldID = activeExperienceID
         guard playlistState.select(id) else {
@@ -558,7 +609,8 @@ actor ProjectionExperienceCoordinator {
               let from = activeExperienceID,
               let runtime = runtimeStates[request.id],
               runtime.generation == request.generation,
-              runtime.successfulGeneration == runtime.generation
+              runtime.successfulGeneration == runtime.generation,
+              runtime.preparedGeneration == runtime.generation
         else { return }
         readinessTask?.cancel()
         readinessTask = nil
@@ -615,6 +667,7 @@ actor ProjectionExperienceCoordinator {
         var state = runtimeStates[id] ?? RuntimeState()
         state.generation = nextGeneration
         state.successfulGeneration = nil
+        state.preparedGeneration = nil
         state.health = .loading
         state.isRunning = true
         runtimeStates[id] = state
@@ -628,6 +681,7 @@ actor ProjectionExperienceCoordinator {
         guard runtimeStates[id]?.isRunning == true else { return }
         runtimeStates[id]?.isRunning = false
         runtimeStates[id]?.successfulGeneration = nil
+        runtimeStates[id]?.preparedGeneration = nil
         runtimeStates[id]?.health = .idle
         emitAction(.deactivate(id: id))
     }

@@ -233,7 +233,7 @@ public final class ThrowSession {
         ProjectionExperienceID: ProjectionExperienceFrame
     ] = [:]
     @ObservationIgnored var preparedOutputsByExperience: [
-        ProjectionExperienceID: ProjectionFrameWorkerOutput
+        ProjectionExperienceID: PreparedProjectionExperience
     ] = [:]
     @ObservationIgnored var currentSnapshot: AircraftSnapshot?
     @ObservationIgnored var outputDemands: Set<ProjectionOutput> = []

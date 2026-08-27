@@ -4,6 +4,32 @@ import ThrowCore
 
 @MainActor
 struct ThrowSessionAircraftTests {
+    @Test func staleRuntimeUpdateCannotReplaceTheCurrentActivationState() async throws {
+        let session = ThrowSession.fixture()
+        let signature = try PollingSignature(
+            configuration: .adsbLol,
+            query: session.aircraftQuery(),
+        )
+        session.airAndSpaceActivationGeneration = 2
+        session.activePollingSignature = signature
+        let previousHealth = session.feedHealth
+
+        await session.applyAirAndSpaceUpdate(AirAndSpaceRuntimeUpdate(
+            activationGeneration: 1,
+            successfulActivationGeneration: 1,
+            health: .healthy(
+                lastUpdate: session.dateProvider.now(),
+                visibleContentCount: 99,
+            ),
+            flightsFrame: nil,
+            snapshot: nil,
+            activePollingSignature: nil,
+        ))
+
+        #expect(session.activePollingSignature == signature)
+        #expect(session.feedHealth == previousHealth)
+    }
+
     @Test func failedSourcePersistenceKeepsTheOldSourceAndCredentialLive() async throws {
         let preferenceStore = FailableThrowPreferenceStore(failsSave: true)
         let credentialStore = FailableAircraftCredentialStore(credentials: [:])
