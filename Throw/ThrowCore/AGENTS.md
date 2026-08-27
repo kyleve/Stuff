@@ -25,6 +25,10 @@ location, and scheduling; see [`README.md`](README.md). Read the root
 - Build FR24 bounds as a conservative spherical cap. Use all longitudes when
   the cap reaches a pole, and round transmitted edges outward.
 - Never fall back between aircraft sources or merge their frames.
+- Represent source setup with one `AircraftSourceSelection`. Never restore
+  parallel selected and validated source properties.
+- Derive provider credential IDs from the source kind. Never accept an
+  arbitrary credential ID in a provider configuration.
 - Keep consecutive motion state inside the Flights runtime actor. Clear it when
   the selected source changes, and never persist it.
 - Store only the RapidAPI key in device-only Keychain storage. Persist no live

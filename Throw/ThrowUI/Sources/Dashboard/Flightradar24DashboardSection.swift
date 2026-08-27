@@ -18,8 +18,11 @@ struct Flightradar24DashboardSection: View {
                     .foregroundStyle(.red)
                 case let .saved(lastFour):
                     LabeledContent(String(localized: .sourceCredentialSaved)) {
-                        Text(verbatim: lastFour.map { "•••• \($0)" } ?? "Saved")
-                            .privacySensitive()
+                        Text(
+                            verbatim: lastFour.map { "•••• \($0)" } ??
+                                String(localized: .statusConnected),
+                        )
+                        .privacySensitive()
                     }
             }
             LabeledContent(String(localized: .sourceInterval)) {

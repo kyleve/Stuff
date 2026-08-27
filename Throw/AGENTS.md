@@ -27,6 +27,8 @@ WhereCore, RegionKit, or LifecycleKit into this feature.
   Never draw layers from two experiences together.
 - Select exactly one aircraft source. Cancel and drain it before starting
   another; never combine or automatically fall back between providers.
+- Keep source configuration and validation in one `AircraftSourceSelection`.
+  Derive each paid provider's fixed credential ID from its source kind.
 - Render Preview, full-screen fallback, and external displays with the same
   `ProjectionSurface`.
 - Keep secrets in `AircraftCredentialStore` only. Never log a key, observer or

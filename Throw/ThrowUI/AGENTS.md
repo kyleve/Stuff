@@ -22,8 +22,10 @@ Read the root [`AGENTS.md`](../../AGENTS.md) and group
   A nonempty playlist must always have an active identity from that playlist.
 - Give each playlist configuration a monotonic revision. Reject configurations
   that arrive after a newer revision.
-- Prepare a fresh target generation before switching. Exchange the complete
-  frame only at black, and never mix layers from two experiences.
+- Keep coordinator command delivery lossless. Revalidate revision, demand,
+  identity, and generation after each suspension before changing timer state.
+- Require a successful response and a prepared frame from the same fresh target
+  generation. Exchange that frame only at black, and never mix experiences.
 - Send only `ProjectionExperienceInput` to the production projection worker.
   Keep raw layer-array entry points inside DEBUG test support.
 - Render projector, Preview, and full-screen fallback through
