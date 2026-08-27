@@ -16,26 +16,23 @@ struct ProjectionModelsTests {
         }
     }
 
-    @Test func markIdentityIncludesLayerAndNamespace() {
-        let aircraft = LayerMarkID(
-            layerID: .flights,
-            namespace: .aircraft,
-            rawValue: "same",
-        )
-        let satellite = LayerMarkID(
-            layerID: .satellites,
-            namespace: .satellite,
-            rawValue: "same",
-        )
+    @Test func markIdentityIncludesLayerAndNamespace() throws {
+        let aircraft = try #require(
+            AircraftID(kind: .icao, rawValue: "same"),
+        ).layerMarkID
+        let satellite = try LayerMarkID.satellite(#require(SatelliteID(rawValue: "same")))
+        let nonICAOAircraft = try #require(
+            AircraftID(kind: .providerMarkedNonICAO, rawValue: "same"),
+        ).layerMarkID
         #expect(aircraft != satellite)
+        #expect(aircraft != nonICAOAircraft)
+        #expect(aircraft.rawValue != nonICAOAircraft.rawValue)
     }
 
     @Test func semanticAndProjectedLayersRetainOneValuePerMarkIdentity() throws {
-        let id = LayerMarkID(
-            layerID: .flights,
-            namespace: .aircraft,
-            rawValue: "duplicate",
-        )
+        let id = try #require(
+            AircraftID(kind: .icao, rawValue: "duplicate"),
+        ).layerMarkID
         let first = try semanticMark(id: id, label: "FIRST")
         let replacement = try semanticMark(id: id, label: "REPLACEMENT")
         let semanticLayer = LayerFrame(
@@ -70,11 +67,11 @@ struct ProjectionModelsTests {
     @Test func experienceFramesExposeOnlyTheirTypedLayerMembership() {
         let flights = ProjectionLayerFrame<FlightsLayerKind>(
             observedAt: ThrowCoreFixture.date,
-            content: .marks([]),
+            marks: [],
         )
         let network = ProjectionLayerFrame<TransitNetworkLayerKind>(
             observedAt: ThrowCoreFixture.date,
-            content: .lines([]),
+            lines: [],
         )
 
         let airAndSpace = ProjectionExperienceFrame.airAndSpace(
@@ -124,7 +121,7 @@ struct ProjectionModelsTests {
 
     @Test func visibleAircraftCountExcludesOtherGlyphs() throws {
         let aircraft = try ProjectedMark(
-            id: LayerMarkID(layerID: .flights, namespace: .aircraft, rawValue: "a"),
+            id: #require(AircraftID(kind: .icao, rawValue: "a")).layerMarkID,
             point: ProjectionPoint(x: 0.5, y: 0.5),
             range: NauticalMiles(value: 1),
             glyph: .aircraft(.unknownAirborne),
@@ -135,8 +132,8 @@ struct ProjectionModelsTests {
             labelOpacity: 1,
             altitudeIsApproximate: false,
         )
-        let star = ProjectedMark(
-            id: LayerMarkID(layerID: .stars, namespace: .star, rawValue: "s"),
+        let star = try ProjectedMark(
+            id: .star(#require(StarID(rawValue: "s"))),
             point: ProjectionPoint(x: 0.5, y: 0.5),
             range: nil,
             glyph: .star,
@@ -243,11 +240,9 @@ struct ProjectionModelsTests {
         let markIDSentinel = "mark-id-do-not-leak"
         let labelSentinel = "LABEL-DO-NOT-LEAK"
         let coordinateSentinel = "33.123456"
-        let markID = LayerMarkID(
-            layerID: .flights,
-            namespace: .aircraft,
-            rawValue: markIDSentinel,
-        )
+        let markID = try #require(
+            AircraftID(kind: .icao, rawValue: markIDSentinel),
+        ).layerMarkID
         let geodeticAnchor = try GeodeticAnchor(
             coordinate: GeoCoordinate(latitude: 33.123456, longitude: -111.654321),
             altitude: Altitude(feet: 12300),
@@ -351,8 +346,16 @@ struct ProjectionModelsTests {
         rawID: String,
         x: Double = 0.5,
     ) throws -> ProjectedMark {
-        try ProjectedMark(
-            id: LayerMarkID(layerID: layerID, namespace: .aircraft, rawValue: rawID),
+        let id: LayerMarkID = switch layerID {
+            case .transitVehicles:
+                try .transitVehicle(#require(TransitVehicleID(rawValue: rawID)))
+            case .flights:
+                try #require(AircraftID(kind: .icao, rawValue: rawID)).layerMarkID
+            case .geography, .stars, .satellites, .transitNetwork:
+                throw ThrowValidationError.invalidPreferencePayload
+        }
+        return try ProjectedMark(
+            id: id,
             point: ProjectionPoint(x: x, y: 0.5),
             range: NauticalMiles(value: 1),
             glyph: .aircraft(.unknownAirborne),

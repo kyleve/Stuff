@@ -95,7 +95,7 @@ struct ProjectionMotionDiagnosticsAccumulatorTests {
         )
     }
 
-    private func markID(rawValue: String) -> LayerMarkID {
-        LayerMarkID(layerID: .flights, namespace: .aircraft, rawValue: rawValue)
+    private func markID(rawValue: String) throws -> LayerMarkID {
+        try #require(AircraftID(kind: .icao, rawValue: rawValue)).layerMarkID
     }
 }

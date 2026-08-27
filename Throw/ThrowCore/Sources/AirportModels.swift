@@ -9,7 +9,7 @@ public struct AirportID: Hashable, Sendable {
     }
 
     public var layerMarkID: LayerMarkID {
-        LayerMarkID(layerID: .flights, namespace: .airport, rawValue: String(rawValue))
+        .airport(self)
     }
 }
 

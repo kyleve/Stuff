@@ -1,19 +1,12 @@
 import Foundation
 
-public struct LayerID: Hashable, Sendable {
-    public static let geography = LayerID(rawValue: "geography")
-    public static let flights = LayerID(rawValue: "flights")
-    public static let stars = LayerID(rawValue: "stars")
-    public static let satellites = LayerID(rawValue: "satellites")
-    public static let transitNetwork = LayerID(rawValue: "transit-network")
-    public static let transitVehicles = LayerID(rawValue: "transit-vehicles")
-
-    public let rawValue: String
-
-    public init(rawValue: String) {
-        precondition(rawValue.isEmpty == false, "A layer ID must not be empty")
-        self.rawValue = rawValue
-    }
+public enum LayerID: String, CaseIterable, Hashable, Sendable {
+    case geography
+    case flights
+    case stars
+    case satellites
+    case transitNetwork = "transit-network"
+    case transitVehicles = "transit-vehicles"
 }
 
 public enum LayerMarkNamespace: String, Hashable, Sendable {
@@ -21,22 +14,74 @@ public enum LayerMarkNamespace: String, Hashable, Sendable {
     case airport
     case star
     case satellite
+    case transitVehicle = "transit-vehicle"
+}
+
+public struct StarID: Hashable, Sendable {
+    public let rawValue: String
+
+    public init?(rawValue: String) {
+        guard rawValue.isEmpty == false else { return nil }
+        self.rawValue = rawValue
+    }
+}
+
+public struct SatelliteID: Hashable, Sendable {
+    public let rawValue: String
+
+    public init?(rawValue: String) {
+        guard rawValue.isEmpty == false else { return nil }
+        self.rawValue = rawValue
+    }
+}
+
+public struct TransitVehicleID: Hashable, Sendable {
+    public let rawValue: String
+
+    public init?(rawValue: String) {
+        guard rawValue.isEmpty == false else { return nil }
+        self.rawValue = rawValue
+    }
 }
 
 /// A heterogeneous identity whose namespace prevents IDs from different layer
 /// domains from colliding at the type-erasure boundary.
-public struct LayerMarkID: Hashable, Sendable, CustomStringConvertible,
+public enum LayerMarkID: Hashable, Sendable, CustomStringConvertible,
     CustomDebugStringConvertible
 {
-    public let layerID: LayerID
-    public let namespace: LayerMarkNamespace
-    public let rawValue: String
+    case aircraft(AircraftID)
+    case airport(AirportID)
+    case star(StarID)
+    case satellite(SatelliteID)
+    case transitVehicle(TransitVehicleID)
 
-    public init(layerID: LayerID, namespace: LayerMarkNamespace, rawValue: String) {
-        precondition(rawValue.isEmpty == false, "A layer-mark ID must not be empty")
-        self.layerID = layerID
-        self.namespace = namespace
-        self.rawValue = rawValue
+    public var layerID: LayerID {
+        switch self {
+            case .aircraft, .airport: .flights
+            case .star: .stars
+            case .satellite: .satellites
+            case .transitVehicle: .transitVehicles
+        }
+    }
+
+    public var namespace: LayerMarkNamespace {
+        switch self {
+            case .aircraft: .aircraft
+            case .airport: .airport
+            case .star: .star
+            case .satellite: .satellite
+            case .transitVehicle: .transitVehicle
+        }
+    }
+
+    public var rawValue: String {
+        switch self {
+            case let .aircraft(id): "\(id.kind.rawValue)/\(id.rawValue)"
+            case let .airport(id): String(id.rawValue)
+            case let .star(id): id.rawValue
+            case let .satellite(id): id.rawValue
+            case let .transitVehicle(id): id.rawValue
+        }
     }
 
     public var description: String {
@@ -346,6 +391,40 @@ private func retainingLastMarkByIdentity<Mark>(
     return result
 }
 
+/// A payload whose shape is fixed by its layer kind before type erasure.
+public protocol ProjectionLayerPayload: Hashable, Sendable {
+    static var empty: Self { get }
+    var erasedContent: LayerFrameContent { get }
+}
+
+public struct ProjectionMarkLayerPayload: ProjectionLayerPayload {
+    public static let empty = ProjectionMarkLayerPayload(marks: [])
+
+    public let marks: [ProjectionMark]
+
+    public init(marks: [ProjectionMark]) {
+        self.marks = retainingLastMarkByIdentity(marks, identity: \.id)
+    }
+
+    public var erasedContent: LayerFrameContent {
+        .marks(marks)
+    }
+}
+
+public struct ProjectionLineLayerPayload: ProjectionLayerPayload {
+    public static let empty = ProjectionLineLayerPayload(lines: [])
+
+    public let lines: [ProjectionPolyline]
+
+    public init(lines: [ProjectionPolyline]) {
+        self.lines = lines
+    }
+
+    public var erasedContent: LayerFrameContent {
+        .lines(lines)
+    }
+}
+
 public struct LayerFrame: Hashable, Sendable, CustomStringConvertible,
     CustomDebugStringConvertible
 {
@@ -393,36 +472,44 @@ public struct LayerFrame: Hashable, Sendable, CustomStringConvertible,
 
 /// A compile-time identity for one semantic projection layer.
 public protocol ProjectionLayerKind: Sendable {
+    associatedtype Payload: ProjectionLayerPayload
+
     static var id: LayerID { get }
     static var supportedModes: Set<ProjectionMode> { get }
 }
 
 public enum GeographyLayerKind: ProjectionLayerKind {
+    public typealias Payload = ProjectionLineLayerPayload
     public static let id = LayerID.geography
     public static let supportedModes: Set<ProjectionMode> = [.map]
 }
 
 public enum FlightsLayerKind: ProjectionLayerKind {
+    public typealias Payload = ProjectionMarkLayerPayload
     public static let id = LayerID.flights
     public static let supportedModes: Set<ProjectionMode> = [.map, .trueSky]
 }
 
 public enum StarsLayerKind: ProjectionLayerKind {
+    public typealias Payload = ProjectionMarkLayerPayload
     public static let id = LayerID.stars
     public static let supportedModes: Set<ProjectionMode> = [.trueSky]
 }
 
 public enum SatellitesLayerKind: ProjectionLayerKind {
+    public typealias Payload = ProjectionMarkLayerPayload
     public static let id = LayerID.satellites
     public static let supportedModes: Set<ProjectionMode> = [.map, .trueSky]
 }
 
 public enum TransitNetworkLayerKind: ProjectionLayerKind {
+    public typealias Payload = ProjectionLineLayerPayload
     public static let id = LayerID.transitNetwork
     public static let supportedModes: Set<ProjectionMode> = [.map]
 }
 
 public enum TransitVehiclesLayerKind: ProjectionLayerKind {
+    public typealias Payload = ProjectionMarkLayerPayload
     public static let id = LayerID.transitVehicles
     public static let supportedModes: Set<ProjectionMode> = [.map]
 }
@@ -431,46 +518,56 @@ public enum TransitVehiclesLayerKind: ProjectionLayerKind {
 public struct ProjectionLayerFrame<Layer: ProjectionLayerKind>: Hashable, Sendable,
     CustomStringConvertible, CustomDebugStringConvertible
 {
-    private let frame: LayerFrame
+    public let observedAt: Date
+    public let payload: Layer.Payload
 
-    public init(observedAt: Date, content: LayerFrameContent) {
-        frame = LayerFrame(layerID: Layer.id, observedAt: observedAt, content: content)
+    public init(observedAt: Date, payload: Layer.Payload) {
+        self.observedAt = observedAt
+        self.payload = payload
     }
 
     public var layerID: LayerID {
         Layer.id
     }
 
-    public var observedAt: Date {
-        frame.observedAt
-    }
-
-    public var content: LayerFrameContent {
-        frame.content
-    }
-
-    public var marks: [ProjectionMark] {
-        frame.marks
-    }
-
-    public var lines: [ProjectionPolyline] {
-        frame.lines
-    }
-
-    public var geographicLines: [GeographicPolyline] {
-        frame.geographicLines
-    }
-
     public var erased: LayerFrame {
-        frame
+        LayerFrame(
+            layerID: Layer.id,
+            observedAt: observedAt,
+            content: payload.erasedContent,
+        )
     }
 
     public var description: String {
-        frame.description
+        erased.description
     }
 
     public var debugDescription: String {
-        frame.debugDescription
+        erased.debugDescription
+    }
+}
+
+extension ProjectionLayerFrame where Layer.Payload == ProjectionMarkLayerPayload {
+    public init(observedAt: Date, marks: [ProjectionMark]) {
+        self.init(observedAt: observedAt, payload: ProjectionMarkLayerPayload(marks: marks))
+    }
+
+    public var marks: [ProjectionMark] {
+        payload.marks
+    }
+}
+
+extension ProjectionLayerFrame where Layer.Payload == ProjectionLineLayerPayload {
+    public init(observedAt: Date, lines: [ProjectionPolyline]) {
+        self.init(observedAt: observedAt, payload: ProjectionLineLayerPayload(lines: lines))
+    }
+
+    public var lines: [ProjectionPolyline] {
+        payload.lines
+    }
+
+    public var geographicLines: [GeographicPolyline] {
+        lines
     }
 }
 
@@ -974,10 +1071,12 @@ public struct ProjectionFrame: Hashable, Sendable, CustomStringConvertible,
     }
 
     private static func standardZOrder(for id: LayerID) -> Int {
-        if id == .geography { return 0 }
-        if id == .stars { return 10 }
-        if id == .transitNetwork { return 20 }
-        if id == .satellites { return 50 }
-        return 100
+        switch id {
+            case .geography: 0
+            case .stars: 10
+            case .transitNetwork: 20
+            case .satellites: 50
+            case .flights, .transitVehicles: 100
+        }
     }
 }

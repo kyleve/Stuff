@@ -179,7 +179,7 @@ struct FlightPredictorTests {
         availability: MarkAvailability = .current,
     ) throws -> ProjectionMark {
         try ProjectionMark(
-            id: LayerMarkID(layerID: .flights, namespace: .aircraft, rawValue: "a"),
+            id: #require(AircraftID(kind: .icao, rawValue: "a")).layerMarkID,
             anchor: .geodetic(
                 GeodeticAnchor(
                     coordinate: GeoCoordinate(latitude: 0, longitude: 0),

@@ -2,8 +2,8 @@ import Foundation
 
 public enum LayerAvailability: Hashable, Sendable {
     case enabled
-    case disabled(explanation: String)
-    case planned(explanation: String)
+    case disabled
+    case planned
 }
 
 /// A typed producer of semantic layer frames.
@@ -110,36 +110,28 @@ public struct LayerCatalog: Sendable {
             runtimeFactory: geographyFactory,
         )
         let stars = LayerDescriptor(
-            availability: LayerAvailability.planned(
-                explanation: "Star charts are planned for a future release.",
-            ),
+            availability: LayerAvailability.planned,
             zOrder: 10,
             runtimeFactory: LayerRuntimeFactory {
                 EmptyLayerRuntime<StarsLayerKind>()
             },
         )
         let satellites = LayerDescriptor(
-            availability: LayerAvailability.planned(
-                explanation: "Satellite tracking is planned for a future release.",
-            ),
+            availability: LayerAvailability.planned,
             zOrder: 50,
             runtimeFactory: LayerRuntimeFactory {
                 EmptyLayerRuntime<SatellitesLayerKind>()
             },
         )
         let transitNetwork = LayerDescriptor(
-            availability: LayerAvailability.planned(
-                explanation: "Transit network context is planned for a future release.",
-            ),
+            availability: LayerAvailability.planned,
             zOrder: 20,
             runtimeFactory: LayerRuntimeFactory {
                 EmptyLayerRuntime<TransitNetworkLayerKind>()
             },
         )
         let transitVehicles = LayerDescriptor(
-            availability: LayerAvailability.planned(
-                explanation: "Live transit vehicles are planned for a future release.",
-            ),
+            availability: LayerAvailability.planned,
             zOrder: 100,
             runtimeFactory: LayerRuntimeFactory {
                 EmptyLayerRuntime<TransitVehiclesLayerKind>()
@@ -161,6 +153,6 @@ public struct LayerCatalog: Sendable {
 
 private struct EmptyLayerRuntime<Layer: ProjectionLayerKind>: ProjectionLayerRuntime {
     func frame(for date: Date) async throws -> ProjectionLayerFrame<Layer> {
-        ProjectionLayerFrame(observedAt: date, content: .marks([]))
+        ProjectionLayerFrame(observedAt: date, payload: .empty)
     }
 }

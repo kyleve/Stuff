@@ -1110,11 +1110,9 @@ struct ProjectionFrameWorkerTests {
             observedAt: observedAt,
             content: .marks([
                 ProjectionMark(
-                    id: LayerMarkID(
-                        layerID: .flights,
-                        namespace: .aircraft,
-                        rawValue: "matching-aircraft",
-                    ),
+                    id: #require(
+                        AircraftID(kind: .icao, rawValue: "matching-aircraft"),
+                    ).layerMarkID,
                     anchor: .geodetic(GeodeticAnchor(
                         coordinate: GeoCoordinate(
                             latitude: observer.coordinate.latitude,
@@ -1157,11 +1155,9 @@ struct ProjectionFrameWorkerTests {
             observedAt: observedAt,
             content: .marks([
                 ProjectionMark(
-                    id: LayerMarkID(
-                        layerID: .flights,
-                        namespace: .aircraft,
-                        rawValue: "matching-aircraft",
-                    ),
+                    id: #require(
+                        AircraftID(kind: .icao, rawValue: "matching-aircraft"),
+                    ).layerMarkID,
                     anchor: .geodetic(GeodeticAnchor(
                         coordinate: GeoCoordinate(
                             latitude: observer.coordinate.latitude,

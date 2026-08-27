@@ -446,11 +446,19 @@ private struct ProjectionLinesCanvas: View, Equatable {
                 ProjectionLineStyleID.init(geographyKind:),
             )
             let otherStyles = paths.keys
-                .filter { $0.geographyKind == nil }
+                .filter { styleID in
+                    switch styleID {
+                        case .geography: false
+                        case .transitRoute: true
+                    }
+                }
                 .sorted { $0.rawValue < $1.rawValue }
             for styleID in geographyOrder + otherStyles {
                 guard let path = paths[styleID], path.isEmpty == false else { continue }
-                let appearance = style.geography[styleID.geographyKind ?? .primaryRoad]
+                let appearance = switch styleID {
+                    case let .geography(kind): style.geography[kind]
+                    case .transitRoute: style.geography[.primaryRoad]
+                }
                 let color = Color(
                     white: intensityMultiplier * layerIntensity *
                         appearance.luminance,
