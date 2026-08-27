@@ -192,82 +192,166 @@ extension ThrowSession {
 
     @discardableResult
     func useSource(_ draft: ValidatedAircraftSourceDraft) async -> Bool {
-        do {
-            await airAndSpaceRuntime.deactivate(reporting: .idle)
-            activePollingSignature = nil
-            try await discardOldFrame()
+        guard sourceMutationInProgress == false else { return false }
+        sourceMutationInProgress = true
+        defer { finishSourceMutation() }
 
+        let pendingSave = preferenceSaveTask
+        preferenceSaveTask = nil
+        pendingSave?.cancel()
+        await pendingSave?.value
+
+        let preferences: ThrowPreferences
+        var replacedCredentialID: AircraftCredentialID?
+        var previousCredential: AircraftCredential?
+        var credentialMutationAttempted = false
+        do {
+            preferences = try makePreferences(
+                setupCompleted: setupCompleted,
+                sourceSelection: .configured(draft.configuration),
+            )
             if let replacementCredential = draft.replacementCredential {
+                let credentialID: AircraftCredentialID
                 switch draft.configuration.kind {
                     case .adsbExchangeRapidAPI:
-                        try await credentialStore.save(replacementCredential, for: .rapidAPI)
-                        rapidAPICredentialState = .saved(lastFour: replacementCredential.lastFour)
+                        credentialID = .rapidAPI
                     case .flightradar24:
-                        invalidateFlightradar24Usage()
-                        try await credentialStore.save(replacementCredential, for: .flightradar24)
-                        flightradar24CredentialState = .saved(
-                            lastFour: replacementCredential.lastFour,
-                        )
+                        credentialID = .flightradar24
                     case .adsbLol, .readsb:
                         assertionFailure("A credential-free source supplied a credential")
+                        throw AircraftSourceFailure.invalidConfiguration
                 }
+                replacedCredentialID = credentialID
+                previousCredential = try await credentialStore.credential(for: credentialID)
+                try Task.checkCancellation()
+                credentialMutationAttempted = true
+                try await credentialStore.save(replacementCredential, for: credentialID)
+                try Task.checkCancellation()
             }
+            try await preferenceStore.save(preferences)
+        } catch {
+            let rollbackFailure: String? = if credentialMutationAttempted,
+                                              let replacedCredentialID
+            {
+                await restoreCredential(previousCredential, for: replacedCredentialID)
+            } else {
+                nil
+            }
+            if error is CancellationError, rollbackFailure == nil {
+                return false
+            }
+            settingsFailure = rollbackFailure ?? error.localizedDescription
+            return false
+        }
 
-            selectedSourceConfiguration = draft.configuration
-            validatedSourceConfiguration = draft.configuration
-            try await savePreferencesImmediately()
-            settingsFailure = nil
-            scheduleDemandReconciliation()
-            return true
+        await airAndSpaceRuntime.deactivate(reporting: .idle)
+        activePollingSignature = nil
+        selectedSourceConfiguration = draft.configuration
+        validatedSourceConfiguration = draft.configuration
+        projectionPlaylist = preferences.playlist
+        await experienceCoordinator.configure(projectionPlaylist)
+
+        if let replacementCredential = draft.replacementCredential {
+            switch draft.configuration.kind {
+                case .adsbExchangeRapidAPI:
+                    rapidAPICredentialState = .saved(lastFour: replacementCredential.lastFour)
+                case .flightradar24:
+                    invalidateFlightradar24Usage()
+                    flightradar24CredentialState = .saved(
+                        lastFour: replacementCredential.lastFour,
+                    )
+                case .adsbLol, .readsb:
+                    break
+            }
+        }
+
+        settingsFailure = nil
+        do {
+            try await discardOldFrame()
         } catch is CancellationError {
-            return false
-        } catch let failure as AircraftSourceFailure {
-            feedHealth = .failed(failure.presentationCategory)
-            return false
+            await clearProjectionState(restartsGeography: true)
         } catch {
             settingsFailure = error.localizedDescription
-            feedHealth = .failed(.sourceNotValidated)
-            return false
-        }
-    }
-
-    public func deleteRapidAPICredential() async {
-        let deletesActiveSource = selectedSourceConfiguration?.kind == .adsbExchangeRapidAPI
-        if deletesActiveSource {
-            await airAndSpaceRuntime.deactivate(reporting: .failed(.missingCredential))
-            activePollingSignature = nil
             await clearProjectionState(restartsGeography: true)
         }
+        scheduleDemandReconciliation()
+        return true
+    }
+
+    @discardableResult
+    public func deleteRapidAPICredential() async -> Bool {
+        guard sourceMutationInProgress == false else { return false }
+        sourceMutationInProgress = true
+        defer { finishSourceMutation() }
+
+        let deletesActiveSource = selectedSourceConfiguration?.kind == .adsbExchangeRapidAPI
         do {
             try await credentialStore.delete(.rapidAPI)
-            rapidAPICredentialState = .missing
-            if deletesActiveSource {
-                feedHealth = .failed(.missingCredential)
-            }
         } catch is CancellationError {
-            return
+            return false
         } catch {
             settingsFailure = error.localizedDescription
+            return false
         }
-    }
-
-    public func deleteFlightradar24Credential() async {
-        let deletesActiveSource = selectedSourceConfiguration?.kind == .flightradar24
+        rapidAPICredentialState = .missing
         if deletesActiveSource {
             await airAndSpaceRuntime.deactivate(reporting: .failed(.missingCredential))
             activePollingSignature = nil
             await clearProjectionState(restartsGeography: true)
+            feedHealth = .failed(.missingCredential)
         }
+        settingsFailure = nil
+        return true
+    }
+
+    @discardableResult
+    public func deleteFlightradar24Credential() async -> Bool {
+        guard sourceMutationInProgress == false else { return false }
+        sourceMutationInProgress = true
+        defer { finishSourceMutation() }
+
+        let deletesActiveSource = selectedSourceConfiguration?.kind == .flightradar24
         do {
-            invalidateFlightradar24Usage()
             try await credentialStore.delete(.flightradar24)
-            flightradar24CredentialState = .missing
-            if deletesActiveSource { feedHealth = .failed(.missingCredential) }
         } catch is CancellationError {
-            return
+            return false
         } catch {
             settingsFailure = error.localizedDescription
+            return false
         }
+        invalidateFlightradar24Usage()
+        flightradar24CredentialState = .missing
+        if deletesActiveSource {
+            await airAndSpaceRuntime.deactivate(reporting: .failed(.missingCredential))
+            activePollingSignature = nil
+            await clearProjectionState(restartsGeography: true)
+            feedHealth = .failed(.missingCredential)
+        }
+        settingsFailure = nil
+        return true
+    }
+
+    private func restoreCredential(
+        _ credential: AircraftCredential?,
+        for id: AircraftCredentialID,
+    ) async -> String? {
+        do {
+            if let credential {
+                try await credentialStore.save(credential, for: id)
+            } else {
+                try await credentialStore.delete(id)
+            }
+            return nil
+        } catch {
+            return error.localizedDescription
+        }
+    }
+
+    private func finishSourceMutation() {
+        sourceMutationInProgress = false
+        guard sourceMutationNeedsPreferenceSave else { return }
+        sourceMutationNeedsPreferenceSave = false
+        schedulePreferencesSave()
     }
 
     func applyAirAndSpaceUpdate(_ update: AirAndSpaceRuntimeUpdate) async {

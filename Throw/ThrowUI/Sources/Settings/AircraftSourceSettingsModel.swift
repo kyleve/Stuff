@@ -175,11 +175,16 @@ final class AircraftSourceSettingsModel {
     }
 
     func deleteCredential() async {
+        let deleted: Bool
         switch choice {
-            case .adsbExchange: await session.deleteRapidAPICredential()
-            case .flightradar24: await session.deleteFlightradar24Credential()
-            case .adsbLol, .readsb: break
+            case .adsbExchange:
+                deleted = await session.deleteRapidAPICredential()
+            case .flightradar24:
+                deleted = await session.deleteFlightradar24Credential()
+            case .adsbLol, .readsb:
+                return
         }
+        guard deleted else { return }
         rapidAPIKey = ""
         invalidateTestedDraft()
         isEditingCredential = true
