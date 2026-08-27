@@ -31,10 +31,20 @@ validated runtime state keeps the active identity inside the current playlist,
 including when startup replaces the empty default with saved settings. Every
 scene observes the same coordinator and active experience.
 
+`ThrowSession+Composition.swift` is the only live construction boundary. It
+creates the stores, aircraft source graph, poller, and session once. Previews
+and tests use the fixture path in that same file.
+
 Air & Space lifecycle operations use an independent generation. A superseded
 activation or deactivation cannot resume after a suspension and change newer
-polling, motion, or health state. Playlist configurations also carry monotonic
-session revisions. The coordinator rejects an older value that arrives late.
+polling, motion, or health state. Visible-count updates carry that generation
+back to the runtime. Location refreshes also recheck their generation after the
+last accumulator read. Playlist configurations carry monotonic session
+revisions. The coordinator rejects an older value that arrives late.
+
+Coordinator intents use a lossless command stream. Each timer path rechecks
+its playlist revision, active identity, demand, and runtime generation after a
+clock read. Pause has no effect without projection demand.
 
 Connection tests and provider usage reports go through the injected
 `AircraftSourceOperationServing` boundary. ThrowUI does not construct or
@@ -49,10 +59,11 @@ name, health, and one status summary.
 
 The worker keeps independent animation, collision, correction, and acquisition
 state for each experience. Its static-line projections use a bounded cache of
-recent layer, center, viewport, and calibration keys. Prewarming prepares a
-complete target frame without changing the visible frame. A switch fades the
-surface to black, exchanges frames at black, and fades back in. Reduce Motion
-keeps this opacity fade but removes experience-specific movement.
+recent layer, center, viewport, and calibration keys. Prewarming binds a
+complete target frame to one activation generation. A successful provider
+response is not ready until that exact generation has a prepared frame. A
+switch fades the surface to black, exchanges frames at black, and fades back
+in. Reduce Motion keeps this opacity fade but removes experience-specific movement.
 
 The production worker accepts one typed `ProjectionExperienceInput`. This value
 pairs an experience with its valid layers and projection modes. Test-only raw

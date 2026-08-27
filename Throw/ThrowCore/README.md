@@ -41,7 +41,8 @@ ground because its position schema has no separate airborne-state field. The
 FR24 adapter also reads the account's 24-hour usage report. Its estimator uses
 the reported credits per request, the selected cadence, quiet hours, and the
 current region's request multiplicity.
-Configuration carries a typed credential reference, never the credential itself.
+Source configuration carries no credential value or credential ID. Each paid
+provider selects its fixed Keychain slot through `AircraftCredentialID`.
 An FR24 bounds query that crosses the antimeridian uses two valid hemisphere
 requests. Both must succeed before Throw publishes the merged snapshot.
 Duplicate aircraft keep the freshest observation and its matching route.
@@ -51,13 +52,21 @@ outward so provider coordinates on the local filter boundary are not omitted.
 
 ## Composition
 
-The app creates live preference and credential stores once. ThrowUI's shared
-session drives the polling coordinator according to foreground, quiet, and
-output demand. Version-two preferences separate global, playlist, and Air &
-Space state. The codec migrates version-one data under the existing storage key.
-Keychain credential IDs do not change.
+`ThrowSession+Composition.swift` creates the live stores, source graph, poller,
+and session once. ThrowUI's shared session drives the poller according to
+foreground, quiet, and output demand. Version-two preferences separate global,
+playlist, and Air & Space state. The codec migrates version-one data under the
+existing storage key. Keychain credential IDs do not change.
 
-`ProjectionLayerFrame` fixes each semantic layer identity in its generic type.
+`AircraftSourceSelection` keeps unconfigured, awaiting-validation, and
+configured source state in one value. A configured source cannot disagree with
+a separate validation flag.
+
+`LayerID`, `LayerMarkID`, and `ProjectionLineStyleID` are closed typed values.
+`ProjectionLayerFrame` fixes each semantic layer identity and payload shape in
+its generic type. A mark layer cannot receive line content, and a line layer
+cannot receive marks. Raw `LayerFrame` construction stays at the Core erasure
+boundary.
 `ProjectionExperienceFrame` then accepts only the typed layers for its experience.
 `ProjectionExperienceInput` also pairs each experience with its supported projection modes.
 Transit can accept only a Map viewport. Geography visibility belongs to Map

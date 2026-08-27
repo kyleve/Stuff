@@ -54,7 +54,8 @@ ferries. This change does not include a live transit provider.
 One playlist controls every projector, full-screen output, and Preview. Each
 View has a dwell duration. Automatic rotation starts only when two Views are
 configured. Throw prepares the next View before a change. It keeps the current
-View visible until the new View has fresh data. The surface fades to black,
+View visible until the new View has fresh data and a complete prepared frame.
+Both values must belong to the same activation. The surface fades to black,
 exchanges atomically, and fades back in. Two Views never share one frame.
 
 Air & Space is the only configurable View in this release. Automatic rotation
