@@ -1,6 +1,16 @@
 import Foundation
 import ThrowCore
 
+protocol FlightsLayerRunning: Sendable {
+    func frame(
+        for input: FlightsLayerInput,
+    ) async throws -> ProjectionLayerFrame<FlightsLayerKind>
+
+    func reset() async
+}
+
+extension FlightsLayerRuntime: FlightsLayerRunning {}
+
 /// One immutable snapshot of the Air & Space runtime's actor-isolated state.
 struct AirAndSpaceRuntimeUpdate {
     let activationGeneration: UInt64
@@ -27,7 +37,7 @@ struct AirAndSpaceRuntimeUpdate {
 /// Owns aircraft polling, semantic frame construction, motion state, and route enrichment.
 actor AirAndSpaceRuntime {
     private let pollingCoordinator: AircraftPollingCoordinator
-    private let flightsRuntime: FlightsLayerRuntime
+    private let flightsRuntime: any FlightsLayerRunning
     private let routeResolver: FlightRouteResolver
     private let routeLogger: any FlightRouteLogging
     private let dateProvider: any DateProvider
@@ -39,6 +49,7 @@ actor AirAndSpaceRuntime {
     private var activePollingSignature: PollingSignature?
     private var activationGeneration: UInt64 = 0
     private var successfulActivationGeneration: UInt64?
+    private var lifecycleGeneration: UInt64 = 0
     private var stateGeneration: UInt64 = 0
     private var routeGeneration: UInt64 = 0
     private var labelMode: FlightLabelMode = .adaptive
@@ -50,7 +61,7 @@ actor AirAndSpaceRuntime {
 
     init(
         pollingCoordinator: AircraftPollingCoordinator,
-        flightsRuntime: FlightsLayerRuntime,
+        flightsRuntime: any FlightsLayerRunning,
         routeResolver: FlightRouteResolver,
         routeLogger: any FlightRouteLogging,
         dateProvider: any DateProvider,
@@ -80,6 +91,10 @@ actor AirAndSpaceRuntime {
         return updatesStream
     }
 
+    func currentUpdate() -> AirAndSpaceRuntimeUpdate {
+        updateValue()
+    }
+
     func activate(
         configuration: AircraftSourceConfiguration,
         query: AircraftQuery,
@@ -95,6 +110,8 @@ actor AirAndSpaceRuntime {
         self.labelMode = labelMode
 
         if activationChanged || sourceChanged || queryChanged {
+            lifecycleGeneration &+= 1
+            let lifecycleGeneration = lifecycleGeneration
             stateGeneration &+= 1
             self.activationGeneration = activationGeneration
             successfulActivationGeneration = nil
@@ -106,6 +123,7 @@ actor AirAndSpaceRuntime {
             health = .loading
             if activationChanged || sourceChanged {
                 await flightsRuntime.reset()
+                guard lifecycleGeneration == self.lifecycleGeneration else { return }
             }
             publish()
             await pollingCoordinator.activate(
@@ -126,6 +144,8 @@ actor AirAndSpaceRuntime {
         else {
             return
         }
+        lifecycleGeneration &+= 1
+        let lifecycleGeneration = lifecycleGeneration
         stateGeneration &+= 1
         activationGeneration &+= 1
         successfulActivationGeneration = nil
@@ -136,7 +156,9 @@ actor AirAndSpaceRuntime {
         currentLayerFrame = nil
         currentAvailability = .current
         await pollingCoordinator.deactivate()
+        guard lifecycleGeneration == self.lifecycleGeneration else { return }
         await flightsRuntime.reset()
+        guard lifecycleGeneration == self.lifecycleGeneration else { return }
         self.health = health
         publish()
     }
@@ -385,15 +407,17 @@ actor AirAndSpaceRuntime {
     }
 
     private func publish() {
-        continuation.yield(
-            AirAndSpaceRuntimeUpdate(
-                activationGeneration: activationGeneration,
-                successfulActivationGeneration: successfulActivationGeneration,
-                health: health,
-                flightsFrame: currentLayerFrame,
-                snapshot: currentSnapshot,
-                activePollingSignature: activePollingSignature,
-            ),
+        continuation.yield(updateValue())
+    }
+
+    private func updateValue() -> AirAndSpaceRuntimeUpdate {
+        AirAndSpaceRuntimeUpdate(
+            activationGeneration: activationGeneration,
+            successfulActivationGeneration: successfulActivationGeneration,
+            health: health,
+            flightsFrame: currentLayerFrame,
+            snapshot: currentSnapshot,
+            activePollingSignature: activePollingSignature,
         )
     }
 }
