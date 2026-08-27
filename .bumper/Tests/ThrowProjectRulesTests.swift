@@ -3,6 +3,89 @@ import BumperBowlingTestSupport
 import Testing
 
 struct ThrowProjectRulesTests {
+    @Test func sessionConstructionStaysAtItsCompositionRoot() throws {
+        let allowed = try evaluate(
+            path: "Throw/ThrowUI/Sources/Model/ThrowSession+Composition.swift",
+            component: .throwUI,
+            source: "func live() { _ = ThrowSession() }",
+        )
+        let rejected = try evaluate(
+            path: "Throw/ThrowUI/Sources/Model/CompetingSession.swift",
+            component: .throwUI,
+            source: "func live() { _ = ThrowSession() }",
+        )
+
+        #expect(allowed.violations.isEmpty)
+        #expect(
+            rejected.violations.map(\.rule.id) == ["throw.session_composition_ownership"],
+        )
+    }
+
+    @Test func runtimeConstructionStaysAtItsAppOwner() throws {
+        let allowed = try evaluate(
+            path: "Throw/Throw/Sources/ThrowRuntime.swift",
+            component: .throwApp,
+            source: "func live() { _ = ThrowRuntime() }",
+        )
+        let rejected = try evaluate(
+            path: "Throw/Throw/Sources/ExternalDisplaySceneDelegate.swift",
+            component: .throwApp,
+            source: "func fallback() { _ = ThrowRuntime() }",
+        )
+
+        #expect(allowed.violations.isEmpty)
+        #expect(
+            rejected.violations.map(\.rule.id) == ["throw.runtime_composition_ownership"],
+        )
+    }
+
+    @Test func liveDependenciesStayAtTheSessionCompositionRoot() throws {
+        let source = """
+        func live() {
+            _ = AircraftPollingCoordinator()
+            _ = AircraftSourceFactory()
+            _ = AircraftSourceService()
+            _ = CoreLocationThrowSource()
+            _ = KeychainAircraftCredentialStore()
+            _ = UserDefaultsThrowPreferenceStore()
+        }
+        """
+        let allowed = try evaluate(
+            path: "Throw/ThrowUI/Sources/Model/ThrowSession+Composition.swift",
+            component: .throwUI,
+            source: source,
+        )
+        let rejected = try evaluate(
+            path: "Throw/ThrowUI/Sources/Model/CompetingLiveGraph.swift",
+            component: .throwUI,
+            source: source,
+        )
+
+        #expect(allowed.violations.isEmpty)
+        #expect(rejected.violations.count == 6)
+        #expect(rejected.violations.allSatisfy {
+            $0.rule.id == "throw.live_dependency_composition_ownership"
+        })
+    }
+
+    @Test func rawLayerFramesStayAtTheCoreErasureBoundary() throws {
+        let allowed = try evaluate(
+            path: "Throw/ThrowCore/Sources/ProjectionModels.swift",
+            component: .throwCore,
+            source: "func erase() { _ = LayerFrame() }",
+        )
+        let rejected = try evaluate(
+            path: "Throw/ThrowUI/Sources/Model/LooseLayer.swift",
+            component: .throwUI,
+            source: "func erase() { _ = LayerFrame() }",
+        )
+
+        #expect(allowed.violations.isEmpty)
+        #expect(
+            rejected.violations.map(\.rule.id) == ["throw.layer_frame_erasure_ownership"],
+        )
+    }
+
     @Test func productionViewsKeepConcreteTypes() throws {
         let allowed = try evaluate(
             path: "Throw/Throw/Sources/ConcreteRoot.swift",

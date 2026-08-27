@@ -14,8 +14,9 @@ WhereCore, RegionKit, or LifecycleKit into this feature.
 
 ## Invariants
 
-- Create one `ThrowRuntime` in the app delegate and inject its one
-  `ThrowSession` into every scene. A scene delegate must never create services.
+- Construct `ThrowRuntime` only in `ThrowRuntime.swift`. Construct the live
+  `ThrowSession` and its live dependencies only in `ThrowSession+Composition.swift`.
+  Inject those objects into every scene.
 - Keep the View catalog compile-time. Use `ProjectionExperience` in code and
   “View” in user-facing text. Never add runtime plugins or `AnyView` boundaries.
 - Keep aircraft provider implementations in ThrowCore. ThrowUI uses the
