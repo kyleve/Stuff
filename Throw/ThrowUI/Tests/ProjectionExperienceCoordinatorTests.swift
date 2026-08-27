@@ -11,13 +11,40 @@ struct ProjectionExperienceCoordinatorTests {
             playlist: ThrowPreferences.defaultValue.playlist,
             clock: ManualProjectionRotationClock(now: start),
         )
-        let playlist = try singleExperiencePlaylist()
+        let playlist = try singleExperiencePlaylist(dwellDuration: .defaultValue)
 
-        await coordinator.configure(playlist)
+        await coordinator.configure(ProjectionPlaylistConfiguration(
+            playlist: playlist,
+            revision: .init(rawValue: 1),
+        ))
 
         let state = await coordinator.currentState()
         #expect(state.activeExperienceID == .airAndSpace)
         #expect(state.nextExperienceID == nil)
+    }
+
+    @Test func olderPlaylistConfigurationCannotReplaceANewerRevision() async throws {
+        let coordinator = ProjectionExperienceCoordinator(
+            playlist: ThrowPreferences.defaultValue.playlist,
+            clock: ManualProjectionRotationClock(now: start),
+        )
+        let olderPlaylist = try singleExperiencePlaylist(
+            dwellDuration: ProjectionDwellDuration(seconds: 300),
+        )
+        let newerPlaylist = try singleExperiencePlaylist(
+            dwellDuration: ProjectionDwellDuration(seconds: 600),
+        )
+
+        await coordinator.configure(ProjectionPlaylistConfiguration(
+            playlist: newerPlaylist,
+            revision: .init(rawValue: 2),
+        ))
+        await coordinator.configure(ProjectionPlaylistConfiguration(
+            playlist: olderPlaylist,
+            revision: .init(rawValue: 1),
+        ))
+
+        #expect(await coordinator.currentPlaylist() == newerPlaylist)
     }
 
     @Test func prewarmsAtFifteenSecondsAndSwitchesOnlyAfterFreshSuccess() async throws {
@@ -312,7 +339,10 @@ struct ProjectionExperienceCoordinatorTests {
         _ = try activation(#require(await actions.next()))
 
         let rotationDisabled = try twoExperiencePlaylist(automaticRotationEnabled: false)
-        await coordinator.configure(rotationDisabled)
+        await coordinator.configure(ProjectionPlaylistConfiguration(
+            playlist: rotationDisabled,
+            revision: .init(rawValue: 1),
+        ))
 
         #expect(try #require(await actions.next()) == .deactivate(id: .transit))
         let state = await coordinator.currentState()
@@ -335,12 +365,14 @@ struct ProjectionExperienceCoordinatorTests {
         try twoExperiencePlaylist(automaticRotationEnabled: true)
     }
 
-    private func singleExperiencePlaylist() throws -> ProjectionPlaylist {
+    private func singleExperiencePlaylist(
+        dwellDuration: ProjectionDwellDuration,
+    ) throws -> ProjectionPlaylist {
         try ProjectionPlaylist(
             entries: [
                 ProjectionPlaylistEntry(
                     experienceID: .airAndSpace,
-                    dwellDuration: .defaultValue,
+                    dwellDuration: dwellDuration,
                 ),
             ],
             automaticRotationEnabled: false,

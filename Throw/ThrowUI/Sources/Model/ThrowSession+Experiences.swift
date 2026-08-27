@@ -146,6 +146,13 @@ extension ThrowSession {
             : []
     }
 
+    func configureExperienceCoordinator(with playlist: ProjectionPlaylist) async {
+        playlistConfigurationTask?.cancel()
+        playlistConfigurationTask = nil
+        let configuration = nextPlaylistConfiguration(for: playlist)
+        await experienceCoordinator.configure(configuration)
+    }
+
     private func replaceProjectionPlaylist(
         entries: [ProjectionPlaylistEntry],
         automaticRotationEnabled: Bool,
@@ -160,12 +167,30 @@ extension ThrowSession {
             )
             projectionPlaylist = playlist
             schedulePreferencesSave()
-            Task(name: "Throw configure View playlist") { [experienceCoordinator] in
-                await experienceCoordinator.configure(playlist)
-            }
+            scheduleExperienceCoordinatorConfiguration(for: playlist)
         } catch {
             reportPlaylistFailure(error)
         }
+    }
+
+    private func scheduleExperienceCoordinatorConfiguration(for playlist: ProjectionPlaylist) {
+        let configuration = nextPlaylistConfiguration(for: playlist)
+        playlistConfigurationTask?.cancel()
+        playlistConfigurationTask = Task(name: "Throw configure View playlist") {
+            [experienceCoordinator] in
+            guard Task.isCancelled == false else { return }
+            await experienceCoordinator.configure(configuration)
+        }
+    }
+
+    private func nextPlaylistConfiguration(
+        for playlist: ProjectionPlaylist,
+    ) -> ProjectionPlaylistConfiguration {
+        playlistConfigurationRevision = playlistConfigurationRevision.successor()
+        return ProjectionPlaylistConfiguration(
+            playlist: playlist,
+            revision: playlistConfigurationRevision,
+        )
     }
 
     private func reportPlaylistFailure(_ error: any Error) {

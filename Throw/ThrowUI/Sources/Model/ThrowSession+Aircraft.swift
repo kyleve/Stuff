@@ -219,7 +219,7 @@ extension ThrowSession {
         selectedSourceConfiguration = draft.configuration
         validatedSourceConfiguration = draft.configuration
         projectionPlaylist = preferences.playlist
-        await experienceCoordinator.configure(projectionPlaylist)
+        await configureExperienceCoordinator(with: projectionPlaylist)
 
         if let replacementCredential = draft.replacementCredential {
             switch draft.configuration.kind {

@@ -247,6 +247,9 @@ public final class ThrowSession {
     @ObservationIgnored var airAndSpaceUpdateTask: Task<Void, Never>?
     @ObservationIgnored var experienceStateTask: Task<Void, Never>?
     @ObservationIgnored var experienceActionTask: Task<Void, Never>?
+    @ObservationIgnored var playlistConfigurationTask: Task<Void, Never>?
+    @ObservationIgnored var playlistConfigurationRevision =
+        ProjectionPlaylistConfiguration.Revision.initial
     @ObservationIgnored var airAndSpaceActivationGeneration: UInt64 = 0
     @ObservationIgnored var demandTask: Task<Void, Never>?
     @ObservationIgnored var isReconcilingDemand = false
@@ -432,7 +435,7 @@ public final class ThrowSession {
         do {
             let preferences = try await preferenceStore.load()
             apply(preferences)
-            await experienceCoordinator.configure(preferences.playlist)
+            await configureExperienceCoordinator(with: preferences.playlist)
         } catch is CancellationError {
             hasStarted = false
             return
@@ -537,6 +540,7 @@ public final class ThrowSession {
         airAndSpaceUpdateTask?.cancel()
         experienceStateTask?.cancel()
         experienceActionTask?.cancel()
+        playlistConfigurationTask?.cancel()
         demandTask?.cancel()
         renderTask?.cancel()
         preferenceSaveTask?.cancel()

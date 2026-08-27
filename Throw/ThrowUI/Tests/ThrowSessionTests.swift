@@ -17,7 +17,7 @@ struct ThrowSessionTests {
 
     @Test func startAdoptsAStoredPlaylistAfterDefaultCoordinatorState() async {
         let session = ThrowSession.fixture()
-        await session.experienceCoordinator.configure(ThrowPreferences.defaultValue.playlist)
+        await session.configureExperienceCoordinator(with: ThrowPreferences.defaultValue.playlist)
 
         await session.start()
 
