@@ -49,11 +49,13 @@ public enum Flightradar24CreditEstimator {
         report: Flightradar24UsageReport,
         pollingInterval: PollingInterval,
         quietSchedule: QuietSchedule,
+        requestMultiplicity: Flightradar24RequestMultiplicity,
     ) -> Flightradar24CreditEstimate? {
         guard report.requestCount > 0 else { return nil }
         let averageCreditsPerRequest = Double(report.credits) / Double(report.requestCount)
         let creditsPerActiveHour = averageCreditsPerRequest
             * (3600 / Double(pollingInterval.seconds))
+            * Double(requestMultiplicity.rawValue)
         let quietMinutes = quietSchedule.interval?.durationMinutes ?? 0
         let activeHoursPerDay = Double(24 * 60 - quietMinutes) / 60
         return Flightradar24CreditEstimate(

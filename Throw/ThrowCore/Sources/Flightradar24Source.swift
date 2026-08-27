@@ -162,7 +162,7 @@ struct Flightradar24Source: AircraftObservationSource, CustomStringConvertible,
 
     private let transport: any HTTPTransport
     private let decodingWorker: Flightradar24DecodingWorker
-    private let credential: AircraftCredential
+    private let requestFactory: Flightradar24RequestFactory
     private let dateProvider: any DateProvider
 
     init(
@@ -173,7 +173,10 @@ struct Flightradar24Source: AircraftObservationSource, CustomStringConvertible,
     ) {
         self.transport = transport
         decodingWorker = Flightradar24DecodingWorker(decoder: decoder)
-        self.credential = credential
+        requestFactory = Flightradar24RequestFactory(
+            baseURL: Self.baseURL,
+            credential: credential,
+        )
         self.dateProvider = dateProvider
     }
 
@@ -186,7 +189,7 @@ struct Flightradar24Source: AircraftObservationSource, CustomStringConvertible,
     }
 
     func snapshot(for query: AircraftQuery) async throws -> AircraftSnapshot {
-        try await snapshot(for: query, request: makeRequest(for: query))
+        try await snapshot(for: query, plan: requestFactory.livePositionPlan(for: query))
     }
 
     func credentialTestSnapshot(observer: ObserverPosition) async throws
@@ -198,19 +201,22 @@ struct Flightradar24Source: AircraftObservationSource, CustomStringConvertible,
             viewport: .map(MapViewport(radius: NauticalMiles(value: 5))),
             includeGroundAircraft: false,
         )
-        return try await snapshot(for: query, request: makeRequest(for: query, radius: 5))
-    }
-
-    func makeRequest(for query: AircraftQuery) throws -> HTTPRequest {
-        let plan = try CloudAircraftQuery.plan(for: query)
-        return try makeRequest(for: query, radius: plan.transmittedRadius.value)
+        return try await snapshot(
+            for: query,
+            plan: requestFactory.positionPlan(
+                for: query,
+                radius: NauticalMiles(value: 5),
+            ),
+        )
     }
 
     func usage(period: Flightradar24UsagePeriod) async throws
         -> Flightradar24UsageReport
     {
         do {
-            let response = try await transport.response(for: makeUsageRequest(period: period))
+            let response = try await transport.response(
+                for: requestFactory.usageRequest(period: period),
+            )
             let receivedAt = dateProvider.now()
             try SourceHTTPValidation.validate(
                 response,
@@ -233,53 +239,19 @@ struct Flightradar24Source: AircraftObservationSource, CustomStringConvertible,
         }
     }
 
-    func makeUsageRequest(period: Flightradar24UsagePeriod) throws -> HTTPRequest {
-        var components = URLComponents(
-            url: Self.baseURL.appending(path: "usage"),
-            resolvingAgainstBaseURL: false,
-        )
-        components?.queryItems = [URLQueryItem(name: "period", value: period.rawValue)]
-        guard let url = components?.url else { throw AircraftSourceFailure.invalidConfiguration }
-        return HTTPRequest(
-            method: .get,
-            url: url,
-            headers: [
-                .accept: "application/json",
-                .acceptVersion: "v1",
-                .authorization: "Bearer \(credential.authenticationHeaderValue)",
-            ],
-            timeoutSeconds: 8,
-        )
-    }
-
-    private func makeRequest(for query: AircraftQuery, radius: Double) throws -> HTTPRequest {
-        let plan = try CloudAircraftQuery.plan(for: query)
-        let latitudeSpan = radius / 60
-        let cosine = max(0.01, cos(plan.coarseCenter.latitude * .pi / 180))
-        let longitudeSpan = min(180, radius / (60 * cosine))
-        let north = min(90, plan.coarseCenter.latitude + latitudeSpan)
-        let south = max(-90, plan.coarseCenter.latitude - latitudeSpan)
-        let west = max(-180, plan.coarseCenter.longitude - longitudeSpan)
-        let east = min(180, plan.coarseCenter.longitude + longitudeSpan)
-        let bounds = [north, south, west, east]
-            .map { String(format: "%.3f", locale: Locale(identifier: "en_US_POSIX"), $0) }
-            .joined(separator: ",")
-        var components = URLComponents(
-            url: Self.baseURL.appending(path: "live/flight-positions/full"),
-            resolvingAgainstBaseURL: false,
-        )
-        components?.queryItems = [URLQueryItem(name: "bounds", value: bounds)]
-        guard let url = components?.url else { throw AircraftSourceFailure.invalidConfiguration }
-        return HTTPRequest(
-            method: .get,
-            url: url,
-            headers: [
-                .accept: "application/json",
-                .acceptVersion: "v1",
-                .authorization: "Bearer \(credential.authenticationHeaderValue)",
-            ],
-            timeoutSeconds: 8,
-        )
+    private func snapshot(
+        for query: AircraftQuery,
+        plan: Flightradar24PositionRequestPlan,
+    ) async throws -> AircraftSnapshot {
+        switch plan {
+            case let .single(request):
+                return try await snapshot(for: query, request: request)
+            case let .antimeridian(westernHemisphere, easternHemisphere):
+                let western = try await snapshot(for: query, request: westernHemisphere)
+                try Task.checkCancellation()
+                let eastern = try await snapshot(for: query, request: easternHemisphere)
+                return Self.merge(western: western, eastern: eastern)
+        }
     }
 
     private func snapshot(
@@ -315,6 +287,60 @@ struct Flightradar24Source: AircraftObservationSource, CustomStringConvertible,
         } catch {
             throw AircraftSourceFailure.decoding
         }
+    }
+
+    private static func merge(
+        western: AircraftSnapshot,
+        eastern: AircraftSnapshot,
+    ) -> AircraftSnapshot {
+        precondition(western.source == .flightradar24)
+        precondition(eastern.source == .flightradar24)
+
+        struct Candidate {
+            let observation: AircraftObservation
+            let routeResult: FlightRouteResult?
+        }
+
+        var candidates: [Candidate] = []
+        var candidateIndexByID: [AircraftID: Int] = [:]
+        func merge(_ snapshot: AircraftSnapshot) {
+            for observation in snapshot.observations {
+                let candidate = Candidate(
+                    observation: observation,
+                    routeResult: snapshot.routeResultsByAircraft[observation.id],
+                )
+                if let index = candidateIndexByID[observation.id] {
+                    if AircraftSnapshot.prefers(
+                        observation,
+                        over: candidates[index].observation,
+                    ) {
+                        candidates[index] = candidate
+                    }
+                } else {
+                    candidateIndexByID[observation.id] = candidates.count
+                    candidates.append(candidate)
+                }
+            }
+        }
+        merge(western)
+        merge(eastern)
+
+        var routeResults: [AircraftID: FlightRouteResult] = [:]
+        for candidate in candidates {
+            if let routeResult = candidate.routeResult {
+                routeResults[candidate.observation.id] = routeResult
+            }
+        }
+        let successfulHTTPStatus = western.successfulHTTPStatus == eastern.successfulHTTPStatus
+            ? western.successfulHTTPStatus
+            : nil
+        return AircraftSnapshot(
+            source: .flightradar24,
+            fetchedAt: max(western.fetchedAt, eastern.fetchedAt),
+            observations: candidates.map(\.observation),
+            routeResultsByAircraft: routeResults,
+            successfulHTTPStatus: successfulHTTPStatus,
+        )
     }
 }
 

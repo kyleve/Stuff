@@ -82,6 +82,9 @@ depends on both polling cadence and local traffic density. The source settings
 page reads the saved token's last 24 hours from FR24's usage report. Throw uses
 the observed credits per request to estimate hourly and 30-day use. The report
 can include requests that other clients make with the same token.
+An FR24 region that crosses the antimeridian needs two provider requests for
+each poll. Throw publishes that poll only when both requests succeed and counts
+both requests in its credit estimate.
 
 Throw keeps aircraft snapshots, routes, and motion history only in memory.
 The app predicts from the last successful snapshot until the next poll.
