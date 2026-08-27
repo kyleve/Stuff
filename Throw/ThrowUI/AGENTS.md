@@ -26,8 +26,9 @@ Read the root [`AGENTS.md`](../../AGENTS.md) and group
   starting delayed work in a burst.
 - Keep motion correction and its aggregate diagnostics inside the projection
   worker. Never log aircraft identities or coordinates.
-- Draw cached Geography below marks in Map mode. Keep it absent from True Sky,
-  calibration, and quiet output.
+- Draw cached Geography below marks in Map mode. Bound the static-line cache to
+  recent projection keys. Keep Geography absent from True Sky, calibration,
+  and quiet output.
 - Iterate the layers supplied by `ProjectionFrame`. Do not restore catalog
   enumeration or a Geography special case in the surface.
 - Keep external projection opaque black and free of interactive chrome.

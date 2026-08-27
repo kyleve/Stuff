@@ -78,8 +78,7 @@ actor ProjectionFrameWorker {
     private var nextGeographyWaiterID: UInt64 = 0
     private var geographyLoadGeneration: UInt64 = 0
     private var geographyLoadFailed = false
-    private var staticLineProjectionCache: [StaticLineProjectionCacheKey: ProjectedLineCollection] =
-        [:]
+    private var staticLineProjectionCache = StaticLineProjectionCache()
     private var lineProjectionSequence: UInt64 = 0
     private var experienceStates: [ProjectionExperienceID: ExperienceState] = [:]
 
@@ -364,14 +363,14 @@ actor ProjectionFrameWorker {
         viewport: ProjectionViewport,
         calibration: ProjectionCalibration,
     ) throws -> ProjectedLineCollection {
-        let key = StaticLineProjectionCacheKey(
+        let key = StaticLineProjectionCache.Key(
             layerID: layerFrame.layerID,
             revision: layerFrame.observedAt,
             mapCenter: mapCenter,
             viewport: viewport,
             calibration: calibration,
         )
-        if let projection = staticLineProjectionCache[key] {
+        if let projection = staticLineProjectionCache.projection(for: key) {
             return projection
         }
         let segments = try engine.lineSegments(
@@ -387,7 +386,7 @@ actor ProjectionFrameWorker {
             id: ProjectionLineRevisionID(rawValue: lineProjectionSequence),
             segments: segments,
         )
-        staticLineProjectionCache[key] = projection
+        staticLineProjectionCache.insert(projection, for: key)
         return projection
     }
 
@@ -960,14 +959,6 @@ private enum AnimationDuration {
     static let presence = 0.25
     static let anchor = 0.4
     static let completion = 0.5
-}
-
-private struct StaticLineProjectionCacheKey: Hashable {
-    let layerID: LayerID
-    let revision: Date
-    let mapCenter: GeoCoordinate
-    let viewport: ProjectionViewport
-    let calibration: ProjectionCalibration
 }
 
 #if DEBUG
