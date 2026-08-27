@@ -72,6 +72,7 @@ struct WhereStylesheet: BStylesheet {
         }
 
         if traits.accessibility.isDarkerSystemColorsEnabled {
+            locationForecast.ink = .increasedContrast
             openSourceStamp.ink = .increasedContrast
             plannedStayWarningStamp.ink = .increasedContrast
         }
@@ -157,33 +158,178 @@ extension WhereStylesheet {
 // MARK: - Location forecast
 
 extension WhereStylesheet {
-    /// Geometry for the annual-estimate panel shared by the Locations tab and
-    /// region-focused calendars.
+    /// Passport-visa appearance for the annual estimate shared by Locations,
+    /// calendars, and Estimated Time feature discovery.
     struct LocationForecastStyle: Equatable {
         var cornerRadius: CGFloat
         var padding: CGFloat
         var rowSpacing: CGFloat
-        var estimateSpacing: CGFloat
-        var collapsedLabelColor: Color
-        var borderColor: Color
-        var borderWidth: CGFloat
-        var shadowColor: Color
-        var shadowRadius: CGFloat
-        var shadowOffsetY: CGFloat
         var expansionAnimation: Animation
+        var surface: Surface
+        var header: Header
+        var row: Row
+        var progress: Progress
+        var controls: Controls
+        var ink: Ink
+
+        struct Surface: Equatable {
+            var outlineWidth: CGFloat
+            var inset: CGFloat
+            var insetOutlineWidth: CGFloat
+            var insetDashLength: CGFloat
+            var insetDashSpacing: CGFloat
+            var rosetteWobble: CGFloat
+            var rosetteLineWidth: CGFloat
+            var primaryRingSpacing: CGFloat
+            var secondaryRingSpacing: CGFloat
+            var shadowColor: Color
+            var shadowRadius: CGFloat
+            var shadowOffsetY: CGFloat
+        }
+
+        struct Header: Equatable {
+            var contentSpacing: CGFloat
+            var textSpacing: CGFloat
+            var titleFont: Font
+            var elapsedFont: Font
+            var minimumHeight: CGFloat
+        }
+
+        struct Row: Equatable {
+            var cornerRadius: CGFloat
+            var padding: CGFloat
+            var contentSpacing: CGFloat
+            var estimateSpacing: CGFloat
+            var regionFont: Font
+            var estimateFont: Font
+            var detailFont: Font
+            var separatorHeight: CGFloat
+            var separatorLineWidth: CGFloat
+            var separatorDashLength: CGFloat
+            var separatorDashSpacing: CGFloat
+        }
+
+        struct Progress: Equatable {
+            var height: CGFloat
+            var hatchSpacing: CGFloat
+            var hatchLineWidth: CGFloat
+        }
+
+        struct Controls: Equatable {
+            var sectionSpacing: CGFloat
+            var layoutSpacing: CGFloat
+            var cornerRadius: CGFloat
+            var horizontalPadding: CGFloat
+            var minimumHeight: CGFloat
+            var strokeWidth: CGFloat
+            var font: Font
+        }
+
+        struct Ink: Equatable {
+            var surfaceWashOpacity: Double
+            var surfaceOutlineOpacity: Double
+            var insetOutlineOpacity: Double
+            var rosettePrimaryOpacity: Double
+            var rosetteSecondaryOpacity: Double
+            var sealOpacity: Double
+            var rowFillOpacity: Double
+            var rowOutlineOpacity: Double
+            var separatorOpacity: Double
+            var progressTrackOpacity: Double
+            var progressEstimateFillOpacity: Double
+            var progressHatchOpacity: Double
+            var controlFillOpacity: Double
+            var controlStrokeOpacity: Double
+
+            static let standard = Ink(
+                surfaceWashOpacity: 0.035,
+                surfaceOutlineOpacity: 0.22,
+                insetOutlineOpacity: 0.12,
+                rosettePrimaryOpacity: 0.08,
+                rosetteSecondaryOpacity: 0.045,
+                sealOpacity: 0.72,
+                rowFillOpacity: 0.07,
+                rowOutlineOpacity: 0.24,
+                separatorOpacity: 0.2,
+                progressTrackOpacity: 0.1,
+                progressEstimateFillOpacity: 0.2,
+                progressHatchOpacity: 0.42,
+                controlFillOpacity: 0.06,
+                controlStrokeOpacity: 0.24,
+            )
+
+            static let increasedContrast = Ink(
+                surfaceWashOpacity: 0.065,
+                surfaceOutlineOpacity: 0.5,
+                insetOutlineOpacity: 0.32,
+                rosettePrimaryOpacity: 0.14,
+                rosetteSecondaryOpacity: 0.09,
+                sealOpacity: 1,
+                rowFillOpacity: 0.12,
+                rowOutlineOpacity: 0.55,
+                separatorOpacity: 0.5,
+                progressTrackOpacity: 0.2,
+                progressEstimateFillOpacity: 0.32,
+                progressHatchOpacity: 0.68,
+                controlFillOpacity: 0.12,
+                controlStrokeOpacity: 0.56,
+            )
+        }
 
         static let standard = LocationForecastStyle(
             cornerRadius: 22,
             padding: 16,
-            rowSpacing: 12,
-            estimateSpacing: 3,
-            collapsedLabelColor: Color.primary.opacity(0.5),
-            borderColor: Color.primary.opacity(0.06),
-            borderWidth: 0.5,
-            shadowColor: Color.black.opacity(0.06),
-            shadowRadius: 8,
-            shadowOffsetY: 2,
+            rowSpacing: 16,
             expansionAnimation: .easeInOut(duration: 0.2),
+            surface: Surface(
+                outlineWidth: 1.25,
+                inset: 5,
+                insetOutlineWidth: 0.75,
+                insetDashLength: 4,
+                insetDashSpacing: 4,
+                rosetteWobble: 5,
+                rosetteLineWidth: 0.75,
+                primaryRingSpacing: 10,
+                secondaryRingSpacing: 16,
+                shadowColor: Color.black.opacity(0.08),
+                shadowRadius: 10,
+                shadowOffsetY: 3,
+            ),
+            header: Header(
+                contentSpacing: 12,
+                textSpacing: 2,
+                titleFont: .system(.headline, design: .serif),
+                elapsedFont: .footnote,
+                minimumHeight: 52,
+            ),
+            row: Row(
+                cornerRadius: 14,
+                padding: 12,
+                contentSpacing: 8,
+                estimateSpacing: 3,
+                regionFont: .system(.headline, design: .serif),
+                estimateFont: .system(.title2, design: .rounded),
+                detailFont: .footnote,
+                separatorHeight: 1,
+                separatorLineWidth: 1,
+                separatorDashLength: 4,
+                separatorDashSpacing: 5,
+            ),
+            progress: Progress(
+                height: 8,
+                hatchSpacing: 6,
+                hatchLineWidth: 1,
+            ),
+            controls: Controls(
+                sectionSpacing: 10,
+                layoutSpacing: 8,
+                cornerRadius: 12,
+                horizontalPadding: 12,
+                minimumHeight: 44,
+                strokeWidth: 1,
+                font: .subheadline,
+            ),
+            ink: .standard,
         )
     }
 }

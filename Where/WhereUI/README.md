@@ -320,10 +320,13 @@ stroke. Its containing Liquid Glass surface owns the subtle outer border so
 direct and production rendering do not diverge.
 
 After at least three months of the current year, Locations can reveal a collapsible annual estimate
-from the recorded pace and plan a stay through one of its displayed regions. A focused region
-calendar places the estimate after the current month and renders planned future days with a
-continuous hatched band, distinct from recorded presence. Settings > Appearance disables every
-estimate and planning visualization only after clearing the synced plan succeeds.
+from the recorded pace and plan a stay through one of its displayed regions. The shared estimate
+renders as an adaptive passport-visa endorsement: security print and an annual seal frame
+region-tinted rows whose solid and hatched rule distinguishes recorded time from the projection.
+A focused region calendar places the same open endorsement after the current month and renders
+planned future days with a continuous hatched band, distinct from recorded presence. Settings >
+Appearance disables every estimate and planning visualization only after clearing the synced plan
+succeeds.
 
 While the Locations cards are visible, a live reversal between the same two
 primary regions holds the previous counts and order through the existing reveal
