@@ -60,6 +60,27 @@ struct ProjectionExperienceCoordinatorState: Equatable {
     let manualSelectionFailure: ThrowFailureCategory?
 }
 
+/// One playlist value and its logical session order, independent of task scheduling order.
+struct ProjectionPlaylistConfiguration {
+    struct Revision: Comparable {
+        static let initial = Revision(rawValue: 0)
+
+        let rawValue: UInt64
+
+        func successor() -> Revision {
+            precondition(rawValue < UInt64.max, "A playlist revision must not overflow")
+            return Revision(rawValue: rawValue + 1)
+        }
+
+        static func < (lhs: Revision, rhs: Revision) -> Bool {
+            lhs.rawValue < rhs.rawValue
+        }
+    }
+
+    let playlist: ProjectionPlaylist
+    let revision: Revision
+}
+
 /// Owns the single projection playlist timer and transactional View switching state.
 actor ProjectionExperienceCoordinator {
     /// Keeps the active identity valid for the current playlist.
@@ -173,6 +194,7 @@ actor ProjectionExperienceCoordinator {
     private let actionContinuation: AsyncStream<ProjectionExperienceCoordinatorAction>.Continuation
 
     private var playlistState: PlaylistRuntimeState
+    private var playlistConfigurationRevision = ProjectionPlaylistConfiguration.Revision.initial
     private var demand = ProjectionExperienceDemand(
         hasOutput: false,
         isForeground: true,
@@ -239,7 +261,10 @@ actor ProjectionExperienceCoordinator {
         }
     #endif
 
-    func configure(_ playlist: ProjectionPlaylist) async {
+    func configure(_ configuration: ProjectionPlaylistConfiguration) async {
+        guard configuration.revision > playlistConfigurationRevision else { return }
+        playlistConfigurationRevision = configuration.revision
+        let playlist = configuration.playlist
         playlistState.configure(playlist)
         manualSelectionFailure = nil
         cancelRotation()
@@ -254,6 +279,10 @@ actor ProjectionExperienceCoordinator {
         if demand.permitsProjection {
             await activateCurrentIfNeeded()
         }
+    }
+
+    func currentPlaylist() -> ProjectionPlaylist {
+        playlist
     }
 
     func reconcile(demand: ProjectionExperienceDemand) async {

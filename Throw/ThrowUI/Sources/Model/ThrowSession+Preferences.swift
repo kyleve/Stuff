@@ -151,7 +151,7 @@ extension ThrowSession {
         let preferences = try makePreferences(setupCompleted: setupCompleted)
         try await preferenceStore.save(preferences)
         projectionPlaylist = preferences.playlist
-        await experienceCoordinator.configure(projectionPlaylist)
+        await configureExperienceCoordinator(with: projectionPlaylist)
         settingsFailure = nil
     }
 

@@ -22,6 +22,21 @@ struct ThrowSessionExperiencesTests {
         #expect(session.projectionPlaylist.entry(for: .airAndSpace)?.dwellDuration.seconds == 300)
     }
 
+    @Test func rapidPlaylistChangesConvergeOnTheNewestCoordinatorValue() async {
+        let session = ThrowSession.fixture()
+
+        session.setExperienceDwellDuration(seconds: 300, for: .airAndSpace)
+        let olderTask = session.playlistConfigurationTask
+        session.setExperienceDwellDuration(seconds: 600, for: .airAndSpace)
+        let latestTask = session.playlistConfigurationTask
+        await latestTask?.value
+        await olderTask?.value
+
+        let coordinatorPlaylist = await session.experienceCoordinator.currentPlaylist()
+        #expect(coordinatorPlaylist.entry(for: .airAndSpace)?.dwellDuration.seconds == 600)
+        #expect(session.projectionPlaylist == coordinatorPlaylist)
+    }
+
     @Test func projectionAccessibilityUsesTheActiveExperienceCountMeaning() {
         let session = ThrowSession.fixture()
         session.activeExperienceID = .transit
