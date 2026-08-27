@@ -96,6 +96,46 @@ struct AirAndSpaceRuntimeTests {
         await runtime.deactivate(reporting: .idle)
     }
 
+    @Test func visibleCountRejectsAnOlderActivationGeneration() async throws {
+        let date = Date(timeIntervalSince1970: 1_800_100_000)
+        let snapshot = AircraftSnapshot(source: .adsbLol, fetchedAt: date, observations: [])
+        let coordinator = AircraftPollingCoordinator(
+            sourceFactory: FixedAircraftSourceFactory(snapshot: snapshot),
+            clock: LongAircraftPollingClock(now: date),
+            logger: DiscardingAircraftPollingLogger(),
+        )
+        let runtime = makeRuntime(
+            pollingCoordinator: coordinator,
+            flightsRuntime: LayerCatalog.standard.flights.runtimeFactory(),
+            date: date,
+        )
+        _ = await runtime.stateUpdates()
+
+        try await runtime.activate(
+            configuration: .adsbLol,
+            query: query(),
+            labelMode: .adaptive,
+            activationGeneration: 42,
+        )
+        try await waitUntil {
+            await runtime.currentUpdate().successfulActivationGeneration == 42
+        }
+
+        await runtime.updateVisibleContentCount(7, activationGeneration: 41)
+        #expect(
+            await runtime.currentUpdate().health ==
+                .healthy(lastUpdate: date, visibleContentCount: 0),
+        )
+
+        await runtime.updateVisibleContentCount(7, activationGeneration: 42)
+        #expect(
+            await runtime.currentUpdate().health ==
+                .healthy(lastUpdate: date, visibleContentCount: 7),
+        )
+
+        await runtime.deactivate(reporting: .idle)
+    }
+
     @Test func laterActivationSupersedesDeactivationSuspendedDuringReset() async throws {
         let date = Date(timeIntervalSince1970: 1_800_100_000)
         let flightsRuntime = ControllableFlightsLayerRuntime(suspendedResetNumbers: [2])

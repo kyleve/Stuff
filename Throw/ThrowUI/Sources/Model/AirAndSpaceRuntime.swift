@@ -169,7 +169,8 @@ actor AirAndSpaceRuntime {
         await rebuildCurrentLayerFrame()
     }
 
-    func updateVisibleContentCount(_ count: Int) {
+    func updateVisibleContentCount(_ count: Int, activationGeneration: UInt64) {
+        guard activationGeneration == self.activationGeneration else { return }
         switch health {
             case let .healthy(lastUpdate, oldCount) where oldCount != count:
                 health = .healthy(lastUpdate: lastUpdate, visibleContentCount: count)

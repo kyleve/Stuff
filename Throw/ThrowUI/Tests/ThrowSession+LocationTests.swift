@@ -161,6 +161,30 @@ struct ThrowSessionLocationTests {
         await session.demandTask?.value
     }
 
+    @Test func supersededRefreshCannotApplyAResolvedFix() async throws {
+        let locationSource = ControlledThrowLocationSource()
+        let session = ThrowSession.fixture(locationSource: locationSource)
+        let originalLocation = session.confirmedLocation
+        session.beforeApplyingLocationResolutionForTesting = { [weak session] in
+            guard let session else { return }
+            session.locationGeneration &+= 1
+            session.locationHealth = .failed
+        }
+        let refresh = Task { await session.refreshLocation() }
+        await locationSource.waitForStartCount(1)
+        let replacement = try ThrowSessionLocationTestFixture.fix(
+            latitude: 40,
+            longitude: -73,
+            accuracyMeters: 25,
+        )
+
+        locationSource.send(.fix(replacement))
+        await refresh.value
+
+        #expect(session.confirmedLocation == originalLocation)
+        #expect(session.locationHealth == .failed)
+    }
+
     @Test func offeredBestFixDoesNotPollUntilExplicitAcceptance() async throws {
         let session = ThrowSession.fixture()
         await session.start()

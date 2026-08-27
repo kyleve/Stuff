@@ -196,8 +196,11 @@ extension ThrowSession {
             group.cancelAll()
             return first
         }
-        guard generation == locationGeneration, Task.isCancelled == false else { return }
         let accumulated = await accumulator.result()
+        #if DEBUG
+            beforeApplyingLocationResolutionForTesting?()
+        #endif
+        guard generation == locationGeneration, Task.isCancelled == false else { return }
         if mayApplyTrueHeadingHint, let heading = accumulated.heading {
             mayApplyTrueHeadingHint = false
             screenTopBearing = heading.degrees

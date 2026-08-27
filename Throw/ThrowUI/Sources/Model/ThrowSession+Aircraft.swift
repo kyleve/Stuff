@@ -535,8 +535,10 @@ extension ThrowSession {
             var schedule = ProjectionFrameSchedule(startingAt: clock.now)
             while Task.isCancelled == false {
                 do {
+                    let activationGeneration = airAndSpaceActivationGeneration
+                    let experienceFrame = currentExperienceFrame
                     let output = try await projectedOutput(
-                        for: currentExperienceFrame,
+                        for: experienceFrame,
                         generatedAt: dateProvider.now(),
                     )
                     try Task.checkCancellation()
@@ -545,7 +547,12 @@ extension ThrowSession {
                     projectionMarkEffects = output.effects
                     observerMapPoint = output.observerPoint
                     geographyLayerHealth = output.geographyHealth
-                    updateVisibleCount(output.frame.visibleAircraftCount)
+                    await updateVisibleCount(
+                        output.frame.visibleAircraftCount,
+                        experienceID: output.frame.experienceID,
+                        activationGeneration: activationGeneration,
+                    )
+                    guard generation == renderGeneration else { return }
                     if currentLayerFrame == nil {
                         renderTask = nil
                         return
@@ -653,11 +660,16 @@ extension ThrowSession {
         }
     }
 
-    func updateVisibleCount(_ count: Int) {
-        guard feedHealth.visibleContentCount != count else { return }
-        Task(name: "Throw update Air & Space visible count") { [airAndSpaceRuntime] in
-            await airAndSpaceRuntime.updateVisibleContentCount(count)
-        }
+    func updateVisibleCount(
+        _ count: Int,
+        experienceID: ProjectionExperienceID,
+        activationGeneration: UInt64,
+    ) async {
+        guard experienceID == .airAndSpace else { return }
+        await airAndSpaceRuntime.updateVisibleContentCount(
+            count,
+            activationGeneration: activationGeneration,
+        )
     }
 
     func sourceConfiguration(

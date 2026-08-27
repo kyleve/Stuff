@@ -262,6 +262,10 @@ public final class ThrowSession {
     @ObservationIgnored var flightradar24UsageGeneration: UInt64 = 0
     @ObservationIgnored var sourceMutationInProgress = false
     @ObservationIgnored var sourceMutationNeedsPreferenceSave = false
+    #if DEBUG
+        @ObservationIgnored @_spi(Testing) public var
+            beforeApplyingLocationResolutionForTesting: (() -> Void)?
+    #endif
 
     public init(
         preferences: ThrowPreferences,
