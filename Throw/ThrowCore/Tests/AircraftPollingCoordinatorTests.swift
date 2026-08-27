@@ -200,13 +200,13 @@ struct AircraftPollingCoordinatorTests {
     }
 
     @Test func repeatedFailuresDoNotRestartTheVisibilityGracePeriod() async throws {
+        let recorder = PollingStateRecorder()
         let coordinator = AircraftPollingCoordinator(
             sourceFactory: SingleSourceFactory(source: SuccessfulThenFailingSource()),
-            clock: TwoImmediateSleepPollingClock(),
+            clock: RetryObservationPollingClock(recorder: recorder),
             logger: DiscardingAircraftPollingLogger(),
         )
         let stream = await coordinator.stateUpdates()
-        let recorder = PollingStateRecorder()
         let recordingTask = Task(name: "Record retry visibility dates") {
             for await state in stream {
                 guard Task.isCancelled == false else { return }
@@ -756,9 +756,14 @@ private actor SingleImmediateSleepPollingClock: AircraftPollingClock {
     }
 }
 
-private actor TwoImmediateSleepPollingClock: AircraftPollingClock {
+private actor RetryObservationPollingClock: AircraftPollingClock {
+    private let recorder: PollingStateRecorder
     private var dateOffset: TimeInterval = 0
     private var sleepCount = 0
+
+    init(recorder: PollingStateRecorder) {
+        self.recorder = recorder
+    }
 
     func now() async -> Date {
         defer { dateOffset += 1 }
@@ -767,8 +772,20 @@ private actor TwoImmediateSleepPollingClock: AircraftPollingClock {
 
     func sleep(for duration: Duration) async throws {
         sleepCount += 1
-        guard sleepCount > 2 else { return }
-        try await Task.sleep(for: duration)
+        switch sleepCount {
+            case 1:
+                return
+            case 2:
+                // The production stream buffers only its latest state. Hold the
+                // first retry until the recorder observes it before permitting
+                // the second failure.
+                while await recorder.retryFailureDates().isEmpty {
+                    try Task.checkCancellation()
+                    await Task.yield()
+                }
+            default:
+                try await Task.sleep(for: duration)
+        }
     }
 }
 
