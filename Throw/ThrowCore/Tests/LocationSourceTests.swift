@@ -110,6 +110,34 @@ struct LocationSourceTests {
         #expect(selected.position.coordinate.latitude == 37.1)
     }
 
+    @Test func invalidAltitudeCannotHideAValidLessAccurateSample() throws {
+        let invalidAltitude = CLLocation(
+            coordinate: CLLocationCoordinate2D(latitude: 37, longitude: -122),
+            altitude: 500,
+            horizontalAccuracy: 1,
+            verticalAccuracy: -1,
+            timestamp: ThrowCoreFixture.date,
+        )
+        let valid = CLLocation(
+            coordinate: CLLocationCoordinate2D(latitude: 37.1, longitude: -122.1),
+            altitude: 20,
+            horizontalAccuracy: 50,
+            verticalAccuracy: 10,
+            timestamp: ThrowCoreFixture.date,
+        )
+
+        let selected = try #require(
+            LocationFixEvaluator.bestValidFix(
+                from: [invalidAltitude, valid],
+                at: ThrowCoreFixture.date,
+            ),
+        )
+
+        #expect(selected.horizontalAccuracyMeters == 50)
+        #expect(selected.position.coordinate.latitude == 37.1)
+        #expect(abs(selected.position.altitude.meters - 20) < 0.000_001)
+    }
+
     @Test func freshnessBoundariesAreInclusive() throws {
         let oldest = try LocationFix(
             position: ThrowCoreFixture.observer(),
