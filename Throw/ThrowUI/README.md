@@ -40,11 +40,12 @@ sole renderer. It iterates the ordered layers in an immutable generic
 Flights. The projector is decorative. Preview exposes the active experience
 name, health, and one status summary.
 
-The worker keeps independent animation, collision, correction, acquisition,
-and static-line state for each experience. Prewarming prepares a complete
-target frame without changing the visible frame. A switch fades the surface to
-black, exchanges frames at black, and fades back in. Reduce Motion keeps this
-opacity fade but removes experience-specific movement.
+The worker keeps independent animation, collision, correction, and acquisition
+state for each experience. Its static-line projections use a bounded cache of
+recent layer, center, viewport, and calibration keys. Prewarming prepares a
+complete target frame without changing the visible frame. A switch fades the
+surface to black, exchanges frames at black, and fades back in. Reduce Motion
+keeps this opacity fade but removes experience-specific movement.
 
 The production worker accepts one typed `ProjectionExperienceInput`. This value
 pairs an experience with its valid layers and projection modes. Test-only raw
