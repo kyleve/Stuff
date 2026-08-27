@@ -81,9 +81,9 @@ boundaries are local.
 Interstate primary roads (`RTTYP=I`) are wide. Other S1100 primary roads are
 standard. The generator does not store road names or identifiers.
 
-The simplification tolerances are 0.02 NM for coastlines and 0.03 NM for
-lakes. All boundaries, rivers, and primary roads use 0.05 NM. Densification
-limits every output segment to 10 NM.
+The generator simplifies all linework to 0.005 NM. This keeps deviations below
+approximately one screen pixel at the smallest Transit Map radius on common
+projector resolutions. Densification limits every output segment to 10 NM.
 
 ## Priority and duplicate geometry
 

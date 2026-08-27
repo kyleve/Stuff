@@ -5,13 +5,13 @@
     "coordinateScale": 10000,
     "maximumSegmentNauticalMiles": 10,
     "maximumPathCount": 100000,
-    "maximumCoordinateCount": 2000000,
+    "maximumCoordinateCount": 2100000,
     "maximumOutputBytes": 33554432,
     "expectedOutput": {
-      "sha256": "4ee1ddb6e676fa2130d783106800271ac01427136bff4109a506444ecd88e536",
-      "encodedBytes": 15843872,
-      "pathCount": 38483,
-      "coordinateCount": 1462742
+      "sha256": "a754c93847b1c483b36d255ef4d794352ea750e1fa1a8946f73a553a4d7bb1e1",
+      "encodedBytes": 18959126,
+      "pathCount": 35953,
+      "coordinateCount": 2017430
     }
   },
   "sources": [
@@ -73,7 +73,7 @@
       },
       "priority": 200,
       "deduplicationGroup": "coastline",
-      "simplificationNauticalMiles": 0.02
+      "simplificationNauticalMiles": 0.005
     },
     {
       "id": "natural-earth-lakes",
@@ -104,7 +104,7 @@
       },
       "priority": 200,
       "deduplicationGroup": "lake",
-      "simplificationNauticalMiles": 0.03
+      "simplificationNauticalMiles": 0.005
     },
     {
       "id": "natural-earth-rivers",
@@ -135,7 +135,7 @@
       },
       "priority": 200,
       "deduplicationGroup": "river",
-      "simplificationNauticalMiles": 0.05
+      "simplificationNauticalMiles": 0.005
     },
     {
       "id": "natural-earth-national-boundaries",
@@ -173,7 +173,7 @@
       "priority": 300,
       "deduplicationGroup": "boundary",
       "mergeConnectedPaths": true,
-      "simplificationNauticalMiles": 0.05
+      "simplificationNauticalMiles": 0.005
     },
     {
       "id": "natural-earth-regional-boundaries",
@@ -210,7 +210,7 @@
       "priority": 200,
       "deduplicationGroup": "boundary",
       "mergeConnectedPaths": true,
-      "simplificationNauticalMiles": 0.05
+      "simplificationNauticalMiles": 0.005
     },
     {
       "id": "census-state-boundaries",
@@ -231,7 +231,7 @@
       "detailLevel": "wide",
       "priority": 500,
       "deduplicationGroup": "boundary",
-      "simplificationNauticalMiles": 0.03
+      "simplificationNauticalMiles": 0.005
     },
     {
       "id": "census-county-boundaries",
@@ -262,7 +262,7 @@
       },
       "priority": 400,
       "deduplicationGroup": "boundary",
-      "simplificationNauticalMiles": 0.05
+      "simplificationNauticalMiles": 0.005
     },
     {
       "id": "census-primary-roads",
@@ -293,7 +293,7 @@
       },
       "priority": 600,
       "deduplicationGroup": "road",
-      "simplificationNauticalMiles": 0.05
+      "simplificationNauticalMiles": 0.005
     }
   ]
 }
