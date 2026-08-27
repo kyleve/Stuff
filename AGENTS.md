@@ -148,14 +148,14 @@ own tests can't do this job. A test bundle can't read `Package.swift`.
 
 ## Architecture lint
 
-Bumper Bowling enforces the production Where module graph, the shared
+Bumper Bowling enforces the production Where and Throw module graphs, the shared
 InstallerKit/InstallerKitUI boundaries, LedgerCore's Periscope dependency,
 and selected source-level invariants. Classified logging
 authoring rules also cover the Periscope and consumer source/test paths. The entry point is
 [`BumperBowling.swift`](BumperBowling.swift). Repository-owned shapes and rules
 live in [`.bumper/Sources`](.bumper/Sources). [`.bumper/RULES.md`](.bumper/RULES.md) is the rule catalog.
 
-Run `./test --architecture-only` after changing a Where dependency,
+Run `./test --architecture-only` after changing a Where or Throw dependency,
 composition root, or documented concurrency boundary. This command validates
 the configuration, tests the rules, and runs the lint. Keep the relevant
 `AGENTS.md`, the executable rule, its catalog entry, and its mutation test in

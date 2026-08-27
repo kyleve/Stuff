@@ -1,17 +1,17 @@
 import Foundation
 
-public struct ReadsbPollingTiming: Equatable, Sendable {
-    public let intervalSeconds: Double
-    public let metadataFailure: AircraftSourceFailure?
+struct ReadsbPollingTiming: Equatable {
+    let intervalSeconds: Double
+    let metadataFailure: AircraftSourceFailure?
 
-    public init(intervalSeconds: Double, metadataFailure: AircraftSourceFailure?) {
+    init(intervalSeconds: Double, metadataFailure: AircraftSourceFailure?) {
         precondition((0.5 ... 10).contains(intervalSeconds))
         self.intervalSeconds = intervalSeconds
         self.metadataFailure = metadataFailure
     }
 }
 
-public struct ReadsbSource: AircraftObservationSource, CustomStringConvertible,
+struct ReadsbSource: AircraftObservationSource, CustomStringConvertible,
     CustomDebugStringConvertible
 {
     private let configuration: ReadsbConfiguration
@@ -19,7 +19,7 @@ public struct ReadsbSource: AircraftObservationSource, CustomStringConvertible,
     private let decodingWorker: AircraftDecodingWorker
     private let dateProvider: any DateProvider
 
-    public init(
+    init(
         configuration: ReadsbConfiguration,
         transport: any HTTPTransport,
         decoder: ADSBExchangeV2Decoder,
@@ -31,15 +31,15 @@ public struct ReadsbSource: AircraftObservationSource, CustomStringConvertible,
         self.dateProvider = dateProvider
     }
 
-    public var description: String {
+    var description: String {
         "<ReadsbSource configuration=<redacted>>"
     }
 
-    public var debugDescription: String {
+    var debugDescription: String {
         description
     }
 
-    public func snapshot(for query: AircraftQuery) async throws -> AircraftSnapshot {
+    func snapshot(for query: AircraftQuery) async throws -> AircraftSnapshot {
         do {
             let response = try await transport.response(for: makeAircraftRequest())
             let fetchedAt = dateProvider.now()
@@ -71,7 +71,7 @@ public struct ReadsbSource: AircraftObservationSource, CustomStringConvertible,
     /// Receiver metadata is best-effort: every failure is returned alongside
     /// the one-second fallback so the aircraft feed can remain usable without
     /// pretending metadata succeeded.
-    public func recommendedPollingTiming() async throws -> ReadsbPollingTiming {
+    func recommendedPollingTiming() async throws -> ReadsbPollingTiming {
         do {
             let response = try await transport.response(for: makeReceiverRequest())
             let receivedAt = dateProvider.now()
@@ -93,7 +93,7 @@ public struct ReadsbSource: AircraftObservationSource, CustomStringConvertible,
         }
     }
 
-    public func makeAircraftRequest() -> HTTPRequest {
+    func makeAircraftRequest() -> HTTPRequest {
         HTTPRequest(
             method: .get,
             url: configuration.aircraftJSONURL,
@@ -102,7 +102,7 @@ public struct ReadsbSource: AircraftObservationSource, CustomStringConvertible,
         )
     }
 
-    public func makeReceiverRequest() throws -> HTTPRequest {
+    func makeReceiverRequest() throws -> HTTPRequest {
         try HTTPRequest(
             method: .get,
             url: ReadsbURLValidator.receiverJSONURL(

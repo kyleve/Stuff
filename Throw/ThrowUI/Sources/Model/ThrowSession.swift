@@ -209,10 +209,9 @@ public final class ThrowSession {
 
     let preferenceStore: any ThrowPreferenceStore
     let credentialStore: any AircraftCredentialStore
-    let sourceFactory: any AircraftSourceProducing
+    let sourceService: any AircraftSourceOperationServing
     let airAndSpaceRuntime: AirAndSpaceRuntime
     let experienceCoordinator: ProjectionExperienceCoordinator
-    let cloudTransport: any HTTPTransport
     let dateProvider: any DateProvider
     let locationSource: any ThrowLocationSource
     let calendar: Calendar
@@ -266,9 +265,8 @@ public final class ThrowSession {
         preferences: ThrowPreferences,
         preferenceStore: any ThrowPreferenceStore,
         credentialStore: any AircraftCredentialStore,
-        sourceFactory: any AircraftSourceProducing,
+        sourceService: any AircraftSourceOperationServing,
         pollingCoordinator: AircraftPollingCoordinator,
-        cloudTransport: any HTTPTransport,
         dateProvider: any DateProvider,
         locationSource: any ThrowLocationSource,
         calendar: Calendar,
@@ -331,8 +329,7 @@ public final class ThrowSession {
         semanticFramesByExperience[.airAndSpace] = currentExperienceFrame
         self.preferenceStore = preferenceStore
         self.credentialStore = credentialStore
-        self.sourceFactory = sourceFactory
-        self.cloudTransport = cloudTransport
+        self.sourceService = sourceService
         self.dateProvider = dateProvider
         self.locationSource = locationSource
         self.calendar = calendar

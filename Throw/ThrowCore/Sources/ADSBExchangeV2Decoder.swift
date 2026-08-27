@@ -1,16 +1,16 @@
 import Foundation
 
-public enum ADSBV2DecodingError: Error, Equatable, Sendable {
+enum ADSBV2DecodingError: Error, Equatable {
     case invalidEnvelope
 }
 
 /// Normalizes the common ADS-B Exchange v2 aircraft envelope used by all
 /// three v1 providers. Unknown additive fields are ignored. Individual bad
 /// records are lossy, but an otherwise empty malformed payload is a schema error.
-public struct ADSBExchangeV2Decoder: Sendable {
-    public init() {}
+struct ADSBExchangeV2Decoder {
+    init() {}
 
-    public func decode(
+    func decode(
         _ data: Data,
         source: AircraftSourceKind,
         fetchedAt: Date,

@@ -18,6 +18,8 @@ WhereCore, RegionKit, or LifecycleKit into this feature.
   `ThrowSession` into every scene. A scene delegate must never create services.
 - Keep the View catalog compile-time. Use `ProjectionExperience` in code and
   “View” in user-facing text. Never add runtime plugins or `AnyView` boundaries.
+- Keep aircraft provider implementations in ThrowCore. ThrowUI uses the
+  provider-neutral operation service and domain results.
 - Keep one experience coordinator for all scenes. Only the active and
   prewarming experience runtimes may run at the same time.
 - Exchange complete experience frames only while the projection is black.
@@ -45,4 +47,6 @@ iPhone or iPad. It is macOS-only. Configure the signing team once with
 
 Use `./test ThrowCoreTests`, `./test ThrowUITests`, and `./test ThrowTests` for
 focused coverage. Throw's image bundle joins the shared `StuffSnapshotTests`
-scheme; do not add a separate snapshot scheme.
+scheme; do not add a separate snapshot scheme. Run
+`./test --architecture-only` after changing a module boundary or composition
+root.

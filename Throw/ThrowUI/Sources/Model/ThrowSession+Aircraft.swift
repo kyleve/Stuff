@@ -98,17 +98,7 @@ extension ThrowSession {
         flightradar24UsageGeneration &+= 1
         let generation = flightradar24UsageGeneration
         lastFlightradar24UsageRequestAt = now
-        let configuration = AircraftSourceConfiguration.flightradar24(
-            Flightradar24Configuration(
-                pollingInterval: .defaultValue,
-                credentialID: .flightradar24,
-            ),
-        )
-        let configured = try await sourceFactory.makeSource(configuration: configuration)
-        guard let source = configured.source as? Flightradar24Source else {
-            throw AircraftSourceFailure.invalidConfiguration
-        }
-        let report = try await source.usage(period: .last24Hours)
+        let report = try await sourceService.flightradar24Usage(period: .last24Hours)
         try Task.checkCancellation()
         guard generation == flightradar24UsageGeneration else { throw CancellationError() }
         cachedFlightradar24Usage = CachedFlightradar24Usage(
@@ -138,42 +128,19 @@ extension ThrowSession {
                 pollingIntervalSeconds: pollingIntervalSeconds,
             )
             let query = try validationQuery()
-            let replacementCredential: AircraftCredential?
-            if choice == .adsbExchange || choice == .flightradar24,
-               rapidAPIKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+            let replacementCredential: AircraftCredential? = if choice == .adsbExchange || choice ==
+                .flightradar24,
+                rapidAPIKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
             {
-                let credential = try AircraftCredential(secret: rapidAPIKey)
-                if choice == .adsbExchange {
-                    let source = ADSBExchangeRapidAPISource(
-                        transport: cloudTransport,
-                        decoder: ADSBExchangeV2Decoder(),
-                        credential: credential,
-                        dateProvider: dateProvider,
-                    )
-                    _ = try await source.credentialTestSnapshot(observer: query.observer)
-                } else {
-                    let source = Flightradar24Source(
-                        transport: cloudTransport,
-                        decoder: Flightradar24Decoder(),
-                        credential: credential,
-                        dateProvider: dateProvider,
-                    )
-                    _ = try await source.credentialTestSnapshot(observer: query.observer)
-                }
-                replacementCredential = credential
+                try AircraftCredential(secret: rapidAPIKey)
             } else {
-                let configured = try await sourceFactory.makeSource(configuration: configuration)
-                if let rapidAPISource = configured.source as? ADSBExchangeRapidAPISource {
-                    _ = try await rapidAPISource.credentialTestSnapshot(observer: query.observer)
-                } else if let flightradar24Source = configured.source as? Flightradar24Source {
-                    _ = try await flightradar24Source.credentialTestSnapshot(
-                        observer: query.observer,
-                    )
-                } else {
-                    _ = try await configured.source.snapshot(for: query)
-                }
-                replacementCredential = nil
+                nil
             }
+            _ = try await sourceService.testConnection(
+                configuration: configuration,
+                query: query,
+                replacementCredential: replacementCredential,
+            )
             try Task.checkCancellation()
             return .succeeded(
                 ValidatedAircraftSourceDraft(

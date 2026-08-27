@@ -8,6 +8,8 @@ Read the root [`AGENTS.md`](../../AGENTS.md) and group
 
 - Import ThrowCore and presentation dependencies only. Keep source adapters,
   persistence, projection math, polling, and credential access in ThrowCore.
+- Use `AircraftSourceOperationServing` for source tests and usage reports.
+  Never refer to a concrete provider source or decoder.
 - Keep one app-root-owned `ThrowSession`; pass it to every controller and
   output scene. A view or scene delegate must never create a second poller.
 - Keep aircraft behavior in the one injected `AirAndSpaceRuntime`. Keep

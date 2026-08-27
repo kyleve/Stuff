@@ -1,14 +1,14 @@
 import Foundation
 
-public enum Flightradar24DecodingError: Error, Equatable, Sendable {
+enum Flightradar24DecodingError: Error, Equatable {
     case invalidEnvelope
 }
 
 /// Reads FR24 live positions and preserves routes from the matching position record.
-public struct Flightradar24Decoder: Sendable {
-    public init() {}
+struct Flightradar24Decoder {
+    init() {}
 
-    public func decode(_ data: Data, fetchedAt: Date) throws -> AircraftSnapshot {
+    func decode(_ data: Data, fetchedAt: Date) throws -> AircraftSnapshot {
         let envelope: Envelope
         do {
             envelope = try JSONDecoder().decode(Envelope.self, from: data)
@@ -155,17 +155,17 @@ actor Flightradar24DecodingWorker {
     }
 }
 
-public struct Flightradar24Source: AircraftObservationSource, CustomStringConvertible,
+struct Flightradar24Source: AircraftObservationSource, CustomStringConvertible,
     CustomDebugStringConvertible
 {
-    public static let baseURL = URL(string: "https://fr24api.flightradar24.com/api")!
+    static let baseURL = URL(string: "https://fr24api.flightradar24.com/api")!
 
     private let transport: any HTTPTransport
     private let decodingWorker: Flightradar24DecodingWorker
     private let credential: AircraftCredential
     private let dateProvider: any DateProvider
 
-    public init(
+    init(
         transport: any HTTPTransport,
         decoder: Flightradar24Decoder,
         credential: AircraftCredential,
@@ -177,19 +177,19 @@ public struct Flightradar24Source: AircraftObservationSource, CustomStringConver
         self.dateProvider = dateProvider
     }
 
-    public var description: String {
+    var description: String {
         "<Flightradar24Source credential=<redacted>>"
     }
 
-    public var debugDescription: String {
+    var debugDescription: String {
         description
     }
 
-    public func snapshot(for query: AircraftQuery) async throws -> AircraftSnapshot {
+    func snapshot(for query: AircraftQuery) async throws -> AircraftSnapshot {
         try await snapshot(for: query, request: makeRequest(for: query))
     }
 
-    public func credentialTestSnapshot(observer: ObserverPosition) async throws
+    func credentialTestSnapshot(observer: ObserverPosition) async throws
         -> AircraftSnapshot
     {
         let query = try AircraftQuery(
@@ -201,12 +201,12 @@ public struct Flightradar24Source: AircraftObservationSource, CustomStringConver
         return try await snapshot(for: query, request: makeRequest(for: query, radius: 5))
     }
 
-    public func makeRequest(for query: AircraftQuery) throws -> HTTPRequest {
+    func makeRequest(for query: AircraftQuery) throws -> HTTPRequest {
         let plan = try CloudAircraftQuery.plan(for: query)
         return try makeRequest(for: query, radius: plan.transmittedRadius.value)
     }
 
-    public func usage(period: Flightradar24UsagePeriod) async throws
+    func usage(period: Flightradar24UsagePeriod) async throws
         -> Flightradar24UsageReport
     {
         do {
@@ -233,7 +233,7 @@ public struct Flightradar24Source: AircraftObservationSource, CustomStringConver
         }
     }
 
-    public func makeUsageRequest(period: Flightradar24UsagePeriod) throws -> HTTPRequest {
+    func makeUsageRequest(period: Flightradar24UsagePeriod) throws -> HTTPRequest {
         var components = URLComponents(
             url: Self.baseURL.appending(path: "usage"),
             resolvingAgainstBaseURL: false,

@@ -1,6 +1,9 @@
-# Where Architecture Rules
+# Application Architecture Rules
 
-`BumperBowling.swift` turns documented module boundaries and classified-event authoring rules into source-level checks. The Where architecture rules scan production sources. The Periscope authoring rules also scan affected test targets.
+`BumperBowling.swift` turns the documented Where and Throw module boundaries,
+shared application boundaries, and classified-event authoring rules into
+source-level checks. The architecture rules scan production sources. The
+Periscope authoring rules also scan affected test targets.
 
 ## Classified Periscope events
 
@@ -27,6 +30,12 @@ Repair a violation with the macro authoring API. Do not add a file exception. Mu
 | `WhereShareExtension` | `WhereCore`, `WhereUI` | Foundation, SwiftUI, UIKit |
 | `RegionViewer` | `RegionKit`, `WhereCore`, `WhereUI` | Foundation, SwiftUI, UIKit |
 
+| Throw component | Allowed Throw dependencies | Framework capabilities |
+| --- | --- | --- |
+| `ThrowCore` | none | Foundation |
+| `ThrowUI` | `ThrowCore` | Foundation, SwiftUI, UIKit |
+| `Throw` app | `ThrowUI` | Foundation, SwiftUI, UIKit |
+
 An import of a declared Where module outside these edges is a
 `component_boundary` error. An import of a known framework capability outside
 the component's allow-list is a `forbidden_import` error. RegionKit and
@@ -41,10 +50,13 @@ Delete or reshape a boundary only when the corresponding module architecture
 changes in its `AGENTS.md`, `Package.swift`, or `Project.swift`; update the
 documentation and executable rule in the same change.
 
+ThrowCore and ThrowUI also forbid LifecycleKit. Throw is a retryable runtime,
+not a terminal launch sequence. The Throw app cannot import ThrowCore directly.
+
 ## Graph integrity
 
 - `duplicate_ownership` keeps every source path and module in one component.
-- `declared_dependency_cycle` keeps the Where layer graph acyclic.
+- `declared_dependency_cycle` keeps each application layer graph acyclic.
 
 InstallerKit is a shared foundation component. WhereCore, WhereUI, and the app
 may depend on it. InstallerKit cannot import Where modules or UI frameworks.
@@ -147,7 +159,7 @@ conformance only in the Where app component.
 Where production sources. Production logging uses the typed `WhereLog` or
 `RegionLog` Periscope facades.
 
-This complements `where.logging_type_ownership`, which controls where the
+This complements `repository.logging_type_ownership`, which controls where the
 typed event declarations live.
 
 ## Preview coverage
@@ -163,13 +175,32 @@ WhereIntents and WhereWidgets explicitly forbid direct `BroadwayCore` and
 
 ## Logging vocabulary ownership
 
-`where.logging_type_ownership` keeps every nominal type ending in `Log` under a
-module's `Sources/Logging` directory. This preserves the existing convention
-that collaborators and their typed Periscope event vocabulary do not accrete in
-the same files.
+`repository.logging_type_ownership` keeps every nominal type ending in `Log`
+under a Where or Throw module's `Sources/Logging` directory. This keeps typed
+Periscope event vocabulary separate from collaborators.
 
 Repair a violation by moving the logging type into the owning module's Logging
 directory. Delete or reshape the rule if the repository deliberately adopts a
 different logging vocabulary layout. Bumper's standard
 `singleNominalSpelling` shaper expresses the invariant; no custom syntax rule
 is needed.
+
+## Throw concrete view boundaries
+
+`throw.no_any_view` rejects `AnyView` in Throw production sources. Controller
+and projection scenes compose concrete ThrowUI roots. Runtime handoff exposes
+the shared session instead of erasing the view type.
+
+## Throw provider boundary
+
+`throw.provider_implementation_boundary` rejects concrete aircraft provider
+sources and decoders in ThrowUI. Source setup and provider capabilities go
+through `AircraftSourceOperationServing`, whose production implementation is
+owned by ThrowCore.
+
+## Throw checked concurrency boundaries
+
+`throw.checked_concurrency_boundaries` rejects `@preconcurrency` and
+`nonisolated(unsafe)` in all Throw production sources. Repair a violation with
+checked isolation. Do not add an exception without first documenting and
+testing the synchronization boundary.

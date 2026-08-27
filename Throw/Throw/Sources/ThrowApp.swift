@@ -8,17 +8,21 @@ struct ThrowApp: App {
 
     var body: some Scene {
         WindowGroup {
-            appDelegate.runtime.makeControllerView()
-                .background {
-                    ControllerSceneBridge(
-                        appearanceDidChange: appDelegate.runtime
-                            .controllerAppearanceDidChange,
-                        registerAccessory: appDelegate.registerExternalDisplayAccessory,
-                        unregisterAccessory: appDelegate.unregisterExternalDisplayAccessory,
-                    )
-                    .frame(width: 0, height: 0)
-                    .accessibilityHidden(true)
-                }
+            RuntimeControllerView(
+                session: appDelegate.runtime.session,
+                outputDemandDidChange: appDelegate.runtime.sessionOutputDemandDidChange,
+            )
+            .throwBroadwayRoot()
+            .background {
+                ControllerSceneBridge(
+                    appearanceDidChange: appDelegate.runtime
+                        .controllerAppearanceDidChange,
+                    registerAccessory: appDelegate.registerExternalDisplayAccessory,
+                    unregisterAccessory: appDelegate.unregisterExternalDisplayAccessory,
+                )
+                .frame(width: 0, height: 0)
+                .accessibilityHidden(true)
+            }
         }
     }
 }

@@ -16,6 +16,12 @@ enum WhereComponent: String, ComponentKey {
     case regionViewer
 }
 
+enum ThrowComponent: String, ComponentKey {
+    case throwCore
+    case throwUI
+    case throwApp
+}
+
 let bumper = BumperProject {
     Included {
         "Shared/Periscope/PeriscopeCore/Sources"
@@ -45,6 +51,9 @@ let bumper = BumperProject {
         "Where/WhereWidgets/Sources"
         "Where/WhereShareExtension/Sources"
         "Where/RegionViewer/Sources"
+        "Throw/ThrowCore/Sources"
+        "Throw/ThrowUI/Sources"
+        "Throw/Throw/Sources"
     }
 
     Excluded {
@@ -172,9 +181,36 @@ let bumper = BumperProject {
         }
     }
 
+    Architecture(ThrowComponent.self) {
+        Component(.throwCore) {
+            Owns("Throw/ThrowCore/Sources")
+            Modules("ThrowCore")
+            Applies(.throwCoreLayer)
+            DoesNotUse("LifecycleKit")
+        }
+
+        Component(.throwUI) {
+            Owns("Throw/ThrowUI/Sources")
+            Modules("ThrowUI")
+            MayDependOn(.throwCore)
+            Applies(.throwPresentationLayer)
+            DoesNotUse("LifecycleKit")
+        }
+
+        Component(.throwApp) {
+            Owns("Throw/Throw/Sources")
+            Modules("Throw")
+            MayDependOn(.throwUI)
+            Applies(.throwHostLayer)
+        }
+    }
+
     Rules {
         ApplyAssertions(.whereArchitecture)
+        ApplyAssertions(.throwArchitecture)
+        repositoryProjectRules
         whereProjectRules
         periscopeAuthoringRules
+        throwProjectRules
     }
 }
