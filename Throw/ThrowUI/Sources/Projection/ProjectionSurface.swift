@@ -24,6 +24,7 @@ struct ProjectionSurface: View {
         let intensityMultiplier = session.intensityMultiplier
         let airlineAccentsEnabled = session.airlineAccentsEnabled
         let geographyIntensityMultiplier = session.geographyIntensityMultiplier
+        let transitNetworkIntensityMultiplier = session.transitNetworkIntensityMultiplier
         let projectionStyle = stylesheet.projection
         Group {
             if session.isCalibrating {
@@ -44,6 +45,7 @@ struct ProjectionSurface: View {
                                     opacity: layer.opacity,
                                     intensityMultiplier: intensityMultiplier,
                                     geographyIntensityMultiplier: geographyIntensityMultiplier,
+                                    transitNetworkIntensityMultiplier: transitNetworkIntensityMultiplier,
                                     style: projectionStyle,
                                 )
                                 .equatable()
@@ -54,6 +56,7 @@ struct ProjectionSurface: View {
                                     opacity: layer.opacity,
                                     intensityMultiplier: intensityMultiplier,
                                     geographyIntensityMultiplier: geographyIntensityMultiplier,
+                                    transitNetworkIntensityMultiplier: transitNetworkIntensityMultiplier,
                                     style: projectionStyle,
                                 )
                                 .equatable()
@@ -332,16 +335,53 @@ private struct ProjectionMarksCanvas: View {
                             with: .color(markColor),
                             lineWidth: 1,
                         )
-                    case .transitVehicle:
+                    case let .transitVehicle(descriptor):
+                        renderedMarkSize = style.transit.vehicleDiameter
                         let rect = CGRect(
-                            x: -standardMarkSize / 2,
-                            y: -standardMarkSize / 2,
-                            width: standardMarkSize,
-                            height: standardMarkSize,
+                            x: -renderedMarkSize / 2,
+                            y: -renderedMarkSize / 2,
+                            width: renderedMarkSize,
+                            height: renderedMarkSize,
                         )
-                        markContext.fill(Path(roundedRect: rect, cornerRadius: 1), with: .color(
-                            markColor,
-                        ))
+                        let color = transitColor(
+                            descriptor.color,
+                            luminance: style.markLuminance,
+                            intensity: intensityMultiplier,
+                        )
+                        if descriptor.confidence == .scheduleInferred {
+                            markContext.opacity *= style.transit.inferredOpacityMultiplier
+                        }
+                        markContext.fill(Path(ellipseIn: rect), with: .color(color))
+                        markContext.stroke(
+                            Path(ellipseIn: rect),
+                            with: .color(Color.white.opacity(0.35 * intensityMultiplier)),
+                            lineWidth: style.transit.vehicleOutlineWidth,
+                        )
+                        let route = Text(verbatim: descriptor.routeLabel)
+                            .font(.system(size: 6, weight: .semibold, design: .rounded))
+                            .foregroundStyle(Color.black.opacity(0.82))
+                        markContext.draw(
+                            route,
+                            at: .zero,
+                            anchor: .center,
+                        )
+                    case let .transitStop(descriptor):
+                        renderedMarkSize = style.transit.stopDiameter
+                        let rect = CGRect(
+                            x: -renderedMarkSize / 2,
+                            y: -renderedMarkSize / 2,
+                            width: renderedMarkSize,
+                            height: renderedMarkSize,
+                        )
+                        markContext.stroke(
+                            Path(ellipseIn: rect),
+                            with: .color(transitColor(
+                                descriptor.color,
+                                luminance: style.markLuminance * 0.55,
+                                intensity: intensityMultiplier,
+                            )),
+                            lineWidth: style.transit.stopOutlineWidth,
+                        )
                 }
 
                 if let label = mark.label {
@@ -439,7 +479,15 @@ private struct ProjectionMarksCanvas: View {
 private struct ProjectionLinesCanvas: View, Equatable {
     private enum LineStyleID: Hashable {
         case geography(GeographyLineKind)
-        case transitRoute
+        case transitRoute(TransitNetworkLineStyle)
+
+        var sortKey: String {
+            switch self {
+                case let .geography(kind): "geography:\(kind.rawValue)"
+                case let .transitRoute(route):
+                    "transit:\(route.routeID.agencyID.rawValue):\(route.routeID.rawValue)"
+            }
+        }
     }
 
     private struct Segment {
@@ -455,6 +503,7 @@ private struct ProjectionLinesCanvas: View, Equatable {
     let opacity: Double
     let intensityMultiplier: Double
     let geographyIntensityMultiplier: Double
+    let transitNetworkIntensityMultiplier: Double
     let style: ThrowStylesheet.ProjectionStyle
 
     init(
@@ -462,6 +511,7 @@ private struct ProjectionLinesCanvas: View, Equatable {
         opacity: Double,
         intensityMultiplier: Double,
         geographyIntensityMultiplier: Double,
+        transitNetworkIntensityMultiplier: Double,
         style: ThrowStylesheet.ProjectionStyle,
     ) {
         self.init(
@@ -478,6 +528,7 @@ private struct ProjectionLinesCanvas: View, Equatable {
             opacity: opacity,
             intensityMultiplier: intensityMultiplier,
             geographyIntensityMultiplier: geographyIntensityMultiplier,
+            transitNetworkIntensityMultiplier: transitNetworkIntensityMultiplier,
             style: style,
         )
     }
@@ -487,25 +538,24 @@ private struct ProjectionLinesCanvas: View, Equatable {
         opacity: Double,
         intensityMultiplier: Double,
         geographyIntensityMultiplier: Double,
+        transitNetworkIntensityMultiplier: Double,
         style: ThrowStylesheet.ProjectionStyle,
     ) {
         self.init(
             layerID: .transitNetwork,
             lineID: lines.id,
             segments: lines.segments.map {
-                switch $0.style {
-                    case .route:
-                        Segment(
-                            styleID: .transitRoute,
-                            start: $0.start,
-                            end: $0.end,
-                            startsNewSubpath: $0.startsNewSubpath,
-                        )
-                }
+                Segment(
+                    styleID: .transitRoute($0.style),
+                    start: $0.start,
+                    end: $0.end,
+                    startsNewSubpath: $0.startsNewSubpath,
+                )
             },
             opacity: opacity,
             intensityMultiplier: intensityMultiplier,
             geographyIntensityMultiplier: geographyIntensityMultiplier,
+            transitNetworkIntensityMultiplier: transitNetworkIntensityMultiplier,
             style: style,
         )
     }
@@ -517,6 +567,7 @@ private struct ProjectionLinesCanvas: View, Equatable {
         opacity: Double,
         intensityMultiplier: Double,
         geographyIntensityMultiplier: Double,
+        transitNetworkIntensityMultiplier: Double,
         style: ThrowStylesheet.ProjectionStyle,
     ) {
         self.layerID = layerID
@@ -525,6 +576,7 @@ private struct ProjectionLinesCanvas: View, Equatable {
         self.opacity = opacity
         self.intensityMultiplier = intensityMultiplier
         self.geographyIntensityMultiplier = geographyIntensityMultiplier
+        self.transitNetworkIntensityMultiplier = transitNetworkIntensityMultiplier
         self.style = style
     }
 
@@ -534,12 +586,17 @@ private struct ProjectionLinesCanvas: View, Equatable {
             lhs.opacity == rhs.opacity &&
             lhs.intensityMultiplier == rhs.intensityMultiplier &&
             lhs.geographyIntensityMultiplier == rhs.geographyIntensityMultiplier &&
+            lhs.transitNetworkIntensityMultiplier == rhs.transitNetworkIntensityMultiplier &&
             lhs.style == rhs.style
     }
 
     var body: some View {
         Canvas(rendersAsynchronously: true) { context, size in
-            let layerIntensity = layerID == .geography ? geographyIntensityMultiplier : 1
+            let layerIntensity: Double = switch layerID {
+                case .geography: geographyIntensityMultiplier
+                case .transitNetwork: transitNetworkIntensityMultiplier
+                case .flights, .stars, .satellites, .transitVehicles: 1
+            }
             guard segments.isEmpty == false, layerIntensity > 0
             else { return }
 
@@ -561,19 +618,34 @@ private struct ProjectionLinesCanvas: View, Equatable {
             lineContext.opacity = opacity
             let renderOrder: [LineStyleID] = switch layerID {
                 case .geography: style.geography.renderOrder.map(LineStyleID.geography)
-                case .transitNetwork: [.transitRoute]
+                case .transitNetwork:
+                    Set(segments.map(\.styleID)).sorted { $0.sortKey < $1.sortKey }
                 case .flights, .stars, .satellites, .transitVehicles: []
             }
             for styleID in renderOrder {
                 guard let path = paths[styleID], path.isEmpty == false else { continue }
                 let appearance = switch styleID {
                     case let .geography(kind): style.geography[kind]
-                    case .transitRoute: style.geography[.primaryRoad]
+                    case .transitRoute:
+                        ThrowStylesheet.GeographyStyle.LineStyle(
+                            lineWidth: style.transit.routeLineWidth,
+                            luminance: style.transit.routeLuminance,
+                            dash: [],
+                        )
                 }
-                let color = Color(
-                    white: intensityMultiplier * layerIntensity *
-                        appearance.luminance,
-                )
+                let color = switch styleID {
+                    case .geography:
+                        Color(
+                            white: intensityMultiplier * layerIntensity *
+                                appearance.luminance,
+                        )
+                    case let .transitRoute(route):
+                        transitColor(
+                            route.color,
+                            luminance: appearance.luminance,
+                            intensity: intensityMultiplier * layerIntensity,
+                        )
+                }
                 lineContext.stroke(
                     path,
                     with: .color(color),
@@ -598,6 +670,21 @@ private struct ProjectionLinesCanvas: View, Equatable {
             y: origin.y + point.y * side,
         )
     }
+}
+
+private func transitColor(
+    _ color: TransitColor,
+    luminance: Double,
+    intensity: Double,
+) -> Color {
+    let peak = max(color.red, color.green, color.blue)
+    guard peak > 0 else { return .clear }
+    let multiplier = luminance * intensity / peak
+    return Color(
+        red: color.red * multiplier,
+        green: color.green * multiplier,
+        blue: color.blue * multiplier,
+    )
 }
 
 #if DEBUG
@@ -698,6 +785,17 @@ private struct ProjectionLinesCanvas: View, Equatable {
             ) {
                 ProjectionSurface(
                     session: .activitySnapshotFixture(mode: .trueSky),
+                    presentation: .preview,
+                )
+                .throwBroadwayRoot()
+            }
+            SnapshotCase(
+                name: "NYC Subway",
+                configurations: projectorAspectConfigurations,
+                settle: .immediate,
+            ) {
+                ProjectionSurface(
+                    session: .transitProjectionSnapshotFixture(),
                     presentation: .preview,
                 )
                 .throwBroadwayRoot()

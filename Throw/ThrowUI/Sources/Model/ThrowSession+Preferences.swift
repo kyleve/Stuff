@@ -10,6 +10,7 @@ extension ThrowSession {
         )
         globalPreferences = preferences.global
         airAndSpacePreferences = preferences.airAndSpace
+        transitPreferences = preferences.transit
         calibrationPreview = nil
         locationHealth = Self.locationHealth(
             for: preferences.confirmedLocation,
@@ -86,6 +87,39 @@ extension ThrowSession {
         {
             scheduleDemandReconciliation()
         } else if labelModeChanged || geographyVisibilityChanged {
+            restartRenderer()
+        }
+    }
+
+    public func updateTransitPreferences(_ preferences: TransitPreferences) {
+        let previous = transitPreferences
+        guard previous != preferences else { return }
+
+        let projectionChanged = previous.mapCenter != preferences.mapCenter
+            || previous.mapViewport != preferences.mapViewport
+            || previous.geography.isEnabled != preferences.geography.isEnabled
+        let labelModeChanged = previous.labelMode != preferences.labelMode
+        let configurationChanged = previous.configuration != preferences.configuration
+        transitPreferences = preferences
+
+        schedulePreferencesSave(failure: .preferencePersistence)
+        if projectionChanged || labelModeChanged {
+            projectionInputRevision = projectionInputRevision.successor()
+            if projectionPresentationStaging?.targetLease.experienceID == .transit {
+                revokeStagedProjection()
+            }
+        }
+        if labelModeChanged {
+            Task(name: "Throw rebuild Transit labels") { [weak self] in
+                guard let self else { return }
+                await transitRuntime.refreshPresentation(labelMode: preferences.labelMode)
+            }
+        }
+        if configurationChanged {
+            scheduleDemandReconciliation()
+        } else if activeExperienceID == .transit,
+                  projectionChanged || labelModeChanged
+        {
             restartRenderer()
         }
     }
@@ -296,6 +330,7 @@ extension ThrowSession {
             setupState: mutation.snapshot.setupState,
             globalPreferences: mutation.snapshot.globalPreferences,
             airAndSpacePreferences: mutation.snapshot.airAndSpacePreferences,
+            transitPreferences: mutation.snapshot.transitPreferences,
             projectionPlaylist: mutation.snapshot.projectionPlaylist,
         )
         return PersistableThrowPreferenceMutation(
@@ -323,6 +358,7 @@ extension ThrowSession {
             setupState: setupState,
             globalPreferences: globalPreferences,
             airAndSpacePreferences: airAndSpacePreferences,
+            transitPreferences: transitPreferences,
             projectionPlaylist: projectionPlaylist,
         )
     }
@@ -338,6 +374,7 @@ extension ThrowSession {
         setupState = snapshot.setupState
         globalPreferences = snapshot.globalPreferences
         airAndSpacePreferences = snapshot.airAndSpacePreferences
+        transitPreferences = snapshot.transitPreferences
         projectionPlaylist = snapshot.projectionPlaylist
     }
 
@@ -393,6 +430,7 @@ extension ThrowSession {
             setupState: setupState,
             globalPreferences: globalPreferences,
             airAndSpacePreferences: airAndSpacePreferences,
+            transitPreferences: transitPreferences,
             projectionPlaylist: projectionPlaylist,
         )
     }
@@ -401,6 +439,22 @@ extension ThrowSession {
         setupState: ThrowSetupState,
         globalPreferences: ThrowGlobalPreferences,
         airAndSpacePreferences: AirAndSpacePreferences,
+        projectionPlaylist: ProjectionPlaylist,
+    ) throws -> ThrowPreferences {
+        try makePreferences(
+            setupState: setupState,
+            globalPreferences: globalPreferences,
+            airAndSpacePreferences: airAndSpacePreferences,
+            transitPreferences: transitPreferences,
+            projectionPlaylist: projectionPlaylist,
+        )
+    }
+
+    func makePreferences(
+        setupState: ThrowSetupState,
+        globalPreferences: ThrowGlobalPreferences,
+        airAndSpacePreferences: AirAndSpacePreferences,
+        transitPreferences: TransitPreferences,
         projectionPlaylist: ProjectionPlaylist,
     ) throws -> ThrowPreferences {
         let playlist: ProjectionPlaylist = if setupState.configuredExperienceIDs
@@ -427,6 +481,7 @@ extension ThrowSession {
             global: globalPreferences,
             playlist: playlist,
             airAndSpace: airAndSpacePreferences,
+            transit: transitPreferences,
         )
     }
 
@@ -440,17 +495,20 @@ struct ThrowPreferenceSnapshot: Equatable {
     let setupState: ThrowSetupState
     let globalPreferences: ThrowGlobalPreferences
     let airAndSpacePreferences: AirAndSpacePreferences
+    let transitPreferences: TransitPreferences
     let projectionPlaylist: ProjectionPlaylist
 
     init(
         setupState: ThrowSetupState,
         globalPreferences: ThrowGlobalPreferences,
         airAndSpacePreferences: AirAndSpacePreferences,
+        transitPreferences: TransitPreferences,
         projectionPlaylist: ProjectionPlaylist,
     ) {
         self.setupState = setupState
         self.globalPreferences = globalPreferences
         self.airAndSpacePreferences = airAndSpacePreferences
+        self.transitPreferences = transitPreferences
         self.projectionPlaylist = projectionPlaylist
     }
 
@@ -459,6 +517,7 @@ struct ThrowPreferenceSnapshot: Equatable {
             setupState: preferences.setupState,
             globalPreferences: preferences.global,
             airAndSpacePreferences: preferences.airAndSpace,
+            transitPreferences: preferences.transit,
             projectionPlaylist: preferences.playlist,
         )
     }
@@ -468,6 +527,7 @@ struct ThrowPreferenceSnapshot: Equatable {
             setupState: setupState,
             globalPreferences: globalPreferences,
             airAndSpacePreferences: airAndSpacePreferences,
+            transitPreferences: transitPreferences,
             projectionPlaylist: projectionPlaylist,
         )
     }

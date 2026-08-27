@@ -2,7 +2,7 @@ import Testing
 @testable import ThrowCore
 
 struct LayerCatalogTests {
-    @Test func catalogEnablesAirLayersAndReservesTransitLayers() {
+    @Test func catalogEnablesAirAndTransitLayers() {
         let catalog = LayerCatalog.standard
         #expect(
             catalog.descriptors.map(\.id) == [
@@ -31,6 +31,12 @@ struct LayerCatalogTests {
         }
         guard case .planned = catalog.descriptors[2].availability else {
             Issue.record("Stars should be planned")
+            return
+        }
+        guard case .enabled = catalog.descriptors[4].availability,
+              case .enabled = catalog.descriptors[5].availability
+        else {
+            Issue.record("Transit layers should be enabled")
             return
         }
     }

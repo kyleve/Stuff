@@ -324,6 +324,8 @@ public struct ProjectionEngine: Sendable {
                         geometry: geometry,
                         currentPoint: point,
                     )
+                case .transitStop:
+                    nil
             }
             let altitudeIsApproximate: Bool = switch prediction.mark.anchor {
                 case let .geodetic(anchor):

@@ -188,6 +188,28 @@
         }
       }
     },
+    "about.mtaDeveloper" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MTA Developer Resources"
+          }
+        }
+      }
+    },
+    "about.mtaRealtime" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MTA Subway Realtime Feeds"
+          }
+        }
+      }
+    },
     "about.naturalEarth" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -294,6 +316,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "About Throw"
+          }
+        }
+      }
+    },
+    "about.transitData" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transit Data"
+          }
+        }
+      }
+    },
+    "about.transitData.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NYC Subway positions are estimates from the official MTA supplemented GTFS schedule and GTFS Realtime feeds."
           }
         }
       }
@@ -3165,6 +3209,237 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Stale — Retrying"
+          }
+        }
+      }
+    },
+    "transit.appearance.section" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Appearance"
+          }
+        }
+      }
+    },
+    "transit.available.detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Set up the New York City Subway view."
+          }
+        }
+      }
+    },
+    "transit.geography" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geography"
+          }
+        }
+      }
+    },
+    "transit.labels.destination" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Destination"
+          }
+        }
+      }
+    },
+    "transit.labels.mode" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Labels"
+          }
+        }
+      }
+    },
+    "transit.labels.nextStop" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Next Stop"
+          }
+        }
+      }
+    },
+    "transit.labels.route" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Route Only"
+          }
+        }
+      }
+    },
+    "transit.labels.section" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Train Labels"
+          }
+        }
+      }
+    },
+    "transit.map.eastWest" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "East / West"
+          }
+        }
+      }
+    },
+    "transit.map.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This center belongs to the NYC view. It does not change your observer location."
+          }
+        }
+      }
+    },
+    "transit.map.northSouth" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "North / South"
+          }
+        }
+      }
+    },
+    "transit.map.radius" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Radius"
+          }
+        }
+      }
+    },
+    "transit.map.section" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Map"
+          }
+        }
+      }
+    },
+    "transit.mark.size" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Train Size"
+          }
+        }
+      }
+    },
+    "transit.network.intensity" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Network"
+          }
+        }
+      }
+    },
+    "transit.polling.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Live MTA feeds update every 30 seconds. Estimated positions move between updates."
+          }
+        }
+      }
+    },
+    "transit.remove" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove NYC Subway View"
+          }
+        }
+      }
+    },
+    "transit.setup.action" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Download and Test MTA Data"
+          }
+        }
+      }
+    },
+    "transit.setup.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show moving MTA subway trains over a dim map of the full network."
+          }
+        }
+      }
+    },
+    "transit.setup.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Throw downloads the official MTA supplemented schedule, then tests a live GTFS Realtime feed. The first setup can take a moment."
+          }
+        }
+      }
+    },
+    "transit.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NYC Subway"
           }
         }
       }

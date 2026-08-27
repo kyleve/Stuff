@@ -314,21 +314,30 @@ struct ProjectionModelsTests {
             bounds: bounds,
             coordinates: coordinates,
         )
+        let transitStyle = try transitRouteStyle()
         let transit = try ProjectionPolyline<TransitNetworkLineStyle>(
-            style: .route,
+            style: transitStyle,
             detailLevel: .wide,
             bounds: bounds,
             coordinates: coordinates,
         )
 
         #expect(geography.style == .coastline)
-        #expect(transit.style == .route)
+        #expect(transit.style == transitStyle)
     }
 
     @Test func projectedExperienceFixesTransitLayersAndMode() throws {
         let vehicleID = try #require(TransitVehicleID(rawValue: "vehicle"))
+        let vehicleDescriptor = TransitVehicleGlyphDescriptor(
+            routeLabel: "A",
+            color: try #require(TransitColor(hex: "0039A6")),
+            confidence: .feedTracked,
+        )
         let mark = try ProjectedMark(
-            element: TransitVehicleMarkElement(id: vehicleID),
+            element: TransitVehicleMarkElement.vehicle(
+                id: vehicleID,
+                descriptor: vehicleDescriptor,
+            ),
             point: ProjectionPoint(x: 0.5, y: 0.5),
             range: NauticalMiles(value: 1),
             label: nil,
@@ -341,7 +350,7 @@ struct ProjectionModelsTests {
         let lines = ProjectedLineCollection<TransitNetworkLineStyle>.testing(
             id: ProjectionLineRevisionID.testing(rawValue: 7),
             segments: [ProjectedLineSegment(
-                style: .route,
+                style: transitRouteStyle(),
                 start: ProjectionPoint(x: 0.1, y: 0.2),
                 end: ProjectionPoint(x: 0.8, y: 0.9),
                 startsNewSubpath: true,
@@ -362,6 +371,16 @@ struct ProjectionModelsTests {
         }
         #expect(transit.network?.lines == lines)
         #expect(transit.vehicles?.marks == [mark])
+    }
+
+    private func transitRouteStyle() throws -> TransitRouteLineStyle {
+        try TransitRouteLineStyle(
+            routeID: #require(TransitRouteID(
+                agencyID: .mtaNewYorkCityTransit,
+                rawValue: "A",
+            )),
+            color: #require(TransitColor(hex: "0039A6")),
+        )
     }
 
     @Test func frameDescriptionsRedactMarksLabelsIdentitiesAndCoordinates() throws {

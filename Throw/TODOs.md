@@ -51,14 +51,9 @@ owned by the root [`TODOs.md`](../TODOs.md).
 
 ## P1s (Should do)
 
-- feat(Throw) [needs-design]: Implement the planned Transit View — the catalog
-  reserves Network and Vehicles layers
-  (`ThrowCore/Sources/ProjectionExperience.swift:67-74`), and Views presents
-  Transit as unavailable
-  (`ThrowUI/Sources/Settings/ProjectionViewsSettingsView.swift:38-42,95-102`).
-  Select a live provider, define GTFS or equivalent route geometry, and add
-  setup and credentials if required. Give its Map runtime independent polling.
-  Keep vehicles brighter than dim network and Geography context. (human
-  2026-08-26)
-
 # Completed issues
+
+- feat(Throw): Implement the first Transit View with the official NYC Subway
+  static and realtime MTA feeds. Keep the source seams independent of the city,
+  and keep route lines and train marks in the generic projection pipeline.
+  (completed 2026-08-27)
