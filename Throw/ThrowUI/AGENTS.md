@@ -10,8 +10,8 @@ Read the root [`AGENTS.md`](../../AGENTS.md) and group
   persistence, projection math, polling, and credential access in ThrowCore.
 - Use `AircraftSourceOperationServing` for source tests and usage reports.
   Never refer to a concrete provider source or decoder.
-- Keep one app-root-owned `ThrowSession`; pass it to every controller and
-  output scene. A view or scene delegate must never create a second poller.
+- Construct the live `ThrowSession`, stores, source graph, and poller only in
+  `ThrowSession+Composition.swift`. Pass that session to every controller and output scene.
 - Keep aircraft behavior in the one injected `AirAndSpaceRuntime`. Keep
   selection, prewarming, and rotation in `ProjectionExperienceCoordinator`.
 - Invalidate superseded Air & Space lifecycle work after every suspension.

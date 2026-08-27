@@ -101,6 +101,16 @@ These use Bumper's standard `constructionOwnership` shaper. TheButtonHeist's
 as the analogous lower-level ownership check and retained; the standard shaper
 fully expresses Where's constructor facts.
 
+Throw has four matching ownership guards:
+
+- `throw.session_composition_ownership` permits `ThrowSession` construction only in `ThrowSession+Composition.swift`.
+- `throw.live_dependency_composition_ownership` keeps live stores, sources, and polling dependencies in that same file.
+- `throw.runtime_composition_ownership` permits `ThrowRuntime` construction only in `ThrowRuntime.swift`.
+- `throw.layer_frame_erasure_ownership` permits raw `LayerFrame` construction only at the typed Core erasure boundary.
+
+Repair a violation by injecting the existing object or by using a typed layer
+frame. Change an owner only when the matching Throw module contract changes.
+
 ## Gregorian calendar
 
 `where.gregorian_calendar` rejects `Calendar.current` throughout Where's

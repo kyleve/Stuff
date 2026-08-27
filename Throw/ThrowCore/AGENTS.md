@@ -34,6 +34,8 @@ location, and scheduling; see [`README.md`](README.md). Read the root
   runtime plugin or `AnyView` boundary.
 - Construct semantic frames through typed layer and experience cases. Do not pass
   parallel experience IDs, raw layer arrays, and projection modes across production boundaries.
+- Keep layer IDs, mark identities, line styles, and semantic payload shapes closed
+  and typed. Construct raw `LayerFrame` values only in `ProjectionModels.swift`.
 - Keep projected frames generic over ordered mark and line layers. Cache static
   lines by layer identity and semantic revision.
 - Keep version-two preferences grouped by global, playlist, and experience

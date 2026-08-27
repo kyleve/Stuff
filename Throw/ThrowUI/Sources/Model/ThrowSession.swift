@@ -267,7 +267,7 @@ public final class ThrowSession {
             beforeApplyingLocationResolutionForTesting: (() -> Void)?
     #endif
 
-    public init(
+    init(
         preferences: ThrowPreferences,
         preferenceStore: any ThrowPreferenceStore,
         credentialStore: any AircraftCredentialStore,
