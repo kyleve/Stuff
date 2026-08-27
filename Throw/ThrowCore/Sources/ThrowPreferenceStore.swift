@@ -625,7 +625,7 @@ public struct TransitPreferences: Equatable, Sendable {
     }
 }
 
-/// Throw's version-three preference model, grouped by global and experience ownership.
+/// Throw's version-four preference model, grouped by global and experience ownership.
 public struct ThrowPreferences: Equatable, Sendable, CustomStringConvertible,
     CustomDebugStringConvertible
 {
@@ -888,7 +888,7 @@ enum ThrowPreferencesCodec {
         let quietInterval: QuietStorage?
 
         init(_ preferences: ThrowPreferences) {
-            version = 3
+            version = 4
             setupCompleted = preferences.setupCompleted
             global = GlobalStorage(preferences)
             playlist = PlaylistStorage(preferences.playlist)
@@ -921,6 +921,8 @@ enum ThrowPreferencesCodec {
                     try versionTwoPreferences()
                 case 3:
                     try versionThreePreferences()
+                case 4:
+                    try versionFourPreferences()
                 default:
                     throw ThrowPreferenceStoreError.invalidPayload
             }
@@ -950,6 +952,33 @@ enum ThrowPreferencesCodec {
         }
 
         private func versionThreePreferences() throws -> ThrowPreferences {
+            guard let global, let playlist, let airAndSpace, let transit else {
+                throw ThrowPreferenceStoreError.invalidPayload
+            }
+            let decodedGlobal = try global.value()
+            let decodedAirAndSpace = try airAndSpace.value()
+            let transitPreferences = try transit.versionThreeValue()
+            let setupState = try setupState(
+                sourceSelection: decodedAirAndSpace.sourceSelection,
+                locationMode: decodedGlobal.locationMode,
+                confirmedLocation: decodedGlobal.confirmedLocation,
+                selectedProjectionMode: decodedAirAndSpace.selectedProjectionMode,
+            )
+            var configuredIDs = setupState.configuredExperienceIDs
+            if transitPreferences.isConfigured {
+                configuredIDs.insert(.transit)
+            }
+            let projectionPlaylist = try playlist.value(configuredExperienceIDs: configuredIDs)
+            return try ThrowPreferences(
+                setupState: setupState,
+                global: decodedGlobal.preferences,
+                playlist: projectionPlaylist,
+                airAndSpace: decodedAirAndSpace.preferences,
+                transit: transitPreferences,
+            )
+        }
+
+        private func versionFourPreferences() throws -> ThrowPreferences {
             guard let global, let playlist, let airAndSpace, let transit else {
                 throw ThrowPreferenceStoreError.invalidPayload
             }
@@ -1236,6 +1265,22 @@ enum ThrowPreferencesCodec {
         }
 
         func value() throws -> TransitPreferences {
+            try value(
+                mapViewport: TransitMapViewport(radius: NauticalMiles(value: mapRadius)),
+            )
+        }
+
+        /// Version three allowed only five-NM steps from 5 through 50 NM.
+        func versionThreeValue() throws -> TransitPreferences {
+            guard (5.0 ... 50.0).contains(mapRadius),
+                  mapRadius.truncatingRemainder(dividingBy: 5) == 0
+            else {
+                throw ThrowPreferenceStoreError.invalidPayload
+            }
+            return try value(mapViewport: .defaultValue)
+        }
+
+        private func value(mapViewport: TransitMapViewport) throws -> TransitPreferences {
             let configuration: TransitConfiguration
             if let configuredCityID {
                 guard let cityID = TransitCityID(rawValue: configuredCityID) else {
@@ -1251,7 +1296,7 @@ enum ThrowPreferencesCodec {
             return try TransitPreferences(
                 configuration: configuration,
                 mapCenter: GeoCoordinate(latitude: mapLatitude, longitude: mapLongitude),
-                mapViewport: TransitMapViewport(radius: NauticalMiles(value: mapRadius)),
+                mapViewport: mapViewport,
                 labelMode: labelMode,
                 geography: geography.value(),
                 markSizePercent: markSizePercent,

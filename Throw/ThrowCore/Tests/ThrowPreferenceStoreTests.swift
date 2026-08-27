@@ -119,11 +119,11 @@ struct ThrowPreferenceStoreTests {
         }
     }
 
-    @Test func writesVersionThreeNestedPreferencesUnderTheExistingCodec() throws {
+    @Test func writesVersionFourNestedPreferencesUnderTheExistingCodec() throws {
         let propertyList = try propertyList(for: ThrowPreferencesCodec
             .encode(populatedPreferences()))
 
-        #expect(propertyList["version"] as? Int == 3)
+        #expect(propertyList["version"] as? Int == 4)
         #expect(propertyList["global"] != nil)
         #expect(propertyList["playlist"] != nil)
         #expect(propertyList["airAndSpace"] != nil)
@@ -146,12 +146,29 @@ struct ThrowPreferenceStoreTests {
         #expect(migrated.playlist.entries.map(\.experienceID) == [.airAndSpace])
     }
 
+    @Test func versionThreePayloadMigratesItsWideTransitRadiusToFiveNauticalMiles() throws {
+        var storage = try propertyList(for: ThrowPreferencesCodec.encode(populatedPreferences()))
+        storage["version"] = 3
+        var transit = try #require(storage["transit"] as? [String: Any])
+        transit["mapRadius"] = 20.0
+        storage["transit"] = transit
+        let data = try PropertyListSerialization.data(
+            fromPropertyList: storage,
+            format: .binary,
+            options: 0,
+        )
+
+        let migrated = try ThrowPreferencesCodec.decode(data)
+
+        #expect(migrated.transit.mapViewport == .defaultValue)
+    }
+
     @Test func configuredTransitRoundTripsWithItsOwnPlaylistAndMap() throws {
         let original = try populatedPreferences()
         let transit = try TransitPreferences(
             configuration: .configured(cityID: .newYorkCity),
             mapCenter: GeoCoordinate(latitude: 40.72, longitude: -73.94),
-            mapViewport: TransitMapViewport(radius: NauticalMiles(value: 25)),
+            mapViewport: TransitMapViewport(radius: NauticalMiles(value: 6)),
             labelMode: .nextStop,
             geography: GeographyPreferences(isEnabled: true, intensityPercent: 15),
             markSizePercent: 125,
