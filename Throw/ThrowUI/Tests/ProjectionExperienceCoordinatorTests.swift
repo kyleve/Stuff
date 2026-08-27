@@ -28,7 +28,7 @@ struct ProjectionExperienceCoordinatorTests {
         await reportSuccess(coordinator, id: prewarm.id, generation: prewarm.generation)
         #expect(await (coordinator.currentState()).activeExperienceID == .airAndSpace)
 
-        await clock.waitForSleeperCount(1)
+        await clock.waitForSleeperCount(2)
         await clock.advance(by: 15)
         let transition = try #require(await actions.next())
         #expect(
@@ -61,7 +61,7 @@ struct ProjectionExperienceCoordinatorTests {
         await clock.waitForSleeperCount(1)
         await clock.advance(by: 105)
         let target = try activation(#require(await actions.next()))
-        await clock.waitForSleeperCount(1)
+        await clock.waitForSleeperCount(2)
         await clock.advance(by: 15)
 
         #expect(await (coordinator.currentState()).activeExperienceID == .airAndSpace)
@@ -88,7 +88,7 @@ struct ProjectionExperienceCoordinatorTests {
         await clock.waitForSleeperCount(1)
         await clock.advance(by: 105)
         _ = try activation(#require(await actions.next()))
-        await clock.waitForSleeperCount(1)
+        await clock.waitForSleeperCount(2)
         await clock.advance(by: 15)
         await clock.waitForSleeperCount(1)
         await clock.advance(by: 30)
@@ -145,6 +145,30 @@ struct ProjectionExperienceCoordinatorTests {
                 generation: replacement.generation,
             ),
         )
+    }
+
+    @Test func manualSelectionTimesOutWithoutBlankingTheActiveExperience() async throws {
+        let clock = ManualProjectionRotationClock(now: start)
+        let coordinator = try ProjectionExperienceCoordinator(
+            playlist: rotatingPlaylist(),
+            clock: clock,
+        )
+        var actions = await coordinator.actions().makeAsyncIterator()
+        await coordinator.reconcile(demand: projectingDemand)
+        let active = try activation(#require(await actions.next()))
+        await reportSuccess(coordinator, id: active.id, generation: active.generation)
+
+        await coordinator.select(.transit)
+        _ = try activation(#require(await actions.next()))
+        await clock.waitForSleeperCount(1)
+        await clock.advance(by: 30)
+
+        #expect(try #require(await actions.next()) == .deactivate(id: .transit))
+        let state = await coordinator.currentState()
+        #expect(state.activeExperienceID == .airAndSpace)
+        #expect(state.requestedExperienceID == nil)
+        #expect(state.manualSelectionFailure == .transport)
+        #expect(await coordinator.runningExperienceIDsForTesting() == [.airAndSpace])
     }
 
     @Test func pauseAndLifecycleChangesCancelPrewarmingAndResetDwell() async throws {
