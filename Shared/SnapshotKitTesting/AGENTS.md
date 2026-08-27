@@ -46,6 +46,9 @@ Read the root [`AGENTS.md`](../../AGENTS.md) first.
 - **Anything that prints one is a row in a report and an image in the count.** Nothing marks it synthetic.
 - **Split each channel for that reason.** `report(...)` / `emit()` print. `line(...)` only returns the JSON.
 - **A test that pins the wire shape calls `line(...)`.**
+- **Derive review reference paths with swift-snapshot-testing's exact name
+  sanitization.** Spaces and punctuation become one hyphen. Guard:
+  `SnapshotReferenceDiffTests`.
 - **When they were one function, this module's own tests put a fabricated reference at the top of `./test --review`.** Its numbers were borrowed from a real regression.
 - **Five invented captures also landed in `--timings`.** Then a run that captured nothing reported "5 captures, 0.024s per image".
 - **The runner fails fast, once, on setup problems.** Examples: a simulator that does not match the `SNAPSHOT_EXPECTED_*` pins, two variants sharing one reference name.
