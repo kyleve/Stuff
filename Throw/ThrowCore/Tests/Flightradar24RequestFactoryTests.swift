@@ -36,6 +36,32 @@ struct Flightradar24RequestFactoryTests {
         }
     }
 
+    enum PolarSide: CaseIterable, CustomTestStringConvertible {
+        case north
+        case south
+
+        var testDescription: String {
+            switch self {
+                case .north: "north"
+                case .south: "south"
+            }
+        }
+
+        var latitude: Double {
+            switch self {
+                case .north: 86
+                case .south: -86
+            }
+        }
+
+        var expectedBounds: String {
+            switch self {
+                case .north: "90.000,81.836,-180.000,180.000"
+                case .south: "-81.836,-90.000,-180.000,180.000"
+            }
+        }
+    }
+
     @Test func liveRequestUsesBearerContractAndCoarseBounds() throws {
         let token = "fr24-secret-token"
         let plan = try requestFactory(token: token).livePositionPlan(
@@ -71,8 +97,9 @@ struct Flightradar24RequestFactoryTests {
         #expect(try Flightradar24RequestMultiplicity.livePosition(for: query) == .antimeridian)
     }
 
-    @Test func polarQueryUsesOneFullLongitudeRequest() throws {
-        let observer = try ThrowCoreFixture.observer(latitude: 89, longitude: 179)
+    @Test(arguments: PolarSide.allCases)
+    func polarQueryUsesOneFullLongitudeRequest(side: PolarSide) throws {
+        let observer = try ThrowCoreFixture.observer(latitude: side.latitude, longitude: 179)
         let query = try AircraftQuery(
             observer: observer,
             center: observer.coordinate,
@@ -85,7 +112,25 @@ struct Flightradar24RequestFactoryTests {
             return
         }
 
-        #expect(try bounds(in: request) == "90.000,84.833,-180.000,180.000")
+        #expect(try bounds(in: request) == side.expectedBounds)
+        #expect(try Flightradar24RequestMultiplicity.livePosition(for: query) == .single)
+    }
+
+    @Test func highLatitudeQueryUsesConservativeSphericalLongitudeExtent() throws {
+        let observer = try ThrowCoreFixture.observer(latitude: 85, longitude: 0)
+        let query = try AircraftQuery(
+            observer: observer,
+            center: observer.coordinate,
+            viewport: .map(MapViewport(radius: NauticalMiles(value: 240))),
+            includeGroundAircraft: false,
+        )
+        let plan = try requestFactory(token: "token").livePositionPlan(for: query)
+        guard case let .single(request) = plan else {
+            Issue.record("A high-latitude query away from the antimeridian needs one request")
+            return
+        }
+
+        #expect(try bounds(in: request) == "89.164,80.836,-56.418,56.418")
         #expect(try Flightradar24RequestMultiplicity.livePosition(for: query) == .single)
     }
 

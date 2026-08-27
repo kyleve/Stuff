@@ -113,6 +113,8 @@ struct Flightradar24RequestFactory {
 }
 
 private enum PositionBoundsPlan {
+    private static let earthMeanRadiusNauticalMiles = 6_371_008.8 / 1852
+
     case single(PositionBounds)
     case antimeridian(
         westernHemisphere: PositionBounds,
@@ -120,12 +122,15 @@ private enum PositionBoundsPlan {
     )
 
     init(center: GeoCoordinate, radius: NauticalMiles) {
-        let latitudeSpan = radius.value / 60
-        let cosine = max(0.01, cos(center.latitude * .pi / 180))
-        let longitudeSpan = min(180, radius.value / (60 * cosine))
-        let north = min(90, center.latitude + latitudeSpan)
-        let south = max(-90, center.latitude - latitudeSpan)
-        guard longitudeSpan < 180 else {
+        let centerLatitude = center.latitude * .pi / 180
+        let angularRadius = min(.pi, radius.value / Self.earthMeanRadiusNauticalMiles)
+        let northLatitude = min(.pi / 2, centerLatitude + angularRadius)
+        let southLatitude = max(-.pi / 2, centerLatitude - angularRadius)
+        let north = northLatitude * 180 / .pi
+        let south = southLatitude * 180 / .pi
+        let reachesPole = centerLatitude + angularRadius >= .pi / 2 ||
+            centerLatitude - angularRadius <= -.pi / 2
+        guard reachesPole == false else {
             self = .single(PositionBounds(
                 north: north,
                 south: south,
@@ -134,6 +139,12 @@ private enum PositionBoundsPlan {
             ))
             return
         }
+
+        let longitudeRatio = min(
+            1,
+            max(0, sin(angularRadius) / cos(centerLatitude)),
+        )
+        let longitudeSpan = asin(longitudeRatio) * 180 / .pi
 
         let rawWest = center.longitude - longitudeSpan
         let rawEast = center.longitude + longitudeSpan
@@ -205,8 +216,28 @@ private struct PositionBounds {
     }
 
     var queryValue: String {
-        [north, south, west, east]
-            .map { String(format: "%.3f", locale: Locale(identifier: "en_US_POSIX"), $0) }
-            .joined(separator: ",")
+        [
+            Self.formatUpperBound(north),
+            Self.formatLowerBound(south),
+            Self.formatLowerBound(west),
+            Self.formatUpperBound(east),
+        ].joined(separator: ",")
+    }
+
+    private static func formatUpperBound(_ value: Double) -> String {
+        format(ceil(value * 1000) / 1000)
+    }
+
+    private static func formatLowerBound(_ value: Double) -> String {
+        format(floor(value * 1000) / 1000)
+    }
+
+    private static func format(_ value: Double) -> String {
+        let normalized = value == 0 ? 0 : value
+        return String(
+            format: "%.3f",
+            locale: Locale(identifier: "en_US_POSIX"),
+            normalized,
+        )
     }
 }
