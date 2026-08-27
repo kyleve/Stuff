@@ -22,6 +22,8 @@ location, and scheduling; see [`README.md`](README.md). Read the root
   zero.
 - Keep one structured poll task. Cancel and drain before replacement, and
   reject responses from an old generation.
+- Build FR24 bounds as a conservative spherical cap. Use all longitudes when
+  the cap reaches a pole, and round transmitted edges outward.
 - Never fall back between aircraft sources or merge their frames.
 - Keep consecutive motion state inside the Flights runtime actor. Clear it when
   the selected source changes, and never persist it.
