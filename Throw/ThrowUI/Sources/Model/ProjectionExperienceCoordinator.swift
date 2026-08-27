@@ -69,6 +69,71 @@ actor ProjectionExperienceCoordinator {
         var isRunning = false
     }
 
+    private struct ExperienceRequest {
+        enum Timing {
+            case manual(deadline: Date)
+            case automatic(intendedTransitionAt: Date, deadline: Date)
+        }
+
+        let id: ProjectionExperienceID
+        let generation: UInt64
+        let timing: Timing
+
+        var isManual: Bool {
+            switch timing {
+                case .manual:
+                    true
+                case .automatic:
+                    false
+            }
+        }
+
+        var deadline: Date {
+            switch timing {
+                case let .manual(deadline), let .automatic(_, deadline):
+                    deadline
+            }
+        }
+
+        func canTransition(at date: Date) -> Bool {
+            switch timing {
+                case .manual:
+                    true
+                case let .automatic(intendedTransitionAt, _):
+                    date >= intendedTransitionAt
+            }
+        }
+    }
+
+    private enum RequestState {
+        case awaiting(ExperienceRequest)
+        case transitioning(ExperienceRequest)
+        case committed(ExperienceRequest)
+
+        var request: ExperienceRequest {
+            switch self {
+                case let .awaiting(request), let .transitioning(request), let .committed(request):
+                    request
+            }
+        }
+
+        var requestedExperienceID: ProjectionExperienceID? {
+            switch self {
+                case let .awaiting(request), let .transitioning(request):
+                    request.id
+                case .committed:
+                    nil
+            }
+        }
+
+        var prewarmingExperienceID: ProjectionExperienceID? {
+            guard case let .awaiting(request) = self,
+                  request.isManual == false
+            else { return nil }
+            return request.id
+        }
+    }
+
     private static let prewarmLeadSeconds = 15
     private static let readinessGraceSeconds = 30
 
@@ -86,11 +151,7 @@ actor ProjectionExperienceCoordinator {
         isCalibrating: false,
     )
     private var activeExperienceID: ProjectionExperienceID?
-    private var requestedExperienceID: ProjectionExperienceID?
-    private var prewarmingExperienceID: ProjectionExperienceID?
-    private var transitionGeneration: UInt64?
-    private var intendedTransitionAt: Date?
-    private var requestIsManual = false
+    private var requestState: RequestState?
     private var isPaused = false
     private var dwellEndsAt: Date?
     private var manualSelectionFailure: ThrowFailureCategory?
@@ -98,6 +159,7 @@ actor ProjectionExperienceCoordinator {
     private var nextGeneration: UInt64 = 0
     private var timerGeneration: UInt64 = 0
     private var rotationTask: Task<Void, Never>?
+    private var readinessTask: Task<Void, Never>?
 
     init(
         playlist: ProjectionPlaylist,
@@ -122,6 +184,7 @@ actor ProjectionExperienceCoordinator {
 
     deinit {
         rotationTask?.cancel()
+        readinessTask?.cancel()
         stateContinuation.finish()
         actionContinuation.finish()
     }
@@ -206,26 +269,29 @@ actor ProjectionExperienceCoordinator {
 
         if id == activeExperienceID,
            runtime.successfulGeneration == generation,
-           requestedExperienceID == nil,
-           transitionGeneration == nil,
+           requestState == nil,
            dwellEndsAt == nil
         {
             await startFreshDwell()
         }
 
-        guard id == requestedExperienceID else { return }
+        guard case let .awaiting(request) = requestState,
+              id == request.id,
+              generation == request.generation
+        else { return }
         if case let .failed(failure) = health {
             await rejectRequestedExperience(failure: failure)
             return
         }
         guard runtime.successfulGeneration == generation else { return }
         let now = await clock.now()
-        if requestIsManual || (intendedTransitionAt.map { now >= $0 } ?? false) {
+        if request.canTransition(at: now) {
             beginTransitionIfReady()
         }
     }
 
     func select(_ id: ProjectionExperienceID) async {
+        let now = await clock.now()
         guard playlist.entry(for: id) != nil else {
             manualSelectionFailure = .sourceNotValidated
             publishState()
@@ -243,7 +309,7 @@ actor ProjectionExperienceCoordinator {
             publishState()
             return
         }
-        await requestExperience(id, role: .manual, intendedTransitionAt: clock.now())
+        requestExperience(id, role: .manual, intendedTransitionAt: nil, now: now)
     }
 
     func selectNext() async {
@@ -264,7 +330,7 @@ actor ProjectionExperienceCoordinator {
         guard playlist.rotatesAutomatically, isPaused == false else { return }
         isPaused = true
         cancelRotation()
-        if prewarmingExperienceID != nil {
+        if requestState?.prewarmingExperienceID != nil {
             cancelRequestedRuntime()
         }
         publishState()
@@ -282,16 +348,14 @@ actor ProjectionExperienceCoordinator {
         to id: ProjectionExperienceID,
         generation: UInt64,
     ) -> Bool {
-        guard requestedExperienceID == id,
-              transitionGeneration == generation,
+        guard case let .transitioning(request) = requestState,
+              request.id == id,
+              request.generation == generation,
               runtimeStates[id]?.successfulGeneration == generation
         else { return false }
         let oldID = activeExperienceID
         activeExperienceID = id
-        requestedExperienceID = nil
-        prewarmingExperienceID = nil
-        intendedTransitionAt = nil
-        requestIsManual = false
+        requestState = .committed(request)
         manualSelectionFailure = nil
         if let oldID, oldID != id {
             deactivateRuntime(oldID)
@@ -306,9 +370,11 @@ actor ProjectionExperienceCoordinator {
         generation: UInt64,
     ) async {
         guard activeExperienceID == id,
-              transitionGeneration == generation
+              case let .committed(request) = requestState,
+              request.id == id,
+              request.generation == generation
         else { return }
-        transitionGeneration = nil
+        clearRequest()
         publishState()
         await startFreshDwell()
     }
@@ -316,7 +382,7 @@ actor ProjectionExperienceCoordinator {
     private func activateCurrentIfNeeded() async {
         guard let activeExperienceID else { return }
         if runtimeStates[activeExperienceID]?.isRunning != true {
-            activateRuntime(activeExperienceID, role: .active)
+            _ = activateRuntime(activeExperienceID, role: .active)
         } else if runtimeStates[activeExperienceID]?.successfulGeneration != nil,
                   dwellEndsAt == nil
         {
@@ -352,17 +418,16 @@ actor ProjectionExperienceCoordinator {
                 await self?.beginAutomaticPrewarm(timerGeneration: generation)
                 try await clock.sleep(for: .seconds(Self.prewarmLeadSeconds))
                 await self?.reachAutomaticTransitionTime(timerGeneration: generation)
-                try await clock.sleep(for: .seconds(Self.readinessGraceSeconds))
-                await self?.expireAutomaticReadiness(timerGeneration: generation)
             } catch is CancellationError {
                 return
             } catch {
-                await self?.expireAutomaticReadiness(timerGeneration: generation)
+                await self?.handleRotationClockFailure(timerGeneration: generation)
             }
         }
     }
 
     private func beginAutomaticPrewarm(timerGeneration: UInt64) async {
+        let now = await clock.now()
         guard timerGeneration == self.timerGeneration,
               demand.permitsProjection,
               isPaused == false,
@@ -370,7 +435,12 @@ actor ProjectionExperienceCoordinator {
               let nextID = playlist.experience(after: activeExperienceID),
               let dwellEndsAt
         else { return }
-        requestExperience(nextID, role: .prewarming, intendedTransitionAt: dwellEndsAt)
+        requestExperience(
+            nextID,
+            role: .prewarming,
+            intendedTransitionAt: dwellEndsAt,
+            now: now,
+        )
     }
 
     private func reachAutomaticTransitionTime(timerGeneration: UInt64) {
@@ -380,50 +450,57 @@ actor ProjectionExperienceCoordinator {
         beginTransitionIfReady()
     }
 
-    private func expireAutomaticReadiness(timerGeneration: UInt64) async {
-        guard timerGeneration == self.timerGeneration,
-              requestedExperienceID != nil,
-              transitionGeneration == nil
-        else { return }
-        await rejectRequestedExperience(failure: .transport)
-    }
-
     private func requestExperience(
         _ id: ProjectionExperienceID,
         role: ProjectionExperienceActivationRole,
-        intendedTransitionAt: Date,
+        intendedTransitionAt: Date?,
+        now: Date,
     ) {
         if role != .prewarming {
             cancelRotation()
         }
         cancelRequestedRuntime()
-        requestedExperienceID = id
-        prewarmingExperienceID = role == .prewarming ? id : nil
-        self.intendedTransitionAt = intendedTransitionAt
-        requestIsManual = role == .manual
         manualSelectionFailure = nil
-        activateRuntime(id, role: role)
+        let generation = activateRuntime(id, role: role)
+        let timing: ExperienceRequest.Timing = if let intendedTransitionAt {
+            .automatic(
+                intendedTransitionAt: intendedTransitionAt,
+                deadline: intendedTransitionAt.addingTimeInterval(
+                    TimeInterval(Self.readinessGraceSeconds),
+                ),
+            )
+        } else {
+            .manual(
+                deadline: now.addingTimeInterval(TimeInterval(Self.readinessGraceSeconds)),
+            )
+        }
+        let request = ExperienceRequest(id: id, generation: generation, timing: timing)
+        requestState = .awaiting(request)
+        scheduleReadinessDeadline(for: request, now: now)
         publishState()
     }
 
     private func beginTransitionIfReady() {
-        guard transitionGeneration == nil,
+        guard case let .awaiting(request) = requestState,
               let from = activeExperienceID,
-              let to = requestedExperienceID,
-              let runtime = runtimeStates[to],
+              let runtime = runtimeStates[request.id],
+              runtime.generation == request.generation,
               runtime.successfulGeneration == runtime.generation
         else { return }
-        transitionGeneration = runtime.generation
-        prewarmingExperienceID = nil
+        readinessTask?.cancel()
+        readinessTask = nil
+        requestState = .transitioning(request)
         actionContinuation.yield(
-            .beginTransition(from: from, to: to, generation: runtime.generation),
+            .beginTransition(from: from, to: request.id, generation: runtime.generation),
         )
         publishState()
     }
 
     private func rejectRequestedExperience(failure: ThrowFailureCategory) async {
-        let wasManual = requestIsManual
-        let failedID = requestedExperienceID
+        let now = await clock.now()
+        guard let request = requestState?.request else { return }
+        let wasManual = request.isManual
+        let failedID = request.id
         cancelRequestedRuntime()
         if wasManual {
             manualSelectionFailure = failure
@@ -432,24 +509,35 @@ actor ProjectionExperienceCoordinator {
 
         guard wasManual == false,
               let activeExperienceID,
-              let failedID,
               let nextCandidate = playlist.experience(after: failedID),
               nextCandidate != activeExperienceID
         else {
             await startFreshDwell()
             return
         }
-        await requestExperience(
+        requestExperience(
             nextCandidate,
             role: .prewarming,
-            intendedTransitionAt: clock.now(),
+            intendedTransitionAt: now,
+            now: now,
         )
+    }
+
+    private func handleRotationClockFailure(timerGeneration: UInt64) async {
+        guard timerGeneration == self.timerGeneration else { return }
+        assertionFailure("Projection rotation clock failed")
+        if requestState != nil {
+            await rejectRequestedExperience(failure: .transport)
+        } else {
+            cancelRotation()
+            publishState()
+        }
     }
 
     private func activateRuntime(
         _ id: ProjectionExperienceID,
         role: ProjectionExperienceActivationRole,
-    ) {
+    ) -> UInt64 {
         nextGeneration &+= 1
         var state = runtimeStates[id] ?? RuntimeState()
         state.generation = nextGeneration
@@ -460,6 +548,7 @@ actor ProjectionExperienceCoordinator {
         actionContinuation.yield(
             .activate(id: id, generation: nextGeneration, role: role),
         )
+        return nextGeneration
     }
 
     private func deactivateRuntime(_ id: ProjectionExperienceID) {
@@ -471,18 +560,54 @@ actor ProjectionExperienceCoordinator {
     }
 
     private func cancelRequestedRuntime() {
-        if let requestedExperienceID, requestedExperienceID != activeExperienceID {
+        if let requestedExperienceID = requestState?.requestedExperienceID,
+           requestedExperienceID != activeExperienceID
+        {
             deactivateRuntime(requestedExperienceID)
         }
         clearRequest()
     }
 
     private func clearRequest() {
-        requestedExperienceID = nil
-        prewarmingExperienceID = nil
-        transitionGeneration = nil
-        intendedTransitionAt = nil
-        requestIsManual = false
+        readinessTask?.cancel()
+        readinessTask = nil
+        requestState = nil
+    }
+
+    private func scheduleReadinessDeadline(
+        for request: ExperienceRequest,
+        now: Date,
+    ) {
+        readinessTask?.cancel()
+        let delay = max(0, request.deadline.timeIntervalSince(now))
+        readinessTask = Task(name: "Throw projection experience readiness") {
+            [clock, weak self] in
+            do {
+                try await clock.sleep(for: .seconds(delay))
+                await self?.expireReadiness(
+                    id: request.id,
+                    generation: request.generation,
+                )
+            } catch is CancellationError {
+                return
+            } catch {
+                await self?.expireReadiness(
+                    id: request.id,
+                    generation: request.generation,
+                )
+            }
+        }
+    }
+
+    private func expireReadiness(
+        id: ProjectionExperienceID,
+        generation: UInt64,
+    ) async {
+        guard case let .awaiting(request) = requestState,
+              request.id == id,
+              request.generation == generation
+        else { return }
+        await rejectRequestedExperience(failure: .transport)
     }
 
     private func cancelRotation() {
@@ -501,8 +626,8 @@ actor ProjectionExperienceCoordinator {
         let nextID = activeExperienceID.flatMap(playlist.experience(after:))
         return ProjectionExperienceCoordinatorState(
             activeExperienceID: activeExperienceID,
-            requestedExperienceID: requestedExperienceID,
-            prewarmingExperienceID: prewarmingExperienceID,
+            requestedExperienceID: requestState?.requestedExperienceID,
+            prewarmingExperienceID: requestState?.prewarmingExperienceID,
             isPaused: isPaused,
             dwellEndsAt: dwellEndsAt,
             nextExperienceID: nextID,
