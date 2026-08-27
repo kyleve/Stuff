@@ -50,68 +50,119 @@ public struct ProjectionEngine: Sendable {
 
     public init() {}
 
-    public func frame(
-        layerFrames: [LayerFrame],
-        geography: ProjectedGeography?,
-        observer: ObserverPosition,
-        viewport: ProjectionViewport,
-        calibration: ProjectionCalibration,
-        geometry: ProjectionGeometry,
-        generatedAt: Date,
-    ) throws -> ProjectionFrame {
-        try frame(
-            layerFrames: layerFrames,
-            geography: geography,
-            observer: observer,
-            mapCenter: observer.coordinate,
-            viewport: viewport,
-            calibration: calibration,
-            geometry: geometry,
-            generatedAt: generatedAt,
-        )
-    }
+    #if DEBUG
+        public func frame(
+            layerFrames: [LayerFrame],
+            geography: ProjectedGeography?,
+            observer: ObserverPosition,
+            viewport: ProjectionViewport,
+            calibration: ProjectionCalibration,
+            geometry: ProjectionGeometry,
+            generatedAt: Date,
+        ) throws -> ProjectionFrame {
+            try frame(
+                layerFrames: layerFrames,
+                geography: geography,
+                observer: observer,
+                mapCenter: observer.coordinate,
+                viewport: viewport,
+                calibration: calibration,
+                geometry: geometry,
+                generatedAt: generatedAt,
+            )
+        }
+
+        public func frame(
+            layerFrames: [LayerFrame],
+            geography: ProjectedGeography?,
+            observer: ObserverPosition,
+            mapCenter: GeoCoordinate,
+            viewport: ProjectionViewport,
+            calibration: ProjectionCalibration,
+            geometry: ProjectionGeometry,
+            generatedAt: Date,
+        ) throws -> ProjectionFrame {
+            let zOrders = Dictionary(
+                uniqueKeysWithValues: LayerCatalog.standard.descriptors.map { ($0.id, $0.zOrder) },
+            )
+            let lineLayers: [ProjectedLayer] = geography.map {
+                [
+                    ProjectedLayer(
+                        id: .geography,
+                        zOrder: zOrders[.geography] ?? 0,
+                        opacity: 1,
+                        content: .lines($0),
+                    ),
+                ]
+            } ?? []
+            return try frameUnchecked(
+                experienceID: .airAndSpace,
+                layerFrames: layerFrames,
+                projectedLineLayers: lineLayers,
+                layerZOrders: zOrders,
+                observer: observer,
+                mapCenter: mapCenter,
+                viewport: viewport,
+                calibration: calibration,
+                geometry: geometry,
+                generatedAt: generatedAt,
+            )
+        }
+
+        public func frameForTesting(
+            experienceID: ProjectionExperienceID,
+            layerFrames: [LayerFrame],
+            projectedLineLayers: [ProjectedLayer],
+            layerZOrders: [LayerID: Int],
+            observer: ObserverPosition,
+            mapCenter: GeoCoordinate,
+            viewport: ProjectionViewport,
+            calibration: ProjectionCalibration,
+            geometry: ProjectionGeometry,
+            generatedAt: Date,
+        ) throws -> ProjectionFrame {
+            try frameUnchecked(
+                experienceID: experienceID,
+                layerFrames: layerFrames,
+                projectedLineLayers: projectedLineLayers,
+                layerZOrders: layerZOrders,
+                observer: observer,
+                mapCenter: mapCenter,
+                viewport: viewport,
+                calibration: calibration,
+                geometry: geometry,
+                generatedAt: generatedAt,
+            )
+        }
+    #endif
 
     public func frame(
-        layerFrames: [LayerFrame],
-        geography: ProjectedGeography?,
+        input: ProjectionExperienceInput,
+        projectedLineLayers: [ProjectedLayer],
+        layerZOrders: [LayerID: Int],
         observer: ObserverPosition,
         mapCenter: GeoCoordinate,
-        viewport: ProjectionViewport,
         calibration: ProjectionCalibration,
         geometry: ProjectionGeometry,
         generatedAt: Date,
     ) throws -> ProjectionFrame {
-        let zOrders = Dictionary(
-            uniqueKeysWithValues: LayerCatalog.standard.descriptors.map { ($0.id, $0.zOrder) },
-        )
-        let lineLayers: [ProjectedLayer] = geography.map {
-            [
-                ProjectedLayer(
-                    id: .geography,
-                    zOrder: zOrders[.geography] ?? 0,
-                    opacity: 1,
-                    content: .lines($0),
-                ),
-            ]
-        } ?? []
-        return try frame(
-            experienceFrame: ProjectionExperienceFrame(
-                experienceID: .airAndSpace,
-                layers: layerFrames,
-            ),
-            projectedLineLayers: lineLayers,
-            layerZOrders: zOrders,
+        try frameUnchecked(
+            experienceID: input.experienceFrame.experienceID,
+            layerFrames: input.experienceFrame.layers,
+            projectedLineLayers: projectedLineLayers,
+            layerZOrders: layerZOrders,
             observer: observer,
             mapCenter: mapCenter,
-            viewport: viewport,
+            viewport: input.viewport,
             calibration: calibration,
             geometry: geometry,
             generatedAt: generatedAt,
         )
     }
 
-    public func frame(
-        experienceFrame: ProjectionExperienceFrame,
+    private func frameUnchecked(
+        experienceID: ProjectionExperienceID,
+        layerFrames: [LayerFrame],
         projectedLineLayers: [ProjectedLayer],
         layerZOrders: [LayerID: Int],
         observer: ObserverPosition,
@@ -129,7 +180,7 @@ public struct ProjectionEngine: Sendable {
                 observer
         }
         var projectedLayers = projectedLineLayers
-        for layerFrame in experienceFrame.layers {
+        for layerFrame in layerFrames {
             var projected: [ProjectedMark] = []
             for (markIndex, mark) in layerFrame.marks.enumerated() {
                 if markIndex.isMultiple(of: 64) {
@@ -206,7 +257,7 @@ public struct ProjectionEngine: Sendable {
             }
         }
         return ProjectionFrame(
-            experienceID: experienceFrame.experienceID,
+            experienceID: experienceID,
             mode: viewport.mode,
             generatedAt: generatedAt,
             layers: projectedLayers,

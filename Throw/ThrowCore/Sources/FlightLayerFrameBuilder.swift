@@ -19,7 +19,7 @@ public struct FlightLayerFrameBuilder: Sendable {
         routeResults: [FlightCallsign: FlightRouteResult],
         motions: [AircraftID: AircraftMotion],
         availability: MarkAvailability,
-    ) throws -> LayerFrame {
+    ) throws -> ProjectionLayerFrame<FlightsLayerKind> {
         var airportMarks: [AirportID: ProjectionMark] = [:]
         var aircraftMarks: [ProjectionMark] = []
         for observation in snapshot.observations {
@@ -126,8 +126,7 @@ public struct FlightLayerFrameBuilder: Sendable {
                 )
             }
         }
-        return LayerFrame(
-            layerID: .flights,
+        return ProjectionLayerFrame(
             observedAt: snapshot.fetchedAt,
             content: .marks(aircraftMarks + airportMarks.values.sorted {
                 $0.id.rawValue < $1.id.rawValue

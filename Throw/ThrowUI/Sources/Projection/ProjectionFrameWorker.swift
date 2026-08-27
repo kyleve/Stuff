@@ -15,13 +15,63 @@ actor ProjectionFrameWorker {
         var presentationState = PresentationState()
     }
 
+    private enum FrameInput {
+        case checked(ProjectionExperienceInput)
+        #if DEBUG
+            case testing(
+                experienceID: ProjectionExperienceID,
+                layerFrames: [LayerFrame],
+                geographyEnabled: Bool,
+                viewport: ProjectionViewport,
+            )
+        #endif
+
+        var experienceID: ProjectionExperienceID {
+            switch self {
+                case let .checked(input): input.experienceFrame.experienceID
+                #if DEBUG
+                    case let .testing(experienceID, _, _, _): experienceID
+                #endif
+            }
+        }
+
+        var layerFrames: [LayerFrame] {
+            switch self {
+                case let .checked(input): input.experienceFrame.layers
+                #if DEBUG
+                    case let .testing(_, layerFrames, _, _): layerFrames
+                #endif
+            }
+        }
+
+        var geographyEnabled: Bool {
+            switch self {
+                case let .checked(input): input.requestsGeography
+                #if DEBUG
+                    case let .testing(_, _, geographyEnabled, _): geographyEnabled
+                #endif
+            }
+        }
+
+        var viewport: ProjectionViewport {
+            switch self {
+                case let .checked(input): input.viewport
+                #if DEBUG
+                    case let .testing(_, _, _, viewport): viewport
+                #endif
+            }
+        }
+    }
+
     private let engine = ProjectionEngine()
     private let geographyRuntime: GeographyLayerRuntime
     private let geographyLogger: any GeographyLogging
     private let motionLogger: any ProjectionMotionLogging
-    private var loadedGeographyLayerFrame: LayerFrame?
+    private var loadedGeographyLayerFrame: ProjectionLayerFrame<GeographyLayerKind>?
     private var geographyLayerLoadTask: Task<Void, Never>?
-    private var geographyLoadWaiters: [UInt64: CheckedContinuation<LayerFrame, any Error>] = [:]
+    private var geographyLoadWaiters: [
+        UInt64: CheckedContinuation<ProjectionLayerFrame<GeographyLayerKind>, any Error>
+    ] = [:]
     #if DEBUG
         private var geographyWaiterCountObservers: [GeographyWaiterCountObserver] = []
     #endif
@@ -58,61 +108,108 @@ actor ProjectionFrameWorker {
     }
 
     func frame(
-        layerFrame: LayerFrame?,
-        geographyEnabled: Bool,
-        observer: ObserverPosition,
-        viewport: ProjectionViewport,
-        calibration: ProjectionCalibration,
-        generatedAt: Date,
-        reduceMotion: Bool,
-    ) async throws -> ProjectionFrameWorkerOutput {
-        try await frame(
-            layerFrame: layerFrame,
-            geographyEnabled: geographyEnabled,
-            observer: observer,
-            mapCenter: observer.coordinate,
-            viewport: viewport,
-            calibration: calibration,
-            generatedAt: generatedAt,
-            reduceMotion: reduceMotion,
-        )
-    }
-
-    func frame(
-        layerFrame: LayerFrame?,
-        geographyEnabled: Bool,
+        input: ProjectionExperienceInput,
         observer: ObserverPosition,
         mapCenter: GeoCoordinate,
-        viewport: ProjectionViewport,
         calibration: ProjectionCalibration,
         generatedAt: Date,
         reduceMotion: Bool,
     ) async throws -> ProjectionFrameWorkerOutput {
         try await frame(
-            experienceID: .airAndSpace,
-            layerFrames: layerFrame.map { [$0] } ?? [],
-            geographyEnabled: geographyEnabled,
+            input: .checked(input),
             observer: observer,
             mapCenter: mapCenter,
-            viewport: viewport,
             calibration: calibration,
             generatedAt: generatedAt,
             reduceMotion: reduceMotion,
         )
     }
 
-    func frame(
-        experienceID: ProjectionExperienceID,
-        layerFrames: [LayerFrame],
-        geographyEnabled: Bool,
+    #if DEBUG
+        func frame(
+            layerFrame: LayerFrame?,
+            geographyEnabled: Bool,
+            observer: ObserverPosition,
+            viewport: ProjectionViewport,
+            calibration: ProjectionCalibration,
+            generatedAt: Date,
+            reduceMotion: Bool,
+        ) async throws -> ProjectionFrameWorkerOutput {
+            try await frame(
+                layerFrame: layerFrame,
+                geographyEnabled: geographyEnabled,
+                observer: observer,
+                mapCenter: observer.coordinate,
+                viewport: viewport,
+                calibration: calibration,
+                generatedAt: generatedAt,
+                reduceMotion: reduceMotion,
+            )
+        }
+
+        func frame(
+            layerFrame: LayerFrame?,
+            geographyEnabled: Bool,
+            observer: ObserverPosition,
+            mapCenter: GeoCoordinate,
+            viewport: ProjectionViewport,
+            calibration: ProjectionCalibration,
+            generatedAt: Date,
+            reduceMotion: Bool,
+        ) async throws -> ProjectionFrameWorkerOutput {
+            try await frame(
+                experienceID: .airAndSpace,
+                layerFrames: layerFrame.map { [$0] } ?? [],
+                geographyEnabled: geographyEnabled,
+                observer: observer,
+                mapCenter: mapCenter,
+                viewport: viewport,
+                calibration: calibration,
+                generatedAt: generatedAt,
+                reduceMotion: reduceMotion,
+            )
+        }
+
+        func frame(
+            experienceID: ProjectionExperienceID,
+            layerFrames: [LayerFrame],
+            geographyEnabled: Bool,
+            observer: ObserverPosition,
+            mapCenter: GeoCoordinate,
+            viewport: ProjectionViewport,
+            calibration: ProjectionCalibration,
+            generatedAt: Date,
+            reduceMotion: Bool,
+        ) async throws -> ProjectionFrameWorkerOutput {
+            try await frame(
+                input: .testing(
+                    experienceID: experienceID,
+                    layerFrames: layerFrames,
+                    geographyEnabled: geographyEnabled,
+                    viewport: viewport,
+                ),
+                observer: observer,
+                mapCenter: mapCenter,
+                calibration: calibration,
+                generatedAt: generatedAt,
+                reduceMotion: reduceMotion,
+            )
+        }
+    #endif
+
+    private func frame(
+        input: FrameInput,
         observer: ObserverPosition,
         mapCenter: GeoCoordinate,
-        viewport: ProjectionViewport,
         calibration: ProjectionCalibration,
         generatedAt: Date,
         reduceMotion: Bool,
     ) async throws -> ProjectionFrameWorkerOutput {
         try Task.checkCancellation()
+        let experienceID = input.experienceID
+        let layerFrames = input.layerFrames
+        let geographyEnabled = input.geographyEnabled
+        let viewport = input.viewport
         var experienceState = experienceStates[experienceID] ?? ExperienceState()
         let flightsLayerFrame = layerFrames.first { $0.layerID == .flights }
         let markRevisions = Dictionary(uniqueKeysWithValues: layerFrames.compactMap { frame in
@@ -166,20 +263,35 @@ actor ProjectionFrameWorker {
                 ),
             )
         }
-        let target = try engine.frame(
-            experienceFrame: ProjectionExperienceFrame(
-                experienceID: experienceID,
-                layers: layerFrames,
-            ),
-            projectedLineLayers: projectedLineLayers,
-            layerZOrders: zOrders,
-            observer: observer,
-            mapCenter: mapCenter,
-            viewport: viewport,
-            calibration: calibration,
-            geometry: ProjectionGeometry(width: 1, height: 1),
-            generatedAt: generatedAt,
-        )
+        let target: ProjectionFrame
+        switch input {
+            case let .checked(input):
+                target = try engine.frame(
+                    input: input,
+                    projectedLineLayers: projectedLineLayers,
+                    layerZOrders: zOrders,
+                    observer: observer,
+                    mapCenter: mapCenter,
+                    calibration: calibration,
+                    geometry: ProjectionGeometry(width: 1, height: 1),
+                    generatedAt: generatedAt,
+                )
+            #if DEBUG
+                case .testing:
+                    target = try engine.frameForTesting(
+                        experienceID: experienceID,
+                        layerFrames: layerFrames,
+                        projectedLineLayers: projectedLineLayers,
+                        layerZOrders: zOrders,
+                        observer: observer,
+                        mapCenter: mapCenter,
+                        viewport: viewport,
+                        calibration: calibration,
+                        geometry: ProjectionGeometry(width: 1, height: 1),
+                        generatedAt: generatedAt,
+                    )
+            #endif
+        }
         try Task.checkCancellation()
         let frame = animate(
             target: target,
@@ -238,7 +350,7 @@ actor ProjectionFrameWorker {
         try Task.checkCancellation()
         return try .projected(
             projectedLineCollection(
-                for: layerFrame,
+                for: layerFrame.erased,
                 mapCenter: mapCenter,
                 viewport: viewport,
                 calibration: calibration,
@@ -279,7 +391,9 @@ actor ProjectionFrameWorker {
         return projection
     }
 
-    private func loadGeographyLayerFrame() async throws -> LayerFrame {
+    private func loadGeographyLayerFrame() async throws
+        -> ProjectionLayerFrame<GeographyLayerKind>
+    {
         if let loadedGeographyLayerFrame {
             return loadedGeographyLayerFrame
         }
@@ -308,7 +422,7 @@ actor ProjectionFrameWorker {
         let generation = geographyLoadGeneration
         geographyLayerLoadTask = Task(name: "Throw load bundled geography") {
             [geographyRuntime, geographyLogger, weak self] in
-            let result: Result<LayerFrame, any Error>
+            let result: Result<ProjectionLayerFrame<GeographyLayerKind>, any Error>
             do {
                 result = try await .success(
                     geographyRuntime.frame(for: GeographyLayerInput()),
@@ -326,7 +440,7 @@ actor ProjectionFrameWorker {
     }
 
     private func finishGeographyLoad(
-        _ result: Result<LayerFrame, any Error>,
+        _ result: Result<ProjectionLayerFrame<GeographyLayerKind>, any Error>,
         generation: UInt64,
     ) {
         guard generation == geographyLoadGeneration else { return }

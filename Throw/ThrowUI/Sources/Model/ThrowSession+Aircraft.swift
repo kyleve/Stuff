@@ -456,10 +456,7 @@ extension ThrowSession {
             guard generation == demandGeneration else { return }
             currentSnapshot = nil
             currentLayerFrame = nil
-            currentExperienceFrame = ProjectionExperienceFrame(
-                experienceID: .airAndSpace,
-                layers: [],
-            )
+            currentExperienceFrame = .airAndSpace(.empty)
             feedHealth = .idle
             restartRenderer()
             return
@@ -578,24 +575,54 @@ extension ThrowSession {
         guard let confirmedLocation else {
             throw ThrowValidationError.invalidPreferencePayload
         }
-        let enabledLayerFrames = if experienceFrame.experienceID == .airAndSpace,
-                                    flightsEnabled == false
-        {
-            experienceFrame.layers.filter { $0.layerID != .flights }
-        } else {
-            experienceFrame.layers
-        }
+        let input = try projectionInput(for: experienceFrame)
         return try await projectionWorker.frame(
-            experienceID: experienceFrame.experienceID,
-            layerFrames: enabledLayerFrames,
-            geographyEnabled: experienceFrame.experienceID == .airAndSpace && geographyEnabled,
+            input: input,
             observer: confirmedLocation.position,
             mapCenter: activeMapCenter,
-            viewport: projectionViewport(),
             calibration: projectionCalibration(),
             generatedAt: generatedAt,
             reduceMotion: reduceMotion,
         )
+    }
+
+    private func projectionInput(
+        for experienceFrame: ProjectionExperienceFrame,
+    ) throws -> ProjectionExperienceInput {
+        switch experienceFrame {
+            case let .airAndSpace(frame):
+                let enabledFrame = AirAndSpaceExperienceFrame(
+                    geography: projectionMode == .map && geographyEnabled
+                        ? frame.geography
+                        : nil,
+                    flights: flightsEnabled ? frame.flights : nil,
+                    stars: frame.stars,
+                    satellites: frame.satellites,
+                )
+                let viewport: AirAndSpaceProjectionViewport = switch projectionMode {
+                    case .map:
+                        try .map(
+                            viewport: MapViewport(radius: NauticalMiles(value: mapRadius)),
+                            geography: geographyEnabled ? .visible : .hidden,
+                        )
+                    case .trueSky:
+                        try .trueSky(viewport: SkyViewport(
+                            minimumElevation: ElevationAngle(degrees: minimumElevation),
+                        ))
+                }
+                return .airAndSpace(frame: enabledFrame, viewport: viewport)
+            case let .transit(frame):
+                let enabledFrame = TransitExperienceFrame(
+                    geography: geographyEnabled ? frame.geography : nil,
+                    network: frame.network,
+                    vehicles: frame.vehicles,
+                )
+                return try .transit(
+                    frame: enabledFrame,
+                    viewport: MapViewport(radius: NauticalMiles(value: mapRadius)),
+                    geography: geographyEnabled ? .visible : .hidden,
+                )
+        }
     }
 
     func stopRenderer() {
@@ -608,10 +635,7 @@ extension ThrowSession {
         currentSnapshot = nil
         currentLayerFrame = nil
         observerMapPoint = nil
-        currentExperienceFrame = ProjectionExperienceFrame(
-            experienceID: activeExperienceID ?? .airAndSpace,
-            layers: [],
-        )
+        currentExperienceFrame = .empty(for: activeExperienceID ?? .airAndSpace)
         stopRenderer()
         projectionFrame = emptyProjectionFrame()
         var transaction = Transaction()
@@ -738,10 +762,7 @@ extension ThrowSession {
     func discardOldFrame() async throws {
         currentSnapshot = nil
         currentLayerFrame = nil
-        currentExperienceFrame = ProjectionExperienceFrame(
-            experienceID: activeExperienceID ?? .airAndSpace,
-            layers: [],
-        )
+        currentExperienceFrame = .empty(for: activeExperienceID ?? .airAndSpace)
         stopRenderer()
         let empty = projectionFrameWithoutMarks()
         if reduceMotion {

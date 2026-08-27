@@ -118,13 +118,17 @@ struct ProjectionEngineTests {
         )
 
         let frame = try engine.frame(
-            experienceFrame: ProjectionExperienceFrame(
-                experienceID: .transit,
-                layers: [LayerFrame(
-                    layerID: .transitVehicles,
-                    observedAt: ThrowCoreFixture.date,
-                    content: .marks([vehicle]),
-                )],
+            input: .transit(
+                frame: TransitExperienceFrame(
+                    geography: nil,
+                    network: nil,
+                    vehicles: ProjectionLayerFrame(
+                        observedAt: ThrowCoreFixture.date,
+                        content: .marks([vehicle]),
+                    ),
+                ),
+                viewport: MapViewport(radius: NauticalMiles(value: 50)),
+                geography: .hidden,
             ),
             projectedLineLayers: [ProjectedLayer(
                 id: .transitNetwork,
@@ -135,7 +139,6 @@ struct ProjectionEngineTests {
             layerZOrders: [.transitVehicles: 20],
             observer: observer,
             mapCenter: observer.coordinate,
-            viewport: .map(MapViewport(radius: NauticalMiles(value: 50))),
             calibration: .defaultValue,
             geometry: ProjectionGeometry(width: 1920, height: 1080),
             generatedAt: ThrowCoreFixture.date,

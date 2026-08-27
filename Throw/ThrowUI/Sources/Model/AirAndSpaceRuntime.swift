@@ -6,15 +6,21 @@ struct AirAndSpaceRuntimeUpdate {
     let activationGeneration: UInt64
     let successfulActivationGeneration: UInt64?
     let health: FeedHealth
-    let layerFrame: LayerFrame?
+    let flightsFrame: ProjectionLayerFrame<FlightsLayerKind>?
     let snapshot: AircraftSnapshot?
     let activePollingSignature: PollingSignature?
 
+    var layerFrame: LayerFrame? {
+        flightsFrame?.erased
+    }
+
     var experienceFrame: ProjectionExperienceFrame {
-        ProjectionExperienceFrame(
-            experienceID: .airAndSpace,
-            layers: layerFrame.map { [$0] } ?? [],
-        )
+        .airAndSpace(AirAndSpaceExperienceFrame(
+            geography: nil,
+            flights: flightsFrame,
+            stars: nil,
+            satellites: nil,
+        ))
     }
 }
 
@@ -37,7 +43,7 @@ actor AirAndSpaceRuntime {
     private var routeGeneration: UInt64 = 0
     private var labelMode: FlightLabelMode = .adaptive
     private var currentSnapshot: AircraftSnapshot?
-    private var currentLayerFrame: LayerFrame?
+    private var currentLayerFrame: ProjectionLayerFrame<FlightsLayerKind>?
     private var currentAvailability: MarkAvailability = .current
     private var health: FeedHealth = .idle
     private var inactiveHealth: FeedHealth = .idle
@@ -255,7 +261,9 @@ actor AirAndSpaceRuntime {
         }
     }
 
-    private func makeLayerFrame(_ snapshot: AircraftSnapshot) async throws -> LayerFrame {
+    private func makeLayerFrame(
+        _ snapshot: AircraftSnapshot,
+    ) async throws -> ProjectionLayerFrame<FlightsLayerKind> {
         guard let observer = activePollingSignature?.query.observer else {
             throw ThrowValidationError.invalidPreferencePayload
         }
@@ -382,7 +390,7 @@ actor AirAndSpaceRuntime {
                 activationGeneration: activationGeneration,
                 successfulActivationGeneration: successfulActivationGeneration,
                 health: health,
-                layerFrame: currentLayerFrame,
+                flightsFrame: currentLayerFrame,
                 snapshot: currentSnapshot,
                 activePollingSignature: activePollingSignature,
             ),

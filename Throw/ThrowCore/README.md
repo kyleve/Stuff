@@ -45,12 +45,17 @@ output demand. Version-two preferences separate global, playlist, and Air &
 Space state. The codec migrates version-one data under the existing storage key.
 Keychain credential IDs do not change.
 
-`ProjectionExperienceFrame` contains semantic layer frames. `ProjectionFrame`
-contains ordered projected mark and line layers. Line styles are typed, so
-Geography and future transit routes use one projection path. The worker caches
-static lines by layer, revision, Map center, viewport, and calibration. It does
-not rebuild them at the 30 Hz mark rate. Expensive work stays off the main actor.
-Generation checks reject late work.
+`ProjectionLayerFrame` fixes each semantic layer identity in its generic type.
+`ProjectionExperienceFrame` then accepts only the typed layers for its experience.
+`ProjectionExperienceInput` also pairs each experience with its supported projection modes.
+Transit can accept only a Map viewport. Geography visibility belongs to Map
+inputs, so it cannot be requested in True Sky.
+
+`ProjectionFrame` contains ordered projected mark and line layers. Line styles
+are typed, so Geography and future transit routes use one projection path. The
+worker caches static lines by layer, revision, Map center, viewport, and calibration.
+It does not rebuild them at the 30 Hz mark rate. Expensive work stays off the
+main actor. Generation checks reject late work.
 Position prediction continues until a later successful poll replaces the
 snapshot. A retryable poll failure starts a 15-second grace period and a
 15-second fade.

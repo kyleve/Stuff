@@ -67,6 +67,61 @@ struct ProjectionModelsTests {
         #expect(projectedLayer.marks.first?.point.x == 0.8)
     }
 
+    @Test func experienceFramesExposeOnlyTheirTypedLayerMembership() {
+        let flights = ProjectionLayerFrame<FlightsLayerKind>(
+            observedAt: ThrowCoreFixture.date,
+            content: .marks([]),
+        )
+        let network = ProjectionLayerFrame<TransitNetworkLayerKind>(
+            observedAt: ThrowCoreFixture.date,
+            content: .lines([]),
+        )
+
+        let airAndSpace = ProjectionExperienceFrame.airAndSpace(
+            AirAndSpaceExperienceFrame(
+                geography: nil,
+                flights: flights,
+                stars: nil,
+                satellites: nil,
+            ),
+        )
+        let transit = ProjectionExperienceFrame.transit(
+            TransitExperienceFrame(
+                geography: nil,
+                network: network,
+                vehicles: nil,
+            ),
+        )
+
+        #expect(airAndSpace.layers.map(\.layerID) == [.flights])
+        #expect(transit.layers.map(\.layerID) == [.transitNetwork])
+    }
+
+    @Test func experienceProjectionInputsEncodeSupportedModes() throws {
+        let mapViewport = try MapViewport(radius: NauticalMiles(value: 50))
+        let skyViewport = try SkyViewport(minimumElevation: ElevationAngle(degrees: 10))
+        let airMap = ProjectionExperienceInput.airAndSpace(
+            frame: .empty,
+            viewport: .map(viewport: mapViewport, geography: .visible),
+        )
+        let airSky = ProjectionExperienceInput.airAndSpace(
+            frame: .empty,
+            viewport: .trueSky(viewport: skyViewport),
+        )
+        let transit = ProjectionExperienceInput.transit(
+            frame: .empty,
+            viewport: mapViewport,
+            geography: .visible,
+        )
+
+        #expect(airMap.viewport == .map(mapViewport))
+        #expect(airMap.requestsGeography)
+        #expect(airSky.viewport == .trueSky(skyViewport))
+        #expect(airSky.requestsGeography == false)
+        #expect(transit.viewport == .map(mapViewport))
+        #expect(transit.requestsGeography)
+    }
+
     @Test func visibleAircraftCountExcludesOtherGlyphs() throws {
         let aircraft = try ProjectedMark(
             id: LayerMarkID(layerID: .flights, namespace: .aircraft, rawValue: "a"),

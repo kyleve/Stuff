@@ -37,7 +37,9 @@ public actor FlightsLayerRuntime: ProjectionLayerRuntime {
         )
     }
 
-    public func frame(for input: FlightsLayerInput) async throws -> LayerFrame {
+    public func frame(
+        for input: FlightsLayerInput,
+    ) async throws -> ProjectionLayerFrame<FlightsLayerKind> {
         let motions = try motionEstimator.motions(for: input.snapshot)
         return try frameBuilder.frame(
             snapshot: input.snapshot,
