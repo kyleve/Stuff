@@ -192,7 +192,9 @@ public enum LocationFixEvaluator {
     /// Selects by accuracy only after rejecting stale, future, and invalid samples.
     static func bestValidFix(from locations: [CLLocation], at date: Date) -> LocationFix? {
         var bestFix: LocationFix?
-        for location in locations where location.horizontalAccuracy >= 0 {
+        for location in locations
+            where location.horizontalAccuracy >= 0 && location.verticalAccuracy >= 0
+        {
             let fix: LocationFix
             do {
                 fix = try LocationFix(
