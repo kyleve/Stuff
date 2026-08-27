@@ -79,6 +79,10 @@ values as an account balance. A usage-report rate limit is not shown as a
 flight-position quota failure. A malformed usage report is scoped to this
 estimate instead of implying that the live feed failed.
 
+Source and credential changes have one commit point. Throw prepares Keychain
+and preference writes before it drains the live source. A storage failure keeps
+the prior source, credential state, feed health, and projection active.
+
 Appearance is resolved through `ThrowStylesheet` at `throwBroadwayRoot()`.
 Preview and snapshot fixtures use memory-only dependencies and deterministic
 frames.

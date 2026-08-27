@@ -159,6 +159,12 @@ actor AirAndSpaceRuntime {
         }
     }
 
+    #if DEBUG
+        func activeSourceKindForTesting() -> AircraftSourceKind? {
+            activePollingSignature?.configuration.kind
+        }
+    #endif
+
     private func startObservingIfNeeded() {
         guard observationTask == nil else { return }
         observationTask = Task(name: "Throw observe Air & Space polling") {

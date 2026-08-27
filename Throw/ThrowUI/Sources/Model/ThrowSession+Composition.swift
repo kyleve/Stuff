@@ -98,6 +98,19 @@ extension ThrowSession {
             )
         }
 
+        @_spi(Testing) public static func fixture(
+            preferenceStore: any ThrowPreferenceStore,
+            credentialStore: any AircraftCredentialStore,
+        ) -> ThrowSession {
+            makeFixture(
+                setupCompleted: true,
+                quiet: false,
+                transport: FixtureHTTPTransport(),
+                preferenceStoreOverride: preferenceStore,
+                credentialStoreOverride: credentialStore,
+            )
+        }
+
         static func onboardingFixture() -> ThrowSession {
             makeFixture(
                 setupCompleted: false,
@@ -477,6 +490,8 @@ extension ThrowSession {
             transport: any HTTPTransport,
             locationSource: (any ThrowLocationSource)? = nil,
             credentials: [AircraftCredentialID: AircraftCredential] = [:],
+            preferenceStoreOverride: (any ThrowPreferenceStore)? = nil,
+            credentialStoreOverride: (any AircraftCredentialStore)? = nil,
         ) -> ThrowSession {
             do {
                 let now = Date(timeIntervalSince1970: 1_787_594_400)
@@ -510,8 +525,16 @@ extension ThrowSession {
                     intensityPercent: 80,
                     quietSchedule: .disabled,
                 )
-                let preferenceStore = try MemoryThrowPreferenceStore(initialValue: preferences)
-                let credentialStore = MemoryAircraftCredentialStore(credentials: credentials)
+                let preferenceStore: any ThrowPreferenceStore = if let preferenceStoreOverride {
+                    preferenceStoreOverride
+                } else {
+                    try MemoryThrowPreferenceStore(initialValue: preferences)
+                }
+                let credentialStore: any AircraftCredentialStore = if let credentialStoreOverride {
+                    credentialStoreOverride
+                } else {
+                    MemoryAircraftCredentialStore(credentials: credentials)
+                }
                 let dateProvider = FixtureDateProvider(date: now)
                 let sourceFactory = AircraftSourceFactory(
                     cloudTransport: transport,

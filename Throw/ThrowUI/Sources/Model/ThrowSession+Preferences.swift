@@ -2,6 +2,47 @@ import Foundation
 import ThrowCore
 
 extension ThrowSession {
+    enum AircraftSourcePreferenceSelection {
+        case unconfigured
+        case awaitingValidation(AircraftSourceConfiguration)
+        case configured(AircraftSourceConfiguration)
+
+        init(
+            selected: AircraftSourceConfiguration?,
+            validated: AircraftSourceConfiguration?,
+        ) throws {
+            switch (selected, validated) {
+                case (nil, nil):
+                    self = .unconfigured
+                case let (selected?, nil):
+                    self = .awaitingValidation(selected)
+                case let (selected?, validated?) where selected == validated:
+                    self = .configured(selected)
+                case (nil, .some), (.some, .some):
+                    throw ThrowValidationError.invalidPreferencePayload
+            }
+        }
+
+        var selected: AircraftSourceConfiguration? {
+            switch self {
+                case .unconfigured:
+                    nil
+                case let .awaitingValidation(configuration),
+                     let .configured(configuration):
+                    configuration
+            }
+        }
+
+        var validated: AircraftSourceConfiguration? {
+            switch self {
+                case .unconfigured, .awaitingValidation:
+                    nil
+                case let .configured(configuration):
+                    configuration
+            }
+        }
+    }
+
     func apply(_ preferences: ThrowPreferences) {
         isApplyingPreferences = true
         defer { isApplyingPreferences = false }
@@ -75,6 +116,10 @@ extension ThrowSession {
     }
 
     func schedulePreferencesSave() {
+        guard sourceMutationInProgress == false else {
+            sourceMutationNeedsPreferenceSave = true
+            return
+        }
         let preferences: ThrowPreferences
         do {
             preferences = try makePreferences(setupCompleted: setupCompleted)
@@ -105,11 +150,26 @@ extension ThrowSession {
         await pendingSave?.value
         let preferences = try makePreferences(setupCompleted: setupCompleted)
         try await preferenceStore.save(preferences)
+        projectionPlaylist = preferences.playlist
         await experienceCoordinator.configure(projectionPlaylist)
         settingsFailure = nil
     }
 
     func makePreferences(setupCompleted: Bool) throws -> ThrowPreferences {
+        let sourceSelection = try AircraftSourcePreferenceSelection(
+            selected: selectedSourceConfiguration,
+            validated: validatedSourceConfiguration,
+        )
+        return try makePreferences(
+            setupCompleted: setupCompleted,
+            sourceSelection: sourceSelection,
+        )
+    }
+
+    func makePreferences(
+        setupCompleted: Bool,
+        sourceSelection: AircraftSourcePreferenceSelection,
+    ) throws -> ThrowPreferences {
         let global = try ThrowGlobalPreferences(
             locationMode: locationMode,
             confirmedLocation: confirmedLocation,
@@ -118,8 +178,8 @@ extension ThrowSession {
             quietSchedule: quietSchedule(),
         )
         let airAndSpace = try AirAndSpacePreferences(
-            selectedSource: selectedSourceConfiguration,
-            validatedSource: validatedSourceConfiguration,
+            selectedSource: sourceSelection.selected,
+            validatedSource: sourceSelection.validated,
             mapViewport: MapViewport(radius: NauticalMiles(value: mapRadius)),
             mapCenters: mapCenters,
             skyViewport: SkyViewport(
@@ -136,10 +196,10 @@ extension ThrowSession {
             includeGroundAircraft: includeGroundAircraft,
             markSizePercent: markSizePercent,
         )
-        if airAndSpace.isConfigured,
-           projectionPlaylist.entry(for: .airAndSpace) == nil
+        let playlist: ProjectionPlaylist = if airAndSpace.isConfigured,
+                                              projectionPlaylist.entry(for: .airAndSpace) == nil
         {
-            projectionPlaylist = try ProjectionPlaylist(
+            try ProjectionPlaylist(
                 entries: [
                     ProjectionPlaylistEntry(
                         experienceID: .airAndSpace,
@@ -151,11 +211,13 @@ extension ThrowSession {
                 configuredExperienceIDs: [.airAndSpace],
                 catalog: .standard,
             )
+        } else {
+            projectionPlaylist
         }
         return try ThrowPreferences(
             setupCompleted: setupCompleted,
             global: global,
-            playlist: projectionPlaylist,
+            playlist: playlist,
             airAndSpace: airAndSpace,
         )
     }

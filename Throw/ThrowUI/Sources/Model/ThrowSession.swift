@@ -259,6 +259,8 @@ public final class ThrowSession {
     @ObservationIgnored var cachedFlightradar24Usage: CachedFlightradar24Usage?
     @ObservationIgnored var lastFlightradar24UsageRequestAt: Date?
     @ObservationIgnored var flightradar24UsageGeneration: UInt64 = 0
+    @ObservationIgnored var sourceMutationInProgress = false
+    @ObservationIgnored var sourceMutationNeedsPreferenceSave = false
 
     public init(
         preferences: ThrowPreferences,
