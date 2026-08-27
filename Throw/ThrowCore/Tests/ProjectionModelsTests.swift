@@ -158,6 +158,7 @@ struct ProjectionModelsTests {
 
     @Test func experienceProjectionInputsEncodeSupportedModes() throws {
         let mapViewport = try MapViewport(radius: NauticalMiles(value: 50))
+        let transitViewport = try TransitMapViewport(radius: NauticalMiles(value: 5))
         let skyViewport = try SkyViewport(minimumElevation: ElevationAngle(degrees: 10))
         let airMap = ProjectionExperienceInput.airAndSpace(AirAndSpaceProjectionInput(
             frame: .empty,
@@ -169,7 +170,7 @@ struct ProjectionModelsTests {
         ))
         let transit = ProjectionExperienceInput.transit(TransitProjectionInput(
             frame: .empty,
-            viewport: mapViewport,
+            viewport: transitViewport,
             geography: .visible,
         ))
 
@@ -177,7 +178,7 @@ struct ProjectionModelsTests {
         #expect(airMap.requestsGeography)
         #expect(airSky.viewport == .trueSky(skyViewport))
         #expect(airSky.requestsGeography == false)
-        #expect(transit.viewport == .map(mapViewport))
+        #expect(transit.viewport == .map(transitViewport))
         #expect(transit.requestsGeography)
     }
 

@@ -84,7 +84,7 @@ struct ProjectionEngineTests {
 
     @Test func genericExperienceProjectionKeepsLineAndMarkLayersSeparate() throws {
         let observer = try ThrowCoreFixture.observer(latitude: 0, longitude: 0, altitudeFeet: 0)
-        let viewport = try MapViewport(radius: NauticalMiles(value: 50))
+        let viewport = try MapViewport(radius: NauticalMiles(value: 5))
         let geometry = try ProjectionGeometry(width: 1920, height: 1080)
         let vehicleID = try #require(TransitVehicleID(rawValue: "vehicle"))
         let vehicleDescriptor = TransitVehicleGlyphDescriptor(
@@ -99,7 +99,7 @@ struct ProjectionEngineTests {
                 descriptor: vehicleDescriptor,
             ),
             anchor: .geodetic(GeodeticAnchor(
-                coordinate: GeoCoordinate(latitude: 0.1, longitude: 0),
+                coordinate: GeoCoordinate(latitude: 0.05, longitude: 0),
                 altitude: .available(Altitude(feet: 0), quality: .geometric),
             )),
             label: nil,
@@ -707,6 +707,62 @@ struct ProjectionEngineTests {
         #expect(abs(segment.end.x - 0.95) < 0.000_001)
         #expect(abs(segment.start.y - 0.5) < 0.000_001)
         #expect(abs(segment.end.y - 0.5) < 0.000_001)
+    }
+
+    @Test func neighborhoodGeographyReplacesOnlyItsBroaderStyleAtTightRadius() throws {
+        let observer = try ThrowCoreFixture.observer(latitude: 0, longitude: 0, altitudeFeet: 0)
+        let broaderCoastline = try geographicLine(
+            kind: .coastline,
+            detailLevel: .wide,
+            coordinates: [
+                GeoCoordinate(latitude: 0, longitude: -0.02),
+                GeoCoordinate(latitude: 0, longitude: 0.02),
+            ],
+        )
+        let neighborhoodCoastline = try geographicLine(
+            kind: .coastline,
+            detailLevel: .neighborhood,
+            coordinates: [
+                GeoCoordinate(latitude: -0.02, longitude: 0),
+                GeoCoordinate(latitude: 0.02, longitude: 0),
+            ],
+        )
+        let broaderRiver = try geographicLine(
+            kind: .river,
+            detailLevel: .wide,
+            coordinates: [
+                GeoCoordinate(latitude: 0.01, longitude: -0.02),
+                GeoCoordinate(latitude: 0.01, longitude: 0.02),
+            ],
+        )
+
+        let tightSegments = try engine.geographySegments(
+            lines: [broaderCoastline, neighborhoodCoastline, broaderRiver],
+            observer: observer,
+            viewport: .map(TransitMapViewport(radius: NauticalMiles(value: 8))),
+            calibration: .defaultValue,
+            geometry: ProjectionGeometry(width: 1, height: 1),
+        )
+        let broaderSegments = try engine.geographySegments(
+            lines: [broaderCoastline, neighborhoodCoastline, broaderRiver],
+            observer: observer,
+            viewport: .map(MapViewport(radius: NauticalMiles(value: 10))),
+            calibration: .defaultValue,
+            geometry: ProjectionGeometry(width: 1, height: 1),
+        )
+
+        #expect(tightSegments.count == 2)
+        #expect(tightSegments.count(where: { $0.kind == .coastline }) == 1)
+        #expect(tightSegments.count(where: { $0.kind == .river }) == 1)
+        #expect(broaderSegments.count == 2)
+        #expect(broaderSegments.count(where: { $0.kind == .coastline }) == 1)
+        #expect(broaderSegments.count(where: { $0.kind == .river }) == 1)
+        let tightCoastline = try #require(tightSegments.first { $0.kind == .coastline })
+        let broaderCoastlineSegment = try #require(
+            broaderSegments.first { $0.kind == .coastline },
+        )
+        #expect(abs(tightCoastline.start.x - tightCoastline.end.x) < 0.000_001)
+        #expect(abs(broaderCoastlineSegment.start.y - broaderCoastlineSegment.end.y) < 0.000_001)
     }
 
     @Test func geographyPreservesConnectedSubpathsAndRestartsAfterAClippedGap() throws {

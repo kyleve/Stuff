@@ -1547,7 +1547,7 @@ public struct TransitProjectionInput: Hashable, Sendable {
 
     public init(
         frame: TransitExperienceFrame,
-        viewport: MapViewport,
+        viewport: TransitMapViewport,
         geography: GeographyLayerVisibility,
     ) {
         self.frame = frame

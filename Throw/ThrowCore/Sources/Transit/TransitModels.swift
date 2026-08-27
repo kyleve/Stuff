@@ -149,12 +149,20 @@ public struct TransitMapViewport: Hashable, Sendable {
         self.radius = radius
     }
 
-    public var projectionViewport: MapViewport {
-        do {
-            return try MapViewport(radius: radius)
-        } catch {
-            preconditionFailure("A validated Transit viewport must be a valid Map viewport")
-        }
+    public var projectionViewport: ProjectionMapViewport {
+        ProjectionMapViewport(self)
+    }
+}
+
+extension ProjectionMapViewport {
+    public init(_ viewport: TransitMapViewport) {
+        radius = viewport.radius
+    }
+}
+
+extension ProjectionViewport {
+    public static func map(_ viewport: TransitMapViewport) -> Self {
+        .map(ProjectionMapViewport(viewport))
     }
 }
 

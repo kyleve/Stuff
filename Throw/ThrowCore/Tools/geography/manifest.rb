@@ -8,7 +8,12 @@ module ThrowGeography
   # Loads and validates all source and archive policy before source I/O starts.
   class SourceManifest
     MAXIMUM_OUTPUT_BYTES = 32 * 1024 * 1024
-    DETAIL_ORDER = { "wide" => 0, "standard" => 1, "local" => 2 }.freeze
+    DETAIL_ORDER = {
+      "wide" => 0,
+      "standard" => 1,
+      "local" => 2,
+      "neighborhood" => 3,
+    }.freeze
     LINE_KINDS = %w[
       coastline lake river national-boundary disputed-boundary regional-boundary
       county-boundary primary-road

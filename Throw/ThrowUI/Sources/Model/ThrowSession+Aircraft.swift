@@ -940,7 +940,7 @@ extension ThrowSession {
                 )
                 return .transit(TransitProjectionInput(
                     frame: enabledFrame,
-                    viewport: transitPreferences.mapViewport.projectionViewport,
+                    viewport: transitPreferences.mapViewport,
                     geography: transitGeographyEnabled ? .visible : .hidden,
                 ))
         }
