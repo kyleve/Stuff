@@ -45,6 +45,13 @@ struct ThrowStylesheetTests {
         #expect(projection.label.offset > 0)
     }
 
+    @Test func transitRouteBulletsUseWhiteHelveticaBoldLabels() {
+        let transit = ThrowStylesheet.TransitStyle.standard
+
+        #expect(transit.vehicleRouteFont == .custom("Helvetica-Bold", fixedSize: 6))
+        #expect(transit.vehicleRouteLuminance == 1)
+    }
+
     @Test func everyCuratedCarrierHasABoundedMutedBrandDotColor() {
         let style = ThrowStylesheet.AircraftStyle.standard
 

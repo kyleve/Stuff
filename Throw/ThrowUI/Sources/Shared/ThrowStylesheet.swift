@@ -121,7 +121,8 @@ extension ThrowStylesheet {
 
     struct TransitStyle: Equatable {
         var vehicleDiameter: CGFloat
-        var vehicleOutlineWidth: CGFloat
+        var vehicleRouteFont: Font
+        var vehicleRouteLuminance: Double
         var stopDiameter: CGFloat
         var stopOutlineWidth: CGFloat
         var routeLineWidth: CGFloat
@@ -130,7 +131,8 @@ extension ThrowStylesheet {
 
         static let standard = TransitStyle(
             vehicleDiameter: 9,
-            vehicleOutlineWidth: 1,
+            vehicleRouteFont: .custom("Helvetica-Bold", fixedSize: 6),
+            vehicleRouteLuminance: 1,
             stopDiameter: 5,
             stopOutlineWidth: 0.75,
             routeLineWidth: 1,

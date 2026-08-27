@@ -352,14 +352,11 @@ private struct ProjectionMarksCanvas: View {
                             markContext.opacity *= style.transit.inferredOpacityMultiplier
                         }
                         markContext.fill(Path(ellipseIn: rect), with: .color(color))
-                        markContext.stroke(
-                            Path(ellipseIn: rect),
-                            with: .color(Color.white.opacity(0.35 * intensityMultiplier)),
-                            lineWidth: style.transit.vehicleOutlineWidth,
-                        )
+                        let routeLuminance = style.transit.vehicleRouteLuminance *
+                            intensityMultiplier
                         let route = Text(verbatim: descriptor.routeLabel)
-                            .font(.system(size: 6, weight: .semibold, design: .rounded))
-                            .foregroundStyle(Color.black.opacity(0.82))
+                            .font(style.transit.vehicleRouteFont)
+                            .foregroundStyle(Color(white: routeLuminance))
                         markContext.draw(
                             route,
                             at: .zero,
