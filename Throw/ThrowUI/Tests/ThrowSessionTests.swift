@@ -15,6 +15,17 @@ struct ThrowSessionTests {
         #expect(session.experienceActionTask?.isCancelled == false)
     }
 
+    @Test func startAdoptsAStoredPlaylistAfterDefaultCoordinatorState() async {
+        let session = ThrowSession.fixture()
+        await session.experienceCoordinator.configure(ThrowPreferences.defaultValue.playlist)
+
+        await session.start()
+
+        let state = await session.experienceCoordinator.currentState()
+        #expect(state.activeExperienceID == .airAndSpace)
+        #expect(session.projectionPlaylist.selectedExperienceID == .airAndSpace)
+    }
+
     @Test func independentControllerWindowsMaintainDemandUntilBothDisconnect() {
         let session = ThrowSession.fixture()
         let first = ControllerProjectionOutputs()

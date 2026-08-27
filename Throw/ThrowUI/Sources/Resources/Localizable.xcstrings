@@ -3147,6 +3147,83 @@
         }
       }
     },
+    "views.playlistApplyFailed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Throw did not apply the View settings. Try again."
+          }
+        }
+      }
+    },
+    "views.playlistDuplicate" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Each View can appear only once."
+          }
+        }
+      }
+    },
+    "views.playlistDwellInvalid" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select a duration from 30 seconds to 30 minutes, in 30-second steps."
+          }
+        }
+      }
+    },
+    "views.playlistSelectionInvalid" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select one configured View."
+          }
+        }
+      }
+    },
+    "views.playlistUnavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This View is not available. Select an available View."
+          }
+        }
+      }
+    },
+    "views.playlistUnconfigured" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This View is not configured. Configure the View before you select it."
+          }
+        }
+      }
+    },
+    "views.playlistUnknown" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Throw does not recognize this View. Select an available View."
+          }
+        }
+      }
+    },
     "views.title" : {
       "extractionState" : "manual",
       "localizations" : {

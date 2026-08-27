@@ -6,6 +6,20 @@ import Testing
 struct ProjectionExperienceCoordinatorTests {
     private let start = Date(timeIntervalSince1970: 1_800_000_000)
 
+    @Test func configuringAPlaylistAfterEmptyStateAdoptsItsSelection() async throws {
+        let coordinator = ProjectionExperienceCoordinator(
+            playlist: ThrowPreferences.defaultValue.playlist,
+            clock: ManualProjectionRotationClock(now: start),
+        )
+        let playlist = try singleExperiencePlaylist()
+
+        await coordinator.configure(playlist)
+
+        let state = await coordinator.currentState()
+        #expect(state.activeExperienceID == .airAndSpace)
+        #expect(state.nextExperienceID == nil)
+    }
+
     @Test func prewarmsAtFifteenSecondsAndSwitchesOnlyAfterFreshSuccess() async throws {
         let clock = ManualProjectionRotationClock(now: start)
         let coordinator = try ProjectionExperienceCoordinator(
@@ -319,6 +333,21 @@ struct ProjectionExperienceCoordinatorTests {
 
     private func rotatingPlaylist() throws -> ProjectionPlaylist {
         try twoExperiencePlaylist(automaticRotationEnabled: true)
+    }
+
+    private func singleExperiencePlaylist() throws -> ProjectionPlaylist {
+        try ProjectionPlaylist(
+            entries: [
+                ProjectionPlaylistEntry(
+                    experienceID: .airAndSpace,
+                    dwellDuration: .defaultValue,
+                ),
+            ],
+            automaticRotationEnabled: false,
+            selectedExperienceID: .airAndSpace,
+            configuredExperienceIDs: [.airAndSpace],
+            catalog: .standard,
+        )
     }
 
     private func twoExperiencePlaylist(

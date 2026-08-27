@@ -16,6 +16,8 @@ Read the root [`AGENTS.md`](../../AGENTS.md) and group
   selection, prewarming, and rotation in `ProjectionExperienceCoordinator`.
 - Keep one coordinator timer across all scenes. Run at most the active and
   prewarming experience runtimes.
+- Keep the coordinator playlist and active identity in one validated value.
+  A nonempty playlist must always have an active identity from that playlist.
 - Prepare a fresh target generation before switching. Exchange the complete
   frame only at black, and never mix layers from two experiences.
 - Send only `ProjectionExperienceInput` to the production projection worker.
