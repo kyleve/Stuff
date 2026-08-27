@@ -171,6 +171,76 @@ struct ProjectionExperienceCoordinatorTests {
         )
     }
 
+    @Test func successfulTargetWaitsForItsProjectedFrameBeforeTransitioning() async throws {
+        let clock = ManualProjectionRotationClock(now: start)
+        let coordinator = try ProjectionExperienceCoordinator(
+            playlist: rotatingPlaylist(),
+            clock: clock,
+        )
+        var actions = await coordinator.actions().makeAsyncIterator()
+        await coordinator.reconcile(demand: projectingDemand)
+        let active = try activation(#require(await actions.next()))
+        await reportSuccess(coordinator, id: active.id, generation: active.generation)
+        await coordinator.select(.transit)
+        let target = try activation(#require(await actions.next()))
+
+        await coordinator.reportRuntimeUpdate(
+            id: target.id,
+            generation: target.generation,
+            successfulGeneration: target.generation,
+            health: .healthy(lastUpdate: start, visibleContentCount: 0),
+        )
+
+        #expect(await (coordinator.currentState()).requestedExperienceID == .transit)
+        #expect(await coordinator.reportRuntimePrepared(
+            id: target.id,
+            generation: target.generation,
+        ))
+        #expect(
+            try #require(await actions.next()) == .beginTransition(
+                from: .airAndSpace,
+                to: .transit,
+                generation: target.generation,
+            ),
+        )
+    }
+
+    @Test func cancelledPreparationCannotCommitAfterItsClockReadResumes() async throws {
+        let clock = ManualProjectionRotationClock(now: start)
+        let coordinator = try ProjectionExperienceCoordinator(
+            playlist: rotatingPlaylist(),
+            clock: clock,
+        )
+        var actions = await coordinator.actions().makeAsyncIterator()
+        await coordinator.reconcile(demand: projectingDemand)
+        let active = try activation(#require(await actions.next()))
+        await reportSuccess(coordinator, id: active.id, generation: active.generation)
+        await coordinator.select(.transit)
+        let target = try activation(#require(await actions.next()))
+        await coordinator.reportRuntimeUpdate(
+            id: target.id,
+            generation: target.generation,
+            successfulGeneration: target.generation,
+            health: .healthy(lastUpdate: start, visibleContentCount: 0),
+        )
+        await clock.suspendNextNowCall()
+
+        let preparationTask = Task {
+            await coordinator.reportRuntimePrepared(
+                id: target.id,
+                generation: target.generation,
+            )
+        }
+        await clock.waitForNowCallToSuspend()
+        await coordinator.reconcile(demand: disconnectedDemand)
+        #expect(try #require(await actions.next()) == .deactivate(id: .transit))
+        #expect(try #require(await actions.next()) == .deactivate(id: .airAndSpace))
+        await clock.resumeSuspendedNowCall()
+
+        #expect(await preparationTask.value == false)
+        #expect(await (coordinator.currentState()).activeExperienceID == .airAndSpace)
+    }
+
     @Test func readinessTimeoutKeepsCurrentAndStartsAFreshDwell() async throws {
         let clock = ManualProjectionRotationClock(now: start)
         let coordinator = try ProjectionExperienceCoordinator(
@@ -546,6 +616,7 @@ struct ProjectionExperienceCoordinatorTests {
             successfulGeneration: generation,
             health: .healthy(lastUpdate: start, visibleContentCount: 0),
         )
+        _ = await coordinator.reportRuntimePrepared(id: id, generation: generation)
     }
 
     private func activation(

@@ -103,6 +103,7 @@ extension ThrowSession {
     ) async {
         switch action {
             case let .activate(id, generation, _):
+                preparedOutputsByExperience.removeValue(forKey: id)
                 if id == .airAndSpace {
                     airAndSpaceActivationGeneration = generation
                     if isReconcilingDemand == false {
@@ -112,6 +113,7 @@ extension ThrowSession {
                     assertionFailure("An unavailable experience must not be activated")
                 }
             case let .deactivate(id):
+                preparedOutputsByExperience.removeValue(forKey: id)
                 await projectionWorker.experienceBecameInactive(id, at: dateProvider.now())
                 if id == .airAndSpace {
                     await airAndSpaceRuntime.deactivate(
@@ -222,8 +224,16 @@ extension ThrowSession {
             return
         }
 
-        guard let prepared = preparedOutputsByExperience[to] else {
+        guard let prepared = preparedOutputsByExperience[to],
+              prepared.experienceID == to,
+              prepared.activationGeneration == generation
+        else {
             assertionFailure("A projection experience became visible before it was prepared")
+            await experienceCoordinator.rejectPreparedTransition(
+                id: to,
+                generation: generation,
+                failure: .decoding,
+            )
             projectionSurfaceOpacity = 1
             return
         }
@@ -235,16 +245,17 @@ extension ThrowSession {
         }
         // The active identity and complete frame exchange only while the surface is black.
         activeExperienceID = to
-        projectionFrame = prepared.frame
-        projectionMarkEffects = prepared.effects
-        observerMapPoint = prepared.observerPoint
-        geographyLayerHealth = prepared.geographyHealth
-        if let semanticFrame = semanticFramesByExperience[to] {
-            currentExperienceFrame = semanticFrame
-            currentLayerFrame = semanticFrame.layers.first { $0.layerID == .flights }
-        }
+        projectionFrame = prepared.output.frame
+        projectionMarkEffects = prepared.output.effects
+        observerMapPoint = prepared.output.observerPoint
+        geographyLayerHealth = prepared.output.geographyHealth
+        let semanticFrame = semanticFramesByExperience[to] ?? prepared.semanticFrame
+        currentExperienceFrame = semanticFrame
+        currentLayerFrame = semanticFrame.layers.first { $0.layerID == .flights }
         feedHealth = experienceHealth[to] ?? .idle
-        preparedOutputsByExperience.removeValue(forKey: to)
+        if preparedOutputsByExperience[to]?.activationGeneration == generation {
+            preparedOutputsByExperience.removeValue(forKey: to)
+        }
         withAnimation(.linear(duration: fadeDuration)) {
             projectionSurfaceOpacity = 1
         }

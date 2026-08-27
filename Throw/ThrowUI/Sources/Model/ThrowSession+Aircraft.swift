@@ -325,17 +325,52 @@ extension ThrowSession {
     }
 
     func applyAirAndSpaceUpdate(_ update: AirAndSpaceRuntimeUpdate) async {
+        guard update.activationGeneration == airAndSpaceActivationGeneration else { return }
         semanticFramesByExperience[.airAndSpace] = update.experienceFrame
         activePollingSignature = update.activePollingSignature
-        let preparesHiddenExperience = activeExperienceID != .airAndSpace &&
-            (requestedExperienceID == .airAndSpace || prewarmingExperienceID == .airAndSpace) &&
-            update.successfulActivationGeneration == update.activationGeneration
+        await experienceCoordinator.reportRuntimeUpdate(
+            id: .airAndSpace,
+            generation: update.activationGeneration,
+            successfulGeneration: update.successfulActivationGeneration,
+            health: update.health,
+        )
+        let activationGeneration = update.activationGeneration
+        let semanticFrame = update.experienceFrame
+        let awaitsPreparation = await experienceCoordinator.isAwaitingPreparation(
+            id: .airAndSpace,
+            generation: activationGeneration,
+        )
+        let preparesHiddenExperience = update.successfulActivationGeneration ==
+            activationGeneration && awaitsPreparation
         if preparesHiddenExperience {
             do {
-                preparedOutputsByExperience[.airAndSpace] = try await projectedOutput(
-                    for: update.experienceFrame,
+                let output = try await projectedOutput(
+                    for: semanticFrame,
                     generatedAt: dateProvider.now(),
                 )
+                guard airAndSpaceActivationGeneration == activationGeneration,
+                      semanticFramesByExperience[.airAndSpace] == semanticFrame,
+                      await experienceCoordinator.isAwaitingPreparation(
+                          id: .airAndSpace,
+                          generation: activationGeneration,
+                      )
+                else { return }
+                preparedOutputsByExperience[.airAndSpace] = PreparedProjectionExperience(
+                    experienceID: .airAndSpace,
+                    activationGeneration: activationGeneration,
+                    semanticFrame: semanticFrame,
+                    output: output,
+                )
+                let accepted = await experienceCoordinator.reportRuntimePrepared(
+                    id: .airAndSpace,
+                    generation: activationGeneration,
+                )
+                if accepted == false,
+                   preparedOutputsByExperience[.airAndSpace]?.activationGeneration ==
+                   activationGeneration
+                {
+                    preparedOutputsByExperience.removeValue(forKey: .airAndSpace)
+                }
             } catch is CancellationError {
                 return
             } catch {
@@ -348,12 +383,6 @@ extension ThrowSession {
                 return
             }
         }
-        await experienceCoordinator.reportRuntimeUpdate(
-            id: .airAndSpace,
-            generation: update.activationGeneration,
-            successfulGeneration: update.successfulActivationGeneration,
-            health: update.health,
-        )
         guard activeExperienceID == .airAndSpace else { return }
         let previousLayer = currentLayerFrame
         currentSnapshot = update.snapshot
