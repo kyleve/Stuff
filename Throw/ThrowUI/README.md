@@ -31,6 +31,11 @@ validated runtime state keeps the active identity inside the current playlist,
 including when startup replaces the empty default with saved settings. Every
 scene observes the same coordinator and active experience.
 
+Air & Space lifecycle operations use an independent generation. A superseded
+activation or deactivation cannot resume after a suspension and change newer
+polling, motion, or health state. Playlist configurations also carry monotonic
+session revisions. The coordinator rejects an older value that arrives late.
+
 Connection tests and provider usage reports go through the injected
 `AircraftSourceOperationServing` boundary. ThrowUI does not construct or
 downcast concrete provider sources.

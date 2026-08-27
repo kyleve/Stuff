@@ -45,6 +45,9 @@ Configuration carries a typed credential reference, never the credential itself.
 An FR24 bounds query that crosses the antimeridian uses two valid hemisphere
 requests. Both must succeed before Throw publishes the merged snapshot.
 Duplicate aircraft keep the freshest observation and its matching route.
+FR24 bounds use a spherical cap that matches Throw's local distance model.
+A cap that reaches either pole requests all longitudes. Other bounds round
+outward so provider coordinates on the local filter boundary are not omitted.
 
 ## Composition
 
