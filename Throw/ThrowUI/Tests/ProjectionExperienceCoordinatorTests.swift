@@ -47,6 +47,61 @@ struct ProjectionExperienceCoordinatorTests {
         #expect(await coordinator.currentPlaylist() == newerPlaylist)
     }
 
+    @Test func queuesEveryLifecycleCommandUntilTheRuntimeConsumesIt() async throws {
+        let coordinator = try ProjectionExperienceCoordinator(
+            playlist: singleExperiencePlaylist(dwellDuration: .defaultValue),
+            clock: ManualProjectionRotationClock(now: start),
+        )
+
+        for _ in 0 ..< 40 {
+            await coordinator.reconcile(demand: projectingDemand)
+            await coordinator.reconcile(demand: disconnectedDemand)
+        }
+
+        #expect(await coordinator.runningExperienceIDsForTesting().isEmpty)
+    }
+
+    @Test func cancelledDwellStartCannotPublishAfterItsClockReadResumes() async throws {
+        let clock = ManualProjectionRotationClock(now: start)
+        let coordinator = try ProjectionExperienceCoordinator(
+            playlist: rotatingPlaylist(),
+            clock: clock,
+        )
+        var actions = await coordinator.actions().makeAsyncIterator()
+        await coordinator.reconcile(demand: projectingDemand)
+        let active = try activation(#require(await actions.next()))
+        await clock.suspendNextNowCall()
+
+        let updateTask = Task {
+            await coordinator.reportRuntimeUpdate(
+                id: active.id,
+                generation: active.generation,
+                successfulGeneration: active.generation,
+                health: .healthy(lastUpdate: start, visibleContentCount: 0),
+            )
+        }
+        await clock.waitForNowCallToSuspend()
+        await coordinator.reconcile(demand: disconnectedDemand)
+        #expect(try #require(await actions.next()) == .deactivate(id: .airAndSpace))
+        await clock.resumeSuspendedNowCall()
+        await updateTask.value
+
+        let state = await coordinator.currentState()
+        #expect(state.dwellEndsAt == nil)
+        #expect(await coordinator.runningExperienceIDsForTesting().isEmpty)
+    }
+
+    @Test func pauseIsIgnoredWithoutProjectionDemand() async throws {
+        let coordinator = try ProjectionExperienceCoordinator(
+            playlist: rotatingPlaylist(),
+            clock: ManualProjectionRotationClock(now: start),
+        )
+
+        await coordinator.pause()
+
+        #expect(await (coordinator.currentState()).isPaused == false)
+    }
+
     @Test func prewarmsAtFifteenSecondsAndSwitchesOnlyAfterFreshSuccess() async throws {
         let clock = ManualProjectionRotationClock(now: start)
         let coordinator = try ProjectionExperienceCoordinator(
@@ -361,6 +416,15 @@ struct ProjectionExperienceCoordinatorTests {
         )
     }
 
+    private var disconnectedDemand: ProjectionExperienceDemand {
+        ProjectionExperienceDemand(
+            hasOutput: false,
+            isForeground: true,
+            isQuiet: false,
+            isCalibrating: false,
+        )
+    }
+
     private func rotatingPlaylist() throws -> ProjectionPlaylist {
         try twoExperiencePlaylist(automaticRotationEnabled: true)
     }
@@ -514,13 +578,47 @@ private actor ManualProjectionRotationClock: ProjectionRotationClock {
     private var current: Date
     private var sleepers: [UUID: Sleeper] = [:]
     private var countWaiters: [Int: [CheckedContinuation<Void, Never>]] = [:]
+    private var suspendsNextNowCall = false
+    private var suspendedNowCall: CheckedContinuation<Date, Never>?
+    private var nowSuspensionWaiters: [CheckedContinuation<Void, Never>] = []
 
     init(now: Date) {
         current = now
     }
 
-    func now() -> Date {
-        current
+    func now() async -> Date {
+        guard suspendsNextNowCall else { return current }
+        suspendsNextNowCall = false
+        return await withCheckedContinuation { continuation in
+            precondition(suspendedNowCall == nil, "Only one clock read can suspend at a time")
+            suspendedNowCall = continuation
+            let waiters = nowSuspensionWaiters
+            nowSuspensionWaiters.removeAll()
+            for waiter in waiters {
+                waiter.resume()
+            }
+        }
+    }
+
+    func suspendNextNowCall() {
+        precondition(suspendedNowCall == nil, "A clock read is already suspended")
+        suspendsNextNowCall = true
+    }
+
+    func waitForNowCallToSuspend() async {
+        guard suspendedNowCall == nil else { return }
+        await withCheckedContinuation { continuation in
+            nowSuspensionWaiters.append(continuation)
+        }
+    }
+
+    func resumeSuspendedNowCall() {
+        guard let suspendedNowCall else {
+            Issue.record("Expected a suspended clock read")
+            return
+        }
+        self.suspendedNowCall = nil
+        suspendedNowCall.resume(returning: current)
     }
 
     func sleep(for duration: Duration) async throws {
