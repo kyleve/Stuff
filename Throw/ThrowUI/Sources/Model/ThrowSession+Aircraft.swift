@@ -72,6 +72,9 @@ extension ThrowSession {
                 report: report,
                 pollingInterval: PollingInterval(seconds: intervalSeconds),
                 quietSchedule: schedule,
+                requestMultiplicity: Flightradar24RequestMultiplicity.livePosition(
+                    for: aircraftQuery(),
+                ),
             )
         } catch {
             assertionFailure("Validated settings must produce a credit estimate: \(error)")

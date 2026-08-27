@@ -36,8 +36,12 @@ completed route result for each aircraft. The result is unavailable when the
 same record has no usable route. FR24 zero-altitude positions normalize as
 ground because its position schema has no separate airborne-state field. The
 FR24 adapter also reads the account's 24-hour usage report. Its estimator uses
-the reported credits per request, the selected cadence, and quiet hours.
+the reported credits per request, the selected cadence, quiet hours, and the
+current region's request multiplicity.
 Configuration carries a typed credential reference, never the credential itself.
+An FR24 bounds query that crosses the antimeridian uses two valid hemisphere
+requests. Both must succeed before Throw publishes the merged snapshot.
+Duplicate aircraft keep the freshest observation and its matching route.
 
 ## Composition
 

@@ -77,6 +77,16 @@ enum ThrowCoreFixture {
         )
     }
 
+    static func datelineMapQuery(longitude: Double) throws -> AircraftQuery {
+        let observer = try observer(latitude: 0, longitude: longitude)
+        return try AircraftQuery(
+            observer: observer,
+            center: observer.coordinate,
+            viewport: .map(MapViewport(radius: NauticalMiles(value: 50))),
+            includeGroundAircraft: false,
+        )
+    }
+
     static func observation(
         latitude: Double = 37.01,
         longitude: Double = -122,

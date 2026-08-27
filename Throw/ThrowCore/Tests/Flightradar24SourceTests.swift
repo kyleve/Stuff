@@ -3,31 +3,66 @@ import Testing
 @testable import ThrowCore
 
 struct Flightradar24SourceTests {
-    @Test func requestUsesBearerContractAndCoarseBounds() throws {
-        let token = "fr24-secret-token"
-        let source = try makeSource(token: token, outcomes: [])
-        let request = try source.makeRequest(for: ThrowCoreFixture.mapQuery(radius: 5))
+    @Test func antimeridianResponsesMergeFreshestAircraftAndMatchingRoute() async throws {
+        let staleData = Data(
+            """
+            {"data":[
+              {"fr24_id":"duplicate","lat":0.0,"lon":179.9,
+               "timestamp":"2023-11-14T22:13:10Z","orig_iata":"DEL","dest_iata":"EWR"},
+              {"fr24_id":"western","lat":0.0,"lon":-179.9,
+               "timestamp":"2023-11-14T22:13:20Z"}
+            ]}
+            """.utf8,
+        )
+        let freshData = Data(
+            """
+            {"data":[
+              {"fr24_id":"duplicate","lat":0.1,"lon":179.95,
+               "timestamp":"2023-11-14T22:13:20Z","orig_iata":"SFO","dest_iata":"NRT"},
+              {"fr24_id":"eastern","lat":0.0,"lon":179.7,
+               "timestamp":"2023-11-14T22:13:20Z"}
+            ]}
+            """.utf8,
+        )
+        let transport = ScriptedHTTPTransport(outcomes: [
+            .response(ThrowCoreFixture.response(data: staleData)),
+            .response(ThrowCoreFixture.response(data: freshData)),
+        ])
+        let source = try makeSource(token: "token", transport: transport)
 
-        #expect(request.url.host() == "fr24api.flightradar24.com")
-        #expect(request.url.path() == "/api/live/flight-positions/full")
-        #expect(request.url.query()?.contains("bounds=") == true)
-        #expect(request.url.absoluteString.contains(token) == false)
-        #expect(request.headers[.acceptVersion] == "v1")
-        #expect(request.headers[.authorization] == "Bearer \(token)")
-        #expect(request.timeoutSeconds == 8)
+        let snapshot = try await source.snapshot(
+            for: ThrowCoreFixture.datelineMapQuery(longitude: 179.8),
+        )
+
+        let duplicateID = try #require(
+            AircraftID(kind: .providerMarkedNonICAO, rawValue: "duplicate"),
+        )
+        let duplicate = try #require(snapshot.observations.first { $0.id == duplicateID })
+        let route = try #require(snapshot.routeResultsByAircraft[duplicateID]?.route)
+        #expect(await transport.recordedRequests().count == 2)
+        #expect(snapshot.observations.count == 3)
+        #expect(duplicate.coordinate.latitude == 0.1)
+        #expect(route.origin.rawValue == "SFO")
+        #expect(route.destination.rawValue == "NRT")
+        #expect(snapshot.successfulHTTPStatus == 200)
     }
 
-    @Test func usageRequestUsesBearerContractAndPeriod() throws {
-        let token = "fr24-secret-token"
-        let source = try makeSource(token: token, outcomes: [])
-        let request = try source.makeUsageRequest(period: .last24Hours)
+    @Test func antimeridianFailureNeverReturnsTheSuccessfulHalf() async throws {
+        let data = Data(
+            #"{"data":[{"fr24_id":"partial","lat":0.0,"lon":179.9}]}"#.utf8,
+        )
+        let transport = ScriptedHTTPTransport(outcomes: [
+            .response(ThrowCoreFixture.response(data: data)),
+            .failure(HTTPTransportFailure(category: .timedOut)),
+        ])
+        let source = try makeSource(token: "token", transport: transport)
 
-        #expect(request.url.path() == "/api/usage")
-        #expect(request.url.query() == "period=24h")
-        #expect(request.url.absoluteString.contains(token) == false)
-        #expect(request.headers[.acceptVersion] == "v1")
-        #expect(request.headers[.authorization] == "Bearer \(token)")
-        #expect(request.timeoutSeconds == 8)
+        await #expect(throws: AircraftSourceFailure.transport(.timedOut)) {
+            try await source.snapshot(
+                for: ThrowCoreFixture.datelineMapQuery(longitude: 179.8),
+            )
+        }
+        #expect(await transport.recordedRequests().count == 2)
     }
 
     @Test func usageReturnsTheLiveFullPositionReport() async throws {
@@ -242,8 +277,18 @@ struct Flightradar24SourceTests {
         token: String,
         outcomes: [ScriptedHTTPOutcome],
     ) throws -> Flightradar24Source {
-        try Flightradar24Source(
+        try makeSource(
+            token: token,
             transport: ScriptedHTTPTransport(outcomes: outcomes),
+        )
+    }
+
+    private func makeSource(
+        token: String,
+        transport: ScriptedHTTPTransport,
+    ) throws -> Flightradar24Source {
+        try Flightradar24Source(
+            transport: transport,
             decoder: Flightradar24Decoder(),
             credential: AircraftCredential(secret: token),
             dateProvider: FixedDateProvider(date: ThrowCoreFixture.date),

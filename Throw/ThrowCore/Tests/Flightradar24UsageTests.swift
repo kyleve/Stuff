@@ -79,12 +79,34 @@ struct Flightradar24UsageTests {
                 report: report,
                 pollingInterval: PollingInterval(seconds: 300),
                 quietSchedule: schedule,
+                requestMultiplicity: .single,
             ),
         )
 
         #expect(estimate.averageCreditsPerRequest == 200)
         #expect(estimate.creditsPerActiveHour == 2400)
         #expect(estimate.thirtyDayUpperBound == 1_152_000)
+    }
+
+    @Test func estimatorCountsBothAntimeridianRequestsPerPoll() throws {
+        let report = Flightradar24UsageReport(
+            period: .last24Hours,
+            requestCount: 12,
+            credits: 2400,
+        )
+
+        let estimate = try #require(
+            Flightradar24CreditEstimator.estimate(
+                report: report,
+                pollingInterval: PollingInterval(seconds: 300),
+                quietSchedule: .disabled,
+                requestMultiplicity: .antimeridian,
+            ),
+        )
+
+        #expect(estimate.averageCreditsPerRequest == 200)
+        #expect(estimate.creditsPerActiveHour == 4800)
+        #expect(estimate.thirtyDayUpperBound == 3_456_000)
     }
 
     @Test func estimatorNeedsAtLeastOneRecentRequest() throws {
@@ -100,6 +122,7 @@ struct Flightradar24UsageTests {
                 report: report,
                 pollingInterval: pollingInterval,
                 quietSchedule: .disabled,
+                requestMultiplicity: .single,
             ) == nil,
         )
     }
