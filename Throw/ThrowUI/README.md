@@ -26,7 +26,9 @@ scene ownership and the idle timer.
 `ThrowSession` is a `@MainActor` observable mirror over injected stores and
 focused actors. `AirAndSpaceRuntime` owns aircraft polling, semantic Flights
 frames, motion, and route enrichment. `ProjectionExperienceCoordinator` owns
-selection, one rotation clock, prewarming, and lifecycle reconciliation. Every
+selection, one rotation clock, prewarming, and lifecycle reconciliation. Its
+validated runtime state keeps the active identity inside the current playlist,
+including when startup replaces the empty default with saved settings. Every
 scene observes the same coordinator and active experience.
 
 Connection tests and provider usage reports go through the injected

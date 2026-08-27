@@ -62,7 +62,7 @@ extension ThrowSession {
                 automaticRotationEnabled: projectionPlaylist.automaticRotationEnabled,
             )
         } catch {
-            settingsFailure = error.localizedDescription
+            reportPlaylistFailure(error)
         }
     }
 
@@ -96,7 +96,7 @@ extension ThrowSession {
             )
             schedulePreferencesSave()
         } catch {
-            settingsFailure = error.localizedDescription
+            reportPlaylistFailure(error)
         }
     }
 
@@ -164,8 +164,17 @@ extension ThrowSession {
                 await experienceCoordinator.configure(playlist)
             }
         } catch {
-            settingsFailure = error.localizedDescription
+            reportPlaylistFailure(error)
         }
+    }
+
+    private func reportPlaylistFailure(_ error: any Error) {
+        guard let playlistError = error as? ProjectionPlaylistError else {
+            assertionFailure("Playlist mutation failed with an unexpected error: \(error)")
+            settingsFailure = String(localized: .viewsPlaylistApplyFailed)
+            return
+        }
+        settingsFailure = playlistError.localizedSettingsDescription
     }
 
     private func transitionExperience(

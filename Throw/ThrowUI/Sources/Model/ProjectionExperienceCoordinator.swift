@@ -62,6 +62,35 @@ struct ProjectionExperienceCoordinatorState: Equatable {
 
 /// Owns the single projection playlist timer and transactional View switching state.
 actor ProjectionExperienceCoordinator {
+    /// Keeps the active identity valid for the current playlist.
+    private struct PlaylistRuntimeState {
+        private(set) var playlist: ProjectionPlaylist
+        private(set) var activeExperienceID: ProjectionExperienceID?
+
+        init(playlist: ProjectionPlaylist) {
+            self.playlist = playlist
+            activeExperienceID = playlist.selectedExperienceID
+        }
+
+        mutating func configure(_ playlist: ProjectionPlaylist) {
+            let previousActiveExperienceID = activeExperienceID
+            self.playlist = playlist
+            if let previousActiveExperienceID,
+               playlist.entry(for: previousActiveExperienceID) != nil
+            {
+                activeExperienceID = previousActiveExperienceID
+            } else {
+                activeExperienceID = playlist.selectedExperienceID
+            }
+        }
+
+        mutating func select(_ id: ProjectionExperienceID) -> Bool {
+            guard playlist.entry(for: id) != nil else { return false }
+            activeExperienceID = id
+            return true
+        }
+    }
+
     private struct RuntimeState {
         var generation: UInt64 = 0
         var successfulGeneration: UInt64?
@@ -143,14 +172,13 @@ actor ProjectionExperienceCoordinator {
     private let actionStream: AsyncStream<ProjectionExperienceCoordinatorAction>
     private let actionContinuation: AsyncStream<ProjectionExperienceCoordinatorAction>.Continuation
 
-    private var playlist: ProjectionPlaylist
+    private var playlistState: PlaylistRuntimeState
     private var demand = ProjectionExperienceDemand(
         hasOutput: false,
         isForeground: true,
         isQuiet: false,
         isCalibrating: false,
     )
-    private var activeExperienceID: ProjectionExperienceID?
     private var requestState: RequestState?
     private var isPaused = false
     private var dwellEndsAt: Date?
@@ -165,9 +193,8 @@ actor ProjectionExperienceCoordinator {
         playlist: ProjectionPlaylist,
         clock: any ProjectionRotationClock,
     ) {
-        self.playlist = playlist
+        playlistState = PlaylistRuntimeState(playlist: playlist)
         self.clock = clock
-        activeExperienceID = playlist.selectedExperienceID ?? playlist.entries.first?.experienceID
         let states = AsyncStream.makeStream(
             of: ProjectionExperienceCoordinatorState.self,
             bufferingPolicy: .bufferingNewest(1),
@@ -213,7 +240,7 @@ actor ProjectionExperienceCoordinator {
     #endif
 
     func configure(_ playlist: ProjectionPlaylist) async {
-        self.playlist = playlist
+        playlistState.configure(playlist)
         manualSelectionFailure = nil
         cancelRotation()
         cancelRequestedRuntime()
@@ -222,10 +249,6 @@ actor ProjectionExperienceCoordinator {
         for id in removedIDs {
             deactivateRuntime(id)
             runtimeStates.removeValue(forKey: id)
-        }
-        if let activeExperienceID, configuredIDs.contains(activeExperienceID) == false {
-            self.activeExperienceID = playlist.selectedExperienceID ?? playlist.entries.first?
-                .experienceID
         }
         publishState()
         if demand.permitsProjection {
@@ -304,7 +327,10 @@ actor ProjectionExperienceCoordinator {
             return
         }
         guard demand.permitsProjection else {
-            activeExperienceID = id
+            guard playlistState.select(id) else {
+                assertionFailure("The selected experience must be in the playlist")
+                return
+            }
             manualSelectionFailure = nil
             publishState()
             return
@@ -354,7 +380,10 @@ actor ProjectionExperienceCoordinator {
               runtimeStates[id]?.successfulGeneration == generation
         else { return false }
         let oldID = activeExperienceID
-        activeExperienceID = id
+        guard playlistState.select(id) else {
+            assertionFailure("The transition target must be in the playlist")
+            return false
+        }
         requestState = .committed(request)
         manualSelectionFailure = nil
         if let oldID, oldID != id {
@@ -634,5 +663,13 @@ actor ProjectionExperienceCoordinator {
             healthByExperience: health,
             manualSelectionFailure: manualSelectionFailure,
         )
+    }
+
+    private var playlist: ProjectionPlaylist {
+        playlistState.playlist
+    }
+
+    private var activeExperienceID: ProjectionExperienceID? {
+        playlistState.activeExperienceID
     }
 }
