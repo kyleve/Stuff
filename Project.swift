@@ -640,6 +640,7 @@ let project = Project(
             bundleIdSuffix: "throwcore",
             productDependency: "ThrowCore",
             sources: ["Throw/ThrowCore/Tests/**"],
+            extraPackageProducts: ["SwiftProtobuf"],
         ),
         unitTests(
             name: "ThrowUITests",

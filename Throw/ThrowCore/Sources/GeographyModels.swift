@@ -17,9 +17,17 @@ public protocol ProjectionLineStyle: Hashable, Sendable {}
 extension GeographyLineKind: ProjectionLineStyle {}
 
 /// The closed style family for the Transit network layer.
-public enum TransitNetworkLineStyle: Hashable, Sendable, ProjectionLineStyle {
-    case route
+public struct TransitNetworkLineStyle: Hashable, Sendable, ProjectionLineStyle {
+    public let routeID: TransitRouteID
+    public let color: TransitColor
+
+    public init(routeID: TransitRouteID, color: TransitColor) {
+        self.routeID = routeID
+        self.color = color
+    }
 }
+
+public typealias TransitRouteLineStyle = TransitNetworkLineStyle
 
 /// Controls the largest Map radius at which a geographic line can appear.
 public enum GeographyDetailLevel: String, CaseIterable, Codable, Hashable, Sendable {

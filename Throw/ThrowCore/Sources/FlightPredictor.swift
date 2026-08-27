@@ -71,8 +71,13 @@ public enum FlightPredictor {
             return mark
         }
 
-        let coordinate: GeoCoordinate = if let track = mark.velocity?.groundTrack,
-                                           let speed = mark.velocity?.groundSpeedKnots
+        let coordinate: GeoCoordinate = if let transitMotion = mark.transitMotion {
+            try transitCoordinate(
+                for: transitMotion,
+                at: mark.freshness.positionObservedAt.addingTimeInterval(observationAge),
+            )
+        } else if let track = mark.velocity?.groundTrack,
+                  let speed = mark.velocity?.groundSpeedKnots
         {
             try predictedCoordinate(
                 from: anchor.coordinate,
@@ -111,7 +116,43 @@ public enum FlightPredictor {
             label: mark.label,
             prominence: mark.prominence,
             velocity: mark.velocity,
+            transitMotion: mark.transitMotion,
             freshness: mark.freshness,
+        )
+    }
+
+    private static func transitCoordinate(
+        for motion: TransitProjectionMotion,
+        at date: Date,
+    ) throws -> GeoCoordinate {
+        let duration = motion.endsAt.timeIntervalSince(motion.startsAt)
+        let elapsed = date.timeIntervalSince(motion.startsAt)
+        let progress = min(max(elapsed / duration, 0), 1)
+        guard let first = motion.points.first, let last = motion.points.last else {
+            throw TransitDataError.invalidSchedule
+        }
+        let totalDistance = last.distance - first.distance
+        guard totalDistance > 0 else { return last.coordinate }
+        let target = first.distance + totalDistance * progress
+        guard let upperIndex = motion.points.firstIndex(where: { $0.distance >= target }) else {
+            return last.coordinate
+        }
+        guard upperIndex > 0 else { return first.coordinate }
+        let lower = motion.points[upperIndex - 1]
+        let upper = motion.points[upperIndex]
+        let span = upper.distance - lower.distance
+        guard span > 0 else { return upper.coordinate }
+        let segmentProgress = (target - lower.distance) / span
+        var longitudeDelta = upper.coordinate.longitude - lower.coordinate.longitude
+        if longitudeDelta > 180 { longitudeDelta -= 360 }
+        if longitudeDelta < -180 { longitudeDelta += 360 }
+        var longitude = lower.coordinate.longitude + longitudeDelta * segmentProgress
+        if longitude > 180 { longitude -= 360 }
+        if longitude < -180 { longitude += 360 }
+        return try GeoCoordinate(
+            latitude: lower.coordinate.latitude +
+                (upper.coordinate.latitude - lower.coordinate.latitude) * segmentProgress,
+            longitude: longitude,
         )
     }
 
@@ -127,16 +168,34 @@ public enum FlightPredictor {
     ) -> Double? {
         switch availability {
             case .current:
-                return 1
+                1
             case let .retrying(since):
-                guard let age = observationAge(positionObservedAt: since, at: date) else {
-                    return nil
-                }
-                let expiration = failureGracePeriod + failureFadeDuration
-                guard age < expiration else { return nil }
-                guard age > failureGracePeriod else { return 1 }
-                return 1 - (age - failureGracePeriod) / failureFadeDuration
+                failureOpacity(
+                    since: since,
+                    at: date,
+                    gracePeriod: failureGracePeriod,
+                    fadeDuration: failureFadeDuration,
+                )
+            case let .transitRetrying(since):
+                failureOpacity(
+                    since: since,
+                    at: date,
+                    gracePeriod: 90,
+                    fadeDuration: 30,
+                )
         }
+    }
+
+    private static func failureOpacity(
+        since: Date,
+        at date: Date,
+        gracePeriod: TimeInterval,
+        fadeDuration: TimeInterval,
+    ) -> Double? {
+        guard let age = observationAge(positionObservedAt: since, at: date) else { return nil }
+        guard age < gracePeriod + fadeDuration else { return nil }
+        guard age > gracePeriod else { return 1 }
+        return 1 - (age - gracePeriod) / fadeDuration
     }
 
     private static func predictedAltitude(

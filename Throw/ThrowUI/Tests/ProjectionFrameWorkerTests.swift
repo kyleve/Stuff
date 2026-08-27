@@ -650,7 +650,7 @@ struct ProjectionFrameWorkerTests {
             eastLongitude: -121.9,
         )
         let line = try ProjectionPolyline(
-            styleID: .transitRoute,
+            styleID: .transitRoute(transitRouteStyle()),
             detailLevel: .wide,
             bounds: bounds,
             coordinates: [
@@ -712,6 +712,16 @@ struct ProjectionFrameWorkerTests {
         #expect(firstLines.segments.first?.style == .route)
         #expect(cachedLines.id == firstLines.id)
         #expect(revisedLines.id != firstLines.id)
+    }
+
+    private func transitRouteStyle() throws -> TransitRouteLineStyle {
+        try TransitRouteLineStyle(
+            routeID: #require(TransitRouteID(
+                agencyID: .mtaNewYorkCityTransit,
+                rawValue: "A",
+            )),
+            color: #require(TransitColor(hex: "0039A6")),
+        )
     }
 
     @Test func overlappingFramesShareTheFirstGeographyLoad() async throws {

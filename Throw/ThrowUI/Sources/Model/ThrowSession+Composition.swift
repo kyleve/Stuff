@@ -65,6 +65,14 @@ extension ThrowSession {
                 source: ADSBDBFlightRouteSource(transport: cloudTransport),
             ),
             routeLogger: PeriscopeFlightRouteLogger(log: ThrowLog.flightRoutes),
+            transitObservationSource: MTARealtimeSource(transport: cloudTransport),
+            transitScheduleSource: MTAScheduleSource(transport: cloudTransport),
+            transitScheduleStore: FileTransitScheduleStore(
+                fileURL: URL.cachesDirectory
+                    .appending(path: "Throw", directoryHint: .isDirectory)
+                    .appending(path: "mta-supplemented-schedule.plist"),
+            ),
+            transitPollingClock: SystemTransitPollingClock(),
             rotationClock: SystemProjectionRotationClock(),
             softwareCreditsState: softwareCreditsLoadResolution.state,
             durableLoggingStarter: durableLogging,
@@ -639,6 +647,30 @@ extension ThrowSession {
             return session
         }
 
+        static func transitSettingsSnapshotFixture() -> ThrowSession {
+            let session = experienceDashboardSnapshotFixture(.rotating)
+            session.isApplyingPreferences = true
+            session.transitConfiguration = .configured(cityID: .newYorkCity)
+            session.transitLabelMode = .nextStop
+            session.transitNetworkIntensityPercent = 70
+            session.isApplyingPreferences = false
+            return session
+        }
+
+        static func transitProjectionSnapshotFixture() -> ThrowSession {
+            let session = transitSettingsSnapshotFixture()
+            let now = session.dateProvider.now()
+            session.activeExperienceID = .transit
+            session.nextExperienceID = .airAndSpace
+            session.observerMapPoint = nil
+            session.projectionFrame = fixtureTransitProjectionFrame(at: now)
+            session.experienceHealth[.transit] = .healthy(
+                lastUpdate: now,
+                visibleContentCount: 4,
+            )
+            return session
+        }
+
         private static func makeFixture(
             setupCompleted: Bool,
             quiet: Bool,
@@ -774,6 +806,10 @@ extension ThrowSession {
                         source: EmptyFlightRouteSource(),
                     ),
                     routeLogger: DiscardingFlightRouteLogger(),
+                    transitObservationSource: MTARealtimeSource(transport: transport),
+                    transitScheduleSource: MTAScheduleSource(transport: transport),
+                    transitScheduleStore: InMemoryTransitScheduleStore(schedule: nil),
+                    transitPollingClock: SystemTransitPollingClock(),
                     rotationClock: rotationClockOverride ?? SystemProjectionRotationClock(),
                     softwareCreditsState: softwareCreditsStateOverride ?? .loaded([]),
                     durableLoggingStarter: durableLoggingStarterOverride,
@@ -956,6 +992,170 @@ extension ThrowSession {
                 aircraft: values,
                 opacity: 1,
             )
+        }
+
+        private static func fixtureTransitProjectionFrame(at date: Date) -> ProjectionFrame {
+            let agencyID = TransitAgencyID.mtaNewYorkCityTransit
+            let blue = fixtureTransitColor("0039A6")
+            let orange = fixtureTransitColor("FF6319")
+            let yellow = fixtureTransitColor("FCCC0A")
+            let blueRoute = fixtureTransitRouteID("A", agencyID: agencyID)
+            let orangeRoute = fixtureTransitRouteID("F", agencyID: agencyID)
+            let yellowRoute = fixtureTransitRouteID("N", agencyID: agencyID)
+            let lineSegments = [
+                fixtureTransitSegment(
+                    routeID: blueRoute,
+                    color: blue,
+                    start: (0.27, 0.18),
+                    end: (0.46, 0.82),
+                    startsNewSubpath: true,
+                ),
+                fixtureTransitSegment(
+                    routeID: orangeRoute,
+                    color: orange,
+                    start: (0.36, 0.14),
+                    end: (0.62, 0.86),
+                    startsNewSubpath: true,
+                ),
+                fixtureTransitSegment(
+                    routeID: yellowRoute,
+                    color: yellow,
+                    start: (0.73, 0.25),
+                    end: (0.46, 0.74),
+                    startsNewSubpath: true,
+                ),
+            ]
+            let marks = [
+                fixtureTransitVehicle(
+                    id: "ace/20260827/A-101",
+                    point: (0.38, 0.47),
+                    route: "A",
+                    color: blue,
+                    label: "Far Rockaway–Mott Av",
+                    confidence: .feedTracked,
+                ),
+                fixtureTransitVehicle(
+                    id: "bdfm/20260827/F-204",
+                    point: (0.55, 0.61),
+                    route: "F",
+                    color: orange,
+                    label: "Coney Island–Stillwell Av",
+                    confidence: .feedTracked,
+                ),
+                fixtureTransitVehicle(
+                    id: "nqrw/20260827/N-309",
+                    point: (0.65, 0.39),
+                    route: "N",
+                    color: yellow,
+                    label: nil,
+                    confidence: .scheduleInferred,
+                ),
+                fixtureTransitVehicle(
+                    id: "bdfm/20260827/F-211",
+                    point: (0.47, 0.31),
+                    route: "F",
+                    color: orange,
+                    label: "Jamaica–179 St",
+                    confidence: .feedTracked,
+                ),
+            ]
+            return ProjectionFrame(
+                experienceID: .transit,
+                mode: .map,
+                generatedAt: date,
+                layers: [
+                    ProjectedLayer(
+                        id: .geography,
+                        zOrder: 0,
+                        opacity: 0.75,
+                        content: .lines(ProjectedLineCollection(
+                            id: ProjectionLineRevisionID(rawValue: 101),
+                            segments: fixtureGeographySegments(),
+                        )),
+                    ),
+                    ProjectedLayer(
+                        id: .transitNetwork,
+                        zOrder: 10,
+                        opacity: 1,
+                        content: .lines(ProjectedLineCollection(
+                            id: ProjectionLineRevisionID(rawValue: 102),
+                            segments: lineSegments,
+                        )),
+                    ),
+                    ProjectedLayer(
+                        id: .transitVehicles,
+                        zOrder: 20,
+                        opacity: 1,
+                        content: .marks(marks),
+                    ),
+                ],
+            )
+        }
+
+        private static func fixtureTransitSegment(
+            routeID: TransitRouteID,
+            color: TransitColor,
+            start: (Double, Double),
+            end: (Double, Double),
+            startsNewSubpath: Bool,
+        ) -> ProjectedLineSegment {
+            ProjectedLineSegment(
+                styleID: .transitRoute(TransitRouteLineStyle(
+                    routeID: routeID,
+                    color: color,
+                )),
+                start: ProjectionPoint(x: start.0, y: start.1),
+                end: ProjectionPoint(x: end.0, y: end.1),
+                startsNewSubpath: startsNewSubpath,
+            )
+        }
+
+        private static func fixtureTransitVehicle(
+            id: String,
+            point: (Double, Double),
+            route: String,
+            color: TransitColor,
+            label: String?,
+            confidence: TransitPositionConfidence,
+        ) -> ProjectedMark {
+            guard let vehicleID = TransitVehicleID(rawValue: id) else {
+                preconditionFailure("A fixture transit vehicle ID must be valid")
+            }
+            return ProjectedMark(
+                id: .transitVehicle(vehicleID),
+                point: ProjectionPoint(x: point.0, y: point.1),
+                range: nil,
+                glyph: .transitVehicle(TransitVehicleGlyphDescriptor(
+                    routeLabel: route,
+                    color: color,
+                    confidence: confidence,
+                )),
+                label: label.map {
+                    ProjectionLabel(primary: $0, primaryRole: .detail, secondary: nil)
+                },
+                secondaryProminence: 0,
+                orientationDegrees: nil,
+                opacity: 1,
+                labelOpacity: 1,
+                altitudeIsApproximate: false,
+            )
+        }
+
+        private static func fixtureTransitRouteID(
+            _ rawValue: String,
+            agencyID: TransitAgencyID,
+        ) -> TransitRouteID {
+            guard let value = TransitRouteID(agencyID: agencyID, rawValue: rawValue) else {
+                preconditionFailure("A fixture transit route ID must be valid")
+            }
+            return value
+        }
+
+        private static func fixtureTransitColor(_ hex: String) -> TransitColor {
+            guard let value = TransitColor(hex: hex) else {
+                preconditionFailure("A fixture transit color must be valid")
+            }
+            return value
         }
 
         private static func fixtureProjectionFrame(

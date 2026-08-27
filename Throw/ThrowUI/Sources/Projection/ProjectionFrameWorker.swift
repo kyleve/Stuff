@@ -1153,7 +1153,7 @@ extension ProjectionFrameWorker {
                                 progress: pulseProgress,
                             ),
                         )
-                    case .star, .satellite, .transitVehicle:
+                    case .star, .satellite, .transitVehicle, .transitStop:
                         break
                 }
             }

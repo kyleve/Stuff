@@ -87,8 +87,17 @@ struct ProjectionEngineTests {
         let viewport = try MapViewport(radius: NauticalMiles(value: 50))
         let geometry = try ProjectionGeometry(width: 1920, height: 1080)
         let vehicleID = try #require(TransitVehicleID(rawValue: "vehicle"))
+        let vehicleDescriptor = TransitVehicleGlyphDescriptor(
+            routeLabel: "A",
+            color: try #require(TransitColor(hex: "0039A6")),
+            confidence: .feedTracked,
+        )
+        let routeStyle = try transitRouteStyle()
         let vehicle = try ProjectionMark(
-            element: TransitVehicleMarkElement(id: vehicleID),
+            element: TransitVehicleMarkElement.vehicle(
+                id: vehicleID,
+                descriptor: vehicleDescriptor,
+            ),
             anchor: .geodetic(GeodeticAnchor(
                 coordinate: GeoCoordinate(latitude: 0.1, longitude: 0),
                 altitude: .available(Altitude(feet: 0), quality: .geometric),
@@ -105,7 +114,7 @@ struct ProjectionEngineTests {
         let networkSource = try ProjectionLayerFrame<TransitNetworkLayerKind>(
             observedAt: ThrowCoreFixture.date,
             lines: [ProjectionPolyline<TransitNetworkLineStyle>(
-                style: .route,
+                style: routeStyle,
                 detailLevel: .wide,
                 bounds: GeographicBounds(
                     southLatitude: 0,
@@ -156,8 +165,9 @@ struct ProjectionEngineTests {
             return
         }
         #expect(transit.network?.lines.id == network.lines.id)
-        #expect(transit.network?.lines.segments.first?.style == .route)
-        #expect(transit.vehicles?.marks.map(\.id.rawValue) == ["vehicle"])
+        #expect(transit.network?.lines.segments.first?.style == routeStyle)
+        #expect(transit.vehicles?.marks.map(\.id) == [.vehicle(vehicleID)])
+        #expect(transit.vehicles?.marks.first?.glyph == .transitVehicle(vehicleDescriptor))
     }
 
     @Test func rejectsStaticLineProjectionFromAnotherContext() throws {
@@ -333,6 +343,16 @@ struct ProjectionEngineTests {
         }
         #expect(map.flights == nil)
         #expect(frame.marks.isEmpty)
+    }
+
+    private func transitRouteStyle() throws -> TransitRouteLineStyle {
+        try TransitRouteLineStyle(
+            routeID: #require(TransitRouteID(
+                agencyID: .mtaNewYorkCityTransit,
+                rawValue: "A",
+            )),
+            color: #require(TransitColor(hex: "0039A6")),
+        )
     }
 
     @Test func mapUsesIndependentCenterAndCanProjectObserverMarker() throws {
@@ -1130,7 +1150,11 @@ private func erase(_ mark: ProjectedMark<SatelliteMarkElement>) -> TestingProjec
 }
 
 private func erase(_ mark: ProjectedMark<TransitVehicleMarkElement>) -> TestingProjectedMark {
-    erase(mark, id: .transitVehicle(mark.id))
+    let id: LayerMarkID = switch mark.id {
+        case let .vehicle(vehicleID): .transitVehicle(vehicleID)
+        case let .stop(stopID): .transitStop(stopID)
+    }
+    return erase(mark, id: id)
 }
 
 private func erase(

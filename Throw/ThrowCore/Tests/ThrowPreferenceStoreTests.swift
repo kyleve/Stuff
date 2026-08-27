@@ -119,16 +119,70 @@ struct ThrowPreferenceStoreTests {
         }
     }
 
-    @Test func writesVersionTwoNestedPreferencesUnderTheExistingCodec() throws {
+    @Test func writesVersionThreeNestedPreferencesUnderTheExistingCodec() throws {
         let propertyList = try propertyList(for: ThrowPreferencesCodec
             .encode(populatedPreferences()))
 
-        #expect(propertyList["version"] as? Int == 2)
+        #expect(propertyList["version"] as? Int == 3)
         #expect(propertyList["global"] != nil)
         #expect(propertyList["playlist"] != nil)
         #expect(propertyList["airAndSpace"] != nil)
+        #expect(propertyList["transit"] != nil)
         #expect(propertyList["locationMode"] == nil)
         #expect(propertyList["selectedSource"] == nil)
+    }
+
+    @Test func versionTwoPayloadMigratesWithTransitUnconfigured() throws {
+        var storage = try propertyList(for: ThrowPreferencesCodec.encode(populatedPreferences()))
+        storage["version"] = 2
+        storage.removeValue(forKey: "transit")
+        let data = try PropertyListSerialization.data(
+            fromPropertyList: storage,
+            format: .binary,
+            options: 0,
+        )
+        let migrated = try ThrowPreferencesCodec.decode(data)
+        #expect(migrated.transit == .defaultValue)
+        #expect(migrated.playlist.entries.map(\.experienceID) == [.airAndSpace])
+    }
+
+    @Test func configuredTransitRoundTripsWithItsOwnPlaylistAndMap() throws {
+        let original = try populatedPreferences()
+        let transit = try TransitPreferences(
+            configuration: .configured(cityID: .newYorkCity),
+            mapCenter: GeoCoordinate(latitude: 40.72, longitude: -73.94),
+            mapViewport: TransitMapViewport(radius: NauticalMiles(value: 25)),
+            labelMode: .nextStop,
+            geography: GeographyPreferences(isEnabled: true, intensityPercent: 15),
+            markSizePercent: 125,
+            networkIntensityPercent: 60,
+        )
+        let dwell = ProjectionDwellDuration.defaultValue
+        let playlist = try ProjectionPlaylist(
+            entries: [
+                ProjectionPlaylistEntry(
+                    runnableExperienceID: .airAndSpace,
+                    dwellDuration: dwell,
+                ),
+                ProjectionPlaylistEntry(
+                    runnableExperienceID: .transit,
+                    dwellDuration: dwell,
+                ),
+            ],
+            automaticRotationEnabled: true,
+            selectedExperienceID: .transit,
+            configuredExperienceIDs: [.airAndSpace, .transit],
+            catalog: .standard,
+        )
+        let preferences = try ThrowPreferences(
+            setupState: original.setupState,
+            global: original.global,
+            playlist: playlist,
+            airAndSpace: original.airAndSpace,
+            transit: transit,
+        )
+        #expect(try ThrowPreferencesCodec.decode(ThrowPreferencesCodec.encode(preferences)) ==
+            preferences)
     }
 
     @Test func completeVersionOnePayloadMigratesWithoutOnboardingAgain() throws {
@@ -359,6 +413,7 @@ struct ThrowPreferenceStoreTests {
                 includeGroundAircraft: false,
                 markSizePercent: 100,
             ),
+            transit: .defaultValue,
         )
         let renderings = [
             String(describing: location),
@@ -461,6 +516,7 @@ struct ThrowPreferenceStoreTests {
             global: global,
             playlist: playlist,
             airAndSpace: airAndSpace,
+            transit: .defaultValue,
         )
     }
 
