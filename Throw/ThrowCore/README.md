@@ -29,6 +29,9 @@ important boundaries are:
 - the polling coordinator, prediction, quiet scheduler, and pure projection
   engine.
 
+Coarse Map regions use one-degree bands. The north pole uses the final northern
+band, and positive 180° longitude shares the negative-dateline band.
+
 `adsb.lol`, local `readsb`, and ADS-B Exchange RapidAPI use separate request
 and envelope adapters around the reusable ADS-B Exchange-v2 aircraft decoder.
 Flightradar24 has its own live-position decoder. Each FR24 snapshot carries a
