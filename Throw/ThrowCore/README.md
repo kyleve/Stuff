@@ -69,11 +69,11 @@ outward so provider coordinates on the local filter boundary are not omitted.
 `ThrowSession+Composition.swift` creates the live stores, source graphs,
 pollers, runtimes, and session once. ThrowUI's shared session drives the
 pollers according to foreground, quiet, output demand, and View state.
-Version-three preferences separate global, playlist, Air & Space, and Transit
-state. The codec migrates version-one and version-two data under the existing
-storage key. Validated preference aggregates stay intact through the session
-boundary. Raw values exist only at editing and codec boundaries. Keychain
-credential IDs do not change.
+Version-four preferences separate global, playlist, Air & Space, and Transit
+state. The codec migrates version-one, version-two, and version-three data under
+the existing storage key. Validated preference aggregates stay intact through
+the session boundary. Raw values exist only at editing and codec boundaries.
+Keychain credential IDs do not change.
 
 Setup is one typed lifecycle value. Its configured case requires a validated
 source, confirmed location, and projection mode. The codec reconstructs this
@@ -115,6 +115,8 @@ Air & Space and Transit. The standard catalog owns the relationship between
 these types. Its public descriptors can be read, but production code cannot
 construct another catalog. Test catalogs are available only through the DEBUG
 Testing SPI. Playlist entries and mutations require runnable identities.
+The Transit radius accepts whole nautical-mile values from 2 through 8 NM.
+The default radius is 5 NM.
 
 `ProjectionMarkLayerKind` and `ProjectionLineLayerKind` bind each semantic
 element or style family to its projected payload. `ProjectedLayerFrame` keeps

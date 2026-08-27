@@ -133,18 +133,18 @@ public enum TransitLabelMode: String, CaseIterable, Hashable, Sendable {
     case nextStop = "next-stop"
 }
 
-/// A Transit Map radius. Transit cannot request the Air & Space 240-NM range.
+/// A Transit Map radius, limited to the neighborhood-scale range used by moving vehicles.
 public struct TransitMapViewport: Hashable, Sendable {
-    public static let allowedRadius = 5.0 ... 50.0
+    public static let allowedRadius = 2.0 ... 8.0
     public static let defaultValue = try! TransitMapViewport(
-        radius: NauticalMiles(value: 20),
+        radius: NauticalMiles(value: 5),
     )
 
     public let radius: NauticalMiles
 
     public init(radius: NauticalMiles) throws {
         guard Self.allowedRadius.contains(radius.value),
-              radius.value.truncatingRemainder(dividingBy: 5) == 0
+              radius.value.truncatingRemainder(dividingBy: 1) == 0
         else { throw ThrowValidationError.invalidPreferencePayload }
         self.radius = radius
     }

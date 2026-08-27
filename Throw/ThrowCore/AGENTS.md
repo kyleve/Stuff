@@ -91,9 +91,9 @@ location, and scheduling; see [`README.md`](README.md). Read the root
   erased layer array.
 - Erase projected frames only in ThrowUI's `ProjectionFrame.swift`. Cache static
   lines by layer identity and semantic revision.
-- Keep version-three preferences grouped by global, playlist, and experience
-  ownership. Preserve exact version-one and version-two migrations and existing
-  Keychain IDs.
+- Keep version-four preferences grouped by global, playlist, and experience
+  ownership. Preserve exact version-one, version-two, and version-three
+  migrations and existing Keychain IDs.
 - Keep global and experience preferences as validated aggregate values. Use
   their replacement methods instead of mutable scalar mirrors.
 - Represent temporary quiet wake durations as `TemporaryQuietWake`. Never pass

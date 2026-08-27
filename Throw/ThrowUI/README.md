@@ -255,6 +255,7 @@ owns playlist order, dwell values, rotation, health, and experience setup. Air
 & Space owns its source, mode, Map centers, layers, labels, marks, accents,
 activity cues, and Geography intensity. Transit owns its city, Map center,
 viewport, train labels, mark size, network intensity, and Geography intensity.
+The Transit viewport supports whole nautical-mile radii from 2 through 8 NM.
 
 The NYC Subway settings screen downloads and tests static and realtime MTA data
 before it adds Transit to the playlist. This preference update has one commit

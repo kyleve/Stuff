@@ -137,7 +137,7 @@ struct TransitSettingsView: View {
             LabeledContent(radiusTitle) {
                 distanceText(mapRadius)
             }
-            Slider(value: $mapRadius, in: TransitMapViewport.allowedRadius, step: 5)
+            Slider(value: $mapRadius, in: TransitMapViewport.allowedRadius, step: 1)
                 .accessibilityLabel(radiusTitle)
                 .accessibilityValue(accessibleDistanceText(mapRadius))
             offsetSlider(
