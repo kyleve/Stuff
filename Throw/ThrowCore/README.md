@@ -101,8 +101,9 @@ response.
 
 `Tools/generate-airports.rb` creates the bundled airport catalog from a pinned
 OurAirports revision. The manifest fixes both source-file digests and the
-generated-resource digest. The catalog includes active coded airports,
-elevations, code aliases, and open runway endpoints.
+generated-resource digest. Its counts describe the airports and runways that
+the archive emits, not all valid rows in the source files. The catalog includes
+active coded airports, elevations, code aliases, and open runway endpoints.
 
 The activity classifier treats an airport within 50 NM of the observer as
 local. Route data can confirm an arrival or departure estimate. Strict motion,

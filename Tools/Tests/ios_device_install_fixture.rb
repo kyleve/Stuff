@@ -138,6 +138,7 @@ class IOSDeviceInstallFixture
             if [ "#{app_name}" = Throw ]; then
               resources="$app/Stuff_ThrowCore.bundle"
               mkdir -p "$resources"
+              touch "$resources/airports-v1.json"
               touch "$resources/geography-v2.json"
               if [ "$FAKE_STALE_THROW_RESOURCES" != 1 ] || [ -f "$derived/.fake-cleaned" ]; then
                 touch "$resources/aircraft-types-v1.json"
