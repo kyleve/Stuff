@@ -3,16 +3,26 @@ import Foundation
 /// A coarse geographic bucket used to select a fixed Map center without
 /// persisting behavior against an exact observer coordinate.
 public struct MapRegionID: Hashable, Sendable, CustomStringConvertible {
+    private static let latitudeBandRange = -90 ... 89
+    private static let longitudeBandRange = -180 ... 179
+
     public let latitudeBand: Int
     public let longitudeBand: Int
 
     public init(containing coordinate: GeoCoordinate) {
-        latitudeBand = Int(floor(coordinate.latitude))
-        longitudeBand = Int(floor(coordinate.longitude))
+        latitudeBand = min(
+            Self.latitudeBandRange.upperBound,
+            Int(floor(coordinate.latitude)),
+        )
+        longitudeBand = coordinate.longitude == 180
+            ? Self.longitudeBandRange.lowerBound
+            : Int(floor(coordinate.longitude))
     }
 
     public init(latitudeBand: Int, longitudeBand: Int) throws {
-        guard (-90 ... 89).contains(latitudeBand), (-180 ... 179).contains(longitudeBand) else {
+        guard Self.latitudeBandRange.contains(latitudeBand),
+              Self.longitudeBandRange.contains(longitudeBand)
+        else {
             throw ThrowValidationError.invalidPreferencePayload
         }
         self.latitudeBand = latitudeBand

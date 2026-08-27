@@ -40,6 +40,8 @@ location, and scheduling; see [`README.md`](README.md). Read the root
   Never use Mercator placement or draw it in True Sky.
 - Keep observer and Map-center semantics separate. True Sky and local activity
   use the observer. Map projection, filtering, and cloud queries use its center.
+- Keep every derived `MapRegionID` inside its persisted band ranges. Treat
+  positive 180° longitude as the negative-dateline band.
 - Change the pinned source manifest, generator, and generated archive together.
   Keep the archive free of names and unused source attributes.
 - Keep aircraft-family and airline-brand classification provider-neutral and

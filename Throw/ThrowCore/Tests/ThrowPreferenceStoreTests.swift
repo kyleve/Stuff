@@ -35,6 +35,27 @@ struct ThrowPreferenceStoreTests {
         }
     }
 
+    @Test func boundaryMapRegionRoundTripsThroughThePreferenceCodec() throws {
+        let observer = try ObserverPosition(
+            coordinate: GeoCoordinate(latitude: 90, longitude: 180),
+            altitude: Altitude(feet: 20),
+        )
+        let preferences = try preferences(
+            selectedSource: .adsbLol,
+            observer: observer,
+            mapCenter: GeoCoordinate(latitude: 89.5, longitude: 179.5),
+        )
+
+        let decoded = try ThrowPreferencesCodec.decode(
+            ThrowPreferencesCodec.encode(preferences),
+        )
+
+        #expect(decoded == preferences)
+        let profile = try #require(decoded.mapCenters.profiles.first)
+        #expect(profile.regionID.latitudeBand == 89)
+        #expect(profile.regionID.longitudeBand == -180)
+    }
+
     @Test func corruptPayloadEntersRepairInsteadOfReturningDefaults() {
         #expect(throws: ThrowPreferenceStoreError.invalidPayload) {
             try ThrowPreferencesCodec.decode(Data("not a property list".utf8))
@@ -294,7 +315,19 @@ struct ThrowPreferenceStoreTests {
     ) throws -> ThrowPreferences {
         let observer = try ThrowCoreFixture.observer()
         let mapCenter = try GeoCoordinate(latitude: 37.2, longitude: -121.7)
-        return try ThrowPreferences(
+        return try preferences(
+            selectedSource: selectedSource,
+            observer: observer,
+            mapCenter: mapCenter,
+        )
+    }
+
+    private func preferences(
+        selectedSource: AircraftSourceConfiguration,
+        observer: ObserverPosition,
+        mapCenter: GeoCoordinate,
+    ) throws -> ThrowPreferences {
+        try ThrowPreferences(
             setupCompleted: true,
             selectedSource: selectedSource,
             validatedSource: selectedSource,

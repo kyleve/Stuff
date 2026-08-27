@@ -2,6 +2,50 @@ import Testing
 @testable import ThrowCore
 
 struct MapCenterPreferencesTests {
+    @Test func northPoleUsesTheLastValidLatitudeBand() throws {
+        let coordinate = try GeoCoordinate(latitude: 90, longitude: 0)
+        let region = MapRegionID(containing: coordinate)
+
+        #expect(region.latitudeBand == 89)
+        #expect(region.longitudeBand == 0)
+        #expect(
+            try MapRegionID(
+                latitudeBand: region.latitudeBand,
+                longitudeBand: region.longitudeBand,
+            ) == region,
+        )
+    }
+
+    @Test func southPoleUsesTheFirstValidLatitudeBand() throws {
+        let coordinate = try GeoCoordinate(latitude: -90, longitude: 0)
+        let region = MapRegionID(containing: coordinate)
+
+        #expect(region.latitudeBand == -90)
+        #expect(region.longitudeBand == 0)
+        #expect(
+            try MapRegionID(
+                latitudeBand: region.latitudeBand,
+                longitudeBand: region.longitudeBand,
+            ) == region,
+        )
+    }
+
+    @Test func positiveDatelineCanonicalizesToTheNegativeDatelineBand() throws {
+        let positiveCoordinate = try GeoCoordinate(latitude: 0, longitude: 180)
+        let negativeCoordinate = try GeoCoordinate(latitude: 0, longitude: -180)
+        let positive = MapRegionID(containing: positiveCoordinate)
+        let negative = MapRegionID(containing: negativeCoordinate)
+
+        #expect(positive == negative)
+        #expect(positive.longitudeBand == -180)
+        #expect(
+            try MapRegionID(
+                latitudeBand: positive.latitudeBand,
+                longitudeBand: positive.longitudeBand,
+            ) == positive,
+        )
+    }
+
     @Test func fixedCenterIsSharedWithinCoarseRegion() throws {
         let sanFrancisco = try GeoCoordinate(latitude: 37.77, longitude: -122.42)
         let oakland = try GeoCoordinate(latitude: 37.80, longitude: -122.27)
