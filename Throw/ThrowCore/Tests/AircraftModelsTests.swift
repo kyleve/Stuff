@@ -46,7 +46,6 @@ struct AircraftModelsTests {
         let rapid = try AircraftSourceConfiguration.adsbExchangeRapidAPI(
             ADSBExchangeConfiguration(
                 pollingInterval: PollingInterval(seconds: 10),
-                credentialID: .rapidAPI,
             ),
         )
         #expect(rapid.kind == .adsbExchangeRapidAPI)
@@ -80,7 +79,8 @@ struct AircraftModelsTests {
 
     @Test func aggregateDescriptionsRedactAircraftAndConfigurationData() throws {
         let aircraftIDSentinel = "aircraft-id-do-not-leak"
-        let credentialIDSentinel = "credential-id-do-not-leak"
+        let credentialID = AircraftCredentialID.rapidAPI
+        let credentialIDSentinel = credentialID.rawValue
         let callsignSentinel = "CALLSIGN-DO-NOT-LEAK"
         let coordinateSentinel = "41.234567"
         let receiverSentinel = "receiver-do-not-leak.local"
@@ -124,10 +124,8 @@ struct AircraftModelsTests {
             fetchedAt: ThrowCoreFixture.date,
             observations: [observation],
         )
-        let credentialID = AircraftCredentialID(rawValue: credentialIDSentinel)
         let exchangeConfiguration = try ADSBExchangeConfiguration(
             pollingInterval: PollingInterval(seconds: 10),
-            credentialID: credentialID,
         )
         let readsbConfiguration = try ReadsbConfiguration(
             aircraftJSONURL: #require(

@@ -221,8 +221,7 @@ public final class ThrowSession {
     @ObservationIgnored var isApplyingPreferences = false
     @ObservationIgnored var hasStarted = false
     @ObservationIgnored var isForeground = true
-    @ObservationIgnored var selectedSourceConfiguration: AircraftSourceConfiguration?
-    @ObservationIgnored var validatedSourceConfiguration: AircraftSourceConfiguration?
+    @ObservationIgnored var aircraftSourceSelection: AircraftSourceSelection = .unconfigured
     @ObservationIgnored var confirmedLocation: ConfirmedObserverLocation?
     @ObservationIgnored var locationMode: ObserverLocationMode = .gps
     @ObservationIgnored var pendingLocationFix: LocationFix?
@@ -355,8 +354,7 @@ public final class ThrowSession {
             motionLogger: motionLogger,
         )
         self.softwareCredits = softwareCredits
-        selectedSourceConfiguration = preferences.selectedSource
-        validatedSourceConfiguration = preferences.validatedSource
+        aircraftSourceSelection = preferences.airAndSpace.sourceSelection
         confirmedLocation = preferences.confirmedLocation
         locationMode = preferences.locationMode
         locationHealth = Self.locationHealth(
@@ -369,6 +367,10 @@ public final class ThrowSession {
 
     public var hasProjectionOutputDemand: Bool {
         projectionOutputCount > 0
+    }
+
+    var selectedSourceConfiguration: AircraftSourceConfiguration? {
+        aircraftSourceSelection.selectedSource
     }
 
     public var hasExternalDisplayOutput: Bool {

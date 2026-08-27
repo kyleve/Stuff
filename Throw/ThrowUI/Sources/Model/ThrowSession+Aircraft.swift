@@ -216,8 +216,7 @@ extension ThrowSession {
 
         await airAndSpaceRuntime.deactivate(reporting: .idle)
         activePollingSignature = nil
-        selectedSourceConfiguration = draft.configuration
-        validatedSourceConfiguration = draft.configuration
+        aircraftSourceSelection = .configured(draft.configuration)
         projectionPlaylist = preferences.playlist
         await configureExperienceCoordinator(with: projectionPlaylist)
 
@@ -461,9 +460,7 @@ extension ThrowSession {
             return
         }
 
-        guard let configuration = selectedSourceConfiguration,
-              configuration == validatedSourceConfiguration
-        else {
+        guard let configuration = aircraftSourceSelection.configuredSource else {
             activePollingSignature = nil
             await airAndSpaceRuntime.deactivate(reporting: .failed(.sourceNotValidated))
             guard generation == demandGeneration else { return }
@@ -680,14 +677,12 @@ extension ThrowSession {
                 return try .adsbExchangeRapidAPI(
                     ADSBExchangeConfiguration(
                         pollingInterval: PollingInterval(seconds: pollingIntervalSeconds),
-                        credentialID: .rapidAPI,
                     ),
                 )
             case .flightradar24:
                 return try .flightradar24(
                     Flightradar24Configuration(
                         pollingInterval: PollingInterval(seconds: pollingIntervalSeconds),
-                        credentialID: .flightradar24,
                     ),
                 )
         }

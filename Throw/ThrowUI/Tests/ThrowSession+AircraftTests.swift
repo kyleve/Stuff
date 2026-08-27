@@ -53,7 +53,6 @@ struct ThrowSessionAircraftTests {
         let configuration = AircraftSourceConfiguration.flightradar24(
             Flightradar24Configuration(
                 pollingInterval: .defaultValue,
-                credentialID: .flightradar24,
             ),
         )
 
@@ -85,11 +84,9 @@ struct ThrowSessionAircraftTests {
         let configuration = AircraftSourceConfiguration.flightradar24(
             Flightradar24Configuration(
                 pollingInterval: .defaultValue,
-                credentialID: .flightradar24,
             ),
         )
-        session.selectedSourceConfiguration = configuration
-        session.validatedSourceConfiguration = configuration
+        session.aircraftSourceSelection = .configured(configuration)
         session.flightradar24CredentialState = .saved(lastFour: "1234")
         session.activePollingSignature = try PollingSignature(
             configuration: configuration,

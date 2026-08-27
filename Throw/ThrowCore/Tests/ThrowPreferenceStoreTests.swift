@@ -18,13 +18,11 @@ struct ThrowPreferenceStoreTests {
             .adsbExchangeRapidAPI(
                 ADSBExchangeConfiguration(
                     pollingInterval: PollingInterval(seconds: 60),
-                    credentialID: .rapidAPI,
                 ),
             ),
             .flightradar24(
                 Flightradar24Configuration(
                     pollingInterval: PollingInterval(seconds: 300),
-                    credentialID: .flightradar24,
                 ),
             ),
         ]
@@ -181,8 +179,7 @@ struct ThrowPreferenceStoreTests {
         #expect(throws: ThrowValidationError.invalidPreferencePayload) {
             try ThrowPreferences(
                 setupCompleted: true,
-                selectedSource: source,
-                validatedSource: nil,
+                sourceSelection: .awaitingValidation(source),
                 locationMode: .gps,
                 confirmedLocation: nil,
                 calibration: .defaultValue,
@@ -202,38 +199,24 @@ struct ThrowPreferenceStoreTests {
         }
     }
 
-    @Test func completedSetupRejectsASelectedSourceDifferentFromTheValidatedSource() throws {
-        let observer = try ThrowCoreFixture.observer()
-        #expect(throws: ThrowValidationError.invalidPreferencePayload) {
-            try ThrowPreferences(
-                setupCompleted: true,
-                selectedSource: .adsbLol,
-                validatedSource: .adsbExchangeRapidAPI(
-                    ADSBExchangeConfiguration(
-                        pollingInterval: PollingInterval.defaultValue,
-                        credentialID: .rapidAPI,
-                    ),
-                ),
-                locationMode: .gps,
-                confirmedLocation: ConfirmedObserverLocation(
-                    position: observer,
-                    horizontalAccuracyMeters: 10,
-                    confirmedAt: ThrowCoreFixture.date,
-                ),
-                calibration: .defaultValue,
-                mapViewport: .defaultValue,
-                mapCenters: .defaultValue,
-                skyViewport: .defaultValue,
-                selectedProjectionMode: .map,
-                flightsEnabled: true,
-                airlineAccentsEnabled: true,
-                geography: .defaultValue,
-                labelMode: .adaptive,
-                includeGroundAircraft: false,
-                markSizePercent: 100,
-                intensityPercent: 100,
-                quietSchedule: .disabled,
-            )
+    @Test func persistedProviderCannotReferenceAnotherProvidersCredential() throws {
+        let encoded = try ThrowPreferencesCodec.encode(populatedPreferences())
+        var storage = try propertyList(for: encoded)
+        var airAndSpace = try #require(storage["airAndSpace"] as? [String: Any])
+        for key in ["selectedSource", "validatedSource"] {
+            var source = try #require(airAndSpace[key] as? [String: Any])
+            source["credentialID"] = AircraftCredentialID.flightradar24.rawValue
+            airAndSpace[key] = source
+        }
+        storage["airAndSpace"] = airAndSpace
+        let corruptData = try PropertyListSerialization.data(
+            fromPropertyList: storage,
+            format: .binary,
+            options: 0,
+        )
+
+        #expect(throws: ThrowPreferenceStoreError.invalidPayload) {
+            try ThrowPreferencesCodec.decode(corruptData)
         }
     }
 
@@ -266,8 +249,7 @@ struct ThrowPreferenceStoreTests {
         )
         let preferences = try ThrowPreferences(
             setupCompleted: false,
-            selectedSource: .readsb(readsb),
-            validatedSource: nil,
+            sourceSelection: .awaitingValidation(.readsb(readsb)),
             locationMode: .manual,
             confirmedLocation: location,
             calibration: .defaultValue,
@@ -304,7 +286,6 @@ struct ThrowPreferenceStoreTests {
             selectedSource: .adsbExchangeRapidAPI(
                 ADSBExchangeConfiguration(
                     pollingInterval: PollingInterval(seconds: 60),
-                    credentialID: .rapidAPI,
                 ),
             ),
         )
@@ -329,8 +310,7 @@ struct ThrowPreferenceStoreTests {
     ) throws -> ThrowPreferences {
         try ThrowPreferences(
             setupCompleted: true,
-            selectedSource: selectedSource,
-            validatedSource: selectedSource,
+            sourceSelection: .configured(selectedSource),
             locationMode: .manual,
             confirmedLocation: ConfirmedObserverLocation(
                 position: observer,

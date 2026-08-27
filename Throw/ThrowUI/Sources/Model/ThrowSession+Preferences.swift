@@ -2,47 +2,6 @@ import Foundation
 import ThrowCore
 
 extension ThrowSession {
-    enum AircraftSourcePreferenceSelection {
-        case unconfigured
-        case awaitingValidation(AircraftSourceConfiguration)
-        case configured(AircraftSourceConfiguration)
-
-        init(
-            selected: AircraftSourceConfiguration?,
-            validated: AircraftSourceConfiguration?,
-        ) throws {
-            switch (selected, validated) {
-                case (nil, nil):
-                    self = .unconfigured
-                case let (selected?, nil):
-                    self = .awaitingValidation(selected)
-                case let (selected?, validated?) where selected == validated:
-                    self = .configured(selected)
-                case (nil, .some), (.some, .some):
-                    throw ThrowValidationError.invalidPreferencePayload
-            }
-        }
-
-        var selected: AircraftSourceConfiguration? {
-            switch self {
-                case .unconfigured:
-                    nil
-                case let .awaitingValidation(configuration),
-                     let .configured(configuration):
-                    configuration
-            }
-        }
-
-        var validated: AircraftSourceConfiguration? {
-            switch self {
-                case .unconfigured, .awaitingValidation:
-                    nil
-                case let .configured(configuration):
-                    configuration
-            }
-        }
-    }
-
     func apply(_ preferences: ThrowPreferences) {
         isApplyingPreferences = true
         defer { isApplyingPreferences = false }
@@ -50,8 +9,7 @@ extension ThrowSession {
         projectionPlaylist = preferences.playlist
         activeExperienceID = preferences.playlist.selectedExperienceID
         nextExperienceID = activeExperienceID.flatMap(preferences.playlist.experience(after:))
-        selectedSourceConfiguration = preferences.selectedSource
-        validatedSourceConfiguration = preferences.validatedSource
+        aircraftSourceSelection = preferences.airAndSpace.sourceSelection
         locationMode = preferences.locationMode
         confirmedLocation = preferences.confirmedLocation
         projectionMode = preferences.selectedProjectionMode ?? .map
@@ -156,19 +114,15 @@ extension ThrowSession {
     }
 
     func makePreferences(setupCompleted: Bool) throws -> ThrowPreferences {
-        let sourceSelection = try AircraftSourcePreferenceSelection(
-            selected: selectedSourceConfiguration,
-            validated: validatedSourceConfiguration,
-        )
-        return try makePreferences(
+        try makePreferences(
             setupCompleted: setupCompleted,
-            sourceSelection: sourceSelection,
+            sourceSelection: aircraftSourceSelection,
         )
     }
 
     func makePreferences(
         setupCompleted: Bool,
-        sourceSelection: AircraftSourcePreferenceSelection,
+        sourceSelection: AircraftSourceSelection,
     ) throws -> ThrowPreferences {
         let global = try ThrowGlobalPreferences(
             locationMode: locationMode,
@@ -178,8 +132,7 @@ extension ThrowSession {
             quietSchedule: quietSchedule(),
         )
         let airAndSpace = try AirAndSpacePreferences(
-            selectedSource: sourceSelection.selected,
-            validatedSource: sourceSelection.validated,
+            sourceSelection: sourceSelection,
             mapViewport: MapViewport(radius: NauticalMiles(value: mapRadius)),
             mapCenters: mapCenters,
             skyViewport: SkyViewport(

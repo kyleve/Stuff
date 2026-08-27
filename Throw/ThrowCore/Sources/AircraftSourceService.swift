@@ -46,10 +46,10 @@ public struct AircraftSourceService: AircraftSourceOperationServing {
                     configuration: configuration,
                 )
                 return try await configured.source.snapshot(for: query)
-            case let .adsbExchangeRapidAPI(configuration):
+            case .adsbExchangeRapidAPI:
                 let credential = try await credential(
                     replacement: replacementCredential,
-                    id: configuration.credentialID,
+                    id: .rapidAPI,
                 )
                 return try await ADSBExchangeRapidAPISource(
                     transport: cloudTransport,
@@ -57,10 +57,10 @@ public struct AircraftSourceService: AircraftSourceOperationServing {
                     credential: credential,
                     dateProvider: dateProvider,
                 ).credentialTestSnapshot(observer: query.observer)
-            case let .flightradar24(configuration):
+            case .flightradar24:
                 let credential = try await credential(
                     replacement: replacementCredential,
-                    id: configuration.credentialID,
+                    id: .flightradar24,
                 )
                 return try await Flightradar24Source(
                     transport: cloudTransport,
