@@ -5,7 +5,12 @@ require "minitest/autorun"
 require_relative "../../Throw/ThrowCore/Tools/geography/geometry_encoder"
 
 class GeographyGeometryEncoderTest < Minitest::Test
-  DETAIL_ORDER = { "wide" => 0, "standard" => 1, "local" => 2 }.freeze
+  DETAIL_ORDER = {
+    "wide" => 0,
+    "standard" => 1,
+    "local" => 2,
+    "neighborhood" => 3,
+  }.freeze
 
   def setup
     @encoder = ThrowGeography::GeometryEncoder.new(

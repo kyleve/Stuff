@@ -18,9 +18,11 @@ struct TransitModelsTests {
 
     @Test(arguments: [2.0, 3.0, 5.0, 8.0])
     func transitViewportAcceptsWholeNauticalMilesInNeighborhoodRange(radius: Double) throws {
-        #expect(
-            try TransitMapViewport(radius: NauticalMiles(value: radius)).radius.value == radius,
-        )
+        let viewport = try TransitMapViewport(radius: NauticalMiles(value: radius))
+
+        #expect(viewport.radius.value == radius)
+        #expect(viewport.projectionViewport.radius.value == radius)
+        #expect(ProjectionViewport.map(viewport) == .map(viewport.projectionViewport))
     }
 
     @Test(arguments: [0.0, 1.0, 2.5, 8.5, 9.0, 50.0, 240.0])

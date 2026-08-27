@@ -34,6 +34,7 @@ public enum GeographyDetailLevel: String, CaseIterable, Codable, Hashable, Senda
     case wide
     case standard
     case local
+    case neighborhood
 
     public func includes(mapRadius: NauticalMiles) -> Bool {
         switch self {
@@ -43,6 +44,15 @@ public enum GeographyDetailLevel: String, CaseIterable, Codable, Hashable, Senda
                 mapRadius.value <= 80
             case .local:
                 mapRadius.value <= 20
+            case .neighborhood:
+                mapRadius.value <= 8
+        }
+    }
+
+    public var replacesBroaderDetail: Bool {
+        switch self {
+            case .wide, .standard, .local: false
+            case .neighborhood: true
         }
     }
 }

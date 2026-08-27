@@ -61,6 +61,7 @@ location, and scheduling; see [`README.md`](README.md). Read the root
 - Keep projection functions deterministic and independent of SwiftUI layout.
 - Represent geodetic altitude as `GeodeticAltitude`. An available altitude
   carries its value and available quality together.
+- Construct projection Map radii only from validated experience-specific viewports.
 - Keep experience and layer catalogs compile-time and free of UI values. Add no
   runtime plugin or `AnyView` boundary.
 - Keep shipped experience identities closed. Derive standard descriptors and
