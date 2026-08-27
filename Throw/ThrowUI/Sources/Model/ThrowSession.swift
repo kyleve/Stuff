@@ -327,10 +327,7 @@ public final class ThrowSession {
             marks: [],
         )
         observerMapPoint = nil
-        currentExperienceFrame = ProjectionExperienceFrame(
-            experienceID: .airAndSpace,
-            layers: [],
-        )
+        currentExperienceFrame = .airAndSpace(.empty)
         semanticFramesByExperience[.airAndSpace] = currentExperienceFrame
         self.preferenceStore = preferenceStore
         self.credentialStore = credentialStore

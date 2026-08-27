@@ -28,8 +28,10 @@ location, and scheduling; see [`README.md`](README.md). Read the root
 - Keep projection functions deterministic and independent of SwiftUI layout.
 - Keep experience and layer catalogs compile-time and free of UI values. Add no
   runtime plugin or `AnyView` boundary.
-- Keep semantic and projected frames generic over ordered mark and line layers.
-  Cache static lines by layer identity and semantic revision.
+- Construct semantic frames through typed layer and experience cases. Do not pass
+  parallel experience IDs, raw layer arrays, and projection modes across production boundaries.
+- Keep projected frames generic over ordered mark and line layers. Cache static
+  lines by layer identity and semantic revision.
 - Keep version-two preferences grouped by global, playlist, and experience
   ownership. Preserve exact version-one migration and existing Keychain IDs.
 - Project Geography with the selected regional Map center and saved calibration.

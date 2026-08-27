@@ -9,8 +9,9 @@ public enum LayerAvailability: Hashable, Sendable {
 /// A typed producer of semantic layer frames.
 public protocol ProjectionLayerRuntime: Sendable {
     associatedtype Input: Sendable
+    associatedtype Layer: ProjectionLayerKind
 
-    func frame(for input: Input) async throws -> LayerFrame
+    func frame(for input: Input) async throws -> ProjectionLayerFrame<Layer>
 }
 
 public struct LayerRuntimeFactory<Runtime: ProjectionLayerRuntime>: Sendable {
@@ -33,16 +34,13 @@ public struct LayerDescriptor<Runtime: ProjectionLayerRuntime>: Sendable {
     public let runtimeFactory: LayerRuntimeFactory<Runtime>
 
     public init(
-        id: LayerID,
         availability: LayerAvailability,
-        supportedModes: Set<ProjectionMode>,
         zOrder: Int,
         runtimeFactory: LayerRuntimeFactory<Runtime>,
     ) {
-        precondition(supportedModes.isEmpty == false)
-        self.id = id
+        id = Runtime.Layer.id
         self.availability = availability
-        self.supportedModes = supportedModes
+        supportedModes = Runtime.Layer.supportedModes
         self.zOrder = zOrder
         self.runtimeFactory = runtimeFactory
     }
@@ -102,61 +100,49 @@ public struct LayerCatalog: Sendable {
         geographyFactory: LayerRuntimeFactory<GeographyLayerRuntime>,
     ) {
         let flights = LayerDescriptor(
-            id: LayerID.flights,
             availability: LayerAvailability.enabled,
-            supportedModes: Set([ProjectionMode.map, ProjectionMode.trueSky]),
             zOrder: 100,
             runtimeFactory: flightsFactory,
         )
         let geography = LayerDescriptor(
-            id: LayerID.geography,
             availability: LayerAvailability.enabled,
-            supportedModes: Set([ProjectionMode.map]),
             zOrder: 0,
             runtimeFactory: geographyFactory,
         )
         let stars = LayerDescriptor(
-            id: LayerID.stars,
             availability: LayerAvailability.planned(
                 explanation: "Star charts are planned for a future release.",
             ),
-            supportedModes: Set([ProjectionMode.trueSky]),
             zOrder: 10,
             runtimeFactory: LayerRuntimeFactory {
-                EmptyLayerRuntime(layerID: .stars)
+                EmptyLayerRuntime<StarsLayerKind>()
             },
         )
         let satellites = LayerDescriptor(
-            id: LayerID.satellites,
             availability: LayerAvailability.planned(
                 explanation: "Satellite tracking is planned for a future release.",
             ),
-            supportedModes: Set([ProjectionMode.map, ProjectionMode.trueSky]),
             zOrder: 50,
             runtimeFactory: LayerRuntimeFactory {
-                EmptyLayerRuntime(layerID: .satellites)
+                EmptyLayerRuntime<SatellitesLayerKind>()
             },
         )
         let transitNetwork = LayerDescriptor(
-            id: LayerID.transitNetwork,
             availability: LayerAvailability.planned(
                 explanation: "Transit network context is planned for a future release.",
             ),
-            supportedModes: Set([ProjectionMode.map]),
             zOrder: 20,
             runtimeFactory: LayerRuntimeFactory {
-                EmptyLayerRuntime(layerID: .transitNetwork)
+                EmptyLayerRuntime<TransitNetworkLayerKind>()
             },
         )
         let transitVehicles = LayerDescriptor(
-            id: LayerID.transitVehicles,
             availability: LayerAvailability.planned(
                 explanation: "Live transit vehicles are planned for a future release.",
             ),
-            supportedModes: Set([ProjectionMode.map]),
             zOrder: 100,
             runtimeFactory: LayerRuntimeFactory {
-                EmptyLayerRuntime(layerID: .transitVehicles)
+                EmptyLayerRuntime<TransitVehiclesLayerKind>()
             },
         )
 
@@ -173,10 +159,8 @@ public struct LayerCatalog: Sendable {
     }
 }
 
-private struct EmptyLayerRuntime: ProjectionLayerRuntime {
-    let layerID: LayerID
-
-    func frame(for date: Date) async throws -> LayerFrame {
-        LayerFrame(layerID: layerID, observedAt: date, content: .marks([]))
+private struct EmptyLayerRuntime<Layer: ProjectionLayerKind>: ProjectionLayerRuntime {
+    func frame(for date: Date) async throws -> ProjectionLayerFrame<Layer> {
+        ProjectionLayerFrame(observedAt: date, content: .marks([]))
     }
 }

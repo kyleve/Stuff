@@ -35,11 +35,12 @@ public struct GeographyLayerRuntime: ProjectionLayerRuntime {
         self.dataSource = dataSource
     }
 
-    @concurrent public func frame(for _: GeographyLayerInput) async throws -> LayerFrame {
+    @concurrent public func frame(
+        for _: GeographyLayerInput,
+    ) async throws -> ProjectionLayerFrame<GeographyLayerKind> {
         let data = try await dataSource.data()
         let lines = try await GeographyArchiveDecoder.decode(data)
-        return LayerFrame(
-            layerID: .geography,
+        return ProjectionLayerFrame(
             observedAt: Date(timeIntervalSince1970: 0),
             content: .lines(lines),
         )

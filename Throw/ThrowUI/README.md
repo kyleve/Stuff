@@ -42,6 +42,10 @@ target frame without changing the visible frame. A switch fades the surface to
 black, exchanges frames at black, and fades back in. Reduce Motion keeps this
 opacity fade but removes experience-specific movement.
 
+The production worker accepts one typed `ProjectionExperienceInput`. This value
+pairs an experience with its valid layers and projection modes. Test-only raw
+layer entry points are absent from release builds.
+
 In Map mode, the surface draws cached geography before aircraft. Lines use
 constant screen-space widths and a separate restrained intensity. Roads and
 county boundaries remain dimmer than coastlines and major boundaries. True Sky

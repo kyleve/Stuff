@@ -16,6 +16,8 @@ Read the root [`AGENTS.md`](../../AGENTS.md) and group
   prewarming experience runtimes.
 - Prepare a fresh target generation before switching. Exchange the complete
   frame only at black, and never mix layers from two experiences.
+- Send only `ProjectionExperienceInput` to the production projection worker.
+  Keep raw layer-array entry points inside DEBUG test support.
 - Render projector, Preview, and full-screen fallback through
   `ProjectionSurface`. Do not add a parallel renderer.
 - Keep the render loop on fixed deadlines. Skip elapsed frame slots instead of

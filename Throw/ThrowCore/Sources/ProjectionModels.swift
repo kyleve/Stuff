@@ -391,6 +391,89 @@ public struct LayerFrame: Hashable, Sendable, CustomStringConvertible,
     }
 }
 
+/// A compile-time identity for one semantic projection layer.
+public protocol ProjectionLayerKind: Sendable {
+    static var id: LayerID { get }
+    static var supportedModes: Set<ProjectionMode> { get }
+}
+
+public enum GeographyLayerKind: ProjectionLayerKind {
+    public static let id = LayerID.geography
+    public static let supportedModes: Set<ProjectionMode> = [.map]
+}
+
+public enum FlightsLayerKind: ProjectionLayerKind {
+    public static let id = LayerID.flights
+    public static let supportedModes: Set<ProjectionMode> = [.map, .trueSky]
+}
+
+public enum StarsLayerKind: ProjectionLayerKind {
+    public static let id = LayerID.stars
+    public static let supportedModes: Set<ProjectionMode> = [.trueSky]
+}
+
+public enum SatellitesLayerKind: ProjectionLayerKind {
+    public static let id = LayerID.satellites
+    public static let supportedModes: Set<ProjectionMode> = [.map, .trueSky]
+}
+
+public enum TransitNetworkLayerKind: ProjectionLayerKind {
+    public static let id = LayerID.transitNetwork
+    public static let supportedModes: Set<ProjectionMode> = [.map]
+}
+
+public enum TransitVehiclesLayerKind: ProjectionLayerKind {
+    public static let id = LayerID.transitVehicles
+    public static let supportedModes: Set<ProjectionMode> = [.map]
+}
+
+/// A semantic frame whose layer identity is fixed by its generic argument.
+public struct ProjectionLayerFrame<Layer: ProjectionLayerKind>: Hashable, Sendable,
+    CustomStringConvertible, CustomDebugStringConvertible
+{
+    private let frame: LayerFrame
+
+    public init(observedAt: Date, content: LayerFrameContent) {
+        frame = LayerFrame(layerID: Layer.id, observedAt: observedAt, content: content)
+    }
+
+    public var layerID: LayerID {
+        Layer.id
+    }
+
+    public var observedAt: Date {
+        frame.observedAt
+    }
+
+    public var content: LayerFrameContent {
+        frame.content
+    }
+
+    public var marks: [ProjectionMark] {
+        frame.marks
+    }
+
+    public var lines: [ProjectionPolyline] {
+        frame.lines
+    }
+
+    public var geographicLines: [GeographicPolyline] {
+        frame.geographicLines
+    }
+
+    public var erased: LayerFrame {
+        frame
+    }
+
+    public var description: String {
+        frame.description
+    }
+
+    public var debugDescription: String {
+        frame.debugDescription
+    }
+}
+
 /// A unit square centered on `(0.5, 0.5)` after calibration and safe inset.
 public struct ProjectionPoint: Hashable, Sendable {
     public let x: Double
@@ -564,15 +647,153 @@ public struct ProjectedLayer: Identifiable, Hashable, Sendable {
     }
 }
 
-/// One experience's semantic layers before geometry projection.
-public struct ProjectionExperienceFrame: Hashable, Sendable {
-    public let experienceID: ProjectionExperienceID
-    public let layers: [LayerFrame]
+/// The semantic layers that can participate in Air & Space.
+public struct AirAndSpaceExperienceFrame: Hashable, Sendable {
+    public static let empty = AirAndSpaceExperienceFrame(
+        geography: nil,
+        flights: nil,
+        stars: nil,
+        satellites: nil,
+    )
 
-    public init(experienceID: ProjectionExperienceID, layers: [LayerFrame]) {
-        precondition(Set(layers.map(\.layerID)).count == layers.count)
-        self.experienceID = experienceID
-        self.layers = layers
+    public let geography: ProjectionLayerFrame<GeographyLayerKind>?
+    public let flights: ProjectionLayerFrame<FlightsLayerKind>?
+    public let stars: ProjectionLayerFrame<StarsLayerKind>?
+    public let satellites: ProjectionLayerFrame<SatellitesLayerKind>?
+
+    public init(
+        geography: ProjectionLayerFrame<GeographyLayerKind>?,
+        flights: ProjectionLayerFrame<FlightsLayerKind>?,
+        stars: ProjectionLayerFrame<StarsLayerKind>?,
+        satellites: ProjectionLayerFrame<SatellitesLayerKind>?,
+    ) {
+        self.geography = geography
+        self.flights = flights
+        self.stars = stars
+        self.satellites = satellites
+    }
+
+    public var layers: [LayerFrame] {
+        [geography?.erased, flights?.erased, stars?.erased, satellites?.erased].compactMap(\.self)
+    }
+}
+
+/// The semantic layers that can participate in Transit.
+public struct TransitExperienceFrame: Hashable, Sendable {
+    public static let empty = TransitExperienceFrame(
+        geography: nil,
+        network: nil,
+        vehicles: nil,
+    )
+
+    public let geography: ProjectionLayerFrame<GeographyLayerKind>?
+    public let network: ProjectionLayerFrame<TransitNetworkLayerKind>?
+    public let vehicles: ProjectionLayerFrame<TransitVehiclesLayerKind>?
+
+    public init(
+        geography: ProjectionLayerFrame<GeographyLayerKind>?,
+        network: ProjectionLayerFrame<TransitNetworkLayerKind>?,
+        vehicles: ProjectionLayerFrame<TransitVehiclesLayerKind>?,
+    ) {
+        self.geography = geography
+        self.network = network
+        self.vehicles = vehicles
+    }
+
+    public var layers: [LayerFrame] {
+        [geography?.erased, network?.erased, vehicles?.erased].compactMap(\.self)
+    }
+}
+
+/// One experience's semantic layers before geometry projection. Each case accepts only
+/// that experience's compile-time layer set.
+public enum ProjectionExperienceFrame: Hashable, Sendable {
+    case airAndSpace(AirAndSpaceExperienceFrame)
+    case transit(TransitExperienceFrame)
+
+    public static func empty(for id: ProjectionExperienceID) -> Self {
+        switch id {
+            case .airAndSpace:
+                .airAndSpace(.empty)
+            case .transit:
+                .transit(.empty)
+            default:
+                preconditionFailure("A test-only experience must supply its own semantic frame")
+        }
+    }
+
+    public var experienceID: ProjectionExperienceID {
+        switch self {
+            case .airAndSpace: .airAndSpace
+            case .transit: .transit
+        }
+    }
+
+    public var layers: [LayerFrame] {
+        switch self {
+            case let .airAndSpace(frame): frame.layers
+            case let .transit(frame): frame.layers
+        }
+    }
+}
+
+public enum GeographyLayerVisibility: Hashable, Sendable {
+    case hidden
+    case visible
+}
+
+/// Air & Space's projection choices. Geography is spellable only for Map.
+public enum AirAndSpaceProjectionViewport: Hashable, Sendable {
+    case map(viewport: MapViewport, geography: GeographyLayerVisibility)
+    case trueSky(viewport: SkyViewport)
+
+    public var viewport: ProjectionViewport {
+        switch self {
+            case let .map(viewport, _): .map(viewport)
+            case let .trueSky(viewport): .trueSky(viewport)
+        }
+    }
+
+    public var requestsGeography: Bool {
+        switch self {
+            case let .map(_, geography): geography == .visible
+            case .trueSky: false
+        }
+    }
+}
+
+/// A projection request that makes experience membership and supported modes
+/// unrepresentable as mismatched parallel values.
+public enum ProjectionExperienceInput: Hashable, Sendable {
+    case airAndSpace(
+        frame: AirAndSpaceExperienceFrame,
+        viewport: AirAndSpaceProjectionViewport,
+    )
+    case transit(
+        frame: TransitExperienceFrame,
+        viewport: MapViewport,
+        geography: GeographyLayerVisibility,
+    )
+
+    public var experienceFrame: ProjectionExperienceFrame {
+        switch self {
+            case let .airAndSpace(frame, _): .airAndSpace(frame)
+            case let .transit(frame, _, _): .transit(frame)
+        }
+    }
+
+    public var viewport: ProjectionViewport {
+        switch self {
+            case let .airAndSpace(_, viewport): viewport.viewport
+            case let .transit(_, viewport, _): .map(viewport)
+        }
+    }
+
+    public var requestsGeography: Bool {
+        switch self {
+            case let .airAndSpace(_, viewport): viewport.requestsGeography
+            case let .transit(_, _, geography): geography == .visible
+        }
     }
 }
 
