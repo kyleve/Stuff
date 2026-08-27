@@ -29,10 +29,8 @@ extension ThrowSession {
         await experienceCoordinator.selectPrevious()
     }
 
-    public func pauseExperienceRotation() {
-        Task(name: "Throw pause View rotation") { [experienceCoordinator] in
-            await experienceCoordinator.pause()
-        }
+    public func pauseExperienceRotation() async {
+        await experienceCoordinator.pause()
     }
 
     public func resumeExperienceRotation() async {

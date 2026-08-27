@@ -225,7 +225,7 @@ actor ProjectionExperienceCoordinator {
         stateContinuation = states.continuation
         let actions = AsyncStream.makeStream(
             of: ProjectionExperienceCoordinatorAction.self,
-            bufferingPolicy: .bufferingOldest(32),
+            bufferingPolicy: .unbounded,
         )
         actionStream = actions.stream
         actionContinuation = actions.continuation
@@ -382,7 +382,10 @@ actor ProjectionExperienceCoordinator {
     }
 
     func pause() {
-        guard playlist.rotatesAutomatically, isPaused == false else { return }
+        guard demand.permitsProjection,
+              playlist.rotatesAutomatically,
+              isPaused == false
+        else { return }
         isPaused = true
         cancelRotation()
         if requestState?.prewarmingExperienceID != nil {
@@ -454,7 +457,8 @@ actor ProjectionExperienceCoordinator {
               isPaused == false,
               playlist.rotatesAutomatically,
               let activeExperienceID,
-              runtimeStates[activeExperienceID]?.successfulGeneration != nil,
+              let runtimeGeneration = runtimeStates[activeExperienceID]?.generation,
+              runtimeStates[activeExperienceID]?.successfulGeneration == runtimeGeneration,
               let entry = playlist.entry(for: activeExperienceID)
         else {
             dwellEndsAt = nil
@@ -462,8 +466,19 @@ actor ProjectionExperienceCoordinator {
             return
         }
         timerGeneration &+= 1
-        let generation = timerGeneration
+        let timerGeneration = timerGeneration
+        let playlistRevision = playlistConfigurationRevision
         let now = await clock.now()
+        guard timerGeneration == self.timerGeneration,
+              playlistRevision == playlistConfigurationRevision,
+              demand.permitsProjection,
+              isPaused == false,
+              playlist.rotatesAutomatically,
+              self.activeExperienceID == activeExperienceID,
+              runtimeStates[activeExperienceID]?.generation == runtimeGeneration,
+              runtimeStates[activeExperienceID]?.successfulGeneration == runtimeGeneration,
+              playlist.entry(for: activeExperienceID) == entry
+        else { return }
         let dwellSeconds = entry.dwellDuration.seconds
         dwellEndsAt = now.addingTimeInterval(TimeInterval(dwellSeconds))
         publishState()
@@ -473,13 +488,13 @@ actor ProjectionExperienceCoordinator {
                 try await clock.sleep(
                     for: .seconds(dwellSeconds - Self.prewarmLeadSeconds),
                 )
-                await self?.beginAutomaticPrewarm(timerGeneration: generation)
+                await self?.beginAutomaticPrewarm(timerGeneration: timerGeneration)
                 try await clock.sleep(for: .seconds(Self.prewarmLeadSeconds))
-                await self?.reachAutomaticTransitionTime(timerGeneration: generation)
+                await self?.reachAutomaticTransitionTime(timerGeneration: timerGeneration)
             } catch is CancellationError {
                 return
             } catch {
-                await self?.handleRotationClockFailure(timerGeneration: generation)
+                await self?.handleRotationClockFailure(timerGeneration: timerGeneration)
             }
         }
     }
@@ -548,7 +563,7 @@ actor ProjectionExperienceCoordinator {
         readinessTask?.cancel()
         readinessTask = nil
         requestState = .transitioning(request)
-        actionContinuation.yield(
+        emitAction(
             .beginTransition(from: from, to: request.id, generation: runtime.generation),
         )
         publishState()
@@ -603,7 +618,7 @@ actor ProjectionExperienceCoordinator {
         state.health = .loading
         state.isRunning = true
         runtimeStates[id] = state
-        actionContinuation.yield(
+        emitAction(
             .activate(id: id, generation: nextGeneration, role: role),
         )
         return nextGeneration
@@ -614,7 +629,7 @@ actor ProjectionExperienceCoordinator {
         runtimeStates[id]?.isRunning = false
         runtimeStates[id]?.successfulGeneration = nil
         runtimeStates[id]?.health = .idle
-        actionContinuation.yield(.deactivate(id: id))
+        emitAction(.deactivate(id: id))
     }
 
     private func cancelRequestedRuntime() {
@@ -677,6 +692,19 @@ actor ProjectionExperienceCoordinator {
 
     private func publishState() {
         stateContinuation.yield(stateValue())
+    }
+
+    private func emitAction(_ action: ProjectionExperienceCoordinatorAction) {
+        switch actionContinuation.yield(action) {
+            case .enqueued:
+                break
+            case .dropped:
+                preconditionFailure("The unbounded projection action stream dropped a command")
+            case .terminated:
+                assertionFailure("The projection action stream ended before its coordinator")
+            @unknown default:
+                assertionFailure("The projection action stream returned an unknown yield result")
+        }
     }
 
     private func stateValue() -> ProjectionExperienceCoordinatorState {

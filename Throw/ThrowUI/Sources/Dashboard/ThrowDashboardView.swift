@@ -113,7 +113,9 @@ struct ThrowDashboardView: View {
                                     String(localized: .dashboardPauseRotation),
                                     systemSymbol: .pauseFill,
                                 ) {
-                                    session.pauseExperienceRotation()
+                                    Task(name: "Throw pause View rotation") {
+                                        await session.pauseExperienceRotation()
+                                    }
                                 }
                             }
                             Button(
