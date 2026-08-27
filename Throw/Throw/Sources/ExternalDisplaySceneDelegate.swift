@@ -25,7 +25,11 @@ final class ExternalDisplaySceneDelegate: UIResponder, UIWindowSceneDelegate {
         let id = ProjectionOutputID(rawValue: "external:\(session.persistentIdentifier)")
         let output = ProjectionOutput.externalDisplay(id)
         let host = UIHostingController(
-            rootView: runtime.makeProjectionView(presentation: .externalDisplay),
+            rootView: ProjectionSurface(
+                session: runtime.session,
+                presentation: .externalDisplay,
+            )
+            .throwBroadwayRoot(),
         )
         host.view.backgroundColor = .black
         host.view.isOpaque = true

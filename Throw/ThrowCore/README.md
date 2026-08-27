@@ -22,6 +22,8 @@ important boundaries are:
 - `ProjectionExperienceCatalog.standard` and `LayerCatalog.standard`, which
   define fixed View and layer membership at compile time;
 - `AircraftObservationSource`, the provider-neutral one-shot feed contract;
+- `AircraftSourceOperationServing`, the provider-neutral setup and usage
+  boundary used by presentation code;
 - HTTP, preference, credential, location, and clock protocols, with live and
   deterministic in-memory implementations;
 - the polling coordinator, prediction, quiet scheduler, and pure projection

@@ -1,17 +1,17 @@
 import Foundation
 
-public struct ADSBExchangeRapidAPISource: AircraftObservationSource, CustomStringConvertible,
+struct ADSBExchangeRapidAPISource: AircraftObservationSource, CustomStringConvertible,
     CustomDebugStringConvertible
 {
-    public static let host = "adsbexchange-com1.p.rapidapi.com"
-    public static let baseURL = URL(string: "https://adsbexchange-com1.p.rapidapi.com")!
+    static let host = "adsbexchange-com1.p.rapidapi.com"
+    static let baseURL = URL(string: "https://adsbexchange-com1.p.rapidapi.com")!
 
     private let transport: any HTTPTransport
     private let decodingWorker: AircraftDecodingWorker
     private let credential: AircraftCredential
     private let dateProvider: any DateProvider
 
-    public init(
+    init(
         transport: any HTTPTransport,
         decoder: ADSBExchangeV2Decoder,
         credential: AircraftCredential,
@@ -23,21 +23,21 @@ public struct ADSBExchangeRapidAPISource: AircraftObservationSource, CustomStrin
         self.dateProvider = dateProvider
     }
 
-    public var description: String {
+    var description: String {
         "<ADSBExchangeRapidAPISource credential=<redacted>>"
     }
 
-    public var debugDescription: String {
+    var debugDescription: String {
         description
     }
 
-    public func snapshot(for query: AircraftQuery) async throws -> AircraftSnapshot {
+    func snapshot(for query: AircraftQuery) async throws -> AircraftSnapshot {
         try await snapshot(for: query, request: makeRequest(for: query))
     }
 
     /// Performs the disclosed credential check using exactly one transmitted
     /// five-nautical-mile request rather than the live feed's padded radius.
-    public func credentialTestSnapshot(
+    func credentialTestSnapshot(
         observer: ObserverPosition,
     ) async throws -> AircraftSnapshot {
         let query = try AircraftQuery(
@@ -89,7 +89,7 @@ public struct ADSBExchangeRapidAPISource: AircraftObservationSource, CustomStrin
         }
     }
 
-    public func makeRequest(for query: AircraftQuery) throws -> HTTPRequest {
+    func makeRequest(for query: AircraftQuery) throws -> HTTPRequest {
         let plan = try CloudAircraftQuery.plan(for: query)
         return try makeRequest(for: query, transmittedRadius: plan.transmittedRadius)
     }

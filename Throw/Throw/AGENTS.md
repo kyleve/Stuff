@@ -9,6 +9,8 @@ The Throw app is the iOS composition and scene shell; see
 - Depend directly on ThrowUI only, reaching ThrowCore through that product.
   Keep domain, provider, persistence, and presentation behavior out of this
   target.
+- Expose the shared session through the runtime protocol. Compose concrete
+  controller and projection roots at each scene without `AnyView` erasure.
 - Construct one `ThrowRuntime` in `AppDelegate`. Scene delegates obtain that
   existing runtime through the platform handoff and never create a fallback.
 - Host every projected output with ThrowUI's `ProjectionSurface`; keep its

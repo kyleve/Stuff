@@ -12,8 +12,8 @@ extension UIApplication: IdleTimerControlling {}
 /// The class-bound handoff shared by the SwiftUI app and platform-created scenes.
 @MainActor
 protocol ThrowApplicationRuntime: AnyObject {
-    func makeControllerView() -> AnyView
-    func makeProjectionView(presentation: ProjectionPresentation) -> AnyView
+    var session: ThrowSession { get }
+
     func projectionOutputConnected(
         _ output: ProjectionOutput,
         appearanceSink: @escaping @MainActor (UIUserInterfaceStyle) -> Void,
@@ -22,6 +22,7 @@ protocol ThrowApplicationRuntime: AnyObject {
     func applicationDidEnterBackground()
     func applicationWillEnterForeground()
     func controllerAppearanceDidChange(_ style: UIUserInterfaceStyle)
+    func sessionOutputDemandDidChange()
 }
 
 /// Owns Throw's one UI session and the process-level output lifecycle.
@@ -45,25 +46,6 @@ final class ThrowRuntime: ThrowApplicationRuntime {
         ThrowRuntime(
             session: .live(),
             idleTimerController: UIApplication.shared,
-        )
-    }
-
-    func makeControllerView() -> AnyView {
-        AnyView(
-            RuntimeControllerView(
-                session: session,
-                outputDemandDidChange: { [weak self] in
-                    self?.sessionOutputDemandDidChange()
-                },
-            )
-            .throwBroadwayRoot(),
-        )
-    }
-
-    func makeProjectionView(presentation: ProjectionPresentation) -> AnyView {
-        AnyView(
-            ProjectionSurface(session: session, presentation: presentation)
-                .throwBroadwayRoot(),
         )
     }
 
@@ -130,7 +112,7 @@ final class ThrowRuntime: ThrowApplicationRuntime {
     }
 }
 
-private struct RuntimeControllerView: View {
+struct RuntimeControllerView: View {
     let session: ThrowSession
     let outputDemandDidChange: @MainActor () -> Void
 

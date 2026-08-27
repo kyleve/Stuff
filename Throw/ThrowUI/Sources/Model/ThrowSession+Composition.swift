@@ -23,6 +23,12 @@ extension ThrowSession {
             clock: SystemAircraftPollingClock(),
             logger: PeriscopeAircraftPollingLogger(log: ThrowLog.aircraft),
         )
+        let sourceService = AircraftSourceService(
+            sourceFactory: sourceFactory,
+            cloudTransport: cloudTransport,
+            credentialStore: credentialStore,
+            dateProvider: dateProvider,
+        )
         let credits: [SoftwareCredit]
         let creditFailure: String?
         do {
@@ -39,9 +45,8 @@ extension ThrowSession {
             preferences: .defaultValue,
             preferenceStore: UserDefaultsThrowPreferenceStore(userDefaults: .standard),
             credentialStore: credentialStore,
-            sourceFactory: sourceFactory,
+            sourceService: sourceService,
             pollingCoordinator: coordinator,
-            cloudTransport: cloudTransport,
             dateProvider: dateProvider,
             locationSource: CoreLocationThrowSource(),
             calendar: .autoupdatingCurrent,
@@ -547,6 +552,12 @@ extension ThrowSession {
                     clock: SystemAircraftPollingClock(),
                     logger: DiscardingAircraftPollingLogger(),
                 )
+                let sourceService = AircraftSourceService(
+                    sourceFactory: sourceFactory,
+                    cloudTransport: transport,
+                    credentialStore: credentialStore,
+                    dateProvider: dateProvider,
+                )
                 let fix = try LocationFix(
                     position: position,
                     horizontalAccuracyMeters: 18,
@@ -561,9 +572,8 @@ extension ThrowSession {
                     preferences: preferences,
                     preferenceStore: preferenceStore,
                     credentialStore: credentialStore,
-                    sourceFactory: sourceFactory,
+                    sourceService: sourceService,
                     pollingCoordinator: coordinator,
-                    cloudTransport: transport,
                     dateProvider: dateProvider,
                     locationSource: resolvedLocationSource,
                     calendar: Calendar(identifier: .gregorian),

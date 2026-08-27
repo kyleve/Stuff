@@ -8,7 +8,7 @@ struct FixtureHTTPTransport: HTTPTransport {
                 #"{"data":[{"endpoint":"live/flight-positions/full?{filters}","request_count":12,"credits":2400}]}"#
                     .utf8,
             )
-        } else if request.url.host() == Flightradar24Source.baseURL.host() {
+        } else if request.url.host() == "fr24api.flightradar24.com" {
             Data(#"{"data":[]}"#.utf8)
         } else {
             Data(#"{"ac":[],"now":1787594400,"total":0}"#.utf8)

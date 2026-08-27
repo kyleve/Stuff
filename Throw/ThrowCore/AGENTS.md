@@ -10,6 +10,8 @@ location, and scheduling; see [`README.md`](README.md). Read the root
   import SwiftUI, UIKit, WhereCore, RegionKit, or LifecycleKit.
 - Keep provider DTOs internal. Public source, layer, preference, and
   credential boundaries stay provider-neutral and typed.
+- Keep provider-specific setup and capability dispatch in
+  `AircraftSourceService`. Presentation code uses its protocol only.
 - Keep source factories at composition boundaries. A source never creates a
   global transport, store, poller, or credential.
 

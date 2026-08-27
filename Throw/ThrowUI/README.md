@@ -29,6 +29,10 @@ frames, motion, and route enrichment. `ProjectionExperienceCoordinator` owns
 selection, one rotation clock, prewarming, and lifecycle reconciliation. Every
 scene observes the same coordinator and active experience.
 
+Connection tests and provider usage reports go through the injected
+`AircraftSourceOperationServing` boundary. ThrowUI does not construct or
+downcast concrete provider sources.
+
 Views render session state and send intents back to it. They never access
 UserDefaults, Keychain, location, or the network. `ProjectionSurface` is the
 sole renderer. It iterates the ordered layers in an immutable generic

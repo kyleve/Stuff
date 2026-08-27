@@ -1,15 +1,15 @@
 import Foundation
 
-public struct AdsBLolSource: AircraftObservationSource, CustomStringConvertible,
+struct AdsBLolSource: AircraftObservationSource, CustomStringConvertible,
     CustomDebugStringConvertible
 {
-    public static let baseURL = URL(string: "https://api.adsb.lol")!
+    static let baseURL = URL(string: "https://api.adsb.lol")!
 
     private let transport: any HTTPTransport
     private let decodingWorker: AircraftDecodingWorker
     private let dateProvider: any DateProvider
 
-    public init(
+    init(
         transport: any HTTPTransport,
         decoder: ADSBExchangeV2Decoder,
         dateProvider: any DateProvider,
@@ -19,15 +19,15 @@ public struct AdsBLolSource: AircraftObservationSource, CustomStringConvertible,
         self.dateProvider = dateProvider
     }
 
-    public var description: String {
+    var description: String {
         "<AdsBLolSource configuration=<redacted>>"
     }
 
-    public var debugDescription: String {
+    var debugDescription: String {
         description
     }
 
-    public func snapshot(for query: AircraftQuery) async throws -> AircraftSnapshot {
+    func snapshot(for query: AircraftQuery) async throws -> AircraftSnapshot {
         let request = try makeRequest(for: query)
         do {
             let response = try await transport.response(for: request)
@@ -62,7 +62,7 @@ public struct AdsBLolSource: AircraftObservationSource, CustomStringConvertible,
         }
     }
 
-    public func makeRequest(for query: AircraftQuery) throws -> HTTPRequest {
+    func makeRequest(for query: AircraftQuery) throws -> HTTPRequest {
         let plan = try CloudAircraftQuery.plan(for: query)
         let latitude = CloudAircraftQuery.pathComponent(for: plan.coarseCenter.latitude)
         let longitude = CloudAircraftQuery.pathComponent(for: plan.coarseCenter.longitude)

@@ -4,6 +4,9 @@ This target is the thin iOS shell for Throw. `AppDelegate` creates exactly one
 `ThrowRuntime`; SwiftUI controller windows and UIKit-created external-display
 windows all receive that runtime's shared ThrowUI session.
 
+Each scene composes its concrete ThrowUI root from that session. Runtime
+handoff does not erase roots to `AnyView` or construct feature services.
+
 ## Scene paths
 
 - The iOS 26 scene manifest declares the controller and noninteractive

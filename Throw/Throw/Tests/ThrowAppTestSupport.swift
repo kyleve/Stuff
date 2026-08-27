@@ -1,22 +1,24 @@
-import SwiftUI
 @testable import Throw
-import ThrowUI
+@_spi(Testing) @testable import ThrowUI
 import UIKit
 
 @MainActor
 final class ThrowApplicationRuntimeSpy: ThrowApplicationRuntime {
+    let session: ThrowSession
+
     private(set) var backgroundCount = 0
     private(set) var foregroundCount = 0
     private(set) var connectedOutputs: [ProjectionOutput] = []
     private(set) var disconnectedOutputs: [ProjectionOutput] = []
     private(set) var appearances: [UIUserInterfaceStyle] = []
+    private(set) var outputDemandChangeCount = 0
 
-    func makeControllerView() -> AnyView {
-        AnyView(EmptyView())
+    init(session: ThrowSession) {
+        self.session = session
     }
 
-    func makeProjectionView(presentation _: ProjectionPresentation) -> AnyView {
-        AnyView(Color.black)
+    convenience init() {
+        self.init(session: .fixture())
     }
 
     func projectionOutputConnected(
@@ -40,6 +42,10 @@ final class ThrowApplicationRuntimeSpy: ThrowApplicationRuntime {
 
     func controllerAppearanceDidChange(_ style: UIUserInterfaceStyle) {
         appearances.append(style)
+    }
+
+    func sessionOutputDemandDidChange() {
+        outputDemandChangeCount += 1
     }
 }
 
