@@ -19,11 +19,7 @@ public struct AircraftID: Hashable, Sendable, CustomStringConvertible,
     }
 
     public var layerMarkID: LayerMarkID {
-        LayerMarkID(
-            layerID: .flights,
-            namespace: .aircraft,
-            rawValue: "\(kind.rawValue)/\(rawValue)",
-        )
+        .aircraft(self)
     }
 
     public var description: String {

@@ -128,9 +128,9 @@ public struct FlightLayerFrameBuilder: Sendable {
         }
         return ProjectionLayerFrame(
             observedAt: snapshot.fetchedAt,
-            content: .marks(aircraftMarks + airportMarks.values.sorted {
+            marks: aircraftMarks + airportMarks.values.sorted {
                 $0.id.rawValue < $1.id.rawValue
-            }),
+            },
         )
     }
 

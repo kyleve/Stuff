@@ -222,7 +222,7 @@ private actor ControllableFlightsLayerRuntime: FlightsLayerRunning {
     func frame(
         for input: FlightsLayerInput,
     ) async throws -> ProjectionLayerFrame<FlightsLayerKind> {
-        ProjectionLayerFrame(observedAt: input.snapshot.fetchedAt, content: .marks([]))
+        ProjectionLayerFrame(observedAt: input.snapshot.fetchedAt, marks: [])
     }
 
     func reset() async {

@@ -270,11 +270,7 @@ extension ThrowSession {
             let points = [(0.30, 0.38), (0.45, 0.58), (0.67, 0.36), (0.62, 0.68)]
             let aircraft = activities.enumerated().map { index, activity in
                 ProjectedMark(
-                    id: LayerMarkID(
-                        layerID: .flights,
-                        namespace: .aircraft,
-                        rawValue: "activity-\(index)",
-                    ),
+                    id: fixtureAircraftMarkID(rawValue: "activity-\(index)"),
                     point: ProjectionPoint(x: points[index].0, y: points[index].1),
                     range: try! NauticalMiles(value: Double(5 + index * 8)),
                     glyph: .aircraft(AircraftGlyphDescriptor(
@@ -788,11 +784,7 @@ extension ThrowSession {
                 geographyOpacity: 1,
                 marks: aircraft.map { value in
                     ProjectedMark(
-                        id: LayerMarkID(
-                            layerID: .flights,
-                            namespace: .aircraft,
-                            rawValue: value.rawID,
-                        ),
+                        id: fixtureAircraftMarkID(rawValue: value.rawID),
                         point: ProjectionPoint(x: value.x, y: value.y),
                         range: fixtureRange(value.range),
                         glyph: .aircraft(AircraftGlyphDescriptor(
@@ -901,6 +893,13 @@ extension ThrowSession {
             } catch {
                 preconditionFailure("Snapshot range must be valid: \(error)")
             }
+        }
+
+        private static func fixtureAircraftMarkID(rawValue: String) -> LayerMarkID {
+            guard let id = AircraftID(kind: .icao, rawValue: rawValue) else {
+                preconditionFailure("A fixture aircraft ID must be valid")
+            }
+            return id.layerMarkID
         }
 
         private struct SnapshotAircraft {

@@ -12,24 +12,26 @@ public enum GeographyLineKind: String, CaseIterable, Codable, Hashable, Sendable
 }
 
 /// A stable style identity shared by geographic and future network line layers.
-public struct ProjectionLineStyleID: Hashable, Sendable {
-    public static let transitRoute = ProjectionLineStyleID(rawValue: "transit.route")
-
-    public let rawValue: String
-
-    public init(rawValue: String) {
-        precondition(rawValue.isEmpty == false)
-        self.rawValue = rawValue
-    }
+public enum ProjectionLineStyleID: Hashable, Sendable {
+    case geography(GeographyLineKind)
+    case transitRoute
 
     public init(geographyKind: GeographyLineKind) {
-        self.init(rawValue: "geography.\(geographyKind.rawValue)")
+        self = .geography(geographyKind)
+    }
+
+    public var rawValue: String {
+        switch self {
+            case let .geography(kind): "geography.\(kind.rawValue)"
+            case .transitRoute: "transit.route"
+        }
     }
 
     public var geographyKind: GeographyLineKind? {
-        let prefix = "geography."
-        guard rawValue.hasPrefix(prefix) else { return nil }
-        return GeographyLineKind(rawValue: String(rawValue.dropFirst(prefix.count)))
+        switch self {
+            case let .geography(kind): kind
+            case .transitRoute: nil
+        }
     }
 }
 

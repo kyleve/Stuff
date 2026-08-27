@@ -61,20 +61,21 @@ struct LayerCatalogRows: View {
     }
 
     @ViewBuilder private func layerLabel(_ id: LayerID) -> some View {
-        if id == .flights {
-            Label(String(localized: .layerFlights), systemSymbol: .airplane)
-        } else if id == .geography {
-            Label(String(localized: .layerGeography), systemSymbol: .mapFill)
-        } else if id == .stars {
-            Label(String(localized: .layerStars), systemSymbol: .sparkles)
-        } else if id == .satellites {
-            Label(String(localized: .layerSatellites), systemSymbol: .globeAmericas)
-        } else {
-            Label {
-                Text(verbatim: id.rawValue)
-            } icon: {
-                Image(systemSymbol: .circle)
-            }
+        switch id {
+            case .flights:
+                Label(String(localized: .layerFlights), systemSymbol: .airplane)
+            case .geography:
+                Label(String(localized: .layerGeography), systemSymbol: .mapFill)
+            case .stars:
+                Label(String(localized: .layerStars), systemSymbol: .sparkles)
+            case .satellites:
+                Label(String(localized: .layerSatellites), systemSymbol: .globeAmericas)
+            case .transitNetwork, .transitVehicles:
+                Label {
+                    Text(verbatim: id.rawValue)
+                } icon: {
+                    Image(systemSymbol: .circle)
+                }
         }
     }
 
@@ -82,8 +83,8 @@ struct LayerCatalogRows: View {
         switch availability {
             case .enabled:
                 EmptyView()
-            case let .disabled(explanation):
-                Text(verbatim: explanation).foregroundStyle(.secondary)
+            case .disabled:
+                Text(.layerUnavailable).foregroundStyle(.secondary)
             case .planned:
                 Text(.layerPlanned).foregroundStyle(.secondary)
         }

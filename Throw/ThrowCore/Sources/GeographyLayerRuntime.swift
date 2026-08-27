@@ -42,7 +42,7 @@ public struct GeographyLayerRuntime: ProjectionLayerRuntime {
         let lines = try await GeographyArchiveDecoder.decode(data)
         return ProjectionLayerFrame(
             observedAt: Date(timeIntervalSince1970: 0),
-            content: .lines(lines),
+            lines: lines,
         )
     }
 }

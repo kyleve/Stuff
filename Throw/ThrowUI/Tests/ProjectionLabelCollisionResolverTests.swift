@@ -21,8 +21,8 @@ struct ProjectionLabelCollisionResolverTests {
         let resolved = resolver.resolve(frame)
 
         #expect(resolved.marks.count == 2)
-        #expect(resolved.marks.first(where: { $0.id.rawValue == "near" })?.label != nil)
-        #expect(resolved.marks.first(where: { $0.id.rawValue == "far" })?.label == nil)
+        #expect(resolved.marks.first(where: { $0.id.rawValue == "icao/near" })?.label != nil)
+        #expect(resolved.marks.first(where: { $0.id.rawValue == "icao/far" })?.label == nil)
     }
 
     @Test func rangeHysteresisKeepsThePreviousWinnerWithinQuarterMile() throws {
@@ -50,8 +50,10 @@ struct ProjectionLabelCollisionResolverTests {
             ],
         ))
 
-        #expect(withinTolerance.marks.first(where: { $0.id.rawValue == "alpha" })?.label != nil)
-        #expect(withinTolerance.marks.first(where: { $0.id.rawValue == "bravo" })?.label == nil)
+        #expect(withinTolerance.marks.first(where: { $0.id.rawValue == "icao/alpha" })?
+            .label != nil)
+        #expect(withinTolerance.marks.first(where: { $0.id.rawValue == "icao/bravo" })?
+            .label == nil)
     }
 
     @Test func staleAndLabelOpacitySurviveLabelResolution() throws {
@@ -115,7 +117,7 @@ struct ProjectionLabelCollisionResolverTests {
         labelRole: ProjectionLabelRole = .headline,
     ) throws -> ProjectedMark {
         try ProjectedMark(
-            id: LayerMarkID(layerID: .flights, namespace: .aircraft, rawValue: id),
+            id: #require(AircraftID(kind: .icao, rawValue: id)).layerMarkID,
             point: ProjectionPoint(x: x, y: 0.5),
             range: NauticalMiles(value: range),
             glyph: .aircraft(.unknownAirborne),

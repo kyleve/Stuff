@@ -72,8 +72,8 @@ struct ProjectionEngineTests {
             geometry: ProjectionGeometry(width: 1920, height: 1080),
             generatedAt: ThrowCoreFixture.date,
         )
-        let north = try #require(projection.marks.first { $0.id.rawValue == "north" })
-        let east = try #require(projection.marks.first { $0.id.rawValue == "east" })
+        let north = try #require(projection.marks.first { $0.id.rawValue == "icao/north" })
+        let east = try #require(projection.marks.first { $0.id.rawValue == "icao/east" })
         let northRange = try #require(north.range)
         let eastRange = try #require(east.range)
         #expect(north.point.y < 0.5)
@@ -87,11 +87,7 @@ struct ProjectionEngineTests {
     @Test func genericExperienceProjectionKeepsLineAndMarkLayersSeparate() throws {
         let observer = try ThrowCoreFixture.observer(latitude: 0, longitude: 0, altitudeFeet: 0)
         let vehicle = try ProjectionMark(
-            id: LayerMarkID(
-                layerID: .transitVehicles,
-                namespace: .aircraft,
-                rawValue: "vehicle",
-            ),
+            id: .transitVehicle(#require(TransitVehicleID(rawValue: "vehicle"))),
             anchor: .geodetic(GeodeticAnchor(
                 coordinate: GeoCoordinate(latitude: 0.1, longitude: 0),
                 altitude: Altitude(feet: 0),
@@ -124,7 +120,7 @@ struct ProjectionEngineTests {
                     network: nil,
                     vehicles: ProjectionLayerFrame(
                         observedAt: ThrowCoreFixture.date,
-                        content: .marks([vehicle]),
+                        marks: [vehicle],
                     ),
                 ),
                 viewport: MapViewport(radius: NauticalMiles(value: 50)),
@@ -280,7 +276,7 @@ struct ProjectionEngineTests {
             altitudeFeet: 0,
         )
         let movingMark = try ProjectionMark(
-            id: LayerMarkID(layerID: .flights, namespace: .aircraft, rawValue: "moving"),
+            id: #require(AircraftID(kind: .icao, rawValue: "moving")).layerMarkID,
             anchor: .geodetic(GeodeticAnchor(
                 coordinate: GeoCoordinate(latitude: 80, longitude: 0.5),
                 altitude: Altitude(feet: 30000),
@@ -346,10 +342,10 @@ struct ProjectionEngineTests {
             generatedAt: generatedAt,
         )
         let currentPoint = try #require(
-            expectedFrame.marks.first(where: { $0.id.rawValue == "current" })?.point,
+            expectedFrame.marks.first(where: { $0.id.rawValue == "icao/current" })?.point,
         )
         let nextPoint = try #require(
-            expectedFrame.marks.first(where: { $0.id.rawValue == "next" })?.point,
+            expectedFrame.marks.first(where: { $0.id.rawValue == "icao/next" })?.point,
         )
         let expected = try Bearing(degrees: atan2(
             nextPoint.x - currentPoint.x,
@@ -444,7 +440,7 @@ struct ProjectionEngineTests {
             generatedAt: ThrowCoreFixture.date.addingTimeInterval(15),
         )
 
-        #expect(Set(frame.marks.map(\.id.rawValue)) == Set(["extreme", "neighbor"]))
+        #expect(Set(frame.marks.map(\.id.rawValue)) == Set(["icao/extreme", "icao/neighbor"]))
     }
 
     @Test func verticalOnlyTrueSkyMotionProducesApparentOrientation() throws {
@@ -685,9 +681,9 @@ struct ProjectionEngineTests {
         id: String,
         anchor: ProjectionAnchor,
         at date: Date,
-    ) -> ProjectionMark {
-        ProjectionMark(
-            id: LayerMarkID(layerID: .flights, namespace: .aircraft, rawValue: id),
+    ) throws -> ProjectionMark {
+        try ProjectionMark(
+            id: #require(AircraftID(kind: .icao, rawValue: id)).layerMarkID,
             anchor: anchor,
             glyph: .aircraft(.unknownAirborne),
             label: nil,
@@ -734,7 +730,7 @@ struct ProjectionEngineTests {
         velocity: ProjectionVelocity? = nil,
     ) throws -> ProjectionMark {
         try ProjectionMark(
-            id: LayerMarkID(layerID: .flights, namespace: .aircraft, rawValue: rawID),
+            id: #require(AircraftID(kind: .icao, rawValue: rawID)).layerMarkID,
             anchor: .geodetic(
                 GeodeticAnchor(
                     coordinate: GeoCoordinate(latitude: latitude, longitude: longitude),
