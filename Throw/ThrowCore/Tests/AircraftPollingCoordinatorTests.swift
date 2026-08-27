@@ -57,7 +57,6 @@ struct AircraftPollingCoordinatorTests {
             configuration: .adsbExchangeRapidAPI(
                 ADSBExchangeConfiguration(
                     pollingInterval: PollingInterval(seconds: 10),
-                    credentialID: .rapidAPI,
                 ),
             ),
             query: ThrowCoreFixture.mapQuery(),
@@ -456,7 +455,6 @@ struct AircraftPollingCoordinatorTests {
         try .adsbExchangeRapidAPI(
             ADSBExchangeConfiguration(
                 pollingInterval: PollingInterval(seconds: 10),
-                credentialID: .rapidAPI,
             ),
         )
     }

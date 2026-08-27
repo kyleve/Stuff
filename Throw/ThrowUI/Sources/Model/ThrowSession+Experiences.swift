@@ -140,10 +140,7 @@ extension ThrowSession {
     }
 
     private var configuredExperienceIDs: Set<ProjectionExperienceID> {
-        selectedSourceConfiguration == validatedSourceConfiguration &&
-            selectedSourceConfiguration != nil
-            ? [.airAndSpace]
-            : []
+        aircraftSourceSelection.isConfigured ? [.airAndSpace] : []
     }
 
     func configureExperienceCoordinator(with playlist: ProjectionPlaylist) async {

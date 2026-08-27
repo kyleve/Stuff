@@ -202,7 +202,6 @@ struct ThrowOnboardingView: View {
             return .adsbExchangeRapidAPI(
                 ADSBExchangeConfiguration(
                     pollingInterval: pollingInterval,
-                    credentialID: .rapidAPI,
                 ),
             )
         }

@@ -369,11 +369,9 @@ extension ThrowSession {
             let configuration = AircraftSourceConfiguration.flightradar24(
                 Flightradar24Configuration(
                     pollingInterval: pollingInterval,
-                    credentialID: .flightradar24,
                 ),
             )
-            session.selectedSourceConfiguration = configuration
-            session.validatedSourceConfiguration = configuration
+            session.aircraftSourceSelection = .configured(configuration)
             session.flightradar24CredentialState = .saved(lastFour: credential.lastFour)
             return session
         }
@@ -512,8 +510,7 @@ extension ThrowSession {
                 let source: AircraftSourceConfiguration = .adsbLol
                 let preferences = try ThrowPreferences(
                     setupCompleted: setupCompleted,
-                    selectedSource: setupCompleted ? source : nil,
-                    validatedSource: setupCompleted ? source : nil,
+                    sourceSelection: setupCompleted ? .configured(source) : .unconfigured,
                     locationMode: .gps,
                     confirmedLocation: confirmed,
                     calibration: .defaultValue,
@@ -621,12 +618,10 @@ extension ThrowSession {
             let configuration = AircraftSourceConfiguration.adsbExchangeRapidAPI(
                 ADSBExchangeConfiguration(
                     pollingInterval: pollingInterval,
-                    credentialID: .rapidAPI,
                 ),
             )
             prepareDashboardSnapshot(session)
-            session.selectedSourceConfiguration = configuration
-            session.validatedSourceConfiguration = configuration
+            session.aircraftSourceSelection = .configured(configuration)
             session.projectionFrame = emptyProjectionFrame(
                 mode: session.projectionMode,
                 at: session.projectionFrame.generatedAt,

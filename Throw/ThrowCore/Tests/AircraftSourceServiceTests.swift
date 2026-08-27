@@ -14,7 +14,6 @@ struct AircraftSourceServiceTests {
         let configuration = AircraftSourceConfiguration.adsbExchangeRapidAPI(
             ADSBExchangeConfiguration(
                 pollingInterval: .defaultValue,
-                credentialID: .rapidAPI,
             ),
         )
 

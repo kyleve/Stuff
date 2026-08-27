@@ -88,8 +88,7 @@ public struct ThrowGlobalPreferences: Equatable, Sendable, CustomStringConvertib
 public struct AirAndSpacePreferences: Equatable, Sendable, CustomStringConvertible,
     CustomDebugStringConvertible
 {
-    public let selectedSource: AircraftSourceConfiguration?
-    public let validatedSource: AircraftSourceConfiguration?
+    public let sourceSelection: AircraftSourceSelection
     public let mapViewport: MapViewport
     public let mapCenters: MapCenterPreferences
     public let skyViewport: SkyViewport
@@ -102,8 +101,7 @@ public struct AirAndSpacePreferences: Equatable, Sendable, CustomStringConvertib
     public let markSizePercent: Double
 
     public init(
-        selectedSource: AircraftSourceConfiguration?,
-        validatedSource: AircraftSourceConfiguration?,
+        sourceSelection: AircraftSourceSelection,
         mapViewport: MapViewport,
         mapCenters: MapCenterPreferences,
         skyViewport: SkyViewport,
@@ -121,8 +119,7 @@ public struct AirAndSpacePreferences: Equatable, Sendable, CustomStringConvertib
         guard (50.0 ... 200.0).contains(markSizePercent) else {
             throw ThrowValidationError.outOfRange(field: "markSize", closedRange: 50 ... 200)
         }
-        self.selectedSource = selectedSource
-        self.validatedSource = validatedSource
+        self.sourceSelection = sourceSelection
         self.mapViewport = mapViewport
         self.mapCenters = mapCenters
         self.skyViewport = skyViewport
@@ -136,8 +133,7 @@ public struct AirAndSpacePreferences: Equatable, Sendable, CustomStringConvertib
     }
 
     public var isConfigured: Bool {
-        guard let selectedSource else { return false }
-        return validatedSource == selectedSource && selectedProjectionMode != nil
+        sourceSelection.isConfigured && selectedProjectionMode != nil
     }
 
     public var description: String {
@@ -163,8 +159,7 @@ public struct ThrowPreferences: Equatable, Sendable, CustomStringConvertible,
                 quietSchedule: .disabled,
             )
             let airAndSpace = try AirAndSpacePreferences(
-                selectedSource: nil,
-                validatedSource: nil,
+                sourceSelection: .unconfigured,
                 mapViewport: .defaultValue,
                 mapCenters: .defaultValue,
                 skyViewport: .defaultValue,
@@ -232,8 +227,7 @@ public struct ThrowPreferences: Equatable, Sendable, CustomStringConvertible,
     /// Compatibility initializer while presentation call sites move to nested settings.
     public init(
         setupCompleted: Bool,
-        selectedSource: AircraftSourceConfiguration?,
-        validatedSource: AircraftSourceConfiguration?,
+        sourceSelection: AircraftSourceSelection,
         locationMode: ObserverLocationMode,
         confirmedLocation: ConfirmedObserverLocation?,
         calibration: ProjectionCalibration,
@@ -258,8 +252,7 @@ public struct ThrowPreferences: Equatable, Sendable, CustomStringConvertible,
             quietSchedule: quietSchedule,
         )
         let airAndSpace = try AirAndSpacePreferences(
-            selectedSource: selectedSource,
-            validatedSource: validatedSource,
+            sourceSelection: sourceSelection,
             mapViewport: mapViewport,
             mapCenters: mapCenters,
             skyViewport: skyViewport,
@@ -295,11 +288,11 @@ public struct ThrowPreferences: Equatable, Sendable, CustomStringConvertible,
     }
 
     public var selectedSource: AircraftSourceConfiguration? {
-        airAndSpace.selectedSource
+        airAndSpace.sourceSelection.selectedSource
     }
 
     public var validatedSource: AircraftSourceConfiguration? {
-        airAndSpace.validatedSource
+        airAndSpace.sourceSelection.validatedSource
     }
 
     public var locationMode: ObserverLocationMode {
@@ -555,9 +548,12 @@ enum ThrowPreferencesCodec {
                 intensityPercent: intensityPercent,
                 quietSchedule: schedule,
             )
-            let airAndSpacePreferences = try AirAndSpacePreferences(
+            let sourceSelection = try AircraftSourceSelection(
                 selectedSource: selectedSource?.configuration(),
                 validatedSource: validatedSource?.configuration(),
+            )
+            let airAndSpacePreferences = try AirAndSpacePreferences(
+                sourceSelection: sourceSelection,
                 mapViewport: MapViewport(radius: NauticalMiles(value: mapRadius)),
                 mapCenters: MapCenterPreferences(
                     profiles: (mapCenters ?? []).map { try $0.value() },
@@ -648,8 +644,8 @@ enum ThrowPreferencesCodec {
         let markSizePercent: Double
 
         init(_ preferences: AirAndSpacePreferences) {
-            selectedSource = preferences.selectedSource.map(SourceStorage.init)
-            validatedSource = preferences.validatedSource.map(SourceStorage.init)
+            selectedSource = preferences.sourceSelection.selectedSource.map(SourceStorage.init)
+            validatedSource = preferences.sourceSelection.validatedSource.map(SourceStorage.init)
             mapRadius = preferences.mapViewport.radius.value
             mapCenters = preferences.mapCenters.profiles.map(MapCenterStorage.init)
             skyMinimumElevation = preferences.skyViewport.minimumElevation.degrees
@@ -675,9 +671,12 @@ enum ThrowPreferencesCodec {
             } else {
                 selectedMode = nil
             }
-            return try AirAndSpacePreferences(
+            let sourceSelection = try AircraftSourceSelection(
                 selectedSource: selectedSource?.configuration(),
                 validatedSource: validatedSource?.configuration(),
+            )
+            return try AirAndSpacePreferences(
+                sourceSelection: sourceSelection,
                 mapViewport: MapViewport(radius: NauticalMiles(value: mapRadius)),
                 mapCenters: MapCenterPreferences(profiles: mapCenters.map { try $0.value() }),
                 skyViewport: SkyViewport(
@@ -811,12 +810,12 @@ enum ThrowPreferencesCodec {
                     kind = AircraftSourceKind.adsbExchangeRapidAPI.rawValue
                     readsbURL = nil
                     cadenceSeconds = configuration.pollingInterval.seconds
-                    credentialID = configuration.credentialID.rawValue
+                    credentialID = AircraftCredentialID.rapidAPI.rawValue
                 case let .flightradar24(configuration):
                     kind = AircraftSourceKind.flightradar24.rawValue
                     readsbURL = nil
                     cadenceSeconds = configuration.pollingInterval.seconds
-                    credentialID = configuration.credentialID.rawValue
+                    credentialID = AircraftCredentialID.flightradar24.rawValue
             }
         }
 
@@ -838,23 +837,27 @@ enum ThrowPreferencesCodec {
                     }
                     return try .readsb(ReadsbConfiguration(aircraftJSONURL: url))
                 case .adsbExchangeRapidAPI:
-                    guard readsbURL == nil, let cadenceSeconds, let credentialID else {
+                    guard readsbURL == nil,
+                          let cadenceSeconds,
+                          credentialID == AircraftCredentialID.rapidAPI.rawValue
+                    else {
                         throw ThrowPreferenceStoreError.invalidPayload
                     }
                     return try .adsbExchangeRapidAPI(
                         ADSBExchangeConfiguration(
                             pollingInterval: PollingInterval(seconds: cadenceSeconds),
-                            credentialID: AircraftCredentialID(rawValue: credentialID),
                         ),
                     )
                 case .flightradar24:
-                    guard readsbURL == nil, let cadenceSeconds, let credentialID else {
+                    guard readsbURL == nil,
+                          let cadenceSeconds,
+                          credentialID == AircraftCredentialID.flightradar24.rawValue
+                    else {
                         throw ThrowPreferenceStoreError.invalidPayload
                     }
                     return try .flightradar24(
                         Flightradar24Configuration(
                             pollingInterval: PollingInterval(seconds: cadenceSeconds),
-                            credentialID: AircraftCredentialID(rawValue: credentialID),
                         ),
                     )
             }

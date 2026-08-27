@@ -42,18 +42,11 @@ public enum AircraftSourceKind: String, CaseIterable, Codable, Hashable, Sendabl
     case flightradar24
 }
 
-public struct AircraftCredentialID: Hashable, Sendable, CustomStringConvertible,
+public enum AircraftCredentialID: String, Hashable, Sendable, CustomStringConvertible,
     CustomDebugStringConvertible
 {
-    public static let rapidAPI = AircraftCredentialID(rawValue: "rapidapi-personal-key")
-    public static let flightradar24 = AircraftCredentialID(rawValue: "flightradar24-api-token")
-
-    public let rawValue: String
-
-    public init(rawValue: String) {
-        precondition(rawValue.isEmpty == false, "A credential ID must not be empty")
-        self.rawValue = rawValue
-    }
+    case rapidAPI = "rapidapi-personal-key"
+    case flightradar24 = "flightradar24-api-token"
 
     public var description: String {
         "<AircraftCredentialID redacted>"
@@ -86,11 +79,9 @@ public struct ADSBExchangeConfiguration: Equatable, Sendable, CustomStringConver
     CustomDebugStringConvertible
 {
     public let pollingInterval: PollingInterval
-    public let credentialID: AircraftCredentialID
 
-    public init(pollingInterval: PollingInterval, credentialID: AircraftCredentialID) {
+    public init(pollingInterval: PollingInterval) {
         self.pollingInterval = pollingInterval
-        self.credentialID = credentialID
     }
 
     public var description: String {
@@ -106,11 +97,9 @@ public struct Flightradar24Configuration: Equatable, Sendable, CustomStringConve
     CustomDebugStringConvertible
 {
     public let pollingInterval: PollingInterval
-    public let credentialID: AircraftCredentialID
 
-    public init(pollingInterval: PollingInterval, credentialID: AircraftCredentialID) {
+    public init(pollingInterval: PollingInterval) {
         self.pollingInterval = pollingInterval
-        self.credentialID = credentialID
     }
 
     public var description: String {

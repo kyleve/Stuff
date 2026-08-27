@@ -80,7 +80,7 @@ public struct AircraftSourceFactory: AircraftSourceProducing {
                 )
             case let .adsbExchangeRapidAPI(rapidConfiguration):
                 guard let credential = try await credentialStore.credential(
-                    for: rapidConfiguration.credentialID,
+                    for: .rapidAPI,
                 ) else {
                     throw AircraftSourceFailure.missingCredential
                 }
@@ -96,7 +96,7 @@ public struct AircraftSourceFactory: AircraftSourceProducing {
                 )
             case let .flightradar24(configuration):
                 guard let credential = try await credentialStore.credential(
-                    for: configuration.credentialID,
+                    for: .flightradar24,
                 ) else {
                     throw AircraftSourceFailure.missingCredential
                 }
