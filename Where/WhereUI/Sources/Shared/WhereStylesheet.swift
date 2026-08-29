@@ -175,9 +175,8 @@ extension WhereStylesheet {
         struct Surface: Equatable {
             var outlineWidth: CGFloat
             var inset: CGFloat
-            var insetOutlineWidth: CGFloat
-            var insetDashLength: CGFloat
-            var insetDashSpacing: CGFloat
+            var microprintGlyphSize: CGFloat
+            var microprintSpacing: CGFloat
             var rosetteWobble: CGFloat
             var rosetteLineWidth: CGFloat
             var primaryRingSpacing: CGFloat
@@ -203,6 +202,7 @@ extension WhereStylesheet {
             var regionFont: Font
             var estimateFont: Font
             var detailFont: Font
+            var outlineWidth: CGFloat
             var separatorHeight: CGFloat
             var separatorLineWidth: CGFloat
             var separatorDashLength: CGFloat
@@ -228,7 +228,7 @@ extension WhereStylesheet {
         struct Ink: Equatable {
             var surfaceWashOpacity: Double
             var surfaceOutlineOpacity: Double
-            var insetOutlineOpacity: Double
+            var microprintOpacity: Double
             var rosettePrimaryOpacity: Double
             var rosetteSecondaryOpacity: Double
             var sealOpacity: Double
@@ -244,7 +244,7 @@ extension WhereStylesheet {
             static let standard = Ink(
                 surfaceWashOpacity: 0.035,
                 surfaceOutlineOpacity: 0.22,
-                insetOutlineOpacity: 0.12,
+                microprintOpacity: 0.18,
                 rosettePrimaryOpacity: 0.08,
                 rosetteSecondaryOpacity: 0.045,
                 sealOpacity: 0.72,
@@ -261,7 +261,7 @@ extension WhereStylesheet {
             static let increasedContrast = Ink(
                 surfaceWashOpacity: 0.065,
                 surfaceOutlineOpacity: 0.5,
-                insetOutlineOpacity: 0.32,
+                microprintOpacity: 0.4,
                 rosettePrimaryOpacity: 0.14,
                 rosetteSecondaryOpacity: 0.09,
                 sealOpacity: 1,
@@ -283,10 +283,9 @@ extension WhereStylesheet {
             expansionAnimation: .easeInOut(duration: 0.2),
             surface: Surface(
                 outlineWidth: 1.25,
-                inset: 5,
-                insetOutlineWidth: 0.75,
-                insetDashLength: 4,
-                insetDashSpacing: 4,
+                inset: 9,
+                microprintGlyphSize: 7,
+                microprintSpacing: 10,
                 rosetteWobble: 5,
                 rosetteLineWidth: 0.75,
                 primaryRingSpacing: 10,
@@ -310,6 +309,7 @@ extension WhereStylesheet {
                 regionFont: .system(.headline, design: .serif),
                 estimateFont: .system(.title2, design: .rounded),
                 detailFont: .footnote,
+                outlineWidth: 0.75,
                 separatorHeight: 1,
                 separatorLineWidth: 1,
                 separatorDashLength: 4,

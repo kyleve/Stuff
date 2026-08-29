@@ -206,6 +206,7 @@ struct LocationsView: View {
             if report.showsEstimatedTimeAndPlanning, !topForecasts.isEmpty {
                 LocationForecastPanel(
                     forecasts: topForecasts,
+                    microprintRegions: report.ranking.primary.map(\.region),
                     plannedStay: report.forecasts.activePlannedStay,
                     editableRegions: topForecasts.map(\.region),
                     editAction: editPlannedStay,

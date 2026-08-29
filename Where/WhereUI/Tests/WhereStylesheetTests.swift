@@ -313,10 +313,9 @@ struct WhereStylesheetTests {
         #expect(forecast.expansionAnimation == .easeInOut(duration: 0.2))
         #expect(forecast.surface == .init(
             outlineWidth: 1.25,
-            inset: 5,
-            insetOutlineWidth: 0.75,
-            insetDashLength: 4,
-            insetDashSpacing: 4,
+            inset: 9,
+            microprintGlyphSize: 7,
+            microprintSpacing: 10,
             rosetteWobble: 5,
             rosetteLineWidth: 0.75,
             primaryRingSpacing: 10,
@@ -340,6 +339,7 @@ struct WhereStylesheetTests {
             regionFont: .system(.headline, design: .serif),
             estimateFont: .system(.title2, design: .rounded),
             detailFont: .footnote,
+            outlineWidth: 0.75,
             separatorHeight: 1,
             separatorLineWidth: 1,
             separatorDashLength: 4,
@@ -360,6 +360,7 @@ struct WhereStylesheetTests {
             font: .subheadline,
         ))
         #expect(forecast.ink == .standard)
+        #expect(forecast.ink.microprintOpacity == 0.18)
     }
 
     @Test func appIconStyle() {
@@ -791,6 +792,7 @@ struct WhereStylesheetTests {
         context.traitOverrides.accessibility = BAccessibility(isDarkerSystemColorsEnabled: true)
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
         #expect(resolved.locationForecast.ink == .increasedContrast)
+        #expect(resolved.locationForecast.ink.microprintOpacity == 0.4)
         #expect(resolved.openSourceStamp.ink == .increasedContrast)
         #expect(resolved.plannedStayWarningStamp.ink == .increasedContrast)
     }

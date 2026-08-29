@@ -206,10 +206,13 @@ struct RegionSummaryCard: View {
                 !regionPath.isEmpty
             {
                 RegionOutlineSecurityBorder(
-                    path: regionPath,
+                    paths: [regionPath],
                     tint: tint,
                     cornerRadius: card.cornerRadius,
-                    style: regionShape.securityBorder,
+                    inset: regionShape.securityBorder.inset,
+                    glyphSize: regionShape.securityBorder.glyphSize,
+                    spacing: regionShape.securityBorder.spacing,
+                    opacity: regionShape.securityBorder.opacity,
                 )
             }
 

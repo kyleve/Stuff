@@ -51,7 +51,7 @@ struct LocationForecastRow: View {
         .overlay {
             shape.strokeBorder(
                 tint.opacity(style.ink.rowOutlineOpacity),
-                lineWidth: style.surface.insetOutlineWidth,
+                lineWidth: row.outlineWidth,
             )
         }
         .accessibilityElement(children: .ignore)
