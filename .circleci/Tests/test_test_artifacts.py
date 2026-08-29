@@ -17,7 +17,7 @@ SPEC.loader.exec_module(MODULE)
 METADATA = {
     "checkout": "/Users/distiller/project",
     "commit": "abc123",
-    "xcodeBuild": "27A5228h",
+    "xcodeBuild": "27A5252f",
     "sdkBuild": "24A123",
     "architecture": "arm64",
     "configuration": "Debug",

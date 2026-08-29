@@ -88,8 +88,8 @@ commands:
             xcrun simctl list runtimes available
 
             xcode_build="$(xcodebuild -version | awk '/Build version/{print $3}')"
-            if [[ "$xcode_build" != "27A5228h" ]]; then
-              echo "Expected Xcode build 27A5228h, found $xcode_build" >&2
+            if [[ "$xcode_build" != "27A5252f" ]]; then
+              echo "Expected Xcode build 27A5252f, found $xcode_build" >&2
               exit 1
             fi
             if ! xcrun simctl list runtimes available | grep -Eq '^iOS 27(\.0)? '; then
