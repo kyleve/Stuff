@@ -10,6 +10,7 @@ from unittest import mock
 
 
 SCRIPT = pathlib.Path(__file__).parents[1] / "test_artifacts.py"
+XCODE_BUILD = (pathlib.Path(__file__).parents[2] / ".xcode-build-version").read_text().strip()
 SPEC = importlib.util.spec_from_file_location("test_artifacts", SCRIPT)
 MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MODULE)
@@ -17,7 +18,7 @@ SPEC.loader.exec_module(MODULE)
 METADATA = {
     "checkout": "/Users/distiller/project",
     "commit": "abc123",
-    "xcodeBuild": "27A5252f",
+    "xcodeBuild": XCODE_BUILD,
     "sdkBuild": "24A123",
     "architecture": "arm64",
     "configuration": "Debug",

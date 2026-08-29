@@ -66,6 +66,11 @@ dependency graph says they're affected.
   `never` (default). Fix the view first; re-record only when the render is
   correct
 
+Snapshot runs require the exact Xcode build in
+[`.xcode-build-version`](../../../.xcode-build-version). `./test` rejects a
+different selected build before project generation or simulator boot. Install
+the pinned build. Then select it before you review or record references.
+
 Do not parallelize the image suite. Simulators on one Mac share one render
 server. That makes captures slower and flaky. See
 [`Shared/SnapshotKitTesting/AGENTS.md`](../../../Shared/SnapshotKitTesting/AGENTS.md).

@@ -29,6 +29,7 @@ Roughly, this file covers:
 | Ruby        | `.mise.toml` |
 | Swift PM    | `Package.swift` (`swift-tools-version`) |
 | Bumper Bowling | `Package.swift` / `Package.resolved` |
+| Xcode snapshot renderer | `.xcode-build-version` |
 
 
 Read the exact pinned versions from those files. Do not trust a copy in prose. A version in a doc goes stale without notice.
@@ -533,7 +534,9 @@ examples, or app-rendered copy are not documentation-only.
 Load the [`running-tests`](.agents/skills/running-tests/SKILL.md) skill for
 test tiers, snapshot opt-in, why not `tuist test`, and per-checkout simulator
 management (`./simulator` resolves a UDID — never pass a device name to
-`simctl`).
+`simctl`). Snapshot runs require the exact Xcode build in
+[`.xcode-build-version`](.xcode-build-version). `./test` checks it before it
+generates the project or starts a simulator.
 
 ## Working in this repo
 

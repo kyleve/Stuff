@@ -55,6 +55,11 @@ class TestRunnerTests(unittest.TestCase):
         selected = affected_bundles(["Project.swift"], {"targets": []}, project)
         self.assertEqual(len(selected), 15)
 
+        selected = affected_bundles(
+            [".xcode-build-version"], {"targets": []}, project
+        )
+        self.assertEqual(len(selected), 15)
+
         with self.assertRaisesRegex(ValueError, "only found 0 test bundles"):
             affected_bundles(["Project.swift"], {"targets": []}, "")
 
