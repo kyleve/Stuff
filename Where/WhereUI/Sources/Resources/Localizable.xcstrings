@@ -2597,6 +2597,90 @@
         }
       }
     },
+    "developer.demo.cancelScheduled" : {
+      "comment" : "Button that removes a scheduled one-shot demo launch.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Cancel Scheduled Demo"
+          }
+        }
+      }
+    },
+    "developer.demo.cleanBaseline" : {
+      "comment" : "Developer menu status for a scheduled demo with no unresolved issue fixtures.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Clean baseline"
+          }
+        }
+      }
+    },
+    "developer.demo.issues.footer" : {
+      "comment" : "Footer explaining the next-launch demo issue checklist.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Selected issue types appear in Resolve. Clear every option for a clean demo year."
+          }
+        }
+      }
+    },
+    "developer.demo.issues.header" : {
+      "comment" : "Header above the next-launch demo issue checklist.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Show in Resolve"
+          }
+        }
+      }
+    },
+    "developer.demo.nextLaunch" : {
+      "comment" : "Developer menu button that configures a one-shot in-memory demo for the next launch.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Demo on Next Launch"
+          }
+        }
+      }
+    },
+    "developer.demo.schedule" : {
+      "comment" : "Confirmation button that schedules the configured demo for the next launch.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Schedule"
+          }
+        }
+      }
+    },
+    "developer.demo.sheetTitle" : {
+      "comment" : "Title of the developer sheet that configures the next demo launch.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Next Launch Demo"
+          }
+        }
+      }
+    },
     "developer.dragHandle" : {
       "comment" : "Accessibility label for the handle that drags the floating developer window.",
       "extractionState" : "manual",

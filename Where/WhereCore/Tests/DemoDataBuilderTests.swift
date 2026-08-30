@@ -155,6 +155,29 @@ struct DemoDataBuilderTests {
         #expect(firstReport.days == secondReport.days)
     }
 
+    @Test func configuredIssueCategoriesAreExact() async throws {
+        let categories = DataIssueCategory.allCases
+        for mask in 0 ..< (1 << categories.count) {
+            let selected = Set(categories.enumerated().compactMap { index, category in
+                mask & (1 << index) == 0 ? nil : category
+            })
+            let services = try makeServices()
+            try await DemoDataBuilder(
+                now: now,
+                calendar: calendar,
+                configuration: .init(issueCategories: selected),
+            ).seed(into: services)
+
+            let issues = try await services.resolution.issues(
+                year: 2026,
+                primaryRegions: [.newYork, .california],
+                driftThresholdMeters: DriftThreshold.default.meters,
+                force: true,
+            )
+            #expect(Set(issues.map(\.category)) == selected, "Configuration mask \(mask)")
+        }
+    }
+
     /// The shape has to survive being entered at any point in the year, which
     /// is the bug this pins: with fixed-size trips and gaps, a January demo was
     /// more than half unlogged and a February one counted more California days

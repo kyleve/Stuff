@@ -157,6 +157,7 @@ struct WhereLaunchTests {
         let model = try makeModel(preferences: makePreferences())
         let ids = WhereLaunch.plan(for: model).nodeIDs
         #expect(ids == [
+            .activateDemo,
             .onboarding,
             .resolveScope,
             .startSession,
@@ -168,6 +169,31 @@ struct WhereLaunchTests {
             .issueAlerts,
             .widgetSnapshot,
         ])
+    }
+
+    @Test func requestedDemoActivatesBeforeOnboardingAndOpensNoRealStore() async throws {
+        let realPreferences = makePreferences()
+        let (model, bootstrap) = try makeLoggedOutModel(preferences: realPreferences)
+        model.prepareDemoLaunch(configuration: .allIssues)
+
+        let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
+        await launcher.run()
+
+        #expect(launcher.phase.isReady)
+        #expect(model.isInDemoMode)
+        #expect(bootstrap.makeServicesCount == 0)
+        #expect(!realPreferences.hasOnboarded)
+
+        await model.deactivateDemo()
+        let laterLaunch = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
+        let drive = Task { await laterLaunch.run() }
+        try await waitUntil {
+            laterLaunch.phase.isAwaitingGate(LaunchStepID.onboarding)
+        }
+        drive.cancel()
+
+        #expect(!model.isInDemoMode)
+        #expect(bootstrap.makeServicesCount == 0)
     }
 
     @Test func coldForegroundLaunchReachesReadyAndReconcilesTracking() async throws {

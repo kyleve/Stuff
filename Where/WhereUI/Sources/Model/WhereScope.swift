@@ -211,6 +211,7 @@ public final class WhereScope {
     static func demo(
         now: @escaping @Sendable () -> Date,
         logSystem: Periscope,
+        configuration: DemoDataBuilder.Configuration,
     ) async throws -> WhereScope {
         let aggregator = DayAggregator()
         let locationSource = ScriptedLocationSource(authorizationStatus: .always)
@@ -247,8 +248,12 @@ public final class WhereScope {
             importRecoveryPersistence: NoopBackupImportRecoveryPersistence(),
             now: now,
         )
-        try await DemoDataBuilder(now: now(), calendar: aggregator.calendar)
-            .seed(into: services)
+        try await DemoDataBuilder(
+            now: now(),
+            calendar: aggregator.calendar,
+            configuration: configuration,
+        )
+        .seed(into: services)
 
         let preferences = WherePreferences(store: InMemoryKeyValueStore())
         // Onboarded, so the demo opens on the logged-in app rather than on a

@@ -31,15 +31,15 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
             #endif
         }()
 
-        private let inspectorModeController: InspectorModeController?
+        private let developerLaunchController: WhereDeveloperLaunchController?
 
         init(
             preferences: WherePreferences,
             effectiveDiagnosticReportingConfiguration: DiagnosticReportingConfiguration,
             applyRemoteLogging: @escaping DiagnosticReportingSettingsModel.ApplyRemoteLogging,
-            inspectorModeController: InspectorModeController? = nil,
+            developerLaunchController: WhereDeveloperLaunchController? = nil,
         ) {
-            self.inspectorModeController = inspectorModeController
+            self.developerLaunchController = developerLaunchController
             model = Self.makeModel(
                 storeStorage: Self.storeStorage(
                     forCloudKitValidationBuild: Self.isCloudKitValidationBuild,
@@ -48,6 +48,9 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
                 effectiveDiagnosticReportingConfiguration: effectiveDiagnosticReportingConfiguration,
                 applyRemoteLogging: applyRemoteLogging,
             )
+            if let configuration = developerLaunchController?.consumeDemoConfiguration() {
+                model.prepareDemoLaunch(configuration: configuration)
+            }
         }
 
         static func storeStorage(
@@ -130,7 +133,7 @@ final class RegularApplicationRuntime: WhereApplicationRuntime {
             AnyView(RootView(
                 model: model,
                 launcher: launcher,
-                inspectorModeController: inspectorModeController,
+                developerLaunchController: developerLaunchController,
             ))
         #else
             AnyView(RootView(model: model, launcher: launcher))

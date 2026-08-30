@@ -65,10 +65,11 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   launch-built model + runner (`init(model:launcher:)`). A no-arg `init()` builds
   its own for previews and the hosted UI test.
 - **Developer tools** — DEBUG-only logging, span, region-map, Flyover, forced-crash,
-  and next-launch Inspector controls. Forced crashes cover Swift traps, Objective-C
+  and next-launch Inspector/demo controls. The demo sheet selects which Resolve
+  issue categories appear in a one-shot, in-memory launch. Forced crashes cover Swift traps, Objective-C
   exceptions, abort signals, and invalid memory access so crash reporters can be
   checked end to end. The global launcher's accordion only updates
-  `InspectorModeController`. The current regular runtime continues until the
+  `WhereDeveloperLaunchController`. The current regular runtime continues until the
   developer relaunches. The Logs destination is always present. Before its
   durable store is ready it reports whether the open is still running,
   unavailable, or failed with the actual error.

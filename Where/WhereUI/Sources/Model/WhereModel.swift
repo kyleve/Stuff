@@ -87,6 +87,20 @@ public final class WhereModel {
     /// `endSession()` on reset and rebuilt when the launch re-drives.
     public private(set) var session: WhereSession?
 
+    private enum LaunchDemoState {
+        case inactive
+        case pending(DemoDataBuilder.Configuration)
+        case building
+    }
+
+    private var launchDemoState = LaunchDemoState.inactive
+
+    /// Whether the cold-launch splash is currently building a requested demo.
+    var isBuildingLaunchDemo: Bool {
+        if case .building = launchDemoState { return true }
+        return false
+    }
+
     /// Observable bring-up state for the active scope's durable log store.
     public private(set) var logStoreState = LogStoreState.unavailable
 
@@ -497,6 +511,22 @@ public final class WhereModel {
 
     // MARK: - Demo mode
 
+    /// Hand a persisted next-launch request into this process's launch plan.
+    /// The activation step consumes it once, including across in-process relaunches.
+    public func prepareDemoLaunch(configuration: DemoDataBuilder.Configuration) {
+        launchDemoState = .pending(configuration)
+    }
+
+    /// Activate the process-local next-launch request before onboarding can open
+    /// the real store. A failed build still consumes the one-shot request.
+    func activatePendingLaunchDemoIfNeeded() async throws {
+        guard case let .pending(configuration) = launchDemoState else { return }
+        launchDemoState = .building
+        defer { launchDemoState = .inactive }
+        let scope = try await makeDemoScope(configuration: configuration)
+        await activateDemo(scope)
+    }
+
     /// Build a throwaway demo world — an in-memory store seeded with a
     /// plausible year — over this model's clock and logging system. Slow (it
     /// seeds a year), so the caller shows something while it runs.
@@ -505,7 +535,18 @@ public final class WhereModel {
     /// scope *before* committing to it: a build that fails leaves the user on
     /// the intro with nothing changed.
     public func makeDemoScope() async throws -> WhereScope {
-        try await WhereScope.demo(now: now, logSystem: logSystem)
+        try await makeDemoScope(configuration: .standard)
+    }
+
+    /// Build a throwaway demo world with the requested Resolve workflows.
+    public func makeDemoScope(
+        configuration: DemoDataBuilder.Configuration,
+    ) async throws -> WhereScope {
+        try await WhereScope.demo(
+            now: now,
+            logSystem: logSystem,
+            configuration: configuration,
+        )
     }
 
     /// Log in to a demo world, releasing whatever scope was active first.
