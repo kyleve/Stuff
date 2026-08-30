@@ -79,7 +79,6 @@ struct RegionSummaryCard: View {
     @Environment(\.stylesheet) private var stylesheet
     @Environment(\.regionStyles) private var regionStyles
     @Environment(\.regionOutlinePathCache) private var regionOutlinePathCache
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     #if DEBUG
         @Environment(\.colorScheme) private var colorScheme
         @Environment(\.cardDesignerConfiguration) private var cardDesignerConfiguration
@@ -349,26 +348,11 @@ struct RegionSummaryCard: View {
                     .foregroundStyle(securityPrintTint)
                     .contentTransition(dayCount.transition(days: estimatedDays))
 
-                if dynamicTypeSize.isAccessibilitySize {
-                    VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
-                        recordedDays
-                        estimate
-                            .lineLimit(2)
-                            .minimumScaleFactor(0.8)
-                    }
-                } else {
-                    ViewThatFits(in: .horizontal) {
-                        HStack(alignment: .firstTextBaseline, spacing: stylesheet.spacing.medium) {
-                            recordedDays
-                            estimate
-                        }
-                        .fixedSize(horizontal: true, vertical: false)
-
-                        VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
-                            recordedDays
-                            estimate
-                        }
-                    }
+                VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
+                    recordedDays
+                    estimate
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.8)
                 }
             } else {
                 recordedDays
