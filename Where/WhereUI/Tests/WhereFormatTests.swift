@@ -117,6 +117,13 @@ struct WhereFormatTests {
         #expect(WhereFormat.secondaryRegionCurrent(regions: "California") == "Counts as California")
     }
 
+    @Test func resolutionCategoryListUsesLocalizedListFormatting() {
+        #expect(
+            WhereFormat.resolutionCategoryList(Set(DataIssueCategory.allCases))
+                == "Missing days, Near the border, Sudden moves, and Flights",
+        )
+    }
+
     @Test func backupImportedMessageSubstitutesAllCountsInOrder() {
         #expect(
             WhereFormat.settingsBackupImportedMessage(

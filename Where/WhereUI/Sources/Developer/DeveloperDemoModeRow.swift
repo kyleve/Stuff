@@ -44,10 +44,7 @@
             guard !configuration.issueCategories.isEmpty else {
                 return String(localized: .developerDemoCleanBaseline)
             }
-            return DataIssueCategory.allCases
-                .filter(configuration.issueCategories.contains)
-                .map(WhereFormat.resolutionSectionHeader)
-                .joined(separator: ", ")
+            return WhereFormat.resolutionCategoryList(configuration.issueCategories)
         }
     }
 
