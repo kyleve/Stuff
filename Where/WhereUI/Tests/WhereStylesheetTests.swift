@@ -308,8 +308,8 @@ struct WhereStylesheetTests {
     @Test func locationForecastStyle() {
         let forecast = style.locationForecast
         #expect(forecast.cornerRadius == 22)
-        #expect(forecast.padding == 14)
-        #expect(forecast.rowSpacing == 14)
+        #expect(forecast.padding == 16)
+        #expect(forecast.rowSpacing == 12)
         #expect(forecast.expansionAnimation == .easeInOut(duration: 0.2))
         #expect(forecast.surface == .init(
             outlineWidth: 1.25,

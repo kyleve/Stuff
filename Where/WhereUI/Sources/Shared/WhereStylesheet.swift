@@ -271,8 +271,8 @@ extension WhereStylesheet {
 
         static let standard = LocationForecastStyle(
             cornerRadius: 22,
-            padding: 14,
-            rowSpacing: 14,
+            padding: 16,
+            rowSpacing: 12,
             expansionAnimation: .easeInOut(duration: 0.2),
             surface: Surface(
                 outlineWidth: 1.25,
