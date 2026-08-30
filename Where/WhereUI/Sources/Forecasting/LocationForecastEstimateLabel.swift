@@ -19,7 +19,7 @@ struct LocationForecastEstimateLabel: View {
             }
         } else {
             ViewThatFits(in: .horizontal) {
-                HStack(alignment: .firstTextBaseline, spacing: row.contentSpacing) {
+                HStack(alignment: .center, spacing: row.contentSpacing) {
                     regionLabel
                     estimateLabel
                 }

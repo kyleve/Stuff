@@ -300,7 +300,7 @@ extension WhereStylesheet {
                 contentSpacing: 6,
                 estimateSpacing: 2,
                 regionFont: .system(.headline, design: .serif),
-                estimateFont: .system(.title2, design: .rounded),
+                estimateFont: .system(.title3, design: .rounded),
                 detailFont: .footnote,
                 outlineWidth: 0.75,
             ),
