@@ -336,8 +336,8 @@ struct WhereStylesheetTests {
             padding: 10,
             contentSpacing: 6,
             estimateSpacing: 2,
-            regionFont: .system(.headline, design: .serif),
-            estimateFont: .system(.title3, design: .rounded),
+            regionFont: .system(.title3, design: .serif),
+            estimateFont: .system(.headline, design: .rounded),
             detailFont: .footnote,
             outlineWidth: 0.75,
         ))
