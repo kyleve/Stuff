@@ -358,7 +358,7 @@ struct RegionSummaryCard: View {
                     }
                 } else {
                     ViewThatFits(in: .horizontal) {
-                        HStack(alignment: .center, spacing: stylesheet.spacing.medium) {
+                        HStack(alignment: .firstTextBaseline, spacing: stylesheet.spacing.medium) {
                             recordedDays
                             estimate
                         }
