@@ -342,10 +342,8 @@ struct RegionSummaryCard: View {
 
             if let estimatedDays {
                 let estimate = Text(WhereFormat.locationCardEstimatedDays(estimatedDays))
-                    .font(.caption.weight(.semibold))
-                    .textCase(.uppercase)
-                    .tracking(0.8)
-                    .foregroundStyle(securityPrintTint)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(securityPrintTint.opacity(0.8))
                     .contentTransition(dayCount.transition(days: estimatedDays))
 
                 VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
