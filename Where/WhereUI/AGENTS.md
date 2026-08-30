@@ -47,6 +47,7 @@ Layering, localization, preview, and testing conventions live in the feature
   `WhereDeveloperLaunchController` for the next launch. Inspector and demo are
   mutually exclusive. It must not switch the current runtime. A demo request
   is consumed once before the onboarding gate and must never open a real store.
+  Keep its synthetic clock scoped to the in-memory demo session.
 - Keep the DEBUG Logs destination visible for every
   `WhereModel.logStoreState`. Opening, unavailable, and failed stores are
   diagnostics to render, not reasons to hide the tool.

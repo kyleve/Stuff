@@ -125,6 +125,7 @@ struct WhereLaunchTests {
         status: LocationAuthorizationStatus = .always,
         preferences: WherePreferences,
         installationContextStore: InMemoryInstallationRecordingContextStore? = nil,
+        now: @escaping @Sendable () -> Date = { Date() },
     ) throws -> (WhereModel, ScriptedBootstrap) {
         let installationContextStore = installationContextStore
             ?? makeInstallationRecordingContextStore()
@@ -135,6 +136,7 @@ struct WhereLaunchTests {
                 installationContextStore: installationContextStore,
                 makeBootstrap: { _ in bootstrap },
                 logSystem: .isolated(),
+                now: now,
             ),
             bootstrap,
         )
@@ -173,7 +175,11 @@ struct WhereLaunchTests {
 
     @Test func requestedDemoActivatesBeforeOnboardingAndOpensNoRealStore() async throws {
         let realPreferences = makePreferences()
-        let (model, bootstrap) = try makeLoggedOutModel(preferences: realPreferences)
+        let requestedDate = Date(timeIntervalSince1970: 1_767_259_800) // 2026-01-01T09:30Z
+        let (model, bootstrap) = try makeLoggedOutModel(
+            preferences: realPreferences,
+            now: { requestedDate },
+        )
         model.prepareDemoLaunch(configuration: .allIssues)
 
         let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
@@ -183,6 +189,10 @@ struct WhereLaunchTests {
         #expect(model.isInDemoMode)
         #expect(bootstrap.makeServicesCount == 0)
         #expect(!realPreferences.hasOnboarded)
+        let sessionNow = try #require(model.session?.now())
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .current
+        #expect(calendar.ordinality(of: .day, in: .year, for: sessionNow) == 5)
 
         await model.deactivateDemo()
         let laterLaunch = WhereLaunch.makeLauncher(model: model, reason: .userForeground)

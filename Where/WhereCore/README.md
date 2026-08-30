@@ -77,8 +77,9 @@ one it belongs to rather than to a god-object:
   has. Its configuration independently includes missing-day, border-drift,
   abrupt-change, and detected-flight fixtures; unchecked detector categories
   stay absent. The standard onboarding demo includes missing days. Bound to the
-  current year and derived from it, so it stops at today
-  and is the same every time. Every feature is sized against the *elapsed* part
+  current year and derived from it, so it normally stops at today and is the
+  same every time. During the first days of January, its in-memory clock moves
+  forward only far enough to hold the selected fixtures. Every feature is sized against the *elapsed* part
   of the year, so a demo entered in January has the same shape as one entered in
   December.
 

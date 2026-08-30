@@ -10,8 +10,9 @@ import RegionKit
 /// by hand after the phone was off, a couple of corrected attributions, and a
 /// few recent days still unlogged — so that the calendar, the year report, and
 /// the Resolve tab all have something true to show. Everything is bound to the
-/// **current** year and stops at `now`: a demo entered in March shows a
-/// March-shaped year, not a full one.
+/// **current** year and stops at its injected reference date: ordinarily that
+/// is `now`, while the first days of January may move forward inside the
+/// in-memory demo so every requested detector fixture has enough calendar days.
 ///
 /// The script is derived from the year, so entering demo mode twice in a day
 /// produces the same data. Every feature is sized against how much of the year
@@ -39,6 +40,30 @@ public struct DemoDataBuilder: Sendable {
         /// A developer showcase containing every Resolve workflow.
         public static let allIssues =
             Configuration(issueCategories: Set(DataIssueCategory.allCases))
+
+        /// Move a demo-only clock forward when the current year does not yet
+        /// contain enough days to keep the selected detector fixtures separate.
+        public func referenceDate(from requestedDate: Date, calendar: Calendar) -> Date {
+            let elapsedDays = calendar.ordinality(of: .day, in: .year, for: requestedDate) ?? 1
+            let requiredElapsedDays = issueCategories.map { category in
+                switch category {
+                    case .missingDays: 2
+                    case .abruptChange: 3
+                    case .borderDrift: 4
+                    case .flightDay: 5
+                }
+            }.max() ?? 1
+            guard elapsedDays < requiredElapsedDays else { return requestedDate }
+            guard let referenceDate = calendar.date(
+                byAdding: .day,
+                value: requiredElapsedDays - elapsedDays,
+                to: requestedDate,
+            ) else {
+                assertionFailure("Could not advance the demo reference date")
+                return requestedDate
+            }
+            return referenceDate
+        }
     }
 
     /// Where the demo user lives. Coordinates verified to fall inside the
@@ -93,6 +118,8 @@ public struct DemoDataBuilder: Sendable {
     }
 
     /// Build a demo year containing exactly the requested issue categories.
+    /// Pass ``Configuration/referenceDate(from:calendar:)`` as `now` when the
+    /// requested date may be too early in its year for those fixtures.
     public init(now: Date, calendar: Calendar, configuration: Configuration) {
         self.now = now
         self.calendar = calendar
@@ -339,6 +366,7 @@ public struct DemoDataBuilder: Sendable {
         using random: inout SeededRandom,
     ) {
         guard elapsedDays > 0 else { return }
+        var detectorFixtureDays: Set<Int> = []
 
         func allocatedDay(_ fraction: Double, minimum: Int) -> Int {
             max(minimum, min(elapsedDays, Int((Double(elapsedDays) * fraction).rounded())))
@@ -356,6 +384,7 @@ public struct DemoDataBuilder: Sendable {
 
         if configuration.issueCategories.contains(.borderDrift), elapsedDays >= 4 {
             let day = elapsedDays < 30 ? 4 : allocatedDay(0.44, minimum: 4)
+            detectorFixtureDays.insert(day)
             replaceDay(day, in: &script) { date in
                 var samples = samples(on: date, in: Self.newYorkPlaces, using: &random)
                 for point in Self.borderDriftCoordinates {
@@ -374,6 +403,7 @@ public struct DemoDataBuilder: Sendable {
 
         if configuration.issueCategories.contains(.flightDay), elapsedDays >= 5 {
             let day = elapsedDays < 30 ? 5 : allocatedDay(0.70, minimum: 5)
+            detectorFixtureDays.insert(day)
             replaceDay(day, in: &script) { date in
                 Self.flightCoordinates.enumerated().map { index, coordinate in
                     sample(
@@ -392,6 +422,46 @@ public struct DemoDataBuilder: Sendable {
         // with the fixed detector fixtures. Reserve day one as the gap.
         if configuration.issueCategories.contains(.missingDays), elapsedDays < 30 {
             clear(dayOfYear: 1, in: &script)
+        }
+
+        if configuration.issueCategories.contains(.abruptChange) == false {
+            preventFixtureDaysFromCreatingAbruptChanges(
+                around: detectorFixtureDays,
+                in: &script,
+                using: &random,
+            )
+        }
+    }
+
+    private func preventFixtureDaysFromCreatingAbruptChanges(
+        around fixtureDays: Set<Int>,
+        in script: inout Script,
+        using random: inout SeededRandom,
+    ) {
+        for fixtureDay in fixtureDays.sorted() {
+            for neighbor in [fixtureDay - 1, fixtureDay + 1] {
+                guard fixtureDays.contains(neighbor) == false,
+                      contains(dayOfYear: neighbor, in: script)
+                else { continue }
+                replaceDay(neighbor, in: &script) { date in
+                    [
+                        sample(
+                            on: date,
+                            hour: 7,
+                            at: Self.newYorkPlaces[0],
+                            source: .gpsVisit,
+                            using: &random,
+                        ),
+                        sample(
+                            on: date,
+                            hour: 21,
+                            at: Self.californiaPlaces[0],
+                            source: .gpsSignificantChange,
+                            using: &random,
+                        ),
+                    ]
+                }
+            }
         }
     }
 
@@ -425,6 +495,13 @@ public struct DemoDataBuilder: Sendable {
         script.samples.removeAll { calendar.isDate($0.timestamp, inSameDayAs: date) }
         script.backfills.removeAll { calendar.isDate($0.date, inSameDayAs: date) }
         script.corrections.removeAll { calendar.isDate($0.date, inSameDayAs: date) }
+    }
+
+    private func contains(dayOfYear: Int, in script: Script) -> Bool {
+        guard let date = date(dayOfYear: dayOfYear) else { return false }
+        return script.samples.contains { calendar.isDate($0.timestamp, inSameDayAs: date) }
+            || script.backfills.contains { calendar.isDate($0.date, inSameDayAs: date) }
+            || script.corrections.contains { calendar.isDate($0.date, inSameDayAs: date) }
     }
 
     /// Days back from today to consider leaving unlogged, spaced first so the

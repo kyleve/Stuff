@@ -594,7 +594,7 @@ public final class WhereModel {
         let session = WhereSession(
             scope: scope,
             installationContextStore: scope.kind == .real ? installationContextStore : nil,
-            now: now,
+            now: scope.sessionNow ?? now,
         )
         self.session = session
         Self.logger { .startedSession(year: initialSelectedYear) }
