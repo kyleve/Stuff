@@ -79,6 +79,7 @@ struct RegionSummaryCard: View {
     @Environment(\.stylesheet) private var stylesheet
     @Environment(\.regionStyles) private var regionStyles
     @Environment(\.regionOutlinePathCache) private var regionOutlinePathCache
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     #if DEBUG
         @Environment(\.colorScheme) private var colorScheme
         @Environment(\.cardDesignerConfiguration) private var cardDesignerConfiguration
@@ -292,36 +293,74 @@ struct RegionSummaryCard: View {
     }
 
     var body: some View {
+        let regionName = Text(regionDays.region.localizedName)
+            .font(card.regionNameTypography.font)
+            .tracking(card.regionNameTracking)
+            .lineLimit(1)
+            .allowsTightening(true)
+            .minimumScaleFactor(0.7)
+            .foregroundStyle(style.tint)
+            .opacity(cardStyles.nameOpacity)
+
         VStack(alignment: .leading, spacing: card.contentSpacing) {
-            HStack(alignment: .top, spacing: stylesheet.spacing.large) {
-                VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
-                    Text(regionDays.region.localizedName)
-                        .font(card.regionNameTypography.font)
-                        .tracking(card.regionNameTracking)
-                        .lineLimit(1)
-                        .allowsTightening(true)
-                        .minimumScaleFactor(0.7)
-                        .foregroundStyle(style.tint)
-                        .opacity(cardStyles.nameOpacity)
-                    if let caption {
-                        Text(caption)
-                            .font(.caption2.weight(.semibold))
-                            .textCase(.uppercase)
-                            .tracking(1)
-                            .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
+                HStack(alignment: .top, spacing: stylesheet.spacing.large) {
+                    VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
+                        if let estimatedDays, !dynamicTypeSize.isAccessibilitySize {
+                            let estimate = Text(WhereFormat
+                                .locationCardEstimatedDays(estimatedDays))
+                                .font(.caption.weight(.semibold))
+                                .textCase(.uppercase)
+                                .tracking(0.8)
+                                .foregroundStyle(securityPrintTint)
+                                .contentTransition(dayCount.transition(days: estimatedDays))
+
+                            ViewThatFits(in: .horizontal) {
+                                HStack(alignment: .center, spacing: stylesheet.spacing.small) {
+                                    regionName
+                                    estimate
+                                }
+                                .fixedSize(horizontal: true, vertical: false)
+
+                                VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
+                                    regionName
+                                    estimate
+                                }
+                            }
+                        } else {
+                            regionName
+                        }
+                        if let caption {
+                            Text(caption)
+                                .font(.caption2.weight(.semibold))
+                                .textCase(.uppercase)
+                                .tracking(1)
+                                .foregroundStyle(.secondary)
+                        }
+                        if let places {
+                            Label(places, systemSymbol: .mappinAndEllipse)
+                                .font(.caption2.weight(.medium))
+                                .foregroundStyle(style.tint)
+                                .lineLimit(1)
+                        }
                     }
-                    if let places {
-                        Label(places, systemSymbol: .mappinAndEllipse)
-                            .font(.caption2.weight(.medium))
-                            .foregroundStyle(style.tint)
-                            .lineLimit(1)
+
+                    Spacer(minLength: 0)
+
+                    if renderPurpose == .content {
+                        entryStamp
                     }
                 }
 
-                Spacer(minLength: 0)
-
-                if renderPurpose == .content {
-                    entryStamp
+                if dynamicTypeSize.isAccessibilitySize, let estimatedDays {
+                    Text(WhereFormat.locationCardEstimatedDays(estimatedDays))
+                        .font(.caption.weight(.semibold))
+                        .textCase(.uppercase)
+                        .tracking(0.8)
+                        .foregroundStyle(securityPrintTint)
+                        .contentTransition(dayCount.transition(days: estimatedDays))
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.8)
                 }
             }
 
@@ -335,38 +374,27 @@ struct RegionSummaryCard: View {
                     .foregroundStyle(.secondary)
             }
 
-            VStack(alignment: .trailing, spacing: stylesheet.spacing.xxSmall) {
-                if let estimatedDays {
-                    Text(WhereFormat.locationCardEstimatedDays(estimatedDays))
-                        .font(.caption.weight(.semibold))
-                        .textCase(.uppercase)
-                        .tracking(0.8)
-                        .foregroundStyle(securityPrintTint)
-                        .contentTransition(dayCount.transition(days: estimatedDays))
-                }
-
-                Capsule()
-                    .fill(.quaternary)
-                    .frame(height: barHeight)
-                    .overlay(alignment: .leading) {
-                        GeometryReader { proxy in
-                            Capsule()
-                                .fill(style.tint)
-                                .frame(width: proxy.size.width * recordedFraction)
-                                .background(alignment: .leading) {
-                                    if let estimatedFraction {
-                                        Capsule()
-                                            .fill(securityPrintTint.opacity(
-                                                cardStyles.estimatedProgressOpacity,
-                                            ))
-                                            .frame(width: proxy.size.width * estimatedFraction)
-                                    }
+            Capsule()
+                .fill(.quaternary)
+                .frame(height: barHeight)
+                .overlay(alignment: .leading) {
+                    GeometryReader { proxy in
+                        Capsule()
+                            .fill(style.tint)
+                            .frame(width: proxy.size.width * recordedFraction)
+                            .background(alignment: .leading) {
+                                if let estimatedFraction {
+                                    Capsule()
+                                        .fill(securityPrintTint.opacity(
+                                            cardStyles.estimatedProgressOpacity,
+                                        ))
+                                        .frame(width: proxy.size.width * estimatedFraction)
                                 }
-                        }
+                            }
                     }
-                    .frame(height: barHeight)
-            }
-            .accessibilityHidden(true)
+                }
+                .frame(height: barHeight)
+                .accessibilityHidden(true)
         }
         // What makes the count's `.contentTransition` run at all — one morphs
         // only inside an animation transaction — and it sweeps the ambient bar,
