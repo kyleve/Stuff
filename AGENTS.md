@@ -618,10 +618,25 @@ external agent skills. Those skills are gitignored and absent from a bare checko
 | Check | Command |
 |-------|---------|
 | Install the pinned tools | `mise install` (Ruby + SwiftFormat; skips Tuist) |
-| Format lint (CI `format` job equivalent) | `./swiftformat --lint` |
-| Agent file sync | `./sync-agents` or `./sync-agents --install` |
+| SwiftFormat lint | `./swiftformat --lint` |
+| Shell lint | `./shellcheck` |
+| Attribution drift | `./attribution --check` |
+| Retained Python tool tests | `python3 -m unittest discover -s Tools/Tests -p 'test_*.py'` |
+| Agent file sync | `mise exec -- ./sync-agents` (or `--install`) |
 | Git LFS | `apt-get install git-lfs` — required by `.githooks/` |
 | Pre-commit hook | works — `mise exec --` no longer pulls in Tuist |
+
+Four of those rows — SwiftFormat, ShellCheck, attribution, and the Python tool
+tests — are four of the six checking steps in CI's `format` job, so a Linux agent
+can pre-flight most of it. Three carve-outs, all filed together in
+[`TODOs.md`](TODOs.md), all from the same cause — Linux ships no
+`/usr/bin/ruby`, and the pinned one is reachable only through mise. One Python
+contract test pins macOS bash's `126` exit status for an unlaunchable command
+and reports `127` here. The Ruby retained-tool tests run each command under a
+hermetic `PATH=/usr/bin:/bin`, which resolves a `#!/usr/bin/env ruby` script
+only where the OS ships a system Ruby. And `sync-agents` is itself
+`#!/usr/bin/env ruby`, so it needs the `mise exec --` prefix above, where
+`attribution` wraps that for you. None is a defect in the command under test.
 
 ### What does not work on Linux
 
@@ -644,10 +659,13 @@ being written off as untestable from a cloud agent.
 
 **CI runs on two systems.** GitHub Actions
 ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs `format`,
-`architecture`, and `test-macos`. CircleCI
-([`.circleci/config.yml`](.circleci/config.yml)) runs the iOS `test-ios` and
-`snapshot` jobs, which moved there in PR #237. CircleCI passes
-`--skip-architecture` so Bumper does not run twice. Do not read either file as
+`architecture`, and `test-macos`. The `format` job is six checking steps, not
+one: ShellCheck, the retained Python and Ruby tool suites, SwiftFormat, the SF
+Symbol lint, the String Catalog lint, and the attribution check. CircleCI
+([`.circleci/config.yml`](.circleci/config.yml)) builds `build-ios-tests` once
+and attaches its products to `test-ios` and a four-way-sharded `snapshot` job,
+which moved there in PR #237 and gained the build handoff in PR #276. CircleCI
+passes `--skip-architecture` so Bumper does not run twice. Do not read either file as
 the whole of CI. PRs with `NO-CI` in their title skip both CI systems. Use this
 marker only for prototypes and exploratory work. The marker does not skip
 pushes to `main` or manual CircleCI full-gate runs. See the
