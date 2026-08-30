@@ -203,10 +203,6 @@ extension WhereStylesheet {
             var estimateFont: Font
             var detailFont: Font
             var outlineWidth: CGFloat
-            var separatorHeight: CGFloat
-            var separatorLineWidth: CGFloat
-            var separatorDashLength: CGFloat
-            var separatorDashSpacing: CGFloat
         }
 
         struct Progress: Equatable {
@@ -234,7 +230,6 @@ extension WhereStylesheet {
             var sealOpacity: Double
             var rowFillOpacity: Double
             var rowOutlineOpacity: Double
-            var separatorOpacity: Double
             var progressTrackOpacity: Double
             var progressEstimateFillOpacity: Double
             var progressHatchOpacity: Double
@@ -250,7 +245,6 @@ extension WhereStylesheet {
                 sealOpacity: 0.72,
                 rowFillOpacity: 0.07,
                 rowOutlineOpacity: 0.24,
-                separatorOpacity: 0.2,
                 progressTrackOpacity: 0.1,
                 progressEstimateFillOpacity: 0.2,
                 progressHatchOpacity: 0.42,
@@ -267,7 +261,6 @@ extension WhereStylesheet {
                 sealOpacity: 1,
                 rowFillOpacity: 0.12,
                 rowOutlineOpacity: 0.55,
-                separatorOpacity: 0.5,
                 progressTrackOpacity: 0.2,
                 progressEstimateFillOpacity: 0.32,
                 progressHatchOpacity: 0.68,
@@ -278,8 +271,8 @@ extension WhereStylesheet {
 
         static let standard = LocationForecastStyle(
             cornerRadius: 22,
-            padding: 16,
-            rowSpacing: 16,
+            padding: 14,
+            rowSpacing: 14,
             expansionAnimation: .easeInOut(duration: 0.2),
             surface: Surface(
                 outlineWidth: 1.25,
@@ -295,25 +288,21 @@ extension WhereStylesheet {
                 shadowOffsetY: 3,
             ),
             header: Header(
-                contentSpacing: 12,
+                contentSpacing: 10,
                 textSpacing: 2,
                 titleFont: .system(.headline, design: .serif),
                 elapsedFont: .footnote,
-                minimumHeight: 52,
+                minimumHeight: 50,
             ),
             row: Row(
                 cornerRadius: 14,
-                padding: 12,
-                contentSpacing: 8,
-                estimateSpacing: 3,
+                padding: 10,
+                contentSpacing: 6,
+                estimateSpacing: 2,
                 regionFont: .system(.headline, design: .serif),
                 estimateFont: .system(.title2, design: .rounded),
                 detailFont: .footnote,
                 outlineWidth: 0.75,
-                separatorHeight: 1,
-                separatorLineWidth: 1,
-                separatorDashLength: 4,
-                separatorDashSpacing: 5,
             ),
             progress: Progress(
                 height: 8,
@@ -321,10 +310,10 @@ extension WhereStylesheet {
                 hatchLineWidth: 1,
             ),
             controls: Controls(
-                sectionSpacing: 10,
-                layoutSpacing: 8,
+                sectionSpacing: 8,
+                layoutSpacing: 6,
                 cornerRadius: 12,
-                horizontalPadding: 12,
+                horizontalPadding: 10,
                 minimumHeight: 44,
                 strokeWidth: 1,
                 font: .subheadline,

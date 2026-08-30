@@ -45,10 +45,6 @@ struct LocationForecastPanel: View {
             if showsContent {
                 VStack(alignment: .leading, spacing: style.rowSpacing) {
                     ForEach(forecasts, id: \.region) { forecast in
-                        if forecast.region != forecasts.first?.region {
-                            LocationForecastPerforation()
-                        }
-
                         LocationForecastRow(
                             forecast: forecast,
                             plannedStay: plannedStay,
@@ -56,7 +52,6 @@ struct LocationForecastPanel: View {
                     }
 
                     if !editableRegions.isEmpty, let editAction {
-                        LocationForecastPerforation()
                         LocationForecastControls(
                             editableRegions: editableRegions,
                             plannedStay: plannedStay,
