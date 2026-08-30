@@ -21,6 +21,7 @@ GLOBAL_PATHS = {
     "Tuist.swift",
     ".swiftformat",
     ".mise.toml",
+    ".xcode-build-version",
     "test",
     "simulator",
     "ide",
