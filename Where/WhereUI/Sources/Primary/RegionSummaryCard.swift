@@ -302,76 +302,76 @@ struct RegionSummaryCard: View {
             .foregroundStyle(style.tint)
             .opacity(cardStyles.nameOpacity)
 
+        let recordedDays = HStack(
+            alignment: .firstTextBaseline,
+            spacing: stylesheet.spacing.small,
+        ) {
+            Text(regionDays.days, format: .number)
+                .font(card.heroNumberTypography.font)
+                .contentTransition(dayCount.transition(days: regionDays.days))
+                .foregroundStyle(style.tint)
+            Text(WhereFormat.dayUnit(regionDays.days))
+                .font(card.dayUnitTypography.font)
+                .foregroundStyle(.secondary)
+        }
+
         VStack(alignment: .leading, spacing: card.contentSpacing) {
-            VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
-                HStack(alignment: .top, spacing: stylesheet.spacing.large) {
-                    VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
-                        if let estimatedDays, !dynamicTypeSize.isAccessibilitySize {
-                            let estimate = Text(WhereFormat
-                                .locationCardEstimatedDays(estimatedDays))
-                                .font(.caption.weight(.semibold))
-                                .textCase(.uppercase)
-                                .tracking(0.8)
-                                .foregroundStyle(securityPrintTint)
-                                .contentTransition(dayCount.transition(days: estimatedDays))
-
-                            ViewThatFits(in: .horizontal) {
-                                HStack(alignment: .center, spacing: stylesheet.spacing.small) {
-                                    regionName
-                                    estimate
-                                }
-                                .fixedSize(horizontal: true, vertical: false)
-
-                                VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
-                                    regionName
-                                    estimate
-                                }
-                            }
-                        } else {
-                            regionName
-                        }
-                        if let caption {
-                            Text(caption)
-                                .font(.caption2.weight(.semibold))
-                                .textCase(.uppercase)
-                                .tracking(1)
-                                .foregroundStyle(.secondary)
-                        }
-                        if let places {
-                            Label(places, systemSymbol: .mappinAndEllipse)
-                                .font(.caption2.weight(.medium))
-                                .foregroundStyle(style.tint)
-                                .lineLimit(1)
-                        }
+            HStack(alignment: .top, spacing: stylesheet.spacing.large) {
+                VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
+                    regionName
+                    if let caption {
+                        Text(caption)
+                            .font(.caption2.weight(.semibold))
+                            .textCase(.uppercase)
+                            .tracking(1)
+                            .foregroundStyle(.secondary)
                     }
-
-                    Spacer(minLength: 0)
-
-                    if renderPurpose == .content {
-                        entryStamp
+                    if let places {
+                        Label(places, systemSymbol: .mappinAndEllipse)
+                            .font(.caption2.weight(.medium))
+                            .foregroundStyle(style.tint)
+                            .lineLimit(1)
                     }
                 }
 
-                if dynamicTypeSize.isAccessibilitySize, let estimatedDays {
-                    Text(WhereFormat.locationCardEstimatedDays(estimatedDays))
-                        .font(.caption.weight(.semibold))
-                        .textCase(.uppercase)
-                        .tracking(0.8)
-                        .foregroundStyle(securityPrintTint)
-                        .contentTransition(dayCount.transition(days: estimatedDays))
-                        .lineLimit(2)
-                        .minimumScaleFactor(0.8)
+                Spacer(minLength: 0)
+
+                if renderPurpose == .content {
+                    entryStamp
                 }
             }
 
-            HStack(alignment: .firstTextBaseline, spacing: stylesheet.spacing.small) {
-                Text(regionDays.days, format: .number)
-                    .font(card.heroNumberTypography.font)
-                    .contentTransition(dayCount.transition(days: regionDays.days))
-                    .foregroundStyle(style.tint)
-                Text(WhereFormat.dayUnit(regionDays.days))
-                    .font(card.dayUnitTypography.font)
-                    .foregroundStyle(.secondary)
+            if let estimatedDays {
+                let estimate = Text(WhereFormat.locationCardEstimatedDays(estimatedDays))
+                    .font(.caption.weight(.semibold))
+                    .textCase(.uppercase)
+                    .tracking(0.8)
+                    .foregroundStyle(securityPrintTint)
+                    .contentTransition(dayCount.transition(days: estimatedDays))
+
+                if dynamicTypeSize.isAccessibilitySize {
+                    VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
+                        recordedDays
+                        estimate
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.8)
+                    }
+                } else {
+                    ViewThatFits(in: .horizontal) {
+                        HStack(alignment: .center, spacing: stylesheet.spacing.medium) {
+                            recordedDays
+                            estimate
+                        }
+                        .fixedSize(horizontal: true, vertical: false)
+
+                        VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
+                            recordedDays
+                            estimate
+                        }
+                    }
+                }
+            } else {
+                recordedDays
             }
 
             Capsule()
