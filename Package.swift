@@ -9,7 +9,6 @@ let package = Package(
         .macOS(.v26),
     ],
     products: [
-        .library(name: "StuffCore", targets: ["StuffCore"]),
         .library(name: "CreditKit", targets: ["CreditKit"]),
         .library(name: "LedgerCore", targets: ["LedgerCore"]),
         .library(name: "LifecycleKit", targets: ["LifecycleKit"]),
@@ -46,10 +45,6 @@ let package = Package(
         .package(url: "https://github.com/SFSafeSymbols/SFSafeSymbols", from: "7.0.0"),
     ],
     targets: [
-        .target(
-            name: "StuffCore",
-            path: "Shared/StuffCore/Sources",
-        ),
         .target(
             name: "CreditKit",
             path: "Shared/CreditKit/Sources",
