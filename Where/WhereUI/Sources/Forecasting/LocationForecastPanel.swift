@@ -7,6 +7,7 @@ import WhereCore
 /// its complete region rows and optional stay-planning controls.
 struct LocationForecastPanel: View {
     let forecasts: [LocationForecast]
+    let microprintRegions: [Region]
     var plannedStay: PlannedStay?
     var editableRegions: [Region] = []
     var editAction: ((Region) -> Void)?
@@ -14,8 +15,10 @@ struct LocationForecastPanel: View {
     var isCollapsible = false
 
     @State private var isExpanded = false
+    @State private var regionBorderPaths: [Path] = []
 
     @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.regionOutlinePathCache) private var regionOutlinePathCache
 
     private var style: WhereStylesheet.LocationForecastStyle {
         stylesheet.locationForecast
@@ -42,10 +45,6 @@ struct LocationForecastPanel: View {
             if showsContent {
                 VStack(alignment: .leading, spacing: style.rowSpacing) {
                     ForEach(forecasts, id: \.region) { forecast in
-                        if forecast.region != forecasts.first?.region {
-                            LocationForecastPerforation()
-                        }
-
                         LocationForecastRow(
                             forecast: forecast,
                             plannedStay: plannedStay,
@@ -53,7 +52,6 @@ struct LocationForecastPanel: View {
                     }
 
                     if !editableRegions.isEmpty, let editAction {
-                        LocationForecastPerforation()
                         LocationForecastControls(
                             editableRegions: editableRegions,
                             plannedStay: plannedStay,
@@ -98,18 +96,15 @@ struct LocationForecastPanel: View {
                     Color.primary.opacity(style.ink.surfaceOutlineOpacity),
                     lineWidth: style.surface.outlineWidth,
                 )
-                shape
-                    .inset(by: style.surface.inset)
-                    .strokeBorder(
-                        Color.primary.opacity(style.ink.insetOutlineOpacity),
-                        style: StrokeStyle(
-                            lineWidth: style.surface.insetOutlineWidth,
-                            dash: [
-                                style.surface.insetDashLength,
-                                style.surface.insetDashSpacing,
-                            ],
-                        ),
-                    )
+                RegionOutlineSecurityBorder(
+                    paths: regionBorderPaths,
+                    tint: .primary,
+                    cornerRadius: style.cornerRadius,
+                    inset: style.surface.inset,
+                    glyphSize: style.surface.microprintGlyphSize,
+                    spacing: style.surface.microprintSpacing,
+                    opacity: style.ink.microprintOpacity,
+                )
             }
             .allowsHitTesting(false)
         }
@@ -118,6 +113,23 @@ struct LocationForecastPanel: View {
             radius: style.surface.shadowRadius,
             y: style.surface.shadowOffsetY,
         )
+        .task(id: microprintRegions, loadRegionBorderPaths)
+    }
+
+    /// Loads the complete ordered pattern before publishing it so a changing
+    /// forecast never shows a partial or stale sequence around the panel.
+    private func loadRegionBorderPaths() async {
+        regionBorderPaths = []
+        guard let regionOutlinePathCache else { return }
+
+        var loadedPaths: [Path] = []
+        loadedPaths.reserveCapacity(microprintRegions.count)
+        for region in microprintRegions {
+            let path = await regionOutlinePathCache.path(for: region, resolution: .micro)
+            guard !Task.isCancelled else { return }
+            loadedPaths.append(path)
+        }
+        regionBorderPaths = loadedPaths
     }
 
     private func toggleExpansion() {
@@ -132,6 +144,7 @@ struct LocationForecastPanel: View {
         let report = PreviewSupport.plannedStayYearReportModel()
         LocationForecastPanel(
             forecasts: report.forecasts.leadingForecasts(report: report.report),
+            microprintRegions: report.ranking.primary.map(\.region),
             plannedStay: report.forecasts.activePlannedStay,
             editableRegions: [.california, .newYork],
             editAction: { _ in },

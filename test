@@ -443,6 +443,19 @@ if [ "${#SCHEMES[@]}" -eq 0 ]; then
     exit 1
 fi
 
+for scheme in "${SCHEMES[@]}"; do
+    [ "$scheme" = "$SNAPSHOT_SCHEME" ] || continue
+
+    expected_xcode_build="$(< .xcode-build-version)"
+    xcode_build="$(xcodebuild -version | awk '/Build version/{print $3}')"
+    if [ "$xcode_build" != "$expected_xcode_build" ]; then
+        echo "error: snapshot tests require Xcode build $expected_xcode_build; found $xcode_build" >&2
+        echo "       Install the pinned Xcode build. Then select it before capturing snapshots." >&2
+        exit 1
+    fi
+    break
+done
+
 if [ "$DO_GENERATE" = true ]; then
     echo "==> Regenerating project (tuist generate --no-open)"
     started="$(phase_started)"

@@ -35,6 +35,8 @@ class XcodeCommandFixture:
             "xcode_results.py",
         ):
             self._copy(f"Tools/{module}")
+        self._copy(".xcode-build-version")
+        self.expected_xcode_build = (self.root / ".xcode-build-version").read_text().strip()
         (self.root / "Project.swift").write_text('name: "ExampleSnapshotTests"\n')
         self._write_executable(
             self.root / "simulator",
@@ -84,6 +86,7 @@ while True:
             "MISE_STATUS": "0",
             "TEST_STATUS": "0",
             "XCODE_OUTPUT": "passing",
+            "FAKE_XCODE_BUILD": self.expected_xcode_build,
             "XCRUN_OUTPUT": "valid",
         }
         environment.update(overrides or {})
@@ -114,6 +117,10 @@ exit "${MISE_STATUS:-0}"
             self.bin / "xcodebuild",
             """#!/bin/bash
 printf 'xcodebuild %s\\n' "$*" >>"$TOOL_LOG"
+if [ "$*" = "-version" ]; then
+  printf 'Xcode 27.0\\nBuild version %s\\n' "${FAKE_XCODE_BUILD:?}"
+  exit 0
+fi
 case " $* " in
   *" -showBuildSettings "*)
     printf '    BUILT_PRODUCTS_DIR = /tmp/fixture-products\\n'
@@ -211,6 +218,40 @@ class XcodeCommandContractTests(unittest.TestCase):
         temporary = tempfile.TemporaryDirectory(prefix="stuff-xcode-contract-")
         self.addCleanup(temporary.cleanup)
         return XcodeCommandFixture(temporary.name)
+
+    def test_snapshot_run_rejects_a_different_xcode_build_before_generation(self):
+        fixture = self.fixture()
+
+        result = fixture.run(
+            "test",
+            "--snapshots",
+            "--skip-architecture",
+            "--no-generate",
+            "--no-build",
+            FAKE_XCODE_BUILD="27A5228h",
+        )
+
+        self.assertEqual(1, result.returncode, result.stdout + result.stderr)
+        self.assertIn(
+            f"snapshot tests require Xcode build {fixture.expected_xcode_build}",
+            result.stderr,
+        )
+        self.assertNotIn("test-without-building", fixture.command_log())
+
+    def test_unit_run_does_not_require_the_snapshot_xcode_build(self):
+        fixture = self.fixture()
+
+        result = fixture.run(
+            "test",
+            "--skip-architecture",
+            "--no-generate",
+            "--no-build",
+            "CoreTests",
+            FAKE_XCODE_BUILD="27A5228h",
+        )
+
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertNotIn("xcodebuild -version", fixture.command_log())
 
     def test_test_preserves_xcode_failure_through_the_progress_pipeline(self):
         fixture = self.fixture()

@@ -3571,6 +3571,97 @@
         }
       }
     },
+    "locations.planning.assign" : {
+      "comment" : "Menu action for assigning the planned stay to a primary-card region. The placeholder is the localized region name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Plan a Stay in %@"
+          }
+        }
+      }
+    },
+    "locations.planning.assignSection" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Plan For"
+          }
+        }
+      }
+    },
+    "locations.planning.currentSection" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Current Plan"
+          }
+        }
+      }
+    },
+    "locations.planning.currentValue" : {
+      "comment" : "Accessibility value for the Locations planning toolbar menu. The placeholder is the localized region name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Current plan: %@"
+          }
+        }
+      }
+    },
+    "locations.planning.edit" : {
+      "comment" : "Menu action for editing the active planned stay. The placeholder is the localized region name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Edit %@ Plan"
+          }
+        }
+      }
+    },
+    "locations.planning.menu" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Plan a Stay"
+          }
+        }
+      }
+    },
+    "locations.planning.noCurrentValue" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "No current plan"
+          }
+        }
+      }
+    },
+    "locations.planning.removeError.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Couldn’t Remove Plan"
+          }
+        }
+      }
+    },
     "loggedDays.add" : {
       "extractionState" : "manual",
       "localizations" : {
