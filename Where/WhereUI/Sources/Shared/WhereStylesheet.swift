@@ -777,6 +777,8 @@ extension WhereStylesheet {
         var nameOpacity: Double
         /// Opacity of the estimated progress rendered behind recorded days.
         var estimatedProgressOpacity: Double = 0.3
+        /// Visa-style endorsement for an annual estimate on a primary card.
+        var estimateSticker = EstimateSticker.standard
         /// Fill opacities of the two security-print rosettes.
         var rosetteFill: RosetteFill
         /// How the region tint is prepared for decorative security printing.
@@ -806,6 +808,44 @@ extension WhereStylesheet {
                 coreWhiteMix: 0.72,
                 haloRadius: 6,
                 haloOpacity: 0.32,
+            )
+        }
+
+        struct EstimateSticker: Equatable {
+            var labelTypography: CardStyle.Typography
+            var valueTypography: CardStyle.Typography
+            var cornerRadius: CGFloat
+            var horizontalPadding: CGFloat
+            var verticalPadding: CGFloat
+            var rotationDegrees: Double
+            var fillOpacity: Double
+            var outlineOpacity: Double
+            var outlineWidth: CGFloat
+            var innerInset: CGFloat
+            var innerOutlineWidth: CGFloat
+            var innerDash: [CGFloat]
+
+            static let standard = EstimateSticker(
+                labelTypography: .init(
+                    size: .semantic(.caption),
+                    weight: .semibold,
+                    design: .default,
+                ),
+                valueTypography: .init(
+                    size: .semantic(.headline),
+                    weight: .semibold,
+                    design: .default,
+                ),
+                cornerRadius: 8,
+                horizontalPadding: 10,
+                verticalPadding: 7,
+                rotationDegrees: -2,
+                fillOpacity: 0.08,
+                outlineOpacity: 0.58,
+                outlineWidth: 1,
+                innerInset: 3,
+                innerOutlineWidth: 1,
+                innerDash: [3, 2],
             )
         }
 
