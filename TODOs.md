@@ -137,6 +137,10 @@ inbox rather than here.
 - test(CreditKit) [needs-design]: The attribution drift guard didn't detect a stale report, so the app could ship notices that don't govern the code in it. **Closed by `./attribution --check`**, a network-free mode that re-derives the expected report from `Package.swift`, `Package.resolved`, and the skills manifest and diffs it against the committed one, gated in CI beside the other lints (`.github/workflows/ci.yml`). The literal name lists in `AppAttributionTests` are gone — a test bundle can't read the manifests, so all it could compare against was a literal — and that suite now asserts only what the shipping bundle can answer. **As originally filed this item was wrong on a detail worth recording:** it claimed the old guard caught an added dependency but not a bumped one. It caught neither. Comparing the report to a hardcoded list means a dependency added without regenerating leaves report and list still agreeing, which is exactly what happened — the guard passed on a report missing the two snapshot packages that merging `main` had added. (pr#140 review, closed 2026-07-26)
 
 ## P2s (Nice to have)
+- test(StuffCore) [quick-win]: The `version` test was tautological. Closed by
+  removing the empty `StuffCore` product, target, source, test bundle, and
+  module directory instead of adding API to a shared-code dumping ground.
+  (audit 2026-07-26; re-verified 2026-08-09; closed 2026-08-31)
 - refactor(Scripts) [needs-design]: Complete the approved four-PR hardening
   pass over the 18 root commands. Closed as four independently reviewable
   stack layers: pinned ShellCheck plus direct retained-tool tests; importable

@@ -155,7 +155,7 @@ TUIST_DEVELOPMENT_TEAM = "ABCDE12345"
 ## Project structure
 
 ```
-Package.swift       Local Swift package (StuffCore, LifecycleKit, WhereCore, WhereUI, TestHostSupport, …)
+Package.swift       Local Swift package (LifecycleKit, WhereCore, WhereUI, TestHostSupport, …)
 BumperBowling.swift Executable Where architecture policy
 .bumper/            Repo-owned Bumper shapes, rules, tests, and catalog
 Project.swift       Tuist manifest (Where app, StuffTestHost, test bundles → SPM)
