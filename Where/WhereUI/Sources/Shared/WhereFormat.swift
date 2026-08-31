@@ -98,6 +98,18 @@ enum WhereFormat {
         String(localized: .locationCardEstimatedDays(dayCount(days)))
     }
 
+    static func locationsPlanningAssign(region: Region) -> String {
+        String(localized: .locationsPlanningAssign(region.localizedName))
+    }
+
+    static func locationsPlanningEdit(region: Region) -> String {
+        String(localized: .locationsPlanningEdit(region.localizedName))
+    }
+
+    static func locationsPlanningCurrentValue(region: Region) -> String {
+        String(localized: .locationsPlanningCurrentValue(region.localizedName))
+    }
+
     static func settingsBackupImportedMessage(
         samples: Int,
         evidence: Int,
