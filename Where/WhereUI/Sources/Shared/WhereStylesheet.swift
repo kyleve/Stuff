@@ -814,6 +814,8 @@ extension WhereStylesheet {
         struct EstimateSticker: Equatable {
             var labelTypography: CardStyle.Typography
             var valueTypography: CardStyle.Typography
+            var contentOpacity: Double
+            var scale: CGFloat
             var cornerRadius: CGFloat
             var horizontalPadding: CGFloat
             var verticalPadding: CGFloat
@@ -836,6 +838,8 @@ extension WhereStylesheet {
                     weight: .semibold,
                     design: .default,
                 ),
+                contentOpacity: 0.92,
+                scale: 0.8,
                 cornerRadius: 8,
                 horizontalPadding: 10,
                 verticalPadding: 7,

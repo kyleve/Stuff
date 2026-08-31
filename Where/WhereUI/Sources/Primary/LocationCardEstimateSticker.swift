@@ -14,44 +14,47 @@ struct LocationCardEstimateSticker: View {
     @Environment(\.stylesheet) private var stylesheet
 
     var body: some View {
+        let scale = style.scale
         let recorded = LocationCardDayCount(
             days: recordedDays,
             tint: regionTint,
             card: card,
             transition: transition.transition(days: recordedDays),
         )
-        let sticker = VStack(spacing: stylesheet.spacing.xxSmall) {
+        let sticker = VStack(spacing: stylesheet.spacing.xxSmall * scale) {
             Text(.locationCardEstimateLabel)
-                .font(style.labelTypography.font)
+                .font(style.labelTypography.font.scaled(by: scale))
                 .textCase(.uppercase)
             Text(WhereFormat.dayCount(estimatedDays))
-                .font(style.valueTypography.font)
+                .font(style.valueTypography.font.scaled(by: scale))
                 .monospacedDigit()
                 .contentTransition(transition.transition(days: estimatedDays))
         }
-        .foregroundStyle(securityPrintTint)
-        .padding(.horizontal, style.horizontalPadding)
-        .padding(.vertical, style.verticalPadding)
+        .foregroundStyle(securityPrintTint.opacity(style.contentOpacity))
+        .padding(.horizontal, style.horizontalPadding * scale)
+        .padding(.vertical, style.verticalPadding * scale)
         .background {
-            RoundedRectangle(cornerRadius: style.cornerRadius)
+            RoundedRectangle(cornerRadius: style.cornerRadius * scale)
                 .fill(securityPrintTint.opacity(style.fillOpacity))
         }
         .overlay {
-            RoundedRectangle(cornerRadius: style.cornerRadius)
+            RoundedRectangle(cornerRadius: style.cornerRadius * scale)
                 .strokeBorder(
                     securityPrintTint.opacity(style.outlineOpacity),
-                    lineWidth: style.outlineWidth,
+                    lineWidth: style.outlineWidth * scale,
                 )
                 .overlay {
-                    RoundedRectangle(cornerRadius: style.cornerRadius - style.innerInset)
-                        .strokeBorder(
-                            securityPrintTint.opacity(style.outlineOpacity),
-                            style: StrokeStyle(
-                                lineWidth: style.innerOutlineWidth,
-                                dash: style.innerDash,
-                            ),
-                        )
-                        .padding(style.innerInset)
+                    RoundedRectangle(
+                        cornerRadius: (style.cornerRadius - style.innerInset) * scale,
+                    )
+                    .strokeBorder(
+                        securityPrintTint.opacity(style.outlineOpacity),
+                        style: StrokeStyle(
+                            lineWidth: style.innerOutlineWidth * scale,
+                            dash: style.innerDash.map { $0 * scale },
+                        ),
+                    )
+                    .padding(style.innerInset * scale)
                 }
         }
         .rotationEffect(.degrees(style.rotationDegrees))

@@ -203,6 +203,8 @@ struct WhereStylesheetTests {
         #expect(card.dayCount.revealDelay == .milliseconds(500))
         #expect(card.dayCount.animation == .easeOut(duration: 0.3))
         #expect(card.estimateSticker == .standard)
+        #expect(card.estimateSticker.contentOpacity == 0.92)
+        #expect(card.estimateSticker.scale == 0.8)
         #expect(card.constellation == .init(
             gridResolution: 48,
             maximumPointCount: 96,
