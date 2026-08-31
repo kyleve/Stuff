@@ -1,9 +1,9 @@
 # Swift Module Audit Report
 
-Read-only review of all **21 SPM library targets**, **7 Tuist app/extension targets**, **26 test bundles**, the repo-owned **Bumper Bowling** architecture rules, and the retained Python/Ruby tooling layer (694 source / 368 test / 47 image-snapshot Swift files across shipped targets, plus 2 unwired prototype sources). No production code was changed.
+Read-only review of all **20 SPM library targets**, **7 Tuist app/extension targets**, **26 test bundles**, the repo-owned **Bumper Bowling** architecture rules, and the retained Python/Ruby tooling layer (694 source / 368 test / 47 image-snapshot Swift files across shipped targets, plus 2 unwired prototype sources). No production code was changed.
 
 **Date:** August 30, 2026  
-**Method:** Read-only verification of every open finding in all 13 `TODOs.md` files against current source, module-by-module, with each citation re-derived; file, reference-image, and suite-count refresh; new-surface review of the 11 commits since the last audit; and a pass over the tree against the repo's own written rules. Unlike every prior edition, this pass also **executed** the Linux-capable half of CI's `format` job — `./swiftformat --lint`, `./shellcheck`, `./attribution --check`, and both retained-tool test suites — plus `./snapshot-shards check`, which is how its one new finding was discovered rather than read. Two further candidate findings were raised and rejected against source; both are recorded below.  
+**Method:** Read-only verification of every open finding in all 12 `TODOs.md` files against current source, module-by-module, with each citation re-derived; file, reference-image, and suite-count refresh; new-surface review of the 11 commits since the last audit; and a pass over the tree against the repo's own written rules. Unlike every prior edition, this pass also **executed** the Linux-capable half of CI's `format` job — `./swiftformat --lint`, `./shellcheck`, `./attribution --check`, and both retained-tool test suites — plus `./snapshot-shards check`, which is how its one new finding was discovered rather than read. Two further candidate findings were raised and rejected against source; both are recorded below. Unlike every prior edition, this pass also **executed** the Linux-capable half of CI's `format` job — `./swiftformat --lint`, `./shellcheck`, `./attribution --check`, and both retained-tool test suites — plus `./snapshot-shards check`, which is how its one new finding was discovered rather than read. Two further candidate findings were raised and rejected against source; both are recorded below.  
 **Prior audit:** August 16, 2026 (677 source / 361 test), merged as PR #282. **This is a two-week window, not one** — the previous audit landed on `main`, so its numbers are the real baseline, but no audit ran on August 23.
 
 > **This report carries no actionable items.** Every finding it describes is filed
@@ -17,7 +17,7 @@ Read-only review of all **21 SPM library targets**, **7 Tuist app/extension targ
 
 ## Executive summary
 
-**One item closed, one filed, and the closure came from a direction the backlog did not predict.** After a window in which nothing closed at all, PR #289 resolved the Locations ranking-reorder P2 — and resolved it by building something larger than the item asked for. The item proposed wrapping the card `ForEach` in an `.animation(_:value:)`; what shipped is an explicit interpolated layout, a keyframe-driven stack, and a single reconciliation that now releases counts, order, flourish, persistence, and haptics together. That is the useful signal in this pass: the one thing that moved was moved by a feature team working in the module, not by anyone reading the backlog.
+**Two items closed, one filed, and one closure came from a direction the backlog did not predict.** After a window in which nothing closed at all, PR #289 resolved the Locations ranking-reorder P2 — and resolved it by building something larger than the item asked for. The item proposed wrapping the card `ForEach` in an `.animation(_:value:)`; what shipped is an explicit interpolated layout, a keyframe-driven stack, and a single reconciliation that now releases counts, order, flourish, persistence, and haptics together. PR #300 closed the StuffCore tautological-test P2 the simpler way the backlog had been pointing at for weeks — by deleting the empty module rather than growing it — which also removed the twelfth area `TODOs.md`. That is the useful signal in this pass: what moved was moved by feature work and a small refactor landing on `main`, not by anyone reading the backlog.
 
 What the pass found, in order of how much it should change your reading of the backlog:
 
@@ -231,13 +231,11 @@ Nothing shipped.
 
 ---
 
-### CreditKit, JournalKit, StuffCore, TestHostSupport, StuffTestHost
+### CreditKit, JournalKit, TestHostSupport, StuffTestHost
 
 **CreditKit:** `./attribution --check` passes at **12** credits, now including ShellCheck as a pinned development tool. **Files:** 2/3 · Open: [`Shared/CreditKit/TODOs.md`](Shared/CreditKit/TODOs.md)
 
 **JournalKit:** nothing shipped. Both test items still open. **Files:** 2/3 · Open: [`Shared/JournalKit/TODOs.md`](Shared/JournalKit/TODOs.md)
-
-**StuffCore:** intentional scaffold. **Files:** 1/1 · Open: [`Shared/StuffCore/TODOs.md`](Shared/StuffCore/TODOs.md)
 
 **TestHostSupport:** dependency-free UIKit helpers, no bundle by design. **Files:** 1/0 · nothing open
 
@@ -264,7 +262,6 @@ Nothing shipped.
 
 | Module | Path | Source | Test | Image | README | AGENTS |
 |--------|------|-------:|-----:|------:|:------:|:------:|
-| StuffCore | `Shared/StuffCore/` | 1 | 1 | — | ✓ | ✓ |
 | CreditKit | `Shared/CreditKit/` | 2 | 3 | — | ✓ | ✓ |
 | JournalKit | `Shared/JournalKit/` | 2 | 3 | — | ✓ | ✓ |
 | LifecycleKit | `Shared/LifecycleKit/` | 8 | 10 | — | ✓ | ✓ |
@@ -309,7 +306,7 @@ Nothing shipped.
 | Area | August 16 state | August 30 state |
 |------|-----------------|-----------------|
 | File count | 677 source / 361 test | **694 / 368** (WhereUI 258 → 274, WhereCore 127 → 128) |
-| Backlog movement | 0 closed, 5 filed | **1 closed, 1 filed** — #289 closed the Locations ranking-reorder P2; one new item covers four macOS-coupled edges in the retained-tool layer |
+| Backlog movement | 0 closed, 5 filed | **2 closed, 1 filed** — #289 closed the Locations ranking-reorder P2; #300 closed the StuffCore tautological-test P2 by removing the module; one new item covers four macOS-coupled edges in the retained-tool layer |
 | Dev scripts | 16 | **18** — `shellcheck` (#283) and `snapshot-shards` (#276) |
 | CI `format` job | 4 checking steps | **6** — ShellCheck and the retained Python/Ruby tool suites joined (#283) |
 | CI iOS topology | One `test-ios` job, one serial `snapshot` job | **Build once, attach everywhere** — `build-ios-tests` hands products to `test-ios` and a `parallelism: 4` `snapshot` job sharded by suite (#276) |
@@ -320,4 +317,4 @@ Nothing shipped.
 | Attribution | 11 credits | **12** — ShellCheck, pinned and credited in the same PR that added it |
 | Formal specs | 10 TLA+ specifications | **10**, unchanged |
 | Test bundles | 26 | **26**, unchanged |
-| Backlog | 13 `TODOs.md` | **13** — no new area needed one |
+| Backlog | 13 `TODOs.md` | **12** — StuffCore's area file went with the module (#300); no new area needed one |

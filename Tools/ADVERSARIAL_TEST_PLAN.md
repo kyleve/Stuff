@@ -184,7 +184,6 @@ After fixture tests pass, run the smallest real operations:
 
 - `./simulator --no-boot`
 - `./simulator --list`
-- `./test StuffCoreTests`
 - `./profile --tests-only --no-snapshots`
 - `./flaky --suite-runs 1 --iterations 2 --no-update`
 - Icon add and remove dry runs.
