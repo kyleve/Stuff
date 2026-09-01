@@ -13,19 +13,23 @@ public struct ThrowRootView: View {
 
     public var body: some View {
         Group {
-            if session.setupCompleted {
-                ThrowDashboardView(session: session, outputs: outputs)
-            } else {
-                ThrowOnboardingView(session: session, outputs: outputs)
+            switch session.launchState {
+                case .loading:
+                    ThrowLaunchLoadingView()
+                case .onboarding:
+                    ThrowOnboardingView(session: session, outputs: outputs)
+                case .ready:
+                    ThrowDashboardView(session: session, outputs: outputs)
+                case let .failed(failure):
+                    ThrowLaunchFailureView(
+                        failure: failure,
+                        retry: session.startLaunch,
+                    )
             }
         }
         .throwBroadwayRoot()
         .environment(\.throwDateProvider, session.dateProvider)
-        .task {
-            session.updateControllerColorScheme(colorScheme)
-            await session.start()
-        }
-        .onChange(of: colorScheme) { _, newValue in
+        .onChange(of: colorScheme, initial: true) { _, newValue in
             session.updateControllerColorScheme(newValue)
         }
     }
@@ -34,6 +38,13 @@ public struct ThrowRootView: View {
 #if DEBUG
     extension ThrowRootView: SnapshotProviding {
         public static var snapshots: [SnapshotCase] {
+            SnapshotCase(
+                name: "Loading",
+                configurations: .fullContentScreenDefaults,
+                settle: .immediate,
+            ) {
+                ThrowRootView(session: .loadingRootSnapshotFixture())
+            }
             SnapshotCase(
                 name: "Onboarding",
                 configurations: .fullContentScreenDefaults,
@@ -48,7 +59,18 @@ public struct ThrowRootView: View {
             ) {
                 ThrowRootView(session: .rootDashboardSnapshotFixture())
             }
+            SnapshotCase(
+                name: "Launch Failure",
+                configurations: .fullContentScreenDefaults,
+                settle: .immediate,
+            ) {
+                ThrowRootView(session: .failedRootSnapshotFixture())
+            }
         }
+    }
+
+    #Preview("Loading") {
+        ThrowRootView(session: .loadingRootSnapshotFixture())
     }
 
     #Preview("Onboarding") {
@@ -57,5 +79,9 @@ public struct ThrowRootView: View {
 
     #Preview("Dashboard") {
         ThrowRootView(session: .rootDashboardSnapshotFixture())
+    }
+
+    #Preview("Launch Failure") {
+        ThrowRootView(session: .failedRootSnapshotFixture())
     }
 #endif

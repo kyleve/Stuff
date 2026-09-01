@@ -16,6 +16,12 @@ Read the root [`AGENTS.md`](../../AGENTS.md) and group
   the closed draft and its generation across every suspension before publishing success.
 - Construct the live `ThrowSession`, stores, source graph, and poller only in
   `ThrowSession+Composition.swift`. Pass that session to every controller and output scene.
+- Retain one launch task in the process session. Caller or scene cancellation
+  must not cancel it.
+- Leave loading only after preferences and both credential states load. Treat a
+  missing credential as data and a credential access error as launch failure.
+- Route every root through `ThrowSessionLaunchState`. Create dashboard and
+  projection surfaces only from its loaded cases.
 - Accept aggregate controller foreground presence from the app runtime. Do not
   observe application or UIKit scene lifecycle independently in ThrowUI.
 - Keep aircraft behavior in the one injected `AirAndSpaceRuntime`. Keep

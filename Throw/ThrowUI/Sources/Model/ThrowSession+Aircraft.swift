@@ -387,7 +387,7 @@ extension ThrowSession {
         await reconcileExperienceDemand(isQuiet: quiet)
         guard generation == demandGeneration else { return }
         let hasEnabledLayer = flightsEnabled || (geographyEnabled && projectionMode == .map)
-        guard hasStarted,
+        guard launchState.isOperational,
               hasForegroundControllerScene,
               outputDemands.isEmpty == false,
               isCalibrating == false,

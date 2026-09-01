@@ -17,6 +17,8 @@ WhereCore, RegionKit, or LifecycleKit into this feature.
 - Construct `ThrowRuntime` only in `ThrowRuntime.swift`. Construct the live
   `ThrowSession` and its live dependencies only in `ThrowSession+Composition.swift`.
   Inject those objects into every scene.
+- Start one retained cold-launch task from the process runtime. Gate every root
+  on the session's exhaustive launch state.
 - Keep the View catalog compile-time. Use `ProjectionExperience` in code and
   “View” in user-facing text. Never add runtime plugins or `AnyView` boundaries.
 - Keep aircraft provider implementations in ThrowCore. ThrowUI uses the

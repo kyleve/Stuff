@@ -65,7 +65,14 @@ enum ProjectionPresentationTransition {
 @MainActor
 @Observable
 public final class ThrowSession {
-    public internal(set) var setupState: ThrowSetupState
+    public internal(set) var setupState: ThrowSetupState {
+        didSet {
+            guard oldValue != setupState else { return }
+            launchState = launchState.replacingLoadedSetup(with: setupState)
+        }
+    }
+
+    public internal(set) var launchState: ThrowSessionLaunchState
     var experienceCoordinatorState: ProjectionExperienceCoordinatorState
 
     /// Compatibility access for Air & Space callers while health remains keyed by experience.
@@ -303,7 +310,6 @@ public final class ThrowSession {
     let projectionWorker: ProjectionFrameWorker
 
     @ObservationIgnored var isApplyingPreferences = false
-    @ObservationIgnored var hasStarted = false
     @ObservationIgnored var hasForegroundControllerScene: Bool
     #if DEBUG
         @_spi(Testing) public var hasForegroundControllerSceneForTesting: Bool {
@@ -366,6 +372,8 @@ public final class ThrowSession {
     @ObservationIgnored var projectionSessionLocationGeneration: UInt64 = 0
     @ObservationIgnored var projectionSessionLocationGate: ProjectionSessionLocationGate = .required
     @ObservationIgnored var airAndSpaceUpdateTask: Task<Void, Never>?
+    @ObservationIgnored var launchTask: Task<Void, Never>?
+    @ObservationIgnored var runtimeObserversInstalled = false
     @ObservationIgnored var experienceStateTask: Task<Void, Never>?
     @ObservationIgnored var experienceActionTask: Task<Void, Never>?
     @ObservationIgnored var playlistConfigurationTask: Task<Void, Never>?
@@ -409,9 +417,11 @@ public final class ThrowSession {
         rotationClock: any ProjectionRotationClock,
         softwareCredits: [SoftwareCredit],
         initiallyHasForegroundControllerScene: Bool,
+        initialLaunchState: ThrowSessionLaunchState,
     ) {
         hasForegroundControllerScene = initiallyHasForegroundControllerScene
         setupState = preferences.setupState
+        launchState = initialLaunchState
         projectionPlaylist = preferences.playlist
         experienceCoordinatorState = ProjectionExperienceCoordinatorState(
             playlist: preferences.playlist,
@@ -544,33 +554,90 @@ public final class ThrowSession {
         return summary
     }
 
-    public func start() async {
-        guard hasStarted == false else { return }
-        hasStarted = true
-        do {
-            let preferences = try await preferenceStore.load()
-            apply(preferences)
-            await configureExperienceCoordinator(with: preferences.playlist)
-        } catch is CancellationError {
-            hasStarted = false
+    /// Starts the process-owned launch task. Repeated calls join the same launch.
+    public func startLaunch() {
+        guard launchTask == nil else { return }
+
+        if launchState.isOperational {
+            guard runtimeObserversInstalled == false else { return }
+            launchTask = Task(name: "Throw install runtime observers") { [self] in
+                await configureExperienceCoordinator(with: projectionPlaylist)
+                await installRuntimeObservers()
+                scheduleDemandReconciliation()
+                launchTask = nil
+            }
             return
-        } catch {
-            settingsFailure = error.localizedDescription
-            setupState = .defaultValue
-            feedHealth = .failed(.unknown)
         }
 
-        do {
-            rapidAPICredentialState = try await credentialStore.state(for: .rapidAPI)
-            flightradar24CredentialState = try await credentialStore.state(for: .flightradar24)
-        } catch is CancellationError {
-            hasStarted = false
-            return
-        } catch {
-            rapidAPICredentialState = .missing
-            flightradar24CredentialState = .missing
-            settingsFailure = error.localizedDescription
+        launchState = .loading
+        launchTask = Task(name: "Throw cold launch") { [self] in
+            await performColdLaunch()
+            launchTask = nil
         }
+    }
+
+    public func start() async {
+        startLaunch()
+        await launchTask?.value
+    }
+
+    #if DEBUG
+        @_spi(Testing) public func waitForLaunchForTesting() async {
+            await launchTask?.value
+        }
+    #endif
+
+    private func performColdLaunch() async {
+        do {
+            let preferences = try await loadPreferencesForLaunch()
+            let credentialStates = try await loadCredentialStatesForLaunch()
+            apply(preferences)
+            await configureExperienceCoordinator(with: preferences.playlist)
+            rapidAPICredentialState = credentialStates.rapidAPI
+            flightradar24CredentialState = credentialStates.flightradar24
+            await installRuntimeObservers()
+            launchState = .loaded(preferences.setupState)
+            scheduleDemandReconciliation()
+        } catch let failure as ThrowSessionLaunchFailure {
+            launchState = .failed(failure)
+        } catch {
+            assertionFailure("Throw launch produced an unclassified error: \(error)")
+            launchState = .failed(.preferences(detail: error.localizedDescription))
+        }
+    }
+
+    private func loadPreferencesForLaunch() async throws -> ThrowPreferences {
+        do {
+            return try await preferenceStore.load()
+        } catch {
+            throw ThrowSessionLaunchFailure.preferences(detail: error.localizedDescription)
+        }
+    }
+
+    private func loadCredentialStatesForLaunch() async throws -> LoadedAircraftCredentialStates {
+        let rapidAPI = try await loadCredentialStateForLaunch(for: .rapidAPI)
+        let flightradar24 = try await loadCredentialStateForLaunch(for: .flightradar24)
+        return LoadedAircraftCredentialStates(
+            rapidAPI: rapidAPI,
+            flightradar24: flightradar24,
+        )
+    }
+
+    private func loadCredentialStateForLaunch(
+        for id: AircraftCredentialID,
+    ) async throws -> CredentialState {
+        do {
+            return try await credentialStore.state(for: id)
+        } catch {
+            throw ThrowSessionLaunchFailure.credential(
+                id: id,
+                detail: error.localizedDescription,
+            )
+        }
+    }
+
+    private func installRuntimeObservers() async {
+        guard runtimeObserversInstalled == false else { return }
 
         let experienceStates = await experienceCoordinator.stateUpdates()
         experienceStateTask?.cancel()
@@ -601,7 +668,7 @@ public final class ThrowSession {
             }
         }
         installTimeChangeObservers()
-        scheduleDemandReconciliation()
+        runtimeObserversInstalled = true
     }
 
     public func projectionOutputConnected(_ output: ProjectionOutput) {
@@ -650,6 +717,7 @@ public final class ThrowSession {
     }
 
     isolated deinit {
+        launchTask?.cancel()
         airAndSpaceUpdateTask?.cancel()
         experienceStateTask?.cancel()
         experienceActionTask?.cancel()

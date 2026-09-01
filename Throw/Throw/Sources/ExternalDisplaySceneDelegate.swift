@@ -25,7 +25,7 @@ final class ExternalDisplaySceneDelegate: UIResponder, UIWindowSceneDelegate {
         let id = ProjectionOutputID(rawValue: "external:\(session.persistentIdentifier)")
         let output = ProjectionOutput.externalDisplay(id)
         let host = UIHostingController(
-            rootView: ProjectionSurface(
+            rootView: ThrowProjectionRootView(
                 session: runtime.session,
                 presentation: .externalDisplay,
             )
