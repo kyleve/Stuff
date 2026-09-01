@@ -257,6 +257,47 @@ struct ThrowSessionExperiencesTests {
         #expect(session.airAndSpaceActivation.activeLease == replacementLease)
     }
 
+    @Test func stoppedCoordinatorLeaseCannotReappearAfterItsDeactivationAction() async throws {
+        let session = ThrowSession.fixture()
+        session.isReconcilingDemand = true
+        var actions = await session.experienceCoordinator.actions().makeAsyncIterator()
+        let projectingDemand = ProjectionExperienceDemand(
+            hasOutput: true,
+            isForeground: true,
+            isQuiet: false,
+            isCalibrating: false,
+        )
+        let quietDemand = ProjectionExperienceDemand(
+            hasOutput: true,
+            isForeground: true,
+            isQuiet: true,
+            isCalibrating: false,
+        )
+        session.outputDemands.insert(.preview(.init(rawValue: "lease-race-preview")))
+
+        await session.experienceCoordinator.reconcile(demand: projectingDemand)
+        let activation = try #require(await actions.next())
+        guard case let .activate(lease, _) = activation else {
+            Issue.record("Projection demand must activate the current View")
+            return
+        }
+        await session.applyExperienceCoordinatorAction(activation)
+        #expect(session.airAndSpaceActivation.activeLease == lease)
+
+        await session.experienceCoordinator.reconcile(demand: quietDemand)
+        let deactivation = try #require(await actions.next())
+        #expect(deactivation == .deactivate(lease: lease))
+        await session.applyExperienceCoordinatorAction(deactivation)
+        #expect(session.airAndSpaceActivation.activeLease == nil)
+
+        // Hold the action before the direct lease read that follows demand reconciliation.
+        await session.reconcileExperienceDemand(isQuiet: true)
+
+        #expect(await session.experienceCoordinator.activationLease(for: .airAndSpace) == nil)
+        #expect(await session.experienceCoordinator.runningExperienceIDsForTesting().isEmpty)
+        #expect(session.airAndSpaceActivation.activeLease == nil)
+    }
+
     @Test func runtimeUpdateWaitsForThePreparedFrameToFinishFadingIn() async throws {
         let session = ThrowSession.fixture()
         let lease = ProjectionActivationLease(
