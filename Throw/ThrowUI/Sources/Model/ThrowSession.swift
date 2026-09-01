@@ -373,6 +373,7 @@ public final class ThrowSession {
     @ObservationIgnored var lastFlightradar24UsageRequestAt: Date?
     @ObservationIgnored var flightradar24UsageGeneration: UInt64 = 0
     @ObservationIgnored var preferenceMutationInProgress = false
+    @ObservationIgnored var projectionPreferenceInvalidation: ProjectionPreferenceInvalidation?
     @ObservationIgnored var deferredPreferenceSaveFailures = ThrowPostLaunchFailureLedger()
     @ObservationIgnored var onboardingCompletionInProgress = false
     #if DEBUG
@@ -380,6 +381,9 @@ public final class ThrowSession {
             beforeApplyingLocationResolutionForTesting: (() -> Void)?
         @ObservationIgnored @_spi(Testing) public var
             beforePublishingProjectionForTesting: (@MainActor @Sendable () async -> Void)?
+        @ObservationIgnored @_spi(Testing) public var
+            beforeProjectionPreferenceRuntimeDeactivationForTesting:
+            (@MainActor @Sendable () async -> Void)?
     #endif
 
     init(

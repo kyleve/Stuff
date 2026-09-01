@@ -414,6 +414,7 @@ extension ThrowSession {
 
         await finishProjectionPreferenceInvalidation(invalidation)
         await configureExperienceCoordinator(with: projectionPlaylist)
+        completeProjectionPreferenceInvalidation(invalidation)
         scheduleDemandReconciliation()
     }
 }

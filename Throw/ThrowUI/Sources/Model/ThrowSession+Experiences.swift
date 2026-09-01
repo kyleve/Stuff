@@ -111,6 +111,7 @@ extension ThrowSession {
             case let .activate(lease, _):
                 let id = lease.experienceID
                 if id == .airAndSpace {
+                    guard projectionPreferenceInvalidation == nil else { return }
                     guard airAndSpaceActivation.activate(lease) else { return }
                     if preparedProjection?.experienceID == id {
                         preparedProjection = nil
@@ -150,6 +151,7 @@ extension ThrowSession {
                 isCalibrating: isCalibrating,
             ),
         )
+        guard projectionPreferenceInvalidation == nil else { return }
         if let lease = await experienceCoordinator.activationLease(for: .airAndSpace) {
             _ = airAndSpaceActivation.activate(lease)
         }

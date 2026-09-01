@@ -79,6 +79,9 @@ without minting coordinator identities. Location refreshes also recheck their
 generation after the last accumulator read. Playlist configurations carry
 monotonic session revisions. The coordinator rejects an older value that arrives
 late.
+Each production rendered projection stores the lease that produced it. A
+source or observer replacement blocks local reactivation while the old runtime
+drains. The renderer stops before the replacement becomes visible.
 The session publishes visible output as one closed `ProjectionPresentationState`.
 Its Air & Space and Transit cases bind coordinator identity to matching typed output.
 Each rendered case stores its semantic frame, activation generation, renderer frame, effects,

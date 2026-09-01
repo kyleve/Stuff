@@ -74,6 +74,58 @@ struct ThrowSessionAircraftTests {
         await gate.releaseAll()
     }
 
+    @Test func sourceInvalidationRejectsAPendingRenderAndRepeatedLease() async throws {
+        let preferences = ThrowPreferences.defaultValue.airAndSpace.replacingGeography(
+            .defaultValue.replacingIsEnabled(false),
+        )
+        let session = ThrowSession.fixture(airAndSpacePreferences: preferences)
+        let semanticFrame = projectionTestAirFrame(
+            observedAt: Date(timeIntervalSince1970: 100),
+        )
+        let lease = ProjectionActivationLease(
+            experienceID: .airAndSpace,
+            generation: .init(rawValue: 1),
+        )
+        let activated = session.airAndSpaceActivation.activate(lease)
+        #expect(activated)
+        session.outputDemands.insert(.preview(ProjectionOutputID(rawValue: "source-invalidation")))
+        session.replacePendingAirAndSpaceFrameForTesting(semanticFrame)
+        let publicationGate = ProjectionPublicationGate()
+        let deactivationGate = ProjectionPublicationGate()
+        session.beforePublishingProjectionForTesting = {
+            await publicationGate.suspendPublication()
+        }
+        session.beforeProjectionPreferenceRuntimeDeactivationForTesting = {
+            await deactivationGate.suspendPublication()
+        }
+
+        session.restartRenderer()
+        let staleRenderTask = try #require(session.renderTask)
+        await publicationGate.waitForSuspensionCount(1)
+
+        let sourceChange = Task {
+            await session.useSource(ValidatedAircraftSourceDraft(source: .adsbLol))
+        }
+        await deactivationGate.waitForSuspensionCount(1)
+
+        #expect(session.airAndSpaceActivation.activeLease == nil)
+        await session.applyExperienceCoordinatorAction(.activate(lease: lease, role: .active))
+        #expect(session.airAndSpaceActivation.activeLease == nil)
+        session.restartRenderer()
+        #expect(session.renderTask == nil)
+
+        await publicationGate.releaseAll()
+        await staleRenderTask.value
+        #expect(session.visibleProjection.request == nil)
+        #expect(session.visibleProjection.semanticFrame == .airAndSpace(.empty))
+
+        session.beforePublishingProjectionForTesting = nil
+        await deactivationGate.releaseAll()
+        #expect(await sourceChange.value)
+        session.stopRenderer()
+        session.beforeProjectionPreferenceRuntimeDeactivationForTesting = nil
+    }
+
     @Test func staleRuntimeUpdateCannotReplaceTheCurrentActivationState() async throws {
         let session = ThrowSession.fixture()
         let signature = try PollingSignature(

@@ -275,6 +275,7 @@ extension ThrowSession {
             recordPostLaunchFailure(.projectionRendering, error: error)
             await clearProjectionState(restartsGeography: true)
         }
+        completeProjectionPreferenceInvalidation(invalidation)
         scheduleDemandReconciliation()
         return true
     }
@@ -455,6 +456,10 @@ extension ThrowSession {
         demandGeneration &+= 1
         let generation = demandGeneration
         demandTask?.cancel()
+        guard projectionPreferenceInvalidation == nil else {
+            demandTask = nil
+            return
+        }
         demandTask = Task(name: "Throw reconcile output demand") { [weak self] in
             guard let self else { return }
             await reconcileDemand(generation: generation)
@@ -464,26 +469,37 @@ extension ThrowSession {
     func prepareProjectionPreferencePublication(
         _ change: ProjectionPreferenceChange,
     ) -> ProjectionPreferenceInvalidation {
+        precondition(
+            projectionPreferenceInvalidation == nil,
+            "A projection preference invalidation is already active",
+        )
         demandGeneration &+= 1
         demandTask?.cancel()
         let activationLease = airAndSpaceActivation.activeLease
+        let invalidation = ProjectionPreferenceInvalidation(
+            change: change,
+            activationLease: activationLease,
+        )
+        projectionPreferenceInvalidation = invalidation
         if let activationLease {
             _ = airAndSpaceActivation.deactivate(activationLease)
         }
         activePollingSignature = nil
         if change == .observerLocation {
             clearProjectionStateSynchronously()
+        } else {
+            stopRenderer()
         }
-        return ProjectionPreferenceInvalidation(
-            change: change,
-            activationLease: activationLease,
-        )
+        return invalidation
     }
 
     func finishProjectionPreferenceInvalidation(
         _ invalidation: ProjectionPreferenceInvalidation,
     ) async {
         if let activationLease = invalidation.activationLease {
+            #if DEBUG
+                await beforeProjectionPreferenceRuntimeDeactivationForTesting?()
+            #endif
             await airAndSpaceRuntime.deactivate(
                 lease: activationLease,
                 reporting: .idle,
@@ -494,6 +510,16 @@ extension ThrowSession {
         }
     }
 
+    func completeProjectionPreferenceInvalidation(
+        _ invalidation: ProjectionPreferenceInvalidation,
+    ) {
+        guard projectionPreferenceInvalidation == invalidation else {
+            assertionFailure("A projection preference invalidation completed out of order")
+            return
+        }
+        projectionPreferenceInvalidation = nil
+    }
+
     func deactivateAirAndSpace(reporting health: FeedHealth) async {
         guard let activationLease = airAndSpaceActivation.activeLease else { return }
         await airAndSpaceRuntime.deactivate(lease: activationLease, reporting: health)
@@ -502,7 +528,9 @@ extension ThrowSession {
     func reconcileDemand(generation: UInt64) async {
         isReconcilingDemand = true
         defer { isReconcilingDemand = false }
-        guard generation == demandGeneration else { return }
+        guard generation == demandGeneration,
+              projectionPreferenceInvalidation == nil
+        else { return }
         expireTemporaryWakeIfNeeded()
         scheduleQuietBoundary()
         let quiet = isQuietNow
@@ -619,6 +647,7 @@ extension ThrowSession {
         let generation = renderGeneration
         renderTask?.cancel()
         guard projectionPresentationTransition == nil,
+              projectionPreferenceInvalidation == nil,
               activeExperienceID == .airAndSpace,
               outputDemands.isEmpty == false,
               hasForegroundControllerScene,
@@ -626,7 +655,8 @@ extension ThrowSession {
               isQuietNow == false,
               pendingAirAndSpaceFrame.flights != nil ||
               (geographyEnabled && projectionMode == .map),
-              confirmedLocation != nil
+              confirmedLocation != nil,
+              let activationLease = airAndSpaceActivation.activeLease
         else {
             return
         }
@@ -636,7 +666,6 @@ extension ThrowSession {
             var schedule = ProjectionFrameSchedule(startingAt: clock.now)
             while Task.isCancelled == false {
                 do {
-                    let activationLease = airAndSpaceActivation.activeLease
                     let experienceFrame = ProjectionExperienceFrame.airAndSpace(
                         pendingAirAndSpaceFrame,
                     )
@@ -735,7 +764,7 @@ extension ThrowSession {
     @discardableResult
     private func publishCurrentAirAndSpaceOutput(
         _ output: ProjectionFrameWorkerOutput,
-        activationLease: ProjectionActivationLease?,
+        activationLease: ProjectionActivationLease,
     ) -> Bool {
         guard case .airAndSpace = output,
               activationLease == airAndSpaceActivation.activeLease,
@@ -849,11 +878,9 @@ extension ThrowSession {
     func updateVisibleCount(
         _ count: Int,
         experienceID: ProjectionExperienceID,
-        activationLease: ProjectionActivationLease?,
+        activationLease: ProjectionActivationLease,
     ) async {
-        guard let activationLease,
-              experienceID == activationLease.experienceID
-        else { return }
+        guard experienceID == activationLease.experienceID else { return }
         await airAndSpaceRuntime.updateVisibleContentCount(
             count,
             lease: activationLease,
@@ -988,7 +1015,7 @@ enum ProjectionPreferenceChange: Equatable {
 }
 
 /// The runtime work that finishes after a preference-backed context publishes.
-struct ProjectionPreferenceInvalidation {
+struct ProjectionPreferenceInvalidation: Equatable {
     let change: ProjectionPreferenceChange
     let activationLease: ProjectionActivationLease?
 }

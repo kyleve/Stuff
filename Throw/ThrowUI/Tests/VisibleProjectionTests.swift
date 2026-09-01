@@ -56,4 +56,21 @@ struct VisibleProjectionTests {
             output: output,
         ) == nil)
     }
+
+    @Test func leaseFreeWorkerOutputUsesTheDebugFixtureCase() throws {
+        let observer = try projectionTestObserver(latitude: 37, longitude: -122)
+        let output = try projectionTestAirOutput(
+            semanticFrame: .empty,
+            observer: observer,
+            generatedAt: Date(timeIntervalSince1970: 100),
+            revision: 1,
+            observerPoint: nil,
+        )
+
+        let visible = VisibleProjection.fixture(output: output)
+
+        #expect(visible.activationLease == nil)
+        #expect(visible.request == nil)
+        #expect(visible.frame == output.frame)
+    }
 }
