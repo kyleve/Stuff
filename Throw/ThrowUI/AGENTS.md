@@ -50,8 +50,8 @@ Read the root [`AGENTS.md`](../../AGENTS.md) and group
   the physical runtime. Retire and remint it in one coordinator actor turn.
 - Synchronize the coordinator's optional lease in both directions while the
   invalidation gate is active. Treat an equal inactive generation as tombstoned.
-- Store a matching activation lease in each production rendered projection.
-  Block local reactivation while a source or observer replacement drains.
+- Store the full matching activation lease in each leased production
+  projection, including a cleared placeholder. Never rebuild it from parallel fields.
 - Invalidate superseded Air & Space lifecycle work after every suspension.
   Never let an old activation or deactivation change newer runtime state.
 - Accept polling state only for the exact Core activation token. Read the
@@ -72,8 +72,10 @@ Read the root [`AGENTS.md`](../../AGENTS.md) and group
   A newer teardown retires older work. An older teardown cannot stop a newer lease.
 - Keep one coordinator timer across all scenes. Run at most the active and
   prewarming experience runtimes.
-- Keep the coordinator playlist and active identity in one validated value.
-  A nonempty playlist must always have an active identity from that playlist.
+- Keep the coordinator playlist and runnable active identity in one validated
+  value. A nonempty playlist must always have an active identity from that playlist.
+- Accept only `RunnableProjectionExperienceID` in selection, dwell, playlist,
+  and activation commands. Switch exhaustively when dispatching a runtime.
 - Store coordinator identity, activation generation, semantic input, rendered
   frame, effects, observer point, and Geography health in one
   `ProjectionPresentationState`. Derive all public presentation fields from it.

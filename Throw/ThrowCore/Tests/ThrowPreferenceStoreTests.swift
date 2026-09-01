@@ -140,7 +140,7 @@ struct ThrowPreferenceStoreTests {
         #expect(migrated.playlist.selectedExperienceID == .airAndSpace)
         #expect(migrated.playlist.entries == [
             ProjectionPlaylistEntry(
-                experienceID: .airAndSpace,
+                runnableExperienceID: .airAndSpace,
                 dwellDuration: .defaultValue,
             ),
         ])
@@ -447,7 +447,7 @@ struct ThrowPreferenceStoreTests {
         let playlist = try ProjectionPlaylist(
             entries: [
                 ProjectionPlaylistEntry(
-                    experienceID: .airAndSpace,
+                    runnableExperienceID: .airAndSpace,
                     dwellDuration: .defaultValue,
                 ),
             ],

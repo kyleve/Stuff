@@ -5,7 +5,7 @@ import ThrowCore
 enum VisibleProjection: Equatable {
     struct AirAndSpace: Equatable {
         struct Placeholder: Equatable {
-            let activationGeneration: ProjectionActivationLease.Generation?
+            let activationLease: ProjectionActivationLease?
             let mode: ProjectionMode
             let generatedAt: Date
         }
@@ -13,7 +13,7 @@ enum VisibleProjection: Equatable {
         enum Content: Equatable {
             case placeholder(Placeholder)
             case rendered(
-                activationGeneration: ProjectionActivationLease.Generation,
+                activationLease: ProjectionActivationLease,
                 output: ProjectionFrameWorkerOutput.AirAndSpace,
             )
             #if DEBUG
@@ -23,7 +23,7 @@ enum VisibleProjection: Equatable {
 
         #if DEBUG
             struct Fixture: Equatable {
-                let activationGeneration: ProjectionActivationLease.Generation?
+                let activationLease: ProjectionActivationLease?
                 let frame: ProjectionFrame
                 let effects: [LayerMarkID: ProjectionMarkEffect]
                 let observerPoint: ProjectionPoint?
@@ -35,7 +35,7 @@ enum VisibleProjection: Equatable {
 
         static func initial(mode: ProjectionMode, generatedAt: Date) -> Self {
             Self(content: .placeholder(.init(
-                activationGeneration: nil,
+                activationLease: nil,
                 mode: mode,
                 generatedAt: generatedAt,
             )))
@@ -44,14 +44,14 @@ enum VisibleProjection: Equatable {
 
     struct Transit: Equatable {
         struct Placeholder: Equatable {
-            let activationGeneration: ProjectionActivationLease.Generation?
+            let activationLease: ProjectionActivationLease?
             let generatedAt: Date
         }
 
         enum Content: Equatable {
             case placeholder(Placeholder)
             case rendered(
-                activationGeneration: ProjectionActivationLease.Generation,
+                activationLease: ProjectionActivationLease,
                 output: ProjectionFrameWorkerOutput.Transit,
             )
             #if DEBUG
@@ -61,7 +61,7 @@ enum VisibleProjection: Equatable {
 
         #if DEBUG
             struct Fixture: Equatable {
-                let activationGeneration: ProjectionActivationLease.Generation?
+                let activationLease: ProjectionActivationLease?
                 let frame: ProjectionFrame
                 let effects: [LayerMarkID: ProjectionMarkEffect]
                 let observerPoint: ProjectionPoint?
@@ -73,7 +73,7 @@ enum VisibleProjection: Equatable {
 
         static func initial(generatedAt: Date) -> Self {
             Self(content: .placeholder(.init(
-                activationGeneration: nil,
+                activationLease: nil,
                 generatedAt: generatedAt,
             )))
         }
@@ -132,20 +132,20 @@ enum VisibleProjection: Equatable {
         activationLease: ProjectionActivationLease,
         output: ProjectionFrameWorkerOutput,
     ) -> Self? {
-        switch output {
-            case let .airAndSpace(output):
-                guard activationLease.experienceID == .airAndSpace else { return nil }
+        switch activationLease.runnableExperienceID {
+            case .airAndSpace:
+                guard case let .airAndSpace(output) = output else { return nil }
                 return .airAndSpace(AirAndSpace(content: .rendered(
-                    activationGeneration: activationLease.generation,
-                    output: output,
-                )))
-            case let .transit(output):
-                guard activationLease.experienceID == .transit else { return nil }
-                return .transit(Transit(content: .rendered(
-                    activationGeneration: activationLease.generation,
+                    activationLease: activationLease,
                     output: output,
                 )))
             #if DEBUG
+                case .testing(.transit):
+                    guard case let .transit(output) = output else { return nil }
+                    return .transit(Transit(content: .rendered(
+                        activationLease: activationLease,
+                        output: output,
+                    )))
                 case .testing:
                     return nil
             #endif
@@ -157,7 +157,7 @@ enum VisibleProjection: Equatable {
             switch output {
                 case let .airAndSpace(output):
                     .airAndSpace(AirAndSpace(content: .fixture(.init(
-                        activationGeneration: nil,
+                        activationLease: nil,
                         frame: output.render.frame,
                         effects: output.render.effects,
                         observerPoint: output.render.observerPoint,
@@ -165,7 +165,7 @@ enum VisibleProjection: Equatable {
                     ))))
                 case let .transit(output):
                     .transit(Transit(content: .fixture(.init(
-                        activationGeneration: nil,
+                        activationLease: nil,
                         frame: output.render.frame,
                         effects: output.render.effects,
                         observerPoint: output.render.observerPoint,
@@ -193,29 +193,14 @@ enum VisibleProjection: Equatable {
     }
 
     var activationLease: ProjectionActivationLease? {
-        let generation: ProjectionActivationLease.Generation? = switch self {
+        switch self {
             case let .airAndSpace(presentation):
-                switch presentation.content {
-                    case let .placeholder(placeholder): placeholder.activationGeneration
-                    case let .rendered(generation, _): generation
-                    #if DEBUG
-                        case let .fixture(fixture): fixture.activationGeneration
-                    #endif
-                }
+                presentation.content.activationLease
             case let .transit(presentation):
-                switch presentation.content {
-                    case let .placeholder(placeholder): placeholder.activationGeneration
-                    case let .rendered(generation, _): generation
-                    #if DEBUG
-                        case let .fixture(fixture): fixture.activationGeneration
-                    #endif
-                }
+                presentation.content.activationLease
             #if DEBUG
                 case .testing: nil
             #endif
-        }
-        return generation.map {
-            ProjectionActivationLease(experienceID: experienceID, generation: $0)
         }
     }
 
@@ -371,32 +356,14 @@ enum VisibleProjection: Equatable {
     func cleared(mode: ProjectionMode, generatedAt: Date) -> Self {
         switch self {
             case let .airAndSpace(presentation):
-                let generation: ProjectionActivationLease.Generation? = switch presentation
-                    .content
-                {
-                    case let .placeholder(placeholder): placeholder.activationGeneration
-                    case let .rendered(generation, _): generation
-                    #if DEBUG
-                        case let .fixture(fixture): fixture.activationGeneration
-                    #endif
-                }
                 return .airAndSpace(AirAndSpace(content: .placeholder(.init(
-                    activationGeneration: generation,
+                    activationLease: presentation.content.activationLease,
                     mode: mode,
                     generatedAt: generatedAt,
                 ))))
             case let .transit(presentation):
-                let generation: ProjectionActivationLease.Generation? = switch presentation
-                    .content
-                {
-                    case let .placeholder(placeholder): placeholder.activationGeneration
-                    case let .rendered(generation, _): generation
-                    #if DEBUG
-                        case let .fixture(fixture): fixture.activationGeneration
-                    #endif
-                }
                 return .transit(Transit(content: .placeholder(.init(
-                    activationGeneration: generation,
+                    activationLease: presentation.content.activationLease,
                     generatedAt: generatedAt,
                 ))))
             #if DEBUG
@@ -430,7 +397,7 @@ enum VisibleProjection: Equatable {
                 switch presentation.content {
                     case .placeholder:
                         return self
-                    case let .rendered(generation, output):
+                    case let .rendered(activationLease, output):
                         guard let output = output.replacingFrame(
                             frame,
                             geographyHealth: geographyHealth,
@@ -440,13 +407,13 @@ enum VisibleProjection: Equatable {
                             return self
                         }
                         return .airAndSpace(AirAndSpace(content: .rendered(
-                            activationGeneration: generation,
+                            activationLease: activationLease,
                             output: output,
                         )))
                     #if DEBUG
                         case let .fixture(fixture):
                             return .airAndSpace(AirAndSpace(content: .fixture(.init(
-                                activationGeneration: fixture.activationGeneration,
+                                activationLease: fixture.activationLease,
                                 frame: frame,
                                 effects: effects ?? fixture.effects,
                                 observerPoint: fixture.observerPoint,
@@ -458,7 +425,7 @@ enum VisibleProjection: Equatable {
                 switch presentation.content {
                     case .placeholder:
                         return self
-                    case let .rendered(generation, output):
+                    case let .rendered(activationLease, output):
                         guard let output = output.replacingFrame(
                             frame,
                             geographyHealth: geographyHealth,
@@ -468,13 +435,13 @@ enum VisibleProjection: Equatable {
                             return self
                         }
                         return .transit(Transit(content: .rendered(
-                            activationGeneration: generation,
+                            activationLease: activationLease,
                             output: output,
                         )))
                     #if DEBUG
                         case let .fixture(fixture):
                             return .transit(Transit(content: .fixture(.init(
-                                activationGeneration: fixture.activationGeneration,
+                                activationLease: fixture.activationLease,
                                 frame: frame,
                                 effects: effects ?? fixture.effects,
                                 observerPoint: fixture.observerPoint,
@@ -499,7 +466,7 @@ enum VisibleProjection: Equatable {
             switch (self, frame.experienceID) {
                 case let (.airAndSpace(presentation), .airAndSpace):
                     .airAndSpace(AirAndSpace(content: .fixture(.init(
-                        activationGeneration: presentation.content.activationGeneration,
+                        activationLease: presentation.content.activationLease,
                         frame: frame,
                         effects: effects,
                         observerPoint: observerPoint,
@@ -507,7 +474,7 @@ enum VisibleProjection: Equatable {
                     ))))
                 case let (.transit(presentation), .transit):
                     .transit(Transit(content: .fixture(.init(
-                        activationGeneration: presentation.content.activationGeneration,
+                        activationLease: presentation.content.activationLease,
                         frame: frame,
                         effects: effects,
                         observerPoint: observerPoint,
@@ -531,7 +498,7 @@ enum VisibleProjection: Equatable {
             switch self {
                 case let .airAndSpace(presentation):
                     .airAndSpace(AirAndSpace(content: .fixture(.init(
-                        activationGeneration: presentation.content.activationGeneration,
+                        activationLease: presentation.content.activationLease,
                         frame: frame,
                         effects: effects,
                         observerPoint: observerPoint,
@@ -539,7 +506,7 @@ enum VisibleProjection: Equatable {
                     ))))
                 case let .transit(presentation):
                     .transit(Transit(content: .fixture(.init(
-                        activationGeneration: presentation.content.activationGeneration,
+                        activationLease: presentation.content.activationLease,
                         frame: frame,
                         effects: effects,
                         observerPoint: observerPoint,
@@ -557,24 +524,26 @@ enum VisibleProjection: Equatable {
     #endif
 }
 
-#if DEBUG
-    extension VisibleProjection.AirAndSpace.Content {
-        fileprivate var activationGeneration: ProjectionActivationLease.Generation? {
-            switch self {
-                case let .placeholder(placeholder): placeholder.activationGeneration
-                case let .rendered(generation, _): generation
-                case let .fixture(fixture): fixture.activationGeneration
-            }
+extension VisibleProjection.AirAndSpace.Content {
+    fileprivate var activationLease: ProjectionActivationLease? {
+        switch self {
+            case let .placeholder(placeholder): placeholder.activationLease
+            case let .rendered(activationLease, _): activationLease
+            #if DEBUG
+                case let .fixture(fixture): fixture.activationLease
+            #endif
         }
     }
+}
 
-    extension VisibleProjection.Transit.Content {
-        fileprivate var activationGeneration: ProjectionActivationLease.Generation? {
-            switch self {
-                case let .placeholder(placeholder): placeholder.activationGeneration
-                case let .rendered(generation, _): generation
-                case let .fixture(fixture): fixture.activationGeneration
-            }
+extension VisibleProjection.Transit.Content {
+    fileprivate var activationLease: ProjectionActivationLease? {
+        switch self {
+            case let .placeholder(placeholder): placeholder.activationLease
+            case let .rendered(activationLease, _): activationLease
+            #if DEBUG
+                case let .fixture(fixture): fixture.activationLease
+            #endif
         }
     }
-#endif
+}

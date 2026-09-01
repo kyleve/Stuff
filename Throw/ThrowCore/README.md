@@ -106,8 +106,13 @@ boundary.
 `ProjectionExperienceInput` also pairs each experience with its supported projection modes.
 Transit can accept only a Map viewport. Geography visibility belongs to Map
 inputs, so it cannot be requested in True Sky.
-`ProjectionExperienceID` is a closed raw-value enum. The standard catalog derives
-its descriptors from those cases, so a new shipped experience requires exhaustive work.
+`ProjectionExperienceID` is the closed display and persistence identity. It
+includes planned Transit. `RunnableProjectionExperienceID` is the smaller
+release runtime identity. It includes only Air & Space. The standard catalog
+owns the relationship between these types. Its public descriptors can be read,
+but production code cannot construct another catalog. Test catalogs are
+available only through the DEBUG Testing SPI. Playlist entries and mutations
+require runnable identities, so planned Transit cannot enter a release playlist.
 
 `ProjectionMarkLayerKind` and `ProjectionLineLayerKind` bind each semantic
 payload to its projected payload. `ProjectedLayerFrame` keeps that binding

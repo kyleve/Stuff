@@ -34,6 +34,13 @@ validated runtime state keeps the active identity inside the current playlist,
 including when startup replaces the empty default with saved settings. Every
 scene observes the same coordinator and active experience.
 
+Playlist entries, selection commands, dwell mutations, and activation leases
+carry `RunnableProjectionExperienceID`. Release code can spell only Air &
+Space. Display state converts this identity to `ProjectionExperienceID`, which
+can also represent planned Transit. Runtime activation switches exhaustively on
+the runnable identity. Adding another runnable View therefore requires a new
+activation implementation.
+
 Cold launch has one exhaustive process state. Loading carries no setup.
 Onboarding carries `ThrowOnboardingSetup`, and ready carries
 `ThrowConfiguredSetup`. A failed state identifies preference or credential
@@ -112,9 +119,11 @@ before it drains Core. Re-enabling Flights uses the same experience lease. It
 mints a new physical lease and Core token. A stale command or publication cannot
 affect the replacement poller. Full runtime deactivation still retires and
 tombstones the experience lease.
-Each production rendered projection stores the lease that produced it. A
-source or observer replacement blocks local reactivation while the old runtime
-drains. The renderer stops before the replacement becomes visible.
+Each leased production projection stores the full lease that produced it. A
+cleared placeholder keeps that lease without rebuilding it from parallel
+identity and generation fields. A source or observer replacement blocks local
+reactivation while the old runtime drains. The renderer stops before the
+replacement becomes visible.
 Each replacement also advances one typed projection-context generation. The
 session revokes staged output and restores an active fade in the same operation.
 The session publishes visible output as one closed `ProjectionPresentationState`.

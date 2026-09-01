@@ -21,6 +21,8 @@ WhereCore, RegionKit, or LifecycleKit into this feature.
   on the session's exhaustive launch state.
 - Keep the View catalog compile-time. Use `ProjectionExperience` in code and
   “View” in user-facing text. Never add runtime plugins or `AnyView` boundaries.
+- Keep planned View IDs at display and persistence boundaries. Pass only a
+  `RunnableProjectionExperienceID` to playlist and runtime commands.
 - Keep aircraft provider implementations in ThrowCore. ThrowUI uses the
   provider-neutral operation service and domain results.
 - Keep one experience coordinator for all scenes. Only the active and

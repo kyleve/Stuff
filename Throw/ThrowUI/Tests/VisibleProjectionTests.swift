@@ -35,6 +35,10 @@ struct VisibleProjectionTests {
         #expect(visible.observerPoint == observerPoint)
         #expect(visible.request?.context.observer == observer)
         #expect(visible.request?.revision.rawValue == 3)
+
+        let cleared = visible.cleared(mode: .map, generatedAt: generatedAt)
+        #expect(cleared.activationLease == lease)
+        #expect(cleared.request == nil)
     }
 
     @Test func activationLeaseFromAnotherViewCannotWrapOutput() throws {
@@ -47,7 +51,7 @@ struct VisibleProjectionTests {
             observerPoint: nil,
         )
         let transitLease = ProjectionActivationLease(
-            experienceID: .transit,
+            experienceID: .testing(.transit),
             generation: .init(rawValue: 1),
         )
 

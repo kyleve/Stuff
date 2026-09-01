@@ -36,7 +36,9 @@ struct ProjectionViewsSettingsView: View {
                 .onMove(perform: session.moveExperience)
             }
 
-            if session.projectionPlaylist.entry(for: .transit) == nil {
+            if session.projectionPlaylist.entries.contains(where: {
+                $0.experienceID == .transit
+            }) == false {
                 Section(String(localized: .viewsAvailable)) {
                     plannedTransitRow
                 }
@@ -70,13 +72,13 @@ struct ProjectionViewsSettingsView: View {
             Stepper(
                 value: Binding(
                     get: {
-                        session.projectionPlaylist.entry(for: entry.experienceID)?
+                        session.projectionPlaylist.entry(for: entry.runnableExperienceID)?
                             .dwellDuration.seconds ?? entry.dwellDuration.seconds
                     },
                     set: { seconds in
                         session.setExperienceDwellDuration(
                             seconds: seconds,
-                            for: entry.experienceID,
+                            for: entry.runnableExperienceID,
                         )
                     },
                 ),

@@ -582,17 +582,17 @@ extension ThrowSession {
                 session.projectionPlaylist = try ProjectionPlaylist(
                     entries: [
                         ProjectionPlaylistEntry(
-                            experienceID: .airAndSpace,
+                            runnableExperienceID: .airAndSpace,
                             dwellDuration: dwell,
                         ),
                         ProjectionPlaylistEntry(
-                            experienceID: .transit,
+                            runnableExperienceID: .testing(.transit),
                             dwellDuration: dwell,
                         ),
                     ],
                     automaticRotationEnabled: true,
                     selectedExperienceID: .airAndSpace,
-                    configuredExperienceIDs: [.airAndSpace, .transit],
+                    configuredExperienceIDs: [.airAndSpace, .testing(.transit)],
                     catalog: enabledExperienceSnapshotCatalog,
                 )
             } catch {
@@ -704,7 +704,7 @@ extension ThrowSession {
                     entries: setupCompleted
                         ? [
                             ProjectionPlaylistEntry(
-                                experienceID: .airAndSpace,
+                                runnableExperienceID: .airAndSpace,
                                 dwellDuration: .defaultValue,
                             ),
                         ]
@@ -836,8 +836,7 @@ extension ThrowSession {
             let descriptors = ProjectionExperienceCatalog.standard.descriptors.map { descriptor in
                 guard descriptor.id == .transit else { return descriptor }
                 return ProjectionExperienceDescriptor(
-                    id: descriptor.id,
-                    availability: .enabled,
+                    testingAvailability: .runnable(.testing(.transit)),
                     supportedModes: descriptor.supportedModes,
                     layerIDs: descriptor.layerIDs,
                     visibleContentKind: descriptor.visibleContentKind,
@@ -845,7 +844,7 @@ extension ThrowSession {
                 )
             }
             return ProjectionExperienceCatalog(
-                descriptors: descriptors,
+                testingDescriptors: descriptors,
                 layerCatalog: .standard,
             )
         }

@@ -3,7 +3,7 @@ import Testing
 
 struct ProjectionPlaylistTests {
     private let airEntry = ProjectionPlaylistEntry(
-        experienceID: .airAndSpace,
+        runnableExperienceID: .airAndSpace,
         dwellDuration: .defaultValue,
     )
 
@@ -46,37 +46,23 @@ struct ProjectionPlaylistTests {
 
     @Test func plannedEntriesAreRejected() {
         let transit = ProjectionPlaylistEntry(
-            experienceID: .transit,
+            runnableExperienceID: .testing(.transit),
             dwellDuration: .defaultValue,
         )
         #expect(throws: ProjectionPlaylistError.unavailableExperience) {
             try ProjectionPlaylist(
                 entries: [transit],
                 automaticRotationEnabled: false,
-                selectedExperienceID: .transit,
-                configuredExperienceIDs: [.transit],
+                selectedExperienceID: .testing(.transit),
+                configuredExperienceIDs: [.testing(.transit)],
                 catalog: .standard,
             )
         }
     }
 
     @Test func enabledButUnconfiguredEntryIsRejected() throws {
-        let customID = try #require(ProjectionExperienceID(testingRawValue: "custom"))
-        let customCatalog = ProjectionExperienceCatalog(
-            descriptors: [
-                ProjectionExperienceDescriptor(
-                    id: customID,
-                    availability: .enabled,
-                    supportedModes: [.map],
-                    layerIDs: [.geography],
-                    visibleContentKind: .objects,
-                    zOrder: 0,
-                ),
-            ],
-            layerCatalog: .standard,
-        )
         let entry = ProjectionPlaylistEntry(
-            experienceID: customID,
+            runnableExperienceID: .airAndSpace,
             dwellDuration: .defaultValue,
         )
 
@@ -84,9 +70,9 @@ struct ProjectionPlaylistTests {
             try ProjectionPlaylist(
                 entries: [entry],
                 automaticRotationEnabled: false,
-                selectedExperienceID: customID,
+                selectedExperienceID: .airAndSpace,
                 configuredExperienceIDs: [],
-                catalog: customCatalog,
+                catalog: .standard,
             )
         }
     }
@@ -95,7 +81,7 @@ struct ProjectionPlaylistTests {
         let catalog = enabledTwoExperienceCatalog()
         let first = try ProjectionPlaylist(
             entries: [ProjectionPlaylistEntry(
-                experienceID: .airAndSpace,
+                runnableExperienceID: .airAndSpace,
                 dwellDuration: .defaultValue,
             )],
             automaticRotationEnabled: false,
@@ -105,14 +91,16 @@ struct ProjectionPlaylistTests {
         )
 
         let playlist = try first.addingConfiguredExperience(
-            .transit,
+            .testing(.transit),
             dwellDuration: .defaultValue,
-            configuredExperienceIDs: [.airAndSpace, .transit],
+            configuredExperienceIDs: [.airAndSpace, .testing(.transit)],
             catalog: catalog,
         )
 
         #expect(playlist.entries.map(\.experienceID) == [.airAndSpace, .transit])
-        #expect(playlist.entry(for: .transit)?.dwellDuration == .defaultValue)
+        #expect(
+            playlist.entry(for: .testing(.transit))?.dwellDuration == .defaultValue,
+        )
         #expect(playlist.automaticRotationEnabled)
         #expect(playlist.rotatesAutomatically)
     }
@@ -131,18 +119,16 @@ struct ProjectionPlaylistTests {
 
     private func enabledTwoExperienceCatalog() -> ProjectionExperienceCatalog {
         ProjectionExperienceCatalog(
-            descriptors: [
+            testingDescriptors: [
                 ProjectionExperienceDescriptor(
-                    id: .airAndSpace,
-                    availability: .enabled,
+                    testingAvailability: .runnable(.airAndSpace),
                     supportedModes: [.map, .trueSky],
                     layerIDs: [.geography, .flights],
                     visibleContentKind: .aircraft,
                     zOrder: 0,
                 ),
                 ProjectionExperienceDescriptor(
-                    id: .transit,
-                    availability: .enabled,
+                    testingAvailability: .runnable(.testing(.transit)),
                     supportedModes: [.map],
                     layerIDs: [.geography, .transitNetwork, .transitVehicles],
                     visibleContentKind: .vehicles,

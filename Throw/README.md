@@ -59,8 +59,10 @@ Both values must belong to the same activation. The surface fades to black,
 exchanges atomically, and fades back in. Two Views never share one frame.
 
 Air & Space is the only configurable View in this release. Automatic rotation
-therefore remains dormant. The controller and preference model can add a second
-runtime without changing the renderer or global setup again.
+therefore remains dormant. Transit stays in the display and preference formats
+as a planned View. It has no runnable identity, so release code cannot add it to
+the playlist or send it to the coordinator. A future runtime must add a new
+runnable identity and update the exhaustive activation switch.
 
 ## Aircraft sources
 

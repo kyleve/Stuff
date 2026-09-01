@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-import ThrowCore
+@_spi(Testing) import ThrowCore
 @_spi(Testing) @testable import ThrowUI
 
 @MainActor
@@ -120,7 +120,7 @@ struct ThrowSessionExperiencesTests {
         }
 
         await session.experienceCoordinator.emitActionForTesting(.beginTransition(
-            from: .transit,
+            from: .testing(.transit),
             to: lease,
         ))
         await fadeGate.waitForSuspension()
@@ -298,7 +298,7 @@ struct ThrowSessionExperiencesTests {
 
         let transition = Task {
             await session.applyExperienceCoordinatorAction(.beginTransition(
-                from: .transit,
+                from: .testing(.transit),
                 to: lease,
             ))
         }
@@ -330,6 +330,18 @@ struct ThrowSessionExperiencesTests {
         #expect(session.projectionPlaylist.automaticRotationEnabled)
         #expect(session.projectionPlaylist.rotatesAutomatically == false)
         #expect(session.experienceRotationHasControls == false)
+    }
+
+    @Test func runtimeMutationBoundariesRequireRunnableIdentity() {
+        let session = ThrowSession.fixture()
+        let selectExperience: (RunnableProjectionExperienceID) async -> Void =
+            session.selectExperience
+        let setDwellDuration: (Int, RunnableProjectionExperienceID) -> Void =
+            session.setExperienceDwellDuration
+
+        _ = selectExperience
+        _ = setDwellDuration
+        #expect(ProjectionExperienceCatalog.standard.runnableExperienceID(for: .transit) == nil)
     }
 
     @Test func dwellChangesStayWithinTheValidatedPlaylist() {
@@ -568,18 +580,16 @@ struct ThrowSessionExperiencesTests {
         entries: [ProjectionExperienceID],
     ) throws -> ProjectionPlaylist {
         let catalog = ProjectionExperienceCatalog(
-            descriptors: [
+            testingDescriptors: [
                 ProjectionExperienceDescriptor(
-                    id: .airAndSpace,
-                    availability: .enabled,
+                    testingAvailability: .runnable(.airAndSpace),
                     supportedModes: [.map, .trueSky],
                     layerIDs: [.geography, .flights],
                     visibleContentKind: .aircraft,
                     zOrder: 0,
                 ),
                 ProjectionExperienceDescriptor(
-                    id: .transit,
-                    availability: .enabled,
+                    testingAvailability: .runnable(.testing(.transit)),
                     supportedModes: [.map],
                     layerIDs: [.geography, .transitNetwork, .transitVehicles],
                     visibleContentKind: .vehicles,
@@ -588,16 +598,23 @@ struct ThrowSessionExperiencesTests {
             ],
             layerCatalog: .standard,
         )
+        let runnableEntries = entries.map { id -> RunnableProjectionExperienceID in
+            switch id {
+                case .airAndSpace: .airAndSpace
+                case .transit: .testing(.transit)
+                case .testing: .testing(.testing)
+            }
+        }
         return try ProjectionPlaylist(
-            entries: entries.map {
+            entries: runnableEntries.map {
                 ProjectionPlaylistEntry(
-                    experienceID: $0,
+                    runnableExperienceID: $0,
                     dwellDuration: .defaultValue,
                 )
             },
             automaticRotationEnabled: false,
-            selectedExperienceID: entries.first,
-            configuredExperienceIDs: Set(entries),
+            selectedExperienceID: runnableEntries.first,
+            configuredExperienceIDs: Set(runnableEntries),
             catalog: catalog,
         )
     }
