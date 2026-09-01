@@ -23,6 +23,8 @@ location, and scheduling; see [`README.md`](README.md). Read the root
 - Require diagnostics for each snapshot construction.
 - Preserve the counts through filters and wrappers. Aggregate them when snapshots merge.
 - Log partial schema drift at warning level without provider record values.
+- Represent each polling log event as one closed case with its required payload.
+- Keep the flat version-three polling event wire vocabulary stable.
 - Keep one structured poll task. Cancel and drain before replacement, and
   reject responses from an old generation.
 - Emit a readsb receiver-metadata cadence fallback as a separate warning event.

@@ -1,19 +1,18 @@
+import Foundation
 import Testing
 @testable import ThrowCore
 
 struct ThrowLogTests {
     @Test func failureCategoryIsClosedAndCredentialFree() {
         #expect(AircraftPollingLogEvent.FailureCategory.allCases.count == 15)
-        let event = AircraftPollingLogEvent(
-            kind: .requestFailed,
-            source: .adsbExchangeRapidAPI,
-            requestCount: 1,
-            durationMilliseconds: 20,
-            httpStatus: 401,
-            decodedAircraftCount: nil,
-            decodingDiagnostics: nil,
-            backoffSeconds: nil,
-            failureCategory: .invalidCredential,
+        let event = AircraftPollingLogEvent.requestFailed(
+            AircraftPollingLogEvent.RequestFailure(
+                source: .adsbExchangeRapidAPI,
+                requestCount: 1,
+                durationMilliseconds: 20,
+                httpStatus: 401,
+                failureCategory: .invalidCredential,
+            ),
         )
         #expect(event.message.contains("credential-sentinel") == false)
         #expect(event.remoteFields.isEmpty)
@@ -21,6 +20,114 @@ struct ThrowLogTests {
             AircraftPollingLogEvent.FailureCategory.transportLocalNetworkDenied.rawValue ==
                 "transport-local-network-denied",
         )
+    }
+
+    @Test func pollingEventWireVocabularyAndVersionStayStable() {
+        #expect(AircraftPollingLogEvent.eventName == "AircraftPollingLogEvent")
+        #expect(AircraftPollingLogEvent.eventVersion == 3)
+        #expect(AircraftPollingLogEvent.Kind.allCases.map(\.rawValue) == [
+            "source-activated",
+            "receiver-metadata-fallback",
+            "request-succeeded",
+            "partial-schema-drift",
+            "request-failed",
+            "retry-scheduled",
+            "polling-stopped",
+        ])
+    }
+
+    @Test func versionThreePayloadRoundTripsEachCaseSpecificEvent() throws {
+        let diagnostics = AircraftSnapshotDecodingDiagnostics(
+            malformedRecordCount: 2,
+            missingPositionRecordCount: 3,
+        )
+        let discardedRecords = try #require(diagnostics.discardedRecords)
+        let events: [AircraftPollingLogEvent] = [
+            .sourceActivated(.init(source: .adsbLol)),
+            .receiverMetadataFallback(.init(failureCategory: .transportOffline)),
+            .requestSucceeded(
+                .init(
+                    source: .adsbLol,
+                    requestCount: 4,
+                    durationMilliseconds: 20,
+                    httpStatus: 206,
+                    decodedAircraftCount: 12,
+                ),
+            ),
+            .partialSchemaDrift(
+                .init(
+                    source: .adsbLol,
+                    requestCount: 4,
+                    httpStatus: 206,
+                    decodedAircraftCount: 12,
+                    discardedRecords: discardedRecords,
+                ),
+            ),
+            .requestFailed(
+                .init(
+                    source: .readsb,
+                    requestCount: 5,
+                    durationMilliseconds: 30,
+                    httpStatus: nil,
+                    failureCategory: .transportOffline,
+                ),
+            ),
+            .retryScheduled(
+                .init(
+                    source: .readsb,
+                    requestCount: 5,
+                    httpStatus: nil,
+                    decodedAircraftCount: 11,
+                    backoffSeconds: 10,
+                    failureCategory: .transportOffline,
+                ),
+            ),
+            .pollingStopped(
+                .init(source: .readsb, requestCount: 5, decodedAircraftCount: 11),
+            ),
+        ]
+
+        for event in events {
+            let data = try JSONEncoder().encode(event)
+            #expect(try JSONDecoder().decode(AircraftPollingLogEvent.self, from: data) == event)
+        }
+    }
+
+    @Test func partialSchemaDriftKeepsTheFlatVersionThreePayload() throws {
+        let diagnostics = AircraftSnapshotDecodingDiagnostics(
+            malformedRecordCount: 2,
+            missingPositionRecordCount: 3,
+        )
+        let discardedRecords = try #require(diagnostics.discardedRecords)
+        let event = AircraftPollingLogEvent.partialSchemaDrift(
+            .init(
+                source: .adsbLol,
+                requestCount: 4,
+                httpStatus: 206,
+                decodedAircraftCount: 12,
+                discardedRecords: discardedRecords,
+            ),
+        )
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .sortedKeys
+
+        let payload = try #require(String(data: encoder.encode(event), encoding: .utf8))
+
+        #expect(
+            payload ==
+                #"{"decodedAircraftCount":12,"decodingDiagnostics":{"malformedRecordCount":2,"missingPositionRecordCount":3},"httpStatus":206,"kind":"partial-schema-drift","requestCount":4,"source":"adsb-lol"}"#,
+        )
+    }
+
+    @Test func versionThreeDecoderRejectsSchemaDriftWithoutDiscardedRecords() throws {
+        let payload = Data(
+            #"{"decodedAircraftCount":12,"decodingDiagnostics":{"malformedRecordCount":0,"missingPositionRecordCount":0},"kind":"partial-schema-drift","requestCount":4,"source":"adsb-lol"}"#
+                .utf8,
+        )
+
+        #expect(throws: DecodingError.self) {
+            try JSONDecoder().decode(AircraftPollingLogEvent.self, from: payload)
+        }
     }
 
     @Test func geographyFailureIsRedactedAndClosed() {

@@ -37,6 +37,19 @@ struct AircraftModelsTests {
         #expect(snapshot.observations.first?.callsign == "NEWEST")
     }
 
+    @Test func discardedRecordPayloadExistsOnlyForLossyDiagnostics() throws {
+        #expect(AircraftSnapshotDecodingDiagnostics.none.discardedRecords == nil)
+
+        let diagnostics = AircraftSnapshotDecodingDiagnostics(
+            malformedRecordCount: 2,
+            missingPositionRecordCount: 3,
+        )
+        let discardedRecords = try #require(diagnostics.discardedRecords)
+
+        #expect(discardedRecords.malformedRecordCount == 2)
+        #expect(discardedRecords.missingPositionRecordCount == 3)
+    }
+
     @Test func aircraftTypeDesignatorNormalizesProviderText() {
         #expect(AircraftTypeDesignator(rawValue: " b738 ")?.rawValue == "B738")
         #expect(AircraftTypeDesignator(rawValue: "too-long") == nil)
