@@ -115,6 +115,8 @@ Immediate source and location commits derive from one complete preference
 snapshot. If another scene changes typed preferences during the write, the
 session derives and persists the combined snapshot again. The final snapshot
 comparison and publication do not suspend.
+After a source or location mutation commits, a later retry failure cannot reverse it.
+The session publishes newer edits and queues them for another save.
 Onboarding uses the same aggregates and keeps calibration preview state separate.
 Quiet-wake actions pass a `TemporaryQuietWake` value through the session
 boundary. Unsupported minute counts cannot enter the runtime.

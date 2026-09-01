@@ -181,42 +181,116 @@ extension ThrowSession {
     }
 
     /// Persists a mutation against the latest complete preference snapshot.
-    /// Publication cannot suspend after the snapshot comparison succeeds.
+    /// An error after the first durable write becomes pending reconciliation.
     func persistReconciledPreferenceMutation<Publication, Preparation>(
         failure: ThrowPostLaunchFailure,
         makeMutation: (ThrowPreferenceSnapshot) throws
             -> ThrowPreferenceMutation<Publication>,
         prepareForPublication: () -> Preparation,
         publish: (Publication) -> Void,
-    ) async throws -> Preparation {
+    ) async -> ThrowPreferenceMutationOutcome<Preparation> {
+        var commitState = ThrowPreferenceMutationCommitState<Publication>.uncommitted
         while true {
             let base = preferenceSnapshot
-            let candidate: ThrowPreferenceMutation<Publication>
-            let preferences: ThrowPreferences
+            let candidate: PersistableThrowPreferenceMutation<Publication>
             do {
-                candidate = try makeMutation(base)
-                preferences = try makePreferences(
-                    setupState: candidate.snapshot.setupState,
-                    globalPreferences: candidate.snapshot.globalPreferences,
-                    airAndSpacePreferences: candidate.snapshot.airAndSpacePreferences,
-                    projectionPlaylist: candidate.snapshot.projectionPlaylist,
+                candidate = try persistablePreferenceMutation(
+                    from: base,
+                    makeMutation: makeMutation,
                 )
             } catch {
-                recordPostLaunchFailure(failure, error: error)
-                throw error
+                switch commitState {
+                    case .uncommitted:
+                        recordPostLaunchFailure(failure, error: error)
+                        return .notCommitted
+                    case let .committed(committedCandidate):
+                        recordPostLaunchFailure(.preferencePersistence, error: error)
+                        return publishCommittedPreferenceMutation(
+                            committedCandidate,
+                            targetFailure: failure,
+                            prepareForPublication: prepareForPublication,
+                            publish: publish,
+                        )
+                }
             }
-            try await persistPreferencesImmediately(
-                preferences,
-                failure: failure,
-            )
+
+            let attemptFailure: ThrowPostLaunchFailure = switch commitState {
+                case .uncommitted: failure
+                case .committed: .preferencePersistence
+            }
+            do {
+                try Task.checkCancellation()
+                try await persistPreferencesImmediately(
+                    candidate.preferences,
+                    failure: attemptFailure,
+                )
+            } catch {
+                switch commitState {
+                    case .uncommitted:
+                        return .notCommitted
+                    case let .committed(committedCandidate):
+                        let publicationCandidate: PersistableThrowPreferenceMutation<Publication>
+                        do {
+                            publicationCandidate = try persistablePreferenceMutation(
+                                from: preferenceSnapshot,
+                                makeMutation: makeMutation,
+                            )
+                        } catch {
+                            recordPostLaunchFailure(.preferencePersistence, error: error)
+                            publicationCandidate = committedCandidate
+                        }
+                        return publishCommittedPreferenceMutation(
+                            publicationCandidate,
+                            targetFailure: failure,
+                            prepareForPublication: prepareForPublication,
+                            publish: publish,
+                        )
+                }
+            }
+
+            commitState = .committed(candidate)
             guard base == preferenceSnapshot else { continue }
 
             let preparation = prepareForPublication()
-            publishPreferenceSnapshot(ThrowPreferenceSnapshot(preferences))
+            publishPreferenceSnapshot(ThrowPreferenceSnapshot(candidate.preferences))
             publish(candidate.publication)
             resolveDeferredPreferenceFailuresAfterReconciledWrite()
-            return preparation
+            return .committed(preparation)
         }
+    }
+
+    private func persistablePreferenceMutation<Publication>(
+        from base: ThrowPreferenceSnapshot,
+        makeMutation: (ThrowPreferenceSnapshot) throws
+            -> ThrowPreferenceMutation<Publication>,
+    ) throws -> PersistableThrowPreferenceMutation<Publication> {
+        let mutation = try makeMutation(base)
+        let preferences = try makePreferences(
+            setupState: mutation.snapshot.setupState,
+            globalPreferences: mutation.snapshot.globalPreferences,
+            airAndSpacePreferences: mutation.snapshot.airAndSpacePreferences,
+            projectionPlaylist: mutation.snapshot.projectionPlaylist,
+        )
+        return PersistableThrowPreferenceMutation(
+            preferences: preferences,
+            publication: mutation.publication,
+        )
+    }
+
+    private func publishCommittedPreferenceMutation<Publication, Preparation>(
+        _ candidate: PersistableThrowPreferenceMutation<Publication>,
+        targetFailure: ThrowPostLaunchFailure,
+        prepareForPublication: () -> Preparation,
+        publish: (Publication) -> Void,
+    ) -> ThrowPreferenceMutationOutcome<Preparation> {
+        deferredPreferenceSaveFailures = deferredPreferenceSaveFailures.recording(
+            .preferencePersistence,
+        )
+        let preparation = prepareForPublication()
+        publishPreferenceSnapshot(ThrowPreferenceSnapshot(candidate.preferences))
+        publish(candidate.publication)
+        resolvePostLaunchFailure(targetFailure.owner)
+        return .committed(preparation)
     }
 
     var preferenceSnapshot: ThrowPreferenceSnapshot {
@@ -377,6 +451,22 @@ struct ThrowPreferenceSnapshot: Equatable {
 /// A candidate snapshot and the non-persistent state published with it.
 struct ThrowPreferenceMutation<Publication> {
     let snapshot: ThrowPreferenceSnapshot
+    let publication: Publication
+}
+
+/// Proves whether a caller can roll back a preference-backed operation.
+enum ThrowPreferenceMutationOutcome<Success> {
+    case notCommitted
+    case committed(Success)
+}
+
+private enum ThrowPreferenceMutationCommitState<Publication> {
+    case uncommitted
+    case committed(PersistableThrowPreferenceMutation<Publication>)
+}
+
+private struct PersistableThrowPreferenceMutation<Publication> {
+    let preferences: ThrowPreferences
     let publication: Publication
 }
 
