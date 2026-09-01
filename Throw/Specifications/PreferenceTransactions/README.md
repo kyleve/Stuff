@@ -1,113 +1,254 @@
 # Preference transactions
 
-This model checks one narrow question. Can a source or observer mutation cross storage and render
-awaits without publishing an uncommitted setup or reviving an obsolete observer context?
+This model checks one question:
 
-The model represents Throw at revision `69fc5f27647199d6d6a5f4733b37a9707f64e286`. The modeled
-revision includes the transaction fixes in `fd79ac53`, `79d685a1`, `98521ce5`, `8fd8e5af`,
-`e1a03232`, and `2862590b`. A relevant change to these paths invalidates this result until the
-mapping is checked again.
+> Can a source or observer mutation preserve durable state, renew its exact lease, and reject delayed work from the replaced context?
 
-## Source correspondence
+The model represents the protocol at production commit
+`eec278ee956f631f442db46b49e5c534499a3e66`. A relevant source change
+invalidates this result until the mapping is checked again.
 
-| Model state or action | Production counterpart |
-| --- | --- |
-| `livePreferences` | `ThrowSession.preferenceSnapshot`, including the authoritative live setup |
-| `durablePreferences` | The last successful `ThrowPreferenceStore.save(_:)` value |
-| `credentials` | Credential IDs present in `AircraftCredentialStore` |
-| `candidateBase` | The snapshot captured at `persistReconciledPreferenceMutation` line 209 |
-| `candidatePreferences` | `PersistableThrowPreferenceMutation.preferences` |
-| `commitKnown` / `committedCandidate` | `ThrowPreferenceMutationCommitState.committed` |
-| `foregroundEditQueued` | A typed UI edit deferred by `schedulePreferencesSave` during a mutation |
-| `queuedForegroundSnapshot` | The complete live snapshot enqueued by `finishPreferenceMutation` |
-| `requestKind` / `workerPhase` | `ThrowPreferencePersistenceState` and `drainPreferenceSaveQueue()` |
-| Credential read, save, and restore phases | The three credential-store awaits in `useSource(_:)` |
-| `publicationState` | Whether the complete mutation snapshot and its side state became live |
-| `invalidationActive` | `projectionPreferenceInvalidation` from preparation through completion |
-| `contextGeneration` | `ThrowSession.projectionContextGeneration` |
-| `publishedObserverGeneration` | The observer identity in the published setup generation |
-| Activation fields | The active or prepared projection lease and its observer context |
-| Render fields | The context captured before `projectedOutput` suspends |
-| Visible-frame fields | The observer context carried by the visible projection |
+The tracked source contains only PlusCal. `./tla-check` translates it in the
+retained run directory. Do not run `pcal.trans` directly.
 
-The source mutation waits for the existing worker. It then awaits credential read and credential
-save before it can enqueue preferences. A failed uncommitted source save awaits credential restore.
-The model splits all these awaits.
-
-The serialized preference worker has separate dequeue and store-completion steps. Each store
-completion can succeed or fail. A successful write updates durable preferences before the caller
-learns the result. A foreground edit can run only while the main-actor mutation is suspended.
-
-Publication is one atomic main-actor step. It records commit knowledge, invalidates the projection
-context, and publishes the complete candidate. An observer publication also clears the visible
-frame. Later steps model runtime deactivation, projection-worker reset, coordinator configuration,
-coordinator state read, source-frame fade, and the final worker reset.
-
-The renderer captures the active context before its worker await. It publishes only if the context,
-activation, observer, and invalidation state still match. Otherwise, it records a stale rejection.
-
-## Properties
-
-- `TypeOK` checks every model variable.
-- `ReportedFailureKeepsDurableSetup` checks that a reported failure did not commit a new source or
-  observer behind the live setup.
-- `PersistedSourceHasAlignedCredential` checks that each persisted credential-backed source has its
-  required credential ID.
-- `VisibleFrameMatchesPublishedObserver` checks the observer identity and generation of each visible
-  frame.
-- `ActiveProjectionMatchesPublishedObserver` checks the active projection context.
-- `PublicationFollowsDurableCommit` prevents setup publication before a successful preference write.
-- `EventuallyReports` requires the finite mutation to return success or failure.
-- `EventuallyQuiescent` requires the transaction and its deferred save to finish.
-
-Weak fairness applies only to the modeled mutation, storage worker, activation, renderer, and finite
-foreground editor. It means that an enabled await completion eventually runs. The safety invariants
-do not depend on fairness.
-
-## Bounds and exclusions
-
-The initial source and observer use generation zero. The target source uses one credential ID. The
-target observer uses generation one. TLC checks both mutation kinds and every success or failure of
-candidate construction and storage.
-
-| Configuration | Foreground edits | Mutation kinds | Generated / distinct states | Depth |
-| --- | ---: | --- | ---: | ---: |
-| `CurrentSmall.cfg` | 1 | source and location | 2,677 / 972 | 32 |
-| `CurrentExpanded.cfg` | 2 | source and location | 9,258 / 3,261 | 37 |
-
-The model includes one preference mutation and one coalesced foreground save. It does not model an
-unbounded edit stream, process termination, direct credential deletion, malformed persisted data,
-location acquisition, source polling, or experience rotation. Credential alignment means that the
-required credential ID is present. Secret contents and failed rollback diagnostics are outside the
-claim.
-
-## Controls and result
-
-`BrokenRetry.cfg` removes committed-candidate knowledge. Its trace writes the new source, observes a
-foreground edit, fails the retry, restores the credential, and reports failure against the old live
-source. Credential restore first violates `PersistedSourceHasAlignedCredential`. The next caller
-step would also report a durable and live setup mismatch. This is the success, drift, retry-failure
-bug fixed by `98521ce5`.
-
-`BrokenObserver.cfg` publishes the new observer before the preference save. The old active context
-and visible frame remain published. This is the observer transaction bug fixed by `fd79ac53`.
-
-`CurrentRetryReachability.cfg` proves that the current model reaches a committed retry failure and
-queues its foreground reconciliation. `CurrentStaleRenderReachability.cfg` proves that a render from
-the old observer can complete after publication and is rejected.
-
-**Verified for these model bounds and assumptions.** Both current configurations completed without
-an invariant, temporal-property, or deadlock error. The retry control failed after 178 generated and
-97 distinct states at depth 17. The observer control failed after five states at depth three.
-
-The retry reachability control failed after 789 generated and 364 distinct states at depth 23. The
-stale-render reachability control failed after 75 generated and 35 distinct states at depth nine.
-These expected failures confirm that TLC reached each important branch.
-
-## Run it
-
-From the repository root:
+Run the model from the repository root:
 
 ```sh
 ./tla-check PreferenceTransactions
 ```
+
+## Source correspondence
+
+| Model state or action | Production authority |
+| --- | --- |
+| `livePreferences` | [`ThrowSession.preferenceSnapshot`](../../ThrowUI/Sources/Model/ThrowSession+Preferences.swift) is the complete live setup. |
+| `durablePreferences` | `ThrowPreferenceStore.save(_:)` owns the last successful stored setup. |
+| `credentials` | [`AircraftCredentialStore`](../../ThrowUI/Sources/Model/ThrowSession+Aircraft.swift) owns stored credential identities. |
+| `candidateBase` | `persistReconciledPreferenceMutation` captures `preferenceSnapshot` at line 221. |
+| `candidatePreferences` | `PersistableThrowPreferenceMutation.preferences` is the validated storage value. |
+| `commitKnown` and `committedCandidate` | `ThrowPreferenceMutationCommitState.committed` records a successful durable write. |
+| `foregroundEditQueued` | `schedulePreferencesSave` defers a typed edit while the mutation producer owns persistence. |
+| `queuedForegroundSnapshot` | `finishPreferenceMutation` queues the complete live snapshot after the producer finishes. |
+| `requestKind` and `workerPhase` | `ThrowPreferencePersistenceState` and `drainPreferenceSaveQueue()` serialize preference writes. |
+| Credential read, save, and restore phases | [`useSource(_:)` lines 166-258](../../ThrowUI/Sources/Model/ThrowSession+Aircraft.swift) contain the three credential-store suspension boundaries. |
+| `publicationState` | [`persistReconciledPreferenceMutation` lines 278-285](../../ThrowUI/Sources/Model/ThrowSession+Preferences.swift) publishes only after a successful write. |
+| `invalidationActive` and `contextGeneration` | [`prepareProjectionPreferencePublication` lines 484-510](../../ThrowUI/Sources/Model/ThrowSession+Aircraft.swift) opens the gate and replaces the context generation. |
+| `capturedLease` | The invalidation captures `airAndSpaceActivation.activeLease` before it tombstones the session tracker. |
+| `renewalResult` and `coordinatorLease` | [`renewActivationLease` lines 415-452](../../ThrowUI/Sources/Model/ProjectionExperienceCoordinator.swift) returns `replaced`, `retired`, or `superseded`. |
+| `sessionLease` and `latestSessionLease` | [`ProjectionActivationLeaseTracker` lines 71-131](../../ThrowUI/Sources/Model/ProjectionExperienceCoordinator.swift) stores active ownership or an inactive generation tombstone. |
+| `runtimeLease` and `latestRuntimeLease` | [`AirAndSpaceRuntime.ActivationLifecycle` lines 202-243](../../ThrowUI/Sources/Model/AirAndSpaceRuntime.swift) stores runtime ownership or a generation tombstone. |
+| `directRetirementLease` | [`finishProjectionPreferenceInvalidation` lines 513-547](../../ThrowUI/Sources/Model/ThrowSession+Aircraft.swift) passes the captured lease to direct runtime deactivation. |
+| `actionQueue` | The coordinator action stream and [`applyExperienceCoordinatorAction(_:)` lines 152-197](../../ThrowUI/Sources/Model/ThrowSession+Experiences.swift) form one FIFO callback lane. |
+| `callbackPhase` and `callbackLease` | A deactivation can suspend during `projectionWorker.experienceBecameInactive` and `airAndSpaceRuntime.deactivate`. |
+| Coordinator configuration, state, and lease phases | [`configureExperienceCoordinator` lines 232-240](../../ThrowUI/Sources/Model/ThrowSession+Experiences.swift) performs these operations in that order. |
+| Source cleanup phases | [`discardOldFrame` lines 1065-1097](../../ThrowUI/Sources/Model/ThrowSession+Aircraft.swift) fades the old frame before the worker reset. |
+| Observer cleanup phase | `finishProjectionPreferenceInvalidation` resets the projection worker for an observer mutation. |
+| Activation fields | The active or prepared projection context carries its exact coordinator, session, and runtime lease. |
+| Render fields | The renderer captures its context and observer before the worker suspension. |
+| Visible-frame fields | A visible projection carries the observer and context generation that produced it. |
+
+The source mutation first waits for the existing preference worker. It then
+reads and saves a credential before it queues the candidate preferences.
+A failed uncommitted source write restores the previous credential.
+
+The preference worker separates dequeue from store completion. Each store
+completion can succeed or fail. A successful completion changes durable state
+before the mutation learns the result.
+
+A foreground edit can run while the main-actor mutation is suspended. The
+mutation retries against the latest complete snapshot after it detects drift.
+If an earlier attempt committed, later failure publishes a committed candidate
+and queues reconciliation.
+
+Publication is one atomic main-actor step. It prepares invalidation, publishes
+the complete snapshot, publishes the mutation payload, and records commit
+resolution.
+
+The source path then performs these operations:
+
+1. Renew the captured coordinator lease.
+2. Retire the exact captured runtime lease.
+3. Fade and discard the old frame.
+4. Reset the projection worker.
+5. Configure the coordinator.
+6. Read and apply coordinator state.
+7. Read and synchronize the authoritative lease.
+8. Complete the invalidation gate.
+
+The observer path clears its visible frame during publication. It then performs
+lease renewal, runtime retirement, and projection-worker reset. The final
+configuration, state, lease, and gate order matches the source path.
+
+The direct coordinator lease read can overtake queued action callbacks. The
+model therefore permits old callbacks before or after direct successor
+synchronization. It also permits a callback to suspend across that
+synchronization.
+
+The gate rejects delayed activation during invalidation. The session and
+runtime generation tombstones reject obsolete work after invalidation. A
+delayed old runtime teardown cannot retire successor lease 2.
+
+## Properties
+
+- `TypeOK` checks every variable domain.
+- `LeaseLifecycleShape` checks active leases and inactive tombstones.
+- `RenewalResultMatchesAuthority` checks each renewal result against the
+  coordinator lease.
+- `CapturedLeaseRetirementIsExact` requires direct runtime retirement to target
+  captured lease 1 only.
+- `InvalidationCompletionFollowsRequiredWork` requires renewal, retirement,
+  cleanup, configuration, state read, and lease synchronization before gate
+  completion.
+- `OldCallbacksPreserveSuccessor` keeps successor session and runtime lease 2
+  after delayed lease 1 callbacks.
+- `ReportedFailureKeepsDurableSetup` prevents a reported failure from hiding a
+  committed source or observer change.
+- `PersistedSourceHasAlignedCredential` requires each stored credential-backed
+  source to have its credential identity.
+- `VisibleFrameMatchesPublishedObserver` checks each visible frame against the
+  published observer and generation.
+- `ActiveProjectionMatchesPublishedObserver` checks context, observer, and all
+  three lease owners for an active projection.
+- `PublicationFollowsDurableCommit` prevents setup publication before a
+  successful preference write.
+- `EventuallyReports` requires the finite mutation to return success or
+  failure.
+- `EventuallyQuiescent` requires the transaction and its deferred save to
+  finish.
+
+Reachability controls prove that TLC visits these states:
+
+- A committed retry failure queues foreground reconciliation.
+- An old render finishes after observer publication and is rejected.
+- Invalidation completes after every required phase.
+- Renewal returns `replaced`, `retired`, and `superseded`.
+- Old activation and deactivation callbacks run after direct successor sync.
+- An accepted old deactivation suspends while successor runtime lease 2 starts.
+
+## Bounds, fairness, and exclusions
+
+The initial source and observer use value zero. The target source and observer
+use value one. The target source uses one credential identity.
+
+Lease 0 means no active lease. Lease 1 is the captured lease. Lease 2 is the
+only successor lease. The model contains one runnable experience.
+
+The model includes one preference mutation and one coalesced foreground save.
+`CurrentSmall.cfg` allows one foreground edit. `CurrentExpanded.cfg` allows two
+foreground edits. Both configurations check source and observer mutations.
+
+The bounded model queues one old activation callback when publication starts.
+A renewal then queues its source-faithful sequence:
+
+- `replaced` queues old deactivation and successor activation.
+- `retired` queues old deactivation and leaves no authoritative lease.
+- `superseded` leaves successor lease 2 authoritative and queues its pending
+  activation.
+
+The bounded `retired` branch includes a pending old deactivation. The model
+excludes retirement without a pending callback.
+
+The FIFO callback lane can hold all three bounded commands. It completes one
+accepted deactivation before it dispatches the next command. The direct lease
+read is outside that callback lane.
+
+Weak fairness applies to the finite mutation, persistence worker, callback
+lane, activation, renderer, and foreground editor. These assumptions support
+the two temporal properties. The safety properties do not depend on fairness.
+
+The model excludes unbounded edits, process termination, direct credential
+deletion, malformed stored data, location acquisition, provider results, and
+projection math. It also excludes physical poller and demand lifecycles.
+
+[`ProjectionActivation`](../ProjectionActivation/README.md) owns the full
+coordinator, session, runtime, demand, and physical-poller protocol. Its
+`PreFixContextRetainedLease.cfg` control falsifies `FreshContextAtQuiescence`
+when context replacement retains the same lease.
+
+That model also proves gated and delayed callback reachability. Its relevant
+probes include `OldActivationWhileGatedAfterSuccessorNotReached`,
+`OldActivationAfterSuccessorNotReached`, and
+`DelayedRuntimeTeardownAfterSuccessorNotReached`.
+
+This model checks how one stored mutation crosses that lease protocol. It does
+not duplicate the full lifecycle proof.
+
+## Negative controls
+
+`BrokenRetry.cfg` removes committed-candidate knowledge. TLC finds this trace:
+
+1. The first candidate write commits the new source.
+2. A foreground edit changes the live snapshot.
+3. The retry fails.
+4. The mutation restores the credential and reports failure.
+5. `PersistedSourceHasAlignedCredential` fails at depth 17.
+
+This trace represents the success, drift, and retry-failure bug fixed by
+`98521ce5`.
+
+`BrokenObserver.cfg` publishes the observer before its preference write. The
+old visible frame remains published. `VisibleFrameMatchesPublishedObserver`
+fails at depth three.
+
+This trace represents the observer transaction bug fixed by `fd79ac53`.
+
+`BrokenInvalidation.cfg` skips the authoritative lease read and session sync.
+It still performs renewal, exact runtime retirement, cleanup, configuration,
+and state read. It then completes the gate.
+
+`InvalidationCompletionFollowsRequiredWork` fails at depth 18. This control is
+a narrow transaction mutation. It does not replace the historical same-lease
+control in `ProjectionActivation`.
+
+Each negative control uses the current state and a current-design property.
+The manifest requires the named failure. Another error does not count as a
+successful control.
+
+## Result
+
+**Verified for these model bounds and assumptions.** TLC exhausted both
+current configurations without an invariant, temporal, or deadlock error.
+
+| Configuration | Result | Generated | Distinct | Depth |
+| --- | ---: | ---: | ---: | ---: |
+| `CurrentSmall.cfg` | pass | 47,249 | 13,971 | 39 |
+| `CurrentExpanded.cfg` | pass | 181,368 | 52,032 | 44 |
+| `BrokenRetry.cfg` | expected failure | 576 | 302 | 17 |
+| `BrokenObserver.cfg` | expected failure | 5 | 5 | 3 |
+| `BrokenInvalidation.cfg` | expected failure | 353 | 184 | 18 |
+| `CurrentRetryReachability.cfg` | expected failure | 5,923 | 2,762 | 25 |
+| `CurrentStaleRenderReachability.cfg` | expected failure | 89 | 46 | 9 |
+| `CurrentInvalidationReachability.cfg` | expected failure | 436 | 225 | 19 |
+| `CurrentRenewalReplacedReachability.cfg` | expected failure | 97 | 43 | 12 |
+| `CurrentRenewalRetiredReachability.cfg` | expected failure | 98 | 44 | 12 |
+| `CurrentRenewalSupersededReachability.cfg` | expected failure | 99 | 45 | 12 |
+| `CurrentOldCallbackReachability.cfg` | expected failure | 527 | 271 | 20 |
+| `CurrentDelayedRuntimeTeardownReachability.cfg` | expected failure | 1,410 | 593 | 26 |
+
+The old-callback trace performs direct successor sync before it dispatches old
+activation and deactivation callbacks. Both callbacks preserve session lease
+2.
+
+The delayed-teardown trace accepts old deactivation while the session tracker
+contains the lease 1 tombstone. Its runtime await crosses direct sync and
+successor activation. Runtime lease 2 remains active.
+
+The check used tla2tools 1.7.4, TLC2 2.19 at revision `5a47802`, and PlusCal
+1.11. It used Temurin Java 21.0.8+9. The pinned `tla2tools.jar` SHA-256 is
+`936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88`.
+
+Deterministic Swift guards:
+
+- [`ThrowSessionAircraftTests.sourceInvalidationRejectsAPendingRenderAndRepeatedLease`](../../ThrowUI/Tests/ThrowSession+AircraftTests.swift)
+- [`ThrowSessionAircraftTests.samePermitSourceReconfigurationRenewsLeaseAndPhysicalPoller`](../../ThrowUI/Tests/ThrowSession+AircraftTests.swift)
+- [`ProjectionExperienceCoordinatorTests.exactActiveRenewalRetiresAndRemintsInOneCoordinatorTurn`](../../ThrowUI/Tests/ProjectionExperienceCoordinatorTests.swift)
+- [`ProjectionExperienceCoordinatorTests.renewingTransitionTargetRetiresItAndRejectsOldCallbacks`](../../ThrowUI/Tests/ProjectionExperienceCoordinatorTests.swift)
+- [`ProjectionExperienceCoordinatorTests.renewingPrewarmRetiresItAndRejectsOldCallbacks`](../../ThrowUI/Tests/ProjectionExperienceCoordinatorTests.swift)
+- [`ThrowSessionExperiencesTests.staleDeactivationCannotReleaseANewerSessionLease`](../../ThrowUI/Tests/ThrowSession+ExperiencesTests.swift)
+- [`ThrowSessionExperiencesTests.delayedEqualDeactivationStillStopsRuntimeAfterDirectNilSync`](../../ThrowUI/Tests/ThrowSession+ExperiencesTests.swift)
+- [`AirAndSpaceRuntimeTests.staleLeaseQueuedBeforeReplacementCannotDeactivateTheReplacement`](../../ThrowUI/Tests/AirAndSpaceRuntimeTests.swift)
+- [`AirAndSpaceRuntimeTests.newerDeactivationTombstonesActivationSuspendedDuringReset`](../../ThrowUI/Tests/AirAndSpaceRuntimeTests.swift)
+
+This result is not an implementation proof. Changes to preference storage,
+publication, invalidation order, lease renewal, action ordering, session
+tombstones, runtime tombstones, activation, or rendering invalidate it.

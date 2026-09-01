@@ -3,17 +3,30 @@ EXTENDS Integers, Sequences, FiniteSets
 
 CONSTANTS Implementation, MutationKinds, MaxForegroundEdits
 
-ASSUME /\ Implementation \in {"current", "brokenRetry", "brokenObserver"}
+ASSUME /\ Implementation \in {
+            "current", "brokenRetry", "brokenObserver", "brokenInvalidation"
+           }
        /\ MutationKinds \subseteq {"source", "location"}
        /\ MutationKinds # {}
        /\ MaxForegroundEdits \in 0..2
        /\ (Implementation = "brokenRetry" => MutationKinds = {"source"})
        /\ (Implementation = "brokenObserver" => MutationKinds = {"location"})
+       /\ (Implementation = "brokenInvalidation" => MutationKinds = {"source"})
 
 Sources == {0, 1}
 Observers == {0, 1}
 EditRevisions == 0..MaxForegroundEdits
 CredentialIDs == {1}
+NoLease == 0
+CapturedLeaseEpoch == 1
+SuccessorLeaseEpoch == 2
+LeaseEpochs == NoLease..SuccessorLeaseEpoch
+RenewalResults == {"none", "replaced", "retired", "superseded"}
+CallbackKinds == {"activate", "deactivate"}
+CallbackPhases == {"idle", "waitingWorker", "waitingRuntime"}
+
+LifecycleCommand(kind, lease) == [kind |-> kind, lease |-> lease]
+LifecycleCommands == [kind: CallbackKinds, lease: LeaseEpochs \ {NoLease}]
 
 PreferenceValues == [
     source: Sources,
@@ -37,12 +50,14 @@ Phases == {
     "brokenEarlyPublication",
     "buildingCandidate",
     "waitingPreferenceResult",
+    "waitingLeaseRenewal",
     "waitingRuntimeDeactivation",
     "waitingProjectionWorkerReset",
-    "waitingCoordinatorConfigure",
-    "waitingCoordinatorState",
     "waitingDiscardFade",
     "waitingDiscardWorkerReset",
+    "waitingCoordinatorConfigure",
+    "waitingCoordinatorState",
+    "waitingCoordinatorLease",
     "completingInvalidation",
     "restoringCredential",
     "finishing",
@@ -54,12 +69,14 @@ AwaitPhases == {
     "waitingCredentialRead",
     "waitingCredentialSave",
     "waitingPreferenceResult",
+    "waitingLeaseRenewal",
     "waitingRuntimeDeactivation",
     "waitingProjectionWorkerReset",
-    "waitingCoordinatorConfigure",
-    "waitingCoordinatorState",
     "waitingDiscardFade",
     "waitingDiscardWorkerReset",
+    "waitingCoordinatorConfigure",
+    "waitingCoordinatorState",
+    "waitingCoordinatorLease",
     "restoringCredential"
 }
 
@@ -96,13 +113,31 @@ variables mutationKind = "none",
           saveAttempts = 0,
           publicationState = "notPublished",
           invalidationActive = FALSE,
+          invalidationCompleted = FALSE,
+          cleanupComplete = FALSE,
+          coordinatorConfigured = FALSE,
+          coordinatorStateRead = FALSE,
+          leaseSynchronized = FALSE,
           contextGeneration = 0,
           observerGeneration = 0,
           publishedObserverGeneration = 0,
+          capturedLease = NoLease,
+          renewalResult = "none",
+          coordinatorLease = CapturedLeaseEpoch,
+          sessionLease = CapturedLeaseEpoch,
+          latestSessionLease = CapturedLeaseEpoch,
+          runtimeLease = CapturedLeaseEpoch,
+          latestRuntimeLease = CapturedLeaseEpoch,
+          directRetirementLease = NoLease,
+          actionQueue = <<>>,
+          callbackPhase = "idle",
+          callbackLease = NoLease,
           activationState = "active",
+          activationLease = CapturedLeaseEpoch,
           activationContextGeneration = 0,
           activationObserverGeneration = 0,
           activationObserver = 0,
+          preparedActivationLease = CapturedLeaseEpoch,
           preparedActivationContextGeneration = 0,
           preparedActivationObserverGeneration = 0,
           preparedActivationObserver = 0,
@@ -119,13 +154,26 @@ variables mutationKind = "none",
           sawObserverEarlyPublication = FALSE,
           sawStaleRenderRejected = FALSE,
           sawStaleActivationRejected = FALSE,
-          sawForegroundSaveComplete = FALSE;
+          sawForegroundSaveComplete = FALSE,
+          sawCapturedLeaseRetirement = FALSE,
+          sawOldActivationAfterSuccessorSync = FALSE,
+          sawOldDeactivationAfterSuccessorSync = FALSE,
+          sawDelayedRuntimeTeardownAfterSuccessor = FALSE,
+          sawSuccessorRuntimeActivation = FALSE;
 
 define {
     NextContextGeneration == contextGeneration + 1
 
     NextObserverGeneration ==
         observerGeneration + IF mutationKind = "location" THEN 1 ELSE 0
+
+    UsesCommittedRecovery ==
+        Implementation \in {"current", "brokenInvalidation"}
+
+    RuntimeAccepts(lease) ==
+        IF runtimeLease = NoLease
+        THEN lease > latestRuntimeLease
+        ELSE lease >= runtimeLease
 
     Quiescent ==
         /\ mutationPhase = "done"
@@ -215,22 +263,37 @@ MutationStep:
                     requestPreferences := MutatedPreferences(livePreferences, mutationKind) ||
                     mutationPhase := "waitingPreferenceResult";
                 } or {
-                    if (commitKnown /\ Implementation = "current") {
+                    if (commitKnown /\ UsesCommittedRecovery) {
                         livePreferences := committedCandidate ||
                         contextGeneration := NextContextGeneration ||
                         observerGeneration := NextObserverGeneration ||
                         publishedObserverGeneration := NextObserverGeneration ||
+                        capturedLease := sessionLease ||
+                        sessionLease := NoLease ||
+                        latestSessionLease := sessionLease ||
                         activationState := "none" ||
+                        activationLease := NoLease ||
                         activationContextGeneration := -1 ||
                         activationObserverGeneration := -1 ||
                         activationObserver := 0 ||
+                        preparedActivationLease := NoLease ||
                         visibleFramePresent :=
                             IF mutationKind = "location" THEN FALSE ELSE visibleFramePresent ||
                         publicationState := "published" ||
                         invalidationActive := TRUE ||
+                        invalidationCompleted := FALSE ||
+                        cleanupComplete := FALSE ||
+                        coordinatorConfigured := FALSE ||
+                        coordinatorStateRead := FALSE ||
+                        leaseSynchronized := FALSE ||
+                        renewalResult := "none" ||
+                        actionQueue := Append(
+                            actionQueue,
+                            LifecycleCommand("activate", sessionLease)
+                        ) ||
                         deferredSaveNeeded := TRUE ||
                         pendingOutcome := "success" ||
-                        mutationPhase := "waitingRuntimeDeactivation";
+                        mutationPhase := "waitingLeaseRenewal";
                     } else {
                         pendingOutcome := "failure" ||
                         mutationPhase :=
@@ -263,18 +326,33 @@ MutationStep:
                     contextGeneration := NextContextGeneration ||
                     observerGeneration := NextObserverGeneration ||
                     publishedObserverGeneration := NextObserverGeneration ||
+                    capturedLease := sessionLease ||
+                    sessionLease := NoLease ||
+                    latestSessionLease := sessionLease ||
                     activationState := "none" ||
+                    activationLease := NoLease ||
                     activationContextGeneration := -1 ||
                     activationObserverGeneration := -1 ||
                     activationObserver := 0 ||
+                    preparedActivationLease := NoLease ||
                     visibleFramePresent :=
                         IF mutationKind = "location" THEN FALSE ELSE visibleFramePresent ||
                     publicationState := "published" ||
                     invalidationActive := TRUE ||
+                    invalidationCompleted := FALSE ||
+                    cleanupComplete := FALSE ||
+                    coordinatorConfigured := FALSE ||
+                    coordinatorStateRead := FALSE ||
+                    leaseSynchronized := FALSE ||
+                    renewalResult := "none" ||
+                    actionQueue := Append(
+                        actionQueue,
+                        LifecycleCommand("activate", sessionLease)
+                    ) ||
                     foregroundEditQueued := FALSE ||
                     deferredSaveNeeded := FALSE ||
                     pendingOutcome := "success" ||
-                    mutationPhase := "waitingRuntimeDeactivation";
+                    mutationPhase := "waitingLeaseRenewal";
                 };
             } else if (~commitKnown) {
                 requestResult := "none" ||
@@ -283,24 +361,39 @@ MutationStep:
                     IF mutationKind = "source" /\ credentialMutationAttempted
                     THEN "restoringCredential"
                     ELSE "finishing";
-            } else if (Implementation = "current") {
+            } else if (UsesCommittedRecovery) {
                 either {
                     requestResult := "none" ||
                     livePreferences := MutatedPreferences(livePreferences, mutationKind) ||
                     contextGeneration := NextContextGeneration ||
                     observerGeneration := NextObserverGeneration ||
                     publishedObserverGeneration := NextObserverGeneration ||
+                    capturedLease := sessionLease ||
+                    sessionLease := NoLease ||
+                    latestSessionLease := sessionLease ||
                     activationState := "none" ||
+                    activationLease := NoLease ||
                     activationContextGeneration := -1 ||
                     activationObserverGeneration := -1 ||
                     activationObserver := 0 ||
+                    preparedActivationLease := NoLease ||
                     visibleFramePresent :=
                         IF mutationKind = "location" THEN FALSE ELSE visibleFramePresent ||
                     publicationState := "published" ||
                     invalidationActive := TRUE ||
+                    invalidationCompleted := FALSE ||
+                    cleanupComplete := FALSE ||
+                    coordinatorConfigured := FALSE ||
+                    coordinatorStateRead := FALSE ||
+                    leaseSynchronized := FALSE ||
+                    renewalResult := "none" ||
+                    actionQueue := Append(
+                        actionQueue,
+                        LifecycleCommand("activate", sessionLease)
+                    ) ||
                     deferredSaveNeeded := TRUE ||
                     pendingOutcome := "success" ||
-                    mutationPhase := "waitingRuntimeDeactivation" ||
+                    mutationPhase := "waitingLeaseRenewal" ||
                     sawCommittedRetryFailure := TRUE;
                 } or {
                     requestResult := "none" ||
@@ -308,17 +401,32 @@ MutationStep:
                     contextGeneration := NextContextGeneration ||
                     observerGeneration := NextObserverGeneration ||
                     publishedObserverGeneration := NextObserverGeneration ||
+                    capturedLease := sessionLease ||
+                    sessionLease := NoLease ||
+                    latestSessionLease := sessionLease ||
                     activationState := "none" ||
+                    activationLease := NoLease ||
                     activationContextGeneration := -1 ||
                     activationObserverGeneration := -1 ||
                     activationObserver := 0 ||
+                    preparedActivationLease := NoLease ||
                     visibleFramePresent :=
                         IF mutationKind = "location" THEN FALSE ELSE visibleFramePresent ||
                     publicationState := "published" ||
                     invalidationActive := TRUE ||
+                    invalidationCompleted := FALSE ||
+                    cleanupComplete := FALSE ||
+                    coordinatorConfigured := FALSE ||
+                    coordinatorStateRead := FALSE ||
+                    leaseSynchronized := FALSE ||
+                    renewalResult := "none" ||
+                    actionQueue := Append(
+                        actionQueue,
+                        LifecycleCommand("activate", sessionLease)
+                    ) ||
                     deferredSaveNeeded := TRUE ||
                     pendingOutcome := "success" ||
-                    mutationPhase := "waitingRuntimeDeactivation" ||
+                    mutationPhase := "waitingLeaseRenewal" ||
                     sawCommittedRetryFailure := TRUE;
                 };
             } else {
@@ -330,27 +438,76 @@ MutationStep:
                     ELSE "finishing" ||
                 sawCommittedRetryFailure := TRUE;
             };
+        } else if (mutationPhase = "waitingLeaseRenewal") {
+            either {
+                renewalResult := "replaced" ||
+                coordinatorLease := SuccessorLeaseEpoch ||
+                actionQueue := Append(
+                    Append(
+                        actionQueue,
+                        LifecycleCommand("deactivate", capturedLease)
+                    ),
+                    LifecycleCommand("activate", SuccessorLeaseEpoch)
+                );
+            } or {
+                renewalResult := "retired" ||
+                coordinatorLease := NoLease ||
+                actionQueue := Append(
+                    actionQueue,
+                    LifecycleCommand("deactivate", capturedLease)
+                );
+            } or {
+                renewalResult := "superseded" ||
+                coordinatorLease := SuccessorLeaseEpoch ||
+                actionQueue := Append(
+                    actionQueue,
+                    LifecycleCommand("activate", SuccessorLeaseEpoch)
+                );
+            };
+            mutationPhase := "waitingRuntimeDeactivation";
         } else if (mutationPhase = "waitingRuntimeDeactivation") {
+            if (capturedLease >= latestRuntimeLease) {
+                latestRuntimeLease := capturedLease ||
+                runtimeLease :=
+                    IF runtimeLease /= NoLease /\ runtimeLease <= capturedLease
+                    THEN NoLease
+                    ELSE runtimeLease;
+            };
+            directRetirementLease := capturedLease ||
+            sawCapturedLeaseRetirement := TRUE ||
             mutationPhase :=
                 IF mutationKind = "location"
                 THEN "waitingProjectionWorkerReset"
-                ELSE "waitingCoordinatorConfigure";
+                ELSE "waitingDiscardFade";
         } else if (mutationPhase = "waitingProjectionWorkerReset") {
+            cleanupComplete := TRUE ||
             mutationPhase := "waitingCoordinatorConfigure";
-        } else if (mutationPhase = "waitingCoordinatorConfigure") {
-            mutationPhase := "waitingCoordinatorState";
-        } else if (mutationPhase = "waitingCoordinatorState") {
-            mutationPhase :=
-                IF mutationKind = "source"
-                THEN "waitingDiscardFade"
-                ELSE "completingInvalidation";
         } else if (mutationPhase = "waitingDiscardFade") {
             visibleFramePresent := FALSE ||
             mutationPhase := "waitingDiscardWorkerReset";
         } else if (mutationPhase = "waitingDiscardWorkerReset") {
+            cleanupComplete := TRUE ||
+            mutationPhase := "waitingCoordinatorConfigure";
+        } else if (mutationPhase = "waitingCoordinatorConfigure") {
+            coordinatorConfigured := TRUE ||
+            mutationPhase := "waitingCoordinatorState";
+        } else if (mutationPhase = "waitingCoordinatorState") {
+            coordinatorStateRead := TRUE ||
+            mutationPhase :=
+                IF Implementation = "brokenInvalidation"
+                THEN "completingInvalidation"
+                ELSE "waitingCoordinatorLease";
+        } else if (mutationPhase = "waitingCoordinatorLease") {
+            sessionLease := coordinatorLease ||
+            latestSessionLease :=
+                IF coordinatorLease > latestSessionLease
+                THEN coordinatorLease
+                ELSE latestSessionLease ||
+            leaseSynchronized := TRUE ||
             mutationPhase := "completingInvalidation";
         } else if (mutationPhase = "completingInvalidation") {
             invalidationActive := FALSE ||
+            invalidationCompleted := TRUE ||
             mutationPhase := "finishing";
         } else if (mutationPhase = "restoringCredential") {
             either {
@@ -452,29 +609,110 @@ ForegroundEditStep:
     }
 }
 
+fair process (ActionDispatcher = "ActionDispatcher") {
+DispatchCoordinatorAction:
+    while (TRUE) {
+        await callbackPhase = "idle" /\ Len(actionQueue) > 0;
+        with (command = Head(actionQueue)) {
+            actionQueue := Tail(actionQueue);
+            if (command.kind = "activate") {
+                if (command.lease = capturedLease /\
+                    leaseSynchronized /\
+                    coordinatorLease = SuccessorLeaseEpoch) {
+                    sawOldActivationAfterSuccessorSync := TRUE;
+                };
+                if (~invalidationActive) {
+                    if (sessionLease /= NoLease /\
+                        command.lease >= latestSessionLease) {
+                        sessionLease := command.lease ||
+                        latestSessionLease := command.lease;
+                    } else if (sessionLease = NoLease /\
+                               (latestSessionLease = NoLease \/
+                                command.lease > latestSessionLease)) {
+                        sessionLease := command.lease ||
+                        latestSessionLease := command.lease;
+                    };
+                };
+            } else {
+                if (command.lease = capturedLease /\
+                    leaseSynchronized /\
+                    coordinatorLease = SuccessorLeaseEpoch) {
+                    sawOldDeactivationAfterSuccessorSync := TRUE;
+                };
+                if (command.lease >= latestSessionLease /\
+                    (sessionLease = NoLease \/ sessionLease <= command.lease)) {
+                    sessionLease := NoLease ||
+                    latestSessionLease := command.lease ||
+                    callbackLease := command.lease ||
+                    callbackPhase := "waitingWorker";
+                };
+            };
+        };
+    }
+}
+
+fair process (CallbackCompletion = "CallbackCompletion") {
+CompleteCoordinatorWorkerReset:
+    while (TRUE) {
+        await callbackPhase = "waitingWorker";
+        callbackPhase := "waitingRuntime";
+
+CompleteCoordinatorRuntimeDeactivation:
+        await callbackPhase = "waitingRuntime";
+        if (runtimeLease > callbackLease) {
+            sawDelayedRuntimeTeardownAfterSuccessor := TRUE;
+        };
+        if (callbackLease >= latestRuntimeLease) {
+            latestRuntimeLease := callbackLease ||
+            runtimeLease :=
+                IF runtimeLease /= NoLease /\ runtimeLease <= callbackLease
+                THEN NoLease
+                ELSE runtimeLease;
+        };
+        callbackLease := NoLease ||
+        callbackPhase := "idle";
+    }
+}
+
 fair process (Activation = "Activation") {
 ActivationStep:
     while (TRUE) {
         await (activationState = "none" /\
                mutationPhase = "done" /\
                reportedOutcome = "success" /\
+               sessionLease /= NoLease /\
                ~invalidationActive) \/
               activationState = "preparing";
         if (activationState = "none") {
+            preparedActivationLease := sessionLease ||
             preparedActivationContextGeneration := contextGeneration ||
             preparedActivationObserverGeneration := publishedObserverGeneration ||
             preparedActivationObserver := livePreferences.observer ||
             activationState := "preparing";
-        } else if (preparedActivationContextGeneration = contextGeneration /\
+        } else if (preparedActivationLease = sessionLease /\
+                   preparedActivationLease = coordinatorLease /\
+                   RuntimeAccepts(preparedActivationLease) /\
+                   preparedActivationContextGeneration = contextGeneration /\
                    preparedActivationObserverGeneration = publishedObserverGeneration /\
                    preparedActivationObserver = livePreferences.observer /\
                    ~invalidationActive) {
+            runtimeLease := preparedActivationLease ||
+            latestRuntimeLease :=
+                IF preparedActivationLease > latestRuntimeLease
+                THEN preparedActivationLease
+                ELSE latestRuntimeLease ||
+            activationLease := preparedActivationLease ||
             activationContextGeneration := preparedActivationContextGeneration ||
             activationObserverGeneration := preparedActivationObserverGeneration ||
             activationObserver := preparedActivationObserver ||
-            activationState := "active";
+            activationState := "active" ||
+            sawSuccessorRuntimeActivation :=
+                sawSuccessorRuntimeActivation \/
+                (preparedActivationLease = SuccessorLeaseEpoch);
         } else {
             activationState := "none" ||
+            activationLease := NoLease ||
+            preparedActivationLease := NoLease ||
             sawStaleActivationRejected := TRUE;
         };
     }
@@ -544,13 +782,31 @@ TypeOK ==
     /\ saveAttempts \in 0..(MaxForegroundEdits + 1)
     /\ publicationState \in PublicationStates
     /\ invalidationActive \in BOOLEAN
+    /\ invalidationCompleted \in BOOLEAN
+    /\ cleanupComplete \in BOOLEAN
+    /\ coordinatorConfigured \in BOOLEAN
+    /\ coordinatorStateRead \in BOOLEAN
+    /\ leaseSynchronized \in BOOLEAN
     /\ contextGeneration \in 0..1
     /\ observerGeneration \in 0..1
     /\ publishedObserverGeneration \in 0..1
+    /\ capturedLease \in LeaseEpochs
+    /\ renewalResult \in RenewalResults
+    /\ coordinatorLease \in LeaseEpochs
+    /\ sessionLease \in LeaseEpochs
+    /\ latestSessionLease \in LeaseEpochs
+    /\ runtimeLease \in LeaseEpochs
+    /\ latestRuntimeLease \in LeaseEpochs
+    /\ directRetirementLease \in LeaseEpochs
+    /\ actionQueue \in Seq(LifecycleCommands)
+    /\ callbackPhase \in CallbackPhases
+    /\ callbackLease \in LeaseEpochs
     /\ activationState \in ActivationStates
+    /\ activationLease \in LeaseEpochs
     /\ activationContextGeneration \in -1..1
     /\ activationObserverGeneration \in -1..1
     /\ activationObserver \in Observers
+    /\ preparedActivationLease \in LeaseEpochs
     /\ preparedActivationContextGeneration \in 0..1
     /\ preparedActivationObserverGeneration \in 0..1
     /\ preparedActivationObserver \in Observers
@@ -568,6 +824,54 @@ TypeOK ==
     /\ sawStaleRenderRejected \in BOOLEAN
     /\ sawStaleActivationRejected \in BOOLEAN
     /\ sawForegroundSaveComplete \in BOOLEAN
+    /\ sawCapturedLeaseRetirement \in BOOLEAN
+    /\ sawOldActivationAfterSuccessorSync \in BOOLEAN
+    /\ sawOldDeactivationAfterSuccessorSync \in BOOLEAN
+    /\ sawDelayedRuntimeTeardownAfterSuccessor \in BOOLEAN
+    /\ sawSuccessorRuntimeActivation \in BOOLEAN
+
+LeaseLifecycleShape ==
+    /\ (sessionLease = NoLease \/ sessionLease = latestSessionLease)
+    /\ (runtimeLease = NoLease \/ runtimeLease = latestRuntimeLease)
+    /\ (activationState = "active" => activationLease /= NoLease)
+    /\ (activationState /= "active" => activationLease = NoLease)
+    /\ (callbackPhase = "idle" => callbackLease = NoLease)
+    /\ (callbackPhase /= "idle" => callbackLease /= NoLease)
+
+RenewalResultMatchesAuthority ==
+    /\ (renewalResult = "replaced" =>
+            /\ capturedLease = CapturedLeaseEpoch
+            /\ coordinatorLease = SuccessorLeaseEpoch)
+    /\ (renewalResult = "retired" =>
+            /\ capturedLease = CapturedLeaseEpoch
+            /\ coordinatorLease = NoLease)
+    /\ (renewalResult = "superseded" =>
+            /\ capturedLease = CapturedLeaseEpoch
+            /\ coordinatorLease = SuccessorLeaseEpoch)
+
+CapturedLeaseRetirementIsExact ==
+    sawCapturedLeaseRetirement =>
+        /\ capturedLease = CapturedLeaseEpoch
+        /\ directRetirementLease = capturedLease
+        /\ (runtimeLease = NoLease \/ runtimeLease > capturedLease)
+
+InvalidationCompletionFollowsRequiredWork ==
+    invalidationCompleted =>
+        /\ ~invalidationActive
+        /\ renewalResult /= "none"
+        /\ sawCapturedLeaseRetirement
+        /\ cleanupComplete
+        /\ coordinatorConfigured
+        /\ coordinatorStateRead
+        /\ leaseSynchronized
+
+OldCallbacksPreserveSuccessor ==
+    /\ (leaseSynchronized /\ coordinatorLease = SuccessorLeaseEpoch =>
+            /\ sessionLease = SuccessorLeaseEpoch
+            /\ latestSessionLease = SuccessorLeaseEpoch)
+    /\ (sawSuccessorRuntimeActivation =>
+            /\ runtimeLease = SuccessorLeaseEpoch
+            /\ latestRuntimeLease = SuccessorLeaseEpoch)
 
 ReportedFailureKeepsDurableSetup ==
     reportedOutcome = "failure" =>
@@ -584,6 +888,9 @@ VisibleFrameMatchesPublishedObserver ==
 
 ActiveProjectionMatchesPublishedObserver ==
     activationState = "active" =>
+        /\ activationLease = sessionLease
+        /\ activationLease = coordinatorLease
+        /\ activationLease = runtimeLease
         /\ activationContextGeneration = contextGeneration
         /\ activationObserverGeneration = publishedObserverGeneration
         /\ activationObserver = livePreferences.observer
@@ -600,5 +907,14 @@ EventuallyQuiescent ==
 RetryRecoveryWasNotQueued == ~sawRetryRecoveryQueued
 ObserverEarlyPublicationWasNotReached == ~sawObserverEarlyPublication
 StaleRenderWasNotRejected == ~sawStaleRenderRejected
+RequiredInvalidationPathNotReached ==
+    ~(invalidationCompleted /\ sawCapturedLeaseRetirement /\ leaseSynchronized)
+ReplacedRenewalNotReached == renewalResult /= "replaced"
+RetiredRenewalNotReached == renewalResult /= "retired"
+SupersededRenewalNotReached == renewalResult /= "superseded"
+OldCallbacksAfterSuccessorSyncNotReached ==
+    ~(sawOldActivationAfterSuccessorSync /\ sawOldDeactivationAfterSuccessorSync)
+DelayedRuntimeTeardownAfterSuccessorNotReached ==
+    ~sawDelayedRuntimeTeardownAfterSuccessor
 
 ====
