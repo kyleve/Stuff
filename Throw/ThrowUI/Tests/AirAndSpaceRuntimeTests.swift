@@ -38,7 +38,7 @@ struct AirAndSpaceRuntimeTests {
             includeGroundAircraft: false,
         )
 
-        await runtime.activate(
+        _ = await runtime.activate(
             configuration: .adsbLol,
             query: query,
             labelMode: .adaptive,
@@ -87,14 +87,14 @@ struct AirAndSpaceRuntimeTests {
         }
         await flightsRuntime.waitForResetCount(1)
 
-        await runtime.activate(
+        _ = await runtime.activate(
             configuration: replacementConfiguration,
             query: query,
             labelMode: .adaptive,
             lease: lease(2),
         )
         await flightsRuntime.releaseReset(1)
-        await supersededActivation.value
+        _ = await supersededActivation.value
 
         let pollingUpdate = await coordinator.currentUpdate()
         #expect(pollingUpdate.sourceKind == .readsb)
@@ -121,7 +121,7 @@ struct AirAndSpaceRuntimeTests {
         let replacementLease = lease(2)
         _ = await runtime.stateUpdates()
 
-        await runtime.activate(
+        _ = await runtime.activate(
             configuration: .adsbLol,
             query: query,
             labelMode: .adaptive,
@@ -158,11 +158,11 @@ struct AirAndSpaceRuntimeTests {
         #expect(suspended.activationLease == replacementLease)
         #expect(suspended.successfulActivationLease == nil)
         #expect(suspended.snapshot == nil)
-        #expect(suspended.activePollingSignature?.configuration.kind == .readsb)
+        #expect(suspended.activePollingSignature == nil)
         #expect(suspended.health == .loading)
 
         await flightsRuntime.releaseReset(2)
-        try await replacement.value
+        _ = try await replacement.value
         try await waitUntil {
             await runtime.currentUpdate().successfulActivationLease == replacementLease
         }
@@ -200,7 +200,7 @@ struct AirAndSpaceRuntimeTests {
 
         await runtime.deactivate(lease: lease(2), reporting: .idle)
         await flightsRuntime.releaseReset(1)
-        await supersededActivation.value
+        _ = await supersededActivation.value
 
         let update = await runtime.currentUpdate()
         #expect(update.activationLease == nil)
@@ -229,7 +229,7 @@ struct AirAndSpaceRuntimeTests {
         )
         _ = await runtime.stateUpdates()
 
-        try await runtime.activate(
+        _ = try await runtime.activate(
             configuration: .adsbLol,
             query: query(),
             labelMode: .adaptive,
@@ -271,7 +271,7 @@ struct AirAndSpaceRuntimeTests {
         let replacementConfiguration = try localReadsbConfiguration()
         _ = await runtime.stateUpdates()
 
-        await runtime.activate(
+        _ = await runtime.activate(
             configuration: .adsbLol,
             query: query,
             labelMode: .adaptive,
@@ -286,7 +286,7 @@ struct AirAndSpaceRuntimeTests {
         }
         await flightsRuntime.waitForResetCount(2)
 
-        await runtime.activate(
+        _ = await runtime.activate(
             configuration: replacementConfiguration,
             query: query,
             labelMode: .adaptive,
@@ -323,7 +323,7 @@ struct AirAndSpaceRuntimeTests {
         let query = try query()
         _ = await runtime.stateUpdates()
 
-        await runtime.activate(
+        _ = await runtime.activate(
             configuration: .adsbLol,
             query: query,
             labelMode: .adaptive,
@@ -340,7 +340,7 @@ struct AirAndSpaceRuntimeTests {
         }
         await gate.waitUntilBlocked()
 
-        try await runtime.activate(
+        _ = try await runtime.activate(
             configuration: localReadsbConfiguration(),
             query: query,
             labelMode: .adaptive,
@@ -383,7 +383,7 @@ struct AirAndSpaceRuntimeTests {
         let activationLease = lease(42)
         _ = await runtime.stateUpdates()
 
-        try await runtime.activate(
+        _ = try await runtime.activate(
             configuration: .adsbLol,
             query: query(),
             labelMode: .adaptive,

@@ -135,15 +135,11 @@ struct ThrowSessionLocationTests {
         )
         let activated = session.airAndSpaceActivation.activate(activationLease)
         #expect(activated)
-        await session.airAndSpaceRuntime.activate(
+        _ = await session.airAndSpaceRuntime.activate(
             configuration: .adsbLol,
             query: query,
             labelMode: session.labelMode,
             lease: activationLease,
-        )
-        session.activePollingSignature = try PollingSignature(
-            configuration: .adsbLol,
-            query: query,
         )
         session.projectionSessionLocationGate = .ready
         let offeredFix = try ThrowSessionLocationTestFixture.fix(
@@ -154,7 +150,8 @@ struct ThrowSessionLocationTests {
         session.pendingLocationFix = offeredFix
         let originalSetupState = session.setupState
         let originalHealth = session.locationHealth
-        let originalSignature = session.activePollingSignature
+        let originalSignature = await session.airAndSpaceRuntime.currentUpdate()
+            .activePollingSignature
         let originalFrame = session.projectionFrame
         let originalPendingFrame = session.pendingAirAndSpaceFrame
 
@@ -168,7 +165,10 @@ struct ThrowSessionLocationTests {
         #expect(saved == false)
         #expect(session.setupState == originalSetupState)
         #expect(session.locationHealth == originalHealth)
-        #expect(session.activePollingSignature == originalSignature)
+        #expect(
+            await session.airAndSpaceRuntime.currentUpdate().activePollingSignature ==
+                originalSignature,
+        )
         #expect(session.projectionFrame == originalFrame)
         #expect(session.pendingAirAndSpaceFrame == originalPendingFrame)
         #expect(session.pendingLocationFix == offeredFix)
@@ -193,7 +193,7 @@ struct ThrowSessionLocationTests {
         await locationSource.waitForStartCount(1)
 
         #expect(locationSource.requestAuthorizationCount == 1)
-        #expect(session.activePollingSignature == nil)
+        #expect(await session.airAndSpaceRuntime.currentUpdate().activePollingSignature == nil)
         #expect(session.locationHealth == .locating)
 
         let fix = try ThrowSessionLocationTestFixture.fix(
@@ -207,7 +207,7 @@ struct ThrowSessionLocationTests {
         await session.demandTask?.value
 
         #expect(session.confirmedLocation?.position == fix.position)
-        #expect(session.activePollingSignature != nil)
+        #expect(await session.airAndSpaceRuntime.currentUpdate().activePollingSignature != nil)
         guard case .ready = session.projectionSessionLocationGate else {
             Issue.record("The accepted target fix should open the projection-session gate")
             return
@@ -239,7 +239,7 @@ struct ThrowSessionLocationTests {
         #expect(locationSource.requestAuthorizationCount == 0)
         #expect(locationSource.startCount == 0)
         #expect(session.observerLocationMode == .manual)
-        #expect(session.activePollingSignature != nil)
+        #expect(await session.airAndSpaceRuntime.currentUpdate().activePollingSignature != nil)
         guard case let .configured(setup) = session.setupState else {
             Issue.record("Saving a manual location must preserve configured setup")
             return
@@ -271,7 +271,7 @@ struct ThrowSessionLocationTests {
         await session.demandTask?.value
 
         #expect(session.locationHealth == previousHealth)
-        #expect(session.activePollingSignature == nil)
+        #expect(await session.airAndSpaceRuntime.currentUpdate().activePollingSignature == nil)
         guard case .required = session.projectionSessionLocationGate else {
             Issue.record("A later projection session should require a new GPS acquisition")
             return
@@ -295,7 +295,7 @@ struct ThrowSessionLocationTests {
         await firstAcquisition.value
         await locationSource.waitForStartCount(2)
         #expect(session.locationHealth == .locating)
-        #expect(session.activePollingSignature == nil)
+        #expect(await session.airAndSpaceRuntime.currentUpdate().activePollingSignature == nil)
         let secondStartStopCount = try #require(locationSource.stopCountAtEachStart.last)
         #expect(secondStartStopCount >= 2)
 
@@ -309,7 +309,7 @@ struct ThrowSessionLocationTests {
         await acquisition.value
         await session.demandTask?.value
 
-        #expect(session.activePollingSignature != nil)
+        #expect(await session.airAndSpaceRuntime.currentUpdate().activePollingSignature != nil)
 
         session.projectionOutputDisconnected(output)
         await session.demandTask?.value
@@ -337,7 +337,7 @@ struct ThrowSessionLocationTests {
             Issue.record("The saved GPS fix must remain visibly stale")
             return
         }
-        #expect(session.activePollingSignature != nil)
+        #expect(await session.airAndSpaceRuntime.currentUpdate().activePollingSignature != nil)
 
         session.projectionOutputDisconnected(output)
         await session.demandTask?.value
@@ -435,13 +435,13 @@ struct ThrowSessionLocationTests {
         )
         session.projectionSessionLocationGate = .required
 
-        #expect(session.activePollingSignature == nil)
+        #expect(await session.airAndSpaceRuntime.currentUpdate().activePollingSignature == nil)
 
         await session.acceptOfferedLocation()
         await session.demandTask?.value
 
         #expect(session.confirmedLocation?.position == fix.position)
-        #expect(session.activePollingSignature != nil)
+        #expect(await session.airAndSpaceRuntime.currentUpdate().activePollingSignature != nil)
 
         session.projectionOutputDisconnected(output)
         await session.demandTask?.value

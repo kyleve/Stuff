@@ -6,6 +6,33 @@ import Testing
 struct ProjectionExperienceCoordinatorTests {
     private let start = Date(timeIntervalSince1970: 1_800_000_000)
 
+    @Test func inactiveSessionTrackerRejectsQueuedEqualActivation() {
+        let original = ProjectionActivationLease(
+            experienceID: .airAndSpace,
+            generation: .init(rawValue: 7),
+        )
+        let replacement = ProjectionActivationLease(
+            experienceID: .airAndSpace,
+            generation: .init(rawValue: 8),
+        )
+        var tracker = ProjectionActivationLeaseTracker(experienceID: .airAndSpace)
+
+        let activatedOriginal = tracker.activate(original)
+        #expect(activatedOriginal)
+        let deactivatedOriginal = tracker.deactivate(original)
+        #expect(deactivatedOriginal)
+        let reactivatedOriginal = tracker.activate(original)
+        #expect(reactivatedOriginal == false)
+        let activatedReplacement = tracker.activate(replacement)
+        #expect(activatedReplacement)
+        tracker.synchronize(with: nil)
+        #expect(tracker.activeLease == nil)
+        let reactivatedReplacement = tracker.activate(replacement)
+        #expect(reactivatedReplacement == false)
+        let deactivatedReplacement = tracker.deactivate(replacement)
+        #expect(deactivatedReplacement)
+    }
+
     @Test func configuringAPlaylistAfterEmptyStateAdoptsItsSelection() async throws {
         let coordinator = ProjectionExperienceCoordinator(
             playlist: ThrowPreferences.defaultValue.playlist,
@@ -59,6 +86,123 @@ struct ProjectionExperienceCoordinatorTests {
         }
 
         #expect(await coordinator.runningExperienceIDsForTesting().isEmpty)
+    }
+
+    @Test func exactActiveRenewalRetiresAndRemintsInOneCoordinatorTurn() async throws {
+        let coordinator = try ProjectionExperienceCoordinator(
+            playlist: singleExperiencePlaylist(dwellDuration: .defaultValue),
+            clock: ManualProjectionRotationClock(now: start),
+        )
+        var actions = await coordinator.actions().makeAsyncIterator()
+        await coordinator.reconcile(demand: projectingDemand)
+        let original = try activation(#require(await actions.next()))
+
+        let renewal = await coordinator.renewActivationLease(original.lease)
+
+        let deactivation = try #require(await actions.next())
+        let replacement = try activation(#require(await actions.next()))
+        #expect(deactivation == .deactivate(lease: original.lease))
+        #expect(renewal == .replaced(from: original.lease, to: replacement.lease))
+        #expect(replacement.generation > original.generation)
+        #expect(replacement.role == .active)
+        #expect(await coordinator.activationLease(for: .airAndSpace) == replacement.lease)
+
+        let staleRenewal = await coordinator.renewActivationLease(original.lease)
+        #expect(staleRenewal == .superseded(
+            expected: original.lease,
+            current: replacement.lease,
+        ))
+    }
+
+    @Test func renewingTransitionTargetRetiresItAndRejectsOldCallbacks() async throws {
+        let coordinator = try ProjectionExperienceCoordinator(
+            playlist: rotatingPlaylist(),
+            clock: ManualProjectionRotationClock(now: start),
+        )
+        var actions = await coordinator.actions().makeAsyncIterator()
+        await coordinator.reconcile(demand: projectingDemand)
+        let active = try activation(#require(await actions.next()))
+        await reportSuccess(coordinator, id: active.id, generation: active.generation)
+        await coordinator.select(.transit)
+        let target = try activation(#require(await actions.next()))
+        await reportSuccess(coordinator, id: target.id, generation: target.generation)
+        #expect(try #require(await actions.next()) == .beginTransition(
+            from: active.id,
+            to: target.lease,
+        ))
+
+        let renewal = await coordinator.renewActivationLease(target.lease)
+
+        #expect(renewal == .retired(lease: target.lease))
+        #expect(try #require(await actions.next()) == .deactivate(lease: target.lease))
+        #expect(await coordinator.commitTransition(to: target.lease) == false)
+        await coordinator.completeTransition(to: target.lease)
+        let state = await coordinator.currentState()
+        #expect(state.activeExperienceID == active.id)
+        #expect(state.requestedExperienceID == nil)
+        #expect(await coordinator.activationLease(for: target.id) == nil)
+    }
+
+    @Test func renewingPrewarmRetiresItAndRejectsOldCallbacks() async throws {
+        let clock = ManualProjectionRotationClock(now: start)
+        let coordinator = try ProjectionExperienceCoordinator(
+            playlist: rotatingPlaylist(),
+            clock: clock,
+        )
+        var actions = await coordinator.actions().makeAsyncIterator()
+        await coordinator.reconcile(demand: projectingDemand)
+        let active = try activation(#require(await actions.next()))
+        await reportSuccess(coordinator, id: active.id, generation: active.generation)
+        await clock.waitForSleeperCount(1)
+        await clock.advance(by: 105)
+        let target = try activation(#require(await actions.next()))
+        #expect(target.role == .prewarming)
+
+        let renewal = await coordinator.renewActivationLease(target.lease)
+
+        #expect(renewal == .retired(lease: target.lease))
+        #expect(try #require(await actions.next()) == .deactivate(lease: target.lease))
+        await coordinator.reportRuntimeUpdate(
+            lease: target.lease,
+            successfulLease: target.lease,
+            health: .healthy(lastUpdate: start, visibleContentCount: 1),
+        )
+        #expect(await coordinator.reportRuntimePrepared(target.lease) == false)
+        let state = await coordinator.currentState()
+        #expect(state.activeExperienceID == active.id)
+        #expect(state.requestedExperienceID == nil)
+        #expect(state.prewarmingExperienceID == nil)
+        #expect(state.healthByExperience[target.id] == .idle)
+        #expect(await coordinator.activationLease(for: target.id) == nil)
+    }
+
+    @Test func renewingCommittedTargetRemintsItAndInvalidatesOldCompletion() async throws {
+        let coordinator = try ProjectionExperienceCoordinator(
+            playlist: rotatingPlaylist(),
+            clock: ManualProjectionRotationClock(now: start),
+        )
+        var actions = await coordinator.actions().makeAsyncIterator()
+        await coordinator.reconcile(demand: projectingDemand)
+        let active = try activation(#require(await actions.next()))
+        await reportSuccess(coordinator, id: active.id, generation: active.generation)
+        await coordinator.select(.transit)
+        let target = try activation(#require(await actions.next()))
+        await reportSuccess(coordinator, id: target.id, generation: target.generation)
+        _ = try #require(await actions.next())
+        #expect(await coordinator.commitTransition(to: target.lease))
+        #expect(try #require(await actions.next()) == .deactivate(lease: active.lease))
+
+        let renewal = await coordinator.renewActivationLease(target.lease)
+        let targetDeactivation = try #require(await actions.next())
+        let replacement = try activation(#require(await actions.next()))
+
+        #expect(targetDeactivation == .deactivate(lease: target.lease))
+        #expect(renewal == .replaced(from: target.lease, to: replacement.lease))
+        await coordinator.completeTransition(to: target.lease)
+        let state = await coordinator.currentState()
+        #expect(state.activeExperienceID == target.id)
+        #expect(state.requestedExperienceID == nil)
+        #expect(await coordinator.activationLease(for: target.id) == replacement.lease)
     }
 
     @Test func cancelledDwellStartCannotPublishAfterItsClockReadResumes() async throws {

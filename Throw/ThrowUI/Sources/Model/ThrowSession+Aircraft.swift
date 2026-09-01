@@ -257,9 +257,7 @@ extension ThrowSession {
                 invalidation = committedInvalidation
         }
 
-        await finishProjectionPreferenceInvalidation(invalidation)
-        await configureExperienceCoordinator(with: projectionPlaylist)
-
+        _ = await finishProjectionPreferenceInvalidation(invalidation)
         do {
             try await discardOldFrame()
         } catch is CancellationError {
@@ -268,6 +266,7 @@ extension ThrowSession {
             recordPostLaunchFailure(.projectionRendering, error: error)
             await clearProjectionState(restartsGeography: true)
         }
+        await configureExperienceCoordinator(with: projectionPlaylist)
         completeProjectionPreferenceInvalidation(invalidation)
         scheduleDemandReconciliation()
         return true
@@ -290,7 +289,6 @@ extension ThrowSession {
         rapidAPICredentialState = .missing
         if deletesActiveSource {
             await deactivateAirAndSpace(reporting: .failed(.missingCredential))
-            activePollingSignature = nil
             await clearProjectionState(restartsGeography: true)
             feedHealth = .failed(.missingCredential)
         }
@@ -316,7 +314,6 @@ extension ThrowSession {
         flightradar24CredentialState = .missing
         if deletesActiveSource {
             await deactivateAirAndSpace(reporting: .failed(.missingCredential))
-            activePollingSignature = nil
             await clearProjectionState(restartsGeography: true)
             feedHealth = .failed(.missingCredential)
         }
@@ -353,7 +350,6 @@ extension ThrowSession {
             return
         }
         replacePendingAirAndSpaceFrame(airAndSpaceFrame)
-        activePollingSignature = update.activePollingSignature
         let semanticFrame = ProjectionExperienceFrame.airAndSpace(airAndSpaceFrame)
         if let activationLease = update.activationLease {
             await experienceCoordinator.reportRuntimeUpdate(
@@ -494,7 +490,6 @@ extension ThrowSession {
         if let activationLease {
             _ = airAndSpaceActivation.deactivate(activationLease)
         }
-        activePollingSignature = nil
         if change == .observerLocation {
             clearProjectionStateSynchronously()
         } else {
@@ -505,8 +500,25 @@ extension ThrowSession {
 
     func finishProjectionPreferenceInvalidation(
         _ invalidation: ProjectionPreferenceInvalidation,
-    ) async {
+    ) async -> ProjectionActivationLeaseRenewal? {
+        let renewal: ProjectionActivationLeaseRenewal?
         if let activationLease = invalidation.activationLease {
+            let leaseRenewal = await experienceCoordinator.renewActivationLease(activationLease)
+            renewal = leaseRenewal
+            switch leaseRenewal {
+                case let .replaced(from, to):
+                    precondition(from == activationLease)
+                    precondition(to.experienceID == activationLease.experienceID)
+                    precondition(to.generation > activationLease.generation)
+                case let .retired(lease):
+                    precondition(lease == activationLease)
+                case let .superseded(expected, _):
+                    precondition(expected == activationLease)
+            }
+            guard projectionPreferenceInvalidation == invalidation else {
+                assertionFailure("A projection preference invalidation changed during renewal")
+                return renewal
+            }
             #if DEBUG
                 await beforeProjectionPreferenceRuntimeDeactivationForTesting?()
             #endif
@@ -514,10 +526,13 @@ extension ThrowSession {
                 lease: activationLease,
                 reporting: .idle,
             )
+        } else {
+            renewal = nil
         }
         if invalidation.change == .observerLocation {
             await projectionWorker.reset()
         }
+        return renewal
     }
 
     func completeProjectionPreferenceInvalidation(
@@ -535,7 +550,9 @@ extension ThrowSession {
     }
 
     func deactivateAirAndSpace(reporting health: FeedHealth) async {
-        guard let activationLease = airAndSpaceActivation.activeLease else { return }
+        guard let activationLease = await airAndSpaceRuntime.currentUpdate().activationLease else {
+            return
+        }
         await airAndSpaceRuntime.deactivate(lease: activationLease, reporting: health)
     }
 
@@ -559,7 +576,6 @@ extension ThrowSession {
               quiet == false
         else {
             cancelProjectionSessionLocationAcquisition(restoringPreviousHealth: true)
-            activePollingSignature = nil
             await deactivateAirAndSpace(reporting: quiet ? .quiet : .idle)
             guard generation == demandGeneration else { return }
             await clearProjectionState(restartsGeography: true)
@@ -572,7 +588,6 @@ extension ThrowSession {
             await prepareProjectionSessionGPSLocation()
             guard generation == demandGeneration else { return }
             guard case .ready = projectionSessionLocationGate else {
-                activePollingSignature = nil
                 await deactivateAirAndSpace(reporting: .failed(.locationUnavailable))
                 guard generation == demandGeneration else { return }
                 await clearProjectionState(restartsGeography: true)
@@ -583,7 +598,6 @@ extension ThrowSession {
         }
 
         guard flightsEnabled else {
-            activePollingSignature = nil
             await deactivateAirAndSpace(reporting: .idle)
             guard generation == demandGeneration else { return }
             currentSnapshot = nil
@@ -594,7 +608,6 @@ extension ThrowSession {
         }
 
         guard let configuration = aircraftSourceSelection.configuredSource else {
-            activePollingSignature = nil
             await deactivateAirAndSpace(reporting: .failed(.sourceNotValidated))
             guard generation == demandGeneration else { return }
             await clearProjectionState(restartsGeography: true)
@@ -603,7 +616,6 @@ extension ThrowSession {
             return
         }
         if configuration.kind == .adsbExchangeRapidAPI, rapidAPICredentialState == .missing {
-            activePollingSignature = nil
             await deactivateAirAndSpace(reporting: .failed(.missingCredential))
             guard generation == demandGeneration else { return }
             await clearProjectionState(restartsGeography: true)
@@ -612,7 +624,6 @@ extension ThrowSession {
             return
         }
         if configuration.kind == .flightradar24, flightradar24CredentialState == .missing {
-            activePollingSignature = nil
             await deactivateAirAndSpace(reporting: .failed(.missingCredential))
             guard generation == demandGeneration else { return }
             await clearProjectionState(restartsGeography: true)
@@ -626,7 +637,6 @@ extension ThrowSession {
             query = try aircraftQuery()
         } catch {
             logPostLaunchFailure(at: .location, error: error)
-            activePollingSignature = nil
             await deactivateAirAndSpace(reporting: .failed(.locationUnavailable))
             guard generation == demandGeneration else { return }
             await clearProjectionState(restartsGeography: true)
@@ -635,24 +645,49 @@ extension ThrowSession {
             return
         }
         let signature = PollingSignature(configuration: configuration, query: query)
-        if activePollingSignature == signature {
+        guard let activationLease = airAndSpaceActivation.activeLease else {
+            assertionFailure("Air & Space demand reconciled without a coordinator lease")
+            return
+        }
+        let currentRuntime = await airAndSpaceRuntime.currentUpdate()
+        guard generation == demandGeneration,
+              projectionPreferenceInvalidation == nil
+        else { return }
+        guard airAndSpaceActivation.activeLease == activationLease else {
+            scheduleDemandReconciliation()
+            return
+        }
+        if currentRuntime.activationLease == activationLease,
+           currentRuntime.activePollingSignature == signature
+        {
             restartRenderer()
             return
         }
-        activePollingSignature = signature
-        guard let activationLease = airAndSpaceActivation.activeLease else {
-            assertionFailure("Air & Space demand reconciled without a coordinator lease")
-            activePollingSignature = nil
-            return
-        }
-        await airAndSpaceRuntime.activate(
+        let activation = await airAndSpaceRuntime.activate(
             configuration: configuration,
             query: query,
             labelMode: labelMode,
             lease: activationLease,
         )
-        guard generation == demandGeneration else { return }
-        restartRenderer()
+        guard generation == demandGeneration,
+              projectionPreferenceInvalidation == nil
+        else { return }
+        guard airAndSpaceActivation.activeLease == activationLease else {
+            scheduleDemandReconciliation()
+            return
+        }
+        switch activation {
+            case let .accepted(update):
+                guard update.activationLease == activationLease,
+                      update.activePollingSignature == signature
+                else {
+                    assertionFailure("An accepted runtime activation must match its request")
+                    return
+                }
+                restartRenderer()
+            case .superseded:
+                scheduleDemandReconciliation()
+        }
     }
 
     func restartRenderer() {

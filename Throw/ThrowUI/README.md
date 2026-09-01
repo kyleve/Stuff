@@ -81,12 +81,21 @@ monotonic session revisions. The coordinator rejects an older value that arrives
 late.
 The coordinator exposes a lease only while its runtime is running. Thus, a direct
 session read cannot restore a lease after its deactivation command completes.
+Before a source or observer replacement drains the runtime, the session renews
+the exact running lease. The coordinator retires the old lease and cancels its
+request or transition state. If the active View remains permitted, the same
+actor turn mints a successor from the coordinator's global generation sequence.
+The session synchronizes the coordinator's optional lease while its invalidation
+gate is active. A missing lease clears the local active state. An equal delayed
+activation cannot revive a retired generation.
 The Air & Space runtime stores each deactivation generation as a tombstone.
 A newer teardown retires older work. An older teardown cannot stop a newer lease.
 Core binds each physical polling update to a coordinator-minted token. The
 runtime clears its expected token before a reset. It accepts only the exact new
 token and reads the current update after activation. Thus, an early update is
-not lost, and an old poll cannot satisfy a replacement activation.
+not lost, and an old poll cannot satisfy a replacement activation. The runtime
+publishes its polling signature only after Core accepts the physical activation.
+The session reads that accepted lease and signature instead of storing a mirror.
 Each production rendered projection stores the lease that produced it. A
 source or observer replacement blocks local reactivation while the old runtime
 drains. The renderer stops before the replacement becomes visible.

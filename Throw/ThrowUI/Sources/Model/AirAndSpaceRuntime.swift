@@ -36,6 +36,11 @@ struct AirAndSpaceRuntimeUpdate {
     }
 }
 
+enum AirAndSpaceRuntimeActivationResult {
+    case accepted(AirAndSpaceRuntimeUpdate)
+    case superseded(current: AirAndSpaceRuntimeUpdate)
+}
+
 /// Owns aircraft polling, semantic frame construction, motion state, and route enrichment.
 actor AirAndSpaceRuntime {
     private enum ActivationLifecycle {
@@ -155,13 +160,15 @@ actor AirAndSpaceRuntime {
         query: AircraftQuery,
         labelMode: FlightLabelMode,
         lease: ProjectionActivationLease,
-    ) async {
+    ) async -> AirAndSpaceRuntimeActivationResult {
         guard lease.experienceID == .airAndSpace else {
             assertionFailure("Air & Space received another experience's activation lease")
-            return
+            return .superseded(current: updateValue())
         }
         let previousLease = activationLifecycle.activeLease
-        guard activationLifecycle.activate(lease) else { return }
+        guard activationLifecycle.activate(lease) else {
+            return .superseded(current: updateValue())
+        }
         startObservingIfNeeded()
         let signature = PollingSignature(configuration: configuration, query: query)
         let activationChanged = previousLease != lease
@@ -176,7 +183,7 @@ actor AirAndSpaceRuntime {
             let lifecycleGeneration = lifecycleGeneration
             stateGeneration &+= 1
             successfulActivationLease = nil
-            activePollingSignature = signature
+            activePollingSignature = nil
             expectedPollingActivation = nil
             lastAppliedPollingUpdate = nil
             cancelRouteEnrichment()
@@ -186,7 +193,9 @@ actor AirAndSpaceRuntime {
             health = .loading
             if activationChanged || sourceChanged {
                 await flightsRuntime.reset()
-                guard lifecycleGeneration == self.lifecycleGeneration else { return }
+                guard lifecycleGeneration == self.lifecycleGeneration else {
+                    return .superseded(current: updateValue())
+                }
             }
             publish()
             let pollingActivation = await pollingCoordinator.activate(
@@ -197,15 +206,27 @@ actor AirAndSpaceRuntime {
             guard lifecycleGeneration == self.lifecycleGeneration,
                   activationLifecycle.activeLease == lease,
                   let pollingActivation
-            else { return }
+            else { return .superseded(current: updateValue()) }
+            activePollingSignature = signature
             expectedPollingActivation = pollingActivation
+            publish()
             await apply(pollingCoordinator.currentUpdate())
-            return
+            guard lifecycleGeneration == self.lifecycleGeneration,
+                  activationLifecycle.activeLease == lease,
+                  activePollingSignature == signature,
+                  expectedPollingActivation == pollingActivation
+            else { return .superseded(current: updateValue()) }
+            return .accepted(updateValue())
         }
 
         if labelsChanged {
             await rebuildCurrentLayerFrame()
         }
+        guard activationLifecycle.activeLease == lease,
+              activePollingSignature == signature,
+              expectedPollingActivation != nil
+        else { return .superseded(current: updateValue()) }
+        return .accepted(updateValue())
     }
 
     func deactivate(
@@ -265,6 +286,10 @@ actor AirAndSpaceRuntime {
     #if DEBUG
         func activeSourceKindForTesting() -> AircraftSourceKind? {
             activePollingSignature?.configuration.kind
+        }
+
+        func activePollingActivationForTesting() -> AircraftPollingActivationToken? {
+            expectedPollingActivation
         }
 
         func lastObservedPollingUpdateForTesting() -> AircraftPollingUpdate? {
