@@ -709,9 +709,74 @@ struct ProjectionFrameWorkerTests {
         }
         #expect(first.experienceID == .transit)
         #expect(first.layers.map(\.id) == [.transitNetwork])
-        #expect(firstLines.segments.first?.style == .route)
+        #expect(try firstLines.segments.first?.style == transitRouteStyle())
         #expect(cachedLines.id == firstLines.id)
         #expect(revisedLines.id != firstLines.id)
+    }
+
+    @Test func olderGeneratedFrameCannotReplaceNewerExperienceState() async throws {
+        let worker = projectionFrameWorker()
+        let observer = try observer()
+        let date = Date(timeIntervalSince1970: 6750)
+        let flights = try layerFrame(label: "FLIGHT", observedAt: date, observer: observer)
+        let viewport = try ProjectionViewport.map(
+            MapViewport(radius: NauticalMiles(value: 50)),
+        )
+
+        _ = try await worker.frame(
+            layerFrame: flights,
+            geographyEnabled: false,
+            observer: observer,
+            viewport: viewport,
+            calibration: .defaultValue,
+            generatedAt: date.addingTimeInterval(1),
+            reduceMotion: false,
+        )
+
+        await #expect(throws: CancellationError.self) {
+            try await worker.frame(
+                layerFrame: flights,
+                geographyEnabled: false,
+                observer: observer,
+                viewport: viewport,
+                calibration: .defaultValue,
+                generatedAt: date,
+                reduceMotion: false,
+            )
+        }
+    }
+
+    @Test func resetRejectsAFrameSuspendedBeforeIt() async throws {
+        let source = SuspendingGeographyDataSource()
+        let worker = ProjectionFrameWorker(
+            flightsRuntime: LayerCatalog.standard.flights.runtimeFactory(),
+            geographyRuntime: GeographyLayerRuntime(dataSource: source),
+            geographyLogger: DiscardingGeographyLogger(),
+            motionLogger: DiscardingProjectionMotionLogger(),
+            sessionFailureLogger: DiscardingThrowSessionFailureLogger(),
+        )
+        let observer = try observer()
+        let date = Date(timeIntervalSince1970: 6800)
+        let frame = Task {
+            try await worker.frame(
+                layerFrame: nil,
+                geographyEnabled: true,
+                observer: observer,
+                viewport: .map(MapViewport(radius: NauticalMiles(value: 50))),
+                calibration: .defaultValue,
+                generatedAt: date,
+                reduceMotion: false,
+            )
+        }
+        defer { frame.cancel() }
+
+        await source.waitUntilLoadStarts()
+        await worker.reset(experienceID: .airAndSpace)
+        await source.release()
+
+        await #expect(throws: CancellationError.self) {
+            try await frame.value
+        }
     }
 
     private func transitRouteStyle() throws -> TransitRouteLineStyle {

@@ -305,7 +305,7 @@ public struct ProjectionEngine: Sendable {
                 calibration: calibration,
                 geometry: geometry,
             )
-            let orientation = switch mark.glyph {
+            let orientation: Double? = switch mark.glyph {
                 case let .airport(descriptor): try projectedOrientation(
                         bearing: descriptor.runwayBearing,
                         anchor: prediction.mark.anchor,

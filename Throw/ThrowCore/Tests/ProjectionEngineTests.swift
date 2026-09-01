@@ -84,12 +84,12 @@ struct ProjectionEngineTests {
 
     @Test func genericExperienceProjectionKeepsLineAndMarkLayersSeparate() throws {
         let observer = try ThrowCoreFixture.observer(latitude: 0, longitude: 0, altitudeFeet: 0)
-        let viewport = try MapViewport(radius: NauticalMiles(value: 5))
+        let viewport = try TransitMapViewport(radius: NauticalMiles(value: 5))
         let geometry = try ProjectionGeometry(width: 1920, height: 1080)
         let vehicleID = try #require(TransitVehicleID(rawValue: "vehicle"))
-        let vehicleDescriptor = TransitVehicleGlyphDescriptor(
+        let vehicleDescriptor = try TransitVehicleGlyphDescriptor(
             routeLabel: "A",
-            color: try #require(TransitColor(hex: "0039A6")),
+            color: #require(TransitColor(hex: "0039A6")),
             confidence: .feedTracked,
         )
         let routeStyle = try transitRouteStyle()
@@ -234,7 +234,7 @@ struct ProjectionEngineTests {
 
     @Test func rejectsStaticLineProjectionFromAnotherSourceRevision() throws {
         let observer = try ThrowCoreFixture.observer(latitude: 0, longitude: 0)
-        let viewport = try MapViewport(radius: NauticalMiles(value: 50))
+        let viewport = try TransitMapViewport(radius: NauticalMiles(value: 5))
         let geometry = try ProjectionGeometry(width: 1, height: 1)
         let firstRevision = ProjectionLayerFrame<TransitNetworkLayerKind>(
             observedAt: ThrowCoreFixture.date,
@@ -992,8 +992,8 @@ struct ProjectionEngineTests {
         }
         let typedViewport: AirAndSpaceProjectionViewport = switch viewport {
             case let .map(mapViewport):
-                .map(
-                    viewport: mapViewport,
+                try .map(
+                    viewport: MapViewport(radius: mapViewport.radius),
                     geography: geography == nil ? .hidden : .visible,
                 )
             case let .trueSky(skyViewport):

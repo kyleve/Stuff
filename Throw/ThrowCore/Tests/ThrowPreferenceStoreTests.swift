@@ -231,6 +231,8 @@ struct ThrowPreferenceStoreTests {
     @Test func corruptVersionTwoPlaylistEntersRepair() throws {
         let encoded = try ThrowPreferencesCodec.encode(populatedPreferences())
         var storage = try propertyList(for: encoded)
+        storage["version"] = 2
+        storage.removeValue(forKey: "transit")
         var playlist = try #require(storage["playlist"] as? [String: Any])
         let entries = try #require(playlist["entries"] as? [[String: Any]])
         playlist["entries"] = entries + entries

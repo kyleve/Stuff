@@ -735,6 +735,7 @@ public struct ThrowPreferences: Equatable, Sendable, CustomStringConvertible,
         self.airAndSpace = airAndSpace
         self.transit = transit
     }
+
     public var calibration: ProjectionCalibration {
         global.calibration
     }

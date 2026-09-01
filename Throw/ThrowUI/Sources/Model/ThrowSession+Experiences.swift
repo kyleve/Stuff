@@ -3,7 +3,6 @@ import ThrowCore
 
 extension ThrowSession {
     public var activeExperienceHealth: FeedHealth {
-        if feedHealth == .quiet { return .quiet }
         guard let activeExperienceID else { return .idle }
         return health(for: activeExperienceID)
     }
@@ -247,10 +246,17 @@ extension ThrowSession {
     func configureExperienceCoordinator(with playlist: ProjectionPlaylist) async {
         playlistConfigurationTask?.cancel()
         playlistConfigurationTask = nil
+        let previousActiveExperienceID = activeExperienceID
         let configuration = nextPlaylistConfiguration(for: playlist)
         await experienceCoordinator.configure(configuration)
         let state = await experienceCoordinator.currentState()
-        applyExperienceCoordinatorState(state)
+        if state.activeExperienceID == previousActiveExperienceID {
+            applyExperienceCoordinatorState(state)
+        } else {
+            stopRenderer()
+            revokeStagedProjection()
+            replaceProjectionPresentationWithPlaceholder(coordinator: state)
+        }
         let authoritativeAirAndSpaceLease = await experienceCoordinator.activationLease(
             for: .airAndSpace,
         )
@@ -472,7 +478,6 @@ extension ThrowSession {
             coordinator.activeExperienceID,
             preferenceProducer: preferenceProducer,
         )
-        feedHealth = experienceHealth[lease.experienceID] ?? .idle
         return true
     }
 

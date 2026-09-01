@@ -145,11 +145,8 @@ enum ProjectionFrameRequest: Equatable {
                                             "A raw test airport ID must match its descriptor",
                                         )
                                     }
-                                case (.aircraft, .airport), (.airport, .aircraft),
-                                     (.aircraft, .star), (.aircraft, .satellite),
-                                     (.aircraft, .transitVehicle), (.airport, .star),
-                                     (.airport, .satellite), (.airport, .transitVehicle),
-                                     (.star, _), (.satellite, _), (.transitVehicle, _):
+                                case (.aircraft, _), (.airport, _), (.star, _),
+                                     (.satellite, _), (.transitVehicle, _), (.transitStop, _):
                                     preconditionFailure(
                                         "A raw test Flights mark must use a Flights element",
                                     )

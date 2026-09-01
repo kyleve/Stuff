@@ -47,6 +47,7 @@ public struct TransitLayerFrameBuilder: Sendable {
     ) -> ProjectionLayerFrame<TransitVehiclesLayerKind> {
         var marks: [ProjectionMark<TransitVehicleMarkElement>] = estimates.compactMap { estimate in
             guard let vehicleID = TransitVehicleID(rawValue: [
+                estimate.run.id.agencyID.rawValue,
                 estimate.run.id.partitionID.rawValue,
                 estimate.run.id.serviceDate,
                 estimate.run.id.stableRunValue,
