@@ -195,20 +195,21 @@ struct ThrowRuntimeTests {
         let controller = ControllerSceneID(rawValue: "controller-background-flush")
         runtime.controllerScene(controller, didReceive: .willEnterForeground)
         let preferenceProducer = try #require(session.beginPreferenceMutation())
+        let registration = ThrowRuntimeEventProbe()
+        session.preferenceFlushDidRegisterForTesting = {
+            registration.record()
+        }
 
         runtime.controllerScene(controller, didReceive: .didEnterBackground)
 
         let lease = try #require(leaser.lastLease)
+        let flushTask = try #require(runtime.backgroundPreferenceFlushTaskForTesting)
         #expect(leaser.beginCallCount == 1)
-        while session.preferencePersistence.quiescenceWaiterCount == 0,
-              lease.endCallCount == 0
-        {
-            await Task.yield()
-        }
+        await registration.wait()
         #expect(session.preferencePersistence.quiescenceWaiterCount == 1)
         #expect(lease.endCallCount == 0)
         session.finishPreferenceMutation(preferenceProducer)
-        await lease.waitForEndCallCount(1)
+        await flushTask.value
         #expect(lease.endCallCount == 1)
     }
 
@@ -223,22 +224,71 @@ struct ThrowRuntimeTests {
         let controller = ControllerSceneID(rawValue: "controller-expired-flush")
         runtime.controllerScene(controller, didReceive: .willEnterForeground)
         let preferenceProducer = try #require(session.beginPreferenceMutation())
+        let registration = ThrowRuntimeEventProbe()
+        session.preferenceFlushDidRegisterForTesting = {
+            registration.record()
+        }
         runtime.controllerScene(controller, didReceive: .didEnterBackground)
         let lease = try #require(leaser.lastLease)
-        while session.preferencePersistence.quiescenceWaiterCount == 0,
-              lease.endCallCount == 0
-        {
-            await Task.yield()
-        }
+        let flushTask = try #require(runtime.backgroundPreferenceFlushTaskForTesting)
+        await registration.wait()
         #expect(session.preferencePersistence.quiescenceWaiterCount == 1)
         #expect(lease.endCallCount == 0)
 
         leaser.expire()
+        await flushTask.value
 
         #expect(lease.endCallCount == 1)
+        #expect(session.preferencePersistence.quiescenceWaiterCount == 0)
+        #expect(session.preferencePersistence.isMutationActive)
+        #expect(session.preferencePersistence.activeProducerCount == 1)
         session.finishPreferenceMutation(preferenceProducer)
-        await session.flushPreferencesSave()
-        await Task.yield()
         #expect(lease.endCallCount == 1)
+    }
+
+    @Test func returningForegroundCancelsAStaleFlushGeneration() async throws {
+        let session = ThrowSession.fixture()
+        let leaser = BackgroundExecutionLeaserSpy()
+        let runtime = ThrowRuntime(
+            session: session,
+            idleTimerController: IdleTimerControllerSpy(isIdleTimerDisabled: false),
+            backgroundExecutionLeaser: leaser,
+        )
+        let controller = ControllerSceneID(rawValue: "controller-repeat-background-flush")
+        runtime.controllerScene(controller, didReceive: .willEnterForeground)
+        let preferenceProducer = try #require(session.beginPreferenceMutation())
+        let firstRegistration = ThrowRuntimeEventProbe()
+        session.preferenceFlushDidRegisterForTesting = {
+            firstRegistration.record()
+        }
+        runtime.controllerScene(controller, didReceive: .didEnterBackground)
+        let firstLease = try #require(leaser.lastLease)
+        let firstTask = try #require(runtime.backgroundPreferenceFlushTaskForTesting)
+        await firstRegistration.wait()
+        #expect(session.preferencePersistence.quiescenceWaiterCount == 1)
+
+        runtime.controllerScene(controller, didReceive: .willEnterForeground)
+        await firstTask.value
+
+        #expect(firstLease.endCallCount == 1)
+        #expect(session.preferencePersistence.quiescenceWaiterCount == 0)
+        #expect(session.preferencePersistence.isMutationActive)
+        let secondRegistration = ThrowRuntimeEventProbe()
+        session.preferenceFlushDidRegisterForTesting = {
+            secondRegistration.record()
+        }
+        runtime.controllerScene(controller, didReceive: .didEnterBackground)
+        let secondLease = try #require(leaser.lastLease)
+        let secondTask = try #require(runtime.backgroundPreferenceFlushTaskForTesting)
+        await secondRegistration.wait()
+
+        #expect(leaser.beginCallCount == 2)
+        #expect(firstLease !== secondLease)
+        #expect(secondLease.endCallCount == 0)
+        #expect(session.preferencePersistence.quiescenceWaiterCount == 1)
+        session.finishPreferenceMutation(preferenceProducer)
+        await secondTask.value
+        #expect(firstLease.endCallCount == 1)
+        #expect(secondLease.endCallCount == 1)
     }
 }

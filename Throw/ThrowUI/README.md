@@ -126,10 +126,11 @@ The session publishes newer edits and queues them for another save.
 One persistence state owns save activity, asynchronous producer admission,
 typed producer leases, deferred failures, and flush waiters. Final background
 closes admission before it starts a flush. The flush waits for admitted
-producers and their saves. Coordinator state callbacks only update
-presentation. Selection commands and transition actions need a producer lease
-before they can update the persisted playlist. The app runtime retains the
-final-background flush under its UIKit execution lease.
+producers and their saves. Cancellation removes only its typed flush waiter. It
+does not change producer or save activity. Coordinator state callbacks only
+update presentation. Selection commands and transition actions need a producer
+lease before they can update the persisted playlist. The app runtime retains
+the final-background flush under its UIKit execution lease.
 Onboarding uses the same aggregates and keeps calibration preview state separate.
 Quiet-wake actions pass a `TemporaryQuietWake` value through the session
 boundary. Unsupported minute counts cannot enter the runtime.

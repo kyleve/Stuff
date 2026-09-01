@@ -22,7 +22,7 @@ The Throw app is the iOS composition and scene shell; see
   external-display scenes never join it.
 - Retain the final-background preference flush under one injected UIKit
   execution lease. End the lease on completion or expiration. Cancel the
-  retained flush task when the lease expires.
+  retained flush task when the lease expires or a controller returns foreground.
 - Host every projected output with ThrowUI's `ThrowProjectionRootView`; keep its
   UIKit window and hosting view opaque black.
 - Derive size and aspect changes from the connected `UIWindowScene`, never

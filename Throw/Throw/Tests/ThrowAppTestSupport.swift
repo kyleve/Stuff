@@ -94,6 +94,27 @@ final class BackgroundExecutionLeaseSpy: BackgroundExecutionLease {
 }
 
 @MainActor
+final class ThrowRuntimeEventProbe {
+    private var occurred = false
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    func record() {
+        guard occurred == false else { return }
+        occurred = true
+        let waiters = waiters
+        self.waiters.removeAll()
+        waiters.forEach { $0.resume() }
+    }
+
+    func wait() async {
+        guard occurred == false else { return }
+        await withCheckedContinuation { continuation in
+            waiters.append(continuation)
+        }
+    }
+}
+
+@MainActor
 final class BackgroundExecutionLeaserSpy: BackgroundExecutionLeasing {
     private(set) var beginCallCount = 0
     private(set) var lastLease: BackgroundExecutionLeaseSpy?

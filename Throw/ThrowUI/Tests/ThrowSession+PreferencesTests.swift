@@ -232,4 +232,47 @@ struct ThrowSessionPreferencesTests {
         )
         session.beforeProjectionPreferenceRuntimeDeactivationForTesting = nil
     }
+
+    @Test func cancellingARegisteredFlushLeavesTheMutationActive() async throws {
+        let session = ThrowSession.fixture()
+        let preferenceProducer = try #require(session.beginPreferenceMutation())
+        let registration = PreferenceFlushCompletionProbe()
+        let completion = PreferenceFlushCompletionProbe()
+        session.preferenceFlushDidRegisterForTesting = {
+            registration.complete()
+        }
+        let flush = Task {
+            await session.flushPreferencesSave()
+            completion.complete()
+        }
+        await registration.waitForCompletion()
+        #expect(session.preferencePersistence.quiescenceWaiterCount == 1)
+
+        flush.cancel()
+        await flush.value
+
+        #expect(completion.isComplete)
+        #expect(session.preferencePersistence.quiescenceWaiterCount == 0)
+        #expect(session.preferencePersistence.isMutationActive)
+        #expect(session.preferencePersistence.activeProducerCount == 1)
+        session.finishPreferenceMutation(preferenceProducer)
+    }
+
+    @Test func cancellationBeforeFlushRegistrationCannotParkAWaiter() async throws {
+        let session = ThrowSession.fixture()
+        let preferenceProducer = try #require(session.beginPreferenceMutation())
+        let completion = PreferenceFlushCompletionProbe()
+        let flush = Task {
+            await session.flushPreferencesSave()
+            completion.complete()
+        }
+
+        flush.cancel()
+        await flush.value
+
+        #expect(completion.isComplete)
+        #expect(session.preferencePersistence.quiescenceWaiterCount == 0)
+        #expect(session.preferencePersistence.isMutationActive)
+        session.finishPreferenceMutation(preferenceProducer)
+    }
 }

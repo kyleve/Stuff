@@ -37,6 +37,8 @@ stand in for a foreground controller.
 When the final controller enters the background, the runtime starts a retained
 preference flush under a UIKit execution lease. The runtime ends the lease when
 the flush completes. Expiration cancels the retained task and ends the lease.
+A returning controller also cancels the old task and lease. The next final
+background transition starts a new flush generation.
 
 ## Resources
 
