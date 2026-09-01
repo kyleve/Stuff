@@ -5,7 +5,7 @@ extension ThrowSession {
     func apply(_ preferences: ThrowPreferences) {
         setupState = preferences.setupState
         projectionPlaylist = preferences.playlist
-        experienceCoordinatorState = ProjectionExperienceCoordinatorState(
+        let coordinator = ProjectionExperienceCoordinatorState(
             playlist: preferences.playlist,
         )
         globalPreferences = preferences.global
@@ -17,7 +17,12 @@ extension ThrowSession {
         )
         mayApplyTrueHeadingHint = preferences.setupCompleted == false
             && preferences.calibration == .defaultValue
-        projectionFrame = .emptyAirAndSpace(
+        pendingAirAndSpaceFrame = .empty
+        preparedProjection = nil
+        projectionInputRevision = projectionInputRevision.successor()
+        projectionPresentationState = .initial(
+            coordinator: coordinator,
+            preferredExperienceID: preferences.playlist.selectedExperienceID ?? .airAndSpace,
             mode: projectionMode,
             generatedAt: dateProvider.now(),
         )
@@ -68,8 +73,7 @@ extension ThrowSession {
         airAndSpacePreferences = preferences
 
         if previous.geography.isEnabled, preferences.geography.isEnabled == false {
-            geographyLayerHealth = .idle
-            projectionFrame = projectionFrame.removingGeography()
+            removeVisibleGeography()
         }
 
         schedulePreferencesSave(failure: .preferencePersistence)
@@ -93,6 +97,15 @@ extension ThrowSession {
             rebuildCurrentLayerFrame()
             restartRenderer()
         }
+    }
+
+    private func removeVisibleGeography() {
+        let visible = visibleProjection.removingGeography()
+        guard let presentation = projectionPresentationState.replacingVisible(visible) else {
+            assertionFailure("Removing geography must preserve the visible View")
+            return
+        }
+        projectionPresentationState = presentation
     }
 
     func schedulePreferencesSave(failure: ThrowPostLaunchFailure) {

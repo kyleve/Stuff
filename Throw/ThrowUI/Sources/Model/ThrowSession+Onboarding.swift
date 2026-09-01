@@ -76,9 +76,9 @@ extension ThrowSession {
         airAndSpacePreferences = publication.airAndSpacePreferences
         calibrationPreview = nil
         projectionPlaylist = publication.preferences.playlist
-        experienceCoordinatorState = ProjectionExperienceCoordinatorState(
+        applyExperienceCoordinatorState(ProjectionExperienceCoordinatorState(
             playlist: publication.preferences.playlist,
-        )
+        ))
         setupState = publication.setupState
         deferredPreferenceSaveFailures = ThrowPostLaunchFailureLedger()
         await configureExperienceCoordinator(with: projectionPlaylist)

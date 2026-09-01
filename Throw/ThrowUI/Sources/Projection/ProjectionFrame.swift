@@ -105,6 +105,16 @@ public struct ProjectionFrame: Hashable, Sendable, CustomStringConvertible,
         experience.id
     }
 
+    var productionExperienceID: ProjectionExperienceID? {
+        switch experience {
+            case .airAndSpace: .airAndSpace
+            case .transit: .transit
+            #if DEBUG
+                case .testing: nil
+            #endif
+        }
+    }
+
     public var marks: [ProjectedMark] {
         layers.flatMap(\.marks)
     }

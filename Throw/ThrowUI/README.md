@@ -26,7 +26,7 @@ output demand but do not contribute controller foreground presence.
 
 ## Architecture
 
-`ThrowSession` is a `@MainActor` observable mirror over injected stores and
+`ThrowSession` is a `@MainActor` observable facade over injected stores and
 focused actors. `AirAndSpaceRuntime` owns aircraft polling, semantic Flights
 frames, motion, and route enrichment. `ProjectionExperienceCoordinator` owns
 selection, one rotation clock, prewarming, and lifecycle reconciliation. Its
@@ -73,8 +73,11 @@ without minting coordinator identities. Location refreshes also recheck their
 generation after the last accumulator read. Playlist configurations carry
 monotonic session revisions. The coordinator rejects an older value that arrives
 late.
-The session publishes each coordinator snapshot as one value and derives the
-dashboard fields from it. Output count is derived from the output-demand set.
+The session publishes visible output as one closed `ProjectionPresentationState`.
+Its Air & Space and Transit cases bind coordinator identity to matching typed output.
+Each rendered case stores its semantic frame, activation generation, renderer frame, effects,
+observer point, Geography health, and complete projection context. Public accessors
+derive from that value. Output count derives from the output-demand set.
 
 Coordinator intents use a lossless command stream. Each timer path rechecks
 its playlist revision, active identity, demand, and runtime generation after a
@@ -104,14 +107,15 @@ boundary. Unsupported minute counts cannot enter the runtime.
 The worker keeps independent animation, collision, correction, and acquisition
 state for each experience. Its static-line projections use a bounded cache of
 recent layer, center, viewport, and calibration keys. Prewarming binds a
-complete target frame to one activation generation. A successful provider
+complete typed request to one activation generation. A successful provider
 response is not ready until that exact generation has a prepared frame. A
-switch fades the surface to black, exchanges frames at black, and fades back
-in. The typed fade state buffers newer target output until the prepared pair is
-fully visible. Reduce Motion keeps this opacity fade but removes experience-specific movement.
+switch fades the surface to black and commits the coordinator with that request.
+This commit is one assignment. The fade state buffers newer target output until
+fade-in completes. Reduce Motion keeps this fade but removes experience movement.
 
-The production worker accepts one typed `ProjectionExperienceInput`. It uses
-Core to project static lines, then creates one closed
+The production worker accepts one typed `ProjectionFrameRequest`. This request
+stores its semantic input, revision, observer, map center, calibration, and motion setting.
+Core projects static lines, then creates one closed
 `PreparedProjectionExperienceInput`. Each cached static-line frame retains its
 semantic revision and projection context. `ProjectionEngine` rejects stale or
 mismatched prepared lines and returns the matching `ProjectedExperienceFrame`.
@@ -119,7 +123,10 @@ This value fixes each experience's valid projected layers and modes.
 `ProjectionFrame.swift` erases it once into renderer layers. Raw construction
 and replacement stay in that file. A closed presentation identity separates
 Air & Space, Transit, and DEBUG frames before any animation combines them.
-Test-only raw worker entry points are absent from release builds.
+Before publication, the session compares the result with its current complete request.
+A semantic or context change invalidates the old result. The surface reads one
+visible projection value per render pass. Test-only raw worker entry points are
+absent from release builds.
 
 In Map mode, the surface draws cached geography before aircraft. Lines use
 constant screen-space widths and a separate restrained intensity. Roads and

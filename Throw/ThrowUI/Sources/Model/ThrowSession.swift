@@ -73,16 +73,30 @@ public final class ThrowSession {
 
     public internal(set) var launchState: ThrowSessionLaunchState
     public internal(set) var durableLoggingState: ThrowDurableLoggingState
-    var experienceCoordinatorState: ProjectionExperienceCoordinatorState
+    var projectionPresentationState: ProjectionPresentationState
+
+    var experienceCoordinatorState: ProjectionExperienceCoordinatorState {
+        projectionPresentationState.coordinator
+    }
+
+    var visibleProjection: VisibleProjection {
+        projectionPresentationState.visible
+    }
 
     /// Compatibility access for Air & Space callers while health remains keyed by experience.
     public internal(set) var feedHealth: FeedHealth {
         get { experienceHealth[.airAndSpace] ?? .idle }
         set {
-            experienceCoordinatorState = experienceCoordinatorState.updatingHealth(
+            let coordinator = experienceCoordinatorState.updatingHealth(
                 newValue,
                 for: .airAndSpace,
             )
+            guard let presentation = projectionPresentationState.updatingCoordinator(coordinator)
+            else {
+                assertionFailure("Health metadata must not change the visible identity")
+                return
+            }
+            projectionPresentationState = presentation
         }
     }
 
@@ -120,12 +134,24 @@ public final class ThrowSession {
     }
 
     public internal(set) var locationHealth: LocationHealth = .missing
-    public internal(set) var projectionFrame: ProjectionFrame
-    public internal(set) var observerMapPoint: ProjectionPoint?
-    var projectionMarkEffects: [LayerMarkID: ProjectionMarkEffect] = [:]
+    public var projectionFrame: ProjectionFrame {
+        visibleProjection.frame
+    }
+
+    public var observerMapPoint: ProjectionPoint? {
+        visibleProjection.observerPoint
+    }
+
+    var projectionMarkEffects: [LayerMarkID: ProjectionMarkEffect] {
+        visibleProjection.effects
+    }
+
     public internal(set) var projectionMarkOpacity = 1.0
     public internal(set) var projectionSurfaceOpacity = 1.0
-    public internal(set) var geographyLayerHealth: GeographyLayerHealth = .idle
+    public var geographyLayerHealth: GeographyLayerHealth {
+        visibleProjection.geographyHealth
+    }
+
     public var projectionOutputCount: Int {
         outputDemands.count
     }
@@ -290,21 +316,16 @@ public final class ThrowSession {
 
     @ObservationIgnored var pendingLocationFix: LocationFix?
     @ObservationIgnored var mayApplyTrueHeadingHint = true
-    @ObservationIgnored var currentLayerFrame: ProjectionLayerFrame<FlightsLayerKind>?
-    @ObservationIgnored var currentExperienceFrame: ProjectionExperienceFrame
+    @ObservationIgnored var pendingAirAndSpaceFrame = AirAndSpaceExperienceFrame.empty
     @ObservationIgnored var projectionPresentationTransition: ProjectionPresentationTransition?
-    @ObservationIgnored var semanticFramesByExperience: [
-        ProjectionExperienceID: ProjectionExperienceFrame
-    ] = [:]
-    @ObservationIgnored var preparedOutputsByExperience: [
-        ProjectionExperienceID: PreparedProjectionExperience
-    ] = [:]
+    @ObservationIgnored var preparedProjection: VisibleProjection?
     @ObservationIgnored var currentSnapshot: AircraftSnapshot?
     var outputDemands: Set<ProjectionOutput> = []
     @ObservationIgnored var temporaryWakeUntil: Date?
     @ObservationIgnored var activePollingSignature: PollingSignature?
     @ObservationIgnored var demandGeneration: UInt64 = 0
     @ObservationIgnored var renderGeneration: UInt64 = 0
+    @ObservationIgnored var projectionInputRevision = ProjectionFrameRequest.Revision.initial
     @ObservationIgnored var locationGeneration: UInt64 = 0
     @ObservationIgnored var projectionSessionLocationGeneration: UInt64 = 0
     @ObservationIgnored var projectionSessionLocationGate: ProjectionSessionLocationGate = .required
@@ -338,6 +359,8 @@ public final class ThrowSession {
     #if DEBUG
         @ObservationIgnored @_spi(Testing) public var
             beforeApplyingLocationResolutionForTesting: (() -> Void)?
+        @ObservationIgnored @_spi(Testing) public var
+            beforePublishingProjectionForTesting: (@MainActor @Sendable () async -> Void)?
     #endif
 
     init(
@@ -365,18 +388,17 @@ public final class ThrowSession {
         launchState = initialLaunchState
         durableLoggingState = .unavailable
         projectionPlaylist = preferences.playlist
-        experienceCoordinatorState = ProjectionExperienceCoordinatorState(
+        let initialCoordinator = ProjectionExperienceCoordinatorState(
             playlist: preferences.playlist,
         )
         globalPreferences = preferences.global
         airAndSpacePreferences = preferences.airAndSpace
-        projectionFrame = .emptyAirAndSpace(
+        projectionPresentationState = .initial(
+            coordinator: initialCoordinator,
+            preferredExperienceID: preferences.playlist.selectedExperienceID ?? .airAndSpace,
             mode: preferences.selectedProjectionMode ?? .map,
             generatedAt: dateProvider.now(),
         )
-        observerMapPoint = nil
-        currentExperienceFrame = .airAndSpace(.empty)
-        semanticFramesByExperience[.airAndSpace] = currentExperienceFrame
         self.preferenceStore = preferenceStore
         self.credentialStore = credentialStore
         self.sourceService = sourceService
@@ -549,6 +571,40 @@ public final class ThrowSession {
         @_spi(Testing) public func waitForLaunchForTesting() async {
             await launchTask?.value
         }
+
+        @_spi(Testing) public func replaceProjectionFrameForTesting(
+            _ frame: ProjectionFrame,
+        ) {
+            guard let visible = visibleProjection.replacingFrameForTesting(frame),
+                  let presentation = projectionPresentationState.replacingVisible(visible)
+            else {
+                assertionFailure("A test frame must match the active projection View")
+                return
+            }
+            projectionPresentationState = presentation
+        }
+
+        @_spi(Testing) public func replaceProjectionMetadataForTesting(
+            observerPoint: ProjectionPoint?,
+            geographyHealth: GeographyLayerHealth,
+        ) {
+            let visible = visibleProjection.replacingMetadataForTesting(
+                observerPoint: observerPoint,
+                geographyHealth: geographyHealth,
+            )
+            guard let presentation = projectionPresentationState.replacingVisible(visible) else {
+                assertionFailure("Test metadata must preserve the active projection View")
+                return
+            }
+            projectionPresentationState = presentation
+        }
+
+        @_spi(Testing) public func replacePendingAirAndSpaceFrameForTesting(
+            _ frame: AirAndSpaceExperienceFrame,
+        ) {
+            replacePendingAirAndSpaceFrame(frame)
+        }
+
     #endif
 
     private func performColdLaunch() async {
