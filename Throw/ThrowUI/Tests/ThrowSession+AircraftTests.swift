@@ -47,7 +47,7 @@ struct ThrowSessionAircraftTests {
         #expect(session.projectionFrame == firstPublication.frame)
         #expect(session.observerMapPoint == firstPublication.observerPoint)
 
-        session.confirmedLocation = secondLocation
+        session.replaceConfirmedLocationForTesting(secondLocation)
         session.replacePendingAirAndSpaceFrameForTesting(secondFrame)
         session.restartRenderer()
         await gate.waitForSuspensionCount(3)
@@ -215,7 +215,7 @@ struct ThrowSessionAircraftTests {
                 pollingInterval: .defaultValue,
             ),
         )
-        session.aircraftSourceSelection = .configured(configuration)
+        session.replaceSourceSelectionForTesting(.configured(configuration))
         session.flightradar24CredentialState = .saved(lastFour: "1234")
         session.activePollingSignature = try PollingSignature(
             configuration: configuration,

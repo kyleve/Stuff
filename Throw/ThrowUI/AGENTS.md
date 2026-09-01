@@ -79,6 +79,8 @@ Read the root [`AGENTS.md`](../../AGENTS.md) and group
   validated source and location values atomically through that state. Persist a
   replacement location before publishing it, and invalidate the old projection
   context before the new observer becomes visible.
+- Keep source and location projections getter-only. Change them through their
+  persisted session command, except for DEBUG Testing SPI fixture methods.
 - Put every preference write through the session's owned queue. Coalesce only
   adjacent UI snapshots, preserve immediate-write barriers, and flush the queue
   when the final controller scene backgrounds.
