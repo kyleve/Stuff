@@ -335,6 +335,13 @@ final class OnboardingFlowModel {
 
     private func complete() async {
         guard let selectedMode, let validatedSourceDraft else { return }
+        let quietSchedule: QuietSchedule
+        do {
+            quietSchedule = try draftQuietSchedule()
+        } catch {
+            assertionFailure("Validated onboarding quiet hours must produce a schedule: \(error)")
+            return
+        }
         await session.completeOnboarding(
             locationMode: locationMode,
             latitude: latitude,
@@ -350,9 +357,7 @@ final class OnboardingFlowModel {
             flipsVertically: flipsVertically,
             safeInsetPercent: safeInsetPercent,
             calibrationVerified: calibrationVerified,
-            quietEnabled: quietEnabled,
-            quietStart: quietStart,
-            quietEnd: quietEnd,
+            quietSchedule: quietSchedule,
         )
     }
 

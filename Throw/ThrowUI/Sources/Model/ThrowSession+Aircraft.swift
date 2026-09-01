@@ -39,19 +39,11 @@ extension ThrowSession {
         }
     }
 
-    public var quietScheduleIsValid: Bool {
-        guard quietHoursEnabled else { return true }
-        let start = calendar.dateComponents([.hour, .minute], from: quietStart)
-        let end = calendar.dateComponents([.hour, .minute], from: quietEnd)
-        return start.hour != end.hour || start.minute != end.minute
-    }
-
     func adsbExchangeUsageEstimate(intervalSeconds: Int) -> ADSBExchangeUsageEstimate {
         do {
-            let schedule = quietScheduleIsValid ? try quietSchedule() : .disabled
             return try ADSBExchangeUsageEstimator.estimate(
                 pollingInterval: PollingInterval(seconds: intervalSeconds),
-                quietSchedule: schedule,
+                quietSchedule: quietSchedule,
             )
         } catch {
             assertionFailure("Validated settings must produce a usage estimate: \(error)")
@@ -67,11 +59,10 @@ extension ThrowSession {
         intervalSeconds: Int,
     ) -> Flightradar24CreditEstimate? {
         do {
-            let schedule = quietScheduleIsValid ? try quietSchedule() : .disabled
             return try Flightradar24CreditEstimator.estimate(
                 report: report,
                 pollingInterval: PollingInterval(seconds: intervalSeconds),
-                quietSchedule: schedule,
+                quietSchedule: quietSchedule,
                 requestMultiplicity: Flightradar24RequestMultiplicity.livePosition(
                     for: aircraftQuery(),
                 ),

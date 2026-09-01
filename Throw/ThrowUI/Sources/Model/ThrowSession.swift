@@ -268,25 +268,23 @@ public final class ThrowSession {
         }
     }
 
-    public var quietHoursEnabled: Bool {
+    public internal(set) var quietSchedule: QuietSchedule {
         didSet {
-            guard oldValue != quietHoursEnabled, isApplyingPreferences == false else { return }
+            guard oldValue != quietSchedule, isApplyingPreferences == false else { return }
             settingsChanged(reconcilesDemand: true)
         }
+    }
+
+    public var quietHoursEnabled: Bool {
+        quietSchedule.interval != nil
     }
 
     public var quietStart: Date {
-        didSet {
-            guard oldValue != quietStart, isApplyingPreferences == false else { return }
-            settingsChanged(reconcilesDemand: true)
-        }
+        Self.date(for: quietSchedule.interval?.start, fallbackHour: 22, calendar: calendar)
     }
 
     public var quietEnd: Date {
-        didSet {
-            guard oldValue != quietEnd, isApplyingPreferences == false else { return }
-            settingsChanged(reconcilesDemand: true)
-        }
+        Self.date(for: quietSchedule.interval?.end, fallbackHour: 7, calendar: calendar)
     }
 
     public private(set) var isCalibrating = false
@@ -436,17 +434,7 @@ public final class ThrowSession {
         flipVertical = preferences.calibration.flipVertical
         safeInsetPercent = preferences.calibration.safeInsetFraction * 100
         calibrationVerified = preferences.calibration.verifiedOnExternalDisplay
-        quietHoursEnabled = preferences.quietSchedule.interval != nil
-        quietStart = Self.date(
-            for: preferences.quietSchedule.interval?.start,
-            fallbackHour: 22,
-            calendar: calendar,
-        )
-        quietEnd = Self.date(
-            for: preferences.quietSchedule.interval?.end,
-            fallbackHour: 7,
-            calendar: calendar,
-        )
+        quietSchedule = preferences.quietSchedule
         projectionFrame = ProjectionFrame(
             mode: preferences.selectedProjectionMode ?? .map,
             generatedAt: dateProvider.now(),

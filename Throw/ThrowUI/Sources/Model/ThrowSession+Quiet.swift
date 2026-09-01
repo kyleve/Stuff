@@ -8,12 +8,7 @@ extension ThrowSession {
         if let temporaryWakeUntil, temporaryWakeUntil > now {
             return false
         }
-        do {
-            return try quietSchedule().isQuiet(at: now, calendar: calendar)
-        } catch {
-            settingsFailure = error.localizedDescription
-            return false
-        }
+        return quietSchedule.isQuiet(at: now, calendar: calendar)
     }
 
     public func wakeQuietly(for wake: TemporaryQuietWake) {
@@ -31,13 +26,7 @@ extension ThrowSession {
         quietBoundaryTask = nil
         guard hasForegroundControllerScene else { return }
         let now = dateProvider.now()
-        let boundary: Date?
-        do {
-            boundary = try quietSchedule().nextBoundary(after: now, calendar: calendar)
-        } catch {
-            settingsFailure = error.localizedDescription
-            return
-        }
+        let boundary = quietSchedule.nextBoundary(after: now, calendar: calendar)
         let wake = [boundary, temporaryWakeUntil]
             .compactMap(\.self)
             .filter { $0 > now }
