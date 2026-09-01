@@ -58,24 +58,70 @@ struct ProjectionActivationLease: Equatable, Hashable {
 
 /// Rejects lifecycle commands older than the newest lease observed for one experience.
 struct ProjectionActivationLeaseTracker {
+    private enum Lifecycle {
+        case idle
+        case active(ProjectionActivationLease)
+        case inactive(latestGeneration: ProjectionActivationLease.Generation)
+    }
+
     let experienceID: ProjectionExperienceID
-    private(set) var activeLease: ProjectionActivationLease?
-    private var latestGeneration: ProjectionActivationLease.Generation?
+    private var lifecycle = Lifecycle.idle
+
+    var activeLease: ProjectionActivationLease? {
+        guard case let .active(lease) = lifecycle else { return nil }
+        return lease
+    }
 
     mutating func activate(_ lease: ProjectionActivationLease) -> Bool {
-        guard lease.experienceID == experienceID,
-              latestGeneration.map({ lease.generation >= $0 }) ?? true
-        else { return false }
-        activeLease = lease
-        latestGeneration = lease.generation
-        return true
+        guard lease.experienceID == experienceID else { return false }
+        switch lifecycle {
+            case .idle:
+                lifecycle = .active(lease)
+                return true
+            case let .active(currentLease):
+                guard lease.generation >= currentLease.generation else { return false }
+                lifecycle = .active(lease)
+                return true
+            case let .inactive(latestGeneration):
+                guard lease.generation > latestGeneration else { return false }
+                lifecycle = .active(lease)
+                return true
+        }
     }
 
     mutating func deactivate(_ lease: ProjectionActivationLease) -> Bool {
-        guard activeLease == lease else { return false }
-        activeLease = nil
-        return true
+        guard lease.experienceID == experienceID else { return false }
+        switch lifecycle {
+            case .idle:
+                lifecycle = .inactive(latestGeneration: lease.generation)
+                return true
+            case let .active(activeLease):
+                guard lease.generation >= activeLease.generation else { return false }
+                lifecycle = .inactive(latestGeneration: lease.generation)
+                return true
+            case let .inactive(latestGeneration):
+                guard lease.generation >= latestGeneration else { return false }
+                lifecycle = .inactive(latestGeneration: lease.generation)
+                return true
+        }
     }
+
+    mutating func synchronize(with authoritativeLease: ProjectionActivationLease?) {
+        if let authoritativeLease {
+            _ = activate(authoritativeLease)
+        } else if case let .active(activeLease) = lifecycle {
+            lifecycle = .inactive(latestGeneration: activeLease.generation)
+        }
+    }
+}
+
+enum ProjectionActivationLeaseRenewal: Equatable {
+    case replaced(from: ProjectionActivationLease, to: ProjectionActivationLease)
+    case retired(lease: ProjectionActivationLease)
+    case superseded(
+        expected: ProjectionActivationLease,
+        current: ProjectionActivationLease,
+    )
 }
 
 enum ProjectionExperienceCoordinatorAction: Equatable {
@@ -346,6 +392,46 @@ actor ProjectionExperienceCoordinator {
         return state.lease
     }
 
+    /// Retires one exact running lease for a projection-context replacement.
+    /// The active View receives a coordinator-minted successor in the same actor turn.
+    func renewActivationLease(
+        _ expectedLease: ProjectionActivationLease,
+    ) -> ProjectionActivationLeaseRenewal {
+        let id = expectedLease.experienceID
+        guard let runtime = runtimeStates[id] else {
+            return .retired(lease: expectedLease)
+        }
+        guard let currentLease = runtime.lease else {
+            assertionFailure("A coordinator runtime must retain its last minted lease")
+            return .retired(lease: expectedLease)
+        }
+        guard currentLease == expectedLease else {
+            return .superseded(expected: expectedLease, current: currentLease)
+        }
+
+        let requestUsesExpectedLease = requestState?.request.lease == expectedLease
+        if requestUsesExpectedLease {
+            clearRequest()
+            manualSelectionFailure = nil
+        }
+        if requestUsesExpectedLease || activeExperienceID == id {
+            cancelRotation()
+        }
+        guard runtime.isRunning else {
+            publishState()
+            return .retired(lease: expectedLease)
+        }
+        deactivateRuntime(id)
+
+        guard demand.permitsProjection, activeExperienceID == id else {
+            publishState()
+            return .retired(lease: expectedLease)
+        }
+        let replacementLease = activateRuntime(id, role: .active)
+        publishState()
+        return .replaced(from: expectedLease, to: replacementLease)
+    }
+
     func currentState() -> ProjectionExperienceCoordinatorState {
         stateValue()
     }
@@ -410,7 +496,10 @@ actor ProjectionExperienceCoordinator {
         health: FeedHealth,
     ) async {
         let id = lease.experienceID
-        guard var runtime = runtimeStates[id], runtime.lease == lease else { return }
+        guard var runtime = runtimeStates[id],
+              runtime.isRunning,
+              runtime.lease == lease
+        else { return }
         runtime.health = health
         if successfulLease == lease {
             runtime.successfulLease = lease

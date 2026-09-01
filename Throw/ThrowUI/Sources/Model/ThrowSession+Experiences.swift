@@ -197,9 +197,9 @@ extension ThrowSession {
             ),
         )
         guard projectionPreferenceInvalidation == nil else { return }
-        if let lease = await experienceCoordinator.activationLease(for: .airAndSpace) {
-            _ = airAndSpaceActivation.activate(lease)
-        }
+        let authoritativeLease = await experienceCoordinator.activationLease(for: .airAndSpace)
+        guard projectionPreferenceInvalidation == nil else { return }
+        airAndSpaceActivation.synchronize(with: authoritativeLease)
     }
 
     private var configuredExperienceIDs: Set<ProjectionExperienceID> {
@@ -213,6 +213,8 @@ extension ThrowSession {
         await experienceCoordinator.configure(configuration)
         let state = await experienceCoordinator.currentState()
         applyExperienceCoordinatorState(state)
+        let authoritativeLease = await experienceCoordinator.activationLease(for: .airAndSpace)
+        airAndSpaceActivation.synchronize(with: authoritativeLease)
     }
 
     private func replaceProjectionPlaylist(

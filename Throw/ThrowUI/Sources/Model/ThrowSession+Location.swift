@@ -414,7 +414,7 @@ extension ThrowSession {
                 invalidation = committedInvalidation
         }
 
-        await finishProjectionPreferenceInvalidation(invalidation)
+        _ = await finishProjectionPreferenceInvalidation(invalidation)
         await configureExperienceCoordinator(with: projectionPlaylist)
         completeProjectionPreferenceInvalidation(invalidation)
         scheduleDemandReconciliation()

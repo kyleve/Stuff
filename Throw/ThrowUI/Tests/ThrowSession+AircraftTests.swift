@@ -82,13 +82,12 @@ struct ThrowSessionAircraftTests {
         let semanticFrame = projectionTestAirFrame(
             observedAt: Date(timeIntervalSince1970: 100),
         )
-        let lease = ProjectionActivationLease(
-            experienceID: .airAndSpace,
-            generation: .init(rawValue: 1),
-        )
-        let activated = session.airAndSpaceActivation.activate(lease)
-        #expect(activated)
         session.outputDemands.insert(.preview(ProjectionOutputID(rawValue: "source-invalidation")))
+        await session.reconcileExperienceDemand(isQuiet: false)
+        let lease = try #require(
+            await session.experienceCoordinator.activationLease(for: .airAndSpace),
+        )
+        #expect(session.airAndSpaceActivation.activeLease == lease)
         session.replacePendingAirAndSpaceFrameForTesting(semanticFrame)
         let publicationGate = ProjectionPublicationGate()
         let deactivationGate = ProjectionPublicationGate()
@@ -120,24 +119,119 @@ struct ThrowSessionAircraftTests {
         #expect(session.visibleProjection.semanticFrame == .airAndSpace(.empty))
 
         session.beforePublishingProjectionForTesting = nil
+        session.outputDemands.removeAll()
         await deactivationGate.releaseAll()
         #expect(await sourceChange.value)
+        await session.demandTask?.value
         session.stopRenderer()
         session.beforeProjectionPreferenceRuntimeDeactivationForTesting = nil
     }
 
-    @Test func staleRuntimeUpdateCannotReplaceTheCurrentActivationState() async throws {
-        let session = ThrowSession.fixture()
-        let signature = try PollingSignature(
+    @Test func samePermitSourceReconfigurationRenewsLeaseAndPhysicalPoller() async throws {
+        let preferences = ThrowPreferences.defaultValue.airAndSpace.replacingGeography(
+            .defaultValue.replacingIsEnabled(false),
+        )
+        let session = ThrowSession.fixture(airAndSpacePreferences: preferences)
+        session.outputDemands.insert(.preview(.init(rawValue: "source-reconfiguration")))
+        session.projectionSessionLocationGate = .ready
+        await session.reconcileExperienceDemand(isQuiet: false)
+        let originalLease = try #require(
+            await session.experienceCoordinator.activationLease(for: .airAndSpace),
+        )
+        #expect(session.airAndSpaceActivation.activeLease == originalLease)
+        let originalActivation = try await session.airAndSpaceRuntime.activate(
             configuration: .adsbLol,
             query: session.aircraftQuery(),
+            labelMode: session.labelMode,
+            lease: originalLease,
         )
+        guard case let .accepted(originalUpdate) = originalActivation else {
+            Issue.record("The original coordinator lease must start its physical poller")
+            return
+        }
+        let originalPollingActivation = try #require(
+            await session.airAndSpaceRuntime.activePollingActivationForTesting(),
+        )
+        #expect(originalUpdate.activationLease == originalLease)
+        #expect(originalUpdate.activePollingSignature?.configuration == .adsbLol)
+
+        let replacementURL = try #require(
+            URL(string: "http://readsb.local/tar1090/data/aircraft.json"),
+        )
+        let replacementConfiguration = try AircraftSourceConfiguration.readsb(
+            ReadsbConfiguration(aircraftJSONURL: replacementURL),
+        )
+        let invalidation = session.prepareProjectionPreferencePublication(.aircraftSource)
+        #expect(session.airAndSpaceActivation.activeLease == nil)
+        let renewal = try #require(
+            await session.finishProjectionPreferenceInvalidation(invalidation),
+        )
+        guard case let .replaced(from, replacementLease) = renewal else {
+            Issue.record("The active View must receive a replacement coordinator lease")
+            return
+        }
+        #expect(from == originalLease)
+        #expect(replacementLease.generation > originalLease.generation)
+        #expect(await session.airAndSpaceRuntime.currentUpdate().activationLease == nil)
+
+        session.replaceSourceSelectionForTesting(.configured(replacementConfiguration))
+        await session.configureExperienceCoordinator(with: session.projectionPlaylist)
+        #expect(session.airAndSpaceActivation.activeLease == replacementLease)
+        session.completeProjectionPreferenceInvalidation(invalidation)
+
+        // The direct coordinator read can overtake these queued commands.
+        await session.applyExperienceCoordinatorAction(.deactivate(lease: originalLease))
+        await session.applyExperienceCoordinatorAction(.activate(
+            lease: originalLease,
+            role: .active,
+        ))
+        #expect(session.airAndSpaceActivation.activeLease == replacementLease)
+        let authoritativeReplacement = try #require(
+            await session.experienceCoordinator.activationLease(for: .airAndSpace),
+        )
+        #expect(authoritativeReplacement == replacementLease)
+        #expect(session.outputDemands.isEmpty == false)
+        #expect(session.hasForegroundControllerSceneForTesting)
+        #expect(session.isQuietNow == false)
+        #expect(session.isCalibrating == false)
+        await session.reconcileExperienceDemand(isQuiet: session.isQuietNow)
+        #expect(session.airAndSpaceActivation.activeLease == replacementLease)
+
+        await session.reconcileDemand(generation: session.demandGeneration)
+        let replacementUpdate = await session.airAndSpaceRuntime.currentUpdate()
+        let replacementPollingActivation = try #require(
+            await session.airAndSpaceRuntime.activePollingActivationForTesting(),
+        )
+        #expect(
+            await session.experienceCoordinator.activationLease(for: .airAndSpace) ==
+                replacementLease,
+        )
+        #expect(replacementUpdate.activationLease == replacementLease)
+        #expect(replacementUpdate.activePollingSignature?.configuration == replacementConfiguration)
+        #expect(replacementPollingActivation != originalPollingActivation)
+
+        await session.applyExperienceCoordinatorAction(.deactivate(lease: originalLease))
+        #expect(await session.airAndSpaceRuntime.currentUpdate()
+            .activationLease == replacementLease)
+        #expect(
+            await session.airAndSpaceRuntime.activePollingActivationForTesting() ==
+                replacementPollingActivation,
+        )
+
+        session.stopRenderer()
+        await session.airAndSpaceRuntime.deactivate(
+            lease: replacementLease,
+            reporting: .idle,
+        )
+    }
+
+    @Test func staleRuntimeUpdateCannotReplaceTheCurrentActivationState() async {
+        let session = ThrowSession.fixture()
         let currentLease = ProjectionActivationLease(
             experienceID: .airAndSpace,
             generation: .init(rawValue: 2),
         )
         _ = session.airAndSpaceActivation.activate(currentLease)
-        session.activePollingSignature = signature
         let previousHealth = session.feedHealth
 
         await session.applyAirAndSpaceUpdate(AirAndSpaceRuntimeUpdate(
@@ -159,7 +253,7 @@ struct ThrowSessionAircraftTests {
             semanticPreparationState: .ready,
         ))
 
-        #expect(session.activePollingSignature == signature)
+        #expect(session.airAndSpaceActivation.activeLease == currentLease)
         #expect(session.feedHealth == previousHealth)
     }
 
@@ -177,15 +271,11 @@ struct ThrowSessionAircraftTests {
             generation: .init(rawValue: 1),
         )
         _ = session.airAndSpaceActivation.activate(activationLease)
-        await session.airAndSpaceRuntime.activate(
+        _ = await session.airAndSpaceRuntime.activate(
             configuration: .adsbLol,
             query: query,
             labelMode: session.labelMode,
             lease: activationLease,
-        )
-        session.activePollingSignature = try PollingSignature(
-            configuration: .adsbLol,
-            query: query,
         )
         session.publishPostLaunchFailure(.flightradar24Credential)
         let replacement = try AircraftCredential(secret: "fr24-replacement-1234")
@@ -199,7 +289,10 @@ struct ThrowSessionAircraftTests {
 
         #expect(applied == false)
         #expect(session.sourceChoice == .adsbLol)
-        #expect(session.activePollingSignature?.configuration == .adsbLol)
+        #expect(
+            await session.airAndSpaceRuntime.currentUpdate().activePollingSignature?
+                .configuration == .adsbLol,
+        )
         #expect(session.feedHealth == previousHealth)
         #expect(session.flightradar24CredentialState == .missing)
         #expect(await credentialStore.credential(for: .flightradar24) == nil)
@@ -318,9 +411,17 @@ struct ThrowSessionAircraftTests {
         )
         session.replaceSourceSelectionForTesting(.configured(configuration))
         session.flightradar24CredentialState = .saved(lastFour: "1234")
-        session.activePollingSignature = try PollingSignature(
+        let activationLease = ProjectionActivationLease(
+            experienceID: .airAndSpace,
+            generation: .init(rawValue: 1),
+        )
+        let activated = session.airAndSpaceActivation.activate(activationLease)
+        #expect(activated)
+        _ = try await session.airAndSpaceRuntime.activate(
             configuration: configuration,
             query: session.aircraftQuery(),
+            labelMode: session.labelMode,
+            lease: activationLease,
         )
         let previousHealth = session.feedHealth
 
@@ -328,10 +429,13 @@ struct ThrowSessionAircraftTests {
 
         #expect(deleted == false)
         #expect(session.sourceChoice == .flightradar24)
-        #expect(session.activePollingSignature?.configuration == configuration)
+        let runtime = await session.airAndSpaceRuntime.currentUpdate()
+        #expect(runtime.activationLease == activationLease)
+        #expect(runtime.activePollingSignature?.configuration == configuration)
         #expect(session.feedHealth == previousHealth)
         #expect(session.flightradar24CredentialState == .saved(lastFour: "1234"))
         #expect(await credentialStore.credential(for: .flightradar24) == credential)
+        await session.airAndSpaceRuntime.deactivate(lease: activationLease, reporting: .idle)
     }
 }
 

@@ -327,7 +327,7 @@ struct ThrowSessionTests {
         let renderTask = session.renderTask
         await renderTask?.value
 
-        #expect(session.activePollingSignature == nil)
+        #expect(await session.airAndSpaceRuntime.currentUpdate().activePollingSignature == nil)
         #expect(session.feedHealth == .idle)
         #expect(session.projectionFrame.geography != nil)
         #expect(session.renderTask == nil)

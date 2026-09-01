@@ -46,12 +46,18 @@ Read the root [`AGENTS.md`](../../AGENTS.md) and group
   deactivate commands. Never mint a coordinator activation generation in a runtime.
 - Expose a coordinator activation lease only while its runtime is running.
   Never restore a stopped lease during session demand reconciliation.
+- Renew an exact running lease before a source or observer replacement drains
+  the physical runtime. Retire and remint it in one coordinator actor turn.
+- Synchronize the coordinator's optional lease in both directions while the
+  invalidation gate is active. Treat an equal inactive generation as tombstoned.
 - Store a matching activation lease in each production rendered projection.
   Block local reactivation while a source or observer replacement drains.
 - Invalidate superseded Air & Space lifecycle work after every suspension.
   Never let an old activation or deactivation change newer runtime state.
 - Accept polling state only for the exact Core activation token. Read the
   current polling update after activation to recover an early publication.
+- Publish a runtime polling signature only after Core accepts its physical
+  activation. Read the runtime's exact lease and signature during reconciliation.
 - Treat each Air & Space deactivation generation as a monotonic runtime tombstone.
   A newer teardown retires older work. An older teardown cannot stop a newer lease.
 - Keep one coordinator timer across all scenes. Run at most the active and

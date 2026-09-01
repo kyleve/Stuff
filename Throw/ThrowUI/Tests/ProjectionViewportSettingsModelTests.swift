@@ -20,13 +20,12 @@ struct ProjectionViewportSettingsModelTests {
         )
         let activated = session.airAndSpaceActivation.activate(activationLease)
         #expect(activated)
-        await session.airAndSpaceRuntime.activate(
+        _ = await session.airAndSpaceRuntime.activate(
             configuration: .adsbLol,
             query: activeSignature.query,
             labelMode: session.labelMode,
             lease: activationLease,
         )
-        session.activePollingSignature = activeSignature
         let demandGeneration = session.demandGeneration
         let model = ProjectionViewportSettingsModel(session: session)
 
@@ -36,7 +35,10 @@ struct ProjectionViewportSettingsModelTests {
         #expect(model.mapViewportIsValid == false)
         #expect(session.mapRadius == MapViewport.defaultValue.radius.value)
         #expect(session.demandGeneration == demandGeneration)
-        #expect(session.activePollingSignature == activeSignature)
+        #expect(
+            await session.airAndSpaceRuntime.currentUpdate().activePollingSignature ==
+                activeSignature,
+        )
         #expect(await preferenceStore.startedSaveCount() == 0)
         #expect(await session.airAndSpaceRuntime.activeSourceKindForTesting() == .adsbLol)
 

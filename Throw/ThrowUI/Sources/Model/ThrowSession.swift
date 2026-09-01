@@ -424,7 +424,6 @@ public final class ThrowSession {
     @ObservationIgnored var currentSnapshot: AircraftSnapshot?
     var outputDemands: Set<ProjectionOutput> = []
     @ObservationIgnored var temporaryWakeUntil: Date?
-    @ObservationIgnored var activePollingSignature: PollingSignature?
     @ObservationIgnored var demandGeneration: UInt64 = 0
     @ObservationIgnored var renderGeneration: UInt64 = 0
     @ObservationIgnored var projectionInputRevision = ProjectionFrameRequest.Revision.initial

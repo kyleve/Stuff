@@ -265,7 +265,7 @@ struct ThrowSessionExperiencesTests {
         #expect(session.projectionPresentationStaging?.targetLease == nil)
         #expect(session.visibleProjection.experienceID == .transit)
 
-        await session.finishProjectionPreferenceInvalidation(invalidation)
+        _ = await session.finishProjectionPreferenceInvalidation(invalidation)
         session.completeProjectionPreferenceInvalidation(invalidation)
     }
 
@@ -318,7 +318,7 @@ struct ThrowSessionExperiencesTests {
         #expect(session.visibleProjection.experienceID == .transit)
 
         session.waitForProjectionFadeOutForTesting = nil
-        await session.finishProjectionPreferenceInvalidation(invalidation)
+        _ = await session.finishProjectionPreferenceInvalidation(invalidation)
         session.completeProjectionPreferenceInvalidation(invalidation)
     }
 
@@ -378,6 +378,37 @@ struct ThrowSessionExperiencesTests {
         await session.applyExperienceCoordinatorAction(.deactivate(lease: oldLease))
 
         #expect(session.airAndSpaceActivation.activeLease == replacementLease)
+    }
+
+    @Test func delayedEqualDeactivationStillStopsRuntimeAfterDirectNilSync() async throws {
+        let session = ThrowSession.fixture()
+        let lease = ProjectionActivationLease(
+            experienceID: .airAndSpace,
+            generation: .init(rawValue: 1),
+        )
+        let activated = session.airAndSpaceActivation.activate(lease)
+        #expect(activated)
+        let activation = try await session.airAndSpaceRuntime.activate(
+            configuration: .adsbLol,
+            query: session.aircraftQuery(),
+            labelMode: session.labelMode,
+            lease: lease,
+        )
+        guard case .accepted = activation else {
+            Issue.record("The physical runtime must accept the coordinator lease")
+            return
+        }
+
+        session.airAndSpaceActivation.synchronize(with: nil)
+        #expect(session.airAndSpaceActivation.activeLease == nil)
+        #expect(await session.airAndSpaceRuntime.currentUpdate().activationLease == lease)
+
+        await session.applyExperienceCoordinatorAction(.deactivate(lease: lease))
+
+        let runtime = await session.airAndSpaceRuntime.currentUpdate()
+        #expect(runtime.activationLease == nil)
+        #expect(runtime.activePollingSignature == nil)
+        #expect(await session.airAndSpaceRuntime.activePollingActivationForTesting() == nil)
     }
 
     @Test func stoppedCoordinatorLeaseCannotReappearAfterItsDeactivationAction() async throws {
