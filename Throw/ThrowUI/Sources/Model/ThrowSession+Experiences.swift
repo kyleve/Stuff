@@ -74,14 +74,8 @@ extension ThrowSession {
     }
 
     func applyExperienceCoordinatorState(_ state: ProjectionExperienceCoordinatorState) {
-        activeExperienceID = state.activeExperienceID
-        requestedExperienceID = state.requestedExperienceID
-        nextExperienceID = state.nextExperienceID
-        prewarmingExperienceID = state.prewarmingExperienceID
-        isExperienceRotationPaused = state.isPaused
-        experienceDwellEndsAt = state.dwellEndsAt
-        experienceHealth = state.healthByExperience
-        experienceSelectionFailure = state.manualSelectionFailure
+        guard experienceCoordinatorState != state else { return }
+        experienceCoordinatorState = state
 
         guard projectionPlaylist.selectedExperienceID != state.activeExperienceID else { return }
         do {
@@ -240,14 +234,15 @@ extension ThrowSession {
             projectionSurfaceOpacity = 1
             return
         }
-        guard await experienceCoordinator.commitTransition(to: lease) else {
+        guard let committedState = await experienceCoordinator.commitTransitionState(to: lease)
+        else {
             withAnimation(.linear(duration: fadeDuration)) {
                 projectionSurfaceOpacity = 1
             }
             return
         }
         // The active identity and complete frame exchange only while the surface is black.
-        activeExperienceID = to
+        applyExperienceCoordinatorState(committedState)
         projectionFrame = prepared.output.frame
         projectionMarkEffects = prepared.output.effects
         observerMapPoint = prepared.output.observerPoint

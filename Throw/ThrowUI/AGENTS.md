@@ -26,6 +26,8 @@ Read the root [`AGENTS.md`](../../AGENTS.md) and group
   prewarming experience runtimes.
 - Keep the coordinator playlist and active identity in one validated value.
   A nonempty playlist must always have an active identity from that playlist.
+- Publish the coordinator's complete state as one session value. Derive its
+  public fields and the projection-output count instead of mirroring them.
 - Give each playlist configuration a monotonic revision. Reject configurations
   that arrive after a newer revision.
 - Keep coordinator command delivery lossless. Revalidate revision, demand,

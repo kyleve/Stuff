@@ -15,21 +15,52 @@ public enum GeographyLayerHealth: Equatable, Sendable {
 @Observable
 public final class ThrowSession {
     public internal(set) var setupState: ThrowSetupState
+    var experienceCoordinatorState: ProjectionExperienceCoordinatorState
+
     /// Compatibility access for Air & Space callers while health remains keyed by experience.
     public internal(set) var feedHealth: FeedHealth {
         get { experienceHealth[.airAndSpace] ?? .idle }
-        set { experienceHealth[.airAndSpace] = newValue }
+        set {
+            experienceCoordinatorState = experienceCoordinatorState.updatingHealth(
+                newValue,
+                for: .airAndSpace,
+            )
+        }
     }
 
     public internal(set) var projectionPlaylist: ProjectionPlaylist
-    public internal(set) var activeExperienceID: ProjectionExperienceID?
-    public internal(set) var requestedExperienceID: ProjectionExperienceID?
-    public internal(set) var nextExperienceID: ProjectionExperienceID?
-    public internal(set) var prewarmingExperienceID: ProjectionExperienceID?
-    public internal(set) var experienceDwellEndsAt: Date?
-    public internal(set) var isExperienceRotationPaused = false
-    public internal(set) var experienceHealth: [ProjectionExperienceID: FeedHealth] = [:]
-    public internal(set) var experienceSelectionFailure: ThrowFailureCategory?
+    public var activeExperienceID: ProjectionExperienceID? {
+        experienceCoordinatorState.activeExperienceID
+    }
+
+    public var requestedExperienceID: ProjectionExperienceID? {
+        experienceCoordinatorState.requestedExperienceID
+    }
+
+    public var nextExperienceID: ProjectionExperienceID? {
+        experienceCoordinatorState.nextExperienceID
+    }
+
+    public var prewarmingExperienceID: ProjectionExperienceID? {
+        experienceCoordinatorState.prewarmingExperienceID
+    }
+
+    public var experienceDwellEndsAt: Date? {
+        experienceCoordinatorState.dwellEndsAt
+    }
+
+    public var isExperienceRotationPaused: Bool {
+        experienceCoordinatorState.isPaused
+    }
+
+    public var experienceHealth: [ProjectionExperienceID: FeedHealth] {
+        experienceCoordinatorState.healthByExperience
+    }
+
+    public var experienceSelectionFailure: ThrowFailureCategory? {
+        experienceCoordinatorState.manualSelectionFailure
+    }
+
     public internal(set) var locationHealth: LocationHealth = .missing
     public internal(set) var projectionFrame: ProjectionFrame
     public internal(set) var observerMapPoint: ProjectionPoint?
@@ -37,7 +68,10 @@ public final class ThrowSession {
     public internal(set) var projectionMarkOpacity = 1.0
     public internal(set) var projectionSurfaceOpacity = 1.0
     public internal(set) var geographyLayerHealth: GeographyLayerHealth = .idle
-    public internal(set) var projectionOutputCount = 0
+    public var projectionOutputCount: Int {
+        outputDemands.count
+    }
+
     public internal(set) var rapidAPICredentialState: CredentialState = .missing
     public internal(set) var flightradar24CredentialState: CredentialState = .missing
     public internal(set) var softwareCredits: [SoftwareCredit]
@@ -273,7 +307,7 @@ public final class ThrowSession {
         ProjectionExperienceID: PreparedProjectionExperience
     ] = [:]
     @ObservationIgnored var currentSnapshot: AircraftSnapshot?
-    @ObservationIgnored var outputDemands: Set<ProjectionOutput> = []
+    var outputDemands: Set<ProjectionOutput> = []
     @ObservationIgnored var temporaryWakeUntil: Date?
     @ObservationIgnored var activePollingSignature: PollingSignature?
     @ObservationIgnored var demandGeneration: UInt64 = 0
@@ -329,14 +363,9 @@ public final class ThrowSession {
         hasForegroundControllerScene = initiallyHasForegroundControllerScene
         setupState = preferences.setupState
         projectionPlaylist = preferences.playlist
-        activeExperienceID = preferences.playlist.selectedExperienceID
-        requestedExperienceID = nil
-        nextExperienceID = preferences.playlist.selectedExperienceID.flatMap(
-            preferences.playlist.experience(after:),
+        experienceCoordinatorState = ProjectionExperienceCoordinatorState(
+            playlist: preferences.playlist,
         )
-        prewarmingExperienceID = nil
-        experienceDwellEndsAt = nil
-        experienceSelectionFailure = nil
         projectionMode = preferences.selectedProjectionMode ?? .map
         mapRadius = preferences.mapViewport.radius.value
         mapCenters = preferences.mapCenters
@@ -542,14 +571,12 @@ public final class ThrowSession {
         if startsProjectionSession {
             projectionSessionLocationGate = .required
         }
-        projectionOutputCount = outputDemands.count
         updateCalibrationState()
         scheduleDemandReconciliation()
     }
 
     public func projectionOutputDisconnected(_ output: ProjectionOutput) {
         guard outputDemands.remove(output) != nil else { return }
-        projectionOutputCount = outputDemands.count
         if outputDemands.isEmpty {
             endProjectionSessionLocationGate()
         }
