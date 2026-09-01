@@ -1,3 +1,4 @@
+import Foundation
 import ThrowCore
 
 /// The process launch state that gates every controller and projection surface.
@@ -31,12 +32,15 @@ public enum ThrowSessionLaunchState: Equatable, Sendable {
 
 /// A recoverable cold-launch error with its failed storage boundary.
 public enum ThrowSessionLaunchFailure: Error, Equatable, Sendable {
-    case preferences(detail: String)
-    case credential(id: AircraftCredentialID, detail: String)
+    case preferences
+    case credential(id: AircraftCredentialID)
 
-    public var detail: String {
+    var userMessage: LocalizedStringResource {
         switch self {
-            case let .preferences(detail), let .credential(_, detail): detail
+            case .preferences:
+                .launchFailurePreferences
+            case .credential:
+                .launchFailureCredential
         }
     }
 }

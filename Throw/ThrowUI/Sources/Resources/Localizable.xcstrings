@@ -1310,6 +1310,39 @@
         }
       }
     },
+    "launch.failure.credential" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Throw could not access its saved aircraft-source credentials. Try again."
+          }
+        }
+      }
+    },
+    "launch.failure.preferences" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Throw could not load its settings. Your settings were not changed. Try again."
+          }
+        }
+      }
+    },
+    "launch.failure.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Throw could not start"
+          }
+        }
+      }
+    },
     "layer.flights" : {
       "extractionState" : "manual",
       "localizations" : {

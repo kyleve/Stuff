@@ -22,6 +22,8 @@ Read the root [`AGENTS.md`](../../AGENTS.md) and group
   failed storage as one typed state. Keep product launch independent of it.
 - Leave loading only after preferences and both credential states load. Treat a
   missing credential as data and a credential access error as launch failure.
+- Show localized recovery text for launch failures. Record the underlying error
+  only in diagnostics.
 - Route every root through `ThrowSessionLaunchState`. Create dashboard and
   projection surfaces only from its loaded cases.
 - Accept aggregate controller foreground presence from the app runtime. Do not
