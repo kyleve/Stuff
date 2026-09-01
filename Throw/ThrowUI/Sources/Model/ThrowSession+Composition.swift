@@ -111,6 +111,17 @@ extension ThrowSession {
         }
 
         @_spi(Testing) public static func fixture(
+            airAndSpacePreferences: AirAndSpacePreferences,
+        ) -> ThrowSession {
+            makeFixture(
+                setupCompleted: true,
+                quiet: false,
+                transport: FixtureHTTPTransport(),
+                airAndSpacePreferencesOverride: airAndSpacePreferences,
+            )
+        }
+
+        @_spi(Testing) public static func fixture(
             preferenceStore: any ThrowPreferenceStore,
             credentialStore: any AircraftCredentialStore,
         ) -> ThrowSession {
@@ -178,11 +189,21 @@ extension ThrowSession {
         }
 
         static func trueSkySnapshotFixture() -> ThrowSession {
-            let session = fixture()
-            session.isApplyingPreferences = true
-            session.projectionMode = .trueSky
-            session.minimumElevation = 10
-            session.isApplyingPreferences = false
+            let skyViewport: SkyViewport
+            do {
+                skyViewport = try SkyViewport(minimumElevation: ElevationAngle(degrees: 10))
+            } catch {
+                preconditionFailure("Snapshot sky viewport must be valid: \(error)")
+            }
+            let airAndSpacePreferences = ThrowPreferences.defaultValue.airAndSpace
+                .replacingSkyViewport(skyViewport)
+            let session = makeFixture(
+                setupCompleted: true,
+                quiet: false,
+                transport: FixtureHTTPTransport(),
+                projectionMode: .trueSky,
+                airAndSpacePreferencesOverride: airAndSpacePreferences,
+            )
             session.projectionFrame = fixtureTrueSkyProjectionFrame(
                 at: session.projectionFrame.generatedAt,
             )
@@ -220,20 +241,27 @@ extension ThrowSession {
         }
 
         static func marksOnlySnapshotFixture() -> ThrowSession {
-            let session = fixture()
-            session.isApplyingPreferences = true
-            session.labelMode = .marksOnly
-            session.isApplyingPreferences = false
+            let airAndSpacePreferences = ThrowPreferences.defaultValue.airAndSpace
+                .replacingLabelMode(.marksOnly)
+            let session = makeFixture(
+                setupCompleted: true,
+                quiet: false,
+                transport: FixtureHTTPTransport(),
+                airAndSpacePreferencesOverride: airAndSpacePreferences,
+            )
             session.projectionFrame = mapLabels(in: session.projectionFrame) { _ in nil }
             return session
         }
 
         static func callsignsSnapshotFixture() -> ThrowSession {
-            let session = fixture()
-            session.isApplyingPreferences = true
-            session.labelMode = .callsigns
-            session.isApplyingPreferences = false
-            return session
+            let airAndSpacePreferences = ThrowPreferences.defaultValue.airAndSpace
+                .replacingLabelMode(.callsigns)
+            return makeFixture(
+                setupCompleted: true,
+                quiet: false,
+                transport: FixtureHTTPTransport(),
+                airAndSpacePreferencesOverride: airAndSpacePreferences,
+            )
         }
 
         static func denseAdaptiveSnapshotFixture() -> ThrowSession {
@@ -374,14 +402,20 @@ extension ThrowSession {
 
         static func calibrationSnapshotFixture() -> ThrowSession {
             let session = fixture()
-            session.previewCalibration(
-                screenTopBearing: 287,
-                rotation: .degrees90,
-                flipsHorizontally: true,
-                flipsVertically: false,
-                safeInsetPercent: 12,
-                calibrationVerified: false,
-            )
+            let calibration: ProjectionCalibration
+            do {
+                calibration = try ProjectionCalibration(
+                    screenTopBearing: Bearing(degrees: 287),
+                    rotation: .degrees90,
+                    flipHorizontal: true,
+                    flipVertical: false,
+                    safeInsetFraction: 0.12,
+                    verifiedOnExternalDisplay: false,
+                )
+            } catch {
+                preconditionFailure("Snapshot calibration must be valid: \(error)")
+            }
+            session.previewCalibration(calibration)
             session.projectionOutputConnected(
                 .calibration(ProjectionOutputID(rawValue: "snapshot-calibration")),
             )
@@ -549,6 +583,8 @@ extension ThrowSession {
             credentialStoreOverride: (any AircraftCredentialStore)? = nil,
             durableLoggingStarterOverride: (any ThrowDurableLoggingStarting)? = nil,
             initialLaunchStateOverride: ThrowSessionLaunchState? = nil,
+            projectionMode: ProjectionMode = .map,
+            airAndSpacePreferencesOverride: AirAndSpacePreferences? = nil,
         ) -> ThrowSession {
             do {
                 let now = Date(timeIntervalSince1970: 1_787_594_400)
@@ -568,7 +604,7 @@ extension ThrowSession {
                             source: source,
                             locationMode: .gps,
                             confirmedLocation: confirmed,
-                            projectionMode: .map,
+                            projectionMode: projectionMode,
                         ),
                     )
                 } else {
@@ -585,7 +621,7 @@ extension ThrowSession {
                     intensityPercent: 80,
                     quietSchedule: .disabled,
                 )
-                let airAndSpace = try AirAndSpacePreferences(
+                let airAndSpace = try airAndSpacePreferencesOverride ?? AirAndSpacePreferences(
                     mapViewport: .defaultValue,
                     mapCenters: .defaultValue,
                     skyViewport: .defaultValue,

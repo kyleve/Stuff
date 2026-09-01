@@ -513,8 +513,9 @@ private struct ProjectionLinesCanvas: View, Equatable {
                 configurations: statusConfigurations,
                 settle: .immediate,
             ) {
-                let session = ThrowSession.fixture()
-                session.airlineAccentsEnabled = false
+                let preferences = ThrowPreferences.defaultValue.airAndSpace
+                    .replacingAirlineAccentsEnabled(false)
+                let session = ThrowSession.fixture(airAndSpacePreferences: preferences)
                 return ProjectionSurface(session: session, presentation: .preview)
                     .throwBroadwayRoot()
             }

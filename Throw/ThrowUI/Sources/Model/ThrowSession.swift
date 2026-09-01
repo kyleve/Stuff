@@ -136,145 +136,88 @@ public final class ThrowSession {
     public internal(set) var softwareCredits: [SoftwareCredit]
     public internal(set) var settingsFailure: String?
 
+    public internal(set) var globalPreferences: ThrowGlobalPreferences
+    public internal(set) var airAndSpacePreferences: AirAndSpacePreferences
+    var calibrationPreview: ProjectionCalibration?
+
     public var projectionMode: ProjectionMode {
-        didSet {
-            guard oldValue != projectionMode, isApplyingPreferences == false else { return }
-            setupState = setupState.updatingProjectionMode(projectionMode)
-            projectionInputsChanged(restartsPolling: true)
-        }
+        setupState.selectedProjectionMode ?? .map
     }
 
     public var mapRadius: Double {
-        didSet {
-            guard oldValue != mapRadius, isApplyingPreferences == false else { return }
-            projectionInputsChanged(restartsPolling: true)
-        }
+        airAndSpacePreferences.mapViewport.radius.value
     }
 
-    public internal(set) var mapCenters: MapCenterPreferences
+    public var mapCenters: MapCenterPreferences {
+        airAndSpacePreferences.mapCenters
+    }
 
     public var minimumElevation: Double {
-        didSet {
-            guard oldValue != minimumElevation, isApplyingPreferences == false else { return }
-            projectionInputsChanged(restartsPolling: true)
-        }
+        airAndSpacePreferences.skyViewport.minimumElevation.degrees
     }
 
     public var flightsEnabled: Bool {
-        didSet {
-            guard oldValue != flightsEnabled, isApplyingPreferences == false else { return }
-            projectionInputsChanged(restartsPolling: true)
-        }
+        airAndSpacePreferences.flightsEnabled
     }
 
     public var airlineAccentsEnabled: Bool {
-        didSet {
-            guard oldValue != airlineAccentsEnabled, isApplyingPreferences == false else { return }
-            settingsChanged(reconcilesDemand: false)
-        }
+        airAndSpacePreferences.airlineAccentsEnabled
     }
 
     public var geographyEnabled: Bool {
-        didSet {
-            guard oldValue != geographyEnabled, isApplyingPreferences == false else { return }
-            if geographyEnabled == false {
-                geographyLayerHealth = .idle
-                projectionFrame = projectionFrame.removingGeography()
-            }
-            settingsChanged(reconcilesDemand: false)
-            if flightsEnabled {
-                restartRenderer()
-            } else {
-                scheduleDemandReconciliation()
-            }
-        }
+        airAndSpacePreferences.geography.isEnabled
     }
 
     public var labelMode: FlightLabelMode {
-        didSet {
-            guard oldValue != labelMode, isApplyingPreferences == false else { return }
-            projectionInputsChanged(restartsPolling: false)
-        }
+        airAndSpacePreferences.labelMode
     }
 
     public var includeGroundAircraft: Bool {
-        didSet {
-            guard oldValue != includeGroundAircraft, isApplyingPreferences == false else { return }
-            projectionInputsChanged(restartsPolling: true)
-        }
+        airAndSpacePreferences.includeGroundAircraft
     }
 
     public var markSizePercent: Double {
-        didSet {
-            guard oldValue != markSizePercent, isApplyingPreferences == false else { return }
-            settingsChanged(reconcilesDemand: false)
-        }
+        airAndSpacePreferences.markSizePercent
     }
 
     public var intensityPercent: Double {
-        didSet {
-            guard oldValue != intensityPercent, isApplyingPreferences == false else { return }
-            settingsChanged(reconcilesDemand: false)
-        }
+        globalPreferences.intensityPercent
     }
 
     public var geographyIntensityPercent: Double {
-        didSet {
-            guard oldValue != geographyIntensityPercent,
-                  isApplyingPreferences == false
-            else { return }
-            settingsChanged(reconcilesDemand: false)
-        }
+        airAndSpacePreferences.geography.intensityPercent
+    }
+
+    public var projectionCalibration: ProjectionCalibration {
+        calibrationPreview ?? globalPreferences.calibration
     }
 
     public var screenTopBearing: Double {
-        didSet {
-            guard oldValue != screenTopBearing, isApplyingPreferences == false else { return }
-            mayApplyTrueHeadingHint = false
-            projectionInputsChanged(restartsPolling: false)
-        }
+        projectionCalibration.screenTopBearing.degrees
     }
 
     public var screenRotation: ScreenRotation {
-        didSet {
-            guard oldValue != screenRotation, isApplyingPreferences == false else { return }
-            projectionInputsChanged(restartsPolling: false)
-        }
+        projectionCalibration.rotation
     }
 
     public var flipHorizontal: Bool {
-        didSet {
-            guard oldValue != flipHorizontal, isApplyingPreferences == false else { return }
-            projectionInputsChanged(restartsPolling: false)
-        }
+        projectionCalibration.flipHorizontal
     }
 
     public var flipVertical: Bool {
-        didSet {
-            guard oldValue != flipVertical, isApplyingPreferences == false else { return }
-            projectionInputsChanged(restartsPolling: false)
-        }
+        projectionCalibration.flipVertical
     }
 
     public var safeInsetPercent: Double {
-        didSet {
-            guard oldValue != safeInsetPercent, isApplyingPreferences == false else { return }
-            projectionInputsChanged(restartsPolling: false)
-        }
+        projectionCalibration.safeInsetFraction * 100
     }
 
     public var calibrationVerified: Bool {
-        didSet {
-            guard oldValue != calibrationVerified, isApplyingPreferences == false else { return }
-            projectionInputsChanged(restartsPolling: false)
-        }
+        projectionCalibration.verifiedOnExternalDisplay
     }
 
-    public internal(set) var quietSchedule: QuietSchedule {
-        didSet {
-            guard oldValue != quietSchedule, isApplyingPreferences == false else { return }
-            settingsChanged(reconcilesDemand: true)
-        }
+    public var quietSchedule: QuietSchedule {
+        globalPreferences.quietSchedule
     }
 
     public var quietHoursEnabled: Bool {
@@ -305,7 +248,6 @@ public final class ThrowSession {
     let projectionWorker: ProjectionFrameWorker
     let durableLoggingStarter: (any ThrowDurableLoggingStarting)?
 
-    @ObservationIgnored var isApplyingPreferences = false
     @ObservationIgnored var hasForegroundControllerScene: Bool
     #if DEBUG
         @_spi(Testing) public var hasForegroundControllerSceneForTesting: Bool {
@@ -393,6 +335,7 @@ public final class ThrowSession {
     @ObservationIgnored var flightradar24UsageGeneration: UInt64 = 0
     @ObservationIgnored var preferenceMutationInProgress = false
     @ObservationIgnored var preferenceMutationNeedsSave = false
+    @ObservationIgnored var onboardingCompletionInProgress = false
     #if DEBUG
         @ObservationIgnored @_spi(Testing) public var
             beforeApplyingLocationResolutionForTesting: (() -> Void)?
@@ -426,25 +369,8 @@ public final class ThrowSession {
         experienceCoordinatorState = ProjectionExperienceCoordinatorState(
             playlist: preferences.playlist,
         )
-        projectionMode = preferences.selectedProjectionMode ?? .map
-        mapRadius = preferences.mapViewport.radius.value
-        mapCenters = preferences.mapCenters
-        minimumElevation = preferences.skyViewport.minimumElevation.degrees
-        flightsEnabled = preferences.flightsEnabled
-        airlineAccentsEnabled = preferences.airlineAccentsEnabled
-        geographyEnabled = preferences.geography.isEnabled
-        labelMode = preferences.labelMode
-        includeGroundAircraft = preferences.includeGroundAircraft
-        markSizePercent = preferences.markSizePercent
-        intensityPercent = preferences.intensityPercent
-        geographyIntensityPercent = preferences.geography.intensityPercent
-        screenTopBearing = preferences.calibration.screenTopBearing.degrees
-        screenRotation = preferences.calibration.rotation
-        flipHorizontal = preferences.calibration.flipHorizontal
-        flipVertical = preferences.calibration.flipVertical
-        safeInsetPercent = preferences.calibration.safeInsetFraction * 100
-        calibrationVerified = preferences.calibration.verifiedOnExternalDisplay
-        quietSchedule = preferences.quietSchedule
+        globalPreferences = preferences.global
+        airAndSpacePreferences = preferences.airAndSpace
         projectionFrame = .emptyAirAndSpace(
             mode: preferences.selectedProjectionMode ?? .map,
             generatedAt: dateProvider.now(),

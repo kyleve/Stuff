@@ -225,8 +225,12 @@ struct ThrowSessionTests {
         #expect(session.geographyEnabled)
         #expect(session.geographyIntensityPercent == 8)
 
-        session.geographyEnabled = false
-        session.geographyIntensityPercent = 12
+        let geography = try session.airAndSpacePreferences.geography
+            .replacingIntensityPercent(12)
+            .replacingIsEnabled(false)
+        session.updateAirAndSpacePreferences(
+            session.airAndSpacePreferences.replacingGeography(geography),
+        )
         let preferences = try session.makePreferences()
 
         #expect(session.demandGeneration == demandGeneration)
@@ -237,7 +241,7 @@ struct ThrowSessionTests {
     @Test func configuredProjectionChangeUpdatesTheTypedSetup() throws {
         let session = ThrowSession.fixture()
 
-        session.projectionMode = .trueSky
+        session.updateProjectionMode(.trueSky)
 
         let preferences = try session.makePreferences()
         #expect(preferences.setupCompleted)
@@ -249,7 +253,11 @@ struct ThrowSessionTests {
 
         #expect(session.projectionFrame.geography != nil)
         session.currentLayerFrame = nil
-        session.geographyEnabled = false
+        let geography = session.airAndSpacePreferences.geography
+            .replacingIsEnabled(false)
+        session.updateAirAndSpacePreferences(
+            session.airAndSpacePreferences.replacingGeography(geography),
+        )
 
         #expect(session.projectionFrame.geography == nil)
         #expect(session.projectionFrame.marks.isEmpty == false)
@@ -300,14 +308,15 @@ struct ThrowSessionTests {
     }
 
     @Test func geographyCanProjectWhileFlightsAndPollingAreOff() async {
-        let session = ThrowSession.fixture()
+        let airAndSpacePreferences = ThrowPreferences.defaultValue.airAndSpace
+            .replacingFlightsEnabled(false)
+        let session = ThrowSession.fixture(
+            airAndSpacePreferences: airAndSpacePreferences,
+        )
         let output = ProjectionOutput.preview(
             ProjectionOutputID(rawValue: "geography-only-test"),
         )
         session.locationMode = .manual
-        session.isApplyingPreferences = true
-        session.flightsEnabled = false
-        session.isApplyingPreferences = false
         session.outputDemands.insert(output)
         session.demandGeneration = 1
 

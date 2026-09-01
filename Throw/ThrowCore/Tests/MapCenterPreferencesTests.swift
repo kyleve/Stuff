@@ -2,6 +2,24 @@ import Testing
 @testable import ThrowCore
 
 struct MapCenterPreferencesTests {
+    @Test func mapCenterOffsetAcceptsOnlyFiveMileStepsWithinItsEditingRange() throws {
+        let offset = try MapCenterOffset(
+            eastNauticalMiles: -50,
+            northNauticalMiles: 45,
+        )
+
+        #expect(offset.eastNauticalMiles == -50)
+        #expect(offset.northNauticalMiles == 45)
+        for invalidValue in [-55.0, 7, 50.1, .infinity, .nan] {
+            #expect(throws: ThrowValidationError.self) {
+                try MapCenterOffset(
+                    eastNauticalMiles: invalidValue,
+                    northNauticalMiles: 0,
+                )
+            }
+        }
+    }
+
     @Test func northPoleUsesTheLastValidLatitudeBand() throws {
         let coordinate = try GeoCoordinate(latitude: 90, longitude: 0)
         let region = MapRegionID(containing: coordinate)

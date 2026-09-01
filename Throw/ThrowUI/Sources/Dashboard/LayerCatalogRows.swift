@@ -3,13 +3,39 @@ import SwiftUI
 import ThrowCore
 
 struct LayerCatalogRows: View {
-    @Bindable var session: ThrowSession
+    private let session: ThrowSession
     let experienceID: ProjectionExperienceID
+    @State private var flightsEnabled: Bool
+    @State private var geographyEnabled: Bool
     @Environment(\.throwStylesheet) private var stylesheet
+
+    init(session: ThrowSession, experienceID: ProjectionExperienceID) {
+        self.session = session
+        self.experienceID = experienceID
+        _flightsEnabled = State(initialValue: session.flightsEnabled)
+        _geographyEnabled = State(initialValue: session.geographyEnabled)
+    }
 
     var body: some View {
         ForEach(descriptors) { descriptor in
             layerRow(descriptor)
+        }
+        .onChange(of: flightsEnabled) { _, flightsEnabled in
+            let preferences = session.airAndSpacePreferences
+                .replacingFlightsEnabled(flightsEnabled)
+            session.updateAirAndSpacePreferences(preferences)
+        }
+        .onChange(of: geographyEnabled) { _, geographyEnabled in
+            let geography = session.airAndSpacePreferences.geography
+                .replacingIsEnabled(geographyEnabled)
+            let preferences = session.airAndSpacePreferences.replacingGeography(geography)
+            session.updateAirAndSpacePreferences(preferences)
+        }
+        .onChange(of: session.flightsEnabled) { _, value in
+            flightsEnabled = value
+        }
+        .onChange(of: session.geographyEnabled) { _, value in
+            geographyEnabled = value
         }
     }
 
@@ -22,12 +48,12 @@ struct LayerCatalogRows: View {
 
     @ViewBuilder private func layerRow(_ descriptor: AnyLayerDescriptor) -> some View {
         if descriptor.id == .flights {
-            Toggle(isOn: $session.flightsEnabled) {
+            Toggle(isOn: $flightsEnabled) {
                 layerLabel(descriptor.id)
             }
             .disabled(descriptor.availability.isEnabled == false)
         } else if descriptor.id == .geography {
-            Toggle(isOn: $session.geographyEnabled) {
+            Toggle(isOn: $geographyEnabled) {
                 HStack {
                     layerLabel(descriptor.id)
                     if session.projectionMode != .map {

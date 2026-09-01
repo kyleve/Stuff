@@ -1,5 +1,34 @@
 import Foundation
 
+/// A user-editable map-center offset measured from the observer.
+public struct MapCenterOffset: Hashable, Sendable {
+    public static let allowedNauticalMiles = -50.0 ... 50.0
+
+    public let eastNauticalMiles: Double
+    public let northNauticalMiles: Double
+
+    public init(eastNauticalMiles: Double, northNauticalMiles: Double) throws {
+        guard eastNauticalMiles.isFinite, northNauticalMiles.isFinite else {
+            throw ThrowValidationError.nonFiniteValue(field: "mapCenterOffset")
+        }
+        guard Self.isValidComponent(eastNauticalMiles),
+              Self.isValidComponent(northNauticalMiles)
+        else {
+            throw ThrowValidationError.outOfRange(
+                field: "mapCenterOffset",
+                closedRange: Self.allowedNauticalMiles,
+            )
+        }
+        self.eastNauticalMiles = eastNauticalMiles
+        self.northNauticalMiles = northNauticalMiles
+    }
+
+    private static func isValidComponent(_ value: Double) -> Bool {
+        allowedNauticalMiles.contains(value) && value.rounded() == value
+            && Int(value).isMultiple(of: 5)
+    }
+}
+
 /// A coarse geographic bucket used to select a fixed Map center without
 /// persisting behavior against an exact observer coordinate.
 public struct MapRegionID: Hashable, Sendable, CustomStringConvertible {

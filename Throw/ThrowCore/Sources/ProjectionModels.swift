@@ -153,6 +153,90 @@ public struct ProjectionCalibration: Hashable, Sendable {
         self.safeInsetFraction = safeInsetFraction
         self.verifiedOnExternalDisplay = verifiedOnExternalDisplay
     }
+
+    public func replacingScreenTopBearing(_ screenTopBearing: Bearing) -> Self {
+        Self(
+            validatedScreenTopBearing: screenTopBearing,
+            rotation: rotation,
+            flipHorizontal: flipHorizontal,
+            flipVertical: flipVertical,
+            safeInsetFraction: safeInsetFraction,
+            verifiedOnExternalDisplay: verifiedOnExternalDisplay,
+        )
+    }
+
+    public func replacingRotation(_ rotation: ScreenRotation) -> Self {
+        Self(
+            validatedScreenTopBearing: screenTopBearing,
+            rotation: rotation,
+            flipHorizontal: flipHorizontal,
+            flipVertical: flipVertical,
+            safeInsetFraction: safeInsetFraction,
+            verifiedOnExternalDisplay: verifiedOnExternalDisplay,
+        )
+    }
+
+    public func replacingFlipHorizontal(_ flipHorizontal: Bool) -> Self {
+        Self(
+            validatedScreenTopBearing: screenTopBearing,
+            rotation: rotation,
+            flipHorizontal: flipHorizontal,
+            flipVertical: flipVertical,
+            safeInsetFraction: safeInsetFraction,
+            verifiedOnExternalDisplay: verifiedOnExternalDisplay,
+        )
+    }
+
+    public func replacingFlipVertical(_ flipVertical: Bool) -> Self {
+        Self(
+            validatedScreenTopBearing: screenTopBearing,
+            rotation: rotation,
+            flipHorizontal: flipHorizontal,
+            flipVertical: flipVertical,
+            safeInsetFraction: safeInsetFraction,
+            verifiedOnExternalDisplay: verifiedOnExternalDisplay,
+        )
+    }
+
+    public func replacingSafeInsetFraction(_ safeInsetFraction: Double) throws -> Self {
+        try Self(
+            screenTopBearing: screenTopBearing,
+            rotation: rotation,
+            flipHorizontal: flipHorizontal,
+            flipVertical: flipVertical,
+            safeInsetFraction: safeInsetFraction,
+            verifiedOnExternalDisplay: verifiedOnExternalDisplay,
+        )
+    }
+
+    public func replacingVerifiedOnExternalDisplay(
+        _ verifiedOnExternalDisplay: Bool,
+    ) -> Self {
+        Self(
+            validatedScreenTopBearing: screenTopBearing,
+            rotation: rotation,
+            flipHorizontal: flipHorizontal,
+            flipVertical: flipVertical,
+            safeInsetFraction: safeInsetFraction,
+            verifiedOnExternalDisplay: verifiedOnExternalDisplay,
+        )
+    }
+
+    private init(
+        validatedScreenTopBearing screenTopBearing: Bearing,
+        rotation: ScreenRotation,
+        flipHorizontal: Bool,
+        flipVertical: Bool,
+        safeInsetFraction: Double,
+        verifiedOnExternalDisplay: Bool,
+    ) {
+        self.screenTopBearing = screenTopBearing
+        self.rotation = rotation
+        self.flipHorizontal = flipHorizontal
+        self.flipVertical = flipVertical
+        self.safeInsetFraction = safeInsetFraction
+        self.verifiedOnExternalDisplay = verifiedOnExternalDisplay
+    }
 }
 
 public enum AvailableAltitudeQuality: String, Hashable, Sendable {

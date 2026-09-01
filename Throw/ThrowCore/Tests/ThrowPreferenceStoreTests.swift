@@ -3,6 +3,65 @@ import Testing
 @testable import ThrowCore
 
 struct ThrowPreferenceStoreTests {
+    @Test func validatedAggregateReplacementsPreserveUnchangedPreferences() throws {
+        let calibration = try ProjectionCalibration(
+            screenTopBearing: Bearing(degrees: 90),
+            rotation: .degrees180,
+            flipHorizontal: true,
+            flipVertical: false,
+            safeInsetFraction: 0.1,
+            verifiedOnExternalDisplay: true,
+        )
+        let quietSchedule = try QuietSchedule(
+            start: LocalTime(hour: 22, minute: 0),
+            end: LocalTime(hour: 6, minute: 0),
+        )
+        let global = try ThrowPreferences.defaultValue.global
+            .replacingCalibration(calibration)
+            .replacingIntensityPercent(75)
+            .replacingQuietSchedule(quietSchedule)
+
+        #expect(global.calibration == calibration)
+        #expect(global.intensityPercent == 75)
+        #expect(global.quietSchedule == quietSchedule)
+        #expect(throws: ThrowValidationError.self) {
+            try global.replacingIntensityPercent(10)
+        }
+
+        let observer = try GeoCoordinate(latitude: 37, longitude: -122)
+        let center = try GeoCoordinate(latitude: 37.1, longitude: -121.9)
+        let mapCenters = MapCenterPreferences.defaultValue.setting(
+            center: center,
+            for: observer,
+        )
+        let mapViewport = try MapViewport(radius: NauticalMiles(value: 55))
+        let skyViewport = try SkyViewport(minimumElevation: ElevationAngle(degrees: 12))
+        let geography = try GeographyPreferences(isEnabled: false, intensityPercent: 12)
+        let airAndSpace = try ThrowPreferences.defaultValue.airAndSpace
+            .replacingMapViewport(mapViewport)
+            .replacingMapCenters(mapCenters)
+            .replacingSkyViewport(skyViewport)
+            .replacingFlightsEnabled(false)
+            .replacingAirlineAccentsEnabled(false)
+            .replacingGeography(geography)
+            .replacingLabelMode(.callsigns)
+            .replacingIncludeGroundAircraft(true)
+            .replacingMarkSizePercent(125)
+
+        #expect(airAndSpace.mapViewport == mapViewport)
+        #expect(airAndSpace.mapCenters == mapCenters)
+        #expect(airAndSpace.skyViewport == skyViewport)
+        #expect(airAndSpace.flightsEnabled == false)
+        #expect(airAndSpace.airlineAccentsEnabled == false)
+        #expect(airAndSpace.geography == geography)
+        #expect(airAndSpace.labelMode == .callsigns)
+        #expect(airAndSpace.includeGroundAircraft)
+        #expect(airAndSpace.markSizePercent == 125)
+        #expect(throws: ThrowValidationError.self) {
+            try airAndSpace.replacingMarkSizePercent(201)
+        }
+    }
+
     @Test func memoryStoreRoundTripsValidatedSettings() async throws {
         let preferences = try populatedPreferences()
         let store = try MemoryThrowPreferenceStore(initialValue: .defaultValue)

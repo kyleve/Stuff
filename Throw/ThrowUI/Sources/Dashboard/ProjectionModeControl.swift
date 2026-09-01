@@ -3,57 +3,77 @@ import SwiftUI
 import ThrowCore
 
 struct ProjectionModeControl: View {
-    @Bindable var session: ThrowSession
+    private let session: ThrowSession
+    @State private var model: ProjectionViewportSettingsModel
+
+    init(session: ThrowSession) {
+        self.session = session
+        _model = State(initialValue: ProjectionViewportSettingsModel(session: session))
+    }
 
     var body: some View {
-        Picker(String(localized: .settingsMode), selection: $session.projectionMode) {
-            Text(.modeMap).tag(ProjectionMode.map)
-            Text(.modeTrueSky).tag(ProjectionMode.trueSky)
-        }
-        .pickerStyle(.segmented)
+        Group {
+            Picker(String(localized: .settingsMode), selection: $model.projectionMode) {
+                Text(.modeMap).tag(ProjectionMode.map)
+                Text(.modeTrueSky).tag(ProjectionMode.trueSky)
+            }
+            .pickerStyle(.segmented)
 
-        switch session.projectionMode {
-            case .map:
-                LabeledContent(String(localized: .viewportMapRadius)) {
-                    Text(
-                        Measurement(value: session.mapRadius, unit: UnitLength.nauticalMiles),
-                        format: .measurement(
-                            width: .abbreviated,
-                            usage: .asProvided,
-                            numberFormatStyle: .number.precision(.fractionLength(0)),
-                        ),
-                    )
-                }
-                Slider(value: $session.mapRadius, in: 5 ... 240, step: 5)
-                    .accessibilityLabel(Text(.viewportMapRadius))
-                    .accessibilityValue(
+            switch model.projectionMode {
+                case .map:
+                    LabeledContent(String(localized: .viewportMapRadius)) {
                         Text(
-                            Measurement(value: session.mapRadius, unit: UnitLength.nauticalMiles),
-                            format: .measurement(width: .abbreviated, usage: .asProvided),
-                        ),
-                    )
-            case .trueSky:
-                LabeledContent(String(localized: .viewportMinimumElevation)) {
-                    Text(
-                        Measurement(value: session.minimumElevation, unit: UnitAngle.degrees),
-                        format: .measurement(
-                            width: .abbreviated,
-                            usage: .asProvided,
-                            numberFormatStyle: .number.precision(.fractionLength(0)),
-                        ),
-                    )
-                }
-                Slider(value: $session.minimumElevation, in: 0 ... 45, step: 1)
-                    .accessibilityLabel(Text(.viewportMinimumElevation))
-                    .accessibilityValue(
-                        Text(
-                            Measurement(
-                                value: session.minimumElevation,
-                                unit: UnitAngle.degrees,
+                            Measurement(value: model.mapRadius, unit: UnitLength.nauticalMiles),
+                            format: .measurement(
+                                width: .abbreviated,
+                                usage: .asProvided,
+                                numberFormatStyle: .number.precision(.fractionLength(0)),
                             ),
-                            format: .measurement(width: .abbreviated, usage: .asProvided),
-                        ),
-                    )
+                        )
+                    }
+                    Slider(value: $model.mapRadius, in: 5 ... 240, step: 5)
+                        .accessibilityLabel(Text(.viewportMapRadius))
+                        .accessibilityValue(
+                            Text(
+                                Measurement(
+                                    value: model.mapRadius,
+                                    unit: UnitLength.nauticalMiles,
+                                ),
+                                format: .measurement(width: .abbreviated, usage: .asProvided),
+                            ),
+                        )
+                case .trueSky:
+                    LabeledContent(String(localized: .viewportMinimumElevation)) {
+                        Text(
+                            Measurement(value: model.minimumElevation, unit: UnitAngle.degrees),
+                            format: .measurement(
+                                width: .abbreviated,
+                                usage: .asProvided,
+                                numberFormatStyle: .number.precision(.fractionLength(0)),
+                            ),
+                        )
+                    }
+                    Slider(value: $model.minimumElevation, in: 0 ... 45, step: 1)
+                        .accessibilityLabel(Text(.viewportMinimumElevation))
+                        .accessibilityValue(
+                            Text(
+                                Measurement(
+                                    value: model.minimumElevation,
+                                    unit: UnitAngle.degrees,
+                                ),
+                                format: .measurement(width: .abbreviated, usage: .asProvided),
+                            ),
+                        )
+            }
+        }
+        .onChange(of: session.projectionMode) { _, projectionMode in
+            model.projectionMode = projectionMode
+        }
+        .onChange(of: session.mapRadius) { _, mapRadius in
+            model.mapRadius = mapRadius
+        }
+        .onChange(of: session.minimumElevation) { _, minimumElevation in
+            model.minimumElevation = minimumElevation
         }
     }
 }

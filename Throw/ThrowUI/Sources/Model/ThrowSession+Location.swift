@@ -34,13 +34,11 @@ extension ThrowSession {
     }
 
     public var mapCenterEastOffset: Double {
-        get { mapCenterOffset.east }
-        set { setMapCenterOffset(east: newValue, north: mapCenterOffset.north) }
+        Self.editableMapCenterOffsetComponent(mapCenterOffset.east)
     }
 
     public var mapCenterNorthOffset: Double {
-        get { mapCenterOffset.north }
-        set { setMapCenterOffset(east: mapCenterOffset.east, north: newValue) }
+        Self.editableMapCenterOffsetComponent(mapCenterOffset.north)
     }
 
     public var hasCustomMapCenter: Bool {
@@ -50,39 +48,63 @@ extension ThrowSession {
 
     public func resetMapCenter() {
         guard let observer = confirmedLocation?.position.coordinate else { return }
-        mapCenters = mapCenters.resetting(for: observer)
-        projectionInputsChanged(restartsPolling: true)
-    }
-
-    private var mapCenterOffset: MapCenterOffset {
-        guard let observer = confirmedLocation?.position.coordinate,
-              let position = try? ProjectionEngine().greatCirclePosition(
-                  from: observer,
-                  to: activeMapCenter,
-              )
-        else { return MapCenterOffset(east: 0, north: 0) }
-        let bearing = position.initialBearing.degrees * .pi / 180
-        return MapCenterOffset(
-            east: position.distance.value * sin(bearing),
-            north: position.distance.value * cos(bearing),
+        let mapCenters = mapCenters.resetting(for: observer)
+        updateAirAndSpacePreferences(
+            airAndSpacePreferences.replacingMapCenters(mapCenters),
         )
     }
 
-    private func setMapCenterOffset(east: Double, north: Double) {
+    public func updateMapCenter(_ center: GeoCoordinate) {
+        guard let observer = confirmedLocation?.position.coordinate else { return }
+        let mapCenters = mapCenters.setting(center: center, for: observer)
+        updateAirAndSpacePreferences(
+            airAndSpacePreferences.replacingMapCenters(mapCenters),
+        )
+    }
+
+    public func updateMapCenterOffset(_ offset: MapCenterOffset) {
         guard let observer = confirmedLocation?.position.coordinate else { return }
         do {
-            let distance = try NauticalMiles(value: hypot(east, north))
-            let bearing = try Bearing(degrees: atan2(east, north) * 180 / .pi)
+            let distance = try NauticalMiles(value: hypot(
+                offset.eastNauticalMiles,
+                offset.northNauticalMiles,
+            ))
+            let bearing = try Bearing(degrees: atan2(
+                offset.eastNauticalMiles,
+                offset.northNauticalMiles,
+            ) * 180 / .pi)
             let center = try ProjectionEngine().destination(
                 from: observer,
                 bearing: bearing,
                 distance: distance,
             )
-            mapCenters = mapCenters.setting(center: center, for: observer)
-            projectionInputsChanged(restartsPolling: true)
+            updateMapCenter(center)
         } catch {
-            settingsFailure = error.localizedDescription
+            preconditionFailure("A validated Map-center offset must produce a center: \(error)")
         }
+    }
+
+    private var mapCenterOffset: CalculatedMapCenterOffset {
+        guard let observer = confirmedLocation?.position.coordinate,
+              let position = try? ProjectionEngine().greatCirclePosition(
+                  from: observer,
+                  to: activeMapCenter,
+              )
+        else { return CalculatedMapCenterOffset(east: 0, north: 0) }
+        let bearing = position.initialBearing.degrees * .pi / 180
+        return CalculatedMapCenterOffset(
+            east: position.distance.value * sin(bearing),
+            north: position.distance.value * cos(bearing),
+        )
+    }
+
+    private static func editableMapCenterOffsetComponent(_ value: Double) -> Double {
+        let step = 5.0
+        let rounded = (value / step).rounded() * step
+        return min(
+            max(rounded, MapCenterOffset.allowedNauticalMiles.lowerBound),
+            MapCenterOffset.allowedNauticalMiles.upperBound,
+        )
     }
 
     func prepareProjectionSessionGPSLocation() async {
@@ -203,7 +225,8 @@ extension ThrowSession {
         guard generation == locationGeneration, Task.isCancelled == false else { return }
         if mayApplyTrueHeadingHint, let heading = accumulated.heading {
             mayApplyTrueHeadingHint = false
-            screenTopBearing = heading.degrees
+            let calibration = globalPreferences.calibration.replacingScreenTopBearing(heading)
+            updateGlobalPreferences(globalPreferences.replacingCalibration(calibration))
         }
         switch resolution {
             case let .target(fix):
@@ -398,7 +421,7 @@ private struct ObserverLocationReplacement {
     let acquisitionDisposition: AcquisitionDisposition
 }
 
-private struct MapCenterOffset {
+private struct CalculatedMapCenterOffset {
     let east: Double
     let north: Double
 }

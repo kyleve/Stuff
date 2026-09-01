@@ -83,6 +83,12 @@ sole renderer. It iterates the ordered layers in an immutable renderer
 `ProjectionFrame`. It does not enumerate a global catalog or special-case
 Flights. The projector is decorative. Preview exposes the active experience
 name, health, and one status summary.
+
+The session stores validated `ThrowGlobalPreferences` and
+`AirAndSpacePreferences` values. Its scalar properties are read-only display
+projections. Settings keep raw control drafts locally and publish only complete,
+validated replacements. An invalid draft cannot change polling or persistence.
+Onboarding uses the same aggregates and keeps calibration preview state separate.
 Quiet-wake actions pass a `TemporaryQuietWake` value through the session
 boundary. Unsupported minute counts cannot enter the runtime.
 

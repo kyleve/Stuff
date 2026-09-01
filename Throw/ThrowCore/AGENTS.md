@@ -75,6 +75,8 @@ location, and scheduling; see [`README.md`](README.md). Read the root
   lines by layer identity and semantic revision.
 - Keep version-two preferences grouped by global, playlist, and experience
   ownership. Preserve exact version-one migration and existing Keychain IDs.
+- Keep global and experience preferences as validated aggregate values. Use
+  their replacement methods instead of mutable scalar mirrors.
 - Represent temporary quiet wake durations as `TemporaryQuietWake`. Never pass
   a raw minute count across the session boundary.
 - Project Geography with the selected regional Map center and saved calibration.
