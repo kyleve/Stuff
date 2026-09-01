@@ -164,7 +164,12 @@ struct FlightMotionEstimatorTests {
         source: AircraftSourceKind = .adsbLol,
         fetchedAt: Date,
     ) -> AircraftSnapshot {
-        AircraftSnapshot(source: source, fetchedAt: fetchedAt, observations: [observation])
+        AircraftSnapshot(
+            source: source,
+            fetchedAt: fetchedAt,
+            observations: [observation],
+            decodingDiagnostics: .none,
+        )
     }
 
     private func motion(

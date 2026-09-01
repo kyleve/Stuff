@@ -606,6 +606,7 @@ struct AircraftPollingCoordinatorTests {
                 fetchedAt: ThrowCoreFixture.date,
                 observations: [],
                 successfulHTTPStatus: statusCode,
+                decodingDiagnostics: .none,
             )
         }
     }
@@ -680,6 +681,7 @@ struct AircraftPollingCoordinatorTests {
                 source: .adsbLol,
                 fetchedAt: ThrowCoreFixture.date,
                 observations: [ThrowCoreFixture.observation(positionAge: -1)],
+                decodingDiagnostics: .none,
             )
         }
     }
@@ -696,6 +698,7 @@ struct AircraftPollingCoordinatorTests {
                 source: .adsbLol,
                 fetchedAt: ThrowCoreFixture.date,
                 observations: [ThrowCoreFixture.observation()],
+                decodingDiagnostics: .none,
             )
         }
     }
@@ -830,6 +833,7 @@ private struct CancellationResistantProbeSource: AircraftObservationSource {
                 source: kind,
                 fetchedAt: ThrowCoreFixture.date,
                 observations: [],
+                decodingDiagnostics: .none,
             )
         } onCancel: {
             Task(name: "Record ignored Throw source cancellation") {
@@ -849,6 +853,7 @@ private struct ImmediateProbeSource: AircraftObservationSource {
             source: kind,
             fetchedAt: ThrowCoreFixture.date,
             observations: [],
+            decodingDiagnostics: .none,
         )
     }
 }

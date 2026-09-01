@@ -79,6 +79,7 @@ struct ThrowSessionExperiencesTests {
             source: .adsbLol,
             fetchedAt: session.dateProvider.now(),
             observations: [],
+            decodingDiagnostics: .none,
         )
         let update = AirAndSpaceRuntimeUpdate(
             activationLease: lease,

@@ -6,7 +6,12 @@ import ThrowCore
 struct AirAndSpaceRuntimeTests {
     @Test func validEmptyPollMakesFreshActivationReady() async throws {
         let date = Date(timeIntervalSince1970: 1_800_100_000)
-        let snapshot = AircraftSnapshot(source: .adsbLol, fetchedAt: date, observations: [])
+        let snapshot = AircraftSnapshot(
+            source: .adsbLol,
+            fetchedAt: date,
+            observations: [],
+            decodingDiagnostics: .none,
+        )
         let coordinator = AircraftPollingCoordinator(
             sourceFactory: FixedAircraftSourceFactory(snapshot: snapshot),
             clock: LongAircraftPollingClock(now: date),
@@ -98,7 +103,12 @@ struct AirAndSpaceRuntimeTests {
 
     @Test func visibleCountRejectsAnOlderActivationGeneration() async throws {
         let date = Date(timeIntervalSince1970: 1_800_100_000)
-        let snapshot = AircraftSnapshot(source: .adsbLol, fetchedAt: date, observations: [])
+        let snapshot = AircraftSnapshot(
+            source: .adsbLol,
+            fetchedAt: date,
+            observations: [],
+            decodingDiagnostics: .none,
+        )
         let coordinator = AircraftPollingCoordinator(
             sourceFactory: FixedAircraftSourceFactory(snapshot: snapshot),
             clock: LongAircraftPollingClock(now: date),
@@ -403,7 +413,12 @@ private struct ConfigurationEchoAircraftSource: AircraftObservationSource {
     let date: Date
 
     func snapshot(for _: AircraftQuery) async throws -> AircraftSnapshot {
-        AircraftSnapshot(source: kind, fetchedAt: date, observations: [])
+        AircraftSnapshot(
+            source: kind,
+            fetchedAt: date,
+            observations: [],
+            decodingDiagnostics: .none,
+        )
     }
 }
 

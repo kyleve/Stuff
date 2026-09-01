@@ -8,6 +8,7 @@ struct FlightsLayerRuntimeTests {
             source: .adsbLol,
             fetchedAt: ThrowCoreFixture.date,
             observations: [observation],
+            decodingDiagnostics: .none,
         )
 
         let frame = try await LayerCatalog.standard.flights.runtimeFactory().frame(

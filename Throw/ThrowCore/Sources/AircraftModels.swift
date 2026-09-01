@@ -409,21 +409,6 @@ public struct AircraftSnapshot: Hashable, Sendable, CustomStringConvertible,
         source: AircraftSourceKind,
         fetchedAt: Date,
         observations: [AircraftObservation],
-    ) {
-        self.init(
-            source: source,
-            fetchedAt: fetchedAt,
-            observations: observations,
-            routeResultsByAircraft: [:],
-            successfulHTTPStatus: nil,
-            decodingDiagnostics: .none,
-        )
-    }
-
-    public init(
-        source: AircraftSourceKind,
-        fetchedAt: Date,
-        observations: [AircraftObservation],
         decodingDiagnostics: AircraftSnapshotDecodingDiagnostics,
     ) {
         self.init(
@@ -441,22 +426,6 @@ public struct AircraftSnapshot: Hashable, Sendable, CustomStringConvertible,
         fetchedAt: Date,
         observations: [AircraftObservation],
         successfulHTTPStatus: Int?,
-    ) {
-        self.init(
-            source: source,
-            fetchedAt: fetchedAt,
-            observations: observations,
-            routeResultsByAircraft: [:],
-            successfulHTTPStatus: successfulHTTPStatus,
-            decodingDiagnostics: .none,
-        )
-    }
-
-    public init(
-        source: AircraftSourceKind,
-        fetchedAt: Date,
-        observations: [AircraftObservation],
-        successfulHTTPStatus: Int?,
         decodingDiagnostics: AircraftSnapshotDecodingDiagnostics,
     ) {
         self.init(
@@ -466,23 +435,6 @@ public struct AircraftSnapshot: Hashable, Sendable, CustomStringConvertible,
             routeResultsByAircraft: [:],
             successfulHTTPStatus: successfulHTTPStatus,
             decodingDiagnostics: decodingDiagnostics,
-        )
-    }
-
-    public init(
-        source: AircraftSourceKind,
-        fetchedAt: Date,
-        observations: [AircraftObservation],
-        routeResultsByAircraft: [AircraftID: FlightRouteResult],
-        successfulHTTPStatus: Int?,
-    ) {
-        self.init(
-            source: source,
-            fetchedAt: fetchedAt,
-            observations: observations,
-            routeResultsByAircraft: routeResultsByAircraft,
-            successfulHTTPStatus: successfulHTTPStatus,
-            decodingDiagnostics: .none,
         )
     }
 

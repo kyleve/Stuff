@@ -30,6 +30,7 @@ struct AircraftModelsTests {
             source: .adsbLol,
             fetchedAt: ThrowCoreFixture.date,
             observations: [newest, older],
+            decodingDiagnostics: .none,
         )
 
         #expect(snapshot.observations.count == 1)
@@ -122,6 +123,7 @@ struct AircraftModelsTests {
             source: .adsbLol,
             fetchedAt: ThrowCoreFixture.date,
             observations: [observation],
+            decodingDiagnostics: .none,
         )
         let exchangeConfiguration = try ADSBExchangeConfiguration(
             pollingInterval: PollingInterval(seconds: 10),
