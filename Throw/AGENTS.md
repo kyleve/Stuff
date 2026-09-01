@@ -35,6 +35,8 @@ WhereCore, RegionKit, or LifecycleKit into this feature.
   `ProjectionSurface`.
 - Keep secrets in `AircraftCredentialStore` only. Never log a key, observer or
   Map-center coordinate, receiver URL, request URL, aircraft identity, or response body.
+- Send production diagnostics through typed `ThrowLog` events. Do not import
+  system logging or write raw diagnostic output.
 - Keep the external surface opaque black and noninteractive. Calibration may
   bypass quiet output without starting a feed.
 - Keep Geography offline and Map-only. Never add online map tiles or transmit

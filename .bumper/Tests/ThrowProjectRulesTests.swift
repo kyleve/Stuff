@@ -104,6 +104,28 @@ struct ThrowProjectRulesTests {
         #expect(rejected.violations.isEmpty == false)
     }
 
+    @Test func productionLoggingUsesTypedFacade() throws {
+        let allowed = try evaluate(
+            path: "Throw/ThrowCore/Sources/Worker.swift",
+            component: .throwCore,
+            source: "func run() { ThrowLog.session { .durableLoggingReady } }",
+        )
+        let printRejected = try evaluate(
+            path: "Throw/ThrowUI/Sources/PrintingWorker.swift",
+            component: .throwUI,
+            source: "func run() { print(\"done\") }",
+        )
+        let osLogRejected = try evaluate(
+            path: "Throw/Throw/Sources/LoggingShell.swift",
+            component: .throwApp,
+            source: "import os\nstruct LoggingShell {}",
+        )
+
+        #expect(allowed.violations.isEmpty)
+        #expect(printRejected.violations.map(\.rule.id) == ["throw.logging_facade"])
+        #expect(osLogRejected.violations.map(\.rule.id) == ["throw.logging_facade"])
+    }
+
     @Test func providerImplementationsStayInCore() throws {
         let allowed = try evaluate(
             path: "Throw/ThrowCore/Sources/SourceService.swift",
