@@ -46,6 +46,7 @@ struct ThrowSessionExperiencesTests {
             flightsFrame: bufferedFrame.flights,
             snapshot: nil,
             activePollingSignature: nil,
+            semanticPreparationState: .ready,
         )
         session.projectionPresentationTransition = .fadingOut(
             targetLease: lease,
