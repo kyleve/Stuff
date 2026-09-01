@@ -594,14 +594,14 @@ extension ThrowSession {
                             dwellDuration: dwell,
                         ),
                         ProjectionPlaylistEntry(
-                            runnableExperienceID: .testing(.transit),
+                            runnableExperienceID: .transit,
                             dwellDuration: dwell,
                         ),
                     ],
                     automaticRotationEnabled: true,
                     selectedExperienceID: .airAndSpace,
-                    configuredExperienceIDs: [.airAndSpace, .testing(.transit)],
-                    catalog: enabledExperienceSnapshotCatalog,
+                    configuredExperienceIDs: [.airAndSpace, .transit],
+                    catalog: .standard,
                 )
             } catch {
                 preconditionFailure("Snapshot View playlist must be valid: \(error)")
@@ -649,25 +649,54 @@ extension ThrowSession {
 
         static func transitSettingsSnapshotFixture() -> ThrowSession {
             let session = experienceDashboardSnapshotFixture(.rotating)
-            session.isApplyingPreferences = true
-            session.transitConfiguration = .configured(cityID: .newYorkCity)
-            session.transitLabelMode = .nextStop
-            session.transitNetworkIntensityPercent = 70
-            session.isApplyingPreferences = false
+            do {
+                let preferences = try session.transitPreferences
+                    .replacingConfiguration(.configured(cityID: .newYorkCity))
+                    .replacingLabelMode(.nextStop)
+                    .replacingNetworkIntensityPercent(70)
+                var configuredExperienceIDs = session.setupState.configuredExperienceIDs
+                configuredExperienceIDs.insert(.transit)
+                let playlist = session.projectionPlaylist.entry(for: .transit) == nil
+                    ? try session.projectionPlaylist.addingConfiguredExperience(
+                        .transit,
+                        dwellDuration: .defaultValue,
+                        configuredExperienceIDs: configuredExperienceIDs,
+                        catalog: .standard,
+                    )
+                    : session.projectionPlaylist
+                session.replaceTransitPreferencesForTesting(
+                    preferences,
+                    playlist: playlist,
+                )
+            } catch {
+                preconditionFailure("Transit snapshot preferences must be valid: \(error)")
+            }
             return session
         }
 
         static func transitProjectionSnapshotFixture() -> ThrowSession {
             let session = transitSettingsSnapshotFixture()
             let now = session.dateProvider.now()
-            session.activeExperienceID = .transit
-            session.nextExperienceID = .airAndSpace
-            session.observerMapPoint = nil
-            session.projectionFrame = fixtureTransitProjectionFrame(at: now)
-            session.experienceHealth[.transit] = .healthy(
-                lastUpdate: now,
-                visibleContentCount: 4,
+            let coordinator = ProjectionExperienceCoordinatorState(
+                activeExperienceID: .transit,
+                requestedExperienceID: nil,
+                prewarmingExperienceID: nil,
+                isPaused: false,
+                dwellEndsAt: now.addingTimeInterval(75),
+                nextExperienceID: .airAndSpace,
+                healthByExperience: [
+                    .airAndSpace: session.feedHealth,
+                    .transit: .healthy(lastUpdate: now, visibleContentCount: 4),
+                ],
+                manualSelectionFailure: nil,
             )
+            session.projectionPresentationState = .initial(
+                coordinator: coordinator,
+                preferredExperienceID: .transit,
+                mode: .map,
+                generatedAt: now,
+            )
+            session.replaceProjectionFrameForTesting(fixtureTransitProjectionFrame(at: now))
             return session
         }
 
@@ -751,6 +780,7 @@ extension ThrowSession {
                     global: global,
                     playlist: playlist,
                     airAndSpace: airAndSpace,
+                    transit: .defaultValue,
                 )
                 let preferenceStore: any ThrowPreferenceStore = if let preferenceStoreOverride {
                     preferenceStoreOverride
@@ -865,23 +895,6 @@ extension ThrowSession {
             session.locationHealth = .confirmed(
                 accuracyMeters: 18,
                 acceptedAt: session.dateProvider.now(),
-            )
-        }
-
-        private static var enabledExperienceSnapshotCatalog: ProjectionExperienceCatalog {
-            let descriptors = ProjectionExperienceCatalog.standard.descriptors.map { descriptor in
-                guard descriptor.id == .transit else { return descriptor }
-                return ProjectionExperienceDescriptor(
-                    testingAvailability: .runnable(.testing(.transit)),
-                    supportedModes: descriptor.supportedModes,
-                    layerIDs: descriptor.layerIDs,
-                    visibleContentKind: descriptor.visibleContentKind,
-                    zOrder: descriptor.zOrder,
-                )
-            }
-            return ProjectionExperienceCatalog(
-                testingDescriptors: descriptors,
-                layerCatalog: .standard,
             )
         }
 
@@ -1059,36 +1072,20 @@ extension ThrowSession {
                     confidence: .feedTracked,
                 ),
             ]
-            return ProjectionFrame(
-                experienceID: .transit,
-                mode: .map,
+            return .testingTransit(
                 generatedAt: date,
-                layers: [
-                    ProjectedLayer(
-                        id: .geography,
-                        zOrder: 0,
-                        opacity: 0.75,
-                        content: .lines(ProjectedLineCollection(
-                            id: ProjectionLineRevisionID(rawValue: 101),
-                            segments: fixtureGeographySegments(),
-                        )),
-                    ),
-                    ProjectedLayer(
-                        id: .transitNetwork,
-                        zOrder: 10,
-                        opacity: 1,
-                        content: .lines(ProjectedLineCollection(
-                            id: ProjectionLineRevisionID(rawValue: 102),
-                            segments: lineSegments,
-                        )),
-                    ),
-                    ProjectedLayer(
-                        id: .transitVehicles,
-                        zOrder: 20,
-                        opacity: 1,
-                        content: .marks(marks),
-                    ),
-                ],
+                geography: .testing(
+                    id: .testing(rawValue: 101),
+                    segments: fixtureGeographySegments(),
+                ),
+                geographyOpacity: 0.75,
+                network: .testing(
+                    id: .testing(rawValue: 102),
+                    segments: lineSegments,
+                ),
+                networkOpacity: 1,
+                vehicles: marks,
+                vehicleOpacity: 1,
             )
         }
 
@@ -1098,12 +1095,12 @@ extension ThrowSession {
             start: (Double, Double),
             end: (Double, Double),
             startsNewSubpath: Bool,
-        ) -> ProjectedLineSegment {
+        ) -> ProjectedLineSegment<TransitNetworkLineStyle> {
             ProjectedLineSegment(
-                styleID: .transitRoute(TransitRouteLineStyle(
+                style: TransitNetworkLineStyle(
                     routeID: routeID,
                     color: color,
-                )),
+                ),
                 start: ProjectionPoint(x: start.0, y: start.1),
                 end: ProjectionPoint(x: end.0, y: end.1),
                 startsNewSubpath: startsNewSubpath,
@@ -1117,7 +1114,7 @@ extension ThrowSession {
             color: TransitColor,
             label: String?,
             confidence: TransitPositionConfidence,
-        ) -> ProjectedMark {
+        ) -> TestingProjectedMark {
             guard let vehicleID = TransitVehicleID(rawValue: id) else {
                 preconditionFailure("A fixture transit vehicle ID must be valid")
             }

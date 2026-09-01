@@ -15,7 +15,11 @@ struct TransitRuntimeUpdate {
     let activationLease: ProjectionActivationLease?
     let successfulActivationLease: ProjectionActivationLease?
     let health: FeedHealth
-    let experienceFrame: ProjectionExperienceFrame
+    let transitFrame: TransitExperienceFrame
+
+    var experienceFrame: ProjectionExperienceFrame {
+        .transit(transitFrame)
+    }
 }
 
 enum TransitRuntimeActivationResult {
@@ -85,6 +89,11 @@ actor TransitRuntime {
         case polling(ProjectionDemandGeneration)
         case stopped(ProjectionDemandGeneration)
 
+        var pollingGeneration: ProjectionDemandGeneration? {
+            guard case let .polling(generation) = self else { return nil }
+            return generation
+        }
+
         mutating func activate(_ generation: ProjectionDemandGeneration) -> Bool {
             switch self {
                 case .none:
@@ -121,6 +130,7 @@ actor TransitRuntime {
 
     private struct PollingAttempt: Equatable {
         let activationLease: ProjectionActivationLease
+        let demandGeneration: ProjectionDemandGeneration
         let lifecycleGeneration: UInt64
     }
 
@@ -152,6 +162,9 @@ actor TransitRuntime {
     private var failureStartedAtByPartition: [TransitFeedPartitionID: Date] = [:]
     private var frameGeneration: UInt64 = 0
     private var health: FeedHealth = .idle
+    #if DEBUG
+        private var beforeStartingPollingForTesting: (@Sendable () async -> Void)?
+    #endif
 
     init(
         observationSource: any TransitObservationSource,
@@ -210,6 +223,7 @@ actor TransitRuntime {
             return .superseded(current: updateValue())
         }
         let previousLease = activationLifecycle.activeLease
+        let previousDemandGeneration = pollingDemandLifecycle.pollingGeneration
         var nextActivationLifecycle = activationLifecycle
         var nextPollingDemandLifecycle = pollingDemandLifecycle
         guard nextActivationLifecycle.activate(lease),
@@ -220,39 +234,53 @@ actor TransitRuntime {
         activationLifecycle = nextActivationLifecycle
         pollingDemandLifecycle = nextPollingDemandLifecycle
         let activationChanged = previousLease != lease
+        let demandChanged = previousDemandGeneration != demandGeneration
         let labelsChanged = self.labelMode != labelMode
         self.labelMode = labelMode
-        guard activationChanged || pollTask == nil else {
-            if labelsChanged { _ = await rebuild() }
-            guard activationLifecycle.activeLease == lease else {
+        guard activationChanged || demandChanged || pollTask == nil else {
+            guard let attempt = currentPollingAttempt(for: lease) else {
                 return .superseded(current: updateValue())
             }
+            if labelsChanged {
+                _ = await rebuild()
+                guard isCurrent(attempt) else {
+                    return .superseded(current: updateValue())
+                }
+                publish()
+            }
+            guard isCurrent(attempt) else { return .superseded(current: updateValue()) }
             return .accepted(updateValue())
         }
 
         lifecycleGeneration &+= 1
         let attempt = PollingAttempt(
             activationLease: lease,
+            demandGeneration: demandGeneration,
             lifecycleGeneration: lifecycleGeneration,
         )
         let previousPollTask = pollTask
         pollTask = nil
         previousPollTask?.cancel()
         await previousPollTask?.value
+        #if DEBUG
+            await beforeStartingPollingForTesting?()
+        #endif
         guard isCurrent(attempt) else {
             return .superseded(current: updateValue())
         }
         successfulActivationLease = nil
         snapshots = [:]
         currentEstimates = []
+        networkFrame = nil
         vehiclesFrame = nil
         failureStartedAtByPartition = [:]
         frameGeneration &+= 1
         estimator.reset()
         health = .loading
         publish()
-        let pollTask = Task(name: "Throw poll Transit") { [weak self] in
-            await self?.pollLoop(attempt: attempt)
+        let pollTask = Task<Void, Never>(name: "Throw poll Transit") { [weak self] in
+            guard let self else { return }
+            await pollLoop(attempt: attempt)
         }
         self.pollTask = pollTask
         return .accepted(updateValue())
@@ -276,15 +304,11 @@ actor TransitRuntime {
         }
         activationLifecycle = nextActivationLifecycle
         pollingDemandLifecycle = nextPollingDemandLifecycle
-        guard pollTask != nil else {
-            self.health = health
-            publish()
-            return .alreadyStopped(current: updateValue())
-        }
-        guard await stopPhysicalPolling(reporting: health, clearsNetwork: false) else {
+        let wasPolling = pollTask != nil
+        guard await stopPhysicalPolling(reporting: health) else {
             return .superseded(current: updateValue())
         }
-        return .stopped(updateValue())
+        return wasPolling ? .stopped(updateValue()) : .alreadyStopped(current: updateValue())
     }
 
     func deactivate(
@@ -297,13 +321,12 @@ actor TransitRuntime {
         }
         guard activationLifecycle.deactivate(upThrough: lease) else { return }
         pollingDemandLifecycle.stopCurrent()
-        _ = await stopPhysicalPolling(reporting: health, clearsNetwork: true)
+        _ = await stopPhysicalPolling(reporting: health)
     }
 
-    private func stopPhysicalPolling(
-        reporting health: FeedHealth,
-        clearsNetwork: Bool,
-    ) async -> Bool {
+    private func stopPhysicalPolling(reporting health: FeedHealth) async -> Bool {
+        // Every accepted stop retires an in-flight activation attempt, including
+        // the interval after that attempt clears the previous physical task.
         lifecycleGeneration &+= 1
         let lifecycleGeneration = lifecycleGeneration
         successfulActivationLease = nil
@@ -315,7 +338,7 @@ actor TransitRuntime {
         snapshots = [:]
         currentEstimates = []
         vehiclesFrame = nil
-        if clearsNetwork { networkFrame = nil }
+        networkFrame = nil
         failureStartedAtByPartition = [:]
         frameGeneration &+= 1
         estimator.reset()
@@ -331,8 +354,38 @@ actor TransitRuntime {
         guard activationLifecycle.activeLease == lease else { return }
         guard self.labelMode != labelMode else { return }
         self.labelMode = labelMode
+        guard let attempt = currentPollingAttempt(for: lease) else { return }
         _ = await rebuild()
+        guard isCurrent(attempt) else { return }
+        publish()
     }
+
+    func updateVisibleContentCount(_ count: Int, lease: ProjectionActivationLease) {
+        guard activationLifecycle.activeLease == lease else { return }
+        switch health {
+            case let .healthy(lastUpdate, oldCount) where oldCount != count:
+                health = .healthy(lastUpdate: lastUpdate, visibleContentCount: count)
+                publish()
+            case let .retrying(lastUpdate, nextRetry, failure, oldCount) where oldCount != count:
+                health = .retrying(
+                    lastUpdate: lastUpdate,
+                    nextRetry: nextRetry,
+                    failure: failure,
+                    visibleContentCount: count,
+                )
+                publish()
+            case .idle, .loading, .healthy, .retrying, .failed, .quiet:
+                break
+        }
+    }
+
+    #if DEBUG
+        func setBeforeStartingPollingForTesting(
+            _ action: (@Sendable () async -> Void)?,
+        ) {
+            beforeStartingPollingForTesting = action
+        }
+    #endif
 
     private func pollLoop(attempt: PollingAttempt) async {
         while isCurrent(attempt) {
@@ -466,7 +519,9 @@ actor TransitRuntime {
         let labelMode = labelMode
         let failures = failureStartedAtByPartition
         do {
-            var marksByID: [LayerMarkID: ProjectionMark] = [:]
+            var marksByID: [
+                TransitVehicleMarkElement.ID: ProjectionMark<TransitVehicleMarkElement>
+            ] = [:]
             let estimatesByPartition = Dictionary(
                 grouping: estimates,
                 by: { $0.run.id.partitionID },
@@ -535,7 +590,21 @@ actor TransitRuntime {
     private func isCurrent(_ attempt: PollingAttempt) -> Bool {
         Task.isCancelled == false &&
             lifecycleGeneration == attempt.lifecycleGeneration &&
-            activationLifecycle.activeLease == attempt.activationLease
+            activationLifecycle.activeLease == attempt.activationLease &&
+            pollingDemandLifecycle.pollingGeneration == attempt.demandGeneration
+    }
+
+    private func currentPollingAttempt(
+        for lease: ProjectionActivationLease,
+    ) -> PollingAttempt? {
+        guard activationLifecycle.activeLease == lease,
+              let demandGeneration = pollingDemandLifecycle.pollingGeneration
+        else { return nil }
+        return PollingAttempt(
+            activationLease: lease,
+            demandGeneration: demandGeneration,
+            lifecycleGeneration: lifecycleGeneration,
+        )
     }
 
     private func requireCurrent(_ attempt: PollingAttempt?) throws {
@@ -559,11 +628,11 @@ actor TransitRuntime {
             activationLease: activationLifecycle.activeLease,
             successfulActivationLease: successfulActivationLease,
             health: health,
-            experienceFrame: .transit(TransitExperienceFrame(
+            transitFrame: TransitExperienceFrame(
                 geography: nil,
                 network: networkFrame,
                 vehicles: vehiclesFrame,
-            )),
+            ),
         )
     }
 }

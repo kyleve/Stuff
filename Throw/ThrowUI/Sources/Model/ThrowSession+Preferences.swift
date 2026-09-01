@@ -19,6 +19,7 @@ extension ThrowSession {
         mayApplyTrueHeadingHint = preferences.setupCompleted == false
             && preferences.calibration == .defaultValue
         pendingAirAndSpaceFrame = .empty
+        pendingTransitFrame = .empty
         projectionContextGeneration = projectionContextGeneration.successor()
         revokeStagedProjection()
         projectionInputRevision = projectionInputRevision.successor()
@@ -94,12 +95,15 @@ extension ThrowSession {
     public func updateTransitPreferences(_ preferences: TransitPreferences) {
         let previous = transitPreferences
         guard previous != preferences else { return }
+        guard previous.configuration == preferences.configuration else {
+            assertionFailure("Transit configuration must use its persisted session transaction")
+            return
+        }
 
         let projectionChanged = previous.mapCenter != preferences.mapCenter
             || previous.mapViewport != preferences.mapViewport
             || previous.geography.isEnabled != preferences.geography.isEnabled
         let labelModeChanged = previous.labelMode != preferences.labelMode
-        let configurationChanged = previous.configuration != preferences.configuration
         transitPreferences = preferences
 
         schedulePreferencesSave(failure: .preferencePersistence)
@@ -110,15 +114,17 @@ extension ThrowSession {
             }
         }
         if labelModeChanged {
+            let activationLease = transitActivation.activeLease
             Task(name: "Throw rebuild Transit labels") { [weak self] in
-                guard let self else { return }
-                await transitRuntime.refreshPresentation(labelMode: preferences.labelMode)
+                guard let self, let activationLease else { return }
+                await transitRuntime.updateLabelMode(
+                    preferences.labelMode,
+                    lease: activationLease,
+                )
             }
         }
-        if configurationChanged {
-            scheduleDemandReconciliation()
-        } else if activeExperienceID == .transit,
-                  projectionChanged || labelModeChanged
+        if activeExperienceID == .transit,
+           projectionChanged || labelModeChanged
         {
             restartRenderer()
         }
@@ -457,6 +463,8 @@ extension ThrowSession {
         transitPreferences: TransitPreferences,
         projectionPlaylist: ProjectionPlaylist,
     ) throws -> ThrowPreferences {
+        var configuredExperienceIDs = setupState.configuredExperienceIDs
+        if transitPreferences.isConfigured { configuredExperienceIDs.insert(.transit) }
         let playlist: ProjectionPlaylist = if setupState.configuredExperienceIDs
             .contains(.airAndSpace),
             projectionPlaylist.entry(for: .airAndSpace) == nil
@@ -467,10 +475,11 @@ extension ThrowSession {
                         runnableExperienceID: .airAndSpace,
                         dwellDuration: .defaultValue,
                     ),
-                ],
-                automaticRotationEnabled: false,
-                selectedExperienceID: .airAndSpace,
-                configuredExperienceIDs: [.airAndSpace],
+                ] + projectionPlaylist.entries,
+                automaticRotationEnabled: projectionPlaylist.automaticRotationEnabled,
+                selectedExperienceID: projectionPlaylist.selectedRunnableExperienceID
+                    ?? .airAndSpace,
+                configuredExperienceIDs: configuredExperienceIDs,
                 catalog: .standard,
             )
         } else {

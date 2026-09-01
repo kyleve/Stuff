@@ -183,7 +183,7 @@ struct ProjectionModelsTests {
     }
 
     @Test func preparedInputsDiscardStaticLayersThatTheirSemanticInputCannotUse() throws {
-        let mapViewport = try MapViewport(radius: NauticalMiles(value: 50))
+        let mapViewport = try TransitMapViewport(radius: NauticalMiles(value: 5))
         let skyViewport = try SkyViewport(minimumElevation: ElevationAngle(degrees: 10))
         let geographyLines = ProjectedLineCollection<GeographyLineKind>.testing(
             id: ProjectionLineRevisionID.testing(rawValue: 1),
@@ -223,7 +223,7 @@ struct ProjectionModelsTests {
     }
 
     @Test func preparedTransitPairsARequiredNetworkWithItsProjection() throws {
-        let mapViewport = try MapViewport(radius: NauticalMiles(value: 50))
+        let mapViewport = try TransitMapViewport(radius: NauticalMiles(value: 5))
         let source = ProjectionLayerFrame<TransitNetworkLayerKind>(
             observedAt: ThrowCoreFixture.date,
             lines: [],
@@ -329,9 +329,9 @@ struct ProjectionModelsTests {
 
     @Test func projectedExperienceFixesTransitLayersAndMode() throws {
         let vehicleID = try #require(TransitVehicleID(rawValue: "vehicle"))
-        let vehicleDescriptor = TransitVehicleGlyphDescriptor(
+        let vehicleDescriptor = try TransitVehicleGlyphDescriptor(
             routeLabel: "A",
-            color: try #require(TransitColor(hex: "0039A6")),
+            color: #require(TransitColor(hex: "0039A6")),
             confidence: .feedTracked,
         )
         let mark = try ProjectedMark(
@@ -348,7 +348,7 @@ struct ProjectionModelsTests {
             labelOpacity: 1,
             altitudeIsApproximate: false,
         )
-        let lines = ProjectedLineCollection<TransitNetworkLineStyle>.testing(
+        let lines = try ProjectedLineCollection<TransitNetworkLineStyle>.testing(
             id: ProjectionLineRevisionID.testing(rawValue: 7),
             segments: [ProjectedLineSegment(
                 style: transitRouteStyle(),

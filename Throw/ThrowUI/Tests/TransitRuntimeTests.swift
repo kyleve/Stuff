@@ -49,9 +49,361 @@ struct TransitRuntimeTests {
         }
         #expect(failure == .transport)
         #expect(visibleCount == 1)
-        #expect(update.experienceFrame.layers.contains { $0.layerID == .transitNetwork })
-        #expect(update.experienceFrame.layers.contains { $0.layerID == .transitVehicles })
+        #expect(update.experienceFrame.transitFrame?.network != nil)
+        #expect(update.experienceFrame.transitFrame?.vehicles != nil)
         await runtime.deactivate(lease: activationLease, reporting: .idle)
+    }
+
+    @Test func suspensionRetainsLeaseAndRequiresNewerDemand() async throws {
+        let fixture = try Fixture()
+        let runtime = fixture.runtime(source: FixedTransitObservationSource(
+            snapshots: [fixture.partitionA: fixture.emptySnapshot(partition: fixture.partitionA)],
+            failed: [],
+        ))
+        let activationLease = lease(21)
+        _ = await runtime.stateUpdates()
+
+        guard case .accepted = await runtime.activate(
+            labelMode: .routeOnly,
+            lease: activationLease,
+            demandGeneration: demand(1),
+        ) else {
+            Issue.record("The first polling demand must be accepted")
+            return
+        }
+        try await waitUntil {
+            await runtime.currentUpdate().successfulActivationLease == activationLease
+        }
+        let ready = await runtime.currentUpdate()
+        #expect(ready.experienceFrame.transitFrame?.network != nil)
+        #expect(ready.experienceFrame.transitFrame?.vehicles != nil)
+
+        let suspension = await runtime.suspendPolling(
+            lease: activationLease,
+            demandGeneration: demand(2),
+            reporting: .idle,
+        )
+        guard case let .stopped(stopped) = suspension else {
+            Issue.record("The current physical poller must stop")
+            return
+        }
+        #expect(stopped.activationLease == activationLease)
+        #expect(stopped.successfulActivationLease == nil)
+        #expect(stopped.health == .idle)
+        #expect(stopped.experienceFrame.transitFrame == .empty)
+
+        let equalDemand = await runtime.activate(
+            labelMode: .routeOnly,
+            lease: activationLease,
+            demandGeneration: demand(2),
+        )
+        guard case let .superseded(current) = equalDemand else {
+            Issue.record("An equal stopped demand generation must remain tombstoned")
+            return
+        }
+        #expect(current.activationLease == activationLease)
+        #expect(current.successfulActivationLease == nil)
+        #expect(current.health == .idle)
+        #expect(current.experienceFrame.transitFrame == .empty)
+
+        guard case .accepted = await runtime.activate(
+            labelMode: .routeOnly,
+            lease: activationLease,
+            demandGeneration: demand(3),
+        ) else {
+            Issue.record("A newer demand generation must resume the logical lease")
+            return
+        }
+        try await waitUntil {
+            await runtime.currentUpdate().successfulActivationLease == activationLease
+        }
+        let resumed = await runtime.currentUpdate()
+        #expect(resumed.activationLease == activationLease)
+        #expect(resumed.health == .healthy(lastUpdate: fixture.date, visibleContentCount: 0))
+        #expect(resumed.experienceFrame.transitFrame?.network != nil)
+        #expect(resumed.experienceFrame.transitFrame?.vehicles != nil)
+
+        await runtime.deactivate(lease: activationLease, reporting: .idle)
+    }
+
+    @Test func deactivationTombstonesLeaseUntilANewerGeneration() async throws {
+        let fixture = try Fixture()
+        let runtime = fixture.runtime(source: FixedTransitObservationSource(
+            snapshots: [fixture.partitionA: fixture.emptySnapshot(partition: fixture.partitionA)],
+            failed: [],
+        ))
+        let oldLease = lease(31)
+        let replacementLease = lease(32)
+        _ = await runtime.stateUpdates()
+
+        guard case .accepted = await runtime.activate(
+            labelMode: .routeOnly,
+            lease: oldLease,
+            demandGeneration: demand(1),
+        ) else {
+            Issue.record("The first activation must be accepted")
+            return
+        }
+        try await waitUntil {
+            await runtime.currentUpdate().successfulActivationLease == oldLease
+        }
+
+        await runtime.deactivate(lease: oldLease, reporting: .idle)
+        let deactivated = await runtime.currentUpdate()
+        #expect(deactivated.activationLease == nil)
+        #expect(deactivated.successfulActivationLease == nil)
+        #expect(deactivated.health == .idle)
+        #expect(deactivated.experienceFrame.transitFrame == .empty)
+
+        let repeatedActivation = await runtime.activate(
+            labelMode: .routeOnly,
+            lease: oldLease,
+            demandGeneration: demand(2),
+        )
+        guard case let .superseded(current) = repeatedActivation else {
+            Issue.record("Full deactivation must tombstone an equal experience lease")
+            return
+        }
+        #expect(current.activationLease == nil)
+        #expect(current.successfulActivationLease == nil)
+        #expect(current.health == .idle)
+        #expect(current.experienceFrame.transitFrame == .empty)
+
+        guard case .accepted = await runtime.activate(
+            labelMode: .routeOnly,
+            lease: replacementLease,
+            demandGeneration: demand(2),
+        ) else {
+            Issue.record("A newer experience lease must pass the deactivation tombstone")
+            return
+        }
+        try await waitUntil {
+            await runtime.currentUpdate().successfulActivationLease == replacementLease
+        }
+
+        await runtime.deactivate(lease: replacementLease, reporting: .idle)
+    }
+
+    @Test func staleQueuedDeactivationCannotStopAReplacement() async throws {
+        let fixture = try Fixture()
+        let runtime = fixture.runtime(source: FixedTransitObservationSource(
+            snapshots: [fixture.partitionA: fixture.emptySnapshot(partition: fixture.partitionA)],
+            failed: [],
+        ))
+        let oldLease = lease(41)
+        let replacementLease = lease(42)
+        let gate = TransitDeactivationGate()
+        _ = await runtime.stateUpdates()
+
+        _ = await runtime.activate(
+            labelMode: .routeOnly,
+            lease: oldLease,
+            demandGeneration: demand(1),
+        )
+        try await waitUntil {
+            await runtime.currentUpdate().successfulActivationLease == oldLease
+        }
+
+        let staleDeactivation = Task {
+            await gate.hold()
+            await runtime.deactivate(lease: oldLease, reporting: .idle)
+        }
+        await gate.waitUntilHeld()
+
+        guard case .accepted = await runtime.activate(
+            labelMode: .routeOnly,
+            lease: replacementLease,
+            demandGeneration: demand(2),
+        ) else {
+            await gate.release()
+            await staleDeactivation.value
+            Issue.record("The replacement activation must be accepted")
+            return
+        }
+        try await waitUntil {
+            await runtime.currentUpdate().successfulActivationLease == replacementLease
+        }
+        await gate.release()
+        await staleDeactivation.value
+
+        let update = await runtime.currentUpdate()
+        #expect(update.activationLease == replacementLease)
+        #expect(update.successfulActivationLease == replacementLease)
+        #expect(update.health == .healthy(lastUpdate: fixture.date, visibleContentCount: 0))
+        #expect(update.experienceFrame.transitFrame?.network != nil)
+        #expect(update.experienceFrame.transitFrame?.vehicles != nil)
+
+        await runtime.deactivate(lease: replacementLease, reporting: .idle)
+    }
+
+    @Test func stopInvalidatesAnActivationBeforeItInstallsPolling() async throws {
+        let fixture = try Fixture()
+        let runtime = fixture.runtime(source: FixedTransitObservationSource(
+            snapshots: [fixture.partitionA: fixture.emptySnapshot(partition: fixture.partitionA)],
+            failed: [],
+        ))
+        let gate = TransitActivationGate()
+        let activationLease = lease(11)
+        await runtime.setBeforeStartingPollingForTesting {
+            await gate.hold()
+        }
+
+        let activation = Task {
+            await runtime.activate(
+                labelMode: .routeOnly,
+                lease: activationLease,
+                demandGeneration: demand(1),
+            )
+        }
+        await gate.waitUntilHeld()
+
+        let suspension = await runtime.suspendPolling(
+            lease: activationLease,
+            demandGeneration: demand(2),
+            reporting: .idle,
+        )
+        switch suspension {
+            case let .alreadyStopped(current):
+                #expect(current.activationLease == activationLease)
+                #expect(current.successfulActivationLease == nil)
+                #expect(current.experienceFrame.transitFrame == .empty)
+            case .stopped, .superseded:
+                Issue.record("A stop in the activation gap must retire a logical attempt")
+        }
+
+        await gate.release()
+        guard case .superseded = await activation.value else {
+            Issue.record("The retired activation must not install a poller")
+            return
+        }
+        await runtime.setBeforeStartingPollingForTesting(nil)
+        guard case .superseded = await runtime.activate(
+            labelMode: .routeOnly,
+            lease: activationLease,
+            demandGeneration: demand(2),
+        ) else {
+            Issue.record("An equal stopped demand generation must remain tombstoned")
+            return
+        }
+        guard case .accepted = await runtime.activate(
+            labelMode: .routeOnly,
+            lease: activationLease,
+            demandGeneration: demand(3),
+        ) else {
+            Issue.record("A newer demand generation must restart the active lease")
+            return
+        }
+        try await waitUntil {
+            await runtime.currentUpdate().successfulActivationLease == activationLease
+        }
+        await runtime.deactivate(lease: activationLease, reporting: .idle)
+    }
+
+    @Test func laterActivationSupersedesDeactivationDrainingAnOldSnapshot() async throws {
+        let fixture = try Fixture()
+        let snapshotGate = FirstTransitSnapshotGate()
+        let runtime = fixture.runtime(source: FirstSnapshotControlledTransitObservationSource(
+            snapshot: fixture.emptySnapshot(partition: fixture.partitionA),
+            gate: snapshotGate,
+        ))
+        let oldLease = lease(51)
+        let replacementLease = lease(52)
+        _ = await runtime.stateUpdates()
+
+        guard case .accepted = await runtime.activate(
+            labelMode: .routeOnly,
+            lease: oldLease,
+            demandGeneration: demand(1),
+        ) else {
+            Issue.record("The first activation must be accepted")
+            return
+        }
+        await snapshotGate.waitUntilHeld()
+
+        let drainingDeactivation = Task {
+            await runtime.deactivate(lease: oldLease, reporting: .idle)
+        }
+        do {
+            try await waitUntil {
+                await runtime.currentUpdate().activationLease == nil
+            }
+
+            guard case .accepted = await runtime.activate(
+                labelMode: .routeOnly,
+                lease: replacementLease,
+                demandGeneration: demand(2),
+            ) else {
+                await snapshotGate.release()
+                await drainingDeactivation.value
+                Issue.record("The replacement activation must supersede draining teardown")
+                return
+            }
+            try await waitUntil {
+                await runtime.currentUpdate().successfulActivationLease == replacementLease
+            }
+        } catch {
+            await snapshotGate.release()
+            await drainingDeactivation.value
+            throw error
+        }
+
+        let readyReplacement = await runtime.currentUpdate()
+        await snapshotGate.release()
+        await drainingDeactivation.value
+
+        let update = await runtime.currentUpdate()
+        #expect(update.activationLease == replacementLease)
+        #expect(update.successfulActivationLease == replacementLease)
+        #expect(update.health == readyReplacement.health)
+        #expect(update.experienceFrame == readyReplacement.experienceFrame)
+
+        await runtime.deactivate(lease: replacementLease, reporting: .idle)
+    }
+
+    @Test func newerLeaseWithOlderDemandIsRejectedAtomically() async throws {
+        let fixture = try Fixture()
+        let runtime = fixture.runtime(source: FixedTransitObservationSource(
+            snapshots: [fixture.partitionA: fixture.emptySnapshot(partition: fixture.partitionA)],
+            failed: [],
+        ))
+        let currentLease = lease(61)
+        let rejectedLease = lease(62)
+        _ = await runtime.stateUpdates()
+
+        guard case .accepted = await runtime.activate(
+            labelMode: .routeOnly,
+            lease: currentLease,
+            demandGeneration: demand(2),
+        ) else {
+            Issue.record("The current activation must be accepted")
+            return
+        }
+        try await waitUntil {
+            await runtime.currentUpdate().successfulActivationLease == currentLease
+        }
+        let beforeRejectedActivation = await runtime.currentUpdate()
+
+        let rejectedActivation = await runtime.activate(
+            labelMode: .routeOnly,
+            lease: rejectedLease,
+            demandGeneration: demand(1),
+        )
+        guard case let .superseded(current) = rejectedActivation else {
+            Issue.record("An older demand must reject its newer lease as one transaction")
+            return
+        }
+        #expect(current.activationLease == currentLease)
+        #expect(current.successfulActivationLease == currentLease)
+        #expect(current.health == beforeRejectedActivation.health)
+        #expect(current.experienceFrame == beforeRejectedActivation.experienceFrame)
+
+        let afterRejectedActivation = await runtime.currentUpdate()
+        #expect(afterRejectedActivation.activationLease == currentLease)
+        #expect(afterRejectedActivation.successfulActivationLease == currentLease)
+        #expect(afterRejectedActivation.health == beforeRejectedActivation.health)
+        #expect(afterRejectedActivation.experienceFrame == beforeRejectedActivation.experienceFrame)
+
+        await runtime.deactivate(lease: currentLease, reporting: .idle)
     }
 
     private func demand(_ ordinal: Int) -> ProjectionDemandGeneration {
@@ -84,6 +436,13 @@ private enum TransitRuntimeTestError: Error {
     case timedOut
 }
 
+extension ProjectionExperienceFrame {
+    fileprivate var transitFrame: TransitExperienceFrame? {
+        guard case let .transit(frame) = self else { return nil }
+        return frame
+    }
+}
+
 private struct FixedTransitScheduleSource: TransitScheduleSource {
     let value: TransitSchedule
 
@@ -107,6 +466,34 @@ private struct FixedTransitObservationSource: TransitObservationSource {
         if failed.contains(partitionID) { throw TransitDataError.unavailable }
         guard let snapshot = snapshots[partitionID] else { throw TransitDataError.unavailable }
         return snapshot
+    }
+}
+
+private struct FirstSnapshotControlledTransitObservationSource: TransitObservationSource {
+    let snapshotValue: TransitPartitionSnapshot
+    let gate: FirstTransitSnapshotGate
+
+    init(
+        snapshot: TransitPartitionSnapshot,
+        gate: FirstTransitSnapshotGate,
+    ) {
+        snapshotValue = snapshot
+        self.gate = gate
+    }
+
+    var partitionIDs: [TransitFeedPartitionID] {
+        [snapshotValue.partitionID]
+    }
+
+    func snapshot(
+        for partitionID: TransitFeedPartitionID,
+        fetchedAt _: Date,
+    ) async throws -> TransitPartitionSnapshot {
+        guard partitionID == snapshotValue.partitionID else {
+            throw TransitDataError.unavailable
+        }
+        await gate.holdFirstSnapshot()
+        return snapshotValue
     }
 }
 
@@ -181,7 +568,7 @@ private struct Fixture {
         )
     }
 
-    func runtime(source: FixedTransitObservationSource) -> TransitRuntime {
+    func runtime(source: any TransitObservationSource) -> TransitRuntime {
         TransitRuntime(
             observationSource: source,
             scheduleSource: FixedTransitScheduleSource(value: schedule),
@@ -226,5 +613,95 @@ private struct Fixture {
                 )],
             )],
         )
+    }
+}
+
+private actor TransitActivationGate {
+    private var holdContinuation: CheckedContinuation<Void, Never>?
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+    private var isReleased = false
+
+    func hold() async {
+        guard isReleased == false else { return }
+        let waiters = waiters
+        self.waiters.removeAll()
+        waiters.forEach { $0.resume() }
+        await withCheckedContinuation { continuation in
+            precondition(holdContinuation == nil, "Only one Transit activation can wait")
+            holdContinuation = continuation
+        }
+    }
+
+    func waitUntilHeld() async {
+        guard holdContinuation == nil else { return }
+        await withCheckedContinuation { continuation in
+            waiters.append(continuation)
+        }
+    }
+
+    func release() {
+        isReleased = true
+        holdContinuation?.resume()
+        holdContinuation = nil
+    }
+}
+
+private actor TransitDeactivationGate {
+    private var holdContinuation: CheckedContinuation<Void, Never>?
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    func hold() async {
+        let waiters = waiters
+        self.waiters.removeAll()
+        waiters.forEach { $0.resume() }
+        await withCheckedContinuation { continuation in
+            precondition(holdContinuation == nil, "Only one Transit deactivation can wait")
+            holdContinuation = continuation
+        }
+    }
+
+    func waitUntilHeld() async {
+        guard holdContinuation == nil else { return }
+        await withCheckedContinuation { continuation in
+            waiters.append(continuation)
+        }
+    }
+
+    func release() {
+        holdContinuation?.resume()
+        holdContinuation = nil
+    }
+}
+
+private actor FirstTransitSnapshotGate {
+    private var didHoldFirstSnapshot = false
+    private var isReleased = false
+    private var releaseContinuation: CheckedContinuation<Void, Never>?
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    func holdFirstSnapshot() async {
+        guard didHoldFirstSnapshot == false else { return }
+        didHoldFirstSnapshot = true
+        let waiters = waiters
+        self.waiters.removeAll()
+        waiters.forEach { $0.resume() }
+        guard isReleased == false else { return }
+        await withCheckedContinuation { continuation in
+            precondition(releaseContinuation == nil, "Only the first Transit snapshot can wait")
+            releaseContinuation = continuation
+        }
+    }
+
+    func waitUntilHeld() async {
+        guard didHoldFirstSnapshot == false else { return }
+        await withCheckedContinuation { continuation in
+            waiters.append(continuation)
+        }
+    }
+
+    func release() {
+        isReleased = true
+        releaseContinuation?.resume()
+        releaseContinuation = nil
     }
 }

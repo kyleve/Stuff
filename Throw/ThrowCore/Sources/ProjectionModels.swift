@@ -899,12 +899,16 @@ extension ProjectionLayerFrame where Layer == GeographyLayerKind {
     {
         private enum Storage: Hashable {
             case geography(GeographyLineKind)
-            case transitRoute
+            case transitRoute(TransitNetworkLineStyle)
         }
 
         private let storage: Storage
 
-        @_spi(Testing) public static let transitRoute = Self(storage: .transitRoute)
+        @_spi(Testing) public static func transitRoute(
+            _ style: TransitNetworkLineStyle,
+        ) -> Self {
+            Self(storage: .transitRoute(style))
+        }
 
         private init(storage: Storage) {
             self.storage = storage
@@ -919,6 +923,11 @@ extension ProjectionLayerFrame where Layer == GeographyLayerKind {
                 case let .geography(kind): kind
                 case .transitRoute: nil
             }
+        }
+
+        @_spi(Testing) public var transitRouteStyle: TransitNetworkLineStyle? {
+            guard case let .transitRoute(style) = storage else { return nil }
+            return style
         }
 
         public var isTransitRoute: Bool {
@@ -1542,7 +1551,7 @@ public struct AirAndSpaceProjectionInput: Hashable, Sendable {
 /// One typed Transit request for the projection engine.
 public struct TransitProjectionInput: Hashable, Sendable {
     public let frame: TransitExperienceFrame
-    public let viewport: MapViewport
+    public let viewport: TransitMapViewport
     public let geography: GeographyLayerVisibility
 
     public init(
@@ -1619,7 +1628,7 @@ struct PreparedProjectionLineLayer<Layer: ProjectionLineLayerKind>: Hashable {
 
 /// Transit input after static lines are projected for the current geometry.
 public struct PreparedTransitProjectionInput: Hashable, Sendable {
-    let viewport: MapViewport
+    let viewport: TransitMapViewport
     let geography: ProjectedLayerFrame<GeographyLayerKind>?
     let network: PreparedProjectionLineLayer<TransitNetworkLayerKind>?
     let vehicles: ProjectionLayerFrame<TransitVehiclesLayerKind>?

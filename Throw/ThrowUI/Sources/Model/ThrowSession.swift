@@ -198,18 +198,17 @@ public final class ThrowSession {
     /// Compatibility access for Air & Space callers while health remains keyed by experience.
     public internal(set) var feedHealth: FeedHealth {
         get { experienceHealth[.airAndSpace] ?? .idle }
-        set {
-            let coordinator = experienceCoordinatorState.updatingHealth(
-                newValue,
-                for: .airAndSpace,
-            )
-            guard let presentation = projectionPresentationState.updatingCoordinator(coordinator)
-            else {
-                assertionFailure("Health metadata must not change the visible identity")
-                return
-            }
-            projectionPresentationState = presentation
+        set { publishExperienceHealth(newValue, for: .airAndSpace) }
+    }
+
+    func publishExperienceHealth(_ health: FeedHealth, for id: ProjectionExperienceID) {
+        let coordinator = experienceCoordinatorState.updatingHealth(health, for: id)
+        guard let presentation = projectionPresentationState.updatingCoordinator(coordinator)
+        else {
+            assertionFailure("Health metadata must not change the visible identity")
+            return
         }
+        projectionPresentationState = presentation
     }
 
     public internal(set) var projectionPlaylist: ProjectionPlaylist

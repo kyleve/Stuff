@@ -8,143 +8,273 @@ extension ThrowSession {
     }
 
     public var transitMapCenterEastOffset: Double {
-        get { transitMapCenterOffset.east }
-        set { setTransitMapCenterOffset(east: newValue, north: transitMapCenterOffset.north) }
+        transitMapCenterOffset.east
     }
 
     public var transitMapCenterNorthOffset: Double {
-        get { transitMapCenterOffset.north }
-        set { setTransitMapCenterOffset(east: transitMapCenterOffset.east, north: newValue) }
+        transitMapCenterOffset.north
+    }
+
+    public func updateTransitMapCenterOffset(east: Double, north: Double) {
+        do {
+            let boundedEast = min(max(east, -50), 50)
+            let boundedNorth = min(max(north, -50), 50)
+            let distance = try NauticalMiles(value: hypot(boundedEast, boundedNorth))
+            let center = try ProjectionEngine().destination(
+                from: TransitPreferences.defaultValue.mapCenter,
+                bearing: Bearing(degrees: atan2(boundedEast, boundedNorth) * 180 / .pi),
+                distance: distance,
+            )
+            updateTransitPreferences(transitPreferences.replacingMapCenter(center))
+        } catch {
+            recordPostLaunchFailure(.playlist(nil), error: error)
+        }
     }
 
     func applyTransitUpdate(_ update: TransitRuntimeUpdate) async {
-        guard update.activationGeneration == transitActivationGeneration else { return }
-        semanticFramesByExperience[.transit] = update.experienceFrame
+        guard let activationLease = update.activationLease,
+              activationLease == transitActivation.activeLease
+        else { return }
+        let transitFrame = update.transitFrame
+        replacePendingTransitFrame(transitFrame)
+        let semanticFrame = ProjectionExperienceFrame.transit(transitFrame)
+
         await experienceCoordinator.reportRuntimeUpdate(
-            id: .transit,
-            generation: update.activationGeneration,
-            successfulGeneration: update.successfulActivationGeneration,
+            lease: activationLease,
+            successfulLease: update.successfulActivationLease,
             health: update.health,
         )
-
-        let generation = update.activationGeneration
         let awaitsPreparation = await experienceCoordinator.isAwaitingPreparation(
-            id: .transit,
-            generation: generation,
+            activationLease,
         )
-        if update.successfulActivationGeneration == generation, awaitsPreparation {
+        if update.successfulActivationLease == activationLease, awaitsPreparation {
             do {
+                let contextGeneration = projectionContextGeneration
                 let output = try await projectedOutput(
-                    for: update.experienceFrame,
+                    for: semanticFrame,
                     generatedAt: dateProvider.now(),
+                    revision: projectionInputRevision,
+                    loggingOperation: .projectionPreparation,
                 )
-                guard transitActivationGeneration == generation,
-                      semanticFramesByExperience[.transit] == update.experienceFrame,
-                      await experienceCoordinator.isAwaitingPreparation(
-                          id: .transit,
-                          generation: generation,
-                      )
+                guard let currentRequest = try? projectionRequest(
+                    for: .transit(pendingTransitFrame),
+                    generatedAt: output.request.generatedAt,
+                    revision: projectionInputRevision,
+                    loggingOperation: .projectionPreparation,
+                ) else { return }
+                guard transitActivation.activeLease == activationLease,
+                      projectionContextGeneration == contextGeneration,
+                      output.request == currentRequest,
+                      await experienceCoordinator.isAwaitingPreparation(activationLease)
                 else { return }
-                preparedOutputsByExperience[.transit] = PreparedProjectionExperience(
-                    experienceID: .transit,
-                    activationGeneration: generation,
-                    semanticFrame: update.experienceFrame,
+                guard let prepared = PreparedProjectionPresentation.rendered(
+                    contextGeneration: contextGeneration,
+                    activationLease: activationLease,
                     output: output,
-                )
-                let accepted = await experienceCoordinator.reportRuntimePrepared(
-                    id: .transit,
-                    generation: generation,
-                )
-                if accepted == false,
-                   preparedOutputsByExperience[.transit]?.activationGeneration == generation
-                {
-                    preparedOutputsByExperience.removeValue(forKey: .transit)
+                ) else {
+                    assertionFailure("A worker output must match its activation lease")
+                    return
                 }
+                projectionPresentationStaging = .prepared(prepared)
+                let accepted = await experienceCoordinator.reportRuntimePrepared(
+                    activationLease,
+                )
+                guard projectionContextGeneration == contextGeneration,
+                      transitActivation.activeLease == activationLease,
+                      projectionPresentationStaging?.preparedProjection == prepared
+                else {
+                    await experienceCoordinator.invalidatePreparedTransition(
+                        lease: activationLease,
+                    )
+                    return
+                }
+                if accepted == false,
+                   case let .prepared(currentPrepared) = projectionPresentationStaging,
+                   currentPrepared == prepared
+                {
+                    projectionPresentationStaging = nil
+                }
+                if accepted { resolvePostLaunchFailure(.projectionPreparation) }
             } catch is CancellationError {
                 return
             } catch {
+                recordPostLaunchFailure(.projectionPreparation, error: error)
                 await experienceCoordinator.reportRuntimeUpdate(
-                    id: .transit,
-                    generation: generation,
-                    successfulGeneration: nil,
+                    lease: activationLease,
+                    successfulLease: nil,
                     health: .failed(.decoding),
                 )
                 return
             }
         }
 
-        guard activeExperienceID == .transit else { return }
-        let previousHadContent = currentExperienceFrame.layers.isEmpty == false
-        currentExperienceFrame = update.experienceFrame
-        currentLayerFrame = update.experienceFrame.layers.first {
-            $0.layerID == .transitVehicles
-        } ?? update.experienceFrame.layers.first { $0.layerID == .transitNetwork }
-        experienceHealth[.transit] = update.health
-        if currentLayerFrame != nil {
+        if let staging = projectionPresentationStaging, staging.isTransitioning {
+            projectionPresentationStaging = staging.buffering(.transit(update))
+            return
+        }
+        await publishVisibleTransitUpdate(update)
+    }
+
+    func publishVisibleTransitUpdate(_ update: TransitRuntimeUpdate) async {
+        guard let activationLease = update.activationLease,
+              activationLease == transitActivation.activeLease,
+              activeExperienceID == .transit
+        else { return }
+        let previousHadContent: Bool = switch visibleProjection.semanticFrame {
+            case let .transit(frame): frame.network != nil || frame.vehicles != nil
+            case .airAndSpace, nil: false
+        }
+        publishExperienceHealth(update.health, for: .transit)
+        let frame = update.transitFrame
+        if frame.network != nil || frame.vehicles != nil {
             restartRenderer()
         } else if previousHadContent || update.health.visibleContentCount == 0 {
-            await clearProjectionState(restartsGeography: true)
-            experienceHealth[.transit] = update.health
+            await clearTransitProjectionState(restartsGeography: true)
+            publishExperienceHealth(update.health, for: .transit)
         }
     }
 
     /// Downloads the current MTA schedule and verifies at least one realtime partition.
     public func configureNewYorkTransit() async -> Bool {
-        let previousConfiguration = transitConfiguration
-        let previousPlaylist = projectionPlaylist
+        guard let preferenceProducer = beginPreferenceMutation() else { return false }
+        defer { finishPreferenceMutation(preferenceProducer) }
+        await waitForPreferenceSaveWorker()
+
         do {
             try await transitRuntime.validateConnection()
             try Task.checkCancellation()
-            let dwell = ProjectionDwellDuration.defaultValue
-            var entries = projectionPlaylist.entries.filter { $0.experienceID != .transit }
-            entries.append(ProjectionPlaylistEntry(experienceID: .transit, dwellDuration: dwell))
-            let configuredPlaylist = try ProjectionPlaylist(
-                entries: entries,
-                automaticRotationEnabled: entries.count > 1,
-                selectedExperienceID: activeExperienceID ?? .airAndSpace,
-                configuredExperienceIDs: [.airAndSpace, .transit],
-                catalog: .standard,
-            )
-            transitConfiguration = .configured(cityID: .newYorkCity)
-            projectionPlaylist = configuredPlaylist
-            try await savePreferencesImmediately()
-            settingsFailure = nil
-            scheduleDemandReconciliation()
-            return true
         } catch is CancellationError {
-            transitConfiguration = previousConfiguration
-            projectionPlaylist = previousPlaylist
             return false
         } catch {
-            transitConfiguration = previousConfiguration
-            projectionPlaylist = previousPlaylist
-            settingsFailure = error.localizedDescription
+            recordPostLaunchFailure(.playlist(nil), error: error)
             return false
         }
+
+        let persistence = await persistReconciledPreferenceMutation(
+            failure: .playlist(nil),
+            makeMutation: configuredTransitMutation,
+            prepareForPublication: {
+                self.prepareProjectionPreferencePublication(.transitConfiguration)
+            },
+            publish: { _ in },
+        )
+        guard case let .committed(invalidation) = persistence else { return false }
+        _ = await finishProjectionPreferenceInvalidation(invalidation)
+        await configureExperienceCoordinator(with: projectionPlaylist)
+        completeProjectionPreferenceInvalidation(invalidation)
+        resolvePostLaunchFailure(.playlist)
+        scheduleDemandReconciliation()
+        return true
     }
 
     public func removeTransit() async {
-        let previousConfiguration = transitConfiguration
-        let previousPlaylist = projectionPlaylist
-        do {
-            let entries = projectionPlaylist.entries.filter { $0.experienceID != .transit }
-            let airAndSpacePlaylist = try ProjectionPlaylist(
-                entries: entries,
-                automaticRotationEnabled: false,
-                selectedExperienceID: .airAndSpace,
-                configuredExperienceIDs: [.airAndSpace],
-                catalog: .standard,
-            )
-            transitConfiguration = .unconfigured
-            projectionPlaylist = airAndSpacePlaylist
-            try await savePreferencesImmediately()
-            settingsFailure = nil
-            await transitRuntime.deactivate(reporting: .idle)
+        guard let preferenceProducer = beginPreferenceMutation() else { return }
+        defer { finishPreferenceMutation(preferenceProducer) }
+        await waitForPreferenceSaveWorker()
+
+        let persistence = await persistReconciledPreferenceMutation(
+            failure: .playlist(nil),
+            makeMutation: removedTransitMutation,
+            prepareForPublication: {
+                self.prepareProjectionPreferencePublication(.transitConfiguration)
+            },
+            publish: { _ in },
+        )
+        guard case let .committed(invalidation) = persistence else { return }
+        _ = await finishProjectionPreferenceInvalidation(invalidation)
+        await configureExperienceCoordinator(with: projectionPlaylist)
+        completeProjectionPreferenceInvalidation(invalidation)
+        resolvePostLaunchFailure(.playlist)
+        scheduleDemandReconciliation()
+    }
+
+    func reconcileTransitDemand(
+        preReconcileLease: ProjectionActivationLease?,
+        authoritativeLease: ProjectionActivationLease?,
+        generation: ProjectionDemandGeneration,
+        reporting health: FeedHealth,
+    ) async {
+        guard generation == demandGeneration,
+              projectionPreferenceInvalidation == nil
+        else { return }
+        guard launchState.isOperational,
+              transitPreferences.isConfigured,
+              let activationLease = authoritativeLease
+        else {
+            if let authoritativeLease {
+                await suspendTransitPolling(
+                    lease: authoritativeLease,
+                    generation: generation,
+                    reporting: health,
+                )
+            } else if let preReconcileLease {
+                await transitRuntime.deactivate(lease: preReconcileLease, reporting: health)
+            }
+            guard generation == demandGeneration else { return }
+            if visibleProjection.experienceID == .transit {
+                await clearTransitProjectionState(restartsGeography: false)
+                publishExperienceHealth(health, for: .transit)
+            }
+            return
+        }
+
+        let activation = await transitRuntime.activate(
+            labelMode: transitPreferences.labelMode,
+            lease: activationLease,
+            demandGeneration: generation,
+        )
+        guard generation == demandGeneration,
+              projectionPreferenceInvalidation == nil
+        else { return }
+        guard transitActivation.activeLease == activationLease else {
             scheduleDemandReconciliation()
-        } catch {
-            transitConfiguration = previousConfiguration
-            projectionPlaylist = previousPlaylist
-            settingsFailure = error.localizedDescription
+            return
+        }
+        switch activation {
+            case let .accepted(update):
+                guard update.activationLease == activationLease else {
+                    assertionFailure("An accepted Transit activation must match its request")
+                    return
+                }
+            case .superseded:
+                scheduleDemandReconciliation()
+        }
+    }
+
+    private func suspendTransitPolling(
+        lease: ProjectionActivationLease,
+        generation: ProjectionDemandGeneration,
+        reporting health: FeedHealth,
+    ) async {
+        let result = await transitRuntime.suspendPolling(
+            lease: lease,
+            demandGeneration: generation,
+            reporting: health,
+        )
+        if case .superseded = result { scheduleDemandReconciliation() }
+    }
+
+    func replacePendingTransitFrame(_ frame: TransitExperienceFrame) {
+        guard pendingTransitFrame != frame else { return }
+        pendingTransitFrame = frame
+        projectionInputRevision = projectionInputRevision.successor()
+    }
+
+    private func clearTransitProjectionState(restartsGeography: Bool) async {
+        replacePendingTransitFrame(.empty)
+        stopRenderer()
+        let visible = visibleProjection.cleared(
+            mode: projectionMode,
+            generatedAt: dateProvider.now(),
+        )
+        guard let presentation = projectionPresentationState.replacingVisible(visible) else {
+            assertionFailure("Clearing Transit must preserve its visible identity")
+            return
+        }
+        projectionPresentationState = presentation
+        await projectionWorker.reset(experienceID: .transit)
+        if restartsGeography, transitGeographyEnabled, activeExperienceID == .transit {
+            restartRenderer()
         }
     }
 
@@ -166,18 +296,77 @@ extension ThrowSession {
         }
     }
 
-    private func setTransitMapCenterOffset(east: Double, north: Double) {
-        do {
-            let boundedEast = min(max(east, -50), 50)
-            let boundedNorth = min(max(north, -50), 50)
-            let distance = try NauticalMiles(value: hypot(boundedEast, boundedNorth))
-            transitMapCenter = try ProjectionEngine().destination(
-                from: TransitPreferences.defaultValue.mapCenter,
-                bearing: Bearing(degrees: atan2(boundedEast, boundedNorth) * 180 / .pi),
-                distance: distance,
+    private func configuredTransitMutation(
+        from base: ThrowPreferenceSnapshot,
+    ) throws -> ThrowPreferenceMutation<Void> {
+        let transit = base.transitPreferences.replacingConfiguration(
+            .configured(cityID: .newYorkCity),
+        )
+        var configuredExperienceIDs = base.setupState.configuredExperienceIDs
+        configuredExperienceIDs.insert(.transit)
+        let playlist: ProjectionPlaylist = if base.projectionPlaylist.entry(for: .transit) == nil {
+            try base.projectionPlaylist.addingConfiguredExperience(
+                .transit,
+                dwellDuration: .defaultValue,
+                configuredExperienceIDs: configuredExperienceIDs,
+                catalog: .standard,
             )
-        } catch {
-            settingsFailure = error.localizedDescription
+        } else {
+            base.projectionPlaylist
         }
+        return ThrowPreferenceMutation(
+            snapshot: ThrowPreferenceSnapshot(
+                setupState: base.setupState,
+                globalPreferences: base.globalPreferences,
+                airAndSpacePreferences: base.airAndSpacePreferences,
+                transitPreferences: transit,
+                projectionPlaylist: playlist,
+            ),
+            publication: (),
+        )
     }
+
+    private func removedTransitMutation(
+        from base: ThrowPreferenceSnapshot,
+    ) throws -> ThrowPreferenceMutation<Void> {
+        let entries = base.projectionPlaylist.entries.filter {
+            $0.runnableExperienceID != .transit
+        }
+        let selectedExperienceID: RunnableProjectionExperienceID? = if base.projectionPlaylist
+            .selectedRunnableExperienceID == .transit
+        {
+            entries.first?.runnableExperienceID
+        } else {
+            base.projectionPlaylist.selectedRunnableExperienceID
+        }
+        let playlist = try ProjectionPlaylist(
+            entries: entries,
+            automaticRotationEnabled: base.projectionPlaylist.automaticRotationEnabled &&
+                entries.count > 1,
+            selectedExperienceID: selectedExperienceID,
+            configuredExperienceIDs: base.setupState.configuredExperienceIDs,
+            catalog: .standard,
+        )
+        return ThrowPreferenceMutation(
+            snapshot: ThrowPreferenceSnapshot(
+                setupState: base.setupState,
+                globalPreferences: base.globalPreferences,
+                airAndSpacePreferences: base.airAndSpacePreferences,
+                transitPreferences: base.transitPreferences.replacingConfiguration(.unconfigured),
+                projectionPlaylist: playlist,
+            ),
+            publication: (),
+        )
+    }
+
+    #if DEBUG
+        @_spi(Testing) public func replaceTransitPreferencesForTesting(
+            _ preferences: TransitPreferences,
+            playlist: ProjectionPlaylist,
+        ) {
+            transitPreferences = preferences
+            projectionPlaylist = playlist
+            projectionInputRevision = projectionInputRevision.successor()
+        }
+    #endif
 }

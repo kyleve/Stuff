@@ -11,7 +11,7 @@ struct ThrowStylesheetTests {
         let style = ThrowStylesheet.TransitStyle.standard
 
         #expect(style.vehicleDiameter > 0)
-        #expect(style.vehicleOutlineWidth > 0)
+        #expect((0 ... 1).contains(style.vehicleRouteLuminance))
         #expect(style.stopDiameter > 0)
         #expect(style.stopOutlineWidth > 0)
         #expect(style.routeLineWidth > 0)
