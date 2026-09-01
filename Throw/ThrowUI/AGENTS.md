@@ -32,6 +32,9 @@ Read the root [`AGENTS.md`](../../AGENTS.md) and group
   validated source and location values atomically through that state. Persist a
   replacement location before publishing it, and invalidate the old projection
   context before the new observer becomes visible.
+- Put every preference write through the session's owned queue. Coalesce only
+  adjacent UI snapshots, preserve immediate-write barriers, and flush the queue
+  when the final controller scene backgrounds.
 - Render projector, Preview, and full-screen fallback through
   `ProjectionSurface`. Do not add a parallel renderer.
 - Keep the render loop on fixed deadlines. Skip elapsed frame slots instead of

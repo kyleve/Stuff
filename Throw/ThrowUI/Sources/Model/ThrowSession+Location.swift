@@ -259,6 +259,8 @@ extension ThrowSession {
         longitude: Double,
         altitudeFeet: Double,
     ) async -> Bool {
+        guard beginPreferenceMutation() else { return false }
+        defer { finishPreferenceMutation() }
         do {
             let replacement: ObserverLocationReplacement
             switch mode {
@@ -331,6 +333,8 @@ extension ThrowSession {
     }
 
     private func accept(_ fix: LocationFix, mode: ObserverLocationMode) async {
+        guard beginPreferenceMutation() else { return }
+        defer { finishPreferenceMutation() }
         do {
             let confirmed = try ConfirmedObserverLocation(
                 position: fix.position,
