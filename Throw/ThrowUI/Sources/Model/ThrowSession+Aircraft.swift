@@ -167,7 +167,7 @@ extension ThrowSession {
         guard beginPreferenceMutation() else { return false }
         defer { finishPreferenceMutation() }
 
-        await flushPreferencesSave()
+        await waitForPreferenceSaveWorker()
 
         do {
             let base = preferenceSnapshot

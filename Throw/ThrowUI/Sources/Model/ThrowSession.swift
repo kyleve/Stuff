@@ -364,17 +364,14 @@ public final class ThrowSession {
     @ObservationIgnored var demandTask: Task<Void, Never>?
     @ObservationIgnored var isReconcilingDemand = false
     @ObservationIgnored var renderTask: Task<Void, Never>?
-    @ObservationIgnored var preferenceSaveTask: Task<Void, Never>?
-    @ObservationIgnored var preferenceSaveQueue: [PreferenceSaveRequest] = []
+    @ObservationIgnored var preferencePersistence = ThrowPreferencePersistenceState()
     @ObservationIgnored var locationTask: Task<Void, Never>?
     @ObservationIgnored var quietBoundaryTask: Task<Void, Never>?
     @ObservationIgnored var timeChangeTasks: [Task<Void, Never>] = []
     @ObservationIgnored var cachedFlightradar24Usage: CachedFlightradar24Usage?
     @ObservationIgnored var lastFlightradar24UsageRequestAt: Date?
     @ObservationIgnored var flightradar24UsageGeneration: UInt64 = 0
-    @ObservationIgnored var preferenceMutationInProgress = false
     @ObservationIgnored var projectionPreferenceInvalidation: ProjectionPreferenceInvalidation?
-    @ObservationIgnored var deferredPreferenceSaveFailures = ThrowPostLaunchFailureLedger()
     @ObservationIgnored var onboardingCompletionInProgress = false
     #if DEBUG
         @ObservationIgnored @_spi(Testing) public var
@@ -748,9 +745,6 @@ public final class ThrowSession {
             expireTemporaryWakeIfNeeded()
         } else {
             cancelProjectionSessionLocationAcquisition(restoringPreviousHealth: true)
-            Task(name: "Throw flush preferences in background") { [self] in
-                await flushPreferencesSave()
-            }
         }
         scheduleDemandReconciliation()
     }

@@ -9,6 +9,60 @@ protocol IdleTimerControlling: AnyObject {
 
 extension UIApplication: IdleTimerControlling {}
 
+@MainActor
+protocol BackgroundExecutionLease: AnyObject {
+    func end()
+}
+
+@MainActor
+protocol BackgroundExecutionLeasing: AnyObject {
+    func begin(
+        name: String,
+        expirationHandler: @escaping @MainActor @Sendable () -> Void,
+    ) -> any BackgroundExecutionLease
+}
+
+@MainActor
+final class UIApplicationBackgroundExecutionLeaser: BackgroundExecutionLeasing {
+    private let application: UIApplication
+
+    init(application: UIApplication) {
+        self.application = application
+    }
+
+    func begin(
+        name: String,
+        expirationHandler: @escaping @MainActor @Sendable () -> Void,
+    ) -> any BackgroundExecutionLease {
+        let identifier = application.beginBackgroundTask(
+            withName: name,
+            expirationHandler: expirationHandler,
+        )
+        return UIApplicationBackgroundExecutionLease(
+            application: application,
+            identifier: identifier,
+        )
+    }
+}
+
+@MainActor
+private final class UIApplicationBackgroundExecutionLease: BackgroundExecutionLease {
+    private let application: UIApplication
+    private var identifier: UIBackgroundTaskIdentifier?
+
+    init(application: UIApplication, identifier: UIBackgroundTaskIdentifier) {
+        self.application = application
+        self.identifier = identifier
+    }
+
+    func end() {
+        guard let identifier else { return }
+        self.identifier = nil
+        guard identifier != .invalid else { return }
+        application.endBackgroundTask(identifier)
+    }
+}
+
 /// The stable UIKit identity for one controller scene in this process.
 struct ControllerSceneID: Hashable {
     let rawValue: String
@@ -51,19 +105,41 @@ protocol ThrowApplicationRuntime: AnyObject {
 /// Owns Throw's one UI session and the process-level output lifecycle.
 @MainActor
 final class ThrowRuntime: ThrowApplicationRuntime {
+    private struct BackgroundPreferenceFlushID: Equatable {
+        let rawValue: UInt64
+    }
+
+    private enum BackgroundPreferenceFlushState {
+        case idle(nextID: BackgroundPreferenceFlushID)
+        case active(
+            id: BackgroundPreferenceFlushID,
+            lease: any BackgroundExecutionLease,
+            task: Task<Void, Never>,
+        )
+    }
+
     let session: ThrowSession
 
     private let idleTimerController: any IdleTimerControlling
+    private let backgroundExecutionLeaser: any BackgroundExecutionLeasing
     private var activeOutputs: [ProjectionOutputID: ProjectionOutput] = [:]
     private var appearanceSinks: [ProjectionOutputID: @MainActor (UIUserInterfaceStyle) -> Void] =
         [:]
     private var previousIdleTimerState: Bool?
     private var controllerAppearance: UIUserInterfaceStyle = .unspecified
     private var foregroundControllerScenes: Set<ControllerSceneID> = []
+    private var backgroundPreferenceFlush = BackgroundPreferenceFlushState.idle(
+        nextID: BackgroundPreferenceFlushID(rawValue: 0),
+    )
 
-    init(session: ThrowSession, idleTimerController: any IdleTimerControlling) {
+    init(
+        session: ThrowSession,
+        idleTimerController: any IdleTimerControlling,
+        backgroundExecutionLeaser: any BackgroundExecutionLeasing,
+    ) {
         self.session = session
         self.idleTimerController = idleTimerController
+        self.backgroundExecutionLeaser = backgroundExecutionLeaser
         session.controllerForegroundPresenceDidChange(false)
         session.startLaunch()
     }
@@ -72,6 +148,9 @@ final class ThrowRuntime: ThrowApplicationRuntime {
         ThrowRuntime(
             session: .live(),
             idleTimerController: UIApplication.shared,
+            backgroundExecutionLeaser: UIApplicationBackgroundExecutionLeaser(
+                application: .shared,
+            ),
         )
     }
 
@@ -111,6 +190,9 @@ final class ThrowRuntime: ThrowApplicationRuntime {
         let hasForegroundController = foregroundControllerScenes.isEmpty == false
         guard hasForegroundController != previouslyHadForegroundController else { return }
         session.controllerForegroundPresenceDidChange(hasForegroundController)
+        if hasForegroundController == false {
+            startBackgroundPreferenceFlush()
+        }
     }
 
     func controllerAppearanceDidChange(_ style: UIUserInterfaceStyle) {
@@ -143,6 +225,44 @@ final class ThrowRuntime: ThrowApplicationRuntime {
             idleTimerController.isIdleTimerDisabled = previousIdleTimerState
             self.previousIdleTimerState = nil
         }
+    }
+
+    private func startBackgroundPreferenceFlush() {
+        guard case let .idle(id) = backgroundPreferenceFlush else { return }
+        let lease = backgroundExecutionLeaser.begin(
+            name: "Throw save preferences",
+        ) { [weak self] in
+            self?.expireBackgroundPreferenceFlush(id: id)
+        }
+        let session = session
+        let task = Task(name: "Throw flush preferences in background") { [weak self] in
+            guard Task.isCancelled == false else { return }
+            await session.flushPreferencesSave()
+            guard Task.isCancelled == false else { return }
+            self?.completeBackgroundPreferenceFlush(id: id)
+        }
+        backgroundPreferenceFlush = .active(id: id, lease: lease, task: task)
+    }
+
+    private func completeBackgroundPreferenceFlush(id: BackgroundPreferenceFlushID) {
+        guard case let .active(currentID, lease, _) = backgroundPreferenceFlush,
+              currentID == id
+        else { return }
+        backgroundPreferenceFlush = .idle(
+            nextID: BackgroundPreferenceFlushID(rawValue: id.rawValue &+ 1),
+        )
+        lease.end()
+    }
+
+    private func expireBackgroundPreferenceFlush(id: BackgroundPreferenceFlushID) {
+        guard case let .active(currentID, lease, task) = backgroundPreferenceFlush,
+              currentID == id
+        else { return }
+        backgroundPreferenceFlush = .idle(
+            nextID: BackgroundPreferenceFlushID(rawValue: id.rawValue &+ 1),
+        )
+        task.cancel()
+        lease.end()
     }
 }
 

@@ -34,6 +34,10 @@ set of foreground controller-scene identities. The session is foreground while
 that set is nonempty. External-display scenes provide output demand but never
 stand in for a foreground controller.
 
+When the final controller enters the background, the runtime starts a retained
+preference flush under a UIKit execution lease. The runtime ends the lease when
+the flush completes. Expiration cancels the retained task and ends the lease.
+
 ## Resources
 
 The app ships its app icon, generated software attribution report, and privacy

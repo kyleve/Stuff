@@ -69,3 +69,49 @@ final class IdleTimerControllerSpy: IdleTimerControlling {
         storedIdleTimerState = isIdleTimerDisabled
     }
 }
+
+@MainActor
+final class BackgroundExecutionLeaseSpy: BackgroundExecutionLease {
+    private(set) var endCallCount = 0
+    private var awaitedEndCallCount = 0
+    private var endContinuation: CheckedContinuation<Void, Never>?
+
+    func end() {
+        endCallCount += 1
+        if endCallCount >= awaitedEndCallCount {
+            endContinuation?.resume()
+            endContinuation = nil
+        }
+    }
+
+    func waitForEndCallCount(_ expectedCount: Int) async {
+        guard endCallCount < expectedCount else { return }
+        awaitedEndCallCount = expectedCount
+        await withCheckedContinuation { continuation in
+            endContinuation = continuation
+        }
+    }
+}
+
+@MainActor
+final class BackgroundExecutionLeaserSpy: BackgroundExecutionLeasing {
+    private(set) var beginCallCount = 0
+    private(set) var lastLease: BackgroundExecutionLeaseSpy?
+    private var expirationHandler: (@MainActor @Sendable () -> Void)?
+
+    func begin(
+        name _: String,
+        expirationHandler: @escaping @MainActor @Sendable () -> Void,
+    ) -> any BackgroundExecutionLease {
+        beginCallCount += 1
+        let lease = BackgroundExecutionLeaseSpy()
+        lastLease = lease
+        self.expirationHandler = expirationHandler
+        return lease
+    }
+
+    func expire() {
+        expirationHandler?()
+        expirationHandler = nil
+    }
+}
