@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import ThrowCore
 @_spi(Testing) @testable import ThrowUI
 
 @MainActor
@@ -52,5 +53,88 @@ struct OnboardingFlowModelTests {
         model.quietEnd = model.quietStart.addingTimeInterval(60)
         #expect(model.quietScheduleIsValid)
         #expect(model.canContinue)
+    }
+
+    @Test func tappingSelectedSourcePreservesItsValidatedDraft() async {
+        let model = OnboardingFlowModel(
+            session: ThrowSession.fixture(),
+            outputs: ControllerProjectionOutputs(),
+        )
+        model.sourceChoice = .adsbExchange
+        model.rapidAPIKey = "replacement-secret-9999"
+        await model.testSource()
+
+        #expect(model.sourceValidation == .succeeded)
+        #expect(model.hasStagedRapidAPICredential)
+
+        model.sourceChoice = .adsbExchange
+
+        #expect(model.sourceValidation == .succeeded)
+        #expect(model.hasStagedRapidAPICredential)
+        #expect(model.rapidAPICredentialState == .saved(lastFour: "9999"))
+    }
+
+    @Test func editingValidatedSourceInvalidatesItsStagedCredential() async {
+        let model = OnboardingFlowModel(
+            session: ThrowSession.fixture(),
+            outputs: ControllerProjectionOutputs(),
+        )
+        model.sourceChoice = .adsbExchange
+        model.rapidAPIKey = "replacement-secret-9999"
+        await model.testSource()
+
+        #expect(model.sourceValidation == .succeeded)
+        #expect(model.hasStagedRapidAPICredential)
+
+        model.pollingIntervalSeconds = 60
+
+        #expect(model.sourceValidation == .untested)
+        #expect(model.hasStagedRapidAPICredential == false)
+        #expect(model.rapidAPICredentialState == .missing)
+    }
+
+    @Test func lateSourceSuccessCannotRestoreAnInvalidatedDraft() async {
+        let transport = DeferredOnboardingSourceTestTransport()
+        let model = OnboardingFlowModel(
+            session: ThrowSession.fixture(cloudTransport: transport),
+            outputs: ControllerProjectionOutputs(),
+        )
+        model.sourceChoice = .adsbExchange
+        model.rapidAPIKey = "replacement-secret-9999"
+
+        let testTask = Task { await model.testSource() }
+        await transport.waitForRequest()
+        model.pollingIntervalSeconds = 60
+        await transport.succeed()
+        await testTask.value
+
+        #expect(model.sourceValidation == .untested)
+        #expect(model.hasStagedRapidAPICredential == false)
+        #expect(model.rapidAPIKey == "replacement-secret-9999")
+    }
+}
+
+private actor DeferredOnboardingSourceTestTransport: HTTPTransport {
+    private var continuation: CheckedContinuation<HTTPResponse, Error>?
+
+    func response(for _: HTTPRequest) async throws -> HTTPResponse {
+        try await withCheckedThrowingContinuation { continuation in
+            self.continuation = continuation
+        }
+    }
+
+    func waitForRequest() async {
+        while continuation == nil {
+            await Task.yield()
+        }
+    }
+
+    func succeed() {
+        continuation?.resume(returning: HTTPResponse(
+            statusCode: 200,
+            headers: [:],
+            data: Data(#"{"ac":[],"now":1787594400,"total":0}"#.utf8),
+        ))
+        continuation = nil
     }
 }

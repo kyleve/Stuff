@@ -17,11 +17,7 @@ final class OnboardingFlowModel {
     var airAndSpaceDraft = AirAndSpaceSetupDraft()
     var sourceChoice: AircraftSourceChoice? {
         get { airAndSpaceDraft.sourceChoice }
-        set {
-            guard airAndSpaceDraft.sourceChoice != newValue else { return }
-            airAndSpaceDraft.sourceChoice = newValue
-            invalidateTestedSource()
-        }
+        set { airAndSpaceDraft.selectSource(newValue) }
     }
 
     var readsbURL: String {
@@ -53,8 +49,7 @@ final class OnboardingFlowModel {
     }
 
     var sourceValidation: SourceValidationState {
-        get { airAndSpaceDraft.sourceValidation }
-        set { airAndSpaceDraft.sourceValidation = newValue }
+        airAndSpaceDraft.sourceValidation
     }
 
     var selectedMode: ProjectionMode? {
@@ -128,7 +123,6 @@ final class OnboardingFlowModel {
     var quietStart: Date
     var quietEnd: Date
 
-    private var sourceTestGeneration: UInt64 = 0
     private var calibrationDemandIsActive = false
     private var didPresentFullScreenPreview = false
 
@@ -179,8 +173,7 @@ final class OnboardingFlowModel {
     }
 
     private var validatedSourceDraft: ValidatedAircraftSourceDraft? {
-        get { airAndSpaceDraft.validatedSource }
-        set { airAndSpaceDraft.validatedSource = newValue }
+        airAndSpaceDraft.validatedSource
     }
 
     var locationHealth: LocationHealth {
@@ -304,35 +297,34 @@ final class OnboardingFlowModel {
 
     #if DEBUG
         func seedValidatedSourceForSnapshot(_ configuration: AircraftSourceConfiguration) {
-            validatedSourceDraft = ValidatedAircraftSourceDraft(
-                source: AircraftSourceValidationDraft(configuration: configuration),
-            )
-            sourceValidation = .succeeded
+            airAndSpaceDraft.seedValidatedSource(configuration)
         }
     #endif
 
     func testSource() async {
         guard let sourceChoice else { return }
-        sourceTestGeneration &+= 1
-        let generation = sourceTestGeneration
-        validatedSourceDraft = nil
-        sourceValidation = .testing
-        let outcome = await session.testSource(
-            choice: sourceChoice,
-            readsbURL: readsbURL,
-            rapidAPIKey: rapidAPIKey,
-            pollingIntervalSeconds: Int(pollingIntervalSeconds),
-        )
-        guard generation == sourceTestGeneration else { return }
-        switch outcome {
-            case let .succeeded(draft):
-                validatedSourceDraft = draft
-                sourceValidation = .succeeded
-                rapidAPIKey = ""
-            case let .failed(failure):
-                sourceValidation = .failed(failure)
-            case .cancelled:
-                sourceValidation = .untested
+        guard sourceValidation != .testing else { return }
+        let sourceDraft: AircraftSourceValidationDraft
+        do {
+            sourceDraft = try session.sourceValidationDraft(
+                choice: sourceChoice,
+                readsbURL: readsbURL,
+                rapidAPIKey: rapidAPIKey,
+                pollingIntervalSeconds: Int(pollingIntervalSeconds),
+            )
+        } catch let failure as AircraftSourceFailure {
+            session.logPostLaunchFailure(at: .aircraftSource, error: failure)
+            airAndSpaceDraft.failSourceTest(failure.presentationCategory)
+            return
+        } catch {
+            session.logPostLaunchFailure(at: .aircraftSource, error: error)
+            airAndSpaceDraft.failSourceTest(.sourceNotValidated)
+            return
+        }
+        let signature = airAndSpaceDraft.beginSourceTest(sourceDraft)
+        let outcome = await session.testSource(sourceDraft)
+        if airAndSpaceDraft.resolveSourceTest(outcome, matching: signature) {
+            rapidAPIKey = ""
         }
     }
 
@@ -365,9 +357,7 @@ final class OnboardingFlowModel {
     }
 
     private func invalidateTestedSource() {
-        sourceTestGeneration &+= 1
-        validatedSourceDraft = nil
-        sourceValidation = .untested
+        airAndSpaceDraft.invalidateTestedSource()
     }
 
     private var calibrationOutputIsReady: Bool {
