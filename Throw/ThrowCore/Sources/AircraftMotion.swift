@@ -1,41 +1,29 @@
 import Foundation
 
-/// Identifies whether Throw can project horizontal motion and where that
-/// provider-neutral estimate came from.
+/// Identifies where a provider-neutral horizontal-motion estimate came from.
 public enum AircraftHorizontalMotionSource: String, Hashable, Sendable {
-    case unavailable
     case provider
     case positionDerived = "position-derived"
 }
 
-/// The motion Throw uses for prediction after validating provider values and
-/// optionally reconciling them with consecutive observed positions.
-public struct AircraftMotion: Hashable, Sendable {
-    public let groundTrack: Bearing?
-    public let groundSpeedKnots: Double?
-    public let verticalRateFeetPerMinute: Double?
+/// A validated horizontal-motion value that can drive position prediction.
+public struct AvailableAircraftHorizontalMotion: Hashable, Sendable {
+    public let track: Bearing
+    public let speedKnots: Double
     public let turnRateDegreesPerSecond: Double?
-    public let horizontalSource: AircraftHorizontalMotionSource
+    public let source: AircraftHorizontalMotionSource
 
     public init(
-        groundTrack: Bearing?,
-        groundSpeedKnots: Double?,
-        verticalRateFeetPerMinute: Double?,
+        track: Bearing,
+        speedKnots: Double,
         turnRateDegreesPerSecond: Double?,
-        horizontalSource: AircraftHorizontalMotionSource,
+        source: AircraftHorizontalMotionSource,
     ) throws {
-        if let groundSpeedKnots {
-            guard groundSpeedKnots.isFinite, (0 ... 2000).contains(groundSpeedKnots) else {
-                throw ThrowValidationError.outOfRange(
-                    field: "groundSpeed",
-                    closedRange: 0 ... 2000,
-                )
-            }
-        }
-        if let verticalRateFeetPerMinute {
-            guard verticalRateFeetPerMinute.isFinite else {
-                throw ThrowValidationError.nonFiniteValue(field: "verticalRate")
-            }
+        guard speedKnots.isFinite, (0 ... 2000).contains(speedKnots) else {
+            throw ThrowValidationError.outOfRange(
+                field: "groundSpeed",
+                closedRange: 0 ... 2000,
+            )
         }
         if let turnRateDegreesPerSecond {
             guard turnRateDegreesPerSecond.isFinite else {
@@ -48,38 +36,89 @@ public struct AircraftMotion: Hashable, Sendable {
                 )
             }
         }
-        precondition(
-            horizontalSource == .unavailable ||
-                (groundTrack != nil && groundSpeedKnots != nil),
-            "Available horizontal motion requires both track and speed",
-        )
-        precondition(
-            turnRateDegreesPerSecond == nil ||
-                (groundTrack != nil && groundSpeedKnots != nil),
-            "Turn-rate prediction requires horizontal motion",
-        )
-        self.groundTrack = groundTrack
-        self.groundSpeedKnots = groundSpeedKnots
-        self.verticalRateFeetPerMinute = verticalRateFeetPerMinute
+        self.track = track
+        self.speedKnots = speedKnots
         self.turnRateDegreesPerSecond = turnRateDegreesPerSecond
-        self.horizontalSource = horizontalSource
+        self.source = source
+    }
+}
+
+/// Horizontal motion is either unavailable or a complete validated value.
+public enum AircraftHorizontalMotion: Hashable, Sendable {
+    case unavailable(orientation: Bearing?)
+    case available(AvailableAircraftHorizontalMotion)
+
+    public var availableValue: AvailableAircraftHorizontalMotion? {
+        if case let .available(value) = self { value } else { nil }
+    }
+
+    public var orientation: Bearing? {
+        switch self {
+            case let .unavailable(orientation): orientation
+            case let .available(value): value.track
+        }
+    }
+}
+
+/// The motion Throw uses for prediction after validating provider values and
+/// optionally reconciling them with consecutive observed positions.
+public struct AircraftMotion: Hashable, Sendable {
+    public let horizontal: AircraftHorizontalMotion
+    public let verticalRateFeetPerMinute: Double?
+
+    public init(
+        horizontal: AircraftHorizontalMotion,
+        verticalRateFeetPerMinute: Double?,
+    ) throws {
+        if let verticalRateFeetPerMinute {
+            guard verticalRateFeetPerMinute.isFinite else {
+                throw ThrowValidationError.nonFiniteValue(field: "verticalRate")
+            }
+        }
+        self.horizontal = horizontal
+        self.verticalRateFeetPerMinute = verticalRateFeetPerMinute
+    }
+
+    public var groundTrack: Bearing? {
+        horizontal.orientation
+    }
+
+    public var groundSpeedKnots: Double? {
+        horizontal.availableValue?.speedKnots
+    }
+
+    public var turnRateDegreesPerSecond: Double? {
+        horizontal.availableValue?.turnRateDegreesPerSecond
+    }
+
+    public var horizontalSource: AircraftHorizontalMotionSource? {
+        horizontal.availableValue?.source
     }
 
     public static func reported(by observation: AircraftObservation) -> AircraftMotion {
-        let source: AircraftHorizontalMotionSource = if observation.groundTrack != nil,
-                                                        observation.groundSpeedKnots != nil
+        let horizontal: AircraftHorizontalMotion
+        if let track = observation.groundTrack,
+           let speedKnots = observation.groundSpeedKnots
         {
-            .provider
+            do {
+                horizontal = try .available(
+                    AvailableAircraftHorizontalMotion(
+                        track: track,
+                        speedKnots: speedKnots,
+                        turnRateDegreesPerSecond: nil,
+                        source: .provider,
+                    ),
+                )
+            } catch {
+                preconditionFailure("A validated observation must contain valid motion: \(error)")
+            }
         } else {
-            .unavailable
+            horizontal = .unavailable(orientation: observation.groundTrack)
         }
         do {
             return try AircraftMotion(
-                groundTrack: observation.groundTrack,
-                groundSpeedKnots: observation.groundSpeedKnots,
+                horizontal: horizontal,
                 verticalRateFeetPerMinute: observation.verticalRateFeetPerMinute,
-                turnRateDegreesPerSecond: nil,
-                horizontalSource: source,
             )
         } catch {
             preconditionFailure("A validated observation must contain valid motion: \(error)")

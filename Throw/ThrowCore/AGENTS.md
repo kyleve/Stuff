@@ -31,6 +31,8 @@ location, and scheduling; see [`README.md`](README.md). Read the root
   arbitrary credential ID in a provider configuration.
 - Keep consecutive motion state inside the Flights runtime actor. Clear it when
   the selected source changes, and never persist it.
+- Represent horizontal motion as `AircraftHorizontalMotion`. Available motion
+  carries track, speed, source, and optional turn rate as one validated value.
 - Store only the RapidAPI key in device-only Keychain storage. Persist no live
   aircraft data or credential in preferences.
 - Keep projection functions deterministic and independent of SwiftUI layout.

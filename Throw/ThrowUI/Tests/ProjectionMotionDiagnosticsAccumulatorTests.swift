@@ -53,12 +53,12 @@ struct ProjectionMotionDiagnosticsAccumulatorTests {
                     glyph: .aircraft(.unknownAirborne),
                     label: nil,
                     prominence: .primary,
-                    velocity: ProjectionVelocity(
-                        groundTrack: Bearing(degrees: 90),
-                        groundSpeedKnots: 360,
+                    velocity: ProjectionVelocity.available(
+                        track: Bearing(degrees: 90),
+                        speedKnots: 360,
                         verticalRateFeetPerMinute: nil,
                         turnRateDegreesPerSecond: nil,
-                        horizontalSource: .provider,
+                        source: .provider,
                     ),
                     freshness: MarkFreshness(
                         positionObservedAt: observedAt,

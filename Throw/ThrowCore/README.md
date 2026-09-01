@@ -85,6 +85,9 @@ The Flights runtime compares consecutive positions for each aircraft.
 Valid provider track and speed remain authoritative.
 Observed positions supply motion when provider values are missing or clearly inconsistent.
 Recent provider tracks can supply a bounded turn rate.
+Horizontal motion is one typed value: an available value always has track,
+speed, and source, while orientation-only observations remain unavailable for
+translation. Turn rate exists only inside available horizontal motion.
 Throw uses that turn rate for the first 12 seconds of a prediction.
 The runtime removes this history when the source changes or the app runtime ends.
 

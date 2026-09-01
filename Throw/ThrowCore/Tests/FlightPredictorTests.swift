@@ -58,12 +58,12 @@ struct FlightPredictorTests {
 
     @Test func shortLivedTurnRateCurvesPredictionThenContinuesOnFinalTrack() throws {
         let mark = try mark(
-            velocity: ProjectionVelocity(
-                groundTrack: Bearing(degrees: 90),
-                groundSpeedKnots: 360,
+            velocity: ProjectionVelocity.available(
+                track: Bearing(degrees: 90),
+                speedKnots: 360,
                 verticalRateFeetPerMinute: nil,
                 turnRateDegreesPerSecond: 1,
-                horizontalSource: .provider,
+                source: .provider,
             ),
             positionAge: 0,
         )
@@ -106,12 +106,9 @@ struct FlightPredictorTests {
 
     @Test func verticalRatePredictsAltitudeWithoutHorizontalVelocity() throws {
         let mark = try mark(
-            velocity: ProjectionVelocity(
-                groundTrack: nil,
-                groundSpeedKnots: nil,
+            velocity: ProjectionVelocity.unavailable(
+                orientation: nil,
                 verticalRateFeetPerMinute: 600,
-                turnRateDegreesPerSecond: nil,
-                horizontalSource: .unavailable,
             ),
             positionAge: 0,
         )
@@ -131,12 +128,9 @@ struct FlightPredictorTests {
 
     @Test func extremeVerticalRateStopsAtTheValidAltitudeBoundary() throws {
         let mark = try mark(
-            velocity: ProjectionVelocity(
-                groundTrack: nil,
-                groundSpeedKnots: nil,
+            velocity: ProjectionVelocity.unavailable(
+                orientation: nil,
                 verticalRateFeetPerMinute: .greatestFiniteMagnitude,
-                turnRateDegreesPerSecond: nil,
-                horizontalSource: .unavailable,
             ),
             positionAge: 0,
         )
@@ -157,12 +151,12 @@ struct FlightPredictorTests {
         availability: MarkAvailability = .current,
     ) throws -> ProjectionMark {
         try mark(
-            velocity: ProjectionVelocity(
-                groundTrack: Bearing(degrees: 90),
-                groundSpeedKnots: 360,
+            velocity: ProjectionVelocity.available(
+                track: Bearing(degrees: 90),
+                speedKnots: 360,
                 verticalRateFeetPerMinute: 600,
                 turnRateDegreesPerSecond: nil,
-                horizontalSource: .provider,
+                source: .provider,
             ),
             positionAge: positionAge,
             availability: availability,
