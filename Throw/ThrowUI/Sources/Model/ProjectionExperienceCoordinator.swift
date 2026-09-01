@@ -52,8 +52,20 @@ struct ProjectionActivationLease: Equatable, Hashable {
         }
     }
 
-    let experienceID: ProjectionExperienceID
+    let runnableExperienceID: RunnableProjectionExperienceID
     let generation: Generation
+
+    init(
+        experienceID: RunnableProjectionExperienceID,
+        generation: Generation,
+    ) {
+        runnableExperienceID = experienceID
+        self.generation = generation
+    }
+
+    var experienceID: ProjectionExperienceID {
+        runnableExperienceID.experienceID
+    }
 }
 
 /// Rejects lifecycle commands older than the newest lease observed for one experience.
@@ -64,8 +76,12 @@ struct ProjectionActivationLeaseTracker {
         case inactive(latestGeneration: ProjectionActivationLease.Generation)
     }
 
-    let experienceID: ProjectionExperienceID
+    let runnableExperienceID: RunnableProjectionExperienceID
     private var lifecycle = Lifecycle.idle
+
+    init(experienceID: RunnableProjectionExperienceID) {
+        runnableExperienceID = experienceID
+    }
 
     var activeLease: ProjectionActivationLease? {
         guard case let .active(lease) = lifecycle else { return nil }
@@ -73,7 +89,7 @@ struct ProjectionActivationLeaseTracker {
     }
 
     mutating func activate(_ lease: ProjectionActivationLease) -> Bool {
-        guard lease.experienceID == experienceID else { return false }
+        guard lease.runnableExperienceID == runnableExperienceID else { return false }
         switch lifecycle {
             case .idle:
                 lifecycle = .active(lease)
@@ -90,7 +106,7 @@ struct ProjectionActivationLeaseTracker {
     }
 
     mutating func deactivate(_ lease: ProjectionActivationLease) -> Bool {
-        guard lease.experienceID == experienceID else { return false }
+        guard lease.runnableExperienceID == runnableExperienceID else { return false }
         switch lifecycle {
             case .idle:
                 lifecycle = .inactive(latestGeneration: lease.generation)
@@ -131,7 +147,7 @@ enum ProjectionExperienceCoordinatorAction: Equatable {
     )
     case deactivate(lease: ProjectionActivationLease)
     case beginTransition(
-        from: ProjectionExperienceID,
+        from: RunnableProjectionExperienceID,
         to: ProjectionActivationLease,
     )
 }
@@ -147,14 +163,16 @@ struct ProjectionExperienceCoordinatorState: Equatable {
     let manualSelectionFailure: ThrowFailureCategory?
 
     init(playlist: ProjectionPlaylist) {
-        let activeExperienceID = playlist.selectedExperienceID
+        let activeRunnableExperienceID = playlist.selectedRunnableExperienceID
         self.init(
-            activeExperienceID: activeExperienceID,
+            activeExperienceID: activeRunnableExperienceID?.experienceID,
             requestedExperienceID: nil,
             prewarmingExperienceID: nil,
             isPaused: false,
             dwellEndsAt: nil,
-            nextExperienceID: activeExperienceID.flatMap(playlist.experience(after:)),
+            nextExperienceID: activeRunnableExperienceID
+                .flatMap(playlist.experience(after:))?
+                .experienceID,
             healthByExperience: [:],
             manualSelectionFailure: nil,
         )
@@ -222,11 +240,11 @@ actor ProjectionExperienceCoordinator {
     /// Keeps the active identity valid for the current playlist.
     private struct PlaylistRuntimeState {
         private(set) var playlist: ProjectionPlaylist
-        private(set) var activeExperienceID: ProjectionExperienceID?
+        private(set) var activeExperienceID: RunnableProjectionExperienceID?
 
         init(playlist: ProjectionPlaylist) {
             self.playlist = playlist
-            activeExperienceID = playlist.selectedExperienceID
+            activeExperienceID = playlist.selectedRunnableExperienceID
         }
 
         mutating func configure(_ playlist: ProjectionPlaylist) {
@@ -237,11 +255,11 @@ actor ProjectionExperienceCoordinator {
             {
                 activeExperienceID = previousActiveExperienceID
             } else {
-                activeExperienceID = playlist.selectedExperienceID
+                activeExperienceID = playlist.selectedRunnableExperienceID
             }
         }
 
-        mutating func select(_ id: ProjectionExperienceID) -> Bool {
+        mutating func select(_ id: RunnableProjectionExperienceID) -> Bool {
             guard playlist.entry(for: id) != nil else { return false }
             activeExperienceID = id
             return true
@@ -265,8 +283,8 @@ actor ProjectionExperienceCoordinator {
         let lease: ProjectionActivationLease
         let timing: Timing
 
-        var id: ProjectionExperienceID {
-            lease.experienceID
+        var id: RunnableProjectionExperienceID {
+            lease.runnableExperienceID
         }
 
         var isManual: Bool {
@@ -310,7 +328,7 @@ actor ProjectionExperienceCoordinator {
         var requestedExperienceID: ProjectionExperienceID? {
             switch self {
                 case let .awaiting(request), let .transitioning(request):
-                    request.id
+                    request.id.experienceID
                 case .committed:
                     nil
             }
@@ -320,7 +338,7 @@ actor ProjectionExperienceCoordinator {
             guard case let .awaiting(request) = self,
                   request.isManual == false
             else { return nil }
-            return request.id
+            return request.id.experienceID
         }
     }
 
@@ -345,7 +363,7 @@ actor ProjectionExperienceCoordinator {
     private var isPaused = false
     private var dwellEndsAt: Date?
     private var manualSelectionFailure: ThrowFailureCategory?
-    private var runtimeStates: [ProjectionExperienceID: RuntimeState] = [:]
+    private var runtimeStates: [RunnableProjectionExperienceID: RuntimeState] = [:]
     private var nextGeneration = ProjectionActivationLease.Generation.initial
     private var timerGeneration: UInt64 = 0
     private var rotationTask: Task<Void, Never>?
@@ -387,7 +405,9 @@ actor ProjectionExperienceCoordinator {
         actionStream
     }
 
-    func activationLease(for id: ProjectionExperienceID) -> ProjectionActivationLease? {
+    func activationLease(
+        for id: RunnableProjectionExperienceID,
+    ) -> ProjectionActivationLease? {
         guard let state = runtimeStates[id], state.isRunning else { return nil }
         return state.lease
     }
@@ -397,7 +417,7 @@ actor ProjectionExperienceCoordinator {
     func renewActivationLease(
         _ expectedLease: ProjectionActivationLease,
     ) -> ProjectionActivationLeaseRenewal {
-        let id = expectedLease.experienceID
+        let id = expectedLease.runnableExperienceID
         guard let runtime = runtimeStates[id] else {
             return .retired(lease: expectedLease)
         }
@@ -438,7 +458,9 @@ actor ProjectionExperienceCoordinator {
 
     #if DEBUG
         func runningExperienceIDsForTesting() -> Set<ProjectionExperienceID> {
-            Set(runtimeStates.compactMap { id, state in state.isRunning ? id : nil })
+            Set(runtimeStates.compactMap { id, state in
+                state.isRunning ? id.experienceID : nil
+            })
         }
 
         func emitActionForTesting(_ action: ProjectionExperienceCoordinatorAction) {
@@ -454,7 +476,7 @@ actor ProjectionExperienceCoordinator {
         manualSelectionFailure = nil
         cancelRotation()
         cancelRequestedRuntime()
-        let configuredIDs = Set(playlist.entries.map(\.experienceID))
+        let configuredIDs = Set(playlist.entries.map(\.runnableExperienceID))
         let removedIDs = runtimeStates.keys.filter { configuredIDs.contains($0) == false }
         for id in removedIDs {
             deactivateRuntime(id)
@@ -495,7 +517,7 @@ actor ProjectionExperienceCoordinator {
         successfulLease: ProjectionActivationLease?,
         health: FeedHealth,
     ) async {
-        let id = lease.experienceID
+        let id = lease.runnableExperienceID
         guard var runtime = runtimeStates[id],
               runtime.isRunning,
               runtime.lease == lease
@@ -527,7 +549,7 @@ actor ProjectionExperienceCoordinator {
     }
 
     func isAwaitingPreparation(_ lease: ProjectionActivationLease) -> Bool {
-        let id = lease.experienceID
+        let id = lease.runnableExperienceID
         guard demand.permitsProjection,
               case let .awaiting(request) = requestState,
               request.lease == lease,
@@ -541,7 +563,7 @@ actor ProjectionExperienceCoordinator {
 
     /// Marks a complete projected frame as ready for the current activation.
     func reportRuntimePrepared(_ lease: ProjectionActivationLease) async -> Bool {
-        let id = lease.experienceID
+        let id = lease.runnableExperienceID
         guard isAwaitingPreparation(lease),
               case let .awaiting(request) = requestState,
               var runtime = runtimeStates[id]
@@ -585,13 +607,9 @@ actor ProjectionExperienceCoordinator {
         await startFreshDwell()
     }
 
-    func select(_ id: ProjectionExperienceID) async {
+    func select(_ id: RunnableProjectionExperienceID) async {
         let now = await clock.now()
-        guard playlist.entry(for: id) != nil else {
-            manualSelectionFailure = .sourceNotValidated
-            publishState()
-            return
-        }
+        precondition(playlist.entry(for: id) != nil)
         if id == activeExperienceID {
             manualSelectionFailure = nil
             cancelRequestedRuntime()
@@ -652,7 +670,7 @@ actor ProjectionExperienceCoordinator {
     func commitTransitionState(
         to lease: ProjectionActivationLease,
     ) -> ProjectionExperienceCoordinatorState? {
-        let id = lease.experienceID
+        let id = lease.runnableExperienceID
         guard case let .transitioning(request) = requestState,
               request.lease == lease,
               runtimeStates[id]?.successfulLease == lease,
@@ -674,7 +692,7 @@ actor ProjectionExperienceCoordinator {
 
     /// The caller invokes this only after the committed surface completes its fade-in.
     func completeTransition(to lease: ProjectionActivationLease) async {
-        let id = lease.experienceID
+        let id = lease.runnableExperienceID
         guard activeExperienceID == id,
               case let .committed(request) = requestState,
               request.lease == lease
@@ -768,7 +786,7 @@ actor ProjectionExperienceCoordinator {
     }
 
     private func requestExperience(
-        _ id: ProjectionExperienceID,
+        _ id: RunnableProjectionExperienceID,
         role: ProjectionExperienceActivationRole,
         intendedTransitionAt: Date?,
         now: Date,
@@ -864,7 +882,7 @@ actor ProjectionExperienceCoordinator {
     }
 
     private func activateRuntime(
-        _ id: ProjectionExperienceID,
+        _ id: RunnableProjectionExperienceID,
         role: ProjectionExperienceActivationRole,
     ) -> ProjectionActivationLease {
         nextGeneration = nextGeneration.successor()
@@ -885,7 +903,7 @@ actor ProjectionExperienceCoordinator {
         return lease
     }
 
-    private func deactivateRuntime(_ id: ProjectionExperienceID) {
+    private func deactivateRuntime(_ id: RunnableProjectionExperienceID) {
         guard runtimeStates[id]?.isRunning == true,
               let lease = runtimeStates[id]?.lease
         else { return }
@@ -897,7 +915,7 @@ actor ProjectionExperienceCoordinator {
     }
 
     private func cancelRequestedRuntime() {
-        if let requestedExperienceID = requestState?.requestedExperienceID,
+        if let requestedExperienceID = requestState?.request.id,
            requestedExperienceID != activeExperienceID
         {
             deactivateRuntime(requestedExperienceID)
@@ -965,15 +983,17 @@ actor ProjectionExperienceCoordinator {
     }
 
     private func stateValue() -> ProjectionExperienceCoordinatorState {
-        let health = runtimeStates.mapValues(\.health)
+        let health = Dictionary(uniqueKeysWithValues: runtimeStates.map { id, state in
+            (id.experienceID, state.health)
+        })
         let nextID = activeExperienceID.flatMap(playlist.experience(after:))
         return ProjectionExperienceCoordinatorState(
-            activeExperienceID: activeExperienceID,
+            activeExperienceID: activeExperienceID?.experienceID,
             requestedExperienceID: requestState?.requestedExperienceID,
             prewarmingExperienceID: requestState?.prewarmingExperienceID,
             isPaused: isPaused,
             dwellEndsAt: dwellEndsAt,
-            nextExperienceID: nextID,
+            nextExperienceID: nextID?.experienceID,
             healthByExperience: health,
             manualSelectionFailure: manualSelectionFailure,
         )
@@ -983,7 +1003,7 @@ actor ProjectionExperienceCoordinator {
         playlistState.playlist
     }
 
-    private var activeExperienceID: ProjectionExperienceID? {
+    private var activeExperienceID: RunnableProjectionExperienceID? {
         playlistState.activeExperienceID
     }
 }

@@ -13,7 +13,7 @@ struct ProjectionPresentationStateTests {
         )
         let transit = try #require(VisibleProjection.rendered(
             activationLease: ProjectionActivationLease(
-                experienceID: .transit,
+                experienceID: .testing(.transit),
                 generation: .init(rawValue: 1),
             ),
             output: transitOutput,

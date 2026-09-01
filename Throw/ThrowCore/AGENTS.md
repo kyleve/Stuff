@@ -63,6 +63,9 @@ location, and scheduling; see [`README.md`](README.md). Read the root
   runtime plugin or `AnyView` boundary.
 - Keep shipped experience identities closed. Derive standard descriptors and
   presentation through exhaustive switches so a new case forces every owner to update.
+- Keep the standard experience catalog authoritative. Pass
+  `RunnableProjectionExperienceID` through playlist mutations, and keep planned
+  `ProjectionExperienceID` values at display and persistence boundaries.
 - Construct semantic frames through typed layer and experience cases. Never pass
   parallel experience IDs, raw layer arrays, and modes across production boundaries.
 - Keep layer IDs, mark identities, line styles, and payload shapes closed and

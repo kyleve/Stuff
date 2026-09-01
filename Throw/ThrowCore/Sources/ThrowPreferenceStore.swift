@@ -156,7 +156,7 @@ public enum ThrowSetupState: Equatable, Sendable {
         }
     }
 
-    public var configuredExperienceIDs: Set<ProjectionExperienceID> {
+    public var configuredExperienceIDs: Set<RunnableProjectionExperienceID> {
         airAndSpaceIsConfigured ? [.airAndSpace] : []
     }
 
@@ -525,7 +525,7 @@ public struct ThrowPreferences: Equatable, Sendable, CustomStringConvertible,
         let validatedPlaylist = try ProjectionPlaylist(
             entries: playlist.entries,
             automaticRotationEnabled: playlist.automaticRotationEnabled,
-            selectedExperienceID: playlist.selectedExperienceID,
+            selectedExperienceID: playlist.selectedRunnableExperienceID,
             configuredExperienceIDs: configuredExperienceIDs,
             catalog: .standard,
         )
@@ -811,7 +811,7 @@ enum ThrowPreferencesCodec {
             let entries = setupState.configuredExperienceIDs.contains(.airAndSpace)
                 ? [
                     ProjectionPlaylistEntry(
-                        experienceID: .airAndSpace,
+                        runnableExperienceID: .airAndSpace,
                         dwellDuration: .defaultValue,
                     ),
                 ]
@@ -998,15 +998,20 @@ enum ThrowPreferencesCodec {
         }
 
         func value(
-            configuredExperienceIDs: Set<ProjectionExperienceID>,
+            configuredExperienceIDs: Set<RunnableProjectionExperienceID>,
         ) throws -> ProjectionPlaylist {
-            let selectedID: ProjectionExperienceID?
+            let selectedID: RunnableProjectionExperienceID?
             if let selectedExperienceID {
                 guard let decodedID = ProjectionExperienceID(rawValue: selectedExperienceID)
                 else {
                     throw ThrowPreferenceStoreError.invalidPayload
                 }
-                selectedID = decodedID
+                guard let runnableID = ProjectionExperienceCatalog.standard
+                    .runnableExperienceID(for: decodedID)
+                else {
+                    throw ProjectionPlaylistError.unavailableExperience
+                }
+                selectedID = runnableID
             } else {
                 selectedID = nil
             }
@@ -1033,8 +1038,13 @@ enum ThrowPreferencesCodec {
             guard let experienceID = ProjectionExperienceID(rawValue: experienceID) else {
                 throw ThrowPreferenceStoreError.invalidPayload
             }
+            guard let runnableID = ProjectionExperienceCatalog.standard
+                .runnableExperienceID(for: experienceID)
+            else {
+                throw ProjectionPlaylistError.unavailableExperience
+            }
             return try ProjectionPlaylistEntry(
-                experienceID: experienceID,
+                runnableExperienceID: runnableID,
                 dwellDuration: ProjectionDwellDuration(seconds: dwellSeconds),
             )
         }

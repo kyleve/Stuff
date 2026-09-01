@@ -17,7 +17,7 @@ extension ThrowSession {
         projectionPlaylist.entries.count > 1
     }
 
-    public func selectExperience(_ id: ProjectionExperienceID) async {
+    public func selectExperience(_ id: RunnableProjectionExperienceID) async {
         await performExperienceSelection(.experience(id))
     }
 
@@ -46,13 +46,16 @@ extension ThrowSession {
 
     public func setExperienceDwellDuration(
         seconds: Int,
-        for id: ProjectionExperienceID,
+        for id: RunnableProjectionExperienceID,
     ) {
         do {
             let duration = try ProjectionDwellDuration(seconds: seconds)
             let entries = projectionPlaylist.entries.map { entry in
-                entry.experienceID == id
-                    ? ProjectionPlaylistEntry(experienceID: id, dwellDuration: duration)
+                entry.runnableExperienceID == id
+                    ? ProjectionPlaylistEntry(
+                        runnableExperienceID: entry.runnableExperienceID,
+                        dwellDuration: duration,
+                    )
                     : entry
             }
             replaceProjectionPlaylist(
@@ -125,11 +128,18 @@ extension ThrowSession {
                 preconditionFailure("A mutation producer cannot publish a View selection")
         }
         guard projectionPlaylist.selectedExperienceID != activeExperienceID else { return }
+        let selectedRunnableExperienceID = activeExperienceID.flatMap(
+            projectionPlaylist.runnableExperienceID(for:),
+        )
+        guard activeExperienceID == nil || selectedRunnableExperienceID != nil else {
+            assertionFailure("The active View must have a runnable playlist identity")
+            return
+        }
         do {
             projectionPlaylist = try ProjectionPlaylist(
                 entries: projectionPlaylist.entries,
                 automaticRotationEnabled: projectionPlaylist.automaticRotationEnabled,
-                selectedExperienceID: activeExperienceID,
+                selectedExperienceID: selectedRunnableExperienceID,
                 configuredExperienceIDs: configuredExperienceIDs,
                 catalog: .standard,
             )
@@ -145,32 +155,45 @@ extension ThrowSession {
         switch action {
             case let .activate(lease, _):
                 let id = lease.experienceID
-                if id == .airAndSpace {
-                    guard projectionPreferenceInvalidation == nil else { return }
-                    guard airAndSpaceActivation.activate(lease) else { return }
-                    if projectionPresentationStaging?.preparedProjection.experienceID == id {
-                        revokeStagedProjection()
-                    }
-                    if isReconcilingDemand == false {
-                        scheduleDemandReconciliation()
-                    }
-                } else {
-                    assertionFailure("An unavailable experience must not be activated")
+                switch lease.runnableExperienceID {
+                    case .airAndSpace:
+                        guard projectionPreferenceInvalidation == nil else { return }
+                        guard airAndSpaceActivation.activate(lease) else { return }
+                        if projectionPresentationStaging?.preparedProjection.experienceID == id {
+                            revokeStagedProjection()
+                        }
+                        if isReconcilingDemand == false {
+                            scheduleDemandReconciliation()
+                        }
+                    #if DEBUG
+                        case .testing:
+                            assertionFailure("A test-only experience has no production runtime")
+                    #endif
                 }
             case let .deactivate(lease):
                 let id = lease.experienceID
-                if id == .airAndSpace {
-                    guard airAndSpaceActivation.deactivate(lease) else { return }
+                switch lease.runnableExperienceID {
+                    case .airAndSpace:
+                        guard airAndSpaceActivation.deactivate(lease) else { return }
+                    #if DEBUG
+                        case .testing:
+                            break
+                    #endif
                 }
                 if projectionPresentationStaging?.targetLease == lease {
                     revokeStagedProjection()
                 }
                 await projectionWorker.experienceBecameInactive(id, at: dateProvider.now())
-                if id == .airAndSpace {
-                    await airAndSpaceRuntime.deactivate(
-                        lease: lease,
-                        reporting: isQuietNow ? .quiet : .idle,
-                    )
+                switch lease.runnableExperienceID {
+                    case .airAndSpace:
+                        await airAndSpaceRuntime.deactivate(
+                            lease: lease,
+                            reporting: isQuietNow ? .quiet : .idle,
+                        )
+                    #if DEBUG
+                        case .testing:
+                            break
+                    #endif
                 }
             case let .beginTransition(from, to):
                 guard let preferenceProducer = beginPreferenceProducer(.experienceTransition)
@@ -180,7 +203,7 @@ extension ThrowSession {
                 }
                 defer { finishPreferenceProducer(preferenceProducer) }
                 await transitionExperience(
-                    from: from,
+                    from: from.experienceID,
                     to: to,
                     preferenceProducer: preferenceProducer,
                 )
@@ -202,7 +225,7 @@ extension ThrowSession {
         airAndSpaceActivation.synchronize(with: authoritativeLease)
     }
 
-    private var configuredExperienceIDs: Set<ProjectionExperienceID> {
+    private var configuredExperienceIDs: Set<RunnableProjectionExperienceID> {
         setupState.configuredExperienceIDs
     }
 
@@ -221,11 +244,14 @@ extension ThrowSession {
         entries: [ProjectionPlaylistEntry],
         automaticRotationEnabled: Bool,
     ) {
+        let selectedRunnableExperienceID = activeExperienceID.flatMap(
+            projectionPlaylist.runnableExperienceID(for:),
+        ) ?? projectionPlaylist.selectedRunnableExperienceID
         do {
             let playlist = try ProjectionPlaylist(
                 entries: entries,
                 automaticRotationEnabled: automaticRotationEnabled,
-                selectedExperienceID: activeExperienceID ?? projectionPlaylist.selectedExperienceID,
+                selectedExperienceID: selectedRunnableExperienceID,
                 configuredExperienceIDs: configuredExperienceIDs,
                 catalog: .standard,
             )
@@ -499,7 +525,7 @@ extension ThrowSession {
 }
 
 private enum ExperienceSelectionCommand {
-    case experience(ProjectionExperienceID)
+    case experience(RunnableProjectionExperienceID)
     case next
     case previous
 }

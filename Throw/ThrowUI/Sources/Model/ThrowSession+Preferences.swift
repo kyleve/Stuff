@@ -410,7 +410,7 @@ extension ThrowSession {
             try ProjectionPlaylist(
                 entries: [
                     ProjectionPlaylistEntry(
-                        experienceID: .airAndSpace,
+                        runnableExperienceID: .airAndSpace,
                         dwellDuration: .defaultValue,
                     ),
                 ],

@@ -16,15 +16,19 @@ public struct ProjectionDwellDuration: Hashable, Sendable {
 }
 
 public struct ProjectionPlaylistEntry: Hashable, Sendable {
-    public let experienceID: ProjectionExperienceID
+    public let runnableExperienceID: RunnableProjectionExperienceID
     public let dwellDuration: ProjectionDwellDuration
 
     public init(
-        experienceID: ProjectionExperienceID,
+        runnableExperienceID: RunnableProjectionExperienceID,
         dwellDuration: ProjectionDwellDuration,
     ) {
-        self.experienceID = experienceID
+        self.runnableExperienceID = runnableExperienceID
         self.dwellDuration = dwellDuration
+    }
+
+    public var experienceID: ProjectionExperienceID {
+        runnableExperienceID.experienceID
     }
 }
 
@@ -41,24 +45,24 @@ public enum ProjectionPlaylistError: Error, Equatable, Sendable {
 public struct ProjectionPlaylist: Equatable, Sendable {
     public let entries: [ProjectionPlaylistEntry]
     public let automaticRotationEnabled: Bool
-    public let selectedExperienceID: ProjectionExperienceID?
+    public let selectedRunnableExperienceID: RunnableProjectionExperienceID?
 
     public init(
         entries: [ProjectionPlaylistEntry],
         automaticRotationEnabled: Bool,
-        selectedExperienceID: ProjectionExperienceID?,
-        configuredExperienceIDs: Set<ProjectionExperienceID>,
+        selectedExperienceID: RunnableProjectionExperienceID?,
+        configuredExperienceIDs: Set<RunnableProjectionExperienceID>,
         catalog: ProjectionExperienceCatalog,
     ) throws {
-        let entryIDs = entries.map(\.experienceID)
+        let entryIDs = entries.map(\.runnableExperienceID)
         guard Set(entryIDs).count == entryIDs.count else {
             throw ProjectionPlaylistError.duplicateExperience
         }
         for id in entryIDs {
-            guard let descriptor = catalog[id] else {
+            guard let descriptor = catalog[id.experienceID] else {
                 throw ProjectionPlaylistError.unknownExperience
             }
-            guard descriptor.availability == .enabled else {
+            guard descriptor.availability.runnableExperienceID == id else {
                 throw ProjectionPlaylistError.unavailableExperience
             }
             guard configuredExperienceIDs.contains(id) else {
@@ -74,56 +78,72 @@ public struct ProjectionPlaylist: Equatable, Sendable {
         }
         self.entries = entries
         self.automaticRotationEnabled = automaticRotationEnabled
-        self.selectedExperienceID = selectedExperienceID
+        selectedRunnableExperienceID = selectedExperienceID
+    }
+
+    public var selectedExperienceID: ProjectionExperienceID? {
+        selectedRunnableExperienceID?.experienceID
     }
 
     public var rotatesAutomatically: Bool {
         automaticRotationEnabled && entries.count > 1
     }
 
-    public func entry(for id: ProjectionExperienceID) -> ProjectionPlaylistEntry? {
-        entries.first { $0.experienceID == id }
+    public func entry(
+        for id: RunnableProjectionExperienceID,
+    ) -> ProjectionPlaylistEntry? {
+        entries.first { $0.runnableExperienceID == id }
     }
 
-    public func experience(after id: ProjectionExperienceID) -> ProjectionExperienceID? {
+    public func runnableExperienceID(
+        for experienceID: ProjectionExperienceID,
+    ) -> RunnableProjectionExperienceID? {
+        entries.first { $0.experienceID == experienceID }?.runnableExperienceID
+    }
+
+    public func experience(
+        after id: RunnableProjectionExperienceID,
+    ) -> RunnableProjectionExperienceID? {
         adjacentExperience(to: id, offset: 1)
     }
 
-    public func experience(before id: ProjectionExperienceID) -> ProjectionExperienceID? {
+    public func experience(
+        before id: RunnableProjectionExperienceID,
+    ) -> RunnableProjectionExperienceID? {
         adjacentExperience(to: id, offset: -1)
     }
 
     public func addingConfiguredExperience(
-        _ id: ProjectionExperienceID,
+        _ id: RunnableProjectionExperienceID,
         dwellDuration: ProjectionDwellDuration,
-        configuredExperienceIDs: Set<ProjectionExperienceID>,
+        configuredExperienceIDs: Set<RunnableProjectionExperienceID>,
         catalog: ProjectionExperienceCatalog,
     ) throws -> ProjectionPlaylist {
         guard entry(for: id) == nil else {
             throw ProjectionPlaylistError.duplicateExperience
         }
         let newEntries = entries + [
-            ProjectionPlaylistEntry(experienceID: id, dwellDuration: dwellDuration),
+            ProjectionPlaylistEntry(runnableExperienceID: id, dwellDuration: dwellDuration),
         ]
         return try ProjectionPlaylist(
             entries: newEntries,
             automaticRotationEnabled: newEntries.count > 1 || automaticRotationEnabled,
-            selectedExperienceID: selectedExperienceID ?? id,
+            selectedExperienceID: selectedRunnableExperienceID ?? id,
             configuredExperienceIDs: configuredExperienceIDs,
             catalog: catalog,
         )
     }
 
     private func adjacentExperience(
-        to id: ProjectionExperienceID,
+        to id: RunnableProjectionExperienceID,
         offset: Int,
-    ) -> ProjectionExperienceID? {
+    ) -> RunnableProjectionExperienceID? {
         guard entries.count > 1,
-              let currentIndex = entries.firstIndex(where: { $0.experienceID == id })
+              let currentIndex = entries.firstIndex(where: { $0.runnableExperienceID == id })
         else {
             return nil
         }
         let index = (currentIndex + offset + entries.count) % entries.count
-        return entries[index].experienceID
+        return entries[index].runnableExperienceID
     }
 }

@@ -123,11 +123,11 @@ struct ProjectionExperienceCoordinatorTests {
         await coordinator.reconcile(demand: projectingDemand)
         let active = try activation(#require(await actions.next()))
         await reportSuccess(coordinator, id: active.id, generation: active.generation)
-        await coordinator.select(.transit)
+        await coordinator.select(.testing(.transit))
         let target = try activation(#require(await actions.next()))
         await reportSuccess(coordinator, id: target.id, generation: target.generation)
         #expect(try #require(await actions.next()) == .beginTransition(
-            from: active.id,
+            from: active.lease.runnableExperienceID,
             to: target.lease,
         ))
 
@@ -140,7 +140,9 @@ struct ProjectionExperienceCoordinatorTests {
         let state = await coordinator.currentState()
         #expect(state.activeExperienceID == active.id)
         #expect(state.requestedExperienceID == nil)
-        #expect(await coordinator.activationLease(for: target.id) == nil)
+        #expect(await coordinator.activationLease(
+            for: target.lease.runnableExperienceID,
+        ) == nil)
     }
 
     @Test func renewingPrewarmRetiresItAndRejectsOldCallbacks() async throws {
@@ -173,7 +175,9 @@ struct ProjectionExperienceCoordinatorTests {
         #expect(state.requestedExperienceID == nil)
         #expect(state.prewarmingExperienceID == nil)
         #expect(state.healthByExperience[target.id] == .idle)
-        #expect(await coordinator.activationLease(for: target.id) == nil)
+        #expect(await coordinator.activationLease(
+            for: target.lease.runnableExperienceID,
+        ) == nil)
     }
 
     @Test func renewingCommittedTargetRemintsItAndInvalidatesOldCompletion() async throws {
@@ -185,7 +189,7 @@ struct ProjectionExperienceCoordinatorTests {
         await coordinator.reconcile(demand: projectingDemand)
         let active = try activation(#require(await actions.next()))
         await reportSuccess(coordinator, id: active.id, generation: active.generation)
-        await coordinator.select(.transit)
+        await coordinator.select(.testing(.transit))
         let target = try activation(#require(await actions.next()))
         await reportSuccess(coordinator, id: target.id, generation: target.generation)
         _ = try #require(await actions.next())
@@ -202,7 +206,9 @@ struct ProjectionExperienceCoordinatorTests {
         let state = await coordinator.currentState()
         #expect(state.activeExperienceID == target.id)
         #expect(state.requestedExperienceID == nil)
-        #expect(await coordinator.activationLease(for: target.id) == replacement.lease)
+        #expect(await coordinator.activationLease(
+            for: target.lease.runnableExperienceID,
+        ) == replacement.lease)
     }
 
     @Test func cancelledDwellStartCannotPublishAfterItsClockReadResumes() async throws {
@@ -322,7 +328,7 @@ struct ProjectionExperienceCoordinatorTests {
         await coordinator.reconcile(demand: projectingDemand)
         let active = try activation(#require(await actions.next()))
         await reportSuccess(coordinator, id: active.id, generation: active.generation)
-        await coordinator.select(.transit)
+        await coordinator.select(.testing(.transit))
         let target = try activation(#require(await actions.next()))
 
         await coordinator.reportRuntimeUpdate(
@@ -351,7 +357,7 @@ struct ProjectionExperienceCoordinatorTests {
         await coordinator.reconcile(demand: projectingDemand)
         let active = try activation(#require(await actions.next()))
         await reportSuccess(coordinator, id: active.id, generation: active.generation)
-        await coordinator.select(.transit)
+        await coordinator.select(.testing(.transit))
         let target = try activation(#require(await actions.next()))
         await coordinator.reportRuntimeUpdate(
             lease: target.lease,
@@ -383,7 +389,7 @@ struct ProjectionExperienceCoordinatorTests {
         await coordinator.reconcile(demand: projectingDemand)
         let active = try activation(#require(await actions.next()))
         await reportSuccess(coordinator, id: active.id, generation: active.generation)
-        await coordinator.select(.transit)
+        await coordinator.select(.testing(.transit))
         let target = try activation(#require(await actions.next()))
         await coordinator.reportRuntimeUpdate(
             lease: target.lease,
@@ -442,7 +448,7 @@ struct ProjectionExperienceCoordinatorTests {
         let active = try activation(#require(await actions.next()))
         await reportSuccess(coordinator, id: active.id, generation: active.generation)
 
-        await coordinator.select(.transit)
+        await coordinator.select(.testing(.transit))
         let target = try activation(#require(await actions.next()))
         await coordinator.reportRuntimeUpdate(
             lease: target.lease,
@@ -454,7 +460,7 @@ struct ProjectionExperienceCoordinatorTests {
         #expect(failed.activeExperienceID == .airAndSpace)
         #expect(failed.manualSelectionFailure == .sourceNotValidated)
 
-        await coordinator.select(.transit)
+        await coordinator.select(.testing(.transit))
         let replacement = try activation(#require(await actions.next()))
         await reportSuccess(
             coordinator,
@@ -486,7 +492,7 @@ struct ProjectionExperienceCoordinatorTests {
         let active = try activation(#require(await actions.next()))
         await reportSuccess(coordinator, id: active.id, generation: active.generation)
 
-        await coordinator.select(.transit)
+        await coordinator.select(.testing(.transit))
         let staleTarget = try activation(#require(await actions.next()))
         await clock.suspendNextNowCall()
         let failureTask = Task {
@@ -498,7 +504,7 @@ struct ProjectionExperienceCoordinatorTests {
         }
         await clock.waitForNowCallToSuspend()
 
-        await coordinator.select(.transit)
+        await coordinator.select(.testing(.transit))
         #expect(try #require(await actions.next()) == .deactivate(lease: staleTarget.lease))
         let replacement = try activation(#require(await actions.next()))
         #expect(replacement.generation > staleTarget.generation)
@@ -533,7 +539,7 @@ struct ProjectionExperienceCoordinatorTests {
         let active = try activation(#require(await actions.next()))
         await reportSuccess(coordinator, id: active.id, generation: active.generation)
 
-        await coordinator.select(.transit)
+        await coordinator.select(.testing(.transit))
         let target = try activation(#require(await actions.next()))
         await clock.waitForSleeperCount(1)
         await clock.advance(by: 30)
@@ -713,7 +719,7 @@ struct ProjectionExperienceCoordinatorTests {
         try ProjectionPlaylist(
             entries: [
                 ProjectionPlaylistEntry(
-                    experienceID: .airAndSpace,
+                    runnableExperienceID: .airAndSpace,
                     dwellDuration: dwellDuration,
                 ),
             ],
@@ -728,18 +734,16 @@ struct ProjectionExperienceCoordinatorTests {
         automaticRotationEnabled: Bool,
     ) throws -> ProjectionPlaylist {
         let catalog = ProjectionExperienceCatalog(
-            descriptors: [
+            testingDescriptors: [
                 ProjectionExperienceDescriptor(
-                    id: .airAndSpace,
-                    availability: .enabled,
+                    testingAvailability: .runnable(.airAndSpace),
                     supportedModes: [.map, .trueSky],
                     layerIDs: [.geography, .flights],
                     visibleContentKind: .aircraft,
                     zOrder: 0,
                 ),
                 ProjectionExperienceDescriptor(
-                    id: .transit,
-                    availability: .enabled,
+                    testingAvailability: .runnable(.testing(.transit)),
                     supportedModes: [.map],
                     layerIDs: [.geography, .transitNetwork, .transitVehicles],
                     visibleContentKind: .vehicles,
@@ -751,17 +755,17 @@ struct ProjectionExperienceCoordinatorTests {
         return try ProjectionPlaylist(
             entries: [
                 ProjectionPlaylistEntry(
-                    experienceID: .airAndSpace,
+                    runnableExperienceID: .airAndSpace,
                     dwellDuration: .defaultValue,
                 ),
                 ProjectionPlaylistEntry(
-                    experienceID: .transit,
+                    runnableExperienceID: .testing(.transit),
                     dwellDuration: .defaultValue,
                 ),
             ],
             automaticRotationEnabled: automaticRotationEnabled,
             selectedExperienceID: .airAndSpace,
-            configuredExperienceIDs: [.airAndSpace, .transit],
+            configuredExperienceIDs: [.airAndSpace, .testing(.transit)],
             catalog: catalog,
         )
     }
@@ -770,26 +774,23 @@ struct ProjectionExperienceCoordinatorTests {
         thirdExperienceID: ProjectionExperienceID,
     ) throws -> ProjectionPlaylist {
         let catalog = ProjectionExperienceCatalog(
-            descriptors: [
+            testingDescriptors: [
                 ProjectionExperienceDescriptor(
-                    id: .airAndSpace,
-                    availability: .enabled,
+                    testingAvailability: .runnable(.airAndSpace),
                     supportedModes: [.map, .trueSky],
                     layerIDs: [.geography, .flights],
                     visibleContentKind: .aircraft,
                     zOrder: 0,
                 ),
                 ProjectionExperienceDescriptor(
-                    id: .transit,
-                    availability: .enabled,
+                    testingAvailability: .runnable(.testing(.transit)),
                     supportedModes: [.map],
                     layerIDs: [.geography, .transitNetwork, .transitVehicles],
                     visibleContentKind: .vehicles,
                     zOrder: 10,
                 ),
                 ProjectionExperienceDescriptor(
-                    id: thirdExperienceID,
-                    availability: .enabled,
+                    testingAvailability: .runnable(.testing(thirdExperienceID)),
                     supportedModes: [.map],
                     layerIDs: [.geography],
                     visibleContentKind: .objects,
@@ -798,9 +799,14 @@ struct ProjectionExperienceCoordinatorTests {
             ],
             layerCatalog: .standard,
         )
-        let entries = [.airAndSpace, .transit, thirdExperienceID].map {
+        let entries: [ProjectionPlaylistEntry] = [
+            .airAndSpace,
+            .testing(.transit),
+            .testing(thirdExperienceID),
+        ]
+        .map {
             ProjectionPlaylistEntry(
-                experienceID: $0,
+                runnableExperienceID: $0,
                 dwellDuration: .defaultValue,
             )
         }
@@ -808,7 +814,7 @@ struct ProjectionExperienceCoordinatorTests {
             entries: entries,
             automaticRotationEnabled: true,
             selectedExperienceID: .airAndSpace,
-            configuredExperienceIDs: Set(entries.map(\.experienceID)),
+            configuredExperienceIDs: Set(entries.map(\.runnableExperienceID)),
             catalog: catalog,
         )
     }
@@ -818,7 +824,15 @@ struct ProjectionExperienceCoordinatorTests {
         id: ProjectionExperienceID,
         generation: ProjectionActivationLease.Generation,
     ) async {
-        let lease = ProjectionActivationLease(experienceID: id, generation: generation)
+        let runnableID: RunnableProjectionExperienceID = switch id {
+            case .airAndSpace: .airAndSpace
+            case .transit: .testing(.transit)
+            case .testing: .testing(.testing)
+        }
+        let lease = ProjectionActivationLease(
+            experienceID: runnableID,
+            generation: generation,
+        )
         await coordinator.reportRuntimeUpdate(
             lease: lease,
             successfulLease: lease,

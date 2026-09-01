@@ -21,18 +21,16 @@ public enum ProjectionExperienceID: String, CaseIterable, Hashable, Sendable {
     fileprivate var standardDescriptor: ProjectionExperienceDescriptor? {
         switch self {
             case .airAndSpace:
-                ProjectionExperienceDescriptor(
-                    id: self,
-                    availability: .enabled,
+                ProjectionExperienceDescriptor.standard(
+                    availability: .runnable(.airAndSpace),
                     supportedModes: [.map, .trueSky],
                     layerIDs: [.geography, .flights, .stars, .satellites],
                     visibleContentKind: .aircraft,
                     zOrder: 0,
                 )
             case .transit:
-                ProjectionExperienceDescriptor(
-                    id: self,
-                    availability: .planned,
+                ProjectionExperienceDescriptor.standard(
+                    availability: .planned(.transit),
                     supportedModes: [.map],
                     layerIDs: [.geography, .transitNetwork, .transitVehicles],
                     visibleContentKind: .vehicles,
@@ -46,9 +44,40 @@ public enum ProjectionExperienceID: String, CaseIterable, Hashable, Sendable {
     }
 }
 
+/// A projection View with a complete production runtime.
+public enum RunnableProjectionExperienceID: Hashable, Sendable {
+    case airAndSpace
+
+    #if DEBUG
+        /// Lets tests exercise multi-View state machines without shipping a runtime.
+        case testing(ProjectionExperienceID)
+    #endif
+
+    public var experienceID: ProjectionExperienceID {
+        switch self {
+            case .airAndSpace: .airAndSpace
+            #if DEBUG
+                case let .testing(id): id
+            #endif
+        }
+    }
+}
+
 public enum ProjectionExperienceAvailability: Hashable, Sendable {
-    case enabled
-    case planned
+    case runnable(RunnableProjectionExperienceID)
+    case planned(ProjectionExperienceID)
+
+    public var experienceID: ProjectionExperienceID {
+        switch self {
+            case let .runnable(id): id.experienceID
+            case let .planned(id): id
+        }
+    }
+
+    public var runnableExperienceID: RunnableProjectionExperienceID? {
+        guard case let .runnable(id) = self else { return nil }
+        return id
+    }
 }
 
 public enum ProjectionExperienceVisibleContentKind: Hashable, Sendable {
@@ -66,8 +95,7 @@ public struct ProjectionExperienceDescriptor: Identifiable, Hashable, Sendable {
     public let visibleContentKind: ProjectionExperienceVisibleContentKind
     public let zOrder: Int
 
-    public init(
-        id: ProjectionExperienceID,
+    private init(
         availability: ProjectionExperienceAvailability,
         supportedModes: Set<ProjectionMode>,
         layerIDs: [LayerID],
@@ -77,26 +105,60 @@ public struct ProjectionExperienceDescriptor: Identifiable, Hashable, Sendable {
         precondition(supportedModes.isEmpty == false)
         precondition(layerIDs.isEmpty == false)
         precondition(Set(layerIDs).count == layerIDs.count)
-        self.id = id
+        id = availability.experienceID
         self.availability = availability
         self.supportedModes = supportedModes
         self.layerIDs = layerIDs
         self.visibleContentKind = visibleContentKind
         self.zOrder = zOrder
     }
+
+    fileprivate static func standard(
+        availability: ProjectionExperienceAvailability,
+        supportedModes: Set<ProjectionMode>,
+        layerIDs: [LayerID],
+        visibleContentKind: ProjectionExperienceVisibleContentKind,
+        zOrder: Int,
+    ) -> Self {
+        Self(
+            availability: availability,
+            supportedModes: supportedModes,
+            layerIDs: layerIDs,
+            visibleContentKind: visibleContentKind,
+            zOrder: zOrder,
+        )
+    }
+
+    #if DEBUG
+        @_spi(Testing) public init(
+            testingAvailability: ProjectionExperienceAvailability,
+            supportedModes: Set<ProjectionMode>,
+            layerIDs: [LayerID],
+            visibleContentKind: ProjectionExperienceVisibleContentKind,
+            zOrder: Int,
+        ) {
+            self.init(
+                availability: testingAvailability,
+                supportedModes: supportedModes,
+                layerIDs: layerIDs,
+                visibleContentKind: visibleContentKind,
+                zOrder: zOrder,
+            )
+        }
+    #endif
 }
 
 /// The fixed catalog of projection experiences shipped by Throw.
 public struct ProjectionExperienceCatalog: Sendable {
     public static let standard = ProjectionExperienceCatalog(
-        descriptors: ProjectionExperienceID.allCases.compactMap(\.standardDescriptor),
+        standardDescriptors: ProjectionExperienceID.allCases.compactMap(\.standardDescriptor),
         layerCatalog: .standard,
     )
 
     public let descriptors: [ProjectionExperienceDescriptor]
 
-    public init(
-        descriptors: [ProjectionExperienceDescriptor],
+    private init(
+        standardDescriptors descriptors: [ProjectionExperienceDescriptor],
         layerCatalog: LayerCatalog,
     ) {
         precondition(descriptors.isEmpty == false)
@@ -115,7 +177,25 @@ public struct ProjectionExperienceCatalog: Sendable {
         }
     }
 
+    #if DEBUG
+        @_spi(Testing) public init(
+            testingDescriptors: [ProjectionExperienceDescriptor],
+            layerCatalog: LayerCatalog,
+        ) {
+            self.init(
+                standardDescriptors: testingDescriptors,
+                layerCatalog: layerCatalog,
+            )
+        }
+    #endif
+
     public subscript(id: ProjectionExperienceID) -> ProjectionExperienceDescriptor? {
         descriptors.first { $0.id == id }
+    }
+
+    public func runnableExperienceID(
+        for id: ProjectionExperienceID,
+    ) -> RunnableProjectionExperienceID? {
+        self[id]?.availability.runnableExperienceID
     }
 }
