@@ -69,10 +69,57 @@ struct ThrowSessionLocationTests {
         #expect(
             session.projectionPlaylist.entry(for: .airAndSpace)?.dwellDuration.seconds == 180,
         )
+        #expect(ThrowPreferenceSnapshot(persisted) == session.preferenceSnapshot)
+        #expect(await preferenceStore.successfulSaves().count == 2)
+    }
+
+    @Test(arguments: ReconciledPreferenceRetryInterruption.allCases)
+    func committedLocationSurvivesRetryInterruption(
+        _ interruption: ReconciledPreferenceRetryInterruption,
+    ) async throws {
+        let preferenceStore = ControlledThrowPreferenceStore(
+            saveBehavior: .scripted(interruption.saveSteps),
+        )
+        let session = ThrowSession.fixture(
+            preferenceStore: preferenceStore,
+            credentialStore: MemoryAircraftCredentialStore(credentials: [:]),
+        )
+
+        let save = Task {
+            await session.saveObserverLocation(
+                mode: .manual,
+                latitude: 40,
+                longitude: -73,
+                altitudeFeet: 20,
+            )
+        }
+        await preferenceStore.waitForSaveToStart()
+
+        session.updateProjectionMode(.trueSky)
+        try session.updateGlobalPreferences(
+            session.globalPreferences.replacingIntensityPercent(70),
+        )
+        session.setExperienceDwellDuration(seconds: 180, for: .airAndSpace)
+
+        await preferenceStore.resumeSave()
+        #expect(await save.value)
+        await session.flushPreferencesSave()
+
+        let persisted = await preferenceStore.persistedPreferences()
+        #expect(session.confirmedLocation?.position.coordinate.latitude == 40)
+        #expect(session.confirmedLocation?.position.coordinate.longitude == -73)
+        #expect(session.projectionMode == .trueSky)
+        #expect(session.intensityPercent == 70)
+        #expect(
+            session.projectionPlaylist.entry(for: .airAndSpace)?.dwellDuration.seconds == 180,
+        )
         #expect(persisted.setupState == session.setupState)
         #expect(persisted.global == session.globalPreferences)
         #expect(persisted.playlist == session.projectionPlaylist)
         #expect(await preferenceStore.successfulSaves().count == 2)
+        #expect(await preferenceStore.saveAttemptCount() == 3)
+        #expect(session.postLaunchFailureLedger.failure(for: .location) == nil)
+        #expect(session.postLaunchFailureLedger.failure(for: .preferencePersistence) == nil)
     }
 
     @Test func failedLocationPersistencePreservesTheCompleteProjectionContext() async throws {

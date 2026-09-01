@@ -93,10 +93,32 @@ enum ControlledThrowPreferenceStoreFailure: Error {
     case save
 }
 
+enum ControlledThrowPreferenceSaveStep {
+    case suspendThenSucceed
+    case succeed
+    case fail
+    case cancel
+}
+
+enum ReconciledPreferenceRetryInterruption: CaseIterable {
+    case failure
+    case cancellation
+
+    var saveSteps: [ControlledThrowPreferenceSaveStep] {
+        switch self {
+            case .failure:
+                [.suspendThenSucceed, .fail, .succeed]
+            case .cancellation:
+                [.suspendThenSucceed, .cancel, .succeed]
+        }
+    }
+}
+
 actor ControlledThrowPreferenceStore: ThrowPreferenceStore {
     enum SaveBehavior {
         case suspended
         case failing
+        case scripted([ControlledThrowPreferenceSaveStep])
     }
 
     private var preferences: ThrowPreferences
@@ -121,21 +143,42 @@ actor ControlledThrowPreferenceStore: ThrowPreferenceStore {
 
     func save(_ preferences: ThrowPreferences) async throws {
         saveCount += 1
-        switch saveBehavior {
-            case .suspended where saveCount == 1:
+        switch saveStep(for: saveCount) {
+            case .suspendThenSucceed:
                 saveHasStarted = true
                 saveStartedContinuation?.resume()
                 saveStartedContinuation = nil
-                await withCheckedContinuation { continuation in
-                    saveContinuation = continuation
-                }
+                await suspendSave()
                 self.preferences = preferences
                 savedPreferences.append(preferences)
-            case .suspended:
+            case .succeed:
                 self.preferences = preferences
                 savedPreferences.append(preferences)
-            case .failing:
+            case .fail:
                 throw ControlledThrowPreferenceStoreFailure.save
+            case .cancel:
+                throw CancellationError()
+        }
+    }
+
+    private func suspendSave() async {
+        await withCheckedContinuation { continuation in
+            saveContinuation = continuation
+        }
+    }
+
+    private func saveStep(for attempt: Int) -> ControlledThrowPreferenceSaveStep {
+        switch saveBehavior {
+            case .suspended:
+                attempt == 1 ? .suspendThenSucceed : .succeed
+            case .failing:
+                .fail
+            case let .scripted(steps):
+                if steps.indices.contains(attempt - 1) {
+                    steps[attempt - 1]
+                } else {
+                    .succeed
+                }
         }
     }
 
@@ -157,5 +200,9 @@ actor ControlledThrowPreferenceStore: ThrowPreferenceStore {
 
     func successfulSaves() -> [ThrowPreferences] {
         savedPreferences
+    }
+
+    func saveAttemptCount() -> Int {
+        saveCount
     }
 }

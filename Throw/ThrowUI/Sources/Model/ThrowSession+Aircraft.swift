@@ -212,56 +212,49 @@ extension ThrowSession {
             }
         }
 
+        let persistence = await persistReconciledPreferenceMutation(
+            failure: .aircraftSource,
+            makeMutation: { base in
+                ThrowPreferenceMutation(
+                    snapshot: base.replacingSetupState(
+                        base.setupState.replacingSource(draft.configuration),
+                    ),
+                    publication: credentialReplacement,
+                )
+            },
+            prepareForPublication: {
+                self.prepareProjectionPreferencePublication(.aircraftSource)
+            },
+            publish: { replacement in
+                guard let replacement else { return }
+                switch replacement.id {
+                    case .rapidAPI:
+                        self.rapidAPICredentialState = .saved(
+                            lastFour: replacement.credential.lastFour,
+                        )
+                    case .flightradar24:
+                        self.invalidateFlightradar24Usage()
+                        self.flightradar24CredentialState = .saved(
+                            lastFour: replacement.credential.lastFour,
+                        )
+                }
+                self.resolvePostLaunchFailure(
+                    self.credentialFailure(for: replacement.id).owner,
+                )
+            },
+        )
         let invalidation: ProjectionPreferenceInvalidation
-        do {
-            invalidation = try await persistReconciledPreferenceMutation(
-                failure: .aircraftSource,
-                makeMutation: { base in
-                    ThrowPreferenceMutation(
-                        snapshot: base.replacingSetupState(
-                            base.setupState.replacingSource(draft.configuration),
-                        ),
-                        publication: credentialReplacement,
+        switch persistence {
+            case .notCommitted:
+                if credentialMutationAttempted, let replacement = credentialReplacement {
+                    await restoreCredentialAfterFailedSourceChange(
+                        previousCredential,
+                        for: replacement.id,
                     )
-                },
-                prepareForPublication: {
-                    self.prepareProjectionPreferencePublication(.aircraftSource)
-                },
-                publish: { replacement in
-                    guard let replacement else { return }
-                    switch replacement.id {
-                        case .rapidAPI:
-                            self.rapidAPICredentialState = .saved(
-                                lastFour: replacement.credential.lastFour,
-                            )
-                        case .flightradar24:
-                            self.invalidateFlightradar24Usage()
-                            self.flightradar24CredentialState = .saved(
-                                lastFour: replacement.credential.lastFour,
-                            )
-                    }
-                    self.resolvePostLaunchFailure(
-                        self.credentialFailure(for: replacement.id).owner,
-                    )
-                },
-            )
-        } catch is CancellationError {
-            if credentialMutationAttempted, let replacement = credentialReplacement {
-                await restoreCredentialAfterFailedSourceChange(
-                    previousCredential,
-                    for: replacement.id,
-                )
-            }
-            return false
-        } catch {
-            // The preference worker recorded this source operation error.
-            if credentialMutationAttempted, let replacement = credentialReplacement {
-                await restoreCredentialAfterFailedSourceChange(
-                    previousCredential,
-                    for: replacement.id,
-                )
-            }
-            return false
+                }
+                return false
+            case let .committed(committedInvalidation):
+                invalidation = committedInvalidation
         }
 
         await finishProjectionPreferenceInvalidation(invalidation)

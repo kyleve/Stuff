@@ -341,12 +341,9 @@ extension ThrowSession {
                         acquisitionDisposition: .cancelAndClearPendingFix,
                     )
             }
-            try await commitObserverLocation(replacement)
-            return true
-        } catch is CancellationError {
-            return false
+            return await commitObserverLocation(replacement)
         } catch {
-            // Location commit records every non-cancellation operation error.
+            recordPostLaunchFailure(.location(.persistence), error: error)
             return false
         }
     }
@@ -369,17 +366,14 @@ extension ThrowSession {
                 ),
                 acquisitionDisposition: .clearPendingFix,
             )
-            try await commitObserverLocation(replacement)
-        } catch is CancellationError {
-            return
+            _ = await commitObserverLocation(replacement)
         } catch {
-            // Location commit records every non-cancellation operation error.
-            return
+            recordPostLaunchFailure(.location(.persistence), error: error)
         }
     }
 
-    private func commitObserverLocation(_ replacement: ObserverLocationReplacement) async throws {
-        let invalidation = try await persistReconciledPreferenceMutation(
+    private func commitObserverLocation(_ replacement: ObserverLocationReplacement) async -> Bool {
+        let persistence = await persistReconciledPreferenceMutation(
             failure: .location(.persistence),
             makeMutation: { base in
                 ThrowPreferenceMutation(
@@ -412,10 +406,19 @@ extension ThrowSession {
             },
         )
 
+        let invalidation: ProjectionPreferenceInvalidation
+        switch persistence {
+            case .notCommitted:
+                return false
+            case let .committed(committedInvalidation):
+                invalidation = committedInvalidation
+        }
+
         await finishProjectionPreferenceInvalidation(invalidation)
         await configureExperienceCoordinator(with: projectionPlaylist)
         completeProjectionPreferenceInvalidation(invalidation)
         scheduleDemandReconciliation()
+        return true
     }
 }
 

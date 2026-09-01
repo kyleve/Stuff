@@ -89,6 +89,9 @@ Read the root [`AGENTS.md`](../../AGENTS.md) and group
 - Build immediate source and location commits from the complete typed preference
   snapshot. Re-persist the snapshot after drift. Publish it without another
   suspension.
+- After the first durable source or location write, report the transaction as
+  committed. Preserve newer typed edits and queue them after a retry failure.
+- After a source write commits, do not restore its credential.
 - Store session preferences as validated global and experience aggregates.
   Expose scalar display values as read-only projections.
 - Keep raw control values inside their view or model. Validate a complete
