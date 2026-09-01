@@ -333,7 +333,11 @@ actor ProjectionExperienceCoordinator {
               generation == request.generation
         else { return }
         if case let .failed(failure) = health {
-            await rejectRequestedExperience(failure: failure)
+            await rejectRequestedExperience(
+                expectedID: request.id,
+                expectedGeneration: request.generation,
+                failure: failure,
+            )
         }
     }
 
@@ -389,7 +393,11 @@ actor ProjectionExperienceCoordinator {
               request.id == id,
               request.generation == generation
         else { return }
-        await rejectRequestedExperience(failure: failure)
+        await rejectRequestedExperience(
+            expectedID: request.id,
+            expectedGeneration: request.generation,
+            failure: failure,
+        )
     }
 
     func select(_ id: ProjectionExperienceID) async {
@@ -621,9 +629,20 @@ actor ProjectionExperienceCoordinator {
         publishState()
     }
 
-    private func rejectRequestedExperience(failure: ThrowFailureCategory) async {
+    private func rejectRequestedExperience(
+        expectedID: ProjectionExperienceID,
+        expectedGeneration: UInt64,
+        failure: ThrowFailureCategory,
+    ) async {
+        guard let request = requestState?.request,
+              request.id == expectedID,
+              request.generation == expectedGeneration
+        else { return }
         let now = await clock.now()
-        guard let request = requestState?.request else { return }
+        guard let currentRequest = requestState?.request,
+              currentRequest.id == expectedID,
+              currentRequest.generation == expectedGeneration
+        else { return }
         let wasManual = request.isManual
         let failedID = request.id
         cancelRequestedRuntime()
@@ -651,8 +670,12 @@ actor ProjectionExperienceCoordinator {
     private func handleRotationClockFailure(timerGeneration: UInt64) async {
         guard timerGeneration == self.timerGeneration else { return }
         assertionFailure("Projection rotation clock failed")
-        if requestState != nil {
-            await rejectRequestedExperience(failure: .transport)
+        if let request = requestState?.request {
+            await rejectRequestedExperience(
+                expectedID: request.id,
+                expectedGeneration: request.generation,
+                failure: .transport,
+            )
         } else {
             cancelRotation()
             publishState()
@@ -734,7 +757,11 @@ actor ProjectionExperienceCoordinator {
               request.id == id,
               request.generation == generation
         else { return }
-        await rejectRequestedExperience(failure: .transport)
+        await rejectRequestedExperience(
+            expectedID: request.id,
+            expectedGeneration: request.generation,
+            failure: .transport,
+        )
     }
 
     private func cancelRotation() {

@@ -313,6 +313,55 @@ struct ProjectionExperienceCoordinatorTests {
         )
     }
 
+    @Test func staleRuntimeFailureCannotRejectANewerRequestAfterClockReadResumes() async throws {
+        let clock = ManualProjectionRotationClock(now: start)
+        let coordinator = try ProjectionExperienceCoordinator(
+            playlist: rotatingPlaylist(),
+            clock: clock,
+        )
+        var actions = await coordinator.actions().makeAsyncIterator()
+        await coordinator.reconcile(demand: projectingDemand)
+        let active = try activation(#require(await actions.next()))
+        await reportSuccess(coordinator, id: active.id, generation: active.generation)
+
+        await coordinator.select(.transit)
+        let staleTarget = try activation(#require(await actions.next()))
+        await clock.suspendNextNowCall()
+        let failureTask = Task {
+            await coordinator.reportRuntimeUpdate(
+                id: staleTarget.id,
+                generation: staleTarget.generation,
+                successfulGeneration: nil,
+                health: .failed(.transport),
+            )
+        }
+        await clock.waitForNowCallToSuspend()
+
+        await coordinator.select(.transit)
+        #expect(try #require(await actions.next()) == .deactivate(id: .transit))
+        let replacement = try activation(#require(await actions.next()))
+        #expect(replacement.generation > staleTarget.generation)
+        await clock.resumeSuspendedNowCall()
+        await failureTask.value
+
+        let state = await coordinator.currentState()
+        #expect(state.requestedExperienceID == .transit)
+        #expect(state.manualSelectionFailure == nil)
+        #expect(await coordinator.runningExperienceIDsForTesting() == [.airAndSpace, .transit])
+        await reportSuccess(
+            coordinator,
+            id: replacement.id,
+            generation: replacement.generation,
+        )
+        #expect(
+            try #require(await actions.next()) == .beginTransition(
+                from: .airAndSpace,
+                to: .transit,
+                generation: replacement.generation,
+            ),
+        )
+    }
+
     @Test func manualSelectionTimesOutWithoutBlankingTheActiveExperience() async throws {
         let clock = ManualProjectionRotationClock(now: start)
         let coordinator = try ProjectionExperienceCoordinator(
