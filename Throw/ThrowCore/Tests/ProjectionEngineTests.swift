@@ -142,7 +142,7 @@ struct ProjectionEngineTests {
                     geography: .hidden,
                 ),
                 geography: nil,
-                network: network,
+                projectNetwork: { _ in network },
             )),
             observer: observer,
             mapCenter: observer.coordinate,
@@ -260,7 +260,7 @@ struct ProjectionEngineTests {
                     geography: .hidden,
                 ),
                 geography: nil,
-                network: projectedNetwork,
+                projectNetwork: { _ in projectedNetwork },
             ),
         )
 

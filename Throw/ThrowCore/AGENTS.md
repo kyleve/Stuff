@@ -71,6 +71,8 @@ location, and scheduling; see [`README.md`](README.md). Read the root
   catalog or presentation switch.
 - Pass only `PreparedProjectionExperienceInput` to `ProjectionEngine`. Return a
   closed `ProjectedExperienceFrame` from projection.
+- Project each present static-line source through a nonoptional preparation
+  closure. Store its projected frame and source revision in one value.
 - Create static-line frames with `ProjectionEngine.lineFrame`. Reject a prepared
   frame when its source revision or projection context does not match.
 - Derive static-line render identity from its typed layer, source revision, and
