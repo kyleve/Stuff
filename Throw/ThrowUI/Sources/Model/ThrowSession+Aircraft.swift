@@ -162,14 +162,10 @@ extension ThrowSession {
 
     @discardableResult
     func useSource(_ draft: ValidatedAircraftSourceDraft) async -> Bool {
-        guard sourceMutationInProgress == false else { return false }
-        sourceMutationInProgress = true
-        defer { finishSourceMutation() }
+        guard beginPreferenceMutation() else { return false }
+        defer { finishPreferenceMutation() }
 
-        let pendingSave = preferenceSaveTask
-        preferenceSaveTask = nil
-        pendingSave?.cancel()
-        await pendingSave?.value
+        await flushPreferencesSave()
 
         let replacementSetupState = setupState.replacingSource(draft.configuration)
         let preferences: ThrowPreferences
@@ -196,7 +192,7 @@ extension ThrowSession {
                 try await credentialStore.save(replacementCredential, for: credentialID)
                 try Task.checkCancellation()
             }
-            try await preferenceStore.save(preferences)
+            try await persistPreferencesImmediately(preferences)
         } catch {
             let rollbackFailure: String? = if credentialMutationAttempted,
                                               let replacedCredentialID
@@ -247,9 +243,8 @@ extension ThrowSession {
 
     @discardableResult
     public func deleteRapidAPICredential() async -> Bool {
-        guard sourceMutationInProgress == false else { return false }
-        sourceMutationInProgress = true
-        defer { finishSourceMutation() }
+        guard beginPreferenceMutation() else { return false }
+        defer { finishPreferenceMutation() }
 
         let deletesActiveSource = selectedSourceConfiguration?.kind == .adsbExchangeRapidAPI
         do {
@@ -273,9 +268,8 @@ extension ThrowSession {
 
     @discardableResult
     public func deleteFlightradar24Credential() async -> Bool {
-        guard sourceMutationInProgress == false else { return false }
-        sourceMutationInProgress = true
-        defer { finishSourceMutation() }
+        guard beginPreferenceMutation() else { return false }
+        defer { finishPreferenceMutation() }
 
         let deletesActiveSource = selectedSourceConfiguration?.kind == .flightradar24
         do {
@@ -312,13 +306,6 @@ extension ThrowSession {
         } catch {
             return error.localizedDescription
         }
-    }
-
-    private func finishSourceMutation() {
-        sourceMutationInProgress = false
-        guard sourceMutationNeedsPreferenceSave else { return }
-        sourceMutationNeedsPreferenceSave = false
-        schedulePreferencesSave()
     }
 
     func applyAirAndSpaceUpdate(_ update: AirAndSpaceRuntimeUpdate) async {

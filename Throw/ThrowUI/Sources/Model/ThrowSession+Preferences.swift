@@ -71,8 +71,8 @@ extension ThrowSession {
     }
 
     func schedulePreferencesSave() {
-        guard sourceMutationInProgress == false else {
-            sourceMutationNeedsPreferenceSave = true
+        guard preferenceMutationInProgress == false else {
+            preferenceMutationNeedsSave = true
             return
         }
         let preferences: ThrowPreferences
@@ -82,20 +82,13 @@ extension ThrowSession {
             settingsFailure = error.localizedDescription
             return
         }
-        preferenceSaveTask?.cancel()
-        preferenceSaveTask = Task(name: "Throw save preferences") { [weak self, preferenceStore] in
-            do {
-                try await Task.sleep(for: .milliseconds(150))
-                try Task.checkCancellation()
-                try await preferenceStore.save(preferences)
-                guard Task.isCancelled == false else { return }
-                self?.settingsFailure = nil
-            } catch is CancellationError {
-                return
-            } catch {
-                self?.settingsFailure = error.localizedDescription
-            }
+        if preferenceSaveQueue.last?.isCoalescible == true {
+            preferenceSaveQueue[preferenceSaveQueue.index(before: preferenceSaveQueue.endIndex)] =
+                .coalesced(preferences)
+        } else {
+            preferenceSaveQueue.append(.coalesced(preferences))
         }
+        startPreferenceSaveWorkerIfNeeded()
     }
 
     func savePreferencesImmediately() async throws {
@@ -107,11 +100,51 @@ extension ThrowSession {
     }
 
     func persistPreferencesImmediately(_ preferences: ThrowPreferences) async throws {
-        let pendingSave = preferenceSaveTask
+        try await withCheckedThrowingContinuation { continuation in
+            preferenceSaveQueue.append(.immediate(preferences, continuation))
+            startPreferenceSaveWorkerIfNeeded()
+        }
+    }
+
+    func flushPreferencesSave() async {
+        while let preferenceSaveTask {
+            await preferenceSaveTask.value
+        }
+    }
+
+    func beginPreferenceMutation() -> Bool {
+        guard preferenceMutationInProgress == false else { return false }
+        preferenceMutationInProgress = true
+        return true
+    }
+
+    func finishPreferenceMutation() {
+        preferenceMutationInProgress = false
+        guard preferenceMutationNeedsSave else { return }
+        preferenceMutationNeedsSave = false
+        schedulePreferencesSave()
+    }
+
+    private func startPreferenceSaveWorkerIfNeeded() {
+        guard preferenceSaveTask == nil else { return }
+        preferenceSaveTask = Task(name: "Throw save preferences") { [self] in
+            await drainPreferenceSaveQueue()
+        }
+    }
+
+    private func drainPreferenceSaveQueue() async {
+        while preferenceSaveQueue.isEmpty == false {
+            let request = preferenceSaveQueue.removeFirst()
+            do {
+                try await preferenceStore.save(request.preferences)
+                settingsFailure = nil
+                request.resume()
+            } catch {
+                settingsFailure = error.localizedDescription
+                request.resume(throwing: error)
+            }
+        }
         preferenceSaveTask = nil
-        pendingSave?.cancel()
-        await pendingSave?.value
-        try await preferenceStore.save(preferences)
     }
 
     func makePreferences() throws -> ThrowPreferences {
@@ -184,6 +217,38 @@ extension ThrowSession {
             start: LocalTime(hour: startHour, minute: startMinute),
             end: LocalTime(hour: endHour, minute: endMinute),
         )
+    }
+}
+
+enum PreferenceSaveRequest {
+    case coalesced(ThrowPreferences)
+    case immediate(ThrowPreferences, CheckedContinuation<Void, any Error>)
+
+    var preferences: ThrowPreferences {
+        switch self {
+            case let .coalesced(preferences), let .immediate(preferences, _):
+                preferences
+        }
+    }
+
+    var isCoalescible: Bool {
+        if case .coalesced = self { true } else { false }
+    }
+
+    var isImmediate: Bool {
+        if case .immediate = self { true } else { false }
+    }
+
+    func resume() {
+        if case let .immediate(_, continuation) = self {
+            continuation.resume()
+        }
+    }
+
+    func resume(throwing error: any Error) {
+        if case let .immediate(_, continuation) = self {
+            continuation.resume(throwing: error)
+        }
     }
 }
 

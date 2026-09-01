@@ -287,14 +287,15 @@ public final class ThrowSession {
     @ObservationIgnored var isReconcilingDemand = false
     @ObservationIgnored var renderTask: Task<Void, Never>?
     @ObservationIgnored var preferenceSaveTask: Task<Void, Never>?
+    @ObservationIgnored var preferenceSaveQueue: [PreferenceSaveRequest] = []
     @ObservationIgnored var locationTask: Task<Void, Never>?
     @ObservationIgnored var quietBoundaryTask: Task<Void, Never>?
     @ObservationIgnored var timeChangeTasks: [Task<Void, Never>] = []
     @ObservationIgnored var cachedFlightradar24Usage: CachedFlightradar24Usage?
     @ObservationIgnored var lastFlightradar24UsageRequestAt: Date?
     @ObservationIgnored var flightradar24UsageGeneration: UInt64 = 0
-    @ObservationIgnored var sourceMutationInProgress = false
-    @ObservationIgnored var sourceMutationNeedsPreferenceSave = false
+    @ObservationIgnored var preferenceMutationInProgress = false
+    @ObservationIgnored var preferenceMutationNeedsSave = false
     #if DEBUG
         @ObservationIgnored @_spi(Testing) public var
             beforeApplyingLocationResolutionForTesting: (() -> Void)?
@@ -552,6 +553,9 @@ public final class ThrowSession {
         isForeground = false
         cancelProjectionSessionLocationAcquisition(restoringPreviousHealth: true)
         scheduleDemandReconciliation()
+        Task(name: "Throw flush preferences in background") { [self] in
+            await flushPreferencesSave()
+        }
     }
 
     public func applicationWillEnterForeground() {
@@ -579,7 +583,6 @@ public final class ThrowSession {
         playlistConfigurationTask?.cancel()
         demandTask?.cancel()
         renderTask?.cancel()
-        preferenceSaveTask?.cancel()
         locationTask?.cancel()
         quietBoundaryTask?.cancel()
         timeChangeTasks.forEach { $0.cancel() }
