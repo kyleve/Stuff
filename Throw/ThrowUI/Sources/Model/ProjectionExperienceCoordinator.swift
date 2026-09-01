@@ -482,6 +482,15 @@ actor ProjectionExperienceCoordinator {
         )
     }
 
+    /// Cancels a prepared request because its source or observer context changed.
+    func invalidatePreparedTransition(lease: ProjectionActivationLease) async {
+        guard requestState?.request.lease == lease else { return }
+        cancelRequestedRuntime()
+        manualSelectionFailure = nil
+        publishState()
+        await startFreshDwell()
+    }
+
     func select(_ id: ProjectionExperienceID) async {
         let now = await clock.now()
         guard playlist.entry(for: id) != nil else {

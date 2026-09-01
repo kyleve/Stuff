@@ -31,7 +31,8 @@ struct ThrowSessionExperiencesTests {
             mode: .map,
             generatedAt: Date(timeIntervalSince1970: 50),
         )
-        session.preparedProjection = try #require(VisibleProjection.rendered(
+        let prepared = try #require(PreparedProjectionPresentation.rendered(
+            contextGeneration: session.projectionContextGeneration,
             activationLease: lease,
             output: output,
         ))
@@ -48,13 +49,12 @@ struct ThrowSessionExperiencesTests {
             activePollingSignature: nil,
             semanticPreparationState: .ready,
         )
-        session.projectionPresentationTransition = .fadingOut(
-            targetLease: lease,
+        session.projectionPresentationStaging = .fadingOut(
+            prepared: prepared,
             bufferedTargetUpdate: bufferedUpdate,
         )
 
         let committed = session.commitPreparedProjectionAtBlack(
-            to: lease,
             coordinator: projectionTestCoordinator(activeExperienceID: .airAndSpace),
         )
 
@@ -66,9 +66,137 @@ struct ThrowSessionExperiencesTests {
         #expect(session.visibleProjection.request?.context.observer == observer)
         #expect(session.projectionFrame.generatedAt == Date(timeIntervalSince1970: 150))
         #expect(session.pendingAirAndSpaceFrame == bufferedFrame)
-        #expect(session.projectionPresentationTransition?.bufferedTargetUpdate?.flightsFrame ==
+        #expect(session.projectionPresentationStaging?.bufferedTargetUpdate?.flightsFrame ==
             bufferedFrame.flights)
-        #expect(session.preparedProjection == nil)
+        #expect(session.projectionPresentationStaging?.preparedProjection == prepared)
+    }
+
+    @Test(arguments: [
+        ProjectionPreferenceChange.aircraftSource,
+        ProjectionPreferenceChange.observerLocation,
+    ])
+    func contextInvalidationWhileRuntimePreparationSuspendsRejectsThePreparedOutput(
+        _ change: ProjectionPreferenceChange,
+    ) async throws {
+        let clock = SuspendingProjectionRotationClock(
+            now: Date(timeIntervalSince1970: 1_800_000_000),
+        )
+        let session = ThrowSession.fixture(rotationClock: clock)
+        session.airAndSpacePreferences = session.airAndSpacePreferences.replacingGeography(
+            .defaultValue.replacingIsEnabled(false),
+        )
+        var actions = await session.experienceCoordinator.actions().makeAsyncIterator()
+        try await configureAirAndSpaceRequestFromTransit(on: session)
+        _ = try #require(await actions.next())
+        await session.experienceCoordinator.select(.airAndSpace)
+        let activation = try #require(await actions.next())
+        guard case let .activate(lease, _) = activation else {
+            Issue.record("Expected the Air & Space activation")
+            return
+        }
+        let activated = session.airAndSpaceActivation.activate(lease)
+        #expect(activated)
+        let coordinator = await session.experienceCoordinator.currentState()
+        session.projectionPresentationState = .initial(
+            coordinator: coordinator,
+            preferredExperienceID: .transit,
+            mode: .map,
+            generatedAt: session.dateProvider.now(),
+        )
+        let semanticFrame = projectionTestAirFrame(
+            observedAt: Date(timeIntervalSince1970: 100),
+        )
+        let update = AirAndSpaceRuntimeUpdate(
+            activationLease: lease,
+            successfulActivationLease: lease,
+            health: .healthy(
+                lastUpdate: session.dateProvider.now(),
+                visibleContentCount: 1,
+            ),
+            flightsFrame: semanticFrame.flights,
+            snapshot: nil,
+            activePollingSignature: nil,
+            semanticPreparationState: .ready,
+        )
+        await clock.suspendNextNowCall()
+
+        let preparation = Task { await session.applyAirAndSpaceUpdate(update) }
+        await clock.waitForNowCallToSuspend()
+        let previousGeneration = session.projectionContextGeneration
+
+        let invalidation = session.prepareProjectionPreferencePublication(change)
+
+        #expect(invalidation.contextGeneration == previousGeneration.successor())
+        #expect(session.projectionContextGeneration == invalidation.contextGeneration)
+        #expect(session.projectionPresentationStaging?.targetLease == nil)
+        await clock.resumeSuspendedNowCall()
+        await preparation.value
+
+        let staleTransition = try #require(await actions.next())
+        guard case let .beginTransition(_, targetLease) = staleTransition else {
+            Issue.record("Expected the stale prepared transition")
+            return
+        }
+        #expect(targetLease == lease)
+        await session.applyExperienceCoordinatorAction(staleTransition)
+        #expect(session.projectionPresentationStaging?.targetLease == nil)
+        #expect(session.visibleProjection.experienceID == .transit)
+
+        await session.finishProjectionPreferenceInvalidation(invalidation)
+        session.completeProjectionPreferenceInvalidation(invalidation)
+    }
+
+    @Test(arguments: [
+        ProjectionPreferenceChange.aircraftSource,
+        ProjectionPreferenceChange.observerLocation,
+    ])
+    func contextInvalidationDuringFadeRevokesTheBlackCommit(
+        _ change: ProjectionPreferenceChange,
+    ) async throws {
+        let session = ThrowSession.fixture()
+        let lease = ProjectionActivationLease(
+            experienceID: .airAndSpace,
+            generation: .init(rawValue: 9),
+        )
+        let activated = session.airAndSpaceActivation.activate(lease)
+        #expect(activated)
+        session.projectionPresentationState = .initial(
+            coordinator: projectionTestCoordinator(activeExperienceID: .transit),
+            preferredExperienceID: .transit,
+            mode: .map,
+            generatedAt: session.dateProvider.now(),
+        )
+        let prepared = try preparedAirAndSpaceProjection(for: session, lease: lease)
+        session.projectionPresentationStaging = .prepared(prepared)
+        let fadeGate = ProjectionTransitionGate()
+        session.waitForProjectionFadeOutForTesting = {
+            await fadeGate.suspend()
+        }
+
+        let transition = Task {
+            await session.applyExperienceCoordinatorAction(.beginTransition(
+                from: .transit,
+                to: lease,
+            ))
+        }
+        await fadeGate.waitForSuspension()
+        #expect(session.projectionSurfaceOpacity == 0)
+        let previousGeneration = session.projectionContextGeneration
+
+        let invalidation = session.prepareProjectionPreferencePublication(change)
+
+        #expect(invalidation.contextGeneration == previousGeneration.successor())
+        #expect(session.projectionPresentationStaging?.targetLease == nil)
+        #expect(session.projectionSurfaceOpacity == 1)
+        await fadeGate.resume()
+        await transition.value
+        #expect(session.projectionPresentationStaging?.targetLease == nil)
+        #expect(session.activeExperienceID == .transit)
+        #expect(session.visibleProjection.experienceID == .transit)
+
+        session.waitForProjectionFadeOutForTesting = nil
+        await session.finishProjectionPreferenceInvalidation(invalidation)
+        session.completeProjectionPreferenceInvalidation(invalidation)
     }
 
     @Test func oneConfiguredViewKeepsAutomaticRotationDormant() {
@@ -129,7 +257,7 @@ struct ThrowSessionExperiencesTests {
         #expect(session.airAndSpaceActivation.activeLease == replacementLease)
     }
 
-    @Test func runtimeUpdateWaitsForThePreparedFrameToFinishFadingIn() async {
+    @Test func runtimeUpdateWaitsForThePreparedFrameToFinishFadingIn() async throws {
         let session = ThrowSession.fixture()
         let lease = ProjectionActivationLease(
             experienceID: .airAndSpace,
@@ -138,8 +266,24 @@ struct ThrowSessionExperiencesTests {
         _ = session.airAndSpaceActivation.activate(lease)
         session.replacePendingAirAndSpaceFrameForTesting(.empty)
         session.currentSnapshot = nil
-        session.projectionPresentationTransition = .fadingIn(
-            targetLease: lease,
+        let observer = try #require(session.confirmedLocation?.position)
+        let semanticFrame = projectionTestAirFrame(
+            observedAt: Date(timeIntervalSince1970: 100),
+        )
+        let output = try projectionTestAirOutput(
+            semanticFrame: semanticFrame,
+            observer: observer,
+            generatedAt: Date(timeIntervalSince1970: 150),
+            revision: 1,
+            observerPoint: ProjectionPoint(x: 0.5, y: 0.5),
+        )
+        let prepared = try #require(PreparedProjectionPresentation.rendered(
+            contextGeneration: session.projectionContextGeneration,
+            activationLease: lease,
+            output: output,
+        ))
+        session.projectionPresentationStaging = .fadingIn(
+            prepared: prepared,
             bufferedTargetUpdate: nil,
         )
         let snapshot = AircraftSnapshot(
@@ -164,14 +308,14 @@ struct ThrowSessionExperiencesTests {
         await session.applyAirAndSpaceUpdate(update)
 
         #expect(session.currentSnapshot == nil)
-        let bufferedSnapshot = session.projectionPresentationTransition?
+        let bufferedSnapshot = session.projectionPresentationStaging?
             .bufferedTargetUpdate?.snapshot
         #expect(bufferedSnapshot == snapshot)
 
         await session.finishProjectionPresentationTransition(to: lease)
 
         #expect(session.currentSnapshot == snapshot)
-        #expect(session.projectionPresentationTransition?.targetLease == nil)
+        #expect(session.projectionPresentationStaging?.targetLease == nil)
     }
 
     @Test func projectionAccessibilityUsesTheActiveExperienceCountMeaning() {
@@ -201,5 +345,165 @@ struct ThrowSessionExperiencesTests {
         #expect(session.projectionAccessibilitySummary.contains("Transit"))
         #expect(session.projectionAccessibilitySummary.contains("7 Vehicles visible"))
         #expect(session.projectionAccessibilitySummary.contains("Aircraft visible") == false)
+    }
+
+    private func configureAirAndSpaceRequestFromTransit(
+        on session: ThrowSession,
+    ) async throws {
+        let transitOnly = try projectionPlaylist(entries: [.transit])
+        let both = try projectionPlaylist(entries: [.transit, .airAndSpace])
+        await session.experienceCoordinator.configure(ProjectionPlaylistConfiguration(
+            playlist: transitOnly,
+            revision: .init(rawValue: 1),
+        ))
+        await session.experienceCoordinator.configure(ProjectionPlaylistConfiguration(
+            playlist: both,
+            revision: .init(rawValue: 2),
+        ))
+        await session.experienceCoordinator.reconcile(demand: ProjectionExperienceDemand(
+            hasOutput: true,
+            isForeground: true,
+            isQuiet: false,
+            isCalibrating: false,
+        ))
+    }
+
+    private func projectionPlaylist(
+        entries: [ProjectionExperienceID],
+    ) throws -> ProjectionPlaylist {
+        let catalog = ProjectionExperienceCatalog(
+            descriptors: [
+                ProjectionExperienceDescriptor(
+                    id: .airAndSpace,
+                    availability: .enabled,
+                    supportedModes: [.map, .trueSky],
+                    layerIDs: [.geography, .flights],
+                    visibleContentKind: .aircraft,
+                    zOrder: 0,
+                ),
+                ProjectionExperienceDescriptor(
+                    id: .transit,
+                    availability: .enabled,
+                    supportedModes: [.map],
+                    layerIDs: [.geography, .transitNetwork, .transitVehicles],
+                    visibleContentKind: .vehicles,
+                    zOrder: 10,
+                ),
+            ],
+            layerCatalog: .standard,
+        )
+        return try ProjectionPlaylist(
+            entries: entries.map {
+                ProjectionPlaylistEntry(
+                    experienceID: $0,
+                    dwellDuration: .defaultValue,
+                )
+            },
+            automaticRotationEnabled: false,
+            selectedExperienceID: entries.first,
+            configuredExperienceIDs: Set(entries),
+            catalog: catalog,
+        )
+    }
+
+    private func preparedAirAndSpaceProjection(
+        for session: ThrowSession,
+        lease: ProjectionActivationLease,
+    ) throws -> PreparedProjectionPresentation {
+        let observer = try #require(session.confirmedLocation?.position)
+        let semanticFrame = projectionTestAirFrame(
+            observedAt: Date(timeIntervalSince1970: 100),
+        )
+        let output = try projectionTestAirOutput(
+            semanticFrame: semanticFrame,
+            observer: observer,
+            generatedAt: Date(timeIntervalSince1970: 150),
+            revision: 1,
+            observerPoint: ProjectionPoint(x: 0.5, y: 0.5),
+        )
+        return try #require(PreparedProjectionPresentation.rendered(
+            contextGeneration: session.projectionContextGeneration,
+            activationLease: lease,
+            output: output,
+        ))
+    }
+}
+
+private actor ProjectionTransitionGate {
+    private var suspension: CheckedContinuation<Void, Never>?
+    private var suspensionWaiters: [CheckedContinuation<Void, Never>] = []
+
+    func suspend() async {
+        await withCheckedContinuation { continuation in
+            precondition(suspension == nil, "Only one fade can suspend at a time")
+            suspension = continuation
+            let waiters = suspensionWaiters
+            suspensionWaiters.removeAll()
+            waiters.forEach { $0.resume() }
+        }
+    }
+
+    func waitForSuspension() async {
+        guard suspension == nil else { return }
+        await withCheckedContinuation { continuation in
+            suspensionWaiters.append(continuation)
+        }
+    }
+
+    func resume() {
+        guard let suspension else {
+            Issue.record("Expected a suspended projection fade")
+            return
+        }
+        self.suspension = nil
+        suspension.resume()
+    }
+}
+
+private actor SuspendingProjectionRotationClock: ProjectionRotationClock {
+    private let current: Date
+    private var suspendsNextNowCall = false
+    private var suspendedNowCall: CheckedContinuation<Date, Never>?
+    private var suspensionWaiters: [CheckedContinuation<Void, Never>] = []
+
+    init(now: Date) {
+        current = now
+    }
+
+    func now() async -> Date {
+        guard suspendsNextNowCall else { return current }
+        suspendsNextNowCall = false
+        return await withCheckedContinuation { continuation in
+            precondition(suspendedNowCall == nil, "Only one clock read can suspend at a time")
+            suspendedNowCall = continuation
+            let waiters = suspensionWaiters
+            suspensionWaiters.removeAll()
+            waiters.forEach { $0.resume() }
+        }
+    }
+
+    func sleep(for duration: Duration) async throws {
+        try await Task.sleep(for: duration)
+    }
+
+    func suspendNextNowCall() {
+        precondition(suspendedNowCall == nil, "A clock read is already suspended")
+        suspendsNextNowCall = true
+    }
+
+    func waitForNowCallToSuspend() async {
+        guard suspendedNowCall == nil else { return }
+        await withCheckedContinuation { continuation in
+            suspensionWaiters.append(continuation)
+        }
+    }
+
+    func resumeSuspendedNowCall() {
+        guard let suspendedNowCall else {
+            Issue.record("Expected a suspended projection clock read")
+            return
+        }
+        self.suspendedNowCall = nil
+        suspendedNowCall.resume(returning: current)
     }
 }

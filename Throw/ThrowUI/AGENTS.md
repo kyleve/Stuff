@@ -60,8 +60,9 @@ Read the root [`AGENTS.md`](../../AGENTS.md) and group
 - Keep coordinator command delivery lossless. Revalidate revision, demand,
   identity, and generation after each suspension before changing timer state.
 - Require a successful response and prepared output from the same fresh target
-  generation. Commit that exact typed request and coordinator state at black.
-  Buffer later target updates until fade-in completes.
+  generation. Bind both to one source and observer context. Keep preparation
+  and fade in one staging value. Recheck its context after preparation and at
+  black. Buffer later target updates until fade-in completes.
 - Send only `ProjectionFrameRequest` to the production projection worker. Keep
   raw layer-array entry points inside DEBUG test support.
 - Publish a worker result only when its typed request still matches the current
@@ -81,6 +82,9 @@ Read the root [`AGENTS.md`](../../AGENTS.md) and group
   validated source and location values atomically through that state. Persist a
   replacement location before publishing it, and invalidate the old projection
   context before the new observer becomes visible.
+- Advance the typed projection-context generation before a source or observer
+  replacement becomes visible. Revoke staged output and restore an active fade
+  in the same synchronous operation.
 - Keep source and location projections getter-only. Change them through their
   persisted session command, except for DEBUG Testing SPI fixture methods.
 - Keep the preference worker, queued requests, active mutation, deferred
