@@ -78,6 +78,8 @@ struct ADSBExchangeV2DecoderTests {
         )
         let snapshot = try decoder.decode(data, source: .adsbLol, fetchedAt: .now)
         #expect(snapshot.observations.map(\.id.rawValue) == ["present"])
+        #expect(snapshot.decodingDiagnostics.malformedRecordCount == 0)
+        #expect(snapshot.decodingDiagnostics.missingPositionRecordCount == 1)
     }
 
     @Test func secondTimestampIsNotDividedAgain() throws {
@@ -101,6 +103,8 @@ struct ADSBExchangeV2DecoderTests {
         )
         let snapshot = try decoder.decode(data, source: .adsbLol, fetchedAt: .now)
         #expect(snapshot.observations.map(\.id.rawValue) == ["good"])
+        #expect(snapshot.decodingDiagnostics.malformedRecordCount == 1)
+        #expect(snapshot.decodingDiagnostics.missingPositionRecordCount == 0)
     }
 
     @Test func entirelyMalformedAircraftPayloadFailsInsteadOfAppearingHealthyEmpty() {

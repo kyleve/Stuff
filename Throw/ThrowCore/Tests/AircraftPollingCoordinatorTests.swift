@@ -110,6 +110,53 @@ struct AircraftPollingCoordinatorTests {
         #expect(stopped.requestCount == 1)
     }
 
+    @Test func partialSchemaDriftLogsPrivacySafeCountsAtWarningLevel() async throws {
+        let diagnostics = AircraftSnapshotDecodingDiagnostics(
+            malformedRecordCount: 2,
+            missingPositionRecordCount: 3,
+        )
+        let logger = RecordingPollingLogger()
+        let coordinator = AircraftPollingCoordinator(
+            sourceFactory: DiagnosticSnapshotFactory(diagnostics: diagnostics),
+            clock: SuspendingPollingClock(),
+            logger: logger,
+        )
+        try await coordinator.activate(
+            configuration: .adsbLol,
+            query: ThrowCoreFixture.mapQuery(),
+            quiet: false,
+        )
+        try await waitUntil {
+            logger.events().contains { $0.kind == .partialSchemaDrift }
+        }
+
+        let event = try #require(logger.events().first { $0.kind == .partialSchemaDrift })
+        #expect(event.level == .warning)
+        #expect(event.decodedAircraftCount == 0)
+        #expect(event.decodingDiagnostics == diagnostics)
+        let fields = event.remoteFields
+        #expect(fields.map(\.key.rawValue) == [
+            "kind",
+            "source",
+            "malformed_record_count",
+            "missing_position_record_count",
+        ])
+        guard case let .category(kind) = fields[0].value,
+              case let .category(source) = fields[1].value,
+              case let .count(malformedCount) = fields[2].value,
+              case let .count(missingPositionCount) = fields[3].value
+        else {
+            Issue.record("Expected closed categories and record counts.")
+            await coordinator.deactivate()
+            return
+        }
+        #expect(kind.rawValue == "partial-schema-drift")
+        #expect(source.rawValue == "adsb-lol")
+        #expect(malformedCount == 2)
+        #expect(missingPositionCount == 3)
+        await coordinator.deactivate()
+    }
+
     @Test func localNetworkDenialLogsDistinctRedactedFailureCategory() async throws {
         let logger = RecordingPollingLogger()
         let coordinator = AircraftPollingCoordinator(
@@ -527,6 +574,38 @@ struct AircraftPollingCoordinatorTests {
                 fetchedAt: ThrowCoreFixture.date,
                 observations: [],
                 successfulHTTPStatus: statusCode,
+            )
+        }
+    }
+
+    private struct DiagnosticSnapshotFactory: AircraftSourceProducing {
+        let diagnostics: AircraftSnapshotDecodingDiagnostics
+
+        func makeSource(
+            configuration: AircraftSourceConfiguration,
+        ) async throws -> ConfiguredAircraftSource {
+            ConfiguredAircraftSource(
+                source: DiagnosticSnapshotSource(
+                    kind: configuration.kind,
+                    diagnostics: diagnostics,
+                ),
+                baseCadence: .seconds(300),
+                metadataWarning: nil,
+            )
+        }
+    }
+
+    private struct DiagnosticSnapshotSource: AircraftObservationSource {
+        let kind: AircraftSourceKind
+        let diagnostics: AircraftSnapshotDecodingDiagnostics
+
+        func snapshot(for _: AircraftQuery) async throws -> AircraftSnapshot {
+            AircraftSnapshot(
+                source: kind,
+                fetchedAt: ThrowCoreFixture.date,
+                observations: [],
+                successfulHTTPStatus: 200,
+                decodingDiagnostics: diagnostics,
             )
         }
     }

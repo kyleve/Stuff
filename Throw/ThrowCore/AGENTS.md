@@ -20,6 +20,8 @@ location, and scheduling; see [`README.md`](README.md). Read the root
 - Normalize timestamps, altitude sentinels, missing position, identities, and
   padded callsigns at the DTO boundary. Never interpret missing wire values as
   zero.
+- Carry aggregate malformed and missing-position counts with lossy snapshots.
+  Log partial schema drift at warning level without provider record values.
 - Keep one structured poll task. Cancel and drain before replacement, and
   reject responses from an old generation.
 - Build FR24 bounds as a conservative spherical cap. Use all longitudes when

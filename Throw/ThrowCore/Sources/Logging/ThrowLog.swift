@@ -9,9 +9,12 @@ public struct ThrowRootLogEvent: LogEvent {
 }
 
 public struct AircraftPollingLogEvent: LogEvent {
-    public enum Kind: String, Codable, Hashable, Sendable {
+    public static let eventVersion = 2
+
+    public enum Kind: String, CaseIterable, Codable, Hashable, Sendable {
         case sourceActivated = "source-activated"
         case requestSucceeded = "request-succeeded"
+        case partialSchemaDrift = "partial-schema-drift"
         case requestFailed = "request-failed"
         case retryScheduled = "retry-scheduled"
         case pollingStopped = "polling-stopped"
@@ -41,6 +44,7 @@ public struct AircraftPollingLogEvent: LogEvent {
     public let durationMilliseconds: Int?
     public let httpStatus: Int?
     public let decodedAircraftCount: Int?
+    public let decodingDiagnostics: AircraftSnapshotDecodingDiagnostics?
     public let backoffSeconds: Double?
     public let failureCategory: FailureCategory?
 
@@ -51,15 +55,22 @@ public struct AircraftPollingLogEvent: LogEvent {
         durationMilliseconds: Int?,
         httpStatus: Int?,
         decodedAircraftCount: Int?,
+        decodingDiagnostics: AircraftSnapshotDecodingDiagnostics?,
         backoffSeconds: Double?,
         failureCategory: FailureCategory?,
     ) {
+        precondition(
+            kind == .partialSchemaDrift
+                ? decodingDiagnostics?.hasDiscardedRecords == true
+                : decodingDiagnostics == nil,
+        )
         self.kind = kind
         self.source = source
         self.requestCount = requestCount
         self.durationMilliseconds = durationMilliseconds
         self.httpStatus = httpStatus
         self.decodedAircraftCount = decodedAircraftCount
+        self.decodingDiagnostics = decodingDiagnostics
         self.backoffSeconds = backoffSeconds
         self.failureCategory = failureCategory
     }
@@ -68,7 +79,7 @@ public struct AircraftPollingLogEvent: LogEvent {
         switch kind {
             case .sourceActivated, .requestSucceeded, .pollingStopped:
                 .info
-            case .requestFailed, .retryScheduled:
+            case .partialSchemaDrift, .requestFailed, .retryScheduled:
                 .warning
         }
     }
@@ -79,6 +90,25 @@ public struct AircraftPollingLogEvent: LogEvent {
 
     public var remoteMessage: String {
         "Aircraft polling \(kind.rawValue)"
+    }
+
+    public var remoteFields: [RemoteLogField] {
+        guard let decodingDiagnostics else { return [] }
+        return [
+            .eventKind(kind),
+            RemoteLogField(
+                key: RemoteLogFieldKey("source"),
+                value: .category(RemoteLogCategory(source)),
+            ),
+            RemoteLogField(
+                key: RemoteLogFieldKey("malformed_record_count"),
+                value: .count(decodingDiagnostics.malformedRecordCount),
+            ),
+            RemoteLogField(
+                key: RemoteLogFieldKey("missing_position_record_count"),
+                value: .count(decodingDiagnostics.missingPositionRecordCount),
+            ),
+        ]
     }
 }
 

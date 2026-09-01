@@ -27,7 +27,7 @@ struct ADSBExchangeV2Decoder {
         var observations: [AircraftObservation] = []
         observations.reserveCapacity(envelope.aircraft.count)
         var malformedRecordCount = 0
-        var intentionallyIgnoredPositionCount = 0
+        var missingPositionRecordCount = 0
 
         for lossyAircraft in envelope.aircraft {
             try Task.checkCancellation()
@@ -70,7 +70,7 @@ struct ADSBExchangeV2Decoder {
             guard let latitude = aircraft.latitude?.value,
                   let longitude = aircraft.longitude?.value
             else {
-                intentionallyIgnoredPositionCount += 1
+                missingPositionRecordCount += 1
                 continue
             }
 
@@ -142,11 +142,19 @@ struct ADSBExchangeV2Decoder {
         }
         if observations.isEmpty,
            malformedRecordCount > 0,
-           intentionallyIgnoredPositionCount == 0
+           missingPositionRecordCount == 0
         {
             throw ADSBV2DecodingError.invalidEnvelope
         }
-        return AircraftSnapshot(source: source, fetchedAt: fetchedAt, observations: observations)
+        return AircraftSnapshot(
+            source: source,
+            fetchedAt: fetchedAt,
+            observations: observations,
+            decodingDiagnostics: AircraftSnapshotDecodingDiagnostics(
+                malformedRecordCount: malformedRecordCount,
+                missingPositionRecordCount: missingPositionRecordCount,
+            ),
+        )
     }
 
     private func normalizedTimestamp(_ timestamp: Double) -> TimeInterval {
@@ -174,7 +182,12 @@ actor AircraftDecodingWorker {
         try Task.checkCancellation()
         let observations = try CloudAircraftQuery.postFilter(decoded.observations, for: query)
         try Task.checkCancellation()
-        return AircraftSnapshot(source: source, fetchedAt: fetchedAt, observations: observations)
+        return AircraftSnapshot(
+            source: source,
+            fetchedAt: fetchedAt,
+            observations: observations,
+            decodingDiagnostics: decoded.decodingDiagnostics,
+        )
     }
 
     func decodeReadsbSnapshot(

@@ -116,6 +116,28 @@ struct Flightradar24SourceTests {
         #expect(route.destination.rawValue == "MEX")
     }
 
+    @Test func partialSchemaDriftKeepsUsableRowsAndReportsDiscardCounts() async throws {
+        let data = Data(
+            """
+            {"data":[
+              {"fr24_id":"malformed","lat":"not-a-number","lon":-122.0},
+              {"fr24_id":"missing-position","alt":12000},
+              {"fr24_id":"usable","lat":37.01,"lon":-122.0,"alt":12000}
+            ]}
+            """.utf8,
+        )
+        let source = try makeSource(
+            token: "token",
+            outcomes: [.response(ThrowCoreFixture.response(data: data))],
+        )
+
+        let snapshot = try await source.snapshot(for: ThrowCoreFixture.mapQuery(radius: 50))
+
+        #expect(snapshot.observations.map(\.id.rawValue) == ["usable"])
+        #expect(snapshot.decodingDiagnostics.malformedRecordCount == 1)
+        #expect(snapshot.decodingDiagnostics.missingPositionRecordCount == 1)
+    }
+
     @Test func paintedCarrierTakesPrecedenceOverOperatingCarrier() throws {
         let data = Data(
             """
