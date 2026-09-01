@@ -1,36 +1,49 @@
 import Foundation
 
 /// A stable identity for one user-facing projection View.
-public struct ProjectionExperienceID: Hashable, Sendable {
-    public static let airAndSpace = ProjectionExperienceID(uncheckedRawValue: "air-and-space")
-    public static let transit = ProjectionExperienceID(uncheckedRawValue: "transit")
+public enum ProjectionExperienceID: String, CaseIterable, Hashable, Sendable {
+    case airAndSpace = "air-and-space"
+    case transit
 
-    public let rawValue: String
-
-    /// Decodes one of the experience identities compiled into this version of Throw.
-    public init?(rawValue: String) {
-        switch rawValue {
-            case Self.airAndSpace.rawValue:
-                self = .airAndSpace
-            case Self.transit.rawValue:
-                self = .transit
-            default:
-                return nil
-        }
-    }
-
-    private init(uncheckedRawValue rawValue: String) {
-        self.rawValue = rawValue
-    }
+    #if DEBUG
+        case testing = "testing"
+    #endif
 
     #if DEBUG
         @_spi(Testing)
         public init?(testingRawValue rawValue: String) {
             let normalized = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
             guard normalized.isEmpty == false else { return nil }
-            self.init(uncheckedRawValue: normalized)
+            self = .testing
         }
     #endif
+
+    fileprivate var standardDescriptor: ProjectionExperienceDescriptor? {
+        switch self {
+            case .airAndSpace:
+                ProjectionExperienceDescriptor(
+                    id: self,
+                    availability: .enabled,
+                    supportedModes: [.map, .trueSky],
+                    layerIDs: [.geography, .flights, .stars, .satellites],
+                    visibleContentKind: .aircraft,
+                    zOrder: 0,
+                )
+            case .transit:
+                ProjectionExperienceDescriptor(
+                    id: self,
+                    availability: .planned,
+                    supportedModes: [.map],
+                    layerIDs: [.geography, .transitNetwork, .transitVehicles],
+                    visibleContentKind: .vehicles,
+                    zOrder: 10,
+                )
+            #if DEBUG
+                case .testing:
+                    nil
+            #endif
+        }
+    }
 }
 
 public enum ProjectionExperienceAvailability: Hashable, Sendable {
@@ -76,24 +89,7 @@ public struct ProjectionExperienceDescriptor: Identifiable, Hashable, Sendable {
 /// The fixed catalog of projection experiences shipped by Throw.
 public struct ProjectionExperienceCatalog: Sendable {
     public static let standard = ProjectionExperienceCatalog(
-        descriptors: [
-            ProjectionExperienceDescriptor(
-                id: .airAndSpace,
-                availability: .enabled,
-                supportedModes: [.map, .trueSky],
-                layerIDs: [.geography, .flights, .stars, .satellites],
-                visibleContentKind: .aircraft,
-                zOrder: 0,
-            ),
-            ProjectionExperienceDescriptor(
-                id: .transit,
-                availability: .planned,
-                supportedModes: [.map],
-                layerIDs: [.geography, .transitNetwork, .transitVehicles],
-                visibleContentKind: .vehicles,
-                zOrder: 10,
-            ),
-        ],
+        descriptors: ProjectionExperienceID.allCases.compactMap(\.standardDescriptor),
         layerCatalog: .standard,
     )
 

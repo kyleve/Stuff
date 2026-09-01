@@ -81,6 +81,8 @@ boundary.
 `ProjectionExperienceInput` also pairs each experience with its supported projection modes.
 Transit can accept only a Map viewport. Geography visibility belongs to Map
 inputs, so it cannot be requested in True Sky.
+`ProjectionExperienceID` is a closed raw-value enum. The standard catalog derives
+its descriptors from those cases, so a new shipped experience requires exhaustive work.
 
 `ProjectionFrame` contains ordered projected mark and line layers. Line styles
 are typed, so Geography and future transit routes use one projection path. The

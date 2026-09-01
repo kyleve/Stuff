@@ -6,15 +6,23 @@ struct ProjectionExperiencePresentation {
     let id: ProjectionExperienceID
 
     var name: String {
-        if id == .airAndSpace { return String(localized: .experienceAirAndSpace) }
-        if id == .transit { return String(localized: .experienceTransit) }
-        return String(localized: .experienceUnknown)
+        switch id {
+            case .airAndSpace: String(localized: .experienceAirAndSpace)
+            case .transit: String(localized: .experienceTransit)
+            #if DEBUG
+                case .testing: String(localized: .experienceUnknown)
+            #endif
+        }
     }
 
     var description: String {
-        if id == .airAndSpace { return String(localized: .experienceAirAndSpaceDescription) }
-        if id == .transit { return String(localized: .experienceTransitDescription) }
-        return String(localized: .experienceUnknownDescription)
+        switch id {
+            case .airAndSpace: String(localized: .experienceAirAndSpaceDescription)
+            case .transit: String(localized: .experienceTransitDescription)
+            #if DEBUG
+                case .testing: String(localized: .experienceUnknownDescription)
+            #endif
+        }
     }
 
     var visibleContentLabel: String {
@@ -26,8 +34,12 @@ struct ProjectionExperiencePresentation {
     }
 
     var symbol: SFSymbol {
-        if id == .airAndSpace { return .airplane }
-        if id == .transit { return .tramFill }
-        return .rectangleStack
+        switch id {
+            case .airAndSpace: .airplane
+            case .transit: .tramFill
+            #if DEBUG
+                case .testing: .rectangleStack
+            #endif
+        }
     }
 }

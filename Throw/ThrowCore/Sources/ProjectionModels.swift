@@ -838,8 +838,10 @@ public enum ProjectionExperienceFrame: Hashable, Sendable {
                 .airAndSpace(.empty)
             case .transit:
                 .transit(.empty)
-            default:
-                preconditionFailure("A test-only experience must supply its own semantic frame")
+            #if DEBUG
+                case .testing:
+                    preconditionFailure("A test-only experience must supply its own semantic frame")
+            #endif
         }
     }
 
