@@ -99,15 +99,19 @@ extension ThrowSession {
     }
 
     func savePreferencesImmediately() async throws {
+        let preferences = try makePreferences()
+        try await persistPreferencesImmediately(preferences)
+        projectionPlaylist = preferences.playlist
+        await configureExperienceCoordinator(with: projectionPlaylist)
+        settingsFailure = nil
+    }
+
+    func persistPreferencesImmediately(_ preferences: ThrowPreferences) async throws {
         let pendingSave = preferenceSaveTask
         preferenceSaveTask = nil
         pendingSave?.cancel()
         await pendingSave?.value
-        let preferences = try makePreferences()
         try await preferenceStore.save(preferences)
-        projectionPlaylist = preferences.playlist
-        await configureExperienceCoordinator(with: projectionPlaylist)
-        settingsFailure = nil
     }
 
     func makePreferences() throws -> ThrowPreferences {

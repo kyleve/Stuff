@@ -134,6 +134,7 @@ struct ThrowSessionTests {
             ProjectionOutputID(rawValue: "invalid-source-test"),
         )
         session.hasStarted = true
+        session.locationMode = .manual
         session.aircraftSourceSelection = .awaitingValidation(.adsbLol)
         session.outputDemands.insert(output)
         session.projectionOutputCount = 1

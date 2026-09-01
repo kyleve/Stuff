@@ -5,6 +5,90 @@ import ThrowCore
 
 @MainActor
 struct ThrowSessionLocationTests {
+    @Test func locationRemainsOnTheCommittedObserverWhilePersistenceIsSuspended() async throws {
+        let preferenceStore = ControlledThrowPreferenceStore(saveBehavior: .suspended)
+        let session = ThrowSession.fixture(
+            preferenceStore: preferenceStore,
+            credentialStore: MemoryAircraftCredentialStore(credentials: [:]),
+        )
+        let originalSetupState = session.setupState
+        let originalLocation = try #require(session.confirmedLocation)
+        let originalHealth = session.locationHealth
+        let originalFrame = session.projectionFrame
+
+        let save = Task {
+            await session.saveObserverLocation(
+                mode: .manual,
+                latitude: 40,
+                longitude: -73,
+                altitudeFeet: 20,
+            )
+        }
+        await preferenceStore.waitForSaveToStart()
+
+        #expect(session.setupState == originalSetupState)
+        #expect(session.confirmedLocation == originalLocation)
+        #expect(session.locationHealth == originalHealth)
+        #expect(session.projectionFrame == originalFrame)
+
+        await preferenceStore.resumeSave()
+        let saved = await save.value
+        #expect(saved)
+        #expect(session.confirmedLocation != originalLocation)
+    }
+
+    @Test func failedLocationPersistencePreservesTheCompleteProjectionContext() async throws {
+        let preferenceStore = ControlledThrowPreferenceStore(saveBehavior: .failing)
+        let session = ThrowSession.fixture(
+            preferenceStore: preferenceStore,
+            credentialStore: MemoryAircraftCredentialStore(credentials: [:]),
+        )
+        let query = try session.aircraftQuery()
+        await session.airAndSpaceRuntime.activate(
+            configuration: .adsbLol,
+            query: query,
+            labelMode: session.labelMode,
+            activationGeneration: 1,
+        )
+        session.activePollingSignature = try PollingSignature(
+            configuration: .adsbLol,
+            query: query,
+        )
+        session.projectionSessionLocationGate = .ready
+        let offeredFix = try ThrowSessionLocationTestFixture.fix(
+            latitude: 41,
+            longitude: -72,
+            accuracyMeters: 150,
+        )
+        session.pendingLocationFix = offeredFix
+        let originalSetupState = session.setupState
+        let originalHealth = session.locationHealth
+        let originalSignature = session.activePollingSignature
+        let originalFrame = session.projectionFrame
+        let originalExperienceFrame = session.currentExperienceFrame
+
+        let saved = await session.saveObserverLocation(
+            mode: .manual,
+            latitude: 40,
+            longitude: -73,
+            altitudeFeet: 20,
+        )
+
+        #expect(saved == false)
+        #expect(session.setupState == originalSetupState)
+        #expect(session.locationHealth == originalHealth)
+        #expect(session.activePollingSignature == originalSignature)
+        #expect(session.projectionFrame == originalFrame)
+        #expect(session.currentExperienceFrame == originalExperienceFrame)
+        #expect(session.pendingLocationFix == offeredFix)
+        guard case .ready = session.projectionSessionLocationGate else {
+            Issue.record("A failed save must preserve the prior location gate")
+            return
+        }
+        #expect(await session.airAndSpaceRuntime.activeSourceKindForTesting() == .adsbLol)
+        await session.airAndSpaceRuntime.deactivate(reporting: .idle)
+    }
+
     @Test func firstGPSOutputAcquiresTargetFixBeforePolling() async throws {
         let locationSource = ControlledThrowLocationSource()
         let session = ThrowSession.fixture(locationSource: locationSource)
