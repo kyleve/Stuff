@@ -178,7 +178,15 @@ struct ThrowDurableLoggingTests {
         }
         let failure = try #require(failures.first)
         #expect(failures.count == 1)
-        #expect(failure.attachments == [.error(launchError, name: "launch-error")])
+        let attachment = try #require(failure.attachments.first)
+        #expect(failure.attachments.count == 1)
+        #expect(attachment.name == "launch-error")
+        #expect(attachment.contentType == .json)
+        let payload = try errorPayload(in: attachment)
+        let expectedPayload = try errorPayload(
+            in: .error(launchError, name: "launch-error"),
+        )
+        #expect(payload == expectedPayload)
     }
 
     private func sessionEvents(in system: Periscope) -> [ThrowSessionLogEvent] {
