@@ -3,9 +3,17 @@
 This model checks one question. Can Throw reach preference quiescence and release its retained
 UIKit background lease safely during producer, worker, scene, cancellation, and expiration races?
 
-The model represents Throw at revision `27ff3f0c0eb4eece71a371d435f26367f4a06b3d`. This revision
-contains the producer-admission fix in `58e15c31f78ee8c842246c72e96d987682edb0cf`. It also contains
-the cancellable-waiter fix in `27ff3f0c0eb4eece71a371d435f26367f4a06b3d`.
+The model represents Throw at revision `60c2540189c899a9efca542c157d6b0686710d06`.
+It retains controls for the producer-admission fix in `58e15c31f78ee8c842246c72e96d987682edb0cf`.
+It also retains the cancellable-waiter control from `27ff3f0c0eb4eece71a371d435f26367f4a06b3d`.
+
+The source map includes context renewal from `b53e5786a0cb97f0a370d22b23ea88f4b4633a83`.
+It also includes physical polling suspension from `30b569d9927da66badd92a14663efd604d7b3773`.
+Those changes add awaits inside producer scopes but do not change the persistence protocol.
+
+The tracked model uses raw TLA+ because it composes parameterized actions without a process scheduler.
+The manifest declares `source: tla`.
+The checker does not run PlusCal translation for this concern.
 
 A relevant change to the mapped source invalidates this result. Check the map and rerun TLC after
 such a change.
@@ -15,16 +23,18 @@ such a change.
 | Model state or action | Production counterpart |
 | --- | --- |
 | `foregroundScenes` and the three controller actions | [`ThrowRuntime.controllerScene`](../../Throw/Sources/ThrowRuntime.swift#L190-L209) keeps aggregate foreground membership. Only the first entry and final exit change session state. |
-| `admission` and `barrierState.allowed` | [`controllerForegroundPresenceDidChange`](../../ThrowUI/Sources/Model/ThrowSession.swift#L832-L841) calls [`setAcceptsProducers`](../../ThrowUI/Sources/Model/ThrowSession+Preferences.swift#L629-L637) before the runtime starts a flush. Closing admission preserves the active producer set. |
+| `admission` and `barrierState.allowed` | [`controllerForegroundPresenceDidChange`](../../ThrowUI/Sources/Model/ThrowSession.swift#L850-L860) calls [`setAcceptsProducers`](../../ThrowUI/Sources/Model/ThrowSession+Preferences.swift#L629-L637) before the runtime starts a flush. Closing admission preserves the active producer set. |
 | Typed producer identities and kinds | [`ThrowPreferenceProducerLease`](../../ThrowUI/Sources/Model/ThrowSession+Preferences.swift#L498-L519) and [`ProducerAdmission`](../../ThrowUI/Sources/Model/ThrowSession+Preferences.swift#L550-L566) make admission and exact-once removal explicit. |
 | `BeginProducer` and producer completion | [`beginProducer`](../../ThrowUI/Sources/Model/ThrowSession+Preferences.swift#L640-L654), [`finishProducer`](../../ThrowUI/Sources/Model/ThrowSession+Preferences.swift#L656-L670), and the typed mutation wrappers at lines 182-202. |
-| Direct selection producers | [`performExperienceSelection`](../../ThrowUI/Sources/Model/ThrowSession+Experiences.swift#L95-L115) covers explicit, next, and previous commands. The producer spans both coordinator awaits and selection publication. |
-| Coordinator transition producers | The action-stream task at [`ThrowSession.swift` lines 789-796](../../ThrowUI/Sources/Model/ThrowSession.swift#L789-L796) calls [`applyExperienceCoordinatorAction`](../../ThrowUI/Sources/Model/ThrowSession+Experiences.swift#L142-L187). A denied transition awaits coordinator invalidation instead of publishing. |
-| Transition publication and later awaits | [`transitionExperience`](../../ThrowUI/Sources/Model/ThrowSession+Experiences.swift#L267-L392) carries one producer through fade and coordinator awaits. Its publication helpers require that producer at lines 394-429 and 487-495. |
+| Direct selection producers | [`performExperienceSelection`](../../ThrowUI/Sources/Model/ThrowSession+Experiences.swift#L98-L118) covers explicit, next, and previous commands. The producer spans both coordinator awaits and selection publication. |
+| Coordinator transition producers | The action-stream task at [`ThrowSession.swift` lines 807-814](../../ThrowUI/Sources/Model/ThrowSession.swift#L807-L814) calls [`applyExperienceCoordinatorAction`](../../ThrowUI/Sources/Model/ThrowSession+Experiences.swift#L152-L210). A denied transition awaits coordinator invalidation instead of publishing. |
+| Transition publication and later awaits | [`transitionExperience`](../../ThrowUI/Sources/Model/ThrowSession+Experiences.swift#L295-L420) carries one producer through fade and coordinator awaits. Its publication helpers require that producer at lines 423-457 and 515-524. |
 | Mutation producers | [`beginMutation` and `finishMutation`](../../ThrowUI/Sources/Model/ThrowSession+Preferences.swift#L672-L708) combine one mutation with its producer identity. Aircraft, location, and onboarding mutations use this seam. |
-| `persistenceState.activity` | The exhaustive [`Activity`](../../ThrowUI/Sources/Model/ThrowSession+Preferences.swift#L533-L548) enum represents idle, saving, mutating, and mutating while saving. |
+| `suspendedAfterPublish` and `PostPublicationAwaitReturns` | Source and observer transactions await renewal and coordinator configuration at [`ThrowSession+Aircraft.swift` lines 260-270](../../ThrowUI/Sources/Model/ThrowSession+Aircraft.swift#L260-L270) and [`ThrowSession+Location.swift` lines 417-420](../../ThrowUI/Sources/Model/ThrowSession+Location.swift#L417-L420). Their admitted mutation remains active. |
+| Admitted producer stutter before finish | Active credential deletion awaits physical polling suspension at [`ThrowSession+Aircraft.swift` lines 290-330](../../ThrowUI/Sources/Model/ThrowSession+Aircraft.swift#L290-L330). It releases the mutation producer only after those awaits return. |
+| `persistenceState.activity` | The exhaustive [`Activity`](../../ThrowUI/Sources/Model/ThrowSession+Preferences.swift#L536-L548) enum represents idle, saving, mutating, and mutating while saving. |
 | Deferred work | [`recordDeferredFailure`](../../ThrowUI/Sources/Model/ThrowSession+Preferences.swift#L710-L742) records save causes during a mutation. [`finishPreferenceMutation`](../../ThrowUI/Sources/Model/ThrowSession+Preferences.swift#L186-L192) schedules them before it removes the producer. |
-| Pending, scheduled, and saving requests | [`enqueue`](../../ThrowUI/Sources/Model/ThrowSession+Preferences.swift#L744-L766), [`takeNextRequest`](../../ThrowUI/Sources/Model/ThrowSession+Preferences.swift#L797-L814), and [`drainPreferenceSaveQueue`](../../ThrowUI/Sources/Model/ThrowSession+Preferences.swift#L344-L370). |
+| Pending, scheduled, and saving requests | [`enqueue`](../../ThrowUI/Sources/Model/ThrowSession+Preferences.swift#L744-L766), [`takeNextRequest`](../../ThrowUI/Sources/Model/ThrowSession+Preferences.swift#L797-L814), and [`drainPreferenceSaveQueue`](../../ThrowUI/Sources/Model/ThrowSession+Preferences.swift#L352-L370). |
 | Immediate write and retry phases | [`persistReconciledPreferenceMutation`](../../ThrowUI/Sources/Model/ThrowSession+Preferences.swift#L212-L287) can retry after its storage await. The mutation producer stays active through publication. |
 | Typed waiter identities | [`ThrowPreferenceQuiescenceWaiterID`](../../ThrowUI/Sources/Model/ThrowSession+Preferences.swift#L521-L531) gives each continuation a unique identity. |
 | Waiter registration, removal, and resume | [`flushPreferencesSave`](../../ThrowUI/Sources/Model/ThrowSession+Preferences.swift#L159-L180) installs a cancellation handler. Lines 829-867 register, remove, and resume waiters only through typed identities. |
@@ -41,11 +51,12 @@ The source has the following asynchronous producer paths:
 - [`useSource`](../../ThrowUI/Sources/Model/ThrowSession+Aircraft.swift#L166-L273) uses a mutation
   producer for credential, preference, projection, and coordinator awaits.
 - Both credential deletion methods use mutation producers at
-  [`ThrowSession+Aircraft.swift` lines 277-324](../../ThrowUI/Sources/Model/ThrowSession+Aircraft.swift#L277-L324).
+  [`ThrowSession+Aircraft.swift` lines 276-334](../../ThrowUI/Sources/Model/ThrowSession+Aircraft.swift#L276-L334).
 - [`saveObserverLocation`](../../ThrowUI/Sources/Model/ThrowSession+Location.swift#L279-L349) and
-  [`accept`](../../ThrowUI/Sources/Model/ThrowSession+Location.swift#L351-L373) use mutation
-  producers around observer-location persistence and publication.
-- [`completeOnboarding`](../../ThrowUI/Sources/Model/ThrowSession+Onboarding.swift#L5-L85) uses a
+  [`accept`](../../ThrowUI/Sources/Model/ThrowSession+Location.swift#L351-L373) use mutation producers.
+  [`commitObserverLocation`](../../ThrowUI/Sources/Model/ThrowSession+Location.swift#L375-L422)
+  keeps that producer active through persistence, renewal, and coordinator configuration.
+- [`completeOnboarding`](../../ThrowUI/Sources/Model/ThrowSession+Onboarding.swift#L5-L86) uses a
   mutation producer around its final write, retry, publication, and coordinator await.
 
 These are all calls to `beginPreferenceMutation` or `beginPreferenceProducer` in production
@@ -56,6 +67,12 @@ await or reentrancy boundaries:
 
 - A producer starts before its first await. It can return, publish preference-backed state, await
   more work, and then release its typed lease.
+- Source and observer mutations await projection renewal and coordinator configuration after publication.
+  They stutter in this model while the admitted mutation remains in `suspendedAfterPublish`.
+- Active credential deletion awaits physical polling suspension before producer release.
+  That await stutters while the admitted mutation remains active before its finish action.
+- The separate [`ProjectionActivation`](../ProjectionActivation/README.md) model verifies those renewal and suspension protocols.
+  This model keeps only producer activity across their awaits.
 - An immediate mutation write suspends in `preferenceStore.save`. It can retry against a newer
   snapshot before it publishes.
 - Starting the preference worker permits main-actor reentrancy before the worker dequeues a request.
@@ -101,6 +118,12 @@ completion interleavings.
 bound isolates aggregate scene membership, typed waiter allocation, stale expiration, and retained
 lease ownership.
 
+**Verified for these model bounds and assumptions.**
+
+TLC exhausted both current state spaces without an invariant, temporal, or deadlock error.
+The historical controls failed for their mapped reasons.
+Both reachability controls reached their required branches.
+
 | Configuration | Purpose | Generated / distinct states | Depth | Result |
 | --- | --- | ---: | ---: | --- |
 | `CurrentSmall.cfg` | Current producer and persistence protocol | 373,130 / 95,306 | 30 | Pass |
@@ -109,7 +132,7 @@ lease ownership.
 | `ReachLifecycle.cfg` | Lifecycle and registered-waiter anti-vacuity trace | 5,122,617 / 1,289,319 | 18 | Expected reachability failure |
 | `BrokenUntrackedQuiescence.cfg` | Pre-`58e15c31` callback control | 6,689 / 2,826 | 9 | Expected safety failure |
 | `BrokenUntrackedPostBarrier.cfg` | Pre-`58e15c31` post-flush control | 13,754 / 5,575 | 10 | Expected safety failure |
-| `BrokenUncancelledWaiter.cfg` | Pre-`27ff3f0c` waiter control | 85,539 / 23,710 | lasso | Expected temporal failure |
+| `BrokenUncancelledWaiter.cfg` | Pre-`27ff3f0c` waiter control | 84,852 / 23,534 | lasso | Expected temporal failure |
 
 The persistence reachability trace crosses the barrier with an admitted mutation. It defers a
 save, schedules that save before producer release, parks a waiter, and returns a storage failure.
@@ -160,6 +183,11 @@ closed barrier unnoticed.
 The model abstracts preference values, request coalescing contents, diagnostics, and projection
 presentation details. It does not model process termination, identifier overflow, or an invalid
 UIKit background-task identifier.
+
+The check used tla2tools 1.7.4 and TLC2 2.19 at revision `5a47802`.
+It used Eclipse Temurin Java 21.0.8+9.
+The pinned JAR SHA-256 is
+`936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88`.
 
 ## Run it
 
