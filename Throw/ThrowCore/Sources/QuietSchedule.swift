@@ -98,4 +98,8 @@ public enum TemporaryQuietWake: Int, CaseIterable, Hashable, Sendable {
     public var duration: Duration {
         .seconds(rawValue * 60)
     }
+
+    public var timeInterval: TimeInterval {
+        TimeInterval(rawValue * 60)
+    }
 }

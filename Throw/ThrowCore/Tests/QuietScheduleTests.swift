@@ -3,6 +3,21 @@ import Testing
 @testable import ThrowCore
 
 struct QuietScheduleTests {
+    @Test(
+        arguments: [
+            (TemporaryQuietWake.fifteenMinutes, 15 * 60),
+            (.thirtyMinutes, 30 * 60),
+            (.sixtyMinutes, 60 * 60),
+        ],
+    )
+    func temporaryWakeHasTheExpectedDuration(
+        wake: TemporaryQuietWake,
+        seconds: TimeInterval,
+    ) {
+        #expect(wake.timeInterval == seconds)
+        #expect(wake.duration == .seconds(seconds))
+    }
+
     @Test func crossingMidnightIntervalContainsBothSides() throws {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))

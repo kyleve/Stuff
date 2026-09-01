@@ -67,6 +67,8 @@ state from the stable version-one and version-two fields.
 `AircraftSourceSelection` keeps unconfigured, awaiting-validation, and
 configured source state in one value. A configured source cannot disagree with
 a separate validation flag.
+`TemporaryQuietWake` closes the supported 15-minute, 30-minute, and 60-minute
+wake choices. Session intents do not accept other minute values.
 
 `LayerID`, `LayerMarkID`, and `ProjectionLineStyleID` are closed typed values.
 `GeodeticAltitude` stores altitude availability, value, and quality in one
