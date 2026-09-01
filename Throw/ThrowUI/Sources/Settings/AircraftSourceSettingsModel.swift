@@ -37,12 +37,11 @@ final class AircraftSourceSettingsModel {
         }
     }
 
-    var validation: SourceValidationState = .untested
     var isEditingCredential = false
     var flightradar24UsageState: Flightradar24UsageLoadState = .idle
 
-    private var validatedDraft: ValidatedAircraftSourceDraft?
-    private var testGeneration: UInt64 = 0
+    private var applyState: AircraftSourceApplyState = .editing(generation: 0)
+    private var draftGeneration: UInt64 = 0
 
     init(session: ThrowSession) {
         self.session = session
@@ -90,15 +89,39 @@ final class AircraftSourceSettingsModel {
     }
 
     var canUseSource: Bool {
-        validation.isSuccessful && validatedDraft != nil
+        if case .validated = applyState { true } else { false }
     }
 
     var canTestAndApply: Bool {
-        guard validation != .testing else { return false }
+        guard isOperationInFlight == false else { return false }
         if isCredentialSource, isEditingCredential {
             return rapidAPIKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
         }
         return true
+    }
+
+    var validation: SourceValidationState {
+        switch applyState {
+            case .editing:
+                .untested
+            case let .testing(signature, currentDraftGeneration):
+                currentDraftGeneration == signature.generation ? .testing : .untested
+            case .validated, .succeeded:
+                .succeeded
+            case let .applying(_, signature, currentDraftGeneration):
+                currentDraftGeneration == signature.generation ? .testing : .untested
+            case let .failed(failure, _):
+                .failed(failure)
+        }
+    }
+
+    var isOperationInFlight: Bool {
+        switch applyState {
+            case .testing, .applying:
+                true
+            case .editing, .validated, .failed, .succeeded:
+                false
+        }
     }
 
     var isCredentialSource: Bool {
@@ -106,26 +129,53 @@ final class AircraftSourceSettingsModel {
     }
 
     func test() async {
-        testGeneration &+= 1
-        let generation = testGeneration
-        validatedDraft = nil
-        validation = .testing
-        let outcome = await session.testSource(
-            choice: choice,
-            readsbURL: readsbURL,
-            rapidAPIKey: rapidAPIKey,
-            pollingIntervalSeconds: Int(pollingIntervalSeconds),
+        guard isOperationInFlight == false else { return }
+        draftGeneration &+= 1
+        let generation = draftGeneration
+        let draft: AircraftSourceValidationDraft
+        do {
+            draft = try session.sourceValidationDraft(
+                choice: choice,
+                readsbURL: readsbURL,
+                rapidAPIKey: rapidAPIKey,
+                pollingIntervalSeconds: Int(pollingIntervalSeconds),
+            )
+        } catch let failure as AircraftSourceFailure {
+            applyState = .failed(failure.presentationCategory, generation: generation)
+            return
+        } catch {
+            applyState = .failed(.sourceNotValidated, generation: generation)
+            return
+        }
+        let signature = AircraftSourceApplyState.Signature(
+            draft: draft,
+            generation: generation,
         )
-        guard generation == testGeneration else { return }
+        applyState = .testing(
+            signature: signature,
+            currentDraftGeneration: generation,
+        )
+        let outcome = await session.testSource(draft)
+        guard case let .testing(currentSignature, currentDraftGeneration) = applyState,
+              currentSignature == signature
+        else { return }
+        guard currentDraftGeneration == signature.generation else {
+            applyState = .editing(generation: currentDraftGeneration)
+            return
+        }
         switch outcome {
-            case let .succeeded(draft):
-                validatedDraft = draft
-                validation = .succeeded
+            case let .succeeded(validatedDraft):
+                guard validatedDraft.source == signature.draft else {
+                    assertionFailure("Source validation returned a different draft")
+                    applyState = .failed(.sourceNotValidated, generation: generation)
+                    return
+                }
+                applyState = .validated(draft: validatedDraft, signature: signature)
                 rapidAPIKey = ""
             case let .failed(failure):
-                validation = .failed(failure)
+                applyState = .failed(failure, generation: generation)
             case .cancelled:
-                validation = .untested
+                applyState = .editing(generation: generation)
         }
     }
 
@@ -154,16 +204,35 @@ final class AircraftSourceSettingsModel {
     }
 
     func useSource() async {
-        guard validation.isSuccessful, let validatedDraft else { return }
-        if await session.useSource(validatedDraft) {
-            isEditingCredential = false
-            rapidAPIKey = ""
-            self.validatedDraft = nil
-            validation = .succeeded
-            if choice == .flightradar24 {
-                flightradar24UsageState = .idle
-                await loadFlightradar24Usage()
-            }
+        guard case let .validated(validatedDraft, signature) = applyState else { return }
+        applyState = .applying(
+            draft: validatedDraft,
+            signature: signature,
+            currentDraftGeneration: signature.generation,
+        )
+        let applied = await session.useSource(validatedDraft)
+        guard case let .applying(
+            currentDraft,
+            currentSignature,
+            currentDraftGeneration,
+        ) = applyState,
+            currentSignature == signature,
+            currentDraft.source == validatedDraft.source
+        else { return }
+        guard currentDraftGeneration == signature.generation else {
+            applyState = .editing(generation: currentDraftGeneration)
+            return
+        }
+        guard applied else {
+            applyState = .failed(.unknown, generation: signature.generation)
+            return
+        }
+        isEditingCredential = false
+        rapidAPIKey = ""
+        applyState = .succeeded(signature: signature)
+        if signature.draft.configuration.kind == .flightradar24 {
+            flightradar24UsageState = .idle
+            await loadFlightradar24Usage()
         }
     }
 
@@ -211,9 +280,22 @@ final class AircraftSourceSettingsModel {
     }
 
     private func invalidateTestedDraft() {
-        testGeneration &+= 1
-        validatedDraft = nil
-        validation = .untested
+        draftGeneration &+= 1
+        switch applyState {
+            case let .testing(signature, _):
+                applyState = .testing(
+                    signature: signature,
+                    currentDraftGeneration: draftGeneration,
+                )
+            case let .applying(draft, signature, _):
+                applyState = .applying(
+                    draft: draft,
+                    signature: signature,
+                    currentDraftGeneration: draftGeneration,
+                )
+            case .editing, .validated, .failed, .succeeded:
+                applyState = .editing(generation: draftGeneration)
+        }
     }
 
     private func synchronizeCredentialEditingState() {
