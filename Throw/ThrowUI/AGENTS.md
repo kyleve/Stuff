@@ -18,6 +18,8 @@ Read the root [`AGENTS.md`](../../AGENTS.md) and group
   `ThrowSession+Composition.swift`. Pass that session to every controller and output scene.
 - Retain one launch task in the process session. Caller or scene cancellation
   must not cancel it.
+- Start one durable logging task with the launch. Publish opening, ready, and
+  failed storage as one typed state. Keep product launch independent of it.
 - Leave loading only after preferences and both credential states load. Treat a
   missing credential as data and a credential access error as launch failure.
 - Route every root through `ThrowSessionLaunchState`. Create dashboard and

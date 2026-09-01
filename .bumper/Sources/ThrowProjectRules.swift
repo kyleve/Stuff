@@ -42,6 +42,7 @@ private let throwLiveDependencyNames: Set<String> = [
     "AircraftSourceService",
     "CoreLocationThrowSource",
     "KeychainAircraftCredentialStore",
+    "PeriscopeThrowDurableLoggingStarter",
     "UserDefaultsThrowPreferenceStore",
 ]
 

@@ -73,6 +73,7 @@ public final class ThrowSession {
     }
 
     public internal(set) var launchState: ThrowSessionLaunchState
+    public internal(set) var durableLoggingState: ThrowDurableLoggingState
     var experienceCoordinatorState: ProjectionExperienceCoordinatorState
 
     /// Compatibility access for Air & Space callers while health remains keyed by experience.
@@ -308,6 +309,7 @@ public final class ThrowSession {
     let calendar: Calendar
     let layerCatalog: LayerCatalog
     let projectionWorker: ProjectionFrameWorker
+    let durableLoggingStarter: (any ThrowDurableLoggingStarting)?
 
     @ObservationIgnored var isApplyingPreferences = false
     @ObservationIgnored var hasForegroundControllerScene: Bool
@@ -373,6 +375,8 @@ public final class ThrowSession {
     @ObservationIgnored var projectionSessionLocationGate: ProjectionSessionLocationGate = .required
     @ObservationIgnored var airAndSpaceUpdateTask: Task<Void, Never>?
     @ObservationIgnored var launchTask: Task<Void, Never>?
+    @ObservationIgnored var durableLoggingTask: Task<Void, Never>?
+    @ObservationIgnored var durableLoggingSession: (any ThrowDurableLoggingSession)?
     @ObservationIgnored var runtimeObserversInstalled = false
     @ObservationIgnored var experienceStateTask: Task<Void, Never>?
     @ObservationIgnored var experienceActionTask: Task<Void, Never>?
@@ -416,12 +420,14 @@ public final class ThrowSession {
         routeLogger: any FlightRouteLogging,
         rotationClock: any ProjectionRotationClock,
         softwareCredits: [SoftwareCredit],
+        durableLoggingStarter: (any ThrowDurableLoggingStarting)?,
         initiallyHasForegroundControllerScene: Bool,
         initialLaunchState: ThrowSessionLaunchState,
     ) {
         hasForegroundControllerScene = initiallyHasForegroundControllerScene
         setupState = preferences.setupState
         launchState = initialLaunchState
+        durableLoggingState = .unavailable
         projectionPlaylist = preferences.playlist
         experienceCoordinatorState = ProjectionExperienceCoordinatorState(
             playlist: preferences.playlist,
@@ -480,6 +486,7 @@ public final class ThrowSession {
             motionLogger: motionLogger,
         )
         self.softwareCredits = softwareCredits
+        self.durableLoggingStarter = durableLoggingStarter
         locationHealth = Self.locationHealth(
             for: preferences.confirmedLocation,
             now: dateProvider.now(),
@@ -556,6 +563,7 @@ public final class ThrowSession {
 
     /// Starts the process-owned launch task. Repeated calls join the same launch.
     public func startLaunch() {
+        startDurableLogging()
         guard launchTask == nil else { return }
 
         if launchState.isOperational {
@@ -718,6 +726,7 @@ public final class ThrowSession {
 
     isolated deinit {
         launchTask?.cancel()
+        durableLoggingTask?.cancel()
         airAndSpaceUpdateTask?.cancel()
         experienceStateTask?.cancel()
         experienceActionTask?.cancel()

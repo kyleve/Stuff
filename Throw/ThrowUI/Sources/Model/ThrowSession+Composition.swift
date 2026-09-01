@@ -59,6 +59,7 @@ extension ThrowSession {
             routeLogger: PeriscopeFlightRouteLogger(log: ThrowLog.flightRoutes),
             rotationClock: SystemProjectionRotationClock(),
             softwareCredits: credits,
+            durableLoggingStarter: PeriscopeThrowDurableLoggingStarter(),
             initiallyHasForegroundControllerScene: false,
             initialLaunchState: .loading,
         )
@@ -115,6 +116,17 @@ extension ThrowSession {
                 transport: FixtureHTTPTransport(),
                 preferenceStoreOverride: preferenceStore,
                 credentialStoreOverride: credentialStore,
+            )
+        }
+
+        @_spi(Testing) public static func fixture(
+            durableLoggingStarter: any ThrowDurableLoggingStarting,
+        ) -> ThrowSession {
+            makeFixture(
+                setupCompleted: true,
+                quiet: false,
+                transport: FixtureHTTPTransport(),
+                durableLoggingStarterOverride: durableLoggingStarter,
             )
         }
 
@@ -533,6 +545,7 @@ extension ThrowSession {
             credentials: [AircraftCredentialID: AircraftCredential] = [:],
             preferenceStoreOverride: (any ThrowPreferenceStore)? = nil,
             credentialStoreOverride: (any AircraftCredentialStore)? = nil,
+            durableLoggingStarterOverride: (any ThrowDurableLoggingStarting)? = nil,
             initialLaunchStateOverride: ThrowSessionLaunchState? = nil,
         ) -> ThrowSession {
             do {
@@ -657,6 +670,7 @@ extension ThrowSession {
                     routeLogger: DiscardingFlightRouteLogger(),
                     rotationClock: SystemProjectionRotationClock(),
                     softwareCredits: [],
+                    durableLoggingStarter: durableLoggingStarterOverride,
                     initiallyHasForegroundControllerScene: true,
                     initialLaunchState: initialLaunchStateOverride ?? .loaded(setupState),
                 )

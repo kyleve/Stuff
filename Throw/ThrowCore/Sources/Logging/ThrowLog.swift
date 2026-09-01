@@ -8,6 +8,72 @@ public struct ThrowRootLogEvent: LogEvent {
     }
 }
 
+/// Process-session events that describe durable diagnostics availability.
+public enum ThrowSessionLogEvent: LogEvent, Equatable {
+    case durableLoggingReady
+    case durableLoggingUnavailable(description: String)
+    case durableLoggingHistoryPruned(expiredEventCount: Int, overflowEventCount: Int)
+    case durableLoggingHistoryPruneFailed(description: String)
+
+    public static let eventName = "ThrowSession"
+
+    public var level: LogLevel {
+        switch self {
+            case .durableLoggingReady, .durableLoggingHistoryPruned:
+                .info
+            case .durableLoggingHistoryPruneFailed:
+                .warning
+            case .durableLoggingUnavailable:
+                .error
+        }
+    }
+
+    public var message: String {
+        switch self {
+            case .durableLoggingReady:
+                "Durable logging is ready"
+            case let .durableLoggingUnavailable(description):
+                "Durable logging is unavailable: \(description)"
+            case let .durableLoggingHistoryPruned(expiredEventCount, overflowEventCount):
+                "Pruned \(expiredEventCount) expired log event(s) and \(overflowEventCount) event(s) past the size limit"
+            case let .durableLoggingHistoryPruneFailed(description):
+                "Failed to prune durable log history: \(description)"
+        }
+    }
+
+    public var remoteMessage: String {
+        switch self {
+            case .durableLoggingReady:
+                "Durable logging is ready"
+            case .durableLoggingUnavailable:
+                "Durable logging is unavailable"
+            case .durableLoggingHistoryPruned:
+                "Durable log history was pruned"
+            case .durableLoggingHistoryPruneFailed:
+                "Failed to prune durable log history"
+        }
+    }
+
+    public var remoteFields: [RemoteLogField] {
+        switch self {
+            case let .durableLoggingHistoryPruned(expiredEventCount, overflowEventCount):
+                [
+                    RemoteLogField(
+                        key: RemoteLogFieldKey("expired_event_count"),
+                        value: .count(expiredEventCount),
+                    ),
+                    RemoteLogField(
+                        key: RemoteLogFieldKey("overflow_event_count"),
+                        value: .count(overflowEventCount),
+                    ),
+                ]
+            case .durableLoggingReady, .durableLoggingUnavailable,
+                 .durableLoggingHistoryPruneFailed:
+                []
+        }
+    }
+}
+
 public enum AircraftPollingLogEvent: Hashable, Sendable {
     public static let eventName = "AircraftPollingLogEvent"
     public static let eventVersion = 3
@@ -555,6 +621,7 @@ public struct ProjectionMotionLogEvent: LogEvent, Equatable {
 
 public enum ThrowLog {
     public static let root = Log<ThrowRootLogEvent>(system: .shared)
+    public static let session = root(ThrowSessionLogEvent.self)
     public static let aircraft = root(AircraftPollingLogEvent.self)
     public static let geography = root(GeographyLogEvent.self)
     public static let flightRoutes = root(FlightRouteLogEvent.self)

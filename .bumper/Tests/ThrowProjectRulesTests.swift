@@ -47,6 +47,7 @@ struct ThrowProjectRulesTests {
             _ = AircraftSourceService()
             _ = CoreLocationThrowSource()
             _ = KeychainAircraftCredentialStore()
+            _ = PeriscopeThrowDurableLoggingStarter()
             _ = UserDefaultsThrowPreferenceStore()
         }
         """
@@ -62,7 +63,7 @@ struct ThrowProjectRulesTests {
         )
 
         #expect(allowed.violations.isEmpty)
-        #expect(rejected.violations.count == 6)
+        #expect(rejected.violations.count == 7)
         #expect(rejected.violations.allSatisfy {
             $0.rule.id == "throw.live_dependency_composition_ownership"
         })
