@@ -157,6 +157,38 @@ struct AircraftPollingCoordinatorTests {
         await coordinator.deactivate()
     }
 
+    @Test func readsbMetadataFallbackLogsASeparateWarningFromActivation() async throws {
+        let logger = RecordingPollingLogger()
+        let coordinator = AircraftPollingCoordinator(
+            sourceFactory: ReadsbMetadataFallbackFactory(),
+            clock: SuspendingPollingClock(),
+            logger: logger,
+        )
+        try await coordinator.activate(
+            configuration: localReadsbConfiguration(),
+            query: ThrowCoreFixture.mapQuery(),
+            quiet: false,
+        )
+        try await waitUntil {
+            logger.events().contains { $0.kind == .receiverMetadataFallback }
+        }
+
+        let events = logger.events()
+        let activated = try #require(events.first { $0.kind == .sourceActivated })
+        let fallback = try #require(events.first { $0.kind == .receiverMetadataFallback })
+        #expect(activated.level == .info)
+        #expect(activated.failureCategory == nil)
+        #expect(fallback.level == .warning)
+        #expect(fallback.source == .readsb)
+        #expect(fallback.failureCategory == .transportOffline)
+        #expect(fallback.remoteFields.map(\.key.rawValue) == [
+            "kind",
+            "source",
+            "failure_category",
+        ])
+        await coordinator.deactivate()
+    }
+
     @Test func localNetworkDenialLogsDistinctRedactedFailureCategory() async throws {
         let logger = RecordingPollingLogger()
         let coordinator = AircraftPollingCoordinator(
@@ -606,6 +638,18 @@ struct AircraftPollingCoordinatorTests {
                 observations: [],
                 successfulHTTPStatus: 200,
                 decodingDiagnostics: diagnostics,
+            )
+        }
+    }
+
+    private struct ReadsbMetadataFallbackFactory: AircraftSourceProducing {
+        func makeSource(
+            configuration _: AircraftSourceConfiguration,
+        ) async throws -> ConfiguredAircraftSource {
+            ConfiguredAircraftSource(
+                source: SuccessfulStatusSource(kind: .readsb, statusCode: 200),
+                baseCadence: .seconds(1),
+                metadataWarning: .transport(.offline),
             )
         }
     }
