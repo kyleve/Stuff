@@ -33,6 +33,8 @@ location, and scheduling; see [`README.md`](README.md). Read the root
   the selected source changes, and never persist it.
 - Represent horizontal motion as `AircraftHorizontalMotion`. Available motion
   carries track, speed, source, and optional turn rate as one validated value.
+- Pass `ResolvedAircraftObservation` values to frame builders. Never pass a
+  separate observation collection and keyed motion lookup.
 - Store only the RapidAPI key in device-only Keychain storage. Persist no live
   aircraft data or credential in preferences.
 - Represent setup as `ThrowSetupState`. A configured setup carries its validated

@@ -125,3 +125,14 @@ public struct AircraftMotion: Hashable, Sendable {
         }
     }
 }
+
+/// One aircraft observation paired with the motion resolved for that observation.
+public struct ResolvedAircraftObservation: Hashable, Sendable {
+    public let observation: AircraftObservation
+    public let motion: AircraftMotion
+
+    public init(observation: AircraftObservation, motion: AircraftMotion) {
+        self.observation = observation
+        self.motion = motion
+    }
+}

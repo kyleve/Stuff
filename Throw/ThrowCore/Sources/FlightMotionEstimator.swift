@@ -20,22 +20,27 @@ struct FlightMotionEstimator {
     private var entries: [AircraftID: Entry] = [:]
     private var source: AircraftSourceKind?
 
-    mutating func motions(for snapshot: AircraftSnapshot) throws -> [AircraftID: AircraftMotion] {
+    mutating func resolvedObservations(
+        for snapshot: AircraftSnapshot,
+    ) throws -> [ResolvedAircraftObservation] {
         if source != snapshot.source {
             reset()
             source = snapshot.source
         }
 
         var nextEntries: [AircraftID: Entry] = [:]
-        var motions: [AircraftID: AircraftMotion] = [:]
+        var observations: [ResolvedAircraftObservation] = []
         nextEntries.reserveCapacity(snapshot.observations.count)
-        motions.reserveCapacity(snapshot.observations.count)
+        observations.reserveCapacity(snapshot.observations.count)
 
         for (index, observation) in snapshot.observations.enumerated() {
             if index.isMultiple(of: 64) { try Task.checkCancellation() }
             let previous = entries[observation.id]
             let motion = try resolvedMotion(for: observation, previous: previous)
-            motions[observation.id] = motion
+            observations.append(ResolvedAircraftObservation(
+                observation: observation,
+                motion: motion,
+            ))
             nextEntries[observation.id] = Entry(
                 coordinate: observation.coordinate,
                 observedAt: observation.positionObservedAt,
@@ -43,7 +48,7 @@ struct FlightMotionEstimator {
             )
         }
         entries = nextEntries
-        return motions
+        return observations
     }
 
     private mutating func reset() {

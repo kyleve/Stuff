@@ -2,6 +2,21 @@ import Testing
 @testable import ThrowCore
 
 struct AircraftMotionTests {
+    @Test func resolvedObservationCarriesItsMotion() throws {
+        let observation = try ThrowCoreFixture.observation(
+            groundSpeedKnots: 360,
+            groundTrackDegrees: 90,
+        )
+        let motion = AircraftMotion.reported(by: observation)
+        let resolved = ResolvedAircraftObservation(
+            observation: observation,
+            motion: motion,
+        )
+
+        #expect(resolved.observation == observation)
+        #expect(resolved.motion == motion)
+    }
+
     @Test func reportedMotionIdentifiesACompleteProviderVelocity() throws {
         let observation = try ThrowCoreFixture.observation(
             groundSpeedKnots: 360,

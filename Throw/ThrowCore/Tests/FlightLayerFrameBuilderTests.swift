@@ -12,20 +12,13 @@ struct FlightLayerFrameBuilderTests {
             origin: #require(AirportCode(rawValue: "DEL")),
             destination: #require(AirportCode(rawValue: "EWR")),
         )
-        let snapshot = AircraftSnapshot(
-            source: .adsbLol,
-            fetchedAt: ThrowCoreFixture.date,
-            observations: [observation],
-            routeResultsByAircraft: [observation.id: .route(providerRoute)],
-            successfulHTTPStatus: 200,
-        )
-
         let frame = try builder.frame(
-            snapshot: snapshot,
+            observations: [resolved(observation)],
+            observedAt: ThrowCoreFixture.date,
+            providerRouteResults: [observation.id: .route(providerRoute)],
             observer: ThrowCoreFixture.observer(),
             labelMode: .adaptive,
             routeResults: [#require(FlightCallsign(rawValue: "UAL817")): .route(staleRoute)],
-            motions: [observation.id: .reported(by: observation)],
             availability: .current,
         )
         let mark = try #require(frame.marks.first { $0.id == observation.id.layerMarkID })
@@ -38,20 +31,13 @@ struct FlightLayerFrameBuilderTests {
             source: .flightradar24,
             callsign: "THROW1",
         )
-        let snapshot = AircraftSnapshot(
-            source: .flightradar24,
-            fetchedAt: ThrowCoreFixture.date,
-            observations: [observation],
-            routeResultsByAircraft: [observation.id: .unavailable],
-            successfulHTTPStatus: 200,
-        )
-
         let frame = try builder.frame(
-            snapshot: snapshot,
+            observations: [resolved(observation)],
+            observedAt: ThrowCoreFixture.date,
+            providerRouteResults: [observation.id: .unavailable],
             observer: ThrowCoreFixture.observer(),
             labelMode: .adaptive,
             routeResults: [:],
-            motions: [observation.id: .reported(by: observation)],
             availability: .current,
         )
 
@@ -66,17 +52,13 @@ struct FlightLayerFrameBuilderTests {
             longitude: -122,
             altitudeFeet: 1234,
         )
-        let snapshot = AircraftSnapshot(
-            source: .adsbLol,
-            fetchedAt: ThrowCoreFixture.date,
-            observations: [observation],
-        )
         let frame = try builder.frame(
-            snapshot: snapshot,
+            observations: [resolved(observation)],
+            observedAt: ThrowCoreFixture.date,
+            providerRouteResults: [:],
             observer: observer,
             labelMode: .adaptive,
             routeResults: [:],
-            motions: [observation.id: .reported(by: observation)],
             availability: .current,
         )
         let label = try #require(frame.marks.first?.label)
@@ -102,15 +84,12 @@ struct FlightLayerFrameBuilderTests {
             destination: #require(AirportCode(rawValue: "SFO")),
         )
         let frame = try builder.frame(
-            snapshot: AircraftSnapshot(
-                source: .adsbLol,
-                fetchedAt: ThrowCoreFixture.date,
-                observations: [observation],
-            ),
+            observations: [resolved(observation)],
+            observedAt: ThrowCoreFixture.date,
+            providerRouteResults: [:],
             observer: ThrowCoreFixture.observer(),
             labelMode: .adaptive,
             routeResults: [routeCallsign: .route(route)],
-            motions: [observation.id: .reported(by: observation)],
             availability: .current,
         )
 
@@ -125,15 +104,12 @@ struct FlightLayerFrameBuilderTests {
         let observation = try ThrowCoreFixture.observation(callsign: "THROW1")
         let callsign = try #require(FlightCallsign(rawValue: "THROW1"))
         let frame = try builder.frame(
-            snapshot: AircraftSnapshot(
-                source: .adsbLol,
-                fetchedAt: ThrowCoreFixture.date,
-                observations: [observation],
-            ),
+            observations: [resolved(observation)],
+            observedAt: ThrowCoreFixture.date,
+            providerRouteResults: [:],
             observer: ThrowCoreFixture.observer(),
             labelMode: .adaptive,
             routeResults: [callsign: .unavailable],
-            motions: [observation.id: .reported(by: observation)],
             availability: .current,
         )
 
@@ -145,15 +121,12 @@ struct FlightLayerFrameBuilderTests {
         let observation = try ThrowCoreFixture.observation(callsign: "THROW1")
         let callsign = try #require(FlightCallsign(rawValue: "THROW1"))
         let frame = try builder.frame(
-            snapshot: AircraftSnapshot(
-                source: .adsbLol,
-                fetchedAt: ThrowCoreFixture.date,
-                observations: [observation],
-            ),
+            observations: [resolved(observation)],
+            observedAt: ThrowCoreFixture.date,
+            providerRouteResults: [:],
             observer: ThrowCoreFixture.observer(),
             labelMode: .marksOnly,
             routeResults: [callsign: .unavailable],
-            motions: [observation.id: .reported(by: observation)],
             availability: .current,
         )
 
@@ -164,15 +137,12 @@ struct FlightLayerFrameBuilderTests {
     @Test func callsignModeNeverFallsBackToHexIdentity() throws {
         let observation = try ThrowCoreFixture.observation(callsign: nil)
         let frame = try builder.frame(
-            snapshot: AircraftSnapshot(
-                source: .adsbLol,
-                fetchedAt: ThrowCoreFixture.date,
-                observations: [observation],
-            ),
+            observations: [resolved(observation)],
+            observedAt: ThrowCoreFixture.date,
+            providerRouteResults: [:],
             observer: ThrowCoreFixture.observer(),
             labelMode: .callsigns,
             routeResults: [:],
-            motions: [observation.id: .reported(by: observation)],
             availability: .current,
         )
         #expect(frame.marks.first?.label == nil)
@@ -185,6 +155,13 @@ struct FlightLayerFrameBuilderTests {
             activityClassifier: FlightActivityClassifier(
                 airportCatalog: AirportCatalog(airports: []),
             ),
+        )
+    }
+
+    private func resolved(_ observation: AircraftObservation) -> ResolvedAircraftObservation {
+        ResolvedAircraftObservation(
+            observation: observation,
+            motion: .reported(by: observation),
         )
     }
 }

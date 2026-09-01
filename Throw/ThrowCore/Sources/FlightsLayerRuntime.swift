@@ -40,13 +40,14 @@ public actor FlightsLayerRuntime: ProjectionLayerRuntime {
     public func frame(
         for input: FlightsLayerInput,
     ) async throws -> ProjectionLayerFrame<FlightsLayerKind> {
-        let motions = try motionEstimator.motions(for: input.snapshot)
+        let observations = try motionEstimator.resolvedObservations(for: input.snapshot)
         return try frameBuilder.frame(
-            snapshot: input.snapshot,
+            observations: observations,
+            observedAt: input.snapshot.fetchedAt,
+            providerRouteResults: input.snapshot.routeResultsByAircraft,
             observer: input.observer,
             labelMode: input.labelMode,
             routeResults: input.routeResults,
-            motions: motions,
             availability: input.availability,
         )
     }
