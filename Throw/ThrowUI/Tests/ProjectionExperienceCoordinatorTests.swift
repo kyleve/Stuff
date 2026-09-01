@@ -197,6 +197,38 @@ struct ProjectionExperienceCoordinatorTests {
         )
     }
 
+    @Test func contextInvalidationCancelsAPreparedTransitionWithoutSelectionFailure() async throws {
+        let clock = ManualProjectionRotationClock(now: start)
+        let coordinator = try ProjectionExperienceCoordinator(
+            playlist: rotatingPlaylist(),
+            clock: clock,
+        )
+        var actions = await coordinator.actions().makeAsyncIterator()
+        await coordinator.reconcile(demand: projectingDemand)
+        let active = try activation(#require(await actions.next()))
+        await reportSuccess(coordinator, id: active.id, generation: active.generation)
+        await coordinator.select(.transit)
+        let target = try activation(#require(await actions.next()))
+        await coordinator.reportRuntimeUpdate(
+            lease: target.lease,
+            successfulLease: target.lease,
+            health: .healthy(lastUpdate: start, visibleContentCount: 0),
+        )
+        #expect(await coordinator.reportRuntimePrepared(target.lease))
+        #expect(try #require(await actions.next()) == .beginTransition(
+            from: .airAndSpace,
+            to: target.lease,
+        ))
+
+        await coordinator.invalidatePreparedTransition(lease: target.lease)
+
+        #expect(try #require(await actions.next()) == .deactivate(lease: target.lease))
+        let state = await coordinator.currentState()
+        #expect(state.activeExperienceID == .airAndSpace)
+        #expect(state.requestedExperienceID == nil)
+        #expect(state.manualSelectionFailure == nil)
+    }
+
     @Test func cancelledPreparationCannotCommitAfterItsClockReadResumes() async throws {
         let clock = ManualProjectionRotationClock(now: start)
         let coordinator = try ProjectionExperienceCoordinator(

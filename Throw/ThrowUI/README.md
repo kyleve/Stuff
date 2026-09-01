@@ -82,6 +82,8 @@ late.
 Each production rendered projection stores the lease that produced it. A
 source or observer replacement blocks local reactivation while the old runtime
 drains. The renderer stops before the replacement becomes visible.
+Each replacement also advances one typed projection-context generation. The
+session revokes staged output and restores an active fade in the same operation.
 The session publishes visible output as one closed `ProjectionPresentationState`.
 Its Air & Space and Transit cases bind coordinator identity to matching typed output.
 Each rendered case stores its semantic frame, activation generation, renderer frame, effects,
@@ -129,11 +131,13 @@ boundary. Unsupported minute counts cannot enter the runtime.
 The worker keeps independent animation, collision, correction, and acquisition
 state for each experience. Its static-line projections use a bounded cache of
 recent layer, center, viewport, and calibration keys. Prewarming binds a
-complete typed request to one activation generation. A successful provider
-response is not ready until that exact generation has a prepared frame. A
-switch fades the surface to black and commits the coordinator with that request.
-This commit is one assignment. The fade state buffers newer target output until
-fade-in completes. Reduce Motion keeps this fade but removes experience movement.
+complete typed request to one activation and projection-context generation. A
+successful response is not ready until that exact pair has a prepared frame.
+One closed staging value owns preparation, fade-out, and fade-in. The session
+checks the context after coordinator preparation and again at black. A switch
+commits the coordinator and that prepared projection in one assignment. The
+staging value buffers newer target output until fade-in completes. Reduce Motion
+keeps this fade but removes experience movement.
 
 The production worker accepts one typed `ProjectionFrameRequest`. This request
 stores its semantic input, revision, observer, map center, calibration, and motion setting.

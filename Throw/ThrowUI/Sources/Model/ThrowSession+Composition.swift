@@ -124,6 +124,17 @@ extension ThrowSession {
         }
 
         @_spi(Testing) public static func fixture(
+            rotationClock: any ProjectionRotationClock,
+        ) -> ThrowSession {
+            makeFixture(
+                setupCompleted: true,
+                quiet: false,
+                transport: FixtureHTTPTransport(),
+                rotationClockOverride: rotationClock,
+            )
+        }
+
+        @_spi(Testing) public static func fixture(
             preferenceStore: any ThrowPreferenceStore,
             credentialStore: any AircraftCredentialStore,
         ) -> ThrowSession {
@@ -641,6 +652,7 @@ extension ThrowSession {
             projectionMode: ProjectionMode = .map,
             airAndSpacePreferencesOverride: AirAndSpacePreferences? = nil,
             softwareCreditsStateOverride: SoftwareCreditsLoadState? = nil,
+            rotationClockOverride: (any ProjectionRotationClock)? = nil,
         ) -> ThrowSession {
             do {
                 let now = Date(timeIntervalSince1970: 1_787_594_400)
@@ -762,7 +774,7 @@ extension ThrowSession {
                         source: EmptyFlightRouteSource(),
                     ),
                     routeLogger: DiscardingFlightRouteLogger(),
-                    rotationClock: SystemProjectionRotationClock(),
+                    rotationClock: rotationClockOverride ?? SystemProjectionRotationClock(),
                     softwareCreditsState: softwareCreditsStateOverride ?? .loaded([]),
                     durableLoggingStarter: durableLoggingStarterOverride,
                     initiallyHasForegroundControllerScene: true,

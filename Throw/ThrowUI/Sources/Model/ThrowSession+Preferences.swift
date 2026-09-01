@@ -18,7 +18,8 @@ extension ThrowSession {
         mayApplyTrueHeadingHint = preferences.setupCompleted == false
             && preferences.calibration == .defaultValue
         pendingAirAndSpaceFrame = .empty
-        preparedProjection = nil
+        projectionContextGeneration = projectionContextGeneration.successor()
+        revokeStagedProjection()
         projectionInputRevision = projectionInputRevision.successor()
         projectionPresentationState = .initial(
             coordinator: coordinator,

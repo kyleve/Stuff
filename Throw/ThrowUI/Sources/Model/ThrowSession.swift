@@ -9,52 +9,136 @@ public enum GeographyLayerHealth: Equatable, Sendable {
     case unavailable
 }
 
-/// Holds later runtime output until one prepared experience frame finishes its black exchange.
-enum ProjectionPresentationTransition {
+/// The monotonic identity of source and observer inputs used by a projection.
+struct ProjectionContextGeneration: Equatable, Hashable {
+    static let initial = ProjectionContextGeneration(rawValue: 0)
+
+    private let rawValue: UInt64
+
+    func successor() -> ProjectionContextGeneration {
+        precondition(rawValue < UInt64.max, "A projection context generation must not overflow")
+        return ProjectionContextGeneration(rawValue: rawValue + 1)
+    }
+}
+
+/// One rendered projection bound to the source and observer generation that produced it.
+struct PreparedProjectionPresentation: Equatable {
+    let contextGeneration: ProjectionContextGeneration
+    let activationLease: ProjectionActivationLease
+    private let visibleProjection: VisibleProjection
+
+    static func rendered(
+        contextGeneration: ProjectionContextGeneration,
+        activationLease: ProjectionActivationLease,
+        output: ProjectionFrameWorkerOutput,
+    ) -> Self? {
+        guard let visibleProjection = VisibleProjection.rendered(
+            activationLease: activationLease,
+            output: output,
+        ) else { return nil }
+        return Self(
+            contextGeneration: contextGeneration,
+            activationLease: activationLease,
+            visibleProjection: visibleProjection,
+        )
+    }
+
+    var visible: VisibleProjection {
+        visibleProjection
+    }
+
+    var experienceID: ProjectionExperienceID {
+        activationLease.experienceID
+    }
+}
+
+/// Owns one hidden projection from preparation through its black exchange.
+enum ProjectionPresentationStaging {
+    case prepared(PreparedProjectionPresentation)
     case fadingOut(
-        targetLease: ProjectionActivationLease,
+        prepared: PreparedProjectionPresentation,
         bufferedTargetUpdate: AirAndSpaceRuntimeUpdate?,
     )
     case fadingIn(
-        targetLease: ProjectionActivationLease,
+        prepared: PreparedProjectionPresentation,
         bufferedTargetUpdate: AirAndSpaceRuntimeUpdate?,
     )
 
-    var targetLease: ProjectionActivationLease {
+    var preparedProjection: PreparedProjectionPresentation {
         switch self {
-            case let .fadingOut(targetLease, _), let .fadingIn(targetLease, _):
-                targetLease
+            case let .prepared(prepared),
+                 let .fadingOut(prepared, _),
+                 let .fadingIn(prepared, _):
+                prepared
         }
+    }
+
+    var targetLease: ProjectionActivationLease {
+        preparedProjection.activationLease
+    }
+
+    var contextGeneration: ProjectionContextGeneration {
+        preparedProjection.contextGeneration
+    }
+
+    var isTransitioning: Bool {
+        switch self {
+            case .prepared: false
+            case .fadingOut, .fadingIn: true
+        }
+    }
+
+    var isFadingOut: Bool {
+        if case .fadingOut = self { true } else { false }
     }
 
     var bufferedTargetUpdate: AirAndSpaceRuntimeUpdate? {
         switch self {
+            case .prepared: nil
             case let .fadingOut(_, update), let .fadingIn(_, update):
                 update
         }
     }
 
+    func beginningTransition(
+        to lease: ProjectionActivationLease,
+        in contextGeneration: ProjectionContextGeneration,
+    ) -> Self? {
+        guard case let .prepared(prepared) = self,
+              prepared.activationLease == lease,
+              prepared.contextGeneration == contextGeneration
+        else { return nil }
+        return .fadingOut(
+            prepared: prepared,
+            bufferedTargetUpdate: nil,
+        )
+    }
+
     func buffering(_ update: AirAndSpaceRuntimeUpdate) -> Self {
-        guard targetLease.experienceID == .airAndSpace,
+        guard isTransitioning,
+              targetLease.experienceID == .airAndSpace,
               update.activationLease == targetLease
         else { return self }
         switch self {
-            case let .fadingOut(targetLease, _):
+            case .prepared:
+                return self
+            case let .fadingOut(prepared, _):
                 return .fadingOut(
-                    targetLease: targetLease,
+                    prepared: prepared,
                     bufferedTargetUpdate: update,
                 )
-            case let .fadingIn(targetLease, _):
+            case let .fadingIn(prepared, _):
                 return .fadingIn(
-                    targetLease: targetLease,
+                    prepared: prepared,
                     bufferedTargetUpdate: update,
                 )
         }
     }
 
-    func advancingToFadeIn() -> Self {
-        .fadingIn(
-            targetLease: targetLease,
+    func advancingToFadeIn() -> Self? {
+        guard case let .fadingOut(prepared, bufferedTargetUpdate) = self else { return nil }
+        return .fadingIn(
+            prepared: prepared,
             bufferedTargetUpdate: bufferedTargetUpdate,
         )
     }
@@ -336,8 +420,7 @@ public final class ThrowSession {
     @ObservationIgnored var pendingLocationFix: LocationFix?
     @ObservationIgnored var mayApplyTrueHeadingHint = true
     @ObservationIgnored var pendingAirAndSpaceFrame = AirAndSpaceExperienceFrame.empty
-    @ObservationIgnored var projectionPresentationTransition: ProjectionPresentationTransition?
-    @ObservationIgnored var preparedProjection: VisibleProjection?
+    @ObservationIgnored var projectionPresentationStaging: ProjectionPresentationStaging?
     @ObservationIgnored var currentSnapshot: AircraftSnapshot?
     var outputDemands: Set<ProjectionOutput> = []
     @ObservationIgnored var temporaryWakeUntil: Date?
@@ -345,6 +428,7 @@ public final class ThrowSession {
     @ObservationIgnored var demandGeneration: UInt64 = 0
     @ObservationIgnored var renderGeneration: UInt64 = 0
     @ObservationIgnored var projectionInputRevision = ProjectionFrameRequest.Revision.initial
+    @ObservationIgnored var projectionContextGeneration = ProjectionContextGeneration.initial
     @ObservationIgnored var locationGeneration: UInt64 = 0
     @ObservationIgnored var projectionSessionLocationGeneration: UInt64 = 0
     @ObservationIgnored var projectionSessionLocationGate: ProjectionSessionLocationGate = .required
@@ -381,6 +465,8 @@ public final class ThrowSession {
         @ObservationIgnored @_spi(Testing) public var
             beforeProjectionPreferenceRuntimeDeactivationForTesting:
             (@MainActor @Sendable () async -> Void)?
+        @ObservationIgnored @_spi(Testing) public var
+            waitForProjectionFadeOutForTesting: (@MainActor @Sendable () async -> Void)?
     #endif
 
     init(

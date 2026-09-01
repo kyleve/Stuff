@@ -76,9 +76,14 @@ extension ThrowSession {
     func applyExperienceCoordinatorState(_ state: ProjectionExperienceCoordinatorState) {
         guard experienceCoordinatorState != state else { return }
         guard let presentation = projectionPresentationState.updatingCoordinator(state) else {
-            if projectionPresentationTransition?.targetLease.experienceID ==
-                state.activeExperienceID
+            if projectionPresentationStaging?.isTransitioning == true,
+               projectionPresentationStaging?.targetLease.experienceID ==
+               state.activeExperienceID
             {
+                return
+            }
+            if projectionPreferenceInvalidation != nil {
+                replaceProjectionPresentationWithPlaceholder(coordinator: state)
                 return
             }
             assertionFailure("A coordinator update cannot change the visible identity")
@@ -113,8 +118,8 @@ extension ThrowSession {
                 if id == .airAndSpace {
                     guard projectionPreferenceInvalidation == nil else { return }
                     guard airAndSpaceActivation.activate(lease) else { return }
-                    if preparedProjection?.experienceID == id {
-                        preparedProjection = nil
+                    if projectionPresentationStaging?.preparedProjection.experienceID == id {
+                        revokeStagedProjection()
                     }
                     if isReconcilingDemand == false {
                         scheduleDemandReconciliation()
@@ -127,8 +132,8 @@ extension ThrowSession {
                 if id == .airAndSpace {
                     guard airAndSpaceActivation.deactivate(lease) else { return }
                 }
-                if preparedProjection?.activationLease == lease {
-                    preparedProjection = nil
+                if projectionPresentationStaging?.targetLease == lease {
+                    revokeStagedProjection()
                 }
                 await projectionWorker.experienceBecameInactive(id, at: dateProvider.now())
                 if id == .airAndSpace {
@@ -166,6 +171,8 @@ extension ThrowSession {
         playlistConfigurationTask = nil
         let configuration = nextPlaylistConfiguration(for: playlist)
         await experienceCoordinator.configure(configuration)
+        let state = await experienceCoordinator.currentState()
+        applyExperienceCoordinatorState(state)
     }
 
     private func replaceProjectionPlaylist(
@@ -222,39 +229,65 @@ extension ThrowSession {
         to lease: ProjectionActivationLease,
     ) async {
         let to = lease.experienceID
+        guard let staged = projectionPresentationStaging,
+              let fadingOut = staged.beginningTransition(
+                  to: lease,
+                  in: projectionContextGeneration,
+              )
+        else {
+            await experienceCoordinator.invalidatePreparedTransition(lease: lease)
+            return
+        }
+        let prepared = fadingOut.preparedProjection
         guard from != to else {
-            if await experienceCoordinator.commitTransition(to: lease) {
-                await experienceCoordinator.completeTransition(to: lease)
+            guard let committedState = await experienceCoordinator.commitTransitionState(to: lease)
+            else {
+                revokeStagedProjection()
+                return
             }
+            guard projectionContextGeneration == prepared.contextGeneration,
+                  projectionPresentationStaging?.preparedProjection == prepared,
+                  publishPreparedProjection(prepared, coordinator: committedState)
+            else {
+                replaceProjectionPresentationWithPlaceholder(coordinator: committedState)
+                await experienceCoordinator.completeTransition(to: lease)
+                return
+            }
+            projectionPresentationStaging = nil
+            await experienceCoordinator.completeTransition(to: lease)
+            restartRenderer()
             return
         }
-        guard projectionPresentationTransition == nil else {
-            assertionFailure("A projection presentation transition is already active")
-            return
-        }
-        projectionPresentationTransition = .fadingOut(
-            targetLease: lease,
-            bufferedTargetUpdate: nil,
-        )
+        projectionPresentationStaging = fadingOut
         stopRenderer()
         let fadeDuration = ThrowStylesheet.default.projection.experienceTransition.fadeDuration
         withAnimation(.linear(duration: fadeDuration)) {
             projectionSurfaceOpacity = 0
         }
         do {
-            try await Task.sleep(for: .seconds(fadeDuration))
+            #if DEBUG
+                if let waitForProjectionFadeOutForTesting {
+                    await waitForProjectionFadeOutForTesting()
+                    try Task.checkCancellation()
+                } else {
+                    try await Task.sleep(for: .seconds(fadeDuration))
+                }
+            #else
+                try await Task.sleep(for: .seconds(fadeDuration))
+            #endif
+        } catch is CancellationError {
+            if currentFadeOut(for: prepared) != nil {
+                abandonProjectionPresentationTransition()
+            }
+            return
         } catch {
+            assertionFailure("The projection fade timer failed: \(error)")
             abandonProjectionPresentationTransition()
             return
         }
 
-        guard preparedProjection?.activationLease == lease else {
-            assertionFailure("A projection experience became visible before it was prepared")
-            await experienceCoordinator.rejectPreparedTransition(
-                lease: lease,
-                failure: .decoding,
-            )
-            abandonProjectionPresentationTransition()
+        guard currentFadeOut(for: prepared) != nil else {
+            await experienceCoordinator.invalidatePreparedTransition(lease: lease)
             return
         }
         guard let committedState = await experienceCoordinator.commitTransitionState(to: lease)
@@ -265,7 +298,12 @@ extension ThrowSession {
             abandonProjectionPresentationTransition()
             return
         }
-        guard commitPreparedProjectionAtBlack(to: lease, coordinator: committedState) else {
+        guard currentFadeOut(for: prepared) != nil else {
+            replaceProjectionPresentationWithPlaceholder(coordinator: committedState)
+            await experienceCoordinator.completeTransition(to: lease)
+            return
+        }
+        guard commitPreparedProjectionAtBlack(coordinator: committedState) else {
             assertionFailure("A prepared projection must match its committed identity")
             await experienceCoordinator.rejectPreparedTransition(
                 lease: lease,
@@ -274,8 +312,8 @@ extension ThrowSession {
             abandonProjectionPresentationTransition()
             return
         }
-        guard let transition = projectionPresentationTransition,
-              transition.targetLease == lease
+        guard let transition = currentFadeOut(for: prepared),
+              let fadingIn = transition.advancingToFadeIn()
         else {
             assertionFailure("The committed projection transition lost its presentation state")
             projectionSurfaceOpacity = 1
@@ -283,7 +321,7 @@ extension ThrowSession {
             restartRenderer()
             return
         }
-        projectionPresentationTransition = transition.advancingToFadeIn()
+        projectionPresentationStaging = fadingIn
         withAnimation(.linear(duration: fadeDuration)) {
             projectionSurfaceOpacity = 1
         }
@@ -301,32 +339,44 @@ extension ThrowSession {
 
     @discardableResult
     func commitPreparedProjectionAtBlack(
-        to lease: ProjectionActivationLease,
         coordinator: ProjectionExperienceCoordinatorState,
     ) -> Bool {
-        guard projectionPresentationTransition?.targetLease == lease,
-              let prepared = preparedProjection,
-              prepared.activationLease == lease,
+        guard let staging = projectionPresentationStaging,
+              staging.isFadingOut,
+              staging.contextGeneration == projectionContextGeneration
+        else { return false }
+        return publishPreparedProjection(
+            staging.preparedProjection,
+            coordinator: coordinator,
+        )
+    }
+
+    private func publishPreparedProjection(
+        _ prepared: PreparedProjectionPresentation,
+        coordinator: ProjectionExperienceCoordinatorState,
+    ) -> Bool {
+        let lease = prepared.activationLease
+        guard prepared.contextGeneration == projectionContextGeneration,
               let presentation = ProjectionPresentationState.committing(
                   coordinator: coordinator,
-                  visible: prepared,
+                  visible: prepared.visible,
               )
         else { return false }
-
         // The active identity and complete frame exchange in one assignment while black.
         projectionPresentationState = presentation
         applyExperienceSelection(coordinator.activeExperienceID)
         feedHealth = experienceHealth[lease.experienceID] ?? .idle
-        preparedProjection = nil
         return true
     }
 
     func finishProjectionPresentationTransition(to lease: ProjectionActivationLease) async {
-        guard let transition = projectionPresentationTransition,
-              transition.targetLease == lease
+        guard let transition = projectionPresentationStaging,
+              transition.isTransitioning,
+              transition.targetLease == lease,
+              transition.contextGeneration == projectionContextGeneration
         else { return }
         let bufferedUpdate = transition.bufferedTargetUpdate
-        projectionPresentationTransition = nil
+        projectionPresentationStaging = nil
         if let bufferedUpdate {
             await publishVisibleAirAndSpaceUpdate(bufferedUpdate)
         } else {
@@ -335,8 +385,43 @@ extension ThrowSession {
     }
 
     private func abandonProjectionPresentationTransition() {
-        projectionPresentationTransition = nil
+        projectionPresentationStaging = nil
         projectionSurfaceOpacity = 1
         restartRenderer()
+    }
+
+    func revokeStagedProjection() {
+        let restoresSurface = projectionPresentationStaging?.isTransitioning == true
+        projectionPresentationStaging = nil
+        guard restoresSurface else { return }
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            projectionSurfaceOpacity = 1
+        }
+    }
+
+    private func currentFadeOut(
+        for prepared: PreparedProjectionPresentation,
+    ) -> ProjectionPresentationStaging? {
+        guard projectionContextGeneration == prepared.contextGeneration,
+              let staging = projectionPresentationStaging,
+              staging.isFadingOut,
+              staging.preparedProjection == prepared
+        else { return nil }
+        return staging
+    }
+
+    private func replaceProjectionPresentationWithPlaceholder(
+        coordinator: ProjectionExperienceCoordinatorState,
+    ) {
+        let preferredExperienceID = coordinator.activeExperienceID ?? visibleProjection.experienceID
+        projectionPresentationState = .initial(
+            coordinator: coordinator,
+            preferredExperienceID: preferredExperienceID,
+            mode: projectionMode,
+            generatedAt: dateProvider.now(),
+        )
+        applyExperienceSelection(coordinator.activeExperienceID)
     }
 }

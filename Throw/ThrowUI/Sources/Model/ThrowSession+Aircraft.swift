@@ -368,6 +368,7 @@ extension ThrowSession {
                 activationLease && awaitsPreparation
             if preparesHiddenExperience {
                 do {
+                    let contextGeneration = projectionContextGeneration
                     let output = try await projectedOutput(
                         for: semanticFrame,
                         generatedAt: dateProvider.now(),
@@ -381,24 +382,37 @@ extension ThrowSession {
                         loggingOperation: .projectionPreparation,
                     ) else { return }
                     guard airAndSpaceActivation.activeLease == activationLease,
+                          projectionContextGeneration == contextGeneration,
                           output.request == currentRequest,
                           await experienceCoordinator.isAwaitingPreparation(activationLease)
                     else { return }
-                    guard let prepared = VisibleProjection.rendered(
+                    guard let prepared = PreparedProjectionPresentation.rendered(
+                        contextGeneration: contextGeneration,
                         activationLease: activationLease,
                         output: output,
                     ) else {
                         assertionFailure("A worker output must match its activation lease")
                         return
                     }
-                    preparedProjection = prepared
+                    projectionPresentationStaging = .prepared(prepared)
                     let accepted = await experienceCoordinator.reportRuntimePrepared(
                         activationLease,
                     )
-                    if accepted == false,
-                       preparedProjection?.activationLease == activationLease
-                    {
-                        preparedProjection = nil
+                    guard projectionContextGeneration == contextGeneration,
+                          airAndSpaceActivation.activeLease == activationLease,
+                          projectionPresentationStaging?.preparedProjection == prepared
+                    else {
+                        await experienceCoordinator.invalidatePreparedTransition(
+                            lease: activationLease,
+                        )
+                        return
+                    }
+                    if accepted == false {
+                        if case let .prepared(currentPrepared) = projectionPresentationStaging,
+                           currentPrepared == prepared
+                        {
+                            projectionPresentationStaging = nil
+                        }
                     }
                     preparationSucceeded = preparationSucceeded && accepted
                 } catch is CancellationError {
@@ -417,8 +431,8 @@ extension ThrowSession {
         if preparationSucceeded {
             resolvePostLaunchFailure(.projectionPreparation)
         }
-        if let transition = projectionPresentationTransition {
-            projectionPresentationTransition = transition.buffering(update)
+        if let staging = projectionPresentationStaging, staging.isTransitioning {
+            projectionPresentationStaging = staging.buffering(update)
             return
         }
         await publishVisibleAirAndSpaceUpdate(update)
@@ -469,11 +483,14 @@ extension ThrowSession {
         demandGeneration &+= 1
         demandTask?.cancel()
         let activationLease = airAndSpaceActivation.activeLease
+        projectionContextGeneration = projectionContextGeneration.successor()
         let invalidation = ProjectionPreferenceInvalidation(
             change: change,
             activationLease: activationLease,
+            contextGeneration: projectionContextGeneration,
         )
         projectionPreferenceInvalidation = invalidation
+        revokeStagedProjection()
         if let activationLease {
             _ = airAndSpaceActivation.deactivate(activationLease)
         }
@@ -508,6 +525,10 @@ extension ThrowSession {
     ) {
         guard projectionPreferenceInvalidation == invalidation else {
             assertionFailure("A projection preference invalidation completed out of order")
+            return
+        }
+        guard projectionContextGeneration == invalidation.contextGeneration else {
+            assertionFailure("A projection context changed during its preference invalidation")
             return
         }
         projectionPreferenceInvalidation = nil
@@ -639,7 +660,7 @@ extension ThrowSession {
         renderGeneration &+= 1
         let generation = renderGeneration
         renderTask?.cancel()
-        guard projectionPresentationTransition == nil,
+        guard projectionPresentationStaging?.isTransitioning != true,
               projectionPreferenceInvalidation == nil,
               activeExperienceID == .airAndSpace,
               outputDemands.isEmpty == false,
@@ -1011,4 +1032,5 @@ enum ProjectionPreferenceChange: Equatable {
 struct ProjectionPreferenceInvalidation: Equatable {
     let change: ProjectionPreferenceChange
     let activationLease: ProjectionActivationLease?
+    let contextGeneration: ProjectionContextGeneration
 }
