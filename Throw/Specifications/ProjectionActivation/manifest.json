@@ -1,0 +1,99 @@
+{
+  "source": "pluscal",
+  "module": "ProjectionActivation.tla",
+  "cases": [
+    {
+      "name": "broken-identity-teardown",
+      "config": "BrokenIdentityTeardown.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant NoStaleTeardownOfNewerLease is violated."
+    },
+    {
+      "name": "pre-fix-stopped-lease",
+      "config": "PreFixStoppedLease.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant CorrectAtQuiescence is violated."
+    },
+    {
+      "name": "pre-fix-runtime-tombstone",
+      "config": "PreFixRuntimeTombstone.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant PermitSafety is violated."
+    },
+    {
+      "name": "permit-gap-reachability",
+      "config": "PermitGapReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant PermitGapNotReached is violated."
+    },
+    {
+      "name": "permit-teardown-reachability",
+      "config": "PermitTeardownReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant PendingPermitTeardownNotReached is violated."
+    },
+    {
+      "name": "direct-lease-sync-reachability",
+      "config": "DirectLeaseSyncReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant DirectLeaseSyncNotReached is violated."
+    },
+    {
+      "name": "stale-teardown-reachability",
+      "config": "RaceReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant StaleTeardownCommandNotReached is violated."
+    },
+    {
+      "name": "physical-poller-reachability",
+      "config": "PhysicalReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant PhysicalPollerNotReached is violated."
+    },
+    {
+      "name": "runtime-tombstone-reachability",
+      "config": "RuntimeTombstoneReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant NewerRuntimeTeardownNotReached is violated."
+    },
+    {
+      "name": "physical-drain-reachability",
+      "config": "DrainReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant PhysicalDrainNotReached is violated."
+    },
+    {
+      "name": "two-scene-reachability",
+      "config": "TwoSceneReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant TwoForegroundScenesNotReached is violated."
+    },
+    {
+      "name": "quiet-reachability",
+      "config": "QuietReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant QuietBlockNotReached is violated."
+    },
+    {
+      "name": "calibration-reachability",
+      "config": "CalibrationReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant CalibrationBlockNotReached is violated."
+    },
+    {
+      "name": "current-race",
+      "config": "CurrentRace.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "current-single-scene",
+      "config": "CurrentSingle.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "current-two-scenes",
+      "config": "CurrentTwoScenes.cfg",
+      "expect": "pass"
+    }
+  ]
+}
