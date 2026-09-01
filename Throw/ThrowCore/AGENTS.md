@@ -99,8 +99,10 @@ location, and scheduling; see [`README.md`](README.md). Read the root
 - Keep `ThrowLog` payloads redacted according to the group privacy invariant.
 - Pass attribution-load failure into the durable-logging starter. Emit its typed
   event after sink attachment, or before a store-open error returns.
-- Record post-launch operation errors with the closed session-log operation and
-  an error attachment.
+- Route cold-launch and post-launch failures through the process-owned durable
+  logging starter. Retain each typed event with its error attachment until attachment.
+- Flush the existing sinks before the store handoff. Write each retained record
+  to the store once, then release records that arrived during the handoff.
 - Open one durable logging session through `PeriscopeThrowDurableLoggingStarter`.
   Keep OSLog active when the store cannot open or history pruning fails.
 

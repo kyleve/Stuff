@@ -565,6 +565,7 @@ struct ProjectionFrameWorkerTests {
             geographyRuntime: GeographyLayerRuntime(dataSource: source),
             geographyLogger: DiscardingGeographyLogger(),
             motionLogger: DiscardingProjectionMotionLogger(),
+            sessionFailureLogger: DiscardingThrowSessionFailureLogger(),
         )
         let observer = try observer()
         let date = Date(timeIntervalSince1970: 5000)
@@ -716,6 +717,7 @@ struct ProjectionFrameWorkerTests {
             geographyRuntime: GeographyLayerRuntime(dataSource: source),
             geographyLogger: DiscardingGeographyLogger(),
             motionLogger: DiscardingProjectionMotionLogger(),
+            sessionFailureLogger: DiscardingThrowSessionFailureLogger(),
         )
         let observer = try observer()
         let date = Date(timeIntervalSince1970: 7000)
@@ -767,6 +769,7 @@ struct ProjectionFrameWorkerTests {
             geographyRuntime: GeographyLayerRuntime(dataSource: FailingGeographyDataSource()),
             geographyLogger: logger,
             motionLogger: DiscardingProjectionMotionLogger(),
+            sessionFailureLogger: DiscardingThrowSessionFailureLogger(),
         )
         let observer = try observer()
         let date = Date(timeIntervalSince1970: 8000)
@@ -1095,6 +1098,7 @@ struct ProjectionFrameWorkerTests {
             geographyRuntime: GeographyLayerRuntime(dataSource: EmptyGeographyDataSource()),
             geographyLogger: DiscardingGeographyLogger(),
             motionLogger: DiscardingProjectionMotionLogger(),
+            sessionFailureLogger: DiscardingThrowSessionFailureLogger(),
         )
     }
 

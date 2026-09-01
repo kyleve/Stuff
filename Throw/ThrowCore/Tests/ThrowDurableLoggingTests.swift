@@ -64,6 +64,63 @@ struct ThrowDurableLoggingTests {
         #expect(try await store.attachments(forEvent: storedEvent.id) == [failure.attachment])
     }
 
+    @Test func bufferedSessionFailuresReachTheAttachedStoreExactlyOnce() async throws {
+        let system = makeSystem()
+        let store = try await PeriscopeStore.make(
+            storage: .inMemory,
+            session: .current(attributes: [:]),
+        )
+        let starter = PeriscopeThrowDurableLoggingStarter(
+            system: system,
+            softwareCreditsLoadFailure: nil,
+            now: { Date(timeIntervalSince1970: 1_787_594_400) },
+            makeStore: { store },
+        )
+        let launchError = NSError(domain: "com.stuff.throw.launch-test", code: 1)
+        let operationError = NSError(domain: "com.stuff.throw.operation-test", code: 2)
+        starter.recordColdLaunchFailure(at: .preferences, error: launchError)
+        starter.recordPostLaunchFailure(at: .preferencePersistence, error: operationError)
+
+        _ = try await starter.start()
+        await system.flush()
+
+        let records = try await store.events(matching: LogQuery())
+        let launchRecords = records.filter {
+            (try? $0.decode(ThrowSessionLogEvent.self)) == .coldLaunchFailed(
+                boundary: .preferences,
+            )
+        }
+        let operationRecords = records.filter {
+            (try? $0.decode(ThrowSessionLogEvent.self)) == .postLaunchOperationFailed(
+                operation: .preferencePersistence,
+            )
+        }
+        let launchRecord = try #require(launchRecords.first)
+        let operationRecord = try #require(operationRecords.first)
+        #expect(launchRecords.count == 1)
+        #expect(operationRecords.count == 1)
+        let launchAttachments = try await store.attachments(forEvent: launchRecord.id)
+        let operationAttachments = try await store.attachments(forEvent: operationRecord.id)
+        let launchAttachment = try #require(launchAttachments.first)
+        let operationAttachment = try #require(operationAttachments.first)
+        #expect(launchAttachments.count == 1)
+        #expect(operationAttachments.count == 1)
+        #expect(launchAttachment.name == "launch-error")
+        #expect(operationAttachment.name == "operation-error")
+        #expect(launchAttachment.contentType == .json)
+        #expect(operationAttachment.contentType == .json)
+        let launchPayload = try errorPayload(in: launchAttachment)
+        let expectedLaunchPayload = try errorPayload(
+            in: .error(launchError, name: "launch-error"),
+        )
+        let operationPayload = try errorPayload(in: operationAttachment)
+        let expectedOperationPayload = try errorPayload(
+            in: .error(operationError, name: "operation-error"),
+        )
+        #expect(launchPayload == expectedLaunchPayload)
+        #expect(operationPayload == expectedOperationPayload)
+    }
+
     @Test func deferredCreditsFailureReachesExistingSinksWhenTheStoreCannotOpen() async throws {
         let sink = CapturingThrowLogSink()
         let system = makeSystem(sinks: [sink])
@@ -94,8 +151,42 @@ struct ThrowDurableLoggingTests {
         #expect(record.attachments == [failure.attachment])
     }
 
+    @Test func bufferedLaunchFailureStaysInExistingSinksOnceWhenTheStoreCannotOpen() async throws {
+        let sink = CapturingThrowLogSink()
+        let system = makeSystem(sinks: [sink])
+        let starter = PeriscopeThrowDurableLoggingStarter(
+            system: system,
+            softwareCreditsLoadFailure: nil,
+            now: { Date(timeIntervalSince1970: 1_787_594_400) },
+            makeStore: { throw StoreOpenFailure() },
+        )
+        let launchError = NSError(domain: "com.stuff.throw.launch-test", code: 1)
+        starter.recordColdLaunchFailure(at: .preferences, error: launchError)
+
+        do {
+            _ = try await starter.start()
+            Issue.record("Starting durable logging must throw the store-open error")
+        } catch is StoreOpenFailure {
+            // The expected store-open failure reached the composition caller.
+        } catch {
+            Issue.record("Starting durable logging threw an unexpected error: \(error)")
+        }
+        await system.flush()
+
+        let failures = await sink.records().filter {
+            $0.event as? ThrowSessionLogEvent == .coldLaunchFailed(boundary: .preferences)
+        }
+        let failure = try #require(failures.first)
+        #expect(failures.count == 1)
+        #expect(failure.attachments == [.error(launchError, name: "launch-error")])
+    }
+
     private func sessionEvents(in system: Periscope) -> [ThrowSessionLogEvent] {
         system.recentRecords().compactMap { $0.event as? ThrowSessionLogEvent }
+    }
+
+    private func errorPayload(in attachment: LogAttachment) throws -> [String: String] {
+        try JSONDecoder().decode([String: String].self, from: attachment.data)
     }
 
     private func makeSystem(sinks: [any LogSink] = []) -> Periscope {

@@ -271,6 +271,7 @@ public final class ThrowSession {
     let calendar: Calendar
     let layerCatalog: LayerCatalog
     let projectionWorker: ProjectionFrameWorker
+    let sessionFailureLogger: any ThrowSessionFailureLogging
     let durableLoggingStarter: (any ThrowDurableLoggingStarting)?
 
     @ObservationIgnored var hasForegroundControllerScene: Bool
@@ -379,6 +380,7 @@ public final class ThrowSession {
         routeLogger: any FlightRouteLogging,
         rotationClock: any ProjectionRotationClock,
         softwareCreditsState: SoftwareCreditsLoadState,
+        sessionFailureLogger: any ThrowSessionFailureLogging,
         durableLoggingStarter: (any ThrowDurableLoggingStarting)?,
         initiallyHasForegroundControllerScene: Bool,
         initialLaunchState: ThrowSessionLaunchState,
@@ -413,6 +415,7 @@ public final class ThrowSession {
             routeResolver: routeResolver,
             routeLogger: routeLogger,
             dateProvider: dateProvider,
+            sessionFailureLogger: sessionFailureLogger,
         )
         experienceCoordinator = ProjectionExperienceCoordinator(
             playlist: preferences.playlist,
@@ -422,8 +425,10 @@ public final class ThrowSession {
             geographyRuntime: layerCatalog.geography.runtimeFactory(),
             geographyLogger: geographyLogger,
             motionLogger: motionLogger,
+            sessionFailureLogger: sessionFailureLogger,
         )
         self.softwareCreditsState = softwareCreditsState
+        self.sessionFailureLogger = sessionFailureLogger
         self.durableLoggingStarter = durableLoggingStarter
         locationHealth = Self.locationHealth(
             for: preferences.confirmedLocation,
@@ -474,7 +479,7 @@ public final class ThrowSession {
             case .projectionPreparation: .projectionPreparation
             case .projectionRendering: .projectionRendering
         }
-        ThrowLog.recordPostLaunchFailure(at: operation, error: error)
+        sessionFailureLogger.recordPostLaunchFailure(at: operation, error: error)
     }
 
     public var setupCompleted: Bool {
@@ -622,7 +627,7 @@ public final class ThrowSession {
             launchState = .failed(failure)
         } catch {
             assertionFailure("Throw launch produced an unclassified error: \(error)")
-            ThrowLog.recordColdLaunchFailure(at: .unexpected, error: error)
+            sessionFailureLogger.recordColdLaunchFailure(at: .unexpected, error: error)
             launchState = .failed(.preferences)
         }
     }
@@ -631,7 +636,7 @@ public final class ThrowSession {
         do {
             return try await preferenceStore.load()
         } catch {
-            ThrowLog.recordColdLaunchFailure(at: .preferences, error: error)
+            sessionFailureLogger.recordColdLaunchFailure(at: .preferences, error: error)
             throw ThrowSessionLaunchFailure.preferences
         }
     }
@@ -651,7 +656,7 @@ public final class ThrowSession {
         do {
             return try await credentialStore.state(for: id)
         } catch {
-            ThrowLog.recordColdLaunchFailure(at: .credential, error: error)
+            sessionFailureLogger.recordColdLaunchFailure(at: .credential, error: error)
             throw ThrowSessionLaunchFailure.credential(id: id)
         }
     }

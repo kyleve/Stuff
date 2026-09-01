@@ -23,6 +23,7 @@ struct AirAndSpaceRuntimeTests {
             routeResolver: FlightRouteResolver(source: EmptyFlightRouteSource()),
             routeLogger: DiscardingFlightRouteLogger(),
             dateProvider: FixtureDateProvider(date: date),
+            sessionFailureLogger: DiscardingThrowSessionFailureLogger(),
         )
         var updates = await runtime.stateUpdates().makeAsyncIterator()
         _ = await updates.next()
@@ -309,6 +310,7 @@ struct AirAndSpaceRuntimeTests {
             routeResolver: FlightRouteResolver(source: EmptyFlightRouteSource()),
             routeLogger: DiscardingFlightRouteLogger(),
             dateProvider: FixtureDateProvider(date: date),
+            sessionFailureLogger: DiscardingThrowSessionFailureLogger(),
         )
     }
 

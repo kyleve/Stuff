@@ -48,6 +48,9 @@ Launch also starts one independent durable-logging task. Its typed state
 distinguishes unavailable fixtures, opening, ready, and failed storage. A log
 store failure does not fail the product launch because OSLog remains active.
 
+One process-owned session logger records failures in OSLog while the store opens.
+It retains each typed event and error attachment. The store handoff persists
+each retained record once before later session events use the attached sink.
 Cold-launch failure views show localized recovery text. Typed session logs keep
 the failed boundary and attach the underlying storage error for diagnostics.
 

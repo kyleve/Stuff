@@ -43,6 +43,7 @@ actor AirAndSpaceRuntime {
     private let routeResolver: FlightRouteResolver
     private let routeLogger: any FlightRouteLogging
     private let dateProvider: any DateProvider
+    private let sessionFailureLogger: any ThrowSessionFailureLogging
     private let updatesStream: AsyncStream<AirAndSpaceRuntimeUpdate>
     private let continuation: AsyncStream<AirAndSpaceRuntimeUpdate>.Continuation
 
@@ -69,12 +70,14 @@ actor AirAndSpaceRuntime {
         routeResolver: FlightRouteResolver,
         routeLogger: any FlightRouteLogging,
         dateProvider: any DateProvider,
+        sessionFailureLogger: any ThrowSessionFailureLogging,
     ) {
         self.pollingCoordinator = pollingCoordinator
         self.flightsRuntime = flightsRuntime
         self.routeResolver = routeResolver
         self.routeLogger = routeLogger
         self.dateProvider = dateProvider
+        self.sessionFailureLogger = sessionFailureLogger
         let pair = AsyncStream.makeStream(
             of: AirAndSpaceRuntimeUpdate.self,
             bufferingPolicy: .bufferingNewest(1),
@@ -250,7 +253,10 @@ actor AirAndSpaceRuntime {
                     return
                 } catch {
                     guard generation == stateGeneration else { return }
-                    ThrowLog.recordPostLaunchFailure(at: .projectionPreparation, error: error)
+                    sessionFailureLogger.recordPostLaunchFailure(
+                        at: .projectionPreparation,
+                        error: error,
+                    )
                     semanticPreparationState = .failed
                     health = .failed(.decoding)
                     publish()
@@ -280,7 +286,7 @@ actor AirAndSpaceRuntime {
                         return
                     } catch {
                         guard generation == stateGeneration else { return }
-                        ThrowLog.recordPostLaunchFailure(
+                        sessionFailureLogger.recordPostLaunchFailure(
                             at: .projectionPreparation,
                             error: error,
                         )
@@ -354,7 +360,10 @@ actor AirAndSpaceRuntime {
             return
         } catch {
             guard generation == stateGeneration else { return }
-            ThrowLog.recordPostLaunchFailure(at: .projectionPreparation, error: error)
+            sessionFailureLogger.recordPostLaunchFailure(
+                at: .projectionPreparation,
+                error: error,
+            )
             semanticPreparationState = .failed
             health = .failed(.decoding)
             publish()
