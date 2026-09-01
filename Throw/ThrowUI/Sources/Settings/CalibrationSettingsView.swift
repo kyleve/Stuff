@@ -27,10 +27,11 @@ struct CalibrationSettingsView: View {
     }
 
     var body: some View {
+        let failures = session.postLaunchFailures(for: .calibration)
         Form {
-            if let settingsFailure = session.settingsFailure {
+            if failures.isEmpty == false {
                 Section {
-                    SettingsFailureMessage(detail: settingsFailure)
+                    SettingsFailureMessages(failures: failures)
                 }
             }
             CalibrationPatternView(

@@ -60,8 +60,8 @@ final class AircraftSourceSettingsModel {
         }
     }
 
-    var settingsFailure: String? {
-        session.settingsFailure
+    var postLaunchFailures: [ThrowPostLaunchFailure] {
+        session.postLaunchFailures(for: .aircraftSource)
     }
 
     var usageEstimate: ADSBExchangeUsageEstimate {
@@ -141,9 +141,11 @@ final class AircraftSourceSettingsModel {
                 pollingIntervalSeconds: Int(pollingIntervalSeconds),
             )
         } catch let failure as AircraftSourceFailure {
+            session.logPostLaunchFailure(at: .aircraftSource, error: failure)
             applyState = .failed(failure.presentationCategory, generation: generation)
             return
         } catch {
+            session.logPostLaunchFailure(at: .aircraftSource, error: error)
             applyState = .failed(.sourceNotValidated, generation: generation)
             return
         }

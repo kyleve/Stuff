@@ -37,10 +37,11 @@ extension ThrowSession {
         guard beginPreferenceMutation() else { return }
         defer { finishPreferenceMutation() }
 
-        do {
-            let publication: OnboardingPreferencePublication
-            while true {
-                guard let candidate = try onboardingPreferencePublication(
+        let publication: OnboardingPreferencePublication
+        while true {
+            let candidate: OnboardingPreferencePublication
+            do {
+                guard let value = try onboardingPreferencePublication(
                     projectionMode: projectionMode,
                     calibration: calibration,
                     quietSchedule: quietSchedule,
@@ -50,29 +51,38 @@ extension ThrowSession {
                     assertionFailure("Onboarding completion requires validated setup inputs")
                     return
                 }
-                try await persistPreferencesImmediately(candidate.preferences)
-                guard candidate.base == onboardingPreferenceSnapshot else { continue }
-                publication = candidate
-                break
+                candidate = value
+            } catch {
+                recordPostLaunchFailure(.onboarding, error: error)
+                return
             }
-
-            globalPreferences = publication.globalPreferences
-            airAndSpacePreferences = publication.airAndSpacePreferences
-            calibrationPreview = nil
-            projectionPlaylist = publication.preferences.playlist
-            experienceCoordinatorState = ProjectionExperienceCoordinatorState(
-                playlist: publication.preferences.playlist,
-            )
-            setupState = publication.setupState
-            preferenceMutationNeedsSave = false
-            await configureExperienceCoordinator(with: projectionPlaylist)
-            settingsFailure = nil
-            scheduleDemandReconciliation()
-        } catch is CancellationError {
-            return
-        } catch {
-            settingsFailure = error.localizedDescription
+            do {
+                try await persistPreferencesImmediately(
+                    candidate.preferences,
+                    failure: .onboarding,
+                )
+            } catch is CancellationError {
+                return
+            } catch {
+                // The preference worker recorded this operation error.
+                return
+            }
+            guard candidate.base == onboardingPreferenceSnapshot else { continue }
+            publication = candidate
+            break
         }
+
+        globalPreferences = publication.globalPreferences
+        airAndSpacePreferences = publication.airAndSpacePreferences
+        calibrationPreview = nil
+        projectionPlaylist = publication.preferences.playlist
+        experienceCoordinatorState = ProjectionExperienceCoordinatorState(
+            playlist: publication.preferences.playlist,
+        )
+        setupState = publication.setupState
+        deferredPreferenceSaveFailures = ThrowPostLaunchFailureLedger()
+        await configureExperienceCoordinator(with: projectionPlaylist)
+        scheduleDemandReconciliation()
     }
 
     func previewCalibration(_ calibration: ProjectionCalibration) {

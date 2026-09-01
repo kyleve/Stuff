@@ -55,6 +55,11 @@ Software attribution has one typed load state. An empty report remains loaded.
 A manifest error shows an unavailable state. Diagnostics receive the underlying
 error only after the durable logging starter begins its work.
 
+Post-launch failures use one typed ledger with one entry per operation owner.
+An operation success clears only its entry. Other failures remain visible.
+Views show localized recovery text, while typed session logs attach the
+underlying error. The UI does not store or render raw error descriptions.
+
 `ThrowSession+Composition.swift` is the only live construction boundary. It
 creates the stores, durable-logging starter, aircraft source graph, poller, and
 session once. Previews and tests use the fixture path in that same file.

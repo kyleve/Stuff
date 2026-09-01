@@ -92,7 +92,15 @@ extension ThrowSession {
         flightradar24UsageGeneration &+= 1
         let generation = flightradar24UsageGeneration
         lastFlightradar24UsageRequestAt = now
-        let report = try await sourceService.flightradar24Usage(period: .last24Hours)
+        let report: Flightradar24UsageReport
+        do {
+            report = try await sourceService.flightradar24Usage(period: .last24Hours)
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            logPostLaunchFailure(at: .aircraftSource, error: error)
+            throw error
+        }
         try Task.checkCancellation()
         guard generation == flightradar24UsageGeneration else { throw CancellationError() }
         cachedFlightradar24Usage = CachedFlightradar24Usage(
@@ -125,8 +133,10 @@ extension ThrowSession {
         } catch is CancellationError {
             return .cancelled
         } catch let failure as AircraftSourceFailure {
+            logPostLaunchFailure(at: .aircraftSource, error: failure)
             return .failed(failure.presentationCategory)
         } catch {
+            logPostLaunchFailure(at: .aircraftSource, error: error)
             return .failed(.sourceNotValidated)
         }
     }
@@ -144,8 +154,10 @@ extension ThrowSession {
         } catch is CancellationError {
             return .cancelled
         } catch let failure as AircraftSourceFailure {
+            logPostLaunchFailure(at: .aircraftSource, error: failure)
             return .failed(failure.presentationCategory)
         } catch {
+            logPostLaunchFailure(at: .aircraftSource, error: error)
             return .failed(.sourceNotValidated)
         }
     }
@@ -159,32 +171,56 @@ extension ThrowSession {
 
         let replacementSetupState = setupState.replacingSource(draft.configuration)
         let preferences: ThrowPreferences
-        var replacedCredentialID: AircraftCredentialID?
-        var previousCredential: AircraftCredential?
-        var credentialMutationAttempted = false
         do {
             preferences = try makePreferences(setupState: replacementSetupState)
-            if let replacement = draft.credentialReplacement {
-                replacedCredentialID = replacement.id
+        } catch {
+            recordPostLaunchFailure(.aircraftSource, error: error)
+            return false
+        }
+
+        let credentialReplacement = draft.credentialReplacement
+        var previousCredential: AircraftCredential?
+        var credentialMutationAttempted = false
+        if let replacement = credentialReplacement {
+            do {
                 previousCredential = try await credentialStore.credential(for: replacement.id)
                 try Task.checkCancellation()
                 credentialMutationAttempted = true
                 try await credentialStore.save(replacement.credential, for: replacement.id)
                 try Task.checkCancellation()
-            }
-            try await persistPreferencesImmediately(preferences)
-        } catch {
-            let rollbackFailure: String? = if credentialMutationAttempted,
-                                              let replacedCredentialID
-            {
-                await restoreCredential(previousCredential, for: replacedCredentialID)
-            } else {
-                nil
-            }
-            if error is CancellationError, rollbackFailure == nil {
+            } catch is CancellationError {
+                if credentialMutationAttempted {
+                    await restoreCredentialAfterFailedSourceChange(
+                        previousCredential,
+                        for: replacement.id,
+                    )
+                }
+                return false
+            } catch {
+                recordPostLaunchFailure(credentialFailure(for: replacement.id), error: error)
+                if credentialMutationAttempted {
+                    await restoreCredentialAfterFailedSourceChange(
+                        previousCredential,
+                        for: replacement.id,
+                    )
+                }
                 return false
             }
-            settingsFailure = rollbackFailure ?? error.localizedDescription
+        }
+
+        do {
+            try await persistPreferencesImmediately(
+                preferences,
+                failure: .aircraftSource,
+            )
+        } catch {
+            // The preference worker recorded this source operation error.
+            if credentialMutationAttempted, let replacement = credentialReplacement {
+                await restoreCredentialAfterFailedSourceChange(
+                    previousCredential,
+                    for: replacement.id,
+                )
+            }
             return false
         }
 
@@ -194,7 +230,7 @@ extension ThrowSession {
         projectionPlaylist = preferences.playlist
         await configureExperienceCoordinator(with: projectionPlaylist)
 
-        if let replacement = draft.credentialReplacement {
+        if let replacement = credentialReplacement {
             switch replacement.id {
                 case .rapidAPI:
                     rapidAPICredentialState = .saved(lastFour: replacement.credential.lastFour)
@@ -204,15 +240,15 @@ extension ThrowSession {
                         lastFour: replacement.credential.lastFour,
                     )
             }
+            resolvePostLaunchFailure(credentialFailure(for: replacement.id).owner)
         }
 
-        settingsFailure = nil
         do {
             try await discardOldFrame()
         } catch is CancellationError {
             await clearProjectionState(restartsGeography: true)
         } catch {
-            settingsFailure = error.localizedDescription
+            recordPostLaunchFailure(.projectionRendering, error: error)
             await clearProjectionState(restartsGeography: true)
         }
         scheduleDemandReconciliation()
@@ -230,7 +266,7 @@ extension ThrowSession {
         } catch is CancellationError {
             return false
         } catch {
-            settingsFailure = error.localizedDescription
+            recordPostLaunchFailure(.rapidAPICredential, error: error)
             return false
         }
         rapidAPICredentialState = .missing
@@ -240,7 +276,7 @@ extension ThrowSession {
             await clearProjectionState(restartsGeography: true)
             feedHealth = .failed(.missingCredential)
         }
-        settingsFailure = nil
+        resolvePostLaunchFailure(.rapidAPICredential)
         return true
     }
 
@@ -255,7 +291,7 @@ extension ThrowSession {
         } catch is CancellationError {
             return false
         } catch {
-            settingsFailure = error.localizedDescription
+            recordPostLaunchFailure(.flightradar24Credential, error: error)
             return false
         }
         invalidateFlightradar24Usage()
@@ -266,28 +302,34 @@ extension ThrowSession {
             await clearProjectionState(restartsGeography: true)
             feedHealth = .failed(.missingCredential)
         }
-        settingsFailure = nil
+        resolvePostLaunchFailure(.flightradar24Credential)
         return true
     }
 
-    private func restoreCredential(
+    private func restoreCredentialAfterFailedSourceChange(
         _ credential: AircraftCredential?,
         for id: AircraftCredentialID,
-    ) async -> String? {
+    ) async {
         do {
             if let credential {
                 try await credentialStore.save(credential, for: id)
             } else {
                 try await credentialStore.delete(id)
             }
-            return nil
         } catch {
-            return error.localizedDescription
+            recordPostLaunchFailure(credentialFailure(for: id), error: error)
         }
     }
 
     func applyAirAndSpaceUpdate(_ update: AirAndSpaceRuntimeUpdate) async {
         guard update.activationLease == airAndSpaceActivation.activeLease else { return }
+        switch update.semanticPreparationState {
+            case .ready:
+                break
+            case .failed:
+                publishPostLaunchFailure(.projectionPreparation)
+        }
+        var preparationSucceeded = update.semanticPreparationState == .ready
         semanticFramesByExperience[.airAndSpace] = update.experienceFrame
         activePollingSignature = update.activePollingSignature
         let semanticFrame = update.experienceFrame
@@ -307,6 +349,7 @@ extension ThrowSession {
                     let output = try await projectedOutput(
                         for: semanticFrame,
                         generatedAt: dateProvider.now(),
+                        loggingOperation: .projectionPreparation,
                     )
                     guard airAndSpaceActivation.activeLease == activationLease,
                           semanticFramesByExperience[.airAndSpace] == semanticFrame,
@@ -325,9 +368,11 @@ extension ThrowSession {
                     {
                         preparedOutputsByExperience.removeValue(forKey: .airAndSpace)
                     }
+                    preparationSucceeded = preparationSucceeded && accepted
                 } catch is CancellationError {
                     return
                 } catch {
+                    recordPostLaunchFailure(.projectionPreparation, error: error)
                     await experienceCoordinator.reportRuntimeUpdate(
                         lease: activationLease,
                         successfulLease: nil,
@@ -336,6 +381,9 @@ extension ThrowSession {
                     return
                 }
             }
+        }
+        if preparationSucceeded {
+            resolvePostLaunchFailure(.projectionPreparation)
         }
         if let transition = projectionPresentationTransition {
             projectionPresentationTransition = transition.buffering(update)
@@ -462,6 +510,7 @@ extension ThrowSession {
         do {
             query = try aircraftQuery()
         } catch {
+            logPostLaunchFailure(at: .location, error: error)
             activePollingSignature = nil
             await deactivateAirAndSpace(reporting: .failed(.locationUnavailable))
             guard generation == demandGeneration else { return }
@@ -516,6 +565,7 @@ extension ThrowSession {
                     let output = try await projectedOutput(
                         for: experienceFrame,
                         generatedAt: dateProvider.now(),
+                        loggingOperation: .projectionRendering,
                     )
                     try Task.checkCancellation()
                     guard generation == renderGeneration else { return }
@@ -523,6 +573,7 @@ extension ThrowSession {
                     projectionMarkEffects = output.effects
                     observerMapPoint = output.observerPoint
                     geographyLayerHealth = output.geographyHealth
+                    resolvePostLaunchFailure(.projectionRendering)
                     await updateVisibleCount(
                         output.frame.visibleAircraftCount,
                         experienceID: output.frame.experienceID,
@@ -539,8 +590,9 @@ extension ThrowSession {
                     return
                 } catch {
                     guard generation == renderGeneration else { return }
+                    recordPostLaunchFailure(.projectionRendering, error: error)
                     feedHealth = .failed(.decoding)
-                    await clearProjectionState(restartsGeography: false)
+                    renderTask = nil
                     return
                 }
             }
@@ -550,6 +602,7 @@ extension ThrowSession {
     func projectedOutput(
         for experienceFrame: ProjectionExperienceFrame,
         generatedAt: Date,
+        loggingOperation: ThrowSessionLogEvent.PostLaunchOperation,
     ) async throws -> ProjectionFrameWorkerOutput {
         guard let confirmedLocation else {
             throw ThrowValidationError.invalidPreferencePayload
@@ -562,6 +615,7 @@ extension ThrowSession {
             calibration: projectionCalibration,
             generatedAt: generatedAt,
             reduceMotion: reduceMotion,
+            loggingOperation: loggingOperation,
         )
     }
 
@@ -744,6 +798,15 @@ extension ThrowSession {
 
     func projectionFrameWithoutMarks() -> ProjectionFrame {
         projectionFrame.withoutMarks(generatedAt: dateProvider.now())
+    }
+
+    private func credentialFailure(
+        for id: AircraftCredentialID,
+    ) -> ThrowPostLaunchFailure {
+        switch id {
+            case .rapidAPI: .rapidAPICredential
+            case .flightradar24: .flightradar24Credential
+        }
     }
 
     func discardOldFrame() async throws {

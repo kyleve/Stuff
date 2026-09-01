@@ -9,7 +9,7 @@ public enum ThrowDurableLoggingState: Equatable, Sendable {
     /// The store is attached and receives process log records.
     case ready
     /// Opening failed. OSLog remains active for this process.
-    case failed(detail: String)
+    case failed
 }
 
 extension ThrowSession {
@@ -29,7 +29,7 @@ extension ThrowSession {
                 durableLoggingState = .ready
                 await loggingSession.pruneHistory()
             } catch {
-                self?.durableLoggingState = .failed(detail: String(describing: error))
+                self?.durableLoggingState = .failed
             }
             self?.durableLoggingTask = nil
         }

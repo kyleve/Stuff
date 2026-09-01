@@ -30,7 +30,7 @@ struct ThrowSessionLoggingTests {
         session.startLaunch()
         await session.waitForDurableLoggingForTesting()
 
-        #expect(session.durableLoggingState == .failed(detail: "openFailed"))
+        #expect(session.durableLoggingState == .failed)
         #expect(await starter.startCount == 1)
     }
 }

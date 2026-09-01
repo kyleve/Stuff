@@ -28,6 +28,10 @@ Read the root [`AGENTS.md`](../../AGENTS.md) and group
   loaded empty report distinct from manifest failure.
 - Pass attribution-load errors into the durable-logging starter. Never show the
   underlying error in UI.
+- Store post-launch failures in `ThrowPostLaunchFailureLedger`. Keep one failure
+  per owner, and clear only the owner whose operation succeeds.
+- Show localized recovery text for post-launch failures. Attach each caught
+  underlying error to its typed `ThrowSessionLogEvent`.
 - Route every root through `ThrowSessionLaunchState`. Create dashboard and
   projection surfaces only from its loaded cases.
 - Accept aggregate controller foreground presence from the app runtime. Do not

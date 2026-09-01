@@ -191,8 +191,8 @@ final class OnboardingFlowModel {
         Double(step.rawValue + 1) / Double(OnboardingStep.allCases.count)
     }
 
-    var settingsFailure: String? {
-        session.settingsFailure
+    var postLaunchFailures: [ThrowPostLaunchFailure] {
+        session.postLaunchFailures(for: .onboarding)
     }
 
     var hasConnectedExternalDisplay: Bool {

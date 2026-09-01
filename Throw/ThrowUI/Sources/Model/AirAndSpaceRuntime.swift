@@ -13,12 +13,18 @@ extension FlightsLayerRuntime: FlightsLayerRunning {}
 
 /// One immutable snapshot of the Air & Space runtime's actor-isolated state.
 struct AirAndSpaceRuntimeUpdate {
+    enum SemanticPreparationState: Equatable {
+        case ready
+        case failed
+    }
+
     let activationLease: ProjectionActivationLease?
     let successfulActivationLease: ProjectionActivationLease?
     let health: FeedHealth
     let flightsFrame: ProjectionLayerFrame<FlightsLayerKind>?
     let snapshot: AircraftSnapshot?
     let activePollingSignature: PollingSignature?
+    let semanticPreparationState: SemanticPreparationState
 
     var experienceFrame: ProjectionExperienceFrame {
         .airAndSpace(AirAndSpaceExperienceFrame(
@@ -55,6 +61,7 @@ actor AirAndSpaceRuntime {
     private var currentAvailability: MarkAvailability = .current
     private var health: FeedHealth = .idle
     private var inactiveHealth: FeedHealth = .idle
+    private var semanticPreparationState: AirAndSpaceRuntimeUpdate.SemanticPreparationState = .ready
 
     init(
         pollingCoordinator: AircraftPollingCoordinator,
@@ -225,12 +232,13 @@ actor AirAndSpaceRuntime {
                 health = .loading
                 publish()
             case let .healthy(snapshot, _):
-                currentSnapshot = snapshot
-                currentAvailability = .current
                 do {
-                    let layer = try await makeLayerFrame(snapshot)
+                    let layer = try await makeLayerFrame(snapshot, availability: .current)
                     guard generation == stateGeneration else { return }
+                    currentSnapshot = snapshot
+                    currentAvailability = .current
                     currentLayerFrame = layer
+                    semanticPreparationState = .ready
                     successfulActivationLease = activeLease
                     health = .healthy(
                         lastUpdate: snapshot.fetchedAt,
@@ -242,18 +250,24 @@ actor AirAndSpaceRuntime {
                     return
                 } catch {
                     guard generation == stateGeneration else { return }
-                    clearSemanticState()
+                    ThrowLog.recordPostLaunchFailure(at: .projectionPreparation, error: error)
+                    semanticPreparationState = .failed
                     health = .failed(.decoding)
                     publish()
                 }
             case let .retrying(lastGoodSnapshot, failure, failureStartedAt, nextRetryAt):
-                currentSnapshot = lastGoodSnapshot
-                currentAvailability = .retrying(since: failureStartedAt)
                 if let lastGoodSnapshot {
+                    let availability = MarkAvailability.retrying(since: failureStartedAt)
                     do {
-                        let layer = try await makeLayerFrame(lastGoodSnapshot)
+                        let layer = try await makeLayerFrame(
+                            lastGoodSnapshot,
+                            availability: availability,
+                        )
                         guard generation == stateGeneration else { return }
+                        currentSnapshot = lastGoodSnapshot
+                        currentAvailability = availability
                         currentLayerFrame = layer
+                        semanticPreparationState = .ready
                         health = .retrying(
                             lastUpdate: lastGoodSnapshot.fetchedAt,
                             nextRetry: nextRetryAt,
@@ -266,7 +280,11 @@ actor AirAndSpaceRuntime {
                         return
                     } catch {
                         guard generation == stateGeneration else { return }
-                        clearSemanticState()
+                        ThrowLog.recordPostLaunchFailure(
+                            at: .projectionPreparation,
+                            error: error,
+                        )
+                        semanticPreparationState = .failed
                         health = .failed(.decoding)
                         publish()
                     }
@@ -293,6 +311,7 @@ actor AirAndSpaceRuntime {
 
     private func makeLayerFrame(
         _ snapshot: AircraftSnapshot,
+        availability: MarkAvailability,
     ) async throws -> ProjectionLayerFrame<FlightsLayerKind> {
         guard let observer = activePollingSignature?.query.observer else {
             throw ThrowValidationError.invalidPreferencePayload
@@ -313,7 +332,7 @@ actor AirAndSpaceRuntime {
                 observer: observer,
                 labelMode: labelMode,
                 routeResults: routeResults,
-                availability: currentAvailability,
+                availability: availability,
             ),
         )
     }
@@ -323,15 +342,20 @@ actor AirAndSpaceRuntime {
         stateGeneration &+= 1
         let generation = stateGeneration
         do {
-            let layer = try await makeLayerFrame(currentSnapshot)
+            let layer = try await makeLayerFrame(
+                currentSnapshot,
+                availability: currentAvailability,
+            )
             guard generation == stateGeneration else { return }
             currentLayerFrame = layer
+            semanticPreparationState = .ready
             publish()
         } catch is CancellationError {
             return
         } catch {
             guard generation == stateGeneration else { return }
-            clearSemanticState()
+            ThrowLog.recordPostLaunchFailure(at: .projectionPreparation, error: error)
+            semanticPreparationState = .failed
             health = .failed(.decoding)
             publish()
         }
@@ -426,6 +450,7 @@ actor AirAndSpaceRuntime {
             flightsFrame: currentLayerFrame,
             snapshot: currentSnapshot,
             activePollingSignature: activePollingSignature,
+            semanticPreparationState: semanticPreparationState,
         )
     }
 }

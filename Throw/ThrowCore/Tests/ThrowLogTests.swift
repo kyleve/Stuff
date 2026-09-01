@@ -27,6 +27,40 @@ struct ThrowLogTests {
         #expect(event.remoteFields.isEmpty)
     }
 
+    @Test func postLaunchFailuresExposeOnlyTheirTypedOperation() {
+        let event = ThrowSessionLogEvent.postLaunchOperationFailed(
+            operation: .projectionPreparation,
+        )
+
+        #expect(event.level == .error)
+        #expect(
+            event.message ==
+                "Post-launch operation failed at the projection-preparation boundary",
+        )
+        #expect(event.remoteMessage == "Post-launch operation failed")
+        #expect(event.remoteFields.count == 1)
+        #expect(event.remoteFields.first?.key.rawValue == "operation")
+        guard case let .category(category) = event.remoteFields.first?.value else {
+            Issue.record("The operation must be a closed remote category")
+            return
+        }
+        #expect(category.rawValue == "projection-preparation")
+    }
+
+    @Test func postLaunchOperationWireVocabularyStaysClosed() {
+        #expect(ThrowSessionLogEvent.PostLaunchOperation.allCases.map(\.rawValue) == [
+            "preference-persistence",
+            "aircraft-source",
+            "rapidapi-credential",
+            "flightradar24-credential",
+            "location",
+            "playlist",
+            "onboarding",
+            "projection-preparation",
+            "projection-rendering",
+        ])
+    }
+
     @Test func failureCategoryIsClosedAndCredentialFree() {
         #expect(AircraftPollingLogEvent.FailureCategory.allCases.count == 15)
         let event = AircraftPollingLogEvent.requestFailed(

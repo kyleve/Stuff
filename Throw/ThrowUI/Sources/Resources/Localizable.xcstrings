@@ -1981,6 +1981,94 @@
         }
       }
     },
+    "postLaunch.failure.aircraftSource" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Throw could not apply the aircraft source. The previous source remains active. Try again."
+          }
+        }
+      }
+    },
+    "postLaunch.failure.flightradar24Credential" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Throw could not update the Flightradar24 credential. Review the saved credential, then try again."
+          }
+        }
+      }
+    },
+    "postLaunch.failure.locationPersistence" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Throw could not save the observer location. The previous location remains active. Try again."
+          }
+        }
+      }
+    },
+    "postLaunch.failure.onboarding" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Throw could not finish setup. Your choices remain on this screen. Try again."
+          }
+        }
+      }
+    },
+    "postLaunch.failure.preferencePersistence" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Throw could not save these settings. The current session keeps your changes. Try again to save them for the next launch."
+          }
+        }
+      }
+    },
+    "postLaunch.failure.projectionPreparation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Throw could not prepare this View. Try again when the source updates."
+          }
+        }
+      }
+    },
+    "postLaunch.failure.projectionRendering" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Throw could not update the projection. Try again."
+          }
+        }
+      }
+    },
+    "postLaunch.failure.rapidAPICredential" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Throw could not update the RapidAPI credential. Review the saved credential, then try again."
+          }
+        }
+      }
+    },
     "projection.exit" : {
       "extractionState" : "manual",
       "localizations" : {

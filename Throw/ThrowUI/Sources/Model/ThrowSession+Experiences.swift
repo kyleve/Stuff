@@ -86,7 +86,7 @@ extension ThrowSession {
                 configuredExperienceIDs: configuredExperienceIDs,
                 catalog: .standard,
             )
-            schedulePreferencesSave()
+            schedulePreferencesSave(failure: .playlist(nil))
         } catch {
             reportPlaylistFailure(error)
         }
@@ -165,7 +165,7 @@ extension ThrowSession {
                 catalog: .standard,
             )
             projectionPlaylist = playlist
-            schedulePreferencesSave()
+            schedulePreferencesSave(failure: .playlist(nil))
             scheduleExperienceCoordinatorConfiguration(for: playlist)
         } catch {
             reportPlaylistFailure(error)
@@ -195,10 +195,10 @@ extension ThrowSession {
     private func reportPlaylistFailure(_ error: any Error) {
         guard let playlistError = error as? ProjectionPlaylistError else {
             assertionFailure("Playlist mutation failed with an unexpected error: \(error)")
-            settingsFailure = String(localized: .viewsPlaylistApplyFailed)
+            recordPostLaunchFailure(.playlist(nil), error: error)
             return
         }
-        settingsFailure = playlistError.localizedSettingsDescription
+        recordPostLaunchFailure(.playlist(playlistError), error: error)
     }
 
     private func transitionExperience(

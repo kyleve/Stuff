@@ -11,9 +11,9 @@ struct QuietHoursSettingsView: View {
     var body: some View {
         @Bindable var model = model
         Form {
-            if let settingsFailure = model.settingsFailure {
+            if model.postLaunchFailures.isEmpty == false {
                 Section {
-                    SettingsFailureMessage(detail: settingsFailure)
+                    SettingsFailureMessages(failures: model.postLaunchFailures)
                 }
             }
             Toggle(String(localized: .quietEnable), isOn: $model.isEnabled)

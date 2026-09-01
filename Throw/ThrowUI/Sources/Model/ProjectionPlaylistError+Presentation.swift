@@ -2,20 +2,24 @@ import Foundation
 import ThrowCore
 
 extension ProjectionPlaylistError {
-    var localizedSettingsDescription: String {
+    var localizedSettingsMessage: LocalizedStringResource {
         switch self {
             case .duplicateExperience:
-                String(localized: .viewsPlaylistDuplicate)
+                .viewsPlaylistDuplicate
             case .unknownExperience:
-                String(localized: .viewsPlaylistUnknown)
+                .viewsPlaylistUnknown
             case .unavailableExperience:
-                String(localized: .viewsPlaylistUnavailable)
+                .viewsPlaylistUnavailable
             case .unconfiguredExperience:
-                String(localized: .viewsPlaylistUnconfigured)
+                .viewsPlaylistUnconfigured
             case .invalidSelection:
-                String(localized: .viewsPlaylistSelectionInvalid)
+                .viewsPlaylistSelectionInvalid
             case .invalidDwellDuration:
-                String(localized: .viewsPlaylistDwellInvalid)
+                .viewsPlaylistDwellInvalid
         }
+    }
+
+    var localizedSettingsDescription: String {
+        String(localized: localizedSettingsMessage)
     }
 }

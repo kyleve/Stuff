@@ -253,6 +253,51 @@ struct AirAndSpaceRuntimeTests {
         await runtime.deactivate(lease: replacementLease, reporting: .idle)
     }
 
+    @Test func failedSemanticRebuildPreservesTheLastGoodPresentation() async throws {
+        let date = Date(timeIntervalSince1970: 1_800_100_000)
+        let snapshot = AircraftSnapshot(
+            source: .adsbLol,
+            fetchedAt: date,
+            observations: [],
+            decodingDiagnostics: .none,
+        )
+        let flightsRuntime = FailingSecondFrameFlightsLayerRuntime()
+        let coordinator = AircraftPollingCoordinator(
+            sourceFactory: FixedAircraftSourceFactory(snapshot: snapshot),
+            clock: LongAircraftPollingClock(now: date),
+            logger: DiscardingAircraftPollingLogger(),
+        )
+        let runtime = makeRuntime(
+            pollingCoordinator: coordinator,
+            flightsRuntime: flightsRuntime,
+            date: date,
+        )
+        let activationLease = lease(42)
+        _ = await runtime.stateUpdates()
+
+        try await runtime.activate(
+            configuration: .adsbLol,
+            query: query(),
+            labelMode: .adaptive,
+            lease: activationLease,
+        )
+        try await waitUntil {
+            await runtime.currentUpdate().successfulActivationLease == activationLease
+        }
+        let lastGood = await runtime.currentUpdate()
+
+        await runtime.refreshPresentation(labelMode: .callsigns)
+
+        let failed = await runtime.currentUpdate()
+        #expect(failed.semanticPreparationState == .failed)
+        #expect(failed.health == .failed(.decoding))
+        #expect(failed.snapshot == lastGood.snapshot)
+        #expect(failed.flightsFrame == lastGood.flightsFrame)
+        #expect(failed.successfulActivationLease == activationLease)
+
+        await runtime.deactivate(lease: activationLease, reporting: .idle)
+    }
+
     private func makeRuntime(
         pollingCoordinator: AircraftPollingCoordinator,
         flightsRuntime: any FlightsLayerRunning,
@@ -392,6 +437,26 @@ private actor ControllableFlightsLayerRuntime: FlightsLayerRunning {
             continuations.forEach { $0.resume() }
         }
     }
+}
+
+private enum FailingSecondFrameError: Error {
+    case frame
+}
+
+private actor FailingSecondFrameFlightsLayerRuntime: FlightsLayerRunning {
+    private var frameCallCount = 0
+
+    func frame(
+        for input: FlightsLayerInput,
+    ) throws -> ProjectionLayerFrame<FlightsLayerKind> {
+        frameCallCount += 1
+        guard frameCallCount == 1 else {
+            throw FailingSecondFrameError.frame
+        }
+        return ProjectionLayerFrame(observedAt: input.snapshot.fetchedAt, marks: [])
+    }
+
+    func reset() {}
 }
 
 private struct ConfigurationEchoAircraftSourceFactory: AircraftSourceProducing {

@@ -6,10 +6,11 @@ struct ThrowSettingsView: View {
     let outputs: ControllerProjectionOutputs
 
     var body: some View {
+        let failures = session.postLaunchFailures(for: .settings)
         List {
-            if let settingsFailure = session.settingsFailure {
+            if failures.isEmpty == false {
                 Section {
-                    SettingsFailureMessage(detail: settingsFailure)
+                    SettingsFailureMessages(failures: failures)
                 }
             }
             Section {

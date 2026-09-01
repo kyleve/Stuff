@@ -18,8 +18,8 @@ struct ThrowOnboardingView: View {
                 .accessibilityLabel(Text(.onboardingProgress))
                 .padding(.horizontal, stylesheet.spacing.large)
 
-            if let settingsFailure = model.settingsFailure {
-                SettingsFailureMessage(detail: settingsFailure)
+            if model.postLaunchFailures.isEmpty == false {
+                SettingsFailureMessages(failures: model.postLaunchFailures)
                     .padding(.horizontal, stylesheet.spacing.large)
             }
 

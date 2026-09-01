@@ -24,8 +24,8 @@ final class LocationSettingsModel {
         session.locationHealth
     }
 
-    var settingsFailure: String? {
-        session.settingsFailure
+    var postLaunchFailures: [ThrowPostLaunchFailure] {
+        session.postLaunchFailures(for: .location)
     }
 
     func refresh() async {

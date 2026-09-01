@@ -289,7 +289,7 @@ extension ThrowSession {
             switch mode {
                 case .gps:
                     guard locationMode == .gps, let acceptedGPSLocation = confirmedLocation else {
-                        settingsFailure = String(localized: .locationGpsFixRequired)
+                        publishPostLaunchFailure(.location(.gpsFixRequired))
                         return false
                     }
                     let position = try ObserverPosition(
@@ -350,7 +350,7 @@ extension ThrowSession {
         } catch is CancellationError {
             return false
         } catch {
-            settingsFailure = error.localizedDescription
+            // Location commit records every non-cancellation operation error.
             return false
         }
     }
@@ -379,13 +379,23 @@ extension ThrowSession {
         } catch is CancellationError {
             return
         } catch {
-            settingsFailure = error.localizedDescription
+            // Location commit records every non-cancellation operation error.
+            return
         }
     }
 
     private func commitObserverLocation(_ replacement: ObserverLocationReplacement) async throws {
-        let preferences = try makePreferences(setupState: replacement.setupState)
-        try await persistPreferencesImmediately(preferences)
+        let preferences: ThrowPreferences
+        do {
+            preferences = try makePreferences(setupState: replacement.setupState)
+        } catch {
+            recordPostLaunchFailure(.location(.persistence), error: error)
+            throw error
+        }
+        try await persistPreferencesImmediately(
+            preferences,
+            failure: .location(.persistence),
+        )
 
         await deactivateAirAndSpace(reporting: .idle)
         activePollingSignature = nil
@@ -403,7 +413,6 @@ extension ThrowSession {
         projectionSessionLocationGate = .ready
         locationHealth = replacement.health
         projectionPlaylist = preferences.playlist
-        settingsFailure = nil
         await configureExperienceCoordinator(with: projectionPlaylist)
         scheduleDemandReconciliation()
     }
