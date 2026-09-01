@@ -115,6 +115,11 @@ enum ReconciledPreferenceRetryInterruption: CaseIterable {
 }
 
 actor ControlledThrowPreferenceStore: ThrowPreferenceStore {
+    private struct SaveCountWaiter {
+        let expectedCount: Int
+        let continuation: CheckedContinuation<Void, Never>
+    }
+
     enum SaveBehavior {
         case suspended
         case failing
@@ -125,9 +130,8 @@ actor ControlledThrowPreferenceStore: ThrowPreferenceStore {
     private let saveBehavior: SaveBehavior
     private var savedPreferences: [ThrowPreferences] = []
     private var saveCount = 0
-    private var saveStartedContinuation: CheckedContinuation<Void, Never>?
+    private var saveCountWaiters: [SaveCountWaiter] = []
     private var saveContinuation: CheckedContinuation<Void, Never>?
-    private var saveHasStarted = false
 
     init(
         initialValue: ThrowPreferences = .defaultValue,
@@ -143,11 +147,9 @@ actor ControlledThrowPreferenceStore: ThrowPreferenceStore {
 
     func save(_ preferences: ThrowPreferences) async throws {
         saveCount += 1
+        resumeSaveCountWaiters()
         switch saveStep(for: saveCount) {
             case .suspendThenSucceed:
-                saveHasStarted = true
-                saveStartedContinuation?.resume()
-                saveStartedContinuation = nil
                 await suspendSave()
                 self.preferences = preferences
                 savedPreferences.append(preferences)
@@ -183,9 +185,16 @@ actor ControlledThrowPreferenceStore: ThrowPreferenceStore {
     }
 
     func waitForSaveToStart() async {
-        guard saveHasStarted == false else { return }
+        await waitForSaveCount(1)
+    }
+
+    func waitForSaveCount(_ expectedCount: Int) async {
+        guard saveCount < expectedCount else { return }
         await withCheckedContinuation { continuation in
-            saveStartedContinuation = continuation
+            saveCountWaiters.append(SaveCountWaiter(
+                expectedCount: expectedCount,
+                continuation: continuation,
+            ))
         }
     }
 
@@ -204,5 +213,11 @@ actor ControlledThrowPreferenceStore: ThrowPreferenceStore {
 
     func saveAttemptCount() -> Int {
         saveCount
+    }
+
+    private func resumeSaveCountWaiters() {
+        let ready = saveCountWaiters.filter { $0.expectedCount <= saveCount }
+        saveCountWaiters.removeAll { $0.expectedCount <= saveCount }
+        ready.forEach { $0.continuation.resume() }
     }
 }

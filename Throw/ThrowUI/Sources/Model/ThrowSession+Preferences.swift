@@ -109,8 +109,8 @@ extension ThrowSession {
     }
 
     func schedulePreferencesSave(failure: ThrowPostLaunchFailure) {
-        guard preferenceMutationInProgress == false else {
-            deferredPreferenceSaveFailures = deferredPreferenceSaveFailures.recording(failure)
+        guard preferencePersistence.isMutationActive == false else {
+            preferencePersistence.recordDeferredFailure(failure)
             return
         }
         let preferences: ThrowPreferences
@@ -120,21 +120,19 @@ extension ThrowSession {
             recordPostLaunchFailure(failure, error: error)
             return
         }
-        if preferenceSaveQueue.last?.isCoalescible == true {
-            let index = preferenceSaveQueue.index(before: preferenceSaveQueue.endIndex)
-            preferenceSaveQueue[index] = preferenceSaveQueue[index].coalescing(
-                preferences,
+        if preferencePersistence.lastRequestIsCoalescible {
+            preferencePersistence.coalesceLastRequest(
+                with: preferences,
                 failure: failure,
             )
         } else {
-            preferenceSaveQueue.append(
+            enqueuePreferenceSave(
                 .coalesced(
                     preferences,
                     failureLedger: ThrowPostLaunchFailureLedger().recording(failure),
                 ),
             )
         }
-        startPreferenceSaveWorkerIfNeeded()
     }
 
     func savePreferencesImmediately() async throws {
@@ -152,31 +150,35 @@ extension ThrowSession {
         failure: ThrowPostLaunchFailure,
     ) async throws {
         try await withCheckedThrowingContinuation { continuation in
-            preferenceSaveQueue.append(
+            enqueuePreferenceSave(
                 .immediate(preferences, failure: failure, continuation),
             )
-            startPreferenceSaveWorkerIfNeeded()
         }
     }
 
-    func flushPreferencesSave() async {
-        while let preferenceSaveTask {
-            await preferenceSaveTask.value
+    /// Waits until no save or preference-backed mutation can enqueue more work.
+    public func flushPreferencesSave() async {
+        guard Task.isCancelled == false else { return }
+        await withCheckedContinuation { continuation in
+            preferencePersistence.waitForQuiescence(continuation)
         }
     }
 
     func beginPreferenceMutation() -> Bool {
-        guard preferenceMutationInProgress == false else { return false }
-        preferenceMutationInProgress = true
-        return true
+        preferencePersistence.beginMutation()
     }
 
     func finishPreferenceMutation() {
-        preferenceMutationInProgress = false
-        let failures = deferredPreferenceSaveFailures.failures
-        deferredPreferenceSaveFailures = ThrowPostLaunchFailureLedger()
+        let failures = preferencePersistence.finishMutation()
         for failure in failures {
             schedulePreferencesSave(failure: failure)
+        }
+        preferencePersistence.resumeQuiescenceWaitersIfNeeded()
+    }
+
+    func waitForPreferenceSaveWorker() async {
+        while let worker = preferencePersistence.worker {
+            await worker.value
         }
     }
 
@@ -283,9 +285,7 @@ extension ThrowSession {
         prepareForPublication: () -> Preparation,
         publish: (Publication) -> Void,
     ) -> ThrowPreferenceMutationOutcome<Preparation> {
-        deferredPreferenceSaveFailures = deferredPreferenceSaveFailures.recording(
-            .preferencePersistence,
-        )
+        preferencePersistence.recordDeferredFailure(.preferencePersistence)
         let preparation = prepareForPublication()
         publishPreferenceSnapshot(ThrowPreferenceSnapshot(candidate.preferences))
         publish(candidate.publication)
@@ -303,8 +303,7 @@ extension ThrowSession {
     }
 
     func resolveDeferredPreferenceFailuresAfterReconciledWrite() {
-        let failures = deferredPreferenceSaveFailures.failures
-        deferredPreferenceSaveFailures = ThrowPostLaunchFailureLedger()
+        let failures = preferencePersistence.takeDeferredFailures()
         for failure in failures {
             resolvePostLaunchFailure(failure.owner)
         }
@@ -317,16 +316,16 @@ extension ThrowSession {
         projectionPlaylist = snapshot.projectionPlaylist
     }
 
-    private func startPreferenceSaveWorkerIfNeeded() {
-        guard preferenceSaveTask == nil else { return }
-        preferenceSaveTask = Task(name: "Throw save preferences") { [self] in
-            await drainPreferenceSaveQueue()
+    private func enqueuePreferenceSave(_ request: PreferenceSaveRequest) {
+        preferencePersistence.enqueue(request) { [self] in
+            Task(name: "Throw save preferences") {
+                await drainPreferenceSaveQueue()
+            }
         }
     }
 
     private func drainPreferenceSaveQueue() async {
-        while preferenceSaveQueue.isEmpty == false {
-            let request = preferenceSaveQueue.removeFirst()
+        while let request = preferencePersistence.takeNextRequest() {
             do {
                 try await preferenceStore.save(request.preferences)
                 for failure in request.failures {
@@ -342,7 +341,8 @@ extension ThrowSession {
                 request.resume(throwing: error)
             }
         }
-        preferenceSaveTask = nil
+        preferencePersistence.workerDidFinish()
+        preferencePersistence.resumeQuiescenceWaitersIfNeeded()
     }
 
     func makePreferences() throws -> ThrowPreferences {
@@ -468,6 +468,251 @@ private enum ThrowPreferenceMutationCommitState<Publication> {
 private struct PersistableThrowPreferenceMutation<Publication> {
     let preferences: ThrowPreferences
     let publication: Publication
+}
+
+/// The complete save and mutation lifecycle for session preferences.
+@MainActor
+struct ThrowPreferencePersistenceState {
+    private enum Activity {
+        case idle
+        case saving(
+            worker: Task<Void, Never>,
+            pending: [PreferenceSaveRequest],
+        )
+        case mutating(deferredFailures: ThrowPostLaunchFailureLedger)
+        case mutatingAndSaving(
+            worker: Task<Void, Never>,
+            pending: [PreferenceSaveRequest],
+            deferredFailures: ThrowPostLaunchFailureLedger,
+        )
+    }
+
+    private var activity = Activity.idle
+    private var quiescenceWaiters: [CheckedContinuation<Void, Never>] = []
+
+    var isMutationActive: Bool {
+        switch activity {
+            case .mutating, .mutatingAndSaving:
+                true
+            case .idle, .saving:
+                false
+        }
+    }
+
+    var worker: Task<Void, Never>? {
+        switch activity {
+            case let .saving(worker, _), let .mutatingAndSaving(worker, _, _):
+                worker
+            case .idle, .mutating:
+                nil
+        }
+    }
+
+    var lastRequestIsCoalescible: Bool {
+        switch activity {
+            case let .saving(_, pending), let .mutatingAndSaving(_, pending, _):
+                pending.last?.isCoalescible == true
+            case .idle, .mutating:
+                false
+        }
+    }
+
+    #if DEBUG
+        var hasPendingImmediateRequest: Bool {
+            switch activity {
+                case let .saving(_, pending), let .mutatingAndSaving(_, pending, _):
+                    pending.contains(where: \.isImmediate)
+                case .idle, .mutating:
+                    false
+            }
+        }
+
+        var quiescenceWaiterCount: Int {
+            quiescenceWaiters.count
+        }
+    #endif
+
+    mutating func beginMutation() -> Bool {
+        switch activity {
+            case .idle:
+                activity = .mutating(deferredFailures: ThrowPostLaunchFailureLedger())
+                return true
+            case let .saving(worker, pending):
+                activity = .mutatingAndSaving(
+                    worker: worker,
+                    pending: pending,
+                    deferredFailures: ThrowPostLaunchFailureLedger(),
+                )
+                return true
+            case .mutating, .mutatingAndSaving:
+                return false
+        }
+    }
+
+    mutating func finishMutation() -> [ThrowPostLaunchFailure] {
+        switch activity {
+            case let .mutating(deferredFailures):
+                activity = .idle
+                return deferredFailures.failures
+            case let .mutatingAndSaving(worker, pending, deferredFailures):
+                activity = .saving(worker: worker, pending: pending)
+                return deferredFailures.failures
+            case .idle, .saving:
+                preconditionFailure("A preference mutation must be active before it finishes")
+        }
+    }
+
+    mutating func recordDeferredFailure(_ failure: ThrowPostLaunchFailure) {
+        switch activity {
+            case let .mutating(deferredFailures):
+                activity = .mutating(
+                    deferredFailures: deferredFailures.recording(failure),
+                )
+            case let .mutatingAndSaving(worker, pending, deferredFailures):
+                activity = .mutatingAndSaving(
+                    worker: worker,
+                    pending: pending,
+                    deferredFailures: deferredFailures.recording(failure),
+                )
+            case .idle, .saving:
+                preconditionFailure("Only a preference mutation can defer a save")
+        }
+    }
+
+    mutating func takeDeferredFailures() -> [ThrowPostLaunchFailure] {
+        switch activity {
+            case let .mutating(deferredFailures):
+                activity = .mutating(deferredFailures: ThrowPostLaunchFailureLedger())
+                return deferredFailures.failures
+            case let .mutatingAndSaving(worker, pending, deferredFailures):
+                activity = .mutatingAndSaving(
+                    worker: worker,
+                    pending: pending,
+                    deferredFailures: ThrowPostLaunchFailureLedger(),
+                )
+                return deferredFailures.failures
+            case .idle, .saving:
+                preconditionFailure("Only a preference mutation has deferred failures")
+        }
+    }
+
+    mutating func enqueue(
+        _ request: PreferenceSaveRequest,
+        makeWorker: () -> Task<Void, Never>,
+    ) {
+        switch activity {
+            case .idle:
+                activity = .saving(worker: makeWorker(), pending: [request])
+            case let .saving(worker, pending):
+                activity = .saving(worker: worker, pending: pending + [request])
+            case let .mutating(deferredFailures):
+                activity = .mutatingAndSaving(
+                    worker: makeWorker(),
+                    pending: [request],
+                    deferredFailures: deferredFailures,
+                )
+            case let .mutatingAndSaving(worker, pending, deferredFailures):
+                activity = .mutatingAndSaving(
+                    worker: worker,
+                    pending: pending + [request],
+                    deferredFailures: deferredFailures,
+                )
+        }
+    }
+
+    mutating func coalesceLastRequest(
+        with preferences: ThrowPreferences,
+        failure: ThrowPostLaunchFailure,
+    ) {
+        switch activity {
+            case let .saving(worker, pending):
+                activity = .saving(
+                    worker: worker,
+                    pending: coalescingLastRequest(
+                        in: pending,
+                        with: preferences,
+                        failure: failure,
+                    ),
+                )
+            case let .mutatingAndSaving(worker, pending, deferredFailures):
+                activity = .mutatingAndSaving(
+                    worker: worker,
+                    pending: coalescingLastRequest(
+                        in: pending,
+                        with: preferences,
+                        failure: failure,
+                    ),
+                    deferredFailures: deferredFailures,
+                )
+            case .idle, .mutating:
+                preconditionFailure("A coalesced save requires a pending request")
+        }
+    }
+
+    mutating func takeNextRequest() -> PreferenceSaveRequest? {
+        switch activity {
+            case let .saving(worker, pending):
+                guard let request = pending.first else { return nil }
+                activity = .saving(worker: worker, pending: Array(pending.dropFirst()))
+                return request
+            case let .mutatingAndSaving(worker, pending, deferredFailures):
+                guard let request = pending.first else { return nil }
+                activity = .mutatingAndSaving(
+                    worker: worker,
+                    pending: Array(pending.dropFirst()),
+                    deferredFailures: deferredFailures,
+                )
+                return request
+            case .idle, .mutating:
+                return nil
+        }
+    }
+
+    mutating func workerDidFinish() {
+        switch activity {
+            case let .saving(_, pending):
+                precondition(pending.isEmpty, "A preference worker must drain its queue")
+                activity = .idle
+            case let .mutatingAndSaving(_, pending, deferredFailures):
+                precondition(pending.isEmpty, "A preference worker must drain its queue")
+                activity = .mutating(deferredFailures: deferredFailures)
+            case .idle, .mutating:
+                preconditionFailure("A preference worker must be active before it finishes")
+        }
+    }
+
+    mutating func waitForQuiescence(_ continuation: CheckedContinuation<Void, Never>) {
+        guard case .idle = activity else {
+            quiescenceWaiters.append(continuation)
+            return
+        }
+        continuation.resume()
+    }
+
+    mutating func resumeQuiescenceWaitersIfNeeded() {
+        guard case .idle = activity else { return }
+        let waiters = quiescenceWaiters
+        quiescenceWaiters.removeAll(keepingCapacity: true)
+        for waiter in waiters {
+            waiter.resume()
+        }
+    }
+
+    private func coalescingLastRequest(
+        in pending: [PreferenceSaveRequest],
+        with preferences: ThrowPreferences,
+        failure: ThrowPostLaunchFailure,
+    ) -> [PreferenceSaveRequest] {
+        guard let last = pending.last, last.isCoalescible else {
+            preconditionFailure("The final preference request must be coalescible")
+        }
+        var result = pending
+        result[result.index(before: result.endIndex)] = last.coalescing(
+            preferences,
+            failure: failure,
+        )
+        return result
+    }
 }
 
 enum PreferenceSaveRequest {

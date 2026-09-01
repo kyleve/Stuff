@@ -117,6 +117,11 @@ session derives and persists the combined snapshot again. The final snapshot
 comparison and publication do not suspend.
 After a source or location mutation commits, a later retry failure cannot reverse it.
 The session publishes newer edits and queues them for another save.
+One exhaustive persistence state owns the active mutation, worker, queued
+requests, deferred failures, and flush waiters. A flush completes only when
+this state is idle. This includes work deferred behind a source or location
+mutation. The app runtime retains the final-background flush under its UIKit
+execution lease.
 Onboarding uses the same aggregates and keeps calibration preview state separate.
 Quiet-wake actions pass a `TemporaryQuietWake` value through the session
 boundary. Unsupported minute counts cannot enter the runtime.

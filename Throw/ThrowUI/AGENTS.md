@@ -83,9 +83,12 @@ Read the root [`AGENTS.md`](../../AGENTS.md) and group
   context before the new observer becomes visible.
 - Keep source and location projections getter-only. Change them through their
   persisted session command, except for DEBUG Testing SPI fixture methods.
-- Put every preference write through the session's owned queue. Coalesce only
-  adjacent UI snapshots, preserve immediate-write barriers, and flush the queue
-  when the final controller scene backgrounds.
+- Keep the preference worker, queued requests, active mutation, deferred
+  failures, and flush waiters in one exhaustive persistence state.
+- Coalesce only adjacent UI snapshots, and preserve immediate-write barriers.
+  A preference flush completes only when the persistence state is idle.
+- Keep final-background task and UIKit execution-lease ownership in the app
+  runtime. ThrowUI reports quiescence and does not start lifecycle tasks.
 - Build immediate source and location commits from the complete typed preference
   snapshot. Re-persist the snapshot after drift. Publish it without another
   suspension.
