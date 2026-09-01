@@ -135,6 +135,9 @@ main actor. Generation checks reject late work.
 Position prediction continues until a later successful poll replaces the
 snapshot. A retryable poll failure starts a 15-second grace period and a
 15-second fade.
+Each polling publication is inactive or active with a coordinator-minted
+token. Each accepted replacement gets a new token. Consumers reject an active
+publication unless its token matches the activation that they accepted.
 The polling clock can finish a wait or report cancellation. It cannot leave a
 dead poll task in a retrying state through another error.
 

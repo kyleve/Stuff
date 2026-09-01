@@ -96,10 +96,81 @@ struct AirAndSpaceRuntimeTests {
         await flightsRuntime.releaseReset(1)
         await supersededActivation.value
 
-        let pollingState = await coordinator.currentState()
-        #expect(pollingState.sourceKind == .readsb)
+        let pollingUpdate = await coordinator.currentUpdate()
+        #expect(pollingUpdate.sourceKind == .readsb)
 
         await runtime.deactivate(lease: lease(2), reporting: .idle)
+    }
+
+    @Test func oldPollCannotSatisfyActivationSuspendedDuringReset() async throws {
+        let date = Date(timeIntervalSince1970: 1_800_100_000)
+        let snapshotGate = ControlledSnapshotGate()
+        let flightsRuntime = ControllableFlightsLayerRuntime(suspendedResetNumbers: [2])
+        let coordinator = AircraftPollingCoordinator(
+            sourceFactory: SuspendedOldSnapshotFactory(gate: snapshotGate, date: date),
+            clock: LongAircraftPollingClock(now: date),
+            logger: DiscardingAircraftPollingLogger(),
+        )
+        let runtime = makeRuntime(
+            pollingCoordinator: coordinator,
+            flightsRuntime: flightsRuntime,
+            date: date,
+        )
+        let query = try query()
+        let oldLease = lease(1)
+        let replacementLease = lease(2)
+        _ = await runtime.stateUpdates()
+
+        await runtime.activate(
+            configuration: .adsbLol,
+            query: query,
+            labelMode: .adaptive,
+            lease: oldLease,
+        )
+        await snapshotGate.waitUntilBlocked()
+
+        let replacement = Task {
+            try await runtime.activate(
+                configuration: localReadsbConfiguration(),
+                query: query,
+                labelMode: .adaptive,
+                lease: replacementLease,
+            )
+        }
+        await flightsRuntime.waitForResetCount(2)
+
+        await snapshotGate.release()
+        try await waitUntil {
+            if case let .active(_, .healthy(snapshot, _)) =
+                await coordinator.currentUpdate()
+            {
+                snapshot.source == .adsbLol
+            } else {
+                false
+            }
+        }
+        let oldUpdate = await coordinator.currentUpdate()
+        try await waitUntil {
+            await runtime.lastObservedPollingUpdateForTesting() == oldUpdate
+        }
+
+        let suspended = await runtime.currentUpdate()
+        #expect(suspended.activationLease == replacementLease)
+        #expect(suspended.successfulActivationLease == nil)
+        #expect(suspended.snapshot == nil)
+        #expect(suspended.activePollingSignature?.configuration.kind == .readsb)
+        #expect(suspended.health == .loading)
+
+        await flightsRuntime.releaseReset(2)
+        try await replacement.value
+        try await waitUntil {
+            await runtime.currentUpdate().successfulActivationLease == replacementLease
+        }
+        let ready = await runtime.currentUpdate()
+        #expect(ready.snapshot?.source == .readsb)
+        #expect(ready.activePollingSignature?.configuration.kind == .readsb)
+
+        await runtime.deactivate(lease: replacementLease, reporting: .idle)
     }
 
     @Test func newerDeactivationTombstonesActivationSuspendedDuringReset() async throws {
@@ -135,7 +206,7 @@ struct AirAndSpaceRuntimeTests {
         #expect(update.activationLease == nil)
         #expect(update.activePollingSignature == nil)
         #expect(update.health == .idle)
-        #expect(await coordinator.currentState() == .idle)
+        #expect(await coordinator.currentUpdate() == .inactive)
     }
 
     @Test func visibleCountRejectsAnOlderActivationGeneration() async throws {
@@ -285,7 +356,7 @@ struct AirAndSpaceRuntimeTests {
         #expect(update.activationLease == replacementLease)
         #expect(update.successfulActivationLease == replacementLease)
         #expect(update.activePollingSignature?.configuration.kind == .readsb)
-        #expect(await coordinator.currentState().sourceKind == .readsb)
+        #expect(await coordinator.currentUpdate().sourceKind == .readsb)
 
         await runtime.deactivate(lease: replacementLease, reporting: .idle)
     }
@@ -420,13 +491,17 @@ private actor ManualDeactivationGate {
     }
 }
 
-extension AircraftPollingState {
+extension AircraftPollingUpdate {
     fileprivate var sourceKind: AircraftSourceKind? {
         switch self {
-            case let .loading(source): source
-            case let .healthy(snapshot, _): snapshot.source
-            case let .retrying(lastGoodSnapshot, _, _, _): lastGoodSnapshot?.source
-            case .idle, .failed, .quiet: nil
+            case .inactive: nil
+            case let .active(_, state):
+                switch state {
+                    case let .loading(source): source
+                    case let .healthy(snapshot, _): snapshot.source
+                    case let .retrying(lastGoodSnapshot, _, _, _): lastGoodSnapshot?.source
+                    case .failed, .quiet: nil
+                }
         }
     }
 }
@@ -477,6 +552,36 @@ private actor ControllableFlightsLayerRuntime: FlightsLayerRunning {
     }
 }
 
+private actor ControlledSnapshotGate {
+    private var isReleased = false
+    private var releaseContinuations: [CheckedContinuation<Void, Never>] = []
+    private var blockedWaiters: [CheckedContinuation<Void, Never>] = []
+
+    func wait() async {
+        guard isReleased == false else { return }
+        let waiters = blockedWaiters
+        blockedWaiters.removeAll()
+        waiters.forEach { $0.resume() }
+        await withCheckedContinuation { continuation in
+            releaseContinuations.append(continuation)
+        }
+    }
+
+    func waitUntilBlocked() async {
+        guard releaseContinuations.isEmpty else { return }
+        await withCheckedContinuation { continuation in
+            blockedWaiters.append(continuation)
+        }
+    }
+
+    func release() {
+        isReleased = true
+        let continuations = releaseContinuations
+        releaseContinuations.removeAll()
+        continuations.forEach { $0.resume() }
+    }
+}
+
 private enum FailingSecondFrameError: Error {
     case frame
 }
@@ -507,6 +612,42 @@ private struct ConfigurationEchoAircraftSourceFactory: AircraftSourceProducing {
             source: ConfigurationEchoAircraftSource(kind: configuration.kind, date: date),
             baseCadence: .seconds(300),
             metadataWarning: nil,
+        )
+    }
+}
+
+private struct SuspendedOldSnapshotFactory: AircraftSourceProducing {
+    let gate: ControlledSnapshotGate
+    let date: Date
+
+    func makeSource(
+        configuration: AircraftSourceConfiguration,
+    ) async throws -> ConfiguredAircraftSource {
+        let source: any AircraftObservationSource = if configuration.kind == .adsbLol {
+            ControlledSnapshotSource(gate: gate, kind: configuration.kind, date: date)
+        } else {
+            ConfigurationEchoAircraftSource(kind: configuration.kind, date: date)
+        }
+        return ConfiguredAircraftSource(
+            source: source,
+            baseCadence: .seconds(300),
+            metadataWarning: nil,
+        )
+    }
+}
+
+private struct ControlledSnapshotSource: AircraftObservationSource {
+    let gate: ControlledSnapshotGate
+    let kind: AircraftSourceKind
+    let date: Date
+
+    func snapshot(for _: AircraftQuery) async throws -> AircraftSnapshot {
+        await gate.wait()
+        return AircraftSnapshot(
+            source: kind,
+            fetchedAt: date,
+            observations: [],
+            decodingDiagnostics: .none,
         )
     }
 }

@@ -22,10 +22,28 @@ public struct SystemAircraftPollingClock: AircraftPollingClock {
     }
 }
 
+/// A capability that identifies one accepted physical polling activation.
+///
+/// Only ``AircraftPollingCoordinator`` can mint production values. Consumers
+/// use the token to reject updates from a superseded polling task.
+public struct AircraftPollingActivationToken: Hashable, Sendable {
+    fileprivate let rawValue: UInt64
+
+    fileprivate init(mintedRawValue: UInt64) {
+        rawValue = mintedRawValue
+    }
+
+    #if DEBUG
+        @_spi(Testing) public init(testingRawValue: UInt64) {
+            rawValue = testingRawValue
+        }
+    #endif
+}
+
+/// The semantic state of an active physical poller.
 public enum AircraftPollingState: Equatable, Sendable, CustomStringConvertible,
     CustomDebugStringConvertible
 {
-    case idle
     case loading(source: AircraftSourceKind)
     case healthy(snapshot: AircraftSnapshot, nextPollAt: Date)
     case retrying(
@@ -41,7 +59,7 @@ public enum AircraftPollingState: Equatable, Sendable, CustomStringConvertible,
         switch self {
             case let .healthy(snapshot, _): snapshot
             case let .retrying(lastGoodSnapshot, _, _, _): lastGoodSnapshot
-            case .idle, .loading, .failed, .quiet: nil
+            case .loading, .failed, .quiet: nil
         }
     }
 
@@ -52,6 +70,13 @@ public enum AircraftPollingState: Equatable, Sendable, CustomStringConvertible,
     public var debugDescription: String {
         description
     }
+}
+
+/// A closed polling publication. Active state always carries the capability
+/// for the physical poller that produced it.
+public enum AircraftPollingUpdate: Equatable, Sendable {
+    case inactive
+    case active(token: AircraftPollingActivationToken, state: AircraftPollingState)
 }
 
 public enum AircraftPollingBackoff {
@@ -73,19 +98,24 @@ public enum AircraftPollingBackoff {
 /// Owns the one structured polling task. Replacements cancel and drain before
 /// a new generation starts, so late provider responses cannot mix frames.
 public actor AircraftPollingCoordinator {
+    private struct ActivePolling {
+        let token: AircraftPollingActivationToken
+        let configuration: AircraftSourceConfiguration
+        let query: AircraftQuery
+    }
+
     private let sourceFactory: any AircraftSourceProducing
     private let clock: any AircraftPollingClock
     private let logger: any AircraftPollingLogging
-    private let updatesStream: AsyncStream<AircraftPollingState>
-    private let continuation: AsyncStream<AircraftPollingState>.Continuation
+    private let updatesStream: AsyncStream<AircraftPollingUpdate>
+    private let continuation: AsyncStream<AircraftPollingUpdate>.Continuation
 
     private var pollTask: Task<Void, Never>?
     private var lifecycleTail: Task<Void, Never>?
     private var lifecycleRequestGeneration: UInt64 = 0
     private var generation: UInt64 = 0
-    private var activeConfiguration: AircraftSourceConfiguration?
-    private var activeQuery: AircraftQuery?
-    private var state: AircraftPollingState = .idle
+    private var activePolling: ActivePolling?
+    private var update = AircraftPollingUpdate.inactive
 
     public init(
         sourceFactory: any AircraftSourceProducing,
@@ -96,7 +126,7 @@ public actor AircraftPollingCoordinator {
         self.clock = clock
         self.logger = logger
         let pair = AsyncStream.makeStream(
-            of: AircraftPollingState.self,
+            of: AircraftPollingUpdate.self,
             bufferingPolicy: .bufferingNewest(1),
         )
         updatesStream = pair.stream
@@ -109,13 +139,13 @@ public actor AircraftPollingCoordinator {
         continuation.finish()
     }
 
-    public func stateUpdates() -> AsyncStream<AircraftPollingState> {
-        continuation.yield(state)
+    public func stateUpdates() -> AsyncStream<AircraftPollingUpdate> {
+        continuation.yield(update)
         return updatesStream
     }
 
-    public func currentState() -> AircraftPollingState {
-        state
+    public func currentUpdate() -> AircraftPollingUpdate {
+        update
     }
 
     #if DEBUG
@@ -128,9 +158,10 @@ public actor AircraftPollingCoordinator {
         configuration: AircraftSourceConfiguration,
         query: AircraftQuery,
         quiet: Bool,
-    ) async {
+    ) async -> AircraftPollingActivationToken? {
         lifecycleRequestGeneration &+= 1
         let requestGeneration = lifecycleRequestGeneration
+        let token = AircraftPollingActivationToken(mintedRawValue: requestGeneration)
         let predecessor = lifecycleTail
         let operation = Task(name: "Throw activate aircraft source") { [weak self] in
             await predecessor?.value
@@ -141,6 +172,7 @@ public actor AircraftPollingCoordinator {
                 configuration: configuration,
                 query: query,
                 quiet: quiet,
+                token: token,
                 lifecycleRequestGeneration: requestGeneration,
             )
         }
@@ -153,11 +185,20 @@ public actor AircraftPollingCoordinator {
                 await self?.scheduleCancellationCleanup(for: requestGeneration)
             }
         }
+        guard Task.isCancelled == false,
+              isCurrentLifecycleRequest(requestGeneration),
+              activePolling?.token == token
+        else { return nil }
+        return token
     }
 
-    public func update(query: AircraftQuery, quiet: Bool) async {
+    public func update(
+        query: AircraftQuery,
+        quiet: Bool,
+    ) async -> AircraftPollingActivationToken? {
         lifecycleRequestGeneration &+= 1
         let requestGeneration = lifecycleRequestGeneration
+        let token = AircraftPollingActivationToken(mintedRawValue: requestGeneration)
         let predecessor = lifecycleTail
         let operation = Task(name: "Throw update aircraft query") { [weak self] in
             await predecessor?.value
@@ -167,6 +208,7 @@ public actor AircraftPollingCoordinator {
             await performUpdate(
                 query: query,
                 quiet: quiet,
+                token: token,
                 lifecycleRequestGeneration: requestGeneration,
             )
         }
@@ -179,6 +221,11 @@ public actor AircraftPollingCoordinator {
                 await self?.scheduleCancellationCleanup(for: requestGeneration)
             }
         }
+        guard Task.isCancelled == false,
+              isCurrentLifecycleRequest(requestGeneration),
+              activePolling?.token == token
+        else { return nil }
+        return token
     }
 
     public func deactivate() async {
@@ -221,25 +268,26 @@ public actor AircraftPollingCoordinator {
     private func performUpdate(
         query: AircraftQuery,
         quiet: Bool,
+        token: AircraftPollingActivationToken,
         lifecycleRequestGeneration: UInt64,
     ) async {
-        guard let activeConfiguration else {
-            activeQuery = query
-            publish(.idle)
+        guard let activePolling else {
+            publish(.inactive)
             return
         }
         await replace(
-            configuration: activeConfiguration,
+            configuration: activePolling.configuration,
             query: query,
             quiet: quiet,
+            token: token,
             lifecycleRequestGeneration: lifecycleRequestGeneration,
         )
     }
 
     private func performDeactivate(lifecycleRequestGeneration: UInt64) async {
         generation &+= 1
-        activeConfiguration = nil
-        activeQuery = nil
+        activePolling = nil
+        publish(.inactive)
         let oldTask = pollTask
         pollTask = nil
         oldTask?.cancel()
@@ -247,17 +295,20 @@ public actor AircraftPollingCoordinator {
         guard Task.isCancelled == false,
               isCurrentLifecycleRequest(lifecycleRequestGeneration)
         else { return }
-        publish(.idle)
+        publish(.inactive)
     }
 
     private func replace(
         configuration: AircraftSourceConfiguration,
         query: AircraftQuery,
         quiet: Bool,
+        token: AircraftPollingActivationToken,
         lifecycleRequestGeneration: UInt64,
     ) async {
         generation &+= 1
         let replacementGeneration = generation
+        activePolling = nil
+        publish(.inactive)
         let oldTask = pollTask
         pollTask = nil
         oldTask?.cancel()
@@ -267,24 +318,27 @@ public actor AircraftPollingCoordinator {
               isCurrentLifecycleRequest(lifecycleRequestGeneration)
         else {
             if isCurrentLifecycleRequest(lifecycleRequestGeneration) {
-                activeConfiguration = nil
-                activeQuery = nil
-                publish(.idle)
+                activePolling = nil
+                publish(.inactive)
             }
             return
         }
 
-        activeConfiguration = configuration
-        activeQuery = query
+        activePolling = ActivePolling(
+            token: token,
+            configuration: configuration,
+            query: query,
+        )
         guard quiet == false else {
-            publish(.quiet)
+            publish(.quiet, token: token)
             return
         }
-        publish(.loading(source: configuration.kind))
+        publish(.loading(source: configuration.kind), token: token)
         pollTask = Task(name: "Throw aircraft polling") { [weak self] in
             await self?.run(
                 configuration: configuration,
                 query: query,
+                token: token,
                 generation: replacementGeneration,
             )
         }
@@ -297,6 +351,7 @@ public actor AircraftPollingCoordinator {
     private func run(
         configuration: AircraftSourceConfiguration,
         query: AircraftQuery,
+        token: AircraftPollingActivationToken,
         generation runGeneration: UInt64,
     ) async {
         var requestCount = 0
@@ -328,7 +383,7 @@ public actor AircraftPollingCoordinator {
                 startedAt: factoryStartedAt,
                 completedAt: completedAt,
             )
-            publish(.failed(failure))
+            publish(.failed(failure), token: token)
             return
         } catch {
             let completedAt = await clock.now()
@@ -340,7 +395,7 @@ public actor AircraftPollingCoordinator {
                 startedAt: factoryStartedAt,
                 completedAt: completedAt,
             )
-            publish(.failed(failure))
+            publish(.failed(failure), token: token)
             return
         }
         guard generation == runGeneration, Task.isCancelled == false else { return }
@@ -377,7 +432,10 @@ public actor AircraftPollingCoordinator {
                 let nextPollAt = completedAt.addingTimeInterval(
                     configuredSource.baseCadence.secondsValue,
                 )
-                publish(.healthy(snapshot: snapshot, nextPollAt: nextPollAt))
+                publish(
+                    .healthy(snapshot: snapshot, nextPollAt: nextPollAt),
+                    token: token,
+                )
                 logger.record(
                     AircraftPollingLogEvent.requestSucceeded(
                         AircraftPollingLogEvent.RequestSuccess(
@@ -430,7 +488,7 @@ public actor AircraftPollingCoordinator {
                     ),
                 )
                 guard failure.isRetryable else {
-                    publish(.failed(failure))
+                    publish(.failed(failure), token: token)
                     return
                 }
                 let delay = AircraftPollingBackoff.delay(
@@ -446,6 +504,7 @@ public actor AircraftPollingCoordinator {
                         failureStartedAt: startedAt,
                         nextRetryAt: retryAt,
                     ),
+                    token: token,
                 )
                 logger.record(
                     AircraftPollingLogEvent.retryScheduled(
@@ -498,6 +557,7 @@ public actor AircraftPollingCoordinator {
                         failureStartedAt: startedAt,
                         nextRetryAt: completedAt.addingTimeInterval(delay.secondsValue),
                     ),
+                    token: token,
                 )
                 logger.record(
                     AircraftPollingLogEvent.retryScheduled(
@@ -520,10 +580,18 @@ public actor AircraftPollingCoordinator {
         }
     }
 
-    private func publish(_ newState: AircraftPollingState) {
-        guard state != newState else { return }
-        state = newState
-        continuation.yield(newState)
+    private func publish(
+        _ state: AircraftPollingState,
+        token: AircraftPollingActivationToken,
+    ) {
+        guard activePolling?.token == token else { return }
+        publish(.active(token: token, state: state))
+    }
+
+    private func publish(_ newUpdate: AircraftPollingUpdate) {
+        guard update != newUpdate else { return }
+        update = newUpdate
+        continuation.yield(newUpdate)
     }
 
     private func recordFactoryFailure(
