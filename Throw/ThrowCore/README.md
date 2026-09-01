@@ -43,6 +43,8 @@ the reported credits per request, the selected cadence, quiet hours, and the
 current region's request multiplicity.
 Source configuration carries no credential value or credential ID. Each paid
 provider selects its fixed Keychain slot through `AircraftCredentialID`.
+`AircraftSourceValidationDraft` is the temporary setup boundary. Only its paid
+provider cases can carry a replacement credential and derive a Keychain ID.
 An FR24 bounds query that crosses the antimeridian uses two valid hemisphere
 requests. Both must succeed before Throw publishes the merged snapshot.
 Duplicate aircraft keep the freshest observation and its matching route.

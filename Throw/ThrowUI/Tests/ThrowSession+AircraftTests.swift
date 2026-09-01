@@ -65,15 +65,12 @@ struct ThrowSessionAircraftTests {
             query: query,
         )
         let replacement = try AircraftCredential(secret: "fr24-replacement-1234")
-        let configuration = AircraftSourceConfiguration.flightradar24(
-            Flightradar24Configuration(
-                pollingInterval: .defaultValue,
-            ),
-        )
 
         let applied = await session.useSource(ValidatedAircraftSourceDraft(
-            configuration: configuration,
-            replacementCredential: replacement,
+            source: .flightradar24(
+                Flightradar24Configuration(pollingInterval: .defaultValue),
+                replacementCredential: replacement,
+            ),
         ))
 
         #expect(applied == false)

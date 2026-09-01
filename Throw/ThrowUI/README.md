@@ -54,6 +54,8 @@ clock read. Pause has no effect without projection demand.
 Connection tests and provider usage reports go through the injected
 `AircraftSourceOperationServing` boundary. ThrowUI does not construct or
 downcast concrete provider sources.
+Each tested source candidate retains its closed Core validation draft. A local
+source cannot carry a replacement credential into the apply transaction.
 
 Views render session state and send intents back to it. They never access
 UserDefaults, Keychain, location, or the network. `ProjectionSurface` is the

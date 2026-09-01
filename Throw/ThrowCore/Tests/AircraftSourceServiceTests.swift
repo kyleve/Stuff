@@ -11,23 +11,48 @@ struct AircraftSourceServiceTests {
         )])
         let credentialStore = MemoryAircraftCredentialStore(credentials: [:])
         let service = service(transport: transport, credentialStore: credentialStore)
-        let configuration = AircraftSourceConfiguration.adsbExchangeRapidAPI(
-            ADSBExchangeConfiguration(
-                pollingInterval: .defaultValue,
+        let configuration = ADSBExchangeConfiguration(
+            pollingInterval: .defaultValue,
+        )
+        let request = try AircraftSourceValidationRequest(
+            draft: .adsbExchangeRapidAPI(
+                configuration,
+                replacementCredential: AircraftCredential(secret: "replacement-secret"),
             ),
+            query: ThrowCoreFixture.mapQuery(radius: 5),
         )
 
         let snapshot = try await service.testConnection(
-            configuration: configuration,
-            query: ThrowCoreFixture.mapQuery(radius: 5),
-            replacementCredential: AircraftCredential(secret: "replacement-secret"),
+            request: request,
         )
 
         #expect(snapshot.observations.isEmpty)
         #expect(try await credentialStore.credential(for: .rapidAPI) == nil)
-        let request = try #require(await transport.recordedRequests().first)
-        #expect(request.url.path().hasSuffix("/dist/5/"))
-        #expect(request.headers[.rapidAPIKey] == "replacement-secret")
+        let recordedRequest = try #require(await transport.recordedRequests().first)
+        #expect(recordedRequest.url.path().hasSuffix("/dist/5/"))
+        #expect(recordedRequest.headers[.rapidAPIKey] == "replacement-secret")
+    }
+
+    @Test func credentialFreeSourceUsesARequestWithoutCredentialState() async throws {
+        let transport = ScriptedHTTPTransport(outcomes: [.response(
+            ThrowCoreFixture.response(
+                data: Data(#"{"ac":[],"now":1700000000,"total":0}"#.utf8),
+            ),
+        )])
+        let service = service(
+            transport: transport,
+            credentialStore: MemoryAircraftCredentialStore(credentials: [:]),
+        )
+
+        let snapshot = try await service.testConnection(
+            request: AircraftSourceValidationRequest(
+                draft: .adsbLol,
+                query: ThrowCoreFixture.mapQuery(radius: 5),
+            ),
+        )
+
+        #expect(snapshot.observations.isEmpty)
+        #expect(await transport.recordedRequests().count == 1)
     }
 
     @Test func usageUsesTheStoredFlightradar24Credential() async throws {
@@ -51,23 +76,6 @@ struct AircraftSourceServiceTests {
         let request = try #require(await transport.recordedRequests().first)
         #expect(request.url.path() == "/api/usage")
         #expect(request.headers[.authorization] == "Bearer stored-token")
-    }
-
-    @Test func credentialFreeSourceRejectsAReplacementCredential() async throws {
-        let transport = ScriptedHTTPTransport(outcomes: [])
-        let service = service(
-            transport: transport,
-            credentialStore: MemoryAircraftCredentialStore(credentials: [:]),
-        )
-
-        await #expect(throws: AircraftSourceFailure.invalidConfiguration) {
-            try await service.testConnection(
-                configuration: .adsbLol,
-                query: ThrowCoreFixture.mapQuery(radius: 5),
-                replacementCredential: AircraftCredential(secret: "unexpected-secret"),
-            )
-        }
-        #expect(await transport.recordedRequests().isEmpty)
     }
 
     private func service(

@@ -29,6 +29,8 @@ location, and scheduling; see [`README.md`](README.md). Read the root
   parallel selected and validated source properties.
 - Derive provider credential IDs from the source kind. Never accept an
   arbitrary credential ID in a provider configuration.
+- Build connection tests with `AircraftSourceValidationDraft`. Credential-free
+  cases carry no replacement-credential field.
 - Keep consecutive motion state inside the Flights runtime actor. Clear it when
   the selected source changes, and never persist it.
 - Represent horizontal motion as `AircraftHorizontalMotion`. Available motion
