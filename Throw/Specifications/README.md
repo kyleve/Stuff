@@ -9,5 +9,8 @@ Run one concern from the repository root:
 ./tla-check PreferenceTransactions
 ```
 
+[`PollingPublication`](PollingPublication/README.md) checks token-bound, ordered polling updates
+across replacement, recovery, frame construction, and deactivation.
+
 Use [`Where/Specifications/README.md`](../../Where/Specifications/README.md) for the shared
 authoring and checker rules.
