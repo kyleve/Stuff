@@ -13,8 +13,8 @@ extension FlightsLayerRuntime: FlightsLayerRunning {}
 
 /// One immutable snapshot of the Air & Space runtime's actor-isolated state.
 struct AirAndSpaceRuntimeUpdate {
-    let activationGeneration: UInt64
-    let successfulActivationGeneration: UInt64?
+    let activationLease: ProjectionActivationLease?
+    let successfulActivationLease: ProjectionActivationLease?
     let health: FeedHealth
     let flightsFrame: ProjectionLayerFrame<FlightsLayerKind>?
     let snapshot: AircraftSnapshot?
@@ -47,8 +47,9 @@ actor AirAndSpaceRuntime {
     private var observationTask: Task<Void, Never>?
     private var routeTask: Task<Void, Never>?
     private var activePollingSignature: PollingSignature?
-    private var activationGeneration: UInt64 = 0
-    private var successfulActivationGeneration: UInt64?
+    private var activeLease: ProjectionActivationLease?
+    private var latestLeaseGeneration: ProjectionActivationLease.Generation?
+    private var successfulActivationLease: ProjectionActivationLease?
     private var lifecycleGeneration: UInt64 = 0
     private var stateGeneration: UInt64 = 0
     private var routeGeneration: UInt64 = 0
@@ -99,11 +100,16 @@ actor AirAndSpaceRuntime {
         configuration: AircraftSourceConfiguration,
         query: AircraftQuery,
         labelMode: FlightLabelMode,
-        activationGeneration: UInt64,
+        lease: ProjectionActivationLease,
     ) async {
+        guard lease.experienceID == .airAndSpace else {
+            assertionFailure("Air & Space received another experience's activation lease")
+            return
+        }
+        guard latestLeaseGeneration.map({ lease.generation >= $0 }) ?? true else { return }
         startObservingIfNeeded()
         let signature = PollingSignature(configuration: configuration, query: query)
-        let activationChanged = self.activationGeneration != activationGeneration
+        let activationChanged = activeLease != lease
         let sourceChanged = activePollingSignature?.configuration != configuration
         let queryChanged = activePollingSignature?.query != query
         let labelsChanged = self.labelMode != labelMode
@@ -113,8 +119,9 @@ actor AirAndSpaceRuntime {
             lifecycleGeneration &+= 1
             let lifecycleGeneration = lifecycleGeneration
             stateGeneration &+= 1
-            self.activationGeneration = activationGeneration
-            successfulActivationGeneration = nil
+            activeLease = lease
+            latestLeaseGeneration = lease.generation
+            successfulActivationLease = nil
             activePollingSignature = signature
             cancelRouteEnrichment()
             currentSnapshot = nil
@@ -139,7 +146,11 @@ actor AirAndSpaceRuntime {
         }
     }
 
-    func deactivate(reporting health: FeedHealth) async {
+    func deactivate(
+        lease: ProjectionActivationLease,
+        reporting health: FeedHealth,
+    ) async {
+        guard activeLease == lease else { return }
         guard activePollingSignature != nil || currentSnapshot != nil || self.health != health
         else {
             return
@@ -147,8 +158,8 @@ actor AirAndSpaceRuntime {
         lifecycleGeneration &+= 1
         let lifecycleGeneration = lifecycleGeneration
         stateGeneration &+= 1
-        activationGeneration &+= 1
-        successfulActivationGeneration = nil
+        activeLease = nil
+        successfulActivationLease = nil
         activePollingSignature = nil
         inactiveHealth = health
         cancelRouteEnrichment()
@@ -169,8 +180,8 @@ actor AirAndSpaceRuntime {
         await rebuildCurrentLayerFrame()
     }
 
-    func updateVisibleContentCount(_ count: Int, activationGeneration: UInt64) {
-        guard activationGeneration == self.activationGeneration else { return }
+    func updateVisibleContentCount(_ count: Int, lease: ProjectionActivationLease) {
+        guard activeLease == lease else { return }
         switch health {
             case let .healthy(lastUpdate, oldCount) where oldCount != count:
                 health = .healthy(lastUpdate: lastUpdate, visibleContentCount: count)
@@ -224,7 +235,7 @@ actor AirAndSpaceRuntime {
                     let layer = try await makeLayerFrame(snapshot)
                     guard generation == stateGeneration else { return }
                     currentLayerFrame = layer
-                    successfulActivationGeneration = activationGeneration
+                    successfulActivationLease = activeLease
                     health = .healthy(
                         lastUpdate: snapshot.fetchedAt,
                         visibleContentCount: health.visibleContentCount,
@@ -413,8 +424,8 @@ actor AirAndSpaceRuntime {
 
     private func updateValue() -> AirAndSpaceRuntimeUpdate {
         AirAndSpaceRuntimeUpdate(
-            activationGeneration: activationGeneration,
-            successfulActivationGeneration: successfulActivationGeneration,
+            activationLease: activeLease,
+            successfulActivationLease: successfulActivationLease,
             health: health,
             flightsFrame: currentLayerFrame,
             snapshot: currentSnapshot,

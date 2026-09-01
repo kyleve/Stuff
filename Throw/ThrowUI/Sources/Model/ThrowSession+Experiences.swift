@@ -102,26 +102,34 @@ extension ThrowSession {
         _ action: ProjectionExperienceCoordinatorAction,
     ) async {
         switch action {
-            case let .activate(id, generation, _):
-                preparedOutputsByExperience.removeValue(forKey: id)
+            case let .activate(lease, _):
+                let id = lease.experienceID
                 if id == .airAndSpace {
-                    airAndSpaceActivationGeneration = generation
+                    guard airAndSpaceActivation.activate(lease) else { return }
+                    preparedOutputsByExperience.removeValue(forKey: id)
                     if isReconcilingDemand == false {
                         scheduleDemandReconciliation()
                     }
                 } else {
                     assertionFailure("An unavailable experience must not be activated")
                 }
-            case let .deactivate(id):
-                preparedOutputsByExperience.removeValue(forKey: id)
+            case let .deactivate(lease):
+                let id = lease.experienceID
+                if id == .airAndSpace {
+                    guard airAndSpaceActivation.deactivate(lease) else { return }
+                }
+                if preparedOutputsByExperience[id]?.activationLease == lease {
+                    preparedOutputsByExperience.removeValue(forKey: id)
+                }
                 await projectionWorker.experienceBecameInactive(id, at: dateProvider.now())
                 if id == .airAndSpace {
                     await airAndSpaceRuntime.deactivate(
+                        lease: lease,
                         reporting: isQuietNow ? .quiet : .idle,
                     )
                 }
-            case let .beginTransition(from, to, generation):
-                await transitionExperience(from: from, to: to, generation: generation)
+            case let .beginTransition(from, to):
+                await transitionExperience(from: from, to: to)
         }
     }
 
@@ -134,8 +142,8 @@ extension ThrowSession {
                 isCalibrating: isCalibrating,
             ),
         )
-        if let generation = await experienceCoordinator.activationGeneration(for: .airAndSpace) {
-            airAndSpaceActivationGeneration = generation
+        if let lease = await experienceCoordinator.activationLease(for: .airAndSpace) {
+            _ = airAndSpaceActivation.activate(lease)
         }
     }
 
@@ -201,12 +209,12 @@ extension ThrowSession {
 
     private func transitionExperience(
         from: ProjectionExperienceID,
-        to: ProjectionExperienceID,
-        generation: UInt64,
+        to lease: ProjectionActivationLease,
     ) async {
+        let to = lease.experienceID
         guard from != to else {
-            if await experienceCoordinator.commitTransition(to: to, generation: generation) {
-                await experienceCoordinator.completeTransition(to: to, generation: generation)
+            if await experienceCoordinator.commitTransition(to: lease) {
+                await experienceCoordinator.completeTransition(to: lease)
             }
             return
         }
@@ -222,19 +230,17 @@ extension ThrowSession {
         }
 
         guard let prepared = preparedOutputsByExperience[to],
-              prepared.experienceID == to,
-              prepared.activationGeneration == generation
+              prepared.activationLease == lease
         else {
             assertionFailure("A projection experience became visible before it was prepared")
             await experienceCoordinator.rejectPreparedTransition(
-                id: to,
-                generation: generation,
+                lease: lease,
                 failure: .decoding,
             )
             projectionSurfaceOpacity = 1
             return
         }
-        guard await experienceCoordinator.commitTransition(to: to, generation: generation) else {
+        guard await experienceCoordinator.commitTransition(to: lease) else {
             withAnimation(.linear(duration: fadeDuration)) {
                 projectionSurfaceOpacity = 1
             }
@@ -250,7 +256,7 @@ extension ThrowSession {
         currentExperienceFrame = semanticFrame
         currentLayerFrame = semanticFrame.layers.first { $0.layerID == .flights }
         feedHealth = experienceHealth[to] ?? .idle
-        if preparedOutputsByExperience[to]?.activationGeneration == generation {
+        if preparedOutputsByExperience[to]?.activationLease == lease {
             preparedOutputsByExperience.removeValue(forKey: to)
         }
         withAnimation(.linear(duration: fadeDuration)) {
@@ -262,7 +268,7 @@ extension ThrowSession {
             projectionSurfaceOpacity = 1
             return
         }
-        await experienceCoordinator.completeTransition(to: to, generation: generation)
+        await experienceCoordinator.completeTransition(to: lease)
         restartRenderer()
     }
 }

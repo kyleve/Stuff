@@ -287,7 +287,9 @@ public final class ThrowSession {
     @ObservationIgnored var playlistConfigurationTask: Task<Void, Never>?
     @ObservationIgnored var playlistConfigurationRevision =
         ProjectionPlaylistConfiguration.Revision.initial
-    @ObservationIgnored var airAndSpaceActivationGeneration: UInt64 = 0
+    @ObservationIgnored var airAndSpaceActivation = ProjectionActivationLeaseTracker(
+        experienceID: .airAndSpace,
+    )
     @ObservationIgnored var demandTask: Task<Void, Never>?
     @ObservationIgnored var isReconcilingDemand = false
     @ObservationIgnored var renderTask: Task<Void, Never>?

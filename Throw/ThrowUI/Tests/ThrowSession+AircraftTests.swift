@@ -10,13 +10,23 @@ struct ThrowSessionAircraftTests {
             configuration: .adsbLol,
             query: session.aircraftQuery(),
         )
-        session.airAndSpaceActivationGeneration = 2
+        let currentLease = ProjectionActivationLease(
+            experienceID: .airAndSpace,
+            generation: .init(rawValue: 2),
+        )
+        _ = session.airAndSpaceActivation.activate(currentLease)
         session.activePollingSignature = signature
         let previousHealth = session.feedHealth
 
         await session.applyAirAndSpaceUpdate(AirAndSpaceRuntimeUpdate(
-            activationGeneration: 1,
-            successfulActivationGeneration: 1,
+            activationLease: ProjectionActivationLease(
+                experienceID: .airAndSpace,
+                generation: .init(rawValue: 1),
+            ),
+            successfulActivationLease: ProjectionActivationLease(
+                experienceID: .airAndSpace,
+                generation: .init(rawValue: 1),
+            ),
             health: .healthy(
                 lastUpdate: session.dateProvider.now(),
                 visibleContentCount: 99,
@@ -39,11 +49,16 @@ struct ThrowSessionAircraftTests {
         )
         let previousHealth = session.feedHealth
         let query = try session.aircraftQuery()
+        let activationLease = ProjectionActivationLease(
+            experienceID: .airAndSpace,
+            generation: .init(rawValue: 1),
+        )
+        _ = session.airAndSpaceActivation.activate(activationLease)
         await session.airAndSpaceRuntime.activate(
             configuration: .adsbLol,
             query: query,
             labelMode: session.labelMode,
-            activationGeneration: 1,
+            lease: activationLease,
         )
         session.activePollingSignature = try PollingSignature(
             configuration: .adsbLol,
@@ -68,7 +83,7 @@ struct ThrowSessionAircraftTests {
         #expect(session.flightradar24CredentialState == .missing)
         #expect(await credentialStore.credential(for: .flightradar24) == nil)
         #expect(await session.airAndSpaceRuntime.activeSourceKindForTesting() == .adsbLol)
-        await session.airAndSpaceRuntime.deactivate(reporting: .idle)
+        await session.airAndSpaceRuntime.deactivate(lease: activationLease, reporting: .idle)
     }
 
     @Test func failedCredentialDeletionKeepsTheActiveSourceRunning() async throws {

@@ -74,15 +74,14 @@ struct ProjectionExperienceCoordinatorTests {
 
         let updateTask = Task {
             await coordinator.reportRuntimeUpdate(
-                id: active.id,
-                generation: active.generation,
-                successfulGeneration: active.generation,
+                lease: active.lease,
+                successfulLease: active.lease,
                 health: .healthy(lastUpdate: start, visibleContentCount: 0),
             )
         }
         await clock.waitForNowCallToSuspend()
         await coordinator.reconcile(demand: disconnectedDemand)
-        #expect(try #require(await actions.next()) == .deactivate(id: .airAndSpace))
+        #expect(try #require(await actions.next()) == .deactivate(lease: active.lease))
         await clock.resumeSuspendedNowCall()
         await updateTask.value
 
@@ -130,17 +129,16 @@ struct ProjectionExperienceCoordinatorTests {
         #expect(
             transition == .beginTransition(
                 from: .airAndSpace,
-                to: .transit,
-                generation: prewarm.generation,
+                to: prewarm.lease,
             ),
         )
         #expect(await (coordinator.currentState()).activeExperienceID == .airAndSpace)
 
-        #expect(await coordinator.commitTransition(to: .transit, generation: prewarm.generation))
-        #expect(try #require(await actions.next()) == .deactivate(id: .airAndSpace))
+        #expect(await coordinator.commitTransition(to: prewarm.lease))
+        #expect(try #require(await actions.next()) == .deactivate(lease: active.lease))
         #expect(await (coordinator.currentState()).activeExperienceID == .transit)
         #expect(await (coordinator.currentState()).dwellEndsAt == nil)
-        await coordinator.completeTransition(to: .transit, generation: prewarm.generation)
+        await coordinator.completeTransition(to: prewarm.lease)
         #expect(await (coordinator.currentState()).dwellEndsAt != nil)
     }
 
@@ -165,8 +163,7 @@ struct ProjectionExperienceCoordinatorTests {
         #expect(
             try #require(await actions.next()) == .beginTransition(
                 from: .airAndSpace,
-                to: .transit,
-                generation: target.generation,
+                to: target.lease,
             ),
         )
     }
@@ -185,22 +182,17 @@ struct ProjectionExperienceCoordinatorTests {
         let target = try activation(#require(await actions.next()))
 
         await coordinator.reportRuntimeUpdate(
-            id: target.id,
-            generation: target.generation,
-            successfulGeneration: target.generation,
+            lease: target.lease,
+            successfulLease: target.lease,
             health: .healthy(lastUpdate: start, visibleContentCount: 0),
         )
 
         #expect(await (coordinator.currentState()).requestedExperienceID == .transit)
-        #expect(await coordinator.reportRuntimePrepared(
-            id: target.id,
-            generation: target.generation,
-        ))
+        #expect(await coordinator.reportRuntimePrepared(target.lease))
         #expect(
             try #require(await actions.next()) == .beginTransition(
                 from: .airAndSpace,
-                to: .transit,
-                generation: target.generation,
+                to: target.lease,
             ),
         )
     }
@@ -218,23 +210,19 @@ struct ProjectionExperienceCoordinatorTests {
         await coordinator.select(.transit)
         let target = try activation(#require(await actions.next()))
         await coordinator.reportRuntimeUpdate(
-            id: target.id,
-            generation: target.generation,
-            successfulGeneration: target.generation,
+            lease: target.lease,
+            successfulLease: target.lease,
             health: .healthy(lastUpdate: start, visibleContentCount: 0),
         )
         await clock.suspendNextNowCall()
 
         let preparationTask = Task {
-            await coordinator.reportRuntimePrepared(
-                id: target.id,
-                generation: target.generation,
-            )
+            await coordinator.reportRuntimePrepared(target.lease)
         }
         await clock.waitForNowCallToSuspend()
         await coordinator.reconcile(demand: disconnectedDemand)
-        #expect(try #require(await actions.next()) == .deactivate(id: .transit))
-        #expect(try #require(await actions.next()) == .deactivate(id: .airAndSpace))
+        #expect(try #require(await actions.next()) == .deactivate(lease: target.lease))
+        #expect(try #require(await actions.next()) == .deactivate(lease: active.lease))
         await clock.resumeSuspendedNowCall()
 
         #expect(await preparationTask.value == false)
@@ -253,13 +241,13 @@ struct ProjectionExperienceCoordinatorTests {
         await reportSuccess(coordinator, id: active.id, generation: active.generation)
         await clock.waitForSleeperCount(1)
         await clock.advance(by: 105)
-        _ = try activation(#require(await actions.next()))
+        let target = try activation(#require(await actions.next()))
         await clock.waitForSleeperCount(2)
         await clock.advance(by: 15)
         await clock.waitForSleeperCount(1)
         await clock.advance(by: 30)
 
-        #expect(try #require(await actions.next()) == .deactivate(id: .transit))
+        #expect(try #require(await actions.next()) == .deactivate(lease: target.lease))
         await clock.waitForSleeperCount(1)
         let state = await coordinator.currentState()
         #expect(state.activeExperienceID == .airAndSpace)
@@ -281,12 +269,11 @@ struct ProjectionExperienceCoordinatorTests {
         await coordinator.select(.transit)
         let target = try activation(#require(await actions.next()))
         await coordinator.reportRuntimeUpdate(
-            id: target.id,
-            generation: target.generation,
-            successfulGeneration: nil,
+            lease: target.lease,
+            successfulLease: nil,
             health: .failed(.sourceNotValidated),
         )
-        #expect(try #require(await actions.next()) == .deactivate(id: .transit))
+        #expect(try #require(await actions.next()) == .deactivate(lease: target.lease))
         let failed = await coordinator.currentState()
         #expect(failed.activeExperienceID == .airAndSpace)
         #expect(failed.manualSelectionFailure == .sourceNotValidated)
@@ -307,8 +294,7 @@ struct ProjectionExperienceCoordinatorTests {
         #expect(
             try #require(await actions.next()) == .beginTransition(
                 from: .airAndSpace,
-                to: .transit,
-                generation: replacement.generation,
+                to: replacement.lease,
             ),
         )
     }
@@ -329,16 +315,15 @@ struct ProjectionExperienceCoordinatorTests {
         await clock.suspendNextNowCall()
         let failureTask = Task {
             await coordinator.reportRuntimeUpdate(
-                id: staleTarget.id,
-                generation: staleTarget.generation,
-                successfulGeneration: nil,
+                lease: staleTarget.lease,
+                successfulLease: nil,
                 health: .failed(.transport),
             )
         }
         await clock.waitForNowCallToSuspend()
 
         await coordinator.select(.transit)
-        #expect(try #require(await actions.next()) == .deactivate(id: .transit))
+        #expect(try #require(await actions.next()) == .deactivate(lease: staleTarget.lease))
         let replacement = try activation(#require(await actions.next()))
         #expect(replacement.generation > staleTarget.generation)
         await clock.resumeSuspendedNowCall()
@@ -356,8 +341,7 @@ struct ProjectionExperienceCoordinatorTests {
         #expect(
             try #require(await actions.next()) == .beginTransition(
                 from: .airAndSpace,
-                to: .transit,
-                generation: replacement.generation,
+                to: replacement.lease,
             ),
         )
     }
@@ -374,11 +358,11 @@ struct ProjectionExperienceCoordinatorTests {
         await reportSuccess(coordinator, id: active.id, generation: active.generation)
 
         await coordinator.select(.transit)
-        _ = try activation(#require(await actions.next()))
+        let target = try activation(#require(await actions.next()))
         await clock.waitForSleeperCount(1)
         await clock.advance(by: 30)
 
-        #expect(try #require(await actions.next()) == .deactivate(id: .transit))
+        #expect(try #require(await actions.next()) == .deactivate(lease: target.lease))
         let state = await coordinator.currentState()
         #expect(state.activeExperienceID == .airAndSpace)
         #expect(state.requestedExperienceID == nil)
@@ -398,10 +382,10 @@ struct ProjectionExperienceCoordinatorTests {
         await reportSuccess(coordinator, id: active.id, generation: active.generation)
         await clock.waitForSleeperCount(1)
         await clock.advance(by: 105)
-        _ = try activation(#require(await actions.next()))
+        let target = try activation(#require(await actions.next()))
 
         await coordinator.pause()
-        #expect(try #require(await actions.next()) == .deactivate(id: .transit))
+        #expect(try #require(await actions.next()) == .deactivate(lease: target.lease))
         #expect(await (coordinator.currentState()).isPaused)
         #expect(await (coordinator.currentState()).dwellEndsAt == nil)
 
@@ -415,7 +399,7 @@ struct ProjectionExperienceCoordinatorTests {
                 isCalibrating: false,
             ),
         )
-        #expect(try #require(await actions.next()) == .deactivate(id: .airAndSpace))
+        #expect(try #require(await actions.next()) == .deactivate(lease: active.lease))
         let disconnected = await coordinator.currentState()
         #expect(disconnected.isPaused == false)
         #expect(disconnected.dwellEndsAt == nil)
@@ -456,7 +440,7 @@ struct ProjectionExperienceCoordinatorTests {
 
             await coordinator.reconcile(demand: demand)
 
-            #expect(try #require(await actions.next()) == .deactivate(id: .airAndSpace))
+            #expect(try #require(await actions.next()) == .deactivate(lease: active.lease))
             #expect(await coordinator.runningExperienceIDsForTesting().isEmpty)
             let state = await coordinator.currentState()
             #expect(state.dwellEndsAt == nil)
@@ -482,13 +466,12 @@ struct ProjectionExperienceCoordinatorTests {
         let failedTarget = try activation(#require(await actions.next()))
 
         await coordinator.reportRuntimeUpdate(
-            id: failedTarget.id,
-            generation: failedTarget.generation,
-            successfulGeneration: nil,
+            lease: failedTarget.lease,
+            successfulLease: nil,
             health: .failed(.transport),
         )
 
-        #expect(try #require(await actions.next()) == .deactivate(id: .transit))
+        #expect(try #require(await actions.next()) == .deactivate(lease: failedTarget.lease))
         let replacement = try activation(#require(await actions.next()))
         #expect(replacement.id == thirdID)
         #expect(replacement.role == .prewarming)
@@ -510,7 +493,7 @@ struct ProjectionExperienceCoordinatorTests {
         await reportSuccess(coordinator, id: active.id, generation: active.generation)
         await clock.waitForSleeperCount(1)
         await clock.advance(by: 105)
-        _ = try activation(#require(await actions.next()))
+        let target = try activation(#require(await actions.next()))
 
         let rotationDisabled = try twoExperiencePlaylist(automaticRotationEnabled: false)
         await coordinator.configure(ProjectionPlaylistConfiguration(
@@ -518,7 +501,7 @@ struct ProjectionExperienceCoordinatorTests {
             revision: .init(rawValue: 1),
         ))
 
-        #expect(try #require(await actions.next()) == .deactivate(id: .transit))
+        #expect(try #require(await actions.next()) == .deactivate(lease: target.lease))
         let state = await coordinator.currentState()
         #expect(state.requestedExperienceID == nil)
         #expect(state.prewarmingExperienceID == nil)
@@ -657,31 +640,32 @@ struct ProjectionExperienceCoordinatorTests {
     private func reportSuccess(
         _ coordinator: ProjectionExperienceCoordinator,
         id: ProjectionExperienceID,
-        generation: UInt64,
+        generation: ProjectionActivationLease.Generation,
     ) async {
+        let lease = ProjectionActivationLease(experienceID: id, generation: generation)
         await coordinator.reportRuntimeUpdate(
-            id: id,
-            generation: generation,
-            successfulGeneration: generation,
+            lease: lease,
+            successfulLease: lease,
             health: .healthy(lastUpdate: start, visibleContentCount: 0),
         )
-        _ = await coordinator.reportRuntimePrepared(id: id, generation: generation)
+        _ = await coordinator.reportRuntimePrepared(lease)
     }
 
     private func activation(
         _ action: ProjectionExperienceCoordinatorAction,
     ) throws
         -> (
+            lease: ProjectionActivationLease,
             id: ProjectionExperienceID,
-            generation: UInt64,
+            generation: ProjectionActivationLease.Generation,
             role: ProjectionExperienceActivationRole
         )
     {
-        guard case let .activate(id, generation, role) = action else {
+        guard case let .activate(lease, role) = action else {
             Issue.record("Expected an activation action")
             throw TestFailure.unexpectedAction
         }
-        return (id, generation, role)
+        return (lease, lease.experienceID, lease.generation, role)
     }
 
     private enum TestFailure: Error {

@@ -37,12 +37,15 @@ scene observes the same coordinator and active experience.
 creates the stores, aircraft source graph, poller, and session once. Previews
 and tests use the fixture path in that same file.
 
-Air & Space lifecycle operations use an independent generation. A superseded
-activation or deactivation cannot resume after a suspension and change newer
-polling, motion, or health state. Visible-count updates carry that generation
-back to the runtime. Location refreshes also recheck their generation after the
-last accumulator read. Playlist configurations carry monotonic session
-revisions. The coordinator rejects an older value that arrives late.
+The coordinator issues one `ProjectionActivationLease` for each View activation.
+The lease carries both the View identity and its monotonic generation through
+activation, deactivation, prepared-frame, and visible-count work. The runtime
+accepts teardown only for its active lease, so a queued disconnect cannot stop a
+replacement activation. Runtime-local counters invalidate work across suspension
+without minting coordinator identities. Location refreshes also recheck their
+generation after the last accumulator read. Playlist configurations carry
+monotonic session revisions. The coordinator rejects an older value that arrives
+late.
 
 Coordinator intents use a lossless command stream. Each timer path rechecks
 its playlist revision, active identity, demand, and runtime generation after a
