@@ -99,6 +99,55 @@ struct ProjectionExperienceCoordinatorState: Equatable {
     let nextExperienceID: ProjectionExperienceID?
     let healthByExperience: [ProjectionExperienceID: FeedHealth]
     let manualSelectionFailure: ThrowFailureCategory?
+
+    init(playlist: ProjectionPlaylist) {
+        let activeExperienceID = playlist.selectedExperienceID
+        self.init(
+            activeExperienceID: activeExperienceID,
+            requestedExperienceID: nil,
+            prewarmingExperienceID: nil,
+            isPaused: false,
+            dwellEndsAt: nil,
+            nextExperienceID: activeExperienceID.flatMap(playlist.experience(after:)),
+            healthByExperience: [:],
+            manualSelectionFailure: nil,
+        )
+    }
+
+    init(
+        activeExperienceID: ProjectionExperienceID?,
+        requestedExperienceID: ProjectionExperienceID?,
+        prewarmingExperienceID: ProjectionExperienceID?,
+        isPaused: Bool,
+        dwellEndsAt: Date?,
+        nextExperienceID: ProjectionExperienceID?,
+        healthByExperience: [ProjectionExperienceID: FeedHealth],
+        manualSelectionFailure: ThrowFailureCategory?,
+    ) {
+        self.activeExperienceID = activeExperienceID
+        self.requestedExperienceID = requestedExperienceID
+        self.prewarmingExperienceID = prewarmingExperienceID
+        self.isPaused = isPaused
+        self.dwellEndsAt = dwellEndsAt
+        self.nextExperienceID = nextExperienceID
+        self.healthByExperience = healthByExperience
+        self.manualSelectionFailure = manualSelectionFailure
+    }
+
+    func updatingHealth(_ health: FeedHealth, for id: ProjectionExperienceID) -> Self {
+        var healthByExperience = healthByExperience
+        healthByExperience[id] = health
+        return Self(
+            activeExperienceID: activeExperienceID,
+            requestedExperienceID: requestedExperienceID,
+            prewarmingExperienceID: prewarmingExperienceID,
+            isPaused: isPaused,
+            dwellEndsAt: dwellEndsAt,
+            nextExperienceID: nextExperienceID,
+            healthByExperience: healthByExperience,
+            manualSelectionFailure: manualSelectionFailure,
+        )
+    }
 }
 
 /// One playlist value and its logical session order, independent of task scheduling order.
@@ -494,16 +543,22 @@ actor ProjectionExperienceCoordinator {
 
     /// Commits the active identity while the caller holds the surface at black.
     func commitTransition(to lease: ProjectionActivationLease) -> Bool {
+        commitTransitionState(to: lease) != nil
+    }
+
+    func commitTransitionState(
+        to lease: ProjectionActivationLease,
+    ) -> ProjectionExperienceCoordinatorState? {
         let id = lease.experienceID
         guard case let .transitioning(request) = requestState,
               request.lease == lease,
               runtimeStates[id]?.successfulLease == lease,
               runtimeStates[id]?.preparedLease == lease
-        else { return false }
+        else { return nil }
         let oldID = activeExperienceID
         guard playlistState.select(id) else {
             assertionFailure("The transition target must be in the playlist")
-            return false
+            return nil
         }
         requestState = .committed(request)
         manualSelectionFailure = nil
@@ -511,7 +566,7 @@ actor ProjectionExperienceCoordinator {
             deactivateRuntime(oldID)
         }
         publishState()
-        return true
+        return stateValue()
     }
 
     /// The caller invokes this only after the committed surface completes its fade-in.

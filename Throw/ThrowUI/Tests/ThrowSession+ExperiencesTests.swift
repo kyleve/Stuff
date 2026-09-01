@@ -64,10 +64,20 @@ struct ThrowSessionExperiencesTests {
 
     @Test func projectionAccessibilityUsesTheActiveExperienceCountMeaning() {
         let session = ThrowSession.fixture()
-        session.activeExperienceID = .transit
-        session.experienceHealth[.transit] = .healthy(
-            lastUpdate: session.dateProvider.now(),
-            visibleContentCount: 7,
+        session.experienceCoordinatorState = ProjectionExperienceCoordinatorState(
+            activeExperienceID: .transit,
+            requestedExperienceID: nil,
+            prewarmingExperienceID: nil,
+            isPaused: false,
+            dwellEndsAt: nil,
+            nextExperienceID: .airAndSpace,
+            healthByExperience: [
+                .transit: .healthy(
+                    lastUpdate: session.dateProvider.now(),
+                    visibleContentCount: 7,
+                ),
+            ],
+            manualSelectionFailure: nil,
         )
 
         #expect(session.projectionAccessibilitySummary.contains("Transit"))

@@ -46,6 +46,8 @@ without minting coordinator identities. Location refreshes also recheck their
 generation after the last accumulator read. Playlist configurations carry
 monotonic session revisions. The coordinator rejects an older value that arrives
 late.
+The session publishes each coordinator snapshot as one value and derives the
+dashboard fields from it. Output count is derived from the output-demand set.
 
 Coordinator intents use a lossless command stream. Each timer path rechecks
 its playlist revision, active identity, demand, and runtime generation after a

@@ -295,7 +295,6 @@ struct ThrowSessionLocationTests {
             accuracyMeters: 180,
         )
         session.outputDemands.insert(output)
-        session.projectionOutputCount = 1
         session.pendingLocationFix = fix
         session.locationHealth = .offeredBest(
             accuracyMeters: fix.horizontalAccuracyMeters,

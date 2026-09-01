@@ -458,29 +458,41 @@ extension ThrowSession {
             }
 
             let now = session.dateProvider.now()
-            session.activeExperienceID = .airAndSpace
-            session.nextExperienceID = .transit
-            session.experienceDwellEndsAt = now.addingTimeInterval(75)
-            session.experienceHealth = [
+            var requestedExperienceID: ProjectionExperienceID?
+            var prewarmingExperienceID: ProjectionExperienceID?
+            var isPaused = false
+            var dwellEndsAt: Date? = now.addingTimeInterval(75)
+            var healthByExperience: [ProjectionExperienceID: FeedHealth] = [
                 .airAndSpace: session.feedHealth,
                 .transit: .idle,
             ]
+            var manualSelectionFailure: ThrowFailureCategory?
 
             switch state {
                 case .rotating:
                     break
                 case .paused:
-                    session.isExperienceRotationPaused = true
-                    session.experienceDwellEndsAt = nil
+                    isPaused = true
+                    dwellEndsAt = nil
                 case .prewarming:
-                    session.requestedExperienceID = .transit
-                    session.prewarmingExperienceID = .transit
-                    session.experienceDwellEndsAt = now.addingTimeInterval(15)
-                    session.experienceHealth[.transit] = .loading
+                    requestedExperienceID = .transit
+                    prewarmingExperienceID = .transit
+                    dwellEndsAt = now.addingTimeInterval(15)
+                    healthByExperience[.transit] = .loading
                 case .failedSelection:
-                    session.experienceSelectionFailure = .transport
-                    session.experienceHealth[.transit] = .failed(.transport)
+                    manualSelectionFailure = .transport
+                    healthByExperience[.transit] = .failed(.transport)
             }
+            session.experienceCoordinatorState = ProjectionExperienceCoordinatorState(
+                activeExperienceID: .airAndSpace,
+                requestedExperienceID: requestedExperienceID,
+                prewarmingExperienceID: prewarmingExperienceID,
+                isPaused: isPaused,
+                dwellEndsAt: dwellEndsAt,
+                nextExperienceID: .transit,
+                healthByExperience: healthByExperience,
+                manualSelectionFailure: manualSelectionFailure,
+            )
             return session
         }
 

@@ -7,8 +7,9 @@ extension ThrowSession {
         defer { isApplyingPreferences = false }
         setupState = preferences.setupState
         projectionPlaylist = preferences.playlist
-        activeExperienceID = preferences.playlist.selectedExperienceID
-        nextExperienceID = activeExperienceID.flatMap(preferences.playlist.experience(after:))
+        experienceCoordinatorState = ProjectionExperienceCoordinatorState(
+            playlist: preferences.playlist,
+        )
         projectionMode = preferences.selectedProjectionMode ?? .map
         mapRadius = preferences.mapViewport.radius.value
         mapCenters = preferences.mapCenters

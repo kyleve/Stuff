@@ -137,7 +137,6 @@ struct ThrowSessionTests {
         session.locationMode = .manual
         session.aircraftSourceSelection = .awaitingValidation(.adsbLol)
         session.outputDemands.insert(output)
-        session.projectionOutputCount = 1
         session.demandGeneration = 1
 
         await session.reconcileDemand(generation: 1)
@@ -163,7 +162,6 @@ struct ThrowSessionTests {
         session.flightsEnabled = false
         session.isApplyingPreferences = false
         session.outputDemands.insert(output)
-        session.projectionOutputCount = 1
         session.demandGeneration = 1
 
         await session.reconcileDemand(generation: 1)
