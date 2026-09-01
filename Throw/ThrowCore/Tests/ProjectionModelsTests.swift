@@ -29,6 +29,46 @@ struct ProjectionModelsTests {
         }
     }
 
+    @Test func calibrationBearingReplacementPreservesTheValidatedCalibration() throws {
+        let calibration = try ProjectionCalibration(
+            screenTopBearing: Bearing(degrees: 15),
+            rotation: .degrees270,
+            flipHorizontal: true,
+            flipVertical: false,
+            safeInsetFraction: 0.12,
+            verifiedOnExternalDisplay: true,
+        )
+
+        let replacement = try calibration.replacingScreenTopBearing(
+            Bearing(degrees: 725),
+        )
+
+        #expect(replacement.screenTopBearing.degrees == 5)
+        #expect(replacement.rotation == calibration.rotation)
+        #expect(replacement.flipHorizontal == calibration.flipHorizontal)
+        #expect(replacement.flipVertical == calibration.flipVertical)
+        #expect(replacement.safeInsetFraction == calibration.safeInsetFraction)
+        #expect(
+            replacement.verifiedOnExternalDisplay == calibration.verifiedOnExternalDisplay,
+        )
+
+        let edited = try replacement
+            .replacingRotation(.degrees90)
+            .replacingFlipHorizontal(false)
+            .replacingFlipVertical(true)
+            .replacingSafeInsetFraction(0.08)
+            .replacingVerifiedOnExternalDisplay(false)
+        #expect(edited.screenTopBearing == replacement.screenTopBearing)
+        #expect(edited.rotation == .degrees90)
+        #expect(edited.flipHorizontal == false)
+        #expect(edited.flipVertical)
+        #expect(edited.safeInsetFraction == 0.08)
+        #expect(edited.verifiedOnExternalDisplay == false)
+        #expect(throws: ThrowValidationError.self) {
+            try edited.replacingSafeInsetFraction(0.21)
+        }
+    }
+
     @Test func markIdentityIncludesLayerAndNamespace() throws {
         let aircraft = try #require(
             AircraftID(kind: .icao, rawValue: "same"),

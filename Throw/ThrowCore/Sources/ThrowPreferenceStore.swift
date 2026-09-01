@@ -189,12 +189,46 @@ public struct ThrowGlobalPreferences: Equatable, Sendable, CustomStringConvertib
         self.quietSchedule = quietSchedule
     }
 
+    public func replacingCalibration(_ calibration: ProjectionCalibration) -> Self {
+        Self(
+            validatedCalibration: calibration,
+            intensityPercent: intensityPercent,
+            quietSchedule: quietSchedule,
+        )
+    }
+
+    public func replacingIntensityPercent(_ intensityPercent: Double) throws -> Self {
+        try Self(
+            calibration: calibration,
+            intensityPercent: intensityPercent,
+            quietSchedule: quietSchedule,
+        )
+    }
+
+    public func replacingQuietSchedule(_ quietSchedule: QuietSchedule) -> Self {
+        Self(
+            validatedCalibration: calibration,
+            intensityPercent: intensityPercent,
+            quietSchedule: quietSchedule,
+        )
+    }
+
     public var description: String {
         "<ThrowGlobalPreferences sensitive-values=<redacted>>"
     }
 
     public var debugDescription: String {
         description
+    }
+
+    private init(
+        validatedCalibration calibration: ProjectionCalibration,
+        intensityPercent: Double,
+        quietSchedule: QuietSchedule,
+    ) {
+        self.calibration = calibration
+        self.intensityPercent = intensityPercent
+        self.quietSchedule = quietSchedule
     }
 }
 
@@ -240,12 +274,175 @@ public struct AirAndSpacePreferences: Equatable, Sendable, CustomStringConvertib
         self.markSizePercent = markSizePercent
     }
 
+    public func replacingMapViewport(_ mapViewport: MapViewport) -> Self {
+        replacing(
+            mapViewport: mapViewport,
+            mapCenters: mapCenters,
+            skyViewport: skyViewport,
+            flightsEnabled: flightsEnabled,
+            airlineAccentsEnabled: airlineAccentsEnabled,
+            geography: geography,
+            labelMode: labelMode,
+            includeGroundAircraft: includeGroundAircraft,
+        )
+    }
+
+    public func replacingMapCenters(_ mapCenters: MapCenterPreferences) -> Self {
+        replacing(
+            mapViewport: mapViewport,
+            mapCenters: mapCenters,
+            skyViewport: skyViewport,
+            flightsEnabled: flightsEnabled,
+            airlineAccentsEnabled: airlineAccentsEnabled,
+            geography: geography,
+            labelMode: labelMode,
+            includeGroundAircraft: includeGroundAircraft,
+        )
+    }
+
+    public func replacingSkyViewport(_ skyViewport: SkyViewport) -> Self {
+        replacing(
+            mapViewport: mapViewport,
+            mapCenters: mapCenters,
+            skyViewport: skyViewport,
+            flightsEnabled: flightsEnabled,
+            airlineAccentsEnabled: airlineAccentsEnabled,
+            geography: geography,
+            labelMode: labelMode,
+            includeGroundAircraft: includeGroundAircraft,
+        )
+    }
+
+    public func replacingFlightsEnabled(_ flightsEnabled: Bool) -> Self {
+        replacing(
+            mapViewport: mapViewport,
+            mapCenters: mapCenters,
+            skyViewport: skyViewport,
+            flightsEnabled: flightsEnabled,
+            airlineAccentsEnabled: airlineAccentsEnabled,
+            geography: geography,
+            labelMode: labelMode,
+            includeGroundAircraft: includeGroundAircraft,
+        )
+    }
+
+    public func replacingAirlineAccentsEnabled(_ airlineAccentsEnabled: Bool) -> Self {
+        replacing(
+            mapViewport: mapViewport,
+            mapCenters: mapCenters,
+            skyViewport: skyViewport,
+            flightsEnabled: flightsEnabled,
+            airlineAccentsEnabled: airlineAccentsEnabled,
+            geography: geography,
+            labelMode: labelMode,
+            includeGroundAircraft: includeGroundAircraft,
+        )
+    }
+
+    public func replacingGeography(_ geography: GeographyPreferences) -> Self {
+        replacing(
+            mapViewport: mapViewport,
+            mapCenters: mapCenters,
+            skyViewport: skyViewport,
+            flightsEnabled: flightsEnabled,
+            airlineAccentsEnabled: airlineAccentsEnabled,
+            geography: geography,
+            labelMode: labelMode,
+            includeGroundAircraft: includeGroundAircraft,
+        )
+    }
+
+    public func replacingLabelMode(_ labelMode: FlightLabelMode) -> Self {
+        replacing(
+            mapViewport: mapViewport,
+            mapCenters: mapCenters,
+            skyViewport: skyViewport,
+            flightsEnabled: flightsEnabled,
+            airlineAccentsEnabled: airlineAccentsEnabled,
+            geography: geography,
+            labelMode: labelMode,
+            includeGroundAircraft: includeGroundAircraft,
+        )
+    }
+
+    public func replacingIncludeGroundAircraft(_ includeGroundAircraft: Bool) -> Self {
+        replacing(
+            mapViewport: mapViewport,
+            mapCenters: mapCenters,
+            skyViewport: skyViewport,
+            flightsEnabled: flightsEnabled,
+            airlineAccentsEnabled: airlineAccentsEnabled,
+            geography: geography,
+            labelMode: labelMode,
+            includeGroundAircraft: includeGroundAircraft,
+        )
+    }
+
+    public func replacingMarkSizePercent(_ markSizePercent: Double) throws -> Self {
+        try Self(
+            mapViewport: mapViewport,
+            mapCenters: mapCenters,
+            skyViewport: skyViewport,
+            flightsEnabled: flightsEnabled,
+            airlineAccentsEnabled: airlineAccentsEnabled,
+            geography: geography,
+            labelMode: labelMode,
+            includeGroundAircraft: includeGroundAircraft,
+            markSizePercent: markSizePercent,
+        )
+    }
+
     public var description: String {
         "<AirAndSpacePreferences sensitive-values=<redacted>>"
     }
 
     public var debugDescription: String {
         description
+    }
+
+    private func replacing(
+        mapViewport: MapViewport,
+        mapCenters: MapCenterPreferences,
+        skyViewport: SkyViewport,
+        flightsEnabled: Bool,
+        airlineAccentsEnabled: Bool,
+        geography: GeographyPreferences,
+        labelMode: FlightLabelMode,
+        includeGroundAircraft: Bool,
+    ) -> Self {
+        Self(
+            validatedMapViewport: mapViewport,
+            mapCenters: mapCenters,
+            skyViewport: skyViewport,
+            flightsEnabled: flightsEnabled,
+            airlineAccentsEnabled: airlineAccentsEnabled,
+            geography: geography,
+            labelMode: labelMode,
+            includeGroundAircraft: includeGroundAircraft,
+            markSizePercent: markSizePercent,
+        )
+    }
+
+    private init(
+        validatedMapViewport mapViewport: MapViewport,
+        mapCenters: MapCenterPreferences,
+        skyViewport: SkyViewport,
+        flightsEnabled: Bool,
+        airlineAccentsEnabled: Bool,
+        geography: GeographyPreferences,
+        labelMode: FlightLabelMode,
+        includeGroundAircraft: Bool,
+        markSizePercent: Double,
+    ) {
+        self.mapViewport = mapViewport
+        self.mapCenters = mapCenters
+        self.skyViewport = skyViewport
+        self.flightsEnabled = flightsEnabled
+        self.airlineAccentsEnabled = airlineAccentsEnabled
+        self.geography = geography
+        self.labelMode = labelMode
+        self.includeGroundAircraft = includeGroundAircraft
+        self.markSizePercent = markSizePercent
     }
 }
 

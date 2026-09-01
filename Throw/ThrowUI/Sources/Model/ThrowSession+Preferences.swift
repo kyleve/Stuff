@@ -3,32 +3,14 @@ import ThrowCore
 
 extension ThrowSession {
     func apply(_ preferences: ThrowPreferences) {
-        isApplyingPreferences = true
-        defer { isApplyingPreferences = false }
         setupState = preferences.setupState
         projectionPlaylist = preferences.playlist
         experienceCoordinatorState = ProjectionExperienceCoordinatorState(
             playlist: preferences.playlist,
         )
-        projectionMode = preferences.selectedProjectionMode ?? .map
-        mapRadius = preferences.mapViewport.radius.value
-        mapCenters = preferences.mapCenters
-        minimumElevation = preferences.skyViewport.minimumElevation.degrees
-        flightsEnabled = preferences.flightsEnabled
-        airlineAccentsEnabled = preferences.airlineAccentsEnabled
-        geographyEnabled = preferences.geography.isEnabled
-        labelMode = preferences.labelMode
-        includeGroundAircraft = preferences.includeGroundAircraft
-        markSizePercent = preferences.markSizePercent
-        intensityPercent = preferences.intensityPercent
-        geographyIntensityPercent = preferences.geography.intensityPercent
-        screenTopBearing = preferences.calibration.screenTopBearing.degrees
-        screenRotation = preferences.calibration.rotation
-        flipHorizontal = preferences.calibration.flipHorizontal
-        flipVertical = preferences.calibration.flipVertical
-        safeInsetPercent = preferences.calibration.safeInsetFraction * 100
-        calibrationVerified = preferences.calibration.verifiedOnExternalDisplay
-        quietSchedule = preferences.quietSchedule
+        globalPreferences = preferences.global
+        airAndSpacePreferences = preferences.airAndSpace
+        calibrationPreview = nil
         locationHealth = Self.locationHealth(
             for: preferences.confirmedLocation,
             now: dateProvider.now(),
@@ -41,10 +23,65 @@ extension ThrowSession {
         )
     }
 
-    func settingsChanged(reconcilesDemand: Bool) {
+    public func updateProjectionMode(_ projectionMode: ProjectionMode) {
+        guard self.projectionMode != projectionMode else { return }
+        setupState = setupState.updatingProjectionMode(projectionMode)
+        projectionInputsChanged(restartsPolling: true)
+    }
+
+    public func updateGlobalPreferences(_ preferences: ThrowGlobalPreferences) {
+        let previous = globalPreferences
+        guard previous != preferences else { return }
+
+        let calibrationChanged = previous.calibration != preferences.calibration
+        let quietScheduleChanged = previous.quietSchedule != preferences.quietSchedule
+        globalPreferences = preferences
+        calibrationPreview = nil
+        if calibrationChanged,
+           previous.calibration.screenTopBearing != preferences.calibration.screenTopBearing
+        {
+            mayApplyTrueHeadingHint = false
+        }
+
         schedulePreferencesSave()
-        if reconcilesDemand {
+        if calibrationChanged {
+            rebuildCurrentLayerFrame()
+            restartRenderer()
+        }
+        if quietScheduleChanged {
             scheduleDemandReconciliation()
+        }
+    }
+
+    public func updateAirAndSpacePreferences(_ preferences: AirAndSpacePreferences) {
+        let previous = airAndSpacePreferences
+        guard previous != preferences else { return }
+
+        let queryInputsChanged = previous.mapViewport != preferences.mapViewport
+            || previous.mapCenters != preferences.mapCenters
+            || previous.skyViewport != preferences.skyViewport
+            || previous.flightsEnabled != preferences.flightsEnabled
+            || previous.includeGroundAircraft != preferences.includeGroundAircraft
+        let labelModeChanged = previous.labelMode != preferences.labelMode
+        let geographyVisibilityChanged = previous.geography.isEnabled
+            != preferences.geography.isEnabled
+        airAndSpacePreferences = preferences
+
+        if previous.geography.isEnabled, preferences.geography.isEnabled == false {
+            geographyLayerHealth = .idle
+            projectionFrame = projectionFrame.removingGeography()
+        }
+
+        schedulePreferencesSave()
+        if labelModeChanged {
+            rebuildCurrentLayerFrame()
+        }
+        if queryInputsChanged ||
+            (geographyVisibilityChanged && preferences.flightsEnabled == false)
+        {
+            scheduleDemandReconciliation()
+        } else if labelModeChanged || geographyVisibilityChanged {
+            restartRenderer()
         }
     }
 
@@ -142,27 +179,32 @@ extension ThrowSession {
     func makePreferences(
         setupState: ThrowSetupState,
     ) throws -> ThrowPreferences {
-        let global = try ThrowGlobalPreferences(
-            calibration: projectionCalibration(),
-            intensityPercent: intensityPercent,
-            quietSchedule: quietSchedule,
+        try makePreferences(
+            setupState: setupState,
+            globalPreferences: globalPreferences,
+            airAndSpacePreferences: airAndSpacePreferences,
         )
-        let airAndSpace = try AirAndSpacePreferences(
-            mapViewport: MapViewport(radius: NauticalMiles(value: mapRadius)),
-            mapCenters: mapCenters,
-            skyViewport: SkyViewport(
-                minimumElevation: ElevationAngle(degrees: minimumElevation),
-            ),
-            flightsEnabled: flightsEnabled,
-            airlineAccentsEnabled: airlineAccentsEnabled,
-            geography: GeographyPreferences(
-                isEnabled: geographyEnabled,
-                intensityPercent: geographyIntensityPercent,
-            ),
-            labelMode: labelMode,
-            includeGroundAircraft: includeGroundAircraft,
-            markSizePercent: markSizePercent,
+    }
+
+    func makePreferences(
+        setupState: ThrowSetupState,
+        globalPreferences: ThrowGlobalPreferences,
+        airAndSpacePreferences: AirAndSpacePreferences,
+    ) throws -> ThrowPreferences {
+        try makePreferences(
+            setupState: setupState,
+            globalPreferences: globalPreferences,
+            airAndSpacePreferences: airAndSpacePreferences,
+            projectionPlaylist: projectionPlaylist,
         )
+    }
+
+    func makePreferences(
+        setupState: ThrowSetupState,
+        globalPreferences: ThrowGlobalPreferences,
+        airAndSpacePreferences: AirAndSpacePreferences,
+        projectionPlaylist: ProjectionPlaylist,
+    ) throws -> ThrowPreferences {
         let playlist: ProjectionPlaylist = if setupState.configuredExperienceIDs
             .contains(.airAndSpace),
             projectionPlaylist.entry(for: .airAndSpace) == nil
@@ -184,14 +226,14 @@ extension ThrowSession {
         }
         return try ThrowPreferences(
             setupState: setupState,
-            global: global,
+            global: globalPreferences,
             playlist: playlist,
-            airAndSpace: airAndSpace,
+            airAndSpace: airAndSpacePreferences,
         )
     }
 
     func updateQuietSchedule(_ schedule: QuietSchedule) {
-        quietSchedule = schedule
+        updateGlobalPreferences(globalPreferences.replacingQuietSchedule(schedule))
     }
 }
 

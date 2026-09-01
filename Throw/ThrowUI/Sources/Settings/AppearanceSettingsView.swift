@@ -1,8 +1,19 @@
 import SnapshotKit
 import SwiftUI
+import ThrowCore
 
 struct AppearanceSettingsView: View {
-    @Bindable var session: ThrowSession
+    private let session: ThrowSession
+    @State private var markSizePercent: Double
+    @State private var airlineAccentsEnabled: Bool
+    @State private var geographyIntensityPercent: Double
+
+    init(session: ThrowSession) {
+        self.session = session
+        _markSizePercent = State(initialValue: session.markSizePercent)
+        _airlineAccentsEnabled = State(initialValue: session.airlineAccentsEnabled)
+        _geographyIntensityPercent = State(initialValue: session.geographyIntensityPercent)
+    }
 
     var body: some View {
         Form {
@@ -13,18 +24,18 @@ struct AppearanceSettingsView: View {
             }
             Section {
                 LabeledContent(String(localized: .settingsMarkSize)) {
-                    Text(session.markSizePercent / 100, format: .percent)
+                    Text(markSizePercent / 100, format: .percent)
                 }
-                Slider(value: $session.markSizePercent, in: 50 ... 200, step: 5)
+                Slider(value: $markSizePercent, in: 50 ... 200, step: 5)
                     .accessibilityLabel(Text(.settingsMarkSize))
                     .accessibilityValue(
-                        Text(session.markSizePercent / 100, format: .percent),
+                        Text(markSizePercent / 100, format: .percent),
                     )
             }
             Section {
                 Toggle(
                     String(localized: .settingsAirlineAccents),
-                    isOn: $session.airlineAccentsEnabled,
+                    isOn: $airlineAccentsEnabled,
                 )
                 AircraftFamilyLegend()
             } header: {
@@ -41,16 +52,16 @@ struct AppearanceSettingsView: View {
             }
             Section {
                 LabeledContent(String(localized: .settingsGeographyIntensity)) {
-                    Text(session.geographyIntensityPercent / 100, format: .percent)
+                    Text(geographyIntensityPercent / 100, format: .percent)
                 }
                 Slider(
-                    value: $session.geographyIntensityPercent,
+                    value: $geographyIntensityPercent,
                     in: 0 ... 20,
                     step: 1,
                 )
                 .accessibilityLabel(Text(.settingsGeographyIntensity))
                 .accessibilityValue(
-                    Text(session.geographyIntensityPercent / 100, format: .percent),
+                    Text(geographyIntensityPercent / 100, format: .percent),
                 )
             } header: {
                 Text(.layerGeography)
@@ -59,6 +70,44 @@ struct AppearanceSettingsView: View {
             }
         }
         .navigationTitle(Text(.settingsAirAndSpaceAppearance))
+        .onChange(of: markSizePercent) { _, markSizePercent in
+            do {
+                let preferences = try session.airAndSpacePreferences
+                    .replacingMarkSizePercent(markSizePercent)
+                session.updateAirAndSpacePreferences(preferences)
+            } catch is ThrowValidationError {
+                return
+            } catch {
+                assertionFailure("Mark-size validation produced an unexpected error: \(error)")
+            }
+        }
+        .onChange(of: airlineAccentsEnabled) { _, airlineAccentsEnabled in
+            let preferences = session.airAndSpacePreferences
+                .replacingAirlineAccentsEnabled(airlineAccentsEnabled)
+            session.updateAirAndSpacePreferences(preferences)
+        }
+        .onChange(of: geographyIntensityPercent) { _, geographyIntensityPercent in
+            do {
+                let geography = try session.airAndSpacePreferences.geography
+                    .replacingIntensityPercent(geographyIntensityPercent)
+                let preferences = session.airAndSpacePreferences
+                    .replacingGeography(geography)
+                session.updateAirAndSpacePreferences(preferences)
+            } catch is ThrowValidationError {
+                return
+            } catch {
+                assertionFailure("Geography validation produced an unexpected error: \(error)")
+            }
+        }
+        .onChange(of: session.markSizePercent) { _, value in
+            markSizePercent = value
+        }
+        .onChange(of: session.airlineAccentsEnabled) { _, value in
+            airlineAccentsEnabled = value
+        }
+        .onChange(of: session.geographyIntensityPercent) { _, value in
+            geographyIntensityPercent = value
+        }
     }
 }
 

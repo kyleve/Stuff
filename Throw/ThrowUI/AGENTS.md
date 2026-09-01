@@ -67,6 +67,10 @@ Read the root [`AGENTS.md`](../../AGENTS.md) and group
 - Put every preference write through the session's owned queue. Coalesce only
   adjacent UI snapshots, preserve immediate-write barriers, and flush the queue
   when the final controller scene backgrounds.
+- Store session preferences as validated global and experience aggregates.
+  Expose scalar display values as read-only projections.
+- Keep raw control values inside their view or model. Validate a complete
+  replacement before publication. Invalid drafts must not save or reconcile demand.
 - Keep quiet-hours edits in a settings-scoped draft. Publish only a validated
   `QuietSchedule` to the session; invalid edits must leave runtime demand unchanged.
 - Render projector, Preview, and full-screen fallback through

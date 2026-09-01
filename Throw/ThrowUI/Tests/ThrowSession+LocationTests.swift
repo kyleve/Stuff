@@ -282,6 +282,53 @@ struct ThrowSessionLocationTests {
         #expect(session.locationHealth == .failed)
     }
 
+    @Test func matchingTrueHeadingStillConsumesTheOneShotHint() async throws {
+        let locationSource = ControlledThrowLocationSource()
+        let session = ThrowSession.fixture(locationSource: locationSource)
+        session.mayApplyTrueHeadingHint = true
+        #expect(session.mayApplyTrueHeadingHint)
+
+        let firstRefresh = Task { await session.refreshLocation() }
+        await locationSource.waitForStartCount(1)
+        try locationSource.send(.trueHeadingHint(Bearing(degrees: 0)))
+        locationSource.send(.failed)
+        await firstRefresh.value
+
+        #expect(session.mayApplyTrueHeadingHint == false)
+        #expect(session.screenTopBearing == 0)
+
+        let secondRefresh = Task { await session.refreshLocation() }
+        await locationSource.waitForStartCount(2)
+        try locationSource.send(.trueHeadingHint(Bearing(degrees: 90)))
+        locationSource.send(.failed)
+        await secondRefresh.value
+
+        #expect(session.screenTopBearing == 0)
+    }
+
+    @Test func editableMapCenterOffsetRoundTripsOnTheFiveMileGrid() async throws {
+        let session = ThrowSession.fixture()
+
+        try session.updateMapCenterOffset(
+            MapCenterOffset(eastNauticalMiles: 5, northNauticalMiles: 10),
+        )
+
+        #expect(session.mapCenterEastOffset == 5)
+        #expect(session.mapCenterNorthOffset == 10)
+
+        try session.updateMapCenterOffset(
+            MapCenterOffset(
+                eastNauticalMiles: 15,
+                northNauticalMiles: session.mapCenterNorthOffset,
+            ),
+        )
+        await session.flushPreferencesSave()
+        await session.demandTask?.value
+
+        #expect(session.mapCenterEastOffset == 15)
+        #expect(session.mapCenterNorthOffset == 10)
+    }
+
     @Test func offeredBestFixDoesNotPollUntilExplicitAcceptance() async throws {
         let session = ThrowSession.fixture()
         await session.start()

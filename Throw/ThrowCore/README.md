@@ -66,7 +66,9 @@ outward so provider coordinates on the local filter boundary are not omitted.
 and session once. ThrowUI's shared session drives the poller according to
 foreground, quiet, and output demand. Version-two preferences separate global,
 playlist, and Air & Space state. The codec migrates version-one data under the
-existing storage key. Keychain credential IDs do not change.
+existing storage key. Validated preference aggregates stay intact through the
+session boundary. Raw values exist only at editing and codec boundaries.
+Keychain credential IDs do not change.
 
 Setup is one typed lifecycle value. Its configured case requires a validated
 source, confirmed location, and projection mode. The codec reconstructs this

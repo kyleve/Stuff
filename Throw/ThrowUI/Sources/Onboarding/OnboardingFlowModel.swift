@@ -142,12 +142,13 @@ final class OnboardingFlowModel {
         latitude = session.observerLatitude
         longitude = session.observerLongitude
         observerAltitudeFeet = session.observerAltitudeFeet
-        screenTopBearing = session.screenTopBearing
-        rotation = session.screenRotation
-        flipsHorizontally = session.flipHorizontal
-        flipsVertically = session.flipVertical
-        safeInsetPercent = session.safeInsetPercent
-        calibrationVerified = session.calibrationVerified
+        let calibration = session.globalPreferences.calibration
+        screenTopBearing = calibration.screenTopBearing.degrees
+        rotation = calibration.rotation
+        flipsHorizontally = calibration.flipHorizontal
+        flipsVertically = calibration.flipVertical
+        safeInsetPercent = calibration.safeInsetFraction * 100
+        calibrationVerified = calibration.verifiedOnExternalDisplay
         quietEnabled = session.quietHoursEnabled
         quietStart = session.quietStart
         quietEnd = session.quietEnd
@@ -168,9 +169,10 @@ final class OnboardingFlowModel {
                 sourceChoice != nil && sourceValidation.isSuccessful
                     && validatedSourceDraft != nil
             case .projection:
-                selectedMode != nil
+                selectedMode != nil && validatedMapViewport != nil
+                    && validatedSkyViewport != nil
             case .calibration:
-                (0 ... 20).contains(safeInsetPercent) && calibrationOutputIsReady
+                validatedCalibration != nil && calibrationOutputIsReady
             case .appearance:
                 quietEnabled == false || quietScheduleIsValid
         }
@@ -292,6 +294,7 @@ final class OnboardingFlowModel {
     func endCalibration() {
         guard calibrationDemandIsActive else { return }
         calibrationDemandIsActive = false
+        session.endCalibrationPreview()
         session.projectionOutputDisconnected(.calibration(outputs.calibration))
     }
 
@@ -334,7 +337,12 @@ final class OnboardingFlowModel {
     }
 
     private func complete() async {
-        guard let selectedMode, let validatedSourceDraft else { return }
+        guard let selectedMode,
+              let validatedSourceDraft,
+              let validatedMapViewport,
+              let validatedSkyViewport,
+              let validatedCalibration
+        else { return }
         let quietSchedule: QuietSchedule
         do {
             quietSchedule = try draftQuietSchedule()
@@ -348,16 +356,11 @@ final class OnboardingFlowModel {
             longitude: longitude,
             observerAltitudeFeet: observerAltitudeFeet,
             validatedSourceDraft: validatedSourceDraft,
-            mode: selectedMode,
-            mapRadius: mapRadius,
-            minimumElevation: minimumElevation,
-            screenTopBearing: screenTopBearing,
-            rotation: rotation,
-            flipsHorizontally: flipsHorizontally,
-            flipsVertically: flipsVertically,
-            safeInsetPercent: safeInsetPercent,
-            calibrationVerified: calibrationVerified,
+            projectionMode: selectedMode,
+            calibration: validatedCalibration,
             quietSchedule: quietSchedule,
+            mapViewport: validatedMapViewport,
+            skyViewport: validatedSkyViewport,
         )
     }
 
@@ -389,15 +392,48 @@ final class OnboardingFlowModel {
     }
 
     private func synchronizeCalibrationDraft() {
-        guard calibrationDemandIsActive else { return }
-        session.previewCalibration(
-            screenTopBearing: screenTopBearing,
-            rotation: rotation,
-            flipsHorizontally: flipsHorizontally,
-            flipsVertically: flipsVertically,
-            safeInsetPercent: safeInsetPercent,
-            calibrationVerified: calibrationVerified,
-        )
+        guard calibrationDemandIsActive, let validatedCalibration else { return }
+        session.previewCalibration(validatedCalibration)
+    }
+
+    private var validatedMapViewport: MapViewport? {
+        do {
+            return try airAndSpaceDraft.mapViewport()
+        } catch is ThrowValidationError {
+            return nil
+        } catch {
+            assertionFailure("Map viewport validation produced an unexpected error: \(error)")
+            return nil
+        }
+    }
+
+    private var validatedSkyViewport: SkyViewport? {
+        do {
+            return try airAndSpaceDraft.skyViewport()
+        } catch is ThrowValidationError {
+            return nil
+        } catch {
+            assertionFailure("Sky viewport validation produced an unexpected error: \(error)")
+            return nil
+        }
+    }
+
+    private var validatedCalibration: ProjectionCalibration? {
+        do {
+            return try ProjectionCalibration(
+                screenTopBearing: Bearing(degrees: screenTopBearing),
+                rotation: rotation,
+                flipHorizontal: flipsHorizontally,
+                flipVertical: flipsVertically,
+                safeInsetFraction: safeInsetPercent / 100,
+                verifiedOnExternalDisplay: calibrationVerified,
+            )
+        } catch is ThrowValidationError {
+            return nil
+        } catch {
+            assertionFailure("Calibration validation produced an unexpected error: \(error)")
+            return nil
+        }
     }
 
     private func draftQuietSchedule() throws -> QuietSchedule {

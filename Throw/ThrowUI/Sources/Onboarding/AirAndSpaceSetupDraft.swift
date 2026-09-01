@@ -11,4 +11,12 @@ struct AirAndSpaceSetupDraft {
     var selectedMode: ProjectionMode?
     var mapRadius = MapViewport.defaultValue.radius.value
     var minimumElevation = SkyViewport.defaultValue.minimumElevation.degrees
+
+    func mapViewport() throws -> MapViewport {
+        try MapViewport(radius: NauticalMiles(value: mapRadius))
+    }
+
+    func skyViewport() throws -> SkyViewport {
+        try SkyViewport(minimumElevation: ElevationAngle(degrees: minimumElevation))
+    }
 }

@@ -3,6 +3,7 @@ import ThrowCore
 actor SuspendingThrowPreferenceStore: ThrowPreferenceStore {
     private var preferences: ThrowPreferences
     private var savedPreferences: [ThrowPreferences] = []
+    private var saveCallCount = 0
     private var firstSaveStarted = false
     private var firstSaveStartedContinuation: CheckedContinuation<Void, Never>?
     private var firstSaveContinuation: CheckedContinuation<Void, Never>?
@@ -16,6 +17,7 @@ actor SuspendingThrowPreferenceStore: ThrowPreferenceStore {
     }
 
     func save(_ preferences: ThrowPreferences) async {
+        saveCallCount += 1
         if firstSaveStarted == false {
             firstSaveStarted = true
             firstSaveStartedContinuation?.resume()
@@ -42,5 +44,13 @@ actor SuspendingThrowPreferenceStore: ThrowPreferenceStore {
 
     func savedIntensityPercents() -> [Double] {
         savedPreferences.map(\.intensityPercent)
+    }
+
+    func savedMapRadii() -> [Double] {
+        savedPreferences.map(\.mapViewport.radius.value)
+    }
+
+    func startedSaveCount() -> Int {
+        saveCallCount
     }
 }

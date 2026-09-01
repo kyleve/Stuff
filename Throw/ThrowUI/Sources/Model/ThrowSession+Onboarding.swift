@@ -8,17 +8,16 @@ extension ThrowSession {
         longitude: Double,
         observerAltitudeFeet: Double,
         validatedSourceDraft: ValidatedAircraftSourceDraft,
-        mode: ProjectionMode,
-        mapRadius: Double,
-        minimumElevation: Double,
-        screenTopBearing: Double,
-        rotation: ScreenRotation,
-        flipsHorizontally: Bool,
-        flipsVertically: Bool,
-        safeInsetPercent: Double,
-        calibrationVerified: Bool,
+        projectionMode: ProjectionMode,
+        calibration: ProjectionCalibration,
         quietSchedule: QuietSchedule,
+        mapViewport: MapViewport,
+        skyViewport: SkyViewport,
     ) async {
+        guard onboardingCompletionInProgress == false else { return }
+        onboardingCompletionInProgress = true
+        defer { onboardingCompletionInProgress = false }
+
         if locationMode == .manual {
             guard await saveObserverLocation(
                 mode: .manual,
@@ -35,55 +34,119 @@ extension ThrowSession {
 
         guard await useSource(validatedSourceDraft) else { return }
 
-        isApplyingPreferences = true
-        projectionMode = mode
-        self.mapRadius = mapRadius
-        self.minimumElevation = minimumElevation
-        self.screenTopBearing = screenTopBearing
-        screenRotation = rotation
-        flipHorizontal = flipsHorizontally
-        flipVertical = flipsVertically
-        self.safeInsetPercent = safeInsetPercent
-        self.calibrationVerified = calibrationVerified
-        self.quietSchedule = quietSchedule
-        let incompleteSetup = setupState
-        guard let completedSetup = setupState.completing(projectionMode: mode) else {
-            assertionFailure("Onboarding completion requires validated setup inputs")
-            isApplyingPreferences = false
-            return
-        }
-        setupState = completedSetup
-        isApplyingPreferences = false
+        guard beginPreferenceMutation() else { return }
+        defer { finishPreferenceMutation() }
+
         do {
-            try await savePreferencesImmediately()
+            let publication: OnboardingPreferencePublication
+            while true {
+                guard let candidate = try onboardingPreferencePublication(
+                    projectionMode: projectionMode,
+                    calibration: calibration,
+                    quietSchedule: quietSchedule,
+                    mapViewport: mapViewport,
+                    skyViewport: skyViewport,
+                ) else {
+                    assertionFailure("Onboarding completion requires validated setup inputs")
+                    return
+                }
+                try await persistPreferencesImmediately(candidate.preferences)
+                guard candidate.base == onboardingPreferenceSnapshot else { continue }
+                publication = candidate
+                break
+            }
+
+            globalPreferences = publication.globalPreferences
+            airAndSpacePreferences = publication.airAndSpacePreferences
+            calibrationPreview = nil
+            projectionPlaylist = publication.preferences.playlist
+            experienceCoordinatorState = ProjectionExperienceCoordinatorState(
+                playlist: publication.preferences.playlist,
+            )
+            setupState = publication.setupState
+            preferenceMutationNeedsSave = false
+            await configureExperienceCoordinator(with: projectionPlaylist)
+            settingsFailure = nil
             scheduleDemandReconciliation()
         } catch is CancellationError {
             return
         } catch {
-            setupState = incompleteSetup
             settingsFailure = error.localizedDescription
         }
     }
 
-    func previewCalibration(
-        screenTopBearing: Double,
-        rotation: ScreenRotation,
-        flipsHorizontally: Bool,
-        flipsVertically: Bool,
-        safeInsetPercent: Double,
-        calibrationVerified: Bool,
-    ) {
-        let bearingChanged = self.screenTopBearing != screenTopBearing
-        isApplyingPreferences = true
-        self.screenTopBearing = screenTopBearing
-        screenRotation = rotation
-        flipHorizontal = flipsHorizontally
-        flipVertical = flipsVertically
-        self.safeInsetPercent = safeInsetPercent
-        self.calibrationVerified = calibrationVerified
-        isApplyingPreferences = false
+    func previewCalibration(_ calibration: ProjectionCalibration) {
+        guard projectionCalibration != calibration else { return }
+        let bearingChanged = projectionCalibration.screenTopBearing
+            != calibration.screenTopBearing
+        calibrationPreview = calibration
         if bearingChanged {
             mayApplyTrueHeadingHint = false
         }
+        restartRenderer()
     }
+
+    func endCalibrationPreview() {
+        guard calibrationPreview != nil else { return }
+        calibrationPreview = nil
+        restartRenderer()
+    }
+
+    private var onboardingPreferenceSnapshot: OnboardingPreferenceSnapshot {
+        OnboardingPreferenceSnapshot(
+            setupState: setupState,
+            globalPreferences: globalPreferences,
+            airAndSpacePreferences: airAndSpacePreferences,
+            projectionPlaylist: projectionPlaylist,
+        )
+    }
+
+    private func onboardingPreferencePublication(
+        projectionMode: ProjectionMode,
+        calibration: ProjectionCalibration,
+        quietSchedule: QuietSchedule,
+        mapViewport: MapViewport,
+        skyViewport: SkyViewport,
+    ) throws -> OnboardingPreferencePublication? {
+        let base = onboardingPreferenceSnapshot
+        guard let completedSetup = base.setupState.completing(
+            projectionMode: projectionMode,
+        ) else { return nil }
+        let completedGlobalPreferences = base.globalPreferences
+            .replacingCalibration(calibration)
+            .replacingQuietSchedule(quietSchedule)
+        let completedAirAndSpacePreferences = base.airAndSpacePreferences
+            .replacingMapViewport(mapViewport)
+            .replacingSkyViewport(skyViewport)
+        let preferences = try makePreferences(
+            setupState: completedSetup,
+            globalPreferences: completedGlobalPreferences,
+            airAndSpacePreferences: completedAirAndSpacePreferences,
+            projectionPlaylist: base.projectionPlaylist,
+        )
+        return OnboardingPreferencePublication(
+            base: base,
+            setupState: completedSetup,
+            globalPreferences: completedGlobalPreferences,
+            airAndSpacePreferences: completedAirAndSpacePreferences,
+            preferences: preferences,
+        )
+    }
+}
+
+/// The session values that must stay unchanged while one completion snapshot saves.
+private struct OnboardingPreferenceSnapshot: Equatable {
+    let setupState: ThrowSetupState
+    let globalPreferences: ThrowGlobalPreferences
+    let airAndSpacePreferences: AirAndSpacePreferences
+    let projectionPlaylist: ProjectionPlaylist
+}
+
+/// A persisted onboarding candidate paired with the session values it was built from.
+private struct OnboardingPreferencePublication {
+    let base: OnboardingPreferenceSnapshot
+    let setupState: ThrowSetupState
+    let globalPreferences: ThrowGlobalPreferences
+    let airAndSpacePreferences: AirAndSpacePreferences
+    let preferences: ThrowPreferences
 }

@@ -3,23 +3,29 @@ import SwiftUI
 import ThrowCore
 
 struct MapCenterSettingsView: View {
-    @Bindable var session: ThrowSession
+    private let session: ThrowSession
+    @State private var eastOffset: Double
+    @State private var northOffset: Double
+
+    init(session: ThrowSession) {
+        self.session = session
+        _eastOffset = State(initialValue: session.mapCenterEastOffset)
+        _northOffset = State(initialValue: session.mapCenterNorthOffset)
+    }
 
     var body: some View {
         Form {
             Section {
                 offsetControl(
                     title: String(localized: .mapCenterEastWest),
-                    value: $session.mapCenterEastOffset,
+                    value: $eastOffset,
                 )
                 offsetControl(
                     title: String(localized: .mapCenterNorthSouth),
-                    value: $session.mapCenterNorthOffset,
+                    value: $northOffset,
                 )
-                Button(String(localized: .mapCenterReset)) {
-                    session.resetMapCenter()
-                }
-                .disabled(session.hasCustomMapCenter == false)
+                Button(String(localized: .mapCenterReset), action: resetMapCenter)
+                    .disabled(session.hasCustomMapCenter == false)
             } footer: {
                 Text(.mapCenterExplanation)
             }
@@ -44,6 +50,24 @@ struct MapCenterSettingsView: View {
             }
         }
         .navigationTitle(Text(.settingsMapCenter))
+        .onChange(of: eastOffset) { _, eastOffset in
+            publishMapCenterOffset(
+                east: eastOffset,
+                north: session.mapCenterNorthOffset,
+            )
+        }
+        .onChange(of: northOffset) { _, northOffset in
+            publishMapCenterOffset(
+                east: session.mapCenterEastOffset,
+                north: northOffset,
+            )
+        }
+        .onChange(of: session.mapCenterEastOffset) { _, value in
+            eastOffset = value
+        }
+        .onChange(of: session.mapCenterNorthOffset) { _, value in
+            northOffset = value
+        }
     }
 
     private func offsetControl(title: String, value: Binding<Double>) -> some View {
@@ -68,6 +92,26 @@ struct MapCenterSettingsView: View {
                     ),
                 )
         }
+    }
+
+    private func publishMapCenterOffset(east: Double, north: Double) {
+        do {
+            let offset = try MapCenterOffset(
+                eastNauticalMiles: east,
+                northNauticalMiles: north,
+            )
+            session.updateMapCenterOffset(offset)
+        } catch is ThrowValidationError {
+            return
+        } catch {
+            assertionFailure("Map-center validation produced an unexpected error: \(error)")
+        }
+    }
+
+    private func resetMapCenter() {
+        session.resetMapCenter()
+        eastOffset = 0
+        northOffset = 0
     }
 }
 

@@ -23,4 +23,17 @@ public struct GeographyPreferences: Equatable, Sendable {
         self.isEnabled = isEnabled
         self.intensityPercent = intensityPercent
     }
+
+    public func replacingIsEnabled(_ isEnabled: Bool) -> Self {
+        Self(validatedIsEnabled: isEnabled, intensityPercent: intensityPercent)
+    }
+
+    public func replacingIntensityPercent(_ intensityPercent: Double) throws -> Self {
+        try Self(isEnabled: isEnabled, intensityPercent: intensityPercent)
+    }
+
+    private init(validatedIsEnabled isEnabled: Bool, intensityPercent: Double) {
+        self.isEnabled = isEnabled
+        self.intensityPercent = intensityPercent
+    }
 }

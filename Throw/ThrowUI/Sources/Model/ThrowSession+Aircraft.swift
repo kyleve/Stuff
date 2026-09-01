@@ -559,7 +559,7 @@ extension ThrowSession {
             input: input,
             observer: confirmedLocation.position,
             mapCenter: activeMapCenter,
-            calibration: projectionCalibration(),
+            calibration: projectionCalibration,
             generatedAt: generatedAt,
             reduceMotion: reduceMotion,
         )
@@ -580,14 +580,12 @@ extension ThrowSession {
                 )
                 let viewport: AirAndSpaceProjectionViewport = switch projectionMode {
                     case .map:
-                        try .map(
-                            viewport: MapViewport(radius: NauticalMiles(value: mapRadius)),
+                        .map(
+                            viewport: airAndSpacePreferences.mapViewport,
                             geography: geographyEnabled ? .visible : .hidden,
                         )
                     case .trueSky:
-                        try .trueSky(viewport: SkyViewport(
-                            minimumElevation: ElevationAngle(degrees: minimumElevation),
-                        ))
+                        .trueSky(viewport: airAndSpacePreferences.skyViewport)
                 }
                 return .airAndSpace(AirAndSpaceProjectionInput(
                     frame: enabledFrame,
@@ -599,9 +597,9 @@ extension ThrowSession {
                     network: frame.network,
                     vehicles: frame.vehicles,
                 )
-                return try .transit(TransitProjectionInput(
+                return .transit(TransitProjectionInput(
                     frame: enabledFrame,
-                    viewport: MapViewport(radius: NauticalMiles(value: mapRadius)),
+                    viewport: airAndSpacePreferences.mapViewport,
                     geography: geographyEnabled ? .visible : .hidden,
                 ))
         }
@@ -713,28 +711,13 @@ extension ThrowSession {
         )
     }
 
-    func projectionViewport() throws -> ProjectionViewport {
+    func projectionViewport() -> ProjectionViewport {
         switch projectionMode {
             case .map:
-                try .map(MapViewport(radius: NauticalMiles(value: mapRadius)))
+                .map(airAndSpacePreferences.mapViewport)
             case .trueSky:
-                try .trueSky(
-                    SkyViewport(
-                        minimumElevation: ElevationAngle(degrees: minimumElevation),
-                    ),
-                )
+                .trueSky(airAndSpacePreferences.skyViewport)
         }
-    }
-
-    func projectionCalibration() throws -> ProjectionCalibration {
-        try ProjectionCalibration(
-            screenTopBearing: Bearing(degrees: screenTopBearing),
-            rotation: screenRotation,
-            flipHorizontal: flipHorizontal,
-            flipVertical: flipVertical,
-            safeInsetFraction: safeInsetPercent / 100,
-            verifiedOnExternalDisplay: calibrationVerified,
-        )
     }
 
     func emptyProjectionFrame() -> ProjectionFrame {

@@ -4,17 +4,23 @@ import ThrowCore
 
 @MainActor
 struct ThrowSessionPreferencesTests {
-    @Test func adjacentUIChangesCoalesceBehindAnInFlightSave() async {
+    @Test func adjacentUIChangesCoalesceBehindAnInFlightSave() async throws {
         let preferenceStore = SuspendingThrowPreferenceStore()
         let session = ThrowSession.fixture(
             preferenceStore: preferenceStore,
             credentialStore: MemoryAircraftCredentialStore(credentials: [:]),
         )
 
-        session.intensityPercent = 70
+        try session.updateGlobalPreferences(
+            session.globalPreferences.replacingIntensityPercent(70),
+        )
         await preferenceStore.waitForFirstSaveToStart()
-        session.intensityPercent = 60
-        session.intensityPercent = 50
+        try session.updateGlobalPreferences(
+            session.globalPreferences.replacingIntensityPercent(60),
+        )
+        try session.updateGlobalPreferences(
+            session.globalPreferences.replacingIntensityPercent(50),
+        )
 
         let savedBeforeResume = await preferenceStore.savedIntensityPercents()
         #expect(savedBeforeResume.isEmpty)
@@ -32,7 +38,9 @@ struct ThrowSessionPreferencesTests {
             credentialStore: MemoryAircraftCredentialStore(credentials: [:]),
         )
 
-        session.intensityPercent = 70
+        try session.updateGlobalPreferences(
+            session.globalPreferences.replacingIntensityPercent(70),
+        )
         await preferenceStore.waitForFirstSaveToStart()
         let immediateSave = Task {
             try await session.savePreferencesImmediately()
@@ -40,7 +48,9 @@ struct ThrowSessionPreferencesTests {
         while session.preferenceSaveQueue.contains(where: \.isImmediate) == false {
             await Task.yield()
         }
-        session.intensityPercent = 60
+        try session.updateGlobalPreferences(
+            session.globalPreferences.replacingIntensityPercent(60),
+        )
 
         await preferenceStore.resumeFirstSave()
         try await immediateSave.value
