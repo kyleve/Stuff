@@ -54,11 +54,11 @@ tests](#running-tests)). `./icons`, `./attribution`, and `./simulator` own state
 easy to corrupt by hand. `./simulator` owns a per-checkout device (see the
 [`running-tests`](.agents/skills/running-tests/SKILL.md) skill).
 
-Retained Python and Ruby implementations are importable and directly tested
-under `Tools/Tests`; shell around them is limited to public argument handling,
-bootstrap, and process orchestration. In particular,
-`tla-check` owns discovery and the pinned TLC download while
-`Tools/tla_check.py` owns manifest validation, TLC argv, and result policy.
+Retained Python and Ruby implementations are importable. Direct tests live
+under `Tools/Tests`. Shell wrappers only handle public arguments, bootstrap,
+and process orchestration. In particular, `tla-check` owns the public command
+and the pinned TLC download. `Tools/tla_check.py` owns cross-feature discovery,
+manifest validation, TLC arguments, and result policy.
 
 ### Managing app icons
 

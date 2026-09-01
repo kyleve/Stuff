@@ -22,12 +22,15 @@ For PlusCal models:
   fairness;
 - never run `pcal.trans` against the tracked file.
 
-Run one or every concern from the repository root:
+Run a selected concern or all repository concerns from the repository root:
 
 ```sh
 ./tla-check TrackingReconciliation
 ./tla-check
 ```
+
+Concern folder names must be unique across the top-level feature directories.
+The command uses the folder name as its compatible selection key.
 
 The checker copies the concern into an isolated
 `.build/tla/runs/<Concern>.<run>/generated/` directory, translates the copy with

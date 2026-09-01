@@ -2,7 +2,6 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-specs_root="$repo_root/Where/Specifications"
 
 tlc_version="1.7.4"
 tlc_sha256="936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88"
@@ -20,7 +19,7 @@ usage() {
 Usage: ./tla-check [--list] [SPEC ...]
 
 Generate and run TLA+ model checks declared under
-Where/Specifications/*/manifest.json.
+*/Specifications/*/manifest.json at the repository root.
 With no SPEC names, every discoverable spec is checked.
 
 Options:
@@ -72,38 +71,27 @@ ensure_tools() {
 }
 
 discover_specs() {
-    find "$specs_root" -mindepth 2 -maxdepth 2 -name manifest.json -print \
-        | while IFS= read -r manifest; do
-            basename "$(dirname "$manifest")"
-        done \
-        | sort
+    python3 "$repo_root/Tools/tla_check.py" discover "$repo_root"
+}
+
+resolve_specs() {
+    python3 "$repo_root/Tools/tla_check.py" resolve "$repo_root" "$@"
 }
 
 list_specs() {
-    local names
-    names="$(discover_specs)"
-    if [[ -z "$names" ]]; then
-        echo "No specs found under $specs_root" >&2
-        exit 1
-    fi
-    printf '%s\n' "$names"
-}
-
-validate_spec_name() {
-    local name="$1"
-    if [[ ! -f "$specs_root/$name/manifest.json" ]]; then
-        echo "error: unknown spec '$name' (no manifest at $specs_root/$name/manifest.json)" >&2
-        exit 1
-    fi
+    local rows name spec_dir
+    rows="$(discover_specs)" || return $?
+    while IFS=$'\t' read -r name spec_dir; do
+        printf '%s\n' "$name"
+    done <<<"$rows"
 }
 
 run_spec() {
     local spec_name="$1"
-    local spec_dir="$specs_root/$spec_name"
+    local spec_dir="$2"
     local manifest="$spec_dir/manifest.json"
     local run_dir
 
-    validate_spec_name "$spec_name"
     run_dir="$(mktemp -d "$runs_dir/${spec_name}.XXXXXX")"
 
     echo "==> $spec_name"
@@ -115,6 +103,10 @@ run_spec() {
 main() {
     local list_only=false
     local specs=()
+    local resolved_spec_rows
+    local selected_names=()
+    local selected_directories=()
+    local selected_name selected_directory index
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -148,21 +140,17 @@ main() {
         exit 0
     fi
 
-    if [[ ${#specs[@]} -eq 0 ]]; then
-        while IFS= read -r name; do
-            specs+=("$name")
-        done < <(discover_specs)
-        if [[ ${#specs[@]} -eq 0 ]]; then
-            echo "No specs found under $specs_root" >&2
-            exit 1
-        fi
-    fi
+    resolved_spec_rows="$(resolve_specs "${specs[@]}")" || return $?
+    while IFS=$'\t' read -r selected_name selected_directory; do
+        selected_names+=("$selected_name")
+        selected_directories+=("$selected_directory")
+    done <<<"$resolved_spec_rows"
 
     ensure_tools
 
-    local spec failed=false
-    for spec in "${specs[@]}"; do
-        if ! run_spec "$spec"; then
+    local failed=false
+    for ((index = 0; index < ${#selected_names[@]}; index++)); do
+        if ! run_spec "${selected_names[$index]}" "${selected_directories[$index]}"; then
             failed=true
         fi
     done
@@ -171,7 +159,7 @@ main() {
         exit 1
     fi
 
-    echo "All TLA+ checks passed (${#specs[@]} spec(s))."
+    echo "All TLA+ checks passed (${#selected_names[@]} spec(s))."
 }
 
 main "$@"

@@ -158,12 +158,13 @@ paths unless a real operation is explicitly approved.
 
 ### TLA and generators
 
-Cover manifest path traversal, missing modules and configurations, duplicate
-cases, unknown expectations, TLC checksum mismatch, interrupted download,
-missing Java or mise, translator and TLC statuses, absent expected-failure
-text, source changes during execution, concurrent first-time cache population,
-byte-identical region and attribution output, and output permission and disk
-write failures.
+Cover cross-feature discovery and duplicate spec folder names. Cover manifest
+path traversal, missing modules and configurations, duplicate cases, and
+unknown expectations. Cover TLC checksum mismatch, interrupted downloads,
+missing Java or mise, and translator and TLC statuses. Cover absent expected-
+failure text, source changes, and concurrent first-time cache population.
+Cover byte-identical generator output, output permissions, and disk-write
+failures.
 
 ## Mutation review
 
