@@ -121,14 +121,26 @@ extension ThrowSession {
                 rapidAPIKey: rapidAPIKey,
                 pollingIntervalSeconds: pollingIntervalSeconds,
             )
+            return await testSource(draft)
+        } catch is CancellationError {
+            return .cancelled
+        } catch let failure as AircraftSourceFailure {
+            return .failed(failure.presentationCategory)
+        } catch {
+            return .failed(.sourceNotValidated)
+        }
+    }
+
+    func testSource(
+        _ draft: AircraftSourceValidationDraft,
+    ) async -> AircraftSourceValidationOutcome {
+        do {
             let query = try validationQuery()
             _ = try await sourceService.testConnection(
                 request: AircraftSourceValidationRequest(draft: draft, query: query),
             )
             try Task.checkCancellation()
-            return .succeeded(
-                ValidatedAircraftSourceDraft(source: draft),
-            )
+            return .succeeded(ValidatedAircraftSourceDraft(source: draft))
         } catch is CancellationError {
             return .cancelled
         } catch let failure as AircraftSourceFailure {

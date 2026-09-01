@@ -88,6 +88,36 @@ struct AircraftSourceSettingsModelTests {
         #expect(model.canUseSource == false)
     }
 
+    @Test func replacementDuringSuspendedApplyCannotClaimTheNewDraftSucceeded() async {
+        let preferenceStore = SuspendingThrowPreferenceStore()
+        let session = ThrowSession.fixture(
+            preferenceStore: preferenceStore,
+            credentialStore: MemoryAircraftCredentialStore(credentials: [:]),
+        )
+        let model = AircraftSourceSettingsModel(session: session)
+        model.choice = .adsbExchange
+        model.replaceCredential()
+        model.rapidAPIKey = "first-secret-1111"
+        await model.test()
+        #expect(model.validation == .succeeded)
+
+        let applyTask = Task { await model.useSource() }
+        await preferenceStore.waitForFirstSaveToStart()
+        model.replaceCredential()
+        model.rapidAPIKey = "second-secret-2222"
+
+        #expect(model.validation == .untested)
+        #expect(model.canTestAndApply == false)
+        await preferenceStore.resumeFirstSave()
+        await applyTask.value
+
+        #expect(session.rapidAPICredentialState == .saved(lastFour: "1111"))
+        #expect(model.rapidAPIKey == "second-secret-2222")
+        #expect(model.isEditingCredential)
+        #expect(model.validation == .untested)
+        #expect(model.canTestAndApply)
+    }
+
     @Test func recentFlightradar24UsageProjectsTheSelectedCadence() async throws {
         let transport = Flightradar24UsageTransport()
         let session = ThrowSession.fixture(cloudTransport: transport)

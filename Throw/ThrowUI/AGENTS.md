@@ -12,6 +12,8 @@ Read the root [`AGENTS.md`](../../AGENTS.md) and group
   Never refer to a concrete provider source or decoder.
 - Keep tested source candidates in `ValidatedAircraftSourceDraft`. Construct it
   only from a successful closed Core validation draft.
+- Keep settings source testing and application in one exhaustive state. Carry
+  the closed draft and its generation across every suspension before publishing success.
 - Construct the live `ThrowSession`, stores, source graph, and poller only in
   `ThrowSession+Composition.swift`. Pass that session to every controller and output scene.
 - Accept aggregate controller foreground presence from the app runtime. Do not
