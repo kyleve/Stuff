@@ -1173,12 +1173,12 @@ struct ProjectionFrameWorkerTests {
                         secondary: nil,
                     ),
                     prominence: .primary,
-                    velocity: ProjectionVelocity(
-                        groundTrack: Bearing(degrees: 90),
-                        groundSpeedKnots: 600,
+                    velocity: ProjectionVelocity.available(
+                        track: Bearing(degrees: 90),
+                        speedKnots: 600,
                         verticalRateFeetPerMinute: nil,
                         turnRateDegreesPerSecond: nil,
-                        horizontalSource: .provider,
+                        source: .provider,
                     ),
                     freshness: MarkFreshness(
                         positionObservedAt: observedAt,

@@ -245,58 +245,66 @@ public struct ProjectionLabel: Hashable, Sendable, CustomStringConvertible,
 }
 
 public struct ProjectionVelocity: Hashable, Sendable {
-    public let groundTrack: Bearing?
-    public let groundSpeedKnots: Double?
+    public let horizontal: AircraftHorizontalMotion
     public let verticalRateFeetPerMinute: Double?
-    public let turnRateDegreesPerSecond: Double?
-    public let horizontalSource: AircraftHorizontalMotionSource
 
     public init(
-        groundTrack: Bearing?,
-        groundSpeedKnots: Double?,
+        horizontal: AircraftHorizontalMotion,
         verticalRateFeetPerMinute: Double?,
-        turnRateDegreesPerSecond: Double?,
-        horizontalSource: AircraftHorizontalMotionSource,
     ) throws {
-        if let groundSpeedKnots {
-            guard groundSpeedKnots.isFinite, (0 ... 2000).contains(groundSpeedKnots) else {
-                throw ThrowValidationError.outOfRange(
-                    field: "groundSpeed",
-                    closedRange: 0 ... 2000,
-                )
-            }
-        }
         if let verticalRateFeetPerMinute {
             guard verticalRateFeetPerMinute.isFinite else {
                 throw ThrowValidationError.nonFiniteValue(field: "verticalRate")
             }
         }
-        if let turnRateDegreesPerSecond {
-            guard turnRateDegreesPerSecond.isFinite else {
-                throw ThrowValidationError.nonFiniteValue(field: "turnRate")
-            }
-            guard (-3 ... 3).contains(turnRateDegreesPerSecond) else {
-                throw ThrowValidationError.outOfRange(
-                    field: "turnRate",
-                    closedRange: -3 ... 3,
-                )
-            }
-        }
-        precondition(
-            horizontalSource == .unavailable ||
-                (groundTrack != nil && groundSpeedKnots != nil),
-            "Available horizontal motion requires both track and speed",
-        )
-        precondition(
-            turnRateDegreesPerSecond == nil ||
-                (groundTrack != nil && groundSpeedKnots != nil),
-            "Turn-rate prediction requires horizontal motion",
-        )
-        self.groundTrack = groundTrack
-        self.groundSpeedKnots = groundSpeedKnots
+        self.horizontal = horizontal
         self.verticalRateFeetPerMinute = verticalRateFeetPerMinute
-        self.turnRateDegreesPerSecond = turnRateDegreesPerSecond
-        self.horizontalSource = horizontalSource
+    }
+
+    public var groundTrack: Bearing? {
+        horizontal.orientation
+    }
+
+    public var groundSpeedKnots: Double? {
+        horizontal.availableValue?.speedKnots
+    }
+
+    public var turnRateDegreesPerSecond: Double? {
+        horizontal.availableValue?.turnRateDegreesPerSecond
+    }
+
+    public var horizontalSource: AircraftHorizontalMotionSource? {
+        horizontal.availableValue?.source
+    }
+
+    public static func available(
+        track: Bearing,
+        speedKnots: Double,
+        verticalRateFeetPerMinute: Double?,
+        turnRateDegreesPerSecond: Double?,
+        source: AircraftHorizontalMotionSource,
+    ) throws -> Self {
+        try ProjectionVelocity(
+            horizontal: .available(
+                AvailableAircraftHorizontalMotion(
+                    track: track,
+                    speedKnots: speedKnots,
+                    turnRateDegreesPerSecond: turnRateDegreesPerSecond,
+                    source: source,
+                ),
+            ),
+            verticalRateFeetPerMinute: verticalRateFeetPerMinute,
+        )
+    }
+
+    public static func unavailable(
+        orientation: Bearing?,
+        verticalRateFeetPerMinute: Double?,
+    ) throws -> Self {
+        try ProjectionVelocity(
+            horizontal: .unavailable(orientation: orientation),
+            verticalRateFeetPerMinute: verticalRateFeetPerMinute,
+        )
     }
 }
 

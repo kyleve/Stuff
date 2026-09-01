@@ -17,7 +17,7 @@ struct FlightMotionEstimatorTests {
         let firstMotion = try #require(firstMotions[first.id])
         let secondMotion = try #require(secondMotions[second.id])
 
-        #expect(firstMotion.horizontalSource == .unavailable)
+        #expect(firstMotion.horizontalSource == nil)
         #expect(secondMotion.horizontalSource == .positionDerived)
         #expect(try #require(secondMotion.groundTrack).degrees > 80)
         #expect(try #require(secondMotion.groundTrack).degrees < 100)
@@ -142,7 +142,7 @@ struct FlightMotionEstimatorTests {
         )
         let motion = try #require(motions[second.id])
 
-        #expect(motion.horizontalSource == .unavailable)
+        #expect(motion.horizontalSource == nil)
     }
 
     private func observation(

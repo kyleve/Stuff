@@ -64,11 +64,8 @@ public struct FlightLayerFrameBuilder: Sendable {
                 ),
                 prominence: prominence,
                 velocity: ProjectionVelocity(
-                    groundTrack: motion.groundTrack,
-                    groundSpeedKnots: motion.groundSpeedKnots,
+                    horizontal: motion.horizontal,
                     verticalRateFeetPerMinute: motion.verticalRateFeetPerMinute,
-                    turnRateDegreesPerSecond: motion.turnRateDegreesPerSecond,
-                    horizontalSource: motion.horizontalSource,
                 ),
                 freshness: MarkFreshness(
                     positionObservedAt: observation.positionObservedAt,

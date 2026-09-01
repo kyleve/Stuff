@@ -64,12 +64,11 @@ struct AircraftModelsTests {
 
     @Test func impossibleGroundSpeedsAreRejectedAtDomainBoundaries() {
         #expect(throws: ThrowValidationError.self) {
-            try ProjectionVelocity(
-                groundTrack: nil,
-                groundSpeedKnots: 2001,
-                verticalRateFeetPerMinute: nil,
+            try AvailableAircraftHorizontalMotion(
+                track: Bearing(degrees: 90),
+                speedKnots: 2001,
                 turnRateDegreesPerSecond: nil,
-                horizontalSource: .unavailable,
+                source: .provider,
             )
         }
         #expect(throws: ThrowValidationError.self) {

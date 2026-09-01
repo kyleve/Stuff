@@ -60,19 +60,15 @@ struct FlightMotionEstimator {
         let interval = observation.positionObservedAt.timeIntervalSince(previous.observedAt)
         guard interval > 0 else {
             guard observation.coordinate == previous.coordinate else { return reported }
-            if reported.horizontalSource == .unavailable,
+            if reported.horizontalSource == nil,
                previous.motion.horizontalSource == .positionDerived
             {
                 return try AircraftMotion(
-                    groundTrack: previous.motion.groundTrack,
-                    groundSpeedKnots: previous.motion.groundSpeedKnots,
+                    horizontal: previous.motion.horizontal,
                     verticalRateFeetPerMinute: reported.verticalRateFeetPerMinute,
-                    turnRateDegreesPerSecond: previous.motion.turnRateDegreesPerSecond,
-                    horizontalSource: .positionDerived,
                 )
             }
-            let reportsSameMotion = reported.groundTrack == previous.motion.groundTrack &&
-                reported.groundSpeedKnots == previous.motion.groundSpeedKnots &&
+            let reportsSameMotion = reported.horizontal == previous.motion.horizontal &&
                 reported.verticalRateFeetPerMinute == previous.motion.verticalRateFeetPerMinute
             return reportsSameMotion ? previous.motion : reported
         }
@@ -82,24 +78,20 @@ struct FlightMotionEstimator {
             to: observation.coordinate,
             interval: interval,
         )
-        let horizontal = reconciledHorizontalMotion(
+        let horizontal = try reconciledHorizontalMotion(
             reported: reported,
             measured: measured,
             interval: interval,
         )
         let turnRate = turnRate(
             previous: previous.motion,
-            currentTrack: horizontal.track,
-            currentSpeedKnots: horizontal.speedKnots,
+            current: horizontal,
             interval: interval,
-            currentSource: horizontal.source,
         )
+        let resolvedHorizontal = try applyingTurnRate(turnRate, to: horizontal)
         return try AircraftMotion(
-            groundTrack: horizontal.track,
-            groundSpeedKnots: horizontal.speedKnots,
+            horizontal: resolvedHorizontal,
             verticalRateFeetPerMinute: reported.verticalRateFeetPerMinute,
-            turnRateDegreesPerSecond: turnRate,
-            horizontalSource: horizontal.source,
         )
     }
 
@@ -119,43 +111,47 @@ struct FlightMotionEstimator {
         )
     }
 
+    private func applyingTurnRate(
+        _ turnRate: Double?,
+        to horizontal: AircraftHorizontalMotion,
+    ) throws -> AircraftHorizontalMotion {
+        guard let available = horizontal.availableValue else { return horizontal }
+        return try .available(
+            AvailableAircraftHorizontalMotion(
+                track: available.track,
+                speedKnots: available.speedKnots,
+                turnRateDegreesPerSecond: turnRate,
+                source: available.source,
+            ),
+        )
+    }
+
     private func reconciledHorizontalMotion(
         reported: AircraftMotion,
         measured: MeasuredHorizontalMotion?,
         interval: TimeInterval,
-    ) -> HorizontalMotion {
+    ) throws -> AircraftHorizontalMotion {
         guard let measured else {
-            return HorizontalMotion(
-                track: reported.groundTrack,
-                speedKnots: reported.groundSpeedKnots,
-                source: reported.horizontalSource,
-            )
+            return reported.horizontal
         }
-        guard let reportedTrack = reported.groundTrack,
-              let reportedSpeed = reported.groundSpeedKnots
-        else {
-            return HorizontalMotion(
-                track: measured.track,
-                speedKnots: measured.speedKnots,
-                source: .positionDerived,
-            )
+        guard let reportedHorizontal = reported.horizontal.availableValue else {
+            return try measured.horizontalMotion()
         }
         if isClearlyInconsistent(
-            reportedTrack: reportedTrack,
-            reportedSpeed: reportedSpeed,
+            reportedTrack: reportedHorizontal.track,
+            reportedSpeed: reportedHorizontal.speedKnots,
             measured: measured,
             interval: interval,
         ) {
-            return HorizontalMotion(
-                track: measured.track,
-                speedKnots: measured.speedKnots,
-                source: .positionDerived,
-            )
+            return try measured.horizontalMotion()
         }
-        return HorizontalMotion(
-            track: reportedTrack,
-            speedKnots: reportedSpeed,
-            source: .provider,
+        return try .available(
+            AvailableAircraftHorizontalMotion(
+                track: reportedHorizontal.track,
+                speedKnots: reportedHorizontal.speedKnots,
+                turnRateDegreesPerSecond: nil,
+                source: .provider,
+            ),
         )
     }
 
@@ -178,20 +174,17 @@ struct FlightMotionEstimator {
 
     private func turnRate(
         previous: AircraftMotion,
-        currentTrack: Bearing?,
-        currentSpeedKnots: Double?,
+        current: AircraftHorizontalMotion,
         interval: TimeInterval,
-        currentSource: AircraftHorizontalMotionSource,
     ) -> Double? {
         guard interval <= Self.maximumTurnInterval,
-              previous.horizontalSource == .provider,
-              currentSource == .provider,
-              let previousTrack = previous.groundTrack,
-              let currentTrack,
-              let currentSpeedKnots,
-              currentSpeedKnots >= Self.minimumTurnSpeedKnots
+              let previous = previous.horizontal.availableValue,
+              let current = current.availableValue,
+              previous.source == .provider,
+              current.source == .provider,
+              current.speedKnots >= Self.minimumTurnSpeedKnots
         else { return nil }
-        let rate = signedCourseDifference(from: previousTrack, to: currentTrack) / interval
+        let rate = signedCourseDifference(from: previous.track, to: current.track) / interval
         guard abs(rate) <= Self.maximumTurnRateDegreesPerSecond else { return nil }
         return abs(rate) >= 0.03 ? rate : nil
     }
@@ -207,14 +200,19 @@ struct FlightMotionEstimator {
         return difference
     }
 
-    private struct HorizontalMotion {
-        let track: Bearing?
-        let speedKnots: Double?
-        let source: AircraftHorizontalMotionSource
-    }
-
     private struct MeasuredHorizontalMotion {
         let track: Bearing
         let speedKnots: Double
+
+        func horizontalMotion() throws -> AircraftHorizontalMotion {
+            try .available(
+                AvailableAircraftHorizontalMotion(
+                    track: track,
+                    speedKnots: speedKnots,
+                    turnRateDegreesPerSecond: nil,
+                    source: .positionDerived,
+                ),
+            )
+        }
     }
 }

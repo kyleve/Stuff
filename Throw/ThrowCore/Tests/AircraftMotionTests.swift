@@ -22,20 +22,21 @@ struct AircraftMotionTests {
         )
 
         let motion = AircraftMotion.reported(by: observation)
+        let expectedOrientation = try Bearing(degrees: 90)
 
-        #expect(motion.horizontalSource == .unavailable)
+        #expect(motion.horizontalSource == nil)
+        #expect(motion.horizontal == .unavailable(orientation: expectedOrientation))
         #expect(motion.groundTrack?.degrees == 90)
         #expect(motion.groundSpeedKnots == nil)
     }
 
     @Test func turnRateMustStayInsideThePredictionBoundary() {
         #expect(throws: ThrowValidationError.self) {
-            try AircraftMotion(
-                groundTrack: Bearing(degrees: 90),
-                groundSpeedKnots: 360,
-                verticalRateFeetPerMinute: nil,
+            try AvailableAircraftHorizontalMotion(
+                track: Bearing(degrees: 90),
+                speedKnots: 360,
                 turnRateDegreesPerSecond: 3.1,
-                horizontalSource: .provider,
+                source: .provider,
             )
         }
     }

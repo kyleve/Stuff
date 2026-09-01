@@ -285,12 +285,12 @@ struct ProjectionEngineTests {
             glyph: .aircraft(.unknownAirborne),
             label: nil,
             prominence: .primary,
-            velocity: ProjectionVelocity(
-                groundTrack: Bearing(degrees: 35),
-                groundSpeedKnots: 2000,
+            velocity: ProjectionVelocity.available(
+                track: Bearing(degrees: 35),
+                speedKnots: 2000,
                 verticalRateFeetPerMinute: nil,
                 turnRateDegreesPerSecond: nil,
-                horizontalSource: .provider,
+                source: .provider,
             ),
             freshness: MarkFreshness(
                 positionObservedAt: observedAt,
@@ -357,12 +357,12 @@ struct ProjectionEngineTests {
 
     @Test func apparentOrientationRemainsStableDuringContinuousPrediction() throws {
         let observer = try ThrowCoreFixture.observer(latitude: 0, longitude: 0, altitudeFeet: 0)
-        let velocity = try ProjectionVelocity(
-            groundTrack: Bearing(degrees: 90),
-            groundSpeedKnots: 360,
+        let velocity = try ProjectionVelocity.available(
+            track: Bearing(degrees: 90),
+            speedKnots: 360,
             verticalRateFeetPerMinute: nil,
             turnRateDegreesPerSecond: nil,
-            horizontalSource: .provider,
+            source: .provider,
         )
         let movingMark = try mark(
             rawID: "moving",
@@ -409,12 +409,9 @@ struct ProjectionEngineTests {
 
     @Test func extremeVerticalPredictionDoesNotDropNeighboringMarks() throws {
         let observer = try ThrowCoreFixture.observer(latitude: 0, longitude: 0, altitudeFeet: 0)
-        let extremeVelocity = try ProjectionVelocity(
-            groundTrack: nil,
-            groundSpeedKnots: nil,
+        let extremeVelocity = try ProjectionVelocity.unavailable(
+            orientation: nil,
             verticalRateFeetPerMinute: .greatestFiniteMagnitude,
-            turnRateDegreesPerSecond: nil,
-            horizontalSource: .unavailable,
         )
         let frame = try engine.frame(
             layerFrames: [
@@ -445,12 +442,9 @@ struct ProjectionEngineTests {
 
     @Test func verticalOnlyTrueSkyMotionProducesApparentOrientation() throws {
         let observer = try ThrowCoreFixture.observer(latitude: 0, longitude: 0, altitudeFeet: 0)
-        let verticalVelocity = try ProjectionVelocity(
-            groundTrack: nil,
-            groundSpeedKnots: nil,
+        let verticalVelocity = try ProjectionVelocity.unavailable(
+            orientation: nil,
             verticalRateFeetPerMinute: 600,
-            turnRateDegreesPerSecond: nil,
-            horizontalSource: .unavailable,
         )
         let frame = try engine.frame(
             layerFrames: [
