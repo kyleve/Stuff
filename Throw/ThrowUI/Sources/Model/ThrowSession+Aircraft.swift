@@ -164,8 +164,8 @@ extension ThrowSession {
 
     @discardableResult
     func useSource(_ draft: ValidatedAircraftSourceDraft) async -> Bool {
-        guard beginPreferenceMutation() else { return false }
-        defer { finishPreferenceMutation() }
+        guard let preferenceProducer = beginPreferenceMutation() else { return false }
+        defer { finishPreferenceMutation(preferenceProducer) }
 
         await waitForPreferenceSaveWorker()
 
@@ -275,8 +275,8 @@ extension ThrowSession {
 
     @discardableResult
     public func deleteRapidAPICredential() async -> Bool {
-        guard beginPreferenceMutation() else { return false }
-        defer { finishPreferenceMutation() }
+        guard let preferenceProducer = beginPreferenceMutation() else { return false }
+        defer { finishPreferenceMutation(preferenceProducer) }
 
         let deletesActiveSource = selectedSourceConfiguration?.kind == .adsbExchangeRapidAPI
         do {
@@ -300,8 +300,8 @@ extension ThrowSession {
 
     @discardableResult
     public func deleteFlightradar24Credential() async -> Bool {
-        guard beginPreferenceMutation() else { return false }
-        defer { finishPreferenceMutation() }
+        guard let preferenceProducer = beginPreferenceMutation() else { return false }
+        defer { finishPreferenceMutation(preferenceProducer) }
 
         let deletesActiveSource = selectedSourceConfiguration?.kind == .flightradar24
         do {

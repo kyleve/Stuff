@@ -89,10 +89,13 @@ Read the root [`AGENTS.md`](../../AGENTS.md) and group
   in the same synchronous operation.
 - Keep source and location projections getter-only. Change them through their
   persisted session command, except for DEBUG Testing SPI fixture methods.
-- Keep the preference worker, queued requests, active mutation, deferred
-  failures, and flush waiters in one exhaustive persistence state.
+- Keep save activity, asynchronous producer admission, typed producer leases,
+  deferred failures, and flush waiters in one persistence state.
 - Coalesce only adjacent UI snapshots, and preserve immediate-write barriers.
-  A preference flush completes only when the persistence state is idle.
+  Close producer admission before a final-background flush. A flush completes
+  only after admitted producers finish and save activity becomes idle.
+- Keep coordinator state callbacks presentation-only. Require an admitted
+  producer lease to publish a selected View after an asynchronous command.
 - Keep final-background task and UIKit execution-lease ownership in the app
   runtime. ThrowUI reports quiescence and does not start lifecycle tasks.
 - Build immediate source and location commits from the complete typed preference

@@ -3,9 +3,21 @@ import ThrowCore
 @MainActor
 final class PreferenceFlushCompletionProbe {
     private(set) var isComplete = false
+    private var waiters: [CheckedContinuation<Void, Never>] = []
 
     func complete() {
+        guard isComplete == false else { return }
         isComplete = true
+        let waiters = waiters
+        self.waiters.removeAll()
+        waiters.forEach { $0.resume() }
+    }
+
+    func waitForCompletion() async {
+        guard isComplete == false else { return }
+        await withCheckedContinuation { continuation in
+            waiters.append(continuation)
+        }
     }
 }
 

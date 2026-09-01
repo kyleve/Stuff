@@ -194,7 +194,7 @@ struct ThrowRuntimeTests {
         )
         let controller = ControllerSceneID(rawValue: "controller-background-flush")
         runtime.controllerScene(controller, didReceive: .willEnterForeground)
-        #expect(session.beginPreferenceMutation())
+        let preferenceProducer = try #require(session.beginPreferenceMutation())
 
         runtime.controllerScene(controller, didReceive: .didEnterBackground)
 
@@ -207,7 +207,7 @@ struct ThrowRuntimeTests {
         }
         #expect(session.preferencePersistence.quiescenceWaiterCount == 1)
         #expect(lease.endCallCount == 0)
-        session.finishPreferenceMutation()
+        session.finishPreferenceMutation(preferenceProducer)
         await lease.waitForEndCallCount(1)
         #expect(lease.endCallCount == 1)
     }
@@ -222,7 +222,7 @@ struct ThrowRuntimeTests {
         )
         let controller = ControllerSceneID(rawValue: "controller-expired-flush")
         runtime.controllerScene(controller, didReceive: .willEnterForeground)
-        #expect(session.beginPreferenceMutation())
+        let preferenceProducer = try #require(session.beginPreferenceMutation())
         runtime.controllerScene(controller, didReceive: .didEnterBackground)
         let lease = try #require(leaser.lastLease)
         while session.preferencePersistence.quiescenceWaiterCount == 0,
@@ -236,7 +236,7 @@ struct ThrowRuntimeTests {
         leaser.expire()
 
         #expect(lease.endCallCount == 1)
-        session.finishPreferenceMutation()
+        session.finishPreferenceMutation(preferenceProducer)
         await session.flushPreferencesSave()
         await Task.yield()
         #expect(lease.endCallCount == 1)

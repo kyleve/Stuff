@@ -142,8 +142,7 @@ extension ThrowSession {
             preferences,
             failure: .preferencePersistence,
         )
-        projectionPlaylist = preferences.playlist
-        await configureExperienceCoordinator(with: projectionPlaylist)
+        await configureExperienceCoordinator(with: preferences.playlist)
     }
 
     func persistPreferencesImmediately(
@@ -162,19 +161,32 @@ extension ThrowSession {
         guard Task.isCancelled == false else { return }
         await withCheckedContinuation { continuation in
             preferencePersistence.waitForQuiescence(continuation)
+            #if DEBUG
+                preferenceFlushDidRegisterForTesting?()
+            #endif
         }
     }
 
-    func beginPreferenceMutation() -> Bool {
+    func beginPreferenceMutation() -> ThrowPreferenceProducerLease? {
         preferencePersistence.beginMutation()
     }
 
-    func finishPreferenceMutation() {
-        let failures = preferencePersistence.finishMutation()
+    func finishPreferenceMutation(_ producer: ThrowPreferenceProducerLease) {
+        let failures = preferencePersistence.finishMutation(producer)
         for failure in failures {
             schedulePreferencesSave(failure: failure)
         }
-        preferencePersistence.resumeQuiescenceWaitersIfNeeded()
+        preferencePersistence.finishProducer(producer)
+    }
+
+    func beginPreferenceProducer(
+        _ kind: ThrowPreferenceProducerLease.Kind,
+    ) -> ThrowPreferenceProducerLease? {
+        preferencePersistence.beginProducer(kind)
+    }
+
+    func finishPreferenceProducer(_ producer: ThrowPreferenceProducerLease) {
+        preferencePersistence.finishProducer(producer)
     }
 
     func waitForPreferenceSaveWorker() async {
@@ -471,6 +483,29 @@ private struct PersistableThrowPreferenceMutation<Publication> {
     let publication: Publication
 }
 
+/// Proves that an asynchronous preference producer began before admission closed.
+struct ThrowPreferenceProducerLease: Hashable {
+    enum Kind: Hashable {
+        case mutation
+        case experienceSelection
+        case experienceTransition
+    }
+
+    fileprivate struct ID: Hashable {
+        static let initial = ID(rawValue: 0)
+
+        let rawValue: UInt64
+
+        func successor() -> ID {
+            precondition(rawValue < UInt64.max, "A preference producer ID must not overflow")
+            return ID(rawValue: rawValue + 1)
+        }
+    }
+
+    let kind: Kind
+    fileprivate let id: ID
+}
+
 /// The complete save and mutation lifecycle for session preferences.
 @MainActor
 struct ThrowPreferencePersistenceState {
@@ -488,8 +523,35 @@ struct ThrowPreferencePersistenceState {
         )
     }
 
+    private enum ProducerAdmission {
+        case open(
+            nextID: ThrowPreferenceProducerLease.ID,
+            active: Set<ThrowPreferenceProducerLease>,
+        )
+        case closed(
+            nextID: ThrowPreferenceProducerLease.ID,
+            active: Set<ThrowPreferenceProducerLease>,
+        )
+
+        var active: Set<ThrowPreferenceProducerLease> {
+            switch self {
+                case let .open(_, active), let .closed(_, active):
+                    active
+            }
+        }
+    }
+
     private var activity = Activity.idle
+    private var producerAdmission: ProducerAdmission
     private var quiescenceWaiters: [CheckedContinuation<Void, Never>] = []
+
+    init(acceptsProducers: Bool) {
+        producerAdmission = if acceptsProducers {
+            .open(nextID: .initial, active: [])
+        } else {
+            .closed(nextID: .initial, active: [])
+        }
+    }
 
     var isMutationActive: Bool {
         switch activity {
@@ -531,26 +593,81 @@ struct ThrowPreferencePersistenceState {
         var quiescenceWaiterCount: Int {
             quiescenceWaiters.count
         }
+
+        var activeProducerCount: Int {
+            producerAdmission.active.count
+        }
     #endif
 
-    mutating func beginMutation() -> Bool {
+    mutating func setAcceptsProducers(_ acceptsProducers: Bool) {
+        switch (producerAdmission, acceptsProducers) {
+            case (.open, true), (.closed, false):
+                return
+            case let (.open(nextID, active), false):
+                producerAdmission = .closed(nextID: nextID, active: active)
+            case let (.closed(nextID, active), true):
+                producerAdmission = .open(nextID: nextID, active: active)
+        }
+    }
+
+    mutating func beginProducer(
+        _ kind: ThrowPreferenceProducerLease.Kind,
+    ) -> ThrowPreferenceProducerLease? {
+        switch producerAdmission {
+            case let .open(nextID, active):
+                let producer = ThrowPreferenceProducerLease(kind: kind, id: nextID)
+                producerAdmission = .open(
+                    nextID: nextID.successor(),
+                    active: active.union([producer]),
+                )
+                return producer
+            case .closed:
+                return nil
+        }
+    }
+
+    mutating func finishProducer(_ producer: ThrowPreferenceProducerLease) {
+        switch producerAdmission {
+            case let .open(nextID, active):
+                producerAdmission = .open(
+                    nextID: nextID,
+                    active: removing(producer, from: active),
+                )
+            case let .closed(nextID, active):
+                producerAdmission = .closed(
+                    nextID: nextID,
+                    active: removing(producer, from: active),
+                )
+        }
+        resumeQuiescenceWaitersIfNeeded()
+    }
+
+    mutating func beginMutation() -> ThrowPreferenceProducerLease? {
+        guard isMutationActive == false,
+              let producer = beginProducer(.mutation)
+        else { return nil }
         switch activity {
             case .idle:
                 activity = .mutating(deferredFailures: ThrowPostLaunchFailureLedger())
-                return true
             case let .saving(worker, pending):
                 activity = .mutatingAndSaving(
                     worker: worker,
                     pending: pending,
                     deferredFailures: ThrowPostLaunchFailureLedger(),
                 )
-                return true
             case .mutating, .mutatingAndSaving:
-                return false
+                preconditionFailure("A preference mutation cannot overlap another mutation")
         }
+        return producer
     }
 
-    mutating func finishMutation() -> [ThrowPostLaunchFailure] {
+    mutating func finishMutation(
+        _ producer: ThrowPreferenceProducerLease,
+    ) -> [ThrowPostLaunchFailure] {
+        precondition(
+            producer.kind == .mutation && producerAdmission.active.contains(producer),
+            "Only the active preference mutation producer can finish the mutation",
+        )
         switch activity {
             case let .mutating(deferredFailures):
                 activity = .idle
@@ -683,7 +800,7 @@ struct ThrowPreferencePersistenceState {
     }
 
     mutating func waitForQuiescence(_ continuation: CheckedContinuation<Void, Never>) {
-        guard case .idle = activity else {
+        guard isQuiescent else {
             quiescenceWaiters.append(continuation)
             return
         }
@@ -691,12 +808,29 @@ struct ThrowPreferencePersistenceState {
     }
 
     mutating func resumeQuiescenceWaitersIfNeeded() {
-        guard case .idle = activity else { return }
+        guard isQuiescent else { return }
         let waiters = quiescenceWaiters
         quiescenceWaiters.removeAll(keepingCapacity: true)
         for waiter in waiters {
             waiter.resume()
         }
+    }
+
+    private var isQuiescent: Bool {
+        guard case .idle = activity else { return false }
+        return producerAdmission.active.isEmpty
+    }
+
+    private func removing(
+        _ producer: ThrowPreferenceProducerLease,
+        from active: Set<ThrowPreferenceProducerLease>,
+    ) -> Set<ThrowPreferenceProducerLease> {
+        var active = active
+        precondition(
+            active.remove(producer) != nil,
+            "A preference producer must finish exactly once",
+        )
+        return active
     }
 
     private func coalescingLastRequest(
