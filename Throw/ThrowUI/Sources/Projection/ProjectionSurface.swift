@@ -16,8 +16,9 @@ struct ProjectionSurface: View {
     }
 
     var body: some View {
-        let frame = session.projectionFrame
-        let effects = session.projectionMarkEffects
+        let projection = session.visibleProjection
+        let frame = projection.frame
+        let effects = projection.effects
         let markOpacity = session.projectionMarkOpacity
         let markSizeMultiplier = session.markSizeMultiplier
         let intensityMultiplier = session.intensityMultiplier
@@ -62,7 +63,7 @@ struct ProjectionSurface: View {
                         }
                     }
                     ObserverMarkerCanvas(
-                        point: session.observerMapPoint,
+                        point: projection.observerPoint,
                         intensityMultiplier: intensityMultiplier,
                         style: projectionStyle,
                     )

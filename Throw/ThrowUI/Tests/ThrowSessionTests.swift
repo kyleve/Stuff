@@ -252,7 +252,7 @@ struct ThrowSessionTests {
         let session = ThrowSession.fixture()
 
         #expect(session.projectionFrame.geography != nil)
-        session.currentLayerFrame = nil
+        session.replacePendingAirAndSpaceFrameForTesting(.empty)
         let geography = session.airAndSpacePreferences.geography
             .replacingIsEnabled(false)
         session.updateAirAndSpacePreferences(
@@ -266,7 +266,10 @@ struct ThrowSessionTests {
 
     @Test func clearingProjectionStateRemovesTheObserverMarkerForQuietBlack() async {
         let session = ThrowSession.fixture()
-        session.observerMapPoint = ProjectionPoint(x: 0.5, y: 0.5)
+        session.replaceProjectionMetadataForTesting(
+            observerPoint: ProjectionPoint(x: 0.5, y: 0.5),
+            geographyHealth: session.geographyLayerHealth,
+        )
 
         await session.clearProjectionState(restartsGeography: false)
 
@@ -302,7 +305,7 @@ struct ThrowSessionTests {
         #expect(session.projectionFrame.marks.isEmpty)
         #expect(session.projectionFrame.geography != nil)
         #expect(session.currentSnapshot == nil)
-        #expect(session.currentLayerFrame == nil)
+        #expect(session.pendingAirAndSpaceFrame.flights == nil)
         #expect(session.renderTask == nil)
         #expect(session.feedHealth == .failed(.sourceNotValidated))
     }

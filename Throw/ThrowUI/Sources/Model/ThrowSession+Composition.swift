@@ -238,9 +238,9 @@ extension ThrowSession {
                 projectionMode: .trueSky,
                 airAndSpacePreferencesOverride: airAndSpacePreferences,
             )
-            session.projectionFrame = fixtureTrueSkyProjectionFrame(
+            session.replaceProjectionFrameForTesting(fixtureTrueSkyProjectionFrame(
                 at: session.projectionFrame.generatedAt,
-            )
+            ))
             session.feedHealth = .healthy(
                 lastUpdate: session.dateProvider.now(),
                 visibleContentCount: session.projectionFrame.visibleAircraftCount,
@@ -251,10 +251,10 @@ extension ThrowSession {
         static func retryingSnapshotFixture() -> ThrowSession {
             let session = fixture()
             let now = session.dateProvider.now()
-            session.projectionFrame = fixtureProjectionFrame(
+            session.replaceProjectionFrameForTesting(fixtureProjectionFrame(
                 at: session.projectionFrame.generatedAt,
                 opacity: 0.55,
-            )
+            ))
             session.feedHealth = .retrying(
                 lastUpdate: now,
                 nextRetry: now.addingTimeInterval(3600),
@@ -266,10 +266,10 @@ extension ThrowSession {
 
         static func failedSnapshotFixture() -> ThrowSession {
             let session = fixture()
-            session.projectionFrame = emptyProjectionFrame(
+            session.replaceProjectionFrameForTesting(emptyProjectionFrame(
                 mode: session.projectionMode,
                 at: session.projectionFrame.generatedAt,
-            )
+            ))
             session.feedHealth = .failed(.missingCredential)
             return session
         }
@@ -283,7 +283,9 @@ extension ThrowSession {
                 transport: FixtureHTTPTransport(),
                 airAndSpacePreferencesOverride: airAndSpacePreferences,
             )
-            session.projectionFrame = mapLabels(in: session.projectionFrame) { _ in nil }
+            session.replaceProjectionFrameForTesting(
+                mapLabels(in: session.projectionFrame) { _ in nil },
+            )
             return session
         }
 
@@ -313,12 +315,12 @@ extension ThrowSession {
                     range: Double(index + 3),
                 )
             }
-            session.projectionFrame = fixtureProjectionFrame(
+            session.replaceProjectionFrameForTesting(fixtureProjectionFrame(
                 mode: .map,
                 at: session.projectionFrame.generatedAt,
                 aircraft: values,
                 opacity: 1,
-            )
+            ))
             session.feedHealth = .healthy(
                 lastUpdate: session.dateProvider.now(),
                 visibleContentCount: session.projectionFrame.visibleAircraftCount,
@@ -419,7 +421,7 @@ extension ThrowSession {
                 labelOpacity: 1,
                 altitudeIsApproximate: false,
             )
-            session.projectionFrame = .testing(
+            session.replaceProjectionFrameForTesting(.testing(
                 mode: mode,
                 generatedAt: session.dateProvider.now(),
                 geography: mode == .map
@@ -430,7 +432,7 @@ extension ThrowSession {
                     : nil,
                 geographyOpacity: 1,
                 marks: aircraft + (mode == .map ? [airportMark] : []),
-            )
+            ))
             return session
         }
 
@@ -498,10 +500,10 @@ extension ThrowSession {
         static func rootDashboardSnapshotFixture() -> ThrowSession {
             let session = fixture()
             session.locationHealth = .missing
-            session.projectionFrame = emptyProjectionFrame(
+            session.replaceProjectionFrameForTesting(emptyProjectionFrame(
                 mode: session.projectionMode,
                 at: session.projectionFrame.generatedAt,
-            )
+            ))
             session.feedHealth = .loading
             return session
         }
@@ -594,16 +596,17 @@ extension ThrowSession {
                     manualSelectionFailure = .transport
                     healthByExperience[.transit] = .failed(.transport)
             }
-            session.experienceCoordinatorState = ProjectionExperienceCoordinatorState(
-                activeExperienceID: .airAndSpace,
-                requestedExperienceID: requestedExperienceID,
-                prewarmingExperienceID: prewarmingExperienceID,
-                isPaused: isPaused,
-                dwellEndsAt: dwellEndsAt,
-                nextExperienceID: .transit,
-                healthByExperience: healthByExperience,
-                manualSelectionFailure: manualSelectionFailure,
-            )
+            session
+                .applyExperienceCoordinatorState(ProjectionExperienceCoordinatorState(
+                    activeExperienceID: .airAndSpace,
+                    requestedExperienceID: requestedExperienceID,
+                    prewarmingExperienceID: prewarmingExperienceID,
+                    isPaused: isPaused,
+                    dwellEndsAt: dwellEndsAt,
+                    nextExperienceID: .transit,
+                    healthByExperience: healthByExperience,
+                    manualSelectionFailure: manualSelectionFailure,
+                ))
             return session
         }
 
@@ -747,9 +750,9 @@ extension ThrowSession {
                     initiallyHasForegroundControllerScene: true,
                     initialLaunchState: initialLaunchStateOverride ?? .loaded(setupState),
                 )
-                session.projectionFrame = quiet
+                session.replaceProjectionFrameForTesting(quiet
                     ? emptyProjectionFrame(mode: .map, at: now)
-                    : fixtureProjectionFrame(at: now, opacity: 1)
+                    : fixtureProjectionFrame(at: now, opacity: 1))
                 session.feedHealth = quiet
                     ? .quiet
                     : .healthy(
@@ -785,10 +788,10 @@ extension ThrowSession {
             )
             prepareDashboardSnapshot(session)
             session.setupState = session.setupState.replacingSource(configuration)
-            session.projectionFrame = emptyProjectionFrame(
+            session.replaceProjectionFrameForTesting(emptyProjectionFrame(
                 mode: session.projectionMode,
                 at: session.projectionFrame.generatedAt,
-            )
+            ))
             return session
         }
 

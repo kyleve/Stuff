@@ -1,9 +1,75 @@
+import Foundation
 import Testing
 import ThrowCore
 @_spi(Testing) @testable import ThrowUI
 
 @MainActor
 struct ThrowSessionExperiencesTests {
+    @Test func blackCommitKeepsPreparedIdentityAndRevisionAheadOfBufferedInput() throws {
+        let session = ThrowSession.fixture()
+        let observer = try projectionTestObserver(latitude: 37, longitude: -122)
+        let preparedFrame = projectionTestAirFrame(
+            observedAt: Date(timeIntervalSince1970: 100),
+        )
+        let bufferedFrame = projectionTestAirFrame(
+            observedAt: Date(timeIntervalSince1970: 200),
+        )
+        let output = try projectionTestAirOutput(
+            semanticFrame: preparedFrame,
+            observer: observer,
+            generatedAt: Date(timeIntervalSince1970: 150),
+            revision: 11,
+            observerPoint: ProjectionPoint(x: 0.25, y: 0.75),
+        )
+        let lease = ProjectionActivationLease(
+            experienceID: .airAndSpace,
+            generation: .init(rawValue: 4),
+        )
+        session.projectionPresentationState = .initial(
+            coordinator: projectionTestCoordinator(activeExperienceID: .transit),
+            preferredExperienceID: .transit,
+            mode: .map,
+            generatedAt: Date(timeIntervalSince1970: 50),
+        )
+        session.preparedProjection = try #require(VisibleProjection.rendered(
+            activationLease: lease,
+            output: output,
+        ))
+        session.replacePendingAirAndSpaceFrameForTesting(bufferedFrame)
+        let bufferedUpdate = AirAndSpaceRuntimeUpdate(
+            activationLease: lease,
+            successfulActivationLease: lease,
+            health: .healthy(
+                lastUpdate: Date(timeIntervalSince1970: 200),
+                visibleContentCount: 0,
+            ),
+            flightsFrame: bufferedFrame.flights,
+            snapshot: nil,
+            activePollingSignature: nil,
+        )
+        session.projectionPresentationTransition = .fadingOut(
+            targetLease: lease,
+            bufferedTargetUpdate: bufferedUpdate,
+        )
+
+        let committed = session.commitPreparedProjectionAtBlack(
+            to: lease,
+            coordinator: projectionTestCoordinator(activeExperienceID: .airAndSpace),
+        )
+
+        #expect(committed)
+        #expect(session.activeExperienceID == .airAndSpace)
+        #expect(session.visibleProjection.activationLease == lease)
+        #expect(session.visibleProjection.semanticFrame == .airAndSpace(preparedFrame))
+        #expect(session.visibleProjection.request?.revision.rawValue == 11)
+        #expect(session.visibleProjection.request?.context.observer == observer)
+        #expect(session.projectionFrame.generatedAt == Date(timeIntervalSince1970: 150))
+        #expect(session.pendingAirAndSpaceFrame == bufferedFrame)
+        #expect(session.projectionPresentationTransition?.bufferedTargetUpdate?.flightsFrame ==
+            bufferedFrame.flights)
+        #expect(session.preparedProjection == nil)
+    }
+
     @Test func oneConfiguredViewKeepsAutomaticRotationDormant() {
         let session = ThrowSession.fixture()
 
@@ -69,7 +135,7 @@ struct ThrowSessionExperiencesTests {
             generation: .init(rawValue: 1),
         )
         _ = session.airAndSpaceActivation.activate(lease)
-        session.currentLayerFrame = nil
+        session.replacePendingAirAndSpaceFrameForTesting(.empty)
         session.currentSnapshot = nil
         session.projectionPresentationTransition = .fadingIn(
             targetLease: lease,
@@ -109,7 +175,7 @@ struct ThrowSessionExperiencesTests {
 
     @Test func projectionAccessibilityUsesTheActiveExperienceCountMeaning() {
         let session = ThrowSession.fixture()
-        session.experienceCoordinatorState = ProjectionExperienceCoordinatorState(
+        let coordinator = ProjectionExperienceCoordinatorState(
             activeExperienceID: .transit,
             requestedExperienceID: nil,
             prewarmingExperienceID: nil,
@@ -123,6 +189,12 @@ struct ThrowSessionExperiencesTests {
                 ),
             ],
             manualSelectionFailure: nil,
+        )
+        session.projectionPresentationState = .initial(
+            coordinator: coordinator,
+            preferredExperienceID: .transit,
+            mode: .map,
+            generatedAt: session.dateProvider.now(),
         )
 
         #expect(session.projectionAccessibilitySummary.contains("Transit"))

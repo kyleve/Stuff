@@ -71,7 +71,7 @@ struct ThrowSessionLocationTests {
         let originalHealth = session.locationHealth
         let originalSignature = session.activePollingSignature
         let originalFrame = session.projectionFrame
-        let originalExperienceFrame = session.currentExperienceFrame
+        let originalPendingFrame = session.pendingAirAndSpaceFrame
 
         let saved = await session.saveObserverLocation(
             mode: .manual,
@@ -85,7 +85,7 @@ struct ThrowSessionLocationTests {
         #expect(session.locationHealth == originalHealth)
         #expect(session.activePollingSignature == originalSignature)
         #expect(session.projectionFrame == originalFrame)
-        #expect(session.currentExperienceFrame == originalExperienceFrame)
+        #expect(session.pendingAirAndSpaceFrame == originalPendingFrame)
         #expect(session.pendingLocationFix == offeredFix)
         guard case .ready = session.projectionSessionLocationGate else {
             Issue.record("A failed save must preserve the prior location gate")

@@ -1,9 +1,79 @@
+import Foundation
 import Testing
 import ThrowCore
 @_spi(Testing) @testable import ThrowUI
 
 @MainActor
 struct ThrowSessionAircraftTests {
+    @Test func rendererKeepsTheLastCompletePublicationWhileANewerRequestSuspends() async throws {
+        let preferences = ThrowPreferences.defaultValue.airAndSpace.replacingGeography(
+            .defaultValue.replacingIsEnabled(false),
+        )
+        let session = ThrowSession.fixture(airAndSpacePreferences: preferences)
+        let firstObserver = try #require(session.confirmedLocation?.position)
+        let secondObserver = try projectionTestObserver(latitude: 38, longitude: -121)
+        let secondLocation = try ConfirmedObserverLocation(
+            position: secondObserver,
+            horizontalAccuracyMeters: 10,
+            confirmedAt: session.dateProvider.now(),
+        )
+        let firstFrame = projectionTestAirFrame(
+            observedAt: Date(timeIntervalSince1970: 100),
+        )
+        let secondFrame = projectionTestAirFrame(
+            observedAt: Date(timeIntervalSince1970: 200),
+        )
+        let lease = ProjectionActivationLease(
+            experienceID: .airAndSpace,
+            generation: .init(rawValue: 1),
+        )
+        _ = session.airAndSpaceActivation.activate(lease)
+        session.outputDemands.insert(.preview(ProjectionOutputID(rawValue: "atomic-render")))
+        session.replacePendingAirAndSpaceFrameForTesting(firstFrame)
+        let gate = ProjectionPublicationGate()
+        session.beforePublishingProjectionForTesting = {
+            await gate.suspendPublication()
+        }
+
+        session.restartRenderer()
+        await gate.waitForSuspensionCount(1)
+        await gate.releaseNext()
+        await gate.waitForSuspensionCount(2)
+
+        let firstPublication = session.visibleProjection
+        #expect(firstPublication.semanticFrame == .airAndSpace(firstFrame))
+        #expect(firstPublication.request?.context.observer == firstObserver)
+        #expect(firstPublication.frame.generatedAt == firstPublication.request?.generatedAt)
+        #expect(session.projectionFrame == firstPublication.frame)
+        #expect(session.observerMapPoint == firstPublication.observerPoint)
+
+        session.confirmedLocation = secondLocation
+        session.replacePendingAirAndSpaceFrameForTesting(secondFrame)
+        session.restartRenderer()
+        await gate.waitForSuspensionCount(3)
+
+        #expect(session.visibleProjection == firstPublication)
+        #expect(session.pendingAirAndSpaceFrame == secondFrame)
+        #expect(session.confirmedLocation?.position == secondObserver)
+        #expect(session.projectionFrame == firstPublication.frame)
+        #expect(session.observerMapPoint == firstPublication.observerPoint)
+
+        await gate.releaseAll()
+        await gate.waitForSuspensionCount(4)
+
+        let secondPublication = session.visibleProjection
+        #expect(secondPublication.semanticFrame == .airAndSpace(secondFrame))
+        #expect(secondPublication.request?.context.observer == secondObserver)
+        #expect(secondPublication.request?.revision != firstPublication.request?.revision)
+        #expect(secondPublication.frame.generatedAt == secondPublication.request?.generatedAt)
+        #expect(session.projectionFrame == secondPublication.frame)
+        #expect(session.observerMapPoint == secondPublication.observerPoint)
+
+        session.stopRenderer()
+        session.beforePublishingProjectionForTesting = nil
+        await gate.releaseAll()
+    }
+
     @Test func staleRuntimeUpdateCannotReplaceTheCurrentActivationState() async throws {
         let session = ThrowSession.fixture()
         let signature = try PollingSignature(
@@ -120,6 +190,49 @@ struct ThrowSessionAircraftTests {
         #expect(session.feedHealth == previousHealth)
         #expect(session.flightradar24CredentialState == .saved(lastFour: "1234"))
         #expect(await credentialStore.credential(for: .flightradar24) == credential)
+    }
+}
+
+private actor ProjectionPublicationGate {
+    private struct CountWaiter {
+        let count: Int
+        let continuation: CheckedContinuation<Void, Never>
+    }
+
+    private var suspensionCount = 0
+    private var suspendedPublications: [CheckedContinuation<Void, Never>] = []
+    private var countWaiters: [CountWaiter] = []
+
+    func suspendPublication() async {
+        suspensionCount += 1
+        resumeCountWaiters()
+        await withCheckedContinuation { continuation in
+            suspendedPublications.append(continuation)
+        }
+    }
+
+    func waitForSuspensionCount(_ count: Int) async {
+        guard suspensionCount < count else { return }
+        await withCheckedContinuation { continuation in
+            countWaiters.append(CountWaiter(count: count, continuation: continuation))
+        }
+    }
+
+    func releaseNext() {
+        guard suspendedPublications.isEmpty == false else { return }
+        suspendedPublications.removeFirst().resume()
+    }
+
+    func releaseAll() {
+        let publications = suspendedPublications
+        suspendedPublications.removeAll()
+        publications.forEach { $0.resume() }
+    }
+
+    private func resumeCountWaiters() {
+        let ready = countWaiters.filter { $0.count <= suspensionCount }
+        countWaiters.removeAll { $0.count <= suspensionCount }
+        ready.forEach { $0.continuation.resume() }
     }
 }
 

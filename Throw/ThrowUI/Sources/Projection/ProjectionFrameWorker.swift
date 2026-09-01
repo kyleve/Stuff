@@ -19,92 +19,6 @@ actor ProjectionFrameWorker {
         var presentationState = PresentationState()
     }
 
-    private enum FrameInput {
-        case checked(ProjectionExperienceInput)
-        #if DEBUG
-            case testing(
-                experienceID: ProjectionExperienceID,
-                layerFrames: [LayerFrame],
-                geographyEnabled: Bool,
-                viewport: ProjectionViewport,
-            )
-        #endif
-
-        var experienceID: ProjectionExperienceID {
-            switch self {
-                case let .checked(input): input.experienceFrame.experienceID
-                #if DEBUG
-                    case let .testing(experienceID, _, _, _): experienceID
-                #endif
-            }
-        }
-
-        var flightsFrame: ProjectionLayerFrame<FlightsLayerKind>? {
-            switch self {
-                case let .checked(input):
-                    return switch input {
-                        case let .airAndSpace(input): input.frame.flights
-                        case .transit: Optional.none
-                    }
-                #if DEBUG
-                    case let .testing(_, layerFrames, _, _):
-                        guard let frame = layerFrames.first(where: { $0.layerID == .flights })
-                        else { return nil }
-                        return ProjectionLayerFrame(
-                            observedAt: frame.observedAt,
-                            marks: frame.marks,
-                        )
-                #endif
-            }
-        }
-
-        var markRevisions: [LayerID: Date] {
-            switch self {
-                case let .checked(input):
-                    switch input {
-                        case let .airAndSpace(input):
-                            var revisions: [LayerID: Date] = [:]
-                            revisions[.flights] = input.frame.flights?.observedAt
-                            revisions[.stars] = input.frame.stars?.observedAt
-                            revisions[.satellites] = input.frame.satellites?.observedAt
-                            return revisions
-                        case let .transit(input):
-                            return input.frame.vehicles.map {
-                                [.transitVehicles: $0.observedAt]
-                            } ?? [:]
-                    }
-                #if DEBUG
-                    case let .testing(_, layerFrames, _, _):
-                        var revisions: [LayerID: Date] = [:]
-                        for frame in layerFrames {
-                            if case .marks = frame.content {
-                                revisions[frame.layerID] = frame.observedAt
-                            }
-                        }
-                        return revisions
-                #endif
-            }
-        }
-
-        var geographyEnabled: Bool {
-            switch self {
-                case let .checked(input): input.requestsGeography
-                #if DEBUG
-                    case let .testing(_, _, geographyEnabled, _): geographyEnabled
-                #endif
-            }
-        }
-
-        var viewport: ProjectionViewport {
-            switch self {
-                case let .checked(input): input.viewport
-                #if DEBUG
-                    case let .testing(_, _, _, viewport): viewport
-                #endif
-            }
-        }
-    }
-
     private let engine = ProjectionEngine()
     private let geographyRuntime: GeographyLayerRuntime
     private let geographyLogger: any GeographyLogging
@@ -149,24 +63,8 @@ actor ProjectionFrameWorker {
         )
     }
 
-    func frame(
-        input: ProjectionExperienceInput,
-        observer: ObserverPosition,
-        mapCenter: GeoCoordinate,
-        calibration: ProjectionCalibration,
-        generatedAt: Date,
-        reduceMotion: Bool,
-        loggingOperation: ThrowSessionLogEvent.PostLaunchOperation,
-    ) async throws -> ProjectionFrameWorkerOutput {
-        try await frame(
-            input: .checked(input),
-            observer: observer,
-            mapCenter: mapCenter,
-            calibration: calibration,
-            generatedAt: generatedAt,
-            reduceMotion: reduceMotion,
-            loggingOperation: loggingOperation,
-        )
+    func frame(request: ProjectionFrameRequest) async throws -> ProjectionFrameWorkerOutput {
+        try await render(request: request)
     }
 
     #if DEBUG
@@ -225,39 +123,40 @@ actor ProjectionFrameWorker {
             generatedAt: Date,
             reduceMotion: Bool,
         ) async throws -> ProjectionFrameWorkerOutput {
-            try await frame(
-                input: .testing(
-                    experienceID: experienceID,
-                    layerFrames: layerFrames,
-                    geographyEnabled: geographyEnabled,
-                    viewport: viewport,
-                ),
+            let context = ProjectionFrameRequest.Context(
                 observer: observer,
                 mapCenter: mapCenter,
                 calibration: calibration,
-                generatedAt: generatedAt,
                 reduceMotion: reduceMotion,
                 loggingOperation: .projectionRendering,
             )
+            return try await render(request: .testing(.init(
+                experienceID: experienceID,
+                layerFrames: layerFrames,
+                geographyEnabled: geographyEnabled,
+                viewport: viewport,
+                context: context,
+                generatedAt: generatedAt,
+                revision: .initial,
+            )))
         }
     #endif
 
-    private func frame(
-        input: FrameInput,
-        observer: ObserverPosition,
-        mapCenter: GeoCoordinate,
-        calibration: ProjectionCalibration,
-        generatedAt: Date,
-        reduceMotion: Bool,
-        loggingOperation: ThrowSessionLogEvent.PostLaunchOperation,
+    private func render(
+        request: ProjectionFrameRequest,
     ) async throws -> ProjectionFrameWorkerOutput {
         try Task.checkCancellation()
-        let experienceID = input.experienceID
-        let geographyEnabled = input.geographyEnabled
-        let viewport = input.viewport
+        let experienceID = request.experienceID
+        let geographyEnabled = request.requestsGeography
+        let viewport = request.viewport
+        let observer = request.context.observer
+        let mapCenter = request.context.mapCenter
+        let calibration = request.context.calibration
+        let generatedAt = request.generatedAt
+        let reduceMotion = request.context.reduceMotion
         var experienceState = experienceStates[experienceID] ?? ExperienceState()
-        let flightsLayerFrame = input.flightsFrame
-        let markRevisions = input.markRevisions
+        let flightsLayerFrame = request.flightsFrame
+        let markRevisions = request.markRevisions
         let observationChanged = experienceState.lastMarkRevisions != markRevisions
         let geographyResult: GeographyProjectionResult
         do {
@@ -270,14 +169,18 @@ actor ProjectionFrameWorker {
         } catch is CancellationError {
             throw CancellationError()
         } catch {
-            ThrowLog.recordPostLaunchFailure(at: loggingOperation, error: error)
+            ThrowLog.recordPostLaunchFailure(
+                at: request.context.loggingOperation,
+                error: error,
+            )
             geographyLoadFailed = true
             geographyResult = .unavailable
         }
         try Task.checkCancellation()
         let target: ProjectionFrame
-        switch input {
-            case let .checked(.airAndSpace(projectionInput)):
+        switch request {
+            case let .airAndSpace(request):
+                let projectionInput = request.input
                 let projected = try engine.frame(
                     input: .airAndSpace(PreparedAirAndSpaceProjectionInput(
                         input: projectionInput,
@@ -290,7 +193,8 @@ actor ProjectionFrameWorker {
                     generatedAt: generatedAt,
                 )
                 target = present(projected)
-            case let .checked(.transit(projectionInput)):
+            case let .transit(request):
+                let projectionInput = request.input
                 let network: ProjectedLayerFrame<TransitNetworkLayerKind>? = if let layerFrame =
                     projectionInput.frame.network
                 {
@@ -317,7 +221,8 @@ actor ProjectionFrameWorker {
                 )
                 target = present(projected)
             #if DEBUG
-                case let .testing(_, layerFrames, _, _):
+                case let .testing(request):
+                    let layerFrames = request.layerFrames
                     let zOrders = Dictionary(
                         uniqueKeysWithValues: LayerCatalog.standard.descriptors.map {
                             ($0.id, $0.zOrder)
@@ -413,12 +318,18 @@ actor ProjectionFrameWorker {
         } else {
             nil
         }
-        return ProjectionFrameWorkerOutput(
-            frame: frame,
-            geographyHealth: geographyResult.health,
-            effects: effects,
-            observerPoint: observerPoint,
-        )
+        guard let output = ProjectionFrameWorkerOutput(
+            request: request,
+            render: .init(
+                frame: frame,
+                geographyHealth: geographyResult.health,
+                effects: effects,
+                observerPoint: observerPoint,
+            ),
+        ) else {
+            throw ThrowValidationError.invalidPreferencePayload
+        }
+        return output
     }
 
     private func projectedGeography(
@@ -1067,13 +978,6 @@ private enum AnimationDuration {
         let continuation: CheckedContinuation<Void, Never>
     }
 #endif
-
-struct ProjectionFrameWorkerOutput {
-    let frame: ProjectionFrame
-    let geographyHealth: GeographyLayerHealth
-    let effects: [LayerMarkID: ProjectionMarkEffect]
-    let observerPoint: ProjectionPoint?
-}
 
 extension ProjectionFrameWorker {
     fileprivate struct PresentationState {

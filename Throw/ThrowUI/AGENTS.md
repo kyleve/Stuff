@@ -46,17 +46,20 @@ Read the root [`AGENTS.md`](../../AGENTS.md) and group
   prewarming experience runtimes.
 - Keep the coordinator playlist and active identity in one validated value.
   A nonempty playlist must always have an active identity from that playlist.
-- Publish the coordinator's complete state as one session value. Derive its
-  public fields and the projection-output count instead of mirroring them.
+- Store coordinator identity, activation generation, semantic input, rendered
+  frame, effects, observer point, and Geography health in one
+  `ProjectionPresentationState`. Derive all public presentation fields from it.
 - Give each playlist configuration a monotonic revision. Reject configurations
   that arrive after a newer revision.
 - Keep coordinator command delivery lossless. Revalidate revision, demand,
   identity, and generation after each suspension before changing timer state.
-- Require a successful response and a prepared frame from the same fresh target
-  generation. Exchange that exact semantic/projected pair only at black. Buffer
-  later target updates until fade-in completes, and never mix experiences.
-- Send only `ProjectionExperienceInput` to the production projection worker.
-  Keep raw layer-array entry points inside DEBUG test support.
+- Require a successful response and prepared output from the same fresh target
+  generation. Commit that exact typed request and coordinator state at black.
+  Buffer later target updates until fade-in completes.
+- Send only `ProjectionFrameRequest` to the production projection worker. Keep
+  raw layer-array entry points inside DEBUG test support.
+- Publish a worker result only when its typed request still matches the current
+  semantic revision and complete projection context.
 - Build one closed `PreparedProjectionExperienceInput` after static-line
   projection. Never send the engine parallel semantic and projected arrays.
 - Cache each typed static-line frame with its semantic revision and full
