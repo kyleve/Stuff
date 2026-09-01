@@ -123,33 +123,20 @@ extension ThrowSession {
         rapidAPIKey: String,
         pollingIntervalSeconds: Int,
     ) async -> AircraftSourceValidationOutcome {
-        let configuration: AircraftSourceConfiguration
         do {
-            configuration = try sourceConfiguration(
+            let draft = try sourceValidationDraft(
                 choice: choice,
                 readsbURL: readsbURL,
+                rapidAPIKey: rapidAPIKey,
                 pollingIntervalSeconds: pollingIntervalSeconds,
             )
             let query = try validationQuery()
-            let replacementCredential: AircraftCredential? = if choice == .adsbExchange || choice ==
-                .flightradar24,
-                rapidAPIKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
-            {
-                try AircraftCredential(secret: rapidAPIKey)
-            } else {
-                nil
-            }
             _ = try await sourceService.testConnection(
-                configuration: configuration,
-                query: query,
-                replacementCredential: replacementCredential,
+                request: AircraftSourceValidationRequest(draft: draft, query: query),
             )
             try Task.checkCancellation()
             return .succeeded(
-                ValidatedAircraftSourceDraft(
-                    configuration: configuration,
-                    replacementCredential: replacementCredential,
-                ),
+                ValidatedAircraftSourceDraft(source: draft),
             )
         } catch is CancellationError {
             return .cancelled
@@ -174,22 +161,12 @@ extension ThrowSession {
         var credentialMutationAttempted = false
         do {
             preferences = try makePreferences(setupState: replacementSetupState)
-            if let replacementCredential = draft.replacementCredential {
-                let credentialID: AircraftCredentialID
-                switch draft.configuration.kind {
-                    case .adsbExchangeRapidAPI:
-                        credentialID = .rapidAPI
-                    case .flightradar24:
-                        credentialID = .flightradar24
-                    case .adsbLol, .readsb:
-                        assertionFailure("A credential-free source supplied a credential")
-                        throw AircraftSourceFailure.invalidConfiguration
-                }
-                replacedCredentialID = credentialID
-                previousCredential = try await credentialStore.credential(for: credentialID)
+            if let replacement = draft.credentialReplacement {
+                replacedCredentialID = replacement.id
+                previousCredential = try await credentialStore.credential(for: replacement.id)
                 try Task.checkCancellation()
                 credentialMutationAttempted = true
-                try await credentialStore.save(replacementCredential, for: credentialID)
+                try await credentialStore.save(replacement.credential, for: replacement.id)
                 try Task.checkCancellation()
             }
             try await persistPreferencesImmediately(preferences)
@@ -214,17 +191,15 @@ extension ThrowSession {
         projectionPlaylist = preferences.playlist
         await configureExperienceCoordinator(with: projectionPlaylist)
 
-        if let replacementCredential = draft.replacementCredential {
-            switch draft.configuration.kind {
-                case .adsbExchangeRapidAPI:
-                    rapidAPICredentialState = .saved(lastFour: replacementCredential.lastFour)
+        if let replacement = draft.credentialReplacement {
+            switch replacement.id {
+                case .rapidAPI:
+                    rapidAPICredentialState = .saved(lastFour: replacement.credential.lastFour)
                 case .flightradar24:
                     invalidateFlightradar24Usage()
                     flightradar24CredentialState = .saved(
-                        lastFour: replacementCredential.lastFour,
+                        lastFour: replacement.credential.lastFour,
                     )
-                case .adsbLol, .readsb:
-                    break
             }
         }
 
@@ -661,11 +636,19 @@ extension ThrowSession {
         )
     }
 
-    func sourceConfiguration(
+    func sourceValidationDraft(
         choice: AircraftSourceChoice,
         readsbURL: String,
+        rapidAPIKey: String,
         pollingIntervalSeconds: Int,
-    ) throws -> AircraftSourceConfiguration {
+    ) throws -> AircraftSourceValidationDraft {
+        func replacementCredential() throws -> AircraftCredential? {
+            if rapidAPIKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                nil
+            } else {
+                try AircraftCredential(secret: rapidAPIKey)
+            }
+        }
         switch choice {
             case .adsbLol:
                 return .adsbLol
@@ -679,12 +662,14 @@ extension ThrowSession {
                     ADSBExchangeConfiguration(
                         pollingInterval: PollingInterval(seconds: pollingIntervalSeconds),
                     ),
+                    replacementCredential: replacementCredential(),
                 )
             case .flightradar24:
                 return try .flightradar24(
                     Flightradar24Configuration(
                         pollingInterval: PollingInterval(seconds: pollingIntervalSeconds),
                     ),
+                    replacementCredential: replacementCredential(),
                 )
         }
     }

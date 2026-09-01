@@ -3,9 +3,7 @@ import Foundation
 /// Provider-neutral operations used by source setup without exposing concrete adapters.
 public protocol AircraftSourceOperationServing: Sendable {
     func testConnection(
-        configuration: AircraftSourceConfiguration,
-        query: AircraftQuery,
-        replacementCredential: AircraftCredential?,
+        request: AircraftSourceValidationRequest,
     ) async throws -> AircraftSnapshot
 
     func flightradar24Usage(
@@ -33,20 +31,15 @@ public struct AircraftSourceService: AircraftSourceOperationServing {
     }
 
     public func testConnection(
-        configuration: AircraftSourceConfiguration,
-        query: AircraftQuery,
-        replacementCredential: AircraftCredential?,
+        request: AircraftSourceValidationRequest,
     ) async throws -> AircraftSnapshot {
-        switch configuration {
+        switch request.draft {
             case .adsbLol, .readsb:
-                guard replacementCredential == nil else {
-                    throw AircraftSourceFailure.invalidConfiguration
-                }
                 let configured = try await sourceFactory.makeSource(
-                    configuration: configuration,
+                    configuration: request.draft.configuration,
                 )
-                return try await configured.source.snapshot(for: query)
-            case .adsbExchangeRapidAPI:
+                return try await configured.source.snapshot(for: request.query)
+            case let .adsbExchangeRapidAPI(_, replacementCredential):
                 let credential = try await credential(
                     replacement: replacementCredential,
                     id: .rapidAPI,
@@ -56,8 +49,8 @@ public struct AircraftSourceService: AircraftSourceOperationServing {
                     decoder: ADSBExchangeV2Decoder(),
                     credential: credential,
                     dateProvider: dateProvider,
-                ).credentialTestSnapshot(observer: query.observer)
-            case .flightradar24:
+                ).credentialTestSnapshot(observer: request.query.observer)
+            case let .flightradar24(_, replacementCredential):
                 let credential = try await credential(
                     replacement: replacementCredential,
                     id: .flightradar24,
@@ -67,7 +60,7 @@ public struct AircraftSourceService: AircraftSourceOperationServing {
                     decoder: Flightradar24Decoder(),
                     credential: credential,
                     dateProvider: dateProvider,
-                ).credentialTestSnapshot(observer: query.observer)
+                ).credentialTestSnapshot(observer: request.query.observer)
         }
     }
 

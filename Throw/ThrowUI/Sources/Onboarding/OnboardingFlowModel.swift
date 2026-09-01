@@ -302,8 +302,7 @@ final class OnboardingFlowModel {
     #if DEBUG
         func seedValidatedSourceForSnapshot(_ configuration: AircraftSourceConfiguration) {
             validatedSourceDraft = ValidatedAircraftSourceDraft(
-                configuration: configuration,
-                replacementCredential: nil,
+                source: AircraftSourceValidationDraft(configuration: configuration),
             )
             sourceValidation = .succeeded
         }
