@@ -44,11 +44,17 @@ struct ThrowSessionLocationTests {
             credentialStore: MemoryAircraftCredentialStore(credentials: [:]),
         )
         let query = try session.aircraftQuery()
+        let activationLease = ProjectionActivationLease(
+            experienceID: .airAndSpace,
+            generation: .init(rawValue: 1),
+        )
+        let activated = session.airAndSpaceActivation.activate(activationLease)
+        #expect(activated)
         await session.airAndSpaceRuntime.activate(
             configuration: .adsbLol,
             query: query,
             labelMode: session.labelMode,
-            activationGeneration: 1,
+            lease: activationLease,
         )
         session.activePollingSignature = try PollingSignature(
             configuration: .adsbLol,
@@ -86,7 +92,7 @@ struct ThrowSessionLocationTests {
             return
         }
         #expect(await session.airAndSpaceRuntime.activeSourceKindForTesting() == .adsbLol)
-        await session.airAndSpaceRuntime.deactivate(reporting: .idle)
+        await session.airAndSpaceRuntime.deactivate(lease: activationLease, reporting: .idle)
     }
 
     @Test func firstGPSOutputAcquiresTargetFixBeforePolling() async throws {

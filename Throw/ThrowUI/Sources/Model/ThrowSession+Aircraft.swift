@@ -208,7 +208,7 @@ extension ThrowSession {
             return false
         }
 
-        await airAndSpaceRuntime.deactivate(reporting: .idle)
+        await deactivateAirAndSpace(reporting: .idle)
         activePollingSignature = nil
         setupState = replacementSetupState
         projectionPlaylist = preferences.playlist
@@ -257,7 +257,7 @@ extension ThrowSession {
         }
         rapidAPICredentialState = .missing
         if deletesActiveSource {
-            await airAndSpaceRuntime.deactivate(reporting: .failed(.missingCredential))
+            await deactivateAirAndSpace(reporting: .failed(.missingCredential))
             activePollingSignature = nil
             await clearProjectionState(restartsGeography: true)
             feedHealth = .failed(.missingCredential)
@@ -283,7 +283,7 @@ extension ThrowSession {
         invalidateFlightradar24Usage()
         flightradar24CredentialState = .missing
         if deletesActiveSource {
-            await airAndSpaceRuntime.deactivate(reporting: .failed(.missingCredential))
+            await deactivateAirAndSpace(reporting: .failed(.missingCredential))
             activePollingSignature = nil
             await clearProjectionState(restartsGeography: true)
             feedHealth = .failed(.missingCredential)
@@ -309,62 +309,54 @@ extension ThrowSession {
     }
 
     func applyAirAndSpaceUpdate(_ update: AirAndSpaceRuntimeUpdate) async {
-        guard update.activationGeneration == airAndSpaceActivationGeneration else { return }
+        guard update.activationLease == airAndSpaceActivation.activeLease else { return }
         semanticFramesByExperience[.airAndSpace] = update.experienceFrame
         activePollingSignature = update.activePollingSignature
-        await experienceCoordinator.reportRuntimeUpdate(
-            id: .airAndSpace,
-            generation: update.activationGeneration,
-            successfulGeneration: update.successfulActivationGeneration,
-            health: update.health,
-        )
-        let activationGeneration = update.activationGeneration
         let semanticFrame = update.experienceFrame
-        let awaitsPreparation = await experienceCoordinator.isAwaitingPreparation(
-            id: .airAndSpace,
-            generation: activationGeneration,
-        )
-        let preparesHiddenExperience = update.successfulActivationGeneration ==
-            activationGeneration && awaitsPreparation
-        if preparesHiddenExperience {
-            do {
-                let output = try await projectedOutput(
-                    for: semanticFrame,
-                    generatedAt: dateProvider.now(),
-                )
-                guard airAndSpaceActivationGeneration == activationGeneration,
-                      semanticFramesByExperience[.airAndSpace] == semanticFrame,
-                      await experienceCoordinator.isAwaitingPreparation(
-                          id: .airAndSpace,
-                          generation: activationGeneration,
-                      )
-                else { return }
-                preparedOutputsByExperience[.airAndSpace] = PreparedProjectionExperience(
-                    experienceID: .airAndSpace,
-                    activationGeneration: activationGeneration,
-                    semanticFrame: semanticFrame,
-                    output: output,
-                )
-                let accepted = await experienceCoordinator.reportRuntimePrepared(
-                    id: .airAndSpace,
-                    generation: activationGeneration,
-                )
-                if accepted == false,
-                   preparedOutputsByExperience[.airAndSpace]?.activationGeneration ==
-                   activationGeneration
-                {
-                    preparedOutputsByExperience.removeValue(forKey: .airAndSpace)
+        if let activationLease = update.activationLease {
+            await experienceCoordinator.reportRuntimeUpdate(
+                lease: activationLease,
+                successfulLease: update.successfulActivationLease,
+                health: update.health,
+            )
+            let awaitsPreparation = await experienceCoordinator.isAwaitingPreparation(
+                activationLease,
+            )
+            let preparesHiddenExperience = update.successfulActivationLease ==
+                activationLease && awaitsPreparation
+            if preparesHiddenExperience {
+                do {
+                    let output = try await projectedOutput(
+                        for: semanticFrame,
+                        generatedAt: dateProvider.now(),
+                    )
+                    guard airAndSpaceActivation.activeLease == activationLease,
+                          semanticFramesByExperience[.airAndSpace] == semanticFrame,
+                          await experienceCoordinator.isAwaitingPreparation(activationLease)
+                    else { return }
+                    preparedOutputsByExperience[.airAndSpace] = PreparedProjectionExperience(
+                        activationLease: activationLease,
+                        semanticFrame: semanticFrame,
+                        output: output,
+                    )
+                    let accepted = await experienceCoordinator.reportRuntimePrepared(
+                        activationLease,
+                    )
+                    if accepted == false,
+                       preparedOutputsByExperience[.airAndSpace]?.activationLease == activationLease
+                    {
+                        preparedOutputsByExperience.removeValue(forKey: .airAndSpace)
+                    }
+                } catch is CancellationError {
+                    return
+                } catch {
+                    await experienceCoordinator.reportRuntimeUpdate(
+                        lease: activationLease,
+                        successfulLease: nil,
+                        health: .failed(.decoding),
+                    )
+                    return
                 }
-            } catch is CancellationError {
-                return
-            } catch {
-                await experienceCoordinator.reportRuntimeUpdate(
-                    id: .airAndSpace,
-                    generation: update.activationGeneration,
-                    successfulGeneration: nil,
-                    health: .failed(.decoding),
-                )
-                return
             }
         }
         guard activeExperienceID == .airAndSpace else { return }
@@ -392,6 +384,11 @@ extension ThrowSession {
         }
     }
 
+    func deactivateAirAndSpace(reporting health: FeedHealth) async {
+        guard let activationLease = airAndSpaceActivation.activeLease else { return }
+        await airAndSpaceRuntime.deactivate(lease: activationLease, reporting: health)
+    }
+
     func reconcileDemand(generation: UInt64) async {
         isReconcilingDemand = true
         defer { isReconcilingDemand = false }
@@ -411,7 +408,7 @@ extension ThrowSession {
         else {
             cancelProjectionSessionLocationAcquisition(restoringPreviousHealth: true)
             activePollingSignature = nil
-            await airAndSpaceRuntime.deactivate(reporting: quiet ? .quiet : .idle)
+            await deactivateAirAndSpace(reporting: quiet ? .quiet : .idle)
             guard generation == demandGeneration else { return }
             await clearProjectionState(restartsGeography: true)
             guard generation == demandGeneration else { return }
@@ -424,7 +421,7 @@ extension ThrowSession {
             guard generation == demandGeneration else { return }
             guard case .ready = projectionSessionLocationGate else {
                 activePollingSignature = nil
-                await airAndSpaceRuntime.deactivate(reporting: .failed(.locationUnavailable))
+                await deactivateAirAndSpace(reporting: .failed(.locationUnavailable))
                 guard generation == demandGeneration else { return }
                 await clearProjectionState(restartsGeography: true)
                 guard generation == demandGeneration else { return }
@@ -435,7 +432,7 @@ extension ThrowSession {
 
         guard flightsEnabled else {
             activePollingSignature = nil
-            await airAndSpaceRuntime.deactivate(reporting: .idle)
+            await deactivateAirAndSpace(reporting: .idle)
             guard generation == demandGeneration else { return }
             currentSnapshot = nil
             currentLayerFrame = nil
@@ -447,7 +444,7 @@ extension ThrowSession {
 
         guard let configuration = aircraftSourceSelection.configuredSource else {
             activePollingSignature = nil
-            await airAndSpaceRuntime.deactivate(reporting: .failed(.sourceNotValidated))
+            await deactivateAirAndSpace(reporting: .failed(.sourceNotValidated))
             guard generation == demandGeneration else { return }
             await clearProjectionState(restartsGeography: true)
             guard generation == demandGeneration else { return }
@@ -456,7 +453,7 @@ extension ThrowSession {
         }
         if configuration.kind == .adsbExchangeRapidAPI, rapidAPICredentialState == .missing {
             activePollingSignature = nil
-            await airAndSpaceRuntime.deactivate(reporting: .failed(.missingCredential))
+            await deactivateAirAndSpace(reporting: .failed(.missingCredential))
             guard generation == demandGeneration else { return }
             await clearProjectionState(restartsGeography: true)
             guard generation == demandGeneration else { return }
@@ -465,7 +462,7 @@ extension ThrowSession {
         }
         if configuration.kind == .flightradar24, flightradar24CredentialState == .missing {
             activePollingSignature = nil
-            await airAndSpaceRuntime.deactivate(reporting: .failed(.missingCredential))
+            await deactivateAirAndSpace(reporting: .failed(.missingCredential))
             guard generation == demandGeneration else { return }
             await clearProjectionState(restartsGeography: true)
             guard generation == demandGeneration else { return }
@@ -478,7 +475,7 @@ extension ThrowSession {
             query = try aircraftQuery()
         } catch {
             activePollingSignature = nil
-            await airAndSpaceRuntime.deactivate(reporting: .failed(.locationUnavailable))
+            await deactivateAirAndSpace(reporting: .failed(.locationUnavailable))
             guard generation == demandGeneration else { return }
             await clearProjectionState(restartsGeography: true)
             guard generation == demandGeneration else { return }
@@ -491,11 +488,16 @@ extension ThrowSession {
             return
         }
         activePollingSignature = signature
+        guard let activationLease = airAndSpaceActivation.activeLease else {
+            assertionFailure("Air & Space demand reconciled without a coordinator lease")
+            activePollingSignature = nil
+            return
+        }
         await airAndSpaceRuntime.activate(
             configuration: configuration,
             query: query,
             labelMode: labelMode,
-            activationGeneration: airAndSpaceActivationGeneration,
+            lease: activationLease,
         )
         guard generation == demandGeneration else { return }
         restartRenderer()
@@ -520,7 +522,7 @@ extension ThrowSession {
             var schedule = ProjectionFrameSchedule(startingAt: clock.now)
             while Task.isCancelled == false {
                 do {
-                    let activationGeneration = airAndSpaceActivationGeneration
+                    let activationLease = airAndSpaceActivation.activeLease
                     let experienceFrame = currentExperienceFrame
                     let output = try await projectedOutput(
                         for: experienceFrame,
@@ -535,7 +537,7 @@ extension ThrowSession {
                     await updateVisibleCount(
                         output.frame.visibleAircraftCount,
                         experienceID: output.frame.experienceID,
-                        activationGeneration: activationGeneration,
+                        activationLease: activationLease,
                     )
                     guard generation == renderGeneration else { return }
                     if currentLayerFrame == nil {
@@ -648,12 +650,14 @@ extension ThrowSession {
     func updateVisibleCount(
         _ count: Int,
         experienceID: ProjectionExperienceID,
-        activationGeneration: UInt64,
+        activationLease: ProjectionActivationLease?,
     ) async {
-        guard experienceID == .airAndSpace else { return }
+        guard let activationLease,
+              experienceID == activationLease.experienceID
+        else { return }
         await airAndSpaceRuntime.updateVisibleContentCount(
             count,
-            activationGeneration: activationGeneration,
+            lease: activationLease,
         )
     }
 

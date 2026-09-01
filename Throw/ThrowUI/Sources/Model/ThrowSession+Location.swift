@@ -364,7 +364,7 @@ extension ThrowSession {
         let preferences = try makePreferences(setupState: replacement.setupState)
         try await persistPreferencesImmediately(preferences)
 
-        await airAndSpaceRuntime.deactivate(reporting: .idle)
+        await deactivateAirAndSpace(reporting: .idle)
         activePollingSignature = nil
         await clearProjectionState(restartsGeography: false)
         switch replacement.acquisitionDisposition {

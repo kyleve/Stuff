@@ -16,6 +16,8 @@ Read the root [`AGENTS.md`](../../AGENTS.md) and group
   observe application or UIKit scene lifecycle independently in ThrowUI.
 - Keep aircraft behavior in the one injected `AirAndSpaceRuntime`. Keep
   selection, prewarming, and rotation in `ProjectionExperienceCoordinator`.
+- Carry the coordinator-issued `ProjectionActivationLease` through activate and
+  deactivate commands. Never mint a coordinator activation generation in a runtime.
 - Invalidate superseded Air & Space lifecycle work after every suspension.
   Never let an old activation or deactivation change newer runtime state.
 - Keep one coordinator timer across all scenes. Run at most the active and

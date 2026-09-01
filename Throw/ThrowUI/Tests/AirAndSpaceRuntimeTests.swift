@@ -36,12 +36,12 @@ struct AirAndSpaceRuntimeTests {
             configuration: .adsbLol,
             query: query,
             labelMode: .adaptive,
-            activationGeneration: 42,
+            lease: lease(42),
         )
 
         var ready: AirAndSpaceRuntimeUpdate?
         while let update = await updates.next() {
-            if update.successfulActivationGeneration == 42 {
+            if update.successfulActivationLease == lease(42) {
                 ready = update
                 break
             }
@@ -52,7 +52,7 @@ struct AirAndSpaceRuntimeTests {
         #expect(update.experienceFrame.experienceID == .airAndSpace)
         #expect(update.activePollingSignature != nil)
 
-        await runtime.deactivate(reporting: .idle)
+        await runtime.deactivate(lease: lease(42), reporting: .idle)
     }
 
     @Test func laterActivationSupersedesActivationSuspendedDuringReset() async throws {
@@ -76,7 +76,7 @@ struct AirAndSpaceRuntimeTests {
                 configuration: .adsbLol,
                 query: query,
                 labelMode: .adaptive,
-                activationGeneration: 1,
+                lease: lease(1),
             )
         }
         await flightsRuntime.waitForResetCount(1)
@@ -85,7 +85,7 @@ struct AirAndSpaceRuntimeTests {
             configuration: replacementConfiguration,
             query: query,
             labelMode: .adaptive,
-            activationGeneration: 2,
+            lease: lease(2),
         )
         await flightsRuntime.releaseReset(1)
         await supersededActivation.value
@@ -93,7 +93,7 @@ struct AirAndSpaceRuntimeTests {
         let pollingState = await coordinator.currentState()
         #expect(pollingState.sourceKind == .readsb)
 
-        await runtime.deactivate(reporting: .idle)
+        await runtime.deactivate(lease: lease(2), reporting: .idle)
     }
 
     @Test func visibleCountRejectsAnOlderActivationGeneration() async throws {
@@ -115,25 +115,25 @@ struct AirAndSpaceRuntimeTests {
             configuration: .adsbLol,
             query: query(),
             labelMode: .adaptive,
-            activationGeneration: 42,
+            lease: lease(42),
         )
         try await waitUntil {
-            await runtime.currentUpdate().successfulActivationGeneration == 42
+            await runtime.currentUpdate().successfulActivationLease == lease(42)
         }
 
-        await runtime.updateVisibleContentCount(7, activationGeneration: 41)
+        await runtime.updateVisibleContentCount(7, lease: lease(41))
         #expect(
             await runtime.currentUpdate().health ==
                 .healthy(lastUpdate: date, visibleContentCount: 0),
         )
 
-        await runtime.updateVisibleContentCount(7, activationGeneration: 42)
+        await runtime.updateVisibleContentCount(7, lease: lease(42))
         #expect(
             await runtime.currentUpdate().health ==
                 .healthy(lastUpdate: date, visibleContentCount: 7),
         )
 
-        await runtime.deactivate(reporting: .idle)
+        await runtime.deactivate(lease: lease(42), reporting: .idle)
     }
 
     @Test func laterActivationSupersedesDeactivationSuspendedDuringReset() async throws {
@@ -157,14 +157,14 @@ struct AirAndSpaceRuntimeTests {
             configuration: .adsbLol,
             query: query,
             labelMode: .adaptive,
-            activationGeneration: 1,
+            lease: lease(1),
         )
         try await waitUntil {
-            await runtime.currentUpdate().successfulActivationGeneration == 1
+            await runtime.currentUpdate().successfulActivationLease == lease(1)
         }
 
         let supersededDeactivation = Task {
-            await runtime.deactivate(reporting: .idle)
+            await runtime.deactivate(lease: lease(1), reporting: .idle)
         }
         await flightsRuntime.waitForResetCount(2)
 
@@ -172,10 +172,10 @@ struct AirAndSpaceRuntimeTests {
             configuration: replacementConfiguration,
             query: query,
             labelMode: .adaptive,
-            activationGeneration: 2,
+            lease: lease(2),
         )
         try await waitUntil {
-            await runtime.currentUpdate().successfulActivationGeneration == 2
+            await runtime.currentUpdate().successfulActivationLease == lease(2)
         }
         await flightsRuntime.releaseReset(2)
         await supersededDeactivation.value
@@ -185,7 +185,62 @@ struct AirAndSpaceRuntimeTests {
         #expect(update.snapshot?.source == .readsb)
         #expect(update.activePollingSignature?.configuration.kind == .readsb)
 
-        await runtime.deactivate(reporting: .idle)
+        await runtime.deactivate(lease: lease(2), reporting: .idle)
+    }
+
+    @Test func staleLeaseQueuedBeforeReplacementCannotDeactivateTheReplacement() async throws {
+        let date = Date(timeIntervalSince1970: 1_800_100_000)
+        let coordinator = AircraftPollingCoordinator(
+            sourceFactory: ConfigurationEchoAircraftSourceFactory(date: date),
+            clock: LongAircraftPollingClock(now: date),
+            logger: DiscardingAircraftPollingLogger(),
+        )
+        let runtime = makeRuntime(
+            pollingCoordinator: coordinator,
+            flightsRuntime: LayerCatalog.standard.flights.runtimeFactory(),
+            date: date,
+        )
+        let oldLease = lease(1)
+        let replacementLease = lease(2)
+        let query = try query()
+        _ = await runtime.stateUpdates()
+
+        await runtime.activate(
+            configuration: .adsbLol,
+            query: query,
+            labelMode: .adaptive,
+            lease: oldLease,
+        )
+        try await waitUntil {
+            await runtime.currentUpdate().successfulActivationLease == oldLease
+        }
+
+        let gate = ManualDeactivationGate()
+        let staleDeactivation = Task {
+            await gate.wait()
+            await runtime.deactivate(lease: oldLease, reporting: .idle)
+        }
+        await gate.waitUntilBlocked()
+
+        try await runtime.activate(
+            configuration: localReadsbConfiguration(),
+            query: query,
+            labelMode: .adaptive,
+            lease: replacementLease,
+        )
+        try await waitUntil {
+            await runtime.currentUpdate().successfulActivationLease == replacementLease
+        }
+        await gate.release()
+        await staleDeactivation.value
+
+        let update = await runtime.currentUpdate()
+        #expect(update.activationLease == replacementLease)
+        #expect(update.successfulActivationLease == replacementLease)
+        #expect(update.activePollingSignature?.configuration.kind == .readsb)
+        #expect(await coordinator.currentState().sourceKind == .readsb)
+
+        await runtime.deactivate(lease: replacementLease, reporting: .idle)
     }
 
     private func makeRuntime(
@@ -220,6 +275,13 @@ struct AirAndSpaceRuntimeTests {
         return try .readsb(ReadsbConfiguration(aircraftJSONURL: url))
     }
 
+    private func lease(_ generation: UInt64) -> ProjectionActivationLease {
+        ProjectionActivationLease(
+            experienceID: .airAndSpace,
+            generation: .init(rawValue: generation),
+        )
+    }
+
     private func waitUntil(
         _ condition: @escaping @Sendable () async -> Bool,
     ) async throws {
@@ -236,6 +298,33 @@ struct AirAndSpaceRuntimeTests {
 
 private enum AirAndSpaceRuntimeTestError: Error {
     case conditionTimedOut
+}
+
+private actor ManualDeactivationGate {
+    private var continuation: CheckedContinuation<Void, Never>?
+    private var blockedWaiters: [CheckedContinuation<Void, Never>] = []
+
+    func wait() async {
+        await withCheckedContinuation { continuation in
+            precondition(self.continuation == nil, "Only one deactivation can wait at the gate")
+            self.continuation = continuation
+            let waiters = blockedWaiters
+            blockedWaiters.removeAll()
+            waiters.forEach { $0.resume() }
+        }
+    }
+
+    func waitUntilBlocked() async {
+        guard continuation == nil else { return }
+        await withCheckedContinuation { continuation in
+            blockedWaiters.append(continuation)
+        }
+    }
+
+    func release() {
+        continuation?.resume()
+        continuation = nil
+    }
 }
 
 extension AircraftPollingState {

@@ -37,6 +37,31 @@ struct ThrowSessionExperiencesTests {
         #expect(session.projectionPlaylist == coordinatorPlaylist)
     }
 
+    @Test func staleDeactivationCannotReleaseANewerSessionLease() async {
+        let session = ThrowSession.fixture()
+        session.isReconcilingDemand = true
+        let oldLease = ProjectionActivationLease(
+            experienceID: .airAndSpace,
+            generation: .init(rawValue: 1),
+        )
+        let replacementLease = ProjectionActivationLease(
+            experienceID: .airAndSpace,
+            generation: .init(rawValue: 2),
+        )
+
+        await session.applyExperienceCoordinatorAction(.activate(
+            lease: oldLease,
+            role: .active,
+        ))
+        await session.applyExperienceCoordinatorAction(.activate(
+            lease: replacementLease,
+            role: .active,
+        ))
+        await session.applyExperienceCoordinatorAction(.deactivate(lease: oldLease))
+
+        #expect(session.airAndSpaceActivation.activeLease == replacementLease)
+    }
+
     @Test func projectionAccessibilityUsesTheActiveExperienceCountMeaning() {
         let session = ThrowSession.fixture()
         session.activeExperienceID = .transit

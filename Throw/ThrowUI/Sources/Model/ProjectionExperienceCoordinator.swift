@@ -35,17 +35,58 @@ enum ProjectionExperienceActivationRole: Equatable {
     case manual
 }
 
+/// The coordinator-issued identity of one logical experience activation.
+struct ProjectionActivationLease: Equatable, Hashable {
+    struct Generation: Comparable, Hashable {
+        static let initial = Generation(rawValue: 0)
+
+        let rawValue: UInt64
+
+        func successor() -> Generation {
+            precondition(rawValue < UInt64.max, "An activation generation must not overflow")
+            return Generation(rawValue: rawValue + 1)
+        }
+
+        static func < (lhs: Generation, rhs: Generation) -> Bool {
+            lhs.rawValue < rhs.rawValue
+        }
+    }
+
+    let experienceID: ProjectionExperienceID
+    let generation: Generation
+}
+
+/// Rejects lifecycle commands older than the newest lease observed for one experience.
+struct ProjectionActivationLeaseTracker {
+    let experienceID: ProjectionExperienceID
+    private(set) var activeLease: ProjectionActivationLease?
+    private var latestGeneration: ProjectionActivationLease.Generation?
+
+    mutating func activate(_ lease: ProjectionActivationLease) -> Bool {
+        guard lease.experienceID == experienceID,
+              latestGeneration.map({ lease.generation >= $0 }) ?? true
+        else { return false }
+        activeLease = lease
+        latestGeneration = lease.generation
+        return true
+    }
+
+    mutating func deactivate(_ lease: ProjectionActivationLease) -> Bool {
+        guard activeLease == lease else { return false }
+        activeLease = nil
+        return true
+    }
+}
+
 enum ProjectionExperienceCoordinatorAction: Equatable {
     case activate(
-        id: ProjectionExperienceID,
-        generation: UInt64,
+        lease: ProjectionActivationLease,
         role: ProjectionExperienceActivationRole,
     )
-    case deactivate(id: ProjectionExperienceID)
+    case deactivate(lease: ProjectionActivationLease)
     case beginTransition(
         from: ProjectionExperienceID,
-        to: ProjectionExperienceID,
-        generation: UInt64,
+        to: ProjectionActivationLease,
     )
 }
 
@@ -113,9 +154,9 @@ actor ProjectionExperienceCoordinator {
     }
 
     private struct RuntimeState {
-        var generation: UInt64 = 0
-        var successfulGeneration: UInt64?
-        var preparedGeneration: UInt64?
+        var lease: ProjectionActivationLease?
+        var successfulLease: ProjectionActivationLease?
+        var preparedLease: ProjectionActivationLease?
         var health: FeedHealth = .idle
         var isRunning = false
     }
@@ -126,9 +167,12 @@ actor ProjectionExperienceCoordinator {
             case automatic(intendedTransitionAt: Date, deadline: Date)
         }
 
-        let id: ProjectionExperienceID
-        let generation: UInt64
+        let lease: ProjectionActivationLease
         let timing: Timing
+
+        var id: ProjectionExperienceID {
+            lease.experienceID
+        }
 
         var isManual: Bool {
             switch timing {
@@ -207,7 +251,7 @@ actor ProjectionExperienceCoordinator {
     private var dwellEndsAt: Date?
     private var manualSelectionFailure: ThrowFailureCategory?
     private var runtimeStates: [ProjectionExperienceID: RuntimeState] = [:]
-    private var nextGeneration: UInt64 = 0
+    private var nextGeneration = ProjectionActivationLease.Generation.initial
     private var timerGeneration: UInt64 = 0
     private var rotationTask: Task<Void, Never>?
     private var readinessTask: Task<Void, Never>?
@@ -248,8 +292,8 @@ actor ProjectionExperienceCoordinator {
         actionStream
     }
 
-    func activationGeneration(for id: ProjectionExperienceID) -> UInt64? {
-        runtimeStates[id]?.generation
+    func activationLease(for id: ProjectionExperienceID) -> ProjectionActivationLease? {
+        runtimeStates[id]?.lease
     }
 
     func currentState() -> ProjectionExperienceCoordinatorState {
@@ -307,21 +351,21 @@ actor ProjectionExperienceCoordinator {
     }
 
     func reportRuntimeUpdate(
-        id: ProjectionExperienceID,
-        generation: UInt64,
-        successfulGeneration: UInt64?,
+        lease: ProjectionActivationLease,
+        successfulLease: ProjectionActivationLease?,
         health: FeedHealth,
     ) async {
-        guard var runtime = runtimeStates[id], runtime.generation == generation else { return }
+        let id = lease.experienceID
+        guard var runtime = runtimeStates[id], runtime.lease == lease else { return }
         runtime.health = health
-        if successfulGeneration == generation {
-            runtime.successfulGeneration = generation
+        if successfulLease == lease {
+            runtime.successfulLease = lease
         }
         runtimeStates[id] = runtime
         publishState()
 
         if id == activeExperienceID,
-           runtime.successfulGeneration == generation,
+           runtime.successfulLease == lease,
            requestState == nil,
            dwellEndsAt == nil
         {
@@ -329,54 +373,46 @@ actor ProjectionExperienceCoordinator {
         }
 
         guard case let .awaiting(request) = requestState,
-              id == request.id,
-              generation == request.generation
+              request.lease == lease
         else { return }
         if case let .failed(failure) = health {
             await rejectRequestedExperience(
-                expectedID: request.id,
-                expectedGeneration: request.generation,
+                expectedLease: request.lease,
                 failure: failure,
             )
         }
     }
 
-    func isAwaitingPreparation(
-        id: ProjectionExperienceID,
-        generation: UInt64,
-    ) -> Bool {
+    func isAwaitingPreparation(_ lease: ProjectionActivationLease) -> Bool {
+        let id = lease.experienceID
         guard demand.permitsProjection,
               case let .awaiting(request) = requestState,
-              request.id == id,
-              request.generation == generation,
+              request.lease == lease,
               let runtime = runtimeStates[id],
               runtime.isRunning,
-              runtime.generation == generation,
-              runtime.successfulGeneration == generation
+              runtime.lease == lease,
+              runtime.successfulLease == lease
         else { return false }
         return true
     }
 
     /// Marks a complete projected frame as ready for the current activation.
-    func reportRuntimePrepared(
-        id: ProjectionExperienceID,
-        generation: UInt64,
-    ) async -> Bool {
-        guard isAwaitingPreparation(id: id, generation: generation),
+    func reportRuntimePrepared(_ lease: ProjectionActivationLease) async -> Bool {
+        let id = lease.experienceID
+        guard isAwaitingPreparation(lease),
               case let .awaiting(request) = requestState,
               var runtime = runtimeStates[id]
         else { return false }
-        runtime.preparedGeneration = generation
+        runtime.preparedLease = lease
         runtimeStates[id] = runtime
 
         let now = await clock.now()
         guard demand.permitsProjection,
               case let .awaiting(currentRequest) = requestState,
-              currentRequest.id == request.id,
-              currentRequest.generation == request.generation,
-              runtimeStates[id]?.generation == generation,
-              runtimeStates[id]?.successfulGeneration == generation,
-              runtimeStates[id]?.preparedGeneration == generation
+              currentRequest.lease == request.lease,
+              runtimeStates[id]?.lease == lease,
+              runtimeStates[id]?.successfulLease == lease,
+              runtimeStates[id]?.preparedLease == lease
         else { return false }
         if currentRequest.canTransition(at: now) {
             beginTransitionIfReady()
@@ -385,17 +421,14 @@ actor ProjectionExperienceCoordinator {
     }
 
     func rejectPreparedTransition(
-        id: ProjectionExperienceID,
-        generation: UInt64,
+        lease: ProjectionActivationLease,
         failure: ThrowFailureCategory,
     ) async {
         guard let request = requestState?.request,
-              request.id == id,
-              request.generation == generation
+              request.lease == lease
         else { return }
         await rejectRequestedExperience(
-            expectedID: request.id,
-            expectedGeneration: request.generation,
+            expectedLease: request.lease,
             failure: failure,
         )
     }
@@ -460,15 +493,12 @@ actor ProjectionExperienceCoordinator {
     }
 
     /// Commits the active identity while the caller holds the surface at black.
-    func commitTransition(
-        to id: ProjectionExperienceID,
-        generation: UInt64,
-    ) -> Bool {
+    func commitTransition(to lease: ProjectionActivationLease) -> Bool {
+        let id = lease.experienceID
         guard case let .transitioning(request) = requestState,
-              request.id == id,
-              request.generation == generation,
-              runtimeStates[id]?.successfulGeneration == generation,
-              runtimeStates[id]?.preparedGeneration == generation
+              request.lease == lease,
+              runtimeStates[id]?.successfulLease == lease,
+              runtimeStates[id]?.preparedLease == lease
         else { return false }
         let oldID = activeExperienceID
         guard playlistState.select(id) else {
@@ -485,14 +515,11 @@ actor ProjectionExperienceCoordinator {
     }
 
     /// The caller invokes this only after the committed surface completes its fade-in.
-    func completeTransition(
-        to id: ProjectionExperienceID,
-        generation: UInt64,
-    ) async {
+    func completeTransition(to lease: ProjectionActivationLease) async {
+        let id = lease.experienceID
         guard activeExperienceID == id,
               case let .committed(request) = requestState,
-              request.id == id,
-              request.generation == generation
+              request.lease == lease
         else { return }
         clearRequest()
         publishState()
@@ -503,7 +530,7 @@ actor ProjectionExperienceCoordinator {
         guard let activeExperienceID else { return }
         if runtimeStates[activeExperienceID]?.isRunning != true {
             _ = activateRuntime(activeExperienceID, role: .active)
-        } else if runtimeStates[activeExperienceID]?.successfulGeneration != nil,
+        } else if runtimeStates[activeExperienceID]?.successfulLease != nil,
                   dwellEndsAt == nil
         {
             await startFreshDwell()
@@ -516,8 +543,8 @@ actor ProjectionExperienceCoordinator {
               isPaused == false,
               playlist.rotatesAutomatically,
               let activeExperienceID,
-              let runtimeGeneration = runtimeStates[activeExperienceID]?.generation,
-              runtimeStates[activeExperienceID]?.successfulGeneration == runtimeGeneration,
+              let runtimeLease = runtimeStates[activeExperienceID]?.lease,
+              runtimeStates[activeExperienceID]?.successfulLease == runtimeLease,
               let entry = playlist.entry(for: activeExperienceID)
         else {
             dwellEndsAt = nil
@@ -534,8 +561,8 @@ actor ProjectionExperienceCoordinator {
               isPaused == false,
               playlist.rotatesAutomatically,
               self.activeExperienceID == activeExperienceID,
-              runtimeStates[activeExperienceID]?.generation == runtimeGeneration,
-              runtimeStates[activeExperienceID]?.successfulGeneration == runtimeGeneration,
+              runtimeStates[activeExperienceID]?.lease == runtimeLease,
+              runtimeStates[activeExperienceID]?.successfulLease == runtimeLease,
               playlist.entry(for: activeExperienceID) == entry
         else { return }
         let dwellSeconds = entry.dwellDuration.seconds
@@ -593,7 +620,7 @@ actor ProjectionExperienceCoordinator {
         }
         cancelRequestedRuntime()
         manualSelectionFailure = nil
-        let generation = activateRuntime(id, role: role)
+        let lease = activateRuntime(id, role: role)
         let timing: ExperienceRequest.Timing = if let intendedTransitionAt {
             .automatic(
                 intendedTransitionAt: intendedTransitionAt,
@@ -606,7 +633,7 @@ actor ProjectionExperienceCoordinator {
                 deadline: now.addingTimeInterval(TimeInterval(Self.readinessGraceSeconds)),
             )
         }
-        let request = ExperienceRequest(id: id, generation: generation, timing: timing)
+        let request = ExperienceRequest(lease: lease, timing: timing)
         requestState = .awaiting(request)
         scheduleReadinessDeadline(for: request, now: now)
         publishState()
@@ -616,32 +643,29 @@ actor ProjectionExperienceCoordinator {
         guard case let .awaiting(request) = requestState,
               let from = activeExperienceID,
               let runtime = runtimeStates[request.id],
-              runtime.generation == request.generation,
-              runtime.successfulGeneration == runtime.generation,
-              runtime.preparedGeneration == runtime.generation
+              runtime.lease == request.lease,
+              runtime.successfulLease == request.lease,
+              runtime.preparedLease == request.lease
         else { return }
         readinessTask?.cancel()
         readinessTask = nil
         requestState = .transitioning(request)
         emitAction(
-            .beginTransition(from: from, to: request.id, generation: runtime.generation),
+            .beginTransition(from: from, to: request.lease),
         )
         publishState()
     }
 
     private func rejectRequestedExperience(
-        expectedID: ProjectionExperienceID,
-        expectedGeneration: UInt64,
+        expectedLease: ProjectionActivationLease,
         failure: ThrowFailureCategory,
     ) async {
         guard let request = requestState?.request,
-              request.id == expectedID,
-              request.generation == expectedGeneration
+              request.lease == expectedLease
         else { return }
         let now = await clock.now()
         guard let currentRequest = requestState?.request,
-              currentRequest.id == expectedID,
-              currentRequest.generation == expectedGeneration
+              currentRequest.lease == expectedLease
         else { return }
         let wasManual = request.isManual
         let failedID = request.id
@@ -672,8 +696,7 @@ actor ProjectionExperienceCoordinator {
         assertionFailure("Projection rotation clock failed")
         if let request = requestState?.request {
             await rejectRequestedExperience(
-                expectedID: request.id,
-                expectedGeneration: request.generation,
+                expectedLease: request.lease,
                 failure: .transport,
             )
         } else {
@@ -685,28 +708,34 @@ actor ProjectionExperienceCoordinator {
     private func activateRuntime(
         _ id: ProjectionExperienceID,
         role: ProjectionExperienceActivationRole,
-    ) -> UInt64 {
-        nextGeneration &+= 1
+    ) -> ProjectionActivationLease {
+        nextGeneration = nextGeneration.successor()
+        let lease = ProjectionActivationLease(
+            experienceID: id,
+            generation: nextGeneration,
+        )
         var state = runtimeStates[id] ?? RuntimeState()
-        state.generation = nextGeneration
-        state.successfulGeneration = nil
-        state.preparedGeneration = nil
+        state.lease = lease
+        state.successfulLease = nil
+        state.preparedLease = nil
         state.health = .loading
         state.isRunning = true
         runtimeStates[id] = state
         emitAction(
-            .activate(id: id, generation: nextGeneration, role: role),
+            .activate(lease: lease, role: role),
         )
-        return nextGeneration
+        return lease
     }
 
     private func deactivateRuntime(_ id: ProjectionExperienceID) {
-        guard runtimeStates[id]?.isRunning == true else { return }
+        guard runtimeStates[id]?.isRunning == true,
+              let lease = runtimeStates[id]?.lease
+        else { return }
         runtimeStates[id]?.isRunning = false
-        runtimeStates[id]?.successfulGeneration = nil
-        runtimeStates[id]?.preparedGeneration = nil
+        runtimeStates[id]?.successfulLease = nil
+        runtimeStates[id]?.preparedLease = nil
         runtimeStates[id]?.health = .idle
-        emitAction(.deactivate(id: id))
+        emitAction(.deactivate(lease: lease))
     }
 
     private func cancelRequestedRuntime() {
@@ -734,32 +763,21 @@ actor ProjectionExperienceCoordinator {
             [clock, weak self] in
             do {
                 try await clock.sleep(for: .seconds(delay))
-                await self?.expireReadiness(
-                    id: request.id,
-                    generation: request.generation,
-                )
+                await self?.expireReadiness(lease: request.lease)
             } catch is CancellationError {
                 return
             } catch {
-                await self?.expireReadiness(
-                    id: request.id,
-                    generation: request.generation,
-                )
+                await self?.expireReadiness(lease: request.lease)
             }
         }
     }
 
-    private func expireReadiness(
-        id: ProjectionExperienceID,
-        generation: UInt64,
-    ) async {
+    private func expireReadiness(lease: ProjectionActivationLease) async {
         guard case let .awaiting(request) = requestState,
-              request.id == id,
-              request.generation == generation
+              request.lease == lease
         else { return }
         await rejectRequestedExperience(
-            expectedID: request.id,
-            expectedGeneration: request.generation,
+            expectedLease: request.lease,
             failure: .transport,
         )
     }
