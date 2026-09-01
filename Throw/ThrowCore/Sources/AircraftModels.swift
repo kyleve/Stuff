@@ -357,6 +357,42 @@ public struct AircraftObservation: Hashable, Sendable, CustomStringConvertible,
     }
 }
 
+/// Privacy-safe counts for provider records that a snapshot decoder discarded.
+public struct AircraftSnapshotDecodingDiagnostics: Codable, Hashable, Sendable {
+    public static let none = AircraftSnapshotDecodingDiagnostics(
+        malformedRecordCount: 0,
+        missingPositionRecordCount: 0,
+    )
+
+    public let malformedRecordCount: Int
+    public let missingPositionRecordCount: Int
+
+    public init(malformedRecordCount: Int, missingPositionRecordCount: Int) {
+        precondition(malformedRecordCount >= 0)
+        precondition(missingPositionRecordCount >= 0)
+        self.malformedRecordCount = malformedRecordCount
+        self.missingPositionRecordCount = missingPositionRecordCount
+    }
+
+    public var hasDiscardedRecords: Bool {
+        malformedRecordCount > 0 || missingPositionRecordCount > 0
+    }
+
+    public func adding(
+        _ other: AircraftSnapshotDecodingDiagnostics,
+    ) -> AircraftSnapshotDecodingDiagnostics {
+        let malformed = malformedRecordCount.addingReportingOverflow(other.malformedRecordCount)
+        let missingPosition = missingPositionRecordCount.addingReportingOverflow(
+            other.missingPositionRecordCount,
+        )
+        precondition(malformed.overflow == false && missingPosition.overflow == false)
+        return AircraftSnapshotDecodingDiagnostics(
+            malformedRecordCount: malformed.partialValue,
+            missingPositionRecordCount: missingPosition.partialValue,
+        )
+    }
+}
+
 public struct AircraftSnapshot: Hashable, Sendable, CustomStringConvertible,
     CustomDebugStringConvertible
 {
@@ -367,6 +403,7 @@ public struct AircraftSnapshot: Hashable, Sendable, CustomStringConvertible,
     /// Absence means that the source did not resolve route availability.
     public let routeResultsByAircraft: [AircraftID: FlightRouteResult]
     public let successfulHTTPStatus: Int?
+    public let decodingDiagnostics: AircraftSnapshotDecodingDiagnostics
 
     public init(
         source: AircraftSourceKind,
@@ -379,6 +416,23 @@ public struct AircraftSnapshot: Hashable, Sendable, CustomStringConvertible,
             observations: observations,
             routeResultsByAircraft: [:],
             successfulHTTPStatus: nil,
+            decodingDiagnostics: .none,
+        )
+    }
+
+    public init(
+        source: AircraftSourceKind,
+        fetchedAt: Date,
+        observations: [AircraftObservation],
+        decodingDiagnostics: AircraftSnapshotDecodingDiagnostics,
+    ) {
+        self.init(
+            source: source,
+            fetchedAt: fetchedAt,
+            observations: observations,
+            routeResultsByAircraft: [:],
+            successfulHTTPStatus: nil,
+            decodingDiagnostics: decodingDiagnostics,
         )
     }
 
@@ -394,6 +448,24 @@ public struct AircraftSnapshot: Hashable, Sendable, CustomStringConvertible,
             observations: observations,
             routeResultsByAircraft: [:],
             successfulHTTPStatus: successfulHTTPStatus,
+            decodingDiagnostics: .none,
+        )
+    }
+
+    public init(
+        source: AircraftSourceKind,
+        fetchedAt: Date,
+        observations: [AircraftObservation],
+        successfulHTTPStatus: Int?,
+        decodingDiagnostics: AircraftSnapshotDecodingDiagnostics,
+    ) {
+        self.init(
+            source: source,
+            fetchedAt: fetchedAt,
+            observations: observations,
+            routeResultsByAircraft: [:],
+            successfulHTTPStatus: successfulHTTPStatus,
+            decodingDiagnostics: decodingDiagnostics,
         )
     }
 
@@ -403,6 +475,24 @@ public struct AircraftSnapshot: Hashable, Sendable, CustomStringConvertible,
         observations: [AircraftObservation],
         routeResultsByAircraft: [AircraftID: FlightRouteResult],
         successfulHTTPStatus: Int?,
+    ) {
+        self.init(
+            source: source,
+            fetchedAt: fetchedAt,
+            observations: observations,
+            routeResultsByAircraft: routeResultsByAircraft,
+            successfulHTTPStatus: successfulHTTPStatus,
+            decodingDiagnostics: .none,
+        )
+    }
+
+    public init(
+        source: AircraftSourceKind,
+        fetchedAt: Date,
+        observations: [AircraftObservation],
+        routeResultsByAircraft: [AircraftID: FlightRouteResult],
+        successfulHTTPStatus: Int?,
+        decodingDiagnostics: AircraftSnapshotDecodingDiagnostics,
     ) {
         let observations = Self.canonicalObservations(observations)
         precondition(observations.allSatisfy { $0.metadata.source == source })
@@ -417,6 +507,7 @@ public struct AircraftSnapshot: Hashable, Sendable, CustomStringConvertible,
         self.observations = observations
         self.routeResultsByAircraft = routeResultsByAircraft
         self.successfulHTTPStatus = successfulHTTPStatus
+        self.decodingDiagnostics = decodingDiagnostics
     }
 
     /// Selects the freshest position while retaining the first-seen order of identities.

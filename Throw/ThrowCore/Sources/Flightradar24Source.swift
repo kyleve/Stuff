@@ -19,20 +19,29 @@ struct Flightradar24Decoder {
         var observations: [AircraftObservation] = []
         var observationIndexByID: [AircraftID: Int] = [:]
         var routeResults: [AircraftID: FlightRouteResult] = [:]
-        var malformedCount = 0
+        var malformedRecordCount = 0
+        var missingPositionRecordCount = 0
         observations.reserveCapacity(envelope.data.count)
 
-        for record in envelope.data {
+        for lossyRecord in envelope.data {
             try Task.checkCancellation()
+            guard let record = lossyRecord.value else {
+                malformedRecordCount += 1
+                continue
+            }
+            guard let latitude = record.lat, let longitude = record.lon else {
+                missingPositionRecordCount += 1
+                continue
+            }
             do {
-                let coordinate = try GeoCoordinate(latitude: record.lat, longitude: record.lon)
+                let coordinate = try GeoCoordinate(latitude: latitude, longitude: longitude)
                 let identity: AircraftID? = if let hex = record.hex?.trimmedNonempty {
                     AircraftID(kind: .icao, rawValue: hex)
                 } else {
                     AircraftID(kind: .providerMarkedNonICAO, rawValue: record.fr24ID)
                 }
                 guard let identity else {
-                    malformedCount += 1
+                    malformedRecordCount += 1
                     continue
                 }
                 let observedAt = record.timestamp.flatMap(Self.timestamp) ?? fetchedAt
@@ -74,10 +83,10 @@ struct Flightradar24Decoder {
                     routeResults[identity] = routeResult
                 }
             } catch {
-                malformedCount += 1
+                malformedRecordCount += 1
             }
         }
-        if observations.isEmpty, malformedCount > 0 {
+        if observations.isEmpty, malformedRecordCount + missingPositionRecordCount > 0 {
             throw Flightradar24DecodingError.invalidEnvelope
         }
         return AircraftSnapshot(
@@ -86,6 +95,10 @@ struct Flightradar24Decoder {
             observations: observations,
             routeResultsByAircraft: routeResults,
             successfulHTTPStatus: nil,
+            decodingDiagnostics: AircraftSnapshotDecodingDiagnostics(
+                malformedRecordCount: malformedRecordCount,
+                missingPositionRecordCount: missingPositionRecordCount,
+            ),
         )
     }
 
@@ -151,6 +164,7 @@ actor Flightradar24DecodingWorker {
                 includedIDs.contains($0.key)
             },
             successfulHTTPStatus: nil,
+            decodingDiagnostics: decoded.decodingDiagnostics,
         )
     }
 }
@@ -277,6 +291,7 @@ struct Flightradar24Source: AircraftObservationSource, CustomStringConvertible,
                 observations: decoded.observations,
                 routeResultsByAircraft: decoded.routeResultsByAircraft,
                 successfulHTTPStatus: response.statusCode,
+                decodingDiagnostics: decoded.decodingDiagnostics,
             )
         } catch is CancellationError {
             throw CancellationError()
@@ -340,20 +355,32 @@ struct Flightradar24Source: AircraftObservationSource, CustomStringConvertible,
             observations: candidates.map(\.observation),
             routeResultsByAircraft: routeResults,
             successfulHTTPStatus: successfulHTTPStatus,
+            decodingDiagnostics: western.decodingDiagnostics.adding(
+                eastern.decodingDiagnostics,
+            ),
         )
     }
 }
 
 private struct Envelope: Decodable {
-    let data: [Record]
+    let data: [LossyRecord]
+}
+
+/// Consumes a malformed provider row without rejecting valid neighbors.
+private struct LossyRecord: Decodable {
+    let value: Record?
+
+    init(from decoder: any Decoder) throws {
+        value = try? Record(from: decoder)
+    }
 }
 
 private struct Record: Decodable {
     let fr24ID: String
     let flight: String?
     let callsign: String?
-    let lat: Double
-    let lon: Double
+    let lat: Double?
+    let lon: Double?
     let track: Double?
     let alt: Double?
     let groundSpeed: Double?

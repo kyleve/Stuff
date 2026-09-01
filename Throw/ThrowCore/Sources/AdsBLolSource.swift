@@ -48,6 +48,7 @@ struct AdsBLolSource: AircraftObservationSource, CustomStringConvertible,
                 fetchedAt: snapshot.fetchedAt,
                 observations: snapshot.observations,
                 successfulHTTPStatus: response.statusCode,
+                decodingDiagnostics: snapshot.decodingDiagnostics,
             )
         } catch is CancellationError {
             throw CancellationError()

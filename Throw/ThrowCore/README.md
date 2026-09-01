@@ -34,7 +34,9 @@ band, and positive 180° longitude shares the negative-dateline band.
 
 `adsb.lol`, local `readsb`, and ADS-B Exchange RapidAPI use separate request
 and envelope adapters around the reusable ADS-B Exchange-v2 aircraft decoder.
-Flightradar24 has its own live-position decoder. Each FR24 snapshot carries a
+Flightradar24 has its own live-position decoder. Both decoders retain usable
+rows and report aggregate malformed and missing-position counts. The polling
+log records these counts at warning level. Each FR24 snapshot carries a
 completed route result for each aircraft. The result is unavailable when the
 same record has no usable route. FR24 zero-altitude positions normalize as
 ground because its position schema has no separate airborne-state field. The

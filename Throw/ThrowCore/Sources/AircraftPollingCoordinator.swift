@@ -305,6 +305,7 @@ public actor AircraftPollingCoordinator {
                     durationMilliseconds: nil,
                     httpStatus: nil,
                     decodedAircraftCount: lastGood?.observations.count,
+                    decodingDiagnostics: nil,
                     backoffSeconds: nil,
                     failureCategory: nil,
                 ),
@@ -353,6 +354,7 @@ public actor AircraftPollingCoordinator {
                 durationMilliseconds: nil,
                 httpStatus: nil,
                 decodedAircraftCount: nil,
+                decodingDiagnostics: nil,
                 backoffSeconds: nil,
                 failureCategory: configuredSource.metadataWarning.map(Self.category),
             ),
@@ -385,10 +387,26 @@ public actor AircraftPollingCoordinator {
                         ),
                         httpStatus: snapshot.successfulHTTPStatus,
                         decodedAircraftCount: snapshot.observations.count,
+                        decodingDiagnostics: nil,
                         backoffSeconds: nil,
                         failureCategory: nil,
                     ),
                 )
+                if snapshot.decodingDiagnostics.hasDiscardedRecords {
+                    logger.record(
+                        AircraftPollingLogEvent(
+                            kind: .partialSchemaDrift,
+                            source: configuration.kind,
+                            requestCount: requestCount,
+                            durationMilliseconds: nil,
+                            httpStatus: snapshot.successfulHTTPStatus,
+                            decodedAircraftCount: snapshot.observations.count,
+                            decodingDiagnostics: snapshot.decodingDiagnostics,
+                            backoffSeconds: nil,
+                            failureCategory: nil,
+                        ),
+                    )
+                }
                 try await clock.sleep(for: configuredSource.baseCadence)
             } catch is CancellationError {
                 return
@@ -410,6 +428,7 @@ public actor AircraftPollingCoordinator {
                         ),
                         httpStatus: Self.statusCode(failure),
                         decodedAircraftCount: nil,
+                        decodingDiagnostics: nil,
                         backoffSeconds: nil,
                         failureCategory: Self.category(failure),
                     ),
@@ -440,6 +459,7 @@ public actor AircraftPollingCoordinator {
                         durationMilliseconds: nil,
                         httpStatus: Self.statusCode(failure),
                         decodedAircraftCount: lastGood?.observations.count,
+                        decodingDiagnostics: nil,
                         backoffSeconds: delay.secondsValue,
                         failureCategory: Self.category(failure),
                     ),
@@ -470,6 +490,7 @@ public actor AircraftPollingCoordinator {
                         ),
                         httpStatus: Self.statusCode(failure),
                         decodedAircraftCount: nil,
+                        decodingDiagnostics: nil,
                         backoffSeconds: nil,
                         failureCategory: Self.category(failure),
                     ),
@@ -495,6 +516,7 @@ public actor AircraftPollingCoordinator {
                         durationMilliseconds: nil,
                         httpStatus: Self.statusCode(failure),
                         decodedAircraftCount: lastGood?.observations.count,
+                        decodingDiagnostics: nil,
                         backoffSeconds: delay.secondsValue,
                         failureCategory: Self.category(failure),
                     ),
@@ -533,6 +555,7 @@ public actor AircraftPollingCoordinator {
                 ),
                 httpStatus: Self.statusCode(failure),
                 decodedAircraftCount: nil,
+                decodingDiagnostics: nil,
                 backoffSeconds: nil,
                 failureCategory: Self.category(failure),
             ),

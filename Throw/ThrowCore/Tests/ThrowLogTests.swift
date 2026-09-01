@@ -11,6 +11,7 @@ struct ThrowLogTests {
             durationMilliseconds: 20,
             httpStatus: 401,
             decodedAircraftCount: nil,
+            decodingDiagnostics: nil,
             backoffSeconds: nil,
             failureCategory: .invalidCredential,
         )
