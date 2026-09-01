@@ -8,12 +8,20 @@ public struct ThrowRootLogEvent: LogEvent {
     }
 }
 
-/// Process-session events that describe durable diagnostics availability.
+/// Process-session events for launch and durable diagnostics availability.
 public enum ThrowSessionLogEvent: LogEvent, Equatable {
+    /// The dependency boundary that prevented Throw from becoming operational.
+    public enum ColdLaunchBoundary: String, CaseIterable, Codable, Equatable, Sendable {
+        case preferences
+        case credential
+        case unexpected
+    }
+
     case durableLoggingReady
     case durableLoggingUnavailable(description: String)
     case durableLoggingHistoryPruned(expiredEventCount: Int, overflowEventCount: Int)
     case durableLoggingHistoryPruneFailed(description: String)
+    case coldLaunchFailed(boundary: ColdLaunchBoundary)
 
     public static let eventName = "ThrowSession"
 
@@ -23,7 +31,7 @@ public enum ThrowSessionLogEvent: LogEvent, Equatable {
                 .info
             case .durableLoggingHistoryPruneFailed:
                 .warning
-            case .durableLoggingUnavailable:
+            case .durableLoggingUnavailable, .coldLaunchFailed:
                 .error
         }
     }
@@ -38,6 +46,8 @@ public enum ThrowSessionLogEvent: LogEvent, Equatable {
                 "Pruned \(expiredEventCount) expired log event(s) and \(overflowEventCount) event(s) past the size limit"
             case let .durableLoggingHistoryPruneFailed(description):
                 "Failed to prune durable log history: \(description)"
+            case let .coldLaunchFailed(boundary):
+                "Cold launch failed at the \(boundary.rawValue) boundary"
         }
     }
 
@@ -51,6 +61,8 @@ public enum ThrowSessionLogEvent: LogEvent, Equatable {
                 "Durable log history was pruned"
             case .durableLoggingHistoryPruneFailed:
                 "Failed to prune durable log history"
+            case .coldLaunchFailed:
+                "Cold launch failed"
         }
     }
 
@@ -65,6 +77,13 @@ public enum ThrowSessionLogEvent: LogEvent, Equatable {
                     RemoteLogField(
                         key: RemoteLogFieldKey("overflow_event_count"),
                         value: .count(overflowEventCount),
+                    ),
+                ]
+            case let .coldLaunchFailed(boundary):
+                [
+                    RemoteLogField(
+                        key: RemoteLogFieldKey("boundary"),
+                        value: .category(RemoteLogCategory(boundary)),
                     ),
                 ]
             case .durableLoggingReady, .durableLoggingUnavailable,
@@ -626,6 +645,15 @@ public enum ThrowLog {
     public static let geography = root(GeographyLogEvent.self)
     public static let flightRoutes = root(FlightRouteLogEvent.self)
     public static let projectionMotion = root(ProjectionMotionLogEvent.self)
+
+    public static func recordColdLaunchFailure(
+        at boundary: ThrowSessionLogEvent.ColdLaunchBoundary,
+        error: any Error,
+    ) {
+        session(attachments: [.error(error, name: "launch-error")]) {
+            .coldLaunchFailed(boundary: boundary)
+        }
+    }
 }
 
 public protocol AircraftPollingLogging: Sendable {

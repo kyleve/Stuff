@@ -610,7 +610,8 @@ public final class ThrowSession {
             launchState = .failed(failure)
         } catch {
             assertionFailure("Throw launch produced an unclassified error: \(error)")
-            launchState = .failed(.preferences(detail: error.localizedDescription))
+            ThrowLog.recordColdLaunchFailure(at: .unexpected, error: error)
+            launchState = .failed(.preferences)
         }
     }
 
@@ -618,7 +619,8 @@ public final class ThrowSession {
         do {
             return try await preferenceStore.load()
         } catch {
-            throw ThrowSessionLaunchFailure.preferences(detail: error.localizedDescription)
+            ThrowLog.recordColdLaunchFailure(at: .preferences, error: error)
+            throw ThrowSessionLaunchFailure.preferences
         }
     }
 
@@ -637,10 +639,8 @@ public final class ThrowSession {
         do {
             return try await credentialStore.state(for: id)
         } catch {
-            throw ThrowSessionLaunchFailure.credential(
-                id: id,
-                detail: error.localizedDescription,
-            )
+            ThrowLog.recordColdLaunchFailure(at: .credential, error: error)
+            throw ThrowSessionLaunchFailure.credential(id: id)
         }
     }
 

@@ -8,12 +8,12 @@ struct ThrowLaunchFailureView: View {
     var body: some View {
         ContentUnavailableView {
             Label(
-                String(localized: .settingsFailureTitle),
+                String(localized: .launchFailureTitle),
                 systemSymbol: .exclamationmarkTriangleFill,
             )
             .foregroundStyle(.secondary)
         } description: {
-            Text(verbatim: failure.detail)
+            Text(failure.userMessage)
         } actions: {
             Button(
                 String(localized: .commonRetry),

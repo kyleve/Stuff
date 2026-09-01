@@ -3,6 +3,21 @@ import Testing
 @testable import ThrowCore
 
 struct ThrowLogTests {
+    @Test func coldLaunchFailuresExposeOnlyTheirTypedBoundary() {
+        let event = ThrowSessionLogEvent.coldLaunchFailed(boundary: .credential)
+
+        #expect(event.level == .error)
+        #expect(event.message == "Cold launch failed at the credential boundary")
+        #expect(event.remoteMessage == "Cold launch failed")
+        #expect(event.remoteFields.count == 1)
+        #expect(event.remoteFields.first?.key.rawValue == "boundary")
+        guard case let .category(category) = event.remoteFields.first?.value else {
+            Issue.record("The launch boundary must be a closed remote category")
+            return
+        }
+        #expect(category.rawValue == "credential")
+    }
+
     @Test func failureCategoryIsClosedAndCredentialFree() {
         #expect(AircraftPollingLogEvent.FailureCategory.allCases.count == 15)
         let event = AircraftPollingLogEvent.requestFailed(

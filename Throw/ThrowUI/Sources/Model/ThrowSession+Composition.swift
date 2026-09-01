@@ -161,9 +161,7 @@ extension ThrowSession {
 
         static func failedRootSnapshotFixture() -> ThrowSession {
             let session = onboardingFixture()
-            session.launchState = .failed(.preferences(
-                detail: ThrowPreferenceStoreError.invalidPayload.localizedDescription,
-            ))
+            session.launchState = .failed(.preferences)
             return session
         }
 

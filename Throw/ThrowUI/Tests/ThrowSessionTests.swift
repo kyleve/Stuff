@@ -23,11 +23,14 @@ struct ThrowSessionTests {
 
         await session.start()
 
-        guard case let .failed(.preferences(detail)) = session.launchState else {
+        guard case .failed(.preferences) = session.launchState else {
             Issue.record("A preference error must fail launch at the preference boundary")
             return
         }
-        #expect(detail == ThrowSessionLaunchTestFailure.preferences.localizedDescription)
+        #expect(
+            String(localized: ThrowSessionLaunchFailure.preferences.userMessage) ==
+                "Throw could not load its settings. Your settings were not changed. Try again.",
+        )
         #expect(session.setupState == seedSetup)
         #expect(session.setupState == storedPreferences.setupState)
     }
@@ -49,12 +52,16 @@ struct ThrowSessionTests {
 
         await session.start()
 
-        guard case let .failed(.credential(id, detail)) = session.launchState else {
+        guard case let .failed(.credential(id)) = session.launchState else {
             Issue.record("A credential access error must fail launch at the credential boundary")
             return
         }
         #expect(id == .rapidAPI)
-        #expect(detail == ThrowSessionLaunchTestFailure.credential.localizedDescription)
+        #expect(
+            String(
+                localized: ThrowSessionLaunchFailure.credential(id: id).userMessage,
+            ) == "Throw could not access its saved aircraft-source credentials. Try again.",
+        )
         #expect(session.rapidAPICredentialState == .missing)
     }
 
