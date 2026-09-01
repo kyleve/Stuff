@@ -94,6 +94,11 @@ actor AirAndSpaceRuntime {
     private var observationTask: Task<Void, Never>?
     private var routeTask: Task<Void, Never>?
     private var activePollingSignature: PollingSignature?
+    private var expectedPollingActivation: AircraftPollingActivationToken?
+    private var lastAppliedPollingUpdate: AircraftPollingUpdate?
+    #if DEBUG
+        private var lastObservedPollingUpdate: AircraftPollingUpdate?
+    #endif
     private var activationLifecycle = ActivationLifecycle.idle
     private var successfulActivationLease: ProjectionActivationLease?
     private var lifecycleGeneration: UInt64 = 0
@@ -162,15 +167,18 @@ actor AirAndSpaceRuntime {
         let activationChanged = previousLease != lease
         let sourceChanged = activePollingSignature?.configuration != configuration
         let queryChanged = activePollingSignature?.query != query
+        let pollingActivationMissing = expectedPollingActivation == nil
         let labelsChanged = self.labelMode != labelMode
         self.labelMode = labelMode
 
-        if activationChanged || sourceChanged || queryChanged {
+        if activationChanged || sourceChanged || queryChanged || pollingActivationMissing {
             lifecycleGeneration &+= 1
             let lifecycleGeneration = lifecycleGeneration
             stateGeneration &+= 1
             successfulActivationLease = nil
             activePollingSignature = signature
+            expectedPollingActivation = nil
+            lastAppliedPollingUpdate = nil
             cancelRouteEnrichment()
             currentSnapshot = nil
             currentLayerFrame = nil
@@ -181,11 +189,17 @@ actor AirAndSpaceRuntime {
                 guard lifecycleGeneration == self.lifecycleGeneration else { return }
             }
             publish()
-            await pollingCoordinator.activate(
+            let pollingActivation = await pollingCoordinator.activate(
                 configuration: configuration,
                 query: query,
                 quiet: false,
             )
+            guard lifecycleGeneration == self.lifecycleGeneration,
+                  activationLifecycle.activeLease == lease,
+                  let pollingActivation
+            else { return }
+            expectedPollingActivation = pollingActivation
+            await apply(pollingCoordinator.currentUpdate())
             return
         }
 
@@ -208,6 +222,8 @@ actor AirAndSpaceRuntime {
         stateGeneration &+= 1
         successfulActivationLease = nil
         activePollingSignature = nil
+        expectedPollingActivation = nil
+        lastAppliedPollingUpdate = nil
         inactiveHealth = health
         cancelRouteEnrichment()
         currentSnapshot = nil
@@ -250,6 +266,10 @@ actor AirAndSpaceRuntime {
         func activeSourceKindForTesting() -> AircraftSourceKind? {
             activePollingSignature?.configuration.kind
         }
+
+        func lastObservedPollingUpdateForTesting() -> AircraftPollingUpdate? {
+            lastObservedPollingUpdate
+        }
     #endif
 
     private func startObservingIfNeeded() {
@@ -257,21 +277,40 @@ actor AirAndSpaceRuntime {
         observationTask = Task(name: "Throw observe Air & Space polling") {
             [pollingCoordinator, weak self] in
             let updates = await pollingCoordinator.stateUpdates()
-            for await state in updates {
+            for await update in updates {
                 guard Task.isCancelled == false else { return }
-                await self?.apply(state)
+                await self?.apply(update)
             }
         }
     }
 
-    private func apply(_ state: AircraftPollingState) async {
+    private func apply(_ update: AircraftPollingUpdate) async {
+        #if DEBUG
+            lastObservedPollingUpdate = update
+        #endif
+        let state: AircraftPollingState
+        switch update {
+            case .inactive:
+                guard expectedPollingActivation == nil,
+                      activePollingSignature == nil,
+                      lastAppliedPollingUpdate != update
+                else { return }
+                lastAppliedPollingUpdate = update
+                stateGeneration &+= 1
+                health = inactiveHealth
+                publish()
+                return
+            case let .active(token, activeState):
+                guard expectedPollingActivation == token,
+                      lastAppliedPollingUpdate != update
+                else { return }
+                lastAppliedPollingUpdate = update
+                state = activeState
+        }
+
         stateGeneration &+= 1
         let generation = stateGeneration
         switch state {
-            case .idle:
-                guard activePollingSignature == nil else { return }
-                health = inactiveHealth
-                publish()
             case .loading:
                 health = .loading
                 publish()

@@ -83,6 +83,10 @@ The coordinator exposes a lease only while its runtime is running. Thus, a direc
 session read cannot restore a lease after its deactivation command completes.
 The Air & Space runtime stores each deactivation generation as a tombstone.
 A newer teardown retires older work. An older teardown cannot stop a newer lease.
+Core binds each physical polling update to a coordinator-minted token. The
+runtime clears its expected token before a reset. It accepts only the exact new
+token and reads the current update after activation. Thus, an early update is
+not lost, and an old poll cannot satisfy a replacement activation.
 Each production rendered projection stores the lease that produced it. A
 source or observer replacement blocks local reactivation while the old runtime
 drains. The renderer stops before the replacement becomes visible.

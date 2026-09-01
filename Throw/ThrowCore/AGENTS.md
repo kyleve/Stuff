@@ -27,6 +27,8 @@ location, and scheduling; see [`README.md`](README.md). Read the root
 - Keep the flat version-three polling event wire vocabulary stable.
 - Keep one structured poll task. Cancel and drain before replacement, and
   reject responses from an old generation.
+- Publish polling as inactive or as active state with a coordinator-minted
+  token. Mint a new token for each accepted replacement.
 - Keep polling-clock sleep cancellation-only. A clock cannot add another
   polling failure state.
 - Emit a readsb receiver-metadata cadence fallback as a separate warning event.

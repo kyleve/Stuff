@@ -12,13 +12,37 @@ struct AircraftPollingCoordinatorTests {
         )
         let stream = await coordinator.stateUpdates()
         let query = try ThrowCoreFixture.mapQuery()
-        await coordinator.activate(configuration: .adsbLol, query: query, quiet: true)
+        _ = await coordinator.activate(configuration: .adsbLol, query: query, quiet: true)
         await coordinator.deactivate()
-        await coordinator.activate(configuration: .adsbLol, query: query, quiet: true)
+        let token = try #require(
+            await coordinator.activate(configuration: .adsbLol, query: query, quiet: true),
+        )
 
         var iterator = stream.makeAsyncIterator()
-        #expect(await iterator.next() == .quiet)
+        #expect(await iterator.next() == .active(token: token, state: .quiet))
         await coordinator.deactivate()
+    }
+
+    @Test func replacementMintsDistinctTokenAndBindsCurrentUpdate() async throws {
+        let coordinator = AircraftPollingCoordinator(
+            sourceFactory: UnusedFactory(),
+            clock: FixedPollingClock(),
+            logger: DiscardingAircraftPollingLogger(),
+        )
+        let query = try ThrowCoreFixture.mapQuery()
+        let first = try #require(
+            await coordinator.activate(configuration: .adsbLol, query: query, quiet: true),
+        )
+        #expect(await coordinator.currentUpdate() == .active(token: first, state: .quiet))
+
+        let second = try #require(
+            await coordinator.activate(configuration: .adsbLol, query: query, quiet: true),
+        )
+        #expect(second != first)
+        #expect(await coordinator.currentUpdate() == .active(token: second, state: .quiet))
+
+        await coordinator.deactivate()
+        #expect(await coordinator.currentUpdate() == .inactive)
     }
 
     @Test(arguments: [
@@ -65,8 +89,10 @@ struct AircraftPollingCoordinatorTests {
 
         var iterator = stream.makeAsyncIterator()
         var failedState: AircraftPollingState?
-        while let state = await iterator.next() {
-            if case .failed = state {
+        while let update = await iterator.next() {
+            if case let .active(_, state) = update,
+               case .failed = state
+            {
                 failedState = state
                 break
             }
@@ -315,15 +341,17 @@ struct AircraftPollingCoordinatorTests {
             quiet: false,
         )
         try await waitUntil {
-            if case .retrying = await coordinator.currentState() {
+            if case .active(_, .retrying) = await coordinator.currentUpdate() {
                 true
             } else {
                 false
             }
         }
 
-        guard case let .retrying(lastGoodSnapshot, failure, _, _) =
-            await coordinator.currentState()
+        guard case let .active(
+            _,
+            .retrying(lastGoodSnapshot, failure, _, _),
+        ) = await coordinator.currentUpdate()
         else {
             Issue.record("Expected retrying state")
             return
@@ -342,9 +370,9 @@ struct AircraftPollingCoordinatorTests {
         )
         let stream = await coordinator.stateUpdates()
         let recordingTask = Task(name: "Record retry visibility dates") {
-            for await state in stream {
+            for await update in stream {
                 guard Task.isCancelled == false else { return }
-                await recorder.record(state)
+                await recorder.record(update)
             }
         }
         defer { recordingTask.cancel() }
@@ -374,9 +402,9 @@ struct AircraftPollingCoordinatorTests {
         let stream = await coordinator.stateUpdates()
         let stateRecorder = PollingStateRecorder()
         let stateTask = Task(name: "Record Throw polling states") {
-            for await state in stream {
+            for await update in stream {
                 guard Task.isCancelled == false else { return }
-                await stateRecorder.record(state)
+                await stateRecorder.record(update)
             }
         }
 
@@ -400,10 +428,12 @@ struct AircraftPollingCoordinatorTests {
         #expect(await journal.contains(.factoryCreated(.readsb)) == false)
 
         await gate.release()
-        await replacement.value
+        let replacementToken = try #require(await replacement.value)
         await journal.wait(for: .snapshotStarted(.readsb))
         try await waitUntil {
-            if case let .healthy(snapshot, _) = await coordinator.currentState() {
+            if case let .active(_, .healthy(snapshot, _)) =
+                await coordinator.currentUpdate()
+            {
                 snapshot.source == .readsb
             } else {
                 false
@@ -426,6 +456,10 @@ struct AircraftPollingCoordinatorTests {
             if case let .healthy(snapshot, _) = state { snapshot.source } else { nil }
         }
         #expect(healthySources == [.readsb])
+        let healthyTokens = await stateRecorder.updates().compactMap { update in
+            if case let .active(token, .healthy) = update { token } else { nil }
+        }
+        #expect(healthyTokens == [replacementToken])
         let events = await journal.events()
         let cancellationIndex = try #require(events.firstIndex(of: .cancellationObserved(.adsbLol)))
         let replacementFactoryIndex = try #require(events.firstIndex(of: .factoryCreated(.readsb)))
@@ -471,7 +505,7 @@ struct AircraftPollingCoordinatorTests {
         await stop.value
 
         #expect(await journal.contains(.factoryCreated(.adsbExchangeRapidAPI)) == false)
-        #expect(await coordinator.currentState() == .idle)
+        #expect(await coordinator.currentUpdate() == .inactive)
     }
 
     @Test func cancellingAReplacementCallerCannotStartItsPaidSource() async throws {
@@ -505,7 +539,7 @@ struct AircraftPollingCoordinatorTests {
 
         #expect(await journal.contains(.factoryCreated(.adsbExchangeRapidAPI)) == false)
         try await waitUntil {
-            await coordinator.currentState() == .idle
+            await coordinator.currentUpdate() == .inactive
         }
     }
 
@@ -533,7 +567,7 @@ struct AircraftPollingCoordinatorTests {
         await stop.value
 
         try await waitUntil {
-            await coordinator.currentState() == .idle
+            await coordinator.currentUpdate() == .inactive
         }
     }
 
@@ -576,7 +610,7 @@ struct AircraftPollingCoordinatorTests {
         await stop.value
 
         try await waitUntil {
-            await coordinator.currentState() == .idle
+            await coordinator.currentUpdate() == .inactive
         }
         #expect(await journal.contains(.factoryCreated(.adsbExchangeRapidAPI)) == false)
     }
@@ -986,18 +1020,24 @@ private func sleepForPollingTest(
 }
 
 private actor PollingStateRecorder {
-    private var recordedStates: [AircraftPollingState] = []
+    private var recordedUpdates: [AircraftPollingUpdate] = []
 
-    func record(_ state: AircraftPollingState) {
-        recordedStates.append(state)
+    func record(_ update: AircraftPollingUpdate) {
+        recordedUpdates.append(update)
+    }
+
+    func updates() -> [AircraftPollingUpdate] {
+        recordedUpdates
     }
 
     func states() -> [AircraftPollingState] {
-        recordedStates
+        recordedUpdates.compactMap { update in
+            if case let .active(_, state) = update { state } else { nil }
+        }
     }
 
     func retryFailureDates() -> [Date] {
-        recordedStates.compactMap { state in
+        states().compactMap { state in
             guard case let .retrying(_, _, failureStartedAt, _) = state else { return nil }
             return failureStartedAt
         }
