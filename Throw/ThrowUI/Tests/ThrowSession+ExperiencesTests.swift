@@ -62,6 +62,49 @@ struct ThrowSessionExperiencesTests {
         #expect(session.airAndSpaceActivation.activeLease == replacementLease)
     }
 
+    @Test func runtimeUpdateWaitsForThePreparedFrameToFinishFadingIn() async {
+        let session = ThrowSession.fixture()
+        let lease = ProjectionActivationLease(
+            experienceID: .airAndSpace,
+            generation: .init(rawValue: 1),
+        )
+        _ = session.airAndSpaceActivation.activate(lease)
+        session.currentLayerFrame = nil
+        session.currentSnapshot = nil
+        session.projectionPresentationTransition = .fadingIn(
+            targetLease: lease,
+            bufferedTargetUpdate: nil,
+        )
+        let snapshot = AircraftSnapshot(
+            source: .adsbLol,
+            fetchedAt: session.dateProvider.now(),
+            observations: [],
+        )
+        let update = AirAndSpaceRuntimeUpdate(
+            activationLease: lease,
+            successfulActivationLease: lease,
+            health: .healthy(
+                lastUpdate: session.dateProvider.now(),
+                visibleContentCount: 1,
+            ),
+            flightsFrame: nil,
+            snapshot: snapshot,
+            activePollingSignature: nil,
+        )
+
+        await session.applyAirAndSpaceUpdate(update)
+
+        #expect(session.currentSnapshot == nil)
+        let bufferedSnapshot = session.projectionPresentationTransition?
+            .bufferedTargetUpdate?.snapshot
+        #expect(bufferedSnapshot == snapshot)
+
+        await session.finishProjectionPresentationTransition(to: lease)
+
+        #expect(session.currentSnapshot == snapshot)
+        #expect(session.projectionPresentationTransition?.targetLease == nil)
+    }
+
     @Test func projectionAccessibilityUsesTheActiveExperienceCountMeaning() {
         let session = ThrowSession.fixture()
         session.experienceCoordinatorState = ProjectionExperienceCoordinatorState(

@@ -334,7 +334,17 @@ extension ThrowSession {
                 }
             }
         }
-        guard activeExperienceID == .airAndSpace else { return }
+        if let transition = projectionPresentationTransition {
+            projectionPresentationTransition = transition.buffering(update)
+            return
+        }
+        await publishVisibleAirAndSpaceUpdate(update)
+    }
+
+    func publishVisibleAirAndSpaceUpdate(_ update: AirAndSpaceRuntimeUpdate) async {
+        guard update.activationLease == airAndSpaceActivation.activeLease,
+              activeExperienceID == .airAndSpace
+        else { return }
         let previousLayer = currentLayerFrame
         currentSnapshot = update.snapshot
         currentLayerFrame = update.layerFrame
@@ -482,7 +492,8 @@ extension ThrowSession {
         renderGeneration &+= 1
         let generation = renderGeneration
         renderTask?.cancel()
-        guard outputDemands.isEmpty == false,
+        guard projectionPresentationTransition == nil,
+              outputDemands.isEmpty == false,
               hasForegroundControllerScene,
               isCalibrating == false,
               isQuietNow == false,
