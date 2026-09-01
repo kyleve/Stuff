@@ -44,9 +44,13 @@ cancellation does not cancel it. The task loads preferences and both credential
 states before it publishes onboarding or ready. It never replaces a load error
 with default preferences.
 
+Launch also starts one independent durable-logging task. Its typed state
+distinguishes unavailable fixtures, opening, ready, and failed storage. A log
+store failure does not fail the product launch because OSLog remains active.
+
 `ThrowSession+Composition.swift` is the only live construction boundary. It
-creates the stores, aircraft source graph, poller, and session once. Previews
-and tests use the fixture path in that same file.
+creates the stores, durable-logging starter, aircraft source graph, poller, and
+session once. Previews and tests use the fixture path in that same file.
 
 The coordinator issues one `ProjectionActivationLease` for each View activation.
 The lease carries both the View identity and its monotonic generation through

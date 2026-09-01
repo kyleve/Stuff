@@ -72,6 +72,11 @@ Setup is one typed lifecycle value. Its configured case requires a validated
 source, confirmed location, and projection mode. The codec reconstructs this
 state from the stable version-one and version-two fields.
 
+The process starts one Periscope store and attaches it to Throw's typed log.
+The store keeps at most 100 days and 50,000 events. A store failure leaves
+OSLog active and produces a typed failure event with the underlying error.
+History-prune failure does not make an attached store unavailable.
+
 `AircraftSourceSelection` keeps unconfigured, awaiting-validation, and
 configured source state in one value. A configured source cannot disagree with
 a separate validation flag.
@@ -164,6 +169,8 @@ can differ from the observer location. True Sky always uses the observer locatio
 Aircraft classifications and carrier identities are not persisted or logged.
 Aircraft snapshots, routes, and motion history are not persisted.
 Projection logs contain only aggregate cadence, age, motion, correction, and snapshot-overlap values.
+Durable session logs contain build and device metadata, readiness, failure,
+and aggregate retention counts.
 Route enrichment sends broadcast callsigns to ADSBDB. It never sends aircraft
 or observer positions, persists route history, or logs route request or
 response values.

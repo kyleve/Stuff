@@ -83,6 +83,8 @@ location, and scheduling; see [`README.md`](README.md). Read the root
 - Keep downloaded source archives outside the tracked tree. Require an exact
   digest before the generator reads an archive.
 - Keep `ThrowLog` payloads redacted according to the group privacy invariant.
+- Open one durable logging session through `PeriscopeThrowDurableLoggingStarter`.
+  Keep OSLog active when the store cannot open or history pruning fails.
 
 ## Testing
 
