@@ -38,10 +38,9 @@ struct ProjectionSurface: View {
                 ZStack {
                     ForEach(frame.layers) { layer in
                         switch layer.content {
-                            case let .lines(lines):
+                            case let .geography(lines):
                                 ProjectionLinesCanvas(
-                                    layerID: layer.id,
-                                    lines: lines,
+                                    geography: lines,
                                     opacity: layer.opacity,
                                     intensityMultiplier: intensityMultiplier,
                                     geographyIntensityMultiplier: geographyIntensityMultiplier,
@@ -49,9 +48,19 @@ struct ProjectionSurface: View {
                                 )
                                 .equatable()
                                 .zIndex(Double(layer.zOrder))
-                            case let .marks(marks):
+                            case let .transitNetwork(lines):
+                                ProjectionLinesCanvas(
+                                    transitNetwork: lines,
+                                    opacity: layer.opacity,
+                                    intensityMultiplier: intensityMultiplier,
+                                    geographyIntensityMultiplier: geographyIntensityMultiplier,
+                                    style: projectionStyle,
+                                )
+                                .equatable()
+                                .zIndex(Double(layer.zOrder))
+                            case .flights, .stars, .satellites, .transitVehicles:
                                 ProjectionMarksCanvas(
-                                    marks: marks,
+                                    marks: layer.marks,
                                     effects: effects,
                                     opacity: markOpacity * layer.opacity,
                                     markSizeMultiplier: markSizeMultiplier,
@@ -60,6 +69,19 @@ struct ProjectionSurface: View {
                                     style: projectionStyle,
                                 )
                                 .zIndex(Double(layer.zOrder))
+                            #if DEBUG
+                                case .testingMarks:
+                                    ProjectionMarksCanvas(
+                                        marks: layer.marks,
+                                        effects: effects,
+                                        opacity: markOpacity * layer.opacity,
+                                        markSizeMultiplier: markSizeMultiplier,
+                                        intensityMultiplier: intensityMultiplier,
+                                        airlineAccentsEnabled: airlineAccentsEnabled,
+                                        style: projectionStyle,
+                                    )
+                                    .zIndex(Double(layer.zOrder))
+                            #endif
                         }
                     }
                     ObserverMarkerCanvas(
@@ -138,7 +160,7 @@ private struct ObserverMarkerCanvas: View {
 }
 
 private struct ProjectionMarksCanvas: View {
-    let marks: [ProjectedMark]
+    let marks: [PresentedMark]
     let effects: [LayerMarkID: ProjectionMarkEffect]
     let opacity: Double
     let markSizeMultiplier: Double
@@ -310,6 +332,16 @@ private struct ProjectionMarksCanvas: View {
                             with: .color(markColor),
                             lineWidth: 1,
                         )
+                    case .transitVehicle:
+                        let rect = CGRect(
+                            x: -standardMarkSize / 2,
+                            y: -standardMarkSize / 2,
+                            width: standardMarkSize,
+                            height: standardMarkSize,
+                        )
+                        markContext.fill(Path(roundedRect: rect, cornerRadius: 1), with: .color(
+                            markColor,
+                        ))
                 }
 
                 if let label = mark.label {
@@ -405,16 +437,100 @@ private struct ProjectionMarksCanvas: View {
 
 /// An equatable static surface whose paths change only with projected geography.
 private struct ProjectionLinesCanvas: View, Equatable {
+    private enum LineStyleID: Hashable {
+        case geography(GeographyLineKind)
+        case transitRoute
+    }
+
+    private struct Segment {
+        let styleID: LineStyleID
+        let start: ProjectionPoint
+        let end: ProjectionPoint
+        let startsNewSubpath: Bool
+    }
+
     let layerID: LayerID
-    let lines: ProjectedLineCollection
+    let lineID: ProjectionLineRevisionID
+    private let segments: [Segment]
     let opacity: Double
     let intensityMultiplier: Double
     let geographyIntensityMultiplier: Double
     let style: ThrowStylesheet.ProjectionStyle
 
+    init(
+        geography lines: ProjectedGeography,
+        opacity: Double,
+        intensityMultiplier: Double,
+        geographyIntensityMultiplier: Double,
+        style: ThrowStylesheet.ProjectionStyle,
+    ) {
+        self.init(
+            layerID: .geography,
+            lineID: lines.id,
+            segments: lines.segments.map {
+                Segment(
+                    styleID: .geography($0.style),
+                    start: $0.start,
+                    end: $0.end,
+                    startsNewSubpath: $0.startsNewSubpath,
+                )
+            },
+            opacity: opacity,
+            intensityMultiplier: intensityMultiplier,
+            geographyIntensityMultiplier: geographyIntensityMultiplier,
+            style: style,
+        )
+    }
+
+    init(
+        transitNetwork lines: ProjectedLineCollection<TransitNetworkLineStyle>,
+        opacity: Double,
+        intensityMultiplier: Double,
+        geographyIntensityMultiplier: Double,
+        style: ThrowStylesheet.ProjectionStyle,
+    ) {
+        self.init(
+            layerID: .transitNetwork,
+            lineID: lines.id,
+            segments: lines.segments.map {
+                switch $0.style {
+                    case .route:
+                        Segment(
+                            styleID: .transitRoute,
+                            start: $0.start,
+                            end: $0.end,
+                            startsNewSubpath: $0.startsNewSubpath,
+                        )
+                }
+            },
+            opacity: opacity,
+            intensityMultiplier: intensityMultiplier,
+            geographyIntensityMultiplier: geographyIntensityMultiplier,
+            style: style,
+        )
+    }
+
+    private init(
+        layerID: LayerID,
+        lineID: ProjectionLineRevisionID,
+        segments: [Segment],
+        opacity: Double,
+        intensityMultiplier: Double,
+        geographyIntensityMultiplier: Double,
+        style: ThrowStylesheet.ProjectionStyle,
+    ) {
+        self.layerID = layerID
+        self.lineID = lineID
+        self.segments = segments
+        self.opacity = opacity
+        self.intensityMultiplier = intensityMultiplier
+        self.geographyIntensityMultiplier = geographyIntensityMultiplier
+        self.style = style
+    }
+
     nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.layerID == rhs.layerID &&
-            lhs.lines.id == rhs.lines.id &&
+            lhs.lineID == rhs.lineID &&
             lhs.opacity == rhs.opacity &&
             lhs.intensityMultiplier == rhs.intensityMultiplier &&
             lhs.geographyIntensityMultiplier == rhs.geographyIntensityMultiplier &&
@@ -424,13 +540,13 @@ private struct ProjectionLinesCanvas: View, Equatable {
     var body: some View {
         Canvas(rendersAsynchronously: true) { context, size in
             let layerIntensity = layerID == .geography ? geographyIntensityMultiplier : 1
-            guard lines.segments.isEmpty == false, layerIntensity > 0
+            guard segments.isEmpty == false, layerIntensity > 0
             else { return }
 
             let side = min(size.width, size.height)
             let origin = CGPoint(x: (size.width - side) / 2, y: (size.height - side) / 2)
-            var paths: [ProjectionLineStyleID: Path] = [:]
-            for segment in lines.segments {
+            var paths: [LineStyleID: Path] = [:]
+            for segment in segments {
                 if segment.startsNewSubpath {
                     paths[segment.styleID, default: Path()].move(
                         to: point(segment.start, origin: origin, side: side),
@@ -443,18 +559,12 @@ private struct ProjectionLinesCanvas: View, Equatable {
 
             var lineContext = context
             lineContext.opacity = opacity
-            let geographyOrder = style.geography.renderOrder.map(
-                ProjectionLineStyleID.init(geographyKind:),
-            )
-            let otherStyles = paths.keys
-                .filter { styleID in
-                    switch styleID {
-                        case .geography: false
-                        case .transitRoute: true
-                    }
-                }
-                .sorted { $0.rawValue < $1.rawValue }
-            for styleID in geographyOrder + otherStyles {
+            let renderOrder: [LineStyleID] = switch layerID {
+                case .geography: style.geography.renderOrder.map(LineStyleID.geography)
+                case .transitNetwork: [.transitRoute]
+                case .flights, .stars, .satellites, .transitVehicles: []
+            }
+            for styleID in renderOrder {
                 guard let path = paths[styleID], path.isEmpty == false else { continue }
                 let appearance = switch styleID {
                     case let .geography(kind): style.geography[kind]

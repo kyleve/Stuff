@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import ThrowCore
+@_spi(Testing) @testable import ThrowCore
 
 struct ProjectionEngineTests {
     private let engine = ProjectionEngine()
@@ -86,13 +86,13 @@ struct ProjectionEngineTests {
         let observer = try ThrowCoreFixture.observer(latitude: 0, longitude: 0, altitudeFeet: 0)
         let viewport = try MapViewport(radius: NauticalMiles(value: 50))
         let geometry = try ProjectionGeometry(width: 1920, height: 1080)
+        let vehicleID = try #require(TransitVehicleID(rawValue: "vehicle"))
         let vehicle = try ProjectionMark(
-            id: .transitVehicle(#require(TransitVehicleID(rawValue: "vehicle"))),
+            element: TransitVehicleMarkElement(id: vehicleID),
             anchor: .geodetic(GeodeticAnchor(
                 coordinate: GeoCoordinate(latitude: 0.1, longitude: 0),
                 altitude: .available(Altitude(feet: 0), quality: .geometric),
             )),
-            glyph: .aircraft(.unknownAirborne),
             label: nil,
             prominence: .primary,
             velocity: nil,
@@ -104,8 +104,8 @@ struct ProjectionEngineTests {
         )
         let networkSource = try ProjectionLayerFrame<TransitNetworkLayerKind>(
             observedAt: ThrowCoreFixture.date,
-            lines: [ProjectionPolyline(
-                styleID: .transitRoute,
+            lines: [ProjectionPolyline<TransitNetworkLineStyle>(
+                style: .route,
                 detailLevel: .wide,
                 bounds: GeographicBounds(
                     southLatitude: 0,
@@ -156,7 +156,7 @@ struct ProjectionEngineTests {
             return
         }
         #expect(transit.network?.lines.id == network.lines.id)
-        #expect(transit.network?.lines.segments.first?.styleID == .transitRoute)
+        #expect(transit.network?.lines.segments.first?.style == .route)
         #expect(transit.vehicles?.marks.map(\.id.rawValue) == ["vehicle"])
     }
 
@@ -283,13 +283,13 @@ struct ProjectionEngineTests {
     @Test func mapOutputOmitsTheTrueSkyOnlyStarLayer() throws {
         let observer = try ThrowCoreFixture.observer(latitude: 0, longitude: 0)
         let mapViewport = try MapViewport(radius: NauticalMiles(value: 50))
+        let starID = try #require(StarID(rawValue: "star"))
         let star = try ProjectionMark(
-            id: .star(#require(StarID(rawValue: "star"))),
+            element: StarMarkElement(id: starID),
             anchor: .horizontal(HorizontalAnchor(
                 azimuth: Bearing(degrees: 0),
                 elevation: ElevationAngle(degrees: 45),
             )),
-            glyph: .star,
             label: nil,
             prominence: .primary,
             velocity: nil,
@@ -896,19 +896,19 @@ struct ProjectionEngineTests {
         for layerFrame in layerFrames {
             switch layerFrame.layerID {
                 case .flights:
-                    flights = ProjectionLayerFrame(
+                    flights = try ProjectionLayerFrame(
                         observedAt: layerFrame.observedAt,
-                        marks: layerFrame.marks,
+                        marks: layerFrame.marks.map(typedFlightMark),
                     )
                 case .stars:
-                    stars = ProjectionLayerFrame(
+                    stars = try ProjectionLayerFrame(
                         observedAt: layerFrame.observedAt,
-                        marks: layerFrame.marks,
+                        marks: layerFrame.marks.map(typedStarMark),
                     )
                 case .satellites:
-                    satellites = ProjectionLayerFrame(
+                    satellites = try ProjectionLayerFrame(
                         observedAt: layerFrame.observedAt,
-                        marks: layerFrame.marks,
+                        marks: layerFrame.marks.map(typedSatelliteMark),
                     )
                 case .geography, .transitNetwork, .transitVehicles:
                     Issue.record("Air & Space received an unsupported test layer.")
@@ -956,11 +956,62 @@ struct ProjectionEngineTests {
         )
     }
 
+    private func typedFlightMark(
+        _ mark: TestingProjectionMark,
+    ) throws -> ProjectionMark<FlightsMarkElement> {
+        let element: FlightsMarkElement
+        if case let .aircraft(id) = mark.id,
+           case let .aircraft(glyph) = mark.glyph
+        {
+            element = .aircraft(id: id, glyph: glyph)
+        } else if case let .airport(id) = mark.id,
+                  case let .airport(glyph) = mark.glyph,
+                  id == glyph.airportID
+        {
+            element = .airport(glyph)
+        } else {
+            throw ProjectionEngineTestError.invalidRawMark
+        }
+        return typedMark(mark, element: element)
+    }
+
+    private func typedStarMark(
+        _ mark: TestingProjectionMark,
+    ) throws -> ProjectionMark<StarMarkElement> {
+        guard case let .star(id) = mark.id, case .star = mark.glyph else {
+            throw ProjectionEngineTestError.invalidRawMark
+        }
+        return typedMark(mark, element: StarMarkElement(id: id))
+    }
+
+    private func typedSatelliteMark(
+        _ mark: TestingProjectionMark,
+    ) throws -> ProjectionMark<SatelliteMarkElement> {
+        guard case let .satellite(id) = mark.id, case .satellite = mark.glyph else {
+            throw ProjectionEngineTestError.invalidRawMark
+        }
+        return typedMark(mark, element: SatelliteMarkElement(id: id))
+    }
+
+    private func typedMark<Element: ProjectionMarkElement>(
+        _ mark: TestingProjectionMark,
+        element: Element,
+    ) -> ProjectionMark<Element> {
+        ProjectionMark(
+            element: element,
+            anchor: mark.anchor,
+            label: mark.label,
+            prominence: mark.prominence,
+            velocity: mark.velocity,
+            freshness: mark.freshness,
+        )
+    }
+
     private func positionMark(
         id: String,
         anchor: ProjectionAnchor,
         at date: Date,
-    ) throws -> ProjectionMark {
+    ) throws -> TestingProjectionMark {
         try ProjectionMark(
             id: #require(AircraftID(kind: .icao, rawValue: id)).layerMarkID,
             anchor: anchor,
@@ -1007,7 +1058,7 @@ struct ProjectionEngineTests {
         longitude: Double,
         altitudeFeet: Double = 10000,
         velocity: ProjectionVelocity? = nil,
-    ) throws -> ProjectionMark {
+    ) throws -> TestingProjectionMark {
         try ProjectionMark(
             id: #require(AircraftID(kind: .icao, rawValue: rawID)).layerMarkID,
             anchor: .geodetic(
@@ -1027,4 +1078,75 @@ struct ProjectionEngineTests {
             ),
         )
     }
+
+    private enum ProjectionEngineTestError: Error {
+        case invalidRawMark
+    }
+}
+
+extension ProjectedExperienceFrame {
+    fileprivate var marks: [TestingProjectedMark] {
+        switch self {
+            case let .airAndSpace(.map(frame)):
+                (frame.flights?.marks.map(erase) ?? []) +
+                    (frame.satellites?.marks.map(erase) ?? [])
+            case let .airAndSpace(.trueSky(frame)):
+                (frame.flights?.marks.map(erase) ?? []) +
+                    (frame.stars?.marks.map(erase) ?? []) +
+                    (frame.satellites?.marks.map(erase) ?? [])
+            case let .transit(frame):
+                frame.vehicles?.marks.map(erase) ?? []
+        }
+    }
+}
+
+private func erase(_ mark: ProjectedMark<FlightsMarkElement>) -> TestingProjectedMark {
+    let id: LayerMarkID = switch mark.id {
+        case let .aircraft(aircraftID):
+            .aircraft(aircraftID)
+        case let .airport(airportID):
+            .airport(airportID)
+    }
+    return TestingProjectedMark(
+        id: id,
+        point: mark.point,
+        range: mark.range,
+        glyph: mark.glyph,
+        label: mark.label,
+        secondaryProminence: mark.secondaryProminence,
+        orientationDegrees: mark.orientationDegrees,
+        opacity: mark.opacity,
+        labelOpacity: mark.labelOpacity,
+        altitudeIsApproximate: mark.altitudeIsApproximate,
+    )
+}
+
+private func erase(_ mark: ProjectedMark<StarMarkElement>) -> TestingProjectedMark {
+    erase(mark, id: .star(mark.id))
+}
+
+private func erase(_ mark: ProjectedMark<SatelliteMarkElement>) -> TestingProjectedMark {
+    erase(mark, id: .satellite(mark.id))
+}
+
+private func erase(_ mark: ProjectedMark<TransitVehicleMarkElement>) -> TestingProjectedMark {
+    erase(mark, id: .transitVehicle(mark.id))
+}
+
+private func erase(
+    _ mark: ProjectedMark<some ProjectionMarkElement>,
+    id: LayerMarkID,
+) -> TestingProjectedMark {
+    TestingProjectedMark(
+        id: id,
+        point: mark.point,
+        range: mark.range,
+        glyph: mark.glyph,
+        label: mark.label,
+        secondaryProminence: mark.secondaryProminence,
+        orientationDegrees: mark.orientationDegrees,
+        opacity: mark.opacity,
+        labelOpacity: mark.labelOpacity,
+        altitudeIsApproximate: mark.altitudeIsApproximate,
+    )
 }

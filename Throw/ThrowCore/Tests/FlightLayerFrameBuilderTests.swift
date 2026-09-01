@@ -21,7 +21,7 @@ struct FlightLayerFrameBuilderTests {
             routeResults: [#require(FlightCallsign(rawValue: "UAL817")): .route(staleRoute)],
             availability: .current,
         )
-        let mark = try #require(frame.marks.first { $0.id == observation.id.layerMarkID })
+        let mark = try #require(frame.marks.first { $0.id == .aircraft(observation.id) })
         #expect(mark.label?.primary == "SFO→MEX")
         #expect(mark.label?.secondary == "UAL817")
     }

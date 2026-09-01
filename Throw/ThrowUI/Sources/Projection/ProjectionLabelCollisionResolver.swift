@@ -26,25 +26,33 @@ struct ProjectionLabelCollisionResolver {
         }
         previouslyVisible = visible
 
-        return frame.replacingMarks(
-            frame.marks.map { mark in
-                ProjectedMark(
-                    id: mark.id,
+        let fieldsByID = Dictionary(uniqueKeysWithValues: frame.marks.map { mark in
+            (
+                mark.id,
+                PresentedMarkFields(
                     point: mark.point,
-                    range: mark.range,
-                    glyph: mark.glyph,
                     label: visible.contains(mark.id) ? mark.label : nil,
                     secondaryProminence: mark.secondaryProminence,
                     orientationDegrees: mark.orientationDegrees,
                     opacity: mark.opacity,
                     labelOpacity: mark.labelOpacity,
-                    altitudeIsApproximate: mark.altitudeIsApproximate,
-                )
-            },
-        )
+                ),
+            )
+        })
+        guard let resolved = frame.updatingMarkPresentation(
+            fieldsByID: fieldsByID,
+            retainedTargetIDs: Set(frame.marks.map(\.id)),
+            appendedSourceIDs: [],
+            sourceFrame: frame,
+            lineLayersFrom: frame,
+            lineOpacity: 1,
+        ) else {
+            preconditionFailure("Label resolution must preserve the presentation case")
+        }
+        return resolved
     }
 
-    private func precedes(_ lhs: ProjectedMark, _ rhs: ProjectedMark) -> Bool {
+    private func precedes(_ lhs: PresentedMark, _ rhs: PresentedMark) -> Bool {
         let leftIsAirport = if case .airport = lhs.glyph { true } else { false }
         let rightIsAirport = if case .airport = rhs.glyph { true } else { false }
         if leftIsAirport != rightIsAirport { return rightIsAirport }
@@ -75,14 +83,14 @@ struct ProjectionLabelCollisionResolver {
         return stableKey(lhs.id) < stableKey(rhs.id)
     }
 
-    private func visibleOrStableOrder(_ lhs: ProjectedMark, _ rhs: ProjectedMark) -> Bool {
+    private func visibleOrStableOrder(_ lhs: PresentedMark, _ rhs: PresentedMark) -> Bool {
         let leftWasVisible = previouslyVisible.contains(lhs.id)
         let rightWasVisible = previouslyVisible.contains(rhs.id)
         if leftWasVisible != rightWasVisible { return leftWasVisible }
         return stableKey(lhs.id) < stableKey(rhs.id)
     }
 
-    private func radialDistance(_ mark: ProjectedMark) -> Double {
+    private func radialDistance(_ mark: PresentedMark) -> Double {
         hypot(mark.point.x - 0.5, mark.point.y - 0.5)
     }
 
@@ -90,7 +98,7 @@ struct ProjectionLabelCollisionResolver {
         "\(id.layerID.rawValue)/\(id.namespace.rawValue)/\(id.rawValue)"
     }
 
-    private func labelRect(for mark: ProjectedMark) -> CGRect {
+    private func labelRect(for mark: PresentedMark) -> CGRect {
         let characterCount = Double(max(
             mark.label?.primary.count ?? 0,
             mark.label?.secondary?.count ?? 0,

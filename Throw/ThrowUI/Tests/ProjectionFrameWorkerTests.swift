@@ -700,12 +700,16 @@ struct ProjectionFrameWorkerTests {
             reduceMotion: false,
         ).frame
 
-        let firstLines = try #require(first.layers.first?.lines)
-        let cachedLines = try #require(cached.layers.first?.lines)
-        let revisedLines = try #require(revised.layers.first?.lines)
+        guard case let .transitNetwork(firstLines) = try #require(first.layers.first?.lines),
+              case let .transitNetwork(cachedLines) = try #require(cached.layers.first?.lines),
+              case let .transitNetwork(revisedLines) = try #require(revised.layers.first?.lines)
+        else {
+            Issue.record("The Transit test line changed presentation families.")
+            return
+        }
         #expect(first.experienceID == .transit)
         #expect(first.layers.map(\.id) == [.transitNetwork])
-        #expect(firstLines.segments.first?.styleID == .transitRoute)
+        #expect(firstLines.segments.first?.style == .route)
         #expect(cachedLines.id == firstLines.id)
         #expect(revisedLines.id != firstLines.id)
     }
@@ -921,7 +925,7 @@ struct ProjectionFrameWorkerTests {
             generatedAt: sampledAt,
             geography: nil,
             geographyOpacity: 1,
-            marks: targetMarks,
+            rawMarks: targetMarks,
         )
         return (source, displayed, target)
     }

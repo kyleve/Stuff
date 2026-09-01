@@ -1,12 +1,13 @@
 import Foundation
 
-public struct FlightPrediction: Hashable, Sendable, CustomStringConvertible,
+public struct FlightPrediction<Element: ProjectionMarkElement>: Hashable, Sendable,
+    CustomStringConvertible,
     CustomDebugStringConvertible
 {
-    public let mark: ProjectionMark
+    public let mark: ProjectionMark<Element>
     public let opacity: Double
 
-    public init(mark: ProjectionMark, opacity: Double) {
+    public init(mark: ProjectionMark<Element>, opacity: Double) {
         precondition((0 ... 1).contains(opacity))
         self.mark = mark
         self.opacity = opacity
@@ -28,10 +29,10 @@ public enum FlightPredictor {
     public static let failureFadeDuration: TimeInterval = 15
     static let turnPredictionDuration: TimeInterval = 12
 
-    public static func prediction(
-        for mark: ProjectionMark,
+    public static func prediction<Element: ProjectionMarkElement>(
+        for mark: ProjectionMark<Element>,
         at date: Date,
-    ) throws -> FlightPrediction? {
+    ) throws -> FlightPrediction<Element>? {
         guard let age = observationAge(
             positionObservedAt: mark.freshness.positionObservedAt,
             at: date,
@@ -46,10 +47,10 @@ public enum FlightPredictor {
         return FlightPrediction(mark: predictedMark, opacity: opacity)
     }
 
-    static func predictedMark(
-        for mark: ProjectionMark,
+    static func predictedMark<Element: ProjectionMarkElement>(
+        for mark: ProjectionMark<Element>,
         at date: Date,
-    ) throws -> ProjectionMark? {
+    ) throws -> ProjectionMark<Element>? {
         guard let age = observationAge(
             positionObservedAt: mark.freshness.positionObservedAt,
             at: date,
@@ -59,10 +60,10 @@ public enum FlightPredictor {
         return try predictedMark(for: mark, observationAge: age)
     }
 
-    private static func predictedMark(
-        for mark: ProjectionMark,
+    private static func predictedMark<Element: ProjectionMarkElement>(
+        for mark: ProjectionMark<Element>,
         observationAge: TimeInterval,
-    ) throws -> ProjectionMark {
+    ) throws -> ProjectionMark<Element> {
         let predictionAge = observationAge
         guard predictionAge > 0,
               case let .geodetic(anchor) = mark.anchor
@@ -105,9 +106,8 @@ public enum FlightPredictor {
             altitude: altitude,
         )
         return ProjectionMark(
-            id: mark.id,
+            element: mark.element,
             anchor: .geodetic(predictedAnchor),
-            glyph: mark.glyph,
             label: mark.label,
             prominence: mark.prominence,
             velocity: mark.velocity,

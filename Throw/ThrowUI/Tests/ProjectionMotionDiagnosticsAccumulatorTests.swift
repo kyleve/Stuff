@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-import ThrowCore
+@_spi(Testing) import ThrowCore
 @testable import ThrowUI
 
 struct ProjectionMotionDiagnosticsAccumulatorTests {
@@ -42,16 +42,16 @@ struct ProjectionMotionDiagnosticsAccumulatorTests {
         rawID: String,
         observedAt: Date,
     ) throws -> ProjectionLayerFrame<FlightsLayerKind> {
-        try ProjectionLayerFrame(
+        let id = try aircraftID(rawValue: rawID)
+        return try ProjectionLayerFrame(
             observedAt: observedAt,
             marks: [
                 ProjectionMark(
-                    id: markID(rawValue: rawID),
+                    element: .aircraft(id: id, glyph: .unknownAirborne),
                     anchor: .geodetic(GeodeticAnchor(
                         coordinate: GeoCoordinate(latitude: 37, longitude: -122),
                         altitude: .available(Altitude(feet: 10000), quality: .geometric),
                     )),
-                    glyph: .aircraft(.unknownAirborne),
                     label: nil,
                     prominence: .primary,
                     velocity: ProjectionVelocity.available(
@@ -81,7 +81,7 @@ struct ProjectionMotionDiagnosticsAccumulatorTests {
             generatedAt: date,
             geography: nil,
             geographyOpacity: 1,
-            marks: [ProjectedMark(
+            marks: [PresentedMark(
                 id: markID(rawValue: rawID),
                 point: ProjectionPoint(x: x, y: 0.5),
                 range: NauticalMiles(value: 10),
@@ -97,6 +97,10 @@ struct ProjectionMotionDiagnosticsAccumulatorTests {
     }
 
     private func markID(rawValue: String) throws -> LayerMarkID {
-        try #require(AircraftID(kind: .icao, rawValue: rawValue)).layerMarkID
+        try .aircraft(aircraftID(rawValue: rawValue))
+    }
+
+    private func aircraftID(rawValue: String) throws -> AircraftID {
+        try #require(AircraftID(kind: .icao, rawValue: rawValue))
     }
 }

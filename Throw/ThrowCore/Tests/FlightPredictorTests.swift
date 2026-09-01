@@ -149,7 +149,7 @@ struct FlightPredictorTests {
     private func movingMark(
         positionAge: TimeInterval,
         availability: MarkAvailability = .current,
-    ) throws -> ProjectionMark {
+    ) throws -> ProjectionMark<FlightsMarkElement> {
         try mark(
             velocity: ProjectionVelocity.available(
                 track: Bearing(degrees: 90),
@@ -163,7 +163,7 @@ struct FlightPredictorTests {
         )
     }
 
-    private func stationaryMark() throws -> ProjectionMark {
+    private func stationaryMark() throws -> ProjectionMark<FlightsMarkElement> {
         try mark(velocity: nil, positionAge: 0)
     }
 
@@ -171,16 +171,16 @@ struct FlightPredictorTests {
         velocity: ProjectionVelocity?,
         positionAge: TimeInterval,
         availability: MarkAvailability = .current,
-    ) throws -> ProjectionMark {
-        try ProjectionMark(
-            id: #require(AircraftID(kind: .icao, rawValue: "a")).layerMarkID,
+    ) throws -> ProjectionMark<FlightsMarkElement> {
+        let id = try #require(AircraftID(kind: .icao, rawValue: "a"))
+        return try ProjectionMark(
+            element: .aircraft(id: id, glyph: .unknownAirborne),
             anchor: .geodetic(
                 GeodeticAnchor(
                     coordinate: GeoCoordinate(latitude: 0, longitude: 0),
                     altitude: .available(Altitude(feet: 10000), quality: .geometric),
                 ),
             ),
-            glyph: .aircraft(.unknownAirborne),
             label: nil,
             prominence: .primary,
             velocity: velocity,
@@ -192,7 +192,7 @@ struct FlightPredictorTests {
         )
     }
 
-    private func coordinate(_ mark: ProjectionMark) throws -> GeoCoordinate {
+    private func coordinate(_ mark: ProjectionMark<FlightsMarkElement>) throws -> GeoCoordinate {
         guard case let .geodetic(anchor) = mark.anchor else {
             throw TestError.expectedGeodetic
         }

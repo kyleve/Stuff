@@ -21,8 +21,8 @@ public struct FlightLayerFrameBuilder: Sendable {
         routeResults: [FlightCallsign: FlightRouteResult],
         availability: MarkAvailability,
     ) throws -> ProjectionLayerFrame<FlightsLayerKind> {
-        var airportMarks: [AirportID: ProjectionMark] = [:]
-        var aircraftMarks: [ProjectionMark] = []
+        var airportMarks: [AirportID: ProjectionMark<FlightsMarkElement>] = [:]
+        var aircraftMarks: [ProjectionMark<FlightsMarkElement>] = []
         for resolvedObservation in observations {
             let observation = resolvedObservation.observation
             let motion = resolvedObservation.motion
@@ -48,12 +48,14 @@ public struct FlightLayerFrameBuilder: Sendable {
                 altitude: observation.skyAltitude,
             )
             try aircraftMarks.append(ProjectionMark(
-                id: observation.id.layerMarkID,
+                element: .aircraft(
+                    id: observation.id,
+                    glyph: visualClassifier.descriptor(
+                        for: observation,
+                        activity: activity,
+                    ),
+                ),
                 anchor: .geodetic(anchor),
-                glyph: .aircraft(visualClassifier.descriptor(
-                    for: observation,
-                    activity: activity,
-                )),
                 label: label(
                     for: observation,
                     observer: observer,
@@ -92,18 +94,17 @@ public struct FlightLayerFrameBuilder: Sendable {
                     continue
                 }
                 airportMarks[airport.id] = ProjectionMark(
-                    id: airport.id.layerMarkID,
+                    element: .airport(AirportGlyphDescriptor(
+                        airportID: airport.id,
+                        code: code,
+                        runwayBearing: runwayBearing,
+                        certainty: activity.certainty ?? .inferred,
+                    )),
                     anchor: .geodetic(GeodeticAnchor(
                         coordinate: airport.coordinate,
                         altitude: airport.elevation.map {
                             .available($0, quality: .geometric)
                         } ?? .unavailable,
-                    )),
-                    glyph: .airport(AirportGlyphDescriptor(
-                        airportID: airport.id,
-                        code: code,
-                        runwayBearing: runwayBearing,
-                        certainty: activity.certainty ?? .inferred,
                     )),
                     label: code.map {
                         ProjectionLabel(
@@ -124,9 +125,8 @@ public struct FlightLayerFrameBuilder: Sendable {
         }
         return ProjectionLayerFrame(
             observedAt: observedAt,
-            marks: aircraftMarks + airportMarks.values.sorted {
-                $0.id.rawValue < $1.id.rawValue
-            },
+            marks: aircraftMarks + airportMarks.sorted { $0.key.rawValue < $1.key.rawValue }
+                .map(\.value),
         )
     }
 

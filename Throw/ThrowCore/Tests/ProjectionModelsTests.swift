@@ -85,25 +85,16 @@ struct ProjectionModelsTests {
     @Test func semanticAndProjectedLayersRetainOneValuePerMarkIdentity() throws {
         let id = try #require(
             AircraftID(kind: .icao, rawValue: "duplicate"),
-        ).layerMarkID
+        )
         let first = try semanticMark(id: id, label: "FIRST")
         let replacement = try semanticMark(id: id, label: "REPLACEMENT")
-        let semanticLayer = LayerFrame(
-            layerID: .flights,
+        let semanticLayer = ProjectionLayerFrame<FlightsLayerKind>(
             observedAt: ThrowCoreFixture.date,
-            content: .marks([first, replacement]),
+            marks: [first, replacement],
         )
 
-        let firstProjected = try projectedMark(
-            layerID: .flights,
-            rawID: "duplicate",
-            x: 0.2,
-        )
-        let replacementProjected = try projectedMark(
-            layerID: .flights,
-            rawID: "duplicate",
-            x: 0.8,
-        )
+        let firstProjected = try projectedFlightMark(id: id, x: 0.2)
+        let replacementProjected = try projectedFlightMark(id: id, x: 0.8)
         let projectedLayer = ProjectedLayerFrame<FlightsLayerKind>(
             marks: [firstProjected, replacementProjected],
         )
@@ -112,6 +103,21 @@ struct ProjectionModelsTests {
         #expect(semanticLayer.marks.first?.label?.primary == "REPLACEMENT")
         #expect(projectedLayer.marks.count == 1)
         #expect(projectedLayer.marks.first?.point.x == 0.8)
+    }
+
+    @Test func airportElementDerivesIdentityFromItsGlyphDescriptor() {
+        let airportID = AirportID(rawValue: 42)
+        let descriptor = AirportGlyphDescriptor(
+            airportID: airportID,
+            code: nil,
+            runwayBearing: nil,
+            certainty: .confirmed,
+        )
+
+        let element = FlightsMarkElement.airport(descriptor)
+
+        #expect(element.id == .airport(airportID))
+        #expect(element.glyph == .airport(descriptor))
     }
 
     @Test func experienceFramesExposeOnlyTheirTypedLayerMembership() {
@@ -178,12 +184,16 @@ struct ProjectionModelsTests {
     @Test func preparedInputsDiscardStaticLayersThatTheirSemanticInputCannotUse() throws {
         let mapViewport = try MapViewport(radius: NauticalMiles(value: 50))
         let skyViewport = try SkyViewport(minimumElevation: ElevationAngle(degrees: 10))
-        let lines = ProjectedLineCollection.testing(
+        let geographyLines = ProjectedLineCollection<GeographyLineKind>.testing(
             id: ProjectionLineRevisionID.testing(rawValue: 1),
             segments: [],
         )
-        let geography = ProjectedLayerFrame<GeographyLayerKind>.testing(lines: lines)
-        let network = ProjectedLayerFrame<TransitNetworkLayerKind>.testing(lines: lines)
+        let networkLines = ProjectedLineCollection<TransitNetworkLineStyle>.testing(
+            id: ProjectionLineRevisionID.testing(rawValue: 2),
+            segments: [],
+        )
+        let geography = ProjectedLayerFrame<GeographyLayerKind>.testing(lines: geographyLines)
+        let network = ProjectedLayerFrame<TransitNetworkLayerKind>.testing(lines: networkLines)
         var projectedMissingNetwork = false
         let sky = PreparedAirAndSpaceProjectionInput(
             input: AirAndSpaceProjectionInput(
@@ -246,12 +256,12 @@ struct ProjectionModelsTests {
         #expect(prepared.network?.frame == projected)
     }
 
-    @Test func projectedExperienceCollectsMarksFromItsTypedLayers() throws {
+    @Test func projectedExperienceRetainsMarksInTheirTypedLayers() throws {
+        let aircraftID = try #require(AircraftID(kind: .icao, rawValue: "a"))
         let aircraft = try ProjectedMark(
-            id: #require(AircraftID(kind: .icao, rawValue: "a")).layerMarkID,
+            element: FlightsMarkElement.aircraft(id: aircraftID, glyph: .unknownAirborne),
             point: ProjectionPoint(x: 0.5, y: 0.5),
             range: NauticalMiles(value: 1),
-            glyph: .aircraft(.unknownAirborne),
             label: nil,
             secondaryProminence: 0,
             orientationDegrees: nil,
@@ -259,11 +269,11 @@ struct ProjectionModelsTests {
             labelOpacity: 1,
             altitudeIsApproximate: false,
         )
+        let starID = try #require(StarID(rawValue: "s"))
         let star = try ProjectedMark(
-            id: .star(#require(StarID(rawValue: "s"))),
+            element: StarMarkElement(id: starID),
             point: ProjectionPoint(x: 0.5, y: 0.5),
             range: nil,
-            glyph: .star,
             label: nil,
             secondaryProminence: 0,
             orientationDegrees: nil,
@@ -279,23 +289,59 @@ struct ProjectionModelsTests {
                 satellites: nil,
             ),
         ))
-        #expect(frame.marks == [aircraft, star])
+        guard case let .airAndSpace(.trueSky(projected)) = frame else {
+            Issue.record("The projected Air & Space frame changed experience cases.")
+            return
+        }
+        #expect(projected.flights?.marks == [aircraft])
+        #expect(projected.stars?.marks == [star])
     }
 
-    @Test func lineStyleIdentitySupportsGeographyAndFutureNetworks() {
-        let coastline = ProjectionLineStyleID(geographyKind: .coastline)
+    @Test func lineLayersRetainTheirConcreteStyleFamilies() throws {
+        let bounds = try GeographicBounds(
+            southLatitude: 0,
+            westLongitude: 0,
+            northLatitude: 1,
+            eastLongitude: 1,
+        )
+        let coordinates = try [
+            GeoCoordinate(latitude: 0, longitude: 0),
+            GeoCoordinate(latitude: 1, longitude: 1),
+        ]
+        let geography = try GeographicPolyline(
+            kind: .coastline,
+            detailLevel: .wide,
+            bounds: bounds,
+            coordinates: coordinates,
+        )
+        let transit = try ProjectionPolyline<TransitNetworkLineStyle>(
+            style: .route,
+            detailLevel: .wide,
+            bounds: bounds,
+            coordinates: coordinates,
+        )
 
-        #expect(coastline.geographyKind == .coastline)
-        #expect(ProjectionLineStyleID.transitRoute.geographyKind == nil)
-        #expect(coastline != .transitRoute)
+        #expect(geography.style == .coastline)
+        #expect(transit.style == .route)
     }
 
     @Test func projectedExperienceFixesTransitLayersAndMode() throws {
-        let mark = try projectedMark(layerID: .transitVehicles, rawID: "vehicle")
-        let lines = ProjectedLineCollection.testing(
+        let vehicleID = try #require(TransitVehicleID(rawValue: "vehicle"))
+        let mark = try ProjectedMark(
+            element: TransitVehicleMarkElement(id: vehicleID),
+            point: ProjectionPoint(x: 0.5, y: 0.5),
+            range: NauticalMiles(value: 1),
+            label: nil,
+            secondaryProminence: 0,
+            orientationDegrees: nil,
+            opacity: 1,
+            labelOpacity: 1,
+            altitudeIsApproximate: false,
+        )
+        let lines = ProjectedLineCollection<TransitNetworkLineStyle>.testing(
             id: ProjectionLineRevisionID.testing(rawValue: 7),
             segments: [ProjectedLineSegment(
-                styleID: .transitRoute,
+                style: .route,
                 start: ProjectionPoint(x: 0.1, y: 0.2),
                 end: ProjectionPoint(x: 0.8, y: 0.9),
                 startsNewSubpath: true,
@@ -325,6 +371,7 @@ struct ProjectionModelsTests {
         let markID = try #require(
             AircraftID(kind: .icao, rawValue: markIDSentinel),
         ).layerMarkID
+        let aircraftID = try #require(AircraftID(kind: .icao, rawValue: markIDSentinel))
         let geodeticAnchor = try GeodeticAnchor(
             coordinate: GeoCoordinate(latitude: 33.123456, longitude: -111.654321),
             altitude: .available(Altitude(feet: 12300), quality: .geometric),
@@ -336,9 +383,11 @@ struct ProjectionModelsTests {
             secondary: "12,300 ft",
         )
         let mark = ProjectionMark(
-            id: markID,
+            element: FlightsMarkElement.aircraft(
+                id: aircraftID,
+                glyph: .unknownAirborne,
+            ),
             anchor: anchor,
-            glyph: .aircraft(.unknownAirborne),
             label: label,
             prominence: .primary,
             velocity: nil,
@@ -348,16 +397,17 @@ struct ProjectionModelsTests {
                 availability: .current,
             ),
         )
-        let layerFrame = LayerFrame(
-            layerID: .flights,
+        let layerFrame = ProjectionLayerFrame<FlightsLayerKind>(
             observedAt: ThrowCoreFixture.date,
-            content: .marks([mark]),
+            marks: [mark],
         )
         let projectedMark = try ProjectedMark(
-            id: markID,
+            element: FlightsMarkElement.aircraft(
+                id: aircraftID,
+                glyph: .unknownAirborne,
+            ),
             point: ProjectionPoint(x: 0.4, y: 0.6),
             range: NauticalMiles(value: 5),
-            glyph: .aircraft(.unknownAirborne),
             label: label,
             secondaryProminence: 0,
             orientationDegrees: nil,
@@ -389,14 +439,16 @@ struct ProjectionModelsTests {
         }
     }
 
-    private func semanticMark(id: LayerMarkID, label: String) throws -> ProjectionMark {
+    private func semanticMark(
+        id: AircraftID,
+        label: String,
+    ) throws -> ProjectionMark<FlightsMarkElement> {
         try ProjectionMark(
-            id: id,
+            element: .aircraft(id: id, glyph: .unknownAirborne),
             anchor: .geodetic(GeodeticAnchor(
                 coordinate: GeoCoordinate(latitude: 37, longitude: -122),
                 altitude: .available(Altitude(feet: 10000), quality: .geometric),
             )),
-            glyph: .aircraft(.unknownAirborne),
             label: ProjectionLabel(
                 primary: label,
                 primaryRole: .headline,
@@ -412,24 +464,14 @@ struct ProjectionModelsTests {
         )
     }
 
-    private func projectedMark(
-        layerID: LayerID,
-        rawID: String,
+    private func projectedFlightMark(
+        id: AircraftID,
         x: Double = 0.5,
-    ) throws -> ProjectedMark {
-        let id: LayerMarkID = switch layerID {
-            case .transitVehicles:
-                try .transitVehicle(#require(TransitVehicleID(rawValue: rawID)))
-            case .flights:
-                try #require(AircraftID(kind: .icao, rawValue: rawID)).layerMarkID
-            case .geography, .stars, .satellites, .transitNetwork:
-                throw ThrowValidationError.invalidPreferencePayload
-        }
-        return try ProjectedMark(
-            id: id,
+    ) throws -> ProjectedMark<FlightsMarkElement> {
+        try ProjectedMark(
+            element: .aircraft(id: id, glyph: .unknownAirborne),
             point: ProjectionPoint(x: x, y: 0.5),
             range: NauticalMiles(value: 1),
-            glyph: .aircraft(.unknownAirborne),
             label: nil,
             secondaryProminence: 0,
             orientationDegrees: nil,

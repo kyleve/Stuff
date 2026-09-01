@@ -266,15 +266,15 @@ public struct ProjectionEngine: Sendable {
         )
     }
 
-    private func projectedMarks(
-        _ marks: [ProjectionMark],
+    private func projectedMarks<Element: ProjectionMarkElement>(
+        _ marks: [ProjectionMark<Element>],
         observer: ObserverPosition,
         mapCenter: GeoCoordinate,
         viewport: ProjectionViewport,
         calibration: ProjectionCalibration,
         geometry: ProjectionGeometry,
         generatedAt: Date,
-    ) throws -> [ProjectedMark] {
+    ) throws -> [ProjectedMark<Element>] {
         try Task.checkCancellation()
         let projectionObserver = switch viewport {
             case .map:
@@ -282,7 +282,7 @@ public struct ProjectionEngine: Sendable {
             case .trueSky:
                 observer
         }
-        var projected: [ProjectedMark] = []
+        var projected: [ProjectedMark<Element>] = []
         for (markIndex, mark) in marks.enumerated() {
             if markIndex.isMultiple(of: 64) {
                 try Task.checkCancellation()
@@ -315,7 +315,7 @@ public struct ProjectionEngine: Sendable {
                         geometry: geometry,
                         currentPoint: point,
                     )
-                case .aircraft, .star, .satellite: try apparentOrientation(
+                case .aircraft, .star, .satellite, .transitVehicle: try apparentOrientation(
                         for: mark,
                         at: generatedAt,
                         observer: projectionObserver,
@@ -333,10 +333,9 @@ public struct ProjectionEngine: Sendable {
             }
             projected.append(
                 ProjectedMark(
-                    id: prediction.mark.id,
+                    element: prediction.mark.element,
                     point: point,
                     range: radial.range,
-                    glyph: prediction.mark.glyph,
                     label: prediction.mark.label,
                     secondaryProminence: prediction.mark.prominence == .secondary ? 1 : 0,
                     orientationDegrees: orientation,
@@ -359,7 +358,7 @@ public struct ProjectionEngine: Sendable {
             calibration: ProjectionCalibration,
             geometry: ProjectionGeometry,
             generatedAt: Date,
-        ) throws -> [ProjectedMark] {
+        ) throws -> [TestingProjectedMark] {
             try projectedMarks(
                 layerFrames.flatMap(\.marks),
                 observer: observer,
@@ -374,16 +373,16 @@ public struct ProjectionEngine: Sendable {
 
     /// Projects and clips static geographic or network lines for a Map viewport. Callers
     /// can cache the result until the Map center, viewport, or calibration changes.
-    public func lineSegments(
-        lines: [ProjectionPolyline],
+    public func lineSegments<Style: ProjectionLineStyle>(
+        lines: [ProjectionPolyline<Style>],
         mapCenter: GeoCoordinate,
         viewport: ProjectionViewport,
         calibration: ProjectionCalibration,
         geometry: ProjectionGeometry,
-    ) throws -> [ProjectedGeographySegment] {
+    ) throws -> [ProjectedLineSegment<Style>] {
         try Task.checkCancellation()
         guard case let .map(mapViewport) = viewport else { return [] }
-        var segments: [ProjectedGeographySegment] = []
+        var segments: [ProjectedLineSegment<Style>] = []
         for (lineIndex, line) in lines.enumerated() {
             if lineIndex.isMultiple(of: 64) {
                 try Task.checkCancellation()
@@ -423,7 +422,7 @@ public struct ProjectionEngine: Sendable {
                     } ?? true
                     segments.append(
                         ProjectedLineSegment(
-                            styleID: line.styleID,
+                            style: line.style,
                             start: calibratedPoint(
                                 radial: clipped.start,
                                 calibration: calibration,
@@ -709,7 +708,7 @@ public struct ProjectionEngine: Sendable {
     }
 
     private func apparentOrientation(
-        for mark: ProjectionMark,
+        for mark: ProjectionMark<some ProjectionMarkElement>,
         at date: Date,
         observer: ObserverPosition,
         viewport: ProjectionViewport,

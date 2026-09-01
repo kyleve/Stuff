@@ -192,9 +192,11 @@ semantic revision and projection context. A present Transit network requires a
 projected frame in the prepared input. `ProjectionEngine` rejects stale or
 mismatched prepared lines and returns the matching `ProjectedExperienceFrame`.
 This value fixes each experience's valid projected layers and modes.
-`ProjectionFrame.swift` erases it once into renderer layers. Raw construction
-and replacement stay in that file. A closed presentation identity separates
-Air & Space, Transit, and DEBUG frames before any animation combines them.
+`ProjectionFrame.swift` erases it once into closed renderer storage for Air &
+Space Map, Air & Space True Sky, Transit, or DEBUG tests. Production animation
+can update presentation fields only. It cannot replace a mark's element family.
+The update boundary rejects a source or line frame from another presentation
+case before it transforms any layer.
 Before publication, the session compares the result with its current complete request.
 A semantic or context change invalidates the old result. The surface reads one
 visible projection value per render pass. Test-only raw worker entry points are

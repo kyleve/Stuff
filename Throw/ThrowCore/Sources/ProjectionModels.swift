@@ -321,6 +321,79 @@ public enum ProjectionGlyph: Hashable, Sendable {
     case airport(AirportGlyphDescriptor)
     case star
     case satellite
+    case transitVehicle
+}
+
+/// One mark identity and glyph family carried through semantic and projected frames.
+public protocol ProjectionMarkElement: Hashable, Sendable {
+    associatedtype ID: Hashable & Sendable
+
+    var id: ID { get }
+    var glyph: ProjectionGlyph { get }
+}
+
+/// The closed element family for Flights. Airport identity comes from its glyph descriptor.
+public enum FlightsMarkElement: Hashable, Sendable, ProjectionMarkElement {
+    public enum ID: Hashable, Sendable {
+        case aircraft(AircraftID)
+        case airport(AirportID)
+    }
+
+    case aircraft(id: AircraftID, glyph: AircraftGlyphDescriptor)
+    case airport(AirportGlyphDescriptor)
+
+    public var id: ID {
+        switch self {
+            case let .aircraft(id, _): .aircraft(id)
+            case let .airport(descriptor): .airport(descriptor.airportID)
+        }
+    }
+
+    public var glyph: ProjectionGlyph {
+        switch self {
+            case let .aircraft(_, descriptor): .aircraft(descriptor)
+            case let .airport(descriptor): .airport(descriptor)
+        }
+    }
+}
+
+/// The closed element family for Stars.
+public struct StarMarkElement: Hashable, Sendable, ProjectionMarkElement {
+    public let id: StarID
+
+    public init(id: StarID) {
+        self.id = id
+    }
+
+    public var glyph: ProjectionGlyph {
+        .star
+    }
+}
+
+/// The closed element family for Satellites.
+public struct SatelliteMarkElement: Hashable, Sendable, ProjectionMarkElement {
+    public let id: SatelliteID
+
+    public init(id: SatelliteID) {
+        self.id = id
+    }
+
+    public var glyph: ProjectionGlyph {
+        .satellite
+    }
+}
+
+/// The closed element family for Transit vehicles.
+public struct TransitVehicleMarkElement: Hashable, Sendable, ProjectionMarkElement {
+    public let id: TransitVehicleID
+
+    public init(id: TransitVehicleID) {
+        self.id = id
+    }
+
+    public var glyph: ProjectionGlyph {
+        .transitVehicle
+    }
 }
 
 public enum ProjectionLabelRole: Hashable, Sendable {
@@ -445,33 +518,39 @@ public enum ProjectionProminence: Hashable, Sendable {
     case secondary
 }
 
-public struct ProjectionMark: Hashable, Sendable, CustomStringConvertible,
+public struct ProjectionMark<Element: ProjectionMarkElement>: Hashable, Sendable,
+    CustomStringConvertible,
     CustomDebugStringConvertible
 {
-    public let id: LayerMarkID
+    public let element: Element
     public let anchor: ProjectionAnchor
-    public let glyph: ProjectionGlyph
     public let label: ProjectionLabel?
     public let prominence: ProjectionProminence
     public let velocity: ProjectionVelocity?
     public let freshness: MarkFreshness
 
     public init(
-        id: LayerMarkID,
+        element: Element,
         anchor: ProjectionAnchor,
-        glyph: ProjectionGlyph,
         label: ProjectionLabel?,
         prominence: ProjectionProminence,
         velocity: ProjectionVelocity?,
         freshness: MarkFreshness,
     ) {
-        self.id = id
+        self.element = element
         self.anchor = anchor
-        self.glyph = glyph
         self.label = label
         self.prominence = prominence
         self.velocity = velocity
         self.freshness = freshness
+    }
+
+    public var id: Element.ID {
+        element.id
+    }
+
+    public var glyph: ProjectionGlyph {
+        element.glyph
     }
 
     public var description: String {
@@ -483,19 +562,13 @@ public struct ProjectionMark: Hashable, Sendable, CustomStringConvertible,
     }
 }
 
-/// One semantic payload for a layer frame; layers cannot mix mark and line data.
-public enum LayerFrameContent: Hashable, Sendable {
-    case marks([ProjectionMark])
-    case lines([ProjectionPolyline])
-}
-
-private func retainingLastMarkByIdentity<Mark>(
+private func retainingLastMarkByIdentity<Mark, ID: Hashable>(
     _ marks: [Mark],
-    identity: (Mark) -> LayerMarkID,
+    identity: (Mark) -> ID,
 ) -> [Mark] {
     var result: [Mark] = []
     result.reserveCapacity(marks.count)
-    var indexByID: [LayerMarkID: Int] = [:]
+    var indexByID: [ID: Int] = [:]
     indexByID.reserveCapacity(marks.count)
 
     for mark in marks {
@@ -515,81 +588,42 @@ public protocol ProjectionLayerPayload: Hashable, Sendable {
     associatedtype Projected: ProjectedLayerPayload
 
     static var empty: Self { get }
-    var erasedContent: LayerFrameContent { get }
+    var elementCount: Int { get }
 }
 
-public struct ProjectionMarkLayerPayload: ProjectionLayerPayload {
-    public typealias Projected = ProjectedMarkLayerPayload
-    public static let empty = ProjectionMarkLayerPayload(marks: [])
+public struct ProjectionMarkLayerPayload<Element: ProjectionMarkElement>:
+    ProjectionLayerPayload
+{
+    public typealias Projected = ProjectedMarkLayerPayload<Element>
+    public static var empty: Self {
+        Self(marks: [])
+    }
 
-    public let marks: [ProjectionMark]
+    public let marks: [ProjectionMark<Element>]
 
-    public init(marks: [ProjectionMark]) {
+    public init(marks: [ProjectionMark<Element>]) {
         self.marks = retainingLastMarkByIdentity(marks, identity: \.id)
     }
 
-    public var erasedContent: LayerFrameContent {
-        .marks(marks)
+    public var elementCount: Int {
+        marks.count
     }
 }
 
-public struct ProjectionLineLayerPayload: ProjectionLayerPayload {
-    public typealias Projected = ProjectedLineLayerPayload
-    public static let empty = ProjectionLineLayerPayload(lines: [])
+public struct ProjectionLineLayerPayload<Style: ProjectionLineStyle>: ProjectionLayerPayload {
+    public typealias Projected = ProjectedLineLayerPayload<Style>
+    public static var empty: Self {
+        Self(lines: [])
+    }
 
-    public let lines: [ProjectionPolyline]
+    public let lines: [ProjectionPolyline<Style>]
 
-    public init(lines: [ProjectionPolyline]) {
+    public init(lines: [ProjectionPolyline<Style>]) {
         self.lines = lines
     }
 
-    public var erasedContent: LayerFrameContent {
-        .lines(lines)
-    }
-}
-
-public struct LayerFrame: Hashable, Sendable, CustomStringConvertible,
-    CustomDebugStringConvertible
-{
-    public let layerID: LayerID
-    public let observedAt: Date
-    public let content: LayerFrameContent
-
-    public init(
-        layerID: LayerID,
-        observedAt: Date,
-        content: LayerFrameContent,
-    ) {
-        let canonicalContent: LayerFrameContent = switch content {
-            case let .marks(marks): .marks(retainingLastMarkByIdentity(marks, identity: \.id))
-            case let .lines(lines): .lines(lines)
-        }
-        if case let .marks(marks) = canonicalContent {
-            precondition(marks.allSatisfy { $0.id.layerID == layerID })
-        }
-        self.layerID = layerID
-        self.observedAt = observedAt
-        self.content = canonicalContent
-    }
-
-    public var marks: [ProjectionMark] {
-        if case let .marks(marks) = content { marks } else { [] }
-    }
-
-    public var lines: [ProjectionPolyline] {
-        if case let .lines(lines) = content { lines } else { [] }
-    }
-
-    public var geographicLines: [GeographicPolyline] {
-        lines
-    }
-
-    public var description: String {
-        "<LayerFrame layer=\(layerID.rawValue) marks=\(marks.count) lines=\(lines.count)>"
-    }
-
-    public var debugDescription: String {
-        description
+    public var elementCount: Int {
+        lines.count
     }
 }
 
@@ -609,44 +643,56 @@ extension ProjectionLayerKind {
 
 /// A layer whose semantic and projected forms both contain marks.
 public protocol ProjectionMarkLayerKind: ProjectionLayerKind
-    where Payload == ProjectionMarkLayerPayload {}
+    where Payload == ProjectionMarkLayerPayload<MarkElement>
+{
+    associatedtype MarkElement: ProjectionMarkElement
+}
 
 /// A layer whose semantic and projected forms both contain lines.
 public protocol ProjectionLineLayerKind: ProjectionLayerKind
-    where Payload == ProjectionLineLayerPayload {}
+    where Payload == ProjectionLineLayerPayload<LineStyle>
+{
+    associatedtype LineStyle: ProjectionLineStyle
+}
 
 public enum GeographyLayerKind: ProjectionLineLayerKind {
-    public typealias Payload = ProjectionLineLayerPayload
+    public typealias LineStyle = GeographyLineKind
+    public typealias Payload = ProjectionLineLayerPayload<LineStyle>
     public static let id = LayerID.geography
     public static let supportedModes: Set<ProjectionMode> = [.map]
 }
 
 public enum FlightsLayerKind: ProjectionMarkLayerKind {
-    public typealias Payload = ProjectionMarkLayerPayload
+    public typealias MarkElement = FlightsMarkElement
+    public typealias Payload = ProjectionMarkLayerPayload<MarkElement>
     public static let id = LayerID.flights
     public static let supportedModes: Set<ProjectionMode> = [.map, .trueSky]
 }
 
 public enum StarsLayerKind: ProjectionMarkLayerKind {
-    public typealias Payload = ProjectionMarkLayerPayload
+    public typealias MarkElement = StarMarkElement
+    public typealias Payload = ProjectionMarkLayerPayload<MarkElement>
     public static let id = LayerID.stars
     public static let supportedModes: Set<ProjectionMode> = [.trueSky]
 }
 
 public enum SatellitesLayerKind: ProjectionMarkLayerKind {
-    public typealias Payload = ProjectionMarkLayerPayload
+    public typealias MarkElement = SatelliteMarkElement
+    public typealias Payload = ProjectionMarkLayerPayload<MarkElement>
     public static let id = LayerID.satellites
     public static let supportedModes: Set<ProjectionMode> = [.map, .trueSky]
 }
 
 public enum TransitNetworkLayerKind: ProjectionLineLayerKind {
-    public typealias Payload = ProjectionLineLayerPayload
+    public typealias LineStyle = TransitNetworkLineStyle
+    public typealias Payload = ProjectionLineLayerPayload<LineStyle>
     public static let id = LayerID.transitNetwork
     public static let supportedModes: Set<ProjectionMode> = [.map]
 }
 
 public enum TransitVehiclesLayerKind: ProjectionMarkLayerKind {
-    public typealias Payload = ProjectionMarkLayerPayload
+    public typealias MarkElement = TransitVehicleMarkElement
+    public typealias Payload = ProjectionMarkLayerPayload<MarkElement>
     public static let id = LayerID.transitVehicles
     public static let supportedModes: Set<ProjectionMode> = [.map]
 }
@@ -673,11 +719,7 @@ public struct ProjectionLayerFrame<Layer: ProjectionLayerKind>: Hashable, Sendab
     }
 
     public var description: String {
-        let counts = switch payload.erasedContent {
-            case let .marks(marks): "marks=\(marks.count) lines=0"
-            case let .lines(lines): "marks=0 lines=\(lines.count)"
-        }
-        return "<LayerFrame layer=\(Layer.id.rawValue) \(counts)>"
+        "<LayerFrame layer=\(Layer.id.rawValue) elements=\(payload.elementCount)>"
     }
 
     public var debugDescription: String {
@@ -686,30 +728,166 @@ public struct ProjectionLayerFrame<Layer: ProjectionLayerKind>: Hashable, Sendab
 }
 
 extension ProjectionLayerFrame where Layer: ProjectionMarkLayerKind {
-    public init(observedAt: Date, marks: [ProjectionMark]) {
-        let payload = ProjectionMarkLayerPayload(marks: marks)
-        precondition(payload.marks.allSatisfy { $0.id.layerID == Layer.id })
-        self.init(observedAt: observedAt, payload: payload)
+    public init(observedAt: Date, marks: [ProjectionMark<Layer.MarkElement>]) {
+        self.init(observedAt: observedAt, payload: ProjectionMarkLayerPayload(marks: marks))
     }
 
-    public var marks: [ProjectionMark] {
+    public var marks: [ProjectionMark<Layer.MarkElement>] {
         payload.marks
     }
 }
 
 extension ProjectionLayerFrame where Layer: ProjectionLineLayerKind {
-    public init(observedAt: Date, lines: [ProjectionPolyline]) {
+    public init(observedAt: Date, lines: [ProjectionPolyline<Layer.LineStyle>]) {
         self.init(observedAt: observedAt, payload: ProjectionLineLayerPayload(lines: lines))
     }
 
-    public var lines: [ProjectionPolyline] {
+    public var lines: [ProjectionPolyline<Layer.LineStyle>] {
         payload.lines
     }
+}
 
+extension ProjectionLayerFrame where Layer == GeographyLayerKind {
     public var geographicLines: [GeographicPolyline] {
         lines
     }
 }
+
+#if DEBUG
+    /// A raw mark element available only to adversarial tests at the Testing SPI.
+    public struct TestingProjectionMarkElement: Hashable, Sendable,
+        ProjectionMarkElement
+    {
+        public let id: LayerMarkID
+        public let glyph: ProjectionGlyph
+
+        @_spi(Testing) public init(id: LayerMarkID, glyph: ProjectionGlyph) {
+            self.id = id
+            self.glyph = glyph
+        }
+    }
+
+    @_spi(Testing) public typealias TestingProjectionMark =
+        ProjectionMark<TestingProjectionMarkElement>
+
+    extension ProjectionMark where Element == TestingProjectionMarkElement {
+        @_spi(Testing) public init(
+            id: LayerMarkID,
+            anchor: ProjectionAnchor,
+            glyph: ProjectionGlyph,
+            label: ProjectionLabel?,
+            prominence: ProjectionProminence,
+            velocity: ProjectionVelocity?,
+            freshness: MarkFreshness,
+        ) {
+            self.init(
+                element: TestingProjectionMarkElement(id: id, glyph: glyph),
+                anchor: anchor,
+                label: label,
+                prominence: prominence,
+                velocity: velocity,
+                freshness: freshness,
+            )
+        }
+    }
+
+    /// A raw line style available only to adversarial tests at the Testing SPI.
+    public struct ProjectionLineStyleID: Hashable, Sendable,
+        ProjectionLineStyle
+    {
+        private enum Storage: Hashable {
+            case geography(GeographyLineKind)
+            case transitRoute
+        }
+
+        private let storage: Storage
+
+        @_spi(Testing) public static let transitRoute = Self(storage: .transitRoute)
+
+        private init(storage: Storage) {
+            self.storage = storage
+        }
+
+        @_spi(Testing) public init(geographyKind: GeographyLineKind) {
+            storage = .geography(geographyKind)
+        }
+
+        public var geographyKind: GeographyLineKind? {
+            switch storage {
+                case let .geography(kind): kind
+                case .transitRoute: nil
+            }
+        }
+
+        public var isTransitRoute: Bool {
+            switch storage {
+                case .geography: false
+                case .transitRoute: true
+            }
+        }
+    }
+
+    @_spi(Testing) public typealias TestingProjectionPolyline =
+        ProjectionPolyline<ProjectionLineStyleID>
+
+    extension ProjectionPolyline where Style == ProjectionLineStyleID {
+        @_spi(Testing) public init(
+            styleID: ProjectionLineStyleID,
+            detailLevel: GeographyDetailLevel,
+            bounds: GeographicBounds,
+            coordinates: [GeoCoordinate],
+        ) throws {
+            try self.init(
+                style: styleID,
+                detailLevel: detailLevel,
+                bounds: bounds,
+                coordinates: coordinates,
+            )
+        }
+
+        public var styleID: ProjectionLineStyleID {
+            style
+        }
+    }
+
+    /// Raw heterogeneous input retained only for focused projection adversarial tests.
+    @_spi(Testing) public enum LayerFrameContent: Hashable, Sendable {
+        case marks([TestingProjectionMark])
+        case lines([TestingProjectionPolyline])
+    }
+
+    @_spi(Testing) public struct LayerFrame: Hashable, Sendable {
+        public let layerID: LayerID
+        public let observedAt: Date
+        public let content: LayerFrameContent
+
+        @_spi(Testing) public init(
+            layerID: LayerID,
+            observedAt: Date,
+            content: LayerFrameContent,
+        ) {
+            let canonicalContent: LayerFrameContent = switch content {
+                case let .marks(marks):
+                    .marks(retainingLastMarkByIdentity(marks, identity: \.id))
+                case let .lines(lines): .lines(lines)
+            }
+            if case let .marks(marks) = canonicalContent {
+                precondition(marks.allSatisfy { $0.id.layerID == layerID })
+            }
+            self.layerID = layerID
+            self.observedAt = observedAt
+            self.content = canonicalContent
+        }
+
+        public var marks: [TestingProjectionMark] {
+            if case let .marks(marks) = content { marks } else { [] }
+        }
+
+        public var lines: [TestingProjectionPolyline] {
+            if case let .lines(lines) = content { lines } else { [] }
+        }
+    }
+#endif
 
 /// A unit square centered on `(0.5, 0.5)` after calibration and safe inset.
 public struct ProjectionPoint: Hashable, Sendable {
@@ -723,14 +901,14 @@ public struct ProjectionPoint: Hashable, Sendable {
     }
 }
 
-public struct ProjectedMark: Hashable, Sendable, CustomStringConvertible,
+public struct ProjectedMark<Element: ProjectionMarkElement>: Hashable, Sendable,
+    CustomStringConvertible,
     CustomDebugStringConvertible
 {
-    public let id: LayerMarkID
+    public let element: Element
     public let point: ProjectionPoint
     /// Ground range in Map and slant range in True Sky. Non-geodetic layers may omit it.
     public let range: NauticalMiles?
-    public let glyph: ProjectionGlyph
     public let label: ProjectionLabel?
     /// Zero for primary marks and one for fully secondary marks. Intermediate
     /// values exist only while presentation interpolates between the states.
@@ -741,10 +919,9 @@ public struct ProjectedMark: Hashable, Sendable, CustomStringConvertible,
     public let altitudeIsApproximate: Bool
 
     public init(
-        id: LayerMarkID,
+        element: Element,
         point: ProjectionPoint,
         range: NauticalMiles?,
-        glyph: ProjectionGlyph,
         label: ProjectionLabel?,
         secondaryProminence: Double,
         orientationDegrees: Double?,
@@ -755,16 +932,23 @@ public struct ProjectedMark: Hashable, Sendable, CustomStringConvertible,
         precondition((0 ... 1).contains(opacity))
         precondition((0 ... 1).contains(labelOpacity))
         precondition((0 ... 1).contains(secondaryProminence))
-        self.id = id
+        self.element = element
         self.point = point
         self.range = range
-        self.glyph = glyph
         self.label = label
         self.secondaryProminence = secondaryProminence
         self.orientationDegrees = orientationDegrees
         self.opacity = opacity
         self.labelOpacity = labelOpacity
         self.altitudeIsApproximate = altitudeIsApproximate
+    }
+
+    public var id: Element.ID {
+        element.id
+    }
+
+    public var glyph: ProjectionGlyph {
+        element.glyph
     }
 
     public var description: String {
@@ -776,8 +960,40 @@ public struct ProjectedMark: Hashable, Sendable, CustomStringConvertible,
     }
 }
 
-public struct ProjectedLineSegment: Hashable, Sendable {
-    public let styleID: ProjectionLineStyleID
+#if DEBUG
+    @_spi(Testing) public typealias TestingProjectedMark =
+        ProjectedMark<TestingProjectionMarkElement>
+
+    extension ProjectedMark where Element == TestingProjectionMarkElement {
+        @_spi(Testing) public init(
+            id: LayerMarkID,
+            point: ProjectionPoint,
+            range: NauticalMiles?,
+            glyph: ProjectionGlyph,
+            label: ProjectionLabel?,
+            secondaryProminence: Double,
+            orientationDegrees: Double?,
+            opacity: Double,
+            labelOpacity: Double,
+            altitudeIsApproximate: Bool,
+        ) {
+            self.init(
+                element: TestingProjectionMarkElement(id: id, glyph: glyph),
+                point: point,
+                range: range,
+                label: label,
+                secondaryProminence: secondaryProminence,
+                orientationDegrees: orientationDegrees,
+                opacity: opacity,
+                labelOpacity: labelOpacity,
+                altitudeIsApproximate: altitudeIsApproximate,
+            )
+        }
+    }
+#endif
+
+public struct ProjectedLineSegment<Style: ProjectionLineStyle>: Hashable, Sendable {
+    public let style: Style
     public let start: ProjectionPoint
     public let end: ProjectionPoint
     /// Whether the renderer must move to `start` instead of continuing the
@@ -785,17 +1001,19 @@ public struct ProjectedLineSegment: Hashable, Sendable {
     public let startsNewSubpath: Bool
 
     public init(
-        styleID: ProjectionLineStyleID,
+        style: Style,
         start: ProjectionPoint,
         end: ProjectionPoint,
         startsNewSubpath: Bool,
     ) {
-        self.styleID = styleID
+        self.style = style
         self.start = start
         self.end = end
         self.startsNewSubpath = startsNewSubpath
     }
+}
 
+extension ProjectedLineSegment where Style == GeographyLineKind {
     public init(
         kind: GeographyLineKind,
         start: ProjectionPoint,
@@ -803,7 +1021,7 @@ public struct ProjectedLineSegment: Hashable, Sendable {
         startsNewSubpath: Bool,
     ) {
         self.init(
-            styleID: ProjectionLineStyleID(geographyKind: kind),
+            style: kind,
             start: start,
             end: end,
             startsNewSubpath: startsNewSubpath,
@@ -811,14 +1029,36 @@ public struct ProjectedLineSegment: Hashable, Sendable {
     }
 
     public var kind: GeographyLineKind {
-        guard let kind = styleID.geographyKind else {
-            preconditionFailure("A non-geographic line style has no Geography kind")
-        }
-        return kind
+        style
     }
 }
 
-public typealias ProjectedGeographySegment = ProjectedLineSegment
+#if DEBUG
+    @_spi(Testing) public typealias TestingProjectedLineSegment =
+        ProjectedLineSegment<ProjectionLineStyleID>
+
+    extension ProjectedLineSegment where Style == ProjectionLineStyleID {
+        @_spi(Testing) public init(
+            styleID: ProjectionLineStyleID,
+            start: ProjectionPoint,
+            end: ProjectionPoint,
+            startsNewSubpath: Bool,
+        ) {
+            self.init(
+                style: styleID,
+                start: start,
+                end: end,
+                startsNewSubpath: startsNewSubpath,
+            )
+        }
+
+        public var styleID: ProjectionLineStyleID {
+            style
+        }
+    }
+#endif
+
+public typealias ProjectedGeographySegment = ProjectedLineSegment<GeographyLineKind>
 
 struct ProjectedLineProvenance: Hashable {
     let layerID: LayerID
@@ -868,11 +1108,11 @@ public struct ProjectionLineRevisionID: Hashable, Sendable, CustomStringConverti
 public typealias GeographyProjectionID = ProjectionLineRevisionID
 
 /// Cached normalized line segments and their stable render identity.
-public struct ProjectedLineCollection: Hashable, Sendable {
+public struct ProjectedLineCollection<Style: ProjectionLineStyle>: Hashable, Sendable {
     public let id: ProjectionLineRevisionID
-    public let segments: [ProjectedLineSegment]
+    public let segments: [ProjectedLineSegment<Style>]
 
-    init(provenance: ProjectedLineProvenance, segments: [ProjectedLineSegment]) {
+    init(provenance: ProjectedLineProvenance, segments: [ProjectedLineSegment<Style>]) {
         id = ProjectionLineRevisionID(provenance: provenance)
         self.segments = segments
     }
@@ -880,37 +1120,39 @@ public struct ProjectedLineCollection: Hashable, Sendable {
     #if DEBUG
         @_spi(Testing) public static func testing(
             id: ProjectionLineRevisionID,
-            segments: [ProjectedLineSegment],
+            segments: [ProjectedLineSegment<Style>],
         ) -> Self {
             Self(id: id, segments: segments)
         }
 
-        private init(id: ProjectionLineRevisionID, segments: [ProjectedLineSegment]) {
+        private init(id: ProjectionLineRevisionID, segments: [ProjectedLineSegment<Style>]) {
             self.id = id
             self.segments = segments
         }
     #endif
 }
 
-public typealias ProjectedGeography = ProjectedLineCollection
+public typealias ProjectedGeography = ProjectedLineCollection<GeographyLineKind>
 
 /// One projected payload whose shape is fixed by its layer kind.
 public protocol ProjectedLayerPayload: Hashable, Sendable {}
 
-public struct ProjectedMarkLayerPayload: ProjectedLayerPayload {
-    public let marks: [ProjectedMark]
+public struct ProjectedMarkLayerPayload<Element: ProjectionMarkElement>:
+    ProjectedLayerPayload
+{
+    public let marks: [ProjectedMark<Element>]
 
-    public init(marks: [ProjectedMark]) {
+    public init(marks: [ProjectedMark<Element>]) {
         self.marks = retainingLastMarkByIdentity(marks, identity: \.id)
     }
 }
 
-public struct ProjectedLineLayerPayload: ProjectedLayerPayload {
-    public let lines: ProjectedLineCollection
+public struct ProjectedLineLayerPayload<Style: ProjectionLineStyle>: ProjectedLayerPayload {
+    public let lines: ProjectedLineCollection<Style>
     let provenance: ProjectedLineProvenance?
 
     init(
-        lines: ProjectedLineCollection,
+        lines: ProjectedLineCollection<Style>,
         provenance: ProjectedLineProvenance,
     ) {
         self.lines = lines
@@ -918,7 +1160,7 @@ public struct ProjectedLineLayerPayload: ProjectedLayerPayload {
     }
 
     #if DEBUG
-        init(testingLines lines: ProjectedLineCollection) {
+        init(testingLines lines: ProjectedLineCollection<Style>) {
             self.lines = lines
             provenance = nil
         }
@@ -939,21 +1181,18 @@ public struct ProjectedLayerFrame<Layer: ProjectionLayerKind>: Hashable, Sendabl
 }
 
 extension ProjectedLayerFrame where Layer: ProjectionMarkLayerKind {
-    /// Creates a projected mark layer after its erased mark IDs pass the layer boundary check.
-    public init(marks: [ProjectedMark]) {
-        let payload = ProjectedMarkLayerPayload(marks: marks)
-        precondition(payload.marks.allSatisfy { $0.id.layerID == Layer.id })
-        self.init(payload: payload)
+    public init(marks: [ProjectedMark<Layer.MarkElement>]) {
+        self.init(payload: ProjectedMarkLayerPayload(marks: marks))
     }
 
-    public var marks: [ProjectedMark] {
+    public var marks: [ProjectedMark<Layer.MarkElement>] {
         payload.marks
     }
 }
 
 extension ProjectedLayerFrame where Layer: ProjectionLineLayerKind {
     init(
-        segments: [ProjectedLineSegment],
+        segments: [ProjectedLineSegment<Layer.LineStyle>],
         provenance: ProjectedLineProvenance,
     ) {
         self.init(payload: ProjectedLineLayerPayload(
@@ -962,12 +1201,14 @@ extension ProjectedLayerFrame where Layer: ProjectionLineLayerKind {
         ))
     }
 
-    public var lines: ProjectedLineCollection {
+    public var lines: ProjectedLineCollection<Layer.LineStyle> {
         payload.lines
     }
 
     #if DEBUG
-        @_spi(Testing) public static func testing(lines: ProjectedLineCollection) -> Self {
+        @_spi(Testing) public static func testing(
+            lines: ProjectedLineCollection<Layer.LineStyle>,
+        ) -> Self {
             Self(payload: ProjectedLineLayerPayload(testingLines: lines))
         }
     #endif
@@ -1031,19 +1272,6 @@ public enum AirAndSpaceProjectedFrame: Hashable, Sendable {
             case let .trueSky(frame): frame.generatedAt
         }
     }
-
-    public var marks: [ProjectedMark] {
-        switch self {
-            case let .map(frame):
-                [frame.flights?.marks, frame.satellites?.marks]
-                    .compactMap(\.self)
-                    .flatMap(\.self)
-            case let .trueSky(frame):
-                [frame.flights?.marks, frame.stars?.marks, frame.satellites?.marks]
-                    .compactMap(\.self)
-                    .flatMap(\.self)
-        }
-    }
 }
 
 /// The projected layers for Transit. Transit supports Map mode only.
@@ -1063,10 +1291,6 @@ public struct TransitProjectedFrame: Hashable, Sendable {
         self.geography = geography
         self.network = network
         self.vehicles = vehicles
-    }
-
-    public var marks: [ProjectedMark] {
-        vehicles?.marks ?? []
     }
 }
 
@@ -1093,13 +1317,6 @@ public enum ProjectedExperienceFrame: Hashable, Sendable {
         switch self {
             case let .airAndSpace(frame): frame.generatedAt
             case let .transit(frame): frame.generatedAt
-        }
-    }
-
-    public var marks: [ProjectedMark] {
-        switch self {
-            case let .airAndSpace(frame): frame.marks
-            case let .transit(frame): frame.marks
         }
     }
 }
