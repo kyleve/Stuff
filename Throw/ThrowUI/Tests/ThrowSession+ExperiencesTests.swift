@@ -46,7 +46,7 @@ struct ThrowSessionExperiencesTests {
             ),
             flightsFrame: bufferedFrame.flights,
             snapshot: nil,
-            activePollingSignature: nil,
+            physicalPolling: .stopped,
             semanticPreparationState: .ready,
         )
         session.projectionPresentationStaging = .fadingOut(
@@ -238,7 +238,7 @@ struct ThrowSessionExperiencesTests {
             ),
             flightsFrame: semanticFrame.flights,
             snapshot: nil,
-            activePollingSignature: nil,
+            physicalPolling: .stopped,
             semanticPreparationState: .ready,
         )
         await clock.suspendNextNowCall()
@@ -393,6 +393,7 @@ struct ThrowSessionExperiencesTests {
             query: session.aircraftQuery(),
             labelMode: session.labelMode,
             lease: lease,
+            demandGeneration: session.demandGeneration,
         )
         guard case .accepted = activation else {
             Issue.record("The physical runtime must accept the coordinator lease")
@@ -496,7 +497,7 @@ struct ThrowSessionExperiencesTests {
             ),
             flightsFrame: nil,
             snapshot: snapshot,
-            activePollingSignature: nil,
+            physicalPolling: .stopped,
             semanticPreparationState: .ready,
         )
 

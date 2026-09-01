@@ -43,6 +43,7 @@ struct AirAndSpaceRuntimeTests {
             query: query,
             labelMode: .adaptive,
             lease: lease(42),
+            demandGeneration: demand(1),
         )
 
         var ready: AirAndSpaceRuntimeUpdate?
@@ -83,6 +84,7 @@ struct AirAndSpaceRuntimeTests {
                 query: query,
                 labelMode: .adaptive,
                 lease: lease(1),
+                demandGeneration: demand(1),
             )
         }
         await flightsRuntime.waitForResetCount(1)
@@ -92,6 +94,7 @@ struct AirAndSpaceRuntimeTests {
             query: query,
             labelMode: .adaptive,
             lease: lease(2),
+            demandGeneration: demand(2),
         )
         await flightsRuntime.releaseReset(1)
         _ = await supersededActivation.value
@@ -126,6 +129,7 @@ struct AirAndSpaceRuntimeTests {
             query: query,
             labelMode: .adaptive,
             lease: oldLease,
+            demandGeneration: demand(1),
         )
         await snapshotGate.waitUntilBlocked()
 
@@ -135,6 +139,7 @@ struct AirAndSpaceRuntimeTests {
                 query: query,
                 labelMode: .adaptive,
                 lease: replacementLease,
+                demandGeneration: demand(2),
             )
         }
         await flightsRuntime.waitForResetCount(2)
@@ -200,6 +205,7 @@ struct AirAndSpaceRuntimeTests {
                 query: query(),
                 labelMode: .adaptive,
                 lease: activationLease,
+                demandGeneration: demand(1),
             )
         }
         let capturedUpdate = await currentUpdateGate.waitUntilBlocked()
@@ -229,6 +235,142 @@ struct AirAndSpaceRuntimeTests {
         await runtime.deactivate(lease: activationLease, reporting: .idle)
     }
 
+    @Test func suspendedPollingRejectsAnOldPublicationAndResumesTheSameLease() async throws {
+        let date = Date(timeIntervalSince1970: 1_800_100_000)
+        let coordinator = AircraftPollingCoordinator(
+            sourceFactory: ConfigurationEchoAircraftSourceFactory(date: date),
+            clock: LongAircraftPollingClock(now: date),
+            logger: DiscardingAircraftPollingLogger(),
+        )
+        let runtime = makeRuntime(
+            pollingCoordinator: coordinator,
+            flightsRuntime: LayerCatalog.standard.flights.runtimeFactory(),
+            date: date,
+        )
+        let activationLease = lease(1)
+        let pollingQuery = try query()
+        _ = await runtime.stateUpdates()
+
+        let firstActivation = await runtime.activate(
+            configuration: .adsbLol,
+            query: pollingQuery,
+            labelMode: .adaptive,
+            lease: activationLease,
+            demandGeneration: demand(1),
+        )
+        guard case .accepted = firstActivation else {
+            Issue.record("The first physical poller must accept the experience lease")
+            return
+        }
+        let firstToken = try #require(
+            await runtime.activePollingActivationForTesting(),
+        )
+        try await waitUntil {
+            await runtime.currentUpdate().successfulActivationLease == activationLease
+        }
+        let firstPhysicalLease = try #require(
+            await runtime.currentUpdate().physicalPollingLease,
+        )
+
+        let suspension = await runtime.suspendPolling(
+            lease: activationLease,
+            demandGeneration: demand(2),
+            reporting: .idle,
+        )
+        guard case .stopped = suspension else {
+            Issue.record("The current physical polling lease must stop")
+            return
+        }
+
+        let stopped = await runtime.currentUpdate()
+        #expect(stopped.activationLease == activationLease)
+        #expect(stopped.successfulActivationLease == nil)
+        #expect(stopped.activePollingSignature == nil)
+        #expect(stopped.snapshot == nil)
+        #expect(stopped.flightsFrame == nil)
+        #expect(stopped.health == .idle)
+        #expect(stopped.physicalPollingLease == nil)
+        #expect(await runtime.activePollingActivationForTesting() == nil)
+        #expect(await coordinator.currentUpdate() == .inactive)
+
+        let staleSnapshot = AircraftSnapshot(
+            source: .adsbLol,
+            fetchedAt: date.addingTimeInterval(1),
+            observations: [],
+            decodingDiagnostics: .none,
+        )
+        await runtime.applyPollingUpdateForTesting(.active(AircraftPollingActiveUpdate(
+            testingToken: firstToken,
+            testingRevisionRawValue: UInt64.max,
+            state: .healthy(
+                snapshot: staleSnapshot,
+                nextPollAt: date.addingTimeInterval(300),
+            ),
+        )))
+        let afterStalePublication = await runtime.currentUpdate()
+        #expect(afterStalePublication.activationLease == activationLease)
+        #expect(afterStalePublication.successfulActivationLease == nil)
+        #expect(afterStalePublication.activePollingSignature == nil)
+        #expect(afterStalePublication.physicalPollingLease == nil)
+        #expect(afterStalePublication.snapshot == nil)
+        #expect(afterStalePublication.flightsFrame == nil)
+        #expect(afterStalePublication.health == .idle)
+
+        let resumedActivation = await runtime.activate(
+            configuration: .adsbLol,
+            query: pollingQuery,
+            labelMode: .adaptive,
+            lease: activationLease,
+            demandGeneration: demand(3),
+        )
+        guard case .accepted = resumedActivation else {
+            Issue.record("The stopped poller must resume under the active experience lease")
+            return
+        }
+        let resumedToken = try #require(
+            await runtime.activePollingActivationForTesting(),
+        )
+        #expect(resumedToken != firstToken)
+        try await waitUntil {
+            await runtime.currentUpdate().successfulActivationLease == activationLease
+        }
+        let resumed = await runtime.currentUpdate()
+        #expect(resumed.activationLease == activationLease)
+        #expect(resumed.activePollingSignature != nil)
+        #expect(resumed.physicalPollingLease != firstPhysicalLease)
+        #expect(resumed.snapshot?.source == .adsbLol)
+
+        let staleSuspension = await runtime.suspendPolling(
+            lease: activationLease,
+            demandGeneration: demand(2),
+            reporting: .idle,
+        )
+        guard case let .superseded(current) = staleSuspension else {
+            Issue.record("An older stopped demand must not stop its replacement")
+            return
+        }
+        #expect(current.physicalPollingLease == resumed.physicalPollingLease)
+        #expect(current.activePollingSignature == resumed.activePollingSignature)
+        #expect(await runtime.activePollingActivationForTesting() == resumedToken)
+
+        await runtime.deactivate(lease: activationLease, reporting: .idle)
+        let repeatedActivation = await runtime.activate(
+            configuration: .adsbLol,
+            query: pollingQuery,
+            labelMode: .adaptive,
+            lease: activationLease,
+            demandGeneration: demand(4),
+        )
+        guard case let .superseded(current) = repeatedActivation else {
+            Issue.record("Full deactivation must tombstone the experience lease")
+            return
+        }
+        #expect(current.activationLease == nil)
+        #expect(current.activePollingSignature == nil)
+        #expect(current.physicalPollingLease == nil)
+        #expect(await runtime.activePollingActivationForTesting() == nil)
+    }
+
     @Test func newerDeactivationTombstonesActivationSuspendedDuringReset() async throws {
         let date = Date(timeIntervalSince1970: 1_800_100_000)
         let flightsRuntime = ControllableFlightsLayerRuntime(suspendedResetNumbers: [1])
@@ -250,6 +392,7 @@ struct AirAndSpaceRuntimeTests {
                 query: query,
                 labelMode: .adaptive,
                 lease: lease(1),
+                demandGeneration: demand(1),
             )
         }
         await flightsRuntime.waitForResetCount(1)
@@ -290,6 +433,7 @@ struct AirAndSpaceRuntimeTests {
             query: query(),
             labelMode: .adaptive,
             lease: lease(42),
+            demandGeneration: demand(1),
         )
         try await waitUntil {
             await runtime.currentUpdate().successfulActivationLease == lease(42)
@@ -332,6 +476,7 @@ struct AirAndSpaceRuntimeTests {
             query: query,
             labelMode: .adaptive,
             lease: lease(1),
+            demandGeneration: demand(1),
         )
         try await waitUntil {
             await runtime.currentUpdate().successfulActivationLease == lease(1)
@@ -347,6 +492,7 @@ struct AirAndSpaceRuntimeTests {
             query: query,
             labelMode: .adaptive,
             lease: lease(2),
+            demandGeneration: demand(2),
         )
         try await waitUntil {
             await runtime.currentUpdate().successfulActivationLease == lease(2)
@@ -384,6 +530,7 @@ struct AirAndSpaceRuntimeTests {
             query: query,
             labelMode: .adaptive,
             lease: oldLease,
+            demandGeneration: demand(1),
         )
         try await waitUntil {
             await runtime.currentUpdate().successfulActivationLease == oldLease
@@ -401,6 +548,7 @@ struct AirAndSpaceRuntimeTests {
             query: query,
             labelMode: .adaptive,
             lease: replacementLease,
+            demandGeneration: demand(2),
         )
         try await waitUntil {
             await runtime.currentUpdate().successfulActivationLease == replacementLease
@@ -444,6 +592,7 @@ struct AirAndSpaceRuntimeTests {
             query: query(),
             labelMode: .adaptive,
             lease: activationLease,
+            demandGeneration: demand(1),
         )
         try await waitUntil {
             await runtime.currentUpdate().successfulActivationLease == activationLease
@@ -488,6 +637,13 @@ struct AirAndSpaceRuntimeTests {
             viewport: .map(MapViewport(radius: NauticalMiles(value: 50))),
             includeGroundAircraft: false,
         )
+    }
+
+    private func demand(_ ordinal: Int) -> ProjectionDemandGeneration {
+        precondition(ordinal >= 0)
+        return (0 ..< ordinal).reduce(.initial) { generation, _ in
+            generation.successor()
+        }
     }
 
     private func localReadsbConfiguration() throws -> AircraftSourceConfiguration {

@@ -144,6 +144,7 @@ struct ThrowSessionAircraftTests {
             query: session.aircraftQuery(),
             labelMode: session.labelMode,
             lease: originalLease,
+            demandGeneration: session.demandGeneration,
         )
         guard case let .accepted(originalUpdate) = originalActivation else {
             Issue.record("The original coordinator lease must start its physical poller")
@@ -249,7 +250,7 @@ struct ThrowSessionAircraftTests {
             ),
             flightsFrame: nil,
             snapshot: nil,
-            activePollingSignature: nil,
+            physicalPolling: .stopped,
             semanticPreparationState: .ready,
         ))
 
@@ -276,6 +277,7 @@ struct ThrowSessionAircraftTests {
             query: query,
             labelMode: session.labelMode,
             lease: activationLease,
+            demandGeneration: session.demandGeneration,
         )
         session.publishPostLaunchFailure(.flightradar24Credential)
         let replacement = try AircraftCredential(secret: "fr24-replacement-1234")
@@ -422,6 +424,7 @@ struct ThrowSessionAircraftTests {
             query: session.aircraftQuery(),
             labelMode: session.labelMode,
             lease: activationLease,
+            demandGeneration: session.demandGeneration,
         )
         let previousHealth = session.feedHealth
 

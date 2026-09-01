@@ -11,6 +11,39 @@ protocol FlightsLayerRunning: Sendable {
 
 extension FlightsLayerRuntime: FlightsLayerRunning {}
 
+/// A runtime-minted capability for one physical polling attempt.
+/// It cannot be reused after the runtime starts a replacement attempt.
+struct AirAndSpacePhysicalPollingLease: Equatable {
+    fileprivate let experienceLease: ProjectionActivationLease
+    fileprivate let lifecycleGeneration: UInt64
+}
+
+/// The accepted physical polling identity and request signature.
+struct AirAndSpaceActivePhysicalPolling: Equatable {
+    let lease: AirAndSpacePhysicalPollingLease
+    let signature: PollingSignature
+}
+
+/// The closed physical-polling state visible outside the runtime actor.
+enum AirAndSpacePhysicalPollingState: Equatable {
+    case stopped
+    case activating(AirAndSpacePhysicalPollingLease)
+    case active(AirAndSpaceActivePhysicalPolling)
+
+    var lease: AirAndSpacePhysicalPollingLease? {
+        switch self {
+            case .stopped: nil
+            case let .activating(lease): lease
+            case let .active(active): active.lease
+        }
+    }
+
+    var acceptedSignature: PollingSignature? {
+        guard case let .active(active) = self else { return nil }
+        return active.signature
+    }
+}
+
 /// One immutable snapshot of the Air & Space runtime's actor-isolated state.
 struct AirAndSpaceRuntimeUpdate {
     enum SemanticPreparationState: Equatable {
@@ -23,8 +56,16 @@ struct AirAndSpaceRuntimeUpdate {
     let health: FeedHealth
     let flightsFrame: ProjectionLayerFrame<FlightsLayerKind>?
     let snapshot: AircraftSnapshot?
-    let activePollingSignature: PollingSignature?
+    let physicalPolling: AirAndSpacePhysicalPollingState
     let semanticPreparationState: SemanticPreparationState
+
+    var activePollingSignature: PollingSignature? {
+        physicalPolling.acceptedSignature
+    }
+
+    var physicalPollingLease: AirAndSpacePhysicalPollingLease? {
+        physicalPolling.lease
+    }
 
     var experienceFrame: ProjectionExperienceFrame {
         .airAndSpace(AirAndSpaceExperienceFrame(
@@ -41,6 +82,13 @@ enum AirAndSpaceRuntimeActivationResult {
     case superseded(current: AirAndSpaceRuntimeUpdate)
 }
 
+/// The exhaustive result of applying a generation-bound physical stop.
+enum AirAndSpaceRuntimePollingSuspensionResult {
+    case stopped(AirAndSpaceRuntimeUpdate)
+    case alreadyStopped(current: AirAndSpaceRuntimeUpdate)
+    case superseded(current: AirAndSpaceRuntimeUpdate)
+}
+
 /// Owns aircraft polling, semantic frame construction, motion state, and route enrichment.
 actor AirAndSpaceRuntime {
     private enum AcceptedPollingPublication {
@@ -48,45 +96,104 @@ actor AirAndSpaceRuntime {
         case active(AircraftPollingState)
     }
 
-    /// Keeps an accepted Core token and its ordered publication cursor as one
-    /// value. A revision from another activation cannot enter this state.
-    private enum PollingPublicationAcceptance {
-        struct ActiveCursor {
+    /// Keeps physical polling state separate from the experience lease.
+    /// An active poller owns one signature, token, and ordered publication cursor.
+    private enum PhysicalPollingLifecycle {
+        struct Activating {
+            let lease: AirAndSpacePhysicalPollingLease
+            let signature: PollingSignature
+        }
+
+        struct Active {
+            let lease: AirAndSpacePhysicalPollingLease
+            let signature: PollingSignature
             let token: AircraftPollingActivationToken
             let latestRevision: AircraftPollingActiveUpdate.Revision?
         }
 
-        case inactive(hasAppliedInactive: Bool)
-        case awaitingActivation
-        case active(ActiveCursor)
+        case stopped(hasAppliedInactive: Bool)
+        case activating(Activating)
+        case active(Active)
 
-        var expectedToken: AircraftPollingActivationToken? {
-            guard case let .active(cursor) = self else { return nil }
-            return cursor.token
+        var acceptedSignature: PollingSignature? {
+            guard case let .active(active) = self else { return nil }
+            return active.signature
         }
 
-        mutating func activate(_ token: AircraftPollingActivationToken) {
-            self = .active(ActiveCursor(token: token, latestRevision: nil))
+        var lease: AirAndSpacePhysicalPollingLease? {
+            switch self {
+                case .stopped: nil
+                case let .activating(activating): activating.lease
+                case let .active(active): active.lease
+            }
+        }
+
+        var expectedToken: AircraftPollingActivationToken? {
+            guard case let .active(active) = self else { return nil }
+            return active.token
+        }
+
+        var updateState: AirAndSpacePhysicalPollingState {
+            switch self {
+                case .stopped:
+                    .stopped
+                case let .activating(activating):
+                    .activating(activating.lease)
+                case let .active(active):
+                    .active(AirAndSpaceActivePhysicalPolling(
+                        lease: active.lease,
+                        signature: active.signature,
+                    ))
+            }
+        }
+
+        mutating func beginActivation(
+            lease: AirAndSpacePhysicalPollingLease,
+            signature: PollingSignature,
+        ) {
+            self = .activating(Activating(lease: lease, signature: signature))
+        }
+
+        mutating func completeActivation(
+            lease: AirAndSpacePhysicalPollingLease,
+            token: AircraftPollingActivationToken,
+        ) -> Bool {
+            guard case let .activating(activating) = self,
+                  activating.lease == lease
+            else { return false }
+            self = .active(Active(
+                lease: lease,
+                signature: activating.signature,
+                token: token,
+                latestRevision: nil,
+            ))
+            return true
+        }
+
+        mutating func stop() {
+            self = .stopped(hasAppliedInactive: false)
         }
 
         mutating func accept(
             _ update: AircraftPollingUpdate,
         ) -> AcceptedPollingPublication? {
             switch (self, update) {
-                case let (.inactive(hasAppliedInactive), .inactive):
+                case let (.stopped(hasAppliedInactive), .inactive):
                     guard hasAppliedInactive == false else { return nil }
-                    self = .inactive(hasAppliedInactive: true)
+                    self = .stopped(hasAppliedInactive: true)
                     return .inactive
-                case let (.active(cursor), .active(activeUpdate)):
-                    guard activeUpdate.token == cursor.token,
-                          cursor.latestRevision.map({ activeUpdate.revision > $0 }) ?? true
+                case let (.active(active), .active(activeUpdate)):
+                    guard activeUpdate.token == active.token,
+                          active.latestRevision.map({ activeUpdate.revision > $0 }) ?? true
                     else { return nil }
-                    self = .active(ActiveCursor(
-                        token: cursor.token,
+                    self = .active(Active(
+                        lease: active.lease,
+                        signature: active.signature,
+                        token: active.token,
                         latestRevision: activeUpdate.revision,
                     ))
                     return .active(activeUpdate.state)
-                case (.inactive, .active), (.awaitingActivation, _), (.active, .inactive):
+                case (.stopped, .active), (.activating, _), (.active, .inactive):
                     return nil
             }
         }
@@ -136,6 +243,47 @@ actor AirAndSpaceRuntime {
         }
     }
 
+    /// Orders the session's physical-polling intent independently of its
+    /// coordinator-issued experience lease.
+    private enum PollingDemandLifecycle {
+        case none
+        case polling(ProjectionDemandGeneration)
+        case stopped(ProjectionDemandGeneration)
+
+        mutating func activate(_ generation: ProjectionDemandGeneration) -> Bool {
+            switch self {
+                case .none:
+                    self = .polling(generation)
+                    return true
+                case let .polling(currentGeneration):
+                    guard generation >= currentGeneration else { return false }
+                    self = .polling(generation)
+                    return true
+                case let .stopped(currentGeneration):
+                    guard generation > currentGeneration else { return false }
+                    self = .polling(generation)
+                    return true
+            }
+        }
+
+        mutating func stop(_ generation: ProjectionDemandGeneration) -> Bool {
+            switch self {
+                case .none:
+                    self = .stopped(generation)
+                    return true
+                case let .polling(currentGeneration), let .stopped(currentGeneration):
+                    guard generation >= currentGeneration else { return false }
+                    self = .stopped(generation)
+                    return true
+            }
+        }
+
+        mutating func stopCurrent() {
+            guard case let .polling(generation) = self else { return }
+            self = .stopped(generation)
+        }
+    }
+
     private let pollingCoordinator: AircraftPollingCoordinator
     private let flightsRuntime: any FlightsLayerRunning
     private let routeResolver: FlightRouteResolver
@@ -147,13 +295,13 @@ actor AirAndSpaceRuntime {
 
     private var observationTask: Task<Void, Never>?
     private var routeTask: Task<Void, Never>?
-    private var activePollingSignature: PollingSignature?
-    private var pollingPublicationAcceptance =
-        PollingPublicationAcceptance.inactive(hasAppliedInactive: false)
+    private var physicalPollingLifecycle =
+        PhysicalPollingLifecycle.stopped(hasAppliedInactive: false)
     #if DEBUG
         private var lastObservedPollingUpdate: AircraftPollingUpdate?
     #endif
     private var activationLifecycle = ActivationLifecycle.idle
+    private var pollingDemandLifecycle = PollingDemandLifecycle.none
     private var successfulActivationLease: ProjectionActivationLease?
     private var lifecycleGeneration: UInt64 = 0
     private var stateGeneration: UInt64 = 0
@@ -209,35 +357,50 @@ actor AirAndSpaceRuntime {
         query: AircraftQuery,
         labelMode: FlightLabelMode,
         lease: ProjectionActivationLease,
+        demandGeneration: ProjectionDemandGeneration,
     ) async -> AirAndSpaceRuntimeActivationResult {
         guard lease.experienceID == .airAndSpace else {
             assertionFailure("Air & Space received another experience's activation lease")
             return .superseded(current: updateValue())
         }
         let previousLease = activationLifecycle.activeLease
-        guard activationLifecycle.activate(lease) else {
+        var nextActivationLifecycle = activationLifecycle
+        var nextPollingDemandLifecycle = pollingDemandLifecycle
+        guard nextActivationLifecycle.activate(lease),
+              nextPollingDemandLifecycle.activate(demandGeneration)
+        else {
             return .superseded(current: updateValue())
         }
+        activationLifecycle = nextActivationLifecycle
+        pollingDemandLifecycle = nextPollingDemandLifecycle
         startObservingIfNeeded()
         let signature = PollingSignature(configuration: configuration, query: query)
         let activationChanged = previousLease != lease
-        let sourceChanged = activePollingSignature?.configuration != configuration
-        let queryChanged = activePollingSignature?.query != query
-        let pollingActivationMissing = pollingPublicationAcceptance.expectedToken == nil
+        let sourceChanged = physicalPollingLifecycle.acceptedSignature?.configuration !=
+            configuration
+        let queryChanged = physicalPollingLifecycle.acceptedSignature?.query != query
+        let pollingActivationMissing = physicalPollingLifecycle.expectedToken == nil
         let labelsChanged = self.labelMode != labelMode
         self.labelMode = labelMode
 
         if activationChanged || sourceChanged || queryChanged || pollingActivationMissing {
             lifecycleGeneration &+= 1
             let lifecycleGeneration = lifecycleGeneration
+            let physicalPollingLease = AirAndSpacePhysicalPollingLease(
+                experienceLease: lease,
+                lifecycleGeneration: lifecycleGeneration,
+            )
             stateGeneration &+= 1
             successfulActivationLease = nil
-            activePollingSignature = nil
-            pollingPublicationAcceptance = .awaitingActivation
+            physicalPollingLifecycle.beginActivation(
+                lease: physicalPollingLease,
+                signature: signature,
+            )
             cancelRouteEnrichment()
             currentSnapshot = nil
             currentLayerFrame = nil
             currentAvailability = .current
+            semanticPreparationState = .ready
             health = .loading
             if activationChanged || sourceChanged {
                 await flightsRuntime.reset()
@@ -253,17 +416,19 @@ actor AirAndSpaceRuntime {
             )
             guard lifecycleGeneration == self.lifecycleGeneration,
                   activationLifecycle.activeLease == lease,
-                  let pollingActivation
+                  let pollingActivation,
+                  physicalPollingLifecycle.completeActivation(
+                      lease: physicalPollingLease,
+                      token: pollingActivation,
+                  )
             else { return .superseded(current: updateValue()) }
-            activePollingSignature = signature
-            pollingPublicationAcceptance.activate(pollingActivation)
             publish()
             let currentPollingUpdate = await pollingCoordinator.currentUpdate()
             await apply(currentPollingUpdate)
             guard lifecycleGeneration == self.lifecycleGeneration,
                   activationLifecycle.activeLease == lease,
-                  activePollingSignature == signature,
-                  pollingPublicationAcceptance.expectedToken == pollingActivation
+                  physicalPollingLifecycle.acceptedSignature == signature,
+                  physicalPollingLifecycle.expectedToken == pollingActivation
             else { return .superseded(current: updateValue()) }
             return .accepted(updateValue())
         }
@@ -272,10 +437,41 @@ actor AirAndSpaceRuntime {
             await rebuildCurrentLayerFrame()
         }
         guard activationLifecycle.activeLease == lease,
-              activePollingSignature == signature,
-              pollingPublicationAcceptance.expectedToken != nil
+              physicalPollingLifecycle.acceptedSignature == signature,
+              physicalPollingLifecycle.expectedToken != nil
         else { return .superseded(current: updateValue()) }
         return .accepted(updateValue())
+    }
+
+    /// Stops physical polling without retiring the active experience lease.
+    func suspendPolling(
+        lease: ProjectionActivationLease,
+        demandGeneration: ProjectionDemandGeneration,
+        reporting health: FeedHealth,
+    ) async -> AirAndSpaceRuntimePollingSuspensionResult {
+        guard lease.experienceID == .airAndSpace else {
+            assertionFailure("Air & Space received another experience's polling suspension")
+            return .superseded(current: updateValue())
+        }
+        var nextActivationLifecycle = activationLifecycle
+        var nextPollingDemandLifecycle = pollingDemandLifecycle
+        guard nextActivationLifecycle.activate(lease),
+              nextPollingDemandLifecycle.stop(demandGeneration)
+        else {
+            return .superseded(current: updateValue())
+        }
+        activationLifecycle = nextActivationLifecycle
+        pollingDemandLifecycle = nextPollingDemandLifecycle
+        guard physicalPollingLifecycle.lease != nil else {
+            inactiveHealth = health
+            self.health = health
+            publish()
+            return .alreadyStopped(current: updateValue())
+        }
+        guard await stopPhysicalPolling(reporting: health) else {
+            return .superseded(current: updateValue())
+        }
+        return .stopped(updateValue())
     }
 
     func deactivate(
@@ -287,23 +483,26 @@ actor AirAndSpaceRuntime {
             return
         }
         guard activationLifecycle.deactivate(upThrough: lease) else { return }
+        pollingDemandLifecycle.stopCurrent()
+        _ = await stopPhysicalPolling(reporting: health)
+    }
+
+    private func stopPhysicalPolling(reporting health: FeedHealth) async -> Bool {
         lifecycleGeneration &+= 1
         let lifecycleGeneration = lifecycleGeneration
         stateGeneration &+= 1
         successfulActivationLease = nil
-        activePollingSignature = nil
-        pollingPublicationAcceptance = .inactive(hasAppliedInactive: false)
+        physicalPollingLifecycle.stop()
         inactiveHealth = health
-        cancelRouteEnrichment()
-        currentSnapshot = nil
-        currentLayerFrame = nil
-        currentAvailability = .current
+        clearSemanticState()
+        semanticPreparationState = .ready
         await pollingCoordinator.deactivate()
-        guard lifecycleGeneration == self.lifecycleGeneration else { return }
+        guard lifecycleGeneration == self.lifecycleGeneration else { return false }
         await flightsRuntime.reset()
-        guard lifecycleGeneration == self.lifecycleGeneration else { return }
+        guard lifecycleGeneration == self.lifecycleGeneration else { return false }
         self.health = health
         publish()
+        return true
     }
 
     func refreshPresentation(labelMode: FlightLabelMode) async {
@@ -333,15 +532,23 @@ actor AirAndSpaceRuntime {
 
     #if DEBUG
         func activeSourceKindForTesting() -> AircraftSourceKind? {
-            activePollingSignature?.configuration.kind
+            physicalPollingLifecycle.acceptedSignature?.configuration.kind
         }
 
         func activePollingActivationForTesting() -> AircraftPollingActivationToken? {
-            pollingPublicationAcceptance.expectedToken
+            physicalPollingLifecycle.expectedToken
         }
 
         func lastObservedPollingUpdateForTesting() -> AircraftPollingUpdate? {
             lastObservedPollingUpdate
+        }
+
+        func currentPollingUpdateForTesting() async -> AircraftPollingUpdate {
+            await pollingCoordinator.currentUpdate()
+        }
+
+        func applyPollingUpdateForTesting(_ update: AircraftPollingUpdate) async {
+            await apply(update)
         }
     #endif
 
@@ -361,11 +568,10 @@ actor AirAndSpaceRuntime {
         #if DEBUG
             lastObservedPollingUpdate = update
         #endif
-        guard let acceptedPublication = pollingPublicationAcceptance.accept(update) else { return }
+        guard let acceptedPublication = physicalPollingLifecycle.accept(update) else { return }
         let state: AircraftPollingState
         switch acceptedPublication {
             case .inactive:
-                guard activePollingSignature == nil else { return }
                 stateGeneration &+= 1
                 health = inactiveHealth
                 publish()
@@ -465,7 +671,7 @@ actor AirAndSpaceRuntime {
         _ snapshot: AircraftSnapshot,
         availability: MarkAvailability,
     ) async throws -> ProjectionLayerFrame<FlightsLayerKind> {
-        guard let observer = activePollingSignature?.query.observer else {
+        guard let observer = physicalPollingLifecycle.acceptedSignature?.query.observer else {
             throw ThrowValidationError.invalidPreferencePayload
         }
         let routeResults: [FlightCallsign: FlightRouteResult] = if snapshot.source ==
@@ -604,7 +810,7 @@ actor AirAndSpaceRuntime {
             health: health,
             flightsFrame: currentLayerFrame,
             snapshot: currentSnapshot,
-            activePollingSignature: activePollingSignature,
+            physicalPolling: physicalPollingLifecycle.updateState,
             semanticPreparationState: semanticPreparationState,
         )
     }

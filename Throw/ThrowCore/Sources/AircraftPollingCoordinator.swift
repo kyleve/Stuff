@@ -100,6 +100,20 @@ public struct AircraftPollingActiveUpdate: Equatable, Sendable {
         self.revision = revision
         self.state = state
     }
+
+    #if DEBUG
+        @_spi(Testing) public init(
+            testingToken: AircraftPollingActivationToken,
+            testingRevisionRawValue: UInt64,
+            state: AircraftPollingState,
+        ) {
+            self.init(
+                token: testingToken,
+                revision: Revision(rawValue: testingRevisionRawValue),
+                state: state,
+            )
+        }
+    #endif
 }
 
 /// A closed polling publication. Active state carries one coordinator-built

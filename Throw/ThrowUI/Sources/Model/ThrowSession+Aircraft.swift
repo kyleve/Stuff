@@ -288,7 +288,13 @@ extension ThrowSession {
         }
         rapidAPICredentialState = .missing
         if deletesActiveSource {
-            await deactivateAirAndSpace(reporting: .failed(.missingCredential))
+            if let activationLease = airAndSpaceActivation.activeLease {
+                await suspendAirAndSpacePolling(
+                    lease: activationLease,
+                    generation: demandGeneration,
+                    reporting: .failed(.missingCredential),
+                )
+            }
             await clearProjectionState(restartsGeography: true)
             feedHealth = .failed(.missingCredential)
         }
@@ -313,7 +319,13 @@ extension ThrowSession {
         invalidateFlightradar24Usage()
         flightradar24CredentialState = .missing
         if deletesActiveSource {
-            await deactivateAirAndSpace(reporting: .failed(.missingCredential))
+            if let activationLease = airAndSpaceActivation.activeLease {
+                await suspendAirAndSpacePolling(
+                    lease: activationLease,
+                    generation: demandGeneration,
+                    reporting: .failed(.missingCredential),
+                )
+            }
             await clearProjectionState(restartsGeography: true)
             feedHealth = .failed(.missingCredential)
         }
@@ -456,7 +468,7 @@ extension ThrowSession {
     }
 
     func scheduleDemandReconciliation() {
-        demandGeneration &+= 1
+        demandGeneration = demandGeneration.successor()
         let generation = demandGeneration
         demandTask?.cancel()
         guard projectionPreferenceInvalidation == nil else {
@@ -476,7 +488,7 @@ extension ThrowSession {
             projectionPreferenceInvalidation == nil,
             "A projection preference invalidation is already active",
         )
-        demandGeneration &+= 1
+        demandGeneration = demandGeneration.successor()
         demandTask?.cancel()
         let activationLease = airAndSpaceActivation.activeLease
         projectionContextGeneration = projectionContextGeneration.successor()
@@ -549,14 +561,32 @@ extension ThrowSession {
         projectionPreferenceInvalidation = nil
     }
 
-    func deactivateAirAndSpace(reporting health: FeedHealth) async {
-        guard let activationLease = await airAndSpaceRuntime.currentUpdate().activationLease else {
-            return
-        }
+    func deactivateAirAndSpace(
+        lease activationLease: ProjectionActivationLease,
+        reporting health: FeedHealth,
+    ) async {
         await airAndSpaceRuntime.deactivate(lease: activationLease, reporting: health)
     }
 
-    func reconcileDemand(generation: UInt64) async {
+    func suspendAirAndSpacePolling(
+        lease activationLease: ProjectionActivationLease,
+        generation: ProjectionDemandGeneration,
+        reporting health: FeedHealth,
+    ) async {
+        let result = await airAndSpaceRuntime.suspendPolling(
+            lease: activationLease,
+            demandGeneration: generation,
+            reporting: health,
+        )
+        switch result {
+            case .stopped, .alreadyStopped:
+                break
+            case .superseded:
+                scheduleDemandReconciliation()
+        }
+    }
+
+    func reconcileDemand(generation: ProjectionDemandGeneration) async {
         isReconcilingDemand = true
         defer { isReconcilingDemand = false }
         guard generation == demandGeneration,
@@ -565,18 +595,26 @@ extension ThrowSession {
         expireTemporaryWakeIfNeeded()
         scheduleQuietBoundary()
         let quiet = isQuietNow
+        let preReconcileLease = airAndSpaceActivation.activeLease
         await reconcileExperienceDemand(isQuiet: quiet)
         guard generation == demandGeneration else { return }
+        let authoritativeLease = airAndSpaceActivation.activeLease
         let hasEnabledLayer = flightsEnabled || (geographyEnabled && projectionMode == .map)
-        guard launchState.isOperational,
-              hasForegroundControllerScene,
-              outputDemands.isEmpty == false,
-              isCalibrating == false,
-              hasEnabledLayer,
-              quiet == false
+        guard launchState.isOperational, hasEnabledLayer, let activationLease = authoritativeLease
         else {
             cancelProjectionSessionLocationAcquisition(restoringPreviousHealth: true)
-            await deactivateAirAndSpace(reporting: quiet ? .quiet : .idle)
+            if let authoritativeLease {
+                await suspendAirAndSpacePolling(
+                    lease: authoritativeLease,
+                    generation: generation,
+                    reporting: quiet ? .quiet : .idle,
+                )
+            } else if let preReconcileLease {
+                await deactivateAirAndSpace(
+                    lease: preReconcileLease,
+                    reporting: quiet ? .quiet : .idle,
+                )
+            }
             guard generation == demandGeneration else { return }
             await clearProjectionState(restartsGeography: true)
             guard generation == demandGeneration else { return }
@@ -588,7 +626,11 @@ extension ThrowSession {
             await prepareProjectionSessionGPSLocation()
             guard generation == demandGeneration else { return }
             guard case .ready = projectionSessionLocationGate else {
-                await deactivateAirAndSpace(reporting: .failed(.locationUnavailable))
+                await suspendAirAndSpacePolling(
+                    lease: activationLease,
+                    generation: generation,
+                    reporting: .failed(.locationUnavailable),
+                )
                 guard generation == demandGeneration else { return }
                 await clearProjectionState(restartsGeography: true)
                 guard generation == demandGeneration else { return }
@@ -598,7 +640,11 @@ extension ThrowSession {
         }
 
         guard flightsEnabled else {
-            await deactivateAirAndSpace(reporting: .idle)
+            await suspendAirAndSpacePolling(
+                lease: activationLease,
+                generation: generation,
+                reporting: .idle,
+            )
             guard generation == demandGeneration else { return }
             currentSnapshot = nil
             replacePendingAirAndSpaceFrame(.empty)
@@ -608,7 +654,11 @@ extension ThrowSession {
         }
 
         guard let configuration = aircraftSourceSelection.configuredSource else {
-            await deactivateAirAndSpace(reporting: .failed(.sourceNotValidated))
+            await suspendAirAndSpacePolling(
+                lease: activationLease,
+                generation: generation,
+                reporting: .failed(.sourceNotValidated),
+            )
             guard generation == demandGeneration else { return }
             await clearProjectionState(restartsGeography: true)
             guard generation == demandGeneration else { return }
@@ -616,7 +666,11 @@ extension ThrowSession {
             return
         }
         if configuration.kind == .adsbExchangeRapidAPI, rapidAPICredentialState == .missing {
-            await deactivateAirAndSpace(reporting: .failed(.missingCredential))
+            await suspendAirAndSpacePolling(
+                lease: activationLease,
+                generation: generation,
+                reporting: .failed(.missingCredential),
+            )
             guard generation == demandGeneration else { return }
             await clearProjectionState(restartsGeography: true)
             guard generation == demandGeneration else { return }
@@ -624,7 +678,11 @@ extension ThrowSession {
             return
         }
         if configuration.kind == .flightradar24, flightradar24CredentialState == .missing {
-            await deactivateAirAndSpace(reporting: .failed(.missingCredential))
+            await suspendAirAndSpacePolling(
+                lease: activationLease,
+                generation: generation,
+                reporting: .failed(.missingCredential),
+            )
             guard generation == demandGeneration else { return }
             await clearProjectionState(restartsGeography: true)
             guard generation == demandGeneration else { return }
@@ -637,7 +695,11 @@ extension ThrowSession {
             query = try aircraftQuery()
         } catch {
             logPostLaunchFailure(at: .location, error: error)
-            await deactivateAirAndSpace(reporting: .failed(.locationUnavailable))
+            await suspendAirAndSpacePolling(
+                lease: activationLease,
+                generation: generation,
+                reporting: .failed(.locationUnavailable),
+            )
             guard generation == demandGeneration else { return }
             await clearProjectionState(restartsGeography: true)
             guard generation == demandGeneration else { return }
@@ -645,29 +707,15 @@ extension ThrowSession {
             return
         }
         let signature = PollingSignature(configuration: configuration, query: query)
-        guard let activationLease = airAndSpaceActivation.activeLease else {
-            assertionFailure("Air & Space demand reconciled without a coordinator lease")
-            return
-        }
-        let currentRuntime = await airAndSpaceRuntime.currentUpdate()
-        guard generation == demandGeneration,
-              projectionPreferenceInvalidation == nil
-        else { return }
-        guard airAndSpaceActivation.activeLease == activationLease else {
-            scheduleDemandReconciliation()
-            return
-        }
-        if currentRuntime.activationLease == activationLease,
-           currentRuntime.activePollingSignature == signature
-        {
-            restartRenderer()
-            return
-        }
+        #if DEBUG
+            await beforeAirAndSpaceRuntimeActivationForTesting?()
+        #endif
         let activation = await airAndSpaceRuntime.activate(
             configuration: configuration,
             query: query,
             labelMode: labelMode,
             lease: activationLease,
+            demandGeneration: generation,
         )
         guard generation == demandGeneration,
               projectionPreferenceInvalidation == nil

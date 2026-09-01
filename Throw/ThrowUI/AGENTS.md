@@ -58,6 +58,14 @@ Read the root [`AGENTS.md`](../../AGENTS.md) and group
   current polling update after activation to recover an early publication.
 - Publish a runtime polling signature only after Core accepts its physical
   activation. Read the runtime's exact lease and signature during reconciliation.
+- Carry the typed demand generation through physical activation and suspension.
+  Tombstone an equal activation even when the physical state is already stopped.
+- Treat a reconciled coordinator lease as the experience authority. Session-only
+  blockers suspend polling; only an absent lease triggers exact full deactivation.
+- Keep stopped, activating, and active physical polling in one closed state.
+  Clear its signature, token, snapshot, and frame before draining Core.
+- Resume physical polling under the same experience lease only for a newer
+  demand generation. Mint a new physical lease and Core token.
 - Store the accepted polling token and its latest revision in one state. Reject
   a same-token publication unless its revision increases.
 - Treat each Air & Space deactivation generation as a monotonic runtime tombstone.

@@ -140,6 +140,7 @@ struct ThrowSessionLocationTests {
             query: query,
             labelMode: session.labelMode,
             lease: activationLease,
+            demandGeneration: session.demandGeneration,
         )
         session.projectionSessionLocationGate = .ready
         let offeredFix = try ThrowSessionLocationTestFixture.fix(
