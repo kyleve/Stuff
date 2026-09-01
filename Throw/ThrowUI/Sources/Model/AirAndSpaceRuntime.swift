@@ -43,6 +43,55 @@ enum AirAndSpaceRuntimeActivationResult {
 
 /// Owns aircraft polling, semantic frame construction, motion state, and route enrichment.
 actor AirAndSpaceRuntime {
+    private enum AcceptedPollingPublication {
+        case inactive
+        case active(AircraftPollingState)
+    }
+
+    /// Keeps an accepted Core token and its ordered publication cursor as one
+    /// value. A revision from another activation cannot enter this state.
+    private enum PollingPublicationAcceptance {
+        struct ActiveCursor {
+            let token: AircraftPollingActivationToken
+            let latestRevision: AircraftPollingActiveUpdate.Revision?
+        }
+
+        case inactive(hasAppliedInactive: Bool)
+        case awaitingActivation
+        case active(ActiveCursor)
+
+        var expectedToken: AircraftPollingActivationToken? {
+            guard case let .active(cursor) = self else { return nil }
+            return cursor.token
+        }
+
+        mutating func activate(_ token: AircraftPollingActivationToken) {
+            self = .active(ActiveCursor(token: token, latestRevision: nil))
+        }
+
+        mutating func accept(
+            _ update: AircraftPollingUpdate,
+        ) -> AcceptedPollingPublication? {
+            switch (self, update) {
+                case let (.inactive(hasAppliedInactive), .inactive):
+                    guard hasAppliedInactive == false else { return nil }
+                    self = .inactive(hasAppliedInactive: true)
+                    return .inactive
+                case let (.active(cursor), .active(activeUpdate)):
+                    guard activeUpdate.token == cursor.token,
+                          cursor.latestRevision.map({ activeUpdate.revision > $0 }) ?? true
+                    else { return nil }
+                    self = .active(ActiveCursor(
+                        token: cursor.token,
+                        latestRevision: activeUpdate.revision,
+                    ))
+                    return .active(activeUpdate.state)
+                case (.inactive, .active), (.awaitingActivation, _), (.active, .inactive):
+                    return nil
+            }
+        }
+    }
+
     private enum ActivationLifecycle {
         case idle
         case active(ProjectionActivationLease)
@@ -99,8 +148,8 @@ actor AirAndSpaceRuntime {
     private var observationTask: Task<Void, Never>?
     private var routeTask: Task<Void, Never>?
     private var activePollingSignature: PollingSignature?
-    private var expectedPollingActivation: AircraftPollingActivationToken?
-    private var lastAppliedPollingUpdate: AircraftPollingUpdate?
+    private var pollingPublicationAcceptance =
+        PollingPublicationAcceptance.inactive(hasAppliedInactive: false)
     #if DEBUG
         private var lastObservedPollingUpdate: AircraftPollingUpdate?
     #endif
@@ -174,7 +223,7 @@ actor AirAndSpaceRuntime {
         let activationChanged = previousLease != lease
         let sourceChanged = activePollingSignature?.configuration != configuration
         let queryChanged = activePollingSignature?.query != query
-        let pollingActivationMissing = expectedPollingActivation == nil
+        let pollingActivationMissing = pollingPublicationAcceptance.expectedToken == nil
         let labelsChanged = self.labelMode != labelMode
         self.labelMode = labelMode
 
@@ -184,8 +233,7 @@ actor AirAndSpaceRuntime {
             stateGeneration &+= 1
             successfulActivationLease = nil
             activePollingSignature = nil
-            expectedPollingActivation = nil
-            lastAppliedPollingUpdate = nil
+            pollingPublicationAcceptance = .awaitingActivation
             cancelRouteEnrichment()
             currentSnapshot = nil
             currentLayerFrame = nil
@@ -208,13 +256,14 @@ actor AirAndSpaceRuntime {
                   let pollingActivation
             else { return .superseded(current: updateValue()) }
             activePollingSignature = signature
-            expectedPollingActivation = pollingActivation
+            pollingPublicationAcceptance.activate(pollingActivation)
             publish()
-            await apply(pollingCoordinator.currentUpdate())
+            let currentPollingUpdate = await pollingCoordinator.currentUpdate()
+            await apply(currentPollingUpdate)
             guard lifecycleGeneration == self.lifecycleGeneration,
                   activationLifecycle.activeLease == lease,
                   activePollingSignature == signature,
-                  expectedPollingActivation == pollingActivation
+                  pollingPublicationAcceptance.expectedToken == pollingActivation
             else { return .superseded(current: updateValue()) }
             return .accepted(updateValue())
         }
@@ -224,7 +273,7 @@ actor AirAndSpaceRuntime {
         }
         guard activationLifecycle.activeLease == lease,
               activePollingSignature == signature,
-              expectedPollingActivation != nil
+              pollingPublicationAcceptance.expectedToken != nil
         else { return .superseded(current: updateValue()) }
         return .accepted(updateValue())
     }
@@ -243,8 +292,7 @@ actor AirAndSpaceRuntime {
         stateGeneration &+= 1
         successfulActivationLease = nil
         activePollingSignature = nil
-        expectedPollingActivation = nil
-        lastAppliedPollingUpdate = nil
+        pollingPublicationAcceptance = .inactive(hasAppliedInactive: false)
         inactiveHealth = health
         cancelRouteEnrichment()
         currentSnapshot = nil
@@ -289,7 +337,7 @@ actor AirAndSpaceRuntime {
         }
 
         func activePollingActivationForTesting() -> AircraftPollingActivationToken? {
-            expectedPollingActivation
+            pollingPublicationAcceptance.expectedToken
         }
 
         func lastObservedPollingUpdateForTesting() -> AircraftPollingUpdate? {
@@ -313,23 +361,16 @@ actor AirAndSpaceRuntime {
         #if DEBUG
             lastObservedPollingUpdate = update
         #endif
+        guard let acceptedPublication = pollingPublicationAcceptance.accept(update) else { return }
         let state: AircraftPollingState
-        switch update {
+        switch acceptedPublication {
             case .inactive:
-                guard expectedPollingActivation == nil,
-                      activePollingSignature == nil,
-                      lastAppliedPollingUpdate != update
-                else { return }
-                lastAppliedPollingUpdate = update
+                guard activePollingSignature == nil else { return }
                 stateGeneration &+= 1
                 health = inactiveHealth
                 publish()
                 return
-            case let .active(token, activeState):
-                guard expectedPollingActivation == token,
-                      lastAppliedPollingUpdate != update
-                else { return }
-                lastAppliedPollingUpdate = update
+            case let .active(activeState):
                 state = activeState
         }
 

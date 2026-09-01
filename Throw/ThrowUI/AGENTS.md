@@ -58,6 +58,8 @@ Read the root [`AGENTS.md`](../../AGENTS.md) and group
   current polling update after activation to recover an early publication.
 - Publish a runtime polling signature only after Core accepts its physical
   activation. Read the runtime's exact lease and signature during reconciliation.
+- Store the accepted polling token and its latest revision in one state. Reject
+  a same-token publication unless its revision increases.
 - Treat each Air & Space deactivation generation as a monotonic runtime tombstone.
   A newer teardown retires older work. An older teardown cannot stop a newer lease.
 - Keep one coordinator timer across all scenes. Run at most the active and
