@@ -44,6 +44,8 @@ Read the root [`AGENTS.md`](../../AGENTS.md) and group
 - Put every preference write through the session's owned queue. Coalesce only
   adjacent UI snapshots, preserve immediate-write barriers, and flush the queue
   when the final controller scene backgrounds.
+- Keep quiet-hours edits in a settings-scoped draft. Publish only a validated
+  `QuietSchedule` to the session; invalid edits must leave runtime demand unchanged.
 - Render projector, Preview, and full-screen fallback through
   `ProjectionSurface`. Do not add a parallel renderer.
 - Keep the render loop on fixed deadlines. Skip elapsed frame slots instead of

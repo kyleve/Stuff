@@ -28,17 +28,7 @@ extension ThrowSession {
         flipVertical = preferences.calibration.flipVertical
         safeInsetPercent = preferences.calibration.safeInsetFraction * 100
         calibrationVerified = preferences.calibration.verifiedOnExternalDisplay
-        quietHoursEnabled = preferences.quietSchedule.interval != nil
-        quietStart = Self.date(
-            for: preferences.quietSchedule.interval?.start,
-            fallbackHour: 22,
-            calendar: calendar,
-        )
-        quietEnd = Self.date(
-            for: preferences.quietSchedule.interval?.end,
-            fallbackHour: 7,
-            calendar: calendar,
-        )
+        quietSchedule = preferences.quietSchedule
         locationHealth = Self.locationHealth(
             for: preferences.confirmedLocation,
             now: dateProvider.now(),
@@ -158,7 +148,7 @@ extension ThrowSession {
         let global = try ThrowGlobalPreferences(
             calibration: projectionCalibration(),
             intensityPercent: intensityPercent,
-            quietSchedule: quietSchedule(),
+            quietSchedule: quietSchedule,
         )
         let airAndSpace = try AirAndSpacePreferences(
             mapViewport: MapViewport(radius: NauticalMiles(value: mapRadius)),
@@ -203,21 +193,8 @@ extension ThrowSession {
         )
     }
 
-    func quietSchedule() throws -> QuietSchedule {
-        guard quietHoursEnabled else { return .disabled }
-        let startComponents = calendar.dateComponents([.hour, .minute], from: quietStart)
-        let endComponents = calendar.dateComponents([.hour, .minute], from: quietEnd)
-        guard let startHour = startComponents.hour,
-              let startMinute = startComponents.minute,
-              let endHour = endComponents.hour,
-              let endMinute = endComponents.minute
-        else {
-            throw ThrowValidationError.invalidQuietInterval
-        }
-        return try QuietSchedule(
-            start: LocalTime(hour: startHour, minute: startMinute),
-            end: LocalTime(hour: endHour, minute: endMinute),
-        )
+    func updateQuietSchedule(_ schedule: QuietSchedule) {
+        quietSchedule = schedule
     }
 }
 

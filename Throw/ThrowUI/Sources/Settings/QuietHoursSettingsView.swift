@@ -2,28 +2,33 @@ import SFSafeSymbols
 import SwiftUI
 
 struct QuietHoursSettingsView: View {
-    @Bindable var session: ThrowSession
+    @State private var model: QuietHoursSettingsModel
+
+    init(session: ThrowSession) {
+        _model = State(initialValue: QuietHoursSettingsModel(session: session))
+    }
 
     var body: some View {
+        @Bindable var model = model
         Form {
-            if let settingsFailure = session.settingsFailure {
+            if let settingsFailure = model.settingsFailure {
                 Section {
                     SettingsFailureMessage(detail: settingsFailure)
                 }
             }
-            Toggle(String(localized: .quietEnable), isOn: $session.quietHoursEnabled)
-            if session.quietHoursEnabled {
+            Toggle(String(localized: .quietEnable), isOn: $model.isEnabled)
+            if model.isEnabled {
                 DatePicker(
                     String(localized: .quietStart),
-                    selection: $session.quietStart,
+                    selection: $model.start,
                     displayedComponents: .hourAndMinute,
                 )
                 DatePicker(
                     String(localized: .quietEnd),
-                    selection: $session.quietEnd,
+                    selection: $model.end,
                     displayedComponents: .hourAndMinute,
                 )
-                if session.quietScheduleIsValid == false {
+                if model.scheduleIsValid == false {
                     Label(
                         String(localized: .quietEqualEndpointsError),
                         systemSymbol: .exclamationmarkTriangleFill,

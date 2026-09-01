@@ -17,9 +17,7 @@ extension ThrowSession {
         flipsVertically: Bool,
         safeInsetPercent: Double,
         calibrationVerified: Bool,
-        quietEnabled: Bool,
-        quietStart: Date,
-        quietEnd: Date,
+        quietSchedule: QuietSchedule,
     ) async {
         if locationMode == .manual {
             guard await saveObserverLocation(
@@ -47,9 +45,7 @@ extension ThrowSession {
         flipVertical = flipsVertically
         self.safeInsetPercent = safeInsetPercent
         self.calibrationVerified = calibrationVerified
-        quietHoursEnabled = quietEnabled
-        self.quietStart = quietStart
-        self.quietEnd = quietEnd
+        self.quietSchedule = quietSchedule
         let incompleteSetup = setupState
         guard let completedSetup = setupState.completing(projectionMode: mode) else {
             assertionFailure("Onboarding completion requires validated setup inputs")
