@@ -97,9 +97,29 @@ inputs, so it cannot be requested in True Sky.
 `ProjectionExperienceID` is a closed raw-value enum. The standard catalog derives
 its descriptors from those cases, so a new shipped experience requires exhaustive work.
 
-`ProjectionFrame` contains ordered projected mark and line layers. Line styles
-are typed, so Geography and future transit routes use one projection path. The
-worker caches static lines by layer, revision, Map center, viewport, and calibration.
+`ProjectionMarkLayerKind` and `ProjectionLineLayerKind` bind each semantic
+payload to its projected payload. `ProjectedLayerFrame` keeps that binding
+through `ProjectionEngine`. Its mark initializer checks the erased
+`LayerMarkID` tag before it stores a mark.
+`ProjectedExperienceFrame` fixes each experience's projected layers and modes.
+Air & Space True Sky cannot carry Geography. Transit cannot carry Air & Space
+layers or a True Sky mode. Map output cannot carry the True-Sky-only Stars
+layer. Layer identity also owns the fixed renderer z-order.
+
+The worker converts `ProjectionExperienceInput` into one closed
+`PreparedProjectionExperienceInput` after it projects static lines. The engine
+accepts that value and returns the matching `ProjectedExperienceFrame`.
+ThrowUI erases the closed output once in
+`ProjectionFrame.swift`, at the renderer boundary.
+
+Line styles are typed, so Geography and future transit routes use one
+projection path. `ProjectionEngine.lineFrame` records the semantic source
+revision and full projection context in each static-line frame. The engine
+rejects a prepared frame from another source revision or projection context.
+It derives the render identity from this provenance. Callers cannot supply an
+arbitrary revision ID or replace the projected payload.
+The worker caches static lines by layer, revision, Map center, viewport,
+calibration, and geometry.
 It does not rebuild them at the 30 Hz mark rate. Expensive work stays off the
 main actor. Generation checks reject late work.
 Position prediction continues until a later successful poll replaces the

@@ -49,6 +49,17 @@ Read the root [`AGENTS.md`](../../AGENTS.md) and group
   later target updates until fade-in completes, and never mix experiences.
 - Send only `ProjectionExperienceInput` to the production projection worker.
   Keep raw layer-array entry points inside DEBUG test support.
+- Build one closed `PreparedProjectionExperienceInput` after static-line
+  projection. Never send the engine parallel semantic and projected arrays.
+- Cache each typed static-line frame with its semantic revision and full
+  projection context. Never rebuild or replace its projected payload by hand.
+- Keep `ProjectedExperienceFrame` typed through the projection worker. Erase it
+  only in `Projection/ProjectionFrame.swift`.
+- Construct and replace raw `ProjectionFrame` and `ProjectedLayer` values only
+  in `Projection/ProjectionFrame.swift`. Keep arbitrary test factories in DEBUG.
+- Keep erased production frames in the closed Air & Space or Transit
+  presentation case. Never animate across cases or combine a DEBUG frame with a
+  production frame.
 - Keep setup lifecycle data in the session's single `ThrowSetupState`. Change
   validated source and location values atomically through that state. Persist a
   replacement location before publishing it, and invalidate the old projection

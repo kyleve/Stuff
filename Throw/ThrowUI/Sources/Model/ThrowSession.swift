@@ -179,13 +179,7 @@ public final class ThrowSession {
             guard oldValue != geographyEnabled, isApplyingPreferences == false else { return }
             if geographyEnabled == false {
                 geographyLayerHealth = .idle
-                projectionFrame = ProjectionFrame(
-                    mode: projectionFrame.mode,
-                    generatedAt: projectionFrame.generatedAt,
-                    geography: nil,
-                    geographyOpacity: 1,
-                    marks: projectionFrame.marks,
-                )
+                projectionFrame = projectionFrame.removingGeography()
             }
             settingsChanged(reconcilesDemand: false)
             if flightsEnabled {
@@ -355,7 +349,7 @@ public final class ThrowSession {
 
     @ObservationIgnored var pendingLocationFix: LocationFix?
     @ObservationIgnored var mayApplyTrueHeadingHint = true
-    @ObservationIgnored var currentLayerFrame: LayerFrame?
+    @ObservationIgnored var currentLayerFrame: ProjectionLayerFrame<FlightsLayerKind>?
     @ObservationIgnored var currentExperienceFrame: ProjectionExperienceFrame
     @ObservationIgnored var projectionPresentationTransition: ProjectionPresentationTransition?
     @ObservationIgnored var semanticFramesByExperience: [
@@ -451,12 +445,9 @@ public final class ThrowSession {
         safeInsetPercent = preferences.calibration.safeInsetFraction * 100
         calibrationVerified = preferences.calibration.verifiedOnExternalDisplay
         quietSchedule = preferences.quietSchedule
-        projectionFrame = ProjectionFrame(
+        projectionFrame = .emptyAirAndSpace(
             mode: preferences.selectedProjectionMode ?? .map,
             generatedAt: dateProvider.now(),
-            geography: nil,
-            geographyOpacity: 1,
-            marks: [],
         )
         observerMapPoint = nil
         currentExperienceFrame = .airAndSpace(.empty)

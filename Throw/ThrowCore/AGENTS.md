@@ -55,11 +55,23 @@ location, and scheduling; see [`README.md`](README.md). Read the root
   runtime plugin or `AnyView` boundary.
 - Keep shipped experience identities closed. Derive standard descriptors and
   presentation through exhaustive switches so a new case forces every owner to update.
-- Construct semantic frames through typed layer and experience cases. Do not pass
-  parallel experience IDs, raw layer arrays, and projection modes across production boundaries.
-- Keep layer IDs, mark identities, line styles, and semantic payload shapes closed
-  and typed. Construct raw `LayerFrame` values only in `ProjectionModels.swift`.
-- Keep projected frames generic over ordered mark and line layers. Cache static
+- Construct semantic frames through typed layer and experience cases. Never pass
+  parallel experience IDs, raw layer arrays, and modes across production boundaries.
+- Keep layer IDs, mark identities, line styles, and payload shapes closed and
+  typed. Construct raw `LayerFrame` values only in `ProjectionModels.swift`.
+- Bind each semantic layer kind to its projected payload with
+  `ProjectionMarkLayerKind` or `ProjectionLineLayerKind`.
+- Derive renderer z-order from the closed `LayerID`. Never duplicate it in a
+  catalog or presentation switch.
+- Pass only `PreparedProjectionExperienceInput` to `ProjectionEngine`. Return a
+  closed `ProjectedExperienceFrame` from projection.
+- Create static-line frames with `ProjectionEngine.lineFrame`. Reject a prepared
+  frame when its source revision or projection context does not match.
+- Derive static-line render identity from its typed layer, source revision, and
+  projection context. Never accept a caller-supplied revision ID.
+- Never let a production engine API accept an arbitrary experience ID or
+  erased layer array.
+- Erase projected frames only in ThrowUI's `ProjectionFrame.swift`. Cache static
   lines by layer identity and semantic revision.
 - Keep version-two preferences grouped by global, playlist, and experience
   ownership. Preserve exact version-one migration and existing Keychain IDs.

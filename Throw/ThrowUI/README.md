@@ -79,7 +79,7 @@ source cannot carry a replacement credential into the apply transaction.
 
 Views render session state and send intents back to it. They never access
 UserDefaults, Keychain, location, or the network. `ProjectionSurface` is the
-sole renderer. It iterates the ordered layers in an immutable generic
+sole renderer. It iterates the ordered layers in an immutable renderer
 `ProjectionFrame`. It does not enumerate a global catalog or special-case
 Flights. The projector is decorative. Preview exposes the active experience
 name, health, and one status summary.
@@ -95,9 +95,16 @@ switch fades the surface to black, exchanges frames at black, and fades back
 in. The typed fade state buffers newer target output until the prepared pair is
 fully visible. Reduce Motion keeps this opacity fade but removes experience-specific movement.
 
-The production worker accepts one typed `ProjectionExperienceInput`. This value
-pairs an experience with its valid layers and projection modes. Test-only raw
-layer entry points are absent from release builds.
+The production worker accepts one typed `ProjectionExperienceInput`. It uses
+Core to project static lines, then creates one closed
+`PreparedProjectionExperienceInput`. Each cached static-line frame retains its
+semantic revision and projection context. `ProjectionEngine` rejects stale or
+mismatched prepared lines and returns the matching `ProjectedExperienceFrame`.
+This value fixes each experience's valid projected layers and modes.
+`ProjectionFrame.swift` erases it once into renderer layers. Raw construction
+and replacement stay in that file. A closed presentation identity separates
+Air & Space, Transit, and DEBUG frames before any animation combines them.
+Test-only raw worker entry points are absent from release builds.
 
 In Map mode, the surface draws cached geography before aircraft. Lines use
 constant screen-space widths and a separate restrained intensity. Roads and

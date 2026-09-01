@@ -35,13 +35,12 @@ public struct LayerDescriptor<Runtime: ProjectionLayerRuntime>: Sendable {
 
     public init(
         availability: LayerAvailability,
-        zOrder: Int,
         runtimeFactory: LayerRuntimeFactory<Runtime>,
     ) {
         id = Runtime.Layer.id
         self.availability = availability
         supportedModes = Runtime.Layer.supportedModes
-        self.zOrder = zOrder
+        zOrder = Runtime.Layer.zOrder
         self.runtimeFactory = runtimeFactory
     }
 }
@@ -101,38 +100,32 @@ public struct LayerCatalog: Sendable {
     ) {
         let flights = LayerDescriptor(
             availability: LayerAvailability.enabled,
-            zOrder: 100,
             runtimeFactory: flightsFactory,
         )
         let geography = LayerDescriptor(
             availability: LayerAvailability.enabled,
-            zOrder: 0,
             runtimeFactory: geographyFactory,
         )
         let stars = LayerDescriptor(
             availability: LayerAvailability.planned,
-            zOrder: 10,
             runtimeFactory: LayerRuntimeFactory {
                 EmptyLayerRuntime<StarsLayerKind>()
             },
         )
         let satellites = LayerDescriptor(
             availability: LayerAvailability.planned,
-            zOrder: 50,
             runtimeFactory: LayerRuntimeFactory {
                 EmptyLayerRuntime<SatellitesLayerKind>()
             },
         )
         let transitNetwork = LayerDescriptor(
             availability: LayerAvailability.planned,
-            zOrder: 20,
             runtimeFactory: LayerRuntimeFactory {
                 EmptyLayerRuntime<TransitNetworkLayerKind>()
             },
         )
         let transitVehicles = LayerDescriptor(
             availability: LayerAvailability.planned,
-            zOrder: 100,
             runtimeFactory: LayerRuntimeFactory {
                 EmptyLayerRuntime<TransitVehiclesLayerKind>()
             },
@@ -153,6 +146,6 @@ public struct LayerCatalog: Sendable {
 
 private struct EmptyLayerRuntime<Layer: ProjectionLayerKind>: ProjectionLayerRuntime {
     func frame(for date: Date) async throws -> ProjectionLayerFrame<Layer> {
-        ProjectionLayerFrame(observedAt: date, payload: .empty)
+        .empty(observedAt: date)
     }
 }

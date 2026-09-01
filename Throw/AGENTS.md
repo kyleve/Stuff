@@ -27,6 +27,8 @@ WhereCore, RegionKit, or LifecycleKit into this feature.
   prewarming experience runtimes may run at the same time.
 - Exchange complete experience frames only while the projection is black.
   Never draw layers from two experiences together.
+- Keep projected layer membership typed through ThrowCore. Erase it once in
+  ThrowUI's `Projection/ProjectionFrame.swift` for the shared renderer.
 - Select exactly one aircraft source. Cancel and drain it before starting
   another; never combine or automatically fall back between providers.
 - Keep source configuration and validation in one `AircraftSourceSelection`.

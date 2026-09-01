@@ -259,7 +259,10 @@ extension ThrowSession {
         geographyLayerHealth = prepared.output.geographyHealth
         let semanticFrame = prepared.semanticFrame
         currentExperienceFrame = semanticFrame
-        currentLayerFrame = semanticFrame.layers.first { $0.layerID == .flights }
+        currentLayerFrame = switch semanticFrame {
+            case let .airAndSpace(frame): frame.flights
+            case .transit: nil
+        }
         feedHealth = experienceHealth[to] ?? .idle
         if preparedOutputsByExperience[to]?.activationLease == lease {
             preparedOutputsByExperience.removeValue(forKey: to)

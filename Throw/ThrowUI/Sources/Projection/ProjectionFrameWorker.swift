@@ -1,5 +1,9 @@
 import Foundation
-import ThrowCore
+#if DEBUG
+    @_spi(Testing) import ThrowCore
+#else
+    import ThrowCore
+#endif
 
 /// Off-main-actor projection, label layout, correction easing, and mode morphing.
 actor ProjectionFrameWorker {
@@ -35,11 +39,49 @@ actor ProjectionFrameWorker {
             }
         }
 
-        var layerFrames: [LayerFrame] {
+        var flightsFrame: ProjectionLayerFrame<FlightsLayerKind>? {
             switch self {
-                case let .checked(input): input.experienceFrame.layers
+                case let .checked(input):
+                    return switch input {
+                        case let .airAndSpace(input): input.frame.flights
+                        case .transit: Optional.none
+                    }
                 #if DEBUG
-                    case let .testing(_, layerFrames, _, _): layerFrames
+                    case let .testing(_, layerFrames, _, _):
+                        guard let frame = layerFrames.first(where: { $0.layerID == .flights })
+                        else { return nil }
+                        return ProjectionLayerFrame(
+                            observedAt: frame.observedAt,
+                            marks: frame.marks,
+                        )
+                #endif
+            }
+        }
+
+        var markRevisions: [LayerID: Date] {
+            switch self {
+                case let .checked(input):
+                    switch input {
+                        case let .airAndSpace(input):
+                            var revisions: [LayerID: Date] = [:]
+                            revisions[.flights] = input.frame.flights?.observedAt
+                            revisions[.stars] = input.frame.stars?.observedAt
+                            revisions[.satellites] = input.frame.satellites?.observedAt
+                            return revisions
+                        case let .transit(input):
+                            return input.frame.vehicles.map {
+                                [.transitVehicles: $0.observedAt]
+                            } ?? [:]
+                    }
+                #if DEBUG
+                    case let .testing(_, layerFrames, _, _):
+                        var revisions: [LayerID: Date] = [:]
+                        for frame in layerFrames {
+                            if case .marks = frame.content {
+                                revisions[frame.layerID] = frame.observedAt
+                            }
+                        }
+                        return revisions
                 #endif
             }
         }
@@ -78,8 +120,9 @@ actor ProjectionFrameWorker {
     private var nextGeographyWaiterID: UInt64 = 0
     private var geographyLoadGeneration: UInt64 = 0
     private var geographyLoadFailed = false
-    private var staticLineProjectionCache = StaticLineProjectionCache()
-    private var lineProjectionSequence: UInt64 = 0
+    private var geographyProjectionCache = StaticLineProjectionCache<GeographyLayerKind>()
+    private var transitNetworkProjectionCache =
+        StaticLineProjectionCache<TransitNetworkLayerKind>()
     private var experienceStates: [ProjectionExperienceID: ExperienceState] = [:]
 
     init(
@@ -206,14 +249,11 @@ actor ProjectionFrameWorker {
     ) async throws -> ProjectionFrameWorkerOutput {
         try Task.checkCancellation()
         let experienceID = input.experienceID
-        let layerFrames = input.layerFrames
         let geographyEnabled = input.geographyEnabled
         let viewport = input.viewport
         var experienceState = experienceStates[experienceID] ?? ExperienceState()
-        let flightsLayerFrame = layerFrames.first { $0.layerID == .flights }
-        let markRevisions = Dictionary(uniqueKeysWithValues: layerFrames.compactMap { frame in
-            if case .marks = frame.content { (frame.layerID, frame.observedAt) } else { nil }
-        })
+        let flightsLayerFrame = input.flightsFrame
+        let markRevisions = input.markRevisions
         let observationChanged = experienceState.lastMarkRevisions != markRevisions
         let geographyResult: GeographyProjectionResult
         do {
@@ -230,64 +270,103 @@ actor ProjectionFrameWorker {
             geographyResult = .unavailable
         }
         try Task.checkCancellation()
-        let zOrders = Dictionary(
-            uniqueKeysWithValues: LayerCatalog.standard.descriptors.map { ($0.id, $0.zOrder) },
-        )
-        var projectedLineLayers: [ProjectedLayer] = geographyResult.projection.map {
-            [
-                ProjectedLayer(
-                    id: .geography,
-                    zOrder: zOrders[.geography] ?? 0,
-                    opacity: 1,
-                    content: .lines($0),
-                ),
-            ]
-        } ?? []
-        for lineFrame in layerFrames {
-            guard case .lines = lineFrame.content,
-                  projectedLineLayers.contains(where: { $0.id == lineFrame.layerID }) == false
-            else { continue }
-            let projection = try projectedLineCollection(
-                for: lineFrame,
-                mapCenter: mapCenter,
-                viewport: viewport,
-                calibration: calibration,
-            )
-            projectedLineLayers.append(
-                ProjectedLayer(
-                    id: lineFrame.layerID,
-                    zOrder: zOrders[lineFrame.layerID] ?? 0,
-                    opacity: 1,
-                    content: .lines(projection),
-                ),
-            )
-        }
         let target: ProjectionFrame
         switch input {
-            case let .checked(input):
-                target = try engine.frame(
-                    input: input,
-                    projectedLineLayers: projectedLineLayers,
-                    layerZOrders: zOrders,
+            case let .checked(.airAndSpace(projectionInput)):
+                let projected = try engine.frame(
+                    input: .airAndSpace(PreparedAirAndSpaceProjectionInput(
+                        input: projectionInput,
+                        geography: geographyResult.projection,
+                    )),
                     observer: observer,
                     mapCenter: mapCenter,
                     calibration: calibration,
                     geometry: ProjectionGeometry(width: 1, height: 1),
                     generatedAt: generatedAt,
                 )
+                target = present(projected)
+            case let .checked(.transit(projectionInput)):
+                let network: ProjectedLayerFrame<TransitNetworkLayerKind>? = if let layerFrame =
+                    projectionInput.frame.network
+                {
+                    try projectedTransitNetworkLayer(
+                        layerFrame,
+                        mapCenter: mapCenter,
+                        viewport: viewport,
+                        calibration: calibration,
+                    )
+                } else {
+                    nil
+                }
+                let projected = try engine.frame(
+                    input: .transit(PreparedTransitProjectionInput(
+                        input: projectionInput,
+                        geography: geographyResult.projection,
+                        network: network,
+                    )),
+                    observer: observer,
+                    mapCenter: mapCenter,
+                    calibration: calibration,
+                    geometry: ProjectionGeometry(width: 1, height: 1),
+                    generatedAt: generatedAt,
+                )
+                target = present(projected)
             #if DEBUG
-                case .testing:
-                    target = try engine.frameForTesting(
-                        experienceID: experienceID,
+                case let .testing(_, layerFrames, _, _):
+                    let zOrders = Dictionary(
+                        uniqueKeysWithValues: LayerCatalog.standard.descriptors.map {
+                            ($0.id, $0.zOrder)
+                        },
+                    )
+                    var projectedLayers = geographyResult.projection.map {
+                        [ProjectedLayer.testing(
+                            id: .geography,
+                            zOrder: zOrders[.geography] ?? 0,
+                            opacity: 1,
+                            content: .lines($0.lines),
+                        )]
+                    } ?? []
+                    for lineFrame in layerFrames {
+                        guard case .lines = lineFrame.content,
+                              projectedLayers.contains(where: { $0.id == lineFrame.layerID }) ==
+                              false
+                        else { continue }
+                        let projection = try projectedLineCollectionForTesting(
+                            layerFrame: lineFrame,
+                            mapCenter: mapCenter,
+                            viewport: viewport,
+                            calibration: calibration,
+                        )
+                        projectedLayers.append(ProjectedLayer.testing(
+                            id: lineFrame.layerID,
+                            zOrder: zOrders[lineFrame.layerID] ?? 0,
+                            opacity: 1,
+                            content: .lines(projection),
+                        ))
+                    }
+                    let marks = try engine.projectedMarksForTesting(
                         layerFrames: layerFrames,
-                        projectedLineLayers: projectedLineLayers,
-                        layerZOrders: zOrders,
                         observer: observer,
                         mapCenter: mapCenter,
                         viewport: viewport,
                         calibration: calibration,
                         geometry: ProjectionGeometry(width: 1, height: 1),
                         generatedAt: generatedAt,
+                    )
+                    let marksByLayer = Dictionary(grouping: marks, by: \.id.layerID)
+                    projectedLayers.append(contentsOf: marksByLayer.map { id, marks in
+                        ProjectedLayer.testing(
+                            id: id,
+                            zOrder: zOrders[id] ?? 0,
+                            opacity: 1,
+                            content: .marks(marks),
+                        )
+                    })
+                    target = .testing(
+                        experienceID: experienceID,
+                        mode: viewport.mode,
+                        generatedAt: generatedAt,
+                        layers: projectedLayers,
                     )
             #endif
         }
@@ -348,8 +427,8 @@ actor ProjectionFrameWorker {
         let layerFrame = try await loadGeographyLayerFrame()
         try Task.checkCancellation()
         return try .projected(
-            projectedLineCollection(
-                for: layerFrame.erased,
+            projectedGeographyLineLayer(
+                layerFrame,
                 mapCenter: mapCenter,
                 viewport: viewport,
                 calibration: calibration,
@@ -357,38 +436,73 @@ actor ProjectionFrameWorker {
         )
     }
 
-    private func projectedLineCollection(
-        for layerFrame: LayerFrame,
+    private func projectedGeographyLineLayer(
+        _ layerFrame: ProjectionLayerFrame<GeographyLayerKind>,
         mapCenter: GeoCoordinate,
         viewport: ProjectionViewport,
         calibration: ProjectionCalibration,
-    ) throws -> ProjectedLineCollection {
-        let key = StaticLineProjectionCache.Key(
-            layerID: layerFrame.layerID,
-            revision: layerFrame.observedAt,
-            mapCenter: mapCenter,
-            viewport: viewport,
-            calibration: calibration,
-        )
-        if let projection = staticLineProjectionCache.projection(for: key) {
-            return projection
-        }
-        let segments = try engine.lineSegments(
-            lines: layerFrame.lines,
+    ) throws -> ProjectedLayerFrame<GeographyLayerKind> {
+        try projectLineLayer(
+            source: layerFrame,
             mapCenter: mapCenter,
             viewport: viewport,
             calibration: calibration,
             geometry: ProjectionGeometry(width: 1, height: 1),
+            engine: engine,
+            cache: &geographyProjectionCache,
         )
-        try Task.checkCancellation()
-        lineProjectionSequence &+= 1
-        let projection = ProjectedLineCollection(
-            id: ProjectionLineRevisionID(rawValue: lineProjectionSequence),
-            segments: segments,
-        )
-        staticLineProjectionCache.insert(projection, for: key)
-        return projection
     }
+
+    private func projectedTransitNetworkLayer(
+        _ layerFrame: ProjectionLayerFrame<TransitNetworkLayerKind>,
+        mapCenter: GeoCoordinate,
+        viewport: ProjectionViewport,
+        calibration: ProjectionCalibration,
+    ) throws -> ProjectedLayerFrame<TransitNetworkLayerKind> {
+        try projectLineLayer(
+            source: layerFrame,
+            mapCenter: mapCenter,
+            viewport: viewport,
+            calibration: calibration,
+            geometry: ProjectionGeometry(width: 1, height: 1),
+            engine: engine,
+            cache: &transitNetworkProjectionCache,
+        )
+    }
+
+    #if DEBUG
+        private func projectedLineCollectionForTesting(
+            layerFrame: LayerFrame,
+            mapCenter: GeoCoordinate,
+            viewport: ProjectionViewport,
+            calibration: ProjectionCalibration,
+        ) throws -> ProjectedLineCollection {
+            switch layerFrame.layerID {
+                case .geography:
+                    try projectedGeographyLineLayer(
+                        ProjectionLayerFrame<GeographyLayerKind>(
+                            observedAt: layerFrame.observedAt,
+                            lines: layerFrame.lines,
+                        ),
+                        mapCenter: mapCenter,
+                        viewport: viewport,
+                        calibration: calibration,
+                    ).lines
+                case .transitNetwork:
+                    try projectedTransitNetworkLayer(
+                        ProjectionLayerFrame<TransitNetworkLayerKind>(
+                            observedAt: layerFrame.observedAt,
+                            lines: layerFrame.lines,
+                        ),
+                        mapCenter: mapCenter,
+                        viewport: viewport,
+                        calibration: calibration,
+                    ).lines
+                case .flights, .stars, .satellites, .transitVehicles:
+                    preconditionFailure("A mark layer cannot carry test line content")
+            }
+        }
+    #endif
 
     private func loadGeographyLayerFrame() async throws
         -> ProjectionLayerFrame<GeographyLayerKind>
@@ -525,6 +639,10 @@ actor ProjectionFrameWorker {
             state.targetHistory.record(resolvedTarget)
             return resolvedTarget
         }
+        precondition(
+            previousFrame.hasSamePresentationExperience(as: target),
+            "Projection state cannot combine production and test Views or different Views",
+        )
         if previousFrame.mode != target.mode,
            state.modeTransition?.targetMode != target.mode
         {
@@ -720,13 +838,15 @@ actor ProjectionFrameWorker {
                 )
             })
         }
-        let lineLayers = transitionedLineLayers(
-            source: source,
-            target: target,
-            progress: progress,
-            transitionsMode: transitionsLabels,
+        guard transitionsLabels else { return target.replacingMarks(marks) }
+        let usesSourceLines = progress < 0.5
+        let lineFrame = usesSourceLines ? source : target
+        let lineOpacity = usesSourceLines ? 1 - progress * 2 : (progress - 0.5) * 2
+        return target.replacingMarks(
+            marks,
+            lineLayersFrom: lineFrame,
+            lineOpacity: lineOpacity,
         )
-        return target.replacingMarks(marks).replacingLineLayers(lineLayers)
     }
 
     private func cubicEaseOut(_ progress: Double) -> Double {
@@ -756,62 +876,7 @@ actor ProjectionFrameWorker {
         let usesSource = progress < 0.5
         let frame = usesSource ? source : target
         let opacity = usesSource ? 1 - progress * 2 : (progress - 0.5) * 2
-        let faded = frame.replacingMarks(
-            frame.marks.map { mark in
-                ProjectedMark(
-                    id: mark.id,
-                    point: mark.point,
-                    range: mark.range,
-                    glyph: mark.glyph,
-                    label: mark.label,
-                    secondaryProminence: mark.secondaryProminence,
-                    orientationDegrees: mark.orientationDegrees,
-                    opacity: mark.opacity * opacity,
-                    labelOpacity: mark.labelOpacity,
-                    altitudeIsApproximate: mark.altitudeIsApproximate,
-                )
-            },
-        )
-        .replacingLineLayers(frame.layers.compactMap { layer in
-            guard case let .lines(lines) = layer.content else { return nil }
-            return ProjectedLayer(
-                id: layer.id,
-                zOrder: layer.zOrder,
-                opacity: layer.opacity * opacity,
-                content: .lines(lines),
-            )
-        })
-        return ProjectionFrame(
-            experienceID: target.experienceID,
-            mode: target.mode,
-            generatedAt: target.generatedAt,
-            layers: faded.layers,
-        )
-    }
-
-    private func transitionedLineLayers(
-        source: ProjectionFrame,
-        target: ProjectionFrame,
-        progress: Double,
-        transitionsMode: Bool,
-    ) -> [ProjectedLayer] {
-        guard transitionsMode else {
-            return target.layers.filter { layer in
-                if case .lines = layer.content { true } else { false }
-            }
-        }
-        let usesSource = progress < 0.5
-        let frame = usesSource ? source : target
-        let opacity = usesSource ? 1 - progress * 2 : (progress - 0.5) * 2
-        return frame.layers.compactMap { layer in
-            guard case let .lines(lines) = layer.content else { return nil }
-            return ProjectedLayer(
-                id: layer.id,
-                zOrder: layer.zOrder,
-                opacity: layer.opacity * opacity,
-                content: .lines(lines),
-            )
-        }
+        return frame.faded(by: opacity, as: target)
     }
 
     private func modeLabelOpacity(at progress: Double) -> Double {
@@ -868,6 +933,36 @@ actor ProjectionFrameWorker {
         if delta < -180 { delta += 360 }
         return from + delta * progress
     }
+}
+
+private func projectLineLayer<Layer: ProjectionLineLayerKind>(
+    source: ProjectionLayerFrame<Layer>,
+    mapCenter: GeoCoordinate,
+    viewport: ProjectionViewport,
+    calibration: ProjectionCalibration,
+    geometry: ProjectionGeometry,
+    engine: ProjectionEngine,
+    cache: inout StaticLineProjectionCache<Layer>,
+) throws -> ProjectedLayerFrame<Layer> {
+    let key = StaticLineProjectionCache<Layer>.Key(
+        revision: source.observedAt,
+        mapCenter: mapCenter,
+        viewport: viewport,
+        calibration: calibration,
+        geometry: geometry,
+    )
+    if let frame = cache.frame(for: key) {
+        return frame
+    }
+    let frame = try engine.lineFrame(
+        source: source,
+        mapCenter: mapCenter,
+        viewport: viewport,
+        calibration: calibration,
+        geometry: geometry,
+    )
+    cache.insert(frame, for: key)
+    return frame
 }
 
 private func geographyFailureCategory(
@@ -1010,7 +1105,7 @@ extension ProjectionFrameWorker {
         }
 
         mutating func effects(
-            layerFrame: LayerFrame?,
+            layerFrame: ProjectionLayerFrame<FlightsLayerKind>?,
             projectedFrame: ProjectionFrame,
             at date: Date,
             observationChanged: Bool,
@@ -1185,10 +1280,10 @@ extension ProjectionFrameWorker {
 
 private enum GeographyProjectionResult {
     case notRequested
-    case projected(ProjectedGeography)
+    case projected(ProjectedLayerFrame<GeographyLayerKind>)
     case unavailable
 
-    var projection: ProjectedGeography? {
+    var projection: ProjectedLayerFrame<GeographyLayerKind>? {
         switch self {
             case .notRequested, .unavailable: nil
             case let .projected(projection): projection

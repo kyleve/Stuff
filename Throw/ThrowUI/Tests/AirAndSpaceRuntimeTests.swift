@@ -53,7 +53,7 @@ struct AirAndSpaceRuntimeTests {
         }
         let update = try #require(ready)
         #expect(update.health == .healthy(lastUpdate: date, visibleContentCount: 0))
-        #expect(update.layerFrame?.marks.isEmpty == true)
+        #expect(update.flightsFrame?.marks.isEmpty == true)
         #expect(update.experienceFrame.experienceID == .airAndSpace)
         #expect(update.activePollingSignature != nil)
 

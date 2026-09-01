@@ -17,6 +17,7 @@ let throwProjectRules = RuleSet {
         allowed: .files([throwLayerFrameErasurePath]),
         id: "throw.layer_frame_erasure_ownership",
     )
+    throwProjectedFrameErasureRule
     throwLiveDependencyCompositionRule
     throwAnyViewRule
     throwProviderBoundaryRule
@@ -31,6 +32,8 @@ private let throwRuntimeCompositionPath: RelativeFilePath =
     "Throw/Throw/Sources/ThrowRuntime.swift"
 private let throwLayerFrameErasurePath: RelativeFilePath =
     "Throw/ThrowCore/Sources/ProjectionModels.swift"
+private let throwProjectedFrameErasurePath: RelativeFilePath =
+    "Throw/ThrowUI/Sources/Projection/ProjectionFrame.swift"
 
 private let throwProductionScope = RuleScope
     .component(ThrowComponent.throwCore)
@@ -46,6 +49,31 @@ private let throwLiveDependencyNames: Set<String> = [
     "PeriscopeThrowDurableLoggingStarter",
     "UserDefaultsThrowPreferenceStore",
 ]
+
+private let throwProjectedFrameErasureRule = Rules.files(
+    "throw.projected_frame_erasure_ownership",
+    severity: .error,
+    summary: "Throw erases typed projected frames only at its presentation boundary.",
+    scope: throwProductionScope,
+) { file in
+    guard file.path != throwProjectedFrameErasurePath else { return [] }
+    return functionCalls()
+        .filter { match in
+            guard let name = calledDeclarationName(match.node) else { return false }
+            return name == "ProjectedLayer" || name == "ProjectionFrame"
+        }
+        .matches(in: file)
+        .map { match in
+            let name = calledDeclarationName(match.node) ?? "projected frame"
+            return match.failure(
+                message: "Throw constructs \(name) outside its presentation erasure boundary.",
+                evidence: ViolationEvidence(
+                    observed: "\(name)(...) in \(file.path.rawValue)",
+                    expectation: "construction in \(throwProjectedFrameErasurePath.rawValue)",
+                ),
+            )
+        }
+}
 
 private let throwLiveDependencyCompositionRule = Rules.files(
     "throw.live_dependency_composition_ownership",

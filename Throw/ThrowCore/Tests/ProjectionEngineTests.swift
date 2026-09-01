@@ -61,7 +61,7 @@ struct ProjectionEngineTests {
                 mark(rawID: "east", latitude: 0, longitude: 0.1),
             ]),
         )
-        let projection = try engine.frame(
+        let projection = try projectAirAndSpace(
             layerFrames: [frame],
             geography: nil,
             observer: observer,
@@ -84,6 +84,8 @@ struct ProjectionEngineTests {
 
     @Test func genericExperienceProjectionKeepsLineAndMarkLayersSeparate() throws {
         let observer = try ThrowCoreFixture.observer(latitude: 0, longitude: 0, altitudeFeet: 0)
+        let viewport = try MapViewport(radius: NauticalMiles(value: 50))
+        let geometry = try ProjectionGeometry(width: 1920, height: 1080)
         let vehicle = try ProjectionMark(
             id: .transitVehicle(#require(TransitVehicleID(rawValue: "vehicle"))),
             anchor: .geodetic(GeodeticAnchor(
@@ -100,47 +102,237 @@ struct ProjectionEngineTests {
                 availability: .current,
             ),
         )
-        let network = ProjectedLineCollection(
-            id: ProjectionLineRevisionID(rawValue: 4),
-            segments: [ProjectedLineSegment(
+        let networkSource = try ProjectionLayerFrame<TransitNetworkLayerKind>(
+            observedAt: ThrowCoreFixture.date,
+            lines: [ProjectionPolyline(
                 styleID: .transitRoute,
-                start: ProjectionPoint(x: 0.2, y: 0.2),
-                end: ProjectionPoint(x: 0.8, y: 0.8),
-                startsNewSubpath: true,
+                detailLevel: .wide,
+                bounds: GeographicBounds(
+                    southLatitude: 0,
+                    westLongitude: 0,
+                    northLatitude: 0.1,
+                    eastLongitude: 0.1,
+                ),
+                coordinates: [
+                    GeoCoordinate(latitude: 0, longitude: 0),
+                    GeoCoordinate(latitude: 0.1, longitude: 0.1),
+                ],
             )],
+        )
+        let network = try engine.lineFrame(
+            source: networkSource,
+            mapCenter: observer.coordinate,
+            viewport: .map(viewport),
+            calibration: .defaultValue,
+            geometry: geometry,
         )
 
         let frame = try engine.frame(
-            input: .transit(
-                frame: TransitExperienceFrame(
-                    geography: nil,
-                    network: nil,
-                    vehicles: ProjectionLayerFrame(
-                        observedAt: ThrowCoreFixture.date,
-                        marks: [vehicle],
+            input: .transit(PreparedTransitProjectionInput(
+                input: TransitProjectionInput(
+                    frame: TransitExperienceFrame(
+                        geography: nil,
+                        network: networkSource,
+                        vehicles: ProjectionLayerFrame(
+                            observedAt: ThrowCoreFixture.date,
+                            marks: [vehicle],
+                        ),
                     ),
+                    viewport: viewport,
+                    geography: .hidden,
                 ),
-                viewport: MapViewport(radius: NauticalMiles(value: 50)),
-                geography: .hidden,
-            ),
-            projectedLineLayers: [ProjectedLayer(
-                id: .transitNetwork,
-                zOrder: 10,
-                opacity: 0.3,
-                content: .lines(network),
-            )],
-            layerZOrders: [.transitVehicles: 20],
+                geography: nil,
+                network: network,
+            )),
             observer: observer,
             mapCenter: observer.coordinate,
             calibration: .defaultValue,
-            geometry: ProjectionGeometry(width: 1920, height: 1080),
+            geometry: geometry,
             generatedAt: ThrowCoreFixture.date,
         )
 
-        #expect(frame.experienceID == .transit)
-        #expect(frame.layers.map(\.id) == [.transitNetwork, .transitVehicles])
-        #expect(frame.layers[0].lines == network)
-        #expect(frame.layers[1].marks.map(\.id.rawValue) == ["vehicle"])
+        guard case let .transit(transit) = frame else {
+            Issue.record("The Transit input returned the wrong experience.")
+            return
+        }
+        #expect(transit.network?.lines.id == network.lines.id)
+        #expect(transit.network?.lines.segments.first?.styleID == .transitRoute)
+        #expect(transit.vehicles?.marks.map(\.id.rawValue) == ["vehicle"])
+    }
+
+    @Test func rejectsStaticLineProjectionFromAnotherContext() throws {
+        let observer = try ThrowCoreFixture.observer(latitude: 0, longitude: 0)
+        let viewport = try MapViewport(radius: NauticalMiles(value: 50))
+        let geometry = try ProjectionGeometry(width: 1, height: 1)
+        let geographySource = ProjectionLayerFrame<GeographyLayerKind>(
+            observedAt: ThrowCoreFixture.date,
+            lines: [],
+        )
+        let geography = try engine.lineFrame(
+            source: geographySource,
+            mapCenter: observer.coordinate,
+            viewport: .map(viewport),
+            calibration: .defaultValue,
+            geometry: geometry,
+        )
+        let sameGeography = try engine.lineFrame(
+            source: geographySource,
+            mapCenter: observer.coordinate,
+            viewport: .map(viewport),
+            calibration: .defaultValue,
+            geometry: geometry,
+        )
+        let input = PreparedProjectionExperienceInput.airAndSpace(
+            PreparedAirAndSpaceProjectionInput(
+                input: AirAndSpaceProjectionInput(
+                    frame: AirAndSpaceExperienceFrame(
+                        geography: geographySource,
+                        flights: nil,
+                        stars: nil,
+                        satellites: nil,
+                    ),
+                    viewport: .map(viewport: viewport, geography: .visible),
+                ),
+                geography: geography,
+            ),
+        )
+        let otherCenter = try GeoCoordinate(latitude: 1, longitude: 1)
+        let otherGeography = try engine.lineFrame(
+            source: geographySource,
+            mapCenter: otherCenter,
+            viewport: .map(viewport),
+            calibration: .defaultValue,
+            geometry: geometry,
+        )
+
+        #expect(geography.lines.id == sameGeography.lines.id)
+        #expect(geography.lines.id != otherGeography.lines.id)
+
+        #expect(throws: ProjectionPreparationError.projectionContextMismatch(
+            layerID: .geography,
+        )) {
+            try engine.frame(
+                input: input,
+                observer: observer,
+                mapCenter: otherCenter,
+                calibration: .defaultValue,
+                geometry: geometry,
+                generatedAt: ThrowCoreFixture.date,
+            )
+        }
+    }
+
+    @Test func rejectsStaticLineProjectionFromAnotherSourceRevision() throws {
+        let observer = try ThrowCoreFixture.observer(latitude: 0, longitude: 0)
+        let viewport = try MapViewport(radius: NauticalMiles(value: 50))
+        let geometry = try ProjectionGeometry(width: 1, height: 1)
+        let firstRevision = ProjectionLayerFrame<TransitNetworkLayerKind>(
+            observedAt: ThrowCoreFixture.date,
+            lines: [],
+        )
+        let projectedNetwork = try engine.lineFrame(
+            source: firstRevision,
+            mapCenter: observer.coordinate,
+            viewport: .map(viewport),
+            calibration: .defaultValue,
+            geometry: geometry,
+        )
+        let secondRevision = ProjectionLayerFrame<TransitNetworkLayerKind>(
+            observedAt: ThrowCoreFixture.date.addingTimeInterval(1),
+            lines: [],
+        )
+        let secondProjectedNetwork = try engine.lineFrame(
+            source: secondRevision,
+            mapCenter: observer.coordinate,
+            viewport: .map(viewport),
+            calibration: .defaultValue,
+            geometry: geometry,
+        )
+        let input = PreparedProjectionExperienceInput.transit(
+            PreparedTransitProjectionInput(
+                input: TransitProjectionInput(
+                    frame: TransitExperienceFrame(
+                        geography: nil,
+                        network: secondRevision,
+                        vehicles: nil,
+                    ),
+                    viewport: viewport,
+                    geography: .hidden,
+                ),
+                geography: nil,
+                network: projectedNetwork,
+            ),
+        )
+
+        #expect(projectedNetwork.lines.id != secondProjectedNetwork.lines.id)
+
+        #expect(throws: ProjectionPreparationError.sourceRevisionMismatch(
+            layerID: .transitNetwork,
+        )) {
+            try engine.frame(
+                input: input,
+                observer: observer,
+                mapCenter: observer.coordinate,
+                calibration: .defaultValue,
+                geometry: geometry,
+                generatedAt: ThrowCoreFixture.date,
+            )
+        }
+    }
+
+    @Test func mapOutputOmitsTheTrueSkyOnlyStarLayer() throws {
+        let observer = try ThrowCoreFixture.observer(latitude: 0, longitude: 0)
+        let mapViewport = try MapViewport(radius: NauticalMiles(value: 50))
+        let star = try ProjectionMark(
+            id: .star(#require(StarID(rawValue: "star"))),
+            anchor: .horizontal(HorizontalAnchor(
+                azimuth: Bearing(degrees: 0),
+                elevation: ElevationAngle(degrees: 45),
+            )),
+            glyph: .star,
+            label: nil,
+            prominence: .primary,
+            velocity: nil,
+            freshness: MarkFreshness(
+                positionObservedAt: ThrowCoreFixture.date,
+                fetchedAt: ThrowCoreFixture.date,
+                availability: .current,
+            ),
+        )
+        let input = AirAndSpaceProjectionInput(
+            frame: AirAndSpaceExperienceFrame(
+                geography: nil,
+                flights: nil,
+                stars: ProjectionLayerFrame(
+                    observedAt: ThrowCoreFixture.date,
+                    marks: [star],
+                ),
+                satellites: nil,
+            ),
+            viewport: .map(
+                viewport: mapViewport,
+                geography: .hidden,
+            ),
+        )
+
+        let frame = try engine.frame(
+            input: .airAndSpace(PreparedAirAndSpaceProjectionInput(
+                input: input,
+                geography: nil,
+            )),
+            observer: observer,
+            mapCenter: observer.coordinate,
+            calibration: .defaultValue,
+            geometry: ProjectionGeometry(width: 1, height: 1),
+            generatedAt: ThrowCoreFixture.date,
+        )
+
+        guard case let .airAndSpace(.map(map)) = frame else {
+            Issue.record("The Map input returned the wrong experience or mode.")
+            return
+        }
+        #expect(map.flights == nil)
+        #expect(frame.marks.isEmpty)
     }
 
     @Test func mapUsesIndependentCenterAndCanProjectObserverMarker() throws {
@@ -160,7 +352,7 @@ struct ProjectionEngineTests {
             )]),
         )
         let viewport = try MapViewport(radius: NauticalMiles(value: 20))
-        let projection = try engine.frame(
+        let projection = try projectAirAndSpace(
             layerFrames: [frame],
             geography: nil,
             observer: observer,
@@ -196,7 +388,7 @@ struct ProjectionEngineTests {
             safeInsetFraction: 0,
             verifiedOnExternalDisplay: true,
         )
-        let projection = try engine.frame(
+        let projection = try projectAirAndSpace(
             layerFrames: [
                 LayerFrame(
                     layerID: .flights,
@@ -225,7 +417,7 @@ struct ProjectionEngineTests {
                 mark(rawID: "low", latitude: 0, longitude: 1, altitudeFeet: 1000),
             ]),
         )
-        let projection = try engine.frame(
+        let projection = try projectAirAndSpace(
             layerFrames: [frame],
             geography: nil,
             observer: observer,
@@ -248,7 +440,7 @@ struct ProjectionEngineTests {
                 mark(rawID: "overhead", latitude: 0, longitude: 0, altitudeFeet: 10000),
             ]),
         )
-        let projection = try engine.frame(
+        let projection = try projectAirAndSpace(
             layerFrames: [frame],
             geography: nil,
             observer: observer,
@@ -297,7 +489,7 @@ struct ProjectionEngineTests {
         let viewport = try ProjectionViewport.map(
             MapViewport(radius: NauticalMiles(value: 240)),
         )
-        let actualFrame = try engine.frame(
+        let actualFrame = try projectAirAndSpace(
             layerFrames: [LayerFrame(
                 layerID: .flights,
                 observedAt: observedAt,
@@ -321,7 +513,7 @@ struct ProjectionEngineTests {
             at: generatedAt.addingTimeInterval(1),
         )
         let next = try #require(nextPrediction)
-        let expectedFrame = try engine.frame(
+        let expectedFrame = try projectAirAndSpace(
             layerFrames: [LayerFrame(
                 layerID: .flights,
                 observedAt: generatedAt,
@@ -375,7 +567,7 @@ struct ProjectionEngineTests {
             MapViewport(radius: NauticalMiles(value: 50)),
         )
         let geometry = try ProjectionGeometry(width: 1000, height: 1000)
-        let atPredictionLimit = try engine.frame(
+        let atPredictionLimit = try projectAirAndSpace(
             layerFrames: [layerFrame],
             geography: nil,
             observer: observer,
@@ -384,7 +576,7 @@ struct ProjectionEngineTests {
             geometry: geometry,
             generatedAt: ThrowCoreFixture.date.addingTimeInterval(15),
         )
-        let fiveMinutesLater = try engine.frame(
+        let fiveMinutesLater = try projectAirAndSpace(
             layerFrames: [layerFrame],
             geography: nil,
             observer: observer,
@@ -409,7 +601,7 @@ struct ProjectionEngineTests {
             orientation: nil,
             verticalRateFeetPerMinute: .greatestFiniteMagnitude,
         )
-        let frame = try engine.frame(
+        let frame = try projectAirAndSpace(
             layerFrames: [
                 LayerFrame(
                     layerID: .flights,
@@ -442,7 +634,7 @@ struct ProjectionEngineTests {
             orientation: nil,
             verticalRateFeetPerMinute: 600,
         )
-        let frame = try engine.frame(
+        let frame = try projectAirAndSpace(
             layerFrames: [
                 LayerFrame(
                     layerID: .flights,
@@ -665,6 +857,103 @@ struct ProjectionEngineTests {
         )
 
         #expect(segments.isEmpty == false)
+    }
+
+    private func projectAirAndSpace(
+        layerFrames: [LayerFrame],
+        geography: ProjectedGeography?,
+        observer: ObserverPosition,
+        viewport: ProjectionViewport,
+        calibration: ProjectionCalibration,
+        geometry: ProjectionGeometry,
+        generatedAt: Date,
+    ) throws -> ProjectedExperienceFrame {
+        try projectAirAndSpace(
+            layerFrames: layerFrames,
+            geography: geography,
+            observer: observer,
+            mapCenter: observer.coordinate,
+            viewport: viewport,
+            calibration: calibration,
+            geometry: geometry,
+            generatedAt: generatedAt,
+        )
+    }
+
+    private func projectAirAndSpace(
+        layerFrames: [LayerFrame],
+        geography: ProjectedGeography?,
+        observer: ObserverPosition,
+        mapCenter: GeoCoordinate,
+        viewport: ProjectionViewport,
+        calibration: ProjectionCalibration,
+        geometry: ProjectionGeometry,
+        generatedAt: Date,
+    ) throws -> ProjectedExperienceFrame {
+        var flights: ProjectionLayerFrame<FlightsLayerKind>?
+        var stars: ProjectionLayerFrame<StarsLayerKind>?
+        var satellites: ProjectionLayerFrame<SatellitesLayerKind>?
+        for layerFrame in layerFrames {
+            switch layerFrame.layerID {
+                case .flights:
+                    flights = ProjectionLayerFrame(
+                        observedAt: layerFrame.observedAt,
+                        marks: layerFrame.marks,
+                    )
+                case .stars:
+                    stars = ProjectionLayerFrame(
+                        observedAt: layerFrame.observedAt,
+                        marks: layerFrame.marks,
+                    )
+                case .satellites:
+                    satellites = ProjectionLayerFrame(
+                        observedAt: layerFrame.observedAt,
+                        marks: layerFrame.marks,
+                    )
+                case .geography, .transitNetwork, .transitVehicles:
+                    Issue.record("Air & Space received an unsupported test layer.")
+            }
+        }
+        let typedViewport: AirAndSpaceProjectionViewport = switch viewport {
+            case let .map(mapViewport):
+                .map(
+                    viewport: mapViewport,
+                    geography: geography == nil ? .hidden : .visible,
+                )
+            case let .trueSky(skyViewport):
+                .trueSky(viewport: skyViewport)
+        }
+        return try engine.frame(
+            input: .airAndSpace(PreparedAirAndSpaceProjectionInput(
+                input: AirAndSpaceProjectionInput(
+                    frame: AirAndSpaceExperienceFrame(
+                        geography: nil,
+                        flights: flights,
+                        stars: stars,
+                        satellites: satellites,
+                    ),
+                    viewport: typedViewport,
+                ),
+                geography: geography.map {
+                    ProjectedLayerFrame<GeographyLayerKind>(
+                        segments: $0.segments,
+                        provenance: ProjectedLineProvenance(
+                            layerID: GeographyLayerKind.id,
+                            sourceRevision: generatedAt,
+                            mapCenter: mapCenter,
+                            viewport: viewport,
+                            calibration: calibration,
+                            geometry: geometry,
+                        ),
+                    )
+                },
+            )),
+            observer: observer,
+            mapCenter: mapCenter,
+            calibration: calibration,
+            geometry: geometry,
+            generatedAt: generatedAt,
+        )
     }
 
     private func positionMark(

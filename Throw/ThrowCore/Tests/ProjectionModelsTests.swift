@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import ThrowCore
+@_spi(Testing) @testable import ThrowCore
 
 struct ProjectionModelsTests {
     @Test func geodeticAltitudeCarriesQualityOnlyWithAValue() throws {
@@ -64,11 +64,8 @@ struct ProjectionModelsTests {
             rawID: "duplicate",
             x: 0.8,
         )
-        let projectedLayer = ProjectedLayer(
-            id: .flights,
-            zOrder: 10,
-            opacity: 1,
-            content: .marks([firstProjected, replacementProjected]),
+        let projectedLayer = ProjectedLayerFrame<FlightsLayerKind>(
+            marks: [firstProjected, replacementProjected],
         )
 
         #expect(semanticLayer.marks.count == 1)
@@ -103,26 +100,32 @@ struct ProjectionModelsTests {
             ),
         )
 
-        #expect(airAndSpace.layers.map(\.layerID) == [.flights])
-        #expect(transit.layers.map(\.layerID) == [.transitNetwork])
+        guard case let .airAndSpace(airAndSpaceFrame) = airAndSpace,
+              case let .transit(transitFrame) = transit
+        else {
+            Issue.record("The experience cases changed unexpectedly.")
+            return
+        }
+        #expect(airAndSpaceFrame.flights?.layerID == .flights)
+        #expect(transitFrame.network?.layerID == .transitNetwork)
     }
 
     @Test func experienceProjectionInputsEncodeSupportedModes() throws {
         let mapViewport = try MapViewport(radius: NauticalMiles(value: 50))
         let skyViewport = try SkyViewport(minimumElevation: ElevationAngle(degrees: 10))
-        let airMap = ProjectionExperienceInput.airAndSpace(
+        let airMap = ProjectionExperienceInput.airAndSpace(AirAndSpaceProjectionInput(
             frame: .empty,
             viewport: .map(viewport: mapViewport, geography: .visible),
-        )
-        let airSky = ProjectionExperienceInput.airAndSpace(
+        ))
+        let airSky = ProjectionExperienceInput.airAndSpace(AirAndSpaceProjectionInput(
             frame: .empty,
             viewport: .trueSky(viewport: skyViewport),
-        )
-        let transit = ProjectionExperienceInput.transit(
+        ))
+        let transit = ProjectionExperienceInput.transit(TransitProjectionInput(
             frame: .empty,
             viewport: mapViewport,
             geography: .visible,
-        )
+        ))
 
         #expect(airMap.viewport == .map(mapViewport))
         #expect(airMap.requestsGeography)
@@ -132,7 +135,38 @@ struct ProjectionModelsTests {
         #expect(transit.requestsGeography)
     }
 
-    @Test func visibleAircraftCountExcludesOtherGlyphs() throws {
+    @Test func preparedInputsDiscardStaticLayersThatTheirSemanticInputCannotUse() throws {
+        let mapViewport = try MapViewport(radius: NauticalMiles(value: 50))
+        let skyViewport = try SkyViewport(minimumElevation: ElevationAngle(degrees: 10))
+        let lines = ProjectedLineCollection.testing(
+            id: ProjectionLineRevisionID.testing(rawValue: 1),
+            segments: [],
+        )
+        let geography = ProjectedLayerFrame<GeographyLayerKind>.testing(lines: lines)
+        let network = ProjectedLayerFrame<TransitNetworkLayerKind>.testing(lines: lines)
+        let sky = PreparedAirAndSpaceProjectionInput(
+            input: AirAndSpaceProjectionInput(
+                frame: .empty,
+                viewport: .trueSky(viewport: skyViewport),
+            ),
+            geography: geography,
+        )
+        let transit = PreparedTransitProjectionInput(
+            input: TransitProjectionInput(
+                frame: .empty,
+                viewport: mapViewport,
+                geography: .hidden,
+            ),
+            geography: geography,
+            network: network,
+        )
+
+        #expect(sky.geography == nil)
+        #expect(transit.geography == nil)
+        #expect(transit.network == nil)
+    }
+
+    @Test func projectedExperienceCollectsMarksFromItsTypedLayers() throws {
         let aircraft = try ProjectedMark(
             id: #require(AircraftID(kind: .icao, rawValue: "a")).layerMarkID,
             point: ProjectionPoint(x: 0.5, y: 0.5),
@@ -157,14 +191,15 @@ struct ProjectionModelsTests {
             labelOpacity: 1,
             altitudeIsApproximate: false,
         )
-        let frame = ProjectionFrame(
-            mode: .map,
-            generatedAt: .now,
-            geography: nil,
-            geographyOpacity: 1,
-            marks: [aircraft, star],
-        )
-        #expect(frame.visibleAircraftCount == 1)
+        let frame = ProjectedExperienceFrame.airAndSpace(.trueSky(
+            AirAndSpaceTrueSkyProjectedFrame(
+                generatedAt: .now,
+                flights: ProjectedLayerFrame(marks: [aircraft]),
+                stars: ProjectedLayerFrame(marks: [star]),
+                satellites: nil,
+            ),
+        ))
+        #expect(frame.marks == [aircraft, star])
     }
 
     @Test func lineStyleIdentitySupportsGeographyAndFutureNetworks() {
@@ -175,10 +210,10 @@ struct ProjectionModelsTests {
         #expect(coastline != .transitRoute)
     }
 
-    @Test func projectedFrameOrdersGenericLayersWithinItsExperience() throws {
+    @Test func projectedExperienceFixesTransitLayersAndMode() throws {
         let mark = try projectedMark(layerID: .transitVehicles, rawID: "vehicle")
-        let lines = ProjectedLineCollection(
-            id: ProjectionLineRevisionID(rawValue: 7),
+        let lines = ProjectedLineCollection.testing(
+            id: ProjectionLineRevisionID.testing(rawValue: 7),
             segments: [ProjectedLineSegment(
                 styleID: .transitRoute,
                 start: ProjectionPoint(x: 0.1, y: 0.2),
@@ -186,67 +221,21 @@ struct ProjectionModelsTests {
                 startsNewSubpath: true,
             )],
         )
-        let frame = ProjectionFrame(
-            experienceID: .transit,
-            mode: .map,
+        let frame = ProjectedExperienceFrame.transit(TransitProjectedFrame(
             generatedAt: ThrowCoreFixture.date,
-            layers: [
-                ProjectedLayer(
-                    id: .transitVehicles,
-                    zOrder: 40,
-                    opacity: 1,
-                    content: .marks([mark]),
-                ),
-                ProjectedLayer(
-                    id: .transitNetwork,
-                    zOrder: 20,
-                    opacity: 0.4,
-                    content: .lines(lines),
-                ),
-            ],
-        )
+            geography: nil,
+            network: .testing(lines: lines),
+            vehicles: ProjectedLayerFrame(marks: [mark]),
+        ))
 
         #expect(frame.experienceID == .transit)
-        #expect(frame.layers.map(\.id) == [.transitNetwork, .transitVehicles])
-        #expect(frame.layers.first?.lines == lines)
-    }
-
-    @Test func replacingMarksPreservesExperienceAndLineLayers() throws {
-        let original = try projectedMark(layerID: .transitVehicles, rawID: "old")
-        let replacement = try projectedMark(layerID: .transitVehicles, rawID: "new")
-        let lines = ProjectedLineCollection(
-            id: ProjectionLineRevisionID(rawValue: 9),
-            segments: [],
-        )
-        let frame = ProjectionFrame(
-            experienceID: .transit,
-            mode: .map,
-            generatedAt: ThrowCoreFixture.date,
-            layers: [
-                ProjectedLayer(
-                    id: .transitNetwork,
-                    zOrder: 10,
-                    opacity: 0.25,
-                    content: .lines(lines),
-                ),
-                ProjectedLayer(
-                    id: .transitVehicles,
-                    zOrder: 20,
-                    opacity: 1,
-                    content: .marks([original]),
-                ),
-            ],
-        )
-
-        let replaced = frame.replacingMarks([replacement])
-
-        #expect(replaced.experienceID == .transit)
-        #expect(replaced.layers.first?.lines == lines)
-        #expect(replaced.marks.map(\.id.rawValue) == ["new"])
-
-        let noLines = frame.replacingLineLayers([])
-        #expect(noLines.experienceID == .transit)
-        #expect(noLines.layers.map(\.id) == [.transitVehicles])
+        #expect(frame.mode == .map)
+        guard case let .transit(transit) = frame else {
+            Issue.record("The projected Transit frame changed experience cases.")
+            return
+        }
+        #expect(transit.network?.lines == lines)
+        #expect(transit.vehicles?.marks == [mark])
     }
 
     @Test func frameDescriptionsRedactMarksLabelsIdentitiesAndCoordinates() throws {
@@ -296,13 +285,6 @@ struct ProjectionModelsTests {
             labelOpacity: 1,
             altitudeIsApproximate: false,
         )
-        let projectionFrame = ProjectionFrame(
-            mode: .map,
-            generatedAt: ThrowCoreFixture.date,
-            geography: nil,
-            geographyOpacity: 1,
-            marks: [projectedMark],
-        )
         let renderings = [
             String(describing: markID),
             String(reflecting: markID),
@@ -318,8 +300,6 @@ struct ProjectionModelsTests {
             String(reflecting: layerFrame),
             String(describing: projectedMark),
             String(reflecting: projectedMark),
-            String(describing: projectionFrame),
-            String(reflecting: projectionFrame),
         ]
 
         for rendering in renderings {
