@@ -19,7 +19,9 @@ struct AircraftPollingCoordinatorTests {
         )
 
         var iterator = stream.makeAsyncIterator()
-        #expect(await iterator.next() == .active(token: token, state: .quiet))
+        let publication = try #require(await iterator.next()?.activePublication)
+        #expect(publication.token == token)
+        #expect(publication.state == .quiet)
         await coordinator.deactivate()
     }
 
@@ -33,13 +35,22 @@ struct AircraftPollingCoordinatorTests {
         let first = try #require(
             await coordinator.activate(configuration: .adsbLol, query: query, quiet: true),
         )
-        #expect(await coordinator.currentUpdate() == .active(token: first, state: .quiet))
+        let firstPublication = try #require(
+            await coordinator.currentUpdate().activePublication,
+        )
+        #expect(firstPublication.token == first)
+        #expect(firstPublication.state == .quiet)
 
         let second = try #require(
             await coordinator.activate(configuration: .adsbLol, query: query, quiet: true),
         )
         #expect(second != first)
-        #expect(await coordinator.currentUpdate() == .active(token: second, state: .quiet))
+        let secondPublication = try #require(
+            await coordinator.currentUpdate().activePublication,
+        )
+        #expect(secondPublication.token == second)
+        #expect(secondPublication.state == .quiet)
+        #expect(secondPublication.revision == firstPublication.revision)
 
         await coordinator.deactivate()
         #expect(await coordinator.currentUpdate() == .inactive)
@@ -90,10 +101,10 @@ struct AircraftPollingCoordinatorTests {
         var iterator = stream.makeAsyncIterator()
         var failedState: AircraftPollingState?
         while let update = await iterator.next() {
-            if case let .active(_, state) = update,
-               case .failed = state
+            if case let .active(publication) = update,
+               case .failed = publication.state
             {
-                failedState = state
+                failedState = publication.state
                 break
             }
         }
@@ -341,17 +352,17 @@ struct AircraftPollingCoordinatorTests {
             quiet: false,
         )
         try await waitUntil {
-            if case .active(_, .retrying) = await coordinator.currentUpdate() {
+            if case let .active(publication) = await coordinator.currentUpdate(),
+               case .retrying = publication.state
+            {
                 true
             } else {
                 false
             }
         }
 
-        guard case let .active(
-            _,
-            .retrying(lastGoodSnapshot, failure, _, _),
-        ) = await coordinator.currentUpdate()
+        guard case let .active(publication) = await coordinator.currentUpdate(),
+              case let .retrying(lastGoodSnapshot, failure, _, _) = publication.state
         else {
             Issue.record("Expected retrying state")
             return
@@ -431,8 +442,8 @@ struct AircraftPollingCoordinatorTests {
         let replacementToken = try #require(await replacement.value)
         await journal.wait(for: .snapshotStarted(.readsb))
         try await waitUntil {
-            if case let .active(_, .healthy(snapshot, _)) =
-                await coordinator.currentUpdate()
+            if case let .active(publication) = await coordinator.currentUpdate(),
+               case let .healthy(snapshot, _) = publication.state
             {
                 snapshot.source == .readsb
             } else {
@@ -457,7 +468,13 @@ struct AircraftPollingCoordinatorTests {
         }
         #expect(healthySources == [.readsb])
         let healthyTokens = await stateRecorder.updates().compactMap { update in
-            if case let .active(token, .healthy) = update { token } else { nil }
+            if case let .active(publication) = update,
+               case .healthy = publication.state
+            {
+                publication.token
+            } else {
+                nil
+            }
         }
         #expect(healthyTokens == [replacementToken])
         let events = await journal.events()
@@ -1032,7 +1049,7 @@ private actor PollingStateRecorder {
 
     func states() -> [AircraftPollingState] {
         recordedUpdates.compactMap { update in
-            if case let .active(_, state) = update { state } else { nil }
+            if case let .active(publication) = update { publication.state } else { nil }
         }
     }
 
@@ -1041,5 +1058,12 @@ private actor PollingStateRecorder {
             guard case let .retrying(_, _, failureStartedAt, _) = state else { return nil }
             return failureStartedAt
         }
+    }
+}
+
+extension AircraftPollingUpdate {
+    fileprivate var activePublication: AircraftPollingActiveUpdate? {
+        guard case let .active(publication) = self else { return nil }
+        return publication
     }
 }

@@ -137,7 +137,9 @@ snapshot. A retryable poll failure starts a 15-second grace period and a
 15-second fade.
 Each polling publication is inactive or active with a coordinator-minted
 token. Each accepted replacement gets a new token. Consumers reject an active
-publication unless its token matches the activation that they accepted.
+publication unless its token matches the activation that they accepted. Each
+active envelope also has a revision that increases within that token. Thus, a
+delayed state read cannot replace a newer stream publication.
 The polling clock can finish a wait or report cancellation. It cannot leave a
 dead poll task in a retrying state through another error.
 

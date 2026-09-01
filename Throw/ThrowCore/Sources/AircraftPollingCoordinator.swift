@@ -72,11 +72,41 @@ public enum AircraftPollingState: Equatable, Sendable, CustomStringConvertible,
     }
 }
 
-/// A closed polling publication. Active state always carries the capability
-/// for the physical poller that produced it.
+/// One ordered semantic publication from an accepted physical poller.
+public struct AircraftPollingActiveUpdate: Equatable, Sendable {
+    /// A monotonic position in one polling activation's publication stream.
+    public struct Revision: Hashable, Comparable, Sendable {
+        fileprivate let rawValue: UInt64
+
+        fileprivate init(rawValue: UInt64) {
+            self.rawValue = rawValue
+        }
+
+        public static func < (lhs: Self, rhs: Self) -> Bool {
+            lhs.rawValue < rhs.rawValue
+        }
+    }
+
+    public let token: AircraftPollingActivationToken
+    public let revision: Revision
+    public let state: AircraftPollingState
+
+    fileprivate init(
+        token: AircraftPollingActivationToken,
+        revision: Revision,
+        state: AircraftPollingState,
+    ) {
+        self.token = token
+        self.revision = revision
+        self.state = state
+    }
+}
+
+/// A closed polling publication. Active state carries one coordinator-built
+/// envelope whose revision is ordered within its activation token.
 public enum AircraftPollingUpdate: Equatable, Sendable {
     case inactive
-    case active(token: AircraftPollingActivationToken, state: AircraftPollingState)
+    case active(AircraftPollingActiveUpdate)
 }
 
 public enum AircraftPollingBackoff {
@@ -115,7 +145,12 @@ public actor AircraftPollingCoordinator {
     private var lifecycleRequestGeneration: UInt64 = 0
     private var generation: UInt64 = 0
     private var activePolling: ActivePolling?
+    private var activePublicationRevision: UInt64 = 0
     private var update = AircraftPollingUpdate.inactive
+    #if DEBUG
+        private var beforeReturningCurrentUpdateForTesting:
+            (@Sendable (AircraftPollingUpdate) async -> Void)?
+    #endif
 
     public init(
         sourceFactory: any AircraftSourceProducing,
@@ -144,13 +179,23 @@ public actor AircraftPollingCoordinator {
         return updatesStream
     }
 
-    public func currentUpdate() -> AircraftPollingUpdate {
-        update
+    public func currentUpdate() async -> AircraftPollingUpdate {
+        let currentUpdate = update
+        #if DEBUG
+            await beforeReturningCurrentUpdateForTesting?(currentUpdate)
+        #endif
+        return currentUpdate
     }
 
     #if DEBUG
         @_spi(Testing) public func lifecycleRequestGenerationForTesting() -> UInt64 {
             lifecycleRequestGeneration
+        }
+
+        @_spi(Testing) public func setBeforeReturningCurrentUpdateForTesting(
+            _ operation: (@Sendable (AircraftPollingUpdate) async -> Void)?,
+        ) {
+            beforeReturningCurrentUpdateForTesting = operation
         }
     #endif
 
@@ -287,6 +332,7 @@ public actor AircraftPollingCoordinator {
     private func performDeactivate(lifecycleRequestGeneration: UInt64) async {
         generation &+= 1
         activePolling = nil
+        activePublicationRevision = 0
         publish(.inactive)
         let oldTask = pollTask
         pollTask = nil
@@ -308,6 +354,7 @@ public actor AircraftPollingCoordinator {
         generation &+= 1
         let replacementGeneration = generation
         activePolling = nil
+        activePublicationRevision = 0
         publish(.inactive)
         let oldTask = pollTask
         pollTask = nil
@@ -329,6 +376,7 @@ public actor AircraftPollingCoordinator {
             configuration: configuration,
             query: query,
         )
+        activePublicationRevision = 0
         guard quiet == false else {
             publish(.quiet, token: token)
             return
@@ -585,7 +633,22 @@ public actor AircraftPollingCoordinator {
         token: AircraftPollingActivationToken,
     ) {
         guard activePolling?.token == token else { return }
-        publish(.active(token: token, state: state))
+        if case let .active(currentUpdate) = update,
+           currentUpdate.token == token,
+           currentUpdate.state == state
+        {
+            return
+        }
+        precondition(
+            activePublicationRevision < UInt64.max,
+            "Aircraft polling publication revision overflow",
+        )
+        activePublicationRevision += 1
+        publish(.active(AircraftPollingActiveUpdate(
+            token: token,
+            revision: .init(rawValue: activePublicationRevision),
+            state: state,
+        )))
     }
 
     private func publish(_ newUpdate: AircraftPollingUpdate) {

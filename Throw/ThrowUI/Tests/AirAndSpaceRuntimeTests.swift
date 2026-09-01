@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-import ThrowCore
+@_spi(Testing) import ThrowCore
 @testable import ThrowUI
 
 struct AirAndSpaceRuntimeTests {
@@ -141,8 +141,8 @@ struct AirAndSpaceRuntimeTests {
 
         await snapshotGate.release()
         try await waitUntil {
-            if case let .active(_, .healthy(snapshot, _)) =
-                await coordinator.currentUpdate()
+            if case let .active(publication) = await coordinator.currentUpdate(),
+               case let .healthy(snapshot, _) = publication.state
             {
                 snapshot.source == .adsbLol
             } else {
@@ -171,6 +171,62 @@ struct AirAndSpaceRuntimeTests {
         #expect(ready.activePollingSignature?.configuration.kind == .readsb)
 
         await runtime.deactivate(lease: replacementLease, reporting: .idle)
+    }
+
+    @Test func currentUpdateRecoveryCannotRegressANewerStreamPublication() async throws {
+        let date = Date(timeIntervalSince1970: 1_800_100_000)
+        let snapshotGate = ControlledSnapshotGate()
+        let currentUpdateGate = CurrentUpdateReturnGate()
+        let flightsRuntime = ControllableFrameFlightsLayerRuntime()
+        let coordinator = AircraftPollingCoordinator(
+            sourceFactory: SuspendedOldSnapshotFactory(gate: snapshotGate, date: date),
+            clock: LongAircraftPollingClock(now: date),
+            logger: DiscardingAircraftPollingLogger(),
+        )
+        await coordinator.setBeforeReturningCurrentUpdateForTesting { update in
+            await currentUpdateGate.hold(update)
+        }
+        let runtime = makeRuntime(
+            pollingCoordinator: coordinator,
+            flightsRuntime: flightsRuntime,
+            date: date,
+        )
+        let activationLease = lease(1)
+        _ = await runtime.stateUpdates()
+
+        let activation = Task {
+            try await runtime.activate(
+                configuration: .adsbLol,
+                query: query(),
+                labelMode: .adaptive,
+                lease: activationLease,
+            )
+        }
+        let capturedUpdate = await currentUpdateGate.waitUntilBlocked()
+        let capturedPublication = try #require(capturedUpdate.activePublication)
+        #expect(capturedPublication.state == .loading(source: .adsbLol))
+
+        await snapshotGate.release()
+        await flightsRuntime.waitUntilFrameBlocked()
+        let streamedPublication = try #require(
+            await runtime.lastObservedPollingUpdateForTesting()?.activePublication,
+        )
+        #expect(streamedPublication.revision > capturedPublication.revision)
+
+        await currentUpdateGate.release()
+        try await activation.value
+        await coordinator.setBeforeReturningCurrentUpdateForTesting(nil)
+        await flightsRuntime.releaseFrame()
+
+        try await waitUntil {
+            await runtime.currentUpdate().successfulActivationLease == activationLease
+        }
+        let ready = await runtime.currentUpdate()
+        #expect(ready.health == .healthy(lastUpdate: date, visibleContentCount: 0))
+        #expect(ready.snapshot?.source == .adsbLol)
+        #expect(ready.flightsFrame != nil)
+
+        await runtime.deactivate(lease: activationLease, reporting: .idle)
     }
 
     @Test func newerDeactivationTombstonesActivationSuspendedDuringReset() async throws {
@@ -492,17 +548,82 @@ private actor ManualDeactivationGate {
 }
 
 extension AircraftPollingUpdate {
+    fileprivate var activePublication: AircraftPollingActiveUpdate? {
+        guard case let .active(publication) = self else { return nil }
+        return publication
+    }
+
     fileprivate var sourceKind: AircraftSourceKind? {
         switch self {
             case .inactive: nil
-            case let .active(_, state):
-                switch state {
+            case let .active(publication):
+                switch publication.state {
                     case let .loading(source): source
                     case let .healthy(snapshot, _): snapshot.source
                     case let .retrying(lastGoodSnapshot, _, _, _): lastGoodSnapshot?.source
                     case .failed, .quiet: nil
                 }
         }
+    }
+}
+
+private actor CurrentUpdateReturnGate {
+    private var capturedUpdate: AircraftPollingUpdate?
+    private var releaseContinuation: CheckedContinuation<Void, Never>?
+    private var blockedWaiters: [CheckedContinuation<AircraftPollingUpdate, Never>] = []
+
+    func hold(_ update: AircraftPollingUpdate) async {
+        precondition(releaseContinuation == nil, "Only one current update can wait at the gate")
+        capturedUpdate = update
+        let waiters = blockedWaiters
+        blockedWaiters.removeAll()
+        waiters.forEach { $0.resume(returning: update) }
+        await withCheckedContinuation { continuation in
+            releaseContinuation = continuation
+        }
+    }
+
+    func waitUntilBlocked() async -> AircraftPollingUpdate {
+        if let capturedUpdate { return capturedUpdate }
+        return await withCheckedContinuation { continuation in
+            blockedWaiters.append(continuation)
+        }
+    }
+
+    func release() {
+        releaseContinuation?.resume()
+        releaseContinuation = nil
+    }
+}
+
+private actor ControllableFrameFlightsLayerRuntime: FlightsLayerRunning {
+    private var frameContinuation: CheckedContinuation<Void, Never>?
+    private var blockedWaiters: [CheckedContinuation<Void, Never>] = []
+
+    func frame(
+        for input: FlightsLayerInput,
+    ) async -> ProjectionLayerFrame<FlightsLayerKind> {
+        let waiters = blockedWaiters
+        blockedWaiters.removeAll()
+        waiters.forEach { $0.resume() }
+        await withCheckedContinuation { continuation in
+            frameContinuation = continuation
+        }
+        return ProjectionLayerFrame(observedAt: input.snapshot.fetchedAt, marks: [])
+    }
+
+    func reset() {}
+
+    func waitUntilFrameBlocked() async {
+        guard frameContinuation == nil else { return }
+        await withCheckedContinuation { continuation in
+            blockedWaiters.append(continuation)
+        }
+    }
+
+    func releaseFrame() {
+        frameContinuation?.resume()
+        frameContinuation = nil
     }
 }
 
