@@ -46,6 +46,8 @@ location, and scheduling; see [`README.md`](README.md). Read the root
   carries its value and available quality together.
 - Keep experience and layer catalogs compile-time and free of UI values. Add no
   runtime plugin or `AnyView` boundary.
+- Keep shipped experience identities closed. Derive standard descriptors and
+  presentation through exhaustive switches so a new case forces every owner to update.
 - Construct semantic frames through typed layer and experience cases. Do not pass
   parallel experience IDs, raw layer arrays, and projection modes across production boundaries.
 - Keep layer IDs, mark identities, line styles, and semantic payload shapes closed
