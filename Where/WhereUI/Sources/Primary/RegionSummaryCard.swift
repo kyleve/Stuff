@@ -301,19 +301,6 @@ struct RegionSummaryCard: View {
             .foregroundStyle(style.tint)
             .opacity(cardStyles.nameOpacity)
 
-        let recordedDays = HStack(
-            alignment: .firstTextBaseline,
-            spacing: stylesheet.spacing.small,
-        ) {
-            Text(regionDays.days, format: .number)
-                .font(card.heroNumberTypography.font)
-                .contentTransition(dayCount.transition(days: regionDays.days))
-                .foregroundStyle(style.tint)
-            Text(WhereFormat.dayUnit(regionDays.days))
-                .font(card.dayUnitTypography.font)
-                .foregroundStyle(.secondary)
-        }
-
         VStack(alignment: .leading, spacing: card.contentSpacing) {
             HStack(alignment: .top, spacing: stylesheet.spacing.large) {
                 VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
@@ -341,19 +328,22 @@ struct RegionSummaryCard: View {
             }
 
             if let estimatedDays {
-                let estimate = Text(WhereFormat.locationCardEstimatedDays(estimatedDays))
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(securityPrintTint.opacity(0.8))
-                    .contentTransition(dayCount.transition(days: estimatedDays))
-
-                VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
-                    recordedDays
-                    estimate
-                        .lineLimit(2)
-                        .minimumScaleFactor(0.8)
-                }
+                LocationCardEstimateSticker(
+                    recordedDays: regionDays.days,
+                    estimatedDays: estimatedDays,
+                    regionTint: style.tint,
+                    securityPrintTint: securityPrintTint,
+                    card: card,
+                    style: cardStyles.estimateSticker,
+                    transition: dayCount,
+                )
             } else {
-                recordedDays
+                LocationCardDayCount(
+                    days: regionDays.days,
+                    tint: style.tint,
+                    card: card,
+                    transition: dayCount.transition(days: regionDays.days),
+                )
             }
 
             Capsule()

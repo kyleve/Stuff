@@ -3355,6 +3355,18 @@
         }
       }
     },
+    "locationCard.estimateLabel" : {
+      "comment" : "Short noun labeling an annual estimate on a primary location card.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Estimate"
+          }
+        }
+      }
+    },
     "locationCard.estimatedDays" : {
       "comment" : "Compact label above a location card progress bar. The placeholder is an already-localized day count, for example '184 days'.",
       "extractionState" : "manual",
