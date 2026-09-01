@@ -18,6 +18,33 @@ SPEC.loader.exec_module(tla_check)
 
 
 class TlaCheckTests(unittest.TestCase):
+    def catalog_fixture(self, root: Path, feature: str, name: str) -> Path:
+        spec_directory = root / feature / "Specifications" / name
+        spec_directory.mkdir(parents=True)
+        (spec_directory / f"{name}.tla").write_text(
+            f"---- MODULE {name} ----\n", encoding="utf-8"
+        )
+        (spec_directory / "Current.cfg").write_text(
+            "SPECIFICATION Spec\n", encoding="utf-8"
+        )
+        (spec_directory / "manifest.json").write_text(
+            json.dumps(
+                {
+                    "source": "tla",
+                    "module": f"{name}.tla",
+                    "cases": [
+                        {
+                            "name": "current",
+                            "config": "Current.cfg",
+                            "expect": "pass",
+                        }
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+        return spec_directory
+
     def fixture(
         self,
         root: Path,
@@ -41,6 +68,55 @@ class TlaCheckTests(unittest.TestCase):
             root / "tla2tools.jar",
             versions,
         )
+
+    def test_discovers_specs_across_top_level_features_in_stable_name_order(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            where_spec = self.catalog_fixture(root, "Where", "ZuluModel")
+            throw_spec = self.catalog_fixture(root, "Throw", "AlphaModel")
+            self.catalog_fixture(root / "Group", "Nested", "IgnoredModel")
+
+            discovered = tla_check.discover_specs(root)
+
+            self.assertEqual(
+                [(spec.name, spec.directory) for spec in discovered],
+                [("AlphaModel", throw_spec), ("ZuluModel", where_spec)],
+            )
+
+    def test_rejects_duplicate_spec_names_across_features(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self.catalog_fixture(root, "Where", "SharedName")
+            self.catalog_fixture(root, "Throw", "SharedName")
+
+            with self.assertRaisesRegex(
+                tla_check.TlaCheckError,
+                "duplicate TLA\\+ spec folder name.*Throw/Specifications/SharedName"
+                ".*Where/Specifications/SharedName",
+            ):
+                tla_check.discover_specs(root)
+
+    def test_resolves_selected_spec_and_validates_all_named_files(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self.catalog_fixture(root, "Where", "WhereModel")
+            throw_spec = self.catalog_fixture(root, "Throw", "ThrowModel")
+
+            resolved = tla_check.resolve_specs(root, ["ThrowModel"])
+
+            self.assertEqual(tuple(spec.directory for spec in resolved), (throw_spec,))
+
+            (throw_spec / "Current.cfg").unlink()
+            with self.assertRaisesRegex(tla_check.TlaCheckError, "Current.cfg.*not found"):
+                tla_check.resolve_specs(root, ["ThrowModel"])
+
+    def test_rejects_an_unknown_selected_spec(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self.catalog_fixture(root, "Where", "KnownModel")
+
+            with self.assertRaisesRegex(tla_check.TlaCheckError, "unknown spec 'Missing'"):
+                tla_check.resolve_specs(root, ["Missing"])
 
     def test_translates_an_isolated_copy_and_records_case_summaries(self):
         cases = [
