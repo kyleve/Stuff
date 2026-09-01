@@ -13,21 +13,21 @@ public struct FlightLayerFrameBuilder: Sendable {
     }
 
     public func frame(
-        snapshot: AircraftSnapshot,
+        observations: [ResolvedAircraftObservation],
+        observedAt: Date,
+        providerRouteResults: [AircraftID: FlightRouteResult],
         observer: ObserverPosition,
         labelMode: FlightLabelMode,
         routeResults: [FlightCallsign: FlightRouteResult],
-        motions: [AircraftID: AircraftMotion],
         availability: MarkAvailability,
     ) throws -> ProjectionLayerFrame<FlightsLayerKind> {
         var airportMarks: [AirportID: ProjectionMark] = [:]
         var aircraftMarks: [ProjectionMark] = []
-        for observation in snapshot.observations {
-            guard let motion = motions[observation.id] else {
-                preconditionFailure("Every observation must have resolved motion")
-            }
+        for resolvedObservation in observations {
+            let observation = resolvedObservation.observation
+            let motion = resolvedObservation.motion
             let callsign = observation.callsign.flatMap(FlightCallsign.init(rawValue:))
-            let routeResult = snapshot.routeResultsByAircraft[observation.id]
+            let routeResult = providerRouteResults[observation.id]
                 ?? callsign.flatMap { routeResults[$0] }
             let route = routeResult?.route
             let prominence: ProjectionProminence = if callsign == nil || routeResult ==
@@ -123,7 +123,7 @@ public struct FlightLayerFrameBuilder: Sendable {
             }
         }
         return ProjectionLayerFrame(
-            observedAt: snapshot.fetchedAt,
+            observedAt: observedAt,
             marks: aircraftMarks + airportMarks.values.sorted {
                 $0.id.rawValue < $1.id.rawValue
             },

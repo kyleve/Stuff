@@ -94,6 +94,8 @@ Recent provider tracks can supply a bounded turn rate.
 Horizontal motion is one typed value: an available value always has track,
 speed, and source, while orientation-only observations remain unavailable for
 translation. Turn rate exists only inside available horizontal motion.
+The motion estimator pairs each observation with its resolved motion before it
+calls the Flights frame builder. The builder cannot receive missing motion.
 Throw uses that turn rate for the first 12 seconds of a prediction.
 The runtime removes this history when the source changes or the app runtime ends.
 

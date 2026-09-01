@@ -8,14 +8,14 @@ struct FlightMotionEstimatorTests {
         let first = try observation(longitude: -122.02, positionAge: 10)
         let second = try observation(longitude: -122, positionAge: 0)
 
-        let firstMotions = try estimator.motions(
+        let firstObservations = try estimator.resolvedObservations(
             for: snapshot(first, fetchedAt: ThrowCoreFixture.date.addingTimeInterval(-10)),
         )
-        let secondMotions = try estimator.motions(
+        let secondObservations = try estimator.resolvedObservations(
             for: snapshot(second, fetchedAt: ThrowCoreFixture.date),
         )
-        let firstMotion = try #require(firstMotions[first.id])
-        let secondMotion = try #require(secondMotions[second.id])
+        let firstMotion = try #require(motion(for: first.id, in: firstObservations))
+        let secondMotion = try #require(motion(for: second.id, in: secondObservations))
 
         #expect(firstMotion.horizontalSource == nil)
         #expect(secondMotion.horizontalSource == .positionDerived)
@@ -39,14 +39,14 @@ struct FlightMotionEstimatorTests {
             groundSpeedKnots: 360,
             groundTrackDegrees: 270,
         )
-        _ = try estimator.motions(
+        _ = try estimator.resolvedObservations(
             for: snapshot(first, fetchedAt: ThrowCoreFixture.date.addingTimeInterval(-10)),
         )
 
-        let motions = try estimator.motions(
+        let observations = try estimator.resolvedObservations(
             for: snapshot(second, fetchedAt: ThrowCoreFixture.date),
         )
-        let motion = try #require(motions[second.id])
+        let motion = try #require(motion(for: second.id, in: observations))
 
         #expect(motion.horizontalSource == .positionDerived)
         #expect(try #require(motion.groundTrack).degrees > 80)
@@ -67,14 +67,14 @@ struct FlightMotionEstimatorTests {
             groundSpeedKnots: 360,
             groundTrackDegrees: 96,
         )
-        _ = try estimator.motions(
+        _ = try estimator.resolvedObservations(
             for: snapshot(first, fetchedAt: ThrowCoreFixture.date.addingTimeInterval(-10)),
         )
 
-        let motions = try estimator.motions(
+        let observations = try estimator.resolvedObservations(
             for: snapshot(second, fetchedAt: ThrowCoreFixture.date),
         )
-        let motion = try #require(motions[second.id])
+        let motion = try #require(motion(for: second.id, in: observations))
 
         #expect(motion.horizontalSource == .provider)
         #expect(abs((motion.turnRateDegreesPerSecond ?? 0) - 0.6) < 0.000_001)
@@ -94,14 +94,14 @@ struct FlightMotionEstimatorTests {
             groundSpeedKnots: 360,
             groundTrackDegrees: 270,
         )
-        _ = try estimator.motions(
+        _ = try estimator.resolvedObservations(
             for: snapshot(first, fetchedAt: ThrowCoreFixture.date.addingTimeInterval(-300)),
         )
 
-        let motions = try estimator.motions(
+        let observations = try estimator.resolvedObservations(
             for: snapshot(second, fetchedAt: ThrowCoreFixture.date),
         )
-        let motion = try #require(motions[second.id])
+        let motion = try #require(motion(for: second.id, in: observations))
 
         #expect(motion.horizontalSource == .provider)
         #expect(motion.groundTrack?.degrees == 270)
@@ -111,15 +111,15 @@ struct FlightMotionEstimatorTests {
         var estimator = FlightMotionEstimator()
         let first = try observation(longitude: -122.02, positionAge: 10)
         let second = try observation(longitude: -122, positionAge: 0)
-        _ = try estimator.motions(
+        _ = try estimator.resolvedObservations(
             for: snapshot(first, fetchedAt: ThrowCoreFixture.date.addingTimeInterval(-10)),
         )
         let current = snapshot(second, fetchedAt: ThrowCoreFixture.date)
-        let initialMotions = try estimator.motions(for: current)
-        let initiallyDerived = try #require(initialMotions[second.id])
+        let initialObservations = try estimator.resolvedObservations(for: current)
+        let initiallyDerived = try #require(motion(for: second.id, in: initialObservations))
 
-        let rebuiltMotions = try estimator.motions(for: current)
-        let rebuilt = try #require(rebuiltMotions[second.id])
+        let rebuiltObservations = try estimator.resolvedObservations(for: current)
+        let rebuilt = try #require(motion(for: second.id, in: rebuiltObservations))
 
         #expect(rebuilt == initiallyDerived)
         #expect(rebuilt.horizontalSource == .positionDerived)
@@ -129,7 +129,7 @@ struct FlightMotionEstimatorTests {
         var estimator = FlightMotionEstimator()
         let first = try observation(longitude: -122.02, positionAge: 10, source: .adsbLol)
         let second = try observation(longitude: -122, positionAge: 0, source: .readsb)
-        _ = try estimator.motions(
+        _ = try estimator.resolvedObservations(
             for: snapshot(
                 first,
                 source: .adsbLol,
@@ -137,10 +137,10 @@ struct FlightMotionEstimatorTests {
             ),
         )
 
-        let motions = try estimator.motions(
+        let observations = try estimator.resolvedObservations(
             for: snapshot(second, source: .readsb, fetchedAt: ThrowCoreFixture.date),
         )
-        let motion = try #require(motions[second.id])
+        let motion = try #require(motion(for: second.id, in: observations))
 
         #expect(motion.horizontalSource == nil)
     }
@@ -165,5 +165,12 @@ struct FlightMotionEstimatorTests {
         fetchedAt: Date,
     ) -> AircraftSnapshot {
         AircraftSnapshot(source: source, fetchedAt: fetchedAt, observations: [observation])
+    }
+
+    private func motion(
+        for id: AircraftID,
+        in observations: [ResolvedAircraftObservation],
+    ) -> AircraftMotion? {
+        observations.first { $0.observation.id == id }?.motion
     }
 }
