@@ -19,6 +19,8 @@ The Throw app is the iOS composition and scene shell; see
   `UIScreen.main`.
 - Retain the iOS 27 `UISceneAccessory` and its registration for as long as the
   controller scene is eligible. Revalidate this adapter against the GM SDK.
+- Keep required-reason API declarations in `PrivacyInfo.xcprivacy`. Preserve
+  the built-app manifest guard when changing app resources or preferences.
 - Restore the process's prior idle-timer state when the final output leaves.
 
 ## Testing

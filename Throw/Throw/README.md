@@ -26,9 +26,11 @@ forwards app background/foreground transitions to the session.
 
 ## Resources
 
-The app ships its app icon and generated software attribution report. Provider
-attribution is separate user-facing copy in ThrowUI. The ADS-B Exchange key is
-never an app resource or preference.
+The app ships its app icon, generated software attribution report, and privacy
+manifest. The manifest declares the required-reason use of `UserDefaults` for
+Throw's app-only preferences. `PrivacyManifestTests` verifies the declaration
+in the built app bundle. Provider attribution is separate user-facing copy in
+ThrowUI. The ADS-B Exchange key is never an app resource or preference.
 
 This target links ThrowUI directly and reaches ThrowCore transitively. Keeping
 the composition shell off a second direct ThrowCore product avoids embedding a
