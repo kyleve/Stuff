@@ -5,6 +5,148 @@ import ThrowCore
 
 @MainActor
 struct ThrowSessionTests {
+    @Test func preferenceLoadFailureIsTypedAndPreservesTheSeedSetup() async throws {
+        let storedPreferences = try ThrowSession.fixture().makePreferences()
+        let preferenceStore = ThrowSessionLaunchPreferenceStore(
+            result: .failure,
+            suspendsLoad: false,
+        )
+        let session = ThrowSession.launchFixture(
+            setupCompleted: true,
+            preferenceStore: preferenceStore,
+            credentialStore: ThrowSessionLaunchCredentialStore(
+                failingID: nil,
+                states: [:],
+            ),
+        )
+        let seedSetup = session.setupState
+
+        await session.start()
+
+        guard case let .failed(.preferences(detail)) = session.launchState else {
+            Issue.record("A preference error must fail launch at the preference boundary")
+            return
+        }
+        #expect(detail == ThrowSessionLaunchTestFailure.preferences.localizedDescription)
+        #expect(session.setupState == seedSetup)
+        #expect(session.setupState == storedPreferences.setupState)
+    }
+
+    @Test func credentialAccessFailureDoesNotLookLikeAMissingCredential() async throws {
+        let storedPreferences = try ThrowSession.fixture().makePreferences()
+        let preferenceStore = ThrowSessionLaunchPreferenceStore(
+            result: .value(storedPreferences),
+            suspendsLoad: false,
+        )
+        let session = ThrowSession.launchFixture(
+            setupCompleted: true,
+            preferenceStore: preferenceStore,
+            credentialStore: ThrowSessionLaunchCredentialStore(
+                failingID: .rapidAPI,
+                states: [:],
+            ),
+        )
+
+        await session.start()
+
+        guard case let .failed(.credential(id, detail)) = session.launchState else {
+            Issue.record("A credential access error must fail launch at the credential boundary")
+            return
+        }
+        #expect(id == .rapidAPI)
+        #expect(detail == ThrowSessionLaunchTestFailure.credential.localizedDescription)
+        #expect(session.rapidAPICredentialState == .missing)
+    }
+
+    @Test func configuredPreferencesAndMissingCredentialsProduceAReadySession() async throws {
+        let storedPreferences = try ThrowSession.fixture().makePreferences()
+        let preferenceStore = ThrowSessionLaunchPreferenceStore(
+            result: .value(storedPreferences),
+            suspendsLoad: false,
+        )
+        let session = ThrowSession.launchFixture(
+            setupCompleted: true,
+            preferenceStore: preferenceStore,
+            credentialStore: ThrowSessionLaunchCredentialStore(
+                failingID: nil,
+                states: [:],
+            ),
+        )
+
+        await session.start()
+
+        guard case let .ready(setup) = session.launchState else {
+            Issue.record("Configured preferences must produce a ready session")
+            return
+        }
+        #expect(ThrowSetupState.configured(setup) == storedPreferences.setupState)
+        #expect(session.rapidAPICredentialState == .missing)
+        #expect(session.flightradar24CredentialState == .missing)
+    }
+
+    @Test func incompletePreferencesProduceAnOnboardingSession() async throws {
+        let storedPreferences = try ThrowSession.onboardingFixture().makePreferences()
+        let preferenceStore = ThrowSessionLaunchPreferenceStore(
+            result: .value(storedPreferences),
+            suspendsLoad: false,
+        )
+        let session = ThrowSession.launchFixture(
+            setupCompleted: false,
+            preferenceStore: preferenceStore,
+            credentialStore: ThrowSessionLaunchCredentialStore(
+                failingID: nil,
+                states: [:],
+            ),
+        )
+
+        await session.start()
+
+        guard case let .onboarding(setup) = session.launchState else {
+            Issue.record("Incomplete preferences must produce an onboarding session")
+            return
+        }
+        #expect(ThrowSetupState.onboarding(setup) == storedPreferences.setupState)
+    }
+
+    @Test func cancelledLaunchWaiterDoesNotCancelTheSingleProcessLaunch() async throws {
+        let storedPreferences = try ThrowSession.fixture().makePreferences()
+        let preferenceStore = ThrowSessionLaunchPreferenceStore(
+            result: .value(storedPreferences),
+            suspendsLoad: true,
+        )
+        let session = ThrowSession.launchFixture(
+            setupCompleted: true,
+            preferenceStore: preferenceStore,
+            credentialStore: ThrowSessionLaunchCredentialStore(
+                failingID: nil,
+                states: [:],
+            ),
+        )
+
+        let firstWaiter = Task(name: "Throw first launch waiter") {
+            await session.start()
+        }
+        await preferenceStore.waitForLoadToStart()
+        let secondWaiter = Task(name: "Throw second launch waiter") {
+            await session.start()
+        }
+        firstWaiter.cancel()
+        session.startLaunch()
+
+        let loadCountBeforeResume = await preferenceStore.loadCallCount
+        #expect(loadCountBeforeResume == 1)
+        await preferenceStore.resumeLoad()
+        await secondWaiter.value
+        await firstWaiter.value
+
+        guard case .ready = session.launchState else {
+            Issue.record("The process launch must survive cancellation of a scene waiter")
+            return
+        }
+        let finalLoadCount = await preferenceStore.loadCallCount
+        #expect(finalLoadCount == 1)
+    }
+
     @Test func startKeepsAllRuntimeObserversAttached() async {
         let session = ThrowSession.fixture()
 
@@ -133,7 +275,6 @@ struct ThrowSessionTests {
         let output = ProjectionOutput.preview(
             ProjectionOutputID(rawValue: "invalid-source-test"),
         )
-        session.hasStarted = true
         session.locationMode = .manual
         session.aircraftSourceSelection = .awaitingValidation(.adsbLol)
         session.outputDemands.insert(output)
@@ -156,7 +297,6 @@ struct ThrowSessionTests {
         let output = ProjectionOutput.preview(
             ProjectionOutputID(rawValue: "geography-only-test"),
         )
-        session.hasStarted = true
         session.locationMode = .manual
         session.isApplyingPreferences = true
         session.flightsEnabled = false

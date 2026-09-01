@@ -60,6 +60,7 @@ extension ThrowSession {
             rotationClock: SystemProjectionRotationClock(),
             softwareCredits: credits,
             initiallyHasForegroundControllerScene: false,
+            initialLaunchState: .loading,
         )
         session.settingsFailure = creditFailure
         return session
@@ -117,12 +118,41 @@ extension ThrowSession {
             )
         }
 
+        @_spi(Testing) public static func launchFixture(
+            setupCompleted: Bool,
+            preferenceStore: any ThrowPreferenceStore,
+            credentialStore: any AircraftCredentialStore,
+        ) -> ThrowSession {
+            makeFixture(
+                setupCompleted: setupCompleted,
+                quiet: false,
+                transport: FixtureHTTPTransport(),
+                preferenceStoreOverride: preferenceStore,
+                credentialStoreOverride: credentialStore,
+                initialLaunchStateOverride: .loading,
+            )
+        }
+
         static func onboardingFixture() -> ThrowSession {
             makeFixture(
                 setupCompleted: false,
                 quiet: false,
                 transport: FixtureHTTPTransport(),
             )
+        }
+
+        static func loadingRootSnapshotFixture() -> ThrowSession {
+            let session = onboardingFixture()
+            session.launchState = .loading
+            return session
+        }
+
+        static func failedRootSnapshotFixture() -> ThrowSession {
+            let session = onboardingFixture()
+            session.launchState = .failed(.preferences(
+                detail: ThrowPreferenceStoreError.invalidPayload.localizedDescription,
+            ))
+            return session
         }
 
         static func quietFixture() -> ThrowSession {
@@ -385,7 +415,6 @@ extension ThrowSession {
 
         static func rootDashboardSnapshotFixture() -> ThrowSession {
             let session = fixture()
-            session.hasStarted = true
             session.locationHealth = .missing
             session.projectionFrame = emptyProjectionFrame(
                 mode: session.projectionMode,
@@ -504,6 +533,7 @@ extension ThrowSession {
             credentials: [AircraftCredentialID: AircraftCredential] = [:],
             preferenceStoreOverride: (any ThrowPreferenceStore)? = nil,
             credentialStoreOverride: (any AircraftCredentialStore)? = nil,
+            initialLaunchStateOverride: ThrowSessionLaunchState? = nil,
         ) -> ThrowSession {
             do {
                 let now = Date(timeIntervalSince1970: 1_787_594_400)
@@ -628,6 +658,7 @@ extension ThrowSession {
                     rotationClock: SystemProjectionRotationClock(),
                     softwareCredits: [],
                     initiallyHasForegroundControllerScene: true,
+                    initialLaunchState: initialLaunchStateOverride ?? .loaded(setupState),
                 )
                 session.projectionFrame = quiet
                     ? emptyProjectionFrame(mode: .map, at: now)
@@ -675,7 +706,6 @@ extension ThrowSession {
         }
 
         private static func prepareDashboardSnapshot(_ session: ThrowSession) {
-            session.hasStarted = true
             session.locationHealth = .confirmed(
                 accuracyMeters: 18,
                 acceptedAt: session.dateProvider.now(),

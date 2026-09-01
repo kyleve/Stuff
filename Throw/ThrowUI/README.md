@@ -11,9 +11,10 @@ that same instance to every controller and output scene:
 
 ```swift
 let session = ThrowSession.live()
+session.startLaunch()
 
 ThrowRootView(session: session)
-ProjectionSurface(session: session, presentation: .externalDisplay)
+ThrowProjectionRootView(session: session, presentation: .externalDisplay)
 ```
 
 Scenes tell the session when an output begins and ends demanding projection
@@ -32,6 +33,16 @@ selection, one rotation clock, prewarming, and lifecycle reconciliation. Its
 validated runtime state keeps the active identity inside the current playlist,
 including when startup replaces the empty default with saved settings. Every
 scene observes the same coordinator and active experience.
+
+Cold launch has one exhaustive process state. Loading carries no setup.
+Onboarding carries `ThrowOnboardingSetup`, and ready carries
+`ThrowConfiguredSetup`. A failed state identifies preference or credential
+access. A missing credential is loaded data, not a storage error.
+
+The session retains one launch task. All callers join that task, and caller
+cancellation does not cancel it. The task loads preferences and both credential
+states before it publishes onboarding or ready. It never replaces a load error
+with default preferences.
 
 `ThrowSession+Composition.swift` is the only live construction boundary. It
 creates the stores, aircraft source graph, poller, and session once. Previews

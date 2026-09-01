@@ -7,6 +7,12 @@ receive that runtime's shared ThrowUI session.
 
 Each scene composes its concrete ThrowUI root from that session. Runtime
 handoff does not erase roots to `AnyView` or construct feature services.
+The runtime starts one retained launch task when it creates the session.
+Scene insertion, removal, and task cancellation cannot cancel this launch.
+
+The session exposes one exhaustive launch state. Controller roots show loading,
+onboarding, ready, or failed content from that state. Projection roots stay
+black until the state contains loaded setup and credential status.
 
 ## Scene paths
 
@@ -17,9 +23,8 @@ handoff does not erase roots to `AnyView` or construct feature services.
   runtime under a typed persistent identity.
 - iOS 27 controller hosting registers a retained external scene accessory,
   availability-gated at runtime.
-- `ExternalDisplaySceneDelegate` hosts the production `ProjectionSurface` in
-  a black `UIHostingController` and uses the connected `UIWindowScene`'s
-  geometry.
+- `ExternalDisplaySceneDelegate` hosts `ThrowProjectionRootView` in a black
+  `UIHostingController`. The root creates `ProjectionSurface` only after launch.
 - Preview and explicit full-screen mirroring fallback remain ThrowUI flows and
   use the same surface.
 

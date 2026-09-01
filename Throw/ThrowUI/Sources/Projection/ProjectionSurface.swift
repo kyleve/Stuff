@@ -3,19 +3,19 @@ import SwiftUI
 import ThrowCore
 
 /// The sole production renderer for projector, Preview, and mirror fallback output.
-public struct ProjectionSurface: View {
+struct ProjectionSurface: View {
     private let session: ThrowSession
     private let presentation: ProjectionPresentation
 
     @Environment(\.throwStylesheet) private var stylesheet
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    public init(session: ThrowSession, presentation: ProjectionPresentation) {
+    init(session: ThrowSession, presentation: ProjectionPresentation) {
         self.session = session
         self.presentation = presentation
     }
 
-    public var body: some View {
+    var body: some View {
         let frame = session.projectionFrame
         let effects = session.projectionMarkEffects
         let markOpacity = session.projectionMarkOpacity
@@ -491,7 +491,7 @@ private struct ProjectionLinesCanvas: View, Equatable {
 
 #if DEBUG
     extension ProjectionSurface: SnapshotProviding {
-        public static var snapshots: [SnapshotCase] {
+        static var snapshots: [SnapshotCase] {
             SnapshotCase(
                 name: "Map",
                 configurations: projectionConfigurations,

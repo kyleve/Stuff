@@ -5,6 +5,41 @@ import UIKit
 
 @MainActor
 struct ThrowRuntimeTests {
+    @Test func controllerSceneCancellationCannotCancelTheProcessLaunch() async {
+        let harness = ThrowSessionLaunchTestHarness.configuredSuspended()
+        let session = harness.session
+        let runtime = ThrowRuntime(
+            session: session,
+            idleTimerController: IdleTimerControllerSpy(isIdleTimerDisabled: false),
+        )
+        let first = ControllerSceneID(rawValue: "launch-first")
+        let second = ControllerSceneID(rawValue: "launch-second")
+
+        await harness.waitForLoadToStart()
+        runtime.controllerScene(first, didReceive: .willEnterForeground)
+        runtime.controllerScene(second, didReceive: .willEnterForeground)
+        let sceneWaiter = Task(name: "Throw cancelled scene launch waiter") {
+            await session.waitForLaunchForTesting()
+        }
+        sceneWaiter.cancel()
+        runtime.controllerScene(first, didReceive: .didDisconnect)
+        runtime.controllerScene(second, didReceive: .didEnterBackground)
+
+        let loadCountBeforeResume = await harness.loadCallCount()
+        #expect(loadCountBeforeResume == 1)
+        await harness.resumeLoad()
+        await session.waitForLaunchForTesting()
+        await sceneWaiter.value
+
+        guard case .ready = session.launchState else {
+            Issue.record("Scene cancellation must not cancel the process launch")
+            return
+        }
+        let finalLoadCount = await harness.loadCallCount()
+        #expect(finalLoadCount == 1)
+        #expect(session.hasForegroundControllerSceneForTesting == false)
+    }
+
     @Test func firstAndLastOutputOwnIdleTimerRestoration() {
         let idleTimer = IdleTimerControllerSpy(isIdleTimerDisabled: false)
         let runtime = ThrowRuntime(

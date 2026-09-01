@@ -65,6 +65,7 @@ final class ThrowRuntime: ThrowApplicationRuntime {
         self.session = session
         self.idleTimerController = idleTimerController
         session.controllerForegroundPresenceDidChange(false)
+        session.startLaunch()
     }
 
     static func live() -> ThrowRuntime {
