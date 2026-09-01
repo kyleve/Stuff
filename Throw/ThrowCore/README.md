@@ -75,9 +75,12 @@ source, confirmed location, and projection mode. The codec reconstructs this
 state from the stable version-one and version-two fields.
 
 The process starts one Periscope store and attaches it to Throw's typed log.
-The store keeps at most 100 days and 50,000 events. A store failure leaves
-OSLog active and produces a typed failure event with the underlying error.
-History-prune failure does not make an attached store unavailable.
+The session logger sends failures to OSLog while this store opens. It also
+retains each exact typed record and its error attachment. The handoff writes
+these records to the store once before new session records use the attached sink.
+The store keeps at most 100 days and 50,000 events. A store error leaves OSLog
+active and produces a typed error event. A history-prune error does not make
+an attached store unavailable.
 
 Composition gives software-attribution failure to the durable logging starter.
 The starter records the error after the store attaches. Existing sinks receive

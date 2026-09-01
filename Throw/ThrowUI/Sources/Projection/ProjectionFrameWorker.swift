@@ -23,6 +23,7 @@ actor ProjectionFrameWorker {
     private let geographyRuntime: GeographyLayerRuntime
     private let geographyLogger: any GeographyLogging
     private let motionLogger: any ProjectionMotionLogging
+    private let sessionFailureLogger: any ThrowSessionFailureLogging
     private var loadedGeographyLayerFrame: ProjectionLayerFrame<GeographyLayerKind>?
     private var geographyLayerLoadTask: Task<Void, Never>?
     private var geographyLoadWaiters: [
@@ -43,10 +44,12 @@ actor ProjectionFrameWorker {
         geographyRuntime: GeographyLayerRuntime,
         geographyLogger: any GeographyLogging,
         motionLogger: any ProjectionMotionLogging,
+        sessionFailureLogger: any ThrowSessionFailureLogging,
     ) {
         self.geographyRuntime = geographyRuntime
         self.geographyLogger = geographyLogger
         self.motionLogger = motionLogger
+        self.sessionFailureLogger = sessionFailureLogger
     }
 
     /// Compatibility initializer for focused worker tests that still build a Flights runtime.
@@ -55,11 +58,13 @@ actor ProjectionFrameWorker {
         geographyRuntime: GeographyLayerRuntime,
         geographyLogger: any GeographyLogging,
         motionLogger: any ProjectionMotionLogging,
+        sessionFailureLogger: any ThrowSessionFailureLogging,
     ) {
         self.init(
             geographyRuntime: geographyRuntime,
             geographyLogger: geographyLogger,
             motionLogger: motionLogger,
+            sessionFailureLogger: sessionFailureLogger,
         )
     }
 
@@ -169,7 +174,7 @@ actor ProjectionFrameWorker {
         } catch is CancellationError {
             throw CancellationError()
         } catch {
-            ThrowLog.recordPostLaunchFailure(
+            sessionFailureLogger.recordPostLaunchFailure(
                 at: request.context.loggingOperation,
                 error: error,
             )

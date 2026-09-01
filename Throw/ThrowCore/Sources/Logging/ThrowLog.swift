@@ -671,17 +671,17 @@ public struct ProjectionMotionLogEvent: LogEvent, Equatable {
 
 public enum ThrowLog {
     public static let root = Log<ThrowRootLogEvent>(system: .shared)
-    public static let session = root(ThrowSessionLogEvent.self)
     public static let aircraft = root(AircraftPollingLogEvent.self)
     public static let geography = root(GeographyLogEvent.self)
     public static let flightRoutes = root(FlightRouteLogEvent.self)
     public static let projectionMotion = root(ProjectionMotionLogEvent.self)
 
-    public static func recordColdLaunchFailure(
+    static func recordColdLaunchFailure(
         at boundary: ThrowSessionLogEvent.ColdLaunchBoundary,
         error: any Error,
+        using logger: Log<ThrowSessionLogEvent>,
     ) {
-        session(attachments: [.error(error, name: "launch-error")]) {
+        logger(attachments: [.error(error, name: "launch-error")]) {
             .coldLaunchFailed(boundary: boundary)
         }
     }
@@ -695,14 +695,43 @@ public enum ThrowLog {
         }
     }
 
-    public static func recordPostLaunchFailure(
+    static func recordPostLaunchFailure(
         at operation: ThrowSessionLogEvent.PostLaunchOperation,
         error: any Error,
+        using logger: Log<ThrowSessionLogEvent>,
     ) {
-        session(attachments: [.error(error, name: "operation-error")]) {
+        logger(attachments: [.error(error, name: "operation-error")]) {
             .postLaunchOperationFailed(operation: operation)
         }
     }
+}
+
+/// Records typed session failures without exposing the underlying Periscope logger.
+public protocol ThrowSessionFailureLogging: Sendable {
+    func recordColdLaunchFailure(
+        at boundary: ThrowSessionLogEvent.ColdLaunchBoundary,
+        error: any Error,
+    )
+
+    func recordPostLaunchFailure(
+        at operation: ThrowSessionLogEvent.PostLaunchOperation,
+        error: any Error,
+    )
+}
+
+/// Drops session failures in fixtures that do not install a diagnostics pipeline.
+public struct DiscardingThrowSessionFailureLogger: ThrowSessionFailureLogging {
+    public init() {}
+
+    public func recordColdLaunchFailure(
+        at _: ThrowSessionLogEvent.ColdLaunchBoundary,
+        error _: any Error,
+    ) {}
+
+    public func recordPostLaunchFailure(
+        at _: ThrowSessionLogEvent.PostLaunchOperation,
+        error _: any Error,
+    ) {}
 }
 
 public protocol AircraftPollingLogging: Sendable {
