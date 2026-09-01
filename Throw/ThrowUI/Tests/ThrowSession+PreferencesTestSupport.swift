@@ -54,3 +54,35 @@ actor SuspendingThrowPreferenceStore: ThrowPreferenceStore {
         saveCallCount
     }
 }
+
+enum SwitchableThrowPreferenceStoreFailure: Error {
+    case save
+}
+
+actor SwitchableThrowPreferenceStore: ThrowPreferenceStore {
+    private var preferences: ThrowPreferences
+    private var failsSave: Bool
+
+    init(
+        initialValue: ThrowPreferences = .defaultValue,
+        failsSave: Bool,
+    ) {
+        preferences = initialValue
+        self.failsSave = failsSave
+    }
+
+    func load() -> ThrowPreferences {
+        preferences
+    }
+
+    func save(_ preferences: ThrowPreferences) throws {
+        guard failsSave == false else {
+            throw SwitchableThrowPreferenceStoreFailure.save
+        }
+        self.preferences = preferences
+    }
+
+    func setFailsSave(_ failsSave: Bool) {
+        self.failsSave = failsSave
+    }
+}

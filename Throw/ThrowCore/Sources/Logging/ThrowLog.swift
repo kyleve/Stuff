@@ -17,12 +17,26 @@ public enum ThrowSessionLogEvent: LogEvent, Equatable {
         case unexpected
     }
 
+    /// A recoverable operation boundary after the session becomes operational.
+    public enum PostLaunchOperation: String, CaseIterable, Codable, Equatable, Sendable {
+        case preferencePersistence = "preference-persistence"
+        case aircraftSource = "aircraft-source"
+        case rapidAPICredential = "rapidapi-credential"
+        case flightradar24Credential = "flightradar24-credential"
+        case location
+        case playlist
+        case onboarding
+        case projectionPreparation = "projection-preparation"
+        case projectionRendering = "projection-rendering"
+    }
+
     case durableLoggingReady
     case durableLoggingUnavailable(description: String)
     case durableLoggingHistoryPruned(expiredEventCount: Int, overflowEventCount: Int)
     case durableLoggingHistoryPruneFailed(description: String)
     case coldLaunchFailed(boundary: ColdLaunchBoundary)
     case softwareCreditsLoadFailed
+    case postLaunchOperationFailed(operation: PostLaunchOperation)
 
     public static let eventName = "ThrowSession"
 
@@ -32,7 +46,8 @@ public enum ThrowSessionLogEvent: LogEvent, Equatable {
                 .info
             case .durableLoggingHistoryPruneFailed:
                 .warning
-            case .durableLoggingUnavailable, .coldLaunchFailed, .softwareCreditsLoadFailed:
+            case .durableLoggingUnavailable, .coldLaunchFailed,
+                 .softwareCreditsLoadFailed, .postLaunchOperationFailed:
                 .error
         }
     }
@@ -51,6 +66,8 @@ public enum ThrowSessionLogEvent: LogEvent, Equatable {
                 "Cold launch failed at the \(boundary.rawValue) boundary"
             case .softwareCreditsLoadFailed:
                 "Software credits failed to load"
+            case let .postLaunchOperationFailed(operation):
+                "Post-launch operation failed at the \(operation.rawValue) boundary"
         }
     }
 
@@ -68,6 +85,8 @@ public enum ThrowSessionLogEvent: LogEvent, Equatable {
                 "Cold launch failed"
             case .softwareCreditsLoadFailed:
                 "Software credits failed to load"
+            case .postLaunchOperationFailed:
+                "Post-launch operation failed"
         }
     }
 
@@ -89,6 +108,13 @@ public enum ThrowSessionLogEvent: LogEvent, Equatable {
                     RemoteLogField(
                         key: RemoteLogFieldKey("boundary"),
                         value: .category(RemoteLogCategory(boundary)),
+                    ),
+                ]
+            case let .postLaunchOperationFailed(operation):
+                [
+                    RemoteLogField(
+                        key: RemoteLogFieldKey("operation"),
+                        value: .category(RemoteLogCategory(operation)),
                     ),
                 ]
             case .durableLoggingReady, .durableLoggingUnavailable,
@@ -666,6 +692,15 @@ public enum ThrowLog {
     ) {
         logger(attachments: [failure.attachment]) {
             .softwareCreditsLoadFailed
+        }
+    }
+
+    public static func recordPostLaunchFailure(
+        at operation: ThrowSessionLogEvent.PostLaunchOperation,
+        error: any Error,
+    ) {
+        session(attachments: [.error(error, name: "operation-error")]) {
+            .postLaunchOperationFailed(operation: operation)
         }
     }
 }

@@ -2,14 +2,14 @@ import SFSafeSymbols
 import SwiftUI
 
 struct SettingsFailureMessage: View {
-    let detail: String
+    let failure: ThrowPostLaunchFailure
 
     var body: some View {
         Label {
             VStack(alignment: .leading, spacing: 4) {
                 Text(.settingsFailureTitle)
                     .font(.headline)
-                Text(verbatim: detail)
+                Text(failure.userMessage)
                     .font(.footnote)
             }
         } icon: {

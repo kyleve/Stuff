@@ -34,6 +34,7 @@ struct ThrowSessionAircraftTests {
             flightsFrame: nil,
             snapshot: nil,
             activePollingSignature: nil,
+            semanticPreparationState: .ready,
         ))
 
         #expect(session.activePollingSignature == signature)
@@ -64,6 +65,7 @@ struct ThrowSessionAircraftTests {
             configuration: .adsbLol,
             query: query,
         )
+        session.publishPostLaunchFailure(.flightradar24Credential)
         let replacement = try AircraftCredential(secret: "fr24-replacement-1234")
 
         let applied = await session.useSource(ValidatedAircraftSourceDraft(
@@ -79,6 +81,10 @@ struct ThrowSessionAircraftTests {
         #expect(session.feedHealth == previousHealth)
         #expect(session.flightradar24CredentialState == .missing)
         #expect(await credentialStore.credential(for: .flightradar24) == nil)
+        #expect(
+            session.postLaunchFailureLedger.failure(for: .flightradar24Credential) ==
+                .flightradar24Credential,
+        )
         #expect(await session.airAndSpaceRuntime.activeSourceKindForTesting() == .adsbLol)
         await session.airAndSpaceRuntime.deactivate(lease: activationLease, reporting: .idle)
     }

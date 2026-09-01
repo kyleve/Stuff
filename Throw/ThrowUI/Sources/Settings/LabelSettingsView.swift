@@ -13,10 +13,11 @@ struct LabelSettingsView: View {
     }
 
     var body: some View {
+        let failures = session.postLaunchFailures(for: .labels)
         Form {
-            if let settingsFailure = session.settingsFailure {
+            if failures.isEmpty == false {
                 Section {
-                    SettingsFailureMessage(detail: settingsFailure)
+                    SettingsFailureMessages(failures: failures)
                 }
             }
             Picker(String(localized: .settingsLabels), selection: $labelMode) {

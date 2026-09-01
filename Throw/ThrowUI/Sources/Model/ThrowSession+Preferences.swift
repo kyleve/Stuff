@@ -43,7 +43,7 @@ extension ThrowSession {
             mayApplyTrueHeadingHint = false
         }
 
-        schedulePreferencesSave()
+        schedulePreferencesSave(failure: .preferencePersistence)
         if calibrationChanged {
             rebuildCurrentLayerFrame()
             restartRenderer()
@@ -72,7 +72,7 @@ extension ThrowSession {
             projectionFrame = projectionFrame.removingGeography()
         }
 
-        schedulePreferencesSave()
+        schedulePreferencesSave(failure: .preferencePersistence)
         if labelModeChanged {
             rebuildCurrentLayerFrame()
         }
@@ -86,7 +86,7 @@ extension ThrowSession {
     }
 
     func projectionInputsChanged(restartsPolling: Bool) {
-        schedulePreferencesSave()
+        schedulePreferencesSave(failure: .preferencePersistence)
         if restartsPolling {
             scheduleDemandReconciliation()
         } else {
@@ -95,38 +95,53 @@ extension ThrowSession {
         }
     }
 
-    func schedulePreferencesSave() {
+    func schedulePreferencesSave(failure: ThrowPostLaunchFailure) {
         guard preferenceMutationInProgress == false else {
-            preferenceMutationNeedsSave = true
+            deferredPreferenceSaveFailures = deferredPreferenceSaveFailures.recording(failure)
             return
         }
         let preferences: ThrowPreferences
         do {
             preferences = try makePreferences()
         } catch {
-            settingsFailure = error.localizedDescription
+            recordPostLaunchFailure(failure, error: error)
             return
         }
         if preferenceSaveQueue.last?.isCoalescible == true {
-            preferenceSaveQueue[preferenceSaveQueue.index(before: preferenceSaveQueue.endIndex)] =
-                .coalesced(preferences)
+            let index = preferenceSaveQueue.index(before: preferenceSaveQueue.endIndex)
+            preferenceSaveQueue[index] = preferenceSaveQueue[index].coalescing(
+                preferences,
+                failure: failure,
+            )
         } else {
-            preferenceSaveQueue.append(.coalesced(preferences))
+            preferenceSaveQueue.append(
+                .coalesced(
+                    preferences,
+                    failureLedger: ThrowPostLaunchFailureLedger().recording(failure),
+                ),
+            )
         }
         startPreferenceSaveWorkerIfNeeded()
     }
 
     func savePreferencesImmediately() async throws {
         let preferences = try makePreferences()
-        try await persistPreferencesImmediately(preferences)
+        try await persistPreferencesImmediately(
+            preferences,
+            failure: .preferencePersistence,
+        )
         projectionPlaylist = preferences.playlist
         await configureExperienceCoordinator(with: projectionPlaylist)
-        settingsFailure = nil
     }
 
-    func persistPreferencesImmediately(_ preferences: ThrowPreferences) async throws {
+    func persistPreferencesImmediately(
+        _ preferences: ThrowPreferences,
+        failure: ThrowPostLaunchFailure,
+    ) async throws {
         try await withCheckedThrowingContinuation { continuation in
-            preferenceSaveQueue.append(.immediate(preferences, continuation))
+            preferenceSaveQueue.append(
+                .immediate(preferences, failure: failure, continuation),
+            )
             startPreferenceSaveWorkerIfNeeded()
         }
     }
@@ -145,9 +160,11 @@ extension ThrowSession {
 
     func finishPreferenceMutation() {
         preferenceMutationInProgress = false
-        guard preferenceMutationNeedsSave else { return }
-        preferenceMutationNeedsSave = false
-        schedulePreferencesSave()
+        let failures = deferredPreferenceSaveFailures.failures
+        deferredPreferenceSaveFailures = ThrowPostLaunchFailureLedger()
+        for failure in failures {
+            schedulePreferencesSave(failure: failure)
+        }
     }
 
     private func startPreferenceSaveWorkerIfNeeded() {
@@ -162,10 +179,16 @@ extension ThrowSession {
             let request = preferenceSaveQueue.removeFirst()
             do {
                 try await preferenceStore.save(request.preferences)
-                settingsFailure = nil
+                for failure in request.failures {
+                    resolvePostLaunchFailure(failure.owner)
+                }
                 request.resume()
+            } catch let error as CancellationError {
+                request.resume(throwing: error)
             } catch {
-                settingsFailure = error.localizedDescription
+                for failure in request.failures {
+                    recordPostLaunchFailure(failure, error: error)
+                }
                 request.resume(throwing: error)
             }
         }
@@ -238,14 +261,41 @@ extension ThrowSession {
 }
 
 enum PreferenceSaveRequest {
-    case coalesced(ThrowPreferences)
-    case immediate(ThrowPreferences, CheckedContinuation<Void, any Error>)
+    case coalesced(
+        ThrowPreferences,
+        failureLedger: ThrowPostLaunchFailureLedger,
+    )
+    case immediate(
+        ThrowPreferences,
+        failure: ThrowPostLaunchFailure,
+        CheckedContinuation<Void, any Error>,
+    )
 
     var preferences: ThrowPreferences {
         switch self {
-            case let .coalesced(preferences), let .immediate(preferences, _):
+            case let .coalesced(preferences, _), let .immediate(preferences, _, _):
                 preferences
         }
+    }
+
+    var failures: [ThrowPostLaunchFailure] {
+        switch self {
+            case let .coalesced(_, failureLedger):
+                failureLedger.failures
+            case let .immediate(_, failure, _):
+                [failure]
+        }
+    }
+
+    func coalescing(
+        _ preferences: ThrowPreferences,
+        failure: ThrowPostLaunchFailure,
+    ) -> Self {
+        guard case let .coalesced(_, failureLedger) = self else { return self }
+        return .coalesced(
+            preferences,
+            failureLedger: failureLedger.recording(failure),
+        )
     }
 
     var isCoalescible: Bool {
@@ -257,13 +307,13 @@ enum PreferenceSaveRequest {
     }
 
     func resume() {
-        if case let .immediate(_, continuation) = self {
+        if case let .immediate(_, _, continuation) = self {
             continuation.resume()
         }
     }
 
     func resume(throwing error: any Error) {
-        if case let .immediate(_, continuation) = self {
+        if case let .immediate(_, _, continuation) = self {
             continuation.resume(throwing: error)
         }
     }

@@ -91,6 +91,7 @@ struct ThrowSessionExperiencesTests {
             flightsFrame: nil,
             snapshot: snapshot,
             activePollingSignature: nil,
+            semanticPreparationState: .ready,
         )
 
         await session.applyAirAndSpaceUpdate(update)

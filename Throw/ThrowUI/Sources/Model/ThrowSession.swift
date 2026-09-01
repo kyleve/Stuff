@@ -133,7 +133,7 @@ public final class ThrowSession {
     public internal(set) var rapidAPICredentialState: CredentialState = .missing
     public internal(set) var flightradar24CredentialState: CredentialState = .missing
     public let softwareCreditsState: SoftwareCreditsLoadState
-    public internal(set) var settingsFailure: String?
+    private(set) var postLaunchFailureLedger = ThrowPostLaunchFailureLedger()
 
     public internal(set) var globalPreferences: ThrowGlobalPreferences
     public internal(set) var airAndSpacePreferences: AirAndSpacePreferences
@@ -333,7 +333,7 @@ public final class ThrowSession {
     @ObservationIgnored var lastFlightradar24UsageRequestAt: Date?
     @ObservationIgnored var flightradar24UsageGeneration: UInt64 = 0
     @ObservationIgnored var preferenceMutationInProgress = false
-    @ObservationIgnored var preferenceMutationNeedsSave = false
+    @ObservationIgnored var deferredPreferenceSaveFailures = ThrowPostLaunchFailureLedger()
     @ObservationIgnored var onboardingCompletionInProgress = false
     #if DEBUG
         @ObservationIgnored @_spi(Testing) public var
@@ -413,6 +413,46 @@ public final class ThrowSession {
 
     public var hasProjectionOutputDemand: Bool {
         projectionOutputCount > 0
+    }
+
+    func postLaunchFailures(
+        for surface: ThrowPostLaunchFailure.PresentationSurface,
+    ) -> [ThrowPostLaunchFailure] {
+        postLaunchFailureLedger.failures.filter { $0.isRelevant(to: surface) }
+    }
+
+    func publishPostLaunchFailure(_ failure: ThrowPostLaunchFailure) {
+        postLaunchFailureLedger = postLaunchFailureLedger.recording(failure)
+    }
+
+    func recordPostLaunchFailure(
+        _ failure: ThrowPostLaunchFailure,
+        error: any Error,
+    ) {
+        publishPostLaunchFailure(failure)
+        logPostLaunchFailure(at: failure.owner, error: error)
+    }
+
+    func resolvePostLaunchFailure(_ owner: ThrowPostLaunchFailure.Owner) {
+        postLaunchFailureLedger = postLaunchFailureLedger.resolving(owner)
+    }
+
+    func logPostLaunchFailure(
+        at owner: ThrowPostLaunchFailure.Owner,
+        error: any Error,
+    ) {
+        let operation: ThrowSessionLogEvent.PostLaunchOperation = switch owner {
+            case .preferencePersistence: .preferencePersistence
+            case .aircraftSource: .aircraftSource
+            case .rapidAPICredential: .rapidAPICredential
+            case .flightradar24Credential: .flightradar24Credential
+            case .location: .location
+            case .playlist: .playlist
+            case .onboarding: .onboarding
+            case .projectionPreparation: .projectionPreparation
+            case .projectionRendering: .projectionRendering
+        }
+        ThrowLog.recordPostLaunchFailure(at: operation, error: error)
     }
 
     public var setupCompleted: Bool {

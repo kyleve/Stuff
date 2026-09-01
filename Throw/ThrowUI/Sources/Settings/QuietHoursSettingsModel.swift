@@ -36,8 +36,8 @@ final class QuietHoursSettingsModel {
         end = session.quietEnd
     }
 
-    var settingsFailure: String? {
-        session.settingsFailure
+    var postLaunchFailures: [ThrowPostLaunchFailure] {
+        session.postLaunchFailures(for: .quietHours)
     }
 
     var scheduleIsValid: Bool {

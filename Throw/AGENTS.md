@@ -39,6 +39,8 @@ WhereCore, RegionKit, or LifecycleKit into this feature.
   Map-center coordinate, receiver URL, request URL, aircraft identity, or response body.
 - Send production diagnostics through typed `ThrowLog` events. Do not import
   system logging or write raw diagnostic output.
+- Keep post-launch operation failures in the typed owner ledger. Resolve only
+  the owner whose operation succeeds.
 - Keep the external surface opaque black and noninteractive. Calibration may
   bypass quiet output without starting a feed.
 - Keep Geography offline and Map-only. Never add online map tiles or transmit

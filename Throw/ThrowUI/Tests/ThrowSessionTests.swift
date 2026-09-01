@@ -380,7 +380,10 @@ struct ThrowSessionTests {
         #expect(gpsSaved == false)
         #expect(session.observerLocationMode == .manual)
         #expect(session.confirmedLocation == manual)
-        #expect(session.settingsFailure != nil)
+        #expect(
+            session.postLaunchFailureLedger.failure(for: .location) ==
+                .location(.gpsFixRequired),
+        )
     }
 
     @Test func refreshingAManualLocationRequiresExplicitAcceptanceBeforeSwitchingToGPS() async {

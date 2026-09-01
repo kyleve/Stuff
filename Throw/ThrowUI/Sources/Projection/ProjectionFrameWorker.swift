@@ -156,6 +156,7 @@ actor ProjectionFrameWorker {
         calibration: ProjectionCalibration,
         generatedAt: Date,
         reduceMotion: Bool,
+        loggingOperation: ThrowSessionLogEvent.PostLaunchOperation,
     ) async throws -> ProjectionFrameWorkerOutput {
         try await frame(
             input: .checked(input),
@@ -164,6 +165,7 @@ actor ProjectionFrameWorker {
             calibration: calibration,
             generatedAt: generatedAt,
             reduceMotion: reduceMotion,
+            loggingOperation: loggingOperation,
         )
     }
 
@@ -235,6 +237,7 @@ actor ProjectionFrameWorker {
                 calibration: calibration,
                 generatedAt: generatedAt,
                 reduceMotion: reduceMotion,
+                loggingOperation: .projectionRendering,
             )
         }
     #endif
@@ -246,6 +249,7 @@ actor ProjectionFrameWorker {
         calibration: ProjectionCalibration,
         generatedAt: Date,
         reduceMotion: Bool,
+        loggingOperation: ThrowSessionLogEvent.PostLaunchOperation,
     ) async throws -> ProjectionFrameWorkerOutput {
         try Task.checkCancellation()
         let experienceID = input.experienceID
@@ -266,6 +270,7 @@ actor ProjectionFrameWorker {
         } catch is CancellationError {
             throw CancellationError()
         } catch {
+            ThrowLog.recordPostLaunchFailure(at: loggingOperation, error: error)
             geographyLoadFailed = true
             geographyResult = .unavailable
         }
