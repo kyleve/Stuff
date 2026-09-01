@@ -1,0 +1,40 @@
+{
+  "source": "pluscal",
+  "module": "PreferenceTransactions.tla",
+  "cases": [
+    {
+      "name": "broken-retry",
+      "config": "BrokenRetry.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant PersistedSourceHasAlignedCredential is violated."
+    },
+    {
+      "name": "broken-observer",
+      "config": "BrokenObserver.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant VisibleFrameMatchesPublishedObserver is violated."
+    },
+    {
+      "name": "retry-reachability",
+      "config": "CurrentRetryReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant RetryRecoveryWasNotQueued is violated."
+    },
+    {
+      "name": "stale-render-reachability",
+      "config": "CurrentStaleRenderReachability.cfg",
+      "expect": "fail",
+      "outputContains": "Invariant StaleRenderWasNotRejected is violated."
+    },
+    {
+      "name": "current-small",
+      "config": "CurrentSmall.cfg",
+      "expect": "pass"
+    },
+    {
+      "name": "current-expanded",
+      "config": "CurrentExpanded.cfg",
+      "expect": "pass"
+    }
+  ]
+}
