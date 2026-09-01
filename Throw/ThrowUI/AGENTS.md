@@ -24,6 +24,10 @@ Read the root [`AGENTS.md`](../../AGENTS.md) and group
   missing credential as data and a credential access error as launch failure.
 - Show localized recovery text for launch failures. Record the underlying error
   only in diagnostics.
+- Represent software attribution as loaded credits or a failed state. Keep a
+  loaded empty report distinct from manifest failure.
+- Pass attribution-load errors into the durable-logging starter. Never show the
+  underlying error in UI.
 - Route every root through `ThrowSessionLaunchState`. Create dashboard and
   projection surfaces only from its loaded cases.
 - Accept aggregate controller foreground presence from the app runtime. Do not

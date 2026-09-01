@@ -79,6 +79,10 @@ The store keeps at most 100 days and 50,000 events. A store failure leaves
 OSLog active and produces a typed failure event with the underlying error.
 History-prune failure does not make an attached store unavailable.
 
+Composition gives software-attribution failure to the durable logging starter.
+The starter records the error after the store attaches. Existing sinks receive
+the event if the store cannot open.
+
 `AircraftSourceSelection` keeps unconfigured, awaiting-validation, and
 configured source state in one value. A configured source cannot disagree with
 a separate validation flag.

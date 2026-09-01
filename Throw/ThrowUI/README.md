@@ -51,6 +51,10 @@ store failure does not fail the product launch because OSLog remains active.
 Cold-launch failure views show localized recovery text. Typed session logs keep
 the failed boundary and attach the underlying storage error for diagnostics.
 
+Software attribution has one typed load state. An empty report remains loaded.
+A manifest error shows an unavailable state. Diagnostics receive the underlying
+error only after the durable logging starter begins its work.
+
 `ThrowSession+Composition.swift` is the only live construction boundary. It
 creates the stores, durable-logging starter, aircraft source graph, poller, and
 session once. Previews and tests use the fixture path in that same file.

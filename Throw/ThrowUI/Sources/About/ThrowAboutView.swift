@@ -1,12 +1,13 @@
 import CreditKit
 import SFSafeSymbols
+import SnapshotKit
 import SwiftUI
 
 struct ThrowAboutView: View {
     let session: ThrowSession
 
     var body: some View {
-        let credits = SoftwareCreditsPresentation(credits: session.softwareCredits)
+        let credits = SoftwareCreditsPresentation(state: session.softwareCreditsState)
         List {
             Section {
                 Text(.aboutDisclaimer)
@@ -88,32 +89,73 @@ struct ThrowAboutView: View {
                 }
             }
 
-            Section(String(localized: .aboutLibraries)) {
-                if credits.libraries.isEmpty {
-                    Label(
-                        String(localized: .aboutCreditsUnavailable),
-                        systemSymbol: .exclamationmarkTriangle,
-                    )
-                    .foregroundStyle(.secondary)
-                } else {
-                    ForEach(credits.libraries) { credit in
-                        SoftwareCreditLink(credit: credit)
+            switch credits {
+                case let .loaded(credits):
+                    Section(String(localized: .aboutLibraries)) {
+                        if credits.libraries.isEmpty {
+                            Text(.aboutNoLibraries)
+                                .foregroundStyle(.secondary)
+                        } else {
+                            ForEach(credits.libraries) { credit in
+                                SoftwareCreditLink(credit: credit)
+                            }
+                        }
                     }
-                }
-            }
 
-            Section(String(localized: .aboutDevelopmentTools)) {
-                if credits.developmentTools.isEmpty {
-                    Text(.aboutNoDevelopmentTools)
-                        .foregroundStyle(.secondary)
-                } else {
-                    ForEach(credits.developmentTools) { credit in
-                        SoftwareCreditLink(credit: credit)
+                    Section(String(localized: .aboutDevelopmentTools)) {
+                        if credits.developmentTools.isEmpty {
+                            Text(.aboutNoDevelopmentTools)
+                                .foregroundStyle(.secondary)
+                        } else {
+                            ForEach(credits.developmentTools) { credit in
+                                SoftwareCreditLink(credit: credit)
+                            }
+                        }
                     }
-                }
+                case .unavailable:
+                    Section(String(localized: .aboutSoftware)) {
+                        Label(
+                            String(localized: .aboutCreditsUnavailable),
+                            systemSymbol: .exclamationmarkTriangle,
+                        )
+                        .foregroundStyle(.secondary)
+                    }
             }
         }
         .navigationTitle(Text(.aboutTitle))
         .navigationDestination(for: SoftwareCredit.self, destination: SoftwareCreditDetailView.init)
     }
 }
+
+#if DEBUG
+    extension ThrowAboutView: SnapshotProviding {
+        static var snapshots: [SnapshotCase] {
+            SnapshotCase(
+                name: "Loaded credits",
+                configurations: [SnapshotConfiguration(device: .iPhoneFullContent)],
+                measurementReadiness: .immediate,
+                settle: .settledAtLeast(minDuration: 0.75),
+            ) {
+                NavigationStack {
+                    ThrowAboutView(session: .loadedSoftwareCreditsSnapshotFixture())
+                }
+                .throwBroadwayRoot()
+            }
+            SnapshotCase(
+                name: "Credits unavailable",
+                configurations: [SnapshotConfiguration(device: .iPhoneFullContent)],
+                measurementReadiness: .immediate,
+                settle: .settledAtLeast(minDuration: 0.75),
+            ) {
+                NavigationStack {
+                    ThrowAboutView(session: .unavailableSoftwareCreditsSnapshotFixture())
+                }
+                .throwBroadwayRoot()
+            }
+        }
+    }
+
+    #Preview {
+        ThrowAboutView.snapshotPreviews
+    }
+#endif
