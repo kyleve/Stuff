@@ -67,6 +67,8 @@ configured source state in one value. A configured source cannot disagree with
 a separate validation flag.
 
 `LayerID`, `LayerMarkID`, and `ProjectionLineStyleID` are closed typed values.
+`GeodeticAltitude` stores altitude availability, value, and quality in one
+state. An unavailable altitude cannot carry a quality.
 `ProjectionLayerFrame` fixes each semantic layer identity and payload shape in
 its generic type. A mark layer cannot receive line content, and a line layer
 cannot receive marks. Raw `LayerFrame` construction stays at the Core erasure

@@ -83,21 +83,26 @@ public enum FlightPredictor {
         } else {
             anchor.coordinate
         }
-        let altitude: Altitude? = if let current = anchor.altitude,
-                                     let verticalRate = mark.velocity?.verticalRateFeetPerMinute
-        {
-            try predictedAltitude(
-                current: current,
-                verticalRateFeetPerMinute: verticalRate,
-                predictionAge: predictionAge,
-            )
-        } else {
-            anchor.altitude
+        let altitude: GeodeticAltitude = switch anchor.altitude {
+            case .unavailable:
+                .unavailable
+            case let .available(current, quality):
+                if let verticalRate = mark.velocity?.verticalRateFeetPerMinute {
+                    try .available(
+                        predictedAltitude(
+                            current: current,
+                            verticalRateFeetPerMinute: verticalRate,
+                            predictionAge: predictionAge,
+                        ),
+                        quality: quality,
+                    )
+                } else {
+                    anchor.altitude
+                }
         }
         let predictedAnchor = GeodeticAnchor(
             coordinate: coordinate,
             altitude: altitude,
-            altitudeQuality: anchor.altitudeQuality,
         )
         return ProjectionMark(
             id: mark.id,

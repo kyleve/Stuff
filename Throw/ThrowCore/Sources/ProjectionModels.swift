@@ -144,31 +144,47 @@ public struct ProjectionCalibration: Hashable, Sendable {
     }
 }
 
-public enum AltitudeQuality: String, Hashable, Sendable {
+public enum AvailableAltitudeQuality: String, Hashable, Sendable {
     case geometric
     case barometricApproximation
+}
+
+/// One valid altitude state for a geodetic projection anchor.
+public enum GeodeticAltitude: Hashable, Sendable {
     case unavailable
+    case available(Altitude, quality: AvailableAltitudeQuality)
+
+    public var value: Altitude? {
+        switch self {
+            case .unavailable:
+                nil
+            case let .available(altitude, _):
+                altitude
+        }
+    }
+
+    public var quality: AvailableAltitudeQuality? {
+        switch self {
+            case .unavailable:
+                nil
+            case let .available(_, quality):
+                quality
+        }
+    }
 }
 
 public struct GeodeticAnchor: Hashable, Sendable, CustomStringConvertible,
     CustomDebugStringConvertible
 {
     public let coordinate: GeoCoordinate
-    public let altitude: Altitude?
-    public let altitudeQuality: AltitudeQuality
+    public let altitude: GeodeticAltitude
 
     public init(
         coordinate: GeoCoordinate,
-        altitude: Altitude?,
-        altitudeQuality: AltitudeQuality,
+        altitude: GeodeticAltitude,
     ) {
-        precondition(
-            (altitude == nil) == (altitudeQuality == .unavailable),
-            "Altitude availability and quality must agree",
-        )
         self.coordinate = coordinate
         self.altitude = altitude
-        self.altitudeQuality = altitudeQuality
     }
 
     public var description: String {

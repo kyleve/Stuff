@@ -1118,8 +1118,7 @@ struct ProjectionFrameWorkerTests {
                             latitude: observer.coordinate.latitude,
                             longitude: observer.coordinate.longitude + longitudeOffset,
                         ),
-                        altitude: Altitude(feet: 10000),
-                        altitudeQuality: .geometric,
+                        altitude: .available(Altitude(feet: 10000), quality: .geometric),
                     )),
                     glyph: .aircraft(.unknownAirborne),
                     label: label.map {
@@ -1163,8 +1162,7 @@ struct ProjectionFrameWorkerTests {
                             latitude: observer.coordinate.latitude,
                             longitude: observer.coordinate.longitude + longitudeOffset,
                         ),
-                        altitude: Altitude(feet: 10000),
-                        altitudeQuality: .geometric,
+                        altitude: .available(Altitude(feet: 10000), quality: .geometric),
                     )),
                     glyph: .aircraft(.unknownAirborne),
                     label: ProjectionLabel(

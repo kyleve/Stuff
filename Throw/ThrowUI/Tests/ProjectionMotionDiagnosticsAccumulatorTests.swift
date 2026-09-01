@@ -47,8 +47,7 @@ struct ProjectionMotionDiagnosticsAccumulatorTests {
                     id: markID(rawValue: rawID),
                     anchor: .geodetic(GeodeticAnchor(
                         coordinate: GeoCoordinate(latitude: 37, longitude: -122),
-                        altitude: Altitude(feet: 10000),
-                        altitudeQuality: .geometric,
+                        altitude: .available(Altitude(feet: 10000), quality: .geometric),
                     )),
                     glyph: .aircraft(.unknownAirborne),
                     label: nil,

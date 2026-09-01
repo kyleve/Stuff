@@ -66,7 +66,9 @@ public enum CloudAircraftQuery {
                     }
                 case let .trueSky(viewport):
                     guard observation.airborneState != .ground else { continue }
-                    guard let altitude = observation.preferredSkyAltitude else { continue }
+                    guard case let .available(altitude, quality) = observation.skyAltitude else {
+                        continue
+                    }
                     let groundPosition = try engine.greatCirclePosition(
                         from: query.observer.coordinate,
                         to: observation.coordinate,
@@ -76,8 +78,7 @@ public enum CloudAircraftQuery {
                     }
                     let anchor = GeodeticAnchor(
                         coordinate: observation.coordinate,
-                        altitude: altitude,
-                        altitudeQuality: observation.skyAltitudeQuality,
+                        altitude: .available(altitude, quality: quality),
                     )
                     guard let horizontal = try engine.horizontalPosition(
                         observer: query.observer,

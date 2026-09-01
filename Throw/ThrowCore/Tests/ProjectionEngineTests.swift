@@ -33,8 +33,7 @@ struct ProjectionEngineTests {
         let observer = try ThrowCoreFixture.observer(latitude: 0, longitude: 0, altitudeFeet: 0)
         let target = try GeodeticAnchor(
             coordinate: observer.coordinate,
-            altitude: Altitude(feet: 10000),
-            altitudeQuality: .geometric,
+            altitude: .available(Altitude(feet: 10000), quality: .geometric),
         )
         let position = try engine.horizontalPosition(observer: observer, target: target)
         let horizontal = try #require(position)
@@ -45,8 +44,7 @@ struct ProjectionEngineTests {
         let observer = try ThrowCoreFixture.observer(latitude: 0, longitude: 0, altitudeFeet: 0)
         let target = try GeodeticAnchor(
             coordinate: GeoCoordinate(latitude: 0, longitude: 1),
-            altitude: Altitude(feet: 0),
-            altitudeQuality: .geometric,
+            altitude: .available(Altitude(feet: 0), quality: .geometric),
         )
         let position = try engine.horizontalPosition(observer: observer, target: target)
         let horizontal = try #require(position)
@@ -90,8 +88,7 @@ struct ProjectionEngineTests {
             id: .transitVehicle(#require(TransitVehicleID(rawValue: "vehicle"))),
             anchor: .geodetic(GeodeticAnchor(
                 coordinate: GeoCoordinate(latitude: 0.1, longitude: 0),
-                altitude: Altitude(feet: 0),
-                altitudeQuality: .geometric,
+                altitude: .available(Altitude(feet: 0), quality: .geometric),
             )),
             glyph: .aircraft(.unknownAirborne),
             label: nil,
@@ -279,8 +276,7 @@ struct ProjectionEngineTests {
             id: #require(AircraftID(kind: .icao, rawValue: "moving")).layerMarkID,
             anchor: .geodetic(GeodeticAnchor(
                 coordinate: GeoCoordinate(latitude: 80, longitude: 0.5),
-                altitude: Altitude(feet: 30000),
-                altitudeQuality: .geometric,
+                altitude: .available(Altitude(feet: 30000), quality: .geometric),
             )),
             glyph: .aircraft(.unknownAirborne),
             label: nil,
@@ -728,8 +724,7 @@ struct ProjectionEngineTests {
             anchor: .geodetic(
                 GeodeticAnchor(
                     coordinate: GeoCoordinate(latitude: latitude, longitude: longitude),
-                    altitude: Altitude(feet: altitudeFeet),
-                    altitudeQuality: .geometric,
+                    altitude: .available(Altitude(feet: altitudeFeet), quality: .geometric),
                 ),
             ),
             glyph: .aircraft(.unknownAirborne),

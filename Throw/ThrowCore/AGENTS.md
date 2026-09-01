@@ -38,6 +38,8 @@ location, and scheduling; see [`README.md`](README.md). Read the root
 - Represent setup as `ThrowSetupState`. A configured setup carries its validated
   source, confirmed location, and projection mode as required values.
 - Keep projection functions deterministic and independent of SwiftUI layout.
+- Represent geodetic altitude as `GeodeticAltitude`. An available altitude
+  carries its value and available quality together.
 - Keep experience and layer catalogs compile-time and free of UI values. Add no
   runtime plugin or `AnyView` boundary.
 - Construct semantic frames through typed layer and experience cases. Do not pass

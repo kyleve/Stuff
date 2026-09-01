@@ -335,12 +335,16 @@ public struct AircraftObservation: Hashable, Sendable, CustomStringConvertible,
     }
 
     public var preferredSkyAltitude: Altitude? {
-        geometricAltitude ?? barometricAltitude
+        skyAltitude.value
     }
 
-    public var skyAltitudeQuality: AltitudeQuality {
-        if geometricAltitude != nil { return .geometric }
-        if barometricAltitude != nil { return .barometricApproximation }
+    public var skyAltitude: GeodeticAltitude {
+        if let geometricAltitude {
+            return .available(geometricAltitude, quality: .geometric)
+        }
+        if let barometricAltitude {
+            return .available(barometricAltitude, quality: .barometricApproximation)
+        }
         return .unavailable
     }
 
