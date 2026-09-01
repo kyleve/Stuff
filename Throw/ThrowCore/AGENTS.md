@@ -54,6 +54,8 @@ location, and scheduling; see [`README.md`](README.md). Read the root
   lines by layer identity and semantic revision.
 - Keep version-two preferences grouped by global, playlist, and experience
   ownership. Preserve exact version-one migration and existing Keychain IDs.
+- Represent temporary quiet wake durations as `TemporaryQuietWake`. Never pass
+  a raw minute count across the session boundary.
 - Project Geography with the selected regional Map center and saved calibration.
   Never use Mercator placement or draw it in True Sky.
 - Keep observer and Map-center semantics separate. True Sky and local activity

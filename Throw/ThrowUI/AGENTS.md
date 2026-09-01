@@ -53,6 +53,8 @@ Read the root [`AGENTS.md`](../../AGENTS.md) and group
 - Iterate the layers supplied by `ProjectionFrame`. Do not restore catalog
   enumeration or a Geography special case in the surface.
 - Keep external projection opaque black and free of interactive chrome.
+- Pass `TemporaryQuietWake` values to quiet-wake intents. Never send raw minute
+  counts from a view.
 - Seed `ThrowStylesheet` with `throwBroadwayRoot()` at every independent root.
 - Keep previews and snapshots on deterministic in-memory dependencies. Never
   access a live provider, GPS, UserDefaults, or Keychain.

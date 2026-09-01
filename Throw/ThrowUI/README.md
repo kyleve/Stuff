@@ -63,6 +63,8 @@ sole renderer. It iterates the ordered layers in an immutable generic
 `ProjectionFrame`. It does not enumerate a global catalog or special-case
 Flights. The projector is decorative. Preview exposes the active experience
 name, health, and one status summary.
+Quiet-wake actions pass a `TemporaryQuietWake` value through the session
+boundary. Unsupported minute counts cannot enter the runtime.
 
 The worker keeps independent animation, collision, correction, and acquisition
 state for each experience. Its static-line projections use a bounded cache of

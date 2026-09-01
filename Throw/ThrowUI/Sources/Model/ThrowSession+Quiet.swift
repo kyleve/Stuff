@@ -1,4 +1,5 @@
 import Foundation
+import ThrowCore
 import UIKit
 
 extension ThrowSession {
@@ -15,12 +16,8 @@ extension ThrowSession {
         }
     }
 
-    public func wakeQuietly(forMinutes minutes: Int) {
-        guard [15, 30, 60].contains(minutes) else {
-            assertionFailure("Unsupported temporary quiet wake duration")
-            return
-        }
-        temporaryWakeUntil = dateProvider.now().addingTimeInterval(Double(minutes * 60))
+    public func wakeQuietly(for wake: TemporaryQuietWake) {
+        temporaryWakeUntil = dateProvider.now().addingTimeInterval(wake.timeInterval)
         scheduleDemandReconciliation()
     }
 

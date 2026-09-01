@@ -194,14 +194,14 @@ struct ThrowDashboardView: View {
                 if session.feedHealth == .quiet {
                     Section {
                         Button(String(localized: .quietWake30)) {
-                            session.wakeQuietly(forMinutes: 30)
+                            session.wakeQuietly(for: .thirtyMinutes)
                         }
                         Menu {
                             Button(String(localized: .quietWake15)) {
-                                session.wakeQuietly(forMinutes: 15)
+                                session.wakeQuietly(for: .fifteenMinutes)
                             }
                             Button(String(localized: .quietWake60)) {
-                                session.wakeQuietly(forMinutes: 60)
+                                session.wakeQuietly(for: .sixtyMinutes)
                             }
                         } label: {
                             Text(.quietOtherWakeDurations)
