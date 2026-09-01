@@ -68,6 +68,7 @@ public actor FlightRouteResolver {
         } catch is CancellationError {
             throw CancellationError()
         } catch {
+            try Task.checkCancellation()
             retryNotBefore = date.addingTimeInterval(Self.failureCooldown)
             throw error
         }

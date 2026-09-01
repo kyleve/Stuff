@@ -21,6 +21,36 @@ struct HTTPTransportTests {
         )
     }
 
+    @Test func canceledURLSessionErrorPreservesTaskCancellation() async {
+        let task = Task {
+            withUnsafeCurrentTask { task in
+                task?.cancel()
+            }
+            return try URLSessionHTTPTransport.failure(
+                for: URLError(.cancelled),
+                networkScope: .internet,
+            )
+        }
+
+        do {
+            _ = try await task.value
+            Issue.record("Expected task cancellation.")
+        } catch is CancellationError {
+            // Expected.
+        } catch {
+            Issue.record("Expected CancellationError, received \(error).")
+        }
+    }
+
+    @Test func uncanceledURLSessionCancellationRemainsATransportFailure() throws {
+        #expect(
+            try URLSessionHTTPTransport.failure(
+                for: URLError(.cancelled),
+                networkScope: .internet,
+            ) == HTTPTransportFailure(category: .cancelled),
+        )
+    }
+
     @Test func descriptionsRedactCredentialCoordinatesReceiverURLAndBody() throws {
         let credentialSentinel = "credential-DO-NOT-LEAK-1234"
         let bodySentinel = "body-DO-NOT-LEAK"
