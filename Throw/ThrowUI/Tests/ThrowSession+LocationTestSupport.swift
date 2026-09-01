@@ -101,6 +101,8 @@ actor ControlledThrowPreferenceStore: ThrowPreferenceStore {
 
     private var preferences: ThrowPreferences
     private let saveBehavior: SaveBehavior
+    private var savedPreferences: [ThrowPreferences] = []
+    private var saveCount = 0
     private var saveStartedContinuation: CheckedContinuation<Void, Never>?
     private var saveContinuation: CheckedContinuation<Void, Never>?
     private var saveHasStarted = false
@@ -118,8 +120,9 @@ actor ControlledThrowPreferenceStore: ThrowPreferenceStore {
     }
 
     func save(_ preferences: ThrowPreferences) async throws {
+        saveCount += 1
         switch saveBehavior {
-            case .suspended:
+            case .suspended where saveCount == 1:
                 saveHasStarted = true
                 saveStartedContinuation?.resume()
                 saveStartedContinuation = nil
@@ -127,6 +130,10 @@ actor ControlledThrowPreferenceStore: ThrowPreferenceStore {
                     saveContinuation = continuation
                 }
                 self.preferences = preferences
+                savedPreferences.append(preferences)
+            case .suspended:
+                self.preferences = preferences
+                savedPreferences.append(preferences)
             case .failing:
                 throw ControlledThrowPreferenceStoreFailure.save
         }
@@ -142,5 +149,13 @@ actor ControlledThrowPreferenceStore: ThrowPreferenceStore {
     func resumeSave() {
         saveContinuation?.resume()
         saveContinuation = nil
+    }
+
+    func persistedPreferences() -> ThrowPreferences {
+        preferences
+    }
+
+    func successfulSaves() -> [ThrowPreferences] {
+        savedPreferences
     }
 }

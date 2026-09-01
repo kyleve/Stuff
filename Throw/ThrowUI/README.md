@@ -100,6 +100,10 @@ The session stores validated `ThrowGlobalPreferences` and
 `AirAndSpacePreferences` values. Its scalar properties are read-only display
 projections. Settings keep raw control drafts locally and publish only complete,
 validated replacements. An invalid draft cannot change polling or persistence.
+Immediate source and location commits derive from one complete preference
+snapshot. If another scene changes typed preferences during the write, the
+session derives and persists the combined snapshot again. The final snapshot
+comparison and publication do not suspend.
 Onboarding uses the same aggregates and keeps calibration preview state separate.
 Quiet-wake actions pass a `TemporaryQuietWake` value through the session
 boundary. Unsupported minute counts cannot enter the runtime.

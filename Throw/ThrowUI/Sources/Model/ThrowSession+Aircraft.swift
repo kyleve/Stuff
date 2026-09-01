@@ -169,10 +169,14 @@ extension ThrowSession {
 
         await flushPreferencesSave()
 
-        let replacementSetupState = setupState.replacingSource(draft.configuration)
-        let preferences: ThrowPreferences
         do {
-            preferences = try makePreferences(setupState: replacementSetupState)
+            let base = preferenceSnapshot
+            _ = try makePreferences(
+                setupState: base.setupState.replacingSource(draft.configuration),
+                globalPreferences: base.globalPreferences,
+                airAndSpacePreferences: base.airAndSpacePreferences,
+                projectionPlaylist: base.projectionPlaylist,
+            )
         } catch {
             recordPostLaunchFailure(.aircraftSource, error: error)
             return false
@@ -208,11 +212,47 @@ extension ThrowSession {
             }
         }
 
+        let invalidation: ProjectionPreferenceInvalidation
         do {
-            try await persistPreferencesImmediately(
-                preferences,
+            invalidation = try await persistReconciledPreferenceMutation(
                 failure: .aircraftSource,
+                makeMutation: { base in
+                    ThrowPreferenceMutation(
+                        snapshot: base.replacingSetupState(
+                            base.setupState.replacingSource(draft.configuration),
+                        ),
+                        publication: credentialReplacement,
+                    )
+                },
+                prepareForPublication: {
+                    self.prepareProjectionPreferencePublication(.aircraftSource)
+                },
+                publish: { replacement in
+                    guard let replacement else { return }
+                    switch replacement.id {
+                        case .rapidAPI:
+                            self.rapidAPICredentialState = .saved(
+                                lastFour: replacement.credential.lastFour,
+                            )
+                        case .flightradar24:
+                            self.invalidateFlightradar24Usage()
+                            self.flightradar24CredentialState = .saved(
+                                lastFour: replacement.credential.lastFour,
+                            )
+                    }
+                    self.resolvePostLaunchFailure(
+                        self.credentialFailure(for: replacement.id).owner,
+                    )
+                },
             )
+        } catch is CancellationError {
+            if credentialMutationAttempted, let replacement = credentialReplacement {
+                await restoreCredentialAfterFailedSourceChange(
+                    previousCredential,
+                    for: replacement.id,
+                )
+            }
+            return false
         } catch {
             // The preference worker recorded this source operation error.
             if credentialMutationAttempted, let replacement = credentialReplacement {
@@ -224,24 +264,8 @@ extension ThrowSession {
             return false
         }
 
-        await deactivateAirAndSpace(reporting: .idle)
-        activePollingSignature = nil
-        setupState = replacementSetupState
-        projectionPlaylist = preferences.playlist
+        await finishProjectionPreferenceInvalidation(invalidation)
         await configureExperienceCoordinator(with: projectionPlaylist)
-
-        if let replacement = credentialReplacement {
-            switch replacement.id {
-                case .rapidAPI:
-                    rapidAPICredentialState = .saved(lastFour: replacement.credential.lastFour)
-                case .flightradar24:
-                    invalidateFlightradar24Usage()
-                    flightradar24CredentialState = .saved(
-                        lastFour: replacement.credential.lastFour,
-                    )
-            }
-            resolvePostLaunchFailure(credentialFailure(for: replacement.id).owner)
-        }
 
         do {
             try await discardOldFrame()
@@ -434,6 +458,39 @@ extension ThrowSession {
         demandTask = Task(name: "Throw reconcile output demand") { [weak self] in
             guard let self else { return }
             await reconcileDemand(generation: generation)
+        }
+    }
+
+    func prepareProjectionPreferencePublication(
+        _ change: ProjectionPreferenceChange,
+    ) -> ProjectionPreferenceInvalidation {
+        demandGeneration &+= 1
+        demandTask?.cancel()
+        let activationLease = airAndSpaceActivation.activeLease
+        if let activationLease {
+            _ = airAndSpaceActivation.deactivate(activationLease)
+        }
+        activePollingSignature = nil
+        if change == .observerLocation {
+            clearProjectionStateSynchronously()
+        }
+        return ProjectionPreferenceInvalidation(
+            change: change,
+            activationLease: activationLease,
+        )
+    }
+
+    func finishProjectionPreferenceInvalidation(
+        _ invalidation: ProjectionPreferenceInvalidation,
+    ) async {
+        if let activationLease = invalidation.activationLease {
+            await airAndSpaceRuntime.deactivate(
+                lease: activationLease,
+                reporting: .idle,
+            )
+        }
+        if invalidation.change == .observerLocation {
+            await projectionWorker.reset()
         }
     }
 
@@ -754,6 +811,14 @@ extension ThrowSession {
     }
 
     func clearProjectionState(restartsGeography: Bool) async {
+        clearProjectionStateSynchronously()
+        await projectionWorker.reset()
+        if restartsGeography, geographyEnabled, projectionMode == .map {
+            restartRenderer()
+        }
+    }
+
+    private func clearProjectionStateSynchronously() {
         currentSnapshot = nil
         replacePendingAirAndSpaceFrame(.empty)
         stopRenderer()
@@ -770,10 +835,6 @@ extension ThrowSession {
         transaction.disablesAnimations = true
         withTransaction(transaction) {
             projectionMarkOpacity = 1
-        }
-        await projectionWorker.reset()
-        if restartsGeography, geographyEnabled, projectionMode == .map {
-            restartRenderer()
         }
     }
 
@@ -919,4 +980,15 @@ extension ThrowSession {
         }
         projectionPresentationState = presentation
     }
+}
+
+enum ProjectionPreferenceChange: Equatable {
+    case observerLocation
+    case aircraftSource
+}
+
+/// The runtime work that finishes after a preference-backed context publishes.
+struct ProjectionPreferenceInvalidation {
+    let change: ProjectionPreferenceChange
+    let activationLease: ProjectionActivationLease?
 }

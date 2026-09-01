@@ -180,6 +180,69 @@ extension ThrowSession {
         }
     }
 
+    /// Persists a mutation against the latest complete preference snapshot.
+    /// Publication cannot suspend after the snapshot comparison succeeds.
+    func persistReconciledPreferenceMutation<Publication, Preparation>(
+        failure: ThrowPostLaunchFailure,
+        makeMutation: (ThrowPreferenceSnapshot) throws
+            -> ThrowPreferenceMutation<Publication>,
+        prepareForPublication: () -> Preparation,
+        publish: (Publication) -> Void,
+    ) async throws -> Preparation {
+        while true {
+            let base = preferenceSnapshot
+            let candidate: ThrowPreferenceMutation<Publication>
+            let preferences: ThrowPreferences
+            do {
+                candidate = try makeMutation(base)
+                preferences = try makePreferences(
+                    setupState: candidate.snapshot.setupState,
+                    globalPreferences: candidate.snapshot.globalPreferences,
+                    airAndSpacePreferences: candidate.snapshot.airAndSpacePreferences,
+                    projectionPlaylist: candidate.snapshot.projectionPlaylist,
+                )
+            } catch {
+                recordPostLaunchFailure(failure, error: error)
+                throw error
+            }
+            try await persistPreferencesImmediately(
+                preferences,
+                failure: failure,
+            )
+            guard base == preferenceSnapshot else { continue }
+
+            let preparation = prepareForPublication()
+            publishPreferenceSnapshot(ThrowPreferenceSnapshot(preferences))
+            publish(candidate.publication)
+            resolveDeferredPreferenceFailuresAfterReconciledWrite()
+            return preparation
+        }
+    }
+
+    var preferenceSnapshot: ThrowPreferenceSnapshot {
+        ThrowPreferenceSnapshot(
+            setupState: setupState,
+            globalPreferences: globalPreferences,
+            airAndSpacePreferences: airAndSpacePreferences,
+            projectionPlaylist: projectionPlaylist,
+        )
+    }
+
+    func resolveDeferredPreferenceFailuresAfterReconciledWrite() {
+        let failures = deferredPreferenceSaveFailures.failures
+        deferredPreferenceSaveFailures = ThrowPostLaunchFailureLedger()
+        for failure in failures {
+            resolvePostLaunchFailure(failure.owner)
+        }
+    }
+
+    private func publishPreferenceSnapshot(_ snapshot: ThrowPreferenceSnapshot) {
+        setupState = snapshot.setupState
+        globalPreferences = snapshot.globalPreferences
+        airAndSpacePreferences = snapshot.airAndSpacePreferences
+        projectionPlaylist = snapshot.projectionPlaylist
+    }
+
     private func startPreferenceSaveWorkerIfNeeded() {
         guard preferenceSaveTask == nil else { return }
         preferenceSaveTask = Task(name: "Throw save preferences") { [self] in
@@ -271,6 +334,50 @@ extension ThrowSession {
     func updateQuietSchedule(_ schedule: QuietSchedule) {
         updateGlobalPreferences(globalPreferences.replacingQuietSchedule(schedule))
     }
+}
+
+/// All preference-backed session values captured in one comparable revision.
+struct ThrowPreferenceSnapshot: Equatable {
+    let setupState: ThrowSetupState
+    let globalPreferences: ThrowGlobalPreferences
+    let airAndSpacePreferences: AirAndSpacePreferences
+    let projectionPlaylist: ProjectionPlaylist
+
+    init(
+        setupState: ThrowSetupState,
+        globalPreferences: ThrowGlobalPreferences,
+        airAndSpacePreferences: AirAndSpacePreferences,
+        projectionPlaylist: ProjectionPlaylist,
+    ) {
+        self.setupState = setupState
+        self.globalPreferences = globalPreferences
+        self.airAndSpacePreferences = airAndSpacePreferences
+        self.projectionPlaylist = projectionPlaylist
+    }
+
+    init(_ preferences: ThrowPreferences) {
+        self.init(
+            setupState: preferences.setupState,
+            globalPreferences: preferences.global,
+            airAndSpacePreferences: preferences.airAndSpace,
+            projectionPlaylist: preferences.playlist,
+        )
+    }
+
+    func replacingSetupState(_ setupState: ThrowSetupState) -> Self {
+        Self(
+            setupState: setupState,
+            globalPreferences: globalPreferences,
+            airAndSpacePreferences: airAndSpacePreferences,
+            projectionPlaylist: projectionPlaylist,
+        )
+    }
+}
+
+/// A candidate snapshot and the non-persistent state published with it.
+struct ThrowPreferenceMutation<Publication> {
+    let snapshot: ThrowPreferenceSnapshot
+    let publication: Publication
 }
 
 enum PreferenceSaveRequest {

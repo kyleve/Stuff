@@ -67,7 +67,7 @@ extension ThrowSession {
                 // The preference worker recorded this operation error.
                 return
             }
-            guard candidate.base == onboardingPreferenceSnapshot else { continue }
+            guard candidate.base == preferenceSnapshot else { continue }
             publication = candidate
             break
         }
@@ -80,7 +80,7 @@ extension ThrowSession {
             playlist: publication.preferences.playlist,
         ))
         setupState = publication.setupState
-        deferredPreferenceSaveFailures = ThrowPostLaunchFailureLedger()
+        resolveDeferredPreferenceFailuresAfterReconciledWrite()
         await configureExperienceCoordinator(with: projectionPlaylist)
         scheduleDemandReconciliation()
     }
@@ -102,15 +102,6 @@ extension ThrowSession {
         restartRenderer()
     }
 
-    private var onboardingPreferenceSnapshot: OnboardingPreferenceSnapshot {
-        OnboardingPreferenceSnapshot(
-            setupState: setupState,
-            globalPreferences: globalPreferences,
-            airAndSpacePreferences: airAndSpacePreferences,
-            projectionPlaylist: projectionPlaylist,
-        )
-    }
-
     private func onboardingPreferencePublication(
         projectionMode: ProjectionMode,
         calibration: ProjectionCalibration,
@@ -118,7 +109,7 @@ extension ThrowSession {
         mapViewport: MapViewport,
         skyViewport: SkyViewport,
     ) throws -> OnboardingPreferencePublication? {
-        let base = onboardingPreferenceSnapshot
+        let base = preferenceSnapshot
         guard let completedSetup = base.setupState.completing(
             projectionMode: projectionMode,
         ) else { return nil }
@@ -144,17 +135,9 @@ extension ThrowSession {
     }
 }
 
-/// The session values that must stay unchanged while one completion snapshot saves.
-private struct OnboardingPreferenceSnapshot: Equatable {
-    let setupState: ThrowSetupState
-    let globalPreferences: ThrowGlobalPreferences
-    let airAndSpacePreferences: AirAndSpacePreferences
-    let projectionPlaylist: ProjectionPlaylist
-}
-
 /// A persisted onboarding candidate paired with the session values it was built from.
 private struct OnboardingPreferencePublication {
-    let base: OnboardingPreferenceSnapshot
+    let base: ThrowPreferenceSnapshot
     let setupState: ThrowSetupState
     let globalPreferences: ThrowGlobalPreferences
     let airAndSpacePreferences: AirAndSpacePreferences
