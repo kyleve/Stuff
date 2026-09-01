@@ -119,6 +119,8 @@ layer. Layer identity also owns the fixed renderer z-order.
 The worker converts `ProjectionExperienceInput` into one closed
 `PreparedProjectionExperienceInput` after it projects static lines. The engine
 accepts that value and returns the matching `ProjectedExperienceFrame`.
+Each present Transit network produces one required projected frame. That frame
+stores the semantic source revision, so the prepared value cannot omit it.
 ThrowUI erases the closed output once in
 `ProjectionFrame.swift`, at the renderer boundary.
 

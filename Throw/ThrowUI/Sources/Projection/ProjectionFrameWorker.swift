@@ -200,24 +200,19 @@ actor ProjectionFrameWorker {
                 target = present(projected)
             case let .transit(request):
                 let projectionInput = request.input
-                let network: ProjectedLayerFrame<TransitNetworkLayerKind>? = if let layerFrame =
-                    projectionInput.frame.network
-                {
+                let preparedInput = try PreparedTransitProjectionInput(
+                    input: projectionInput,
+                    geography: geographyResult.projection,
+                ) { layerFrame in
                     try projectedTransitNetworkLayer(
                         layerFrame,
                         mapCenter: mapCenter,
                         viewport: viewport,
                         calibration: calibration,
                     )
-                } else {
-                    nil
                 }
                 let projected = try engine.frame(
-                    input: .transit(PreparedTransitProjectionInput(
-                        input: projectionInput,
-                        geography: geographyResult.projection,
-                        network: network,
-                    )),
+                    input: .transit(preparedInput),
                     observer: observer,
                     mapCenter: mapCenter,
                     calibration: calibration,

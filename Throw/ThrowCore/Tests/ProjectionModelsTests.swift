@@ -184,6 +184,7 @@ struct ProjectionModelsTests {
         )
         let geography = ProjectedLayerFrame<GeographyLayerKind>.testing(lines: lines)
         let network = ProjectedLayerFrame<TransitNetworkLayerKind>.testing(lines: lines)
+        var projectedMissingNetwork = false
         let sky = PreparedAirAndSpaceProjectionInput(
             input: AirAndSpaceProjectionInput(
                 frame: .empty,
@@ -198,12 +199,51 @@ struct ProjectionModelsTests {
                 geography: .hidden,
             ),
             geography: geography,
-            network: network,
+            projectNetwork: { _ in
+                projectedMissingNetwork = true
+                return network
+            },
         )
 
         #expect(sky.geography == nil)
         #expect(transit.geography == nil)
         #expect(transit.network == nil)
+        #expect(projectedMissingNetwork == false)
+    }
+
+    @Test func preparedTransitPairsARequiredNetworkWithItsProjection() throws {
+        let mapViewport = try MapViewport(radius: NauticalMiles(value: 50))
+        let source = ProjectionLayerFrame<TransitNetworkLayerKind>(
+            observedAt: ThrowCoreFixture.date,
+            lines: [],
+        )
+        let projected = ProjectedLayerFrame<TransitNetworkLayerKind>.testing(
+            lines: ProjectedLineCollection.testing(
+                id: ProjectionLineRevisionID.testing(rawValue: 1),
+                segments: [],
+            ),
+        )
+        var projectedSource: ProjectionLayerFrame<TransitNetworkLayerKind>?
+
+        let prepared = PreparedTransitProjectionInput(
+            input: TransitProjectionInput(
+                frame: TransitExperienceFrame(
+                    geography: nil,
+                    network: source,
+                    vehicles: nil,
+                ),
+                viewport: mapViewport,
+                geography: .hidden,
+            ),
+            geography: nil,
+        ) { source in
+            projectedSource = source
+            return projected
+        }
+
+        #expect(projectedSource == source)
+        #expect(prepared.network?.sourceRevision == source.observedAt)
+        #expect(prepared.network?.frame == projected)
     }
 
     @Test func projectedExperienceCollectsMarksFromItsTypedLayers() throws {

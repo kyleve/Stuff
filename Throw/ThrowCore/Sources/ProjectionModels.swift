@@ -1284,23 +1284,42 @@ public struct PreparedAirAndSpaceProjectionInput: Hashable, Sendable {
     }
 }
 
+/// One projected line layer paired with the semantic revision that produced it.
+struct PreparedProjectionLineLayer<Layer: ProjectionLineLayerKind>: Hashable {
+    let sourceRevision: Date
+    let frame: ProjectedLayerFrame<Layer>
+
+    fileprivate init(
+        source: ProjectionLayerFrame<Layer>,
+        frame: ProjectedLayerFrame<Layer>,
+    ) {
+        sourceRevision = source.observedAt
+        self.frame = frame
+    }
+}
+
 /// Transit input after static lines are projected for the current geometry.
 public struct PreparedTransitProjectionInput: Hashable, Sendable {
     let viewport: MapViewport
     let geography: ProjectedLayerFrame<GeographyLayerKind>?
-    let network: ProjectedLayerFrame<TransitNetworkLayerKind>?
-    let networkSourceRevision: Date?
+    let network: PreparedProjectionLineLayer<TransitNetworkLayerKind>?
     let vehicles: ProjectionLayerFrame<TransitVehiclesLayerKind>?
 
     public init(
         input: TransitProjectionInput,
         geography: ProjectedLayerFrame<GeographyLayerKind>?,
-        network: ProjectedLayerFrame<TransitNetworkLayerKind>?,
-    ) {
+        projectNetwork: (
+            ProjectionLayerFrame<TransitNetworkLayerKind>
+        ) throws -> ProjectedLayerFrame<TransitNetworkLayerKind>,
+    ) rethrows {
         viewport = input.viewport
         self.geography = input.geography == .visible ? geography : nil
-        self.network = input.frame.network == nil ? nil : network
-        networkSourceRevision = input.frame.network?.observedAt
+        network = try input.frame.network.map { source in
+            try PreparedProjectionLineLayer(
+                source: source,
+                frame: projectNetwork(source),
+            )
+        }
         vehicles = input.frame.vehicles
     }
 }

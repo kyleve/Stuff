@@ -82,7 +82,7 @@ Read the root [`AGENTS.md`](../../AGENTS.md) and group
 - Publish a worker result only when its typed request still matches the current
   semantic revision and complete projection context.
 - Build one closed `PreparedProjectionExperienceInput` after static-line
-  projection. Never send the engine parallel semantic and projected arrays.
+  projection. Project each present Transit network through the required builder.
 - Cache each typed static-line frame with its semantic revision and full
   projection context. Never rebuild or replace its projected payload by hand.
 - Keep `ProjectedExperienceFrame` typed through the projection worker. Erase it

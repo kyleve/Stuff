@@ -166,7 +166,8 @@ The production worker accepts one typed `ProjectionFrameRequest`. This request
 stores its semantic input, revision, observer, map center, calibration, and motion setting.
 Core projects static lines, then creates one closed
 `PreparedProjectionExperienceInput`. Each cached static-line frame retains its
-semantic revision and projection context. `ProjectionEngine` rejects stale or
+semantic revision and projection context. A present Transit network requires a
+projected frame in the prepared input. `ProjectionEngine` rejects stale or
 mismatched prepared lines and returns the matching `ProjectedExperienceFrame`.
 This value fixes each experience's valid projected layers and modes.
 `ProjectionFrame.swift` erases it once into renderer layers. Raw construction

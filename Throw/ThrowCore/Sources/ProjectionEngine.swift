@@ -86,8 +86,8 @@ public struct ProjectionEngine: Sendable {
                     geometry: geometry,
                 )
                 try validateLineContext(
-                    input.network,
-                    expectedSourceRevision: input.networkSourceRevision,
+                    input.network?.frame,
+                    expectedSourceRevision: input.network?.sourceRevision,
                     mapCenter: mapCenter,
                     viewport: viewport,
                     calibration: calibration,
@@ -230,7 +230,7 @@ public struct ProjectionEngine: Sendable {
         return try TransitProjectedFrame(
             generatedAt: generatedAt,
             geography: input.geography,
-            network: input.network,
+            network: input.network?.frame,
             vehicles: projectedMarkLayer(
                 input.vehicles,
                 observer: observer,
